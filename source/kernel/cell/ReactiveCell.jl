@@ -6,11 +6,26 @@ using ..PerformanceCounterModule
 """
     ReactiveCell{T}   (alias: `Cell`; `Cell(v)` ≡ `ReactiveCell{Any}(v)`)
 
-A reactive cell that holds either a primitive value or a lazy computation.
-Dependency tracking is automatic: when a computed cell evaluates its thunk,
-every `ReactiveCell` read via `c[]` is recorded as a dependency. When any
-upstream cell changes, all downstream dependents are invalidated and will
-recompute on next read.
+A box that holds a value, or a computation of one that runs when the value is
+read.
+
+Use it to keep a value that others depend on: a cell remembers who read it, so
+a write tells them, and each of them computes again the next time it is read.
+Nothing recomputes until it is read, and nothing recomputes that did not depend
+on what changed. Every field of a document is one of these, which is how an
+edit redraws the part of the screen it touched and no more.
+
+# Example
+
+    width = Cell(80)
+    label = ComputedCell(() -> "the width is " * string(width[]))
+    label[]            # "the width is 80"
+    width[] = 120
+    label[]            # "the width is 120", computed again on this read
+
+See also `set_cell_function!` and `set_cell_value!`, which change what a cell
+holds; `ImmutableCell` and `MutableCell`, which hold a value and tell nobody;
+and the guide `kernel/cell`.
 
 # Construction
 
@@ -75,6 +90,23 @@ end
     (d = c.dependents; d === nothing ? (c.dependents = WeakRef[]) : d)
 
 """
+    Cell(value)
+
+A reactive cell that holds a value of any type: the name almost every caller
+writes.
+
+Use it to make one field, one parameter or one result reactive without saying
+what type it holds. `Cell(3)` holds a number, `Cell("a")` a string, and
+`ComputedCell(f)` a computation. A cell of a stated type, which reads without a
+conversion, is `ReactiveCell{T}`.
+
+# Example
+
+    jobs = Cell(4)
+    jobs[] = 8         # everything that read `jobs` computes again when read
+
+See also `ReactiveCell`, which this names, and `set_cell_function!`.
+
 `Cell` is a `const` alias for the **concrete** `ReactiveCell{Any}` — the untyped
 reactive cell. It is deliberately concrete (not an abstract alias) so
 `Vector{Cell}`, `Set{Cell}` and `::Cell` struct fields stay concretely typed,
@@ -90,8 +122,21 @@ ReactiveCell(value) = ReactiveCell{Any}(value)
 """
     ComputedCell(f) -> Cell
 
-The untyped computed cell — `ReactiveCell{Any}(Computed(f))`, with `f` the
-zero-argument thunk. A typed one is spelled `ReactiveCell{T}(Computed(f))`.
+A cell whose value is computed by `f`, the first time it is read and after
+anything it read has changed.
+
+Use it to state a derived value where it belongs, beside the thing that has it,
+instead of computing it again at every place that needs it. `f` takes no
+argument. A cell of a stated type is `ReactiveCell{T}(Computed(f))`.
+
+# Example
+
+    rows = Cell(["a", "b"])
+    count = ComputedCell(() -> length(rows[]))
+    count[]            # 2
+
+See also `Cell`, which holds a value, and `set_cell_function!`, which turns one
+into the other.
 """
 ComputedCell(f::Function) = ReactiveCell{Any}(Computed(f))
 
@@ -208,18 +253,45 @@ end
 """
     set_cell_value!(c, value)
 
-Equivalent to `c[] = value`. Turns `c` into a primitive cell.
+Put a value into a cell, and let everything that read it know.
+
+Use it to write a cell that held a computation and must now hold a value, or to
+write one from code that reads better with a verb than with `c[] = value`,
+which does the same. Everything that read the cell computes again on its next
+read.
+
+# Example
+
+    width = ComputedCell(() -> 2 * margin[])
+    set_cell_value!(width, 80)      # a number now, and no computation
+
+See also `set_cell_function!`, for the other direction, and `unwrap_cell`.
 """
 set_cell_value!(c::ReactiveCell, value) = (c[] = value)
 
 """
     set_cell_function!(c, thunk::Function)
 
-Turn `c` into a computed cell. `thunk` is a zero-argument function that
-will be called lazily. Dependents are invalidated immediately. The previous
-value stays cached in the (now invalid) cell until the first read replaces it
-— a typed cell cannot hold a `nothing` placeholder; when `T` admits `nothing`
-the value is cleared eagerly so the old object is released.
+Make a cell compute its value, instead of holding one.
+
+Use it to derive one value from others after the thing that holds it was built:
+a title that follows a name, a width that follows a margin, a list that follows
+a filter. `thunk` takes no argument and is called on the first read after a
+write, not before; every cell it reads becomes one the cell depends on.
+
+# Example
+
+    total = Cell(0)
+    set_cell_function!(total, () -> length(rows[]))
+    total[]            # counted now, and again after `rows` changes
+
+Dependents are invalidated immediately. The previous value stays cached in the
+(now invalid) cell until the first read replaces it — a typed cell cannot hold a
+`nothing` placeholder; when `T` admits `nothing` the value is cleared eagerly so
+the old object is released.
+
+See also `set_cell_value!`, for the other direction, `ComputedCell`, which
+builds such a cell, and the guide `kernel/cell`.
 """
 function set_cell_function!(c::ReactiveCell{T}, thunk::Function) where {T}
     _detach_upstream!(c)
@@ -249,6 +321,21 @@ is_cell_up_to_date(cs::Vector{Cell}) = all(is_cell_up_to_date, cs)
 
 """
     peek(c::ReactiveCell)
+
+Read a cell without becoming one of the things it tells.
+
+Use it to look at a value from inside a computation that must not depend on it:
+a counter, a clock, a cache of the last answer. An ordinary read, `c[]`, makes
+the computation depend on the cell; this one does not.
+
+# Example
+
+    drawn = ComputedCell(() -> begin
+        count = peek(frames)        # looked at, not depended on
+        "frame " * string(count) * " of " * title[]
+    end)
+
+See also `Cell` and the guide `kernel/cell`.
 
 Read a cell's value **without** registering a dependency (an untracked read).
 Unlike `c[]`, calling this inside a computed thunk does not make the thunk a

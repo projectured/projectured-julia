@@ -122,8 +122,19 @@ make_pred_document(T::Type, positional, keywords) =
 """
     parse_pred_text(text) -> Document
 
-The document `text` constructs. A call naming a registered type builds one; any
-other call is a reference, which the load splices once the whole set is parsed.
+Build the document that a saved text describes.
+
+Use it to load what was written to a file: the text is the document written as
+the call that builds it, and this runs that call. A call naming a registered
+type builds one; any other call is a reference, which the load splices once the
+whole set is parsed.
+
+# Example
+
+    document = parse_pred_text(read("study.pred", String))
+
+See also `print_pred_text`, which writes the text this reads, and
+`register_pred_type!`, which says what a text may name.
 """
 function parse_pred_text(text::AbstractString)
     expression = _parse_marker_expression(strip(text))
@@ -179,6 +190,18 @@ end
 
 """
     print_pred_text(document) -> String
+
+Write a document as the text that builds it again.
+
+Use it to save a document to a file, or to compare two documents by what they
+would be saved as. The text is the document's own constructor call, and reading
+it back gives a document that prints the same text.
+
+# Example
+
+    write("study.pred", print_pred_text(study))
+
+See also `parse_pred_text`, which reads it back.
 
 `document` as its own constructor, in one canonical form: every declared field
 in declaration order, and one way to write each value. The write gate compares

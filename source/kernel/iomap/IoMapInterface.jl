@@ -5,6 +5,23 @@
 """
     IoMap
 
+What a projection made, and what it made it from: the record that lets an edit
+find its way home.
+
+Use it to hold the result of showing a document. It carries the projection, the
+document that went in, and what came out, so a later click on the output can be
+carried back to the place in the input that it belongs to. Every printer
+answers one.
+
+# Example
+
+    iomap = print_document(projection, projection, document, PrinterContext())
+    get_iomap_output(iomap)          # what is shown
+    get_iomap_input(iomap)           # what it was made from
+
+See also `print_document`, `read_intent`, and the guide
+`kernel/projection-system`.
+
 Abstract supertype for all IoMap types. Every IoMap subtypes this and exposes the
 three accessors [`get_iomap_projection`](@ref), [`get_iomap_input`](@ref) and
 [`get_iomap_output`](@ref) — which `projection` produced it and the
@@ -31,6 +48,17 @@ function get_iomap_input end
 
 """
     get_iomap_output(iomap) -> output
+
+What a projection made: the document as it is shown.
+
+Use it to take the result of a print, to draw it, to measure it, or to hand it
+to the next projection of a chain.
+
+# Example
+
+    drawn = get_iomap_output(print_document(projection, projection, document, context))
+
+See also `get_iomap_input`, for what it was made from, and `IoMap`.
 
 The output-domain value `iomap` maps to — usually a `Document`, but a terminal
 projection may map to a plain value (e.g. a string). Answered from the conventional

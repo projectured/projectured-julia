@@ -6,6 +6,20 @@
 """
     get_selection(document) -> reference or nothing
 
+Where the cursor stands in a document, or nothing when it stands nowhere.
+
+Use it to read what a person has selected before acting on it: the word under
+the caret, the row of a table, the tab a click landed in. It answers a
+reference, which is a path to the place, not the value there.
+
+# Example
+
+    place = get_selection(document)
+    place === nothing || println("the cursor is at ", place)
+
+See also `set_selection!`, which moves it, and `get_referenced_value`, which
+reads what is there.
+
 The document's current selection — a reference path or `nothing`. Every document
 has one (the [`Document`](@ref) contract requires a `selection` field); the
 default reads that conventional field, so a concrete document gets it for free,
@@ -16,6 +30,19 @@ function get_selection end
 """
     clear_selection!(document)
 
+Take the cursor out of a document.
+
+Use it before showing a document that nobody is editing, or to drop a selection
+that an edit made meaningless. It clears the whole document, not only its root,
+so no nested part keeps a stale place.
+
+# Example
+
+    clear_selection!(document)
+    get_selection(document)        # nothing
+
+See also `set_selection!` and `get_selection`.
+
 Recursively clears the selection from `document` and all its children. Sets the
 document's `selection` field to `nothing` and traverses the reference path to
 clear selections from nested structures.
@@ -24,6 +51,20 @@ function clear_selection! end
 
 """
     set_selection!(document, path)
+
+Put the cursor at a place in a document.
+
+Use it to move the caret after an edit, to select what a search found, or to
+build a document that opens with something already selected. The path is made
+canonical against the document first, so a path written by hand reaches the
+same place as one the editor built.
+
+# Example
+
+    set_selection!(document, @reference(document, rows[2].name))
+
+See also `get_selection`, `clear_selection!`, and `with_selection`, which does
+this while building.
 
 Recursively sets the selection on `document` and its children to `path`.
 

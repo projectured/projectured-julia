@@ -9,13 +9,41 @@
 """
     ReferenceStep
 
-Abstract base type for reference steps. Each subtype describes how to
-descend one level into a document structure.
+One step of an address: a field, an element, a range, or a check.
+
+Use it when you build or read a path a step at a time. A structural step goes
+one level down, into a field or an element; a checkpoint step stays where it is
+and states what must be true there, which is what keeps a path honest while the
+document changes.
+
+# Example
+
+    for step in reference
+        get_reference_step_kind(step) === :structural && println(step)
+    end
+
+See also `Reference`, the whole path, `evaluate_reference_step`, which walks
+one, and the guide `kernel/reference`.
 """
 abstract type ReferenceStep end
 
 """
     Reference
+
+The address of a place in a document: which field, which element, how deep.
+
+Use it to name a place without holding what is there: a selection, the target of
+an edit, the tab a verb opened. A reference stays meaningful while the document
+changes around it, and a projection can carry it from what is held to what is
+shown and back.
+
+# Example
+
+    place = @reference(document, rows[2].name)
+    value = get_referenced_value(editor, place)
+
+See also `ReferenceStep`, the one step it is built of, `get_selection`, and the
+guide `kernel/reference`.
 
 Abstract base type for a path into a document. Implemented as an
 immutable linked list so that extending a path (going deeper) reuses
@@ -38,6 +66,19 @@ function get_reference_step_kind end
 
 """
     evaluate_reference_step(step, document) -> child
+
+Take one step of an address, and answer what is there.
+
+Use it to walk a path by hand, or to write a step of your own: every kind of
+step answers for itself. A structural step answers the child it reaches and
+throws when the document has no such place; a checkpoint answers the document it
+was given, having checked what it states.
+
+# Example
+
+    child = evaluate_reference_step(step, document)
+
+See also `Reference`, `ReferenceStep` and `get_reference_step_kind`.
 
 Navigate through `step`. For a `:structural` step, return the descended
 value (throws on descent failure). Some step types descend to a document

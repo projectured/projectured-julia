@@ -9,6 +9,25 @@
 """
     Document
 
+What the editor edits: data with a shape, which a projection can show and a
+person can change.
+
+Use it as the type of anything that is content rather than presentation: a
+table of results, a chart, a page of a study, a pane tree, a line of text. A
+document holds its fields in cells, so a change to one part redraws that part;
+it carries its own selection; and a projection turns it into another document,
+which is how it reaches a screen.
+
+# Example
+
+    @document struct Note <: Document
+        title::String = ""
+        body::String = ""
+    end
+
+See also `@document`, which declares most of them, `Projection`, which shows
+one, and the guide `design/concepts`.
+
 Abstract base type for all document types. Most concrete documents are
 declared with the [`@document`](@ref) macro (in the sibling
 [`DocumentMacro.jl`](DocumentMacro.jl) fragment), which wraps fields in

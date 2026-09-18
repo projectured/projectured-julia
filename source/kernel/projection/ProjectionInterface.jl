@@ -9,6 +9,21 @@
 """
     Projection
 
+A rule that shows one kind of document as another.
+
+Use it as the type of anything that turns what a document holds into what a
+reader sees: a tree of data into text, text into what is drawn, a chart into
+lines and words. A projection pairs a printer, which goes one way, with a
+reader, which brings an edit back, so what is shown can be edited.
+
+# Example
+
+    struct BoxToText <: Projection end
+    print_document(::BoxToText, recursion, box, context) = SimpleIoMap(...)
+
+See also `print_document` and `read_intent`, the two halves, and the guide
+`kernel/projection-system`.
+
 Abstract base type for all projection types, primitive and higher-order alike.
 Subtype this to inherit the default `map_reference_forward`,
 `map_reference_backward` and `read_intent` behaviour, which every projection
@@ -18,6 +33,24 @@ abstract type Projection end
 
 """
     print_document(projection, recursion, input, context::PrinterContext) -> iomap
+
+Show a document as another one: the half of a projection that goes from what is
+held to what is seen.
+
+Use it to run a projection over a document and get both the result and the map
+back to where each part came from. Call it to draw a document, to serialize
+one, or to see what a projection makes of an input while writing one. What it
+answers is an IoMap: the output, and what a later edit needs to find its way
+home.
+
+# Example
+
+    iomap = print_document(projection, projection, document, PrinterContext())
+    drawn = iomap.output
+
+See also `read_intent`, which brings an edit back the other way,
+`map_reference_forward`, which follows a place through, and the guide
+`kernel/projection-system`.
 
 Forward half of a projection: transform `input` from this projection's input
 domain into its output domain. Returns an `IoMap` recording `projection`,
@@ -131,6 +164,23 @@ function print_child_pure end
 """
     read_intent(projection, recursion, change::Intent, iomap) -> Intent
 
+Turn what a person did on what they see into an edit of what the document
+holds: the half of a projection that comes back.
+
+Use it to say what a key press, a click or a drag means for the input of a
+projection. It takes the gesture or the edit that the output domain received,
+and answers the edit for the input domain, or nothing when this projection has
+nothing to say about it. Most projections need no method of their own: the
+default moves the cursor by mapping its place back.
+
+# Example
+
+    read_intent(::BoxToText, iomap, event::KeyDown) =
+        event.key == :backspace ? ShrinkBoxOperation(iomap.input) : nothing
+
+See also `print_document`, which goes the other way, `map_reference_backward`,
+which brings a place back, and the guide `kernel/projection-system`.
+
 Backward half of a projection — the symmetric dual of `print_document`: both
 read `(projection, recursion, payload, context)`. The payload is a `Intent`
 (gesture + operation); the context is the printer's `iomap` (the correspondence
@@ -192,6 +242,21 @@ function read_intent end
 
 """
     map_reference_forward(projection, iomap, reference) -> reference_or_nothing
+
+Follow a place in a document to where it is shown.
+
+Use it to carry a selection, a caret or a coordinate from what a document holds
+to what a reader sees, through one projection. It answers nothing when the
+place is not shown at all, which is what a projection that hides a part says.
+The printer wires the shown selection with it, so a projection that maps its own
+one step gets the moving cursor for nothing.
+
+# Example
+
+    shown = map_reference_forward(projection, iomap, document.selection)
+
+See also `map_reference_backward`, which goes the other way, and the guide
+`kernel/reference`.
 
 Map an **input reference** (steps understood from `projection`'s input
 document) to an **output reference** (steps understood from its output

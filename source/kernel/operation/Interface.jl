@@ -6,13 +6,40 @@
 """
     Operation
 
-Abstract supertype for all domain operations. Concrete operations are produced
-by the reader side of the projection pipeline and applied by `evaluate_operation`.
+One change of a document, as a value: what is changed, where, and to what.
+
+Use it as the type of anything a person's act means for a document. A reader
+answers one of these instead of changing the document itself, so the change can
+be inspected, refused, logged, undone, or sent somewhere else before it happens.
+
+# Example
+
+    struct ShrinkBoxOperation <: Operation
+        box::Any
+    end
+    evaluate_operation(editor, o::ShrinkBoxOperation) = (o.box.width[] -= 1)
+
+See also `evaluate_operation`, which applies one, and `read_intent`, which
+answers one.
 """
 abstract type Operation end
 
 """
     evaluate_operation(editor, operation::Operation)
+
+Carry out a change: the one place where a document is written.
+
+Use it to apply what a reader answered. Every concrete operation adds a method
+of its own, which reaches for what it needs on the editor, most often the
+document it holds. Nothing else writes a document, so what happened to one is
+what was evaluated on it.
+
+# Example
+
+    change = read_intent(projection, iomap, event)
+    change === nothing || evaluate_operation(editor, change)
+
+See also `Operation`, `read_intent`, and `invalidate_projection!`.
 
 Apply `operation` against `editor`. The `editor` is whatever object holds the
 mutable runtime state the operation needs, with `editor.document` carrying the

@@ -15,6 +15,20 @@ copy_cell_as(c::ImmutableCell{T}, v) where {T} = ImmutableCell{T}(v)
 """
     is_computed_cell(cell) -> Bool
 
+Whether a cell computes its value or stores one.
+
+Use it to tell a derived value from a written one before copying, printing or
+freezing a document: the value of a computed cell is one moment of a
+computation, and a cell that stores that moment stops following what the
+computation reads.
+
+# Example
+
+    is_computed_cell(Cell(3))                       # false
+    is_computed_cell(ComputedCell(() -> 3))         # true
+
+See also `set_cell_function!`, which makes a cell compute, and `copy_cell_as`.
+
 `true` when `cell` computes its value with a thunk, and `false` when it stores
 the value it was given. Only the reactive kind can compute, so the stored kinds
 always answer `false`.

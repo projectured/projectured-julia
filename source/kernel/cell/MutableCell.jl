@@ -3,6 +3,21 @@
 """
     MutableCell{T}
 
+A box that holds a value and tells nobody when it changes.
+
+Use it for state that changes often and that nothing computes from: a counter, a
+scroll offset kept for one frame, a cursor position a renderer reads once per
+draw. It costs almost nothing to read or write, and nothing recomputes because
+of it. When something must follow the value, use a reactive cell instead.
+
+# Example
+
+    frames = MutableCell(0)
+    frames[] += 1
+
+See also `ReactiveCell`, which tells its readers, and `ImmutableCell`, which
+cannot be written.
+
 A plain mutable box: `c[]` reads, `c[] = v` writes. **No reactive bookkeeping**
 — reading it inside a reactive thunk registers no dependency, and writing it
 invalidates nothing (by design: this is the high-frequency-mutation kind).
