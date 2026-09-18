@@ -121,6 +121,7 @@ function __init__()
 end
 
 include("ExportCollisionTest.jl")
+include("SearchScaleTest.jl")
 include("PackageGraphTest.jl")
 # The tree guard, which lives at the repository root rather than in a package:
 # it reads directories and project files, and it has to run before the packages
@@ -342,6 +343,9 @@ function test_all()
     # see this.
     test_export_collision_checker()
     test_export_collisions()
+    # The corpus a search answers on when a window declares what it can draw:
+    # thousands of names, with the questions a person asks of them.
+    test_search_scale()
     # Umbrella integration: everything below needs the example registry, the
     # editor loop, or an opt-in backend package (Sdl/Tulip/Odbc/Video).
     test_gesture_recognizer()
@@ -405,6 +409,7 @@ export test_all, test_domain_examples, test_package_graph, test_tree, test_namin
        test_documentation
 export test_kernel, test_substrate, test_domain
 export test_export_collisions, test_export_collision_checker, export_collisions
+export test_search_scale
 export test_type_reference, test_event_case, test_gesture_binding, test_focusing, test_console_backend, test_gesture_recognizer
 export test_json_document, test_syntax, test_text, test_graphics, test_affine_transform, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_constraint_solver, test_collection, test_primitive, test_json_parser, test_xml_parser, test_sql_parser, test_serialization
 export test_formula_to_syntax, test_projection_template_hygiene

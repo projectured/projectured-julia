@@ -102,6 +102,7 @@ include(joinpath(_EXAMPLE_DIR, "Gallery.jl"))
 include(joinpath(_EXAMPLE_DIR, "FileEditor.jl"))
 include(joinpath(_EXAMPLE_DIR, "ValueViewer.jl"))
 include(joinpath(_EXAMPLE_DIR, "Application.jl"))
+include(joinpath(_EXAMPLE_DIR, "SearchScaleCorpus.jl"))
 export run_value_viewer, make_value_viewer
 export run_application, make_application_document, make_application_projection,
        make_application_assistant, make_application_content_projections,
@@ -405,6 +406,8 @@ export make_clipboard_document_example, make_clipboard_projection_example
 export clipboard_example
 export make_versioning_document_example, make_versioning_projection_example
 export versioning_example
+export SCALE_SEARCH_MODULE_NAMES, SCALE_SEARCH_QUESTIONS, get_scale_search_modules,
+       measure_projectured_search_scale!
 export make_dragging_document_example, make_dragging_projection_example
 export dragging_example
 

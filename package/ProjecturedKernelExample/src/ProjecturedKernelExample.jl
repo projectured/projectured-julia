@@ -26,6 +26,9 @@ using ProjecturedKernel.CellModule
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.BackendModule
+import ProjecturedKernel.ToolModule
+import ProjecturedKernel.ToolModule: ToolSet, declare_api!, search_api, search_guides
+import ProjecturedKernel.LlmModule: bind_meaning_model!
 import ProjecturedKernel.LlmModule: Llm, stream_turn, LlmRequest, LlmToolUse,
     has_meaning_model, get_meaning_model_name, compute_meaning_vectors,
     LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
@@ -37,11 +40,13 @@ include("../../../example/kernel/Harness.jl")
 include("../../../example/kernel/LlmFake.jl")         # FakeLlm — canned-reply test double (no network)
 include("../../../example/kernel/LlmScripted.jl")     # ScriptedLlm + scripted-round builders
 include("../../../example/kernel/BackendHeadless.jl") # HeadlessBackend — in-memory backend test double
+include("../../../example/kernel/SearchScaleMeasurement.jl") # what a search costs on a large corpus
 
 export Example, AtomicDocument, force_projected
 export write_example_image, record_example_video, make_typein_gestures
 export FakeLlm, ScriptedLlm,
        make_scripted_turn, make_scripted_think, make_scripted_say, make_scripted_run
 export HeadlessBackend, rendered_output, push_event!
+export ScaleQuestion, measure_search_scale!
 
 end # module ProjecturedKernelExample
