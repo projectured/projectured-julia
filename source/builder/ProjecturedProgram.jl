@@ -29,6 +29,8 @@ const PROJECTURED_OPTIONS = [
     "--model=NAME" => "the model of that backend (default: the default\nmodel of the backend)",
     "--root=DIRECTORY" => "the directory that the navigator lists (default:\nthe current directory)",
     "--mcp" => "start an MCP server at http://127.0.0.1:9876/mcp",
+    "--context=TOKENS" => "how many tokens of the conversation the model may\nsee (default: the default of the backend)",
+    "--gesture-log" => "list the last gestures and what each one did, in a\ncorner of the window",
 ]
 
 """

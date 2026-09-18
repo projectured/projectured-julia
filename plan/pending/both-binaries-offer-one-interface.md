@@ -756,6 +756,39 @@ the work decided:
 
 ### Step 2 — the application gets the clipboard, the walk and two flags
 
+**Done 2026-09-18.** `test_application()` is 78 pass, 0 fail: the 72 of the
+baseline plus six new assertions on the two flags.
+
+**The clipboard changes what the document root is.** Found while implementing,
+2026-09-18. `make_clipboard_document` wraps the pane tree in a `ClipboardSlice`,
+so `editor.document` stops being the tree and every caller that reaches for one
+must go through `get_window_tree`, which already has a `ClipboardSlice` method
+([source/pane/PaneProgram.jl:169](../../source/pane/PaneProgram.jl#L169)). The
+application suite reached past it in two places and errored at once.
+
+Two consequences beyond this step:
+
+- omnet already lives with this, because its interface turns the clipboard on.
+  A verb of either binary that reads the tree directly is a fault waiting for
+  the day the clipboard is switched on under it.
+- It sharpens what §2.7 hands to the other plan: the wrapper is not only saved to
+  the `.pred` file, it is the root of what gets saved.
+
+**And it found a real fault.** `OpenWorkspaceFileOperation` asked `window isa
+PaneTree` and answered "the window holds no workbench and no pane tree" for a
+wrapped one, so **the navigator could not open a file at all** once the clipboard
+was on. Its workbench branch never had the fault, because it finds the workbench
+by a walk. The pane branch now does the same, with `_find_pane_tree`
+([source/workbench/WorkbenchFile.jl](../../source/workbench/WorkbenchFile.jl)).
+A type test against the root of a document is the shape of this fault, and
+`get_window_tree` exists so that nothing has to write one.
+
+- [x] Turn on `selection` with all six clipboard gestures.
+- [x] `--gesture-log` and `--context` in the parser, the usage table and the
+      `--help` text, with the suite that holds the three in step.
+- [x] `--context` reaches the `Assistant` through its `context` field.
+- [x] The greeting names the keys the wrappers turned on.
+
 - [ ] Turn on `selection` in the application's call to `make_window_wrap`, with
       all six clipboard gestures (§3.9).
 - [ ] Add `--gesture-log` and `--context` to `parse_application_arguments`, to

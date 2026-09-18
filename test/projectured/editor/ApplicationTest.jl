@@ -89,13 +89,18 @@ function test_application()
             @test command.files == String[]
             @test command.backend === nothing && command.assistant === :ollama
             @test command.model == "" && !command.mcp
+            @test command.context == 0 && !command.gesture_log
             command = parse_application_arguments(
                 ["a.json", "--backend=web", "--assistant=none",
-                 "--model=small", "--root=/tmp", "--mcp", "b.md"])
+                 "--model=small", "--root=/tmp", "--mcp", "--context=8192",
+                 "--gesture-log", "b.md"])
             @test command.files == ["a.json", "b.md"]
             @test command.backend === :web
             @test command.assistant === :none && command.model == "small"
             @test command.root == "/tmp" && command.mcp
+            @test command.context == 8192 && command.gesture_log
+            @test_throws ErrorException parse_application_arguments(["--context=many"])
+            @test_throws ErrorException parse_application_arguments(["--context=-1"])
             @test_throws ErrorException parse_application_arguments(["--colour=red"])
             @test_throws ErrorException parse_application_arguments(["-x"])
             @test_throws ErrorException parse_application_arguments(["--assistant=gpt"])
@@ -112,9 +117,12 @@ function test_application()
             usage = make_projectured_usage([:sdl, :web])
             flags = Set(first(split(label, '=')) for (label, _) in usage.options)
             @test flags == Set(["--backend", "--assistant", "--model",
-                                "--root", "--mcp"])
+                                "--root", "--mcp", "--context", "--gesture-log"])
+            # A flag spells a word with a hyphen and a keyword with an
+            # underscore, so `--gesture-log` is `gesture_log`.
             for flag in flags
-                @test haskey(pairs(parse_application_arguments(String[])), Symbol(flag[3:end]))
+                @test haskey(pairs(parse_application_arguments(String[])),
+                             Symbol(replace(flag[3:end], '-' => '_')))
             end
             @test !any(label -> startswith(first(label), "--backend"),
                        make_projectured_usage([:sdl]).options)

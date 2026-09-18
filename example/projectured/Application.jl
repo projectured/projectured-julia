@@ -31,6 +31,10 @@ function get_application_greeting_text(backend::Symbol)
         again from disk. F1 lists the keys that work where the focus is, and \
         Ctrl+Shift+P runs a command by its name.
 
+        Alt+click anything in a tab to select it, and Alt with an arrow to move \
+        the selection. Ctrl+C copies what is selected, Ctrl+X cuts it, Ctrl+N \
+        notes it, and Ctrl+V pastes it into a new tab from Ctrl+T.
+
         Ask me to read or change an open file, to explain its structure, or to \
         show a value in a new tab. I write Julia code and run it in this window.
         """
@@ -46,9 +50,11 @@ end
 
 The assistant pane of the application. `backend` is one of
 [`APPLICATION_ASSISTANTS`](@ref); `:none` answers `nothing`, and the window then
-has no assistant pane. An empty `model` means the default model of the backend.
+has no assistant pane. An empty `model` means the default model of the backend,
+and a `context` of `0` means its default token window.
 """
-function make_application_assistant(backend::Symbol; model::AbstractString = "")
+function make_application_assistant(backend::Symbol; model::AbstractString = "",
+                                    context::Integer = 0)
     backend in APPLICATION_ASSISTANTS ||
         error("make_application_assistant: the backend must be one of ",
               join(APPLICATION_ASSISTANTS, ", "), ", not ", repr(backend))
@@ -56,7 +62,7 @@ function make_application_assistant(backend::Symbol; model::AbstractString = "")
     greeting = ConversationConversation([
         ConversationTurn(:assistant, [ConversationPart(get_application_greeting_text(backend))])])
     Assistant(; conversation = greeting, backend = backend, model = String(model),
-                api_key = get(ENV, "ANTHROPIC_API_KEY", ""))
+                context = context, api_key = get(ENV, "ANTHROPIC_API_KEY", ""))
 end
 
 """
@@ -251,6 +257,11 @@ window closes.
 - `mcp` starts an MCP server beside the window, so an external client drives the
   same editor with the same tools.
 - `root` is the directory the navigator lists.
+- `context` is how many tokens of the conversation the model may see; `0` leaves
+  the backend's own answer. It matters for a local model, whose window costs
+  memory on this machine.
+- `gesture_log` puts a panel in a corner listing the last gestures and what each
+  one did.
 
 # Example
 
@@ -259,10 +270,11 @@ window closes.
 function run_application(paths::AbstractString...;
                          backend = nothing, assistant::Symbol = :ollama,
                          model::AbstractString = "", mcp::Bool = false,
-                         root::AbstractString = pwd(),
+                         root::AbstractString = pwd(), context::Integer = 0,
+                         gesture_log::Bool = false,
                          width = nothing, height = nothing,
                          measure = measure_truetype_text)
-    chat = make_application_assistant(assistant; model = model)
+    chat = make_application_assistant(assistant; model = model, context = context)
     document, projection = make_application_window(collect(String, paths);
                                                    root = root, assistant = chat,
                                                    gesture_log = gesture_log,
@@ -301,12 +313,15 @@ from `PROJECTURED_OPTIONS`, and a test compares the two.
 function parse_application_arguments(arguments::AbstractVector{<:AbstractString})
     values = Dict{String,String}("backend" => "",
                                  "assistant" => "ollama", "model" => "",
-                                 "root" => pwd())
+                                 "root" => pwd(), "context" => "0")
     mcp = false
+    gesture_log = false
     files = String[]
     for argument in arguments
         if argument == "--mcp"
             mcp = true
+        elseif argument == "--gesture-log"
+            gesture_log = true
         elseif startswith(argument, "--") && occursin('=', argument)
             key, value = split(argument[3:end], '='; limit = 2)
             haskey(values, key) || error("unknown option $(repr(argument))")
@@ -322,8 +337,11 @@ function parse_application_arguments(arguments::AbstractVector{<:AbstractString}
         error("--assistant is one of ", join(APPLICATION_ASSISTANTS, ", "), ", not ",
               repr(values["assistant"]))
     backend = isempty(values["backend"]) ? nothing : Symbol(values["backend"])
+    context = tryparse(Int, values["context"])
+    (context === nothing || context < 0) &&
+        error("--context is a count of tokens, not ", repr(values["context"]))
     (; files, backend, assistant,
-       model = values["model"], root = values["root"], mcp)
+       model = values["model"], root = values["root"], mcp, context, gesture_log)
 end
 
 """
@@ -355,7 +373,8 @@ function run_application_command(arguments; backends)
         run_application(command.files...;
                         backend = backends[backend](),
                         assistant = command.assistant, model = command.model,
-                        mcp = command.mcp, root = command.root)
+                        mcp = command.mcp, root = command.root,
+                        context = command.context, gesture_log = command.gesture_log)
         Cint(0)
     catch err
         err isa InterruptException && return Cint(0)
