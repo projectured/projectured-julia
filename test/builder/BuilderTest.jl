@@ -320,6 +320,46 @@ function test_builder()
                                    ignoring = ProjecturedBuilder._BUILD_TIMESTAMP)
         end
 
+        @testset "a manifest that names a path no package is at goes" begin
+            # A manifest names by path every package the build resolved, and a
+            # package that is deleted from the tree stays in it. `Pkg.resolve`
+            # reads that entry and throws `expected package to exist at path`.
+            # The project beside it names only the direct packages, so the
+            # entry is caught by the path on disk and not by the project.
+            mktempdir() do project
+                write(joinpath(project, "Project.toml"), """
+                    name = "T"
+                    uuid = "11111111-1111-1111-1111-111111111111"
+                    """)
+                mkpath(joinpath(project, "package", "A"))
+                manifest = joinpath(project, "Manifest.toml")
+                held = """
+                    [[deps.A]]
+                    path = "package/A"
+                    uuid = "22222222-2222-2222-2222-222222222222"
+                    """
+                write(manifest, held)
+                # Every path is on disk, so the manifest stays.
+                @test !ProjecturedBuilder._drop_stale_manifest(project)
+                @test isfile(manifest)
+
+                # The package goes, and the entry that names it is what
+                # `Pkg.resolve` would have thrown on.
+                rm(joinpath(project, "package", "A"); recursive = true)
+                @test ProjecturedBuilder._drop_stale_manifest(project)
+                @test !isfile(manifest)
+
+                # An entry with no path is a registered package, and it stays.
+                write(manifest, """
+                    [[deps.B]]
+                    uuid = "33333333-3333-3333-3333-333333333333"
+                    version = "1.0.0"
+                    """)
+                @test !ProjecturedBuilder._drop_stale_manifest(project)
+                @test isfile(manifest)
+            end
+        end
+
         @testset "a manifest that names another path than its project goes" begin
             # A package that is renamed or split between two builds leaves a
             # manifest the project no longer agrees with, and `Pkg.resolve`
@@ -331,12 +371,14 @@ function test_builder()
                     uuid = "11111111-1111-1111-1111-111111111111"
 
                     [sources.A]
-                    path = "../../package/A"
+                    path = "package/A"
                     """)
+                mkpath(joinpath(project, "package", "A"))
+                mkpath(joinpath(project, "package", "AOld"))
                 manifest = joinpath(project, "Manifest.toml")
                 agreeing = """
                     [[deps.A]]
-                    path = "../../package/A"
+                    path = "package/A"
                     uuid = "22222222-2222-2222-2222-222222222222"
                     """
                 write(manifest, agreeing)
@@ -345,6 +387,7 @@ function test_builder()
                 @test isfile(manifest)
 
                 # A path that differs is what the assertion would have died on.
+                # Both paths are on disk, so only the project catches this one.
                 write(manifest, replace(agreeing, "package/A" => "package/AOld"))
                 @test ProjecturedBuilder._drop_stale_manifest(project)
                 @test !isfile(manifest)

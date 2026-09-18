@@ -46,8 +46,9 @@ _create_app(args...; kwargs...) =
 """
     _drop_stale_manifest(project) -> Bool
 
-Delete the manifest beside `project` when it names another path for a package
-the project holds a source for. Answer whether it went.
+Delete the manifest beside `project` when a path it names is wrong. A path is
+wrong in two cases: no package is at that path, or the project holds another
+source path for that package. Answer whether the manifest went.
 
 **A manifest that disagrees is not resolved, it is an assertion.** `Pkg.resolve`
 walks the `[sources]` of the project against the entries of the manifest and
@@ -55,17 +56,32 @@ asserts `normpath(entry.path) == normpath(path)`; a package that was renamed or
 split between two builds fails there, with no line naming the file to delete.
 The manifest is a build artefact and the project beside it is the truth, so the
 one that disagrees goes.
+
+**A package that leaves the tree leaves its entry behind.** The manifest names
+by path every package the build resolved, direct and indirect alike, and the
+project names only the direct ones. A package that is deleted therefore stays in
+the manifest and in no `[sources]` table, and `Pkg.resolve` throws `expected
+package X to exist at path`. That path is gone, so the manifest is older than
+the tree, and it goes.
 """
 function _drop_stale_manifest(project::AbstractString)
     manifest = joinpath(project, "Manifest.toml")
     isfile(manifest) || return false
+    held = get(TOML.parsefile(manifest), "deps", Dict{String,Any}())
+    # A manifest holds one entry per name here, but the format is a list.
+    for (name, entries) in held, entry in entries
+        entry_path = get(entry, "path", nothing)
+        entry_path === nothing && continue
+        isdir(joinpath(project, entry_path)) && continue
+        @info "Removing $manifest: no package for $name is at the path it names" entry_path
+        rm(manifest)
+        return true
+    end
     sources = get(TOML.parsefile(joinpath(project, "Project.toml")), "sources", nothing)
     sources isa AbstractDict || return false
-    held = get(TOML.parsefile(manifest), "deps", Dict{String,Any}())
     for (name, source) in sources
         path = get(source, "path", nothing)
         path === nothing && continue
-        # A manifest holds one entry per name here, but the format is a list.
         for entry in get(held, name, ())
             entry_path = get(entry, "path", nothing)
             entry_path === nothing && continue
