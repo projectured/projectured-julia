@@ -10,18 +10,18 @@ has a title and a URL. By the end you will have a navigable bookmark editor
 that renders like this:
 
 ```
-▶ Julia programming language   https://julialang.org
-▶ ProjecturEd on GitHub        https://github.com/projectured/projectured
+- Julia programming language   https://julialang.org
+- ProjecturEd on GitHub        https://github.com/projectured/projectured
 ```
 
 Each step links to the relevant guide for deeper context.
 
-A domain is a package. Before Step 1, create `package/ProjecturedBookmark/`
-with a `Project.toml` and a `src/ProjecturedBookmark.jl` root module, as
-[domains.md](../design/domain-inventory.md) describes — the steps below fill it
-in. The package holds those two files and nothing else; the code goes in
-`source/bookmark/`, the documents in `example/bookmark/` and the suite in
-`test/bookmark/`.
+A domain is a package. Every main package the tutorial creates —
+`package/ProjecturedBookmark/`, `package/ProjecturedBookmarkExample/`,
+`package/ProjecturedBookmarkTest/` — is a flat sibling folder with its own
+`Project.toml`; there is no nested `main/`/`test/`/`example/` folder under one
+`package/bookmark/` directory. The code goes in `source/bookmark/`, the
+documents in `example/bookmark/`, and the suite in `test/bookmark/`.
 
 ---
 
@@ -40,37 +40,23 @@ A BookmarkList is an ordered collection of BookmarkEntry documents.
 """
 module BookmarkModule
 
-import ..CellModule: Cell
-import ..DocumentModule: Document, @document
-import ..CollectionModule: CellVector
-import ..ReferenceModule: Reference
+using ..CellModule
+using ..DocumentModule
+using ..CollectionModule
+using ..ReferenceModule
 
-export BookmarkDocument, BookmarkInsertion,
-       BookmarkEntry, BookmarkList
+export BookmarkDocument, BookmarkEntry, BookmarkList
 
 # ── Abstract base ──────────────────────────────────────────────────────────
 
 abstract type BookmarkDocument <: Document end
 
-# ── BookmarkInsertion ──────────────────────────────────────────────────────
-#
-# Every domain defines its own `…Insertion` type: it is the domain's *type-in
-# entry point* — the placeholder a user replaces by typing. Its reader (added
-# later) interprets the typed text in the domain's own terms (a JuliaInsertion
-# parses arbitrary Julia; a JsonInsertion builds JSON values). That is why the
-# Insertion type is per-domain rather than shared, even though the struct looks
-# generic here.
-#
-# NOTE: the abstract root, this insertion, a `BookmarkNothing` placeholder,
-# the Insert-key gesture and the insertion traits can all be generated from
-# one line — `@domain Bookmark` (see documentation/package/kernel/macros.md,
-# "`@domain`").
-# They are spelled out here so the tutorial shows what the macro expands to.
-
-@document struct BookmarkInsertion <: BookmarkDocument
-    value::Any
-end
-BookmarkInsertion() = BookmarkInsertion(Cell(nothing))
+# NOTE: the abstract root above, a BookmarkInsertion type-in entry point, a
+# BookmarkNothing placeholder, the Insert-key gesture, and the insertion traits
+# can all be generated from one line — `@domain Bookmark` (see
+# [macros.md](../package/kernel/macros.md), "`@domain`"). A real domain writes
+# that line; this tutorial skips it (and the insertion type it would need) to
+# keep the walkthrough to the two document types the projection step teaches.
 
 # ── BookmarkEntry ──────────────────────────────────────────────────────────
 
@@ -78,15 +64,11 @@ BookmarkInsertion() = BookmarkInsertion(Cell(nothing))
     BookmarkEntry(title, url)
 
 A single bookmark: a title string and a URL string.
-Both fields are reactive Cells.
 """
 @document struct BookmarkEntry <: BookmarkDocument
     title::String
     url::String
 end
-
-BookmarkEntry(title::AbstractString, url::AbstractString) =
-    BookmarkEntry(Cell(title), Cell(url))
 
 # ── BookmarkList ───────────────────────────────────────────────────────────
 
@@ -101,65 +83,81 @@ An ordered collection of BookmarkEntry documents.
     entries::CellVector
 end
 
-function BookmarkList(name::AbstractString, entries::Vector)
-    BookmarkList(Cell(name), Cell(CellVector(Cell[Cell(e) for e in entries])))
-end
-
-```
-
-The imports the projection needs, and the names it offers, go in the module
-file next to the ones Step 1 wrote:
-
-```julia
-import ..ProjectionApiModule: print_document, print_child,
-                              map_reference_forward, map_reference_backward, Projection
-import ..StyleModule: font_ubuntu_monospace_regular_18
-import ..StyleModule: StyleColor, color_default, color_solarized_blue,
-                      color_solarized_cyan
-import ..SyntaxModule: SyntaxLeaf, SyntaxNode
-import ..TextModule: TextString
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..ProjectionAlgebraModule: RecursiveProjection
-import ..ProjectionAlgebraModule: ChainingProjection
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep,
-                          PositionReferenceStep, EmptyReference
-import ..PrinterContextModule: PrinterContext, make_child_context
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
-
-export BookmarkEntryToSyntaxNode, BookmarkListToSyntaxNode, BookmarkToSyntax
+end # module BookmarkModule
 ```
 
 **Key points:**
-- `@document` injects a `selection::Reference` field into every document
-  automatically, appended as the struct's last field — you never declare it
-  yourself (declaring one by hand is an error).
-- `@document` makes `doc.title` read the cell value and `doc.title = v` write it.
+- `@document` injects a `selection::Union{Nothing, Reference}` field into every
+  document automatically, appended as the struct's last field — you never
+  declare it yourself (declaring one by hand is an error).
+- `@document` also generates the constructor: `BookmarkEntry("Julia", "https://julialang.org")`
+  already works with no code of your own — a raw value is wrapped in a
+  reactive `Cell`, and `doc.title` reads it back transparently
+  (`doc.title = v` writes it). Write an *outer* constructor only for a
+  convenience the macro does not cover (see [macros.md](../package/kernel/macros.md)).
 - **Field names are public API.** A selection path reaches `title` / `url` /
   `entries` by `getfield`, so these names *are* the domain's reference
   vocabulary — choose them deliberately; renaming one later breaks stored
   references. (See the `Document` contract in
   [document/DocumentInterface.jl](../../source/kernel/document/DocumentInterface.jl).)
 - `CellVector` wraps a `Vector{Cell}` reactively — length changes invalidate
-  downstream computed cells.
+  downstream computed cells. `BookmarkList("My Bookmarks", [BookmarkEntry("t", "u"), …])`
+  builds one from a plain `Vector` — this is [Rule C](../package/kernel/macros.md#the-layout-list),
+  the constructor `@document` generates for a struct with one collection field.
 - See [reactive cells](../package/kernel/cell.md) and [macros](../package/kernel/macros.md)
-  for the cell system and `@document` macro.
+  for the cell system and the `@document` macro.
 
 ---
 
-## Step 2: Include the module file in the package root
+## Step 2: The package root
 
-In `package/ProjecturedBookmark/src/ProjecturedBookmark.jl`, include the module
-file:
+A domain package's root module does two things: it binds every submodule of
+the packages this slice's `using ..XxxModule` lines reach into as a local
+`const` (so `..CollectionModule` inside `BookmarkModule` resolves to something),
+and it includes the slice's module file. Create
+`package/ProjecturedBookmark/Project.toml` (a fresh UUID; `[deps]` on the
+engine and substrate packages named below) and
+`package/ProjecturedBookmark/src/ProjecturedBookmark.jl`:
 
 ```julia
+module ProjecturedBookmark
+
+using ProjecturedKernel
+using ProjecturedCollection
+using ProjecturedStyle
+using ProjecturedSyntax
+using ProjecturedText
+using ProjecturedProjection
+
+for _src in (ProjecturedKernel, ProjecturedCollection, ProjecturedStyle,
+             ProjecturedSyntax, ProjecturedText, ProjecturedProjection)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+    end
+end
+
 include("../../../source/bookmark/Bookmark.jl")
+
+end # module ProjecturedBookmark
 ```
 
-The package root includes the module file and nothing else. What the slice
-offers is what `BookmarkModule` exports, so the names above need no second
-list here.
+The loop is what lets `BookmarkModule` write `using ..CollectionModule` and
+have it resolve: it walks each dependency package (`ProjecturedCollection`,
+…), finds every submodule that package defines or re-exports, and binds it as
+a `const` of the same name here — so `..CollectionModule` inside a submodule
+of `ProjecturedBookmark` finds the `const CollectionModule = ProjecturedCollection.CollectionModule`
+the loop wrote. `parentmodule(_m) !== Main` is what keeps a package's own
+re-exported aliases of a *lower* package from being bound twice. Every real
+domain package's root module is this same loop with a different dependency
+tuple and a different `include` — compare
+[package/ProjecturedJson/src/ProjecturedJson.jl](../../package/ProjecturedJson/src/ProjecturedJson.jl).
+
+Because the aliases are written by a loop rather than `const` lines a reader
+can grep, the static layering guard cannot read them off the file; it measures
+the set from the loaded package instead (see [domain-inventory.md](../design/domain-inventory.md#the-root-module)).
 
 ---
 
@@ -167,231 +165,119 @@ list here.
 
 Create `source/bookmark/BookmarkToSyntax.jl`. The projection is part of the
 same slice, so the file is a fragment of `BookmarkModule`: it declares no
-module of its own, and its imports and exports belong to the module file.
+module of its own, and its `using` lines and exports belong to the module file
+(Step 4 adds them).
 
-The fragment itself carries no module line. It opens with a comment that says
-what this part of the slice is:
+Write it with [`@projection_template`](../package/kernel/macros.md#projection_template)
+rather than a hand-written `print_document`/`map_reference_forward`/
+`map_reference_backward` group — this is how every structural projection in
+the codebase is written, and it is what generates the reference mapping and
+the reader for you:
 
 ```julia
 # ──────────────────────────────────────────────────────────────────────────
-# Bookmark → Syntax projection. Renders each BookmarkEntry as a SyntaxLeaf
-# pair (title and url), and a BookmarkList as a SyntaxNode whose children
-# are the entry leaves.
+# Bookmark → Syntax projection. Renders each BookmarkEntry as a two-leaf
+# SyntaxNode (title, url), and a BookmarkList as a SyntaxNode whose children
+# are the entry nodes.
 
-const _font = font_ubuntu_monospace_regular_18
-
-# ── BookmarkEntry → SyntaxNode ─────────────────────────────────────────────
-
-struct BookmarkEntryToSyntaxNode <: Projection end
-
-function print_document(p::BookmarkEntryToSyntaxNode,
-                           recursion, entry::BookmarkEntry, ctx)
-    # This projection introduces the two leaves itself (title / url are plain
-    # string fields, not recursed sub-documents), so it owns the whole
-    # selection mapping: `.title{k} ↔ [1].value{k}`, `.url{k} ↔ [2].value{k}`.
-    # Defer the iomap so the node-selection thunk can call the mapper.
-    iomap_cell = Cell(nothing)
-
-    # Each leaf's own (output-domain) selection — a cursor in its value span.
-    title_sel = ComputedCell(() -> @reference_case entry.selection begin
-        title{k} => @reference value{k}
-        _        => nothing
-    end)
-    url_sel = ComputedCell(() -> @reference_case entry.selection begin
-        url{k} => @reference value{k}
-        _      => nothing
-    end)
-
-    title_leaf = SyntaxLeaf(
-        TextString("▶ ", _font, color_solarized_blue),
-        TextString("", _font, color_default),
-        TextString(() -> entry.title, _font, color_solarized_blue),
-        title_sel,
-    )
-    url_leaf = SyntaxLeaf(
-        TextString("   ", _font, color_default),
-        TextString("", _font, color_default),
-        TextString(() -> entry.url, _font, color_solarized_cyan),
-        url_sel,
-    )
-    node = SyntaxNode(
-        TextString("", _font, color_default),
-        TextString("", _font, color_default),
-        TextString("  ", _font, color_default),
-        Cell(CellVector(Cell[Cell(title_leaf), Cell(url_leaf)])),
-        Cell(0),       # indentation
-        Cell(false),   # collapsed
-        # node selection is the input selection mapped forward by our own mapper
-        ComputedCell(() -> let im = iomap_cell[]
-            im === nothing ? nothing : map_reference_forward(p, im, entry.selection)
-        end),
-    )
-    iomap = SimpleIoMap(p, entry, node)
-    iomap_cell[] = iomap
-    iomap
+@projection struct BookmarkEntryToSyntaxNode
+    title_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
+    url_style::ImmutableCell{StyleText}   = StyleText(font_ubuntu_monospace_regular_20, color_solarized_cyan)
 end
 
-# The mappers are the single source of truth for how a path crosses this
-# projection. With them defined, the default reader translates both selection
-# moves and value edits backward — so no `read_intent` method is needed.
-function map_reference_forward(::BookmarkEntryToSyntaxNode, iomap, reference)
-    @reference_case reference begin
-        ∅        => @reference()
-        title{k} => @reference [1].value{k}
-        url{k}   => @reference [2].value{k}
-        _        => nothing
-    end
+@projection_template BookmarkEntryToSyntaxNode BookmarkEntry (p, entry) ->
+    SyntaxNode(TextString("", p.title_style), TextString("", p.url_style), TextString("   ", p.title_style),
+        [ SyntaxLeaf(bound(:title, String, TextString(() -> entry.title, p.title_style)); open = TextString("- ", p.title_style)),
+          SyntaxLeaf(bound(:url, String, TextString(() -> entry.url, p.url_style))) ],
+        0, false, nothing)
+
+@projection struct BookmarkListToSyntaxNode
+    sep_style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 end
 
-function map_reference_backward(::BookmarkEntryToSyntaxNode, iomap, reference)
-    @reference_case reference begin
-        ∅            => @reference()
-        [1].value{k} => @reference title{k}
-        [2].value{k} => @reference url{k}
-        _            => nothing
-    end
-end
-
-# ── BookmarkList → SyntaxNode ──────────────────────────────────────────────
-
-struct BookmarkListToSyntaxNode <: Projection end
-
-function print_document(p::BookmarkListToSyntaxNode,
-                           recursion, list::BookmarkList, ctx)
-    iomap_cell = Cell(nothing)
-    # Project each entry recursively via `print_child`, which
-    # re-enters the whole pipeline for the child; `make_child_context` extends the
-    # reference path with the `entries` field step and the element step, so the
-    # child knows it sits at `entries[i]` relative to this node.
-    child_iomaps = ComputedCell(() ->
-        [print_child(recursion, getfield(list, :entries)[][i][],
-                                    make_child_context(ctx, FieldReferenceStep("entries"),
-                                                  ElementReferenceStep(i)))
-         for i in 1:length(list.entries)])
-
-    children = ComputedCell(() -> CellVector(Cell[Cell(m.output) for m in child_iomaps[]]))
-
-    node = SyntaxNode(
-        TextString("", _font, color_default),
-        TextString("", _font, color_default),
-        TextString("\n", _font, color_default),
-        children,
-        Cell(0),
-        Cell(false),
-        # node selection: the input selection mapped forward by our own mapper
-        ComputedCell(() -> let im = iomap_cell[]
-            im === nothing ? nothing : map_reference_forward(p, im, list.selection)
-        end),
-    )
-    iomap = ChildrenIoMap(p, list, node, child_iomaps)
-    iomap_cell[] = iomap
-    iomap
-end
-
-# School A: peel the one step this projection owns (`entries[i]` ↔ `[i]`) and
-# delegate the tail to the child projection's own mapper, reached through the
-# stored child IO maps. No `read_intent` is needed — the default reader uses
-# `map_reference_backward` for both selection moves and edits.
-function map_reference_forward(::BookmarkListToSyntaxNode, iomap::ChildrenIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-        entries[i].rest... => begin
-            ims = iomap.child_iomaps[]
-            (i < 1 || i > length(ims)) && return nothing
-            child = ims[i]
-            mapped = map_reference_forward(child.projection, child, rest)
-            mapped === nothing ? nothing : (@reference [i].^(mapped))
-        end
-        _ => nothing
-    end
-end
-
-function map_reference_backward(::BookmarkListToSyntaxNode, iomap::ChildrenIoMap, reference)
-    @reference_case reference begin
-        ∅ => @reference()
-        [i].rest... => begin
-            ims = iomap.child_iomaps[]
-            (i < 1 || i > length(ims)) && return nothing
-            child = ims[i]
-            mapped = map_reference_backward(child.projection, child, rest)
-            mapped === nothing ? nothing : (@reference entries[i].^(mapped))
-        end
-        _ => nothing
-    end
-end
-
-# ── BookmarkToSyntax convenience constructor ───────────────────────────────
+@projection_template BookmarkListToSyntaxNode BookmarkList (p, list) ->
+    SyntaxNode(collection(:entries); sep = TextString("\n", p.sep_style))
 
 function BookmarkToSyntax()
-    RecursiveProjection(TypeDispatchingProjection(Dict(
+    RecursiveProjection(TypeDispatchingProjection(
         BookmarkEntry => BookmarkEntryToSyntaxNode(),
         BookmarkList  => BookmarkListToSyntaxNode(),
-    )))
+    ))
 end
-
 ```
 
-The imports the projection needs, and the names it offers, go in the module
-file next to the ones Step 1 wrote:
+`bound(:title, String, render)` marks the first leaf as holding
+`entry.title`'s value, drawn by `render`; a cursor there maps back to
+`.title{k}` with no code of your own. `collection(:entries)` marks the list's
+children as `list.entries`, each projected through the type dispatcher above —
+this is what recurses into every `BookmarkEntry` and keeps its own selection
+mapping working underneath the list's. Checked in a real session:
 
 ```julia
-import ..ProjectionApiModule: print_document, print_child,
-                              map_reference_forward, map_reference_backward, Projection
-import ..StyleModule: font_ubuntu_monospace_regular_18
-import ..StyleModule: StyleColor, color_default, color_solarized_blue,
-                      color_solarized_cyan
-import ..SyntaxModule: SyntaxLeaf, SyntaxNode
-import ..TextModule: TextString
-import ..ProjectionAlgebraModule: TypeDispatchingProjection
-import ..ProjectionAlgebraModule: RecursiveProjection
-import ..ProjectionAlgebraModule: ChainingProjection
-import ..IoMapModule: SimpleIoMap, ChildrenIoMap
-import ..ReferenceModule: ConcreteReference, ElementReferenceStep, FieldReferenceStep,
-                          PositionReferenceStep, EmptyReference
-import ..PrinterContextModule: PrinterContext, make_child_context
-import ..ReferenceModule: var"@reference_case"
-import ..ReferenceModule: var"@reference"
+julia> list = BookmarkList("My Bookmarks",
+           [BookmarkEntry("Julia", "https://julialang.org"),
+            BookmarkEntry("ProjecturEd", "https://github.com/projectured/projectured")]);
 
-export BookmarkEntryToSyntaxNode, BookmarkListToSyntaxNode, BookmarkToSyntax
+julia> iomap = print_document(BookmarkToSyntax(), list);
+
+julia> typeof(iomap.output)
+SyntaxNode{…}
+
+julia> length(iomap.output.children)
+2
+
+julia> set_selection!(list, @reference(list, entries[1].title{2})); iomap = print_document(BookmarkToSyntax(), list);
+
+julia> iomap.output.selection   # forward-mapped with no mapper of your own
+::SyntaxNode.children::CellVector[1]::SyntaxNode.children::CellVector[1]::SyntaxLeaf.value::TextString{2}::Position
 ```
 
 **Key points:**
-- `print_document` must return an `IoMap` (here `SimpleIoMap` or
-  `ChildrenIoMap`), not just the output document.
-- The output selection is wired as a *computed cell* (`ComputedCell(() -> ...)`) that
-  maps the input selection forward through this projection's **own**
-  `map_reference_forward` — the deferred-iomap trick (`iomap_cell = Cell(nothing)`,
-  assigned after the IoMap is built) lets the thunk reach the not-yet-built iomap.
-- **Define `map_reference_forward` / `map_reference_backward`, not a
-  `read_intent`.** The two mappers are the single source of truth for how a
-  path crosses the projection; the default reader uses `map_reference_backward`
-  to translate *both* selection moves and value edits backward. You only add a
-  `read_intent` method when a projection must do more than re-target a
-  reference.
-- When the printer recurses into children (`print_child`), the
-  mappers recurse **in lockstep** — peel the one step this projection owns and
-  delegate the tail through the stored child IO maps (School A). A projection
-  that introduces structure itself (like `BookmarkEntryToSyntaxNode`'s two
-  leaves) writes that structural rewrite directly instead.
-- `ChildrenIoMap` is used when the projection recurses into children, so the
-  mappers can locate the child IO map for a given child.
+- `print_document` (which the macro generates for you) always returns an
+  `IoMap`, not just the output document; `@projection_template` wires this
+  internally through `RuleIoMap`.
+- Reference mapping in both directions, and the reader, come from the
+  markers — you never write `map_reference_forward`, `map_reference_backward`,
+  or `read_intent` for a projection the template can express.
 - `RecursiveProjection(TypeDispatchingProjection(...))` is the standard
-  pattern for domains with multiple types.
-- See [the projection system guide](../package/kernel/projection-system.md) and
-  [the selection deep dive](../package/kernel/selection.md).
+  pattern for domains with multiple document types.
+- See [macros.md](../package/kernel/macros.md#projection_template) for the
+  full marker-word table (`bound`, `project`, `collection`, `tokens`,
+  `sections`) and [the projection system guide](../package/kernel/projection-system.md).
+
+### When the template is not enough
+
+A projection writes a hand-rolled `print_document`/`map_reference_forward`/
+`map_reference_backward` group instead when it must introduce output
+structure the template's markers cannot express — a caret on a delimiter with
+no field behind it, for instance (`XmlElementToSyntaxNode` does this for its
+`<`/`>`/`</` chrome; see
+[source/xml/XmlToSyntax.jl](../../source/xml/XmlToSyntax.jl)). Reach for
+`@projection_template` first, and drop to a hand-written pair only for the one
+piece it cannot cover — most domains, Bookmark included, never need to.
 
 ---
 
 ## Step 4: Include the projection in the module file
 
-The module file includes the fragment, after the document types it needs:
+The module file includes the fragment, after the document types it needs, and
+exports what it defines:
 
 ```julia
+using ..StyleModule
+using ..SyntaxModule
+using ..TextModule
+using ..ProjectionModule
+using ..ProjectionAlgebraModule
+
+export BookmarkEntryToSyntaxNode, BookmarkListToSyntaxNode, BookmarkToSyntax
+
 include("BookmarkToSyntax.jl")
 ```
 
-Step 3 already added the export to the module file, so the package root needs
-no change.
+Add the five `using` lines and the `export` line to `BookmarkModule`'s header
+(alongside the four Step 1 already added), and `include("BookmarkToSyntax.jl")`
+after `include`-ing nothing else — Bookmark has only the one fragment.
 
 ---
 
@@ -407,7 +293,7 @@ function make_bookmark_document_example()
                       "https://github.com/projectured/projectured"),
         BookmarkEntry("JuliaHub",                  "https://juliahub.com"),
     ])
-    set_selection!(list, @reference entries[1])
+    set_selection!(list, @reference(list, entries[1]))
     list
 end
 ```
@@ -424,13 +310,33 @@ function make_bookmark_projection_example(; measure=measure_sdl_text)
 end
 ```
 
-Both files belong to the example package. In
-`package/ProjecturedBookmarkExample/src/ProjecturedBookmarkExample.jl`, add:
+Both files belong to the example package,
+`package/ProjecturedBookmarkExample/` — its own `Project.toml`, depending on
+`ProjecturedBookmark` plus whatever the two functions above name directly
+(`ProjecturedKernelExample` for `measure_sdl_text`). Its root module needs the
+same alias loop as Step 2, over its own dependency tuple, before the two
+`include`s:
 
 ```julia
+module ProjecturedBookmarkExample
+
+using ProjecturedBookmark
+using ProjecturedKernelExample
+
+for _src in (ProjecturedBookmark, ProjecturedKernelExample)
+    for _n in names(_src; all = true)
+        isdefined(_src, _n) || continue
+        _m = getfield(_src, _n)
+        (_m isa Module && _m !== _src && parentmodule(_m) !== Main) || continue
+        Core.eval(@__MODULE__, Expr(:const, Expr(:(=), _n, _m)))
+    end
+end
+
 include("../../../example/bookmark/BookmarkDocumentExample.jl")
 include("../../../example/bookmark/BookmarkProjectionExample.jl")
 export make_bookmark_document_example, make_bookmark_projection_example
+
+end # module ProjecturedBookmarkExample
 ```
 
 In `example/projectured/DomainExamples.jl`, add:
@@ -455,14 +361,11 @@ function test_bookmark_to_syntax()
 
 @testset "BookmarkEntry → SyntaxNode" begin
     entry = BookmarkEntry("Julia", "https://julialang.org")
-    # print_document(projection, recursion, input, ctx)
-    iomap = print_document(BookmarkEntryToSyntaxNode(),
-                             IdentityProjection(), entry,
-                             Projectured.PrinterContextModule.PrinterContext())
+    iomap = print_document(BookmarkEntryToSyntaxNode(), entry)
     node = iomap.output
     @test node isa SyntaxNode
     # two children: title leaf and url leaf. SyntaxNode's children field is
-    # `children`, and a SyntaxLeaf's `value` is a TextString — read `.value.content`
+    # `children`, and a SyntaxLeaf's `value` is a TextString — read `.content`
     # for the rendered string.
     @test length(node.children) == 2
     @test node.children[1].value.content == "Julia"
@@ -486,7 +389,11 @@ end
 end # test_bookmark_to_syntax
 ```
 
-In `package/ProjecturedBookmarkTest/src/ProjecturedBookmarkTest.jl`:
+In `package/ProjecturedBookmarkTest/src/ProjecturedBookmarkTest.jl`, the same
+alias-loop shape again — over `ProjecturedBookmark`,
+`ProjecturedBookmarkExample`, `ProjecturedKernelTest` and
+`ProjecturedSubstrateTest` (for `@testset`, `ChildrenIoMap`, and the shared
+drivers) — then:
 
 ```julia
 include("../../../test/bookmark/projection/BookmarkToSyntaxTest.jl")
@@ -506,9 +413,9 @@ end
 ```
 
 Define `test_bookmark_layering()` in that same file. Copy the shape from
-[test/json/JsonSuite.jl](../../test/json/JsonSuite.jl): it calls `check_layering`
-on the source root of the package, and the call fails when a file names a module
-that its layer may not reach.
+[test/json/JsonSuite.jl](../../test/json/JsonSuite.jl): it calls
+`check_layering` on the source root of the package, and the call fails when a
+file names a module that its layer may not reach.
 
 ---
 
@@ -528,9 +435,9 @@ BookmarkList
 ## What to add next
 
 - **Character editing:** already works — a `ReplaceStringRangeOperation` on a
-  leaf's value flows back through the default reader, which re-targets its
-  reference via the `map_reference_backward` you defined (`[1].value{k}` →
-  `title{k}`, `[2].value{k}` → `url{k}`). No extra `read_intent` needed.
+  leaf's value flows back through the default reader `@projection_template`
+  generated, which re-targets its reference through the `bound(:title, …)` /
+  `bound(:url, …)` markers. No extra `read_intent` needed.
 - **Structural editing:** `insert_elements` (a `ReplaceReferencedValueOperation` splice) to
   append bookmarks — this *does* need a `read_intent` method, since it is more than a
   reference re-target.
@@ -538,6 +445,9 @@ BookmarkList
   in a browser when Enter is pressed.
 
 For the next level of complexity — a domain with cross-references, a custom
-reader that handles structural events, or a `TableToGraphics`-style direct
-renderer — read [the projection system guide](../package/kernel/projection-system.md) §"Writing a
-custom projection" and look at `MathToSyntax.jl` as a real-world reference.
+reader that handles structural events, or a projection whose output document
+draws itself directly rather than going through Syntax — read
+[the projection system guide](../package/kernel/projection-system.md)
+and look at `MathToSyntax.jl` as a real-world reference; its arithmetic
+precedence/parenthesization is exactly the kind of structural rewrite
+`@projection_template` alone cannot express.
