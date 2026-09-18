@@ -9,6 +9,27 @@
 # the `ImmutableCell` field write; write-through-no-invalidation for M). The
 # declared type is therefore the loose `Vector`; accessors branch on the storage
 # with a fully-typed fast path for the reactive convention.
+"""
+    CellVector(items)
+
+A sequence of values, each in a cell of its own.
+
+Use it for the children of a document: the rows of a table, the panes of a
+window, the parts of a page. A write to one element tells what read that
+element, and nothing else; adding or removing an element tells what read the
+sequence. Most documents declare such a field simply as a `Vector`, and the
+macro makes it one of these.
+
+# Example
+
+    rows = CellVector(["one", "two"])
+    rows[2] = "three"          # only what read the second element hears
+    push!(rows, "four")
+
+See also `CellTable` and `CellMatrix` for two dimensions, `ListNode` for a
+sequence read from the middle, and `get_cell_at`, which answers the cell rather
+than the value.
+"""
 @document struct CellVector
     elements::Vector = Cell[]
 end
@@ -121,6 +142,23 @@ end
 Base.getindex(cv::ReactiveCellVector, i::Integer)        = _elems(cv)[i][]      # the stored value
 Base.getindex(cv::CellVector, i::Integer) = unwrap_cell(_plain(cv)[i])
 # The raw slot Cell — reactive instantiations only.
+"""
+    get_cell_at(collection, index...) -> cell
+
+The cell at a place, rather than the value in it.
+
+Use it to hand one element of a collection to something that must follow it: a
+projection that draws that element, a computation that reads it, a widget that
+writes it. Reading the collection with `[]` answers the value and forgets where
+it came from.
+
+# Example
+
+    cell = get_cell_at(rows, 2)
+    set_cell_function!(cell, () -> uppercase(title[]))
+
+See also `CellVector`, `CellTable` and `CellMatrix`.
+"""
 get_cell_at(cv::ReactiveCellVector, i::Integer) = _elems(cv)[i]
 
 function Base.setindex!(cv::ReactiveCellVector, val, i::Integer)

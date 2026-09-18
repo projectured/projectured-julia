@@ -1,8 +1,26 @@
 # ── CellMatrix ────────────────────────────────────────────────────────────
-# A dense rectangular matrix where each slot is a reactive Cell.
 # Structural mutations (insert/delete row/column) reallocate the underlying
 # Matrix{Cell}, but Cell references remain stable.
 
+"""
+    CellMatrix(rows, columns)
+
+A rectangle of values, each in a cell of its own.
+
+Use it for a grid whose shape is fixed and whose slots are read and written one
+at a time: a spreadsheet, a board, a bitmap of values. A write to one slot tells
+only what read that slot. Rows and columns can be inserted and deleted, and a
+cell a caller kept stays the same cell.
+
+# Example
+
+    grid = CellMatrix(3, 3)
+    grid[2, 2] = "x"
+    insert_row!(grid, 1)
+
+See also `CellTable`, whose rows are vectors and which grows a row at a time,
+and `CellVector`.
+"""
 @document struct CellMatrix
     elements::Matrix{Cell} = Matrix{Cell}(undef, 0, 0)
 end
@@ -54,6 +72,20 @@ function Base.setindex!(cm::CellMatrix, cell::Cell, r::Integer, c::Integer)
     return cell
 end
 
+"""
+    insert_row!(collection, index, row)
+
+Put a row into a grid, at a place.
+
+Use it to add a record to a table, a line to a board, a row to a sheet. The rows
+below move down, and every cell that was there stays the cell it was.
+
+# Example
+
+    insert_row!(table, 1, ["name", "value"])
+
+See also `delete_row!`, `insert_column!`, `CellTable` and `CellMatrix`.
+"""
 function insert_row!(cm::CellMatrix, r::Integer, cells::Vector{Cell})
     elems = _elems(cm)
     nrows, ncols = size(elems)
@@ -66,6 +98,20 @@ function insert_row!(cm::CellMatrix, r::Integer, cells::Vector{Cell})
     return cm
 end
 
+"""
+    insert_column!(matrix, index, column)
+
+Put a column into a grid, at a place.
+
+Use it to add a field to every record at once. The columns to the right move
+over, and every cell that was there stays the cell it was.
+
+# Example
+
+    insert_column!(grid, 2, [Cell("") for _ in 1:3])
+
+See also `delete_column!`, `insert_row!` and `CellMatrix`.
+"""
 function insert_column!(cm::CellMatrix, c::Integer, cells::Vector{Cell})
     elems = _elems(cm)
     nrows, ncols = size(elems)
@@ -78,6 +124,19 @@ function insert_column!(cm::CellMatrix, c::Integer, cells::Vector{Cell})
     return cm
 end
 
+"""
+    delete_row!(collection, index)
+
+Take a row out of a grid.
+
+Use it to drop a record from a table. The rows below move up.
+
+# Example
+
+    delete_row!(table, 3)
+
+See also `insert_row!` and `delete_column!`.
+"""
 function delete_row!(cm::CellMatrix, r::Integer)
     elems = _elems(cm)
     nrows, ncols = size(elems)
@@ -88,6 +147,20 @@ function delete_row!(cm::CellMatrix, r::Integer)
     return cm
 end
 
+"""
+    delete_column!(matrix, index)
+
+Take a column out of a grid.
+
+Use it to drop a field from every record at once. The columns to the right move
+over.
+
+# Example
+
+    delete_column!(grid, 2)
+
+See also `insert_column!` and `delete_row!`.
+"""
 function delete_column!(cm::CellMatrix, c::Integer)
     elems = _elems(cm)
     nrows, ncols = size(elems)

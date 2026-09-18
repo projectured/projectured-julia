@@ -26,6 +26,18 @@ end
 """
     GraphicsText(text, x, y, font, color::StyleColor=color_white)
 
+Words drawn at a place, in a font and a colour.
+
+Use it when you build what is drawn by hand: a label of a chart, a word of a
+rule, a caption under a picture. A projection that shows text produces these,
+and a backend paints them.
+
+# Example
+
+    GraphicsText("delay", Int32(10), Int32(20), font_default, color_black)
+
+See also `GraphicsCanvas`, which holds what is drawn, and `GraphicsRect`.
+
 A reactive text element for rendering.
 Each field is a `Cell`, so changes to any property are tracked
 and can trigger incremental redraws. `color` is a [`StyleColor`](@ref); each
@@ -51,6 +63,17 @@ end
                  radius_tl=radius, radius_tr=radius,
                  radius_br=radius, radius_bl=radius,
                  border_width=0, border_color=nothing)
+
+A filled box at a place, in a colour, with corners as round as you ask.
+
+Use it for anything that is a coloured area: the background of a card, the band
+behind a selected row, a caret, a rule, a border drawn as four thin boxes.
+
+# Example
+
+    GraphicsRect(Int32(0), Int32(0), Int32(120), Int32(24), 0.9, 0.9, 0.9, 1.0, 4)
+
+See also `GraphicsCanvas`, which holds it, and `GraphicsText`.
 
 A reactive filled rectangle for rendering (e.g. cursor lines, highlights).
 Each corner has an independent radius in pixels (`0` means a square
@@ -367,6 +390,20 @@ end
 """
     GraphicsCanvas(elements[, layout[, overlapping_elements]])
 
+A sheet that holds what is drawn, at a place and of a size.
+
+Use it as the result of anything that draws: a projection answers one, a
+backend paints one, and a test reads one to see what reached the screen. Its
+elements are drawn in order, and a canvas may hold other canvases.
+
+# Example
+
+    canvas = GraphicsCanvas(Int32(0), Int32(0), Int32(200), Int32(50),
+                            CellVector([GraphicsText("hello", Int32(4), Int32(4),
+                                                     font_default, color_black)]))
+
+See also `GraphicsViewport`, which shows a part of one, and `GraphicsText`.
+
 A reactive container holding a list of graphics elements to render.
 The `elements` field is a `Cell` wrapping a `CollectionDocument`
 (`CellVector` or `ListNode`). The `layout` field declares the axis
@@ -407,6 +444,18 @@ GraphicsCanvas(x::Integer, y::Integer, w::Integer, h::Integer, elems::Collection
 A clipping viewport: renders `content` (a `GraphicsCanvas` whose element
 coordinates are relative to the viewport origin, with any scroll offset
 already applied) and clips the output to the rectangle `(x, y, w, h)`.
+
+Show a part of something drawn, and keep the rest outside.
+
+Use it for anything that scrolls, zooms or pans: a pane of a window, a chart a
+person drags, a long page shown one screen at a time. It has a place and a
+size, and it holds one canvas of content.
+
+# Example
+
+    GraphicsViewport(Int32(0), Int32(0), Int32(300), Int32(200), page)
+
+See also `GraphicsCanvas`, `WidgetScrollPane` and `AffineTransform`.
 
 `transform` is an [`AffineTransform`](@ref) applied to `content` *inside* the
 clip rectangle (local content space → viewport space). It defaults to the

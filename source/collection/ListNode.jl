@@ -1,7 +1,25 @@
 # ── ListNode ──────────────────────────────────────────────────────────────
-# A doubly-linked list node. The node you hold IS the head (middle of the
-# list). `prev` and `next` are the two tails growing in opposite directions.
+# The node you hold IS the head (middle of the list). `prev` and `next` are the
+# two tails growing in opposite directions.
 
+"""
+    ListNode(value)
+
+One link of a chain of values, which reaches in both directions.
+
+Use it for a sequence that is read from the middle outward, and that may be
+longer than anything a reader will look at: the rows of a file of results, a
+log, a transcript. What is drawn is the part a viewport reaches, so a chain of a
+million links costs what the screen shows.
+
+# Example
+
+    head = ListNode("the first row")
+    tail = get_right_tail(head)
+
+See also `get_left_tail` and `get_right_tail`, which walk it, `take_first`, and
+`CellVector`, which holds every element at once.
+"""
 @document struct ListNode
     value::Any
     prev::Union{ListNode, Nothing}
@@ -94,14 +112,40 @@ function Base.pushfirst!(head::ListNode, value)
     return head
 end
 
-# Walk to the leftmost node (far end of the prev tail).
+"""
+    get_left_tail(node) -> node
+
+The far end of a chain, walking back.
+
+Use it to reach the first link of a chain from any link of it: the top of a
+file whose middle is on the screen, the oldest entry of a log.
+
+# Example
+
+    first_link = get_left_tail(node)
+
+See also `get_right_tail`, `take_first` and `ListNode`.
+"""
 function get_left_tail(n::ListNode)
     cur = n
     while cur.prev !== nothing; cur = cur.prev::ListNode end
     return cur
 end
 
-# Walk to the rightmost node (far end of the next tail).
+"""
+    get_right_tail(node) -> node
+
+The far end of a chain, walking forward.
+
+Use it to reach the last link of a chain from any link of it: the end of a
+transcript, the newest entry of a log.
+
+# Example
+
+    last_link = get_right_tail(node)
+
+See also `get_left_tail`, `take_first` and `ListNode`.
+"""
 function get_right_tail(n::ListNode)
     cur = n
     while cur.next !== nothing; cur = cur.next::ListNode end
@@ -117,8 +161,24 @@ function Base.iterate(n::ListNode, cur::Union{ListNode,Nothing} = get_left_tail(
     return (cur, cur.next)
 end
 
-# Take first n elements from a ListNode in specified direction
-# direction = :next for forward, :prev for backward
+"""
+    take_first(node, count, direction = :next) -> values
+    take_first(node, back, forward) -> values
+
+The values of a few links around one, without walking the whole chain.
+
+Use it to read the part of a long chain that a reader will see: the rows a
+viewport shows, the last few entries of a log, the lines around a match. The
+first form walks one way, `:next` or `:prev`; the second takes some of each and
+answers them in order, the ones behind first.
+
+# Example
+
+    shown = take_first(node, 20)          # this link and the nineteen after it
+    around = take_first(node, 5, 5)       # five behind, this one, five ahead
+
+See also `ListNode`, `get_left_tail` and `get_right_tail`.
+"""
 function take_first(node::ListNode, n::Int, direction::Symbol=:next)
     result = Any[]
     current = node

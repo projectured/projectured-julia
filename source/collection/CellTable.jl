@@ -1,8 +1,24 @@
 # ── CellTable ─────────────────────────────────────────────────────────────
-# A table stored as a CellVector of CellVector rows. Row insert/delete is
-# O(nrows) — the same cost as CellVector.insert! — without copying every
-# cell in the matrix. Column access requires iterating rows.
+# Row insert/delete is O(nrows) — the same cost as CellVector.insert! — without
+# copying every cell in the matrix. Column access requires iterating rows.
 
+"""
+    CellTable(rows)
+
+Rows of values, each row a vector and each value in a cell.
+
+Use it for a grid that grows and shrinks a row at a time: a table of results, a
+list of records, the body of a form. Adding or removing a row costs the rows,
+not the values, and a column is read by walking the rows.
+
+# Example
+
+    table = CellTable([["name", "value"], ["delay", "1.5"]])
+    insert_row!(table, 2)
+
+See also `CellMatrix`, whose shape is fixed and whose columns are cheap, and
+`CellVector`.
+"""
 @document struct CellTable
     rows::CellVector = CellVector()
 end
