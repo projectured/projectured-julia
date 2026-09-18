@@ -10,8 +10,56 @@ The syntax domain provides a generic intermediate representation between semanti
 
 ## Types
 
-- **SyntaxLeaf**: Represents a primitive value with open, value, and close delimiters
-- **SyntaxNode**: Represents a compound structure with children and delimiters
+`SyntaxDocument` is the abstract root. `SyntaxLeaf` (a primitive value with
+optional open/close delimiters) is the only leaf type; every other type is a
+`SyntaxCompound` — an interior node, declared in
+[SyntaxDocument.jl](../../../source/syntax/SyntaxDocument.jl):
+
+| Type | Kind | Holds |
+|---|---|---|
+| `SyntaxNode` | `SyntaxSequence` | `children` (`CellVector`), plus `open`/`close`/`sep` delimiters, `indentation`, `collapsed` |
+| `SyntaxConcatenation` | `SyntaxSequence` | `children` only — no delimiters, no separator, no indentation, no collapse |
+| `SyntaxSeparation` | `SyntaxSequence` | `children` and a `separator` between each pair — nothing else |
+| `SyntaxDelimitation` | `SyntaxWrapper` | one `content`, plus `opening_delimiter`/`closing_delimiter` |
+| `SyntaxIndentation` | `SyntaxWrapper` | one `content`, plus an `indentation` level |
+| `SyntaxCollapsible` | `SyntaxWrapper` | one `content`, plus a `collapsed` flag |
+| `SyntaxNavigation` | `SyntaxWrapper` | one `content`; marks a caret landing point, no fields of its own |
+| `SyntaxInsertion` | (leaf-shaped) | the domain-neutral insertion-kit placeholder |
+
+A `SyntaxSequence` addresses any number of children as `.children[i]`; a
+`SyntaxWrapper` addresses its exactly-one child as `.content`. Every function
+that walks the tree — navigation, collapse resolution, printing — is written
+against `SyntaxCompound`, not against `SyntaxNode`, so a wrapper is a real
+level of the tree and not a special case: a domain adds delimiters,
+indentation, a fold state, or a navigation marker to *any* document by
+wrapping it, without `SyntaxNode`'s five combined fields.
+
+`SyntaxNode` and `SyntaxSeparation` are what a domain reaches for the same
+node with only some of those five: `SyntaxConcatenation` when it needs none
+of them (a pure sequence), `SyntaxSeparation` when it needs only a separator.
+Both render the same as a `SyntaxNode` with the other fields left `nothing` —
+the distinction is precision: a type that can only sequence cannot later
+acquire a delimiter by accident.
+
+The **compound contract** — what a compound answers about itself, independent
+of which type it is — is five generic functions, each with a default of
+`nothing`/`0`/`false`:
+
+| Function | Answers |
+|---|---|
+| `get_opening_delimiter(compound)` / `get_closing_delimiter(compound)` | `field => span`, or `nothing` |
+| `get_separator(compound)` | `field => span`, or `nothing` |
+| `get_indentation(compound)` | the pretty-print indentation, `0` if it does not indent |
+| `is_syntax_collapsed(compound)` | whether it is currently collapsed |
+| `is_syntax_collapsible(compound)` | whether it *can* collapse at all — only such a compound gets a fold marker |
+
+`SyntaxLeaf` and `SyntaxNode` answer all the delimiter/indentation/collapse
+ones directly, from their own fields of the same shape; a `SyntaxDelimitation`/
+`SyntaxIndentation`/`SyntaxCollapsible` wrapper answers only the one function
+its name says. Code that reads `node.indentation`/`node.collapsed` directly
+works for the two combined types but not for a wrapper stack — read through
+the contract functions instead of the field when the input might be any
+`SyntaxCompound`.
 
 ## Examples
 
@@ -51,14 +99,17 @@ Each delimiter or value is a `TextString` containing:
 
 ## Collapsed and indentation fields
 
-Both `SyntaxLeaf` and `SyntaxNode` carry:
-
-- `indentation::Int` — the nesting depth used for pretty-printing (set by the upstream projection; consumers typically leave this at `0`)
-- `collapsed::Bool` — when `true`, the node is rendered on a single line; children or value are not expanded
+`SyntaxLeaf` and `SyntaxNode` both carry `indentation::Int` (pretty-print
+nesting depth, set by the upstream projection; consumers typically leave it
+at `0`) and `collapsed::Bool` (when `true`, the node renders on one line;
+children or value are not expanded) as plain fields. A `SyntaxCollapsible` /
+`SyntaxIndentation` wrapper carries the same state for any other compound —
+read it through the [compound contract](#types) (`is_syntax_collapsed`,
+`get_indentation`), not the field, when the input might be either shape:
 
 ```julia
-node.collapsed = true    # collapse this node to one line
-node.indentation = 2     # override indentation depth
+node.collapsed = true    # collapse this node to one line (SyntaxLeaf/SyntaxNode)
+node.indentation = 2     # override indentation depth (SyntaxLeaf/SyntaxNode)
 ```
 
 ## One field of one object
@@ -102,15 +153,23 @@ cell to hand on, so the two are reactive by different means.
 ## Gesture mapping (`read_gesture`)
 
 The syntax tree's keyboard navigation is entirely geometry-free — it walks the
-`SyntaxNode` tree and its selection paths — so it lives on the document:
-`read_gesture(::SyntaxNode, gesture)` ([syntax/SyntaxModule.jl](../../../source/syntax/SyntaxModule.jl))
-maps an input gesture to a `ReplaceSelectionOperation` on the tree:
+compound tree and its selection paths, with no reference to pixels — so it
+lives on the document as a reified gesture table:
+`@gestures SyntaxCompound begin … end`
+([SyntaxDocument.jl](../../../source/syntax/SyntaxDocument.jl)) maps an input
+gesture to a `ReplaceSelectionOperation` on the tree. It is registered on
+`SyntaxCompound`, the abstract supertype every interior node shares — not on
+`SyntaxNode` — so every wrapper type gets tree navigation for free, with no
+table of its own. A separate `@gestures SyntaxLeaf begin … end` table covers
+the character-cursor rules a leaf needs instead. The generic `read_gesture`
+interpreter fires whichever table matches the node's type, so this is also
+exactly the table the gesture-help overlay enumerates.
 
 - `Ctrl+Alt+Home` → select the root node (`∅`)
 - `Ctrl+Space` → toggle structural ⇄ text (character-cursor) selection
-- `Up` / `Down` / `Left` / `Right` → step the whole-element selection
-  (parent / first child / previous / next sibling); arrows require `Alt` only to
-  *enter* structural mode from a character cursor
+- `Alt` + arrow → tree-navigate from any selection (enters structural mode)
+- a plain arrow → tree-navigate, but only once a whole element is selected
+  (parent / first child / previous / next sibling)
 
 `SyntaxCompoundToText` delegates to this and keeps only the geometry/output-driven
 mouse hit-testing (collapse glyph, Alt+click). See

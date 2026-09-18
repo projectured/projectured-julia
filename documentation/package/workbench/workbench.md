@@ -4,7 +4,9 @@
 
 <img width="1285" alt="Workbench example" src="../../../asset/image/example/workbench.png">
 
-The workbench domain models an IDE-style workspace. It is implemented in
+The workbench domain models an IDE-style workspace with an AI assistant as
+one of its panels, alongside a file navigator, a console, and an editor
+column. It is implemented in
 [source/workbench/WorkbenchModule.jl](../../../source/workbench/WorkbenchModule.jl)
 and rendered to widgets by
 [source/workbench/WorkbenchToWidget.jl](../../../source/workbench/WorkbenchToWidget.jl).
@@ -19,7 +21,7 @@ takes an application-level document all the way to pixels.
 
 ## Document types
 
-All subtype `WorkbenchDocument` (`<: Document`).
+Every row but the last subtypes `WorkbenchDocument` (`<: Document`).
 
 | Type | Role |
 |---|---|
@@ -31,8 +33,8 @@ All subtype `WorkbenchDocument` (`<: Document`).
 | `WorkbenchOperator()` | The "Operator" panel |
 | `WorkbenchSearcher()` | The "Searcher" panel |
 | `WorkbenchEvaluator(content)` | The "Evaluator" panel — eval-print loop window |
-| `WorkbenchEditor(title, filename, content)` | An open document in the editing column |
-| `Assistant(; conversation, input, backend, model, system, api_key, status, llm)` | The "Assistant" panel — AI assistant window (keyword-only; field is `conversation`) |
+| `WorkbenchEditor(content; title="", filename="", follow_end=false)` | An open document in the editing column; `follow_end` keeps the view pinned to the end (a growing log) |
+| `Assistant(; conversation, input, draft, backend, model, system, api_key, context, status, collapse_thinking, llm)` | The "Assistant" panel. `<: Document` directly — a sibling slice ([assistant.md](../assistant/assistant.md)), not a `WorkbenchDocument`; the workbench special-cases it (`WorkbenchToWidget.jl`'s `_is_panel`) |
 
 Each panel carries a `title` (class-level constant or per-instance for
 `WorkbenchEditor`) that becomes the title-bar text in the widget output.
@@ -54,10 +56,14 @@ workbench type, with one projection per panel:
 | `WorkbenchSearcherToWidgetScrollPane` | `WidgetScrollPane` search UI |
 | `WorkbenchEvaluatorToWidgetScrollPane` | `WidgetScrollPane` REPL UI |
 | `WorkbenchEditorToWidgetScrollPane` | `WidgetScrollPane` containing the editor's projected content |
-| `WorkbenchAssistantToWidgetSplitPane` | `WidgetSplitPane` containing the assistant's projected content |
+| `AssistantToWidgetSplitPane` | `WidgetSplitPane` containing the assistant's projected content |
 
 Each of these is exported, so a custom workbench layout can re-bind one
-projection without touching the rest.
+projection without touching the rest. `AssistantToWidgetSplitPane` lives in
+`source/assistant/AssistantToWidget.jl`, not `source/workbench/` — the
+workbench dispatches to it (`WorkbenchToWidget.jl`'s `_panel_forward`/
+`_panel_backward`/type-dispatch table) but does not own it; see
+[assistant.md](../assistant/assistant.md).
 
 ## Building a workbench
 
@@ -77,6 +83,27 @@ proj = ChainingProjection(
 
 The result is a tree whose root is a `WorkbenchWorkbench`, whose
 projection emits a graphics canvas the SDL backend can render.
+
+## WorkbenchPage and PaneTree
+
+`WorkbenchPage` (a fixed column of panels) is this domain's own tab
+container. A second, more general tab/split-pane system,
+`PaneTree`/`PaneGroup`/`PaneSplit`/`PaneTab` in `source/pane/` (see
+[pane.md](../pane/pane.md)), coexists with it rather than replacing it: a
+workbench document opens either directly (`WorkbenchWorkbench` at the window
+root) or wrapped in a `PaneTree`, and code that must work either way — e.g.
+`OpenWorkspaceFileOperation`, which the Navigator's "open file" gesture fires
+— checks which one the window holds (`source/workbench/WorkbenchFile.jl`) and
+routes accordingly.
+
+## Workspace and WorkbenchFile
+
+`WorkbenchNavigator(workspace::Workspace)` shows a `Workspace` — the
+substrate type that maps a workbench file tree onto the real filesystem
+(`WorkspaceToFileSystem`, its projection to a browsable `FileSystemDirectory`
+tree). Opening a file from the Navigator reads it into a `WorkbenchEditor`
+through `WorkbenchFile.jl`'s save/reload gestures (`Ctrl+S`/`Ctrl+O`), which
+pick a binary or natural-text format by the file's extension.
 
 ## Selection across the workbench
 
