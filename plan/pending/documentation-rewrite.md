@@ -840,9 +840,18 @@ decisions and the two older guides, which are the rest of this step.
       Pluto, Jupyter, VS Code with an AI extension, Makie with Observables, the
       Julia GUI and web packages. MPS, Lamdu and Hazel move to a short
       "prior work" section.
-- [ ] `requirement/delivery-roadmap.md`: delivered, in progress and next, from
+- [x] `requirement/delivery-roadmap.md`: delivered, in progress and next, from
       `plan/done/` and `plan/pending/`. Undo, redo and uniform type-in stay in
       "next".
+
+A subagent surveyed the two plan folders for it (2026-09-18). What it found:
+nothing in the old roadmap was false, but four months of work sat under it,
+unsaid. 122 of the 264 done plans changed after the roadmap's last real edit,
+in twelve themes; 29 of the 57 pending plans are part built; 21 are not
+started. Five items are named "superseded" and can move to `plan/obsolete/`
+(§3.10 lists them): `kernel-cleanup.md`, `document-native-variant-layouts.md`,
+`printer-locality-session-log.md`, `animation-global-time.md` and
+`discovered-example-catalog.md`.
 - [x] `requirement/accepted-requirements.md`: a requirement for a view of any
       value, and one for the tool set that the assistant and an MCP client
       share. They are `PR-VIEW-OF-ANY-VALUE` and `PR-ONE-TOOL-SET`. **The owner

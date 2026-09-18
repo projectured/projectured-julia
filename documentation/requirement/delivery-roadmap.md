@@ -1,134 +1,76 @@
 # Roadmap
 
-> **Kind:** what · **Status:** current · **Stands on:** [accepted-requirements.md](accepted-requirements.md)
+> **Kind:** requirement · **Status:** current · **Stands on:** [accepted-requirements.md](accepted-requirements.md)
 
-This document distils the development priorities for ProjecturEd into three
-horizons: what has been **delivered**, what is **in progress**, and what is
-**planned**. The detailed design notes and open questions for each item live in
-[the further development plan](../../plan/tentative/further-development.md).
+What ProjecturEd does today, what is half built, and what comes next. It is written from the plans under `plan/done/` and `plan/pending/`, and each line names the code or the plan that settles it.
 
-The ordering principle: **deepen the end-to-end path first** (make editing
-actually work end-to-end), **then widen** (more domains, more layouts, more
-backends), **then distribute** (network, collaboration, external data).
-
----
+The order of the work has been the same from the start: **make the whole path work first** — data, view, edit, back to the data — **then widen it** with more domains, more views and more backends, and only then go outward to other machines and other people.
 
 ## Delivered
 
-Much of the original near- and medium-term roadmap has shipped. What now works
-end to end:
+**The editing path.** An edit is an operation on the data. Insert and delete work on a collection (`insert_elements`, `delete_elements`), a character edit works inside a string, a number, a key, an XML text and an attribute (`ReplaceStringRangeOperation`), and the reader chain turns a key press into one of them. Julia and SQL are typed through their parsers with live completion; Markdown, math and prose take text as well.
 
-- **Structural insert / delete.** Elements can be added to and removed from JSON
-  arrays, entries from JSON objects, XML elements and attributes, and syntax
-  children, via `insert_elements` / `delete_elements` (a `ReplaceReferencedValueOperation`
-  splice) driven by contextual authoring gestures.
-- **In-place authoring in structured domains.** JSON, XML, and YAML have full
-  contextual gesture sets, and character-level editing works inside strings,
-  numbers, keys, XML text and attribute values, and styled text spans, produced
-  by the reader chain and evaluated as `ReplaceStringRangeOperation`s.
-- **Type-in with live completion.** Julia and SQL are edited through a
-  parser-backed insertion cursor (`parse_julia` / `parse_sql_text`) with live
-  reflection-driven completion; Math, Book, and Markdown support text type-in.
-- **Clipboard.** Copy, cut, note, and paste over arbitrary wrapped content is
-  provided by the clipboard projections, with an operating-system clipboard
-  bridge when text conversion is configured.
-- **Console / terminal backend.** Renders the Text domain straight to the
-  terminal with 24-bit ANSI colour and structural navigation; run via
-  `run_console_example(interactive=true)`.
-- **Web backend.** Runs the same editor in the browser over HTTP + WebSocket,
-  shipping a JSON draw-list to a canvas client with incremental dirty-rect
-  rendering; run via `run_example(...; backend=WebBackend())` (after `using ProjecturedWeb`).
-- **Graph domain and auto-layout.** A vertex/edge/graph domain with a separate
-  layout stage; native placement and edge routing come from the opt-in
-  Adaptagrams package, with a pure-Julia fallback engine when it is absent.
-- **Document persistence.** Binary `save_document` / `load_document` (exact,
-  lossless, same-version) plus a human-readable natural-format
-  `import_document` / `export_document` path dispatched by file extension.
-- **Search.** `search_references` / `search_documents` produce selectable paths;
-  filtering, focusing, and highlighting projections and a search-input widget
-  build on them.
-- **Version history.** A versioning overlay records and deletes snapshots
-  (Ctrl+Shift+S / Ctrl+Delete) and selects a version by criterion (latest,
-  index, author, as-of, predicate).
+**Twenty domains.** JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia, math, formulas, charts, sequence charts, graphs, state machines, processes, books, the file system, the conversation, the workbench, versioning and the reflection view of any object. [domain-inventory.md](../design/domain-inventory.md) lists them with what each one holds.
 
----
+**Views that are not text.** Line, bar, histogram, scatter and strip charts, sequence charts, a graph with two layout engines, a state machine as a diagram, and a form or a table of widgets. A data point of a chart is selected like any other part.
+
+**The general steps.** A filter, a sort, a search, a focus, a collapse and a copy are steps in front of any data, so a new domain gets them without code. A search runs over one document by default (`search_references`, `search_documents`).
+
+**The clipboard.** Copy, cut, note and paste move a part of the data, not a text. Where a text conversion exists, the system clipboard carries the text of it.
+
+**Windows.** Tabs and split panes with a pane tree, a command palette, a file navigator, and one application command that opens files of every supported format (`bin/projectured`). The workbench is a second window made of the same parts.
+
+**Backends.** A native window through SDL, a browser over HTTP and WebSocket, a terminal with colour, and no screen at all for a test. A view also goes to a PNG image, a vector PDF with selectable text, or an MP4 video.
+
+**Files.** A text file in the notation of its domain, and a binary file for anything else. Several files can refer to each other, so data with shared parts and mutually recursive structures comes back unchanged after a save and a load.
+
+**The AI assistant.** A tool set in the kernel: search the API, read a guide, run Julia in the running program, and change the data with operations. It works with a local model through Ollama, or with Claude through the Anthropic API. The same tool set answers an external client over MCP. Measured on eleven example problems, a local model solved nine.
+
+**A binary.** `bin/build_projectured` compiles the application into a directory that runs with no Julia and no checkout, and a distribution build tests a copy of it with the checkout hidden.
+
+**Underneath.** The reactive cell system sets the cell kind per field, every IO map is reactive, and the packages are split one per domain, which is what keeps a domain independent of the others.
 
 ## In progress
 
-Editing works end to end for the field-addressed domains; the remaining work is
-making it uniform and complete.
+Each line names the plan that carries it.
 
-### 1. Character editing everywhere
+| What | How far |
+| --- | --- |
+| Select any widget and paste it into a tab (`select-a-widget-and-paste-it-into-a-tab.md`) | twelve steps of thirteen |
+| Character type-in in every domain (`live-example-construction.md`, `simplest-syntax-document.md`) | JSON, YAML and XML rebuild from an empty document; SQL, Julia, text and graph do not |
+| XML parity with the reference reader (`xml-to-syntax-lisp-parity.md`) | five phases of six |
+| Excel-style formulas (`excel-julia-formulas.md`) | the formulas compute; the operations and the host embedding are open |
+| A version history view (`object-versioning.md`) | the overlay works; the history view is open |
+| Every document type in the catalogue (`catalog-all-documents.md`) | three workstreams of four, with fourteen faults marked in the catalogue |
+| Cheaper reactive cells (`cheap-reactive-cells.md`) | four phases of five |
+| The template engine behind the printers (`projection-template-engine.md`) | XML and Julia are converted, math in part, two domains not at all |
+| A faster start (`faster-executable-startup.md`) | one tier of five |
+| The suite to green (`test-suite-green.md`) | eight items of fourteen |
 
-Character type-in and range editing are wired and tested for the field-addressed
-domains (JSON, XML, YAML, text, prose, and the type-in / insertion path). The
-target is uniform in-place character editing of every leaf value the caret can
-enter, in every domain.
+## Next
 
-### 2. Mouse click-to-select everywhere
+**A user sees these.**
 
-Click-to-position works where a projection records the necessary
-coordinate map (for example `TextToGraphics`'s segment table). The remaining work
-is completing click-to-select across all domains and projections.
+- **Undo and redo.** There is none today. This is the first gap a new user meets.
+- **Editable tables.** A table renders and navigates; a cell does not take an edit.
+- **A click that selects in every view.** A click works where a projection wires it, and elsewhere it does nothing.
+- **Tool views in place of the workbench** (`tool-views-replace-the-workbench.md`). The workbench window has no clipboard, no dragging, no tooltip, no filter and no search wired into it. The pane window that `bin/projectured` opens does not have that gap.
+- **Links between documents** (`document-link-feature.md`, `document-locator.md`). A reference from one document to another does not exist yet.
+- **Richer SQL** (`bound-sql-statement.md`, `sql-select-aggregation-support.md`, `dbcatalog-index-support.md`).
+- **An assistant that recovers from a miss** (`assistant-recovers-from-a-miss.md`). Two of the eleven example problems are still missed.
 
-### 3. Undo / redo
+**A developer sees these.**
 
-Version history exists through the versioning overlay, but a general operation-log
-undo/redo of arbitrary edits does not. It needs an operation log on the `Editor`
-that appends each `evaluate_operation` call and its inverse, replayed by
-`Ctrl+Z`; it depends on the editing operations having well-defined inverses.
+- Another backend (`cairo-glfw-backend.md`), a parallel projection (`parallel-projection.md`), an animation timeline (`chase-animation.md`).
+- One interface for the development binary and the built one (`both-binaries-offer-one-interface.md`).
+- A configuration view for the projections (`configuration-overlay-widget.md`).
 
-### 4. Editable tables
+**Further out.** Live collaboration between two people, a plugin loaded into a running editor, an annotation domain over any document, and ProjecturEd editing its own source.
 
-Table cells with column-header navigation, building on the existing table
-rendering.
+## What does not change
 
----
-
-## Planned
-
-### 5. Transactional / staged editing
-
-A `StagingProjection` that accumulates edits in a buffer without touching the
-real document. Commit applies them atomically; discard drops them. Enables
-previewing complex multi-step refactors before committing.
-
-### 6. Live collaboration
-
-Structural operations on a well-defined model are the natural substrate for
-OT (operational-transform) or CRDT-based collaboration. Each operation is
-already a typed, invertible value — the infrastructure for multi-user editing
-is mostly a transport and merge layer.
-
-### 7. Runtime plugin loading
-
-Opt-in packages already extend the editor at its factory seams
-(`make_agent_server`, the solver / layout generics) and its backend generics at
-load time. The
-remaining goal is loading third-party domains and projections into a *running*
-editor, analogous to VS Code extensions.
-
-### 8. Annotation domain
-
-Attaching typed annotations to any document through a global registry is
-described in the design ([editor/annotation.md](../../plan/tentative/annotation.md)) but not
-yet implemented; no annotation types or functions exist in the code today.
-
-### 9. Self-hosting
-
-Edit ProjecturEd's own source code using the Julia domain projection, running
-inside ProjecturEd. This is the strongest validation of the architecture's
-generality and the primary long-term goal.
-
----
-
-## What won't change
-
-The following are considered stable design decisions and are not on the roadmap
-for revision:
-
-- **Pull-based reactive `Cell` system** — the foundation of incrementality.
-- **Bidirectional projections** — the printer/reader pair is the contract.
-- **Module-per-domain / module-per-projection** — keeps dependencies auditable.
-- **1-based indexing** — Julia convention.
-- **MCP server** — the AI bridge is a core feature, not an afterthought.
+- The data is the source. Every view is computed from it.
+- A projection is a pair: a printer and a reader.
+- A domain is a package of its own, and no other domain depends on it.
+- Every field of a document is a reactive cell, and indexing is 1-based.
+- The tool set is a layer of the kernel, and the assistant and an external client share it.
