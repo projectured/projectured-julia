@@ -448,14 +448,18 @@ its own commit, in this order:
       the work was believed: a name with no words of its own answers no query.
       What it buys is the third of the vectors, of the index and of every
       listing of names. §7 has the numbers.
-- [ ] **Identifier tokens.** The name score is a test of substrings, so "card"
-      scores inside "discard". Split a name into its words and score a whole
-      word above a part of one.
-- [ ] **The text a vector reads:** the structured header, the kind, the module,
-      the signature and the split words before the documentation.
-- [ ] **Fields and their weights**, a BM25F score over an inverted index, if
-      Step 1 says a search costs more than about 50 ms or the questions lose
-      precision in the first eight hits.
+- [x] **Identifier tokens and the rarity of a word**, done 2026-09-18. A term
+      that is a whole word of the name scores above one that falls inside it,
+      and the prose score became BM25: a word few entries hold is worth more
+      than one most of them hold. The words alone did nothing; the rarity did
+      the work. §7 has the numbers.
+- [x] **The text a vector reads:** tried twice, 2026-09-18, and **not kept**.
+      §7 says what each variant answered.
+- [x] **The words fused with the meaning**, re-measured at scale as §3g asked,
+      and **not kept**: it is worse at 1,389 names as it was at 88. §7 has the
+      numbers.
+- [ ] **Fields and their weights**, a BM25F score over an inverted index, if a
+      later measurement says a search costs more than about 50 ms.
 - [ ] **Structural signals:** the kind a question asks for, a thing against an
       action, and the module the window is working in.
 - [ ] **A family shown once**, if one family fills the first hits.
@@ -566,6 +570,42 @@ vectors of a corpus take about 13 MB. So the inverted index and BM25F wait, as
 
 **A third of the corpus is noise.** 790 of projectured's 2,355 entries are
 generated schema variants of another type. Step 3 takes them out first.
+
+### Step 3, the ranking, 2026-09-18
+
+**The word score.** A whole word of a name now scores above a piece of one, and
+a rare word in the prose above a common one. Measured on the three corpora, by
+words, as first / in five / in ten:
+
+| corpus | before | after |
+| --- | --- | --- |
+| projectured, 26 questions | 4 / 7 / 7 | 6 / 7 / 8 |
+| omnet, 34 questions | 3 / 11 / 13 | 6 / 14 / 14 |
+| the omnet window, 12 verbs | 5 first | 6 first |
+
+The mean reciprocal rank rose from 0.21 to 0.25 and from 0.19 to 0.28. The
+words alone changed nothing; the rarity did all of it. What it repairs is
+plain in one question: "make a field of a document computed" never reached
+`set_cell_function!`, because "document" stands in hundreds of entries and
+counted as loudly as "computed", which stands in a few.
+
+**The text a vector reads: two variants, neither kept.** A header of the kind,
+the name, the words of the name and the signature, before the documentation,
+answered 11 questions first instead of 10, and only 18 in the first ten instead
+of 20. A lighter header, the name and its words, answered 10 / 18 / 20 against
+10 / 19 / 20. Recall in the first ten is what matters, so the text stays as it
+was: the qualified name and the whole documentation.
+
+**The words fused with the meaning: worse, again.** §3g said this must be
+measured again at scale rather than assumed. With the word ranking counted once
+beside the meaning, the description answered 8 first, 13 in five and 15 in ten,
+against 10, 19 and 20 for the meaning alone. The rule of 2026-09-16 stands at
+1,389 names: on this corpus the meaning decides and the words only stand in for
+it.
+
+**A caution on comparing.** The guides of projectured changed under these runs,
+because the user is editing them. A guide number is only comparable within one
+day.
 
 ### Step 3, the generated variants, 2026-09-18
 
