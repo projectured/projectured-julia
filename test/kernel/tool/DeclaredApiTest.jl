@@ -49,6 +49,23 @@ export toy_extra
 toy_extra() = 7
 end
 
+# A module that re-exports another's verb: the same binding under two modules,
+# which is what a wide declaration is full of.
+module ToyEcho
+import ..ToyApi: toy_verb
+export toy_verb, toy_echo
+"""Say the word twice."""
+toy_echo() = "toytoy"
+end
+
+# A module with a verb of its own under a name another module also gives. This
+# is the collision a declaration must refuse.
+module ToyRival
+export toy_verb
+"""A different verb under a word another module owns."""
+toy_verb(x) = x
+end
+
 function test_declared_api()
 @testset "Declared API" begin
 
@@ -266,16 +283,28 @@ function test_declared_api()
         @test isempty(set.api)
     end
 
+    @testset "a name two modules re-export is one hit, and one binding" begin
+        set = register_default_tools!(ToolSet())
+        declare_api!(set, [ToyApi, ToyEcho])
+        entries = ProjecturedKernel.ToolModule._api_index(set.api)
+        # One binding is one hit, although two modules give the word.
+        @test count(entry -> endswith(entry.qualname, ".toy_verb"), entries) == 1
+        @test count(entry -> endswith(entry.qualname, ".toy_echo"), entries) == 1
+        @test strip(execute_julia_code(set, nothing, "toy_verb()")) == "\"toy\""
+        @test strip(execute_julia_code(set, nothing, "toy_echo()")) == "\"toytoy\""
+    end
+
     @testset "two entries that give one name are refused" begin
         set = ToolSet()
         message = try
-            declare_api!(set, [ToyApi, ToyApi => (:toy_verb,)])
+            declare_api!(set, [ToyApi, ToyRival])
             ""
         catch error
             sprint(showerror, error)
         end
         @test occursin("toy_verb", message)
         @test occursin("ToyApi", message)
+        @test occursin("ToyRival", message)
         # Nothing was declared by the refusal.
         @test isempty(set.api)
     end

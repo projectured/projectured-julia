@@ -89,14 +89,25 @@ function _refuse_missing_names(entries::Vector{ApiEntry})
 end
 
 function _refuse_declared_twice(entries::Vector{ApiEntry})
-    source = Dict{Symbol,Module}()
+    seen = Dict{Symbol,Tuple{Module,Any}}()
     # The name the MODEL writes is what can collide. Two modules may both own a
     # `describe`; only one of them may arrive under that word.
-    for entry in entries, name in get_api_entry_names(entry)
-        first_one = get(source, name, nothing)
-        first_one === nothing && (source[name] = entry.module_; continue)
-        error("Two modules give the name " * repr(name) * " to one model: " *
-              String(nameof(first_one)) * " and " * String(nameof(entry.module_)) *
+    #
+    # **A name re-exported is not a collision.** A module that says `using` of
+    # another and exports what it took gives the very same binding, and a model
+    # that writes the word reaches one function either way. A declaration of
+    # twenty-five modules holds a dozen of those, so refusing them would refuse
+    # every wide declaration.
+    for entry in entries, (name, alias) in api_entry_bindings(entry)
+        value = isdefined(entry.module_, name) ? getfield(entry.module_, name) : nothing
+        first_one = get(seen, alias, nothing)
+        if first_one === nothing
+            seen[alias] = (entry.module_, value)
+            continue
+        end
+        first_one[2] === value && continue
+        error("Two modules give the name " * repr(alias) * " to one model: " *
+              String(nameof(first_one[1])) * " and " * String(nameof(entry.module_)) *
               ". Declare the name from one of them.")
     end
     entries

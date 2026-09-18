@@ -758,6 +758,9 @@ end
 function _index_declared(api)
     entries = _ApiEntry[]
     indexed = Set{Module}()
+    # What a name the model writes already resolved to. A module that re-exports
+    # another's name gives the same binding, and one binding is one hit.
+    bound = Dict{Symbol,Any}()
     for declared in api
         mod = declared.module_
         mn = String(nameof(mod))
@@ -773,6 +776,8 @@ function _index_declared(api)
             sym === nameof(mod) && continue
             isdefined(mod, source) || continue
             value = getfield(mod, source)
+            get(bound, sym, nothing) === value && continue
+            bound[sym] = value
             qualname = "$mn." * String(sym)
             doc = _binding_doc(mod, source)
             if value isa Type
