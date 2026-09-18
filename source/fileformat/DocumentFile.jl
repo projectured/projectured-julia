@@ -194,3 +194,25 @@ end
 # Each carries its own subject and names no reference, so every reader
 # between the gesture and the editor passes it up unchanged.
 OperationModule.operation_travels_unchanged(::Union{SaveFileOperation, ReloadFileOperation}) = true
+
+# ── What a model may write about a file ─────────────────────────────────────
+
+"""
+    make_file_api() -> Vector
+
+The file verbs a model may call, as [`declare_api!`](@ref) takes them.
+
+A host concatenates this with the other vocabularies it offers. It names only
+this slice's own verbs: opening a path as a tab, reading and writing a document,
+and the two operations a key answers. Where a file comes FROM — a workspace, a
+navigator, a dialog — belongs to the host, because a host knows what it holds.
+"""
+make_file_api() = Any[
+    FileFormatModule => (
+        # A path becomes a tab, and a tab becomes a file again.
+        :make_file_tab, :read_document_file, :write_document_file,
+        # What Ctrl+S and Ctrl+O answer with.
+        :SaveFileOperation, :ReloadFileOperation,
+        # Text in, document out, and back.
+        :import_document, :export_document),
+]

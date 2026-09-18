@@ -51,6 +51,7 @@ export write_document_file, read_document_file, make_document_for, make_document
 export export_document
 export SaveFileOperation, ReloadFileOperation
 export FileToContent
+export make_file_api
 
 
 include("NaturalFormat.jl")

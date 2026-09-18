@@ -893,6 +893,29 @@ A type test against the root of a document is the shape of this fault, and
 
 ### Step 3 — the application declares its verbs
 
+**Done 2026-09-18.** `test_application()` is 63 pass, 0 fail. What the work
+decided:
+
+- The file verbs are **not** in the pane slice, as §2.7 predicted from the
+  file's move. `PaneFile.jl` kept only `get_pane_file_group`; `make_file_tab`,
+  `read_document_file`, `write_document_file`, `SaveFileOperation` and
+  `ReloadFileOperation` are the **fileformat** slice's, and `OpenFileOperation`
+  and `Workspace` are the **file system** slice's. `make_file_api()` therefore
+  lives in `FileFormatModule` and declares that slice's own verbs; the
+  application names the file system's three itself, because a host knows what it
+  holds.
+- The two operation names this plan proposed in §3.14 are the ones that landed:
+  `SaveFileOperation` and `ReloadFileOperation`.
+- An example package binds a slice's **names** but not its **module**, so the
+  application says `Projectured.FileSystemModule` where a slice would say
+  `FileSystemModule`.
+- `APPLICATION_SYSTEM` is `DEFAULT_ASSISTANT_SYSTEM` with one paragraph added,
+  as `IDE_SYSTEM` is `CAMPAIGN_SYSTEM` with two.
+- The test asserts the **bound**, not only the presence: a kernel name the window
+  does not offer is refused, and the refusal lists what may be written instead.
+  The same search on an undeclared set answers that kernel name, which is what
+  every `projectured` window did until now.
+
 - [ ] **Needs Step 8 of the other plan first** (§2.7): the file verbs must be in
       the pane slice before an API names them.
 - [ ] Add `make_file_api()` beside the file verbs, in the pane slice.

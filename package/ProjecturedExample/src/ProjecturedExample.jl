@@ -113,7 +113,7 @@ include(joinpath(_EXAMPLE_DIR, "Application.jl"))
 include(joinpath(_EXAMPLE_DIR, "SearchScaleCorpus.jl"))
 export run_value_viewer, make_value_viewer
 export run_application, make_application_document, make_application_projection,
-       make_application_window,
+       make_application_window, make_application_api, APPLICATION_SYSTEM,
        make_application_assistant, make_application_content_projections,
        get_application_greeting_text, APPLICATION_ASSISTANTS,
        parse_application_arguments, run_application_command,

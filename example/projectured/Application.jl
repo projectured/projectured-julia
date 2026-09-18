@@ -36,7 +36,9 @@ function get_application_greeting_text(backend::Symbol)
         notes it, and Ctrl+V pastes it into a new tab from Ctrl+T.
 
         Ask me to read or change an open file, to explain its structure, or to \
-        show a value in a new tab. I write Julia code and run it in this window.
+        show a value in a new tab. I write Julia code and run it in this window: \
+        I can open a path as a tab, save one back, arrange the panes, and build \
+        a card, a table or a form to show you something.
         """
     requirement = backend === :anthropic ?
         "I use Claude. The environment variable ANTHROPIC_API_KEY must hold your key." :
@@ -62,7 +64,8 @@ function make_application_assistant(backend::Symbol; model::AbstractString = "",
     greeting = ConversationConversation([
         ConversationTurn(:assistant, [ConversationPart(get_application_greeting_text(backend))])])
     Assistant(; conversation = greeting, backend = backend, model = String(model),
-                context = context, api_key = get(ENV, "ANTHROPIC_API_KEY", ""))
+                context = context, system = APPLICATION_SYSTEM,
+                api_key = get(ENV, "ANTHROPIC_API_KEY", ""))
 end
 
 """
@@ -240,6 +243,52 @@ function _make_application_pane_projection(content, measure)
         RecursiveProjection(PaneToWidget()),
         renderer))
 end
+
+"""
+    make_application_api() -> Vector
+
+What the assistant of this window may write, and the whole of it.
+
+Four vocabularies: the pane verbs that arrange the window, the widget names that
+build what a pane shows, the file verbs that open and save one, and the workspace
+this application lists. Every exported name here is a verb the assistant reaches
+through `execute_julia_code`, and nothing else resolves.
+
+Each vocabulary is declared where its verbs are, so a second host that offers the
+same verbs states it once and this function only names which it wants.
+"""
+make_application_api() = Any[
+    make_pane_api()...,
+    make_interface_api()...,
+    make_file_api()...,
+    # What this application holds and the file slice does not name: the tree a
+    # navigator lists, and the operation that opens a row of it. Named through
+    # the umbrella, because an example package binds a slice's names and not its
+    # module.
+    Projectured.FileSystemModule => (:OpenFileOperation, :Workspace, :WorkspaceFolder),
+]
+
+"""
+    APPLICATION_SYSTEM
+
+What the assistant of this application is told about itself.
+
+It is the editor's own instructions with one paragraph added: which verbs this
+window offers. The greeting, this text and [`make_application_api`](@ref) are
+three descriptions of one thing, so all three change together.
+"""
+const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
+    "THIS WINDOW SHOWS FILES. Its verbs are the functions of the modules " *
+    "PaneModule, WidgetModule, LayoutModule, FileFormatModule and " *
+    "FileSystemModule. PaneModule arranges the window and places a document in " *
+    "it: open_pane! puts a document in a tab, focus_pane! brings one forward, " *
+    "show_layout prints the tree. WidgetModule and LayoutModule build what a " *
+    "pane shows — a card, a button, a table, a row or a column of them. " *
+    "FileFormatModule opens a path as a tab with make_file_tab, and writes one " *
+    "back with write_document_file. FileSystemModule names the workspace the " *
+    "navigator lists. Call one tool per round, and put the whole Julia source " *
+    "in the code argument of execute_julia_code: a call with no code does " *
+    "nothing and costs the round."
 
 """
     run_application(paths...; backend = nothing,
@@ -442,7 +491,14 @@ end
 # runs no turn of the assistant, so the tools get the meaning model of the backend
 # here as well, and a search by description ranks by meaning for the client too.
 function _start_application!(editor, mcp::Bool, assistant::Symbol, model::AbstractString)
-    hasproperty(editor, :tools) && register_undo_tools!(editor.tools)
+    if hasproperty(editor, :tools)
+        # What the assistant may write, and the whole of it. The verbs are
+        # functions a model finds with `search_api` and calls through
+        # `execute_julia_code`; they are not tools, so their descriptions cost
+        # nothing until it asks.
+        declare_api!(editor.tools, make_application_api())
+        register_undo_tools!(editor.tools)
+    end
     (mcp && assistant !== :none && hasproperty(editor, :tools)) || return nothing
     try
         bind_meaning_model!(editor.tools, make_llm(assistant; model = String(model)))

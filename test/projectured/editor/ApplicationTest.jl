@@ -84,6 +84,38 @@ function test_application()
             @test occursin("ANTHROPIC_API_KEY", get_application_greeting_text(:anthropic))
         end
 
+        @testset "the assistant's verbs" begin
+            api = make_application_api()
+            names = Set{Symbol}()
+            for entry in api
+                entry isa Pair && union!(names, last(entry))
+            end
+            # One vocabulary from each of the four, so a missing concatenation
+            # shows here and not in a window.
+            @test :open_pane! in names          # the pane arranges the window
+            @test :WidgetTable in names         # a widget shows a value
+            @test :make_file_tab in names       # a path becomes a tab
+            @test :Workspace in names           # the navigator lists a tree
+
+            # A declared surface is what `search_api` answers. Without it the
+            # search indexes the kernel's own modules and a person asking to open
+            # a file is told about cells.
+            set = declare_api!(ToolSet(), api)
+            @test occursin("make_file_tab", search_api(set, "make_file_tab"))
+            # And the declaration BOUNDS the surface. A kernel name the window
+            # does not offer is refused, and the refusal lists what may be
+            # written instead. Undeclared, the same search answers the kernel's
+            # own modules, and a person asking how to open a file is told about
+            # printers and cells.
+            refusal = search_api(set, "print_document")
+            @test occursin("No API matches", refusal)
+            @test occursin("FileFormatModule: make_file_tab", refusal)
+            @test !occursin("No API matches", search_api(ToolSet(), "print_document"))
+
+            @test occursin("FileFormatModule", APPLICATION_SYSTEM)
+            @test startswith(APPLICATION_SYSTEM, DEFAULT_ASSISTANT_SYSTEM)
+        end
+
         @testset "the command line" begin
             command = parse_application_arguments(String[])
             @test command.files == String[]
