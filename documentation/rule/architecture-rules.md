@@ -88,18 +88,17 @@ kernel  →  base  →  visual  →  domain  →  (umbrella)     opt-in: sdl web
 
 ## The triad — every main package has its code, its tests, and its examples
 
-A main package is one third of a **triad** that lives in **one folder**:
-`package/<name>/{main, test, example}`. The three subfolders are three sibling
-packages of equal standing (each with its own `Project.toml`, UUID, and module);
-`package/<name>/` itself is a plain grouping folder with no project file — a
-Julia package is defined by its `Project.toml`, not by where its directory sits.
-Each package's code sits directly next to its `Project.toml` (no `main/` level:
-the `entryfile` key in each `Project.toml` names the entry module file).
-So `package/kernel/` holds `ProjecturedKernel` (`main/`), `ProjecturedKernelTest`
-(`test/`), and `ProjecturedKernelExample` (`example/`); the umbrella's triad is
-`package/projectured/{main, test, example}` = `Projectured` / `ProjecturedTest` /
-`ProjecturedExample`. An opt-in package grows a `test/` or `example/` the same way
-when it earns one.
+A main package is one of three: the code, its tests and its examples. The three
+are sibling packages of equal standing, each with its own `Project.toml`, uuid
+and module, and `package/` is flat: one directory per package, named for the
+package. So `ProjecturedKernel`, `ProjecturedKernelTest` and
+`ProjecturedKernelExample` are three directories, and the umbrella's three are
+`Projectured`, `ProjecturedTest` and `ProjecturedExample`.
+
+The code of a package is not in its directory. `package/ProjecturedJson/` holds
+a name and an include list; the code it includes is `source/json/`, its suite is
+`test/json/` and its documents are `example/json/`. An opt-in package grows a
+test or an example package the same way when it earns one.
 
 The three kinds form **parallel DAGs with identical shape** (the module names keep
 the `-Test` / `-Example` suffixes even though the directories share one folder):

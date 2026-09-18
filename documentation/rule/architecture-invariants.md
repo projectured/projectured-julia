@@ -323,7 +323,7 @@ documents.
 ### PAR-DOMAINS-INDEPENDENT
 
 **Domains are independent; a document owns no cross-domain edge.** A domain
-knows nothing about how it is displayed or about other domains; a document
+has no reference to a projection and none to another domain; a document
 imports only its own slice and packages below it. All cross-domain coupling
 lives in projections (the edges), never in documents (the nodes) — this is what
 makes the domain package sliceable. Anything two slices both need is a
@@ -919,10 +919,9 @@ end`. **No method bodies.** Not a delegation, not an accessor, and not a
 behaviour is implementation. It belongs in the sibling file that implements the
 contract — the default `get_reference_step_kind` sits with the step types in
 `ReferenceStep.jl`, next to their concrete methods. Nor may an interface file
-hold a concrete struct, mutable or global state, or an algorithm. When a
-contract's default has no natural sibling home, that is the signal the layer
-wants an implementation fragment, not a reason to park behaviour in the
-interface. Every name an interface file declares is **exported**
+hold a concrete struct, mutable or global state, or an algorithm. A contract default with no natural sibling home is the signal that
+the layer needs an implementation fragment, and not a reason to park behaviour
+in the interface. Every name an interface file declares is **exported**
 (PAR-MODULE-BOUNDARY-IS-API): it has no private half, and its export list *is*
 the layer's API surface. The purpose is documentary — one file gives a reader
 the entire contract of a layer and nothing else — and it is what
