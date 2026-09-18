@@ -10,7 +10,12 @@ relative `..XxxModule` references.
 module ProjecturedUndo
 
 using ProjecturedCollection
+using ProjecturedGraphics
 using ProjecturedKernel
+using ProjecturedProjection
+using ProjecturedStyle
+using ProjecturedSyntax
+using ProjecturedText
 
 const CellModule = ProjecturedKernel.CellModule
 const CollectionModule = ProjecturedCollection.CollectionModule
@@ -23,6 +28,10 @@ const OperationModule = ProjecturedKernel.OperationModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const SelectionModule = ProjecturedKernel.SelectionModule
+const GraphicsModule = ProjecturedGraphics.GraphicsModule
+const StyleModule = ProjecturedStyle.StyleModule
+const SyntaxModule = ProjecturedSyntax.SyntaxModule
+const TextModule = ProjecturedText.TextModule
 
 include("../../../source/undo/UndoModule.jl")
 

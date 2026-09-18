@@ -16,18 +16,24 @@ Nothing is recorded by a reader. The reader answers a `RecordUndoOperation`, and
 it applies the change. A change nobody could invert becomes a **barrier**, and
 undo stops at it rather than building a state the person never saw.
 
-The module lives in two fragments that share this namespace:
+The module lives in three fragments that share this namespace:
 
 - [`UndoDocument.jl`](UndoDocument.jl) — the buffer, one entry, the three
   operations and the default filter.
-- [`UndoBufferToAny.jl`](UndoBufferToAny.jl) — the projection: the printer, the
-  two reference maps, the reader and the gesture table.
+- [`UndoBufferToAny.jl`](UndoBufferToAny.jl) — the transparent projection: the
+  printer, the two reference maps, the reader and the gesture table.
+- [`UndoBufferToSyntax.jl`](UndoBufferToSyntax.jl) — the history itself, drawn
+  for a person to read.
 """
 module UndoModule
 
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..GraphicsModule
+using ..StyleModule
+using ..SyntaxModule
+using ..TextModule
 using ..EventPatternModule
 using ..GestureBindingModule
 using ..IntentModule
@@ -49,9 +55,10 @@ import ..ProjectionModule: print_document, read_intent,
 export UndoDocument, UndoBuffer, UndoEntry, is_undo_barrier,
        push_undo_entry!, clear_undo_history!, is_undo_step,
        RecordUndoOperation, UndoOperation, RedoOperation, make_undoable_operation,
-       UndoBufferToAnyProjection, UndoBufferToAnyIoMap
+       UndoBufferToAnyProjection, UndoBufferToAnyIoMap, UndoBufferToSyntax
 
 include("UndoDocument.jl")
 include("UndoBufferToAny.jl")
+include("UndoBufferToSyntax.jl")
 
 end # module

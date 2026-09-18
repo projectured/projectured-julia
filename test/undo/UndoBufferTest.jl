@@ -32,8 +32,8 @@ _write_first(text) = ReplaceReferencedValueOperation(nothing,
     Reference(FieldReferenceStep("items"), RangeReferenceStep(0, 1), FieldReferenceStep("value")),
     text)
 
-function test_undo()
-@testset "Undo" begin
+function test_undo_buffer()
+@testset "UndoBuffer" begin
 
     ctrl = ModifierKeys(ctrl = true)
     ctrl_shift = ModifierKeys(ctrl = true, shift = true)
@@ -329,4 +329,4 @@ function test_undo()
     end
 
 end
-end # test_undo
+end # test_undo_buffer

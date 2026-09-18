@@ -409,7 +409,8 @@ export clipboard_example
 export make_versioning_document_example, make_versioning_projection_example
 export versioning_example
 export make_undo_document_example, make_undo_projection_example
-export undo_example
+export make_undo_history_document_example, make_undo_history_projection_example
+export undo_example, undo_history_example
 export SCALE_SEARCH_MODULE_NAMES, SCALE_SEARCH_QUESTIONS, get_scale_search_modules,
        measure_projectured_search_scale!
 export make_dragging_document_example, make_dragging_projection_example

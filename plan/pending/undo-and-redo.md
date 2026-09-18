@@ -871,9 +871,26 @@ restored the very objects this one names.
 
 ### Step 8 — the history is a document (U16)
 
-- [ ] `UndoBufferToSyntax`, in the shape of `GestureLogToSyntax`.
-- [ ] A click on an entry undoes to there.
-- [ ] An example that shows the document and its history side by side.
+- [x] `UndoBufferToSyntax`, in the shape of `GestureLogToSyntax`: one line per
+      step, newest at the top, with a marker line for where the document stands
+      now. What is above the marker can be put back, what is below it can be
+      taken back, and a barrier says `stop` in a colour of its own.
+- [x] `undo_history_example`, the other half of the pair — the buffer's own
+      history drawn as a panel rather than the document it holds. Its document is
+      built the way every history is built, by applying two recorded operations
+      and taking one back, so the example shows what the mechanism produces
+      rather than entries assembled by hand.
+- [x] The slice's package grows five dependencies for the view — Graphics,
+      Projection, Style, Syntax, Text — exactly as `ProjecturedGestureLog` does,
+      and `environment/all` needs a `Pkg.resolve()` after that.
+- [ ] **Deferred: a click on an entry undoes to there.** The view is read-only,
+      as the gesture log's is. A click needs a reference map through three stages
+      — syntax, text, graphics — and an operation that takes several steps back
+      at once. Neither exists yet, and the history is worth having visible before
+      it is clickable.
+- [ ] **Deferred: the document and its history side by side.** That is an
+      arrangement of two panes, which belongs to whoever composes the window, not
+      to this slice. The two examples are the parts it would hold.
 
 ### Step 9 — the assistant and the tool set (U15)
 

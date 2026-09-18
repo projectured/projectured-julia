@@ -30,3 +30,15 @@ function make_undo_projection_example(; measure=measure_truetype_text)
         TextToGraphics(measure=measure),
     )
 end
+
+# Draws the history of an UndoBuffer rather than the document it holds: one line
+# per step, newest at the top, with a marker for where the document stands now.
+# It is the other half of the pair — `make_undo_projection_example` draws the
+# document and the buffer is invisible; this one draws the buffer itself.
+function make_undo_history_projection_example(; measure=measure_truetype_text)
+    ChainingProjection(
+        UndoBufferToSyntax(),
+        RecursiveProjection(SyntaxToText()),
+        TextToGraphics(measure=measure),
+    )
+end

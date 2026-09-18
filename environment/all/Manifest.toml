@@ -1456,13 +1456,13 @@ uuid = "6e7ca9da-6789-4ac4-a4d2-74571a5e8aba"
 version = "0.1.0"
 
 [[deps.ProjecturedUndo]]
-deps = ["ProjecturedCollection", "ProjecturedKernel"]
+deps = ["ProjecturedCollection", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
 path = "../../package/ProjecturedUndo"
 uuid = "b5651271-34dd-43c3-9dbd-d52110b52ef5"
 version = "0.1.0"
 
 [[deps.ProjecturedUndoTest]]
-deps = ["ProjecturedCollection", "ProjecturedKernel", "ProjecturedProjection", "ProjecturedUndo", "Test"]
+deps = ["ProjecturedCollection", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedProjection", "ProjecturedUndo", "Test"]
 path = "../../package/ProjecturedUndoTest"
 uuid = "ff42c033-56bf-4821-aac3-7e6b3c7c8f0b"
 version = "0.1.0"

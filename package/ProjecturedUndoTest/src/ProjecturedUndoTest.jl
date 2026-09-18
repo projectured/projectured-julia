@@ -12,6 +12,8 @@ module ProjecturedUndoTest
 
 using Test
 import ProjecturedUndo
+# The shared static layering guard lives at the bottom of the test-package DAG.
+using ProjecturedKernelTest: check_layering, get_package_source_root
 using ProjecturedCollection.CollectionModule
 using ProjecturedKernel.CellModule
 using ProjecturedKernel.DocumentModule
@@ -24,8 +26,7 @@ using ProjecturedKernel.SelectionModule
 using ProjecturedProjection.ProjectionAlgebraModule: IdentityProjection
 using ProjecturedUndo.UndoModule
 
-export test_undo
-
 include("../../../test/undo/UndoBufferTest.jl")
+include("../../../test/undo/UndoSuite.jl")
 
 end # module ProjecturedUndoTest

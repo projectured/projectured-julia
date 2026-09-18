@@ -131,6 +131,10 @@ const versioning_example     = Example("versioning",      make_versioning_docume
 # suite passes on a fresh document — run them one at a time, e.g.
 # `test_printer(undo_example)`. Use it interactively with `run_example(undo_example)`.
 const undo_example           = Example("undo",            make_undo_document_example,           make_undo_projection_example)
+# The other half of the pair: the buffer's own history drawn as a panel, rather
+# than the document it holds. It is kept out of the `examples` registry for the
+# same reason, and for one more — a sweep would edit the history it is showing.
+const undo_history_example   = Example("undo history",    make_undo_history_document_example,   make_undo_history_projection_example)
 
 # The domain tier's slice of the example registry, in registry order.
 const domain_examples = Example[
@@ -191,6 +195,7 @@ const domain_examples = Example[
     formula_example,
     versioning_example,
     undo_example,
+    undo_history_example,
 ]
 
 # ── The domain tier's slice of the atomic-document registry ───────────────────

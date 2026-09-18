@@ -11,12 +11,14 @@ authors = []
 [deps]
 ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
 ProjecturedUndo = "b5651271-34dd-43c3-9dbd-d52110b52ef5"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [sources]
 ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
 ProjecturedCollection = {path = "../ProjecturedCollection"}
 ProjecturedProjection = {path = "../ProjecturedProjection"}
 ProjecturedUndo = {path = "../ProjecturedUndo"}
