@@ -138,12 +138,17 @@ function NaturalToGraphics(; measure::Function,
         # formula render through the shared primitive path.
         get_natural_graphics_entries(measure = measure),
         # A fallback's own rows: the placeholders only it can draw. They name
-        # exact types, so they come before the two abstract rows below — a
-        # `TextInsertion` is a `TextDocument`, and prose is not what it is.
+        # exact types, so they come before the abstract rows below — a
+        # `TextInsertion` is a `TextDocument`, and prose is not what it is, and a
+        # `DocumentNothing` drawn as a leaf beats the same one drawn as prose.
         specific,
         Pair{Type,Any}[
-            # The domain-free placeholder — what a fresh pane tab holds. It draws
-            # as prose, so an empty tab needs no reflection.
+            # The domain-free placeholder, for a session that can not reflect a
+            # document into a tree. A session that loaded the syntax package
+            # registers an exact row for it above, and that row wins, so a person
+            # there gets the placeholder leaf and the Insert key that goes with
+            # it. Without that package there is no leaf, and one line of prose is
+            # what an empty tab can say.
             DocumentNothing => PhraseToGraphics(_ -> "empty document", style, measure),
             TextDocument    => prose_chain,
             # A collection renders as a stack of independent graphics blocks: each

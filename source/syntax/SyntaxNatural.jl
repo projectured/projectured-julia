@@ -41,10 +41,12 @@ function make_natural_to_syntax_dispatch()
             # both leaves are this package's, so its two entries live here.
             TextNothing        => InsertionNothingToSyntaxLeaf(),
             TextInsertion      => DomainInsertionToSyntaxLeaf(TextDocument),
-            # The domain-free placeholder, for a caller that renders through the
-            # fabric directly. The natural renderer draws it as prose and never
-            # reaches this row.
+            # The domain-free placeholder and the name buffer a person types into.
+            # These two are what an empty pane tab holds: Insert turns the
+            # placeholder into the buffer, and Enter commits the typed name to a
+            # fresh document of any loaded domain.
             DocumentNothing    => InsertionNothingToSyntaxLeaf(),
+            DocumentInsertion  => DocumentInsertionToSyntaxLeaf(),
         ],
         CollectionToSyntax().dispatch,   # CellVector, ListNode
         ObjectToSyntax().dispatch,       # Cell/Nothing/Bool/Number/String/Symbol/Char/Any
@@ -74,9 +76,14 @@ make_natural_prose_graphics(; measure) = ChainingProjection(
     TextToGraphics(measure = measure),
 )
 
-# The rows this package fills the natural renderer's fallback with. The two Text
+# The rows this package fills the natural renderer's fallback with. The four
 # editing states are here and not in the renderer because only these leaves can
 # draw a placeholder or a name buffer; `Any` is the reflection tail.
+#
+# The two domain-free rows are what an empty pane tab draws through. They are
+# exact types, so the renderer takes them before its own abstract rows, and a
+# person who presses Insert in an empty tab sees the name buffer rather than a
+# reflected struct.
 function _fallback_rows(; measure, font, wrap)
     fabric = ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(make_natural_to_syntax_dispatch())),
@@ -84,9 +91,11 @@ function _fallback_rows(; measure, font, wrap)
         TextToGraphics(measure = measure),
     )
     Pair{Type,Any}[
-        TextNothing   => fabric,
-        TextInsertion => fabric,
-        Any           => fabric,
+        TextNothing       => fabric,
+        TextInsertion     => fabric,
+        DocumentNothing   => fabric,
+        DocumentInsertion => fabric,
+        Any               => fabric,
     ]
 end
 

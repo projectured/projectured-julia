@@ -255,6 +255,33 @@ Each step is one commit. Run the named test before the commit.
 
 ### Step 0. The insertion draws and commits in a tab
 
+**Status: mostly done, 2026-09-18.** `Ctrl+T`, Insert and the prompt work in a
+tab. Two assertions are `@test_broken`: a printable key does not reach the name
+buffer. The cause is named below.
+
+**The two rows were not the whole of it.** They were necessary and they were
+not enough. Three defects in the pane came out behind them, and two are fixed:
+
+1. **A bare page element mapped back to the tab, not to its content.**
+   `map_reference_backward` of `PaneGroupToWidgetTabbedPane` answered the
+   `PaneTab` for `selector_element_pairs[i].element`, which names the tab's
+   CONTENT. The Insert operation then wrote the new document over the `PaneTab`
+   itself and took the layout with it. **Fixed.** A bare `[i]` is the tab, and
+   `[i].element` is the content, whole.
+2. **The `^` splice of `@reference` moves type checkpoints.** It hoists the
+   spliced path's leading type onto the node before it and drops the interior
+   ones, so `tabs[1]::PaneTab.content::DocumentInsertion.value{0}` came out as
+   `tabs[1]::DocumentInsertion.content.value{0}`. A selection whose checkpoints
+   moved matches no document. **Fixed** at the three backward maps of the pane,
+   by `concat_references`, which carries a terminal type onto the node that
+   follows it. **The forward maps still use the splice**, and that is why a
+   typed key does not reach the buffer: the text layer needs the forward image
+   of the caret to place it. This is the next thing to fix.
+3. **A group printed with no tab never draws its first tab.** The standing iomap
+   keeps the empty pane it printed. Reproduced on clean `main`, so it is older
+   than this plan. The test starts from a group with one tab to step around it.
+   Worth its own plan.
+
 1. Add `DocumentInsertion => DocumentInsertionToSyntaxLeaf()` to
    `make_natural_to_syntax_dispatch` in
    [SyntaxNatural.jl](../../source/syntax/SyntaxNatural.jl).
@@ -268,11 +295,12 @@ Each step is one commit. Run the named test before the commit.
 4. A session without the syntax package then draws no placeholder. Keep the
    phrase as the fallback's own tail row there, not as an abstract row.
 
-**Test.** A new test file, `test/pane/InsertionInTabTest.jl`, function
-`test_insertion_in_tab()`. It opens a pane tree with one empty tab, sends
-Insert, sends the characters of a name, sends Enter, and asserts that the tab
-holds the named document. Drive the editor, not the printer: a direct read
-misses a reuse bug.
+**Test.** [test/projectured/editor/InsertionInTabTest.jl](../../test/projectured/editor/InsertionInTabTest.jl),
+function `test_insertion_in_tab()`. It opens a tab with `Ctrl+T`, sends Insert,
+sends the characters of a name, sends Enter, and asserts what the tab holds and
+what it draws. One standing iomap serves the whole sequence, as a live editor
+keeps it: a fresh print for each step would hide a reuse bug, which is the class
+of bug this test found. 5 pass, 2 broken.
 
 ### Step 1. Four tools register their own row
 

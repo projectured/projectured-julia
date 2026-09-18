@@ -260,7 +260,9 @@ function map_reference_backward(::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap
             s == 0 || return nothing        # slot 2 is the indicator: nothing to map
             inner = _child_backward(iomap.root_iomap, rest)
             inner === nothing && return nothing
-            @reference ::PaneTree.root.^(inner)
+            concat_references(
+                ConcreteReference(PaneTree, FieldReferenceStep("root"), EmptyReference()),
+                inner)
         end
     end
 end
@@ -324,7 +326,11 @@ function map_reference_backward(::PaneSplitToWidgetSplitPane,
             i <= length(iomaps) || return nothing
             inner = _child_backward(iomaps[i], rest)
             inner === nothing && return nothing
-            @reference ::PaneSplit.elements::CellVector[i].^(inner)
+            concat_references(
+                ConcreteReference(PaneSplit, FieldReferenceStep("elements"),
+                    ConcreteReference(CellVector, RangeReferenceStep(i - 1, i),
+                                      EmptyReference())),
+                inner)
         end
     end
 end
@@ -403,8 +409,23 @@ function map_reference_backward(::PaneGroupToWidgetTabbedPane,
             # A bare `selector_element_pairs[i]` is a tab-strip click: it names the
             # tab and nothing in it.
             tab = @reference ::PaneGroup.tabs::CellVector[i]::PaneTab
+            rest isa EmptyReference && return tab
+            # `concat_references`, not the `^` splice of `@reference`: the splice
+            # hoists the spliced path's leading type onto the node before it, so a
+            # content path that starts at its own checkpoint would overwrite
+            # `::PaneTab` and leave every node below untyped. A selection whose
+            # checkpoints moved matches no document.
+            content = concat_references(tab,
+                ConcreteReference(FieldReferenceStep("content"), EmptyReference()))
             inside = _after_element_step(rest)
-            inside isa EmptyReference && return tab
+            # `.element` and nothing after it names the tab's CONTENT, whole — not
+            # the tab. An Alt+click on a pane answers this, and so does a
+            # document-replace that swaps the whole content, such as the one the
+            # Insert key makes on an empty tab. Answering the tab there would write
+            # the new document over the `PaneTab` itself and take the layout with
+            # it.
+            inside isa EmptyReference && return concat_references(content,
+                EmptyReference(get_reference_node_type(entries[i].iomap.input)))
             # Anything deeper is a click INSIDE the tab, and it must reach the
             # document the tab holds. A caret is the case that shows it: a click in
             # a form field of a pane's content answers a path into that field, and
@@ -413,7 +434,7 @@ function map_reference_backward(::PaneGroupToWidgetTabbedPane,
             inner = _child_backward(entries[i].iomap, inside)
             # A content that claims nothing still says which pane was pointed at.
             inner === nothing && return tab
-            @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.content.^(_typed_head(inner, entries[i].iomap.input))
+            concat_references(content, _typed_head(inner, entries[i].iomap.input))
         end
     end
 end

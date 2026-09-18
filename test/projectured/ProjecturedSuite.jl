@@ -143,6 +143,7 @@ include("editor/ConversationParsingTest.jl")
 include("editor/ConversationSerializationTest.jl")
 include("editor/WorkbenchFileTest.jl")
 include("editor/ApplicationTest.jl")
+include("editor/InsertionInTabTest.jl")
 include("editor/ValueViewerTest.jl")
 include("editor/GalleryWrapperTest.jl")
 include("editor/McpTest.jl")
@@ -383,6 +384,7 @@ function test_all()
     test_assistant_mvp()
     test_workbench_file_keys()
     test_application()
+    test_insertion_in_tab()
     test_value_viewer()
     test_builder()
     test_gallery_wrappers()
@@ -444,7 +446,8 @@ export test_tree_navigation, test_tree_navigations, test_tree_navigations_comple
 export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
 export test_conversation_editor, test_conversation_serialization, test_parse_markdown_blocks
 export test_undo_round_trip
-export test_workbench_file_keys, test_application, test_value_viewer, test_builder,
+export test_workbench_file_keys, test_application, test_insertion_in_tab,
+       test_value_viewer, test_builder,
        test_gallery_wrappers
 export test_odbc_database_connection, test_odbc_database, test_odbc_database_no_db
 export test_db_catalog, test_db_catalog_syntax, test_db_catalog_sql
