@@ -589,6 +589,34 @@ Made by the user on 2026-09-17:
 
 ## 7. Findings
 
+### The chat model over the new documentation, 2026-09-18
+
+The same eleven problems, the same three seeds, after the documentation sweep
+and the three kinds of name that left the index:
+
+| stage | solved | rounds | tokens in |
+| --- | --- | --- | --- |
+| before the sweep | 29 of 33 | 151 | 900,330 |
+| after it | 29 of 33 | 150 | 891,609 |
+
+The same problems fail, and most rows are identical to the token. **The sweep
+did not reach these turns, and that was to be expected**: this window declares
+about 150 names, and the last plan wrote their documentation already. What the
+sweep documented is the kernel's own surface, which this window does not
+declare. It is worth what a reader of the code gets from it, and it shows in
+the corpora of §3h, not here.
+
+The corpora after everything, for the record:
+
+| corpus | entries | with a sentence | names first / in five / in ten, by description |
+| --- | --- | --- | --- |
+| projectured, 26 questions | 1,224 | 721 of 1,199 | 10 / 20 / 21 |
+| omnet, 34 questions | 786 | 539 of 728 | 8 / 15 / 19 |
+
+Omnet's corpus fell from 1,612 entries to 786 and its share of documented names
+rose from 44 per cent to 74. Its questions by words rose from 3 first to 6, and
+15 in the first ten against 12.
+
 ### Step 4, the chat model on three seeds, 2026-09-18
 
 `qwen3.8:27b`, the eleven problems, three seeds, with the engine after Step 3:
