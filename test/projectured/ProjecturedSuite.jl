@@ -39,6 +39,7 @@ using ProjecturedBuilder
 
 # Re-export every lower tier's test functions, so `using ProjecturedTest` alone
 # gives a REPL `test_json()` and `test_substrate()` as well as `test_all()`.
+for _src in (ProjecturedBookTest, ProjecturedChartTest, ProjecturedConversationTest, ProjecturedDatabaseTest, ProjecturedDbCatalogTest, ProjecturedFileSystemTest, ProjecturedFormulaTest, ProjecturedFsmTest, ProjecturedGraphTest, ProjecturedJsonTest, ProjecturedJuliaTest, ProjecturedKernelTest, ProjecturedMarkdownTest, ProjecturedMathTest, ProjecturedProcessTest, ProjecturedRstTest, ProjecturedSequenceChartTest, ProjecturedSqlTest, ProjecturedSubstrateTest, ProjecturedUndoTest, ProjecturedXmlTest, ProjecturedYamlTest)
     for _n in names(_src)
         _n === nameof(_src) && continue
         isdefined(_src, _n) || continue

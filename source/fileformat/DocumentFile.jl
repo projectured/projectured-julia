@@ -152,7 +152,12 @@ end
 # `FileDocument`.
 function evaluate_operation(editor, op::SaveFileOperation)
     file = op.file
-    save_file!(file, dirname(abspath(get_filename(file))))
+    # The file writes the document, not a wrapper around it: a content that
+    # carries a history writes what the history is about. The save walks the
+    # content for nodes of the file's own domain, and a wrapper is not one.
+    content = get_wrapped_document(get_file_content(file))
+    plain = Base.typename(typeof(file)).wrapper(get_filename(file), content)
+    save_file!(plain, dirname(abspath(get_filename(file))))
 end
 
 """
@@ -169,7 +174,10 @@ end
 
 function evaluate_operation(editor, op::ReloadFileOperation)
     file = op.file
-    file.content = read_document_file(get_filename(file))
+    # A wrapper around the content — a history — keeps its place and takes the
+    # new document; a plain content is replaced outright.
+    file.content = replace_wrapped_document!(get_file_content(file),
+                                             read_document_file(get_filename(file)))
     file.selection = nothing
 end
 

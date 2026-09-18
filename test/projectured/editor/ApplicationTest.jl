@@ -15,8 +15,6 @@ function _app_fire(composed, iomap, event)
     change isa Intent ? change.operation : change
 end
 
-_app_count_tabs(tree::PaneTree) = sum(length(group.tabs) for group in get_pane_groups(tree))
-
 # The application gives the window a history and every file tab one of its own,
 # so the document a test reaches for is inside a buffer and an operation a reader
 # answers arrives recorded. Two helpers say so once, and the assertions below
@@ -24,6 +22,8 @@ _app_count_tabs(tree::PaneTree) = sum(length(group.tabs) for group in get_pane_g
 _app_window(document) = get_wrapped_document(document)
 _app_plain(operation) =
     operation isa WrappingOperation ? _app_plain(get_wrapped_operation(operation)) : operation
+
+_app_count_tabs(tree::PaneTree) = sum(length(group.tabs) for group in get_pane_groups(tree))
 
 # One small file of each format in `dir`. `TestRun` is the `.pred` document of
 # FileProjectTest.jl, in this module.
@@ -69,7 +69,7 @@ end
 function _app_find_file_row(composed, iomap)
     for y in 0:4:400
         operation = _app_fire(composed, iomap, MousePress(:left, 100, y, 2, ModifierKeys()))
-        _app_plain(operation) isa OpenWorkspaceFileOperation && return (y, operation)
+        _app_plain(operation) isa OpenFileOperation && return (y, operation)
     end
     (nothing, nothing)
 end
@@ -142,42 +142,40 @@ function test_application()
                 end
             end
 
-                @testset "Ctrl+S saves the focused file" begin
-                    json = joinpath(dir, "a.json")
-                    document, scene, composed, iomap = _app_make_scene([json], dir, window)
-                    editor = _AppFakeEditor(scene, iomap)
-                    operation = _app_fire(composed, iomap, KeyDown(:s, ModifierKeys(ctrl = true)))
-                    tab = _app_plain(operation).editor
-                    @test tab.filename == json
-                    get_wrapped_document(tab.content).entries[1].value.value = "Bob"
-                    evaluate_operation(editor, operation)
-                    @test occursin("Bob", read(json, String))
-                    write_document_file(parse_natural_text(:json, "{\"name\": \"Alice\", \"age\": 30}"), json)
-                end
+            @testset "Ctrl+S saves the focused file" begin
+                json = joinpath(dir, "a.json")
+                document, scene, composed, iomap = _app_make_scene([json], dir)
+                editor = _AppFakeEditor(scene, iomap)
+                operation = _app_fire(composed, iomap, KeyDown(:s, ModifierKeys(ctrl = true)))
+                @test _app_plain(operation) isa SaveFileOperation
+                tab = _app_plain(operation).file
+                @test tab.filename == json
+                get_wrapped_document(tab.content).entries[1].value.value = "Bob"
+                evaluate_operation(editor, operation)
+                @test occursin("Bob", read(json, String))
+                write_document_file(parse_natural_text(:json, "{\"name\": \"Alice\", \"age\": 30}"), json)
+            end
 
-                @testset "the navigator opens a file beside the files" begin
-                    document, scene, composed, iomap = _app_make_scene(paths[1:1], dir, window)
-                    editor = _AppFakeEditor(scene, iomap)
-                    y, operation = _app_find_file_row(composed, iomap)
-                    @test _app_plain(operation) isa OpenWorkspaceFileOperation
-                    @test basename(_app_plain(operation).path) == "a.jl"   # the first file row
-                    before = _app_count_tabs(_app_window(document))
-                    evaluate_operation(editor, operation)
-                    @test _app_count_tabs(_app_window(document)) == before + 1
-                    if window === :pane
-                        groups = get_pane_groups(_app_window(document))
-                        @test length(groups[1].tabs) == 1       # the navigator stays alone
-                        @test length(groups[2].tabs) == 2       # the file joins the files
-                    end
+            @testset "the navigator opens a file beside the files" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                editor = _AppFakeEditor(scene, iomap)
+                y, operation = _app_find_file_row(composed, iomap)
+                @test _app_plain(operation) isa OpenFileOperation
+                @test basename(_app_plain(operation).path) == "a.jl"    # the first file row
+                before = _app_count_tabs(_app_window(document))
+                evaluate_operation(editor, operation)
+                @test _app_count_tabs(_app_window(document)) == before + 1
+                groups = get_pane_groups(_app_window(document))
+                @test length(groups[1].tabs) == 1       # the navigator stays alone
+                @test length(groups[2].tabs) == 2       # the file joins the files
 
-                    # A single click selects the row, and Enter opens it.
-                    selection = _app_fire(composed, iomap, MousePress(:left, 100, y, 1, ModifierKeys()))
-                    @test _app_plain(selection) isa CompoundOperation
-                    evaluate_operation(editor, selection)
-                    opened = _app_fire(composed, iomap, KeyDown(:return, ModifierKeys()))
-                    @test _app_plain(opened) isa OpenWorkspaceFileOperation
-                    @test _app_plain(opened).path == _app_plain(operation).path
-                end
+                # A single click selects the row, and Enter opens it.
+                selection = _app_fire(composed, iomap, MousePress(:left, 100, y, 1, ModifierKeys()))
+                @test _app_plain(selection) isa CompoundOperation
+                evaluate_operation(editor, selection)
+                opened = _app_fire(composed, iomap, KeyDown(:return, ModifierKeys()))
+                @test _app_plain(opened) isa OpenFileOperation
+                @test _app_plain(opened).path == _app_plain(operation).path
             end
         end
         rm(dir; recursive = true)
