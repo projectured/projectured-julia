@@ -223,11 +223,11 @@ kernel.
   ([source/widget/WidgetDocument.jl:471](../../source/widget/WidgetDocument.jl#L471))
   keeps its place for a host that wants an overlay inside its own content.
 
-### 2.7 Another plan removes the workbench under us
+### 2.7 The plan that removed the workbench has landed
 
-[tool-views-replace-the-workbench.md](tool-views-replace-the-workbench.md) is
-written and not started. It affects six places in this plan, and mostly it makes
-them smaller.
+[tool-views-replace-the-workbench.md](tool-views-replace-the-workbench.md)
+landed on `main` on 2026-09-18, in fifteen commits, and this branch is rebased
+onto it. It affected six places in this plan, and mostly it made them smaller.
 
 | What that plan decides | Where | What it does to this plan |
 | --- | --- | --- |
@@ -238,20 +238,50 @@ them smaller.
 | The whole editor document saves to a `.pred` file, with a reference to each open file. | its Steps 9 and 10 | **The chrome must not be in the document** (§3.1). |
 | `print!` puts `editor.document` in the root printer context as the `:root` property. | its D8 | The status line of §3.7 reads the same property. |
 
-**Which plan goes first.** Steps 7 and 8 of that plan must land before Steps 3,
-8 and 9 of this one. Steps 0 to 2 and 4 to 7 of this plan touch nothing it
-moves, so the two can run side by side up to that point.
+**Every prediction above held**, checked against `main` after the rebase. Steps
+3, 8 and 9 of this plan are unblocked.
 
-**Two things this plan hands back to that one.**
+**Two things it brought that this plan did not foresee**, and both reach the
+fold:
 
-1. **The clipboard wrapper will be in the saved document.** Step 2 turns it on in
-   the application, and it sits above the pane tree. Its D5 lists `PaneTree`,
-   `Assistant`, `GestureLog` and `SelectionInspector` as documents that must
-   write less; the clipboard slice is not on that list and should be.
-2. **The gallery's `shell = true` calls `make_shell_document`**
-   ([example/projectured/Gallery.jl:266](../../example/projectured/Gallery.jl#L266)),
-   which its Step 8 deletes with `example/workbench/`. Step 7 of this plan gives
-   the gallery the projection to use instead.
+1. **An undo history**, `ProjecturedUndo`. A file tab holds an `UndoBuffer`
+   around its `FileDocument`, and a projection draws through it. The window's own
+   layout sits in one too.
+2. **A gesture log that is always recorded.** `get_session_gesture_log()` answers
+   one log for the session, so a gesture log a person opens in a tab already
+   holds what happened before the tab existed. `--gesture-log` adds only the
+   corner panel.
+
+`make_window_wrap` took both: the recorder is unconditional and reads the session
+log, and a `history` keyword takes a `projection -> projection` wrapper, so the
+shell package names no undo type.
+
+**It also built the general mechanism this plan was patching around.**
+`get_wrapped_document` in the kernel, a `get_window_tree` that walks through any
+wrapper, and `WrappingOperation`. The `_find_pane_tree` patch of Step 2 went with
+the file it was in, and is not ported.
+
+**The clipboard was missing from that mechanism, and this plan supplied it.**
+`get_wrapped_document`'s own docstring names "a clipboard slice" as a case it
+exists for, yet only `UndoBuffer` had a method; `ClipboardSlice` was served by a
+special case inside `get_window_tree`. Two methods on the two clipboard
+wrappers, and that special case is gone. A window this plan wraps is now
+transparent to everything that reads the tree rather than the picture, which is
+what found it: the suite asked a wrapped window how many tabs it had.
+
+**Still to check.** Neither `ClipboardSlice` nor `UndoBuffer` is registered with
+`register_pred_type!`, so what `save_user_interface` writes for a window this
+plan wrapped is unknown. Step 2 puts a `ClipboardSlice` at the document root, and
+the save writes the root.
+
+**What happened to the two hand-backs.**
+
+1. **The clipboard wrapper in the saved document: not taken.** `ClipboardSlice`
+   still has no reduced `pred_arguments` and is not registered.
+2. **The gallery's `shell = true`: solved another way.** `make_shell_document`
+   moved to `example/projectured/GalleryWrapperDocumentExample.jl` rather than
+   being deleted, so the gallery keeps its option and Step 7 of this plan needs
+   to give it nothing.
 
 ## 3. Decisions
 
@@ -743,6 +773,20 @@ the work decided:
   is gone from the application. `make_opened_window_projections()` says the same
   thing and is public.
 - The clipboard and the walk stay off here. Step 2 turns them on.
+
+**A recursive type dispatch must be innermost.** Found on the rebase,
+2026-09-18. A wrapper such as the undo history is a
+`RecursiveProjection(TypeDispatchingProjection(…))`, and what it dispatches on
+sits inside the tree. Any wrapper between it and the tree prints that subtree
+itself, so the recursion never reaches what it dispatches on: with the clipboard
+between them, every window failed to draw with "no projection registered for
+type `UndoBuffer`". The fold therefore applies `history` first, under the
+clipboard, and the keyword's docstring says why.
+
+**And the probe that cleared the fold was wrong.** It drew the document it had
+built, not the one the fold answered, so the clipboard wrapper was never in the
+tree it printed and eight combinations all "drew". The fold answers a pair, and
+a test of it must print that pair. Both halves, or neither.
 
 - [x] Add `package/ProjecturedShell` and `source/shell/`. Follow
       [package-rules.md](../../documentation/rule/package-rules.md): a

@@ -11,13 +11,21 @@ function test_window_wrap()
 
 _document() = PrimitiveString("x")
 
-@testset "every wrapper is off, so nothing is added" begin
+# The recorder is always outermost, so what a keyword added is one step in. A
+# gesture log a person opens in a tab shows the session's own log, which must
+# already hold what happened before the tab existed.
+_under_recorder(projection) = begin
+    @test projection isa GestureLogRecordingProjection
+    projection.inner
+end
+
+@testset "every wrapper is off, so only the recorder is added" begin
     document, base = _document(), IdentityProjection()
     answer_document, answer_projection =
         make_window_wrap(; gesture_help = false, command_palette = false,
                            gesture_log = false, selection = false)(document, base)
     @test answer_document === document
-    @test answer_projection === base
+    @test _under_recorder(answer_projection) === base
 end
 
 @testset "a keyword adds the wrapper it names" begin
@@ -26,10 +34,13 @@ end
                                              gesture_log = false, selection = false,
                                              keywords...)(document, base)
 
-    @test wrap(; gesture_help = true)[2] isa GestureHelpDecoratorProjection
-    @test wrap(; command_palette = true)[2] isa CommandPaletteDecoratorProjection
-    # The log wraps twice: the panel draws, and the recorder outside it records.
-    @test wrap(; gesture_log = true)[2] isa GestureLogRecordingProjection
+    @test _under_recorder(wrap(; gesture_help = true)[2]) isa GestureHelpDecoratorProjection
+    @test _under_recorder(wrap(; command_palette = true)[2]) isa CommandPaletteDecoratorProjection
+    @test _under_recorder(wrap(; gesture_log = true)[2]) isa GestureLogOverlayProjection
+    # The history is a wrapper the host gives, and the default changes nothing.
+    marked = wrap(; history = projection -> GestureHelpDecoratorProjection(
+                      inner = projection, state = GestureHelpState()))[2]
+    @test _under_recorder(marked) isa GestureHelpDecoratorProjection
     # The clipboard is the one wrapper that wraps the document as well.
     @test wrap(; selection = true)[1] isa ClipboardSlice
 end
@@ -38,8 +49,9 @@ end
     document, base = _document(), IdentityProjection()
     _, projection = make_window_wrap(; gesture_help = true, command_palette = true,
                                        gesture_log = false, selection = false)(document, base)
-    @test projection isa CommandPaletteDecoratorProjection
-    @test projection.inner isa GestureHelpDecoratorProjection
+    palette = _under_recorder(projection)
+    @test palette isa CommandPaletteDecoratorProjection
+    @test palette.inner isa GestureHelpDecoratorProjection
 end
 
 @testset "the help window is drawn only when the help is on" begin

@@ -30,3 +30,10 @@ Clipboard entry: `content` document + sequence of extracted `elements`.
     content::Document
     elements::CellVector = CellVector()
 end
+
+# A clipboard wraps a whole window and is transparent on the screen, so anything
+# that reads the tree rather than the picture must be able to look past it. The
+# contract of `get_wrapped_document` names this case by name.
+get_wrapped_document(slice::ClipboardSlice) = get_wrapped_document(slice.content)
+get_wrapped_document(collection::ClipboardCollection) =
+    get_wrapped_document(collection.content)

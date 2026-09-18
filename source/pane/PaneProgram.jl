@@ -165,9 +165,6 @@ what reads through it.
 """
 get_window_tree(tree::PaneTree) = tree
 
-# A window whose content is wrapped in a clipboard holds the tree inside it.
-get_window_tree(slice::ClipboardSlice) = get_window_tree(slice.content)
-
 function get_window_tree(editor)
     hasfield(typeof(editor), :document) || return _get_wrapped_window_tree(editor)
     document = getfield(editor, :document)

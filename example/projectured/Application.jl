@@ -218,7 +218,6 @@ function make_application_window(paths::AbstractVector;
                        history = _with_window_history,
                        measure = measure)(document, projection)
 end
-end
 
 # The window content sits inside a history of its own, so a change that belongs
 # to no file — a splitter that moves, a tab that opens — can be taken back too.

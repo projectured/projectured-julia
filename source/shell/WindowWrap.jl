@@ -20,10 +20,12 @@ projection)` that a window entry applies before it opens.
   fault report, not for daily work. **The log is recorded either way.** A gesture
   log a person opens in a tab is the session's own, so it must already hold what
   happened before the tab existed; this keyword adds the panel, not the record.
-- `history`: a wrapper the host puts between the palette and the recorder, for
-  what the window remembers. It is a function `projection -> projection`, and the
-  default changes nothing. A host that has an undo buffer passes the wrapper that
-  draws it.
+- `history`: a wrapper for what the window remembers, put **innermost**, around
+  the content projection itself. It is a function `projection -> projection`, and
+  the default changes nothing. A host that has an undo buffer passes the wrapper
+  that draws it. Innermost because such a wrapper is a recursive type dispatch
+  over the tree, and anything between it and the tree prints that subtree itself,
+  so the recursion never reaches what it dispatches on.
 - `selection`: Alt and an arrow walk the objects of the document, and the
   clipboard acts on the object an Alt+click or the walk selected.
   `clipboard_gestures` says which of [`CLIPBOARD_GESTURES`](@ref) are offered; a
@@ -33,10 +35,9 @@ The help, the palette and the log wrap the projection and leave the document as
 it is. The clipboard wraps the document too, so a verb that walks the window
 must look inside it.
 
-The order is the gallery's: the walk and the clipboard inside, the help over
-them, the palette over it, the history over that, the log's panel over the
-history, and the log's recorder outermost, where it sees every operation the
-window makes.
+The order is the history innermost, the walk and the clipboard over it, the help
+over them, the palette over it, the log's panel over the palette, and the log's
+recorder outermost, where it sees every operation the window makes.
 """
 function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = true,
                             gesture_log::Bool = false, selection::Bool = true,
@@ -49,6 +50,11 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
     # gesture log opens this one.
     log = get_session_gesture_log()
     (document, projection) -> begin
+        # The history is innermost, under the clipboard. It is a recursive type
+        # dispatch, and what it dispatches on — a buffer around what a tab
+        # holds — sits inside the tree. A wrapper between it and the tree prints
+        # that subtree itself, and the recursion never reaches the buffer.
+        projection = history(projection)
         if selection
             projection = make_clipboard_projection(SelectionWalkingProjection(inner = projection);
                                                    offered_gestures = clipboard_gestures)
@@ -58,7 +64,6 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
             (projection = GestureHelpDecoratorProjection(inner = projection, state = help_state))
         command_palette &&
             (projection = CommandPaletteDecoratorProjection(inner = projection, measure = measure))
-        projection = history(projection)
         gesture_log &&
             (projection = GestureLogOverlayProjection(inner = projection, log = log))
         # The recorder is outermost, where it sees every operation the window
