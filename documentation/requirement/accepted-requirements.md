@@ -64,6 +64,7 @@ requirement; the rule is its own lead sentence.
 | ID | Rule |
 | --- | --- |
 | [PR-MANY-VIEWS-OF-ONE-DOCUMENT](#pr-many-views-of-one-document) | More than one way to see the same data |
+| [PR-VIEW-OF-ANY-VALUE](#pr-view-of-any-value) | A view of any value, with no view written for it |
 | [PR-SORT-AND-FILTER](#pr-sort-and-filter) | Sort and filter any collection, without losing editing |
 | [PR-FOCUS-AND-REORGANIZE](#pr-focus-and-reorganize) | Focus and reorganize the view |
 | [PR-COMBINE-CONTENT-KINDS](#pr-combine-content-kinds) | Combine different kinds of content |
@@ -105,6 +106,7 @@ requirement; the rule is its own lead sentence.
 | --- | --- |
 | [PR-AI-SAME-GUARANTEES](#pr-ai-same-guarantees) | AI edits with the same guarantees |
 | [PR-EDIT-BY-REQUEST](#pr-edit-by-request) | Editing by request |
+| [PR-ONE-TOOL-SET](#pr-one-tool-set) | One tool set for the assistant and for an external client |
 
 **Usability of the project**
 
@@ -202,6 +204,15 @@ are looking for, move directly to matches, and see matches distinguished from
 the rest.
 
 ### Presenting and organizing content
+
+#### PR-VIEW-OF-ANY-VALUE
+
+**A view of any value, with no view written for it.** A person must be able to
+put any value of a running program on the screen, without writing a projection
+for it first. The view must show the structure of the value, and it must open
+it one level at a time, so that a value that is large, that refers to itself,
+or that a task still writes costs what is on the screen and no more. A view
+that somebody did write for that kind of value must take its place.
 
 #### PR-MANY-VIEWS-OF-ONE-DOCUMENT
 
@@ -344,6 +355,14 @@ the content rather than its position on screen.
 
 **Editing by request.** The user must be able to ask, in natural language, for
 changes to the content and see them carried out.
+
+#### PR-ONE-TOOL-SET
+
+**One tool set for the assistant and for an external client.** The functions a
+language model can call must be one set: the assistant inside the window and a
+client outside the process must be offered the same tools, the same resources
+and the same way to change the content. A tool that an application adds must
+reach both without a second registration.
 
 ---
 

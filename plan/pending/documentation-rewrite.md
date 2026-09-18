@@ -843,9 +843,10 @@ decisions and the two older guides, which are the rest of this step.
 - [ ] `requirement/delivery-roadmap.md`: delivered, in progress and next, from
       `plan/done/` and `plan/pending/`. Undo, redo and uniform type-in stay in
       "next".
-- [ ] `requirement/accepted-requirements.md`: a requirement for a view of any
+- [x] `requirement/accepted-requirements.md`: a requirement for a view of any
       value, and one for the tool set that the assistant and an MCP client
-      share. The owner reviews them.
+      share. They are `PR-VIEW-OF-ANY-VALUE` and `PR-ONE-TOOL-SET`. **The owner
+      still reviews them.**
 - [x] `design/architecture-decisions.md`: why the tool set is a kernel layer,
       why one tool set for the assistant and MCP, why the core tool runs Julia
       instead of a fixed list of commands. Each one states its cost as well.
