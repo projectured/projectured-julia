@@ -432,11 +432,16 @@ and the merge or not.
       table.
 - [x] Not run: the trial stage. The default stays `nomic-embed-text`.
 
-### Step 5. The scale corpora and their questions (§3h)
+### Step 5. The scale corpora and their questions (§3h) — done 2026-09-18
 
-- [ ] The modules, the questions, the measurement and the test, in
-      projectured.
-- [ ] The same in omnet.
+- [x] The measurement, `measure_search_scale!` in `ProjecturedKernelExample`,
+      and projectured's corpus of 25 modules with 32 questions, in
+      `ProjecturedExample`, with `test_search_scale`.
+- [x] omnet's corpus, every module its packages define and the three the window
+      draws with, with 40 questions, in `OmnetIdeExample`, with
+      `test_ide_search_scale`.
+- [x] A name two modules re-export is one binding and one hit. §7 says why that
+      came first.
 
 ### Step 6. What a rebuild would cost later (§3g)
 
@@ -508,6 +513,28 @@ Made by the user on 2026-09-17:
    left out for now.
 
 ## 7. Findings
+
+### Step 5, 2026-09-18
+
+**A wide declaration was refused, and the refusal was wrong.** `declare_api!`
+refused any name that two modules gave. Of the 25 modules of projectured's
+scale corpus, twelve names are given twice, and **every one of them is the same
+function**, re-exported by a module that uses another. The refusal now compares
+the bindings, and the index keeps one hit per binding. Without this, no corpus
+of more than a few modules can be declared at all.
+
+The corpora, as the tests hold them:
+
+| corpus | modules | entries | questions |
+| --- | --- | --- | --- |
+| projectured | 25 | about 2,400 | 26 of names, 6 of guides |
+| omnet | 54 of its own and 3 the window draws with | about 1,600 | 34 of names, 6 of guides |
+
+The measurement prints what the corpus holds, what the index and the vectors
+took to build, what a search costs, and for each mode how many questions rank
+first, how many are in the first five and in the first ten, and the mean
+reciprocal rank. The tests run it offline with a bag-of-words model, and hold
+every question's expected name to the declaration. The numbers wait for Step 7.
 
 ### Step 1, 2026-09-17
 
