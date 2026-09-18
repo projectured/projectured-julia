@@ -39,7 +39,9 @@ _api_modules(set::ToolSet) =
 # The types of one module a model may name. An empty declaration is the whole
 # surface, where every type of the module is one.
 function _api_types(set::ToolSet, mod::Module)
-    all = _struct_types(mod)
+    # A generated schema variant is no resource of its own, as it is no hit.
+    all = [pair for pair in _struct_types(mod)
+           if !_is_schema_variant(mod, first(pair), last(pair))]
     isempty(set.api) && return all
     # A module two entries name gives the names of both.
     given = Set{Symbol}()

@@ -58,6 +58,30 @@ export toy_verb, toy_echo
 toy_echo() = "toytoy"
 end
 
+# A document type as `@document` writes one: the schema, and the names the macro
+# writes beside it, one per storage kind. The macro exports them all.
+module ToyStorage
+export ToyBox, ACToyBox, DCToyBox, ICToyBox, MCToyBox, RCToyBox, AToyBox, Action
+"""
+    ToyBox(lid)
+
+A box a document holds.
+"""
+struct ToyBox
+    lid::Bool
+end
+const ACToyBox = ToyBox
+const DCToyBox = ToyBox
+const ICToyBox = ToyBox
+const MCToyBox = ToyBox
+const RCToyBox = ToyBox
+const AToyBox = ToyBox
+"""A command, whose name opens with the letter of a variant."""
+struct Action
+    label::String
+end
+end
+
 # A module with a verb of its own under a name another module also gives. This
 # is the collision a declaration must refuse.
 module ToyRival
@@ -281,6 +305,22 @@ function test_declared_api()
         @test occursin("ToyApi", message)
         @test occursin("toy_missing", message)
         @test isempty(set.api)
+    end
+
+    @testset "a generated schema variant is not a hit" begin
+        set = register_default_tools!(ToolSet(; api = Module[ToyStorage]))
+        entries = ProjecturedKernel.ToolModule._api_index(set.api)
+        types = [entry.qualname for entry in entries if entry.kind == "type"]
+        # The schema is a hit; the six names the macro writes beside it are not.
+        @test "ToyStorage.ToyBox" in types
+        @test !any(name -> occursin("ToyBox", name) && name != "ToyStorage.ToyBox", types)
+        # A name that merely starts with the letter of a variant stays.
+        @test "ToyStorage.Action" in types
+        # A variant is no resource either, and the model may still write it.
+        @test !any(resource -> occursin("ToyBox", resource.uri) &&
+                               !endswith(resource.uri, "/ToyBox"), list_resources(set))
+        @test occursin("ToyStorage.ToyBox",
+                       execute_julia_code(set, nothing, "string(DCToyBox)"))
     end
 
     @testset "a name two modules re-export is one hit, and one binding" begin

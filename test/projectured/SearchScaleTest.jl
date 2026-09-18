@@ -21,8 +21,9 @@ function test_search_scale()
     @testset "the corpus is large, and every question names something that is there" begin
         @test length(modules) == length(SCALE_SEARCH_MODULE_NAMES)
         # The size is the point of this corpus: a window's own declaration is
-        # about a hundred names.
-        @test length(ToolModule._api_index(set.api)) > 2000
+        # about a hundred names. The generated schema variants are not in it,
+        # because they are not hits.
+        @test length(ToolModule._api_index(set.api)) > 1200
         @test length(guides) > 50
         @test count(question -> question.kind === :api, SCALE_SEARCH_QUESTIONS) >= 20
         @test count(question -> question.kind === :guide, SCALE_SEARCH_QUESTIONS) >= 5

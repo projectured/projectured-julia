@@ -755,6 +755,35 @@ function describe_api(api; signatures::Bool = true)
     isempty(lines) ? "" : join(lines, "\n")
 end
 
+# The names `@document` writes beside a schema, one per storage kind: `ACFoo`,
+# `RCFoo`, `ICFoo`, `MCFoo`, `DCFoo` and `AFoo`. The macro exports them, so a
+# declaration of a module holds them all.
+const _SCHEMA_PREFIXES = ("AC", "RC", "IC", "MC", "DC", "A")
+
+# Whether `name` is one of those. It is a variant when the name is a prefix and
+# a type that the same module has: `ACCellVector` beside `CellVector`. The check
+# of the base name is what keeps `Action`, whose "A" is a letter of a word.
+#
+# **A variant is not a hit.** It carries no documentation of its own — 281 of
+# projectured's 1,584 declared types had a sentence, and 790 of them were
+# variants — and it stands for a type that is a hit already. Measured
+# 2026-09-18: they are a third of a whole-module corpus, 2,355 entries against
+# 1,389, and every vector, every listing and every index costs that third. They
+# did not change where the golden names ranked, because a name with no words of
+# its own answers no query; what they cost is the work and what a listing of
+# names shows.
+function _is_schema_variant(mod::Module, name::Symbol, value)
+    value isa Type || return false
+    written = String(name)
+    for prefix in _SCHEMA_PREFIXES
+        startswith(written, prefix) || continue
+        length(written) > length(prefix) || continue
+        base = Symbol(written[length(prefix) + 1:end])
+        isdefined(mod, base) && getfield(mod, base) isa Type && return true
+    end
+    false
+end
+
 function _index_declared(api)
     entries = _ApiEntry[]
     indexed = Set{Module}()
@@ -776,6 +805,7 @@ function _index_declared(api)
             sym === nameof(mod) && continue
             isdefined(mod, source) || continue
             value = getfield(mod, source)
+            _is_schema_variant(mod, source, value) && continue
             get(bound, sym, nothing) === value && continue
             bound[sym] = value
             qualname = "$mn." * String(sym)
@@ -799,7 +829,8 @@ function _index_api()
     for (mod_sym, mod) in _submodules(proj)
         mn = String(mod_sym)
         push!(entries, _make_api_entry("module", mn, _binding_doc(proj, mod_sym)))
-        for (type_sym, _) in _struct_types(mod)
+        for (type_sym, type_value) in _struct_types(mod)
+            _is_schema_variant(mod, type_sym, type_value) && continue
             push!(entries, _make_api_entry("type", "$mn.$type_sym", _binding_doc(mod, type_sym)))
         end
         # A function has no resource of its own: a resource per function fans out
