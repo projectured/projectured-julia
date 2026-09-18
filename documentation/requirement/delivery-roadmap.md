@@ -51,7 +51,7 @@ Each line names the plan that carries it.
 
 **A user sees these.**
 
-- **Undo and redo.** There is none today. This is the first gap a new user meets.
+- **Undo and redo.** Done. An `UndoBuffer` is a document that holds another document and the steps that take it back, and its projection is transparent. It is opt-in: the application installs one around each file and one around the window, and no other example has one.
 - **Editable tables.** A table renders and navigates; a cell does not take an edit.
 - **A click that selects in every view.** A click works where a projection wires it, and elsewhere it does nothing.
 - **Tool views in place of the workbench** (`tool-views-replace-the-workbench.md`). The workbench window has no clipboard, no dragging, no tooltip, no filter and no search wired into it. The pane window that `bin/projectured` opens does not have that gap.

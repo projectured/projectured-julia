@@ -269,3 +269,65 @@ end
 make_inverse_operation(document, op::RecordUndoOperation) = UndoOperation(op.buffer)
 make_inverse_operation(document, op::UndoOperation) = RedoOperation(op.buffer)
 make_inverse_operation(document, op::RedoOperation) = UndoOperation(op.buffer)
+
+# ── Reaching a buffer from outside ───────────────────────────────────────────
+
+"""
+    find_undo_buffer(document) -> buffer or nothing
+
+The buffer that records everything under `document`: the outermost one, which is
+the first `UndoBuffer` of a walk from the root. `nothing` when there is none.
+
+Use it where a caller has the editor's document and no buffer in hand — a tool a
+model calls, a script. The outermost buffer is the right one to ask, because a
+buffer above another records every step the one below it records, so taking one
+step back there takes back the last thing that happened anywhere under it.
+"""
+function find_undo_buffer(document)
+    document isa UndoBuffer && return document
+    buffers = search_documents(document, node -> node isa UndoBuffer)
+    isempty(buffers) ? nothing : first(buffers)
+end
+
+"""
+    register_undo_tools!(set) -> set
+
+Add the `undo` and the `redo` tool to `set`.
+
+Each finds the buffer with [`find_undo_buffer`](@ref) on the document of the
+editor it is called against, so a model takes a step back the way a person does.
+A program that installs no buffer registers no tools: there would be nothing for
+them to do.
+
+The kernel's own tool list does not hold these. It knows nothing of a history,
+and a program that wants one says so.
+"""
+function register_undo_tools!(set)
+    register_tool!(set, Tool(
+        "undo",
+        "Take the last change back. It is the change anyone made — a person, or " *
+        "you — and it is taken back exactly as Ctrl+Z takes it back. Answers what " *
+        "was taken back, or says that there was nothing to take back.",
+        NamedTuple[],
+        (target, args) -> _run_undo_tool(target, UndoOperation, :undo_entries, "take back")))
+    register_tool!(set, Tool(
+        "redo",
+        "Put back the last change that `undo` took back. Answers what was put " *
+        "back, or says that there was nothing to put back.",
+        NamedTuple[],
+        (target, args) -> _run_undo_tool(target, RedoOperation, :redo_entries, "put back")))
+    set
+end
+
+function _run_undo_tool(target, make, field, verb)
+    buffer = find_undo_buffer(getfield(target, :document))
+    buffer === nothing && return "This editor keeps no history."
+    entries = getproperty(buffer, field)
+    length(entries) == 0 && return "There is nothing to $verb."
+    entry = entries[end]
+    is_undo_barrier(entry) &&
+        return "The history stops here: nobody could work out the way back from " *
+               entry.label * "."
+    evaluate_operation(target, make(buffer))
+    "Did $verb: " * entry.label
+end

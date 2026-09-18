@@ -18,6 +18,7 @@ records the way back.
 | --- | --- |
 | [`source/undo/UndoDocument.jl`](../../../source/undo/UndoDocument.jl) | `UndoBuffer`, `UndoEntry`, the three operations, `is_undo_step` |
 | [`source/undo/UndoBufferToAny.jl`](../../../source/undo/UndoBufferToAny.jl) | `UndoBufferToAnyProjection`: the printer, the two reference maps, the reader, the gestures |
+| [`source/undo/UndoBufferToSyntax.jl`](../../../source/undo/UndoBufferToSyntax.jl) | `UndoBufferToSyntax`: the history drawn for a person to read |
 | [`source/kernel/operation/Inversion.jl`](../../../source/kernel/operation/Inversion.jl) | `make_inverse_operation` and `evaluate_invertible_operation!`, the kernel seams this slice rests on |
 
 ## The way back is an operation
@@ -123,9 +124,39 @@ swallowed.
 A tool or a driver that **wants** its change recorded wraps it with
 `make_undoable_operation(buffer, operation)`.
 
+## The history drawn
+
+`UndoBufferToSyntax` draws the buffer itself rather than the document it holds:
+one line per step, newest at the top, with a marker line for where the document
+stands now. What is above the marker can be put back, what is below it can be
+taken back, and a barrier says `stop`.
+
+It is read-only, as the gesture log's panel is. A click on an entry would need a
+reference map through three stages and an operation that takes several steps back
+at once; neither exists yet.
+
+## A model takes a change back
+
+`register_undo_tools!(set)` adds an `undo` and a `redo` tool. Each finds the
+buffer with `find_undo_buffer` on the document of the editor it is called
+against, and answers what it took back or says there was nothing to take back.
+
+`find_undo_buffer` answers the **outermost** buffer, because a buffer above
+another records every step the one below it records: one step back there takes
+back the last thing that happened anywhere under it.
+
+The kernel's own tool list does not hold these. It knows nothing of a history,
+and a program that wants one says so — the application does it in
+`_start_application!`.
+
+Code a model runs through `execute_julia_code` records nothing by itself. It
+changes the document the way any code does, and it enters a history only if it
+wraps its operation with `make_undoable_operation`.
+
 ## Where to see it
 
-- The example: `undo_example`, built from
+- The examples: `undo_example` is the document with a history behind it, and
+  `undo_history_example` is the history itself, drawn. Built from
   [`UndoDocumentExample.jl`](../../../example/projectured/UndoDocumentExample.jl)
   and [`UndoProjectionExample.jl`](../../../example/projectured/UndoProjectionExample.jl).
 - The suite: `test_undo()`, in

@@ -1,8 +1,8 @@
 # Undo and redo
 
-**Status (2026-09-18): PENDING.** Nothing of this plan is implemented. The
-editor has no undo and no redo today, and
-[concepts.md](../../documentation/design/concepts.md) says so.
+**Status (2026-09-18): DONE.** Steps 0 to 10 are on the branch `undo-and-redo`,
+in seven commits. Four things are deferred and named in §4; step 6 landed in a
+simpler shape than it was planned in, and §5 says why.
 
 **Goal:** a person edits a document, presses `Ctrl+Z`, and the document returns
 to the state before the edit. `Ctrl+Y` puts the edit back. The history is a
@@ -631,6 +631,15 @@ apply.
   set. They answer `DoNothingOperation()`, so a history steps over them.
 - **A shared history across two panes that show one document.** Each buffer
   records only what passes through it.
+- **A click on an entry of the history.** The panel is read-only. A click needs a
+  reference map through three stages — syntax, text, graphics — and an operation
+  that takes several steps back at once.
+- **The document and its history side by side.** That is an arrangement of two
+  panes, which belongs to whoever composes the window. The two examples are the
+  parts it would hold.
+- **A text-domain range edit has no way back.** `ReplaceTextRangeOperation` can
+  cross spans and lines, so its inverse needs the text slice's own splice. Until
+  then such a step is a barrier.
 
 ## 5. Steps
 
@@ -894,27 +903,58 @@ restored the very objects this one names.
 
 ### Step 9 — the assistant and the tool set (U15)
 
-- [ ] The document-changing tools wrap through `make_undoable_operation`.
-- [ ] An `undo` and a `redo` tool.
-- [ ] A test that an edit a tool made is undone by `Ctrl+Z`.
+**U15 had one thing wrong.** There is no document-changing tool to route: the
+assistant changes a document by running Julia code through `execute_julia_code`,
+and that code does whatever it wants. So code a model runs records nothing by
+itself, and enters a history only if it wraps its operation with
+`make_undoable_operation`. The guide says so.
+
+- [x] `register_undo_tools!(set)` adds an `undo` and a `redo` tool, in the undo
+      slice rather than in the kernel's `register_default_tools!`: the kernel
+      knows nothing of a history, and a program that wants one says so. The
+      application says so in `_start_application!`.
+- [x] `find_undo_buffer(document)` answers the **outermost** buffer, because a
+      buffer above another records every step the one below it records — so one
+      step back there takes back the last thing that happened anywhere under it.
+- [x] Each tool answers what it took back, or says there was nothing to take
+      back, or says the editor keeps no history. A barrier says the history stops
+      and names the step.
+- [x] Test: four cases in `test_undo_buffer()`, and `find_undo_buffer` on one
+      buffer, on two nested ones and on a document with none.
 
 ### Step 10 — guides, and close
 
-- [ ] [concepts.md](../../documentation/design/concepts.md): "There is no undo
-      and no redo" goes; say what there is.
-- [ ] [system-anatomy.md](../../documentation/design/system-anatomy.md): the two
+- [x] [concepts.md](../../documentation/design/concepts.md): "There is no undo
+      and no redo" is gone; it says what there is and that it is opt-in.
+- [x] [system-anatomy.md](../../documentation/design/system-anatomy.md): both
       `Undo / redo | ❌` rows.
-- [ ] [operation.md](../../documentation/package/kernel/operation.md): the two
-      new generics, the wrapper seam, and the rule that a new operation declares
-      its inverse.
-- [ ] [mcp-guide.md](../../documentation/guide/mcp-guide.md) and
-      [own-project-guide.md](../../documentation/guide/own-project-guide.md):
-      both say "There is no undo" today.
-- [ ] `documentation/package/undo/undo.md`, in the shape of
+- [x] [operation.md](../../documentation/package/kernel/operation.md): the
+      wrapper seam, in step 1.
+- [x] [mcp-guide.md](../../documentation/guide/mcp-guide.md) and
+      [own-project-guide.md](../../documentation/guide/own-project-guide.md).
+- [x] `documentation/package/undo/undo.md`, in the shape of
       `documentation/package/versioning/versioning.md`.
-- [ ] [keyboard-and-mouse-guide.md](../../documentation/guide/keyboard-and-mouse-guide.md)
+- [x] [keyboard-and-mouse-guide.md](../../documentation/guide/keyboard-and-mouse-guide.md)
       and the roadmap.
-- [ ] `git mv plan/pending/undo-and-redo.md plan/done/`.
+- [x] `git mv plan/pending/undo-and-redo.md plan/done/`.
+
+### What the suites said at the close
+
+Every count is against the baseline of the branch point, `c5dfb9b7`, and every
+failure named here is on clean `main` too.
+
+| Suite | Here | On clean `main` |
+| --- | --- | --- |
+| `test_undo()` | 88 / 0 / 0 | — (new) |
+| `test_undo_round_trip()` | 132 / 0 / 0 | — (new) |
+| `test_kernel()` | 1964 / 3 / 3 | 1915 / 3 / 3 |
+| `test_substrate()` | 62627 / 3 / 2 / 1 | the same three and two |
+| `test_application()` | 72 / 0 / 0 | 72 / 0 / 0 |
+| `test_workbench()` | 144 / 3 / 2 | 144 / 3 / 2 |
+| `test_workbench_file_keys()` | 38 / 3 / 2 / 1 | 38 / 3 / 2 / 1 |
+| `test_domain_examples()` | 265643 / 0 | — |
+| `test_package_graph()` | 616 / 3 | the same three domain-edge rows |
+| `test_naming()`, `test_tree()`, `test_documentation()` | 1 / 0 each | the same |
 
 ## 6. Risks
 

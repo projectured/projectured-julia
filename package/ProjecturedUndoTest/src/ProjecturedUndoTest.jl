@@ -23,6 +23,7 @@ using ProjecturedKernel.OperationModule
 using ProjecturedKernel.ProjectionModule
 using ProjecturedKernel.ReferenceModule
 using ProjecturedKernel.SelectionModule
+using ProjecturedKernel.ToolModule
 using ProjecturedProjection.ProjectionAlgebraModule: IdentityProjection
 using ProjecturedUndo.UndoModule
 

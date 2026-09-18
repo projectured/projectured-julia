@@ -28,6 +28,7 @@ const OperationModule = ProjecturedKernel.OperationModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const SelectionModule = ProjecturedKernel.SelectionModule
+const ToolModule = ProjecturedKernel.ToolModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const StyleModule = ProjecturedStyle.StyleModule
 const SyntaxModule = ProjecturedSyntax.SyntaxModule

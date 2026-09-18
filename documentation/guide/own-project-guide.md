@@ -77,4 +77,4 @@ A test or a script needs no window. `print_document(projection, document)` answe
 
 - The first start of a session compiles the code, which takes minutes. A built binary starts in well under a second; [build-guide.md](build-guide.md) says how to make one.
 - SDL2 and SDL_ttf must be installed for the native window.
-- There is no undo. A program that changes data of its own keeps its own way back.
+- Undo is opt-in. Put an `UndoBuffer` around your document and `UndoBufferToAnyProjection` at the top of your projection, and `Ctrl+Z` takes a change back. Without one, a program that changes data of its own keeps its own way back.

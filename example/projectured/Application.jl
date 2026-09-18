@@ -400,10 +400,12 @@ function warm_application()
     nothing
 end
 
-# What the application does once the editor exists. An MCP client runs no turn of
-# the assistant, so the tools get the meaning model of the backend here, and a
-# search by description ranks by meaning for the client too.
+# What the application does once the editor exists. The application keeps a
+# history, so a model can take a change back the way a person does. An MCP client
+# runs no turn of the assistant, so the tools get the meaning model of the backend
+# here as well, and a search by description ranks by meaning for the client too.
 function _start_application!(editor, mcp::Bool, assistant::Symbol, model::AbstractString)
+    hasproperty(editor, :tools) && register_undo_tools!(editor.tools)
     (mcp && assistant !== :none && hasproperty(editor, :tools)) || return nothing
     try
         bind_meaning_model!(editor.tools, make_llm(assistant; model = String(model)))

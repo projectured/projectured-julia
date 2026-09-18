@@ -31,8 +31,10 @@ A selection is a path into the data, so it survives a filter, a sort and a chang
 | Insert | insert a new element beside the selected one |
 | Enter | finish the part you are typing |
 | Escape | leave what you are typing, or close the window |
+| Ctrl + Z | take the last change back |
+| Ctrl + Y, Ctrl + Shift + Z | put it back |
 
-Which of these a domain takes is the domain's own decision, and F1 says so. There is no undo.
+Which of these a domain takes is the domain's own decision, and F1 says so. `Ctrl + Z` works where a program installs a history; the application installs one around each file and one around the window.
 
 ## The clipboard
 

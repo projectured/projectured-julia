@@ -461,7 +461,7 @@ for adding one.
 | `ChainingProjection`, `TypeDispatching`, `RecursiveProjection` | ✅ |
 | Character editing (`ReplaceStringRangeOperation`) | ⚠️ wired + tested (`test_typeins`) for field-addressed examples; not every domain |
 | Mouse click-to-select | ⚠️ wired + tested (`test_mouse_clicks` / `test_click_roundtrips`); not every domain |
-| Undo / redo | ❌ |
+| Undo / redo | ✅ (`UndoBuffer` + `UndoBufferToAnyProjection`; opt-in, and the application installs two levels) |
 
 ---
 
@@ -484,4 +484,4 @@ for adding one.
 | Editor REPL | `EditorModule.jl` | ✅ |
 | All higher-order projections | `projection/higherorder/` | ✅ |
 | Insert / delete operations | `Operations.jl` (`insert_elements` / `delete_elements` → a `ReplaceReferencedValueOperation` splice) | ✅ (collections; produced by JSON/XML readers) |
-| Undo / redo | — | ❌ |
+| Undo / redo | `undo/` (`UndoBuffer`, `UndoBufferToAnyProjection`, `make_inverse_operation`) | ✅ |

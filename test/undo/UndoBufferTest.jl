@@ -311,6 +311,43 @@ function test_undo_buffer()
         @test length(buffer.undo_entries) == 0
     end
 
+    # The outermost buffer records every step a buffer below it records, so asking
+    # it for one step back takes back the last thing that happened anywhere.
+    @testset "find_undo_buffer answers the outermost one" begin
+        list = _make_list(["a"])
+        inner = UndoBuffer(list)
+        outer = UndoBuffer(inner)
+        @test find_undo_buffer(outer) === outer
+        @test find_undo_buffer(inner) === inner
+        @test find_undo_buffer(list) === nothing
+    end
+
+    @testset "a model takes a change back through a tool" begin
+        list = _make_list(["a"])
+        buffer = UndoBuffer(list)
+        editor = _UndoEditor(buffer)
+        tools = ToolSet()
+        register_undo_tools!(tools)
+        arguments = Dict{String,Any}()
+
+        @test occursin("nothing to take back", call_tool(tools, "undo", arguments, editor))
+        evaluate_operation(editor, RecordUndoOperation(buffer,
+            ReplaceReferencedValueOperation(nothing,
+                Reference(FieldReferenceStep("content"), FieldReferenceStep("items"),
+                          RangeReferenceStep(0, 1), FieldReferenceStep("value")),
+                "changed")))
+        @test _texts(list) == ["changed"]
+
+        @test occursin("take back", call_tool(tools, "undo", arguments, editor))
+        @test _texts(list) == ["a"]
+        @test occursin("put back", call_tool(tools, "redo", arguments, editor))
+        @test _texts(list) == ["changed"]
+
+        # An editor that keeps no history says so rather than failing.
+        @test occursin("keeps no history",
+                       call_tool(tools, "undo", arguments, _UndoEditor(list)))
+    end
+
     @testset "make_undoable_operation records a change from outside the reader" begin
         list = _make_list(["a"])
         buffer = UndoBuffer(list)

@@ -98,7 +98,7 @@ ProjecturEd is under development. Today:
 - About twenty domains open, show, edit and save their data.
 - Views work in a native window, in a browser, in a terminal, and without a screen for tests. A view also goes to a PDF file, an image or a video.
 - The assistant works with a local model through Ollama, or with Claude.
-- There is no undo and no redo.
+- Undo and redo work where a program installs a history. The application does, one around each file and one around the window.
 - Type-in of single characters does not work the same way in every domain.
 
 The [roadmap](../requirement/delivery-roadmap.md) says what comes next.

@@ -62,5 +62,5 @@ A guide name comes from its path: `documentation/guide/setup-guide.md` is `guide
 ## The limits
 
 - The server answers on the loopback address, with no authentication. Anything that runs on your machine can reach it. Do not start it on a machine you share.
-- There is no undo. A client can change data, and the way back is a save from before the change.
+- A client can take a change back with the `undo` tool, and put it back with `redo`, in an editor that keeps a history. The application keeps one; an editor a program builds itself keeps one when it puts an `UndoBuffer` around its document.
 - The server stops when the editor stops.

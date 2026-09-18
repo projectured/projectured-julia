@@ -42,6 +42,7 @@ using ..OperationModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..SelectionModule
+using ..ToolModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_wrapped_document, replace_wrapped_document!
@@ -55,6 +56,7 @@ import ..ProjectionModule: print_document, read_intent,
 export UndoDocument, UndoBuffer, UndoEntry, is_undo_barrier,
        push_undo_entry!, clear_undo_history!, is_undo_step,
        RecordUndoOperation, UndoOperation, RedoOperation, make_undoable_operation,
+       find_undo_buffer, register_undo_tools!,
        UndoBufferToAnyProjection, UndoBufferToAnyIoMap, UndoBufferToSyntax
 
 include("UndoDocument.jl")
