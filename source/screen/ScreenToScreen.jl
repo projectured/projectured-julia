@@ -197,6 +197,8 @@ function _prefix_op(op, steps::Tuple)
             ReplaceReferencedValueOperation(nothing, _prepend(steps, op.reference), op.value) : op
     elseif op isa CompoundOperation
         return CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
+    elseif op isa WrappingOperation
+        return rewrap_operation(op, _prefix_op(get_wrapped_operation(op), steps))
     else
         return op
     end

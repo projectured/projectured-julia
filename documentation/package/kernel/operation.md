@@ -103,6 +103,15 @@ rooted where its rows can be run. **Any seam that maps a `CompoundOperation`
 elementwise must map this one too**, or a listing's operations come back rooted at
 the wrong depth.
 
+`WrappingOperation` is the third container, and the only one that is open. It
+holds **one** operation and does something around it — records the way back,
+traces it, wraps it in a transaction. A subtype answers `get_wrapped_operation`
+and `rewrap_operation`, and every seam reaches the operation it holds through
+those two rather than through a branch that names the subtype. So a wrapper
+needs no `reroot_operation` method of its own and no entry in the default
+`read_intent`: one base method of each serves every wrapper there will ever be.
+`RecordUndoOperation` of the undo slice is the first one.
+
 `ReplaceReferencedValueOperation` and these builders **replace a whole family** of former
 single-purpose operations — `ReplaceDocumentOperation`, `HideWidgetOperation`,
 `ShowWidgetOperation`, `ScrollWidgetOperation`, `SetScrollBarValueOperation`,
@@ -392,6 +401,7 @@ reroot_operation(op, steps) = op                      # catch-all: unchanged
 reroot_operation(op::ReplaceSelectionOperation, steps) = ...
 reroot_operation(op::ReplaceReferencedValueOperation, steps) = ...
 reroot_operation(op::CompoundOperation, steps) = ...
+reroot_operation(op::WrappingOperation, steps) = ...   # every wrapper, once
 ```
 
 The `Primitive` methods live in `document/Primitive.jl` beside the

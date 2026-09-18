@@ -646,6 +646,10 @@ function read_intent(p::WorkbenchWorkbenchToWidgetShell,
         mapped = Any[read_intent(p, iomap, o) for o in op.operations]
         return any(isnothing, mapped) ? nothing : CompoundOperation(mapped)
     end
+    if op isa WrappingOperation
+        inner = read_intent(p, iomap, get_wrapped_operation(op))
+        return inner === nothing ? nothing : rewrap_operation(op, inner)
+    end
     # 3. Other operation types (an identity-rooted ReplaceReferencedValueOperation that
     # targets a widget directly, not a path) — pass through.
     op isa Operation && return op
@@ -813,6 +817,9 @@ function _retarget_panel_op(p, iomap, op)
     elseif op isa CompoundOperation
         mapped = Any[_retarget_panel_op(p, iomap, o) for o in op.operations]
         return any(isnothing, mapped) ? nothing : CompoundOperation(mapped)
+    elseif op isa WrappingOperation
+        inner = _retarget_panel_op(p, iomap, get_wrapped_operation(op))
+        return inner === nothing ? nothing : rewrap_operation(op, inner)
     else
         return op
     end

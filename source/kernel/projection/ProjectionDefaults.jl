@@ -101,7 +101,8 @@ operation that carries a reference from output space to input space using
 `map_reference_backward`: the path/reference of `ReplaceSelectionOperation` and
 the text- and number-range replace operations, plus each member
 of a `CompoundOperation` recursively (so edits flow back through
-structure-preserving generic projections without a bespoke reader). A
+structure-preserving generic projections without a bespoke reader), and the one
+operation a `WrappingOperation` holds. A
 `document === nothing` (`editor.document`-rooted)
 `ReplaceReferencedValueOperation` has its `reference` re-targeted — this covers
 document-replace and sequence-insert/delete, which are
@@ -151,6 +152,12 @@ function read_intent(projection::Projection, iomap, operation)
         mapped = Any[read_intent(projection, iomap, o) for o in operation.operations]
         any(isnothing, mapped) && return nothing
         return CompoundOperation(mapped)
+    elseif operation isa WrappingOperation
+        # A wrapper holds one operation, so it maps like a compound of one. A
+        # wrapper whose inner operation does not map has nothing left to carry.
+        inner = read_intent(projection, iomap, get_wrapped_operation(operation))
+        inner === nothing && return nothing
+        return rewrap_operation(operation, inner)
     elseif operation isa CollectedIntentsOperation
         # A collection maps like a compound: every carried operation into this
         # projection's input domain. Unlike a compound it never fails as a whole —

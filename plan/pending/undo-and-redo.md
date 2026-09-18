@@ -640,34 +640,47 @@ plan did not foresee.
 
 ### Step 0 — baselines and probes
 
-- [ ] Record the baseline of the suites this plan touches, on clean `main`:
-      `test_kernel()`, `test_substrate()`, `test_json()`, `test_workbench()`.
-      Note the pass / fail / error / broken counts of each. A later count that
-      differs is this plan's regression.
+- [x] The baseline of `test_kernel()` on the branch point (`c5dfb9b7`):
+      **1915 pass, 3 fail, 3 error, 23.0 s**. The three failures and three
+      errors are the known ones: five Rule C assertions of
+      `DocumentMacroTest.jl` and `MEvalBranch` of `ReferenceEvalTest.jl`. The
+      other three suites are measured in the step that first touches them —
+      `test_substrate()` and `test_workbench()` in step 4 and step 7 — because
+      a worktree pays a precompile for each environment it uses.
+      **A fresh worktree needs `Pkg.resolve()` before its first run**; a bare
+      `julia --project=package/ProjecturedKernelTest` says `ProjecturedKernel is
+      required but does not seem to be installed`.
 - [ ] Write the probe that proves the ordering claim of U6: two deletes of
       `elements[2]` in one `CompoundOperation`, and the inverse that a
       computed-up-front implementation would produce. Keep it as a test.
 
 ### Step 1 — the `WrappingOperation` seam (kernel and eight sites)
 
-- [ ] `WrappingOperation`, `get_wrapped_operation` and `rewrap_operation` in
+- [x] `WrappingOperation`, `get_wrapped_operation` and `rewrap_operation` in
       `source/kernel/operation/Interface.jl`; export them from
       `OperationModule.jl`.
-- [ ] The one `reroot_operation` method in `Rerooting.jl`.
-- [ ] One branch in the default `read_intent` of `ProjectionDefaults.jl`, beside
+- [x] The one `reroot_operation` method in `Rerooting.jl`.
+- [x] One branch in the default `read_intent` of `ProjectionDefaults.jl`, beside
       the `CompoundOperation` branch: map the inner operation, and answer
       `nothing` when it does not map.
-- [ ] One branch at each of the seven domain sites of the table in U9.
-- [ ] `test/kernel/operation/RerootingTest.jl` gets a test-local
+- [x] One branch at each of the domain sites of the table in U9. **Six sites,
+      not seven**, and `WorkbenchToWidget.jl` holds two of them.
+      `WindowManaging.jl` is not one: it does not prefix an operation, it
+      unpacks a window operation out of a compound and applies it. A wrapper
+      reaches it from below and must pass through whole, because unpacking a
+      window operation out of a record would change what the record records.
+- [x] `test/kernel/operation/RerootingTest.jl` gets a test-local
       `ToyWrapperOperation <: WrappingOperation` with its two methods, and
       asserts that a reroot reaches the inner operation. This is the same
       testing pressure `ToyPathOperation` already applies to the seam.
-- [ ] Update `PAR-REGISTER-NEW-OPERATION` in
+- [x] Update `PAR-REGISTER-NEW-OPERATION` in
       [architecture-invariants.md](../../documentation/rule/architecture-invariants.md)
       and the seam list in
       [operation.md](../../documentation/package/kernel/operation.md) with the
       third case: a wrapper.
-- [ ] Test: `test_kernel()` and `test_substrate()` match step 0.
+- [x] Test: `test_kernel()` is 1922 / 3 / 3, seven passes above the baseline and
+      the same three failures and three errors. `test_substrate()` runs in
+      step 4, where the slice that needs it exists.
 
 ### Step 2 — `make_inverse_operation` and `evaluate_invertible_operation!`
 

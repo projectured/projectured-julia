@@ -15,7 +15,9 @@
 # method. A missing method falls through to the catch-all and is returned
 # unchanged — the reference is not rerooted. Kept in sync with the default
 # `read_intent`, which enumerates the same operations; see
-# `package/kernel/doc/operation.md`.
+# `documentation/package/kernel/operation.md`. An operation that HOLDS another
+# needs no method of its own: it subtypes `WrappingOperation` and answers the two
+# generics of the contract, and the method below serves it.
 
 """
     reroot_reference(ref, steps::Tuple) -> Reference
@@ -52,6 +54,11 @@ function reroot_operation(op::ReplaceReferencedValueOperation, steps::Tuple)
 end
 reroot_operation(op::CompoundOperation, steps::Tuple) =
     CompoundOperation(Any[reroot_operation(o, steps) for o in op.operations])
+# One method for every wrapper there will ever be: a `WrappingOperation` holds one
+# operation, so rerooting it is rerooting what it holds. Without it a wrapper hits
+# the catch-all above and carries an inner reference rooted at the wrong depth.
+reroot_operation(op::WrappingOperation, steps::Tuple) =
+    rewrap_operation(op, reroot_operation(get_wrapped_operation(op), steps))
 
 """
     operation_reference(op) -> Reference or nothing

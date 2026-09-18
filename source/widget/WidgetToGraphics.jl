@@ -881,6 +881,9 @@ function _retarget_op(p, iomap, op)
     elseif op isa CompoundOperation
         mapped = Any[_retarget_op(p, iomap, o) for o in op.operations]
         return any(isnothing, mapped) ? nothing : CompoundOperation(mapped)
+    elseif op isa WrappingOperation
+        inner = _retarget_op(p, iomap, get_wrapped_operation(op))
+        return inner === nothing ? nothing : rewrap_operation(op, inner)
     else
         return op
     end

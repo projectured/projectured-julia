@@ -235,6 +235,8 @@ function _prefix_op(op, steps::Tuple)
             ReplaceReferencedValueOperation(nothing, _prepend(steps, op.reference), op.value) : op
     elseif op isa CompoundOperation
         CompoundOperation(Any[_prefix_op(o, steps) for o in op.operations])
+    elseif op isa WrappingOperation
+        rewrap_operation(op, _prefix_op(get_wrapped_operation(op), steps))
     elseif op isa CollectedIntentsOperation
         # Every seam that prefixes a compound must prefix a collection the same way.
         CollectedIntentsOperation([Intent(i.gesture, _prefix_op(i.operation, steps),

@@ -280,6 +280,8 @@ _annotate_operation(document, op::ReplaceSelectionOperation) =
     ReplaceSelectionOperation(annotate_reference_types(document, op.path))
 _annotate_operation(document, op::CompoundOperation) =
     CompoundOperation(Any[_annotate_operation(document, o) for o in op.operations])
+_annotate_operation(document, op::WrappingOperation) =
+    rewrap_operation(op, _annotate_operation(document, get_wrapped_operation(op)))
 function _annotate_operation(document, op::ReplaceReferencedValueOperation)
     # A self-contained operation carries its own root, so this document says
     # nothing about its path.

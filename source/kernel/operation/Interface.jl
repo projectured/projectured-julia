@@ -1,6 +1,7 @@
 # Fragment of `OperationModule` — the operation **contract**: the `Operation`
-# abstract supertype and the `evaluate_operation` / `invalidate_projection!`
-# generics. The concrete operations and both seams that implement and extend this
+# abstract supertype, the `WrappingOperation` supertype an operation that holds
+# another implements, and the `evaluate_operation` / `invalidate_projection!`
+# generics. The concrete operations and the seams that implement and extend this
 # contract live in `Operations.jl` and `Rerooting.jl`.
 
 """
@@ -23,6 +24,52 @@ See also `evaluate_operation`, which applies one, and `read_intent`, which
 answers one.
 """
 abstract type Operation end
+
+"""
+    WrappingOperation
+
+An operation that holds one other operation and does something around it.
+
+Use it as the supertype when a change is another change plus an effect: a record
+of the way back, a transaction, a trace. A subtype answers
+`get_wrapped_operation` and `rewrap_operation`, and every seam that maps a
+`CompoundOperation` member by member then maps the operation inside it too, so
+the inner reference reaches the editor in the frame it must be applied in.
+
+# Example
+
+    struct TraceOperation <: WrappingOperation
+        operation::Any
+    end
+    get_wrapped_operation(o::TraceOperation) = o.operation
+    rewrap_operation(::TraceOperation, inner) = TraceOperation(inner)
+
+See also `CompoundOperation`, which holds many operations rather than one, and
+`reroot_operation`, the seam this supertype serves.
+"""
+abstract type WrappingOperation <: Operation end
+
+"""
+    get_wrapped_operation(operation::WrappingOperation)
+
+The operation that `operation` holds.
+
+See also `WrappingOperation` and `rewrap_operation`.
+"""
+function get_wrapped_operation end
+
+"""
+    rewrap_operation(operation::WrappingOperation, inner)
+
+`operation` with `inner` in place of the operation it holds.
+
+Use it to rebuild a wrapper once its inner operation is mapped or rerooted. It
+is the inverse of `get_wrapped_operation`, so declare the two methods together
+or declare neither.
+
+See also `WrappingOperation` and `reroot_operation`.
+"""
+function rewrap_operation end
 
 """
     evaluate_operation(editor, operation::Operation)

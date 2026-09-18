@@ -692,6 +692,12 @@ through *unmapped*, leaving its reference in the wrong domain with no error. An
 operation that carries its own root (`document !== nothing`) needs no rerooting
 and should be preferred when targeting a carried object.
 
+An operation that **holds another operation** registers itself differently, and
+once: it subtypes `WrappingOperation` and answers `get_wrapped_operation` and
+`rewrap_operation`. Every seam then reaches what it holds through those two,
+with no branch of its own — the same rule a `CompoundOperation` follows, for the
+same reason, and the reason a wrapper needs no entry in either enumeration.
+
 ### PAR-MUTATE-OR-NULL-IOMAP
 
 **Mutate the cells already wired into the projection graph — or null
