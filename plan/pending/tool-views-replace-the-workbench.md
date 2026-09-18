@@ -91,7 +91,7 @@ More facts about the six:
 | The natural table takes the registered rows before its own abstract rows, and `extra` before everything. First match wins. | [NaturalProjection.jl:120-164](../../source/natural/NaturalProjection.jl#L120-L164) |
 | The printer context carries a reference, an extent, a property table and a clock. **It does not carry the editor document.** `with_property(ctx, key, value)` and `get_property(ctx, key, default)` write and read the table. | [PrinterContext.jl:26-32](../../source/kernel/projection/PrinterContext.jl#L26-L32), [PrinterContext.jl:156-175](../../source/kernel/projection/PrinterContext.jl#L156-L175) |
 | The editor mints the root context with its own clock and nothing else. | [EditorModule.jl:253-258](../../source/kernel/editor/EditorModule.jl#L253-L258) |
-| A reactive field of a `@document` struct auto-wraps its argument with `Cell(x)`, and `Cell(f::Function)` makes `f` the cell's **thunk**. Reading the field then calls `f()`. A field that must hold a callable as a value is declared `::ImmutableCell{Any}`. | [ReactiveCell.jl:85-96](../../source/kernel/cell/ReactiveCell.jl#L85-L96) |
+| A reactive field of a `@document` struct auto-wraps its argument with `Cell(x)`, and `Cell(f::Function)` makes `f` the cell's **thunk**. The field then re-derives its value from `f` whenever something it reads changes. | [ReactiveCell.jl:85-96](../../source/kernel/cell/ReactiveCell.jl#L85-L96) |
 | Neither `EditorModule.jl` nor `PrinterContext.jl` is sealed. | [SEALING.md:150](../../SEALING.md#L150) |
 
 ### The workbench
@@ -173,7 +173,7 @@ less:
 | `Assistant` | `api_key` | **A key must never be written to a file.** |
 | `Assistant` | `llm`, `status` | A live connection is not data. |
 | `GestureLog` | `entries`, `count` | A log of the last session is not the next one. |
-| `SelectionInspector` | `source`, when it holds a `Function` | The notation cannot write a computation. Reduce it to `nothing`. |
+| `SelectionInspector` | `source`, when it is a computed cell | The notation cannot write a computation. The save writes the reference the cell last produced; see D8. |
 
 Each writes a `pred_arguments` method and a `make_pred_document` method that
 rebuilds the dropped field. The assistant reads its key from the environment
@@ -208,25 +208,30 @@ hover probe's own document.
 ### D8. The selection display takes its source as an argument
 
 `SelectionInspector(source)` holds one field, `source`, which says **which**
-selection to show. Four forms answer, and the type of the value picks the form:
+selection to show. Its purpose is narrow: follow the selection of another
+document. It is not a seam for arbitrary computation.
 
-| `source` | Meaning |
-| --- | --- |
-| `nothing` | The selection of the editor. This is the insertion default. |
-| a `Reference` | That reference, fixed. |
-| a `Function` | Call it with no argument; the answer is the reference. |
-| a `Document` | The selection of that document. |
+Three forms answer, and the field is an ordinary reactive field:
 
-One function reads it: `find_inspected_selection(source, ctx)`. It answers
-`nothing` when there is nothing to show, which is what a `find_` verb promises.
+| Written as | Stored as | Read as |
+| --- | --- | --- |
+| `SelectionInspector()` | `nothing` | `nothing` — show the selection of the editor |
+| `SelectionInspector(reference)` | the reference | a `Reference` |
+| `SelectionInspector(() -> get_selection(other))` | **a computed cell**, the function its thunk | a `Reference`, re-derived |
+| `SelectionInspector(other)` | the document | a `Document` |
 
-**The field must be declared `::ImmutableCell{Any}`.** A reactive field wraps its
-argument with `Cell(x)`, and `Cell(f::Function)` makes the function the cell's
-thunk. The field would then answer the *result* of the computation and the three
-forms could not be told apart.
+**The computed cell is what makes the follow live.** A reactive field auto-wraps
+its argument with `Cell(x)`, and `Cell(f::Function)` makes the function the
+cell's thunk. So reading `inspector.source` re-runs the function whenever
+anything it read changed. The printer needs no cell of its own for this form.
 
-**The printer calls the function inside a cell.** A printer that calls it once
-freezes the display at the first draw.
+`find_inspected_selection(source, ctx)` therefore has three methods, one per read
+form — `nothing`, `Reference`, `Document`. A function never reaches it. It
+answers `nothing` when there is nothing to show, which is what a `find_` verb
+promises.
+
+**The document form reads its selection inside a cell.** That form stores a
+document, not a computation, so the printer is the one that must re-derive.
 
 **The editor puts its document in the root printer context.** `print!` mints the
 root context with `with_property(ctx, :root, editor.document)`, and a `nothing`
@@ -237,10 +242,12 @@ for one — reads the same property.
 **Rejected:** let the application set the source of every selection display. An
 application is then the only place the tool works, which D1 forbids.
 
-**A computation cannot be written to a file.** Step 9 must reduce a `Function`
-source to `nothing` in `pred_arguments`. A restored display then shows the
-selection of the editor, which is the honest fallback. A `Reference` source and a
-`Document` source write and read normally.
+**A computed source does not survive a save.** `pred_arguments` forces the cell
+and writes the reference it last produced, so the file holds a fixed reference
+where the live document held a follow. A `Reference` source and a `Document`
+source write and read unchanged, and the document form keeps following after the
+load, because the splice gives the same document back. **Use the document form
+for a follow that must survive a save.**
 
 ## 4. Steps
 
@@ -310,14 +317,15 @@ gestures, assert both are in `entries`.
 
 Add `SelectionInspector` to the inspector slice, per D8.
 
-1. `@document struct SelectionInspector` with one field,
-   `source::ImmutableCell{Any} = nothing`. The immutable kind is what keeps a
-   `Function` a value instead of a thunk.
-2. `find_inspected_selection(source, ctx)`, with the four methods of D8.
-3. `SelectionInspectorToText`: a printer that calls
+1. `@document struct SelectionInspector` with one field, `source::Any = nothing`.
+   An ordinary reactive field: a function passed to it becomes the cell's thunk,
+   which is what makes the follow live.
+2. `find_inspected_selection(source, ctx)`, with the three methods of D8.
+3. `SelectionInspectorToText`: a printer that reads `inspector.source`, runs
    `find_inspected_selection` **inside a `ComputedCell`**, then draws the two
    sections `ReferenceInspectorToText` already draws — the compact form and the
-   human readable form. Reuse that projection; do not copy it.
+   human readable form. Reuse that projection; do not copy it. The cell is what
+   keeps the document form live; the computed form re-derives on its own.
 4. Change `print!` in [EditorModule.jl:253-258](../../source/kernel/editor/EditorModule.jl#L253-L258)
    to put the editor document in the root context under `:root`. That file is not
    sealed.
@@ -335,9 +343,9 @@ than by a source.
 - `SelectionInspector(reference)`: assert the text names that reference and does
   not change when the selection moves.
 - `SelectionInspector(() -> get_selection(document))`: write a new selection into
-  `document`, assert the text follows it. Assert also that
-  `inspector.source isa Function`, which is what proves the field did not turn
-  the computation into a thunk.
+  `document`, assert the text follows it. Read `inspector.source` twice across
+  the write and assert the two answers differ, which is what proves the field
+  became a computed cell and not a stored value.
 - `SelectionInspector(document)`: the same, through the document form.
 
 Drive a real editor, not the printer alone. A direct read misses a reuse bug.
