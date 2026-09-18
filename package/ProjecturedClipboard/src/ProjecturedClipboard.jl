@@ -14,11 +14,13 @@ using ProjecturedDomain
 using ProjecturedKernel
 using ProjecturedPrimitive
 using ProjecturedProjection
+using ProjecturedSerialization
 using ProjecturedText
 
 const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const CollectionModule = ProjecturedCollection.CollectionModule
+const SerializationModule = ProjecturedSerialization.SerializationModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IntentModule = ProjecturedKernel.IntentModule

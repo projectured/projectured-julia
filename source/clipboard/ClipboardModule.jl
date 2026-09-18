@@ -37,6 +37,7 @@ using ..OperationModule
 using ..PrimitiveModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..SerializationModule
 using ..SelectionModule
 using ..TextModule
 
@@ -45,6 +46,7 @@ import ..DocumentModule: is_descendable_for_copy, make_copy_placeholder, get_cop
                          get_wrapped_document
 import ..OperationModule: evaluate_operation, make_inverse_operation
 import ..ProjectionModule: get_projection_gesture_bindings
+import ..SerializationModule: pred_arguments
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
 export read_os_clipboard, write_os_clipboard!, set_os_clipboard_backend!, reset_os_clipboard_backend!

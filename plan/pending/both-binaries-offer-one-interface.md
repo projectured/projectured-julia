@@ -269,10 +269,29 @@ wrappers, and that special case is gone. A window this plan wraps is now
 transparent to everything that reads the tree rather than the picture, which is
 what found it: the suite asked a wrapped window how many tabs it had.
 
-**Still to check.** Neither `ClipboardSlice` nor `UndoBuffer` is registered with
-`register_pred_type!`, so what `save_user_interface` writes for a window this
-plan wrapped is unknown. Step 2 puts a `ClipboardSlice` at the document root, and
-the save writes the root.
+**Checked, 2026-09-18: `save_user_interface` does not work, and it did not work
+before this plan either.** Measured on clean `main`, with the application's own
+document and a fake editor:
+
+> save_project!: "session.pred" reaches a UndoBuffer at ∅ that no file of its
+> domain writes
+
+`make_application_document` puts an `UndoBuffer` at the root and `UndoBuffer` is
+not registered with `register_pred_type!`, so the save writes nothing and logs an
+error. This is the feature of that plan's Steps 9 and 10, and nothing exercises
+it on the application's own document.
+
+Step 2 of this plan wrapped that root in a `ClipboardSlice`, which failed one
+level earlier. **`ClipboardSlice` and `ClipboardCollection` are now registered
+and write a reduced form** — the window, without what a copy had put in the
+clipboard — so this plan's window is no worse than the one it wrapped.
+
+Past those two, the save fails again, on a `JsonFile` in a tab, although
+`search_documents(document, is_file_document)` does find that file and
+`save_user_interface` does add it to the project. **The rest belongs to the plan
+that built the save**, and this plan does not carry it: three registrations deep
+is a fault in that feature, not a wrapper this plan added. The owner has the
+measurement.
 
 **What happened to the two hand-backs.**
 

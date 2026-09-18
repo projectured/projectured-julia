@@ -37,3 +37,16 @@ end
 get_wrapped_document(slice::ClipboardSlice) = get_wrapped_document(slice.content)
 get_wrapped_document(collection::ClipboardCollection) =
     get_wrapped_document(collection.content)
+
+# What a saved user interface holds is the window, not what somebody had copied
+# into it a moment before. `content` is the window and it is written; `slice` and
+# `elements` are what a copy put there, and they are dropped, so a file opens
+# with an empty clipboard at the layout it saved.
+pred_arguments(slice::ClipboardSlice) = (), Pair{Symbol,Any}[:content => slice.content]
+pred_arguments(collection::ClipboardCollection) =
+    (), Pair{Symbol,Any}[:content => collection.content]
+
+function __init__()
+    register_pred_type!(ClipboardSlice)
+    register_pred_type!(ClipboardCollection)
+end
