@@ -4,15 +4,15 @@
 
 A generic, domain-neutral overlay that lets **any** document subtree carry
 multiple versions of itself. Versioning is an optional, recursive wrapper layer
-plus an *elimination projection* that collapses the wrapper away — after which
-the downstream domains are ordinary, non-versioned documents and every existing
-projection pipeline works unchanged.
+plus an *elimination projection* that collapses the wrapper away. After that,
+the downstream domains are ordinary, non-versioned documents, and every
+existing projection pipeline works unchanged.
 
 It is structurally the same pattern as the clipboard
 ([`ClipboardModule`](../../../source/clipboard/Clipboard.jl) +
 [`ClipboardSliceToAny.jl`](../../../source/clipboard/ClipboardSliceToAny.jl)):
-a wrapper document holding a payload, and a projection that decides which child
-becomes the output and re-roots edits back into that child.
+a wrapper document holding a payload, and a projection that selects which
+child becomes the output and re-roots edits back into that child.
 
 ## Documents — `VersioningModule`
 
@@ -72,8 +72,8 @@ is the direct analogue of `ClipboardSliceToAnyProjection`:
 - **Reader** — own gestures manage versions (`Ctrl+Shift+S` snapshots the active
   value into a new front `ObjectVersion` via a standard `insert_elements` splice on
   `versions`; `Ctrl+Delete` deletes the active version via `delete_elements`). Using
-  the standard sequence-splice helpers — which build a `ReplaceReferencedValueOperation` with
-  a terminal `RangeReferenceStep`, rather than bespoke version ops — is what lets every
+  the standard sequence-splice helpers, which build a `ReplaceReferencedValueOperation` with
+  a terminal `RangeReferenceStep` rather than bespoke version ops, lets every
   ancestor projection re-root them when the `VersionedObject` is nested. `SetVersionCriterionOperation` switches the
   active criterion (it drops `editor.iomap`, like the clipboard display toggle).
   Every other gesture is delegated into the value child's reader and the returned

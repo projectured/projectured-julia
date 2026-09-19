@@ -19,11 +19,11 @@ an `objectid`, which keeps the call free of any reactive cell so
 `GraphGraphToGraphLayout` can memoize it on topology, sizes and constraints.
 
 `extent` is the box the caller has room for and `border` is the inset kept
-inside it. They are arguments rather than engine fields because the same graph
-in two panes wants two layouts. This is the same pair OMNeT++ passes as
+inside it. They are arguments rather than engine fields because the same graph,
+shown in two panes, needs two different layouts. This is the same pair OMNeT++ passes as
 `GraphLayouter::setSize(width, height, border)`.
 
-Nothing here knows what a domain is. An engine is told **what to satisfy**,
+This package has no notion of what a domain is. An engine is told **what to satisfy**,
 never **why**: that a module pinned by a display string must not move is the
 caller's business, and what `:pin` means to an algorithm is this package's.
 
@@ -50,11 +50,11 @@ that would have drawn it anyway.
 ## Which engine runs
 
 `DeferredLayout` is what a caller names when it has no reason to name a specific
-engine, and it decides **when the layout runs** rather than when the projection
-is built — a projection is usually constructed at module load, long before an
+engine, and it determines **when the layout runs** rather than when the projection
+is built. A projection is usually constructed at module load, long before an
 optional engine package can be loaded.
 
-It decides the way Qtenv decides: twenty vertices or more go to
+It follows the same rule as Qtenv: twenty vertices or more go to
 `SpringEmbedderLayout`, which is fast, and fewer go to `ForceDirectedLayout`,
 which is better and costs more. A registered native engine takes over both.
 
@@ -81,8 +81,8 @@ one anchor point, so the row or the ring keeps its shape while the whole family
 finds its place. It is OMNeT++'s `addAnchoredNode`, and `:pin` is its
 `addFixedNode`.
 
-**An engine that does not implement a kind refuses it**, by name, and says what
-it does implement. That is deliberate: a caller cannot tell a satisfied pin from
+**An engine that does not implement a kind raises an error naming it**, and
+the error lists what it does implement. That is deliberate: a caller cannot tell a satisfied pin from
 an ignored one by looking at the picture, so accepting and dropping a constraint
 is the worst of the three possible answers. Ask an engine what it takes with
 `get_supported_constraint_kinds`.

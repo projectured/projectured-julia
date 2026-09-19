@@ -6,7 +6,7 @@
 
 The syntax domain provides a generic intermediate representation between semantic domains (JSON, XML) and text. It represents structured data as a tree of nodes with delimiters.
 
-**Indexing conventions**: paths use `[i]` for the i-th item (1-based) and `{k}` for the cursor at boundary `k` (0-based). The two are readings of the same axis — see [the boundary axis](../kernel/reference.md#the-boundary-axis). In Syntax the axis appears as child nodes *and* as characters within delimiters or leaf values; the same `[i]` / `{k}` syntax addresses both.
+**Indexing conventions**: paths use `[i]` for the i-th item (1-based) and `{k}` for the cursor at boundary `k` (0-based). The two are readings of the same axis; see [the boundary axis](../kernel/reference.md#the-boundary-axis). In Syntax the axis appears as child nodes *and* as characters within delimiters or leaf values; the same `[i]` / `{k}` syntax addresses both.
 
 ## Types
 
@@ -37,8 +37,8 @@ wrapping it, without `SyntaxNode`'s five combined fields.
 `SyntaxNode` and `SyntaxSeparation` are what a domain reaches for the same
 node with only some of those five: `SyntaxConcatenation` when it needs none
 of them (a pure sequence), `SyntaxSeparation` when it needs only a separator.
-Both render the same as a `SyntaxNode` with the other fields left `nothing` —
-the distinction is precision: a type that can only sequence cannot later
+Both render the same as a `SyntaxNode` with the other fields left `nothing`.
+The distinction is precision: a type that can only sequence cannot later
 acquire a delimiter by accident.
 
 The **compound contract** — what a compound answers about itself, independent
@@ -125,7 +125,7 @@ ObjectField(server, "enabled")   →   enabled true
 ```
 
 The name comes from the last `FieldReferenceStep` of the path. A step that names
-no field — an element step, for example — leaves the value alone, because an
+no field, such as an element step, leaves the value alone, because an
 index makes a poor label and the caller can put one beside it.
 
 Put its entry in front of `ObjectToSyntax`'s own table. Without it the `Any` row

@@ -87,7 +87,7 @@ nor `DBInterface`; a session that only prints or edits SQL text never loads
 them. `dbcatalog` depends on `database` and on [sql.md](../sql/sql.md), but
 not on `odbc`, so the catalog document and its SQL/syntax projections work
 with no live adapter. `odbc` depends on all three and is the only slice of
-the group that a database engine's client library reaches — it is an opt-in
+the group that a database engine's client library reaches. It is an opt-in
 package, loaded only when a caller wants a real connection.
 
 ## What a reader must know before changing this

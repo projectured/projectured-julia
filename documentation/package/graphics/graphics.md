@@ -4,7 +4,7 @@
 
 <img width="396" alt="Graphics Image example" src="../../../asset/image/example/graphics-image.png">
 
-The graphics domain, in `source/graphics/`, provides the backend-agnostic rendering primitives. It represents visual elements as reactive documents that can be projected to the screen, and is consumed by both the SDL2 backend (native windows) and the web backend (which serializes the same primitives to a JSON draw-list the browser paints — see the [devices and backends guide](../kernel/devices-and-backends.md#webbackend)).
+The graphics domain, in `source/graphics/`, provides the backend-agnostic rendering primitives. It represents visual elements as reactive documents that project to the screen. Both the SDL2 backend (native windows) and the web backend consume it. The web backend serializes the same primitives to a JSON draw-list that the browser paints; see the [devices and backends guide](../kernel/devices-and-backends.md#webbackend).
 
 ## Types
 
@@ -145,15 +145,15 @@ It measures text for page sizing from the embedded font metrics via
 `pdf_measure_text` (an `(Int, Int)` measure, drop-in for `measure_sdl_text`). The
 projection that *produces* the canvas still chooses its own `measure`: pass
 `pdf_measure_text` to keep the whole export SDL-free, or `measure_sdl_text` for
-byte-for-byte parity with the on-screen layout (which requires SDL to be up — the
-`write_example_pdf` helper initializes it for you).
+byte-for-byte parity with the on-screen layout. That requires SDL to be up;
+the `write_example_pdf` helper initializes it for you.
 
 ### Pagination
 
 By default the output is a single page. Pass `paginate=true` to flow content
-taller than the page across multiple pages — `height` becomes the page height and
-the content is sliced into `height`-tall bands (an element straddling a page
-boundary is split cleanly between the two pages). The embedded fonts are shared
+taller than the page across multiple pages. `height` becomes the page height,
+and the content is sliced into `height`-tall bands; an element straddling a
+page boundary is split cleanly between the two pages. The embedded fonts are shared
 across all pages, so only the per-page content streams add to the file size.
 
 ```julia

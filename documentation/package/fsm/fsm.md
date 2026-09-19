@@ -70,9 +70,10 @@ driven.
    an event transition can never fire on a re-evaluation pass). Repeat until no
    transition fires. An iteration cap (default 32) throws on a runaway cascade.
    A **stay** is followed by re-evaluation passes exactly like a winning
-   transition — a deliberate, uniform simplification of FSMA's partial
-   fall-through after a stay; no target machine mixes stays with condition-only
-   transitions in one state, so nothing depends on the difference.
+   transition. This is a deliberate, uniform simplification of FSMA's partial
+   fall-through after a stay. No target machine mixes stays with
+   condition-only transitions in one state, so nothing depends on the
+   difference.
 3. **Unhandled.** If the pass was an event pass and nothing consumed the event,
    apply `machine.on_unhandled`: `:error` throws naming state and event
    (the exhaustiveness check CSMA MAC and PLCA data rely on), `:ignore` returns
@@ -91,10 +92,10 @@ driven.
    `last_transition`, updates `state`, and calls the optional `on_transition`
    hook (statistics emit; also what the live diagram view reads).
 6. **Startup.** The initial state's `entry` does *not* run when the machine is
-   constructed — faithful to FSMA, where a state installed outside a dispatch
-   never runs its entry (PLCA's `DS_IDLE` entry has side effects that would
-   inject a spurious cross-machine dispatch at t=0). The host kicks the machine
-   explicitly with an event-less dispatch.
+   constructed. This is faithful to FSMA, where a state installed outside a
+   dispatch never runs its entry: PLCA's `DS_IDLE` entry has side effects that
+   would inject a spurious cross-machine dispatch at t=0. The host kicks the
+   machine explicitly with an event-less dispatch.
 
 **Timers are usable two ways**, and both occur in the reference machines:
 
@@ -118,8 +119,8 @@ enforced), apart from the sanctioned `is_scheduled` reads.
 
 ## What is not modeled
 
-Event *classification* — turning a raw packet or segment into a symbolic event —
-is deliberately outside the machine. TCP shows why: the classifier is stateful,
+Event *classification* turns a raw packet or segment into a symbolic event.
+It is deliberately outside the machine. TCP shows why: the classifier is stateful,
 may swallow input, and may escalate or downgrade the event it produces. It is
 plain Julia among the component's `helpers`, which is exactly what keeps the
 transition table small and diagram-shaped.

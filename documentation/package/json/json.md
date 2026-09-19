@@ -6,7 +6,7 @@
 
 The JSON domain represents JSON data as a tree of reactive documents. Every JSON value is a Document with all mutable fields wrapped in reactive Cells for automatic change propagation.
 
-**Indexing conventions**: paths use `[i]` for the i-th item (1-based) and `{k}` for the cursor at boundary `k` (0-based). The two are readings of the same axis — see [the boundary axis](../kernel/reference.md#the-boundary-axis). In JSON the axis appears as array elements, object entries, *and* characters in strings/numbers; `[1]` is the first item in any of those, `{0}` the cursor before it.
+**Indexing conventions**: paths use `[i]` for the i-th item (1-based) and `{k}` for the cursor at boundary `k` (0-based). The two are readings of the same axis; see [the boundary axis](../kernel/reference.md#the-boundary-axis). In JSON the axis appears as array elements, object entries, *and* characters in strings/numbers; `[1]` is the first item in any of those, `{0}` the cursor before it.
 
 ## Types
 
@@ -90,7 +90,7 @@ obj = JsonObject("name" => JsonString("Alice"), "age" => JsonNumber(30))
 
 ## Selection
 
-Each JSON value carries a `selection::Reference` field, injected automatically by `@document` — a `Reference` or `nothing` (stored in a `Cell` so changes propagate reactively). Both readings of the boundary axis are available everywhere: `.elements[i]` / `.entries[i]` / `.value[i]` selects the i-th item (1-based); `.elements{k}` / `.entries{k}` / `.value{k}` is the cursor at boundary `k` (0-based) — between elements/entries (an insertion point) or between characters.
+Each JSON value carries a `selection::Reference` field, injected automatically by `@document`. Its value is a `Reference` or `nothing`, stored in a `Cell` so changes propagate reactively. Both readings of the boundary axis are available everywhere: `.elements[i]` / `.entries[i]` / `.value[i]` selects the i-th item (1-based); `.elements{k}` / `.entries{k}` / `.value{k}` is the cursor at boundary `k` (0-based), between elements or entries (an insertion point), or between characters.
 
 ## Collapsed and indentation fields
 
