@@ -47,6 +47,8 @@ export FileSystemFileToSyntaxLeaf, FileSystemDirectoryToSyntaxNode, FileSystemTo
        is_filesystem_marker_eligible
 export FileSystemToWidgetTree, FileSystemToWidget
 export FileSystemFile, FileSystemDirectory
+export FileSystemChooser, make_filesystem_chooser, get_chosen_path
+export FileSystemChooserToWidget, WriteChosenNameOperation
 export WorkspaceDocument, Workspace, WorkspaceFolder
 export WorkspaceFolderToFileSystemDirectory, WorkspaceToFileSystem
 
@@ -56,5 +58,6 @@ include("Workspace.jl")
 include("WorkspaceToFileSystem.jl")
 include("FileSystemToSyntax.jl")
 include("FileSystemToWidget.jl")
+include("FileSystemChooserToWidget.jl")
 
 end # module

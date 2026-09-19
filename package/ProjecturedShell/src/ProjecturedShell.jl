@@ -14,6 +14,8 @@ using ProjecturedFocus
 using ProjecturedGestureHelp
 using ProjecturedGestureLog
 using ProjecturedKernel
+using ProjecturedFileFormat
+using ProjecturedFileSystem
 using ProjecturedPane
 using ProjecturedProjection
 using ProjecturedScreen
@@ -23,7 +25,10 @@ using ProjecturedWidget
 
 const CellModule = ProjecturedKernel.CellModule
 const ClipboardModule = ProjecturedClipboard.ClipboardModule
+const FileFormatModule = ProjecturedFileFormat.FileFormatModule
+const FileSystemModule = ProjecturedFileSystem.FileSystemModule
 const PaneModule = ProjecturedPane.PaneModule
+const ScreenModule = ProjecturedScreen.ScreenModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const IntentModule = ProjecturedKernel.IntentModule
 const IoMapModule = ProjecturedKernel.IoMapModule

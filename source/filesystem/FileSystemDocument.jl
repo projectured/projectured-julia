@@ -25,6 +25,45 @@ end
 end
 
 
+# ── Choose a path ─────────────────────────────────────────────────────────────
+
+"""
+A place to choose a path: a `directory` to look in, and a `name` a person types.
+
+It is the document behind Open and Save As. It **chooses a path and does nothing
+with one**: a path that does not exist yet is a name typed into a directory,
+which is what Save As is for, and a path that does exist is a row of the tree,
+which is what Open is for. What happens to the chosen path belongs to whoever
+opened the chooser.
+
+`name` is the whole of what a person types. A directory row sets `directory` and
+a file row sets `name`, so the two together always say one path, and
+[`get_chosen_path`](@ref) is that path.
+"""
+@document struct FileSystemChooser <: FileSystemDocument
+    directory::Document
+    name::AbstractString = ""
+end
+
+"""
+    get_chosen_path(chooser) -> String
+
+The path `chooser` names: its directory and the name typed in it. An empty name
+answers the directory itself, because a person who has typed nothing has chosen
+no file.
+"""
+get_chosen_path(chooser::FileSystemChooser) =
+    isempty(chooser.name) ? chooser.directory.pathname :
+                            joinpath(chooser.directory.pathname, chooser.name)
+
+"""
+    make_filesystem_chooser(directory) -> FileSystemChooser
+
+A chooser over the directory at `directory`, read from disk.
+"""
+make_filesystem_chooser(directory::AbstractString) =
+    FileSystemChooser(make_filesystem_pathname(abspath(directory)))
+
 # ── Open a file ───────────────────────────────────────────────────────────────
 
 """

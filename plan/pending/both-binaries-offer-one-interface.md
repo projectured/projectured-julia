@@ -1212,6 +1212,32 @@ fail and 2 error. The interface half waits for `main`.
 
 ### Step 8 — Open and Save As, as dialogs
 
+**Done for the shared half, 2026-09-19.** `test_shell()` is 105,
+`test_application()` 63, `test_filesystem()` 27, `test_substrate()` 63079 with
+the baseline's 3 fail and 2 error. What the work decided:
+
+- **A chooser chooses a path and does nothing with one.** That is why Open and
+  Save As share it: a path that exists is a row of the tree, and a path that does
+  not is a name typed into a directory. The two commands differ only in the verb
+  at the end, so they are one function with a different ending.
+- **A row types its own name** into the field rather than opening anything, so a
+  person may click a file or type a file and the chooser says one path either
+  way.
+- `FileSystemChooserToWidget` composes rather than draws: the directory goes
+  through the tree printer that already knows how to draw files.
+- The dialog opens as a window of its own, as `PAR-MANY-WINDOWS` requires.
+
+**The suite was running the wrong thing, and the count is how it showed.** An
+edit of mine had spliced an export line into `test_shell`'s body, so
+`test_file_dialog` ran **twice** and `test_context_menu_probe` **not at all** —
+the reported 115 and 108 were both wrong, and the honest figure was 103. It
+showed only because the count FELL when tests were added.
+
+`test_shell_completeness()` now asserts that the suite calls every test function
+of the slice, each exactly once. It was checked by injecting a duplicated call
+and watching it fail. **A suite is edited by hand and by script, and a slip there
+is invisible: a function that stops being called takes its assertions with it.**
+
 The File menu of Step 7 names them, so they are written here and not later.
 
 - [ ] Add `FileSystemChooser` to `FileSystemModule`: a folder, its entries, a
