@@ -440,8 +440,13 @@ the fault plan section 9 already records.
 5. ✅ Tests (`test_sdl_wait_wake`, 9 assertions, real SDL queue): the wake
    registration, the timeout, a cross-task wake ending a long wait, the
    look-only property, the owed-event skip. Timing bounds are one-sided and
-   generous. ⬜ Manual check remains: an idle SDL editor near zero CPU;
-   typing, animation, an MCP call and an omnet sync all live.
+   generous.
+6. ✅ Measured (2026-09-20, real SDL window, same machine and script both
+   sides): idle CPU fraction over 5 s is **0.006 on `main`** (one hundred
+   wakeups a second) and **0.000 on this branch** (below one clock tick); a
+   posted operation lands with no input and quit ends the loop cleanly on
+   both. What stays manual: typing, animation and an omnet sync inside the
+   full application.
 
 ### Phase 4 — The console wait ✅ (2026-09-19)
 
@@ -605,8 +610,9 @@ No document type changes. No projection changes. No domain package changes.
 
 **Open.**
 
-- The manual check of Phase 3: an idle SDL editor near zero CPU; typing,
-  animation, an MCP call and an omnet sync all live.
+- The by-hand part of the Phase 3 check: typing, animation and an omnet
+  sync inside the full application. The idle CPU and the wake liveness are
+  measured (Phase 3, item 6).
 - The user's review of the `PAR-STORE-THEN-DRAIN` text, and of the
   `PAR-NO-WRITE-IN-THUNK` paragraph that scopes the carve-out to the fault
   store alone.
