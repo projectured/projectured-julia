@@ -44,9 +44,7 @@ ask permission before fixing (the seal still holds until permission is given).
 - 🔒 `ProjecturedKernel.jl` — module root, the layer diagram. It is the one entry
   that does not live under `source/kernel/`: a package root file belongs to its
   package, at `package/ProjecturedKernel/src/ProjecturedKernel.jl`. Every entry
-  below is a path under `source/kernel/`. (Rewritten 2026-09-20 with the user's
-  acceptance: one module per layer, the `*Layer.jl` files deleted — re-audit
-  before resealing.)
+  below is a path under `source/kernel/`.
 
 The layer *numbers* below live only in this list and in `ProjecturedKernel.jl`'s
 include order — the source files state their dependencies, never their index.
@@ -62,9 +60,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `fault/FaultBarrier.jl`
 - **Layer 2 — performance** (`performance/`)
   - ⬜ `performance/PerformanceModule.jl`
-  - 🔒 `performance/PerformanceCounter.jl` (was `cell/PerformanceCounterModule.jl`;
-    module head stripped into `PerformanceModule.jl` with the user's acceptance
-    2026-09-20 — re-audit before resealing)
+  - 🔒 `performance/PerformanceCounter.jl`
   - ⬜ `performance/FrameSample.jl`
 - **Layer 3 — cell** (`cell/`)
   - ⬜ `cell/CellModule.jl`
@@ -75,18 +71,14 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `cell/ImmutableCell.jl`
   - ⬜ `cell/CellDefaults.jl`
 - **Layer 4 — struct** (`struct/`)
-  - 🔒 `struct/CellStructModule.jl` (moved from `cell/` 2026-09-20, content unchanged)
-  - 🔒 `struct/CellStructPlan.jl` (moved from `cell/` 2026-09-20, content unchanged)
-  - 🔒 `struct/CellStruct.jl` (moved from `cell/` 2026-09-20, content unchanged)
+  - 🔒 `struct/CellStructModule.jl`
+  - 🔒 `struct/CellStructPlan.jl`
+  - 🔒 `struct/CellStruct.jl`
 - **Layer 5 — clock** (`clock/`)
-  - 🔒 `clock/ClockModule.jl` (body split out 2026-09-20 with the user's
-    acceptance; the head remains — re-audit before resealing)
-  - 🔒 `clock/Clock.jl` (the body of `ClockModule.jl`, moved verbatim
-    2026-09-20)
+  - 🔒 `clock/ClockModule.jl`
+  - 🔒 `clock/Clock.jl`
 - **Layer 6 — event** (`event/`)
-  - 🔒 `event/EventModule.jl` (gained the pattern exports and the
-    `EventPattern.jl` include with the user's acceptance 2026-09-20 — re-audit
-    before resealing)
+  - 🔒 `event/EventModule.jl`
   - 🔒 `event/EventInterface.jl`
   - 🔒 `event/ModifierKeys.jl`
   - 🔒 `event/KeyboardEvent.jl`
@@ -94,22 +86,16 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `event/WindowEvent.jl`
   - 🔒 `event/WindowInput.jl`
   - 🔒 `event/EventDefaults.jl`
-  - 🔒 `event/EventPattern.jl` (was `event/EventPatternModule.jl`; module head
-    stripped into `EventModule.jl` with the user's acceptance 2026-09-20 —
-    re-audit before resealing)
+  - 🔒 `event/EventPattern.jl`
 - **Layer 7 — device** (`device/`)
-  - 🔒 `device/DeviceModule.jl` (one include line follows the interface
-    rename 2026-09-20 — re-audit before resealing)
-  - 🔒 `device/DeviceInterface.jl` (was `device/Device.jl`, renamed
-    2026-09-20, content unchanged)
+  - 🔒 `device/DeviceModule.jl`
+  - 🔒 `device/DeviceInterface.jl`
   - 🔒 `device/Keyboard.jl`
   - 🔒 `device/Mouse.jl`
   - 🔒 `device/Display.jl`
 - **Layer 8 — gesture** (`gesture/`)
-  - 🔒 `gesture/GestureRecognizerModule.jl` (body split out 2026-09-20 with
-    the user's acceptance; the head remains — re-audit before resealing)
-  - 🔒 `gesture/GestureRecognizer.jl` (the body of
-    `GestureRecognizerModule.jl`, moved verbatim 2026-09-20)
+  - 🔒 `gesture/GestureRecognizerModule.jl`
+  - 🔒 `gesture/GestureRecognizer.jl`
 - **Layer 9 — backend** (`backend/`)
   - 🔒 `backend/BackendModule.jl`
   - 🔒 `backend/BackendInterface.jl`
@@ -127,18 +113,12 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `document/ForwardProtocol.jl`
 - **Layer 11 — reference** (`reference/`)
   - ⬜ `reference/ReferenceModule.jl`
-  - 🔒 `reference/ReferenceInterface.jl` (gained the
-    `match_reference_step_value` declaration from `ReferenceRules.jl`
-    2026-09-20 with the user's acceptance — re-audit before resealing)
-  - ⬜ `reference/ReferenceStep.jl` (unsealed 2026-08-24: `@cell_struct` → `@document [C, M]`, the user's direction — re-audit before resealing)
-  - ⬜ `reference/ReferencePath.jl` (unsealed 2026-09-14: `head` and `tail`
-    become `get_reference_head` and `get_reference_tail` and are exported, the
-    user's direction — re-audit before resealing)
+  - 🔒 `reference/ReferenceInterface.jl`
+  - ⬜ `reference/ReferenceStep.jl`
+  - ⬜ `reference/ReferencePath.jl`
   - ⬜ `reference/ReferenceEvaluation.jl`
   - 🔒 `reference/ReferenceSearch.jl`
-  - ⬜ `reference/ReferenceSyntax.jl` (unsealed 2026-09-12: `xs[i, j]` counts
-    elements, 1-based and inclusive, the user's direction — re-audit before
-    resealing)
+  - ⬜ `reference/ReferenceSyntax.jl`
   - ⬜ `reference/ReferenceGlob.jl`
   - ⬜ `reference/ReferenceCase.jl`
   - ⬜ `reference/ReferenceRules.jl`
@@ -157,7 +137,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `operation/Inversion.jl`
   - ⬜ `operation/Description.jl`
 - **Layer 14 — intent** (`intent/`)
-  - ⬜ `intent/IntentModule.jl` (moved from `operation/` 2026-09-20, content unchanged)
+  - ⬜ `intent/IntentModule.jl`
   - ⬜ `intent/Intent.jl`
 - **Layer 15 — binding** (`binding/`)
   - ⬜ `binding/GestureBindingModule.jl`
