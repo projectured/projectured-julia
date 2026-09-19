@@ -58,7 +58,7 @@ Three rules keep the vocabulary from saying the same thing twice:
 One table in [MathDocument.jl](../../../source/math/MathDocument.jl) holds three columns per operator:
 the text the linear form writes (ASCII where ASCII exists, a backslash name
 where it does not), the glyph the page shows, and the class — `:binary`,
-`:relation` or `:punctuation` — that decides the space around it.
+`:relation` or `:punctuation` — that sets the space around it.
 
 ## The linear form
 
@@ -74,7 +74,7 @@ k T B        λ        1/(μ - λ)        P_{t}^{2}        \sqrt[n]{x}
 
 The rules are `@projection_template` builders, so printing, reference mapping
 and the structural readers are generic. Each compound rule collapses an unmapped
-caret to a bounded flat offset — a formula is full of projection-introduced
+caret to a bounded flat offset. A formula is full of projection-introduced
 chrome, and without the collapse the navigation walk grows its paths without
 bound.
 
@@ -89,7 +89,7 @@ of what the reader could not read, and the reader never evaluates.
 Where the line is ambiguous, the reader decides:
 
 - **`/` with no space around it is a fraction; ` / ` with spaces is the
-  binary division.** That is how the printer tells the two apart, and a
+  binary division.** That is how the printer distinguishes the two, and a
   fraction binds tighter than juxtaposition: `1/n x` is a row of a fraction
   and a variable, and a numerator that is a row is written in parentheses,
   `((1 - ρ) ρ^{n})/(1 - ρ^{n + 1})`.
@@ -210,7 +210,7 @@ loop and the arrow keys.
 
 `math_display_example` is deliberately **not** in the `examples` registry.
 `test_typein` types a character at every rendered caret, and a two-dimensional
-formula offers none; every position would be reported as a failure. Use
+formula has none; every position would be reported as a failure. Use
 `run_example(math_display_example)` and the domain test for it.
 
 The examples are in [example/math/MathDocumentExample.jl](../../../example/math/MathDocumentExample.jl):
