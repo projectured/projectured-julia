@@ -498,7 +498,7 @@ failures and three errors are the Rule C group in `DocumentMacroTest.jl` and
 `MEvalBranch` in `ReferenceEvalTest.jl`, which are the known baseline and sit in
 files this branch does not touch. `test_kernel_layering()` is 10 of 10.
 
-### Phase 3 — Guard the backend seam and add the sound ⬜
+### Phase 3 — Guard the backend seam and add the sound ✅ DONE
 
 1. Add `call_backend` or an equivalent wrapper in the editor layer that counts
    consecutive failures per seam function.
@@ -507,6 +507,16 @@ files this branch does not touch. `test_kernel_layering()` is 10 of 10.
    logger captured at start. Do not use a raw `println`: `execute_julia_code`
    redirects the global streams (`EditorModule.jl:238-242`).
 3. Add the degraded-backend state and the one sound per degrade.
+
+**Found while it was built: the two halves of the device seam must count
+apart.** `write_to_devices` and `read_from_devices` are called from different
+places and fail on their own. With one consecutive counter between them, a read
+that works resets the count a write that failed just raised, and the breaker
+never trips — a broken screen throws a hundred times a second for ever.
+`run_fault_barrier` therefore takes a `counter` keyword that defaults to the
+site, and the editor passes `:device_write` and `:device_read` while both still
+record under the one site `:device`. With it, a broken `write_to_devices` stops
+being called after eight frames and the editor runs on.
 
 ### Phase 4 — Add the `ProjecturedFault` package ⬜
 

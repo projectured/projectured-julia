@@ -168,7 +168,7 @@ which translates it via the last stored IoMap.
 function read!(editor::Editor)
     while true
         window_input = pop_gesture!(editor.recognizer,
-                            () -> read_from_devices(editor.backend, editor.devices))
+                            () -> _read_from_devices_guarded(editor))
         if window_input === nothing
             editor.operation = nothing
             return false
@@ -258,11 +258,11 @@ end
 struct _BarrierFailed end
 const _BARRIER_FAILED = _BarrierFailed()
 
-_run_barrier(body, editor::Editor, site::Symbol; origin = :editor,
-             reference = nothing, fallback = nothing) =
+_run_barrier(body, editor::Editor, site::Symbol; counter::Symbol = site,
+             origin = :editor, reference = nothing, fallback = nothing) =
     run_fault_barrier(body, editor.faults, editor.fault_policy, editor.backend,
-                      site; origin = origin, reference = reference,
-                      fallback = fallback)
+                      site; counter = counter, origin = origin,
+                      reference = reference, fallback = fallback)
 
 """
     report_frame_faults!(editor) -> Int
@@ -284,18 +284,35 @@ function report_frame_faults!(editor::Editor)
 end
 
 """
-    is_editor_degraded(editor, site) -> Bool
+    is_editor_degraded(editor, counter) -> Bool
 
-Whether the barrier at `site` has failed often enough in a row that the editor
-is to stop calling it.
+Whether the work counted under `counter` has failed often enough in a row that
+the editor is to stop doing it.
 
 A backend that throws in `write_to_devices` throws again on the next frame, a
 hundred times a second, and calling it again is worse than leaving it alone.
+
+The two halves of the device seam count apart — `:device_write` and
+`:device_read` — because they fail apart. With one counter between them, a read
+that works resets the count a write that failed just raised, and nothing ever
+trips.
 """
-function is_editor_degraded(editor::Editor, site::Symbol)
-    limit = site === :print ? editor.fault_policy.print_failure_limit :
-                              editor.fault_policy.device_failure_limit
-    get_consecutive_fault_count(editor.faults, site) >= limit
+function is_editor_degraded(editor::Editor, counter::Symbol)
+    limit = counter === :print ? editor.fault_policy.print_failure_limit :
+                                 editor.fault_policy.device_failure_limit
+    get_consecutive_fault_count(editor.faults, counter) >= limit
+end
+
+# The input half of the device seam. A backend that throws here throws again on
+# the next frame, a hundred times a second, so the fault is counted at the
+# `:device` site and the seam is left alone once it passes its limit. An editor
+# whose input is gone still paints, which is what lets a person see why.
+function _read_from_devices_guarded(editor::Editor)
+    is_editor_degraded(editor, :device_read) && return nothing
+    _run_barrier(editor, :device; counter = :device_read,
+                 origin = typeof(editor.backend)) do
+        read_from_devices(editor.backend, editor.devices)
+    end
 end
 
 # An inverse reads the state the change starts from, so it is taken BEFORE the
@@ -396,8 +413,9 @@ function print!(editor::Editor)
         editor.iomap = print_document(editor.projection, nothing,
                                       editor.document, ctx)
     end
-    is_editor_degraded(editor, :device) && return nothing
-    _run_barrier(editor, :device; origin = typeof(editor.backend)) do
+    is_editor_degraded(editor, :device_write) && return nothing
+    _run_barrier(editor, :device; counter = :device_write,
+                 origin = typeof(editor.backend)) do
         write_to_devices(editor.backend, editor.devices, editor.iomap.output)
     end
 end

@@ -2,7 +2,7 @@
 # survives it here.
 
 """
-    run_fault_barrier(body, store, policy, backend, site; origin, reference, fallback)
+    run_fault_barrier(body, store, policy, backend, site; counter, origin, reference, fallback)
 
 Run `body`, and answer `fallback` rather than the exception when it throws.
 
@@ -15,8 +15,13 @@ What it does, in order:
 
 1. An exception that [`is_passthrough_exception`](@ref) names is re-raised at
    once. A request to quit must reach the loop that stops on it.
-2. The consecutive count for `site` grows, so a circuit breaker above can read
-   how long this has been going on. A run without a fault resets it.
+2. The consecutive count for `counter` grows, so a circuit breaker above can
+   read how long this has been going on. A run without a fault resets it.
+
+   `counter` defaults to `site` and exists because one site can have two halves
+   that fail on their own. The device seam is read by one call and written by
+   another; with one counter between them, a read that works resets the count a
+   write that failed just raised, and the breaker never trips.
 3. The fault goes in the store, keyed, so the thousands of nodes one bug fails
    at become one record with a number.
 4. Reporting is left to [`drain_faults!`](@ref) and the frame that calls it,
@@ -39,16 +44,17 @@ See also [`FaultPolicy`](@ref), [`record_fault!`](@ref) and
 [`report_fault!`](@ref).
 """
 function run_fault_barrier(body, store, policy::FaultPolicy, backend, site::Symbol;
-                           origin = :editor, reference = nothing, fallback = nothing)
+                           counter::Symbol = site, origin = :editor,
+                           reference = nothing, fallback = nothing)
     policy.is_barrier_enabled || return body()
     try
         value = body()
-        reset_consecutive_fault_count!(store, site)
+        reset_consecutive_fault_count!(store, counter)
         value
     catch exception
         is_passthrough_exception(exception) && rethrow()
         traceback = catch_backtrace()
-        _count_fault!(store, site)
+        _count_fault!(store, counter)
         record_fault!(store, site, origin, reference, exception, traceback)
         # No store means no drain will ever see this, so the report is made here
         # and now, from the exception itself.
