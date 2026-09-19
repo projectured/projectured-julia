@@ -22,7 +22,7 @@ through generated `getproperty` / `setproperty!` methods.
 
 The shared pattern is implemented **once, in the cell layer**:
 [cell/CellStruct.jl](../../../source/kernel/cell/CellStruct.jl) defines
-`@cell_struct struct T [<: Super] … end` — every field becomes a transparent
+`@cell_struct struct T [<: Super] … end`: every field becomes a transparent
 `Cell` (auto-wrapping constructor, read/write-through accessors, raw cells via
 `getfield`), and `field::T = value` defaults produce the keyword constructor
 described below. It injects no supertype and carries no document, projection,
@@ -35,9 +35,9 @@ generates its own kind-parameterized stem (see below), but shares the cell
 layer's codegen kit for everything that is not document-specific: the field
 parse (`make_cell_struct_plan`, which reads the three field forms into a `CellStructPlan`),
 the keyword-constructor builders (`build_cell_struct_keyword_parameters`,
-`build_cell_struct_keyword_constructor`), and **Rule Y** (`build_cell_struct_positional_ctors` — filling
-a trailing run of defaults positionally is a rule about any cell struct, not
-about documents). `@document` is then a parse plus six emitters, each a pure
+`build_cell_struct_keyword_constructor`), and **Rule Y** (`build_cell_struct_positional_ctors`).
+Rule Y fills a trailing run of defaults positionally; it is a rule about any
+cell struct, not about documents. `@document` is then a parse plus six emitters, each a pure
 function of the plan. Use `@cell_struct` directly for a transparent-Cell struct
 that is none of the three framework kinds.
 
@@ -57,7 +57,7 @@ An **explicit supertype always wins**. This is how a document declares its
 `JsonDocument` (and since `JsonDocument <: Document`, it is still a `Document`).
 Likewise `@projection struct Foo <: SomethingElse` keeps `SomethingElse`.
 
-So the default only kicks in when you write no supertype at all; reach for it
+So the default only applies when you write no supertype at all; reach for it
 whenever the base type is the one you'd have written anyway. The injected
 `Document` / `Projection` / `IoMap` name resolves in the *calling* module, so
 that module must have it in scope (every framework module already imports it).
@@ -119,7 +119,7 @@ nothing else; the family and the four spelling aliases (`RCFoo`/`ICFoo`/`MCFoo`/
 are always generated regardless of the list. The default, when no list is
 written, emits both `C` and `M`.
 
-The list's **first entry decides what the bare name `Foo` means**:
+The list's **first entry sets what the bare name `Foo` means**:
 
 | First entry | `Foo` means | Fits |
 |---|---|---|
@@ -128,15 +128,15 @@ The list's **first entry decides what the bare name `Foo` means**:
 | `M` | `MFoo`, the plain `mutable struct` | a schema whose primary object is the one a simulator mutates |
 
 `DC` emits nothing that `C` does not; it only moves the bare name one step in.
-The coded name always resolves too — a `C` schema still gets `const ACFoo = Foo`,
+The coded name always resolves too. A `C` schema still gets `const ACFoo = Foo`,
 so `ACFoo` names the cell layout whichever binding the bare name took. A `[Kind]`
 token before the layout list (`ImmutableCell`, `MutableCell`, …) is the field
 cell kind the auto-wrapping constructor uses; it is independent of the layout
 list.
 
-A package that keeps the same list on every schema declares a preset once —
+A package that keeps the same list on every schema declares a preset once.
 [`@document_preset`](../../../source/kernel/document/DocumentMacro.jl) defines
-`@name` as `@document` with a fixed layout list — and every schema in the
+`@name` as `@document` with a fixed layout list, and every schema in the
 package writes the preset's name instead of repeating the brackets:
 
 ```julia
@@ -151,8 +151,8 @@ A preset's own arguments still pass through, so a field-kind marker keeps
 working: `@native_document ImmutableCell struct …`.
 
 **Declaring `selection` by hand.** You normally never write it. The one reason to
-is a **value document** that must pin the field's *value* type — the isbits pivot:
-`selection::ImmutableCell{Nothing}` is isbits and not selectable (a leaf value),
+declare it is a **value document** that must pin the field's *value* type, the
+isbits pivot: `selection::ImmutableCell{Nothing}` is isbits and not selectable (a leaf value),
 while the injected `Union{Nothing, Reference}` form is selectable. An explicit
 `selection` must come **last** (anywhere else is an error) and defaults to
 `nothing`, so it does not count as a programmer default and leaves Rule Y and the
@@ -169,7 +169,7 @@ end
 
 The `[DC]` here is the **layout list** — see the next section.
 
-The *cell kind* in the fields decides the node's behavior — `ReactiveCell{T}`
+The *cell kind* in the fields determines the node's behavior: `ReactiveCell{T}`
 (the reactive engine, historic `Cell`), `MutableCell{T}` (plain box, no
 reactive bookkeeping), or `ImmutableCell{T}` (read-only, zero-cost). The bare
 name is a UnionAll matching every kind, so `::JsonString` dispatch and
@@ -196,20 +196,20 @@ name is a UnionAll matching every kind, so `::JsonString` dispatch and
   when no field declares one. The macro exports the aliases itself.
 
   Each name abbreviates a phrase, adjective first: `MCJsonString` is the mutable
-  cell `JsonString`. The `C` says the variant keeps its fields in cells, which is
-  what tells it from `MJsonString`, the plain `mutable struct` layout — the first
+  cell `JsonString`. The `C` says the variant keeps its fields in cells, which
+  distinguishes it from `MJsonString`, the plain `mutable struct` layout: the first
   holds one `MutableCell` box per field, the second its fields inline.
 - **Kind conversion** happens through the generic functions, not ctors:
   `copy_document(doc)` deep-copies and preserves each cell's kind, and
   `copy_document(K, doc)` rebuilds every cell as kind `K` (reactive ↔ mutable ↔
   immutable). To query, `get_cell_struct_kind(doc)` (the cell layer) reads the
-  kind a value's fields are built from — a cell struct's kind lives in its field
+  kind a value's fields are built from. A cell struct's kind lives in its field
   cells, not in its type name.
 
-Why loose bounds (`C <: AbstractCell`, not `C <: AbstractCell{String}`)?
+Loose bounds (`C <: AbstractCell`, not `C <: AbstractCell{String}`) exist because
 `AbstractCell{T}` is invariant, and the projection machinery freely stores
 untyped cells and even non-`String` values (template `bound(…)` markers) in a
-"String" field before stripping them — declared types are enforced by the
+"String" field before stripping them. Declared types are enforced by the
 typed kind ctors, not by the type system.
 
 ### Why every field is a cell
@@ -230,7 +230,7 @@ documents or pass it to `set_cell_function!`), use `getfield(obj, :field)`. The
 projection layer does this often, e.g. to make the `selection` field of a
 `SyntaxLeaf` the same Cell as the upstream `JsonString.selection`.
 Since the stem is immutable, such sharing must be established at
-construction time — a field's cell object can never be swapped afterwards.
+construction time. A field's cell object can never be swapped afterwards.
 
 ## `@domain`
 
@@ -238,29 +238,29 @@ construction time — a field's cell object can never be swapped afterwards.
 @domain Json
 ```
 
-One line generates a document domain's **insertion kit**: the abstract root
-(`JsonDocument <: Document`, **exported** from the calling module — a domain
+One line generates a document domain's **insertion kit**. This is the abstract root
+(`JsonDocument <: Document`, **exported** from the calling module; a domain
 never re-exports its own root by hand, and an adopted `root = X` is exported
 too), the empty placeholder
 (`@document struct JsonNothing`), the typed-name insertion buffer
 (`@document struct JsonInsertion` with `value::String = ""` plus the
 `JsonInsertion("…")` convenience constructor), the **Insert-key gesture**
 that turns the placeholder into the insertion (cursor in the buffer), and the
-**insertion traits** the completion machinery dispatches on —
+**insertion traits** the completion machinery dispatches on:
 `get_domain_prefix`, `get_domain_insertion`, `get_insertion_root`, `get_nothing_document`,
 `get_insertion_document`, the lowercase domain name as the insertion's alias, and
 the placeholder's `insertable` opt-out.
 
 Each `root = X` / `nothing = X` / `insertion = X` option **adopts** an
 existing type instead of generating one (only its traits and gestures are
-emitted); the adopted type must already be defined at the call site — e.g.
+emitted); the adopted type must already be defined at the call site. For example,
 `@domain Julia root = JuliaDocument nothing = JuliaNothing insertion =
 JuliaInsertion`, because `JuliaNothing` doubles as the parsed `nothing`
 literal.
 
 What the completion machinery then gives the domain for free: the reflected
-candidate list (`get_insertion_candidates(JsonDocument)`, every insertable
-concrete subtype — zero-arg constructible or with an `@insertion`
+candidate list (`get_insertion_candidates(JsonDocument)`: every insertable
+concrete subtype, either zero-arg constructible or with an `@insertion`
 method), derived names (`JsonString` / `json string`, prefix-free inside the
 domain), live completion + commitability colouring in the shared insertion
 leaf, Enter-commit of unambiguous prefixes, Tab completion, and the
@@ -279,7 +279,7 @@ Insert ⇄ Escape loop between placeholder and insertion. Not generated
 The document a committed insertion of that candidate becomes — `@domain`'s
 companion. A candidate whose empty instance is already right needs no
 `@insertion` at all: the zero-arg constructor is the fallback. The macro is for
-the rest — a cursor to place (an empty string wants a caret *inside* it, not a
+the rest: a cursor to place (an empty string needs a caret *inside* it, not a
 whole-node selection) or a scaffold of holes to build.
 
 It expands to a single **fully qualified** `make_insertion_document` method, so
@@ -299,13 +299,13 @@ end
 
 Identical mechanic to `@document`, minus the immutable I-struct and
 conversion constructors. In the current codebase `@projection` is the standard
-way to declare a projection struct — the `…ToSyntax*` / `…ToText` / the
-`Widget…ToGraphicsCanvas` projections all use it — so the `<: Projection` is
-defaulted in (it was redundant on every one of them).
+way to declare a projection struct: the `…ToSyntax*` / `…ToText` / the
+`Widget…ToGraphicsCanvas` projections all use it, so the `<: Projection` is
+defaulted in and is redundant to write on any of them.
 
 A projection that genuinely needs a *different* supertype still writes it
 explicitly (`@projection struct Foo <: SomethingElse`). And a plain
-`struct MyProjection <: Projection ... end` — declared without the macro —
+`struct MyProjection <: Projection ... end`, declared without the macro,
 remains a valid option for a projection with no reactive fields; a plain struct
 gets no defaulting, so it must spell out `<: Projection` itself.
 
@@ -321,9 +321,9 @@ end
 ```
 
 Same as `@projection` for IoMap structs. It defaults the supertype to `<: IoMap`
-when none is given (see "Default base supertype" — `@iomap` was the first of the
-three to do this), so the resulting struct satisfies the IoMap interface (every
-iomap has `projection`, `input`, `output` fields).
+when none is given (see "Default base supertype"), so the resulting struct
+satisfies the IoMap interface (every iomap has `projection`, `input`, `output`
+fields).
 
 ## `@projection_template`
 
@@ -391,10 +391,10 @@ pair and a `read_intent` method come from the template for every `bound`,
 
 A structural caret that has no input pre-image (a delimiter the builder always
 renders, never bound to a field) is the one case the template cannot map on its
-own — a domain overrides `read_intent`/`map_reference_forward` for that one
+own. A domain overrides `read_intent`/`map_reference_forward` for that one
 position, as `XmlElementToSyntaxNode` does for its `<`/`>`/`</` delimiters.
-Everything else — the printer, both reference-mapping directions, and the
-reader — comes from the template.
+Everything else comes from the template: the printer, both reference-mapping
+directions, and the reader.
 
 ## Default field values (`@kwdef`-style)
 
@@ -432,7 +432,7 @@ Semantics deliberately match `Base.@kwdef`:
   every existing macro usage is byte-for-byte unchanged (no surprise keyword
   constructor appears on default-free types).
 
-This is now the standard idiom across the codebase: the insertion-cursor /
+This is the standard idiom across the codebase: the insertion-cursor /
 empty-document types (`JsonInsertion`, `XmlInsertion`, `SyntaxInsertion`,
 `DocumentNothing`, …) and the `*To*` projection style-config structs
 (`@projection struct …ToSyntaxLeaf`) declare their defaults inline rather than via a
@@ -440,15 +440,15 @@ convenience constructor. Copy that pattern, not the old `Foo() = Foo(Cell(nothin
 form.
 
 For `@document`, the keyword constructor is generated for the bare name, the
-`CI`-prefixed and `CM`-prefixed spellings, and the native `MFoo` layout — but only
-when **the programmer** declares at least one field default; the
+`CI`-prefixed and `CM`-prefixed spellings, and the native `MFoo` layout. It is
+generated only when **the programmer** declares at least one field default; the
 always-defaulted, macro-injected `selection` field does not itself count. A struct with no defaults of its own
 (`JsonString` above) gets no `JsonString(; …)`, which leaves that signature free
 for a hand-written keyword constructor that needs to do more than fill fields
 (`Assistant` back-links its draft this way). A struct with no fields of
 its own beyond the injected `selection` (e.g. `JsonNull`) is the exception: `Foo()`
 has to come from somewhere, so it gets the generated keyword constructor too. Why
-`Base.@kwdef` can't simply be stacked on these macros (macro-ordering and the
+`Base.@kwdef` cannot simply be stacked on these macros (macro-ordering and the
 dueling inner constructors), and why the defaults must be stripped out of the
 struct body, is spelled out in `plan/done/macro-default-field-values.md`.
 
@@ -464,44 +464,44 @@ kind stores every field as `Any`. So the rule is:
   the domain ever stores `nothing` in a field as an empty sentinel — e.g. a
   number whose text has been fully deleted — the annotation must include it
   (`::Union{Real, Nothing}`). A dishonest annotation stays silent under the bare
-  name and then bites twice: `ICFoo(…)` / `MCFoo(…)` **throw** on a value the
-  annotation rejects (`ImmutableCell{Real}(nothing)` has no method), and
-  `copy_document(ImmutableCell, doc)` does *not* throw — it falls back to the
+  name and then causes two separate failures: `ICFoo(…)` / `MCFoo(…)` **throw** on
+  a value the annotation rejects (`ImmutableCell{Real}(nothing)` has no method), and
+  `copy_document(ImmutableCell, doc)` does *not* throw. It falls back to the
   value's own type, so the copy quietly lands **off** the alias and
   `copy isa ICFoo` is `false`.
-- The macro takes care of the Cell wrapping for the runtime struct.
+- The macro handles the Cell wrapping for the runtime struct.
 
-The only time you'd annotate `::Cell` directly is when the field really
+The only time you would annotate `::Cell` directly is when the field really
 *is* the cell itself (e.g. when sharing a cell between two structs, or when
 the cell holds a thunk rather than a value).
 
 ## Gotchas these macros impose
 
 All three macros (`@document`, `@projection`, `@iomap`) share the same generated
-machinery, and with it the same three sharp edges:
+machinery, and with it the same three gotchas:
 
 - **A macro-wrapped field can never hold a `Cell` — or a `Computed` — as its
   logical value.** The auto-wrapping inner constructor runs `x isa Cell ? x : Cell(x)`
   on every argument, so a value that *is* a `Cell` is stored unwrapped and read back
-  transparently — there is no way to have a field whose value is itself a `Cell`. A
+  transparently. There is no way to have a field whose value is itself a `Cell`. A
   `Computed` is consumed the same way: it becomes the field's *derivation*, making it a
   computed cell, which is what `output = Computed(() -> …)` is for. If you genuinely
   need to store either *as a value*, box it (e.g. in a one-element tuple or a wrapper
   struct), or keep it in a plain hand-rolled struct instead.
 
   A **`Function` is an ordinary value** and needs none of this: a field may hold a
-  callback, predicate, or factory, and reading it returns the function uncalled — so a
+  callback, predicate, or factory, and reading it returns the function uncalled. So a
   config field like `marker_eligible::Any = some_predicate` is fine. Computedness is
   stated with `Computed`, never inferred from the value's type.
 - **The macro emits the *only inner* constructor.** Any convenience constructor
   you write must therefore be an **outer** constructor (`Foo(args...) = Foo(...)`
   outside the `@document struct` body); an inner one would collide with the
-  generated auto-wrapping constructor. (The one constructor the macro itself can
-  add is the *outer* keyword constructor for `@kwdef`-style defaults — see
-  "Default field values" above.)
+  generated auto-wrapping constructor. The one constructor the macro itself can
+  add is the *outer* keyword constructor for `@kwdef`-style defaults (see
+  "Default field values" above).
 - **Equality is identity for every kind but the immutable one.** The stem is an
-  immutable struct, so `===` compares it field cell by field cell — but a
-  `ReactiveCell` and a `MutableCell` are *mutable* objects, which `===` compares
+  immutable struct, so `===` compares it field cell by field cell. A
+  `ReactiveCell` and a `MutableCell`, however, are *mutable* objects, which `===` compares
   by identity. So two separately built `Foo`s (or `MFoo`s) with equal contents
   are **not** `==`. `ICFoo` is immutable the whole way down, stem and cells, so it
   is the one kind that compares structurally. Reference/path types define `==` by
@@ -516,15 +516,15 @@ machinery, and with it the same three sharp edges:
   `TextToGraphicsIoMap`, `NestingIoMap`, …) use a mixture of
   hand-rolled structs and `@iomap`.
 - Most projection structs use `@projection` (with the `<: Projection` defaulted
-  in) — the `…ToSyntax*` / `…ToText` / `Widget…ToGraphicsCanvas` families. A
-  plain `struct ... <: Projection` is the exception, used when the macro can't
+  in), across the `…ToSyntax*` / `…ToText` / `Widget…ToGraphicsCanvas` families. A
+  plain `struct ... <: Projection` is the exception, used when the macro cannot
   be: `AlternativeProjection` stays plain because it holds a reactive
   `index::Cell`, reading the cell explicitly rather than through `@projection`.
-  (A `Function` field is no longer such a reason — `SyntaxCompoundToText`'s
-  `marker_eligible` predicate is an ordinary value — so plain structs that carry
-  one are free to move to the macro.)
+  A `Function` field is not a reason to stay plain: `SyntaxCompoundToText`'s
+  `marker_eligible` predicate is an ordinary value, so a plain struct that carries
+  one can move to the macro.
   A plain struct gets no supertype defaulting, so it must write `<: Projection`.
 
-The result is that domain and projection code reads like Julia you'd write
-without any framework — the reactivity is invisible until you reach for
+The result is that domain and projection code reads like Julia you would write
+without any framework. The reactivity is invisible until you reach for
 `Cell`, `set_cell_function!`, or `getfield` explicitly.

@@ -49,8 +49,8 @@ break out cleanly.
 
 ## The generic write operation: `ReplaceReferencedValueOperation`
 
-Most operations do one thing — **write a value into one slot of some object** — so
-they are all really the *same* operation, differing only in which object, which
+Most operations do one thing: **write a value into one slot of some object**. They
+are all really the *same* operation, differing only in which object, which
 slot, and what value:
 
 ```julia
@@ -71,7 +71,7 @@ end
   bubbles up **unchanged** and applying it never depends on where the document
   sits in the tree.
 
-**Terminal-step dispatch** on `reference`'s last step decides what "write" means:
+**Terminal-step dispatch** on `reference`'s last step determines what "write" means:
 
 - `FieldReferenceStep` → set a `Cell`-backed field (`widget.visible`, `entry.value`, …).
 - `RangeReferenceStep` + a single value → overwrite that one element.
@@ -99,8 +99,8 @@ clipboard cut/copy/paste produce.
 follows the same rule for the same reason. It is the answer to a `CollectIntents`
 payload — everything available where the question was asked — and rerooting maps
 over the operations the intents carry. Applying it does nothing; being an
-`Operation` is what lets a listing travel home the ordinary way, arriving already
-rooted where its rows can be run. **Any seam that maps a `CompoundOperation`
+`Operation` is what lets a listing move through the pipeline the ordinary way,
+arriving already rooted where its rows can be run. **Any seam that maps a `CompoundOperation`
 elementwise must map this one too**, or a listing's operations come back rooted at
 the wrong depth.
 
@@ -113,11 +113,12 @@ needs no `reroot_operation` method of its own and no entry in the default
 `read_intent`: one base method of each serves every wrapper there will ever be.
 `RecordUndoOperation` of the undo slice is the first one.
 
-`ReplaceReferencedValueOperation` and these builders **replace a whole family** of former
-single-purpose operations — `ReplaceDocumentOperation`, `HideWidgetOperation`,
-`ShowWidgetOperation`, `ScrollWidgetOperation`, `SetScrollBarValueOperation`,
-`SetWidgetHoverOperation`, `SetWidgetPressedOperation`, `CollectionInsertOperation`,
-`CollectionDeleteOperation`, and a pane's own tab open and close. **Reach for
+`ReplaceReferencedValueOperation` and these builders **cover what would otherwise be a
+whole family** of single-purpose operations: a `ReplaceDocumentOperation`,
+`HideWidgetOperation`, `ShowWidgetOperation`, `ScrollWidgetOperation`,
+`SetScrollBarValueOperation`, `SetWidgetHoverOperation`, `SetWidgetPressedOperation`,
+`CollectionInsertOperation`, `CollectionDeleteOperation`, and a pane's own tab open
+and close all reduce to a single-slot write. **Reach for
 `ReplaceReferencedValueOperation` (or a builder) before writing a new operation struct.** See
 [`plan/done/consolidate-operations-replace.md`](../../../plan/done/consolidate-operations-replace.md).
 
@@ -143,8 +144,8 @@ range of characters) is a *text target*: `Ctrl+V` answers
 number field, with the text of the system clipboard, and the kernel applies it as
 it applies a typed character. `Ctrl+C`, `Ctrl+N` and `Ctrl+X` of a range store
 its characters in the slice and on the system clipboard. The branch runs before
-the rules for a whole document; `accepts_pasted_text` lets a document refuse the
-paste and the cut. It is in [clipboard/Clipboard.jl](../../../source/clipboard/Clipboard.jl)
+the rules for a whole document; `accepts_pasted_text` returns whether a document
+accepts the paste and the cut. It is in [clipboard/Clipboard.jl](../../../source/clipboard/Clipboard.jl)
 and [clipboard/ClipboardSliceToAny.jl](../../../source/clipboard/ClipboardSliceToAny.jl).
 A field that holds a span of the text domain is not a text target yet.
 | `Load`/`Save`/`ExportDocumentOperation`, `Database*Operation` | `document/*.jl` | file/SQL I/O |
@@ -159,7 +160,7 @@ the editor's `evaluate_operation` dispatches on type.
 ## Driving operations programmatically (scripting the editor)
 
 `evaluate_operation(editor, op)` is the **one way** to change the document, and
-you can call it yourself — it is the same step the editor loop runs after a
+you can call it yourself. It is the same step the editor loop runs after a
 gesture. So to script the editor (e.g. from `execute_julia_code`, or the REPL),
 do exactly what a reader does: find the target, build the operation, evaluate it.
 
@@ -189,7 +190,7 @@ This is also how a **timeline** scripts a session: `record_video` (headless) and
 entries that are *either* a device `event` (run through the reader) *or* an
 `operation` (evaluated directly, exactly the pattern above). Because a
 directly-injected operation skips the reader, it is **not** rerooted through
-container wrappers automatically — when the document is wrapped (e.g. in a
+container wrappers automatically. When the document is wrapped (e.g. in a
 `ScreenDocument`/`WindowDocument` for live playback), `play_live!` reroots it via
 `op_prefix` using `reroot_operation` (see the
 [rerooting invariant](#two-invariants-every-operation-must-respect) below). The
@@ -220,23 +221,23 @@ SDL_EVENT ──read_from_devices──► KeyPress/MousePress/...  ──► In
 The reader threads a [`Intent`](projection-system.md#the-intent-the-reader-threads)
 (the originating `gesture` plus the `operation` produced so far) and walks the
 pipeline last-to-first, calling `read_intent` on each step. The `gesture`
-rides along unchanged; the first step that fills in a non-nothing `operation`
+passes through unchanged; the first step that fills in a non-nothing `operation`
 short-circuits the walk, and subsequent earlier steps translate that operation
 further toward the document's own domain.
 
 Within a single structural projection, the reader recurses the same way the
-printer did: it **delegates a raw authoring gesture to the projection of the
+printer does: it **delegates a raw authoring gesture to the projection of the
 selected child** and **lifts** the child's operation back into its own domain by
-prepending the step that reaches the child (`reroot_operation`) — handling the
+prepending the step that reaches the child (`reroot_operation`). It handles the
 gesture itself (via [`read_gesture`](projection-system.md#domain-owned-geometry-free-gesture-mapping-read_gesture))
-only when the child declines. This is what makes `,`/`Tab` reach the *nearest
+only when the child returns nothing for it. This is what makes `,`/`Tab` reach the *nearest
 enclosing* object/array rather than only the root. See
 [Recursive gesture reading](projection-system.md#recursive-gesture-reading-delegate-to-the-selected-child-lift-the-operation).
 
 ## Adding a new operation
 
 **First ask whether you need one.** If the gesture just writes a value into a slot
-(a field, or an element of a sequence), emit a `ReplaceReferencedValueOperation` — or a
+(a field, or an element of a sequence), emit a `ReplaceReferencedValueOperation`, or a
 `replace_document` / `insert_elements` / `delete_elements` builder, optionally inside
 a `CompoundOperation` with a `ReplaceSelectionOperation` cursor move. No new type,
 no new evaluator, and rerooting already works. Add a new `Operation` struct only for
@@ -278,20 +279,20 @@ When you do need a new one:
   swap) does. An operation that silently rebinds structure without dropping the iomap
   renders stale.
 - **A new *reference-carrying* operation must be registered in two places.** If
-  your operation embeds a `Reference` that has to cross projection boundaries
-  — the generic `ReplaceReferencedValueOperation` (when `document === nothing`), or the
+  your operation embeds a `Reference` that has to cross projection boundaries,
+  such as the generic `ReplaceReferencedValueOperation` (when `document === nothing`), the
   remaining path-bearing types `ReplaceSelectionOperation` /
   `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation`, or a
-  `CompoundOperation` of them — it is only retargeted/rerooted automatically if it
+  `CompoundOperation` of them, it is only retargeted/rerooted automatically if it
   is handled in **both** the default `read_intent`
   ([projection/ProjectionDefaults.jl](../../../source/kernel/projection/ProjectionDefaults.jl)) **and**
   `reroot_operation`
   ([operation/Rerooting.jl](../../../source/kernel/operation/Rerooting.jl)).
   Both enumerate the path-bearing operation types explicitly; an operation missing
-  from either is **silently passed through unmapped** — its reference stays in the
+  from either is **silently passed through unmapped**. Its reference stays in the
   wrong domain with no error. A `ReplaceReferencedValueOperation` that carries its own root
-  (`document !== nothing`) needs no rerooting — it is passed through unchanged — so
-  prefer that form for an operation targeting a carried object.
+  (`document !== nothing`) needs no rerooting: it is passed through unchanged.
+  Prefer that form for an operation targeting a carried object.
 
 ## The fall-through cases
 
@@ -300,9 +301,9 @@ evaluate_operation(editor, ::Nothing) = nothing
 evaluate_operation(editor, op)        = nothing  # any other type
 ```
 
-These exist so the reader can return whatever it likes (including raw
-events that nothing knows how to handle) without crashing the editor —
-unknown values simply produce no effect.
+These exist so the reader can return whatever it likes, including a raw
+event that has no handler, without crashing the editor. Unknown values
+simply produce no effect.
 
 ## The operation layer
 
@@ -354,7 +355,7 @@ function _preorder_documents!(node, ...)
         ...
 ```
 
-The `isa CellVector` branch is the smell — an operation-layer file
+The `isa CellVector` branch is the smell: an operation-layer file
 hard-referencing a concrete document type. The open generic form dissolves it:
 
 ```julia
@@ -371,8 +372,8 @@ type definition. The default handles ordinary structs.
 
 **Testing pressure.** `test/operation/TraversalTest.jl` defines a test-local
 `@document struct ToyList` and registers its own `child_reference_steps`
-method — the exact pressure that keeps the seam honest. If a fresh test-local
-type couldn't drive the walk, the seam wouldn't be open.
+method: the exact pressure that keeps the seam honest. If a fresh test-local
+type could not drive the walk, the seam would not be open.
 
 ### The open `reroot_operation(op, steps)` generic
 
@@ -392,7 +393,7 @@ end
 ```
 
 The `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation` branches
-would import `PrimitiveModule` from a lower kernel layer — a wrong-direction
+would import `PrimitiveModule` from a lower kernel layer: a wrong-direction
 edge. The open generic form avoids it, with the base methods in
 `Rerooting.jl`:
 
@@ -424,7 +425,7 @@ other half is the default `read_intent`).
 
 **Testing pressure.** `test/operation/RerootingTest.jl` declares a test-local
 `ToyPathOperation <: Operation` and registers its own `reroot_operation` method,
-proving the seam is genuinely open — you cannot depend on a concrete
+proving the seam is genuinely open: you cannot depend on a concrete
 higher-layer type at layer 10.
 
 ### Downward edges
