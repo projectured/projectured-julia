@@ -409,16 +409,42 @@ the fault plan section 9 already records.
    unmodified `main` (document macro, reference layout, tool scratch) and
    predate this branch.
 
-### Phase 3 — The SDL wait ⬜
+### Phase 3 — The SDL wait ✅ (2026-09-19, manual check open)
 
-1. Register the wake user event; add `wake_backend!` via `SDL_PushEvent`.
-2. Implement `wait_for_input` per section 3.4, with the hover cap and the
-   slicing policy.
-3. Skip the wake event in `_poll_window_input`.
-4. Check `gc_safe` availability on the workspace Julia; record the result
-   here.
-5. Manual check: an idle SDL editor sits at zero CPU; typing, animation, an
-   MCP call and an omnet sync all still work.
+1. ✅ `initialize_backend!` registers one user event per SDL life
+   (`wake_event_type` on the backend; zero when the pool refuses, and the
+   sliced wait then covers the loss). `wake_backend!` pushes it through
+   `SDL_PushEvent` — SDL's documented thread-safe entry — by writing the
+   type into a zeroed `SDL_Event` blob.
+2. ✅ `wait_for_input` blocks in `SDL_WaitEventTimeout` with a NULL event
+   pointer — SDL's look-only form, so everything stays queued for `read!`.
+   An owed `pending_input` skips the wait; a held `pending_motion` caps the
+   timeout at the rest of the hover interval.
+3. ✅ `_poll_window_input` needed no change: an unmatched event type falls
+   through its dispatch and is skipped, the wake event included.
+4. ✅ `gc_safe` exists on this Julia (1.13.0) and is prefix syntax:
+   `@ccall gc_safe=true lib.f(…)::T`. Every slice blocks GC-safe. The slice
+   is 10 ms single-threaded (today's cadence, and the only moment
+   cooperative tasks on the thread run) and 100 ms multi-threaded — bounded
+   because `@async` tasks (the MCP server) stick to the spawning thread
+   until the plan that moves them; a slice of `Inf` waits for that plan.
+5. ✅ Tests (`test_sdl_wait_wake`, 9 assertions, real SDL queue): the wake
+   registration, the timeout, a cross-task wake ending a long wait, the
+   look-only property, the owed-event skip. Timing bounds are one-sided and
+   generous. ⬜ Manual check remains: an idle SDL editor near zero CPU;
+   typing, animation, an MCP call and an omnet sync all live.
+
+### Phase 4 — The console wait ✅ (2026-09-19)
+
+1. ✅ A watcher task blocks on the TTY (`Base.wait_readnb`), notifies an
+   autoreset `Base.Event` gate, and holds until the editor consumed the
+   bytes. The gate stores a notification that arrives before the wait, so
+   no wake is lost. A `Timer` notifying the same gate bounds the wait.
+   `wake_backend!` notifies the gate directly. An input without a watcher —
+   an `IOBuffer` in tests — degrades to the default poll slice.
+2. ✅ Tests inside `test_console_backend` (43 assertions total): buffered
+   bytes skip the wait, a stored wake is not lost, a cross-task wake ends a
+   long wait, the timeout fires, quit still works through Ctrl-C parsing.
 
 ### Phase 4 — The console wait ⬜
 
@@ -426,11 +452,16 @@ the fault plan section 9 already records.
 2. Test: a keystroke ends the wait; a wake ends the wait; Ctrl-C still
    quits.
 
-### Phase 5 — Producers wake ⬜
+### Phase 5 — Producers wake ✅ (2026-09-19)
 
-1. Add `wake_editor!` after the direct writes in `Mcp.jl` and
-   `AssistantTurn.jl`.
-2. Confirm the omnet watch paints immediately through the inbox wake.
+1. ✅ The MCP wire handler wakes after every tool call (`Mcp.jl`), fault
+   included, so what a client changed — or broke — paints at once. The
+   assistant wakes per streamed LLM event (the `on_event` closure in
+   `_run_agent_loop!`) and once more at turn end, so the stream paints as
+   it arrives; without the per-event wake a blocking editor would freeze
+   the chat until the turn ends.
+2. ✅ The omnet watch wakes through `post_operation!` with no change on its
+   side.
 
 ### Phase 6 — The message log becomes a feed ⬜
 
@@ -440,13 +471,16 @@ the fault plan section 9 already records.
 3. Test: a log line from a foreign task lands in the document on the next
    frame, and no cell is written from the foreign task.
 
-### Phase 7 — The fault wake ⬜
+### Phase 7 — The fault wake ✅ (2026-09-19)
 
-1. Add the wake slot to `FaultStore`; call it from `record_fault!` on a new
-   key; attach it in the `Editor` constructor (section 4.1).
-2. Test: a fault recorded from a foreign task reaches the fault log on the
-   next frame without any other event; a fault recorded inside a frame is
-   reported on the frame after it, with no wait between the two.
+1. ✅ `attach_fault_wake!(store, wake)` mirrors `attach_fault_target!`; the
+   `Editor` constructor attaches its own wake. `record_fault!` wakes at the
+   queue moment — a new key, or a count that grew a bucket — never on a
+   plain count bump, and the wake is swallowed if it throws
+   (`PAR-REPORT-NEVER-THROWS`).
+2. ✅ Tests: the store suite covers wake-on-queue, silence on a bump, and a
+   throwing wake (25 assertions); the feed suite asserts a fault recorded
+   on `editor.faults` sets `wake_pending`.
 
 ### Phase 8 — The frame statistics feed ⬜
 

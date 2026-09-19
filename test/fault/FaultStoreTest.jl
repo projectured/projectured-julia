@@ -101,6 +101,27 @@ function test_fault_store()
         @test isempty(drain_faults!(nothing))
         @test isempty(get_fault_records(nothing))
         @test get_consecutive_fault_count(nothing, :print) == 0
+        @test attach_fault_wake!(nothing, () -> nothing) === nothing
+    end
+
+    @testset "a queued record wakes, a plain count bump does not" begin
+        store = FaultStore()
+        wakes = Ref(0)
+        attach_fault_wake!(store, () -> wakes[] += 1)
+        record_fault!(store, :print, :P, nothing, ErrorException("e"))
+        @test wakes[] == 1                     # the new key woke
+        record_fault!(store, :print, :P, nothing, ErrorException("e"))
+        @test wakes[] == 1                     # count 2, same bucket: no wake
+        for _ in 3:10
+            record_fault!(store, :print, :P, nothing, ErrorException("e"))
+        end
+        @test wakes[] == 2                     # count 10, new bucket: one wake
+    end
+
+    @testset "a wake that throws is swallowed" begin
+        store = FaultStore()
+        attach_fault_wake!(store, () -> error("the wake is broken"))
+        @test record_fault!(store, :print, :P, nothing, ErrorException("e")) !== nothing
     end
 end
 end

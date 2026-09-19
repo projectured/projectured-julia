@@ -17,6 +17,7 @@ import ProjecturedKernel.FeedModule: drain_changes!, compute_wake_deadline,
 import ProjecturedKernel.EditorModule: Editor, InboxFeed, post_operation!,
                                        drain_feeds!, wake_editor!
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation
+import ProjecturedKernel.FaultModule: record_fault!
 using ProjecturedKernelExample
 
 @document struct FeedProbe
@@ -113,6 +114,13 @@ function test_editor_feeds()
     @testset "the default deadline is no bound" begin
         @test compute_wake_deadline(InboxFeed()) === nothing
         @test compute_wake_deadline(ProbeFeed(Any[], :probe)) === nothing
+    end
+
+    @testset "a recorded fault wakes the editor" begin
+        editor = _feed_editor()
+        @test !editor.wake_pending[]
+        record_fault!(editor.faults, :print, :Probe, nothing, ErrorException("e"))
+        @test editor.wake_pending[]
     end
 end
 end

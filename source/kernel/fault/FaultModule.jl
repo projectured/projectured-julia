@@ -37,7 +37,7 @@ module FaultModule
 export FaultRecord, FaultStore, FaultPolicy,
        make_fault_record, compute_fault_key, format_fault_message,
        format_fault_traceback,
-       record_fault!, drain_faults!, attach_fault_target!,
+       record_fault!, drain_faults!, attach_fault_target!, attach_fault_wake!,
        get_consecutive_fault_count, reset_consecutive_fault_count!,
        clear_fault_store!, get_fault_records,
        append_fault!, play_fault_sound!, is_passthrough_exception,

@@ -243,6 +243,9 @@ function _launch_agent_turn!(editor, a::Assistant)
                   ConversationTurn(:assistant, [ConversationPart("Error: " * err)]))
         finally
             a.status === :streaming && (a.status = :idle)
+            # The turn ran on its own task; ask the editor for a frame so the
+            # final state — the answer, or the error turn — paints now.
+            wake_editor!(editor)
         end
     end
     nothing
@@ -678,6 +681,9 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
         on_event = ev -> begin
             observe === nothing || observe(ev)
             _handle_agent_event!(ev, a, turn, state, set)
+            # The event just changed the conversation from this task; ask the
+            # editor for a frame so the stream paints as it arrives.
+            wake_editor!(editor)
         end)
 
     @info "[assistant] turn done" elapsed_s=round(time() - turn_t0; digits=2) parts=length(turn.parts)

@@ -47,12 +47,17 @@ mutable struct FaultStore
     capacity::Int
     dropped::Int
     depth::Int
+    # The wake of the editor this store belongs to, or `nothing`. Called the
+    # moment a record is queued for the drain, so a sleeping editor runs the
+    # frame whose report shows the fault. A function and not an editor,
+    # because this layer sits below everything and names nothing above Base.
+    wake::Any
 end
 
 FaultStore(; capacity::Integer = 64) =
     FaultStore(Dict{UInt64, FaultRecord}(), UInt64[], UInt64[],
                Dict{UInt64, Int}(), Any[], Dict{Symbol, Int}(),
-               Int(capacity), 0, 0)
+               Int(capacity), 0, 0, nothing)
 
 """
     get_fault_records(store) -> Vector{FaultRecord}
@@ -74,6 +79,31 @@ function attach_fault_target!(store::FaultStore, target)
 end
 
 attach_fault_target!(::Nothing, target) = nothing
+
+"""
+    attach_fault_wake!(store, wake) -> store
+
+Hand the store the wake function of its editor. `record_fault!` calls it the
+moment a record is queued for the drain — a new key, or a count that grew by
+an order of magnitude — and not on a plain count bump, so a fault that
+repeats cannot keep the editor spinning.
+"""
+attach_fault_wake!(store::FaultStore, wake) = (store.wake = wake; store)
+
+attach_fault_wake!(::Nothing, wake) = nothing
+
+# Best effort, and it must stay that: `record_fault!` runs inside reactive
+# thunks and inside barriers, so a wake that throws must not throw through
+# them (PAR-REPORT-NEVER-THROWS).
+function _notify_fault_wake!(store::FaultStore)
+    wake = store.wake
+    wake === nothing && return nothing
+    try
+        wake()
+    catch
+    end
+    nothing
+end
 
 # How many times a count has to grow before it is worth showing again. A fault
 # at three thousand places would otherwise write the log three thousand times,
@@ -123,6 +153,7 @@ function record_fault!(store::FaultStore, site::Symbol, origin, reference,
         if _get_fault_count_bucket(grown.count) != _get_fault_count_bucket(queued)
             store.queued_counts[key] = grown.count
             push!(store.undrained, key)
+            _notify_fault_wake!(store)
         end
         return grown
     end
@@ -135,6 +166,7 @@ function record_fault!(store::FaultStore, site::Symbol, origin, reference,
     store.queued_counts[record.key] = record.count
     push!(store.order, record.key)
     push!(store.undrained, record.key)
+    _notify_fault_wake!(store)
     record
 end
 

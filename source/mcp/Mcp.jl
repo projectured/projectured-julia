@@ -133,6 +133,10 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                                   exception, traceback)
                     sprint(showerror, exception, traceback)
                 end
+                # The tool ran on the server task and may have changed what
+                # the editor shows; ask for a frame so the change — or the
+                # fault it recorded — paints without waiting for other input.
+                wake_editor!(editor)
                 TextContent(text = text)
             end
             push!(out, MCPTool(

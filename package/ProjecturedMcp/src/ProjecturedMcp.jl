@@ -20,6 +20,7 @@ module ProjecturedMcp
 using ModelContextProtocol
 using ModelContextProtocol: HttpTransport, TextResourceContents, ServerConfig
 
+import ProjecturedKernel.EditorModule: wake_editor!
 import ProjecturedKernel.FaultModule: record_fault!
 import ProjecturedKernel.ToolModule: Tool, Resource, ToolSet,
                                      list_tools, list_resources, register_default_tools!
