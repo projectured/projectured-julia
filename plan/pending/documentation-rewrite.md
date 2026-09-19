@@ -799,8 +799,29 @@ commands as they are:
 - [x] The guard also prints a report that does not fail: sentences with the
       verbs of the personification list, and the slices under `source/` that no
       guide names.
-- [ ] The check for the private names of §3.9 is not part of the guard. It
+- [x] The check for the private names of §3.9 is not part of the guard. It
       runs in Step 11 on the public documents.
+
+      **It is part of the guard since 2026-09-20.** `private_name_violations`
+      in `test/suite/documentation.jl` reads every document and reports a
+      private name. The owner widened the rule that day: **the product names
+      are private too**, so a document names no product of the work that is not
+      published here. The names are written as patterns rather than as names,
+      because the guard is a public file itself.
+
+      The sweep it needed: four guides, twelve source files, the ported layout
+      folder `source/graph/omnetpp/` (now `source/graph/cpp/`), the exported
+      constant that named the window of the original (now
+      `ADVANCED_LAYOUT_LIMIT`), and the README of `test/graph/reference/`. A
+      C++ class name stays, because it carries the algorithm, and so does the
+      one namespace line that the two reference programs must compile against.
+      `test_graph()` passes with 358 assertions, and the guard reports zero.
+
+      **What still names a product: 57 lines of `test/` and `example/`**, which
+      the guard does not read. Two of them are logic and not prose:
+      `CatalogCoverageTest.jl` selects the packages of a downstream repository
+      by the prefix of their name, and `BuilderTest.jl` uses a downstream
+      binary name as an argument. The owner decides whether that sweep happens.
 - [x] Add `test_documentation()` to `test_all()`, as `test_naming()` is.
 - [x] Run the guard on the old documents. Record the counts in this plan.
       Until Step 3 sweeps them, `test_documentation()` fails; that is what the
@@ -1238,6 +1259,18 @@ picture of the application until that is fixed.
       read it.
 - [ ] D22: attach the archive of `application-and-build.md` Step 5 to a GitHub
       release. The owner approves the release.
+
+      **Deferred by the owner on 2026-09-20: there is no binary release.** The
+      owner looked at the application and found the window too rough to ship.
+      The build was stopped before it finished, and every built bundle and the
+      archive of 2026-09-17 were deleted, which freed 4.4 GB. The release waits
+      for the window, and the first post carries no binary.
+
+      What the stopped build left behind and what is worth keeping: the archive
+      of a distribution now carries `LICENCE-PD` and `LICENCE-COMMERCIAL`, and
+      `build_distribution` stops when a declared licence file is missing. A
+      binary that travels without its licence breaks the licence it travels
+      under. `test_builder()` passes with 164 assertions.
 - [ ] Move this plan and the survey file to `plan/done/`.
 - [ ] The owner reads the drafts, makes the repository public (D2) and posts.
 
