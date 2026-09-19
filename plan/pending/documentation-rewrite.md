@@ -1105,8 +1105,43 @@ machine had a warm cache, so the first-start cost is still unmeasured.
 
 The model tag `qwen3.8:27b` looked wrong to it. It is right: that model is on
 the server of this machine, and it is the default of `source/ollama/Ollama.jl`.
-- [ ] A language review against `writing-rules.md`, one document group at a
+- [x] A language review against `writing-rules.md`, one document group at a
       time.
+
+      **Done on 2026-09-19 and 2026-09-20.** The owner asked whether the
+      language was technical and informative, and the honest answer was no: the
+      documents of this plan were, and the older ones and the web site were
+      not. Two subagents then read every older document, one for
+      `documentation/package/kernel/` and `documentation/design/`, one for the
+      guides, the rules, the older slice guides and `CONTRIBUTING.md`. They
+      changed the form of a sentence and kept its fact: a verb of a person on an
+      object became what the program has, returns or computes, a dash or a
+      parenthesis with more information became a sentence, and a history
+      sentence became the constraint in the present tense. For the `PAR-…`
+      rules they changed single words only.
+
+      The report of the guard went from 124 lines to 21, and each of the 21 has
+      a person as its subject (a reader, a caller, a consumer) or is a quoted
+      example. The guard itself reports zero violations.
+
+      **What the review found that was a fault of fact, all corrected:**
+
+      - Every layer number in the kernel guides was one too low, because the
+        fault layer is layer 1. The layer list of `architecture.md` was right.
+      - `operation.md` listed three imports and the layer has five
+        (`FaultModule`, `CellModule`, `DocumentModule`, `ReferenceModule`,
+        `SelectionModule`). `reference.md` said ten fragments and then eleven;
+        the module includes eleven, and the diagram missed
+        `ReferencePatternString.jl`. Both guides gave an "index in the DAG"
+        that no other document defines, and now say which layers are above.
+      - 33 link labels carried a file name from before a rename.
+      - `writing-rules.md` named five kinds for the header, and
+        `documentation/README.md` defines seven others. The index governs. Four
+        documents of this plan took the kind of their index row, and
+        `header_violations` now reports a kind outside the list.
+      - `naming-rules.md` said 12 colliding names and then 13. The count is 10.
+      - `graph-layout.md` named a private checkout. It names the OMNeT++ source
+        tree.
 - [x] An assistant test: `list_guides()` shows a real summary for each guide,
       and each guide name in the prompts resolves. If the machine has the
       memory free, one real session with Ollama.
