@@ -27,7 +27,8 @@ function test_shell()
         test_widget_tooltip()
         test_julia_tooltip()
         test_tooltip_probe()
-        test_context_menu_probe()
+        test_context_menu_probe, test_window_shell()
+        test_window_shell()
     end
 end
 

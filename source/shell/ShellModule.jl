@@ -22,11 +22,13 @@ module ShellModule
 
 using ..CellModule
 using ..ClipboardModule
+using ..PaneModule
 using ..DocumentModule
 using ..IntentModule
 using ..IoMapModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..SelectionModule
 using ..FocusModule
 using ..GestureHelpModule
 using ..GestureLogModule
@@ -39,8 +41,10 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 
 export make_window_wrap, make_opened_window_projections, make_popup_screen_wrap
 export WindowShellProjection, WindowShellIoMap
+export make_window_menu_bar, make_window_toolbar, make_window_status_bar
 
 include("WindowWrap.jl")
 include("WindowShell.jl")
+include("WindowChrome.jl")
 
 end # module

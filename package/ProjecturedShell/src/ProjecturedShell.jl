@@ -14,6 +14,7 @@ using ProjecturedFocus
 using ProjecturedGestureHelp
 using ProjecturedGestureLog
 using ProjecturedKernel
+using ProjecturedPane
 using ProjecturedScreen
 using ProjecturedStyle
 using ProjecturedTooltip
@@ -21,11 +22,13 @@ using ProjecturedWidget
 
 const CellModule = ProjecturedKernel.CellModule
 const ClipboardModule = ProjecturedClipboard.ClipboardModule
+const PaneModule = ProjecturedPane.PaneModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const IntentModule = ProjecturedKernel.IntentModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
+const SelectionModule = ProjecturedKernel.SelectionModule
 const FocusModule = ProjecturedFocus.FocusModule
 const GestureHelpModule = ProjecturedGestureHelp.GestureHelpModule
 const GestureLogModule = ProjecturedGestureLog.GestureLogModule

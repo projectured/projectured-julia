@@ -1133,6 +1133,31 @@ What the work decided:
 
 ### Step 7 — the shell draws the chrome
 
+**The shared half is done, 2026-09-19.** `test_shell()` is 85 pass. What is left
+is the application and the interface calling it, and the interface half waits for
+`main`.
+
+- `WindowShellProjection` builds the `WidgetShell` in the **printer** and caches
+  it, so the chrome is drawn and never stored, and the widget keeps one identity
+  across prints. The shell adds one reference step, `content`, added going out
+  and stripped coming back.
+- `make_window_menu_bar`, `make_window_toolbar` and `make_window_status_bar` are
+  the bands, in the shell package, so both binaries share them and a host appends
+  its own.
+- **Only `WidgetShell` carries a `context_menu`**, and every other document
+  computes its menu (§3.6).
+- The probe asks the document it found and then the **root**, which is what makes
+  `WidgetShell.context_menu` the window's own menu and what answers a press on
+  empty space.
+- **The test earns its place.** It compares each menu shortcut against the pane
+  tree's own gesture bindings, and it caught `Ctrl+Shift+P` sitting on the View
+  menu as though the tree answered it. It belongs to the command palette wrapper.
+  The four shortcuts that belong to a wrapper or a tab are now named in the test
+  with their owner, so a fifth cannot be added quietly.
+- The status bar shows the reference **as it is written**. Saying it as a person
+  would is `ReferenceToHumanReadableText`, which is a projection and belongs in
+  what the band draws, not in a string built beside it.
+
 - [ ] Wrap the content of the window in a `WidgetShell` inside the fold, and give
       the shell the size of the window. A shell with no size hugs its content
       (§2.6), which a window shell must not do.
