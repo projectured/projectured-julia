@@ -34,6 +34,9 @@ You can extend ProjecturEd with your own domain: its document types, the project
 - **Ask for a change in plain words.** The assistant searches the API, writes Julia and runs it against the live editor. It works with a local model through Ollama, or with Claude.
 - **Drive the editor from outside.** An MCP client connects to `http://127.0.0.1:9876/mcp` and gets the same tools as the assistant in the window.
 - **Put a view somewhere else.** The same view goes to a native window, a browser, a terminal, a PDF file, a PNG file or an MP4 video.
+- **Take a change back.** `Ctrl+Z` and `Ctrl+Y` work in the application, for your edits and for the assistant's. The [history](documentation/package/undo/undo.md) is a document too, so you can read it.
+- **Keep working after a fault.** A failure in a view, in an edit or in a tool [does not stop the editor](documentation/package/fault/fault.md): the editor takes the broken change back, shows what went wrong where the view would be, and goes on.
+- **Open a tool by its name.** Type `repl`, `log`, `gestures`, `selection`, `reference`, `explorer` or `assistant` into an empty tab, and the tab becomes that tool.
 
 ## Quick start
 
@@ -54,7 +57,10 @@ bin/projectured --help                       # every option
 bin/projectured --assistant=none notes.txt   # no assistant
 bin/projectured --backend=web a.json         # in a browser, at http://127.0.0.1:8080
 bin/projectured --mcp a.json                 # with an MCP server for an external client
+bin/projectured --gesture-log a.json         # list each gesture and what it did
 ```
+
+The menu bar has **Open** and **Save As** for a file outside the directory the navigator lists. `save_user_interface(editor, path)` writes the whole window — its panes, its tabs and what each one holds — to one file, and `load_user_interface(path)` brings it back; an open file tab is saved as a reference to its file, not as a copy.
 
 **The assistant.** By default it asks a local model through [Ollama](https://ollama.com): the Ollama server must run on your machine, and the model must be pulled. For Claude, set `ANTHROPIC_API_KEY` in your environment and start with `--assistant=anthropic`. Without a server and without a key, the assistant pane opens and says what it needs.
 
@@ -90,8 +96,10 @@ A key press goes through the projections to the data, and the change comes back 
 
 ProjecturEd is under development. These limits are true today:
 
-- There is no undo and no redo.
+- Undo and redo work in the application, which puts a history around each file and one around the window. A window of your own has none until you put one there.
 - Type-in of single characters does not work the same way in every domain.
+- A table renders and navigates, but a cell does not take an edit.
+- A click selects where a projection wires it, and elsewhere it does nothing.
 - The assistant needs a local Ollama server with a pulled model, or an Anthropic API key.
 - The packages are not in the General registry. You clone the repository and use `environment/all`.
 - SDL2 and SDL_ttf must be installed for a native window.

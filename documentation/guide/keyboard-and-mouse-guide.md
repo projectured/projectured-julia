@@ -16,6 +16,8 @@ A key press goes to the view under the selection, and each view says which keys 
 | Ctrl + Home, Ctrl + End | the first and the last position of the document |
 | Alt + arrow keys | move the selection over whole parts, not positions |
 | Alt + click | select the part under the pointer as a whole |
+| right press | open the menu that the thing under the pointer offers |
+| rest the pointer | a tooltip says what the thing under it is |
 | click | put the selection where you click |
 | double click on a file in the navigator | open that file |
 
@@ -64,7 +66,25 @@ The clipboard holds a part of the data, not text, so a paste puts a structure ba
 | Key | What it does |
 | --- | --- |
 | Ctrl + S | save the file of the focused tab |
+| Ctrl + O | read that file again from disk |
 | Enter on a file in the navigator | open it |
+| **Open** and **Save As** in the menu bar | a file outside the directory the navigator lists |
+
+## A tool in a tab
+
+A new tab is empty. Type the name of a tool into it, and the tab becomes that tool:
+
+| Name | The tool |
+| --- | --- |
+| `assistant` | a conversation with the AI assistant |
+| `repl` | a read-eval-print loop: Julia code you type runs in the program |
+| `explorer` | the file navigator |
+| `log` | what the program says while it runs |
+| `gestures` | the gestures of this session, and what each one did |
+| `selection` | the selection of another document, as it changes |
+| `reference` | a reference, taken apart into its steps |
+
+The Insert key in an empty tab opens an insertion field instead: type the kind of document, and the tab holds a new one.
 
 ## See more of it, or less
 

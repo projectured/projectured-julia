@@ -339,7 +339,7 @@ ProjecturEd is under development. Most features work, but it is not a finished p
 
 ## Limits, today
 
-- There is no undo and no redo.
+- Undo and redo work in the application; a window of your own has no history until you put one there.
 - Type-in of single characters does not work the same way in every domain.
 - The assistant needs a local Ollama server with a pulled model, or an Anthropic API key.
 - SDL2 and SDL_ttf must be installed for a native window.

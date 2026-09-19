@@ -209,7 +209,10 @@ timing needs an idle machine and the owner's approval.
 - [x] The pane window: file tabs, the navigator, the assistant. A file opens
       from the navigator with `open_pane!`.
 - [x] The workbench window with the same file tabs.
-- [ ] The command palette entries "Open file" and "Save as" (see "Open").
+- [x] The command palette entries "Open file" and "Save as" (see "Open").
+      Delivered by `plan/done/both-binaries-offer-one-interface.md` (its Step
+      8): `open_file_dialog!` and `save_file_dialog!` in `source/shell/FileDialog.jl`,
+      a modal dialog over a file chooser, reached from the menu bar.
 - [x] The function that opens the window: `run_application` in
       [Application.jl](../../example/projectured/Application.jl), with the
       options of §4.1 except the command line itself, which is Step 3.

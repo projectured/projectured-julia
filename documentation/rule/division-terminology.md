@@ -19,8 +19,8 @@ and no synonyms.
 
 - **Layer** — a horizontal stratum inside a package. Layers are **ordered**:
   a layer may depend only on **lower** layers, never sideways or up. The
-  kernel is the one layered package, with seventeen layers (`cell` → `clock` →
-  `event` → `device` → `gesture` → `backend` → `document` → `reference` →
+  kernel is the one layered package, with eighteen layers (`fault` → `cell` →
+  `clock` → `event` → `device` → `gesture` → `backend` → `document` → `reference` →
   `selection` → `operation` → `binding` → `iomap` → `projection` → `tool` →
   `llm` → `agent` → `editor`). Every other package is one concept and declares
   no layer.

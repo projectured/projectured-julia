@@ -99,7 +99,9 @@ ProjecturEd is under development. Today:
 - Views work in a native window, in a browser, in a terminal, and without a screen for tests. A view also goes to a PDF file, an image or a video.
 - The assistant works with a local model through Ollama, or with Claude.
 - Undo and redo work where a program installs a history. The application does, one around each file and one around the window.
+- A failure in a view, an edit or a tool does not stop the editor: it takes the broken change back and shows what went wrong.
 - Type-in of single characters does not work the same way in every domain.
+- A table does not take an edit yet, and a click selects only where a view wires it.
 
 The [roadmap](../requirement/delivery-roadmap.md) says what comes next.
 

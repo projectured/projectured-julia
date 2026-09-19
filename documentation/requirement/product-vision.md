@@ -63,6 +63,6 @@ The conversation is data too, with its own view, so it is saved, edited and sear
 ## The limits this vision accepts
 
 - ProjecturEd is under development. The [roadmap](delivery-roadmap.md) says what works and what is next.
-- There is no undo and no redo yet.
+- Undo and redo are opt-in: the application keeps a history, and a program that installs none has none.
 - It is not a general text editor, and not a replacement for a notebook.
 - The packages are not in the General registry.

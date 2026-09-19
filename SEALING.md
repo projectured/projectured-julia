@@ -143,6 +143,8 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `operation/Interface.jl`
   - ⬜ `operation/Operations.jl`
   - ⬜ `operation/Rerooting.jl`
+  - ⬜ `operation/Inversion.jl`
+  - ⬜ `operation/Description.jl`
   - ⬜ `operation/IntentModule.jl`
 - **Layer 12 — binding** (`binding/`)
   - ⬜ `binding/BindingLayer.jl`

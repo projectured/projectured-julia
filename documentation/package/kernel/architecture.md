@@ -28,28 +28,29 @@ the dependency-free in-memory `HeadlessBackend` test double lives in
 ## Layered structure
 
 The package is organized around a strict layered architecture with per-layer
-guards, docs, and tests. [system-anatomy.md](../../design/system-anatomy.md#the-17-kernel-layers)
-carries the same 17 layers as a repository-wide table; this list adds the
+guards, docs, and tests. [system-anatomy.md](../../design/system-anatomy.md#the-18-kernel-layers)
+carries the same 18 layers as a repository-wide table; this list adds the
 per-layer key types and files a kernel contributor needs:
 
 ```
-Layer 1  — cell/       the Cell kinds + @cell_struct codegen + performance counters
-Layer 2  — clock/      the animation clock — Clock (a @cell_struct), get_reactive_clock_time/get_clock_time, set_clock_time!, the shared wall clock
-Layer 3  — event/      the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*) + WindowInput + the event pattern language (EventPattern, @event_case)
-Layer 4  — device/     Device abstract + the Keyboard/Mouse/Display devices (physical properties)
-Layer 5  — gesture/    event → gesture recognition (MousePress/KeyChord synthesis)
-Layer 6  — backend/    Backend + the device I/O, display-size, and device-config seams
-Layer 7  — document/   the Document contract + @document
-Layer 8  — reference/  reference paths + @reference / @reference_case DSLs
-Layer 9  — selection/  the selection primitives (get/clear/set/replace_selection!) — a document's current-focus state, a reference stored on a document
-Layer 10 — operation/  Operation + evaluate_operation + the traversal and reroot seams
-Layer 11 — binding/    gesture → operation bindings, @gestures/@gesture_set, read_gesture
-Layer 12 — iomap/      the IoMap contract (IoMap + accessors) + the concrete IO maps (SimpleIoMap/ChildrenIoMap/ContentIoMap, @iomap)
-Layer 13 — projection/ ProjectionInterface/Intent/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedProjection)
-Layer 14 — tool/       the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code, doc/API search, register_default_tools! (side-stack)
-Layer 15 — llm/        the LLM provider abstraction — Llm, stream_turn/render_tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
-Layer 16 — agent/      the AI control surface — AgentServerModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
-Layer 17 — editor/     the run_editor! loop + Playback
+Layer 1  — fault/      the fault record, the store, the barrier and the report — what lets the editor survive a failure; it names no document and no projection
+Layer 2  — cell/       the Cell kinds + @cell_struct codegen + performance counters
+Layer 3  — clock/      the animation clock — Clock (a @cell_struct), get_reactive_clock_time/get_clock_time, set_clock_time!, the shared wall clock
+Layer 4  — event/      the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*) + WindowInput + the event pattern language (EventPattern, @event_case)
+Layer 5  — device/     Device abstract + the Keyboard/Mouse/Display devices (physical properties)
+Layer 6  — gesture/    event → gesture recognition (MousePress/KeyChord synthesis)
+Layer 7  — backend/    Backend + the device I/O, display-size, and device-config seams
+Layer 8  — document/   the Document contract + @document
+Layer 9  — reference/  reference paths + @reference / @reference_case DSLs
+Layer 10 — selection/  the selection primitives (get/clear/set/replace_selection!) — a document's current-focus state, a reference stored on a document
+Layer 11 — operation/  Operation + evaluate_operation + the traversal and reroot seams
+Layer 12 — binding/    gesture → operation bindings, @gestures/@gesture_set, read_gesture
+Layer 13 — iomap/      the IoMap contract (IoMap + accessors) + the concrete IO maps (SimpleIoMap/ChildrenIoMap/ContentIoMap, @iomap)
+Layer 14 — projection/ ProjectionInterface/Intent/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedProjection)
+Layer 15 — tool/       the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code, doc/API search, register_default_tools! (side-stack)
+Layer 16 — llm/        the LLM provider abstraction — Llm, stream_turn/render_tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
+Layer 17 — agent/      the AI control surface — AgentServerModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
+Layer 18 — editor/     the run_editor! loop + Playback
 ```
 
 Every kernel file lives under a declared layer folder. The **layered guard** in
@@ -68,7 +69,7 @@ include-order guard (see below).
 
 ## Dependency diagram — what depends on what
 
-**The seventeen layers *are* the dependency diagram.** A layer imports only layers below
+**The eighteen layers *are* the dependency diagram.** A layer imports only layers below
 it, and that is the whole rule — the static guard enforces exactly it, so there is
 no second grouping to learn. What the plain stack does not show is the two places
 the shape is more interesting than "N depends on N−1":

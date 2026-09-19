@@ -617,10 +617,12 @@ Use these six rules to predict what the system can do.
 An honest introduction states the limits. These are open, and they tell you as
 much about the design as the finished parts.
 
-- **Undo and redo of arbitrary edits do not exist.** Version snapshots exist.
-  The general form needs an operation log on the editor and well-defined
-  inverses. The operation model is the reason this is a feature and not a
-  rewrite.
+- **Undo and redo are opt-in.** An operation answers its own inverse
+  (`make_inverse_operation`), and an `UndoBuffer` is a document that holds
+  another document and the steps that take it back. The application puts one
+  around each file and one around the window; a program that installs none has
+  no history. The operation model is the reason this was a feature and not a
+  rewrite. See [undo.md](../package/undo/undo.md).
 - **Character edits are not uniform.** They work end to end for the
   field-addressed domains — JSON, XML, YAML, text, prose, and the type-in path.
   The goal is every leaf in every domain.

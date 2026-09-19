@@ -80,4 +80,4 @@ The assistant answers with text, and it changes the data with an operation. A ch
 - The assistant needs a running Ollama server with a pulled model, or an Anthropic API key. There is no model inside ProjecturEd.
 - A local model of a few billion parameters makes more mistakes than Claude. Ask it for one change at a time.
 - The assistant changes the data of the editor it runs in. It does not change files on disk, except through a save that you ask for.
-- There is no undo. Save before you ask for a large change.
+- A change by the assistant goes into the history like a change of yours, so `Ctrl+Z` takes it back, and the assistant can take its own change back too. That holds in the application, which keeps a history; a window of your own keeps none until you put one there.

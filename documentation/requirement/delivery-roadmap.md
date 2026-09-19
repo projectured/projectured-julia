@@ -18,13 +18,17 @@ The order of the work has been the same from the start: **make the whole path wo
 
 **The clipboard.** Copy, cut, note and paste move a part of the data, not a text. Where a text conversion exists, the system clipboard carries the text of it.
 
-**Windows.** Tabs and split panes with a pane tree, a command palette, a file navigator, and one application command that opens files of every supported format (`bin/projectured`). A tab typed with a tool's name — `assistant`, `gestures`, `log`, `selection`, `reference`, `explorer` or `repl` — opens that tool.
+**Windows.** Tabs and split panes with a pane tree, a command palette, a file navigator, and one application command that opens files of every supported format (`bin/projectured`). A tab typed with a tool's name — `assistant`, `gestures`, `log`, `selection`, `reference`, `explorer` or `repl` — opens that tool. The window is drawn in its own chrome — a menu bar, a toolbar, a status line, a context menu on a right press and a tooltip under the pointer — and the chrome is a document like the rest ([shell.md](../package/shell/shell.md)). The whole window saves to one file and opens back from it (`save_user_interface`, `load_user_interface`).
+
+**Undo and redo.** An operation answers its own inverse, and an `UndoBuffer` is a document that holds another document and the steps that take it back ([undo.md](../package/undo/undo.md)). It is opt-in: the application puts one around each file and one around the window, and `Ctrl+Z` takes back an edit of a person or of the assistant.
+
+**The editor survives a fault.** A failure in a printer, a reader, an operation, a backend or a tool is contained where it happened: the editor takes a broken change back, draws what went wrong where the view would be, and goes on ([fault.md](../package/fault/fault.md)).
 
 **Backends.** A native window through SDL, a browser over HTTP and WebSocket, a terminal with colour, and no screen at all for a test. A view also goes to a PNG image, a vector PDF with selectable text, or an MP4 video.
 
 **Files.** A text file in the notation of its domain, and a binary file for anything else. Several files can refer to each other, so data with shared parts and mutually recursive structures comes back unchanged after a save and a load.
 
-**The AI assistant.** A tool set in the kernel: search the API, read a guide, run Julia in the running program, and change the data with operations. It works with a local model through Ollama, or with Claude through the Anthropic API. The same tool set answers an external client over MCP. Measured on eleven example problems, a local model solved nine.
+**The AI assistant.** A tool set in the kernel: search the API, read a guide, run Julia in the running program, and change the data with operations. It works with a local model through Ollama, or with Claude through the Anthropic API. The same tool set answers an external client over MCP. Measured on eleven problems with three seeds each, the local default model solves 29 of 33 turns.
 
 **A binary.** `bin/build_projectured` compiles the application into a directory that runs with no Julia and no checkout, and a distribution build tests a copy of it with the checkout hidden.
 
@@ -51,17 +55,14 @@ Each line names the plan that carries it.
 
 **A user sees these.**
 
-- **Undo and redo.** Done. An `UndoBuffer` is a document that holds another document and the steps that take it back, and its projection is transparent. It is opt-in: the application installs one around each file and one around the window, and no other example has one.
 - **Editable tables.** A table renders and navigates; a cell does not take an edit.
 - **A click that selects in every view.** A click works where a projection wires it, and elsewhere it does nothing.
 - **Links between documents** (`document-link-feature.md`, `document-locator.md`). A reference from one document to another does not exist yet.
 - **Richer SQL** (`bound-sql-statement.md`, `sql-select-aggregation-support.md`, `dbcatalog-index-support.md`).
-- **An assistant that recovers from a miss** (`assistant-recovers-from-a-miss.md`). Two of the eleven example problems are still missed.
 
 **A developer sees these.**
 
 - Another backend (`cairo-glfw-backend.md`), a parallel projection (`parallel-projection.md`), an animation timeline (`chase-animation.md`).
-- One interface for the development binary and the built one (`both-binaries-offer-one-interface.md`).
 - A configuration view for the projections (`configuration-overlay-widget.md`).
 
 **Further out.** Live collaboration between two people, a plugin loaded into a running editor, an annotation domain over any document, and ProjecturEd editing its own source.

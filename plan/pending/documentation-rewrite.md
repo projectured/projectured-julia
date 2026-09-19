@@ -236,7 +236,11 @@ Each item names the code that exists today. The survey checked each one (§3).
 The README must list these. A reader who finds a limit by trial stops trusting
 the rest.
 
-- There is no undo and no redo (`grep -rn UndoOperation source/` finds nothing).
+- ~~There is no undo and no redo.~~ Undo and redo landed on 2026-09-18
+  (`plan/done/undo-and-redo.md`): an operation answers its own inverse, and an
+  `UndoBuffer` holds a document and its history. It is opt-in; the application
+  installs one around each file and one around the window. Every public
+  document that said "no undo" is corrected.
 - Character type-in does not work the same way in every domain.
 - The assistant needs a local Ollama server with a model, or an Anthropic API
   key.
@@ -1092,7 +1096,40 @@ Use search_api to find it. Answer with the name only."
 So the local path works end to end, and the guide written today is what the
 model read to answer. The small model is not enough for a tool-using turn, which
 is why the assistant guide names the model to pull.
-- [ ] Check again every claim of §2.3, §2.5 and the roadmap against `main`.
+- [x] Check again every claim of §2.3, §2.5 and the roadmap against `main`.
+
+**The check of 2026-09-19, after 92 commits of other work landed on `main`.**
+The documents said things that stopped being true in one day, which is the risk
+§3.9 named. What changed, and what the documents say now:
+
+- **Undo and redo exist.** Every public document that said "no undo" is
+  corrected: the README, `concepts.md`, `engineer-tour.md`, the assistant
+  guide, the vision, the deck and both post drafts. The roadmap lists it under
+  "Delivered", and says it is opt-in.
+- **The workbench domain is gone**, and with it `--window`. The application is
+  one window, drawn in its own chrome, and a tab typed with a tool's name
+  becomes that tool: `assistant`, `repl`, `explorer`, `log`, `gestures`,
+  `selection`, `reference` (the names are the `get_insertion_aliases` of the
+  code). The keyboard guide has a section for them.
+- **New options**: `--context=TOKENS` and `--gesture-log`. **New commands**:
+  Open and Save As in the menu bar. **New functions**: `save_user_interface`
+  and `load_user_interface` for the whole window.
+- **The editor survives a fault.** The README, `concepts.md`, the roadmap and
+  the post drafts say so, with a link to `fault.md`.
+- **The kernel has 18 layers**: `fault` is the first one. `architecture.md`
+  listed 17 with the old numbers, and `division-terminology.md` said
+  seventeen; both are rebuilt from the kernel root. `SEALING.md` missed
+  `operation/Inversion.jl` and `operation/Description.jl`.
+- **There are 105 examples**, not 106: the workbench example went.
+- The assistant measurement is 29 of 33 turns on the local default model, from
+  `plan/done/assistant-recovers-from-a-miss.md`.
+
+**A fault found on the way, not fixed here.** A screenshot of `bin/projectured`
+on this display shows the panes in the top left part of the window: the window
+shell does not get the size of its window, so it hugs its content. The comment
+in `example/projectured/Application.jl` says "the window scene gives the shell
+the size it was opened at", and the picture says it does not. The README has no
+picture of the application until that is fixed.
 - [ ] `test_documentation()` passes. Record the final counts.
 
 ### Step 11: the posts, and close
@@ -1290,6 +1327,11 @@ posted.
 > edits your key presses make. An external client, for example Claude Code,
 > gets the same tools over MCP.
 >
+> Because an edit is a typed operation, it has an inverse: `Ctrl+Z` takes back
+> a change of yours or of the assistant, and the history is a document you can
+> read. A failure in a view or in a tool does not stop the editor; it takes the
+> broken change back and shows what went wrong.
+>
 > [the video]
 >
 > To try it:
@@ -1303,9 +1345,9 @@ posted.
 > The first start compiles, which takes a few minutes. `bin/build_projectured`
 > makes a binary that starts in under a second.
 >
-> What does not work yet: there is no undo and no redo; type-in of single
-> characters is not the same in every domain; a click selects only where a
-> projection wires it; a table renders but does not take an edit. The assistant
+> What does not work yet: type-in of single characters is not the same in
+> every domain; a click selects only where a projection wires it; a table
+> renders but does not take an edit. Undo and redo work in the application. The assistant
 > needs a local Ollama server with a pulled model, or an Anthropic key. Linux
 > on x86-64, with SDL2 for the native window.
 >
@@ -1340,7 +1382,10 @@ posted.
 > text, a PNG or an MP4. `run_value_viewer(value)` shows any Julia value, one
 > level at a time, without a projection written for it. The AI assistant works
 > on the same data with the same operations, through Ollama or Claude, and an
-> external MCP client gets the same tools.
+> external MCP client gets the same tools. An operation answers its own
+> inverse, so undo and redo are one more document around your data, and a
+> fault in a printer, a reader or a tool is contained where it happened
+> instead of stopping the editor.
 >
 > [the video]
 >
@@ -1353,8 +1398,8 @@ posted.
 > The README has the quick start, the guides and the limits:
 > <https://github.com/projectured/projectured-julia>
 >
-> **What does not work yet.** No undo and no redo. Type-in of single characters
-> differs between domains. A click selects only where a projection wires it. A
+> **What does not work yet.** Type-in of single characters differs between
+> domains. A click selects only where a projection wires it. A
 > table renders and navigates but does not take an edit. The packages are not
 > in the General registry, so you clone the repository. Linux on x86-64, with
 > SDL2 and SDL_ttf for the native window.
