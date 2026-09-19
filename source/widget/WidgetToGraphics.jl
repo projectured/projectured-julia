@@ -884,6 +884,19 @@ function _retarget_op(p, iomap, op)
     elseif op isa WrappingOperation
         inner = _retarget_op(p, iomap, get_wrapped_operation(op))
         return inner === nothing ? nothing : rewrap_operation(op, inner)
+    elseif op isa CollectedIntentsOperation
+        # A collection maps like a compound: every carried operation into this
+        # container's input domain. A container that holds its child under a
+        # field — a shell holds one at `content` — must add that step here too,
+        # or the palette runs a command whose path starts one level too deep.
+        # Unlike a compound it never fails as a whole: a row that cannot be run
+        # is still worth showing.
+        return CollectedIntentsOperation([
+            Intent(intent.gesture,
+                   intent.operation === nothing ? nothing :
+                       _retarget_op(p, iomap, intent.operation),
+                   intent.description, intent.domain)
+            for intent in op.intents])
     else
         return op
     end
