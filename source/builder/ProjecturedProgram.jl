@@ -47,6 +47,15 @@ const PROJECTURED_REQUIREMENTS = [
 ]
 
 """
+    PROJECTURED_LICENCES
+
+The licence files of the repository, which the archive of a distribution
+carries. `LICENCE-PD` asks for its notice in every copy, so an archive without
+it may not be distributed.
+"""
+const PROJECTURED_LICENCES = ["LICENCE-PD", "LICENCE-COMMERCIAL"]
+
+"""
     PROJECTURED_ASSETS
 
 The folders of the repository that a `projectured` binary reads while it runs,
@@ -144,6 +153,7 @@ function build_projectured_distribution(; name::AbstractString = "projectured",
                                           kwargs...)
     build_distribution(context; name = name, bundle = bundle,
                        requirements = PROJECTURED_REQUIREMENTS,
+                       licences = PROJECTURED_LICENCES,
                        expect = vcat(["share/projectured/font"], last.(PROJECTURED_ASSETS)),
                        check = check_projectured_copy)
 end

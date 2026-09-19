@@ -520,6 +520,35 @@ function test_builder()
             rm(empty_bundle; recursive = true, force = true)
         end
 
+        @testset "an archive carries the licence of what is in it" begin
+            # LICENCE-PD asks for its notice in every copy, so an archive that
+            # leaves the file out breaks the licence it is distributed under.
+            context = _test_context()
+            bundle = mktempdir()
+            mkpath(joinpath(bundle, "bin"))
+            write(joinpath(bundle, "bin", "thing"), "")
+            @test_throws ErrorException build_distribution(context; name = "thing",
+                                            bundle = bundle, licences = ["NO-SUCH-LICENCE"])
+            rm(bundle; recursive = true, force = true)
+
+            # The README beside the binary names each file that travels with it.
+            staged = mktempdir()
+            readme = read(write_readme(staged; name = "thing", version = "0.1.0",
+                                       requirements = String[],
+                                       licences = ["LICENCE-PD", "LICENCE-COMMERCIAL"]), String)
+            @test occursin("LICENCE-PD", readme)
+            @test occursin("LICENCE-COMMERCIAL", readme)
+            @test !occursin("LICENCE", read(write_readme(staged; name = "thing",
+                                                         version = "0.1.0",
+                                                         requirements = String[]), String))
+            rm(staged; recursive = true, force = true)
+
+            # The application declares both files, and each one is in the tree.
+            @test PROJECTURED_LICENCES == ["LICENCE-PD", "LICENCE-COMMERCIAL"]
+            @test all(licence -> isfile(joinpath(dirname(dirname(@__DIR__)), licence)),
+                      PROJECTURED_LICENCES)
+        end
+
         @testset "a bundle must hold what its build declared it bundled" begin
             context = _test_context()
             bundle = mktempdir()

@@ -21,6 +21,9 @@ archive. Answers the path of the archive.
 - `requirements` — what the target machine must still have, one sentence each.
   They go into the README beside the binary, and they are the one thing that
   differs between distributions.
+- `licences` — the licence files of `context.root`, copied into the archive and
+  named in the README. A licence that asks for its notice in every copy is
+  broken by an archive that leaves it out, so a missing file stops the build.
 - `expect` — paths inside the bundle that must exist and hold something, such as
   `"share/projectured/font"`. What a build declared it bundled, asserted.
 - `staging` — where the bundle is copied to be tested. **Outside `context.root`**,
@@ -40,6 +43,7 @@ unpacked in.
 function build_distribution(context::BuildContext; name::AbstractString,
                               bundle::AbstractString = joinpath(context.root, "build", String(name)),
                               requirements = String[],
+                              licences = String[],
                               expect = String[],
                               version::AbstractString = context.version,
                               output::AbstractString = joinpath(context.root, "build"),
@@ -79,7 +83,14 @@ function build_distribution(context::BuildContext; name::AbstractString,
         check(joinpath(staged, "bin", String(name)), check_directory, hidden)
         rm(check_directory; recursive = true, force = true)
     end
-    write_readme(staged; name, version, requirements)
+    for licence in licences
+        source = joinpath(context.root, String(licence))
+        isfile(source) ||
+            error("build_distribution: no licence file at $source — an archive without " *
+                  "its licence may not be distributed")
+        cp(source, joinpath(staged, basename(String(licence))))
+    end
+    write_readme(staged; name, version, requirements, licences)
 
     mkpath(output)
     archive = joinpath(abspath(output),
@@ -202,7 +213,7 @@ function check_relocation(executable::AbstractString, working_directory::Abstrac
 end
 
 """
-    write_readme(staged; name, version, requirements) -> String
+    write_readme(staged; name, version, requirements, licences) -> String
 
 What a person who unpacks the archive reads.
 
@@ -210,7 +221,8 @@ The requirements are the reason a distribution is a function per binary rather
 than one call: what the target machine still needs is the one thing that differs
 between them.
 """
-function write_readme(staged::AbstractString; name, version, requirements)
+function write_readme(staged::AbstractString; name, version, requirements,
+                        licences = String[])
     lines = ["$name $version",
              "",
              "Built $(Dates.format(Dates.now(), "yyyy-mm-dd")) by ProjecturedBuilder, for " *
@@ -234,6 +246,14 @@ function write_readme(staged::AbstractString; name, version, requirements)
         push!(lines, "")
         for requirement in requirements
             push!(lines, "  - " * String(requirement))
+        end
+        push!(lines, "")
+    end
+    if !isempty(licences)
+        push!(lines, "The licence of this software:")
+        push!(lines, "")
+        for licence in licences
+            push!(lines, "  - " * basename(String(licence)))
         end
         push!(lines, "")
     end
