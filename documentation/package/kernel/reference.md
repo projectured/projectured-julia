@@ -50,7 +50,7 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         │                        fragments below are lowerings of that AST,
         │                        not parsers of their own
         ├─ ReferenceGlob.jl    — the glob language (*, ?, {a-e}, {38..47}) over
-        │                        one name; knows nothing about references
+        │                        one name; independent of `Reference` itself
         ├─ ReferenceCase.jl    — the @reference_case pattern-matching DSL
         │                        (destructures a path against pattern => result
         │                        rules), plus when/prefix guards
@@ -185,7 +185,7 @@ ProjectionReferenceStep(projection,
 A mapper never wraps that step by hand. `make_introduced_reference(projection, document,
 output_path)` builds the whole path: the node records the type of the input node the
 projection printed, and the terminal records `Position`. Both types are needed, because
-`@reference` refuses an under-typed path, and an embedder — a pane tab holding a foreign
+`@reference` errors on an under-typed path, and an embedder — a pane tab holding a foreign
 document — splices whatever a content projection returns into an `@reference` literal.
 
 ## Reference paths and their structs
@@ -240,7 +240,7 @@ not an absence of selection (that is `nothing`).
 Because an empty path has no steps to translate, it maps across any projection
 **by identity**: the default `map_reference_forward` / `map_reference_backward`
 return `@reference()` unchanged for it, so whole-element selections round-trip
-through every projection for free.
+through every projection with no extra mapping.
 
 ## Resolving and validating a reference
 
@@ -322,15 +322,15 @@ Checkpoints are created programmatically, not by hand:
 
 The same `::T` that *records* a type when building a path **selects on** it when
 matching one. In `@reference_case` and `@reference_rules` alike, `::T` is
-non-navigating — it consumes no step — and it decides the arm:
+non-navigating — it consumes no step — and it determines the arm:
 
 - where the path **records a node type**, that type must be `<: T`, or the arm
   fails and the next one gets its chance;
 - where the path **records none** (`type === nothing`), `::T` says nothing and the
   match proceeds.
 
-So `queue::PacketQueue.capacity` speaks of the capacity of every `PacketQueue`,
-not of every capacity at a queue-shaped place, and a selector no longer has to
+So `queue::PacketQueue.capacity` refers to the capacity of every `PacketQueue`,
+not to every capacity at a queue-shaped place, and a selector no longer has to
 fall back on the lower-case binder plus a guard (`when(queue::t, t <: PacketQueue)`)
 to say the same thing three times. It also restores the tripwire the folded model
 lost: before the type was folded into node fields, a leading `TypeReferenceStep`
@@ -397,8 +397,8 @@ input reference. These are the only two functions that translate between the two
 roles, and each projection defines its own rules for how the translation works.
 
 A `ProjectionReferenceStep(P, output_path)` *step* embeds an output reference inside
-an input reference: it says "from this position, jump through projection `P`,
-then continue with `output_path` in `P`'s output." This lets an input reference
+an input reference, meaning: from this position, jump through projection `P`,
+then continue with `output_path` in `P`'s output. This lets an input reference
 point at structural elements (delimiters, separators, decorations) that only
 exist in the output and have no direct counterpart in the input. Forward mapping
 through `P` strips the `proj(P, …)` step; backward mapping through `P`, for an
@@ -528,9 +528,9 @@ vocabulary, two DSLs:
 | `above(P)` | the input is strictly shallower — it runs out *inside* `P` | `a`, `a.b` |
 | `toward(P)` | `P` or shallower | `a`, `a.b`, `a.b.c` |
 
-`above(…)` is how a mapper asks "is the selection an ancestor of this place?"
-(see `ReferenceDispatchingProjection`); `within(…)` is the other direction,
-"does this pattern name a leading segment of the input?".
+`above(…)` answers whether the selection is an ancestor of this place
+(see `ReferenceDispatchingProjection`); `within(…)` answers the other direction:
+whether this pattern names a leading segment of the input.
 
 > There is no `prefix(…)`. It named `above(…)` while reading as though it meant
 > `within(…)`, which is exactly the confusion the five words exist to remove.
@@ -577,7 +577,7 @@ apply_reference_rules(rules, reference)    # what @reference_case would answer
 That last comment is the contract, and the conformance corpus in
 `ReferenceRulesTest.jl` is what holds it: the same block written both ways must answer
 identically. **First match wins** and no match answers `nothing`, so concatenating two
-sets leaves the first in charge and prepending is the whole override mechanism.
+sets makes the first one win, and prepending is the whole override mechanism.
 
 ### The arm vocabulary
 
@@ -595,7 +595,7 @@ hands to a delegating answer:
 
 ### Delegation: an answer that is rules
 
-An answer that is a rule set is asked the **leftover** the arm computed, with the
+An answer that is a rule set receives the **leftover** the arm computed, with the
 bindings so far still in scope. That is what lets a set written about one place be
 applied at several places:
 
@@ -611,8 +611,8 @@ end
 end
 ```
 
-Applied to `hosts[3].queue.capacity`, the first arm consumes `hosts[3]` and asks `node`
-about `queue.capacity`. Which leftover an arm produces is read off the arm, never off
+Applied to `hosts[3].queue.capacity`, the first arm consumes `hosts[3]` and applies `node`
+to `queue.capacity`. Which leftover an arm produces is read off the arm, never off
 the answer, so an arm means the same thing whatever it answers.
 
 ### The object is closed
@@ -789,13 +789,13 @@ folded up to their enclosing `Document`; pass `raw=true` to return the exact mat
 
 ## The opaque-payload pattern
 
-`ProjectionReferenceStep` stores its projection as an **untyped `Any` payload** — the
+`ProjectionReferenceStep` stores its projection as an **untyped `Any` payload**: the
 reference layer defines only the step's shape and never imports `Projection`.
 Only higher layers (the projection layer) construct and interpret the payload.
 So the only edge between projection and reference is `projection → reference`
 (for `PrinterContext`, reference mapping, and similar), and it points down. This
 is the same pattern `Intent` uses (the reader's backward-flowing type), and it
-is the kernel's answer to "you'd think this needs a cycle" cases: mention the
+is the kernel's answer to cases that look like they need a cycle: mention the
 higher type opaquely, never call into it. `projection/ProjectionReferenceStep.jl`
 documents this at the type declaration.
 
