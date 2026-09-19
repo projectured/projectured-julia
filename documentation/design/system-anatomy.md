@@ -38,10 +38,10 @@ mechanism see the [reference guide](../package/kernel/reference.md) and
                     └─────────────────────────────────────────────────────┘
 ```
 
-Four conceptual stages, bottom to top. (These stages span packages — they are
+Four conceptual stages, bottom to top. These stages span packages. They are
 *not* layers in the [terminology.md](../rule/division-terminology.md) sense, which are ordered
-strata *inside* a package; the packages and their internal layers/slices are
-described in the next section.)
+strata *inside* a package. The packages and their internal layers/slices are
+described in the next section.
 
 | Stage | Modules | Role |
 |---|---|---|
@@ -122,7 +122,7 @@ Opt-in packages (depend on the above; loaded only when you `using` them):
 The four-level division rule: **package** = one concept, or an
 external dependency boundary; **layer** = direction-of-dependency boundary
 inside a package, which the kernel alone declares; **slice** = vertical split
-of a single layer by feature, which is now a kernel-only notion; **module** =
+of a single layer by feature, a kernel-only notion; **module** =
 namespace/import surface. Files sit below all four levels as readability
 boundaries only: fragments (0-module files that share their aggregator's
 namespace) let a module split across files with zero API cost.
