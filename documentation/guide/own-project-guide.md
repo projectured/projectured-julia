@@ -60,6 +60,8 @@ run_window_editor(document, projection, "My data"; backend = SdlBackend())
 
 For a value that has no projection of its own, [view-your-data-guide.md](view-your-data-guide.md) is shorter: `run_value_viewer(value)`.
 
+That window has no menu bar, no clipboard and no F1 help: what a window offers besides the document in it comes from `ProjecturedShell`. `make_window_wrap(; …)` answers the fold to apply before the window opens, and `make_popup_screen_wrap()` is the `screen_wrap` a popup needs. [shell.md](../package/shell/shell.md) says what each keyword adds and why the order is what it is.
+
 ## Another backend, and no screen at all
 
 The same document and projection go to another backend with no other change:

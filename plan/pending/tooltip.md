@@ -12,6 +12,16 @@
 > the `:tooltip` window flag, and the path-tooltip example. This document
 > captures the items from the original plan that did **not** get done.
 
+> **A second mechanism exists since 2026-09-19**, from
+> [both-binaries-offer-one-interface.md](both-binaries-offer-one-interface.md).
+> `TooltipProbeProjection` asks the document under the pointer what it says
+> about itself, through the `compute_tooltip(document)` generic that every
+> document answers: a widget reads a field somebody set, and every other
+> document computes one. `ProjecturedShell`'s fold composes it, so a binary asks
+> for a tooltip by keyword. **The probe places its window beside the pointer, in
+> screen coordinates, and always in a window of its own** (`PAR-MANY-WINDOWS`).
+> What that closed and what it did not is written on each step below.
+
 ---
 
 ## Step 1 (cont.) — Backend `:tooltip` style
@@ -23,17 +33,25 @@ SDL_WINDOW_ALLOW_HIGHDPI` (plus `SDL_WINDOW_SHOWN`) — no UTILITY/SKIP_TASKBAR/
 `screen_origin` symbol exists anywhere in `package/` (grep finds it only in plan
 docs). Both sub-items below remain open.
 
-Missing:
+**Written 2026-09-19, and not verified on a live display.** The flag set is
+named rather than numbered, and it is `SDL_WINDOW_SHOWN | BORDERLESS |
+ALWAYS_ON_TOP | SKIP_TASKBAR | TOOLTIP | ALLOW_HIGHDPI`.
 
-- **Non-focusable / no-input-focus behaviour.** Clicking the tooltip
-  currently steals focus from the main window. Candidates:
-  `SDL_WINDOW_UTILITY`, `SDL_WINDOW_SKIP_TASKBAR`, or platform-specific
-  hints (`SDL_HINT_WINDOWS_NO_CLOSE_ON_ALT_F4`, `_NET_WM_WINDOW_TYPE_TOOLTIP`).
-  Pick what actually keeps focus on the main window across SDL's
-  X11 / Wayland / macOS / Windows backends.
-- **`screen_origin(backend, id)` helper** — returns the on-screen origin of
-  a given native window so tooltip positions can be expressed in
-  screen-relative coordinates. Needed by Step 6 below.
+**The number the comment named was the wrong one.** Both the tooltip style and
+the floating style carried `0x00000400` under a comment that called it
+`SDL_WINDOW_ALWAYS_ON_TOP`. It is `SDL_WINDOW_MOUSE_FOCUS`, which SDL *reports*
+about a window and never accepts when one is made, so neither style was ever on
+top. `SDL_WINDOW_ALWAYS_ON_TOP` is `0x8000`.
+
+- **Non-focusable / no-input-focus behaviour.** `SDL_WINDOW_TOOLTIP` and
+  `SDL_WINDOW_SKIP_TASKBAR` are what tell a window manager to leave the keyboard
+  where it is. **Still to check on a display**: a run against the owner's live
+  display hung in `X11_ShowWindow`, so the behaviour is written and not
+  measured.
+- **`screen_origin(backend, id)` helper** — **not needed, and not added.** SDL's
+  `get_pointer_position` already answers in screen coordinates, and the web
+  backend answers no pointer at all, so nothing called the helper after it was
+  written. It was removed again.
 
 ## Step 6 — Real position derivation
 
@@ -50,7 +68,13 @@ inside `_multi_window_projection_tooltipped` in
 The plan called for the position to be derived from the decorated node's
 screen coordinates.
 
-Required:
+**Answered for the probe, 2026-09-19, and not for this example.**
+`TooltipProbeProjection` opens its window at the pointer plus an offset, in
+screen coordinates, so a tooltip of the new mechanism needs no lookup in the io
+map chain: the pointer is where the person is looking. The example below still
+hard-codes its box, because it belongs to the older mechanism.
+
+Required, for this example:
 
 - Surface enough of the iomap chain so the decorator can look up the
   selected character's pixel coordinates via the relevant
@@ -86,14 +110,14 @@ Plus tests covering both cases in [TooltipTest.jl](../../test/substrate/projecti
 **⏳ OPEN (verified):** grep for type/error/documentation tooltip content in
 `package/` finds nothing; only the path-tooltip example pipeline exists.
 
-Only the **path tooltip** ships today. The other three example tooltips
-from the original plan are still open:
+The **documentation tooltip is done**, 2026-09-19, and by the generic rather
+than by a source: `compute_tooltip(::JuliaFunction)` answers the signature, and
+`compute_tooltip(::JuliaDocstring)` answers the signature and the prose. Two
+remain:
 
 - **Type tooltip** — show inferred schema / type for the selected JSON or
   table node.
 - **Error tooltip** — show validation errors on a node.
-- **Documentation tooltip** — for a Julia call node, show the docstring
-  (likely reuses an existing Julia documentation projection).
 
 Each is a different `TooltipSource.content` + possibly a new dispatcher
 entry for that content type.
@@ -108,6 +132,11 @@ Architecturally supported (decorator state is keyed by `source.id`), but
 no test exercises it. Add a scenario with two `TooltipSource` wrappers in
 different sub-trees, each with a distinct `id`, and assert the manager
 keeps both windows open and closed independently.
+
+**The probe does not close this.** `test_tooltip_probe()` drives one probe: a
+document that says something opens a window, one that says nothing opens none,
+the same document says it once, and leaving it closes the window. Two sources
+open at the same time is still untested.
 
 ## Step 9 — Optional: pointer-based hover — DONE (via the hover inspector)
 

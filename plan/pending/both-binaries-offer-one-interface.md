@@ -1350,15 +1350,29 @@ them and letting each environment resolve again is the whole fix.
 
 ### Step 10 — the guides, and close
 
-- [ ] Write `documentation/package/shell/shell.md`, which is the shape every
+- [x] Write `documentation/package/shell/shell.md`, which is the shape every
       per-slice guide takes: what the fold is, what each wrapper does, and how a
       host adds a menu, a button and a status field. Carry the one-line header
       that names its Kind, its Status and what it Stands on.
-- [ ] Update [editor.md](../../documentation/package/kernel/editor.md) where it
-      names the window.
-- [ ] Update [tooltip.md](tooltip.md): its Steps 1, 5, 6 and 8 are closed here,
-      and of its Step 7 only the type tooltip and the error tooltip remain.
-- [ ] Update the omnet-julia guide that names `make_ide_window_wrap`.
+- [x] Update the guide that names the window. **It is not
+      [editor.md](../../documentation/package/kernel/editor.md)**, which never
+      names `run_window_editor`; the guide that opens a window from a person's
+      own code is
+      [own-project-guide.md](../../documentation/guide/own-project-guide.md), and
+      that is where the pointer to the shell belongs.
+- [x] Update [tooltip.md](tooltip.md). **Less of it is closed than this line
+      first claimed, and the check is why.** Its Step 1 is written and not
+      verified: the flag set is named and correct, and the run that would prove
+      the focus behaviour hung in `X11_ShowWindow` on a live display. Its Step 6
+      is answered for the probe, which places its window at the pointer, and not
+      for the older example. Of its Step 7 the documentation tooltip is done and
+      the type and error tooltips remain. **Its Steps 5 and 8 are untouched**:
+      the show delay and the two-source scenario belong to the older mechanism,
+      and nothing here tested either.
+- [x] Update the omnet-julia guides: `documentation/package/runner/runner.md`
+      says what the window's chrome offers and that it opens on the project
+      folder, and `documentation/guide/assistant-guide.md` says the wrap is the
+      shared fold with this window's choices named.
 - [ ] Update [README.md](../../README.md) if the quick start names a key.
 - [ ] Move this plan to `plan/done/`.
 
