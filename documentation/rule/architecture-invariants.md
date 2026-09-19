@@ -232,6 +232,27 @@ lacks either does not qualify: it is **outside the reactive graph**, so no
 consumer can be invalidated half way; and its write is **idempotent**, keyed by
 identity, so a thunk that runs ten times for one logical event leaves one entry.
 
+The editor's other feed stores — the inbox, the message log store, the frame
+sample store — share the shape but do not need the carve-out: their producers
+run on ordinary tasks, outside every thunk, so this ban is not in play for
+them. Only a store a thunk itself writes must have the two properties above,
+and the fault store is the one that does.
+
+### PAR-STORE-THEN-DRAIN
+
+**Data enters a running editor through a store and a drain, never through a
+direct write.** A producer on any task — a logger, a simulation driver, a
+barrier inside a thunk — writes a plain store outside the reactive graph; the
+write never blocks and never touches a cell. The editor drains the store into
+the target document on its own task, once per frame, before `read!`
+(`drain_feeds!`; the fault report at the top of `run_frame!` is the same
+motion). Only the editor task writes a document a running editor shows. A
+producer that wants a frame soon calls the wake function it was given
+(`wake_editor!`, or the callback its store received at registration); it never
+reaches into the editor. The inbox (`post_operation!`) is the queue-shaped
+case of the same rule, for a payload that is an edit: ordered, applied exactly
+once, with backpressure.
+
 ### PAR-ACYCLIC-CELLS
 
 **The cell dependency graph must stay acyclic.** `recompute!` evaluates a thunk

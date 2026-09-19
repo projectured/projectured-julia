@@ -51,19 +51,33 @@ end
 
 ## The Read-Eval-Print loop
 
-`run_editor!(editor)` executes:
+`run_editor!(editor)` executes (the fault barriers around each stage elided):
 
 ```julia
 while true
+    if !editor.wake_pending[]                        # a pending wake skips the wait
+        timeout = compute_wait_timeout(editor)       # animation, feed deadlines, else Inf
+        timeout > 0 && wait_for_input(editor.backend, editor.devices, timeout)
+    end
+    Threads.atomic_xchg!(editor.wake_pending, false) # this frame owns every wake so far
     with_performance_counters() do   # bind a fresh per-frame counter store
         set_clock_time!(editor.clock, Base.time() - t_start)  # tick the animation clock
-        drain_operations!(editor)    # apply what other tasks posted
+        drain_feeds!(editor)         # the inbox first, then every registered feed
         run_frame!(editor)           # read!/evaluate! up to MAX_OPERATIONS_PER_FRAME, then print!
         perf!(editor)                # log reactive counters
+        record_frame_measurements!(editor, …)  # fold this frame into editor.frame_samples
     end
-    sleep(0.01)
 end
 ```
+
+Between frames the editor sleeps in the backend's `wait_for_input`, and three
+things end the sleep: an input event, a `wake_editor!` from any task, and the
+timeout. The timeout is `FRAME_INTERVAL` while anything subscribes to the
+editor's clock (an animation), else the nearest feed deadline, else `Inf`.
+The wake-pending flag starts set, so the first frame paints before the first
+wait. A backend without a wait of its own sleeps one 10 ms poll slice per
+call — the cadence this loop had when it slept — and that slice is also where
+cooperative `@async` tasks on the thread get their turn.
 
 `run_frame!` is what a burst of input runs through:
 
@@ -118,6 +132,38 @@ in from an idle one, and what `evaluate!` writes to the operation log.
 A `QuitEditorException` thrown out of `evaluate_operation` exits the loop
 cleanly. The MCP server is started before the loop and stopped in the
 `finally` block — see below.
+
+### The feeds
+
+The inbox generalises to a **feed**: one registered inflow of the editor.
+Every feed has the same three stations — a producer on any task writes the
+feed's **store** without blocking; the store is a plain object, not a
+document; and the **drain step** (`drain_changes!(feed, editor)`) moves what
+is new into a target document, on the editor task, once per frame, before
+`read!`. The target is a normal document, mounted in the shown tree by the
+embedder, so a person opens views on it like on any document. The contract is
+`FeedModule` (`Feed`, `drain_changes!`, `compute_wake_deadline`,
+`attach_wake_callback!`); feeds are given at construction
+(`Editor(...; feeds = Feed[…])`) and the list is fixed from then on.
+
+A producer wakes the editor through `wake_editor!` — thread-safe, coalescing,
+handed to each store as a callback at registration. A feed whose data arrives
+only with frames (the frame statistics) never wakes; it answers a deadline
+from `compute_wake_deadline` instead, and the wait honours the minimum.
+
+The concrete feeds so far:
+
+| feed | producer | store shape | target |
+| --- | --- | --- | --- |
+| `InboxFeed` (built-in, always first) | `post_operation!` callers | bounded queue, backpressure | the edited document |
+| `MessageLogFeed` (`ProjecturedLog`) | any task that logs | ring buffer | the `MessageLog` |
+| `FrameStatisticsFeed` (`ProjecturedStatistics`) | the loop itself | per-measurement fold | the `FrameStatistics` table |
+
+The fault store predates the feeds and stays what it is: `run_frame!` reports
+it at its top, so a hand-driven frame collects its faults too; it joined only
+the wake protocol (`attach_fault_wake!`). The whole rule is
+`PAR-STORE-THEN-DRAIN` in
+[architecture-invariants.md](../../rule/architecture-invariants.md).
 
 ### Read
 
@@ -328,6 +374,11 @@ and calls `perf!()` after rendering, which logs
 when an operation was applied. Use these to find unintentional
 recomputation: if a single keypress causes thousands of `computes`,
 something is reading more cells than necessary.
+
+The loop also folds every frame into `editor.frame_samples` — the frame time
+always, the counters above when they are compiled in — and the
+`FrameStatisticsFeed` shows the summaries as a document (open a tab and type
+`statistics`).
 
 ## Adding new operations
 

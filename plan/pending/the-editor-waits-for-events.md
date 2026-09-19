@@ -520,17 +520,21 @@ the fault plan section 9 already records.
    wake-pending flag starts set so the first frame paints before the first
    wait.
 
-### Phase 9 — Documentation ⬜
+### Phase 9 — Documentation ✅ (2026-09-20)
 
-1. Update [editor.md](../../documentation/package/kernel/editor.md) (the
-   loop, the feeds, the wake) and
+1. ✅ [editor.md](../../documentation/package/kernel/editor.md) shows the
+   waiting loop and gains "The feeds" (the contract, the wake, the concrete
+   feed table);
    [devices-and-backends.md](../../documentation/package/kernel/devices-and-backends.md)
-   (the two new seams).
-2. Generalise the fault plan's carve-out paragraphs in `PAR-PURE-THUNK` and
-   `PAR-NO-WRITE-IN-THUNK` from the fault store to any feed store.
-3. Propose one new invariant, `PAR-STORE-THEN-DRAIN`: a producer writes a
-   plain store and never blocks; only the editor task writes the target
-   document.
+   gains the two seams and the SDL and console wait bullets.
+2. ✅ **Not generalised, and the plan was wrong to ask for it.** Only the
+   fault store is written from inside thunks, and only its keyed idempotent
+   write qualifies for the carve-out. The other feed stores are written by
+   ordinary tasks, outside every thunk, so the ban is not in play for them.
+   `PAR-NO-WRITE-IN-THUNK` now says exactly that; `PAR-PURE-THUNK` stands
+   unchanged.
+3. ✅ `PAR-STORE-THEN-DRAIN` is written, after `PAR-NO-WRITE-IN-THUNK`. The
+   exact text awaits the user's review.
 
 ## 6. The footprint on the code that exists
 
@@ -596,9 +600,13 @@ No document type changes. No projection changes. No domain package changes.
   server off the editor thread waits for the plan that routes it through the
   inbox.
 
+- The flush interval of the statistics feed is **0.25 s** and
+  `FRAME_INTERVAL` is **0.01 s** — today's animation cadence, unchanged.
+
 **Open.**
 
-- The flush interval of the statistics feed (0.25 s proposed) and
-  `FRAME_INTERVAL` (0.01 s keeps today's animation cadence; 1/60 s is the
-  alternative).
-- The name and exact text of `PAR-STORE-THEN-DRAIN`.
+- The manual check of Phase 3: an idle SDL editor near zero CPU; typing,
+  animation, an MCP call and an omnet sync all live.
+- The user's review of the `PAR-STORE-THEN-DRAIN` text, and of the
+  `PAR-NO-WRITE-IN-THUNK` paragraph that scopes the carve-out to the fault
+  store alone.

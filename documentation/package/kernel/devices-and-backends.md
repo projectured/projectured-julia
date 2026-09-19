@@ -70,7 +70,14 @@ quit_backend!(::Backend)                    # release everything
 measure_text(::Backend, text, font) # (px_width, px_height)
 read_from_devices(::Backend, devices)           # poll → WindowInput
 write_to_devices(::Backend, devices, document)  # render the output
+wait_for_input(::Backend, devices, timeout_seconds)  # block until input, a wake, or the timeout
+wake_backend!(::Backend)                        # end a wait, from any task or thread
 ```
+
+The wait is where the editor sleeps between frames, and the wake is how a
+producer on another task ends the sleep. The defaults in
+`BackendDefaults.jl` are one 10 ms poll slice and a no-op, so a backend that
+answers neither behaves exactly as the loop did when it slept.
 
 There is no `open_window!`/`close_window!`: native windows are reconciled on
 demand inside `write_to_devices` whenever it sees a new `ScreenDocument` output.
@@ -90,6 +97,12 @@ all of the above with SDL2 + SDL_ttf. Highlights:
 - `render_sdl_canvas` walks a `GraphicsCanvas` (and its nested
   `GraphicsViewport`/`GraphicsImage`/`GraphicsFence` children) and issues
   SDL draw calls.
+- `wait_for_input` blocks in `SDL_WaitEventTimeout` with a NULL event
+  pointer — SDL's look-only form, so everything stays queued for `read!` —
+  in GC-safe slices with a `yield` between them. `wake_backend!` pushes a
+  user event registered at `initialize_backend!`; `SDL_PushEvent` is SDL's
+  documented thread-safe entry, and `_poll_window_input` skips the event
+  like any other unknown type.
 
 ### ConsoleBackend
 
@@ -109,6 +122,10 @@ a `TextBlock` rather than a `ScreenDocument`. Highlights:
   sequences, Enter/Backspace/Tab, Ctrl-Space, Ctrl-C — into the same
   `KeyDown`/`KeyPress`/`WindowQuit` vocabulary the readers already use, wrapped in
   an `WindowInput(:console, …)`. `initialize_backend!`/`quit_backend!` toggle the terminal's raw mode.
+- `wait_for_input` waits on an autoreset gate a watcher task notifies: the
+  watcher blocks on the TTY through libuv (`Base.wait_readnb`), a `Timer`
+  bounds the wait, and `wake_backend!` notifies the gate directly. An
+  `IOBuffer` input has no watcher and degrades to the default poll slice.
 - Because the console has no screen/window layer, the pipeline supplies its own
   window-input-unwrapping seam — `WindowInputUnwrappingProjection`
   ([projection/higherorder/WindowInputUnwrapping.jl](../../../source/projection/higherorder/WindowInputUnwrapping.jl))
