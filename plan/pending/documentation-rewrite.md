@@ -1206,6 +1206,33 @@ picture of the application until that is fixed.
       products (§3.9, D16, D17). The result of the `git grep` must be empty.
 - [ ] D1a: change `LICENCE-PD` §3 so that it allows modification for
       non-commercial purposes. The owner approves the wording.
+
+      **Written on 2026-09-20, on the branch, and it waits for the owner's
+      word before it lands.** A clause in §3 alone was not enough: §1, §2(b)
+      and §4 also said "verbatim only", so the text would contradict itself.
+      What changed:
+
+      - §3 is now "Modification (non-commercial use only)". It permits a person
+        to modify, port, translate, adapt and merge the software, and to
+        distribute the result, under four conditions: the use stays
+        non-commercial for the maker and for each receiver; the result goes out
+        under this same licence only; the result says that it was changed and
+        is not presented as the author's original; the copyright notice, the
+        licence and the reference to `LICENCE-COMMERCIAL` stay in it. It says
+        that only the author can grant a commercial right in the software.
+      - §1 and §2(b) keep the dedication and the fallback for verbatim copies,
+        and point at §3 for a modified version. A modified version is not part
+        of the public dedication.
+      - §4 asks for a commercial licence for commercial use of the software or
+        of a modified version, and for modification for commercial use.
+      - The sentence that forbade reverse engineering is gone. The source is
+        public and modification is allowed, so the ban had no object. This is
+        the one deletion the owner must look at.
+
+      `README.md` and `CONTRIBUTING.md` already said that modification is
+      allowed, and `LICENCE-COMMERCIAL` needs no change. The text follows the
+      pattern of the known non-commercial share-alike licences, and no lawyer
+      read it.
 - [ ] D22: attach the archive of `application-and-build.md` Step 5 to a GitHub
       release. The owner approves the release.
 - [ ] Move this plan and the survey file to `plan/done/`.

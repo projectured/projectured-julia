@@ -28,8 +28,8 @@ product or service offered for a fee, and use that generates revenue
    work may be freely reproduced, distributed, transmitted, and used
    by anyone for any non-commercial purpose, and in any way, including
    by methods that have not yet been invented or conceived, provided
-   that the Software is not modified and no derivative works are
-   created.
+   that the Software is not modified. Modified versions and derivative
+   works are not part of this dedication; section 3 governs them.
 
 2. Permissive fallback (non-commercial, verbatim use only)
 
@@ -44,25 +44,48 @@ product or service offered for a fee, and use that generates revenue
 
    (a) the use is non-commercial as defined above;
    (b) the Software is distributed and used only in unmodified,
-       verbatim form, and no derivative works are created; and
+       verbatim form; section 3 governs modified versions and
+       derivative works; and
    (c) the above copyright notice and this permission notice are
        included in all copies or substantial portions of the Software.
 
-3. No modification
+3. Modification (non-commercial use only)
 
-   No rights to modify the Software, prepare derivative works of it,
-   merge it with other works, port, translate, adapt, or otherwise
-   alter the Software are granted under this licence, whether for
-   non-commercial or commercial purposes. Reverse engineering,
-   decompilation, and disassembly are likewise not permitted, except
-   to the extent such activity is expressly required by applicable law
-   notwithstanding this limitation.
+   For non-commercial use only, permission is hereby granted, free of
+   charge, to any person obtaining a copy of the Software, to modify
+   the Software, to prepare derivative works of it, to merge it with
+   other works, and to port, translate, and adapt it (each result a
+   "Modified Version"), and to use, copy, publish, and distribute
+   Modified Versions in source or binary form, and to permit persons
+   to whom a Modified Version is furnished to do so, subject to the
+   conditions that:
+
+   (a) every use of a Modified Version is non-commercial as defined
+       above, both by the person who makes it and by every person who
+       receives it;
+   (b) a Modified Version is distributed only under this licence, in
+       full, with no further restriction and no further right, so
+       that every recipient holds the same rights under the same
+       limits;
+   (c) a Modified Version carries a prominent notice stating that it
+       was changed, and is not presented as the original Software of
+       the author; and
+   (d) the above copyright notice, this licence, and the reference to
+       LICENCE-COMMERCIAL are included in all copies or substantial
+       portions of a Modified Version.
+
+   A Modified Version is not part of the public dedication of
+   section 1. The author keeps every right in the Software that this
+   licence does not grant. This section grants no right to commercial
+   use of the Software or of a Modified Version, and no person other
+   than the author can grant such a right in the Software.
 
 4. Commercial use
 
    No rights are granted under this licence for commercial use. Any
-   commercial use of the Software, and any modification or preparation
-   of derivative works, requires a separate commercial licence; see
+   commercial use of the Software or of a Modified Version, and any
+   modification or preparation of derivative works for commercial
+   use, requires a separate commercial licence; see
    LICENCE-COMMERCIAL.
 
 5. Warranty disclaimer
