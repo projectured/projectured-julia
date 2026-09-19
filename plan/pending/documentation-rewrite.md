@@ -30,7 +30,7 @@ the comparison of the two binary builds (section J). It is the checklist for
 Steps 3, 6 and 7.
 
 **Split plan:** the application and its build are in
-[application-and-build.md](application-and-build.md) (D18, D20 to D25).
+[application-and-build.md](../done/application-and-build.md) (D18, D20 to D25).
 
 ## 1. The request
 
@@ -160,7 +160,7 @@ Points that the owner set during the drafts:
 one again:
 
 - "an application" and "in one window, in tabs and split panes": the
-  application of [application-and-build.md](application-and-build.md) (D18).
+  application of [application-and-build.md](../done/application-and-build.md) (D18).
 - "the values of a running program" and "a generic view ... by reflection":
   the call of Step 1 that opens a window on any value (D4).
 - "a view that the assistant opens for you": `open_pane!` exists; Step 1 adds
@@ -582,7 +582,7 @@ The third answers of 2026-09-17, after the three drafts of §2.1:
 
 | # | Question | Decision |
 | --- | --- | --- |
-| D18 | An application entry point before the posts | Yes. One command and one binary open any number of files, in every supported format, in one window with the assistant. The existing build system (`ProjecturedBuilder`, `ProjecturedExecutable`) becomes more general, and it takes what applies from the binary build of omnet-julia ([application-and-build.md](application-and-build.md)). |
+| D18 | An application entry point before the posts | Yes. One command and one binary open any number of files, in every supported format, in one window with the assistant. The existing build system (`ProjecturedBuilder`, `ProjecturedExecutable`) becomes more general, and it takes what applies from the binary build of omnet-julia ([application-and-build.md](../done/application-and-build.md)). |
 | D19 | A preface | Yes: the project is under development, most features work, and it is not a finished product (§2.1). |
 
 The fourth answers of 2026-09-17:
@@ -597,7 +597,7 @@ The fourth answers of 2026-09-17:
 | # | Question | Decision |
 | --- | --- | --- |
 | D19 | The text of the preface | Approved as written in §2.1. |
-| D20 to D23 | The application window, the builder, the binary release, the build environment | See §2.1 of [application-and-build.md](application-and-build.md). That plan holds the application and build work from now on. |
+| D20 to D23 | The application window, the builder, the binary release, the build environment | See §2.1 of [application-and-build.md](../done/application-and-build.md). That plan holds the application and build work from now on. |
 
 ### 4.2 Open questions
 
@@ -753,7 +753,7 @@ model.**
       graph guards hold.
 
 **D18: the application and its build** are in
-[application-and-build.md](application-and-build.md). This plan needs its
+[application-and-build.md](../done/application-and-build.md). This plan needs its
 Steps 1 to 5: the application command for the README quick start (Step 4 here),
 and the binary for the release (Step 11 here).
 
