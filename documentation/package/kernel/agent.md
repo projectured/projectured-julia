@@ -137,9 +137,9 @@ cut. The value of the last expression comes unasked — a `DataFrame` of thousan
 of rows, the `Text` a side-effect verb answers — so a short one is shown as it
 is and a long one is described by its `summary`, and the model prints the part
 it wants. `nothing` with nothing printed answers "Done.", because an empty
-answer reads as a broken tool. A name that is not defined answers the nearest
-declared names — `plot_results` is told about `make_result_plot` — which is the
-search that starts from a guess, done where the guess fails.
+answer reads as a broken tool. A name that is not defined answers with the
+nearest declared names: a call to `plot_results` returns `make_result_plot`,
+the search that starts from a guess, done where the guess fails.
 
 **A description is ranked by its meaning.** When the `ToolSet` has a
 `MeaningModel`, the vector of the description and the vector of each entry or
@@ -208,7 +208,7 @@ stream_turn(llm::Llm, request::LlmRequest; on_event)
 the tools the model may call, and whether to ask for extended reasoning. The API
 key, model name, endpoint, and token budget live on the concrete `Llm`, because
 they are its identity and not parameters of "have a conversation": a local model
-has no API key, and a hosted one may want a region.
+has no API key, and a hosted one may need a region.
 
 A round ends in an `LlmTurnEnd`, which carries the stop reason and what the round
 cost, `input_tokens` and `output_tokens`, as the provider counted them. A double
@@ -286,8 +286,8 @@ none keeps their defaults:
 | `get_meaning_model_name(llm)` | which model, as `"ollama/nomic-embed-text"` |
 | `compute_meaning_vectors(llm, texts; purpose)` | one vector per text, as the columns of a `Matrix{Float32}` |
 
-`purpose` is `:query` or `:document`, because some models want a different
-prefix for each, and the adapter knows which. `OllamaLlm` has `nomic-embed-text`
+`purpose` is `:query` or `:document`, because some models need a different
+prefix for each, and the adapter determines which. `OllamaLlm` has `nomic-embed-text`
 unless its `meaning_model` keyword names another, and asks `/api/embed`.
 Anthropic has no such API, so `AnthropicLlm` has no meaning model.
 
@@ -329,7 +329,7 @@ caller says afterwards what it is for. It drops the namespace the code runs in,
 because that namespace is built from the declaration on first use and kept: a
 declaration that arrived after it was built would otherwise do nothing.
 
-**One list decides two things**, and that is the point of it: what
+**One list determines two things**, and that is the point of it: what
 `execute_julia_code` can resolve, and what `search_api`,
 `read_function_documentation` and `resource://modules` offer. A model that finds a
 function it cannot call wastes a round and learns to distrust the answer, so the

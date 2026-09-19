@@ -52,9 +52,10 @@ maps the `:left`/`:right` `KeyDown` keys to a `ReplaceSelectionOperation`) from
 any specific backend.
 
 Escape is an ordinary `KeyDown(:escape, …)`, not a quit. A backend reports what
-happened and decides no meaning, so it must not turn one key into a quit before
-any reader has seen it — a dialog, an insertion and the command palette all bind
-Escape, and a quit cannot be declined. The editor loop quits on an unmodified
+happened and attaches no meaning, so it must not turn one key into a quit before
+any reader has seen it. A dialog, an insertion and the command palette all bind
+Escape, and a quit the backend issues directly leaves no reader able to stop it.
+The editor loop quits on an unmodified
 Escape that the pipeline did not handle, in the same place it recognises the
 readability zoom (`read!` in [editor/EditorModule.jl](../../../source/kernel/editor/EditorModule.jl)).
 
@@ -301,7 +302,7 @@ The remainder of this guide documents the kernel-internal module structure
 behind the two abstractions: **devices** — the input event vocabulary, the
 device types, and gesture recognition, spread across three layers (`event/`,
 `device/`, `gesture/`) — and the **backend layer**. They are independent
-siblings — the event/device/gesture layers name no backend type, and the two
+siblings: the event/device/gesture layers name no backend type, and the two
 abstractions only come together in a concrete implementation. Gesture
 *bindings*, where a gesture acquires meaning against a document, are a
 separate, much higher layer (`binding/`); see
@@ -310,8 +311,8 @@ separate, much higher layer (`binding/`); see
 ## The event layer (layer 3)
 
 Layer 3 of the kernel — **input events and the pattern language**. The layer
-depends on nothing: an event is data, and knows neither the device that
-produced it nor the document it will end up changing.
+depends on nothing: an event is data, and carries no reference to the device
+that produced it, nor to the document it will end up changing.
 
 The layer lives in [source/kernel/event/](../../../source/kernel/event/):
 
@@ -370,7 +371,7 @@ is exported, with no entry to add here.
 lives in `EventModule`, not in the concrete `ScreenModule` document,
 because it is a protocol type consumed by the editor loop, the gesture
 recognizer, and the window-input-unwrapping projection — a plain struct
-declaration for a protocol type has no business living inside a concrete
+declaration for a protocol type does not belong inside a concrete
 document; keeping it here means the kernel has no edge onto `ScreenDocument`.
 
 (This is the canonical statement of the `WindowInput`-placement rationale;
@@ -459,7 +460,7 @@ no per-backend registration.
 `BackendInterface.jl` is an **interface file** (PAR-INTERFACE-DECLARES-ONLY): it declares and never implements,
 so every generic there is a bodiless `function f end`. The fallback behaviours
 the contract supplies for itself sit beside it in `BackendDefaults.jl`, for the
-capabilities a backend may decline: `get_pointer_position` answers `(-1, -1)`,
+capabilities a backend may not support: `get_pointer_position` answers `(-1, -1)`,
 `get_display_size` answers `(1280, 800)`, `configure_devices!` is a no-op that
 leaves the devices at their default properties, and `open_native_windows!` is a
 no-op for a backend that has no native windows to open — each a legal answer
@@ -533,9 +534,9 @@ That is the whole of "is this available?". There is no separate predicate to
 consult and no second traversal to keep in step: the answer is the built operation
 itself.
 
-Because it rides the funnels, every `@gestures`-declared document and every
-projection that delegates to `read_projection_gesture` answers it with no code of
-its own. And because `CollectedIntentsOperation` is an ordinary `Operation`, every
+Because it shares the same dispatch as an ordinary gesture, every
+`@gestures`-declared document and every projection that delegates to
+`read_projection_gesture` answers it with no code of its own. And because `CollectedIntentsOperation` is an ordinary `Operation`, every
 container reroots the operations inside it on the way up — so a collection that
 arrives at the top of a chain is expressed in the top document's vocabulary, and a
 caller runs a row by applying it.
