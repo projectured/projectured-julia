@@ -405,21 +405,32 @@ come along as tests. Step 4 of this plan closes the documentation tooltip of its
 Step 7. That file then holds two example tooltips and nothing else: one for a
 type and one for an error.
 
-### 3.2b The web backend draws a tooltip window in the page
+### 3.2b Every backend opens every window
 
-A browser refuses `window.open` without a user gesture, so the web client queues
-a window it cannot open and shows it on the next click
-([asset/web/client.js:164](../../asset/web/client.js#L164)). A menu opens on a
-click and is therefore fine. A tooltip opens on a hover and would never appear.
+**Ruled by the owner, 2026-09-19, and written into the architecture as
+`PAR-MANY-WINDOWS`**
+([architecture-invariants.md](../../documentation/rule/architecture-invariants.md)):
 
-The answer keeps the document model whole. A tooltip is a separate window
-everywhere, and only the **web client draws it differently**. A window whose
-style is `:tooltip` renders as a positioned overlay in the page instead of a
-popup. Nothing above the backend knows the difference.
+> a tooltip must be drawn in it's own window, no matter what. Multi windows must
+> be supported. Period.
 
-Step 5 carries it. A tooltip on the web is then held inside the browser tab.
-That is the one place the ruling cannot be met, because a browser gives a page no
-way out of its tab.
+An earlier draft of this section had the web client draw a window styled
+`tooltip` inside the page, because a browser opens a window only inside a
+transient user activation and a hover is not one. **That is rejected.** It made
+the document model true everywhere except where it was drawn, and a tooltip near
+an edge — the case a tooltip is for — would have been clipped by the very window
+it describes.
+
+**A platform limit is solved in the backend.** The web client opens one window
+while it has an activation, holds it empty, and gives it to the next window that
+arrives without one. A tooltip then gets a window of its own at the moment it is
+asked for. A gesture refills the reserve.
+
+**The same rule binds the SDL backend.** This SDL is built without a wayland
+driver and chooses `x11`, so a window here goes through XWayland and a client may
+place it. A native Wayland driver may not position its own surface; if SDL is
+ever built with one, the answer is a Wayland protocol for a placed surface, not a
+tooltip folded into the window under it.
 
 ### 3.3 The tooltip finds its widget with the Alt+press rule
 
@@ -1031,11 +1042,11 @@ window still holds `SDL_WINDOW_INPUT_FOCUS` after a tooltip window opens. The
 script is written and stands at
 `scratchpad/focus.jl`; it needs a display nobody is using.
 
-**The web half is done**, 2026-09-19. The server already sent each window's
-`style`, so this was the client alone: a window styled `tooltip` is drawn as a
-positioned canvas in the page, never entered into `pendingPopups`, and removed
-when the server closes it. It takes no pointer events, because a tooltip says
-something about what is under it and must not take the pointer from it.
+**The web half is done**, 2026-09-19, and then done again. The first version
+drew the tooltip inside the page and broke `PAR-MANY-WINDOWS` (§3.2b). The
+client now keeps one window in reserve, opened while it has a user activation,
+and gives it to a window that arrives without one. A tooltip gets a window of
+its own.
 
 **No JavaScript engine is installed here**, so the change is checked only by a
 bracket balance and by reading. It is not parsed and it is not run.

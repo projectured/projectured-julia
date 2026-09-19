@@ -146,10 +146,16 @@ run_example(["json", "xml"]; backend=WebBackend())   # default window in-tab; th
 ```
 
 Then open `http://127.0.0.1:8080`: the **primary** (first) `WindowDocument`
-renders directly in that tab immediately — no button to click. Any **additional**
-`WindowDocument`s open as their own browser popups, but on the **first
-interaction** in the tab (a click or key press), since a browser only opens
-pop-ups in response to a user gesture. Selecting the web backend is just passing
+renders directly in that tab immediately — no button to click. Every
+**additional** `WindowDocument` opens as a browser window of its own.
+
+A browser opens a window only inside a transient user activation, and a window
+the editor opens on a hover — a tooltip — has none. **The client solves that and
+does not fold the window into the page**: on the first interaction in the tab it
+opens one window and holds it empty, and gives it to the next window that arrives
+without an activation. A gesture refills the reserve. A window is a window here
+as it is on SDL, which is
+[PAR-MANY-WINDOWS](../../rule/architecture-invariants.md#par-many-windows). Selecting the web backend is just passing
 `backend=WebBackend(...)` to `run_example`, which otherwise takes the same
 arguments; `WebBackend`'s constructor defaults `host`/`port`.
 

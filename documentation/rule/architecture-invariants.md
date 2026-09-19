@@ -133,6 +133,7 @@ requirement; the rule is its own lead sentence.
 
 | ID | Rule |
 | --- | --- |
+| [PAR-MANY-WINDOWS](#par-many-windows) | A window is a window on every backend, and a tooltip is drawn in one of its own |
 | [PAR-BACKEND-SEAM](#par-backend-seam) | Keep backends behind the `Backend`/`Device` seam; the same editor runs unchanged across them |
 | [PAR-OPT-IN-DEPENDENCY](#par-opt-in-dependency) | Add a backend/engine as an opt-in package behind a factory seam, not by coupling core code to the dependency |
 | [PAR-PROFILE-WITH-COUNTERS](#par-profile-with-counters) | Profile edits with the per-frame performance counters |
@@ -739,6 +740,28 @@ well-defined, over a bespoke operation whose reversal you would have to design
 from scratch. (Product requirements PR-UNDO-REDO and PR-REVISITABLE-HISTORY.)
 
 ## Editor, devices, and backends
+
+### PAR-MANY-WINDOWS
+
+**A window is a window on every backend, and a tooltip is drawn in one of its
+own.** The editor shows a `ScreenDocument` holding a list of `WindowDocument`s.
+Every backend must open all of them. A backend that can show only one, or that
+draws a second one inside the first, does not implement the seam — it imitates
+it, and the imitation is visible the moment a tooltip must leave the window it
+belongs to.
+
+**This holds whatever the platform makes convenient.** A browser opens a window
+only inside a transient user activation, and a Wayland client does not place its
+own surface on the screen. Neither is a reason to draw a second window inside the
+first. A backend that meets such a limit solves it in the backend — by reserving
+a window while it has an activation, by asking for the permission it needs, or by
+saying plainly that it cannot — and it never answers by folding two windows into
+one, because everything above the backend is written against the list and would
+then be written against a lie.
+
+A tooltip is the case that proves it. It says something about what is under the
+pointer, and near an edge that is outside the window, so a tooltip drawn inside
+the window is clipped exactly where it is most needed.
 
 ### PAR-BACKEND-SEAM
 
