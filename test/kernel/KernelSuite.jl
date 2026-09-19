@@ -28,6 +28,7 @@ function test_kernel_layering()
                        "selection/SelectionInterface.jl"      => :SelectionModule,
                        "operation/Interface.jl"      => :OperationModule,
                        "backend/BackendInterface.jl" => :BackendModule,
+                       "editor/FeedInterface.jl"     => :FeedModule,
                        "device/Device.jl"            => :DeviceModule,
                        "projection/ProjectionInterface.jl" => :ProjectionModule,
                        "iomap/IoMapInterface.jl"     => :IoMapModule))

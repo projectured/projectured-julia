@@ -193,5 +193,7 @@ include order — the source files state their dependencies, never their index.
 - **Layer 18 — editor** (`editor/`)
   - ⬜ `editor/EditorLayer.jl`
   - ⬜ `editor/FeedModule.jl`
+  - ⬜ `editor/FeedInterface.jl`
+  - ⬜ `editor/FeedDefaults.jl`
   - ⬜ `editor/EditorModule.jl`
   - ⬜ `editor/PlaybackModule.jl`
