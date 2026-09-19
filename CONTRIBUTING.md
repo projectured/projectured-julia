@@ -30,8 +30,8 @@ not change without explicit permission. Read it before you touch a file under
 
 ## Project structure
 
-One dimension per level. What a file **is** decides its top folder, and the
-**slice** it belongs to decides the folder under that.
+One dimension per level. What a file **is** sets its top folder, and the
+**slice** it belongs to sets the folder under that.
 
 ```
 source/         → the system, one folder per slice; kernel/ holds the layers
