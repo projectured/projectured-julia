@@ -10,7 +10,12 @@
 # no geometry to answer with). The batch generics have no counterpart here on
 # purpose — an unimplemented `measure_text` or `write_image` must raise a
 # `MethodError`, not fabricate a result.
+# The wait defaults to one 10 ms poll slice, with the wake a matching no-op:
+# a sliced sleep notices pending work on its next slice at the latest, which
+# is the cadence the editor loop has without a real wait.
 get_pointer_position(::Backend) = (-1, -1)
 get_display_size(::Backend; display::Integer=0) = (1280, 800)
 configure_devices!(::Backend, devices) = nothing
 open_native_windows!(::Backend, document) = nothing
+wait_for_input(::Backend, devices, timeout_seconds) = sleep(min(timeout_seconds, 0.01))
+wake_backend!(::Backend) = nothing

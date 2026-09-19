@@ -73,6 +73,26 @@ never a gesture derived from several events.
 function read_from_devices end
 
 """
+    wait_for_input(backend, devices, timeout_seconds) -> Nothing
+
+Block until an input event arrives, [`wake_backend!`](@ref) is called, or
+`timeout_seconds` passes — whichever comes first. The editor loop calls it
+between frames, and the timeout it passes is the nearest deadline it knows
+(an animation tick, a feed's flush). `Inf` is legal, and a backend may slice
+a long wait internally to keep cooperative tasks on its thread scheduled.
+"""
+function wait_for_input end
+
+"""
+    wake_backend!(backend) -> Nothing
+
+End a [`wait_for_input`](@ref) in progress, from any task or thread. The one
+function of this contract that must be thread-safe: everything else runs on
+the editor task.
+"""
+function wake_backend! end
+
+"""
     get_pointer_position(::Backend) -> (x, y)
 
 The current global mouse pointer position in screen pixels, or `(-1, -1)` when

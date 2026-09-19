@@ -25,6 +25,7 @@ using ..AgentServerModule
 using ..FaultModule
 using ..SelectionModule
 using ..ReferenceModule
+using ..CellModule
 using ..FeedModule
 import ..FeedModule: drain_changes!
 
@@ -159,9 +160,15 @@ any number of calls before the next frame cost one frame, because the frame
 takes the whole flag at once. [`post_operation!`](@ref) calls it after
 `put!`; a feed's producer-side store calls it through the callback
 [`attach_wake_callback!`](@ref) gave it.
+
+The flag is the truth and the backend wake is only the kick that ends a wait
+in progress. Only the false-to-true transition kicks, so the backend holds at
+most one pending wake however often producers call this. A kick a frame
+happens to consume costs nothing: the flag still skips the next wait.
 """
 function wake_editor!(editor::Editor)
-    Threads.atomic_xchg!(editor.wake_pending, true)
+    Threads.atomic_xchg!(editor.wake_pending, true) && return nothing
+    wake_backend!(editor.backend)
     nothing
 end
 
@@ -203,6 +210,31 @@ document.
 struct InboxFeed <: Feed end
 
 drain_changes!(::InboxFeed, editor::Editor) = drain_operations!(editor)
+
+# How long the editor may sleep while something subscribes to its clock. One
+# tick per sleep, so an animation advances at the cadence the polling loop
+# had. With no subscriber the clock does not tick and the editor sleeps to
+# the nearest feed deadline, or forever.
+const FRAME_INTERVAL = 0.01
+
+"""
+    compute_wait_timeout(editor) -> Float64
+
+How long the next wait may block: `FRAME_INTERVAL` while anything subscribes
+to the editor's clock, bounded further by every feed's
+`compute_wake_deadline`, and `Inf` when nothing asks to come back. A stale
+subscriber the collector has not swept yet keeps the animation bound for a
+few more frames; each of them drains nothing and repaints nothing.
+"""
+function compute_wait_timeout(editor::Editor)
+    timeout = has_dependents(getfield(editor.clock, :time)) ? FRAME_INTERVAL : Inf
+    for feed in editor.feeds
+        deadline = compute_wake_deadline(feed)
+        deadline === nothing && continue
+        deadline < timeout && (timeout = deadline)
+    end
+    timeout
+end
 
 """
     drain_feeds!(editor) -> Int
@@ -657,13 +689,20 @@ end
 """
     run_editor!(editor::Editor; mcp::Bool=false)
 
-Execute the read-eval-print loop. Each frame: `drain_feeds!` moves what
-producers posted or stored from outside — the inbox first, then every
-registered feed — then `run_frame!` applies every operation the backend has
-waiting and repaints once. `read!` internally swallows envelopes that don't
-translate to an operation, so no outer drain is needed. The trailing `sleep`
-yields to Julia's scheduler so cooperative `@async` tasks (e.g. the MCP
-server, a simulation driver) get to run between polls.
+Execute the read-eval-print loop. Between frames the editor sleeps in
+`wait_for_input`, and three things end the sleep: an input event, a
+[`wake_editor!`](@ref) from any task, or the timeout
+[`compute_wait_timeout`](@ref) answers — the animation bound while the clock
+has subscribers, the nearest feed deadline, else never. Each frame:
+`drain_feeds!` moves what producers posted or stored from outside — the
+inbox first, then every registered feed — then `run_frame!` applies every
+operation the backend has waiting and repaints once. `read!` internally
+swallows envelopes that don't translate to an operation, so no outer drain
+is needed.
+
+A backend without a real wait sleeps one 10 ms poll slice per call (the
+`BackendDefaults` fallback), which also gives cooperative `@async` tasks
+(e.g. the MCP server, a simulation driver) their turn on this thread.
 
 When `mcp=true`, an MCP server is started alongside the loop so external
 clients can drive the editor; off by default.
@@ -696,11 +735,20 @@ function run_editor!(editor::Editor; mcp::Bool=false,
     t_start = Base.time()
     try
         while true
-            # A fresh per-frame counter store, bound for this frame's dynamic
-            # extent; the cell operations below count into it and `perf!` reads it.
+            # A wake posted since the last frame took ownership skips the
+            # wait: the flag is the truth, whatever became of the backend
+            # kick. The wait itself ends on input, on a kick, or at the
+            # timeout — and a backend with no wait of its own polls in 10 ms
+            # slices here, exactly as this loop did when it slept.
+            if !editor.wake_pending[]
+                timeout = compute_wait_timeout(editor)
+                timeout > 0 && wait_for_input(editor.backend, editor.devices, timeout)
+            end
             # The frame takes ownership of every wake posted before it;
             # a wake that arrives from here on belongs to the next frame.
             Threads.atomic_xchg!(editor.wake_pending, false)
+            # A fresh per-frame counter store, bound for this frame's dynamic
+            # extent; the cell operations below count into it and `perf!` reads it.
             with_performance_counters() do
                 set_clock_time!(editor.clock, Base.time() - t_start)
                 # What was posted or stored from outside this task, applied
@@ -713,7 +761,6 @@ function run_editor!(editor::Editor; mcp::Bool=false,
                     perf!(editor)
                 end
             end
-            sleep(0.01)
         end
     catch e
         e isa QuitEditorException || rethrow()

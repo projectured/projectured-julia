@@ -66,6 +66,7 @@ function test_kernel()
         test_editor_inbox()
         test_editor_frame_drain()
         test_editor_feeds()
+        test_editor_wait()
         test_agent_seam()
         test_declared_api()
         test_search_query()
@@ -87,7 +88,8 @@ export test_cell, test_cell_struct, test_struct_plan, test_performance_counter, 
        test_gesture_binding, test_gesture_recognizer, test_headless_backend, test_agent_seam,
        test_declared_api, test_search_query, test_meaning_search, test_search_answer,
        test_code_execution,
-       test_editor_inbox, test_editor_frame_drain, test_editor_feeds
+       test_editor_inbox, test_editor_frame_drain, test_editor_feeds,
+       test_editor_wait
 # generic drivers + walker internals reused by the higher test packages
 export WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
        walk_printer_output, test_printer,

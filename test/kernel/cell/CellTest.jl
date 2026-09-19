@@ -198,5 +198,23 @@ end
     @test MutableCell(f)[] === f
 end
 
+@testset "has_dependents" begin
+    source = Cell(1)
+    @test !has_dependents(source)        # nothing read it inside a computation
+
+    reader = ComputedCell(() -> source[] + 1)
+    @test reader[] == 2                  # the read forms the downstream edge
+    @test has_dependents(source)
+    @test !has_dependents(reader)        # nothing reads the reader
+
+    @test !has_dependents(MutableCell(1))     # no downstream edges by kind
+    @test !has_dependents(ImmutableCell(1))
+
+    # A swept reader no longer counts. The WeakRef is cleared by hand here,
+    # because a test must not depend on when the collector runs.
+    getfield(source, :dependents)[1].value = nothing
+    @test !has_dependents(source)
+end
+
 end # @testset "Cell"
 end # test_cell

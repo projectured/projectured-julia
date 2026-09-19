@@ -383,18 +383,31 @@ the fault plan section 9 already records.
    coalescing, the default deadline. The inbox, frame-drain and layering
    suites stay green.
 
-### Phase 2 — The wait seam and the loop rewrite ⬜
+### Phase 2 — The wait seam and the loop rewrite ✅ (2026-09-19)
 
-1. Show the user the diff for `BackendInterface.jl`, `BackendDefaults.jl`
-   and the `BackendModule.jl` export line; get acceptance; apply.
-2. Add `has_dependents` to `ReactiveCell.jl`; export from `CellModule.jl`.
-3. Replace the `sleep` with the wait: the lost-wakeup exchange, then
-   `wait_for_input` with `compute_wait_timeout`. Add `FRAME_INTERVAL`.
-4. Tests with a scripted backend in the test package
-   (`PAR-NO-TEST-DOUBLES-IN-MAIN`): a wake from another task ends the wait; a
-   wake during a frame skips the next wait; no wake and no deadline means no
-   frame; the clock with a subscriber bounds the timeout; the default wait
-   preserves today's cadence.
+1. ✅ The user accepted the diff for `BackendInterface.jl`,
+   `BackendDefaults.jl` and `BackendModule.jl` (shown in full on
+   2026-09-19); applied exactly as shown. The three files stay `🔒` and
+   await re-audit.
+2. ✅ Add `has_dependents` to `ReactiveCell.jl`; export from `CellModule.jl`;
+   testset in the cell suite covers the edge cases, a swept `WeakRef`
+   included.
+3. ✅ Replace the `sleep` with the wait. The ownership exchange runs **after**
+   the wait, not before it: the loop skips the wait when the flag is set,
+   waits otherwise, and then takes the flag — so a wake during a frame costs
+   at most one spurious frame, and a wake between the timeout computation
+   and the block is covered by the backend kick (an autoreset or queued kick
+   survives until the wait looks). Add `FRAME_INTERVAL` and
+   `compute_wait_timeout`.
+4. ✅ Tests (`test_editor_wait`, 12 assertions), with `ProbeWaitBackend` in
+   the test package (`PAR-NO-TEST-DOUBLES-IN-MAIN`): the idle timeout is
+   `Inf`; the nearest feed deadline bounds it; a clock subscriber bounds it
+   to `FRAME_INTERVAL`; only the false-to-true transition kicks the backend;
+   a posted operation ends an unbounded wait and quit ends the loop; the
+   default wait is one poll slice. The kernel suite's editor, cell, quit and
+   layering suites stay green; the suite's only failures reproduce on
+   unmodified `main` (document macro, reference layout, tool scratch) and
+   predate this branch.
 
 ### Phase 3 — The SDL wait ⬜
 
