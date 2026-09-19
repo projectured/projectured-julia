@@ -1384,7 +1384,7 @@ uuid = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
 version = "0.1.0"
 
 [[deps.ProjecturedShell]]
-deps = ["ProjecturedClipboard", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedKernel", "ProjecturedScreen", "ProjecturedStyle", "ProjecturedWidget"]
+deps = ["ProjecturedClipboard", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedKernel", "ProjecturedScreen", "ProjecturedStyle", "ProjecturedTooltip", "ProjecturedWidget"]
 path = "../../package/ProjecturedShell"
 uuid = "6a0c2129-78cc-4dfb-a683-9b93dbf5d518"
 version = "0.1.0"

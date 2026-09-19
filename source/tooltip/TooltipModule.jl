@@ -9,6 +9,8 @@ module TooltipModule
 
 using ..CellModule
 using ..DocumentModule
+using ..EventModule
+using ..SelectionModule
 using ..IntentModule
 using ..IoMapModule
 using ..OperationModule
@@ -21,9 +23,11 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 
 export TooltipSource
 export TooltipDecoratorProjection, TooltipDecoratorIoMap
+export TooltipProbeProjection, TooltipProbeIoMap
 
 
 include("TooltipDocument.jl")
 include("TooltipDecorator.jl")
+include("TooltipProbe.jl")
 
 end # module

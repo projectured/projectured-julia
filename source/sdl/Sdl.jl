@@ -3078,16 +3078,6 @@ BackendModule.decode_image(filename::AbstractString) = decode_sdl_image(filename
 BackendModule.get_display_size(::SdlBackend; display::Integer=0) =
     get_sdl_display_size(; display=display)
 
-# Where a window sits on the screen. A window this backend never opened has no
-# place to report, and `nothing` says so rather than guessing an origin.
-function BackendModule.get_screen_origin(backend::SdlBackend, id)
-    resource = get(backend.windows, Symbol(id), nothing)
-    resource === nothing && return nothing
-    x, y = Ref{Cint}(0), Ref{Cint}(0)
-    SDL_GetWindowPosition(resource.win, x, y)
-    (_to_logical(Int(x[])), _to_logical(Int(y[])))
-end
-
 # Populate the Display devices with the real display geometry and HiDPI scale
 # discovered at start-up (called after `initialize_backend!`, so the scale is
 # already detected). Mouse/Keyboard are left at their defaults — SDL2 cannot

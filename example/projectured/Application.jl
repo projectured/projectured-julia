@@ -205,6 +205,12 @@ of its own that drifts from the others.
 log itself is always recorded, because a gesture log a person opens in a tab is
 the session's own and must already hold what happened before the tab existed.
 
+`pointer` answers where the pointer is, in screen coordinates, and it is what
+turns the tooltip on: a tooltip is shown in a window of its own beside the
+pointer, so a caller that cannot say where the pointer is gets no tooltip. A
+window scene built without a backend — the warm-up of a build, the suite — passes
+none.
+
 **The clipboard offers all six of its gestures here**, cut and the view toggle
 included. A person who edits a file expects `Ctrl+X` to cut, and the toggle shows
 what is stored. An interface over a record of a run leaves those two out, because
@@ -212,13 +218,15 @@ a cut would write into the record.
 """
 function make_application_window(paths::AbstractVector;
                                  root::AbstractString = pwd(), assistant = nothing,
-                                 gesture_log::Bool = false,
+                                 gesture_log::Bool = false, pointer = nothing,
                                  measure = measure_truetype_text)
     document = make_application_document(paths; root = root, assistant = assistant)
     projection = make_application_projection(; measure = measure)
     make_window_wrap(; gesture_help = true, command_palette = true,
                        gesture_log = gesture_log, selection = true,
                        history = _with_window_history,
+                       tooltip = pointer === nothing ? nothing : compute_tooltip,
+                       pointer = pointer,
                        measure = measure)(document, projection)
 end
 
@@ -323,11 +331,12 @@ function run_application(paths::AbstractString...;
                          width = nothing, height = nothing,
                          measure = measure_truetype_text)
     chat = make_application_assistant(assistant; model = model, context = context)
+    backend === nothing && (backend = default_backend())
     document, projection = make_application_window(collect(String, paths);
                                                    root = root, assistant = chat,
                                                    gesture_log = gesture_log,
+                                                   pointer = () -> get_pointer_position(backend),
                                                    measure = measure)
-    backend === nothing && (backend = default_backend())
     # What a log view shows is what the program said, and what says it is the
     # Julia logger. The capture records each message and forwards it, so the
     # terminal shows what it showed and a tab can show it too. The logger the

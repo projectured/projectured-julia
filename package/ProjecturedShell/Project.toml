@@ -14,6 +14,7 @@ ProjecturedGestureLog = "4fa8205f-3512-4016-add3-a8e2144efbf1"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedScreen = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
 ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
+ProjecturedTooltip = "999c5553-b481-430d-b45f-24840119fc11"
 ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 
 [sources]
@@ -24,4 +25,5 @@ ProjecturedGestureLog = {path = "../ProjecturedGestureLog"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedScreen = {path = "../ProjecturedScreen"}
 ProjecturedStyle = {path = "../ProjecturedStyle"}
+ProjecturedTooltip = {path = "../ProjecturedTooltip"}
 ProjecturedWidget = {path = "../ProjecturedWidget"}

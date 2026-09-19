@@ -20,6 +20,8 @@ const IntentModule = ProjecturedKernel.IntentModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const ScreenModule = ProjecturedScreen.ScreenModule
 const OperationModule = ProjecturedKernel.OperationModule
+const EventModule = ProjecturedKernel.EventModule
+const SelectionModule = ProjecturedKernel.SelectionModule
 
 include("../../../source/tooltip/TooltipModule.jl")
 

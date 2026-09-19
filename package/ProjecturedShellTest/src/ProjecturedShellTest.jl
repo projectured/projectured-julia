@@ -66,6 +66,7 @@ end
 include("../../../test/shell/WindowWrapTest.jl")
 include("../../../test/shell/WidgetTooltipTest.jl")
 include("../../../test/shell/JuliaTooltipTest.jl")
+include("../../../test/shell/TooltipProbeTest.jl")
 
 include("../../../test/shell/ShellSuite.jl")
 

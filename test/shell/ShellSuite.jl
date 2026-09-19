@@ -26,8 +26,9 @@ function test_shell()
         test_window_wrap()
         test_widget_tooltip()
         test_julia_tooltip()
+        test_tooltip_probe()
     end
 end
 
 export test_shell, test_shell_layering, test_window_wrap,
-       test_widget_tooltip, test_julia_tooltip
+       test_widget_tooltip, test_julia_tooltip, test_tooltip_probe

@@ -12,7 +12,5 @@
 # `MethodError`, not fabricate a result.
 get_pointer_position(::Backend) = (-1, -1)
 get_display_size(::Backend; display::Integer=0) = (1280, 800)
-# A backend that cannot say where a window is says so, and does not guess.
-get_screen_origin(::Backend, id) = nothing
 configure_devices!(::Backend, devices) = nothing
 open_native_windows!(::Backend, document) = nothing

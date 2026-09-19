@@ -93,20 +93,6 @@ display-free default `(1280, 800)` for a backend that cannot query a display.
 function get_display_size end
 
 """
-    get_screen_origin(backend, id) -> (x, y) | Nothing
-
-Where the window `id` sits on the screen, or `nothing` from a backend that
-cannot say.
-
-A window is placed in screen coordinates, and a window's own content is drawn in
-its own. Anything that puts one window beside a place inside another — a tooltip
-beside the pointer — has to add the two, and this is the half only the backend
-knows. A caller that gets `nothing` places the window relative to itself and
-accepts that it may sit wrong on a second display.
-"""
-function get_screen_origin end
-
-"""
     configure_devices!(backend, devices)
 
 Fill in the physical properties of each device in `devices` from what `backend`

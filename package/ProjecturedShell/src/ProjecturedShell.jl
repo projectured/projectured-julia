@@ -16,6 +16,7 @@ using ProjecturedGestureLog
 using ProjecturedKernel
 using ProjecturedScreen
 using ProjecturedStyle
+using ProjecturedTooltip
 using ProjecturedWidget
 
 const ClipboardModule = ProjecturedClipboard.ClipboardModule
@@ -23,6 +24,7 @@ const FocusModule = ProjecturedFocus.FocusModule
 const GestureHelpModule = ProjecturedGestureHelp.GestureHelpModule
 const GestureLogModule = ProjecturedGestureLog.GestureLogModule
 const StyleModule = ProjecturedStyle.StyleModule
+const TooltipModule = ProjecturedTooltip.TooltipModule
 const WidgetModule = ProjecturedWidget.WidgetModule
 
 include("../../../source/shell/ShellModule.jl")

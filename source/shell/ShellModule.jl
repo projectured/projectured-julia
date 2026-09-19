@@ -25,6 +25,7 @@ using ..FocusModule
 using ..GestureHelpModule
 using ..GestureLogModule
 using ..StyleModule
+using ..TooltipModule
 using ..WidgetModule
 
 export make_window_wrap, make_opened_window_projections, make_popup_screen_wrap

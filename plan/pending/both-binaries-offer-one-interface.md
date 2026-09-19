@@ -1080,6 +1080,32 @@ This step is backend work, and it closes Step 1 of [tooltip.md](tooltip.md).
 
 ### Step 6 — the interface shows a tooltip
 
+**Done 2026-09-19.** `test_shell()` is 61 pass and `test_application()` is 63.
+What the work decided:
+
+- **`get_screen_origin` was removed again.** Step 5 added it because
+  [tooltip.md](tooltip.md) said a tooltip could not be placed without it. That is
+  false: `get_pointer_position` of the SDL backend already answers the **global**
+  pointer, in the same space a window is placed in. Nothing called the new
+  accessor, so it went.
+- **The probe presses with Alt.** A plain press is a widget's own gesture and a
+  button answers its action; an Alt press answers a whole-element selection and
+  never an action. A probe that never commits what it reads still must not be the
+  thing that could make an action fire.
+- **What plays the part of a dwell** is the answer changing. The probe opens when
+  the document under the pointer answers something new, so a pointer crossing one
+  wide label re-opens nothing, and the delay before the first is the backend's own
+  idle-motion interval. The projection keeps no clock and stays a pure reader.
+- **A silent fault, and the same class as the loud one.**
+  `FileSystemToWidget.jl:96` builds the navigator's `WidgetTree` positionally,
+  and its seventh argument was the selection. Step 4 made `tooltip` the seventh
+  declared field, so the selection landed in `tooltip` and **Enter on a file row
+  stopped opening it**. The arity still matched, so nothing raised;
+  `test_substrate()` stayed at its baseline and only `test_application()` saw it.
+  A sweep across `source/`, `example/` and `test/` finds exactly two callers that
+  build a widget positionally, and both are fixed. **Search the whole tree for
+  `Widget…(Cell(` before adding a field**, not one slice.
+
 - [ ] Add `TooltipProbeProjection` and `TooltipProbeIoMap` to `TooltipModule`:
       the Alt+press probe, the dwell timer, and the `OpenWindowOperation` it
       makes from what its `compute_tooltip` keyword answered. The keyword is why

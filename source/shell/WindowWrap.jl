@@ -20,6 +20,12 @@ projection)` that a window entry applies before it opens.
   fault report, not for daily work. **The log is recorded either way.** A gesture
   log a person opens in a tab is the session's own, so it must already hold what
   happened before the tab existed; this keyword adds the panel, not the record.
+- `tooltip`: what the document under the pointer says about itself, shown in a
+  window of its own beside the pointer (`PAR-MANY-WINDOWS`). It is the function
+  the probe asks, `(document) -> Document | Nothing`; `compute_tooltip` is the
+  one every document answers. `nothing` leaves the wrapper out. It needs
+  `pointer`, because a window is placed in screen coordinates and only a backend
+  knows where the pointer is.
 - `history`: a wrapper for what the window remembers, put **innermost**, around
   the content projection itself. It is a function `projection -> projection`, and
   the default changes nothing. A host that has an undo buffer passes the wrapper
@@ -35,15 +41,19 @@ The help, the palette and the log wrap the projection and leave the document as
 it is. The clipboard wraps the document too, so a verb that walks the window
 must look inside it.
 
-The order is the history innermost, the walk and the clipboard over it, the help
-over them, the palette over it, the log's panel over the palette, and the log's
-recorder outermost, where it sees every operation the window makes.
+The order is the history innermost, the walk and the clipboard over it, the
+tooltip probe over them, the help over that, the palette over it, the log's panel
+over the palette, and the log's recorder outermost, where it sees every operation
+the window makes.
 """
 function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = true,
                             gesture_log::Bool = false, selection::Bool = true,
                             clipboard_gestures::Tuple = CLIPBOARD_GESTURES,
                             history = identity,
+                            tooltip = nothing, pointer = nothing,
                             measure = measure_truetype_text)
+    tooltip === nothing || pointer !== nothing ||
+        error("make_window_wrap: a tooltip is placed beside the pointer, so it needs `pointer`")
     # One flag for the help window, which the decorator reads each time F1 comes.
     help_state = GestureHelpState()
     # The session's own log, and not one this fold made: a tab that opens a
@@ -60,6 +70,13 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
                                                    offered_gestures = clipboard_gestures)
             document = make_clipboard_document(document)
         end
+        # Over the walk, because the probe asks the document the walk selects in;
+        # under the help and the palette, because a probe must not answer for a
+        # window that one of them opened.
+        tooltip === nothing ||
+            (projection = TooltipProbeProjection(inner = projection,
+                                                 find_tooltip = tooltip,
+                                                 pointer = pointer))
         gesture_help &&
             (projection = GestureHelpDecoratorProjection(inner = projection, state = help_state))
         command_palette &&

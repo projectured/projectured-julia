@@ -23,7 +23,7 @@ fragments that share this namespace:
 module BackendModule
 
 export Backend, initialize_backend!, quit_backend!, measure_text,
-       write_to_devices, read_from_devices, get_display_size, get_screen_origin, configure_devices!,
+       write_to_devices, read_from_devices, get_display_size, configure_devices!,
        open_native_windows!,
        write_image, record_video, render_canvas, decode_image, get_pointer_position
 
