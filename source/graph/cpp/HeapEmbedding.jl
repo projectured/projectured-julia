@@ -1,6 +1,6 @@
 # Fragment of `GraphModule`.
 #
-# A planar embedding for one connected component, from OMNeT++'s
+# A planar embedding for one connected component, from the original's
 # `src/layout/heapembedding.cc`.
 #
 # Vertices are placed in spanning-tree order. A list of candidate points is kept;

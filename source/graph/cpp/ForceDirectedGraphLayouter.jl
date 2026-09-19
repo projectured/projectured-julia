@@ -1,9 +1,9 @@
 # Fragment of `GraphModule`.
 #
-# `ForceDirectedLayout`, the port of OMNeT++'s
+# `ForceDirectedLayout`, the port of the original's
 # `src/layout/forcedirectedgraphlayouter.cc`.
 #
-# This is the layouter Qtenv reaches for below twenty submodules, the one it calls
+# This is the layouter the window of the original reaches for below twenty submodules, the one it calls
 # "advanced". Unlike the spring embedder it **carries node sizes** through every
 # force, which is what makes it the answer for a network of cards rather than a
 # network of icons.
@@ -32,14 +32,14 @@
     ForceDirectedLayout(; seed = 1, max_cycle = 1000, max_calculation_time = Inf,
                         three_d = true, pre_embedding = true)
 
-The advanced layouter, with OMNeT++'s own constants.
+The advanced layouter, with the original's own constants.
 
 `seed` decides the picture. Most of the parameters — the spring coefficient, the
 repulsion coefficient, the friction, whether to pre-embed, how far into the
 third dimension to go — are drawn from a generator of this seed, exactly as the
 original draws them.
 
-`max_calculation_time` is in milliseconds and is `Inf` here, where OMNeT++ draws
+`max_calculation_time` is in milliseconds and is `Inf` here, where the original draws
 a random 1000 to 20000. A wall-clock limit makes a drawing depend on the machine
 that drew it, and the interface here promises that a seed and a graph decide a
 picture. Set it if you would rather have a bounded wait than a repeatable
@@ -51,7 +51,7 @@ seed. `nothing` keeps the original's coin toss.
 **What it costs.** Every cycle asks for a force between every pair of bodies,
 four times, so the cost grows with the square of the vertex count. Measured by
 `graphlayoutbench` on a sparse network-shaped graph: 10 vertices in about 5
-milliseconds, 60 in 0.55 seconds, 300 in 41 seconds. That is why Qtenv stops
+milliseconds, 60 in 0.55 seconds, 300 in 41 seconds. That is why the window of the original stops
 using it at twenty submodules and why [`DeferredLayout`](@ref) does too. Name it
 directly for a large graph only if you mean to wait, or give it a
 `max_calculation_time`.
@@ -277,7 +277,7 @@ function set_parameters!(state::ForceDirectedState)
     parameters.max_calculation_time = engine.max_calculation_time
     parameters.max_cycle = engine.max_cycle
 
-    # OMNeT++ draws `mct` here as uniform(1000, 20000). The draw is kept so the
+    # the original draws `mct` here as uniform(1000, 20000). The draw is kept so the
     # sequence stays in step, and the value is dropped: see the engine's docs.
     _uniform(state, 1000, 20000)
 

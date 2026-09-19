@@ -1,6 +1,6 @@
 # Fragment of `GraphModule`.
 #
-# The solver, from OMNeT++'s `src/layout/forcedirectedembedding.cc`.
+# The solver, from the original's `src/layout/forcedirectedembedding.cc`.
 #
 # The layout is a differential equation: a variable's value is a position, its
 # first derivative a velocity, its second an acceleration, and the forces say what
@@ -22,7 +22,7 @@
 # settled advances in long steps and a graph in a violent phase advances in short
 # ones, at about the same cost per cycle.
 #
-# **One deviation.** OMNeT++ also stops on elapsed wall-clock time, which makes
+# **One deviation.** the original also stops on elapsed wall-clock time, which makes
 # the drawing depend on the machine that drew it. `max_calculation_time` is here
 # and honoured, but `ForceDirectedLayout` leaves it at `Inf`; §3.6 of the plan
 # requires that a seed and a graph decide a picture, and a clock is neither.
@@ -365,7 +365,7 @@ function embed!(embedding::ForceDirectedEmbedding)
     end
 
     # The variables are deliberately left holding what the fourth probe of the
-    # last cycle assigned, not the accepted step `pn`. That is what OMNeT++
+    # last cycle assigned, not the accepted step `pn`. That is what the original
     # reports, and `getNodePosition` reads it, so writing `pn` back here would
     # be a different picture — a slightly better one, and the wrong one.
     nothing
@@ -376,7 +376,7 @@ end
 
 The box covering every body that is not a wall.
 
-The seeds are OMNeT++'s `DBL_MAX` and `DBL_MIN`, and `DBL_MIN` is the smallest
+The seeds are the original's `DBL_MAX` and `DBL_MIN`, and `DBL_MIN` is the smallest
 positive double rather than the most negative one. Reproduced rather than
 corrected, for the reason `GraphComponent`'s own bounding rectangle gives.
 """

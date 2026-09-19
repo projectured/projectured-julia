@@ -221,6 +221,34 @@ function phrase_violations(root::AbstractString)
     out
 end
 
+# The names a public document must not carry: the repositories, the products and
+# the company of the work that is not published. A plan, a commit message, a
+# test and an example may name them, and the guard reads none of those. They are
+# written as patterns rather than as names, because this file is public too.
+const _PRIVATE_NAME_PATTERNS = [r"omne\w*"i, r"\binet\w*"i, r"qtenv"i]
+
+"""
+    private_name_violations(root) -> Vector{String}
+
+Every private name that a document carries. A document of this repository names
+the work it stands on by what it is — "the C++ original", "a downstream
+program" — and never by the name of a product that is not published here.
+"""
+function private_name_violations(root::AbstractString)
+    out = String[]
+    for document in collect_documents(root)
+        for (number, line) in enumerate(split(read(joinpath(root, document), String), '\n'))
+            for pattern in _PRIVATE_NAME_PATTERNS
+                m = match(pattern, line)
+                m === nothing && continue
+                push!(out, "$document:$number names $(m.match), which is private; " *
+                           "write what the thing is instead")
+            end
+        end
+    end
+    out
+end
+
 # A path that no longer exists, in any shape a document writes it.
 const _DEAD_PATHS = [r"package/[a-z]+/main\b" => "source/<slice>/",
                      r"(?<![\w/])visual/" => "the real folder under source/",
@@ -254,7 +282,8 @@ as lines a reader can act on.
 """
 documentation_violations(root::AbstractString) =
     vcat(link_violations(root), guide_name_violations(root), header_violations(root),
-         phrase_violations(root), dead_path_violations(root))
+         phrase_violations(root), dead_path_violations(root),
+         private_name_violations(root))
 
 # The verbs that make an object act like a person. A sentence that uses one is
 # not always wrong, so this is a report and not a rule.

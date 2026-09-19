@@ -107,7 +107,7 @@ end
     # to the fast layouter, fewer go to the advanced one. Both thresholds are the
     # same number for the same reason — the advanced one is already slow at
     # thirty or forty modules.
-    @test QTENV_ADVANCED_LIMIT == 20
+    @test ADVANCED_LAYOUT_LIMIT == 20
     @test resolve_layout_engine(DeferredLayout(), 19) isa ForceDirectedLayout
     @test resolve_layout_engine(DeferredLayout(), 20) isa SpringEmbedderLayout
     @test resolve_layout_engine(DeferredLayout(), 500) isa SpringEmbedderLayout

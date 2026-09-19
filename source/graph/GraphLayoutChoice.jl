@@ -3,8 +3,8 @@
 # Which engine a caller gets when it names none, and when that is decided.
 #
 # `DeferredLayout` decides **when the layout runs**, not when the projection is
-# built, and it decides the way Qtenv decides
-# (`omnet-cpp/src/qtenv/modulelayouter.cc:363-372`): twenty vertices or more go
+# built, and it decides the way the module layouter of the C++ original
+# decides: twenty vertices or more go
 # to `SpringEmbedderLayout`, which is fast, and fewer go to `ForceDirectedLayout`,
 # which is better and costs more. A package with a native engine registers a
 # factory and takes over both.
@@ -17,7 +17,7 @@ fast one. It is `LIMIT` in `ModuleLayouter::getSubmodulePositions`, and the
 comment there says why it is 20: at thirty or forty modules the advanced
 layouter is already very slow.
 """
-const QTENV_ADVANCED_LIMIT = 20
+const ADVANCED_LAYOUT_LIMIT = 20
 
 # The engine `make_deferred_layout_engine` hands out. A package with a better one
 # registers a factory here from its `__init__` — a mutation, not a second
@@ -67,14 +67,14 @@ make_deferred_layout_engine(; orthogonal::Bool = false) = DeferredLayout(orthogo
 """
     make_pure_julia_layout_engine(vertex_count; orthogonal = false) -> GraphLayoutEngine
 
-The engine to use for a graph of this size when nothing is installed: Qtenv's
-own rule, `SpringEmbedderLayout` from [`QTENV_ADVANCED_LIMIT`](@ref) vertices up
+The engine to use for a graph of this size when nothing is installed: the rule
+of the original, `SpringEmbedderLayout` from [`ADVANCED_LAYOUT_LIMIT`](@ref) vertices up
 and `ForceDirectedLayout` below it.
 
 `orthogonal` is accepted and ignored, because neither of these routes edges.
 """
 make_pure_julia_layout_engine(vertex_count::Integer; orthogonal::Bool = false) =
-    vertex_count >= QTENV_ADVANCED_LIMIT ? SpringEmbedderLayout() : ForceDirectedLayout()
+    vertex_count >= ADVANCED_LAYOUT_LIMIT ? SpringEmbedderLayout() : ForceDirectedLayout()
 
 """
     resolve_layout_engine(engine[, vertex_count]) -> GraphLayoutEngine
@@ -103,7 +103,7 @@ layout_engine_name(engine::DeferredLayout) =
 
 # Resolution happens per layout call, and reads the vertex count, so one
 # projection draws a small graph with the advanced layouter and a large one with
-# the fast layouter — the same rule and the same threshold as Qtenv.
+# the fast layouter — the same rule and the same threshold as the original.
 #
 # `GraphGraphToGraphLayout` memoizes on topology, sizes and constraints — not on
 # the engine — so a graph already laid out keeps its old picture until something

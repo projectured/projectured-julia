@@ -60,6 +60,17 @@ refactor did. History goes into a plan under `plan/done/` and into the commit
 message. The same rule holds for a comment and a docstring; see
 [code-quality-rules.md](code-quality-rules.md).
 
+## No private name
+
+A document names no repository, product or company of the work that is not
+published here. It names the thing by what it is: "the C++ original", "a
+downstream program", "a simulation analysis tool". A ported file keeps the
+name of the C++ class it came from, because that name carries the algorithm.
+
+A plan, a commit message, a test and an example may keep a private name. The
+guard reads none of those, and `private_name_violations` in
+`test/suite/documentation.jl` checks every document.
+
 ## Honest status
 
 A feature that exists only in a plan is not written in the present tense. State

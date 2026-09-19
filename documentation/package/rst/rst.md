@@ -4,7 +4,7 @@
 
 The `rst` slice holds reStructuredText: a document model, a parser, a
 two-style projection, and a `FileDocument` wrapper. It targets the
-documentation of [INET](https://github.com/inet-framework/inet) — 349 files
+documentation of a large C++ simulation framework — 349 files
 and about 51 000 lines — and every one of those files parses and round-trips.
 
 Files:
@@ -55,7 +55,7 @@ block its language, an admonition its kind. Searching an option vector by
 string on every read would be the alternative.
 
 A typed directive still carries `extra`, the options it does not name, so emit
-loses nothing. In the INET corpus the typed structs cover 2099 of the 2114
+loses nothing. In that corpus the typed structs cover 2099 of the 2114
 directive uses; the generic struct catches the other 15.
 
 ### Roles hold a plain string
@@ -218,13 +218,13 @@ section, where the title takes the first slot.
 
 - `test_rst_parser()` — unit tests, one construct at a time.
 - `test_rst_round_trip()` — the five fixtures in
-  `test/rst/fixture/rst/`, copied from the INET documentation.
+  `test/rst/fixture/rst/`, copied from that documentation.
 - `test_rst_corpus(dir)` — an opt-in sweep of a whole documentation tree, not
   wired into `test_domain()` because the tree is not a dependency of this
   repository. Point it at a checkout:
 
   ```julia
-  test_rst_corpus("/path/to/inet")
+  test_rst_corpus("/path/to/corpus")
   ```
 
 - `test_example(rst_example)` and `test_printer(rst_rendered_example)` for the
@@ -239,7 +239,7 @@ section, where the title takes the first slot.
 Byte equality is not required and is not reached: a paragraph is rejoined onto
 one line, an adornment is redrawn at the title's width, and a directive body
 is re-indented to three spaces. What must hold is that reading an emitted file
-gives back the document it came from. All 349 INET files satisfy it.
+gives back the document it came from. All 349 files of the corpus satisfy it.
 
 ## Known limits
 

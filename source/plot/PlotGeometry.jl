@@ -100,7 +100,7 @@ constant series still draws sensibly. When `include_zero` is set and the range
 does not already straddle zero, the near side is extended to the origin with
 *half* the usual padding — past that point the extension itself is the
 whitespace, so a full margin on top would look lopsided. This mirrors the
-origin-margin heuristic OMNeT++'s line plots use.
+origin-margin heuristic the reference line plots use.
 """
 function pad_range(lo::Real, hi::Real; fraction::Real=0.05,
                    include_zero::Bool=false, log::Bool=false)

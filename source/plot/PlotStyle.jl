@@ -42,7 +42,7 @@ default_symbol_cycle() = Symbol[:circle, :square, :triangle_up, :diamond, :plus,
 
 A series' own `color`, or the `index`-th entry of the plot's color cycle when
 it left the field unset. Cycling is by position in the series list, so inserting
-a series shifts the colors after it — the same rule OMNeT++'s native charts use.
+a series shifts the colors after it — the same rule the reference charts use.
 """
 function get_series_color(color, index::Integer, cycle)
     color === nothing || return color

@@ -2,7 +2,7 @@
 #
 # A swappable interface for graph placement + edge routing. `GridEmbedding`
 # (pure Julia) places without simulating, so nothing downstream is blocked. The
-# force-directed engines ported from OMNeT++ live above this file; the native
+# force-directed engines ported from C++ live above this file; the native
 # binding (Adaptagrams: libcola for placement, libavoid for routing) lives in its
 # own package, `ProjecturedAdaptagrams`, because it pulls in an external native
 # dependency — it adds an `AdaptagramsLayout <: GraphLayoutEngine` method to
@@ -26,7 +26,7 @@
 # - `routes`       maps each `GraphEdge` (by `objectid`) to `Vector{Tuple{Int,Int}}`.
 #
 # `extent` and `border` are one argument pair rather than engine fields, because
-# the same graph in two panes wants two layouts. OMNeT++ passes the same pair the
+# the same graph in two panes needs two layouts. The C++ original passes the same pair the
 # same way, as `GraphLayouter::setSize(width, height, border)`.
 #
 # Keying on `objectid` keeps the engine call pure of any reactive cell, so the
@@ -131,7 +131,7 @@ each member holding its own offset from the family's anchor point.
 
 The payload is `(group, offx, offy)`, or just `group` for an offset of zero.
 This is `addAnchoredNode(id, anchorname, offx, offy, w, h)`, which is how
-OMNeT++ lays out a module vector: `rte[0..56]` is 57 nodes and one anchor, so
+The C++ original lays out a module vector: `rte[0..56]` is 57 nodes and one anchor, so
 the ring or the row keeps its shape while the whole family finds its place.
 
 Groups are compared with `isequal`, so a `Symbol`, a `String` or a number all
@@ -263,12 +263,12 @@ The affine that maps the placement of `indices` onto `extent` inset by `border`:
 to map or no room to map it into.
 
 Only centres are mapped; a box keeps the size it was measured at. That is what
-OMNeT++ does — `BasicSpringEmbedderLayout::execute` rescales `n.x` and `n.y` and
+the original does — `BasicSpringEmbedderLayout::execute` rescales `n.x` and `n.y` and
 never `n.sx`, `n.sy` — and it is what makes `:fixed_size` true for every engine
 here without any engine doing anything about it.
 
 The two axes scale apart, so a graph asked to fill a wide box becomes wide. That
-is also OMNeT++'s behaviour: it computes `xfact` and `yfact` separately.
+is also the behaviour of the original: it computes `xfact` and `yfact` separately.
 """
 function get_extent_transform(cx, cy, widths, heights, indices, extent, border::Real)
     isempty(indices) && return nothing

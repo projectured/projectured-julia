@@ -306,7 +306,7 @@ end
 
 # An entry is its qualified name and its whole documentation. The scored text
 # holds only the signature and one sentence, and a description finds its verb
-# less often by that: measured on the omnet IDE's 88 verbs, 2026-09-16, the
+# less often by that: measured on the 88 verbs of a downstream IDE, 2026-09-16, the
 # mean rank of eight test sentences fell from 8.1 to 5.8 with the whole
 # documentation, and five of the eight ranked their verb first instead of four.
 _get_meaning_text(entry::_ApiEntry) =

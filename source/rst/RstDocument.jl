@@ -334,7 +334,7 @@ flag option such as `:titlesonly:`.
 end
 
 """
-`.. literalinclude:: path` — the most frequent directive in the INET
+`.. literalinclude:: path` — the most frequent directive in the reference
 documentation. The four slicing options are named fields because they decide
 *which* lines the rendered notation would show; every other option lands in
 `extra`.
@@ -459,7 +459,7 @@ end
 end
 
 """
-`.. role:: name(base)` — a role declaration. The INET documentation declares
+`.. role:: name(base)` — a role declaration. The reference documentation declares
 its own roles in `doc/src/global.rst` this way. `base` is the role the new
 one derives from, empty when there is none.
 """

@@ -4,7 +4,7 @@
 # A build function names no repository: the caller passes a `BuildContext`, and
 # every path the builder writes — the app package under `build/app/`, the
 # compiled binary under `build/<name>/` — is relative to its `root`. So the same
-# builder writes projectured-julia's binaries and omnet-julia's, one context
+# builder writes the binaries of this repository and of a downstream program, one context
 # each, and neither repository's name appears in the code that does the writing.
 
 """

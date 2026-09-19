@@ -34,7 +34,7 @@ end
 _projection_name(p) = string(nameof(typeof(p)))
 
 # Short, unqualified name of a type (e.g. `NedParam`, `CellVector`) — far more
-# readable than the fully-qualified `OmnetppPred.NedModule.NedParam`.
+# readable than the fully-qualified `Catalog.NedModule.NedParam`.
 function _short_type(t)
     try
         string(nameof(t))

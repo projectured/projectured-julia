@@ -3,7 +3,7 @@
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [domain-inventory.md](../../design/domain-inventory.md)
 
 Native line, bar, histogram, scatter and colored-strip charts, re-implementing
-the chart types of the OMNeT++ analysis tool as a ProjecturEd domain. A chart is an ordinary
+the chart types of a simulation analysis tool as a ProjecturEd domain. A chart is an ordinary
 document rendered by a bidirectional projection straight to graphics. There is
 no plotting library and no rasterization, so a chart stays vector output,
 stays selectable, and every part of it can be edited the way any other
@@ -96,7 +96,7 @@ as `GraphicsPolyline.points`.
 A `ChartStripSeries` displays a series of enumerated values — usually the states
 of a machine — over time. Segment *i* spans `[x[i], x[i+1])`, so a value holds
 until the next sample replaces it, and a state trace reads as a band of colored
-runs. This is OMNeT++'s "Display enums as colored strips" mode, which only its
+runs. This is the "Display enums as colored strips" mode of that tool, which only its
 matplotlib charts have.
 
 `values` holds 1-based codes into the `states` name table; a column of strings or
@@ -127,7 +127,7 @@ vocabulary of its own needs `state_colors` to stay apart, which is what the
 `chart_strip` example's channel series shows. Each segment names its state inside
 itself when the name fits — no rotation, since the backends drop affine rotation,
 so a name that does not fit is left out. `draw_edges` adds the faint segment
-borders that are OMNeT++'s opt-in.
+borders that are the opt-in of that tool.
 
 The **legend** lists the states, because that is what a strip's colours mean. A
 strip's own entry keeps a neutral grey swatch — the band is many colours and any
@@ -287,9 +287,9 @@ Hit-testing follows from the same discipline: hover and click search the
 rendered geometry, never the raw columns, so nothing here degrades into a scan
 over a million samples.
 
-## Customization against OMNeT++
+## Customization against the reference tool
 
-Every OMNeT++ `PlotProperty` maps to a typed field rather than a string-keyed
+Every `PlotProperty` of the reference tool maps to a typed field rather than a string-keyed
 property bag — projectional editing is the property UI. Covered: plot and axis
 titles with their fonts and colours, per-axis range/log/grid/label visibility,
 all five legend positions with all eight anchors plus border and sort, the six
@@ -311,16 +311,16 @@ Not covered, and why:
   `:dotted` and `:dashed`.
 - Rotated category labels need affine rotation, which the SDL and PDF backends
   drop; labels are thinned instead. In-strip state names are omitted rather than
-  rotated for the same reason, where OMNeT++ labels any segment past ten pixels
+  rotated for the same reason, where the reference tool labels any segment past ten pixels
   and turns the name vertical when it does not fit.
-- OMNeT++ hides its per-value legend behind a click that swaps it for the series
+- The reference tool hides its per-value legend behind a click that swaps it for the series
   entry. Both are shown at once here. The states are the point of a strip, and a
   mode you have to discover is a poor place to keep them. This also leaves the
   legend click free to go on hiding a series.
-- OMNeT++ gives each strip its own subplot and hides its y axis; strips here are
+- The reference tool gives each strip its own subplot and hides its y axis; strips here are
   rows in one plot, and the y axis carries their labels.
 
-Deliberately more faithful than OMNeT++ in one place: its colormap bins are the
+Deliberately more faithful than the reference tool in one place: its colormap bins are the
 positional indices `0..n-1`, so a sparse enum spec like `"A=1,C=5"` clamps to the
 last colour there. A code here indexes the cycle directly.
 

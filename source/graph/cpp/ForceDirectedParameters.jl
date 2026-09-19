@@ -1,6 +1,6 @@
 # Fragment of `GraphModule`.
 #
-# The bodies and the forces, from OMNeT++'s
+# The bodies and the forces, from the original's
 # `src/layout/forcedirectedparameters.h`.
 #
 # Three bodies:

@@ -1,6 +1,6 @@
 # Fragment of `GraphModule`.
 #
-# The geometry the ported layouters are written in, from OMNeT++'s
+# The geometry the ported layouters are written in, from the original's
 # `src/layout/geometry.h`: a three-dimensional point `Pt`, a size `Rs`, a
 # positioned rectangle `Rc`, and a segment `Ln`.
 #

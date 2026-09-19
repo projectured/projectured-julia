@@ -8,7 +8,7 @@ result.
 This file holds the document — vertices with a content `Document` (any domain: a
 table, JSON, another graph) and edges connecting vertices by identity, which is
 pure semantic structure. `GraphLayout.jl` holds positions and routes, and
-`omnetpp/` holds a port of the C++ force-directed layout engine.
+`cpp/` holds a port of the C++ force-directed layout engine.
 """
 module GraphModule
 
@@ -77,7 +77,7 @@ export StarTreeEmbedding, embed_star_tree!
 export HeapEmbedding, embed_heap!
 export ForceDirectedLayout
 export DeferredLayout, make_deferred_layout_engine, register_layout_engine!,
-       resolve_layout_engine, make_pure_julia_layout_engine, QTENV_ADVANCED_LIMIT
+       resolve_layout_engine, make_pure_julia_layout_engine, ADVANCED_LAYOUT_LIMIT
 export GraphGraphToGraphLayout, GraphToGraphLayout, GraphGraphToGraphLayoutIoMap
 export GraphLayoutToGraphicsCanvas, GraphLayoutToGraphics, GraphToGraphics,
        GraphLayoutToGraphicsCanvasIoMap
@@ -87,16 +87,16 @@ export GraphGraph, GraphVertex, GraphEdge, GraphConstraint, GraphLayout, VertexL
 include("GraphDocument.jl")
 include("GraphLayout.jl")
 include("GraphLayoutEngine.jl")
-include("omnetpp/LcgRandom.jl")
-include("omnetpp/LayoutGeometry.jl")
-include("omnetpp/GraphComponent.jl")
-include("omnetpp/BasicSpringEmbedderLayout.jl")
-include("omnetpp/ForceDirectedParametersBase.jl")
-include("omnetpp/ForceDirectedParameters.jl")
-include("omnetpp/ForceDirectedEmbedding.jl")
-include("omnetpp/StarTreeEmbedding.jl")
-include("omnetpp/HeapEmbedding.jl")
-include("omnetpp/ForceDirectedGraphLayouter.jl")
+include("cpp/LcgRandom.jl")
+include("cpp/LayoutGeometry.jl")
+include("cpp/GraphComponent.jl")
+include("cpp/BasicSpringEmbedderLayout.jl")
+include("cpp/ForceDirectedParametersBase.jl")
+include("cpp/ForceDirectedParameters.jl")
+include("cpp/ForceDirectedEmbedding.jl")
+include("cpp/StarTreeEmbedding.jl")
+include("cpp/HeapEmbedding.jl")
+include("cpp/ForceDirectedGraphLayouter.jl")
 include("GraphLayoutChoice.jl")
 include("GraphToGraphLayout.jl")
 include("GraphLayoutToGraphics.jl")

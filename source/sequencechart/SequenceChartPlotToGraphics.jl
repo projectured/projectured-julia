@@ -1088,7 +1088,7 @@ _make_selection_operation(plot, inner) = begin
 end
 
 # Clicking picks the most specific thing under the pointer. The order is the one
-# OMNeT++ settled on and for the same reason: an occurrence is a point and an
+# the reference tool settled on and for the same reason: an occurrence is a point and an
 # arrow is a line, so where both are within reach the point was almost certainly
 # what was aimed at.
 function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,

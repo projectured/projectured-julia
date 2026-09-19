@@ -1249,7 +1249,7 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detai
         # **The meaning decides, and the words only stand in for it.** Merged,
         # the two ranks were worse than the meaning alone: a sentence's words
         # are "value", "runs" and "time", and they match a name that means
-        # something else. Measured on the omnet IDE's 88 verbs, 2026-09-16: of
+        # something else. Measured on the 88 verbs of a downstream IDE, 2026-09-16: of
         # the five weightings of a rank fusion that were tried, none put a verb
         # above where the meaning alone put it, and each put three or four of
         # eight test sentences' verbs below it.

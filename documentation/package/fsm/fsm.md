@@ -52,7 +52,7 @@ guard-dependent *target* is expressed (TCP's `state->active ? CLOSED : LISTEN`).
 
 This is what the code generator emits and what the runtime support module
 (`Fsm.jl`, which an embedder supplies) upholds. It is a faithful
-distillation of INET's `FSMA.h` engine, which all three reference machines are
+distillation of the C++ `FSMA.h` engine, which all three reference machines are
 built on.
 
 One dispatch is `dispatch!(ctx, host, machine, event, payload)`; `event` may be
@@ -108,7 +108,7 @@ driven.
 Codegen's expiry routing follows from this: for each timer, the generated
 schedule callback dispatches a timeout event to every machine that names the
 timer as a trigger, **and** an event-less re-evaluation poke to the component's
-condition-only machines — mirroring INET's `handleSelfMessage`, which runs the
+condition-only machines — mirroring the `handleSelfMessage` of the original, which runs the
 control FSM on every self-message and event-dispatches only the data timers.
 
 **Bindings in embedded code**: `ctx` (the schedule context), `m` (the generated

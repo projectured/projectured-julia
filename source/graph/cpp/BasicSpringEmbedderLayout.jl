@@ -1,9 +1,10 @@
 # Fragment of `GraphModule`.
 #
-# `SpringEmbedderLayout`, the port of OMNeT++'s
+# `SpringEmbedderLayout`, the port of the original's
 # `src/layout/basicspringembedderlayout.cc`.
 #
-# This is the layouter OMNeT++ 3.x shipped, and the one Qtenv still reaches for
+# This is the layouter an early version of the original shipped, and the one its
+# window still reaches for
 # when a module has twenty submodules or more, because it is the fast one. Every
 # edge is a spring pulling its ends to a preferred length, every pair of nodes
 # pushes apart, and a halving friction stops the whole thing eventually.
@@ -31,12 +32,12 @@
     SpringEmbedderLayout(; default_edge_length=40, max_iterations=500,
                          repulsive_force=50, attraction_force=0.3, seed=1)
 
-The spring embedder, with OMNeT++'s own constants. They are the four numbers
-Qtenv exposes as the `bgl` display-string tag, in that order.
+The spring embedder, with the original's own constants. They are the four numbers
+the window of the original exposes as the `bgl` display-string tag, in that order.
 
 `seed` is what makes a layout repeatable. The algorithm scatters its start
 positions at random, so a layout without a fixed seed is a different picture
-every time and nothing downstream can cache, compare or screenshot it. Qtenv
+every time and nothing downstream can cache, compare or screenshot it. the window of the original
 seeds each module type with 1 the first time it lays that type out, so 1 is the
 default here.
 

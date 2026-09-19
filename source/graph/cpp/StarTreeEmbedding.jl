@@ -1,6 +1,6 @@
 # Fragment of `GraphModule`.
 #
-# A planar embedding for one connected component, from OMNeT++'s
+# A planar embedding for one connected component, from the original's
 # `src/layout/startreeembedding.cc`.
 #
 # Where `HeapEmbedding` packs rectangles, this packs **circles**. Every subtree is

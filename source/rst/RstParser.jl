@@ -7,7 +7,7 @@
 # - `parse_rst(text)` — parse an RST string into an `RstRoot`
 # - `parse_rst_file(path)` — read and parse a `.rst` file from disk
 #
-# Deliberately minimal (it is not docutils). It covers what the INET
+# Deliberately minimal (it is not docutils). It covers what the reference
 # documentation uses. Block level: sections with any adornment character,
 # paragraphs, literal blocks, line blocks, bullet and enumerated lists,
 # definition lists, field lists, block quotes, grid tables, transitions,
@@ -585,7 +585,7 @@ _build(s::_Section) = RstSection(s.level, s.title.adornment, _parse_inline(s.tit
 
 # The characters an inline start-string may follow, and the ones an inline
 # end-string may precede. These two sets are what keeps the corpus readable:
-# an INET page writes `*.host.numApps = 1` in running prose, and without the
+# a page of that corpus writes `*.host.numApps = 1` in running prose, and without the
 # rule that a start-string is followed by a non-blank and an end-string is
 # preceded by a non-blank, every such wildcard would open an emphasis span.
 const _PRE_OK  = Set{Char}(" \t\n-:/'\"<([{")

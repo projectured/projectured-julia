@@ -1,6 +1,6 @@
 # Fragment of `GraphModule`.
 #
-# The graph algorithms both ported layouters read, from OMNeT++'s
+# The graph algorithms both ported layouters read, from the original's
 # `src/layout/graphcomponent.h` and `.cc`: a vertex, an edge, and the component
 # that owns them, with a spanning tree and a split into connected parts.
 #
@@ -129,7 +129,7 @@ end
 
 The rectangle covering every vertex.
 
-The seeds are OMNeT++'s: `DBL_MAX` and `DBL_MIN`, and `DBL_MIN` is the smallest
+The seeds are the original's: `DBL_MAX` and `DBL_MIN`, and `DBL_MIN` is the smallest
 **positive** double rather than the most negative one. A component lying wholly
 above or left of the origin therefore reports a box that reaches the origin. It
 is reproduced rather than corrected, because this box seeds a pre-embedding that

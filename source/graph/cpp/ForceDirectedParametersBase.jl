@@ -1,6 +1,6 @@
 # Fragment of `GraphModule`.
 #
-# The vocabulary the force-directed embedding is written in, from OMNeT++'s
+# The vocabulary the force-directed embedding is written in, from the original's
 # `src/layout/forcedirectedparametersbase.h`: the parameter block, the `Variable`
 # the differential equation solves for, and the two interfaces — a body, which has
 # a position, a size, a mass and a charge, and a force provider, which pushes
@@ -51,7 +51,7 @@ mutable struct ForceDirectedParameters
     default_max_force::Float64
     max_velocity::Float64
     max_cycle::Int
-    "Milliseconds. `Inf` here, unlike OMNeT++ — see `ForceDirectedLayout`."
+    "Milliseconds. `Inf` here, unlike the original — see `ForceDirectedLayout`."
     max_calculation_time::Float64
 end
 

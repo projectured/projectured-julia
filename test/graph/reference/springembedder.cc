@@ -1,4 +1,4 @@
-// Reference positions from OMNeT++'s own BasicSpringEmbedderLayout, for the
+// Reference positions from the original's own BasicSpringEmbedderLayout, for the
 // four scenarios the Julia port is asserted against.
 #include "layout/basicspringembedderlayout.h"
 #include <cstdio>

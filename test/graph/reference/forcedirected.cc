@@ -1,7 +1,7 @@
-// Reference positions from OMNeT++'s own ForceDirectedGraphLayouter, for the
+// Reference positions from the original's own ForceDirectedGraphLayouter, for the
 // scenarios the Julia port is asserted against. See README.md to build it.
 //
-// `mct` is pinned so the run never stops on the clock: OMNeT++ draws a random
+// `mct` is pinned so the run never stops on the clock: the original draws a random
 // wall-clock limit and the Julia port leaves it at infinity, because a picture
 // must not depend on how fast the machine is.
 #include "layout/forcedirectedgraphlayouter.h"

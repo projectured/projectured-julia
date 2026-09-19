@@ -1,6 +1,6 @@
 # Fragment of `GraphModule`.
 #
-# The layouters' own random number generator, ported from OMNeT++'s
+# The layouters' own random number generator, ported from the original's
 # `src/common/lcgrandom.h` and `.cc`.
 #
 # Both ported layouters need random numbers — one to scatter its start positions,
@@ -18,7 +18,7 @@ const GLRAND_MAX = Int32(0x7ffffffe)
 """
     LcgRandom(seed = 1)
 
-A generator on `[0, 1)`. `seed` must be in `1:GLRAND_MAX`; Qtenv seeds a module
+A generator on `[0, 1)`. `seed` must be in `1:GLRAND_MAX`; the window of the original seeds a module
 type with 1 the first time it lays that type out, so 1 is the default here too.
 
 Constructing one consumes three values, which is what `LCGRandom::setSeed` does:
@@ -78,7 +78,7 @@ draw!(random::LcgRandom, range::Integer) = floor(Int, range * draw_uniform01!(ra
 """
     run_lcg_self_test() -> Int32
 
-Ten thousand draws from seed 1, and the seed they leave behind. OMNeT++ runs
+Ten thousand draws from seed 1, and the seed they leave behind. the original runs
 this the first time the generator is used and expects 1043618065; a port that
 answers anything else is not the same generator, and every ported layout would
 be a different picture. A test asserts it rather than a constructor.
