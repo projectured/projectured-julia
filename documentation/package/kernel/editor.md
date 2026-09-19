@@ -344,7 +344,7 @@ In the example packages this is wired up for you — see `play_live_example` and
 When `run_editor!` starts, it constructs an `McpServer` bound to the editor and
 launches it on `http://127.0.0.1:9876/mcp` via the `make_agent_server(:mcp, …)`
 seam (see
-[source/kernel/agent/AgentServerModule.jl](../../../source/kernel/agent/AgentServerModule.jl)). The server
+[source/kernel/agent/AgentModule.jl](../../../source/kernel/agent/AgentModule.jl)). The server
 speaks JSON-RPC 2.0 via HTTP+SSE using
 [ModelContextProtocol.jl](https://github.com/JuliaModelContextProtocol/ModelContextProtocol.jl).
 
@@ -430,14 +430,14 @@ ticked once per frame with `set_clock_time!(editor.clock, Base.time() - t_start)
   `read_from_devices`, `write_to_devices`.
 - `..EventModule` — `WindowInput`, `WindowQuit`, and the event type
   predicates (`KeyDown`, `MousePress`, …).
-- `..PerformanceCounterModule` — the counters bumped inline in the loop.
+- `..PerformanceModule` — the counters bumped inline in the loop.
 - `..ClockModule` — `Clock`, `set_clock_time!`, `get_reactive_clock_time`.
 - `..DocumentModule` — the abstract `Document` type.
 - `..OperationModule` — the operation abstract + evaluate seam.
 - `..GestureRecognizerModule` — the frame's gesture folding.
 - `..ToolModule` — `ToolSet`, the `tools` field every `Editor` owns
   ([PAR-PER-EDITOR-STATE](../../rule/architecture-invariants.md#par-per-editor-state)).
-- `..AgentServerModule` — the make_agent_server/start/stop seam driven by
+- `..AgentModule` — the make_agent_server/start/stop seam driven by
   `Editor` when an agent server is configured.
 
 That is nearly the full kernel — the editor is the layer that consumes

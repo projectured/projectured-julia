@@ -345,7 +345,7 @@ EventModule.jl   (EventModule)        — the input event vocabulary, seven frag
         ├─ WindowInput.jl   — an event plus the id of the window it came from
         └─ EventDefaults.jl   — the get_modifier_keys fallback and the four
                                 has_*_modifier_key predicates derived over it
-EventPatternModule.jl  (EventPatternModule) — the event pattern language: the reified
+EventModule.jl  (EventModule) — the event pattern language: the reified
                                         EventPattern, matches/describe, the
                                         @event_case macro, and the parser API
                                         @gestures is built on
@@ -365,15 +365,15 @@ concrete `ScreenDocument` in `visual` — a window event is report-only input
 vocabulary, not a document type; the window *document* and its operations
 (`OpenWindowOperation`, `CloseWindowOperation`, …) stay in `source/screen/`.
 
-### EventPatternModule
+### EventModule
 
 One surface syntax for saying "this kind of event, with these field values
 and these modifiers held", ridden by two consumers: an
-[`EventPattern`](../../../source/kernel/event/EventPatternModule.jl) is
+[`EventPattern`](../../../source/kernel/event/EventModule.jl) is
 *data* answering `matches(pattern, event)` and `describe(pattern)` — the
 per-event constructors (`KeyDownPattern`, `MousePressPattern`, …) name the
 type and its most-constrained field, all producing the one generic
-`EventPattern{E<:Event}` struct; [`@event_case`](../../../source/kernel/event/EventPatternModule.jl)
+`EventPattern{E<:Event}` struct; [`@event_case`](../../../source/kernel/event/EventModule.jl)
 compiles a table of `pattern => result` rules straight to `isa`/field tests,
 first match wins. Both ride on one parser — exported as a macro-authoring API
 (`parse_event_rule`, `event_pattern_expr`, `event_field_bindings`) — so the
@@ -594,6 +594,6 @@ The command palette in the domain package lists these by name; see
 
 ### Downward edges
 
-- `..EventModule`, `..EventPatternModule` — the pattern a binding matches on.
+- `..EventModule`, `..EventModule` — the pattern a binding matches on.
 - `..DocumentModule: Document` — the catch-all `read_gesture(::Document, …)`
   method.

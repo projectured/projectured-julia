@@ -21,7 +21,7 @@ through generated `getproperty` / `setproperty!` methods.
 ## `@cell_struct` — the codegen the three build on
 
 The shared pattern is implemented **once, in the cell layer**:
-[cell/CellStruct.jl](../../../source/kernel/cell/CellStruct.jl) defines
+[struct/CellStruct.jl](../../../source/kernel/struct/CellStruct.jl) defines
 `@cell_struct struct T [<: Super] … end`: every field becomes a transparent
 `Cell` (auto-wrapping constructor, read/write-through accessors, raw cells via
 `getfield`), and `field::T = value` defaults produce the keyword constructor

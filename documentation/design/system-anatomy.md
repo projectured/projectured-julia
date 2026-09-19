@@ -60,9 +60,12 @@ depend on, and why the leaf the alias loads is the only place a
 
 ProjecturEd is organized as **one engine, twenty-eight substrate packages and
 twenty domain packages**, plus an umbrella and the opt-in packages. The kernel
-is the one *layered* package: its eighteen layers depend only downward, and
-the ordering is enforced statically by the shared
+is the one *layered* package: its twenty-three layers depend only downward,
+and the ordering is enforced statically by the shared
 [layered-architecture guard](../../test/kernel/layering/CheckLayering.jl).
+Each layer holds exactly one module, so the root's include list is the layer
+diagram itself: one line per layer, bottom to top, and a module's own file
+carries its fragment include list.
 Every other package is **one concept**, so it declares no layer index; the
 guard checks its include order and its file inventory alone.
 
@@ -319,7 +322,7 @@ composes with any higher-order projection.
 | `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord` |
 | `event/MouseEvent.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseEnter`, `MouseLeave`, `MouseScroll` |
 | `event/WindowEvent.jl` | `WindowQuit`, `WindowClose`, `WindowResize`, `WindowDefocus` |
-| `agent/AgentServerModule.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `package/mcp/` |
+| `agent/AgentModule.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `package/mcp/` |
 
 ---
 
@@ -382,7 +385,7 @@ includes them in:
                execute_julia_code, doc/API search, register_default_tools!
 16 llm         the LLM provider abstraction: Llm, stream_turn, render_tool_schema,
                LlmMessage / LlmRequest, LlmEvent
-17 agent       the AI control surface: AgentServerModule (inbound, the MCP
+17 agent       the AI control surface: AgentModule (inbound, the MCP
                seam) and AgentModule (outbound, the Agent and run_turn! loop)
 18 editor      run_editor!, the read-eval-print loop, Playback
 ```

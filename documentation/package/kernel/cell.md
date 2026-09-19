@@ -154,7 +154,7 @@ the instrumentation counter module, the cell engine, and the transparent-cell
 struct codegen, loaded in this order:
 
 ```
-PerformanceCounterModule.jl (PerformanceCounterModule) — instrumentation
+PerformanceModule.jl (PerformanceModule) — instrumentation
         │  @count_performance imported by ↓
 CellModule.jl            (CellModule)                 — the cell kinds, one file each:
         ├─ CellInterface.jl   — the AbstractCell{T} base + shared protocol
@@ -234,7 +234,7 @@ the `CellStructPlan` parse toolkit (`CellStructPlan`, `make_cell_struct_plan`, `
 `cell_struct_autowrap_ctor` and `cell_struct_property_accessors` are
 module-internal.
 
-## PerformanceCounterModule — instrumentation
+## PerformanceModule — instrumentation
 
 Conditionally-compiled counters of `Dict{Symbol,Int}`, with **no process-global
 store**. The `Cell` engine bumps the reactive counters — `:reads`, `:computes`,

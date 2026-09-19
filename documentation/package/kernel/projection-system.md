@@ -155,7 +155,7 @@ in
 
 ### The `Intent` the reader threads
 
-The reader's payload is a **`Intent`** ([operation/IntentModule.jl](../../../source/kernel/operation/IntentModule.jl)) —
+The reader's payload is a **`Intent`** ([intent/IntentModule.jl](../../../source/kernel/intent/IntentModule.jl)) —
 the backward-flowing dual of the document that flows forward through the printer:
 
 ```julia

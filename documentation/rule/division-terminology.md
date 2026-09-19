@@ -17,13 +17,14 @@ and no synonyms.
   concept and a boundary of dependencies and consumers. The packages form an
   acyclic graph, not a chain.
 
-- **Layer** — a horizontal stratum inside a package. Layers are **ordered**:
-  a layer may depend only on **lower** layers, never sideways or up. The
-  kernel is the one layered package, with eighteen layers (`fault` → `cell` →
-  `clock` → `event` → `device` → `gesture` → `backend` → `document` → `reference` →
-  `selection` → `operation` → `binding` → `iomap` → `projection` → `tool` →
-  `llm` → `agent` → `editor`). Every other package is one concept and declares
-  no layer.
+- **Layer** — a horizontal stratum inside a package, and it holds exactly one
+  module. Layers are **ordered**: a layer may depend only on **lower** layers,
+  never sideways or up. The kernel is the one layered package, with
+  twenty-three layers (`fault` → `performance` → `cell` → `struct` → `clock` →
+  `event` → `device` → `gesture` → `backend` → `document` → `reference` →
+  `selection` → `operation` → `intent` → `binding` → `iomap` → `projection` →
+  `tool` → `llm` → `agent` → `feed` → `editor` → `playback`). Every other
+  package is one concept and declares no layer.
 
 - **Slice** — a **vertical** split of a single layer. Where a layer stacks
   code by dependency height, slices split one layer side by side by

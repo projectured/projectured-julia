@@ -49,7 +49,7 @@ Layer 13 — iomap/      the IoMap contract (IoMap + accessors) + the concrete I
 Layer 14 — projection/ ProjectionInterface/Intent/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedProjection)
 Layer 15 — tool/       the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code, doc/API search, register_default_tools! (side-stack)
 Layer 16 — llm/        the LLM provider abstraction — Llm, stream_turn/render_tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
-Layer 17 — agent/      the AI control surface — AgentServerModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
+Layer 17 — agent/      the AI control surface — AgentModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
 Layer 18 — editor/     the run_editor! loop + Playback
 ```
 
@@ -61,15 +61,15 @@ own tests, and can be filtered with
 `Pkg.test("ProjecturedKernel"; test_args=["cell","projection"])`.
 
 The package file [package/ProjecturedKernel/src/ProjecturedKernel.jl](../../../package/ProjecturedKernel/src/ProjecturedKernel.jl) includes
-one **layer fragment per layer folder** (`cell/CellLayer.jl`, …,
-`editor/EditorLayer.jl`), bottom-to-top; each layer fragment holds its layer's
-ordered include list (~50 module files total, each defining exactly one module).
-Those modules form a **single acyclic dependency DAG**, machine-checked by the
+one **module file per layer** (`fault/FaultModule.jl`, …,
+`playback/PlaybackModule.jl`), bottom-to-top, so the root reads as the layer
+diagram; each module file carries its own ordered fragment include list. The
+modules form a **single acyclic dependency DAG**, machine-checked by the
 include-order guard (see below).
 
 ## Dependency diagram — what depends on what
 
-**The eighteen layers *are* the dependency diagram.** A layer imports only layers below
+**The twenty-three layers *are* the dependency diagram.** A layer imports only layers below
 it. That is the whole rule, and the static guard enforces it exactly, so there is
 no second grouping to learn. What the plain stack does not show is the two places
 the shape is more interesting than "N depends on N−1":
@@ -88,8 +88,8 @@ text-selection siblings `TextRangeReferenceStep`/`TextColumnReferenceStep`/`Text
 their navigation through `evaluate_reference_step`, with no edit to layer 9.
 
 **The agent stack is a side-stack.** The editor (layer 18) reaches it only through
-the factory seam `make_agent_server(:mcp, editor)` declared in `agent/AgentServerModule.jl`
-(`AgentServerModule`), so the editor does **not** depend on `Mcp` / `Llm`. The real
+the factory seam `make_agent_server(:mcp, editor)` declared in `agent/AgentModule.jl`
+(`AgentModule`), so the editor does **not** depend on `Mcp` / `Llm`. The real
 transports are the opt-in `package/mcp/` and `package/llm/`, which register their
 method on load.
 
@@ -143,7 +143,7 @@ julia --project=package/ProjecturedKernelTest package/ProjecturedKernelTest/runt
 
 Depth ≠ include index. A module's *earliest safe position* is its longest path from
 a dependency-free source, and that is not the same as where it sits in the include
-list: `PerformanceCounterModule`, `EventModule`, `ToolModule` and the
+list: `PerformanceModule`, `EventModule`, `ToolModule` and the
 interface files are sources (they import nothing), while `EditorModule` is deepest.
 It pulls in nearly every layer. The guard enforces only the real constraint
 (every module precedes its users), not one specific linearization, so a file may
@@ -155,9 +155,9 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 
 | Folder | Holds |
 | --- | --- |
-| `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds, `@cell_struct`, `PerformanceCounterModule` (see [cell.md](cell.md)) |
+| `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds, `@cell_struct`, `PerformanceModule` (see [cell.md](cell.md)) |
 | `clock/` | `ClockModule` — the animation `Clock` (a `@cell_struct`), `get_reactive_clock_time`/`get_clock_time`/`set_clock_time!`, the shared `get_wall_clock` singleton |
-| `event/` | the input event vocabulary — `EventModule` (ModifierKeys, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, WindowInput) and `EventPatternModule` (`EventPattern`, `@event_case`) |
+| `event/` | the input event vocabulary — `EventModule` (ModifierKeys, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, WindowInput) and `EventModule` (`EventPattern`, `@event_case`) |
 | `device/` | `DeviceModule` — the `Device`, `Keyboard`, `Mouse`, `Display` device types (with physical properties) |
 | `gesture/` | `GestureRecognizerModule` — event → gesture recognition (MousePress/KeyChord synthesis) |
 | `backend/` | `Backend`, the device I/O + display-size + device-config seams |
@@ -170,7 +170,7 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 | `projection/` | the projection interface and infrastructure only — `ProjectionInterface`, `Intent`, `PrinterContext`, `ChildrenContainer`, `GestureBindings`, `Projection` (`@projection` + fallbacks), `ProjectionTemplate`. The concrete `higherorder/` and `generic/` combinators live in `ProjecturedProjection`. |
 | `tool/` | `ToolModule` — Tool, Resource, ToolSet, `execute_julia_code`, doc/API search, `register_default_tools!` |
 | `llm/` | `LlmModule` — Llm, `stream_turn`/`render_tool_schema`, LlmMessage/LlmRequest, LlmEvent |
-| `agent/` | `AgentServerModule` (inbound — `make/start/stop_agent_server!`) and `AgentModule` (outbound — Agent, `run_turn!`) |
+| `agent/` | `AgentModule` (inbound — `make/start/stop_agent_server!`) and `AgentModule` (outbound — Agent, `run_turn!`) |
 | `editor/` | Editor (the `run_editor!` loop), Playback |
 
 ## How the kernel is consumed
@@ -180,6 +180,6 @@ ProjecturedKernel.XxxModule` aliases, so its files can use relative `..XxxModule
 imports. The `Projectured` umbrella mechanically re-exports every public name of
 every kernel (and domain) submodule into one flat namespace. Consequently, **module
 names are de-facto public API**: renaming one ripples into the domain alias block
-and the umbrella. A new sub-module added within a layer (as `PerformanceCounterModule`
+and the umbrella. A new sub-module added within a layer (as `PerformanceModule`
 and `IntentModule` are) is picked up by the umbrella automatically and
 needs only an added domain alias if a domain file imports from it directly.

@@ -43,13 +43,13 @@ the feature (the kernel). General form: **organize by the axis along which the c
 grows and changes; keep the other axis as a naming convention** (`*Parser.jl`,
 `*ToSyntax.jl` make "all parsers" a glob, not a folder).
 
-A layer folder can keep its ordered include list in a **layer fragment** — a
-0-module `<Name>Layer.jl` file the package top file includes in layer order, so
-the top file reads as the layer diagram and each layer file as that layer's table
-of contents (the kernel does this: `ProjecturedKernel.jl` is ten layer includes).
-A layer fragment is still a fragment — it defines no module and may not carry
-relative imports of its own; the layering guard walks through it and orders the
-module files it includes.
+A layer holds **exactly one module**, and the package top file includes one
+module file per layer, in layer order — so the top file reads as the layer
+diagram, and each module file reads as its layer's table of contents through
+its fragment include list (the kernel does this: `ProjecturedKernel.jl` is
+twenty-three module includes). Two sibling modules in one folder mean either
+one concept split in two — merge them — or two layers sharing a folder —
+give each its own.
 
 ## The package chain and what belongs to each
 

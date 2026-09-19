@@ -369,7 +369,7 @@ of names that mean nothing to its task.
 ## Layer 17 — `agent/`: the two directions
 
 ```
-AgentServerModule.jl  (AgentServerModule)  inbound  — make/start/stop_agent_server!
+AgentModule.jl  (AgentModule)  inbound  — make/start/stop_agent_server!
 Agent.jl        (AgentModule)        outbound — the Agent, and AgentToolResult
 AgentLoop.jl    (AgentModule)        outbound — run_turn!
 ```
@@ -406,6 +406,6 @@ parts; something else might simply print them.
 
 | Seam | Declared in | Implemented by |
 | --- | --- | --- |
-| `make_agent_server(:mcp, …)` | `agent/AgentServerModule.jl` | `ProjecturedMcp` (`package/ProjecturedMcp`, source in `source/mcp/`) |
+| `make_agent_server(:mcp, …)` | `agent/AgentModule.jl` | `ProjecturedMcp` (`package/ProjecturedMcp`, source in `source/mcp/`) |
 | `stream_turn`, `render_tool_schema`, `make_llm` | `llm/Llm.jl` | `ProjecturedAnthropic`, `ProjecturedOllama`; `FakeLlm` / `ScriptedLlm` in `ProjecturedKernelExample` |
 | a `Tool`'s handler | `tool/Tool.jl` | `register_default_tools!`, and anyone else who registers one |

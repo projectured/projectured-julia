@@ -882,7 +882,7 @@ never in a global registry. State that belongs to a single *evaluation* rather
 than to an editor is instead task-local (its natural scope): the reactive
 engine's `_computing` dependency-tracking stack has been migrated from a module
 global to task-local storage, so concurrent evaluations never cross-register
-dependencies. `PerformanceCounterModule` was likewise migrated off its
+dependencies. `PerformanceModule` was likewise migrated off its
 process-global `_perf` dict onto a task-local `with_performance_counters`
 binding (each editor frame binds its own store). The animation clock is a
 per-editor `Clock` (a `@cell_struct`, not a document — `clock/ClockModule.jl`);
@@ -1343,7 +1343,7 @@ payload): dependencies point down in prose exactly as they do in code. Citing
 an architectural *rationale* is still allowed — "holds no global state, so one
 process can run many editors" (PAR-PER-EDITOR-STATE) names a requirement, not a
 consumer; "the seam `@document`/`@iomap`/`@projection` build on" names
-consumers and is the violation. Precedent: `PerformanceCounterModule` dropped
+consumers and is the violation. Precedent: `PerformanceModule` dropped
 its "`CellModule` imports this" reference, and `CellModule` dropped the
 "declarative macros `@document`/`@iomap`/`@projection` build on this"
 references.
