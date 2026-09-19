@@ -1011,19 +1011,38 @@ What it reported and did not fix:
       the generator needs the SDL package loaded, which writes the image.
 - [ ] Record three short videos with `record_example_video`: the assistant
       builds a view from a request; a chart with zoom and selection; a view of a
-      running object that opens level by level.
+      running object that opens level by level. **Deferred by the owner on
+      2026-09-19.**
 - [x] Rewrite `presentation/projectured-overview.md` from the new README. No
       emoji, no source-path footers. 31 slides, with the ten screenshots, the
       five ideas, the assistant and MCP, the limits, and where to start. It
       drops every claim it could not trace to the README or a guide: undo,
       redo, versioning, collaboration, and the thirty domains.
-- [ ] D13: correct the text of the web site in `projectured.github.io`: the
+- [x] D13: correct the text of the web site in `projectured.github.io`: the
       framing of §2.1, the line count of `source/`, the "not bolted on"
       sentences, and the author and contact of D8. Use the new screenshots.
       The site must not name the private application.
 
-      **Prepared on 2026-09-18, and not applied: the edit of a live public site
-      needs the owner's word.** What the site says today:
+      **Done on 2026-09-19, with the owner's word, as commit `b873226` in the
+      site repository. It is committed and not pushed: the push publishes the
+      live site, and that is the owner's step** (`git -C
+      workspace/projectured.github.io push`).
+
+      What the commit does: the title, the hero, the meta text and a redrawn
+      social card carry the approved framing; the assistant section says what
+      the tool set does; the line count says "more than a hundred thousand";
+      the footer names the author. The hero picture and the demo video, which
+      showed the private application, are replaced by the picture the editor
+      draws of its own assistant, and `hero.jpg`, `mm1k-demo.mp4` and
+      `mm1k-poster.jpg` leave the tree, so the site no longer serves them. They
+      stay in the history of that repository. The page was rendered once with a
+      headless browser to check it.
+
+      **The videos are deferred by the owner (2026-09-19).** The posts keep
+      their `[the video]` placeholder, and the site shows a picture until one
+      exists.
+
+      What the site said before:
 
       - The hero picture and the whole "See it in action" section show the
         private application: an M/M/1/K queueing study with an OMNeT++ model
