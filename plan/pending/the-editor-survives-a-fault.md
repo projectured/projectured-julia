@@ -246,7 +246,7 @@ backend and a backend package adds its own method later.
 | `source/kernel/fault/FaultInterface.jl` | the two seams: `play_fault_sound!`, `append_fault!` |
 | `source/kernel/fault/FaultDefaults.jl` | the `Any` default of each seam |
 | `source/kernel/fault/FaultRecord.jl` | `FaultRecord`, `make_fault_record`, `compute_fault_key` |
-| `source/kernel/fault/FaultStore.jl` | `FaultStore`, `record_fault!`, `drain_faults!`, `attach_fault_target!` |
+| `source/kernel/fault/FaultStore.jl` | `FaultStore`, `record_fault!`, `drain_faults!`, `attach_fault_target!`, `get_consecutive_fault_count` |
 | `source/kernel/fault/FaultPolicy.jl` | `FaultPolicy` |
 | `source/kernel/fault/FaultBarrier.jl` | `run_fault_barrier` |
 | `source/kernel/fault/FaultCascade.jl` | `report_fault!` and the five tiers |
@@ -271,6 +271,12 @@ struct FaultRecord
     count::Int             # how many places, or how many times
 end
 ```
+
+**Found while it was written:** the bucket rule must compare against the count
+that was last **queued**, not the one that was last drained. Comparing against
+the drained count re-queues the key on every occurrence above the first bucket,
+so three thousand failures queue 2,991 log writes instead of four. The store
+keeps `queued_counts` for exactly this.
 
 **The key must not hold the reference, and that decision carries the design.**
 The chain bounds how far a fault spreads downward — four stages at most. Nothing
@@ -447,7 +453,7 @@ FaultLogOverlayProjection(inner = root, log = fault_log)
 
 ## 5. The phases
 
-### Phase 1 — Add the `fault` layer to the kernel ⬜
+### Phase 1 — Add the `fault` layer to the kernel ✅ DONE
 
 1. Write the nine files of section 4.1.
 2. Add the include line as the **first** of the list in
@@ -456,6 +462,7 @@ FaultLogOverlayProjection(inner = root, log = fault_log)
    seventeen to eighteen. This file is sealed; the user gave permission on
    2026-09-18.
 3. Add the layer to the static guard and to the inventory in `SEALING.md`.
+   `test_kernel_layering()` is green: 10 pass, 0 fail.
 4. Update the layer list in
    [system-anatomy.md](../../documentation/design/system-anatomy.md).
 5. Run `test_kernel_layering()`.

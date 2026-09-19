@@ -18,7 +18,7 @@ that depend on this one; the kernel carries only their dependency-free seams.
 """
 module ProjecturedKernel
 
-# The package is seventeen architectural layers, one folder each, included
+# The package is eighteen architectural layers, one folder each, included
 # bottom-to-top below. Each layer folder keeps its own ordered include list in
 # a `<Name>Layer.jl` *fragment* (a 0-module file sharing this module's
 # namespace), so this file reads as the layer diagram and each layer file as
@@ -29,22 +29,23 @@ module ProjecturedKernel
 #
 # This list is the single source of truth for the layer order; the individual
 # layer files state their dependencies, never their index.
-include("../../../source/kernel/cell/CellLayer.jl")             # layer 1  — the reactive cell engine
-include("../../../source/kernel/clock/ClockLayer.jl")           # layer 2  — the animation clock
-include("../../../source/kernel/event/EventLayer.jl")           # layer 3  — input events + the pattern language
-include("../../../source/kernel/device/DeviceLayer.jl")         # layer 4  — the devices events come from
-include("../../../source/kernel/gesture/GestureLayer.jl")       # layer 5  — event → gesture recognition
-include("../../../source/kernel/backend/BackendLayer.jl")       # layer 6  — rendering-target seam
-include("../../../source/kernel/document/DocumentLayer.jl")     # layer 7  — the document contract
-include("../../../source/kernel/reference/ReferenceLayer.jl")   # layer 8  — reference machinery
-include("../../../source/kernel/selection/SelectionLayer.jl")   # layer 9  — document current-focus state
-include("../../../source/kernel/operation/OperationLayer.jl")   # layer 10 — reified edits
-include("../../../source/kernel/binding/BindingLayer.jl")       # layer 11 — gesture → operation bindings
-include("../../../source/kernel/iomap/IoMapLayer.jl")           # layer 12 — projection input↔output records
-include("../../../source/kernel/projection/ProjectionLayer.jl") # layer 13 — projection interface & algebra
-include("../../../source/kernel/tool/ToolLayer.jl")             # layer 14 — the editor's capability surface
-include("../../../source/kernel/llm/LlmLayer.jl")               # layer 15 — the LLM provider abstraction
-include("../../../source/kernel/agent/AgentLayer.jl")           # layer 16 — the AI control surface
-include("../../../source/kernel/editor/EditorLayer.jl")         # layer 17 — the read-eval-print loop
+include("../../../source/kernel/fault/FaultLayer.jl")           # layer 1  — the record, the store, the barrier, the report
+include("../../../source/kernel/cell/CellLayer.jl")             # layer 2  — the reactive cell engine
+include("../../../source/kernel/clock/ClockLayer.jl")           # layer 3  — the animation clock
+include("../../../source/kernel/event/EventLayer.jl")           # layer 4  — input events + the pattern language
+include("../../../source/kernel/device/DeviceLayer.jl")         # layer 5  — the devices events come from
+include("../../../source/kernel/gesture/GestureLayer.jl")       # layer 6  — event → gesture recognition
+include("../../../source/kernel/backend/BackendLayer.jl")       # layer 7  — rendering-target seam
+include("../../../source/kernel/document/DocumentLayer.jl")     # layer 8  — the document contract
+include("../../../source/kernel/reference/ReferenceLayer.jl")   # layer 9  — reference machinery
+include("../../../source/kernel/selection/SelectionLayer.jl")   # layer 10 — document current-focus state
+include("../../../source/kernel/operation/OperationLayer.jl")   # layer 11 — reified edits
+include("../../../source/kernel/binding/BindingLayer.jl")       # layer 12 — gesture → operation bindings
+include("../../../source/kernel/iomap/IoMapLayer.jl")           # layer 13 — projection input↔output records
+include("../../../source/kernel/projection/ProjectionLayer.jl") # layer 14 — projection interface & algebra
+include("../../../source/kernel/tool/ToolLayer.jl")             # layer 15 — the editor's capability surface
+include("../../../source/kernel/llm/LlmLayer.jl")               # layer 16 — the LLM provider abstraction
+include("../../../source/kernel/agent/AgentLayer.jl")           # layer 17 — the AI control surface
+include("../../../source/kernel/editor/EditorLayer.jl")         # layer 18 — the read-eval-print loop
 
 end # module ProjecturedKernel
