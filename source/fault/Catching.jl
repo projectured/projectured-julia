@@ -75,6 +75,12 @@ FaultCatchingProjection(; inner, substitute = nothing) =
 # field becomes a thunk, and a reader that then calls it with no arguments gets
 # a different thing than it asked for. `GestureLogRecordingProjection` keeps its
 # filter the same way.
+# `fault` is part of the record on purpose, and nothing in this package reads
+# it. An IoMap is what a projection answers about one node, and "did this node
+# fail, and with what" is exactly that kind of question. A decorator above can
+# ask without walking the output looking for a mark. `inner_iomap` is `nothing`
+# when the child could not even build its own, which is the other thing a
+# consumer has to be able to tell apart.
 @iomap struct FaultCatchingIoMap
     projection::Any
     input::Any
