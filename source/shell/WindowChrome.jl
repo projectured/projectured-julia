@@ -7,7 +7,7 @@
 # item for a command that does not exist waits until the command does.
 
 """
-    make_window_menu_bar() -> WidgetMenu
+    make_window_menu_bar(; extra = []) -> WidgetMenu
 
 The menu bar both binaries share.
 
@@ -24,9 +24,11 @@ draw them, and the clipboard's five to the clipboard wrapper. Each needs a verb
 that reaches its owner through the editor. Until one has that, the key answers
 and the menu says nothing about it, which is the honest half of the two.
 
-A host adds its own menus beside these, and this package names none of them.
+A host adds its own menus with `extra`, and this package names none of them.
+They go after the shared ones, so the bar reads the same way in every binary
+until the host's own menus begin.
 """
-make_window_menu_bar() =
+make_window_menu_bar(; extra = []) =
     WidgetMenu(Any[
         WidgetMenuItem("File"; submenu = WidgetMenu(Any[
             WidgetMenuItem("New tab";
@@ -48,18 +50,23 @@ make_window_menu_bar() =
                                            shortcut = Shortcut(:backslash; ctrl = true, shift = true),
                                            callback = editor -> _split!(editor, :horizontal))),
         ])),
+        extra...,
     ]; orientation = :horizontal)
 
 """
-    make_window_toolbar() -> WidgetToolbar
+    make_window_toolbar(; extra = []) -> WidgetToolbar
 
 The few commands a hand reaches for without a menu. It is deliberately short: a
 toolbar that holds everything is a menu bar that draws twice.
+
+A host appends its own buttons with `extra`, which is where a command that only
+one binary has belongs.
 """
-make_window_toolbar() =
+make_window_toolbar(; extra = []) =
     WidgetToolbar(Any[
         WidgetMenuItem("New tab";
                        action = Action("New tab"; callback = _open_tab!)),
+        extra...,
     ]; padding = Inset(4, 4, 4, 4))
 
 # The pane slice's own verbs, reached through the tree the editor shows. A menu
