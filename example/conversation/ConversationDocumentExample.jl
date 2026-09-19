@@ -56,9 +56,9 @@ function make_assistant_conversation_document_example()
                                            source = "factorial(5)",
                                            result = make_evaluator_result_text("120"),
                                            tool_use_id = "tu_1")),
-            ConversationPart(EvaluatorForm(make_evaluator_arguments_text(Dict("uri" => "resource://guide/orientation"));
+            ConversationPart(EvaluatorForm(make_evaluator_arguments_text(Dict("uri" => "resource://guide/guide/orientation"));
                                            tool_name = "read_resource",
-                                           input = Dict{String,Any}("uri" => "resource://guide/orientation"),
+                                           input = Dict{String,Any}("uri" => "resource://guide/guide/orientation"),
                                            result = make_evaluator_result_text(
                                                "# Orientation\n\n" *
                                                "The editor holds one document and one projection. The projection " *

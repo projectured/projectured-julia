@@ -1038,6 +1038,18 @@ What it reported and did not fix:
       stay in the history of that repository. The page was rendered once with a
       headless browser to check it.
 
+      **A second pass, the same day, as commit `ac6edd0`, also not pushed.**
+      The owner read the first pass and said that the page still sold a
+      product. That was right: the first pass corrected the framing and the
+      facts, and kept the voice. The second pass rewrites all 67 headings and
+      paragraphs of the page as plain description of the program as it is. It
+      removes the claim of a sandbox, which was false: `execute_julia_code`
+      runs in the process of the editor. The lineage paragraph names the Common
+      Lisp editor and says what the Julia version adds. The domain list follows
+      the domains of the repository today. The layout, the pictures and the
+      examples did not change. A script did the replacement from a table of old
+      text and new text, and a check of the tag balance passed after it.
+
       **The videos are deferred by the owner (2026-09-19).** The posts keep
       their `[the video]` placeholder, and the site shows a picture until one
       exists.
