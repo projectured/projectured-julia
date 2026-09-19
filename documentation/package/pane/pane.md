@@ -10,9 +10,9 @@ splits between them, and the gestures that rearrange the lot. It is implemented 
 PaneTree ──PaneToWidget──► WidgetSplitPane / WidgetTabbedPane ──WidgetToGraphics──► GraphicsCanvas
 ```
 
-A fresh layout starts as one empty tab group. Everything else — tabs, splits,
-names, the arrangement — the user builds from there with the keyboard and the
-mouse.
+A fresh layout starts as one empty tab group. The user builds everything
+else, such as tabs, splits, names and the arrangement, from there with the
+keyboard and the mouse.
 
 ## Document types
 
@@ -61,7 +61,7 @@ the front of its group.
 
 `PaneSurgery.jl` declares **no operation type**. Each builder answers with a
 generic operation, and every write leaves `document` at `nothing`, so the
-reference re-roots as the operation bubbles up — which is what lets a pane tree
+reference re-roots as the operation bubbles up. This is what lets a pane tree
 sit inside another document.
 
 | Edit | Generic form |
@@ -227,8 +227,8 @@ is rather than jumping back to where the last drag began.
 ## Every drop lands
 
 A drop on an edge band splits the landing group, and the tab that arrives may
-have been the last one in the group it left — which then goes away, and takes its
-parent split with it when that leaves one element. The drop is two structural
+have been the last one in the group it left. That group then goes away, and
+takes its parent split with it when that leaves one element. The drop is two structural
 writes whose paths each have to be named against the tree the other leaves
 behind, and `make_pane_drop_split_operation` names them by shape:
 
@@ -269,14 +269,14 @@ the title document's own business: each keystroke is handed to
 deletes, and the answer is re-rooted onto the tree. This slice writes no editing
 code, and declares no rename operation.
 
-*(v1: the name changes as you type, but the caret is not drawn in the strip — the
-strip prints the title as a label. Drawing it needs the strip to print the title
-as a child document, which is follow-up work.)*
+**v1 limit:** the name changes as you type, but the caret is not drawn in the
+strip; the strip prints the title as a label. Drawing it needs the strip to
+print the title as a child document, which is follow-up work.
 
 ## A duplicate is a pane of its own
 
 A duplicate of a tab is a second pane that the person controls on its own. The
-kind of the content decides how deep the copy goes, by three rules:
+kind of the content sets how deep the copy goes, by three rules:
 
 1. **The duplicate owns what the person controls in the pane**: the form fields
    of a runner, the transcript and the composer of an assistant, the title and
@@ -318,8 +318,8 @@ this domain uses, and every other consumer can use them too:
 The pane printer sets `duplicable` on every group, and sets each page's own flag
 from `has_document_duplicate` of the tab's content.
 
-None of them decides what the gesture *means* — the strip knows a button was
-pressed and nothing about tabs of a layout. `PaneTreeToWidget`'s reader answers
+None of them determines what the gesture *means*: the strip reports that a
+button was pressed, and nothing about tabs of a layout. `PaneTreeToWidget`'s reader answers
 each report by finding the pane node that printed that widget and calling a
 surgery builder. An unclaimed report is inert.
 
@@ -334,8 +334,8 @@ ChainingProjection(
 )
 ```
 
-A tab's content passes through the first stage untouched, so `renderer` decides
-how each content document is drawn. `make_pane_projection_example` builds one
+A tab's content passes through the first stage untouched, so `renderer`
+determines how each content document is drawn. `make_pane_projection_example` builds one
 that knows widgets, layouts, and primitive documents.
 
 Each split slot is wrapped in a `LayoutConstraint` whose weight on the split axis
