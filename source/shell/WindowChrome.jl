@@ -7,43 +7,48 @@
 # item for a command that does not exist waits until the command does.
 
 """
-    make_window_menu_bar(; clipboard = true) -> WidgetMenu
+    make_window_menu_bar() -> WidgetMenu
 
-The menu bar both binaries share: what a window does with its tabs, what the
-clipboard does with a selection, and what the window shows.
+The menu bar both binaries share.
 
-`clipboard` says whether the window has the clipboard wrapper. A window without
-it gets no Edit menu, because an item that answers nothing is worse than no item.
+**A menu item here performs its command.** `WidgetShell` fires a menu shortcut
+**before the focused widget sees the key**, so an item that carries a shortcut it
+cannot perform does not merely say nothing — it takes the key away from whatever
+could have answered it. An item therefore goes on the bar only once it has a
+callback that does the work, and the callback is the pane slice's own verb, so
+the menu is a second way to reach one implementation and never a copy of it.
 
-A host adds its own menus beside these — the interface adds Run and Stop — and
-this package names none of them.
+What is not here yet, and why: **Save** and **Reload** belong to the file tab's
+own gesture table, **Command palette** and **Gesture help** to the wrappers that
+draw them, and the clipboard's five to the clipboard wrapper. Each needs a verb
+that reaches its owner through the editor. Until one has that, the key answers
+and the menu says nothing about it, which is the honest half of the two.
+
+A host adds its own menus beside these, and this package names none of them.
 """
-function make_window_menu_bar(; clipboard::Bool = true)
-    file = WidgetMenu([
-        WidgetMenuItem("New tab";       action = Action("New tab"; shortcut = Shortcut(:t; ctrl = true))),
-        WidgetMenuItem("Close tab";     action = Action("Close tab"; shortcut = Shortcut(:w; ctrl = true))),
-        WidgetMenuItem("Duplicate tab"; action = Action("Duplicate tab"; shortcut = Shortcut(:d; ctrl = true, shift = true))),
-        WidgetMenuItem("Save";          action = Action("Save"; shortcut = Shortcut(:s; ctrl = true))),
-        WidgetMenuItem("Reload";        action = Action("Reload"; shortcut = Shortcut(:o; ctrl = true))),
-    ])
-    edit = WidgetMenu([
-        WidgetMenuItem("Copy";       action = Action("Copy"; shortcut = Shortcut(:c; ctrl = true))),
-        WidgetMenuItem("Cut";        action = Action("Cut"; shortcut = Shortcut(:x; ctrl = true))),
-        WidgetMenuItem("Note";       action = Action("Note"; shortcut = Shortcut(:n; ctrl = true))),
-        WidgetMenuItem("Paste";      action = Action("Paste"; shortcut = Shortcut(:v; ctrl = true))),
-        WidgetMenuItem("Paste copy"; action = Action("Paste copy"; shortcut = Shortcut(:v; ctrl = true, shift = true))),
-    ])
-    view = WidgetMenu([
-        WidgetMenuItem("Split vertically";   action = Action("Split vertically"; shortcut = Shortcut(:backslash; ctrl = true))),
-        WidgetMenuItem("Split horizontally"; action = Action("Split horizontally"; shortcut = Shortcut(:backslash; ctrl = true, shift = true))),
-        WidgetMenuItem("Command palette";    action = Action("Command palette"; shortcut = Shortcut(:p; ctrl = true, shift = true))),
-        WidgetMenuItem("Gesture help";       action = Action("Gesture help"; shortcut = Shortcut(:f1))),
-    ])
-    menus = Any[WidgetMenuItem("File"; submenu = file)]
-    clipboard && push!(menus, WidgetMenuItem("Edit"; submenu = edit))
-    push!(menus, WidgetMenuItem("View"; submenu = view))
-    WidgetMenu(menus; orientation = :horizontal)
-end
+make_window_menu_bar() =
+    WidgetMenu(Any[
+        WidgetMenuItem("File"; submenu = WidgetMenu(Any[
+            WidgetMenuItem("New tab";
+                           action = Action("New tab";
+                                           shortcut = Shortcut(:t; ctrl = true),
+                                           callback = _open_tab!)),
+            WidgetMenuItem("Close tab";
+                           action = Action("Close tab";
+                                           shortcut = Shortcut(:w; ctrl = true),
+                                           callback = _close_tab!)),
+        ])),
+        WidgetMenuItem("View"; submenu = WidgetMenu(Any[
+            WidgetMenuItem("Split vertically";
+                           action = Action("Split vertically";
+                                           shortcut = Shortcut(:backslash; ctrl = true),
+                                           callback = editor -> _split!(editor, :vertical))),
+            WidgetMenuItem("Split horizontally";
+                           action = Action("Split horizontally";
+                                           shortcut = Shortcut(:backslash; ctrl = true, shift = true),
+                                           callback = editor -> _split!(editor, :horizontal))),
+        ])),
+    ]; orientation = :horizontal)
 
 """
     make_window_toolbar() -> WidgetToolbar
@@ -53,25 +58,66 @@ toolbar that holds everything is a menu bar that draws twice.
 """
 make_window_toolbar() =
     WidgetToolbar(Any[
-        WidgetMenuItem("New tab"; action = Action("New tab"; shortcut = Shortcut(:t; ctrl = true))),
-        WidgetMenuItem("Save";    action = Action("Save"; shortcut = Shortcut(:s; ctrl = true))),
+        WidgetMenuItem("New tab";
+                       action = Action("New tab"; callback = _open_tab!)),
     ]; padding = Inset(4, 4, 4, 4))
+
+# The pane slice's own verbs, reached through the tree the editor shows. A menu
+# command is a second way to the one implementation.
+_window_tree(editor) = try
+    get_window_tree(editor)
+catch
+    nothing
+end
+
+function _open_tab!(editor)
+    tree = _window_tree(editor)
+    tree === nothing && return nothing
+    group = get_pane_focused_group(tree)
+    group === nothing && return nothing
+    apply_pane_operation!(tree, make_pane_open_tab_operation(tree, group,
+                                                             default_new_pane_tab()))
+    nothing
+end
+
+function _close_tab!(editor)
+    tree = _window_tree(editor)
+    tree === nothing && return nothing
+    focus = get_pane_focus(tree)
+    focus === nothing && return nothing
+    group, index = focus
+    index == 0 && return nothing
+    apply_pane_operation!(tree, make_pane_close_tab_operation(tree, group, index))
+    nothing
+end
+
+function _split!(editor, orientation::Symbol)
+    tree = _window_tree(editor)
+    tree === nothing && return nothing
+    group = get_pane_focused_group(tree)
+    group === nothing && return nothing
+    apply_pane_operation!(tree, make_pane_split_operation(tree, group, orientation,
+                                                          orientation === :vertical ? :right : :below,
+                                                          default_new_pane_tab()))
+    nothing
+end
 
 """
     make_window_status_bar(document; extra = String[]) -> WidgetStatusBar
 
-What the window says about where the person is: the title of the focused tab, the
-selection in the words a person reads, and whatever the host appends.
+What the window says about where the person is: the title of the focused tab,
+the selection, and whatever the host appends.
 
-The selection is read from `document`, which is the window's own document. A
-window that holds no pane tree shows its two other fields and says nothing about
-a tab it does not have.
+**Each segment is a computed cell, so the band follows the window.** It
+re-derives whenever what it read changes. A status bar built from strings would
+say where the person was when the window opened and never again.
+
+A window that holds no pane tree says nothing about a tab it does not have.
 """
-function make_window_status_bar(document; extra = String[])
-    title = _window_status_title(document)
-    selection = _window_status_selection(document)
-    WidgetStatusBar(Any[title, selection, extra...])
-end
+make_window_status_bar(document; extra = String[]) =
+    WidgetStatusBar(Any[ComputedCell(() -> _window_status_title(document)),
+                        ComputedCell(() -> _window_status_selection(document)),
+                        extra...])
 
 function _window_status_title(document)
     tree = try

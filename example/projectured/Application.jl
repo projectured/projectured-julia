@@ -227,8 +227,18 @@ function make_application_window(paths::AbstractVector;
                        history = _with_window_history,
                        tooltip = pointer === nothing ? nothing : compute_tooltip,
                        pointer = pointer,
+                       context_menu = compute_context_menu,
+                       shell = _application_shell,
                        measure = measure)(document, projection)
 end
+
+# The chrome of the application's window. The status bar is given the window's
+# own document, so it says which tab has the focus and where the selection is,
+# and it follows both. The size is left to the window: a shell with none hugs
+# its content, and the window scene gives the shell the size it was opened at.
+_application_shell(document) =
+    (make_window_menu_bar(), make_window_toolbar(),
+     make_window_status_bar(document), nothing, nothing)
 
 # The window content sits inside a history of its own, so a change that belongs
 # to no file — a splitter that moves, a tab that opens — can be taken back too.

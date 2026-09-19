@@ -995,7 +995,10 @@ function WidgetStatusBar(segments::Vector;
                          border_color=nothing,
                          padding::Inset=inset_default,
                          padding_color=nothing, tooltip=nothing)
-    WidgetStatusBar(CellVector(Cell[Cell(x) for x in segments]),
+    # A segment given as a cell is kept as it is, so a band can say something
+    # that follows the window: `ComputedCell(() -> …)` re-derives when what it
+    # read changes, where `Cell(value)` would freeze what it was given.
+    WidgetStatusBar(CellVector(Cell[x isa Cell ? x : Cell(x) for x in segments]),
                     Cell(visible), Cell(margin), Cell(margin_color),
                     Cell(border), Cell(border_color),
                     Cell(padding), Cell(padding_color),
@@ -2783,6 +2786,11 @@ _as_tooltip_document(document) = document
 # The shell is the window's own frame, so the menu it holds is the window's: what
 # opens where no widget under the pointer offers one.
 compute_context_menu(shell::WidgetShell) = shell.context_menu
+
+# A shell wraps the window's own document in the chrome it is drawn in, and it is
+# transparent to everything that reads the tree rather than the picture: a verb
+# that asks for the pane tree, a save that looks for the files a window holds.
+get_wrapped_document(shell::WidgetShell) = get_wrapped_document(shell.content)
 
 # A saved user interface holds the window a person arranged, and not the bands
 # around it. A menu bar is what the binary offers, built fresh from its own

@@ -1143,9 +1143,9 @@ What the work decided:
 
 ### Step 7 — the shell draws the chrome
 
-**The shared half is done, 2026-09-19.** `test_shell()` is 85 pass. What is left
-is the application and the interface calling it, and the interface half waits for
-`main`.
+**Done for the application, 2026-09-19.** `test_shell()` is 115,
+`test_application()` is 63, `test_substrate()` is 63079 with the baseline's 3
+fail and 2 error. The interface half waits for `main`.
 
 - `WindowShellProjection` builds the `WidgetShell` in the **printer** and caches
   it, so the chrome is drawn and never stored, and the widget keeps one identity
@@ -1159,11 +1159,27 @@ is the application and the interface calling it, and the interface half waits fo
 - The probe asks the document it found and then the **root**, which is what makes
   `WidgetShell.context_menu` the window's own menu and what answers a press on
   empty space.
-- **The test earns its place.** It compares each menu shortcut against the pane
-  tree's own gesture bindings, and it caught `Ctrl+Shift+P` sitting on the View
-  menu as though the tree answered it. It belongs to the command palette wrapper.
-  The four shortcuts that belong to a wrapper or a tab are now named in the test
-  with their owner, so a fifth cannot be added quietly.
+- **§3.7's rule is sharper than it was written, and the work proved it.**
+  `WidgetShell` fires a menu shortcut **before the focused widget sees the key**.
+  So an item carrying a shortcut it cannot perform does not merely say nothing —
+  it **takes the key from whatever could have answered it**. The first menu
+  carried `Ctrl+S` with no callback and saving stopped working the moment the
+  application got a menu bar.
+
+  The rule is therefore: **an item goes on the menu when it has a callback that
+  does the work**, and the callback calls the slice's own verb so the menu is a
+  second route to one implementation. The bar carries New tab, Close tab and the
+  two splits. Save and Reload belong to the file tab's gesture table, the palette
+  and the help to the wrappers that draw them, and the clipboard's five to the
+  clipboard wrapper; each waits for a verb that reaches its owner through the
+  editor. Until then the key answers and the menu stays quiet.
+- **A status bar must be reactive.** Its segments are `ComputedCell`s over the
+  window's document, so the band follows the focus rather than saying where the
+  person was when the window opened. `WidgetStatusBar` now keeps a segment given
+  as a cell instead of wrapping it, which is what lets a band say something live.
+- **`WidgetShell` answers `get_wrapped_document`**, as the clipboard does. A
+  wrapper that is transparent on the screen must be transparent to everything
+  that reads the tree rather than the picture.
 - The status bar shows the reference **as it is written**. Saying it as a person
   would is `ReferenceToHumanReadableText`, which is a projection and belongs in
   what the band draws, not in a string built beside it.

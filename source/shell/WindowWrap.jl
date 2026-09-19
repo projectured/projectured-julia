@@ -26,9 +26,10 @@ projection)` that a window entry applies before it opens.
   one every document answers. `nothing` leaves the wrapper out. It needs
   `pointer`, because a window is placed in screen coordinates and only a backend
   knows where the pointer is.
-- `shell`: the window's chrome. It is `() -> (menu_bar, toolbar, status_bar,
-  context_menu, size)`, so a host says what its window offers and this package
-  names none of it. **The shell is a document**: it wraps the window's own
+- `shell`: the window's chrome. It is `(document) -> (menu_bar, toolbar,
+  status_bar, context_menu, size)`, so a host says what its window offers and
+  this package names none of it. It is given the window's own document, because
+  a status bar says where the person is in it. **The shell is a document**: it wraps the window's own
   document and is drawn by the projection paired with it, so the chrome can be
   selected, referenced and saved like everything else.
 - `context_menu`: what the document under the pointer offers on a right press.
@@ -79,7 +80,7 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
         # that acts on a window, so the walk and the clipboard reach into it and
         # a verb that asks for the pane tree looks past it.
         if shell !== nothing
-            menu_bar, toolbar, status_bar, context_menu_document, size = shell()
+            menu_bar, toolbar, status_bar, context_menu_document, size = shell(document)
             document = make_window_shell_document(document; menu_bar = menu_bar,
                                                   toolbar = toolbar,
                                                   status_bar = status_bar,

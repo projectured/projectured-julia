@@ -2,6 +2,18 @@
 
 mutable struct _ShellFakeEditor; document::Any; end
 
+# Every action the menu bar carries, at any depth.
+function _menu_actions()
+    found = Action[]
+    walk(node) = begin
+        node isa WidgetMenuItem && (push!(found, node.action);
+                                    node.submenu isa WidgetDocument && walk(node.submenu))
+        node isa WidgetMenu && foreach(walk, collect(node.elements))
+    end
+    walk(make_window_menu_bar())
+    found
+end
+
 function test_window_shell()
 @testset "the window shell" begin
 
@@ -11,38 +23,38 @@ _submenu(menu, name) = begin
     isempty(found) ? nothing : first(found).submenu
 end
 
-@testset "a menu item names a gesture the window answers" begin
-    # A shortcut and a gesture binding carry the same pattern shape, so the two
-    # compare directly: the key and the modifiers it asks for.
-    # A pattern that names no key constrains the key with a guard instead — the
-    # four arrow keys share one rule — so it carries no signature to compare.
-    names_key(pattern) = pattern isa EventPattern{KeyDown} && haskey(pattern.fields, :key)
-    signature(pattern) = (pattern.fields.key, Set(pattern.modifiers))
-    bound = Set(signature(binding.pattern)
-                for binding in get_document_gesture_bindings(PaneTree)
-                if names_key(binding.pattern))
-
-    bar = make_window_menu_bar()
-    for name in ("File", "View")
-        for item in _submenu(bar, name).elements
-            shortcut = item.action.shortcut
-            (shortcut === nothing || !names_key(shortcut)) && continue
-            # Every shortcut on the menu belongs to something. These four
-            # belong to a wrapper or a tab rather than to the pane tree:
-            #   Ctrl+S, Ctrl+O   a file tab, through its own gesture table
-            #   F1               the gesture help wrapper
-            #   Ctrl+Shift+P     the command palette wrapper
-            # The rest must be the pane tree's own, or the menu promises what
-            # nothing answers.
-            shortcut.fields.key in (:s, :o, :f1, :p) && continue
-            @test signature(shortcut) in bound
-        end
+@testset "a menu item performs its command" begin
+    # `WidgetShell` fires a menu shortcut before the focused widget sees the key,
+    # so an item that cannot perform its command takes the key from whatever
+    # could have answered it. Every item on the bar must carry a callback.
+    items = Action[]
+    walk(node) = begin
+        node isa WidgetMenuItem && (push!(items, node.action);
+                                    node.submenu isa WidgetDocument && walk(node.submenu))
+        node isa WidgetMenu && foreach(walk, collect(node.elements))
     end
+    walk(make_window_menu_bar())
+    for action in items
+        action.shortcut === nothing && continue
+        @test action.callback !== nothing
+    end
+    @test !isempty(items)
 end
 
-@testset "a window without the clipboard gets no Edit menu" begin
-    @test "Edit" in _labels(make_window_menu_bar(; clipboard = true))
-    @test !("Edit" in _labels(make_window_menu_bar(; clipboard = false)))
+@testset "a menu command does what the key does" begin
+    tree = PaneTree(PaneGroup(PaneTab[PaneTab("a", PrimitiveString("x"))]))
+    apply_pane_operation!(tree, make_pane_focus_operation(tree, first(get_pane_groups(tree)), 1))
+    editor = _ShellFakeEditor(tree)
+    before = sum(length(group.tabs) for group in get_pane_groups(tree))
+
+    new_tab = only(a for a in _menu_actions() if string(a.label) == "New tab")
+    evaluate_operation(editor, InvokeActionOperation(new_tab))
+    @test sum(length(group.tabs) for group in get_pane_groups(tree)) == before + 1
+
+    split = only(a for a in _menu_actions() if string(a.label) == "Split vertically")
+    groups = length(get_pane_groups(tree))
+    evaluate_operation(editor, InvokeActionOperation(split))
+    @test length(get_pane_groups(tree)) == groups + 1
 end
 
 @testset "the status bar says where the person is" begin
@@ -52,6 +64,13 @@ end
     segments = [string(bar.elements[i]) for i in 1:length(bar.elements)]
     @test segments[1] == "a.json"        # the focused tab
     @test last(segments) == "Ready"      # what the host appended
+
+    # And it FOLLOWS the window: a second tab taking the focus changes what the
+    # band says, without the band being rebuilt.
+    apply_pane_operation!(tree, make_pane_open_tab_operation(
+        tree, first(get_pane_groups(tree)), PaneTab("b.json", PrimitiveString("y"))))
+    apply_pane_operation!(tree, make_pane_focus_operation(tree, first(get_pane_groups(tree)), 2))
+    @test string(bar.elements[1]) == "b.json"
 end
 
 @testset "a window with no tree still has a status bar" begin
@@ -63,10 +82,10 @@ end
     document, projection = make_window_wrap(;
         gesture_help = false, command_palette = false, gesture_log = false,
         selection = false,
-        shell = () -> (make_window_menu_bar(), make_window_toolbar(),
-                       make_window_status_bar(PrimitiveString("x")), nothing,
-                       Point2D(400, 300)))(PrimitiveString("x"),
-                                           make_layout_projection_example())
+        shell = document -> (make_window_menu_bar(), make_window_toolbar(),
+                             make_window_status_bar(document), nothing,
+                             Point2D(400, 300)))(PrimitiveString("x"),
+                                                 make_layout_projection_example())
     # The chrome is structured data, so it can be reached like anything else.
     @test document isa WidgetShell
     @test document.content isa PrimitiveString
