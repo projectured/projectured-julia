@@ -3,7 +3,7 @@
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [domain-inventory.md](../../design/domain-inventory.md)
 
 The `rst` slice holds reStructuredText: a document model, a parser, a
-two-style projection, and a `FileDocument` wrapper. It was built against the
+two-style projection, and a `FileDocument` wrapper. It targets the
 documentation of [INET](https://github.com/inet-framework/inet) — 349 files
 and about 51 000 lines — and every one of those files parses and round-trips.
 
@@ -33,8 +33,8 @@ The slice depends on no other domain slice.
 ### Sections nest, the source does not
 
 RST writes a section as a title line under an adornment line, and the
-adornment character alone decides the depth. RST gives no fixed meaning to any
-character: the order in which a file first uses one decides what it means
+adornment character alone sets the depth. RST gives no fixed meaning to any
+character: the order in which a file first uses one sets what it means
 there.
 
 The document is a tree instead. A section owns every block below it, so it can
@@ -266,7 +266,7 @@ gives back the document it came from. All 349 INET files satisfy it.
   cells out as a real table.
 - **A figure path is resolved against the process working directory,** not
   against the file the figure came from, because the slice has no document
-  directory to resolve against — that is the same loader seam `literalinclude`
+  directory to resolve against. That is the same loader seam `literalinclude`
   waits on. A path that does not resolve degrades to the path as text.
 - **An inline marker is not read.** A `pred-ref` directive is a block. A marker
   written in a line of prose stays text: the markdown slice splits its text runs

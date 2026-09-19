@@ -4,7 +4,7 @@
 
 An algorithm as a document: steps, decisions, loops and jumps that
 nest, run to completion, and project both to a notation and to a flowchart. The
-slice exists so a procedure can be drawn the way a specification draws it — and
+slice exists so a procedure can be drawn the way a specification draws it, and
 still be real, runnable code, debuggable in the editor while it runs.
 
 Slice: `source/process/`. Design plan: `plan/done/process-domain.md`.
@@ -147,7 +147,7 @@ Arrows come from the standard structured-control-flow construction:
 
 ### Which engine draws it
 
-The flowchart asks for `make_deferred_layout_engine(orthogonal = true)` rather than
+The flowchart uses `make_deferred_layout_engine(orthogonal = true)` rather than
 naming an engine. Two things follow.
 
 It gets **right-angled routes** where the engine can provide them, because a
@@ -155,7 +155,7 @@ flowchart's arrows are read as flow, and a diagonal between two boxes reads as
 a relation instead of a direction.
 
 And it gets the **best engine in the session**, resolved when the layout runs
-rather than when the projection is built — `ProjecturedAdaptagrams` registers
+rather than when the projection is built. `ProjecturedAdaptagrams` registers
 itself from its `__init__`, so:
 
 ```julia
@@ -172,9 +172,9 @@ then would be the fallback forever.
 
 Neither engine is a *flowchart* layout: both place by general graph criteria,
 so the picture is not guaranteed to read top-to-bottom. A layout derived from
-the process tree — where a sequence is a column, a decision opens two, and a
-loop's back edge runs up a margin lane — would give that by construction, and
-is the natural next step.
+the process tree, where a sequence is a column, a decision opens two, and a
+loop's back edge runs up a margin lane, would guarantee that property
+directly, and is the natural next step.
 
 Known v1 limits: a selection maps only when it names a node exactly (a caret
 *inside* a step's action does not light its box), and edges are not clickable.
