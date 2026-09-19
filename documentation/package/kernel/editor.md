@@ -147,8 +147,8 @@ its chance, so a projection that explicitly binds one of these keys still wins:
   reader claimed it. A reader that binds Escape (a dialog, an insertion, the
   command palette) produces its own operation above and wins, so its Escape
   never reaches this fallback. This is why a backend must deliver Escape as an
-  ordinary key rather than as a platform quit signal: a quit event cannot be
-  declined by a reader.
+  ordinary key rather than as a platform quit signal: a platform quit signal
+  gives no reader the chance to intercept it.
 
 ### Evaluate
 

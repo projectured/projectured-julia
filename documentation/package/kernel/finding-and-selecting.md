@@ -224,9 +224,9 @@ jsondoc = first(search_documents(editor.document, x -> x isa JsonDocument))
 # …then search editor.document with a predicate keyed to that doc's nodes.
 ```
 
-(Searching `jsondoc` directly returns paths rooted at `jsondoc`, **not** at
-`editor.document`, so those paths are not directly selectable on the screen —
-search `editor.document` with a domain-typed predicate when you intend to select.)
+Searching `jsondoc` directly returns paths rooted at `jsondoc`, **not** at
+`editor.document`, so those paths are not directly selectable on the screen.
+Search `editor.document` with a domain-typed predicate when you intend to select.
 
 ## Searching more than the document (iomaps)
 
@@ -242,9 +242,9 @@ search_documents(iomap, x -> x isa JsonNumber) # every number, source through ou
 
 This is a **debugging / inspection** tool: the returned paths are rooted at the
 iomap (`::…IoMap.input…` / `.output…`), so — like searching `jsondoc` above —
-they are **not** selectable on the screen. It is the go-to move for "the value is
-in the document but not on screen — which stage dropped it?" and for diagnosing
-reactivity. The [debugging guide](../../guide/debugging-guide.md#searching-the-pipeline-state-iomaps)
+they are **not** selectable on the screen. It is the tool to reach for when a
+value is in the document but not on screen, to find which stage dropped it,
+and for diagnosing reactivity. The [debugging guide](../../guide/debugging-guide.md#searching-the-pipeline-state-iomaps)
 covers the workflow (reading iomap paths, `search_references` vs `search_documents`
 counts as a reactivity signal).
 
