@@ -8,31 +8,31 @@ function test_file_dialog()
 
 @testset "a chooser names a path" begin
     directory = mktempdir()
-    write(joinpath(directory, "a.json"), "{}")
+    write(joinpath(directory, "a.jl"), "x = 1\n")
     chooser = make_filesystem_chooser(directory)
     # Nothing typed is no file chosen, so it answers the directory itself.
     @test get_chosen_path(chooser) == directory
-    chooser.name = "a.json"
-    @test get_chosen_path(chooser) == joinpath(directory, "a.json")
+    chooser.name = "a.jl"
+    @test get_chosen_path(chooser) == joinpath(directory, "a.jl")
     # A name that names nothing yet is still a path: that is Save As.
-    chooser.name = "new.json"
-    @test get_chosen_path(chooser) == joinpath(directory, "new.json")
+    chooser.name = "new.jl"
+    @test get_chosen_path(chooser) == joinpath(directory, "new.jl")
     @test !isfile(get_chosen_path(chooser))
 end
 
 @testset "a row of the tree types its own name" begin
     directory = mktempdir()
-    write(joinpath(directory, "a.json"), "{}")
+    write(joinpath(directory, "a.jl"), "x = 1\n")
     chooser = make_filesystem_chooser(directory)
-    operation = WriteChosenNameOperation(chooser, "a.json")
+    operation = WriteChosenNameOperation(chooser, "a.jl")
     evaluate_operation(nothing, operation)
-    @test chooser.name == "a.json"
-    @test get_chosen_path(chooser) == joinpath(directory, "a.json")
+    @test chooser.name == "a.jl"
+    @test get_chosen_path(chooser) == joinpath(directory, "a.jl")
 end
 
 @testset "Open takes a file that exists, and nothing else" begin
     directory = mktempdir()
-    write(joinpath(directory, "a.json"), "{}")
+    write(joinpath(directory, "a.jl"), "x = 1\n")
     dialog, chooser = make_file_dialog(directory, "Open", "Open")
     @test dialog isa WidgetDialog
     @test dialog.content === chooser
@@ -41,15 +41,19 @@ end
 
 @testset "Save As gives the file its name and then writes it" begin
     directory = mktempdir()
-    source = joinpath(directory, "a.json")
-    write_document_file(parse_natural_text(:json, "{\"a\": 1}"), source)
+    source = joinpath(directory, "a.jl")
+    # The notation this test package declares. A format a test reaches for must
+    # be a package the test package depends on, or the test passes only in a
+    # wider environment.
+    write_document_file(parse_natural_text(:jl, "x = 1\n"), source)
     file = make_file_tab(source)
-    target = joinpath(directory, "b.json")
+    target = joinpath(directory, "b.jl")
 
     # What the confirm button does, without the window: name it, then write it.
     file.filename = target
     evaluate_operation(_DialogEditor(file), SaveFileOperation(file))
     @test file.filename == target
+    @test isfile(target)
 end
 
 end # @testset

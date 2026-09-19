@@ -43,8 +43,6 @@ function test_shell_completeness()
         # The body of `test_shell` and nothing else: a docstring above it names
         # the same functions in the same shape, and counting those would count
         # every call twice.
-        # Only the body of `test_shell`: a docstring above it names the same
-        # functions in the same shape, and counting those would count twice.
         called = String[]
         inside = false
         for line in eachline(joinpath(directory, "ShellSuite.jl"))
