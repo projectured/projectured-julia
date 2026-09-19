@@ -26,6 +26,7 @@ using ..PaneModule
 using ..DocumentModule
 using ..IntentModule
 using ..IoMapModule
+using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..SelectionModule
@@ -36,11 +37,11 @@ using ..StyleModule
 using ..TooltipModule
 using ..WidgetModule
 
-# Imported to extend: this module adds a method to each of these.
-import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+
+
 
 export make_window_wrap, make_opened_window_projections, make_popup_screen_wrap
-export WindowShellProjection, WindowShellIoMap
+export make_window_shell_document, make_window_shell_projection
 export make_window_menu_bar, make_window_toolbar, make_window_status_bar
 
 include("WindowWrap.jl")

@@ -1,5 +1,7 @@
 # The chrome a window is drawn in, and the rule that keeps it honest.
 
+mutable struct _ShellFakeEditor; document::Any; end
+
 function test_window_shell()
 @testset "the window shell" begin
 
@@ -57,21 +59,50 @@ end
     @test string(bar.elements[1]) == ""
 end
 
-@testset "the shell is drawn, and the document keeps no chrome" begin
-    document = PrimitiveString("x")
-    projection = WindowShellProjection(
-        inner = make_layout_projection_example(),
-        renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
-            WidgetToGraphics(font_ubuntu_regular_20; measure = measure_truetype_text).dispatch,
-            Pair{Type,Any}[Any => NestingProjection(make_layout_projection_example();
-                                                    recursion = IdentityProjection())]))),
-        bands = () -> (make_window_menu_bar(), make_window_toolbar(),
-                       make_window_status_bar(document), nothing),
-        size = () -> Point2D(400, 300))
-    iomap = print_document(projection, document)
-    @test iomap.output !== nothing
-    # The document is what it was: no shell, no menu bar, nothing to save.
-    @test document isa PrimitiveString
+@testset "the shell is a document, and the fold puts the window inside it" begin
+    document, projection = make_window_wrap(;
+        gesture_help = false, command_palette = false, gesture_log = false,
+        selection = false,
+        shell = () -> (make_window_menu_bar(), make_window_toolbar(),
+                       make_window_status_bar(PrimitiveString("x")), nothing,
+                       Point2D(400, 300)))(PrimitiveString("x"),
+                                           make_layout_projection_example())
+    # The chrome is structured data, so it can be reached like anything else.
+    @test document isa WidgetShell
+    @test document.content isa PrimitiveString
+    @test document.menu_bar isa WidgetMenu
+    @test Int(document.size.x[]) == 400 && Int(document.size.y[]) == 300
+    @test !isempty(search_documents(document, node -> node isa WidgetToolbar))
+    @test print_document(projection, document).output !== nothing
+end
+
+@testset "a window read back from a file is not wrapped twice" begin
+    once = make_window_shell_document(PrimitiveString("x");
+                                      menu_bar = make_window_menu_bar())
+    twice = make_window_shell_document(once; toolbar = make_window_toolbar())
+    @test twice === once
+    @test twice.content isa PrimitiveString
+    @test twice.menu_bar isa WidgetMenu     # what it was given first, kept
+    @test twice.toolbar isa WidgetToolbar   # and what it was given after
+end
+
+@testset "a saved user interface holds the window, and the binary its bands" begin
+    shell = make_window_shell_document(PrimitiveString("x");
+                                       menu_bar = make_window_menu_bar(),
+                                       size = Point2D(400, 300))
+    directory = mktempdir()
+    save_user_interface(_ShellFakeEditor(shell), joinpath(directory, "session.pred"))
+    @test isfile(joinpath(directory, "session.pred"))
+    again = load_user_interface(joinpath(directory, "session.pred"))
+    @test again isa WidgetShell
+    @test again.content isa PrimitiveString
+    # The bands are the binary's, built fresh at every start, so the file holds
+    # none of them. The fold fills them into the shell that comes back, and the
+    # wrapper is idempotent so nothing is wrapped twice.
+    @test again.menu_bar === nothing
+    filled = make_window_shell_document(again; menu_bar = make_window_menu_bar())
+    @test filled === again
+    @test filled.menu_bar isa WidgetMenu
 end
 
 end # @testset

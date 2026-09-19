@@ -314,23 +314,33 @@ holds what sits between a window and the document in it:
   `make_ide_window_wrap` is today, moved down and made general.
 - `make_opened_window_projections(...)` — what a window that a wrapper opens
   draws with.
-- `WindowShellProjection`, which prints a `WidgetShell` around whatever the inner
-  projection printed: a menu bar, a toolbar, a status line and a context menu.
+- `make_window_shell_document` and `make_window_shell_projection`: the window's
+  own document inside a `WidgetShell` that holds a menu bar, a toolbar, a status
+  line and a context menu, and the projection that draws it.
 
-**The shell is drawn, not stored.** The projection makes the `WidgetShell`; no
-document is wrapped in one. Three reasons, and the first is the one that decides
-it:
+**The shell is a document.** Ruled by the owner, 2026-09-19. An earlier draft of
+this section had the projection build the `WidgetShell` so that it would never
+reach the saved file. That is rejected, and the reasoning behind it was wrong:
+**a shell that exists only inside a printer cannot be selected, referenced,
+walked, copied, or reached by a verb or the assistant.** In a projectional editor
+the user interface is structured data like everything else, and chrome is no
+exception.
 
-1. The other plan saves the whole editor document to a `.pred` file (§2.7). A
-   menu bar in that file would be the binary's chrome saved as the person's
-   work, and a layout saved by the application would carry the application's
-   menu into the interface.
-2. A saved document would have to be unwrapped on load, or the fold would wrap a
-   second shell around the first.
-3. `WidgetShell` would need `register_pred_type!`, and every band with it.
+It is also less code. With the shell in the document the `content` reference step
+is real, so the forward and backward mapping the projection needed is gone.
 
-The clipboard is the other way round, and stays that way: it wraps the document
-because what it stores is the person's, not the binary's.
+**What is saved is the window, and not the bands.** `WidgetShell` is registered
+and writes only its `content`. That is not the rejected design returning: the
+shell is a node in the document and is saved as one. Its bands are left out
+because a menu bar is what the binary offers, built fresh at every start —
+writing it would put one binary's menu into a file another opens, and ask the
+notation to hold a shortcut, an action and a callback. The fold fills the bands
+back in on load, and `make_window_shell_document` is idempotent so a window read
+from a file is not wrapped twice.
+
+The pair is the convention every wrapper here follows:
+`make_window_shell_document` / `make_window_shell_projection`, beside
+`make_clipboard_document` / `make_clipboard_projection`.
 - The tooltip wrapper. `TooltipProbeProjection` lives in the tooltip slice, and
   the shell composes it (§3.14).
 - `make_popup_screen_wrap()`, the value of the new `screen_wrap` keyword of

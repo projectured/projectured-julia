@@ -19,6 +19,7 @@ using ProjecturedDomain
 using ProjecturedPrimitive
 using ProjecturedProjection
 using ProjecturedScreen
+using ProjecturedSerialization
 using ProjecturedStyle
 using ProjecturedText
 
@@ -44,6 +45,7 @@ const IoMapModule = ProjecturedKernel.IoMapModule
 const EventModule = ProjecturedKernel.EventModule
 const OperationModule = ProjecturedKernel.OperationModule
 const ScreenModule = ProjecturedScreen.ScreenModule
+const SerializationModule = ProjecturedSerialization.SerializationModule
 const DomainModule = ProjecturedDomain.DomainModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule

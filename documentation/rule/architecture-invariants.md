@@ -763,6 +763,13 @@ A tooltip is the case that proves it. It says something about what is under the
 pointer, and near an edge that is outside the window, so a tooltip drawn inside
 the window is clipped exactly where it is most needed.
 
+**And what a window is drawn in is a document too.** A window's chrome — its menu
+bar, its toolbar, its status bar — is a `WidgetShell` holding the window's own
+document, not something a printer conjures on the way to the screen. A projectional
+editor presents structured data through projections, so anything a projection
+invents for itself can be neither selected, referenced, walked, copied nor reached
+by a verb. Chrome that only the printer knows about is outside the editor.
+
 ### PAR-BACKEND-SEAM
 
 **Keep backends behind the `Backend`/`Device` seam; the same editor runs

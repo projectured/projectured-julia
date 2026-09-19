@@ -2783,3 +2783,15 @@ _as_tooltip_document(document) = document
 # The shell is the window's own frame, so the menu it holds is the window's: what
 # opens where no widget under the pointer offers one.
 compute_context_menu(shell::WidgetShell) = shell.context_menu
+
+# A saved user interface holds the window a person arranged, and not the bands
+# around it. A menu bar is what the binary offers, built fresh from its own
+# vocabulary every time it starts: writing it would put one binary's menu in a
+# file another binary opens, and would ask the notation to hold a shortcut, an
+# action and a callback. The size goes for the same reason — the window it fits
+# is the one it is opened in, not the one it was saved from.
+pred_arguments(shell::WidgetShell) = (shell.content,), Pair{Symbol,Any}[]
+
+function __init__()
+    register_pred_type!(WidgetShell)
+end

@@ -15,6 +15,7 @@ using ProjecturedGestureHelp
 using ProjecturedGestureLog
 using ProjecturedKernel
 using ProjecturedPane
+using ProjecturedProjection
 using ProjecturedScreen
 using ProjecturedStyle
 using ProjecturedTooltip
@@ -26,6 +27,7 @@ const PaneModule = ProjecturedPane.PaneModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const IntentModule = ProjecturedKernel.IntentModule
 const IoMapModule = ProjecturedKernel.IoMapModule
+const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const SelectionModule = ProjecturedKernel.SelectionModule

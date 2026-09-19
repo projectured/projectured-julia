@@ -26,6 +26,11 @@ projection)` that a window entry applies before it opens.
   one every document answers. `nothing` leaves the wrapper out. It needs
   `pointer`, because a window is placed in screen coordinates and only a backend
   knows where the pointer is.
+- `shell`: the window's chrome. It is `() -> (menu_bar, toolbar, status_bar,
+  context_menu, size)`, so a host says what its window offers and this package
+  names none of it. **The shell is a document**: it wraps the window's own
+  document and is drawn by the projection paired with it, so the chrome can be
+  selected, referenced and saved like everything else.
 - `context_menu`: what the document under the pointer offers on a right press.
   It is the function the probe asks, `(document) -> Document | Nothing`;
   `compute_context_menu` is the one every document answers. A
@@ -45,17 +50,17 @@ The help, the palette and the log wrap the projection and leave the document as
 it is. The clipboard wraps the document too, so a verb that walks the window
 must look inside it.
 
-The order is the history innermost, the walk and the clipboard over it, the
-tooltip probe over them, the help over that, the palette over it, the log's panel
-over the palette, and the log's recorder outermost, where it sees every operation
-the window makes.
+The order is the history innermost, the shell over it, the walk and the
+clipboard over that, the tooltip probe over them, the help over that, the palette
+over it, the log's panel over the palette, and the log's recorder outermost,
+where it sees every operation the window makes.
 """
 function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = true,
                             gesture_log::Bool = false, selection::Bool = true,
                             clipboard_gestures::Tuple = CLIPBOARD_GESTURES,
                             history = identity,
                             tooltip = nothing, pointer = nothing,
-                            context_menu = nothing,
+                            context_menu = nothing, shell = nothing,
                             measure = measure_truetype_text)
     tooltip === nothing || pointer !== nothing ||
         error("make_window_wrap: a tooltip is placed beside the pointer, so it needs `pointer`")
@@ -70,6 +75,18 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
         # holds — sits inside the tree. A wrapper between it and the tree prints
         # that subtree itself, and the recursion never reaches the buffer.
         projection = history(projection)
+        # The chrome is outside the window's own document and inside everything
+        # that acts on a window, so the walk and the clipboard reach into it and
+        # a verb that asks for the pane tree looks past it.
+        if shell !== nothing
+            menu_bar, toolbar, status_bar, context_menu_document, size = shell()
+            document = make_window_shell_document(document; menu_bar = menu_bar,
+                                                  toolbar = toolbar,
+                                                  status_bar = status_bar,
+                                                  context_menu = context_menu_document,
+                                                  size = size)
+            projection = make_window_shell_projection(projection; measure = measure)
+        end
         if selection
             projection = make_clipboard_projection(SelectionWalkingProjection(inner = projection);
                                                    offered_gestures = clipboard_gestures)
