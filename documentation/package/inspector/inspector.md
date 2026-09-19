@@ -38,8 +38,8 @@ size=(1000,400), title="reference")` wraps a window's content projection.
 Its printer is transparent: it projects through `inner` and returns the
 output unchanged, so wrapping a document in the probe changes nothing
 visually. Its reader answers `MouseMove` by reverse-projecting the pointer
-position through `inner` exactly as a left click at that position would be —
-feeding `inner` a synthetic `MousePress` and reading the `path` of the
+position through `inner` exactly as a left click at that position would be.
+It feeds `inner` a synthetic `MousePress` and reads the `path` of the
 `ReplaceSelectionOperation` it would produce, without committing it. Over a
 clickable glyph, it opens a `:tooltip`-styled follower window near the
 pointer holding a `ReferenceInspector(reference, target)`; over dead space,
@@ -66,5 +66,5 @@ There is no `test/inspector/` folder; the probe is exercised by
 `test/projectured/projection/HoverProbeTest.jl`. `HoverProbeIoMap` is
 declared `@iomap` and forwards its `output` through a `ComputedCell` even
 though the printer is transparent, which keeps the IoMap's own identity
-stable while the wrapped child re-derives — dropping that indirection would
+stable while the wrapped child re-derives. Dropping that indirection would
 break identity for a caller that holds onto the outer IoMap across a rerun.

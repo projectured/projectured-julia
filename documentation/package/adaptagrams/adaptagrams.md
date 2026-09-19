@@ -48,7 +48,7 @@ imposed after the native run rather than fed into libcola, since the shim's
 using Pkg; Pkg.build("ProjecturedAdaptagrams")
 ```
 
-builds the shim against an installed or built Adaptagrams checkout — point
+builds the shim against an installed or built Adaptagrams checkout. Point
 `ADAPTAGRAMS_DIR` at its `cola/` directory, or put its `.pc` files on
 `PKG_CONFIG_PATH`. `isavailable()` re-checks the filesystem on every call, so
 a shim built during a session is picked up with no restart. Until it is
@@ -60,8 +60,8 @@ substitution is visible rather than silent.
 ## How it fits
 
 Loading `ProjecturedAdaptagrams` is the whole opt-in: its `__init__` calls
-`register_layout_engine!`, so any caller of `make_deferred_layout_engine()` —
-an example, a pane tab, a live diagram — gets native placement from
+`register_layout_engine!`, so any caller of `make_deferred_layout_engine()`, such as
+an example, a pane tab or a live diagram, gets native placement from
 the moment the package is in the session, with nothing else rewired. Nothing
 under `source/graph/` depends on this package; the dependency runs the other
 way, from `ProjecturedAdaptagrams` to `ProjecturedGraph`'s

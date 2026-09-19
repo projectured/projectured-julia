@@ -40,10 +40,9 @@ ObjectField(net, Reference(FieldReferenceStep("hosts"),
 
 `ObjectField(object, path)` names one field of one object: `object` is the
 root and stays fixed, `path` is a `Reference` addressing the value inside it.
-`get_object_field_value` reads the value the path names —
-inside a reactive cell, since reading it outside one freezes the render at
-the first value — and a write goes through
-`ReplaceReferencedValueOperation(object, path, value)`. `ObjectField` carries
+`get_object_field_value` reads the value the path names. Read it inside a
+reactive cell; reading it outside one freezes the render at the first value.
+A write goes through `ReplaceReferencedValueOperation(object, path, value)`. `ObjectField` carries
 no label field on purpose: `get_object_field_name` derives one from the last
 `FieldReferenceStep` of the path when a projection wants it, and returns
 `nothing` for a path that does not end in a field.

@@ -19,8 +19,8 @@ compiled code survives only there is in
 ## The workload
 
 `WORKLOAD` is a `Preferences.jl` preference, read once at module scope so
-that changing it invalidates the precompile cache — an environment variable
-would not, and a stale image would keep the old setting silently. It takes
+that changing it invalidates the precompile cache. An environment variable
+would not; a stale image would keep the old setting silently. It takes
 one of three levels:
 
 | level | what the build does |
@@ -42,17 +42,17 @@ needs a restart to take effect.
 ## The recording
 
 `source/repl/record/driver.jl` is not run by a build. A person runs
-`record_precompile_statements()`, which opens a real SDL window — the shim
-needs a display, since SDL asks for an accelerated renderer the dummy video
-driver does not offer — drives every example the way a reader drives it
-(the mouse, the arrow keys, Tab, Home, End, Backspace, Delete, Enter, and two
-character keys), and writes down every method instance Julia had to compile
-under `--trace-compile`. The list this produces is checked in at
+`record_precompile_statements()`. It opens a real SDL window, since the shim
+needs a display and SDL requires an accelerated renderer that the dummy
+video driver does not offer. It then drives every example the way a reader
+drives it (the mouse, the arrow keys, Tab, Home, End, Backspace, Delete,
+Enter, and two character keys), and writes down every method instance Julia
+had to compile under `--trace-compile`. The list this produces is checked in at
 `asset/precompile/PrecompileStatements.jl` and replayed by
 `replay_precompile_statements()`, either inside `@compile_workload` during a
 build or at the prompt to see what the list is worth without a rebuild. The
-list goes stale gracefully as the code moves — a statement that no longer
-names anything is skipped — which is why it must be re-recorded once the
+list goes stale gracefully as the code moves: a statement that no longer
+names anything is skipped. This is why it must be re-recorded once the
 example set changes enough to be worth it.
 
 ## How it fits

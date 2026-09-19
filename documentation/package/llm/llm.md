@@ -49,7 +49,7 @@ throws an error naming the models the server does have.
 `make_llm(kind::Symbol; model, api_key, context, kwargs...)` builds a backend
 by name without naming its type: `make_llm(:ollama)`. Every backend accepts
 the same three keywords and uses only the ones that apply to it. An adapter
-ignores a keyword it has no use for and says so in its own docstring — the
+ignores a keyword it has no use for and says so in its own docstring. The
 Anthropic adapter ignores `context`, since a hosted model fixes its context
 window; the Ollama adapter ignores `api_key`, since a local server asks for
 none. A `kind` whose package is not loaded raises an error that names the

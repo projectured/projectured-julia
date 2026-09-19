@@ -153,7 +153,7 @@ julia> catalog(; only_runnable = true)            # :text (console) + :graphics 
 julia> run_example(only(catalog(; domain=:json, document="null", terminal=:graphics)))
 ```
 
-The `variant` is the projection's terminal domain, which decides *which tests apply*:
+The `variant` is the projection's terminal domain, and it sets *which tests apply*:
 `:syntax` runs printer/reader/repl; `:text` / `:graphics` also add position-navigation
 (caret geometry needs the graphics layer, so navigation routes to `:graphics`). Run the
 whole thing, or any slice, with `test_catalog`:
@@ -254,7 +254,7 @@ the identical algorithm.
 - **Seed:** clear the selection, print once → iomap.
 - **Drive:** for each event, run the whole cycle: `read_intent` → if the op is non-`nothing`, `evaluate_operation` on a stand-in `_ReplEditor` (which picks up whole-document swaps) → re-`print_document` → `_walk!` the new output. The iomap threads forward into the next event exactly as the real editor loop does.
 - **Asserts:** one `@test` per event — the entire read→evaluate→reprint→walk cycle completes without throwing and every cell in the reprinted output forces cleanly.
-- **A failure means:** an operation fails to apply, or leaves the document in a state that can't be re-projected/forced — a reader / operation / printer mismatch (a strictly stronger check than `test_reader`).
+- **A failure means:** an operation fails to apply, or leaves the document in a state that can't be re-projected or forced: a reader, operation or printer mismatch. This check is strictly stronger than `test_reader`.
 
 ### Navigation drivers
 
@@ -264,7 +264,7 @@ The two BFS drivers share one engine (`explore_selections` / `test_navigation`);
 - **Seed:** fire `Ctrl+Home`; the first selection is the resulting `ReplaceSelectionOperation.path`.
 - **Drive:** BFS over selection states. At each state: set the selection, reprint, `_walk!`; then try each `POSITION_NAVIGATION_KEYS` gesture (arrows, Home/End, Ctrl+arrows, Ctrl+Home/End) via `read_intent`, enqueuing every new target path (deduped modulo type checkpoints via `strip_reference_types`) not yet visited.
 - **Asserts:** one `@test` per reachable state (its reprint + walk don't throw), plus `@test state_count > 0`. With `check_reaches_all=true`: additionally one `@test` per selection enumerated by `collect_position_selections(document)` asserting it was reached (subset check: *enumerated ⊆ reachable*), plus `@test !isempty(enumerated)`.
-- **A failure means:** a navigation gesture throws, a reached state can't be reprinted, or — in completeness mode — navigation can't reach a caret the document actually has (a stuck or leaky navigator).
+- **A failure means:** a navigation gesture throws, a reached state can't be reprinted, or, in completeness mode, navigation can't reach a caret the document actually has. The last case is a stuck or leaky navigator.
 
 **`test_tree_navigation`** — the same, for whole-element (∅) structural selections.
 - **Seed:** `Ctrl+Alt+Home`, which selects the root ∅.
@@ -293,7 +293,7 @@ The two BFS drivers share one engine (`explore_selections` / `test_navigation`);
 - **Asserts:** `compare_content(reached, target)` — a strict recursive content-equality (types compared by name, cells unwrapped, `:selection`/`:ref` skipped) that returns the **first mismatch path** (`.field` / `[i]`), or empty when equal. Strict on scalar type, so `42 ≠ 42.0`.
 - **A failure means:** an editor authoring gap (a kind with no gesture recipe), a reader/operation bug (wrong shape or non-inverting leaf), or a located content regression. Covers JSON scalars and arrays today; the cross-domain `test_construct(example::Example)` sweep is still pending (see [plan/pending/live-example-construction.md](../../plan/pending/live-example-construction.md)).
 
-> Two more generic example drivers, out of scope for the list above but built the same way, are documented in [ClickRoundtripTest.jl](../../test/substrate/editor/ClickRoundtripTest.jl) and [MouseClickTest.jl](../../test/projectured/editor/MouseClickTest.jl): `test_click_roundtrip` / `test_mouse_click_roundtrip` fire a click at each rendered character cell and assert the resulting selection lands in (or immediately beside) the clicked cell — the pointer-side inverse of the caret-rendering that `test_typein` checks.
+> Two more generic example drivers, out of scope for the list above but built the same way, are documented in [ClickRoundtripTest.jl](../../test/substrate/editor/ClickRoundtripTest.jl) and [MouseClickTest.jl](../../test/projectured/editor/MouseClickTest.jl): `test_click_roundtrip` / `test_mouse_click_roundtrip` fire a click at each rendered character cell and assert the resulting selection lands in, or immediately beside, the clicked cell. This is the pointer-side inverse of the caret-rendering that `test_typein` checks.
 
 ## The walker helpers (non-`@testset` variants)
 
@@ -423,7 +423,7 @@ froze rather than saying "something in this example went stale".
 ### The four outcomes
 
 A node is not charged for every write. `map_reference_forward` is asked first,
-and the answer decides what a non-reacting write means.
+and the answer determines what a non-reacting write means.
 
 | outcome | meaning |
 |---|---|

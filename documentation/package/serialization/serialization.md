@@ -30,9 +30,9 @@ loaded = load_document("state.pdoc")
 `save_document` writes a magic header, a format version and the document with
 Julia's `Serialization` stdlib; `load_document` checks the header and
 rejects a file of the wrong magic or an older version. The one customization
-is that a reactive cell serializes as its value alone — its dependency edges
-and its thunk are runtime state, not data — so the write never follows a
-cell's `dependents` out into unrelated computed values, and the selection
+is that a reactive cell serializes as its value alone. Its dependency edges
+and its thunk are runtime state, not data, so the write never follows a
+cell's `dependents` out into unrelated computed values. The selection
 `Reference`, itself built of cells, round-trips with the document. The format
 is exact and lossless for a structural document, but it is tied to the
 in-memory struct layout: a document holding a live external resource, such as
@@ -80,8 +80,8 @@ so a file cannot name a type the session did not offer.
 Nothing in this slice depends on a domain package. `ProjecturedFileFormat`
 depends on `ProjecturedSerialization` for the binary half of
 `write_document_file` / `read_document_file`, and several domains register a
-file type against this slice's registry with `register_file_document_type!`
-— JSON, XML, Markdown, RST and math each register their own extension, so a
+file type against this slice's registry with `register_file_document_type!`.
+JSON, XML, Markdown, RST and math each register their own extension, so a
 project can cut at a file of any of them. The Julia domain also registers
 `:definition` with `register_marker_function!`, so a marker can name one
 definition inside a `.jl` file.

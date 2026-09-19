@@ -5,9 +5,10 @@
 The plot arithmetic every plotted notation shares: axis scaling, tick
 selection, the mapping from a data value to a pixel, and the colour and
 marker cycles a series draws with. It is a framework two domains share
-rather than a domain of its own — see
+rather than a domain of its own, so nothing under `source/plot/` defines a
+document type. See
 [domain-inventory.md](../../design/domain-inventory.md#what-is-not-a-domain-package)
-— so nothing under `source/plot/` defines a document type.
+for what counts as a domain.
 
 ## What is in the slice
 

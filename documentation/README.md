@@ -7,8 +7,8 @@ code is laid out. This file is the map. It draws the chain that derives the code
 from first principles, lists every document with its place in the chain, and
 states the header that every document carries.
 
-The same structure is used in the other repositories of this author, so a
-reader who knows one of them knows this one.
+The other repositories of this author use the same structure, so a reader who
+knows one of them knows this one.
 
 ## The folders and the chain
 
@@ -103,12 +103,12 @@ folder's own `README.md` carries the header and says what each deck is.
 `evidence`, `study` and `history` are three more kinds, which no document here
 carries yet. Add one when the folder that holds it arrives.
 
-**Status** is `current` (a qualifier can follow a semicolon), `snapshot <date>`,
-`superseded by <document>`, or `generated, do not edit`.
+**Status** is `current`, `snapshot <date>`, `superseded by <document>`, or
+`generated, do not edit`. A qualifier can follow `current` after a semicolon.
 
 **Stands on** names the documents the document depends on directly, by their
 path from the citing file. It is the citation direction, which can differ from
-the order of the chain: a benefit names the requirements it comes from, and a
+the order of the chain. A benefit names the requirements it comes from, and a
 requirement never names a benefit.
 
 ## Two rules that hold everywhere

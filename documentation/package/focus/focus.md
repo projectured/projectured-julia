@@ -26,10 +26,10 @@ the document types a Tab press should be able to land on.
 `get_first_focusable_path(node)` and `get_last_focusable_path(node)` return
 the relative whole-element path to the first or last focusable document in
 `node`'s subtree, skipping a disabled widget, or `nothing` when the subtree
-holds none. The walk guards against a cycle in the document graph — an
-embedded linked list points forward and back — by tracking visited object
-identities, so it visits each node once regardless of how the graph closes on
-itself. `get_next_focusable_index(children, after, reverse)` finds the next
+holds none. The walk guards against a cycle in the document graph. An
+embedded linked list points forward and back, so the walk tracks visited
+object identities and visits each node once regardless of how the graph
+closes on itself. `get_next_focusable_index(children, after, reverse)` finds the next
 sibling slot whose subtree contains a focusable document, for a container
 stepping Tab across its own children. Both `LayoutToGraphics` and
 `WidgetToGraphics` share this walk.
@@ -37,7 +37,7 @@ stepping Tab across its own children. Both `LayoutToGraphics` and
 ## The whole-element selection
 
 `is_whole_selection_press(event)` is true for a left press with Alt held and
-no other modifier — a plain press keeps its own meaning, so a button still
+no other modifier. A plain press keeps its own meaning, so a button still
 fires. `is_whole_selection(document, reference)` tells a whole-element
 selection from a caret or a range: the reference must evaluate, inside
 `document`, to a `Document` rather than a scalar position. A container that
@@ -59,8 +59,8 @@ document.
 ## How it fits
 
 `FocusModule` depends on `ProjecturedKernel` and `ProjecturedCollection`
-alone; every domain that wants Tab or Alt+click support adds a method to
-`is_focusable_document` rather than this slice depending on the domain.
+alone; a domain adds a method to `is_focusable_document` to get Tab or
+Alt+click support, rather than this slice depending on the domain.
 [widget.md](../widget/widget.md) is the main caller: `WidgetModule` marks its
 enabled interactive leaves as Tab stops, and the whole-element machinery is
 what an Alt+click on any widget resolves through.

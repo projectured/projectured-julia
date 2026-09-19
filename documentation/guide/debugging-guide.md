@@ -29,11 +29,11 @@ julia> run_example(json_example)    # or pass the Example object directly
 ```
 
 The gallery lives at
-[domain/example/Gallery.jl](../../example/projectured/Gallery.jl) (the
-`Example`/`Vector` overloads — its shell/tooltip/clipboard wrappers are
-domain vocabulary); the name-lookup overloads live with the global registry in
+[domain/example/Gallery.jl](../../example/projectured/Gallery.jl); it holds the
+`Example`/`Vector` overloads. Its shell, tooltip and clipboard wrappers are
+domain vocabulary. The name-lookup overloads live with the global registry in
 [projectured/example/ProjecturedExamples.jl](../../example/projectured/ProjecturedExamples.jl), and
-`using ProjecturedExample` provides all of them. It accepts a
+`using ProjecturedExample` provides all of them. `run_example` accepts a
 few keyword arguments worth knowing:
 
 | Keyword | Effect |
@@ -47,13 +47,12 @@ few keyword arguments worth knowing:
 | `reset=true` | Rebuilds a fresh `document`/`projection` from the example's factories. Use this after an interactive session has mutated the cached instance. |
 | `gesture_log=true` | Shows a panel in the top-right corner with the last gestures and the operation each one made. See [The gesture log overlay](#the-gesture-log-overlay). |
 
-If you get a stale-state bug, `run_example("foo"; reset=true)` is almost
-always the first thing to try — the `Example` struct caches one shared
-instance per example.
+If you get a stale-state bug, try `run_example("foo"; reset=true)` first,
+since the `Example` struct caches one shared instance per example.
 
 To drive the same example from a browser instead of an SDL window, pass a
 [web backend](../package/kernel/devices-and-backends.md#webbackend) to
-`run_example` (after `using ProjecturedWeb`, so `WebBackend` is in scope):
+`run_example`. Run `using ProjecturedWeb` first, so `WebBackend` is in scope:
 
 ```julia
 julia> run_example("json"; backend=WebBackend())            # serve on http://127.0.0.1:8080
@@ -240,18 +239,20 @@ julia> search_references(make_json_document_example(), "Wonderland")   # 1 path 
 ```
 
 The value shows up **16 times** in the iomap because it appears at 16 distinct
-*locations* along the pipeline — the source `JsonString`, each projection step's
-input, the projected `SyntaxNode` tree, the text, … — yet `search_documents(…; raw=true)`
-returns it **once**, because all 16 locations share the *same* underlying `String`
-object by reference. (Use `raw=true` here on purpose: the default document-scoped
-search folds each hit up to its enclosing document, which differs by stage — a
-`JsonString` in the JSON stages, a syntax/text leaf in the projected ones — so it
-does **not** collapse to one. Counting object identity is what `raw=true` gives
-you.) That gap is itself a diagnostic (below).
+*locations* along the pipeline: the source `JsonString`, each projection step's
+input, the projected `SyntaxNode` tree, the text, and more. `search_documents(…;
+raw=true)` returns it **once**, because all 16 locations share the *same*
+underlying `String` object by reference.
+
+Use `raw=true` on purpose here. The default document-scoped search folds each
+hit up to its enclosing document, which differs by stage: a `JsonString` in the
+JSON stages, a syntax/text leaf in the projected ones. It does **not** collapse
+to one. Counting object identity is what `raw=true` gives you. That gap is
+itself a diagnostic; see below.
 
 ### Reading an iomap path
 
-An iomap-rooted `Reference` prints as its stages, so the path tells you which
+An iomap-rooted `Reference` prints as its stages, so the path shows which
 pipeline stage each hit is in at a glance:
 
 ```
@@ -271,7 +272,7 @@ location, exactly as it resolves a document path.
 
 ### Debugging reactivity: where did the value go?
 
-This is the payoff of searching the iomap rather than the document. When a value
+Searching the iomap rather than the document answers this question directly. When a value
 is present in the source but *missing from the rendered output* — a projection
 silently dropped it, a reactive cell didn't invalidate, a structural child-swap
 didn't propagate — search the iomap and read which stages it survives to:
@@ -280,10 +281,10 @@ didn't propagate — search the iomap and read which stages it survives to:
   stage's printer dropped it. Narrow to the projection between those two stages.
 - **`search_references` count high but `search_documents(…; raw=true)` count > 1** →
   the value was *copied* somewhere instead of flowing by reference: a stale copy is
-  sitting next to the fresh one, the classic signature of a broken reactive link.
+  sitting next to the fresh one, a common sign of a broken reactive link.
   When reactivity is healthy the same object flows through and the `raw=true` count
-  collapses to one. (Count with `raw=true` for this check — the default folds hits
-  to their enclosing documents, which legitimately differ across stages.)
+  collapses to one. Count with `raw=true` for this check. The default folds hits
+  to their enclosing documents, which legitimately differ across stages.
 - **Nothing in any `.output`** → the value never entered the projected tree; look
   at the first projection, not the renderer.
 

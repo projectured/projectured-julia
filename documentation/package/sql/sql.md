@@ -50,8 +50,8 @@ complete, parseable statement raises an error rather than returning a partial
 tree. `parse_sql_file` reads the file and calls `parse_sql_text` on its
 content. The grammar covers `SELECT` with joins, a `WHERE` filter of
 comparisons and boolean connectives, `INSERT`, `UPDATE`, `CREATE TABLE` and
-`CREATE SCHEMA` — the subset the other slices of the domain-inventory table
-exercise, not the whole of ANSI SQL.
+`CREATE SCHEMA`. This is the subset the other slices of the domain-inventory
+table exercise, not the whole of ANSI SQL.
 
 ## How it fits
 

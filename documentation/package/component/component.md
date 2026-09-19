@@ -2,9 +2,10 @@
 
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
-A component composes widget primitives into a reusable, behavioral UI unit —
-a layer meant to sit between a document and a widget tree, the way a form or
-a master-detail view combines several widgets into one interactive pattern.
+A component composes widget primitives into a reusable, behavioral UI unit.
+It is a layer meant to sit between a document and a widget tree, the way a
+form or a master-detail view combines several widgets into one interactive
+pattern.
 Today the slice defines one such composite, `ComponentMasterDetail`, as a
 document; no projection renders it yet.
 
