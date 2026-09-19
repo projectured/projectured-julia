@@ -1001,6 +1001,39 @@ the one it can reach.
 
 ### Step 5 — a tooltip window that takes no focus
 
+**PART DONE, and STOPPED for the owner, 2026-09-19.**
+
+Done, and checked by reading the flags back out of a built window style rather
+than by opening one:
+
+- **The flag comment was wrong, and so were the flags.** `0x00000400` is
+  `SDL_WINDOW_MOUSE_FOCUS`, which SDL **reports** about a window and never takes
+  when one is made; the comment called it `SDL_WINDOW_ALWAYS_ON_TOP`, which is
+  `0x8000`. So no tooltip was ever on top, and `_WINDOW_FLAGS_FLOATING` carried
+  the same mistake, which means **every popup menu had it too**. All three styles
+  are named constants now: the tooltip is `BORDERLESS | ALWAYS_ON_TOP |
+  SKIP_TASKBAR | TOOLTIP | ALLOW_HIGHDPI`, and the floating style is
+  `RESIZABLE | ALWAYS_ON_TOP | ALLOW_HIGHDPI`.
+- **`get_screen_origin(backend, id)`** is declared in `BackendInterface.jl`,
+  answers `nothing` in `BackendDefaults.jl`, is exported by `BackendModule`, and
+  is answered by SDL through `SDL_GetWindowPosition` in logical units.
+
+**Not done, and this is where the plan said to stop.** The focus behaviour is
+**unverified**. This machine runs a tty session against the owner's live display
+(`DISPLAY=:0`), so a focus probe opens real windows on the owner's screen, and
+`SDL_CreateWindow` blocked inside `X11_ShowWindow` waiting for a map event that
+did not come. Two probes were killed at their timeout. **The measurement needs
+the owner's word and an idle display**, and the risk table says Step 6 does not
+start until it passes.
+
+What the probe should report, for each of five flag sets, is whether the main
+window still holds `SDL_WINDOW_INPUT_FOCUS` after a tooltip window opens. The
+script is written and stands at
+`scratchpad/focus.jl`; it needs a display nobody is using.
+
+Also not done: the web client draws a `:tooltip` window as a positioned overlay
+instead of queueing it as a popup (§3.2b).
+
 This step is backend work, and it closes Step 1 of [tooltip.md](tooltip.md).
 
 - [ ] SDL: give the `:tooltip` style a flag set that does not take the focus.

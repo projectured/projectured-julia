@@ -420,9 +420,20 @@ end
 # `write_to_devices(::SdlBackend, devices, ::ScreenDocument)`).
 # ════════════════════════════════════════════════════════════════════════
 
-const _WINDOW_FLAGS_DEFAULT  = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | UInt32(0x00002000)  # 0x00002000 = SDL_WINDOW_ALLOW_HIGHDPI
-const _WINDOW_FLAGS_TOOLTIP  = SDL_WINDOW_SHOWN | UInt32(0x00000010) | UInt32(0x00000400) | UInt32(0x00002000)  # SDL_WINDOW_BORDERLESS | SDL_WINDOW_ALWAYS_ON_TOP
-const _WINDOW_FLAGS_FLOATING = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | UInt32(0x00000400) | UInt32(0x00002000)  # SDL_WINDOW_ALWAYS_ON_TOP
+# The flags a window of each style is created with. **Named, not numbered.** The
+# tooltip and the floating style both carried `0x00000400` under a comment that
+# called it `SDL_WINDOW_ALWAYS_ON_TOP`. It is `SDL_WINDOW_MOUSE_FOCUS`, which SDL
+# REPORTS about a window and never accepts when one is made, so neither style was
+# ever on top and neither flag set said what its comment said.
+const _WINDOW_FLAGS_DEFAULT  = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI
+# A tooltip belongs to the window under it: it stays above, it is not a task of
+# its own, and `SDL_WINDOW_TOOLTIP` is what tells the window manager to treat it
+# as one and leave the keyboard where it is.
+const _WINDOW_FLAGS_TOOLTIP  = SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS |
+                               SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_SKIP_TASKBAR |
+                               SDL_WINDOW_TOOLTIP | SDL_WINDOW_ALLOW_HIGHDPI
+const _WINDOW_FLAGS_FLOATING = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE |
+                               SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_ALLOW_HIGHDPI
 
 function _window_flags(style::Symbol)
     style === :tooltip  && return _WINDOW_FLAGS_TOOLTIP
@@ -3066,6 +3077,16 @@ BackendModule.decode_image(filename::AbstractString) = decode_sdl_image(filename
 # Display size via the generic seam (delegates to the SDL-specific query).
 BackendModule.get_display_size(::SdlBackend; display::Integer=0) =
     get_sdl_display_size(; display=display)
+
+# Where a window sits on the screen. A window this backend never opened has no
+# place to report, and `nothing` says so rather than guessing an origin.
+function BackendModule.get_screen_origin(backend::SdlBackend, id)
+    resource = get(backend.windows, Symbol(id), nothing)
+    resource === nothing && return nothing
+    x, y = Ref{Cint}(0), Ref{Cint}(0)
+    SDL_GetWindowPosition(resource.win, x, y)
+    (_to_logical(Int(x[])), _to_logical(Int(y[])))
+end
 
 # Populate the Display devices with the real display geometry and HiDPI scale
 # discovered at start-up (called after `initialize_backend!`, so the scale is
