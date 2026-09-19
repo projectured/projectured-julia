@@ -18,7 +18,7 @@ turn with it.
 | Backend type | `AnthropicLlm` | `OllamaLlm` |
 | `make_llm` key | `:anthropic` | `:ollama` |
 | Where the model runs | Anthropic's servers | this machine, served by Ollama |
-| Credential | `api_key`, defaulting to `ENV["ANTHROPIC_API_KEY"]` | none — a local server asks for none |
+| Credential | `api_key`, defaulting to `ENV["ANTHROPIC_API_KEY"]` | none — a local server needs none |
 | Default model | `"claude-opus-5"`, or the newest model the Models API reports supports adaptive thinking | `"qwen3.8:27b"` |
 | Meaning vectors | not implemented | `compute_meaning_vectors`, through `/api/embed`, `"nomic-embed-text"` by default |
 

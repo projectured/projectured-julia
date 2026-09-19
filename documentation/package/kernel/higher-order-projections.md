@@ -195,7 +195,7 @@ outside `Dragging.jl`** and works for any domain whose graphics reader already
 hit-tests `MousePress`.
 
 **The move.** A completed drag emits a `MoveRangeOperation` (see
-[operations.md](operation.md)). The reader resolves each reference to a
+[operation.md](operation.md)). The reader resolves each reference to a
 `(CellVector, index)` pair (splitting the path at its last element
 `RangeReferenceStep`; the prefix resolves to the owning collection) and stores the
 `CellVector`s **directly** in the operation, the way the split-pane operations

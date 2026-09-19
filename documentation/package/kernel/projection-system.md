@@ -511,7 +511,7 @@ thunk, or the part of `print_document` that builds them — must be a pure
 function of its inputs *as observed by every other reactive node*. In particular
 it must never **write another cell** (`other_cell[] = v`) or mutate shared
 document state. The eager engine invalidates a written cell's consumers
-immediately (see [reactive-cells.md](cell.md)), so writing a cell from
+immediately (see [cell.md](cell.md)), so writing a cell from
 inside another cell's computation invalidates those consumers *mid-computation*.
 Graphics-domain cells *do* have consumers (e.g. `GraphicsCanvasToGraphicsImage` reads them).
 That makes recomputation order-dependent and the graph inconsistent.

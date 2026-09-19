@@ -39,7 +39,7 @@ text     = print_natural_text(document)
 
 `has_natural_parser(:json)` answers whether a format can be read, for a caller where "no parser" is a normal answer rather than a fault.
 
-`get_natural_extension` and `get_natural_format` map between the two, which is how a file name decides what a file holds.
+`get_natural_extension` and `get_natural_format` map between the two, which is how the format of a file follows from its name.
 
 ## The ladder, and the general renderer
 
@@ -61,6 +61,6 @@ It draws a document of any registered domain, and a plain Julia value through re
 
 ## Where it is used
 
-- The file reader and writer: an extension decides the format, and the format decides the parser ([fileformat](../../guide/build-guide.md) carries the same table into a binary).
+- The file reader and writer: the format follows from the extension, and the parser follows from the format ([fileformat](../../guide/build-guide.md) carries the same table into a binary).
 - The application: every tab draws through `NaturalToGraphics` unless its content has a view of its own.
 - The assistant: `make_natural_projection(document, :string)` is how a tool turns a document into text for the model.

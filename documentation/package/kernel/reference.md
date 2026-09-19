@@ -14,11 +14,11 @@ structs, per-domain path tables, and searching (`search_references`). For how a 
 is *stored, propagated, and forward-projected* as the current selection, see
 the sibling [selection guide](selection.md).
 
-## The reference layer (kernel layer 8)
+## The reference layer (kernel layer 9)
 
-References are **layer 8 of the kernel** — paths into documents. The layer lives
+References are **layer 9 of the kernel** — paths into documents. The layer lives
 in [source/kernel/reference/](../../../source/kernel/reference/), inside one aggregator module
-(`ReferenceModule`) split across ten fragments that share its namespace:
+(`ReferenceModule`) split across eleven fragments that share its namespace:
 
 ```
 ReferenceModule.jl       (ReferenceModule)             — the aggregator
@@ -57,6 +57,9 @@ ReferenceModule.jl       (ReferenceModule)             — the aggregator
         ├─ ReferenceRules.jl   — the @reference_rules DSL: the same block of arms
         │                        kept as a VALUE (ReferenceRules), matched by an
         │                        interpreter over the same pattern AST
+        ├─ ReferencePatternString.jl — the string spelling of a pattern: ref"…" and
+        │                        parse_reference_pattern, for a rule set read from
+        │                        a configuration file at run time
         └─ ReferenceBuilder.jl — the @reference / @reference_step construction DSL
                                  (compact surface syntax for building paths)
 ```
@@ -104,8 +107,8 @@ namespace), not separate modules.
   the reflection-walker traits, not for `@document`.
 
 That is the whole import surface of the layer. No projection, no operation, no
-device. This is what makes the reference layer sit at index 3 in the kernel's
-dependency DAG.
+device. This is what keeps the reference layer below the selection and operation
+layers.
 
 ## Reference steps
 

@@ -5,7 +5,7 @@
 Contributor guide to the twenty packages that hold ProjecturEd's concrete
 source domains: what a domain package contains, how they depend on each other,
 and how to add one. For the whole-system picture see
-[architecture.md](system-anatomy.md).
+[system-anatomy.md](system-anatomy.md).
 
 ## Per-domain guides
 
@@ -36,7 +36,7 @@ that is true of that content and nothing else:
 Each package is a triad — `package/<name>/{main, test, example}` — plus a
 `doc/` where a guide exists. Every package depends on `ProjecturedKernel`, on
 the substrate packages it actually imports, and on whichever domains it
-embeds. [packages.md](../rule/package-rules.md) has the substrate table.
+embeds. [package-rules.md](../rule/package-rules.md) has the substrate table.
 
 ## The dependency table
 

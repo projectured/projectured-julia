@@ -160,7 +160,7 @@ The function calls `build_executable(context; …)` with:
   compares them with what the program parses.
 - `fonts` and `assets` — what the bundle carries beside the code.
 
-The generic half of the builder knows no program and no repository: a
+The generic half of the builder names no program and no repository: a
 `BuildContext` says which repository a build writes into and where it finds a
 package. That is what lets another repository use the same builder.
 
@@ -174,7 +174,7 @@ package. That is what lets another repository use the same builder.
 | [bin/](../../bin/) | one script to run a program, one to build it |
 | [package/ProjecturedBuilder/](../../package/ProjecturedBuilder/) | the package that holds them |
 | [environment/build/](../../environment/build/) | the environment of a build: the builder and PackageCompiler |
-| [test/builder/BuilderTest.jl](../../test/builder/BuilderTest.jl) | `test_builder()`: what a build writes, and what it refuses |
+| [test/builder/BuilderTest.jl](../../test/builder/BuilderTest.jl) | `test_builder()`: what a build writes, and which inputs stop it |
 
 The tests compile nothing. Run them with the rest of the suite, or alone:
 

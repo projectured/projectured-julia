@@ -29,11 +29,11 @@ names by keyword what its window has:
 | `command_palette` | Ctrl+Shift+P finds a command by name and runs it |
 | `gesture_log` | a panel that lists the last gestures; the record itself is always kept |
 | `selection` | Alt and an arrow walk the objects, and the clipboard acts on the one selected |
-| `clipboard_gestures` | which of the five the window offers |
+| `clipboard_gestures` | which of the five the window has |
 | `history` | a `projection -> projection` wrapper for what the window remembers |
 | `shell` | the chrome: `(document) -> (menu_bar, toolbar, status_bar, context_menu, size)` |
 | `tooltip` + `pointer` | what the document under the pointer says about itself |
-| `context_menu` | what the document under the pointer offers on a right press |
+| `context_menu` | the menu of the document under the pointer on a right press |
 
 **The order is not a preference.** From the inside out: the history, the shell,
 the selection walk with the clipboard, the tooltip probe, the context menu
@@ -44,7 +44,7 @@ probe, the help, the palette, the log's panel, and the log's recorder.
   recursion never reaches what it dispatches on.
 - The **shell** is outside the window's own document and inside everything that
   acts on a window, so the walk and the clipboard reach into it and a verb that
-  asks for the pane tree looks past it.
+  reads the pane tree skips it.
 - The **probes** are over the walk, because a probe asks the document the walk
   selects in, and under the help and the palette, because a probe must not answer
   for a window that one of those opened.
@@ -79,7 +79,7 @@ caller that knows the window's size says it. Wrapping is idempotent, so a window
 read back from a saved file is not wrapped twice.
 
 **What is saved is the window, and not the bands.** `WidgetShell` writes only
-its `content`. A menu bar is what the binary offers and is built fresh at every
+its `content`. A menu bar belongs to the binary and is built fresh at every
 start; writing it would put one binary's menu into a file another opens. The
 fold fills the bands back in on load.
 
@@ -130,7 +130,7 @@ alone:
 
 **A tooltip is drawn in a window of its own, always** (`PAR-MANY-WINDOWS`). The
 probe needs `pointer`, a 0-argument callable answering the pointer in screen
-coordinates, because only a backend knows where the pointer is.
+coordinates, because only a backend has the position of the pointer.
 
 ## The file dialogs
 

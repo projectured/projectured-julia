@@ -16,7 +16,7 @@ A key press goes to the view under the selection, and each view says which keys 
 | Ctrl + Home, Ctrl + End | the first and the last position of the document |
 | Alt + arrow keys | move the selection over whole parts, not positions |
 | Alt + click | select the part under the pointer as a whole |
-| right press | open the menu that the thing under the pointer offers |
+| right press | open the menu of the thing under the pointer |
 | rest the pointer | a tooltip says what the thing under it is |
 | click | put the selection where you click |
 | double click on a file in the navigator | open that file |

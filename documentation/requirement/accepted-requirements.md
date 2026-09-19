@@ -12,7 +12,7 @@ being edited. Requirements describe intended behaviour; the
 These are the *product* requirements (what the editor and project must do). For
 the *internal development* requirements that keep the codebase tractable — the
 invariants and conventions every change must respect — see
-[architecture-requirements.md](../rule/architecture-invariants.md).
+[architecture-invariants.md](../rule/architecture-invariants.md).
 
 Each requirement carries a symbolic ID — `PR-NO-INVALID-STATES`,
 `PR-UNDO-REDO` — to cite in reviews, commit messages, and plans. An ID is

@@ -4,7 +4,7 @@
 
 This document covers the conceptual pipeline, the package layout, the module
 inventory, and the projection pipeline status. The division vocabulary
-(package / layer / slice / module) is defined in [terminology.md](../rule/division-terminology.md).
+(package / layer / slice / module) is defined in [division-terminology.md](../rule/division-terminology.md).
 For design rationale see the
 [design decisions guide](architecture-decisions.md). For the full reference/selection
 mechanism see the [reference guide](../package/kernel/reference.md) and
@@ -34,12 +34,12 @@ mechanism see the [reference guide](../package/kernel/reference.md) and
                            │                    │                  │
                     ┌──────▼────────────────────▼──────────────────▼──────┐
                     │              Reactive Cell Engine                    │
-                    │              (kernel layer 1 — `cell/`)             │
+                    │              (kernel layer 2 — `cell/`)             │
                     └─────────────────────────────────────────────────────┘
 ```
 
 Four conceptual stages, bottom to top. These stages span packages. They are
-*not* layers in the [terminology.md](../rule/division-terminology.md) sense, which are ordered
+*not* layers in the [division-terminology.md](../rule/division-terminology.md) sense, which are ordered
 strata *inside* a package. The packages and their internal layers/slices are
 described in the next section.
 
@@ -56,7 +56,7 @@ described in the next section.
 
 The **kinds** of package (main, example, test, repl, build), what each may
 depend on, and why the leaf the alias loads is the only place a
-`@compile_workload` may live, are in [packages.md](../rule/package-rules.md).
+`@compile_workload` may live, are in [package-rules.md](../rule/package-rules.md).
 
 ProjecturEd is organized as **one engine, twenty-eight substrate packages and
 twenty domain packages**, plus an umbrella and the opt-in packages. The kernel
@@ -94,7 +94,7 @@ The substrate: 28 packages     one concept each, an acyclic package graph
         │                      natural;
         │                      the two dependency-free backends — console, pdf.
         │                      Each declares the exact set it imports; the table
-        │                      is in [packages.md](../rule/package-rules.md).
+        │                      is in [package-rules.md](../rule/package-rules.md).
 The twenty domain packages     one package per concrete source domain
         ▲                      json/ yaml/ xml/ markdown/ rst/ book/ math/ julia/
         │                      sql/ database/ filesystem/ graph/ chart/
@@ -103,7 +103,7 @@ The twenty domain packages     one package per concrete source domain
         │                      documents, its parser and its projections.
         │                      Deps: the kernel, the substrate packages it uses,
         │                      and the domains it embeds. See
-        │                      [domains.md](domain-inventory.md).
+        │                      [domain-inventory.md](domain-inventory.md).
 Projectured (projectured/)     umbrella: `using Projectured` re-exports every
                                package above as a single flat public API.
 
@@ -136,7 +136,7 @@ for the head alone — the docstring, the header, the ordered includes and
 listing one include gives a reader nothing. All 15 head files of the kernel
 carry two or more includes.
 
-See [terminology.md](../rule/division-terminology.md) for the definitions and
+See [division-terminology.md](../rule/division-terminology.md) for the definitions and
 [architecture-rules.md](../rule/architecture-rules.md) for the durable division
 rules.
 
@@ -186,7 +186,7 @@ the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 
 ### Stage 0 — Reactive Cell Engine
 
-**kernel layer 1 — `cell/`** (`CellModule`)
+**kernel layer 2 — `cell/`** (`CellModule`)
 
 - `AbstractCell` and three kinds: `ReactiveCell` (tracks dependencies and
   invalidates lazily), `MutableCell` (a plain writable box), and `ImmutableCell`
@@ -341,7 +341,7 @@ ProjecturedKernel ◄── the 28 substrate packages ◄── the 20 domains �
 ```
 
 The substrate packages form their own DAG, and so do the twenty domains.
-[packages.md](../rule/package-rules.md) has the substrate table; [domains.md](domain-inventory.md)
+[package-rules.md](../rule/package-rules.md) has the substrate table; [domain-inventory.md](domain-inventory.md)
 has the domain table.
 
 ### The 18 kernel layers
@@ -429,7 +429,7 @@ concept, and each declares the exact set of packages it imports:
 **The twenty domain packages** — one package per concrete source domain,
 each holding one slice: its documents, its parser and its projections.
 Fourteen need only the engine packages; five build on one layer of domains;
-the assistant panel builds on the conversation domain. [domains.md](domain-inventory.md) has the table and the rules
+the assistant panel builds on the conversation domain. [domain-inventory.md](domain-inventory.md) has the table and the rules
 for adding one.
 
 ---
@@ -483,7 +483,7 @@ for adding one.
 | Web backend (browser renderer) | `backend/Web.jl` | ✅ (new in Julia port) |
 | PDF export backend | `backend/Pdf.jl` | ✅ |
 | IO Maps | `IoMapDefaults.jl` + per-projection | ✅ |
-| References | `reference/` (layer 8) | ✅ |
+| References | `reference/` (layer 9) | ✅ |
 | Navigation operations | `Operations.jl` (`ReplaceSelectionOperation`) | ✅ |
 | Editor REPL | `EditorModule.jl` | ✅ |
 | All higher-order projections | `projection/higherorder/` | ✅ |

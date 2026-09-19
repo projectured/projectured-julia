@@ -8,7 +8,7 @@ only a name and an include list.
 
 The cross-cutting guides stay one level up, in [documentation/](../). Read those
 first: [concepts.md](../design/concepts.md) explains what a document, a projection and
-an editor are, and [architecture.md](../design/system-anatomy.md) explains how the pieces
+an editor are, and [system-anatomy.md](../design/system-anatomy.md) explains how the pieces
 stack.
 
 A guide here is named `<slice>/<file>` when the editor's documentation tool lists

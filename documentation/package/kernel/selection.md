@@ -3,7 +3,7 @@
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 Selection is the mechanism that tracks the current cursor position or focused
-region within a document — kernel layer 9, `SelectionModule`. A **selection**
+region within a document — kernel layer 10, `SelectionModule`. A **selection**
 is a specific use of a *reference*: the [`Reference`](reference.md) stored in
 a document's `selection` cell that identifies the currently focused position.
 Every `Document` carries a `selection` field, and the writers canonicalize and

@@ -35,7 +35,7 @@ caller's business, and what `:pin` means to an algorithm is this package's.
 | `SpringEmbedderLayout` | the port of OMNeT++'s `BasicSpringEmbedderLayout` | **ignored**, except that an edge grows a little with its ends | 0.04 s at 300 vertices |
 | `ForceDirectedLayout` | the port of OMNeT++'s `ForceDirectedGraphLayouter` | carried through every force | 41 s at 300 vertices |
 | `AdaptagramsLayout` | libcola placement and libavoid routing, through a C shim | carried | native |
-| `DeferredLayout` | decides which of the above to be, when the layout runs | — | — |
+| `DeferredLayout` | becomes one of the above when the layout runs | — | — |
 
 The two ported ones are the two OMNeT++ draws a network with, and they are ports
 rather than new algorithms because the caller wants *the* picture Qtenv draws,
@@ -67,7 +67,7 @@ should have.
 
 A `GraphConstraint` wraps a vertex with a `kind` and a `payload`.
 
-| kind | payload | what it asks for |
+| kind | payload | what the layout must do |
 | --- | --- | --- |
 | `:pin` | `(x, y)` | place this vertex at this corner and never move it |
 | `:fixed_size` | `(w, h)` or `nothing` | use this size, and do not resize it |
@@ -109,7 +109,7 @@ and `max_iterations` bound the work instead.
 ## The ported files
 
 `source/graph/omnetpp/` holds the port, one file per C++ file in
-`omnet-cpp/src/layout/`, keeping the original's name and the order of its
+`src/layout/` of the OMNeT++ source tree, keeping the original's name and the order of its
 definitions so a later fix over there can be read across.
 
 | here | there |

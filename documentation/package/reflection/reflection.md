@@ -21,7 +21,7 @@ A value that refers to itself is safe, because the walk stops at the depth of th
 
 ## The view
 
-`ReflectionToWidget` turns the shadow into a widget tree: one row per field or element, the kind of each value beside it, and a chevron on a node that holds more. A click on the chevron asks for the next level, which is a `sync_reflection!` with the node marked as requested.
+`ReflectionToWidget` turns the shadow into a widget tree: one row per field or element, the kind of each value beside it, and a chevron on a node that holds more. A click on the chevron loads the next level, which is a `sync_reflection!` with the node marked as requested.
 
 ```julia
 projection = ChainingProjection(ReflectionToWidget(),
@@ -35,7 +35,7 @@ That pair is what `make_value_viewer(value)` builds.
 
 | Path | What it is for | What it costs |
 | --- | --- | --- |
-| the reflection view (this slice) | any value, large, running, or one that refers to itself | one level at a time; a chevron asks for more |
+| the reflection view (this slice) | any value, large, running, or one that refers to itself | one level at a time; a chevron loads more |
 | `NaturalToGraphics` | a document of a registered domain, or a small struct | reads every field it reaches; it does not draw a dictionary |
 | `ObjectToWidget` | a value that is shown as a form of its fields, inside a designed view | the fields the caller names |
 

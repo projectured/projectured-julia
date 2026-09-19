@@ -4,9 +4,8 @@
 
 The reactive cell system is the foundation of ProjecturEd's incrementality. It is a
 lightweight pull-based reactive engine that replaces the original Common Lisp
-ProjecturEd's `hu.dwim.computed-class`. It is **layer 1 of the kernel** — the bottom
-of the dependency DAG, the one part with no kernel dependencies that everything else
-is built on. The engine lives in
+ProjecturEd's `hu.dwim.computed-class`. It is **layer 2 of the kernel**. It imports no other kernel layer, and the layers
+above it are built on it. The engine lives in
 [CellModule.jl](../../../source/kernel/cell/CellModule.jl); every other layer
 is built on top of it.
 
@@ -267,6 +266,6 @@ binds a fresh store and reports it every frame (see
 [EditorModule.run_editor!](../../../source/kernel/editor/EditorModule.jl)), which is the
 easiest way to profile what work a particular edit triggered.
 
-Animation clock: `ClockModule` is its own kernel layer (layer 2, `clock/`),
+Animation clock: `ClockModule` is its own kernel layer (layer 3, `clock/`),
 directly above this one. See `clock/ClockModule.jl` for the API (`Clock`,
 `get_reactive_clock_time`, `get_clock_time`, `set_clock_time!`, `get_wall_clock`).

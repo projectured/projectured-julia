@@ -128,7 +128,7 @@ controls: a text box, a checkbox, and a button.
 - Try `run_example("widget_tabbed_pane")` for a multi-tab variant.
 
 **Concepts illustrated:**
-- Domain independence: `WidgetToGraphics` knows nothing about JSON
+- Domain independence: `WidgetToGraphics` has no reference to JSON
 - `GraphicsViewport` — how scroll panes clip content to a bounding box
 - Event routing through composite projections
 - The pane tree (`run_example("pane")`) extends this further with tab groups
@@ -218,8 +218,8 @@ tab of notes and one of scratch space on the right.
   tab's content passes through the pane stage untouched.
 
 **Concepts illustrated:**
-- Compound projection: the pane stage decides the layout, and the renderer
-  that follows decides how each tab's content looks — the same split every
+- Compound projection: the pane stage computes the layout, and the renderer
+  that follows computes how each tab's content looks — the same split every
   domain projection keeps
 - `PaneGroupToWidgetTabbedPane` / `PaneSplitToWidgetSplitPane` — each pane node
   projects to its matching widget container

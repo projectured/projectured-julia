@@ -15,16 +15,16 @@ renders one into its own schema. Three consumers, three directions, and no
 knowledge of each other.
 
 ```
-layer 14  tool/    the capability surface     — no LLM, no MCP
-layer 15  llm/     the provider abstraction   — no MCP, no agent
-layer 16  agent/   the glue                   — llm + tools + a target
+layer 15  tool/    the capability surface     — no LLM, no MCP
+layer 16  llm/     the provider abstraction   — no MCP, no agent
+layer 17  agent/   the glue                   — llm + tools + a target
 ```
 
 The order is a real one: an LLM request carries the tools the model may call, so
 `llm` sits on `tool`; the loop drives a model against a tool set, so `agent` sits
 on both.
 
-## Layer 14 — `tool/`: what the editor can be asked to do
+## Layer 15 — `tool/`: what the editor can be asked to do
 
 ```
 Tool.jl           Tool (an action), Resource (a read-only datum), MeaningModel, ToolSet
@@ -184,7 +184,7 @@ of the answer says why. For a model
 that is not installed, the reason says how to install it: `Run ollama pull
 nomic-embed-text`.
 
-## Layer 15 — `llm/`: how the editor talks to a model
+## Layer 16 — `llm/`: how the editor talks to a model
 
 ```
 Llm.jl         the Llm supertype; the stream_turn and render_tool_schema seams; the meaning model
@@ -309,7 +309,7 @@ one would have to decide.
 | the context window | comes with the model | `options.num_ctx`, and the server's own answer until a caller sets one |
 | a reasoning block's signature | required back, unchanged | none exists |
 | the stop reason for a tool call | the provider says `tool_use` | the provider says `stop`; the adapter counts the calls |
-| meaning vectors | no API | `/api/embed`, with the prefix the model family wants |
+| meaning vectors | no API | `/api/embed`, with the prefix the model family needs |
 
 The last row is the one that fails silently. `run_turn!` runs a tool only when the
 turn ends in `:tool_use`, so an adapter that passes its provider's word through
@@ -366,7 +366,7 @@ it buys is that a name outside the list fails in the round that used it, with an
 error the model reads and corrects, instead of the model choosing among thousands
 of names that mean nothing to its task.
 
-## Layer 16 — `agent/`: the two directions
+## Layer 17 — `agent/`: the two directions
 
 ```
 AgentServerModule.jl  (AgentServerModule)  inbound  — make/start/stop_agent_server!

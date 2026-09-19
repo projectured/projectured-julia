@@ -53,7 +53,7 @@ They are different questions, and each has one mechanism.
 | --- | --- |
 | Does this step belong in a history at all? | the `filter` of the projection, at read time |
 | Can this step be taken back? | `make_inverse_operation`, at evaluate time |
-| What happens when it can not? | a **barrier** entry, which undo refuses to cross |
+| What happens when it can not? | a **barrier** entry, which undo does not cross |
 
 `is_undo_step` is the default filter. It drops the operations that change
 nothing and the bare selection moves, because a caret move follows almost every
@@ -145,8 +145,8 @@ against, and answers what it took back or says there was nothing to take back.
 another records every step the one below it records: one step back there takes
 back the last thing that happened anywhere under it.
 
-The kernel's own tool list does not hold these. It knows nothing of a history,
-and a program that wants one says so — the application does it in
+The kernel's own tool list does not hold these. It has no reference to a history,
+and a program that needs one adds it — the application does it in
 `_start_application!`.
 
 Code a model runs through `execute_julia_code` records nothing by itself. It

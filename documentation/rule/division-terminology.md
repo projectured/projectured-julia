@@ -46,7 +46,7 @@ and no synonyms.
   invalidated as the session finishes loading. That is why a
   `@compile_workload` may appear only in a leaf, and why depending on one makes
   it stop being one. `test_package_graph()` asserts both. See
-  [packages.md](package-rules.md).
+  [package-rules.md](package-rules.md).
 
 Files are below all of this: a file is a readability boundary only and is
 **not** part of the terminology — fragments share their aggregator module's
@@ -82,4 +82,4 @@ declares them, and the topological include order of every other package.
 
 For the decision rules — *when* to create a package, layer, slice, or module —
 see [architecture-rules.md](architecture-rules.md). For what each package
-contains, see [architecture.md](../design/system-anatomy.md).
+contains, see [system-anatomy.md](../design/system-anatomy.md).

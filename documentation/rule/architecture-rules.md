@@ -3,7 +3,7 @@
 > **Kind:** rule · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [architecture-invariants.md](architecture-invariants.md)
 
 The decision rules behind the package/layer/slice/module structure. The terms
-are defined precisely in [terminology.md](division-terminology.md). They apply
+are defined precisely in [division-terminology.md](division-terminology.md). They apply
 to the codebase as it exists today, including the opt-in packages. The design
 rationale is in
 [plan/done/kernel-layered-architecture.md](../../plan/done/kernel-layered-architecture.md),
@@ -16,17 +16,17 @@ the rules don't answer it, extend the rules, do not improvise.
 These are the *placement* rules (where code lives). For the *invariants and
 conventions* every change must respect — reactivity, the projection contract,
 references/selection, operations, testing — see
-[architecture-requirements.md](architecture-invariants.md) (the `PAR-…`
+[architecture-invariants.md](architecture-invariants.md) (the `PAR-…`
 development requirements).
 
 ## The four levels of division
 
 Each level answers to a different criterion. "Should X be a package?" is really four
-questions, one per level ([terminology.md](division-terminology.md) defines the terms):
+questions, one per level ([division-terminology.md](division-terminology.md) defines the terms):
 
 | Level | Is a boundary of | Create one when | Cost |
 | --- | --- | --- | --- |
-| **Package** | dependencies and consumers | a new **external dependency**, or a **distinct consumer set** wants the code *without* the rest | Project.toml, resolver slot, alias plumbing in every dependent — strict criterion, not aesthetic |
+| **Package** | dependencies and consumers | a new **external dependency**, or a **distinct consumer set** needs the code *without* the rest | Project.toml, resolver slot, alias plumbing in every dependent — strict criterion, not aesthetic |
 | **Layer** | direction of dependency | code sits at a distinct height: layer N imports only layers ≤ N | a folder + a guard entry — cheap |
 | **Slice** | feature membership within one layer | the instances of a layer are features that grow in number; slice→slice edges must stay acyclic | a folder + a guard entry — cheap |
 | **Module** | namespace / import surface | it is a seam others import or implement against **by name** (module names are de-facto public API via the umbrella re-export) | every import header that names it; merge modules only ever imported together |

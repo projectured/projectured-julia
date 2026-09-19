@@ -102,8 +102,8 @@ named for its subject, `JsonDocument.jl`, not the bare slice name
 query rather than a file, and are named for what they query, such as
 `DatabaseResultTest.jl` or `DbCatalogQueryTest.jl`.
 
-12 colliding names remain, down from 62. Each of the 13 is one
-concept exemplified in two slices, such as `PaneProjectionExample.jl` in
+10 file names occur in more than one slice of `source/`, `example/` and
+`test/`. Each of the 10 is one concept exemplified in two slices, such as `PaneProjectionExample.jl` in
 `projectured` and in `substrate`, which the slice folder separates.
 
 ## Files and modules

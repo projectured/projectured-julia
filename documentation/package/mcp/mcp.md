@@ -6,7 +6,7 @@ How an external client reaches a running editor: the server, what it offers, and
 
 ## The seam
 
-The editor knows nothing about the Model Context Protocol. It asks for an agent server by a name:
+The editor has no reference to the Model Context Protocol. It gets an agent server by a name:
 
 ```julia
 run_editor!(backend, projection, document; mcp = true)
@@ -43,6 +43,6 @@ The tool `execute_julia_code` runs in the process of the editor, with `editor` b
 | --- | --- |
 | `McpServer(editor; instructions)` | the server over one editor, with the prompt it gives a client |
 | `start_mcp!`, `stop_mcp!` | start and stop it |
-| `render_mcp_tools`, `render_mcp_resources` | the tool set, in the shape the protocol wants |
+| `render_mcp_tools`, `render_mcp_resources` | the tool set, in the shape the protocol needs |
 
 The whole slice is `source/mcp/Mcp.jl`, and `test/projectured/editor/McpTest.jl` drives it.

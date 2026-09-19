@@ -4,9 +4,9 @@
 
 What a package here is for, what it may depend on, and which one you load.
 
-- [architecture.md](../design/system-anatomy.md) — what the layers hold and how they stack.
-- [domains.md](../design/domain-inventory.md) — the twenty-one domain packages, and what makes one.
-- [terminology.md](division-terminology.md) — package, layer, slice, module, leaf.
+- [system-anatomy.md](../design/system-anatomy.md) — what the layers hold and how they stack.
+- [domain-inventory.md](../design/domain-inventory.md) — the twenty-one domain packages, and what makes one.
+- [division-terminology.md](division-terminology.md) — package, layer, slice, module, leaf.
 
 This document is the shape those are arranged in.
 
@@ -38,7 +38,7 @@ whose name merely begins with another's — `ProjecturedOdbc`, `ProjecturedTulip
 Foo         -> Bar, and every sub-stem of Foo
 FooExample  -> Foo,  BarExample
 FooTest     -> Foo,  BarTest, FooExample
-FooRepl     -> ProjecturedTest and what a prompt wants          (leaf)
+FooRepl     -> ProjecturedTest and what a prompt needs          (leaf)
 FooBuild    -> FooExample                                       (leaf)
 ```
 
@@ -201,7 +201,7 @@ dependency.
 ### The twenty-one domains
 
 Each domain depends on the kernel, on the substrate packages it uses, and on
-the domains it embeds. [domains.md](../design/domain-inventory.md) has the table.
+the domains it embeds. [domain-inventory.md](../design/domain-inventory.md) has the table.
 
 ### The packages that own a third-party dependency
 
@@ -252,7 +252,7 @@ becomes an optional stem like `ProjecturedOdbc`, named in the table above.
 
 1. Decide whether it is a **sub-stem** (a layer, no third-party dependency) or a
    **stem of its own** (it has one). Only the first may be aggregated. For a new
-   domain, [domains.md](../design/domain-inventory.md) has the rest.
+   domain, [domain-inventory.md](../design/domain-inventory.md) has the rest.
 2. Give it the kinds it needs, with the reserved suffixes.
 3. Name every third-party dependency in the table above, with its reason.
 4. Do not depend on a leaf, and do not put a `@compile_workload` outside one.

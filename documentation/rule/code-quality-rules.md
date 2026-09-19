@@ -16,8 +16,8 @@ about a document, [writing-rules.md](writing-rules.md) is.
 | --- | --- |
 | Names of types, functions, files, and modules | [documentation/rule/naming-rules.md](naming-rules.md) |
 | What belongs in which package, layer, slice, and module | [architecture-rules.md](architecture-rules.md) |
-| What the code must do | [architecture-requirements.md](architecture-invariants.md) |
-| The words for the divisions and the pipeline | [terminology.md](division-terminology.md) |
+| What the code must do | [architecture-invariants.md](architecture-invariants.md) |
+| The words for the divisions and the pipeline | [division-terminology.md](division-terminology.md) |
 
 `naming.md` is the authority on every name. This document starts where a name
 ends.

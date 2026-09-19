@@ -20,7 +20,7 @@ Type in the field at the bottom of the pane and press Enter. The conversation ab
 Ollama is the default. ProjecturEd sends the turn to `http://localhost:11434`, so the Ollama server must run on your machine, and the model must be on the server.
 
 1. Install Ollama from [ollama.com](https://ollama.com) and start it.
-2. Pull the model that ProjecturEd asks for by default:
+2. Pull the default model of ProjecturEd:
 
    ```sh
    ollama pull qwen3.8:27b
@@ -32,7 +32,7 @@ Ollama is the default. ProjecturEd sends the turn to `http://localhost:11434`, s
    ollama pull nomic-embed-text
    ```
 
-4. Start the application. `--model=NAME` asks for another model:
+4. Start the application. `--model=NAME` selects another model:
 
    ```sh
    bin/projectured --model=llama3.1:70b notes.md

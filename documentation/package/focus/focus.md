@@ -38,8 +38,8 @@ stepping Tab across its own children. Both `LayoutToGraphics` and
 
 `is_whole_selection_press(event)` is true for a left press with Alt held and
 no other modifier. A plain press keeps its own meaning, so a button still
-fires. `is_whole_selection(document, reference)` tells a whole-element
-selection from a caret or a range: the reference must evaluate, inside
+fires. `is_whole_selection(document, reference)` is true for a whole-element
+selection and false for a caret or a range: the reference must evaluate, inside
 `document`, to a `Document` rather than a scalar position. A container that
 gets an Alt+press answered by its child calls
 `convert_to_whole_selection(operation, child)`. It keeps an answer that

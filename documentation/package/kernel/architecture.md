@@ -82,12 +82,12 @@ the shape is more interesting than "N depends on N−1":
 generic *declarations* (`function f end`) and nothing else. A higher layer, or a
 higher *package*, extends them by adding methods at its own definition site, so a
 lower layer never names its implementors and no cycle is needed. `ReferenceStep` is
-the clearest case: `ProjectionReferenceStep` (layer 13), `PointReferenceStep`, and the
+the clearest case: `ProjectionReferenceStep` (layer 14), `PointReferenceStep`, and the
 text-selection siblings `TextRangeReferenceStep`/`TextColumnReferenceStep`/`TextSpanReferenceStep`
 (all in the substrate) subtype it and register
-their navigation through `evaluate_reference_step`, with no edit to layer 8.
+their navigation through `evaluate_reference_step`, with no edit to layer 9.
 
-**The agent stack is a side-stack.** The editor (layer 17) reaches it only through
+**The agent stack is a side-stack.** The editor (layer 18) reaches it only through
 the factory seam `make_agent_server(:mcp, editor)` declared in `agent/AgentServerModule.jl`
 (`AgentServerModule`), so the editor does **not** depend on `Mcp` / `Llm`. The real
 transports are the opt-in `package/mcp/` and `package/llm/`, which register their

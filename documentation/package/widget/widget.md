@@ -37,8 +37,8 @@ All widgets subtype the abstract `WidgetDocument` (which subtypes `Document`).
 | `WidgetShell(children)` | Top-level window contents |
 | `WidgetTitlePane(title, content)` | Pane with a title bar |
 | `WidgetSplitPane(orientation, elements; sizes)` | Split with drag-resizable splitters (fields `elements`/`sizes`) |
-| `WidgetTabbedPane(selector_element_pairs; closable, new_tab, draggable, duplicable)` | Tab switcher; a wheel over the strip scrolls it horizontally (`tab_scroll`) when the tabs overflow the pane width. The four flags add a close button per tab, a new-tab button after the last, a grab on a button down, and a `+` above the close button of a page that offers a duplicate — see [Strip reports](#strip-reports) |
-| `WidgetTabPage(selector, element[, icon[, duplicable]])` | One tab of a `WidgetTabbedPane`: the tab's own selector (label), content element, optional icon, and whether it offers a duplicate button |
+| `WidgetTabbedPane(selector_element_pairs; closable, new_tab, draggable, duplicable)` | Tab switcher; a wheel over the strip scrolls it horizontally (`tab_scroll`) when the tabs overflow the pane width. The four flags add a close button per tab, a new-tab button after the last, a grab on a button down, and a `+` above the close button of a page that makes a duplicate — see [Strip reports](#strip-reports) |
+| `WidgetTabPage(selector, element[, icon[, duplicable]])` | One tab of a `WidgetTabbedPane`: the tab's own selector (label), content element, optional icon, and whether it has a duplicate button |
 | `WidgetScrollPane(content; position, size, scroll_position)` | Scrollable viewport (offset is `scroll_position`) |
 | `WidgetTransformPane(content; position, size, transform)` | Zoom/pan viewport — content under an affine `transform` (Ctrl+wheel zooms, plain wheel pans) |
 | `WidgetScrollBar(orientation; value, thumb_size)` | Scrollbar control (fields `value`/`thumb_size`) |

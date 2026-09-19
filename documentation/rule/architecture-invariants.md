@@ -9,7 +9,7 @@ alike.
 
 It is deliberately distinct from its two siblings:
 
-- [requirements.md](../requirement/accepted-requirements.md) states what the editor must do as
+- [accepted-requirements.md](../requirement/accepted-requirements.md) states what the editor must do as
   **externally observable capabilities** (behaviour of the editor, usability of
   the project). Those are *product* requirements, carrying `PR-` IDs.
 - [architecture-rules.md](architecture-rules.md) is the decision procedure for
@@ -23,7 +23,7 @@ mis-mapped cursor) rather than loudly when violated. Each requirement is a few
 sentences and carries a symbolic ID — `PAR-PURE-THUNK`, `PAR-PER-EDITOR-STATE` —
 to cite in reviews, commit messages, guard failures, and plans. The division
 vocabulary (package / layer / slice / module) is used exactly as defined in
-[terminology.md](division-terminology.md).
+[division-terminology.md](division-terminology.md).
 
 **A prefix names the repository that owns the rule**, so a citation says which
 document to open without a link. The downstream projects cite these rules as
@@ -669,8 +669,8 @@ differently depending on whether the projection that read it happened to take th
 shortcut. Two projections over the same domain then disagree about what an input
 *means*, which is precisely what the printer/reader pair exists to prevent.
 
-The temptation is a reader that already has the target and the new value in
-hand, where building an operation feels like ceremony. Build it anyway;
+The temptation is a reader that already has the target and the new value,
+where building an operation feels like ceremony. Build it anyway;
 `ReplaceReferencedValueOperation` covers the common case (PAR-PREFER-REPLACE-VALUE)
 and `InvokeActionOperation` carries a callback for an effect that is not a field
 write.
@@ -1173,7 +1173,7 @@ synonyms.** Avoid "tier" and architectural "level"; say "package" or "layer";
 say "per-package" (not "per-layer") for `test_kernel()`…; name a pipeline stage
 by the thing (the Syntax domain, the `syntax/` slice, the `SyntaxToText`
 projection), not "the syntax layer"; use "end-to-end path", not "vertical
-slice", for MVP scope. See [terminology.md](division-terminology.md).
+slice", for MVP scope. See [division-terminology.md](division-terminology.md).
 
 ### PAR-NEVER-GUESS-NAMES
 

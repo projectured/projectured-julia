@@ -313,7 +313,7 @@ this domain uses, and every other consumer can use them too:
 | `closable` | a close button on each tab | `CloseTabOperation(pane, index)` |
 | `new_tab` | a button after the last tab | `OpenTabOperation(pane)` |
 | `draggable` | nothing | `DragTabOperation(pane, index)` on a button down |
-| `duplicable` | a `+` above the close button of each page that offers a duplicate | `DuplicateTabOperation(pane, index)` |
+| `duplicable` | a `+` above the close button of each page that makes a duplicate | `DuplicateTabOperation(pane, index)` |
 
 The pane printer sets `duplicable` on every group, and sets each page's own flag
 from `has_document_duplicate` of the tab's content.
