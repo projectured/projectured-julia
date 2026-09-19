@@ -105,7 +105,7 @@ You read `s.value` and write `s.value = "x"` like a plain struct. The macro
 generates the accessors that go through the cell. `getfield(s, :value)` is the
 escape hatch that gives you the raw cell.
 
-Domains are independent. `JsonString` knows nothing about text, pixels, or
+Domains are independent. `JsonString` has no reference to text, pixels, or
 fonts. The JSON domain is a `json/` slice of the `domain` package; the visual
 domains (`Text`, `Syntax`, `Graphics`, `Widget`, `Layout`) are slices of the
 `visual` package.
@@ -517,7 +517,7 @@ capability is a **product**, not a sum.
 
 Nobody wrote "a sorted, filtered view of the XML inside a book chapter, in the
 terminal". It is a coordinate in that product, and it works because no cell of
-the product knows about any other.
+the product has a reference to any other.
 
 ### 4.5 Incrementality pays for the composition
 
