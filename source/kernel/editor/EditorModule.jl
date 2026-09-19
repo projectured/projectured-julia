@@ -550,6 +550,14 @@ that field when the input runs out, and `perf!` reads it to tell a frame that di
 something from an idle one.
 """
 function run_frame!(editor::Editor)
+    # Every fault the last frame collected, shown before this one reads
+    # anything. It belongs to the frame rather than to the loop above it: a
+    # driver that steps frames by hand — a playback, a test — must collect its
+    # faults too. It runs first because a write to a log document has to happen
+    # outside every thunk, and this is the one point in a frame that is.
+    _run_barrier(editor, :report) do
+        report_frame_faults!(editor)
+    end
     applied = nothing
     for _ in 1:MAX_OPERATIONS_PER_FRAME
         # A reader that throws is a reader that declined: the gesture is lost,
@@ -619,12 +627,6 @@ function run_editor!(editor::Editor; mcp::Bool=false,
             # extent; the cell operations below count into it and `perf!` reads it.
             with_performance_counters() do
                 set_clock_time!(editor.clock, Base.time() - t_start)
-                # Every fault the last frame collected, shown before this one
-                # reads anything. It runs first so a write to a log document
-                # happens outside every thunk, which is the only place it may.
-                _run_barrier(editor, :report) do
-                    report_frame_faults!(editor)
-                end
                 # What was posted from outside this task, applied here so the
                 # frame paints what it just applied.
                 _run_barrier(editor, :evaluate) do

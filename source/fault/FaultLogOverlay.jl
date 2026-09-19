@@ -194,3 +194,41 @@ map_reference_forward(p::FaultLogOverlayProjection,
 map_reference_backward(p::FaultLogOverlayProjection,
                        iomap::FaultLogOverlayIoMap, reference) =
     map_reference_backward(p.inner, iomap.inner_iomap, reference)
+
+# ── The one call that makes a program fault tolerant ─────────────────────────
+
+"""
+    make_fault_tolerant_projection(inner; log = FaultLog(), measure = …, anchor = …)
+        -> (projection, log)
+
+Wrap a root projection so a fault in it shows on the screen instead of ending
+the program, and answer the log to attach to the editor.
+
+Use it where a program composes its root projection and starts its editor. It is
+the two-line form of what the guide spells out: a barrier around the whole
+pipeline, and the panel over it.
+
+    projection, log = make_fault_tolerant_projection(composed)
+    run_editor!(backend, projection, document;
+                on_start = editor -> attach_fault_target!(editor.faults, log))
+
+The barrier goes **inside** the panel, not outside it. A fault in the pipeline
+must not take the panel that would have reported it, and a fault in the panel
+itself is what the editor's own frame barrier is for.
+
+This is the root barrier alone. A pipeline that wants a fault contained to one
+node rather than to the whole window puts a `FaultCatchingProjection` at each of
+its own steps as well; the guide says why every one of them needs a
+`substitute`.
+"""
+function make_fault_tolerant_projection(inner;
+                                        log::FaultLog = FaultLog(),
+                                        measure = measure_truetype_text,
+                                        anchor::Symbol = :bottom_left)
+    guarded = FaultCatchingProjection(inner = inner, substitute = FaultToGraphics())
+    projection = FaultLogOverlayProjection(
+        inner = guarded, log = log,
+        content = make_fault_log_content_projection(measure = measure),
+        anchor = anchor)
+    (projection, log)
+end

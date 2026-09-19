@@ -109,3 +109,36 @@ function test_fault_safe_mode()
     end
 end
 end
+
+# The one call a program makes. It is the shape the app uses, so a test drives
+# it the way the app does: a real editor, real frames, and a pipeline that
+# fails.
+function test_fault_tolerant_projection()
+@testset "the root wiring" begin
+
+    @testset "a program that wires it survives its own broken pipeline" begin
+        projection, log = make_fault_tolerant_projection(AlwaysFailingProjection())
+        editor = Editor(HeadlessBackend(), SafeModeProbe(), projection, Device[])
+        editor.fault_policy = _tolerant_policy()
+        attach_fault_target!(editor.faults, log)
+        for _ in 1:3
+            run_frame!(editor)
+        end
+        # The frame did not throw, the fault was collected, and it reached the
+        # log the panel draws.
+        @test length(get_fault_records(editor.faults)) == 1
+        @test length(log.entries) == 1
+        @test log.entries[1].origin === :AlwaysFailingProjection
+    end
+
+    @testset "the panel is not there while nothing has failed" begin
+        projection, log = make_fault_tolerant_projection(IdentityProjection())
+        editor = Editor(HeadlessBackend(), SafeModeProbe(), projection, Device[])
+        editor.fault_policy = _tolerant_policy()
+        attach_fault_target!(editor.faults, log)
+        run_frame!(editor)
+        @test isempty(get_fault_records(editor.faults))
+        @test length(log.entries) == 0
+    end
+end
+end

@@ -68,7 +68,8 @@ export FaultReport, FaultLog, FaultLogEntry,
        FaultCatchingProjection, FaultCatchingIoMap,
        FaultToSyntax, FaultToText, FaultToWidget, FaultToGraphics,
        FaultLogToSyntax, FaultLogOverlayProjection, FaultLogOverlayIoMap,
-       make_fault_log_content_projection, FAULT_LOG_BACKGROUND,
+       make_fault_log_content_projection, make_fault_tolerant_projection,
+       FAULT_LOG_BACKGROUND,
        FaultSafeModeProjection, FaultSafeModeIoMap
 
 include("FaultDocument.jl")    # the report, the log, and the seam answer

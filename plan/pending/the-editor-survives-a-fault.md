@@ -547,18 +547,45 @@ constructor.
 
 **Result.** `test_fault()` answers 37 pass, 0 fail, 0 error.
 
-### Phase 5 — Make the fault visible ✅ DONE (the `Any`-entry survey is open)
+### Phase 5 — Make the fault visible ✅ DONE
 
 1. Write all four renderers: `FaultToSyntax`, `FaultToText`, `FaultToWidget`
    and `FaultToGraphics`.
 2. Write `FaultLogOverlayProjection`, copying `GestureLogOverlay.jl`.
 3. Write `FaultLogToSyntax` so a person can open the log as a document.
-4. Add the barrier to the gallery pipelines, **with a `substitute` on every
-   stage**. A stage with no substitute is the degraded path of section 3.3.
-5. ⬜ **Still open.** Find which stages end their type dispatcher in an `Any`
-   entry. Such a stage prints a `FaultReport` as something wrong rather than
-   throwing, so the substitute of the stage before it is the only thing that
-   protects it. Record what you find in this plan.
+4. ✅ `make_fault_tolerant_projection(inner)` is the one call a program makes.
+   It answers the wrapped projection and the log to attach, with the barrier
+   **inside** the panel: a fault in the pipeline must not take the panel that
+   would have reported it, and a fault in the panel is what the frame barrier is
+   for. A pipeline that wants a fault contained to one node rather than to the
+   whole window still puts a `FaultCatchingProjection` at each of its own steps.
+5. ✅ **The `Any`-entry survey, done 2026-09-19.**
+
+   **Every bare stage constructor throws, and that is the good news.**
+   `JsonToSyntax` (10 rows) and `SyntaxToText` (9 rows) carry no `Any` row, so
+   `TypeDispatchingProjection` reaches its own `error(...)`.
+   `TextToGraphics` is not a dispatcher at all — its one `print_document` takes
+   `styled::TextBlock`, so an unknown type raises a `MethodError`.
+   `WidgetToGraphics` has about 35 concrete rows and no `Any`.
+
+   **The compositions built on them do not throw, and that is the finding that
+   matters.** `WidgetToGraphics(...).dispatch` is spliced into larger tables
+   that add an `Any` row:
+
+   | where | what the `Any` row does with a `FaultReport` |
+   | --- | --- |
+   | `source/shell/WindowShell.jl:56-59` | routes it to `NestingProjection`, so the window shell draws it as ordinary content |
+   | `source/natural/NaturalProjection.jl:130-131`, `source/syntax/SyntaxNatural.jl:51-52,98` | routes it to the natural renderer, which prints "no natural rendering for …" or reflects the struct |
+   | `source/screen/WindowScene.jl:85` | falls to a `ReferenceDispatchingProjection`, which dispatches on the path and never throws at all |
+
+   Six more `Any` rows exist elsewhere — `GraphicsCaching`, `ObjectToSyntax`,
+   `ProcessToSyntaxLabel`, the clipboard wrapper — each a deliberate
+   passthrough.
+
+   **So the rule of section 3.3 stands, and now it is measured rather than
+   assumed: give every barrier a `substitute`.** In a window shell or a natural
+   pipeline the substitute is the *only* thing that puts a mark on the screen.
+   Without one the report is drawn as content and a person is told nothing.
 
 ### Phase 6 — Guard the tools, the agent and the MCP server ✅ DONE
 
