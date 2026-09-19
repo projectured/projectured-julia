@@ -7,6 +7,7 @@ include("backend/KeysymTest.jl")
 include("backend/DeviceConfigTest.jl")
 include("backend/FontFallbackTest.jl")
 include("backend/InputCoalescingTest.jl")
+include("backend/WaitWakeTest.jl")
 include("backend/NativeWindowTest.jl")
 include("projection/GraphicsToFileTest.jl")
 
@@ -35,10 +36,11 @@ function test_sdl()
         test_device_config()
         test_sdl_font_fallback()
         test_input_coalescing()
+        test_sdl_wait_wake()
         test_native_window()
         test_write_image()
     end
 end
 
 export test_sdl, test_sdl_layering, test_dirty_rect, test_sdl_keysym, test_device_config, test_sdl_font_fallback,
-       test_input_coalescing, test_native_window, test_write_image
+       test_input_coalescing, test_sdl_wait_wake, test_native_window, test_write_image

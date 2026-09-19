@@ -9,10 +9,19 @@ mutable struct ConsoleBackend <: Backend
     inbuf::Vector{UInt8}
     raw_active::Bool
     last_frame::Union{String,Nothing}
+    # The wait machinery. `wake_gate` is an autoreset event: a notification
+    # that arrives before the wait is stored, not lost. `watcher` is the task
+    # that blocks on the TTY and notifies the gate when bytes arrive; it stays
+    # `nothing` for an input the watcher cannot block on (an `IOBuffer` in
+    # tests), and the wait then degrades to the default poll slice.
+    wake_gate::Base.Event
+    watcher::Union{Task, Nothing}
+    watching::Bool
 end
 
 ConsoleBackend(; io::IO=stdout, input::IO=stdin, ansi::Bool=true, clear::Bool=true) =
-    ConsoleBackend(io, input, ansi, clear, UInt8[], false, nothing)
+    ConsoleBackend(io, input, ansi, clear, UInt8[], false, nothing,
+                   Base.Event(true), nothing, false)
 
 # ── Backend interface ────────────────────────────────────────────────────
 
@@ -31,11 +40,18 @@ function BackendModule.initialize_backend!(backend::ConsoleBackend)
         catch
             # Polling still degrades gracefully; some streams auto-start on read.
         end
+        backend.watching = true
+        backend.watcher = @async _watch_console_input!(backend)
     end
     return nothing
 end
 
 function BackendModule.quit_backend!(backend::ConsoleBackend)
+    # The watcher checks this flag after every block; a watcher stuck on a
+    # quiet TTY exits on the next byte, which is harmless.
+    backend.watching = false
+    notify(backend.wake_gate)
+    backend.watcher = nothing
     io = backend.input
     if io isa Base.TTY
         try
@@ -45,6 +61,69 @@ function BackendModule.quit_backend!(backend::ConsoleBackend)
     end
     _set_raw!(backend, false)
     return nothing
+end
+
+# The watcher: block on the TTY until bytes arrive, notify the gate, and hold
+# until the editor consumed them — `wait_readnb` answers at once while bytes
+# sit unread, so the hold is what keeps this loop from spinning.
+function _watch_console_input!(backend::ConsoleBackend)
+    io = backend.input
+    while backend.watching && isopen(io)
+        try
+            Base.wait_readnb(io, 1)
+        catch
+            break                          # the stream closed under the wait
+        end
+        backend.watching || break
+        notify(backend.wake_gate)
+        while backend.watching && isopen(io) && bytesavailable(io) > 0
+            sleep(0.01)
+        end
+    end
+    nothing
+end
+
+"""
+    wait_for_input(backend::ConsoleBackend, devices, timeout_seconds) -> Nothing
+
+Block until the watcher reports terminal bytes, [`wake_backend!`](@ref) is
+called, or `timeout_seconds` passes. Bytes already buffered — parsed or raw —
+end the wait before it starts. Without a watcher (an `IOBuffer` input) the
+wait is the default poll slice, so a scripted backend keeps the old cadence.
+Everything here is a cooperative Julia wait; no thread blocks.
+"""
+function BackendModule.wait_for_input(backend::ConsoleBackend, devices, timeout_seconds)
+    isempty(backend.inbuf) || return nothing
+    bytesavailable(backend.input) > 0 && return nothing
+    if backend.watcher === nothing
+        sleep(min(timeout_seconds, 0.01))
+        return nothing
+    end
+    _wait_for_gate(backend.wake_gate, timeout_seconds)
+    return nothing
+end
+
+"""
+    wake_backend!(backend::ConsoleBackend) -> Nothing
+
+End a [`wait_for_input`](@ref) in progress. The autoreset gate stores a
+notification that arrives before the wait, so a wake can never slip between
+the buffer checks and the block.
+"""
+BackendModule.wake_backend!(backend::ConsoleBackend) =
+    (notify(backend.wake_gate); nothing)
+
+# Wait on the gate, at most `timeout_seconds`. The timer notifies the same
+# gate; a timer that fires after the gate already opened leaves one stored
+# notification behind, which costs one prompt wait later and nothing else.
+function _wait_for_gate(gate::Base.Event, timeout_seconds)
+    timeout_seconds == Inf && return wait(gate)
+    timer = Timer(_ -> notify(gate), timeout_seconds)
+    try
+        wait(gate)
+    finally
+        close(timer)
+    end
 end
 
 # Toggle raw mode via libuv's tty handle (the same call `REPL.Terminals.raw!`

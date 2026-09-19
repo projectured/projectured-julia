@@ -202,5 +202,41 @@ function test_console_backend()
         @test_throws ErrorException write_to_devices(ConsoleBackend(), Device[], 42)
     end
 
+    # ── the wait and the wake ─────────────────────────────────────────────
+    # Timing assertions are one-sided and generous: a bound says "far less
+    # than the full timeout", never "exactly this fast".
+    @testset "wait and wake" begin
+        # An IOBuffer input has no watcher: the wait is one poll slice.
+        buffered = ConsoleBackend(; io=IOBuffer(), input=IOBuffer())
+        elapsed = @elapsed wait_for_input(buffered, Device[], 30.0)
+        @test elapsed < 5.0
+        @test wake_backend!(buffered) === nothing
+
+        # Buffered bytes end the wait before it starts.
+        fed = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(UInt8['x']))
+        @test wait_for_input(fed, Device[], 30.0) === nothing
+
+        # With a watcher present the wait blocks on the gate. The watcher
+        # here never fires (a dummy task): only the gate ends the wait.
+        gated = ConsoleBackend(; io=IOBuffer(), input=IOBuffer())
+        gated.watcher = @async nothing
+
+        # A wake stored before the wait is not lost.
+        wake_backend!(gated)
+        elapsed = @elapsed wait_for_input(gated, Device[], 30.0)
+        @test elapsed < 5.0
+
+        # A wake from another task ends a long wait.
+        waker = @async (sleep(0.05); wake_backend!(gated))
+        elapsed = @elapsed wait_for_input(gated, Device[], 30.0)
+        wait(waker)
+        @test elapsed < 5.0
+
+        # The timeout ends the wait when nothing else does.
+        elapsed = @elapsed wait_for_input(gated, Device[], 0.05)
+        @test elapsed >= 0.04
+        @test elapsed < 5.0
+    end
+
 end
 end

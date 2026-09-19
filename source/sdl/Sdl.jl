@@ -157,6 +157,10 @@ mutable struct SdlBackend <: Backend
     #   pending_motion — the newest motion sample not yet delivered
     pending_input::Union{WindowInput, Nothing}
     pending_motion::Union{WindowInput, Nothing}
+    # The SDL user-event type `wake_backend!` pushes to end a wait in
+    # progress. Zero until `initialize_backend!` registers one; a wake on an
+    # uninitialized backend is a no-op.
+    wake_event_type::UInt32
 end
 
 # `partial_render` / `debug_dirty` default to the PROJECTURED_PARTIAL_RENDER /
@@ -169,7 +173,7 @@ SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
                Dict{UInt32, Symbol}(),
                partial_render === nothing ? _envflag("PROJECTURED_PARTIAL_RENDER", false) : partial_render,
                debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", false)    : debug_dirty,
-               nothing, nothing)
+               nothing, nothing, UInt32(0))
 
 # Module-level TTF font cache, keyed by (filename, scaled_size).
 # Shared by window rendering, offscreen image rendering, and text measurement.
@@ -2509,6 +2513,12 @@ function BackendModule.initialize_backend!(backend::SdlBackend)
     # with an event left over from its last life.
     backend.pending_input = nothing
     backend.pending_motion = nothing
+    # The wake event, registered once per SDL life. `SDL_RegisterEvents`
+    # answers `(Cuint)-1` when the pool is exhausted; the wait then degrades
+    # to its timeout slices and nothing else is lost.
+    registered = SDL_RegisterEvents(Int32(1))
+    backend.wake_event_type = registered == typemax(UInt32) ? UInt32(0) : registered
+    nothing
 end
 
 function BackendModule.quit_backend!(backend::SdlBackend)
@@ -2566,6 +2576,80 @@ end
 # ════════════════════════════════════════════════════════════════════════
 # Device I/O
 # ════════════════════════════════════════════════════════════════════════
+
+# The library handle the GC-safe wait calls into directly: the generated
+# LibSDL2 wrapper carries no `gc_safe` option, and a collection on another
+# thread must not stall behind a blocked wait.
+const _LIBSDL2 = SimpleDirectMediaLayer.LibSDL2.libsdl2
+
+# How long one wait slice blocks this thread. On a single-threaded process
+# the cooperative tasks of this thread — the MCP server, the assistant — run
+# only between slices, so the slice is the 10 ms cadence the polling loop
+# had. With more threads a longer slice only bounds how long a task that
+# still lives on this thread waits for its turn.
+_get_wait_slice_seconds() = Threads.nthreads() == 1 ? 0.01 : 0.1
+
+# Block until the SDL queue holds an event or `milliseconds` pass, without
+# removing anything: the NULL event pointer is SDL's look-only form, so
+# everything stays queued for `read!`. Must run on the thread that
+# initialized the video subsystem — it pumps events.
+_wait_for_queued_event(milliseconds::Integer) =
+    (@ccall gc_safe=true _LIBSDL2.SDL_WaitEventTimeout(C_NULL::Ptr{Cvoid},
+                                                       Cint(milliseconds)::Cint)::Cint) == 1
+
+"""
+    wait_for_input(backend::SdlBackend, devices, timeout_seconds) -> Nothing
+
+Block until the SDL queue holds an event, [`wake_backend!`](@ref) pushes the
+wake event, or `timeout_seconds` passes. The queue is only looked at, never
+read: everything stays for `read!`. An event this backend already owes
+(`pending_input`) ends the wait before it starts, and a held motion sample
+caps the timeout at the rest of its rate-limit interval, so the last sample
+of a pointer that stopped is delivered on time.
+
+The block runs in GC-safe slices (`_get_wait_slice_seconds`) with a `yield`
+between them, so cooperative tasks that live on this thread keep their turn.
+"""
+function BackendModule.wait_for_input(backend::SdlBackend, devices, timeout_seconds)
+    backend.pending_input === nothing || return nothing
+    timeout = Float64(timeout_seconds)
+    if backend.pending_motion !== nothing
+        remaining = _HOVER_MOTION_INTERVAL - (time() - _LAST_HOVER_MOTION[])
+        remaining <= 0 && return nothing
+        timeout = min(timeout, remaining)
+    end
+    deadline = time() + timeout                       # Inf stays Inf
+    slice = _get_wait_slice_seconds()
+    while true
+        this_slice = min(slice, deadline - time())
+        this_slice <= 0 && return nothing
+        milliseconds = clamp(ceil(Int, this_slice * 1000), 1, 1000)
+        _wait_for_queued_event(milliseconds) && return nothing
+        yield()                                       # the cooperative tasks' turn
+    end
+end
+
+"""
+    wake_backend!(backend::SdlBackend) -> Nothing
+
+End a [`wait_for_input`](@ref) in progress by pushing this backend's wake
+event. Thread-safe: `SDL_PushEvent` is the SDL entry point documented for
+cross-thread use. The event carries nothing and `_poll_window_input` skips
+it, because the editor's wake-pending flag is the truth and this push is
+only the kick that ends the wait. A backend without a registered wake event
+declines the kick; the sliced wait notices pending work on its next slice.
+"""
+function BackendModule.wake_backend!(backend::SdlBackend)
+    backend.wake_event_type == UInt32(0) && return nothing
+    event = Ref{SDL_Event}()
+    ccall(:memset, Ptr{Cvoid}, (Ptr{Cvoid}, Cint, Csize_t), event, 0, sizeof(SDL_Event))
+    GC.@preserve event begin
+        unsafe_store!(Ptr{UInt32}(Base.unsafe_convert(Ptr{SDL_Event}, event)),
+                      backend.wake_event_type)
+    end
+    SDL_PushEvent(event)
+    nothing
+end
 
 """
     read_from_devices(backend::SdlBackend, devices) -> WindowInput or nothing
