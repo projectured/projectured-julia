@@ -21,8 +21,8 @@ calling `map_reference_forward`. Backward, `read_intent` consumes a
 backward-flowing [`Intent`](#the-intent-the-reader-threads) (a gesture plus the
 operation produced so far) **and** maps the cursor by calling
 `map_reference_backward`.
-The rule of thumb that follows from this symmetry — and that the rest of this
-guide leans on — is:
+The general rule that follows from this symmetry, and that the rest of this
+guide relies on, is:
 
 > **`print_document` uses `map_reference_forward`; `read_intent` uses
 > `map_reference_backward`.** The two mappers are the single source of truth for
@@ -53,13 +53,13 @@ Two corollaries, both load-bearing:
    projection implements and that recurses by calling itself. Do not. The four
    functions are implemented by *every* projection; a fifth would not be. The
    moment a pipeline composes a projection that relies on the fifth function with
-   one that does not, recursion breaks at that boundary — which is the opposite of
+   one that does not, recursion breaks at that boundary. That is the opposite of
    composition. Express all descent through the four functions everyone already
-   implements. (This is also why the contract is **validated externally**, by a
-   test harness that drives the four functions over composed examples — see
-   [Validating the recursion contract](../../guide/testing-guide.md#validating-the-recursion-contract) —
+   implements. This is also why the contract is **validated externally**, by a
+   test harness that drives the four functions over composed examples (see
+   [Validating the recursion contract](../../guide/testing-guide.md#validating-the-recursion-contract)),
    rather than by adding an introspection method projections would have to
-   implement.)
+   implement.
 
 2. **You may not self-walk or flatten a subtree by child type.** A function must
    not recurse over the input/output subtree itself, dispatching on each child's
@@ -72,10 +72,9 @@ The rest of this guide is the contract spelled out per function: the printer
 recurses via `recursion` ([§ Recursion across projections](#recursion-across-projections)),
 and the reader and both mappers recurse via the stored child IoMaps
 ([§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses)).
-Every projection in the tree now honours it. `SyntaxCompoundToText`/`SyntaxListToText`
-were the last holdouts (they flattened the syntax subtree into one flat `TextBlock`);
-the delegation refactor in `plan/done/syntaxtotext-delegation.md` converted them to
-School A — a worked before/after example of this contract.
+Every projection in the tree honours it, including `SyntaxCompoundToText` and
+`SyntaxListToText`. See `plan/done/syntaxtotext-delegation.md` for a worked
+before/after example of this contract.
 
 ## The four functions
 
@@ -100,8 +99,8 @@ The two extra arguments are essential:
   (`available_width`/`available_height`) and an open `properties` Dict. Each
   projection extends the reference before recursing into a child by calling
   `make_child_context(ctx, step…)` (or `make_child_context(ctx, full_path)`), so every
-  projection knows where in the original document it sits — which is what
-  enables [ReferenceDispatchingProjection](higher-order-projections.md) to
+  projection's context carries where it sits in the original document. This is
+  what enables [ReferenceDispatchingProjection](higher-order-projections.md) to
   switch behaviour based on document-root-relative location. The top-level call
   passes a fresh `PrinterContext()` (whose reference is
   `EmptyReference()`).
@@ -111,7 +110,7 @@ A two-argument convenience overload `print_document(p, input)` is defined in
 `nothing` and a fresh `PrinterContext()`. The editor uses this.
 
 **Wiring the selection.** The output document's `selection::Cell` is not a
-parameter — it is computed reactively. The canonical form maps the input
+parameter; it is computed reactively. The canonical form maps the input
 selection forward through this projection's own mapper, so the path mapping is
 defined in exactly one place:
 
@@ -146,7 +145,7 @@ print_child_pure(recursion, input, ctx) → output
 
 A pipeline uses this pair for batch or export work — writing an image, a PDF, or
 a text serialization — where nothing is edited and no selection maps back.
-Every projection gets it for free: the default falls back to a snapshot of the
+Every projection gets this automatically: the default falls back to a snapshot of the
 reactive output, so a projection author writes `print_document_pure` only to
 skip that snapshot on a path a profile shows is slow. `ChainingProjection`,
 `RecursiveProjection`, and `TypeDispatchingProjection` thread the pure call so a
@@ -166,7 +165,7 @@ struct Intent
 end
 ```
 
-- **`gesture`** is the raw thing the user did. It rides along **unchanged** the
+- **`gesture`** is the raw thing the user did. It passes through **unchanged** the
   whole way up the chain, so any reader can inspect *what the user did*, not just
   what it currently means. (Example: `SyntaxToText`'s reader needs the raw click
   coordinates from the gesture to hit-test a mouse click back to a character
@@ -174,9 +173,9 @@ end
 - **`operation`** starts as `nothing` (a "nothing-change") and is filled in /
   re-mapped by each reader as the change travels one domain inward.
 
-A reader returns a `Intent`: either it keeps `operation === nothing` (it had
-nothing to say) or it returns a fresh `Intent` with the gesture preserved and a
-real operation swapped in.
+A reader returns a `Intent`: either it keeps `operation === nothing`, meaning it
+found no operation to return, or it returns a fresh `Intent` with the gesture
+preserved and a real operation swapped in.
 
 ### `read_intent` — the reader
 
@@ -225,8 +224,8 @@ lightest touch to the most involved:
   (see [§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses)).
 - **Probe a child to decide.** A reader may *speculatively* recurse into a
   document part's reader just to see what operation it would return, and use
-  that answer to decide its own final operation — e.g. to choose among
-  alternatives, or to act only when the child declines (returns `nothing`).
+  that answer to decide its own final operation. For example, it can choose
+  among alternatives, or act only when the child returns `nothing`.
 - **Route by selection.** When the printer forward-projected the selection onto
   this node (see [Wiring the selection](#print_document-the-printer)), a
   reader can read its node's `selection` to forward a coordless event (a
@@ -261,8 +260,7 @@ the projection that happens to render it. It lives behind
 ([document/DocumentInterface.jl](../../../source/kernel/document/DocumentInterface.jl)): the document maps the
 gesture to an operation in its **own** reference vocabulary (reading only its
 structure and `document.selection`), or returns `nothing` when it does not handle
-the gesture (which also serves as "I decline this gesture so an outer layer can
-own it"). The operation then flows back through the normal
+the gesture, which lets an outer layer claim it instead. The operation then flows back through the normal
 `map_reference_backward` chain like any other.
 
 A projection reader **delegates** to it and keeps only its geometry arms:
@@ -275,10 +273,10 @@ A projection reader **delegates** to it and keeps only its geometry arms:
   keeps the mouse hit-test for collapse glyphs and Alt+click.
 
 The payoff: any backend that renders a domain **directly** gets the
-geometry-free editing for free. The console pipeline (`… → SyntaxToText →
-WindowInputUnwrapping`, no `TextToGraphics`) reuses `SyntaxToText`'s existing reader,
-which — when its operation slot is still empty (the console case) and it does not
-handle the gesture as a syntax gesture — falls back to
+geometry-free editing automatically. The console pipeline (`… → SyntaxToText →
+WindowInputUnwrapping`, no `TextToGraphics`) reuses `SyntaxToText`'s existing reader.
+When its operation slot is still empty (the console case) and it does not
+handle the gesture as a syntax gesture, that reader falls back to
 `read_gesture(iomap.output, gesture)` on the output `TextBlock` and maps the
 result backward. In SDL the operation slot is already filled by `TextToGraphics`,
 so that fallback is a no-op and SDL behaviour is unchanged.
@@ -290,14 +288,14 @@ so that fallback is a no-op and SDL behaviour is unchanged.
 
 #### Recursive gesture reading: delegate to the selected child, lift the operation
 
-The "Recurse, then extend" and "act only when the child declines" patterns above
-are not just options — together they are the **default** a structural (container)
-projection's reader should follow for a raw authoring gesture:
+The "Recurse, then extend" and "act only when the child returns nothing" patterns
+above are not just options. Together they are the **default** a structural
+(container) projection's reader should follow for a raw authoring gesture:
 
 > **A structural projection delegates a raw gesture to the projection of the
 > *selected child* element, and lifts the child's operation back into its own
-> domain. It handles the gesture itself only when the child declines — it may
-> override, but in general it should not.**
+> domain. It handles the gesture itself only when the child returns nothing for
+> it. It may override, but in general it should not.**
 
 This is the reader-side mirror of three things the printer side already does:
 
@@ -314,13 +312,13 @@ This is the reader-side mirror of three things the printer side already does:
 The template engine applies the rule **automatically**: the `RuleIoMap` reader in
 [projection/ProjectionTemplate.jl](../../../source/kernel/projection/ProjectionTemplate.jl)
 handles a raw `KeyPress`/`KeyDown` (the keystrokes the Text/Syntax layers
-declined — the domain *authoring* gestures of [`read_gesture`](#domain-owned-geometry-free-gesture-mapping-read_gesture))
+left unhandled — the domain *authoring* gestures of [`read_gesture`](#domain-owned-geometry-free-gesture-mapping-read_gesture))
 by (1) finding the selected child from the node's `selection` and its
 `child_iomaps`, (2) delegating the gesture to that child's `read_intent`, and
 (3) **lifting** the child's operation with `reroot_operation`, prepending the
 input step that reaches the child (`entries[i].value`, `elements[i]`). Only when
 the focused child returns `nothing` does the node fall back to `read_gesture` on
-its own input document. So a node never needs to special-case nested editing — the
+its own input document. So a node never needs to special-case nested editing. The
 recursion descends innermost-first and **bubbles**: the *nearest enclosing*
 structural node whose `read_gesture` produces an operation wins (e.g. `,` inserts
 a sibling into the nearest enclosing object/array, `Tab` steps key→value in the
@@ -329,7 +327,7 @@ enclosing object), exactly where the cursor is.
 Each level reads its **own** `iomap.input.selection`: `set_selection!` propagates
 the selection down the document tree, so every focused node already holds its own
 subtree-relative path (the root the full path, a nested object its relative one).
-No selection threading is needed — the lift is purely prepending the input steps.
+No selection threading is needed. The lift is purely prepending the input steps.
 
 ### `map_reference_forward` / `map_reference_backward` — the reference maps
 
@@ -340,7 +338,7 @@ projection cannot map back to the input.
 
 `ReplaceSelectionOperation` flowing up the pipeline is implemented entirely in
 terms of these two functions, so getting them right gives you cursor
-navigation across the entire pipeline for free.
+navigation across the entire pipeline with no extra work.
 
 The pattern-matching DSL `@reference_case` (see
 [the reference guide](reference.md)) makes these methods readable:
@@ -371,15 +369,16 @@ Two principles keep these methods correct across the whole pipeline:
   matched_input_prefix + ProjectionReferenceStep(projection, unmatched_output_suffix)
   ```
 
-  The path then reads like a sentence — input steps say where in the document
+  The path then composes in order: input steps say where in the document
   you are, and `ProjectionReferenceStep(projection, …)` marks the exact point where
   you cross into something that exists only in `projection`'s output. Because
   `map_reference_forward` strips that same step, the path round-trips cleanly.
-  (When a projection's introduced positions are not separately addressable — the
-  brackets and commas of a node, say — it is fine to collapse the whole group to a
+
+  When a projection's introduced positions are not separately addressable, such
+  as the brackets and commas of a node, it is fine to collapse the whole group to a
   single flattened character offset `ProjectionReferenceStep(p, {flat})`, which
-  `_syntax_to_flat` inverts; the `*ToSyntax` node readers use this for the
-  delimiters they own. Use the fine-grained form when individual positions matter.)
+  `_syntax_to_flat` inverts. The `*ToSyntax` node readers use this for the
+  delimiters they own. Use the fine-grained form when individual positions matter.
 
 ## IoMap
 
@@ -403,7 +402,7 @@ The `@iomap` macro (parallel to `@document`) generates an IoMap struct whose
 
 ### Stable identity, reactive fields
 
-An IoMap keeps its **identity** for the life of its projection instance — a change
+An IoMap keeps its **identity** for the life of its projection instance. A change
 never replaces it, so a chain's `step_iomaps` and any other projection that wired
 to it stay valid. What *varies* (the `output`, its selection, the child IoMaps) is
 a **computed cell** that re-derives from the projection's input and parameter
@@ -419,7 +418,7 @@ p.part))`).
 
 ## Projection categories
 
-The **higher-order** and **generic** rows below are the complete sets — an
+The **higher-order** and **generic** rows below are the complete sets. An
 agent can treat them as exhaustive. The domain-to-domain and domain-preserving
 rows are representative (every domain adds its own `*To*` projection).
 
@@ -445,7 +444,7 @@ JsonString ──JsonStringToSyntaxLeaf──► SyntaxLeaf ──SyntaxLeafToTe
 ```
 
 Forward, each step extends the `context`'s reference path (via
-`make_child_context`) so child projections know their position relative to the
+`make_child_context`) so child projections carry their position relative to the
 document root, and wires its output selection with `map_reference_forward`.
 Backward, each step's IoMap is visited in reverse, with each projection's
 `read_intent` translating the operation a step closer to the document's
@@ -462,7 +461,7 @@ domain (via `map_reference_backward`).
    re-derives it through the same IoMap
    ([PAR-STABLE-IOMAP-IDENTITY](../../rule/architecture-invariants.md#par-stable-iomap-identity));
    reconcile child collections with `reconcile_child_iomaps`.
-3. Implement `map_reference_forward` and `map_reference_backward` — usually
+3. Implement `map_reference_forward` and `map_reference_backward`: usually
    the cleanest way is `@reference_case`. `print_document` wires its output
    selection by calling `map_reference_forward`; the default `read_intent`
    handles selection by calling `map_reference_backward`. Write the pair once
@@ -503,7 +502,7 @@ mutable state — no `const cache = Dict(...)` populated at runtime, no mutable
 global `Ref`/counter. Every cache, memo, or reconciliation table must be created
 *per projection invocation* and live in that invocation's `IoMap` or in the
 closures of its own cells. Global state silently leaks across unrelated documents
-(two documents rendered in the same process would share — and corrupt — each
+(two documents rendered in the same process would share, and corrupt, each
 other's entries), is never evicted, and is unsafe under the editor's reuse of one
 process for many documents.
 
@@ -513,8 +512,8 @@ function of its inputs *as observed by every other reactive node*. In particular
 it must never **write another cell** (`other_cell[] = v`) or mutate shared
 document state. The eager engine invalidates a written cell's consumers
 immediately (see [reactive-cells.md](cell.md)), so writing a cell from
-inside another cell's computation invalidates those consumers *mid-computation* —
-and graphics-domain cells *do* have consumers (e.g. `GraphicsCanvasToGraphicsImage` reads them).
+inside another cell's computation invalidates those consumers *mid-computation*.
+Graphics-domain cells *do* have consumers (e.g. `GraphicsCanvasToGraphicsImage` reads them).
 That makes recomputation order-dependent and the graph inconsistent.
 
 To preserve output-object identity across recomputes (printer locality —
@@ -634,12 +633,12 @@ one projection. The node projection thus does not hard-code which inner
 projections handle each child type. **Always recurse through
 `print_child`** rather than open-coding the doubled argument: it
 keeps the doubling in one place and call sites read as "recurse into this
-child". (Open-coding it and getting either slot wrong silently breaks
-heterogeneous recursion — the child gets projected by the wrong projection, or
-not recursively at all.)
+child". Open-coding it and getting either slot wrong silently breaks
+heterogeneous recursion: the child gets projected by the wrong projection, or
+not recursively at all.
 
 > **Principle: recurse as little as possible.** A projection should transform
-> **only its own single level** and delegate every child to `recursion` — even
+> **only its own single level** and delegate every child to `recursion`, even
 > when the child happens to be the same domain. Do *not* walk your input subtree
 > yourself and flatten the whole thing into your output. Self-walking a subtree
 > hard-codes which projection renders each descendant and forecloses **unforeseen
@@ -648,13 +647,13 @@ not recursively at all.)
 > recursion follow whatever projection actually runs. Keeping each projection to
 > one level is exactly what makes the library composable. This is one half of
 > [the recursion contract](#the-recursion-contract); its other half is that you
-> may not reach for a *new* recursive function to do the descent — the four
+> may not reach for a *new* recursive function to do the descent. The four
 > functions are the only recursion the contract permits.
 
 ## Mapping references when the printer recurses
 
 When `print_document` recurses into children, `map_reference_forward` and
-`map_reference_backward` must recurse in lockstep — the path mapping has to
+`map_reference_backward` must recurse in lockstep. The path mapping has to
 descend through exactly the structure the printer built. **The rule (call it
 "School A"): peel only the one step this projection owns, then delegate the
 remaining tail to the child projection's own mapper, reached through the stored
@@ -676,13 +675,13 @@ The backward direction is the mirror image: peel the output step, look the child
 up in the same `child_iomaps`, call its `map_reference_backward` on the tail, then
 prepend the input-domain step that reaches it.
 
-Why delegate rather than recurse over the input document yourself? Because a node
-projection must **compose with any other domain in unforeseen ways** — its child
+Delegating, rather than recursing over the input document directly, lets a node
+projection **compose with any other domain in unforeseen ways**: its child
 could be rendered by a projection from a different domain. Delegating through the
 child IO map means the recursion follows whatever projection actually ran, so the
 mapper can never drift from the printer and never assumes what kind of document a
-child is. (This is also why the printer must *store* its child IO maps —
-[§ A compound projection](#a-compound-node-shaped-projection).)
+child is. This is also why the printer must *store* its child IO maps (see
+[§ A compound projection](#a-compound-node-shaped-projection)).
 
 Every `*ToSyntax` node projection follows this rule: `JsonArrayToSyntaxNode` /
 `JsonObjectToSyntaxNode`, `MathBinaryOperationToSyntaxNode` and its siblings,
@@ -704,25 +703,20 @@ When the child the printer recursed into went through a `CopyingProjection` (as
 `JsonObjectToSyntaxNode`'s entries do), reach its stored child IO map with
 `make_copying_field_iomap` / `make_copying_element_iomap` and delegate through that.
 
-> **Anti-pattern — re-walking the input by type (the former "School B").** Do
+> **Anti-pattern — re-walking the input by type ("School B").** Do
 > *not* implement the mapper by recursing over the input document and dispatching
 > on each child's concrete type (`_forward(v::SomeNode, …)` calling
 > `_forward(v.left, …)`). It duplicates every child's mapping logic, hard-codes
 > which domains a child may be, and drifts from the printer the moment the inner
-> pipeline changes. The codebase used to do this (`_forward_json_path`,
-> `_forward_math_path`, `_translate_xml_path`, `_forward_book_path`, …); all of it
-> was deleted in favour of the delegation rule above. Whatever you write, the two
+> pipeline changes. Whatever you write, the two
 > directions must agree with each other *and* with how the printer wired the
 > output selection.
 >
 > The same prohibition applies to the **printer**. Flattening a child subtree
-> into your own output — walking `input`'s descendants yourself instead of calling
-> `print_child(recursion, child, …)` and composing each `child_iomap.output` — is
+> into your own output, walking `input`'s descendants yourself instead of calling
+> `print_child(recursion, child, …)` and composing each `child_iomap.output`, is
 > the printer-side School B. It forecloses composing any descendant with another
-> projection, for the same reasons. (`SyntaxCompoundToText`/`SyntaxListToText`
-> historically did exactly this; the delegation refactor in
-> `plan/done/syntaxtotext-delegation.md` fixed them — splicing each child's
-> `output.elements` and re-indenting on splice.)
+> projection, for the same reasons.
 
 ## Type dispatching
 
@@ -740,9 +734,9 @@ RecursiveProjection(TypeDispatchingProjection(
 ))
 ```
 
-`JsonToSyntax()`, `XmlToSyntax()`, `WidgetToGraphics()`,
-`PaneToWidget()`, `ObjectToSyntax()` — every multi-shape projection
-exposes a zero-arg factory that returns exactly this shape.
+Every multi-shape projection exposes a zero-arg factory that returns exactly
+this shape: `JsonToSyntax()`, `XmlToSyntax()`, `WidgetToGraphics()`,
+`PaneToWidget()`, `ObjectToSyntax()`.
 
 ## The screen pipeline
 
@@ -754,19 +748,19 @@ each:
 - **`ScreenToScreen`** (a domain projection over `ScreenDocument` /
   `WindowDocument`) owns all screen *structure*. Its printer copies the screen
   shell, copies each window's metadata verbatim, and recurses each window's
-  `content` back through the pipeline with `print_child` —
+  `content` back through the pipeline with `print_child`,
   seeding the window's `width`/`height` as the available layout extent so
-  layout-aware content sizes itself to the window. Its reader routes an
+  layout-aware content sizes itself to the window. Its reader routes a
   `WindowInput` to the matching window by `window_id`, hands the inner event
   to that window's content reader, and prepends the `windows[i].content` steps
   to the operation that comes back. The window-content reference is
   `windows[i].content` (the i-th window is an `ElementReferenceStep`).
 - **`WindowManagingProjection`** wraps `ScreenToScreen` (`inner = ScreenToScreen()`)
-  and owns window-management *operations* — it intercepts
+  and owns window-management *operations*: it intercepts
   `OpenWindowOperation` / `CloseWindowOperation` / resize bubbling up and applies
   them to both the input and the projected output.
 
-`CopyingProjection` is deliberately **not** involved: it is generic and knows
-nothing about screens. Keeping the screen-structural concern in `ScreenToScreen`
+`CopyingProjection` is deliberately **not** involved: it is generic and has no
+reference to screens. Keeping the screen-structural concern in `ScreenToScreen`
 and the operation-interception concern in `WindowManagingProjection` is why each
 has a single reason to change.
