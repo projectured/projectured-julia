@@ -4,9 +4,10 @@
 
 Native line, bar, histogram, scatter and colored-strip charts, re-implementing
 the chart types of the OMNeT++ analysis tool as a ProjecturEd domain. A chart is an ordinary
-document rendered by a bidirectional projection straight to graphics — no
-plotting library and no rasterization, so a chart stays vector output, stays
-selectable, and every part of it can be edited the way any other document is.
+document rendered by a bidirectional projection straight to graphics. There is
+no plotting library and no rasterization, so a chart stays vector output,
+stays selectable, and every part of it can be edited the way any other
+document is.
 
 The slice is independent of any simulator: data enters as plain Julia column
 vectors, so a data-frame column can be handed to a series directly.
@@ -30,9 +31,9 @@ Semantic content, in `chart/ChartDocument.jl`:
 
 Presentation state, in `chart/ChartPlot.jl`: a `ChartPlot` wraps a chart with
 the `view` window, the `cursor`, what is `hovered`, and any drag in progress.
-None of that is chart content — a saved chart does not remember where someone
+None of that is chart content. A saved chart does not remember where someone
 had scrolled to, and the same chart shown twice can be zoomed differently in
-each — so it lives on the projection's output rather than on the document.
+each. So it lives on the projection's output rather than on the document.
 
 Two axis families, which the projection checks: a `ChartAxis` on x carries line,
 scatter, histogram and strip series (they may be mixed); a `ChartCategoryAxis`
@@ -122,7 +123,7 @@ Colours follow the **state**, not the series, so the same state reads the same
 across every strip: a code takes its entry from the chart's colour cycle, or from
 the series' own `state_colors`. The cycle is indexed by the *code*, so two strips
 with different tables give their first state the same colour — a series with a
-vocabulary of its own wants `state_colors` to stay apart, which is what the
+vocabulary of its own needs `state_colors` to stay apart, which is what the
 `chart_strip` example's channel series shows. Each segment names its state inside
 itself when the name fits — no rotation, since the backends drop affine rotation,
 so a name that does not fit is left out. `draw_edges` adds the faint segment
@@ -155,8 +156,8 @@ type it reaches:
 @reference ::Chart.series::CellVector[1]::ChartLineSeries.color
 ```
 
-A column is not addressable below itself — `series[1].y` names the whole column
-— but an individual **sample** is, through a reference step rather than a child:
+A column is not addressable below itself: `series[1].y` names the whole
+column. But an individual **sample** is, through a reference step rather than a child:
 
 ```julia
 make_chart_sample_reference(chart, 1, 5)   # ::Chart.series[1]::ChartLineSeries.sample(5)::Tuple
@@ -194,8 +195,8 @@ document is a plain `Chart` reference.
 Clicking a **data point** selects that sample, and the projection rings it.
 Clicking a **strip segment** selects that sample too, and the projection outlines
 it where it is drawn — the folded span if it folded. A selected sample still
-counts as its series for everything coarser — navigation, the hover veil, the
-legend highlight — so nothing that acts on a series stops working when a point
+counts as its series for everything coarser: navigation, the hover veil, the
+legend highlight. So nothing that acts on a series stops working when a point
 inside it is selected.
 
 Inside a strip the segment is found by the time under the pointer, and by the raw
@@ -313,8 +314,8 @@ Not covered, and why:
   rotated for the same reason, where OMNeT++ labels any segment past ten pixels
   and turns the name vertical when it does not fit.
 - OMNeT++ hides its per-value legend behind a click that swaps it for the series
-  entry. Both are shown at once here — the states are the point of a strip, and a
-  mode you have to discover is a poor place to keep them — which also leaves the
+  entry. Both are shown at once here. The states are the point of a strip, and a
+  mode you have to discover is a poor place to keep them. This also leaves the
   legend click free to go on hiding a series.
 - OMNeT++ gives each strip its own subplot and hides its y axis; strips here are
   rows in one plot, and the y axis carries their labels.
