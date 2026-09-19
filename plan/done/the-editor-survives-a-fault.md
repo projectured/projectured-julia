@@ -1,6 +1,6 @@
 # The editor survives a fault
 
-> **Kind:** plan · **Status:** pending · **Written:** 2026-09-18
+> **Kind:** plan · **Status:** done 2026-09-19 · **Written:** 2026-09-18
 > **Stands on:** [architecture-invariants.md](../../documentation/rule/architecture-invariants.md),
 > [projection-system.md](../../documentation/package/kernel/projection-system.md),
 > [editor.md](../../documentation/package/kernel/editor.md),
@@ -9,6 +9,23 @@
 Make ProjecturEd error tolerant. A fault in a printer, in a reader, in an
 operation, in a backend or in a tool must not stop the editor. The fault must
 appear where a person can see it, and the editor must continue.
+
+**Done on 2026-09-19.** All eight phases landed. What each phase found while it
+was built is recorded under that phase, and the five defects the build caught
+are worth reading before changing any of this. The slice guide is
+[fault.md](../../documentation/package/fault/fault.md).
+
+Suites at the close, each compared against clean `main`:
+
+| suite | branch | clean main |
+| --- | --- | --- |
+| `test_fault()` | 63 pass, 0 fail | new |
+| `test_kernel()` | 1964 pass, 3 fail, 3 error | same 3 and 3 |
+| `test_substrate()` | 63098 pass, 3 fail, 2 error, 1 broken | same, all in `SplitPaneDragTest.jl` |
+| package graph | 649 pass, 2 fail | 631 pass, same 2 fail |
+| naming guard | clean | clean |
+
+No failure on this branch is new.
 
 ## 1. What the editor does today
 
