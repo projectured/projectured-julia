@@ -47,6 +47,8 @@ bin/projectured
 
 `bin/projectured` opens a window with a file navigator on the left, the open files in tabs in the middle, and the assistant on the right. The navigator lists the directory you start it in, and a double click opens a file. Name the files on the command line to open them at once: `bin/projectured notes.md data.json`. The first start compiles the code, which takes some minutes; later starts are fast.
 
+The window is drawn in its own chrome: a menu bar, a toolbar and a status line that says which tab has the focus. A right press opens the menu the thing under the pointer offers, **F1** lists the keys that work where you are, and **Ctrl+Shift+P** finds a command by its name.
+
 ```sh
 bin/projectured --help                       # every option
 bin/projectured --assistant=none notes.txt   # no assistant

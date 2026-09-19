@@ -53,6 +53,16 @@ top. `SDL_WINDOW_ALWAYS_ON_TOP` is `0x8000`.
   backend answers no pointer at all, so nothing called the helper after it was
   written. It was removed again.
 
+**Two measurements wait for an idle machine and the owner's word**, and they are
+what is left of this mechanism's verification:
+
+1. **The focus behaviour.** Whether the main window still holds
+   `SDL_WINDOW_INPUT_FOCUS` after a tooltip window opens, for each flag set. The
+   script stands at `scratchpad/focus.jl`. A run against the owner's live display
+   hung in `X11_ShowWindow`, and two probes were killed at their timeout.
+2. **What the probe costs on a pointer move.** It reads the document under the
+   pointer at every idle motion, and nothing has measured that.
+
 ## Step 6 — Real position derivation
 
 **⏳ OPEN (re-verified 2026-08-12):** `_multi_window_projection_tooltipped` is now in

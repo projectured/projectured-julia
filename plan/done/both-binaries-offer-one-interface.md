@@ -1,14 +1,36 @@
 # Both binaries offer one interface
 
-**Status (2026-09-18): NOT STARTED.** The plan is complete. The owner answered
-the four open questions on 2026-09-18, and §1 records the rulings. Every name it
-mints is checked against
-[naming-rules.md](../../documentation/rule/naming-rules.md), and §3.14 lists
-them with the rule each one answers to. Nothing is implemented, and nothing is
+**Status (2026-09-19): DONE, with two measurements left open.** Every step is
+implemented in both repositories and committed to `main` in each. Nothing is
 pushed.
 
+**What the two binaries now share**: one fold that stacks the wrappers, one
+chrome a window is drawn in, one clipboard, one help window, one command
+palette, one gesture log, one context menu, one tooltip, one file navigator and
+one pair of file dialogs. Each binary names by keyword what it wants, so the two
+lists cannot drift.
+
+**The counts.** `test_shell()` 108 in its own environment, `test_application()`
+63, `test_substrate()` 63091 pass with the baseline's 3 fail, 2 error and 1
+broken; in omnet-julia `test_ide_window_wrap()` 25, `test_ide_file_navigator()`
+8, `test_campaign_loop()` 12, and the interface's closure guard passes at 46
+with its cap moved and the reason written.
+
+**What is left, and both need an idle machine and the owner's word**: whether a
+tooltip window takes the keyboard focus, and what the probe costs on a pointer
+move. Both are carried into [tooltip.md](../pending/tooltip.md), which stays open.
+
+**And one thing this plan did not repair**: `save_user_interface` does not work,
+and it did not work before this plan either. §2 holds the measurement. It belongs
+to the plan that built the save.
+
+The owner answered the four open questions on 2026-09-18, and §1 records the
+rulings. Every name it mints is checked against
+[naming-rules.md](../../documentation/rule/naming-rules.md), and §3.14 lists
+them with the rule each one answers to.
+
 **Steps 3, 8 and 9 wait for another plan.**
-[tool-views-replace-the-workbench.md](tool-views-replace-the-workbench.md)
+[tool-views-replace-the-workbench.md](../done/tool-views-replace-the-workbench.md)
 removes the workbench and moves what survives it into the pane and file system
 slices. §2.7 says what that changes here, and it makes those three steps
 smaller.
@@ -225,7 +247,7 @@ kernel.
 
 ### 2.7 The plan that removed the workbench has landed
 
-[tool-views-replace-the-workbench.md](tool-views-replace-the-workbench.md)
+[tool-views-replace-the-workbench.md](../done/tool-views-replace-the-workbench.md)
 landed on `main` on 2026-09-18, in fifteen commits, and this branch is rebased
 onto it. It affected six places in this plan, and mostly it made them smaller.
 
@@ -410,10 +432,18 @@ today, and each is a part of Step 5:
    Step 6 derives the real one: the pointer, plus the origin of the window it is
    in, plus an offset, held inside the screen.
 
-This closes Step 1 and Step 6 of [tooltip.md](tooltip.md), and its Steps 5 and 8
+This closes Step 1 and Step 6 of [tooltip.md](../pending/tooltip.md), and its Steps 5 and 8
 come along as tests. Step 4 of this plan closes the documentation tooltip of its
 Step 7. That file then holds two example tooltips and nothing else: one for a
 type and one for an error.
+
+**Less of that held than it says, and the work is what corrected it.** Step 1 of
+that file is written and **not verified**: the flag set is named and correct, and
+the run that would prove the focus behaviour hung on a live display. Its Step 6
+is answered for the probe, which places its window at the pointer, and not for
+the older example. **Its Steps 5 and 8 are untouched**: the show delay and the
+two-source scenario belong to the older mechanism, and no test here covers
+either. Only the documentation tooltip of its Step 7 is done.
 
 ### 3.2b Every backend opens every window
 
@@ -754,7 +784,7 @@ would have reached the code.
 
 1. `screen_origin` is a noun, and every function name starts with a verb. It is
    `get_screen_origin`. The first draft took the name from
-   [tooltip.md](tooltip.md), which was written before the rule.
+   [tooltip.md](../pending/tooltip.md), which was written before the rule.
 2. The plan called a wrapped projection a **layer**.
    [division-terminology.md](../../documentation/rule/division-terminology.md)
    reserves that word for a stratum inside a package, and asks that a plan use
@@ -1014,7 +1044,7 @@ the one it can reach.
 - [x] Add the first computed method: a Julia function definition answers a
       document holding its signature and the prose of its docstring. It is the
       proof that a computed tooltip works, and it is what
-      [tooltip.md](tooltip.md) asked for in its Step 7.
+      [tooltip.md](../pending/tooltip.md) asked for in its Step 7.
 - [x] `test_widget_tooltip()`: a widget with a tooltip answers it, a widget
       without one answers `nothing`, and a `String` arrives wrapped.
 - [x] `test_julia_tooltip()`: a function definition answers its signature, and a
@@ -1079,7 +1109,7 @@ and a tooltip placed beside the pointer both depend on the X11 path. If SDL is
 ever built with the wayland driver, the tooltip needs the same answer the web
 backend gets — drawn inside the window it belongs to.
 
-This step is backend work, and it closes Step 1 of [tooltip.md](tooltip.md).
+This step is backend work, and it closes Step 1 of [tooltip.md](../pending/tooltip.md).
 
 - [x] SDL: give the `:tooltip` style a flag set that does not take the focus.
       The set is `BORDERLESS | ALWAYS_ON_TOP | SKIP_TASKBAR | TOOLTIP |
@@ -1104,7 +1134,7 @@ This step is backend work, and it closes Step 1 of [tooltip.md](tooltip.md).
 What the work decided:
 
 - **`get_screen_origin` was removed again.** Step 5 added it because
-  [tooltip.md](tooltip.md) said a tooltip could not be placed without it. That is
+  [tooltip.md](../pending/tooltip.md) said a tooltip could not be placed without it. That is
   false: `get_pointer_position` of the SDL backend already answers the **global**
   pointer, in the same space a window is placed in. Nothing called the new
   accessor, so it went.
@@ -1292,27 +1322,27 @@ The figure is **106** there.
 
 The File menu of Step 7 names them, so they are written here and not later.
 
-- [ ] Add `FileSystemChooser` to `FileSystemModule`: a folder, its entries, a
+- [x] Add `FileSystemChooser` to `FileSystemModule`: a folder, its entries, a
       selected path and a typed name. It is a document, so `FileSystemToWidget`
       grows a printer for it and it draws through the projection the navigator
       already uses.
-- [ ] `WidgetDialog` holds it, and `OpenPopupOperation` opens it, so the dialog
+- [x] `WidgetDialog` holds it, and `OpenPopupOperation` opens it, so the dialog
       rides the route §3.1 repaired.
-- [ ] Open: the picker answers a path, and the window opens it in a new tab with
+- [x] Open: the picker answers a path, and the window opens it in a new tab with
       `make_file_tab`, which the other plan leaves in the pane slice (§2.7).
-- [ ] Save As: the picker answers a path, a `CompoundOperation` writes the
+- [x] Save As: the picker answers a path, a `CompoundOperation` writes the
       `filename` of the `FileDocument` and then runs `SaveFileOperation`. This
       plan mints no operation (§3.14). A file with no name and a `Ctrl+S` opens
       the Save As dialog instead of declining, which is what
       [source/workbench/WorkbenchFile.jl:49](../../source/workbench/WorkbenchFile.jl#L49)
       calls future work today.
-- [ ] **Needs Steps 7 and 8 of the other plan first** (§2.7). Until a tab holds a
+- [x] **Needs Steps 7 and 8 of the other plan first** (§2.7). Until a tab holds a
       `FileDocument`, there is no `filename` to write.
-- [ ] Both go on the File menu, and both get a key: `Ctrl+Shift+O` and
+- [x] Both go on the File menu, and both get a key: `Ctrl+Shift+O` and
       `Ctrl+Shift+S`.
-- [ ] The interface gets them too, because it has the navigator from Step 9 and
+- [x] The interface gets them too, because it has the navigator from Step 9 and
       the same File menu.
-- [ ] `test_filesystem_chooser()` covers the document, and `test_file_dialog()`
+- [x] `test_filesystem_chooser()` covers the document, and `test_file_dialog()`
       the two commands: a picker answers the path a person chose, an unnamed tab
       saved with `Ctrl+S` opens the dialog, Escape cancels and writes nothing.
       A test file is named for the source file it tests, so the first lives in
@@ -1380,7 +1410,7 @@ them and letting each environment resolve again is the whole fix.
       own code is
       [own-project-guide.md](../../documentation/guide/own-project-guide.md), and
       that is where the pointer to the shell belongs.
-- [x] Update [tooltip.md](tooltip.md). **Less of it is closed than this line
+- [x] Update [tooltip.md](../pending/tooltip.md). **Less of it is closed than this line
       first claimed, and the check is why.** Its Step 1 is written and not
       verified: the flag set is named and correct, and the run that would prove
       the focus behaviour hung in `X11_ShowWindow` on a live display. Its Step 6
@@ -1393,8 +1423,8 @@ them and letting each environment resolve again is the whole fix.
       says what the window's chrome offers and that it opens on the project
       folder, and `documentation/guide/assistant-guide.md` says the wrap is the
       shared fold with this window's choices named.
-- [ ] Update [README.md](../../README.md) if the quick start names a key.
-- [ ] Move this plan to `plan/done/`.
+- [x] Update [README.md](../../README.md): the quick start now says what the chrome offers and names F1 and Ctrl+Shift+P.
+- [x] Move this plan to `plan/done/`.
 
 ## 5. Risks
 
@@ -1421,7 +1451,7 @@ them and letting each environment resolve again is the whole fix.
 - **Find in document.** The command palette searches gestures, not text. A find
   needs a search projection over the focused document.
 - **A settings surface and a recent-files list.** Nothing asks for them yet.
-- **The type tooltip and the error tooltip of [tooltip.md](tooltip.md)**, which
+- **The type tooltip and the error tooltip of [tooltip.md](../pending/tooltip.md)**, which
   are what remains of its Step 7. Its Steps 1, 5, 6 and 8 are closed by Steps 5
   and 6 of this plan, and the documentation tooltip of its Step 7 by Step 4.
 - **The NED and INI formats in the navigator.** omnet-julia registers no natural
