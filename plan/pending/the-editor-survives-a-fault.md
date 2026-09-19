@@ -613,7 +613,7 @@ real editor with a printer that always fails: it enters at the limit, paints the
 list where the projection it replaced could not, names the projection that
 failed, and Escape puts the projection back. A strict editor never enters.
 
-### Phase 8 — Write the guide and the invariants ⬜
+### Phase 8 — Write the guide and the invariants ✅ DONE
 
 1. Write `documentation/package/fault/fault.md`.
 2. Add the carve-out paragraph to `PAR-PURE-THUNK` and to
@@ -621,6 +621,10 @@ failed, and Escape puts the projection back. A strict editor never enters.
 3. Add a new invariant, `PAR-REPORT-NEVER-THROWS`.
 4. Update `documentation/design/system-anatomy.md` and
    `documentation/rule/package-rules.md`.
+
+`documentation/package/README.md` needed nothing: it names no slice one by one,
+so a new folder is found by the walk. No guide registry exists in the source
+either.
 
 ## 6. The footprint on the code that exists
 

@@ -90,7 +90,7 @@ The substrate: 28 packages     one concept each, an acyclic package graph
         │                      graphics, screen, layout, text, widget, syntax,
         │                      pane;
         │                      the features — clipboard, tooltip, inspector,
-        │                      gesturehelp, gesturelog, fileformat,
+        │                      gesturehelp, gesturelog, fault, fileformat,
         │                      natural;
         │                      the two dependency-free backends — console, pdf.
         │                      Each declares the exact set it imports; the table
@@ -418,6 +418,8 @@ concept, and each declares the exact set of packages it imports:
    inspector       the reference inspector and the hover probe
    gesturehelp     the gesture map, the command palette and their two decorators
    gesturelog      the log document, its printer, its recorder and its overlay
+   fault           the fault report and log documents, the barrier projection that
+                   catches, the four renderers and the safe mode
    fileformat      NaturalFormat, DocumentFile
    natural         NaturalRegistry and NaturalProjection: render anything
    console         the ANSI terminal backend
