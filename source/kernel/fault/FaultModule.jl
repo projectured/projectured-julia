@@ -41,7 +41,7 @@ export FaultRecord, FaultStore, FaultPolicy,
        get_consecutive_fault_count, reset_consecutive_fault_count!,
        clear_fault_store!, get_fault_records,
        append_fault!, play_fault_sound!, is_passthrough_exception,
-       get_fault_store, get_fault_policy,
+       get_fault_store, get_fault_policy, make_safe_mode_projection,
        get_fault_origin_name, get_fault_exception_name,
        report_fault!, run_fault_barrier,
        make_strict_fault_policy

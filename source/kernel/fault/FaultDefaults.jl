@@ -25,6 +25,10 @@ play_fault_sound!(backend) = (print(_get_fault_sound_stream(), _BELL); nothing)
 get_fault_store(target) = nothing
 get_fault_policy(target) = make_strict_fault_policy()
 
+# Nothing in the kernel can draw a fault, so the kernel offers no safe mode. A
+# package that can draw one answers this.
+make_safe_mode_projection(store) = nothing
+
 # An ordinary exception is one a barrier may catch. The exceptions that mean
 # stop are named one at a time, by the layer that owns each.
 is_passthrough_exception(exception) = false

@@ -33,6 +33,8 @@ The module lives in these fragments, which share this namespace:
   a barrier can substitute a mark the next step already understands.
 - [`FaultLogToSyntax.jl`](FaultLogToSyntax.jl) — the log as a document.
 - [`FaultLogOverlay.jl`](FaultLogOverlay.jl) — the log as a panel over a window.
+- [`FaultSafeMode.jl`](FaultSafeMode.jl) — the projection the editor falls back
+  to when the printer has failed on every frame for long enough.
 """
 module FaultViewModule
 
@@ -66,7 +68,8 @@ export FaultReport, FaultLog, FaultLogEntry,
        FaultCatchingProjection, FaultCatchingIoMap,
        FaultToSyntax, FaultToText, FaultToWidget, FaultToGraphics,
        FaultLogToSyntax, FaultLogOverlayProjection, FaultLogOverlayIoMap,
-       make_fault_log_content_projection, FAULT_LOG_BACKGROUND
+       make_fault_log_content_projection, FAULT_LOG_BACKGROUND,
+       FaultSafeModeProjection, FaultSafeModeIoMap
 
 include("FaultDocument.jl")    # the report, the log, and the seam answer
 include("Catching.jl")         # the barrier inside the pipeline
@@ -76,5 +79,6 @@ include("FaultToWidget.jl")    # a mark in the widget domain
 include("FaultToGraphics.jl")  # a mark in the graphics domain
 include("FaultLogToSyntax.jl") # the log as a document
 include("FaultLogOverlay.jl")  # the log as a panel
+include("FaultSafeMode.jl")    # what the editor shows when nothing else can be
 
 end # module

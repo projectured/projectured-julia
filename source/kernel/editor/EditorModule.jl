@@ -27,7 +27,9 @@ using ..SelectionModule
 using ..ReferenceModule
 
 export Editor, run_editor!, read!, evaluate!, print!, run_frame!,
-       post_operation!, drain_operations!, is_editor_degraded
+       post_operation!, drain_operations!, is_editor_degraded,
+       is_editor_in_safe_mode, enter_safe_mode!, leave_safe_mode!,
+       report_frame_faults!
 
 """
     Editor(backend, document, projection, devices; clock = Clock(), tools = ToolSet())
@@ -63,6 +65,8 @@ Holds the state for a read-eval-print loop:
                    than passing quietly. [`run_editor!`](@ref) is what turns the
                    barriers on, because a loop a person is sitting in front of
                    is the thing that must survive.
+  - `replaced_projection` — the projection the safe mode put aside, or
+                   `nothing` when the editor is not in the safe mode.
 """
 mutable struct Editor
     backend::Backend
@@ -77,6 +81,7 @@ mutable struct Editor
     recognizer::GestureRecognizer
     faults::FaultStore
     fault_policy::FaultPolicy
+    replaced_projection::Union{Projection, Nothing}
 end
 
 # The inbox is bounded: a producer that outruns the editor should wait for it,
@@ -89,7 +94,7 @@ Editor(backend, document, projection, devices;
        fault_policy::FaultPolicy = make_strict_fault_policy()) =
     Editor(backend, document, projection, devices, clock, tools,
            Channel{Operation}(INBOX_CAPACITY),
-           nothing, nothing, GestureRecognizer(), faults, fault_policy)
+           nothing, nothing, GestureRecognizer(), faults, fault_policy, nothing)
 
 # Drop the cached IoMap so the next `print!` rebuilds the projection from scratch.
 # `invalidate_projection!` is a no-op for an object that caches nothing; this method
@@ -200,6 +205,10 @@ function read!(editor::Editor)
             # here. This is why a backend must deliver Escape as a key rather than
             # as a quit: a quit cannot be declined.
             if _is_quit_gesture(window_input)
+                # In the safe mode, Escape means "out of this", not "out of the
+                # editor". The quit gesture goes back to its usual meaning as
+                # soon as the projection is back.
+                leave_safe_mode!(editor) && continue
                 editor.operation = QuitEditorOperation()
                 return true
             end
@@ -251,6 +260,65 @@ end
 # tool against a target it knows only as `Any`.
 FaultModule.get_fault_store(editor::Editor) = editor.faults
 FaultModule.get_fault_policy(editor::Editor) = editor.fault_policy
+
+
+# ── The safe mode ────────────────────────────────────────────────────────────
+#
+# The last guarantee: the editor always shows something. When the printer has
+# failed on every frame for long enough that no repair helped, the projection is
+# put aside and one that draws the fault list takes its place. At worst a person
+# reads what went wrong instead of looking at a window that stopped moving.
+#
+# The kernel draws nothing itself, so it asks through `make_safe_mode_projection`
+# and does nothing when nothing answers.
+
+"""
+    is_editor_in_safe_mode(editor) -> Bool
+
+Whether the editor put its projection aside and is showing the fault list.
+"""
+is_editor_in_safe_mode(editor::Editor) = editor.replaced_projection !== nothing
+
+"""
+    enter_safe_mode!(editor) -> Bool
+
+Put the projection aside and show the fault list instead. Answers whether it
+happened: nothing answered `make_safe_mode_projection`, or the editor was
+already in the safe mode, and it did not.
+"""
+function enter_safe_mode!(editor::Editor)
+    is_editor_in_safe_mode(editor) && return false
+    projection = make_safe_mode_projection(editor.faults)
+    projection isa Projection || return false
+    editor.replaced_projection = editor.projection
+    editor.projection = projection
+    invalidate_projection!(editor)
+    # The count that brought us here is spent. A fault in the safe mode itself
+    # must be able to raise a fresh one.
+    reset_consecutive_fault_count!(editor.faults, :print)
+    @warn "[fault] the printer failed too often in a row; showing the fault list. Press Escape to go back."
+    true
+end
+
+"""
+    leave_safe_mode!(editor) -> Bool
+
+Put the projection back. Answers whether the editor was in the safe mode.
+"""
+function leave_safe_mode!(editor::Editor)
+    is_editor_in_safe_mode(editor) || return false
+    editor.projection = editor.replaced_projection
+    editor.replaced_projection = nothing
+    invalidate_projection!(editor)
+    reset_consecutive_fault_count!(editor.faults, :print)
+    true
+end
+
+# Called once per frame, after the paint. Entering is what the print-failure
+# limit means, and it is also what bounds a substitute that can not be printed:
+# that one re-raises every frame, so the count climbs and this puts a stop to it.
+_consider_safe_mode!(editor::Editor) =
+    is_editor_degraded(editor, :print) && enter_safe_mode!(editor)
 
 # ── The fault barriers ───────────────────────────────────────────────────────
 #
@@ -500,6 +568,7 @@ function run_frame!(editor::Editor)
                                                origin = typeof(editor.projection)) do
         print!(editor)
     end
+    _consider_safe_mode!(editor)
 end
 
 # ── Main loop ──────────────────────────────────────────────────────────

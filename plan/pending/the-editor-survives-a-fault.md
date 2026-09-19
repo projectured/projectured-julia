@@ -583,12 +583,35 @@ throws is not a broken turn, and the model is told what went wrong so it can try
 something else. They now record the fault as well, so one log carries every
 failure.
 
-### Phase 7 — Add the safe mode ⬜
+### Phase 7 — Add the safe mode ✅ DONE
 
 1. Count consecutive print faults on the editor.
 2. At the limit, swap `editor.projection` for a `ConstantProjection`
    (`source/projection/generic/Constant.jl`) that shows the log.
 3. Add the gesture that leaves the safe mode and restores the projection.
+
+**Settled while it was built.**
+
+*Escape leaves the safe mode before it quits.* Bare Escape already quits the
+editor, and a person in the safe mode wants out of the safe mode first. The
+gesture goes back to its usual meaning as soon as the projection is back, so no
+new vocabulary was minted for it.
+
+*The kernel asks through a seam.* It can name neither `ConstantProjection` nor a
+log document, so the fault layer declares `make_safe_mode_projection`, answers
+`nothing` itself, and `ProjecturedFault` answers it with
+`FaultSafeModeProjection`. An editor whose program loaded no such package simply
+stays as it is and keeps the frame before.
+
+*One keystroke can be lost on the way in.* Entering drops the cached IoMap, and
+`read!` discards an input it has no IoMap for. That is the documented behaviour
+of every projection swap and not something the safe mode adds, so it is left
+alone.
+
+**Result.** `test_fault()` answers 51 pass, 0 fail, 0 error. The suite drives a
+real editor with a printer that always fails: it enters at the limit, paints the
+list where the projection it replaced could not, names the projection that
+failed, and Escape puts the projection back. A strict editor never enters.
 
 ### Phase 8 — Write the guide and the invariants ⬜
 

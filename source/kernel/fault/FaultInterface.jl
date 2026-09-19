@@ -63,6 +63,27 @@ See also [`get_fault_policy`](@ref).
 function get_fault_store end
 
 """
+    make_safe_mode_projection(store) -> projection or nothing
+
+A projection that shows the faults in `store` and nothing else.
+
+Use it when the printer has failed so many times in a row that there is nothing
+left to draw. The editor swaps its projection for this one, so it still shows
+something, and at worst it shows the list of what went wrong.
+
+The default is `nothing`, which means the editor stays as it is and keeps the
+frame before. `ProjecturedFault` answers it, so the kernel names neither a log
+document nor a projection.
+
+# Example
+
+    projection = make_safe_mode_projection(editor.faults)
+
+See also `is_editor_in_safe_mode` and `enter_safe_mode!` in the editor layer.
+"""
+function make_safe_mode_projection end
+
+"""
     get_fault_policy(target) -> FaultPolicy
 
 What `target` does with a fault. The default is the strict policy, so anything
