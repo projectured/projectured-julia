@@ -1143,14 +1143,15 @@ What the work decided:
 
 ### Step 7 — the shell draws the chrome
 
-**Done for the application, 2026-09-19.** `test_shell()` is 115,
-`test_application()` is 63, `test_substrate()` is 63079 with the baseline's 3
-fail and 2 error. The interface half waits for `main`.
+**Done, 2026-09-19, for both binaries.** `test_shell()` is 106 in its own
+environment, `test_application()` is 63, `test_substrate()` is 63079 with the
+baseline's 3 fail and 2 error, and in omnet-julia `test_ide_window_wrap()` is 22
+and `test_campaign_loop()` is 12.
 
-- `WindowShellProjection` builds the `WidgetShell` in the **printer** and caches
-  it, so the chrome is drawn and never stored, and the widget keeps one identity
-  across prints. The shell adds one reference step, `content`, added going out
-  and stripped coming back.
+- `make_window_shell_document` puts the window's document in a `WidgetShell`, and
+  `make_window_shell_projection` draws it. **The shell is a node of the document**
+  (§3.1), so the `content` step is a real reference step and the printer's own
+  io map maps through it.
 - `make_window_menu_bar`, `make_window_toolbar` and `make_window_status_bar` are
   the bands, in the shell package, so both binaries share them and a host appends
   its own.
@@ -1184,29 +1185,52 @@ fail and 2 error. The interface half waits for `main`.
   would is `ReferenceToHumanReadableText`, which is a projection and belongs in
   what the band draws, not in a string built beside it.
 
-- [ ] Wrap the content of the window in a `WidgetShell` inside the fold, and give
+- [x] Wrap the content of the window in a `WidgetShell` inside the fold, and give
       the shell the size of the window. A shell with no size hugs its content
       (§2.6), which a window shell must not do.
-- [ ] Add the generic `compute_context_menu(document)` to `DomainModule`, the widget
+- [x] Add the generic `compute_context_menu(document)` to `DomainModule`, the widget
       method that reads a `context_menu` field, and
       `ContextMenuProbeProjection` with `ContextMenuProbeIoMap` in
       `WidgetModule`. What the generic answers opens through
       `OpenPopupOperation` (§3.6).
-- [ ] Add one computed method, so that the generic is proved and not only
+- [x] Add one computed method, so that the generic is proved and not only
       declared: a JSON array answers a menu that offers to add an element.
-- [ ] `WidgetShell.context_menu` becomes the menu of the window itself, and opens
+- [x] `WidgetShell.context_menu` becomes the menu of the window itself, and opens
       when no widget offers one.
-- [ ] Build the menu bar, the toolbar and the status line of §3.7, and let a host
-      append to each.
-- [ ] omnet-julia: delete `_paint_windows!`, `CAMPAIGN_BACKGROUND` and the
+- [x] Build the menu bar, the toolbar and the status line of §3.7, and let a host
+      append to each. **All three take an `extra`**, and
+      `make_window_command(label, callback; icon, shortcut)` builds one item, so
+      a host adds a command without naming the widget package at all.
+- [x] omnet-julia: delete `_paint_windows!`, `CAMPAIGN_BACKGROUND` and the
       `background` keyword of `run_campaign_window`. The interface appends its
       own Run and Stop to the toolbar.
-- [ ] Give the gallery's `shell = true` the new projection, so that the other
+- [x] Give the gallery's `shell = true` the new projection, so that the other
       plan can delete `example/workbench/` without taking the option with it
       (§2.7).
-- [ ] A new `test_window_shell()`: every menu item runs the gesture it names, a
+- [x] A new `test_window_shell()`: every menu item runs the gesture it names, a
       greyed item is greyed when its wrapper is off, and the status line follows
       the focused tab.
+
+**Two things the interface's half found, and both are general.**
+
+1. **A collected intent lost the step of the container it came through.** The
+   command palette collects by asking the reader where a keystroke would go, and
+   every stage on the way back roots what it finds. `_retarget_op` of the widget
+   slice knew every reference-carrying operation except
+   `CollectedIntentsOperation`, so the intents inside one passed through
+   unrooted. It showed as "`WidgetShell` has no field `root`" when a palette
+   command opened a tab, because the shell holds its content at `content` and the
+   path started below it. The kernel's own default reader had the branch;
+   the widget container did not. Fixed there, which repairs every widget
+   container and not only the shell.
+2. **A menu shortcut is recorded as the invocation, and not as the work.** The
+   shell fires a menu shortcut before the key reaches the document, so `Ctrl+T`
+   now travels as `InvokeActionOperation` and the gesture log names that. The
+   callback calls the pane slice's own verb, which applies its operation to the
+   tree the way `open_pane!` does for the assistant, so the work happens outside
+   the editor's operation pipeline. **What is undoable is therefore not the same
+   on the two routes**, and that belongs to the undo plan, which this one does
+   not carry.
 - Tests: `test_window_shell()`, `test_widget_context_menu()`,
   `test_application()`; in omnet-julia `test_ide_window_wrap()`.
 
@@ -1237,6 +1261,14 @@ showed only because the count FELL when tests were added.
 of the slice, each exactly once. It was checked by injecting a duplicated call
 and watching it fail. **A suite is edited by hand and by script, and a slip there
 is invisible: a function that stops being called takes its assertions with it.**
+
+**And the suite was run in the wrong environment, which hid a second slip.** The
+Save As test parsed JSON, and `ProjecturedShellTest` does not depend on
+`ProjecturedJson`, so no parser was ever registered for `:json`. It passed only
+because the run was made in a wide environment that had the package. The test
+reads Julia now, which the package does declare. **A package's own suite must be
+run in that package's own environment**, or a missing dependency is invisible.
+The figure is **106** there.
 
 The File menu of Step 7 names them, so they are written here and not later.
 
@@ -1272,21 +1304,47 @@ The File menu of Step 7 names them, so they are written here and not later.
 
 ### Step 9 — the file navigator in the interface
 
-- [ ] **Needs Steps 7 and 8 of the other plan first** (§2.7).
-- [ ] omnet-julia: add `ProjecturedFileSystem` to `package/OmnetIde/Project.toml`.
+**Done, 2026-09-19.** The application's half needed nothing: `make_application_document`
+already builds a `Workspace` over the folder it opened on, and the file system
+slice registers the row that draws it.
+
+- [x] **Needs Steps 7 and 8 of the other plan first** (§2.7).
+- [x] omnet-julia: add `ProjecturedFileSystem` to `package/OmnetIde/Project.toml`.
       One package, not the two §2.4 counted: the other plan moves `Workspace` and
       `WorkspaceToFileSystem` into that slice and deletes `ProjecturedWorkbench`.
-- [ ] `run_omnet_ide` opens a file explorer tab on the project directory, in the
-      first group.
-- [ ] Add no dispatch entry. The file explorer and the `FileDocument` register
+- [x] `run_omnet_ide` opens a file explorer tab on the project directory, in the
+      first group. **And gives the focus back to the Runner**: a tab that opens
+      takes the focus, and the window is meant to open where a person starts.
+- [x] Add no dispatch entry. The file explorer and the `FileDocument` register
       their own natural rows, so the interface draws them by depending on the
       package.
-- [ ] Set the closure cap of `IdeClosureTest` to the true number, and say in the
+- [x] Set the closure cap of `IdeClosureTest` to the true number, and say in the
       test why it moved. Do not touch `CampaignUiClosureTest`: the campaign
       window gains nothing.
-- [ ] Prove that the campaign window's closure did not change.
-- [ ] A new test opens a Julia file and a Markdown file from the file explorer of
+- [x] Prove that the campaign window's closure did not change.
+- [x] A new test opens a Julia file and a Markdown file from the file explorer of
       the interface.
+
+**The numbers.** The interface's closure was **43** and is **46**: this plan
+adds `ProjecturedShell`, `ProjecturedTooltip` — which comes with it, because a
+tooltip is a window the shell opens — and `ProjecturedFileSystem`. The cap moves
+from 42 to 46, and the test says what the three are.
+
+**The 43rd name is not this plan's and not the interface's own.** The guard
+already failed at 43 against 42 before this work, which Step 0 recorded. The
+measurement says where it comes from: the dependency list from before the
+clipboard step counts 43 too, so the name arrives through a package below this
+one and not through anything the interface declares.
+
+**The campaign window's closure did not change**: 25 names and
+`ProjecturedSerialization` among them, which is exactly what Step 0 recorded on
+`main`. That guard fails as it failed before, and this plan did not touch it.
+
+**A landing across two repositories leaves stale manifests behind.** Six
+`Manifest.toml` files in omnet-julia still named `ProjecturedWorkbench`, the
+package the other plan deleted, and a resolve stopped with a path assertion
+rather than a sensible message. All six are generated and untracked, so deleting
+them and letting each environment resolve again is the whole fix.
 - Tests: in omnet-julia `test_ide_window_wrap()`, `IdeClosureTest`,
   `CampaignUiClosureTest`.
 
