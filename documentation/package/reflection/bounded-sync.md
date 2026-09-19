@@ -163,7 +163,7 @@ for the option.
 
 Crucially the kernel never names `UnsyncedDocument` or `DepthPolicy`. It knows
 only that *something* goes in the stopped slot, and asks the policy for it; the
-marker type and the depth rule stay in this package. `HiddenElements` is the one
+marker type and the depth rule stay in `source/reflection/`. `HiddenElements` is the one
 piece of vocabulary the contract needs — the elements a capped walk is not
 keeping, handed over without copying them, since a positional collection document
 is not `view`-able.
