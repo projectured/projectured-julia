@@ -562,7 +562,11 @@ function definition offers "Go to the definition", and neither could have been
 set from outside.
 
 `WidgetShell.context_menu` stops being a dead field. It becomes the menu of the
-window itself: what opens when the document under the pointer offers none.
+window itself: what opens when the document under the pointer offers none, and
+what a press on empty space finds. **The probe asks the document it found and
+then the root document**, so the window's own menu is whatever the root answers —
+the shell where a shell is the root, and a host's own method on a pane tree
+otherwise.
 
 `WidgetContextMenu`, the wrapper type, stays and changes not at all. It gives one
 subtree a menu without a field on every widget in it, and it answers first

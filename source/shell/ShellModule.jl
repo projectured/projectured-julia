@@ -20,7 +20,13 @@ Without it a `WidgetSelect` does not drop down, a submenu does not open, and a
 """
 module ShellModule
 
+using ..CellModule
 using ..ClipboardModule
+using ..DocumentModule
+using ..IntentModule
+using ..IoMapModule
+using ..ProjectionModule
+using ..ReferenceModule
 using ..FocusModule
 using ..GestureHelpModule
 using ..GestureLogModule
@@ -28,8 +34,13 @@ using ..StyleModule
 using ..TooltipModule
 using ..WidgetModule
 
+# Imported to extend: this module adds a method to each of these.
+import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
+
 export make_window_wrap, make_opened_window_projections, make_popup_screen_wrap
+export WindowShellProjection, WindowShellIoMap
 
 include("WindowWrap.jl")
+include("WindowShell.jl")
 
 end # module

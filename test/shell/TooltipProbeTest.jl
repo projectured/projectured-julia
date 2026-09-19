@@ -84,3 +84,46 @@ end
 
 end # @testset
 end # function
+
+# The right press asks the same document the same kind of question, and what it
+# answers opens through the popup route a menu already takes.
+
+function test_context_menu_probe()
+@testset "the context menu probe" begin
+
+# `context_menu` is a field of the window's own frame and of nothing else, so
+# the shell is what carries one. Every other document computes its menu.
+_speaks() = WidgetShell(WidgetLabel(Point2D(0, 0), "speaks");
+                        size = Point2D(200, 100),
+                        context_menu = WidgetMenu([WidgetMenuItem("Copy"),
+                                                   WidgetMenuItem("Paste")]))
+
+function _read(document; menu = compute_context_menu)
+    _, projection = make_window_wrap(;
+        gesture_help = false, command_palette = false, gesture_log = false,
+        selection = false, context_menu = menu)(document, make_layout_projection_example())
+    iomap = print_document(projection, document)
+    answer = read_intent(projection, nothing,
+                         Intent(MousePress(:right, 5, 5, ModifierKeys())), iomap)
+    answer isa Intent ? answer.operation : answer
+end
+
+@testset "a document that offers a menu opens one" begin
+    operation = _read(_speaks())
+    @test operation isa OpenPopupOperation
+    @test operation.content isa WidgetMenu
+    # A popup with no size is a window nobody sees.
+    @test operation.width > 0 && operation.height > 0
+end
+
+@testset "a document that offers none opens none" begin
+    @test !(_read(WidgetShell(WidgetLabel(Point2D(0, 0), "silent");
+                              size = Point2D(200, 100))) isa OpenPopupOperation)
+end
+
+@testset "no function, no probe" begin
+    @test !(_read(_speaks(); menu = nothing) isa OpenPopupOperation)
+end
+
+end # @testset
+end # function

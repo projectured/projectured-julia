@@ -19,7 +19,13 @@ using ProjecturedStyle
 using ProjecturedTooltip
 using ProjecturedWidget
 
+const CellModule = ProjecturedKernel.CellModule
 const ClipboardModule = ProjecturedClipboard.ClipboardModule
+const DocumentModule = ProjecturedKernel.DocumentModule
+const IntentModule = ProjecturedKernel.IntentModule
+const IoMapModule = ProjecturedKernel.IoMapModule
+const ProjectionModule = ProjecturedKernel.ProjectionModule
+const ReferenceModule = ProjecturedKernel.ReferenceModule
 const FocusModule = ProjecturedFocus.FocusModule
 const GestureHelpModule = ProjecturedGestureHelp.GestureHelpModule
 const GestureLogModule = ProjecturedGestureLog.GestureLogModule

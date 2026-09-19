@@ -26,6 +26,10 @@ projection)` that a window entry applies before it opens.
   one every document answers. `nothing` leaves the wrapper out. It needs
   `pointer`, because a window is placed in screen coordinates and only a backend
   knows where the pointer is.
+- `context_menu`: what the document under the pointer offers on a right press.
+  It is the function the probe asks, `(document) -> Document | Nothing`;
+  `compute_context_menu` is the one every document answers. A
+  `WidgetContextMenu` closer to the pointer answers first, because it is closer.
 - `history`: a wrapper for what the window remembers, put **innermost**, around
   the content projection itself. It is a function `projection -> projection`, and
   the default changes nothing. A host that has an undo buffer passes the wrapper
@@ -51,6 +55,7 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
                             clipboard_gestures::Tuple = CLIPBOARD_GESTURES,
                             history = identity,
                             tooltip = nothing, pointer = nothing,
+                            context_menu = nothing,
                             measure = measure_truetype_text)
     tooltip === nothing || pointer !== nothing ||
         error("make_window_wrap: a tooltip is placed beside the pointer, so it needs `pointer`")
@@ -77,6 +82,9 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
             (projection = TooltipProbeProjection(inner = projection,
                                                  find_tooltip = tooltip,
                                                  pointer = pointer))
+        context_menu === nothing ||
+            (projection = ContextMenuProbeProjection(inner = projection,
+                                                     find_context_menu = context_menu))
         gesture_help &&
             (projection = GestureHelpDecoratorProjection(inner = projection, state = help_state))
         command_palette &&
