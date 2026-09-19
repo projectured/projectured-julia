@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Kind:** requirement · **Status:** current · **Stands on:** [accepted-requirements.md](accepted-requirements.md)
+> **Kind:** what · **Status:** current · **Stands on:** [accepted-requirements.md](accepted-requirements.md)
 
 What ProjecturEd does today, what is half built, and what comes next. It is written from the plans under `plan/done/` and `plan/pending/`, and each line names the code or the plan that settles it.
 

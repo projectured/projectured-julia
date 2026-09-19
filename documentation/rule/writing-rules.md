@@ -71,8 +71,9 @@ Each document starts with three things, in this order:
 
 1. The title, as a level-one heading.
 2. The header line: `> **Kind:** <kind> · **Status:** <status> · **Stands on:**
-   <link>`. The kinds are `concept`, `procedure`, `reference`, `rule` and
-   `requirement`.
+   <link>`. The kinds are `why`, `what`, `decision`, `rule`, `design`,
+   `reference` and `procedure`, and [README.md](../README.md) says what each one
+   answers.
 3. One paragraph of at most three sentences that says what the document
    answers.
 

@@ -1,6 +1,6 @@
 # Engineer tour
 
-> **Kind:** concept · **Status:** current · **Stands on:** [concepts.md](concepts.md), [system-anatomy.md](system-anatomy.md)
+> **Kind:** design · **Status:** current · **Stands on:** [concepts.md](concepts.md), [system-anatomy.md](system-anatomy.md)
 
 This guide is for a software engineer who is new to ProjecturEd. It explains the
 main concepts, how the concepts combine, and what the combinations make
@@ -650,7 +650,7 @@ much about the design as the finished parts.
 
 You write no reader and no reference mapper for the normal case. The template
 engine derives both from the markers. A simple domain is 50 to 150 lines. The
-worked walkthrough is [tutorial-new-domain.md](../guide/new-domain-guide.md).
+worked walkthrough is [new-domain-guide.md](../guide/new-domain-guide.md).
 
 ### 6.2 Add a projection
 
@@ -682,9 +682,9 @@ test_example(json_example)              # all three
 test_json()                             # one domain
 ```
 
-The full table is in [testing.md](../guide/testing-guide.md). For work in the REPL —
+The full table is in [testing-guide.md](../guide/testing-guide.md). For work in the REPL —
 `run_example`, `print_example`, `write_example_image`, and how to drive the
-printer and reader by hand — see [debugging.md](../guide/debugging-guide.md).
+printer and reader by hand — see [debugging-guide.md](../guide/debugging-guide.md).
 
 ---
 

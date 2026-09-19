@@ -1,6 +1,6 @@
 # Vision
 
-> **Kind:** requirement · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
+> **Kind:** why · **Status:** current · **Stands on:** [concepts.md](../design/concepts.md)
 
 Why ProjecturEd exists: data that is shown and edited as a structure, a user interface you design or get on demand, and a language model that works on the same data as you. It also says where ProjecturEd stands beside the tools a Julia developer already uses.
 
@@ -9,7 +9,7 @@ Why ProjecturEd exists: data that is shown and edited as a structure, a user int
 A program holds structured data: a configuration, a model, a measurement, an abstract syntax tree, a network of objects. To look at that data, a developer has three usual ways, and each one loses something.
 
 1. **Print it as text.** A text of a large value is long, flat and read-only. A change means a new line of code and another print.
-2. **Write a user interface for it.** A toolkit asks for widgets, layout, event handlers and a way back from the widget to the value. The work is large, and it holds for one data type only.
+2. **Write a user interface for it.** With a toolkit you write widgets, layout, event handlers and a way back from the widget to the value. The work is large, and it holds for one data type only.
 3. **Serialise it to a file and open the file in an editor.** The editor sees characters. It can not check the structure, and a change of the notation breaks every tool around it.
 
 The same three ways limit an AI assistant. A model that can only print, or only patch text, can not make a structured change and can not show a result.

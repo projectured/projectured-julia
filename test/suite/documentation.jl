@@ -151,12 +151,18 @@ function guide_name_violations(root::AbstractString)
     out
 end
 
+# The kinds that `documentation/README.md` defines. The last three are the kinds
+# of folders that hold no document yet.
+const _HEADER_KINDS = ["why", "what", "decision", "rule", "design", "reference",
+                       "procedure", "evidence", "study", "history"]
+
 """
     header_violations(root) -> Vector{String}
 
-Every document under `documentation/` without the header line, and every one
-whose header is not followed by a paragraph. A slide deck is left out: Marp
-reads its own front matter and the first slide is its title.
+Every document under `documentation/` without the header line, every one whose
+header names a kind outside `_HEADER_KINDS`, and every one whose header is not
+followed by a paragraph. A slide deck is left out: Marp reads its own front
+matter and the first slide is its title.
 """
 function header_violations(root::AbstractString)
     out = String[]
@@ -172,6 +178,10 @@ function header_violations(root::AbstractString)
         end
         occursin("**Status:**", lines[header]) ||
             push!(out, "$document has a header line without a Status")
+        kind = match(r"^> \*\*Kind:\*\* ([a-z]+)", lines[header])
+        (kind !== nothing && kind.captures[1] in _HEADER_KINDS) ||
+            push!(out, "$document has a header line whose Kind is not one of " *
+                       join(_HEADER_KINDS, ", "))
         summary = findfirst(number -> number > header && !isempty(strip(lines[number])),
                             eachindex(lines))
         if summary === nothing || startswith(strip(lines[summary]), "#") ||
