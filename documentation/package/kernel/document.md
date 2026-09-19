@@ -99,8 +99,8 @@ generics at every child —
 `DocumentInterface.jl`, defaulted in `DocumentDefaults.jl`). The default policy
 `nothing` descends everywhere and keeps every element, so an un-policed walk is
 the walk described above and pays nothing for the option. This layer never names
-a marker *type*, and never sees a policy that is not handed to it: it asks
-whoever supplied the policy what stands where the walk stopped.
+a marker *type*, and never sees a policy that is not handed to it: it calls
+whoever supplied the policy for what stands where the walk stopped.
 
 The same three hooks bound the walk that `ProjecturedReflection`'s
 `sync_reflection!` uses to grow a shadow of an arbitrary Julia value one level
@@ -135,7 +135,7 @@ kind-converting form. A policy steers the walk in two ways:
 | `get_copy_memo(policy)` | once per rebuild | `nothing`: no record |
 
 With a memo, a document met twice is one copy, and a document met inside its
-own copy stops the walk. A hook refuses the whole copy with
+own copy stops the walk. A hook stops the whole copy with
 `throw(DocumentCopyException(value, reason))`.
 
 A `CellVector` keeps one difference: the plain copy starts the list with no
@@ -149,16 +149,17 @@ of the same kind that they control on its own.
 
 - descends into a document whose kind declares a duplicate, and shares every
   other document, so what the duplicate does not own, it reads;
-- refuses a cell that computes, because a copy of its value looks live and is
-  not;
-- refuses a `Function`, a `Ref` and a `Task`, because an action that captures the
-  original acts on it;
-- refuses a document that holds itself.
+- stops the copy at a cell that computes, because a copy of its value looks
+  live and is not;
+- stops the copy at a `Function`, a `Ref` or a `Task`, because an action that
+  captures the original acts on it;
+- stops the copy at a document that holds itself.
 
 `has_document_duplicate(document)` says whether a kind has a duplicate. A pane
-asks it each time it prints a tab, so a method answers from the type and never
+calls it each time it prints a tab, so a method answers from the type and never
 walks the tree. A kind declares its duplicate in one line, and adds a
-`copy_document(::DuplicatePolicy, ::Kind)` method when one field needs a hand:
+`copy_document(::DuplicatePolicy, ::Kind)` method when one field needs custom
+handling:
 
 ```julia
 has_document_duplicate(::SimulationFilter) = true
@@ -179,15 +180,15 @@ There is exactly one traversal of an object graph
 positional collections, dicts, arrays, and structs uniformly, stops at scalar
 leaves / `is_walk_opaque` nodes / `maxdepth`, and folds a scalar match up to its
 enclosing `Document`. What it deliberately leaves open is how to *name* the node
-it stands on — those are the location functions of a `DocumentWalk`, a parameter
+it stands on. Those are the location functions of a `DocumentWalk`, a parameter
 object the caller supplies (`locate_field` / `locate_element` / `initial` /
 `policy`). Its two callers differ only there: `search_documents`
 ([DocumentSearch.jl](../../../source/kernel/document/DocumentSearch.jl)) uses the defaults, so a
 node's location is the node itself, while `search_references` (one layer up)
-supplies functions that build a `Reference`. Passing the location functions in
-— rather than dispatching them off a subtype — is what keeps the walk *below* the
-reference layer while still serving it: the walk knows nothing of `Reference`,
-the caller supplies it.
+supplies functions that build a `Reference`. The walk passes the location
+functions in, rather than dispatching them off a subtype. That keeps the walk
+*below* the reference layer while still serving it: the walk takes no
+dependency on `Reference`, and the caller supplies it.
 
 ## The protocol helpers
 
@@ -207,15 +208,15 @@ another type's method protocol without a hand-written method per function:
 
 [DocumentDefaults.jl](../../../source/kernel/document/DocumentDefaults.jl) gives `Document` a
 depth-limited `Base.show` (bounded by the `:document_depth` IOContext key, with the
-`selection` field skipped as noise). A debug aid only — nothing in the editor
-pipeline reads it; a domain that wants a *presentable* rendering writes a
-projection, not a `show` method.
+`selection` field skipped as noise). This is a debug aid only. Nothing in the
+editor pipeline reads it. A domain that needs a *presentable* rendering writes
+a projection, not a `show` method.
 
 ## Testing pressure
 
 Kernel tests for this layer use ONLY a test-local `@document struct ToyNode`,
-never `Collection` or `Primitive`. That constraint — you cannot reach for the
-engine documents as fixtures — is what keeps the interface sufficient. If the
+never `Collection` or `Primitive`. You cannot reach for the engine documents
+as fixtures. That constraint is what keeps the interface sufficient. If the
 contract cannot be exercised without the concrete documents, it is not actually a
 contract. See
 [test/document/DocumentContractTest.jl](../../../test/kernel/document/DocumentContractTest.jl).

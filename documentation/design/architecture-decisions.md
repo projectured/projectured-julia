@@ -12,7 +12,7 @@ see the [selection deep dive](../package/kernel/selection.md).
 ## 1. Pull-based reactivity (not push-based)
 
 The `Cell` system is **pull-based / lazy**: invalidation propagates eagerly
-(marking cells stale), but recomputation happens only on read. This matches
+and marks cells stale, but recomputation happens only on read. This matches
 ProjecturEd's performance strategy:
 
 - **Laziness** — only the visible portion of a document is ever computed. A
@@ -81,7 +81,7 @@ inner projection can recurse without knowing about the outer wrapper.
 Each domain and each projection lives in its own `module`. This mirrors
 ProjecturEd's principle that domains are independent of each other and of
 projections. Dependencies are explicit: `JsonToSyntax` imports from `Json` and
-`Syntax` but knows nothing about `Text` or `Graphics`.
+`Syntax`, and has no reference to `Text` or `Graphics`.
 
 The trade-off is verbosity in `Projectured.jl` (the root module that assembles
 them all), but it prevents accidental coupling and makes the dependency graph
@@ -147,10 +147,10 @@ This allows the editor to represent a cursor on the opening `"` as:
 ProjectionReferenceStep(json_string_proj, FieldReferenceStep("open") + PositionReferenceStep(0))
 ```
 
-The reader knows how to translate this back: a `ProjectionReferenceStep` to the
+The reader translates this back: a `ProjectionReferenceStep` to the
 `open` field means the cursor is on the delimiter, not in the value, so no
-JSON-domain path can represent it — the `ProjectionReferenceStep` is kept as-is
-and stored in the `JsonString.selection`.
+JSON-domain path can represent it. The reader keeps the `ProjectionReferenceStep`
+as-is and stores it in the `JsonString.selection`.
 
 ## 9. `KeyPress` abstraction
 
@@ -166,15 +166,15 @@ dependents **unconditionally** — there is no `old == new` short-circuit, and a
 computed cell that recomputes to an unchanged value does not stop propagation.
 The engine is deliberately *not* glitch-free or value-stabilising.
 
-The reason is simplicity and predictability: change detection by value would
-require every cell to retain and compare its previous value (and to define a
-meaningful `==` for arbitrary document payloads), and it interacts badly with
-laziness — a cell that was never pulled has no "previous value" to compare
-against. Keeping propagation keyed on *writes* makes the cost model trivial to
-reason about: work is proportional to what is written and then pulled, full
-stop. The practical consequence to keep in mind is that writing a cell its own
-current value is **not** free — e.g. a printer that rewrites `selection` every
-frame pays to recompute the whole subtree that reads it. See
+The reason is simplicity and predictability. Change detection by value would
+require every cell to retain and compare its previous value, and to define a
+meaningful `==` for arbitrary document payloads. It also interacts badly with
+laziness: a cell that was never pulled has no previous value to compare
+against. Keeping propagation keyed on *writes* makes the cost model easy to
+reason about: work is proportional to what is written and then pulled.
+The practical consequence to keep in mind is that writing a cell to its own
+current value is **not** free. For example, a printer that rewrites `selection`
+every frame pays to recompute the whole subtree that reads it. See
 [the reactive invariants](../package/kernel/cell.md#invariants-the-engine-relies-on).
 
 ---

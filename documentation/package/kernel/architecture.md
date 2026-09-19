@@ -20,7 +20,7 @@ algebra (higher-order combinators + generic projections) lives in the
 substrate. **No concrete documents** either — Collection and Primitive live in
 `ProjecturedCollection` and `ProjecturedPrimitive`, and ScreenDocument in
 `ProjecturedScreen`.
-The kernel now has **zero concrete-document imports**. **No backends** either —
+The kernel has **zero concrete-document imports**. **No backends** either —
 the dependency-free in-memory `HeadlessBackend` test double lives in
 `ProjecturedKernelExample`, not here. **No runtime dependencies** —
 `using ProjecturedKernel` precompiles and loads on its own.
@@ -70,7 +70,7 @@ include-order guard (see below).
 ## Dependency diagram — what depends on what
 
 **The eighteen layers *are* the dependency diagram.** A layer imports only layers below
-it, and that is the whole rule — the static guard enforces exactly it, so there is
+it. That is the whole rule, and the static guard enforces it exactly, so there is
 no second grouping to learn. What the plain stack does not show is the two places
 the shape is more interesting than "N depends on N−1":
 
@@ -79,8 +79,8 @@ the shape is more interesting than "N depends on N−1":
 `ReferenceStep` / `Reference` types and the step seam), `selection/SelectionInterface.jl`,
 `operation/Interface.jl` (`Operation` + `evaluate_operation`), the iomap layer's
 `IoMapInterface.jl`, and the projection layer's `ProjectionInterface.jl`. These hold abstract types plus open
-generic *declarations* (`function f end`) and nothing else. A higher layer — or a
-higher *package* — extends them by adding methods at its own definition site, so a
+generic *declarations* (`function f end`) and nothing else. A higher layer, or a
+higher *package*, extends them by adding methods at its own definition site, so a
 lower layer never names its implementors and no cycle is needed. `ReferenceStep` is
 the clearest case: `ProjectionReferenceStep` (layer 13), `PointReferenceStep`, and the
 text-selection siblings `TextRangeReferenceStep`/`TextColumnReferenceStep`/`TextSpanReferenceStep`
@@ -93,8 +93,8 @@ the factory seam `make_agent_server(:mcp, editor)` declared in `agent/AgentServe
 transports are the opt-in `package/mcp/` and `package/llm/`, which register their
 method on load.
 
-**Fan-in.** Counting `import ..XxxModule` lines across the kernel's own files, the
-hubs — the modules a consolidation must keep cheap to import — are:
+**Fan-in.** Counting `import ..XxxModule` lines across the kernel's own files identifies
+the hubs. These are the modules a consolidation must keep cheap to import:
 
 | Hub | Layer | Imported by |
 | --- | --- | --- |
@@ -107,34 +107,34 @@ hubs — the modules a consolidation must keep cheap to import — are:
 
 ## The interface files are the extension SPI
 
-The per-layer interface files are not just an internal decoupling seam — together
-they are the **service-provider interface** a third party implements to extend
-ProjecturEd (a new `Backend`, `Device`, agent server, domain `Document`,
-`ReferenceStep`, or `Projection`). They are kept **pure**:
-abstract types + generic function *declarations* (`function f end`) + docstrings —
-**no** concrete types, algorithms, factory registries, or mutable globals.
-(Implementations live in their own impl modules: the
+The per-layer interface files are not just an internal decoupling seam. Together
+they are the **service-provider interface** that a third party implements to extend
+ProjecturEd: a new `Backend`, `Device`, agent server, domain `Document`,
+`ReferenceStep`, or `Projection`. They are kept **pure**:
+abstract types + generic function *declarations* (`function f end`) + docstrings.
+They hold **no** concrete types, algorithms, factory registries, or mutable globals.
+Implementations live in their own impl modules: the
 `splice_*` text helpers and default `evaluate_operation` methods in
-`OperationModule`, and the concrete protocol data types `Intent` / `DoNothingOperation`
-— they are data vehicles that cross the seam, not interfaces to
-implement.) The stateless factory seam `make_agent_server(kind)` is the one
+`OperationModule`, and the concrete protocol data types `Intent` / `DoNothingOperation`.
+These are data vehicles that cross the seam, not interfaces to
+implement. The stateless factory seam `make_agent_server(kind)` is the one
 deliberate exception, kept as the SPI's own registration entry. Backends need no
 such seam: they construct by naming the type directly (`SdlBackend()`) or via
 `default_backend`'s reflection. An interface is its functions,
 not just its type, so interface
-files are expected to grow accessor/behaviour operations (e.g. the
+files grow accessor/behaviour operations over time (e.g. the
 `get_iomap_projection` / `get_iomap_input` / `get_iomap_output` accessors on `IoMapModule`).
 
 ## Load order and the include-order guard
 
-The include tree — the layer fragments in order, and each fragment's own include
-list — is a hand-maintained **topological sort**: every file appears after the
+The include tree is a hand-maintained **topological sort**: the layer fragments run
+in order, each with its own include list, and every file appears after the
 modules named in its `import ..XxxModule` headers. Julia enforces this
-only implicitly (an out-of-order include throws `UndefVarError` deep in
-precompilation), so [test/runtests.jl](../../../package/ProjecturedKernelTest/runtests.jl) enforces it
-**statically, without loading the package** (~0.4 s): it parses each file's AST and
-asserts every relative `..XxxModule` import resolves to a module defined by an
-*earlier* include, plus that every source file is included exactly once and each
+only implicitly: an out-of-order include throws `UndefVarError` deep in
+precompilation. So [test/runtests.jl](../../../package/ProjecturedKernelTest/runtests.jl) enforces it
+**statically, without loading the package** (~0.4 s). It parses each file's AST and
+asserts that every relative `..XxxModule` import resolves to a module defined by an
+*earlier* include, that every source file is included exactly once, and that each
 module is defined once. Run it with:
 
 ```
@@ -144,8 +144,8 @@ julia --project=package/ProjecturedKernelTest package/ProjecturedKernelTest/runt
 Depth ≠ include index. A module's *earliest safe position* is its longest path from
 a dependency-free source, and that is not the same as where it sits in the include
 list: `PerformanceCounterModule`, `EventModule`, `ToolModule` and the
-interface files are sources (they import nothing), while `EditorModule` is deepest
-— it pulls in nearly every layer. The guard enforces only the real constraint
+interface files are sources (they import nothing), while `EditorModule` is deepest.
+It pulls in nearly every layer. The guard enforces only the real constraint
 (every module precedes its users), not one specific linearization, so a file may
 legitimately sit later in the list than its depth requires.
 
@@ -176,10 +176,10 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 ## How the kernel is consumed
 
 A domain package binds the kernel's submodules as `const XxxModule =
-ProjecturedKernel.XxxModule` aliases so its files can use relative `..XxxModule`
-imports; the `Projectured` umbrella mechanically re-exports every public name of
-every kernel (and domain) submodule into one flat namespace. Consequently **module
-names are de-facto public API** — renaming one ripples into the domain alias block
+ProjecturedKernel.XxxModule` aliases, so its files can use relative `..XxxModule`
+imports. The `Projectured` umbrella mechanically re-exports every public name of
+every kernel (and domain) submodule into one flat namespace. Consequently, **module
+names are de-facto public API**: renaming one ripples into the domain alias block
 and the umbrella. A new sub-module added within a layer (as `PerformanceCounterModule`
 and `IntentModule` are) is picked up by the umbrella automatically and
 needs only an added domain alias if a domain file imports from it directly.

@@ -23,9 +23,9 @@ A domain with a reference guide keeps it in its own package:
 
 ## What a domain package is
 
-One package holds one domain. A domain is a kind of content a person edits —
-JSON, SQL, a state machine, a chart — and the package holds everything that is
-true of that content and nothing else:
+One package holds one domain. A domain is a kind of content a person edits,
+such as JSON, SQL, a state machine or a chart. The package holds everything
+that is true of that content and nothing else:
 
 - the **documents**, the types the content is made of;
 - the **parser**, if the domain has a text form;

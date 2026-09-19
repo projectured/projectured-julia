@@ -3,7 +3,7 @@
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
 Generic projections are **input-domain-independent**: they operate on any
-document *by structure, not by type* — copying, sorting, reversing, filtering,
+document *by structure, not by type*, copying, sorting, reversing, filtering,
 focusing, preserving, or reflecting over it without dispatching on any specific
 domain. That input-independence is the defining property of the nine projections
 below; each is a single struct subtyping `Projection`. Eight of them live in
@@ -11,8 +11,8 @@ below; each is a single struct subtyping `Projection`. Eight of them live in
 `source/widget/ObjectToWidget.jl`. *Most* also preserve the domain (same
 domain in and out). The
 reflection-driven `ObjectToWidget` is the one that does not preserve the
-domain — it is still fully input-independent (it reflects over any object) but
-produces a widget form. So it belongs here by the input-independence test, even
+domain. It reflects over any object, so it stays fully input-independent, but
+it produces a widget form. It belongs here by the input-independence test, even
 though it changes the output domain.
 
 | Projection | Effect on the output |
@@ -53,10 +53,10 @@ a placeholder when a sub-tree is collapsed).
 The workhorse of `ApplyAtProjection`. Recursively re-projects every child
 of the input with `print_child(recursion, child, child_ctx)`, then
 rebuilds an output struct/`CellVector`/`ListNode` of the same shape with
-the new outputs in place. It is strictly domain-independent — it has no
-`read_intent` method of its own (the default reader re-targets selection and
-edit operations through `map_reference_backward`) and knows nothing about any
-specific domain. Key behaviours:
+the new outputs in place. It is strictly domain-independent: it has no
+`read_intent` method of its own, and has no reference to any specific domain.
+The default reader re-targets selection and edit operations through
+`map_reference_backward`. Key behaviours:
 
 - For a `CellVector`, eagerly projects every slot.
 - For a `ListNode`, projects only the head eagerly; `prev`/`next` are
@@ -113,13 +113,13 @@ gestures:
 - A `ReplaceSelectionOperation` is translated by prepending `part` to the
   selection path.
 - Ctrl-`,` produces a `ReplaceFocusPartOperation` that drops the last step
-  of `part` — i.e. zoom out one level.
+  of `part`, to zoom out one level.
 - Ctrl-`.` produces a `ReplaceFocusPartOperation` that sets `part` to the
   longest prefix of the current selection whose target node matches
-  `part_type` — i.e. zoom in to the deepest legal focus along the cursor.
+  `part_type`, to zoom in to the deepest legal focus along the cursor.
 
 The operation itself reassigns `projection.part` and
-`projection.part_evaluator`, so the projection is reactive — subsequent
+`projection.part_evaluator`, so the projection is reactive. Subsequent
 prints navigate to the new sub-document automatically.
 
 ## Composing generic projections
@@ -133,6 +133,6 @@ ApplyAtProjection(@reference(entries), SortingProjection(by = e -> e.key))
 ```
 
 `IdentityProjection` and `CopyingProjection` are also the building blocks
-behind `ReferenceDispatchingProjection` cases: "preserve everywhere except
-at the target path, where we apply the real transformation, and copy the
-spine that leads there".
+behind `ReferenceDispatchingProjection` cases: preserve everywhere except
+at the target path, apply the real transformation there, and copy the
+spine that leads to it.

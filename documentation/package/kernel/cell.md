@@ -12,7 +12,7 @@ is built on top of it.
 
 This guide leads with the concepts and how-to (what a cell is, how tracking and
 invalidation work, the invariants, and the idioms you will meet) and then describes
-the *structure* of the cell layer — its modules and how they fit together.
+the *structure* of the cell layer: its modules and how they fit together.
 
 ## Cell
 
@@ -27,7 +27,7 @@ c = ReactiveCell{Int}(Computed(f))      # the typed computed form
 ```
 
 Which of the two a cell is depends on the *spelling*, never on what the value
-happens to be: `Computed(f)` — spelled `ComputedCell(f)` for the untyped case —
+happens to be: `Computed(f)`, spelled `ComputedCell(f)` for the untyped case,
 is the only thing that makes a cell compute. Every other argument is stored,
 callables included, so a cell can hold a callback or a predicate as ordinary
 data. `Computed` is cell vocabulary rather than a value: it is consumed by the
@@ -85,7 +85,7 @@ one and you get a hang, a stale render, or a stack overflow rather than an error
 - **The dependency graph must be acyclic.** `recompute!` evaluates a thunk while
   its cell sits on the `_computing` stack; if that thunk (transitively) reads its
   own cell, recomputation recurses forever. The engine only skips a *direct*
-  self-edge (`observer !== c`) — it does **not** detect multi-cell cycles. A
+  self-edge (`observer !== c`). It does **not** detect multi-cell cycles. A
   computed cell must never depend on itself through any chain.
 - **Invalidation is monotone: invalid ⟹ all transitive dependents are already
   invalid.** `_invalidate_walk!` stops descending the moment it meets an
@@ -104,8 +104,9 @@ one and you get a hang, a stale render, or a stack overflow rather than an error
 - **Thunks must be pure and deterministic in their cell inputs.** A thunk may run
   zero, one, or many times for a single logical change, and its cached result is
   reused until invalidation. It must therefore have no side effects and depend
-  only on the cells it reads (no clocks, RNG, or external mutable state) — or the
-  cache is wrong. This is a correctness requirement, not a style preference.
+  only on the cells it reads (no clocks, RNG, or external mutable state).
+  Otherwise the cache is wrong. This is a correctness requirement, not a style
+  preference.
 - **Invalidation recurses on the call stack**, so its depth is bounded by the
   longest dependency chain (≈ document tree depth). Pathologically deep documents
   can overflow the stack; in practice trees stay shallow enough that this is a
@@ -171,13 +172,13 @@ CellStructModule.jl      (CellStructModule)           — transparent-Cell struc
 
 `CellInterface.jl` is the layer's **interface file**: it declares the contract and
 nothing else (PAR-INTERFACE-DECLARES-ONLY). The default body for `unwrap_cell`
-therefore sits in the sibling `CellDefaults.jl` — it has a body, and a body is
+therefore sits in the sibling `CellDefaults.jl`. It has a body, and a body is
 implementation.
 
 The layer bundles everything at **cell dependency height**: `PerformanceCounter`
 is a store the engine calls (so it loads first), and `CellStructModule` is
-codegen *over* `Cell`. The animation clock — a `@cell_struct` that is a *client*
-of the engine rather than part of it — is **its own layer directly above** (layer
+codegen *over* `Cell`. The animation clock is a `@cell_struct` that is a *client*
+of the engine rather than part of it. It is **its own layer directly above** (layer
 2, `clock/ClockModule.jl`); it imports `CellModule`/`CellStructModule` and nothing
 else, and its `ClockModule` docstring carries the full API.
 
@@ -185,14 +186,14 @@ The load order is the dependency order the include-order guard checks.
 
 ## CellModule — the cell kinds
 
-A cell is a typed box `AbstractCell{T}`; the kind decides its behavior. `Cell` is
+A cell is a typed box `AbstractCell{T}`; the kind determines its behavior. `Cell` is
 `ReactiveCell{Any}`, the pull-based reactive graph described above: a cell is either
 *primitive* (a value) or *computed* (a zero-arg thunk); reading a cell inside another
 cell's thunk records a dependency edge; writing a cell eagerly invalidates its
 transitive dependents, and recomputation is lazy (on the next read). This is the
-incrementality substrate the whole projection pipeline rides on. `MutableCell{T}`
-and `ImmutableCell{T}` are non-reactive boxes — a mutable one for high-frequency
-state, a read-only one for derived content — for values that do not need the graph.
+incrementality substrate the whole projection pipeline depends on. `MutableCell{T}`
+and `ImmutableCell{T}` are non-reactive boxes for values that do not need the graph:
+a mutable one for high-frequency state, a read-only one for derived content.
 
 Public surface: `Cell`, `AbstractCell`, `ReactiveCell`, `MutableCell`,
 `ImmutableCell`, `set_cell_value!`, `set_cell_function!`, `is_cell_up_to_date`, `unwrap_cell`,
@@ -202,21 +203,22 @@ and `peek` (an untracked read extending `Base.peek`).
 
 `CellStructModule` (built on `CellModule` via `using ..CellModule`) is the
 compile-time struct toolkit, split out of the runtime engine so a reader of the
-reactive kinds never wades through AST-rewriting codegen. `@cell_struct struct T
-[<: Super] … end` turns every field into a `::Cell` field and generates an
-**auto-wrapping inner constructor** (raw values wrap in `Cell(v)`, Cells pass
-through — this is how construction-time cell sharing works), **transparent
-accessors** (`obj.f` reads the cell value, `obj.f = v` writes into it; raw cells
-via `getfield(obj, :f)`), and — when a field declares a `field::T = value`
-default — a **keyword constructor** with the `Base.@kwdef` optional/required
-split. No supertype is injected; the struct keeps what the definition wrote.
+reactive kinds never has to read AST-rewriting codegen. `@cell_struct struct T
+[<: Super] … end` turns every field into a `::Cell` field. It generates an
+**auto-wrapping inner constructor**: raw values wrap in `Cell(v)`, and Cells pass
+through unchanged, which is how construction-time cell sharing works. It also
+generates **transparent accessors**: `obj.f` reads the cell value, `obj.f = v`
+writes into it, and `getfield(obj, :f)` reaches the raw cell. When a field
+declares a `field::T = value` default, it also generates a **keyword
+constructor** with the `Base.@kwdef` optional/required split. No supertype is
+injected; the struct keeps what the definition wrote.
 
-The macro is assembled by `build_cell_struct_exprs(structdef)`, which composes two
+The macro is assembled by `build_cell_struct_exprs(structdef)`. It composes two
 module-internal expr-builders (`cell_struct_autowrap_ctor`,
 `cell_struct_property_accessors`) with the exported keyword/positional builders
 (`build_cell_struct_keyword_parameters`, `build_cell_struct_keyword_constructor`, `build_cell_struct_positional_ctors`)
-and the `CellStructPlan` parse — together the **composition seam for macro
-authors**: `@iomap` and `@projection` (projection layer) inject their default
+and the `CellStructPlan` parse. Together these form the **composition seam for
+macro authors**. `@iomap` and `@projection` (projection layer) inject their default
 supertype and return `esc(build_cell_struct_exprs(structdef))` wholesale; `@document`
 (document layer) generates its own kind-parameterized stem and reuses only the
 keyword-ctor builders. The builders emit `Cell`, `new`, `getfield` as bare names
@@ -244,12 +246,12 @@ editor folds per-stage timings into `:read_time`, `:evaluate_time`,
 The active store is a **task-local dynamic binding** (`ScopedValue`):
 `with_performance_counters(f)` binds a fresh dict for the dynamic extent of `f`,
 and everything that runs inside counts into it. Outside any such scope the binding
-is `nothing`, so an unscoped cell operation counts nothing and shares no state —
-which is what lets many editors run in one process without their counters
+is `nothing`, so an unscoped cell operation counts nothing and shares no state.
+That is what lets many editors run in one process without their counters
 colliding (PAR-PER-EDITOR-STATE). This module loads **first** so `ReactiveCell` can import the
 bump macro.
 
-Counting is **compiled out by default** — `PERFORMANCE_COUNTERS_ENABLED` is
+Counting is **compiled out by default**. `PERFORMANCE_COUNTERS_ENABLED` is
 seeded at precompile from `PROJECTURED_PERFORMANCE_COUNTERS` and defaults off, so
 a normal build carries no instrumentation: `@count_performance`,
 `record_performance!`, and `@performance_time` expand to `nothing`. Set the
