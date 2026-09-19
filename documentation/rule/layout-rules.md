@@ -2,7 +2,7 @@
 
 > **Kind:** rule · **Status:** current · **Stands on:** [architecture-invariants.md](architecture-invariants.md)
 
-How every widget and every layout decides its size. One rule, both axes, no
+How every widget and every layout gets its size. One rule, both axes, no
 exceptions and no constants.
 
 ## 1. The rule
@@ -108,8 +108,9 @@ So a `VerticalLayout` withholds height, a `HorizontalLayout` withholds width, a
 `WidgetCard` withholds height, a `WidgetToolbar` withholds width — each because
 its extent on that axis is the sum or the maximum of what it holds.
 
-A **viewport** — `WidgetScrollPane`, `WidgetTransformPane` — offers on every axis
-where it has an extent of its own, an authored size or the space its parent gave.
+A **viewport** — `WidgetScrollPane`, `WidgetTransformPane` — gives an offer on
+every axis where it has an extent of its own, an authored size or the space
+its parent gave.
 There its extent never comes from its content, which is what a viewport is.
 
 On an axis where it has neither, a viewport has nothing to clip against. It
@@ -119,8 +120,8 @@ content on the rest, and nothing anywhere names an axis that "scrolls". This is
 what keeps a collapsed card body — clipped to `Fixed(30)` in height — as wide as
 its text.
 
-The two directions cannot form a cycle. A clipped axis offers a cell that the
-content reads. An unclipped axis reads a cell that the content produces.
+The two directions cannot form a cycle. A clipped axis gives the content a
+cell to read. An unclipped axis reads a cell that the content produces.
 
 ## 3b. Who clips
 
@@ -159,7 +160,7 @@ is a scissor rect, not a surface, and the alternative is a type test in the prin
 
 ## 4. When a stack distributes instead of summing
 
-A stack sums its children on its main axis and offers them none of it. It
+A stack sums its children on its main axis and gives them none of it. It
 **distributes** instead when both of these hold:
 
 ```
@@ -196,7 +197,7 @@ WidgetShell(size = Point2D(300, 400))
       └ LayoutConstraint(WidgetScrollPane(…); height = Fill)
 ```
 
-- the shell offers `400`;
+- the shell gives an offer of `400`;
 - the stack sees a weight on `:y`, so it distributes rather than sums;
 - the label is unweighted, keeps its 26, and is not offered a slot;
 - the pane takes the remaining `374`, clips its content, and scrolls.
@@ -214,8 +215,7 @@ Written down because the reasoning is easy to lose and expensive to rebuild:
   parent supplies, and a row and a column want opposite answers from the same rule;
 - there is **no** scroll-axis rule: a viewport clips every axis it has an extent
   for and follows its content on the rest, and no axis is named anywhere;
-- there are **no** size constants: five once stood in
-  `WidgetToGraphics.jl`, and the 300 among them was the entire height of every
-  scroll pane in a column;
+- there are **no** size constants: a stray constant in `WidgetToGraphics.jl`
+  can silently become the height of every scroll pane in a column;
 - a container that divides an axis is **not** exempt: with no offer it withholds
   that axis and takes each slot from the child, the same as any other `Content`.

@@ -67,7 +67,7 @@ ordered `include`s. The code it includes lives in `source/`, `test/` or
 
 A tab, a fuzzy finder and a stack trace show a file name and not its path, so
 the name must answer three questions on its own: which slice, what kind of
-thing, and is it the real thing or an example of one. It did not. Of 690 files,
+thing, and is it the real thing or an example of one. Of 690 files,
 62 names were used more than once, covering 196 of them.
 
 | tree | shape | example |
@@ -94,16 +94,17 @@ file: 36 of `example/`'s 47 role folders held exactly one. `test/` keeps
 52 files.
 
 **A test is named for the file it tests, and the function inside settles it
-where the file name cannot.** `test/json/document/JsonTest.jl` had to become
-`JsonDocumentTest.jl` once its subject became `JsonDocument.jl`. Six of its
-neighbours look the same and are not: they sit in `projection/`, and each holds
-a `test_<slice>_projection`, so they are `<Slice>ProjectionTest.jl`. Two more in
-`test/odbc/external/` test a live query rather than a file, and are named for
-what they query — `DatabaseResultTest.jl`, `DbCatalogQueryTest.jl`.
+where the file name cannot.** `test/json/document/JsonDocumentTest.jl` is
+named for its subject, `JsonDocument.jl`, not the bare slice name
+`JsonTest.jl`. Six of its neighbours look the same and are not: they sit in
+`projection/`, and each holds a `test_<slice>_projection`, so they are
+`<Slice>ProjectionTest.jl`. Two more in `test/odbc/external/` test a live
+query rather than a file, and are named for what they query, such as
+`DatabaseResultTest.jl` or `DbCatalogQueryTest.jl`.
 
-The 191 renames left 12 colliding names, down from 62. Each of the 13 is one
-concept exemplified in two slices — `PaneProjectionExample.jl` in `projectured`
-and in `substrate` — which the slice folder separates.
+12 colliding names remain, down from 62. Each of the 13 is one
+concept exemplified in two slices, such as `PaneProjectionExample.jl` in
+`projectured` and in `substrate`, which the slice folder separates.
 
 ## Files and modules
 
@@ -118,7 +119,7 @@ and in `substrate` — which the slice folder separates.
 - **A fragment declares no module.** It opens with a comment saying which file
   it came from and what part of the slice it is. Its imports and its exports
   belong to the module file, because a module states what it needs and what it
-  offers in one place.
+  exports, in one place.
 - **One slice takes a name of its own.** `source/projection/` declares
   `ProjectionAlgebraModule`, not `ProjectionModule`, because the kernel's
   projection layer already declares that name and the kernel does not change.
@@ -219,7 +220,7 @@ alongside it.
   So a reader who forgets the convention can say the name out and get it back.
 
   A `C` says the variant keeps its fields in cells, and its absence says the
-  fields are plain. That is the whole of what tells `MCFoo` from `MFoo`: the
+  fields are plain. That is the whole of what distinguishes `MCFoo` from `MFoo`: the
   first is an immutable struct holding one `MutableCell` box per field, the
   second a single mutable object with its fields inline.
 - **Operations are verb-first phrases with the `Operation` suffix**:

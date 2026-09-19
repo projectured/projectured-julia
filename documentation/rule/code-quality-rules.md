@@ -31,7 +31,7 @@ ends.
 
 **The header is three blocks, in this order:** every `using`, sorted by module
 name; then every `import`, under a comment that says the module extends those
-names; then every `export`. A module exports only what no macro exports for it —
+names; then every `export`. A module exports only what no macro exports for it.
 `@document`, `@domain` and `@projection` each export the type they declare.
 
 **A fragment file opens with a one-line comment**, not a docstring:
@@ -127,9 +127,9 @@ who wants the present should not have to step over the past to reach it.
 **Delete a history comment. Do not rewrite it.** If it carries a constraint the
 code cannot show, keep that one sentence in the present tense and drop the rest.
 
-**A comment that names code in another file goes stale.** `JsonFile.jl` ended
-with a comment about `__init__`, which lives in `JsonModule.jl`. Put the comment
-where the code is.
+**A comment that names code in another file goes stale.** A comment about
+`__init__` belongs in `JsonModule.jl`, where `__init__` lives, not in
+`JsonFile.jl`. Put the comment where the code is.
 
 **A past tense is fine when it is about a run, not about a refactor.** `# The
 cell was written before this read` describes what happens at run time.
