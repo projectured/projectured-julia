@@ -60,7 +60,7 @@ depend on, and why the leaf the alias loads is the only place a
 
 ProjecturEd is organized as **one engine, twenty-eight substrate packages and
 twenty domain packages**, plus an umbrella and the opt-in packages. The kernel
-is the one *layered* package: its seventeen layers depend only downward, and
+is the one *layered* package: its eighteen layers depend only downward, and
 the ordering is enforced statically by the shared
 [layered-architecture guard](../../test/kernel/layering/CheckLayering.jl).
 Every other package is **one concept**, so it declares no layer index; the
@@ -77,9 +77,9 @@ for the rules.
 
 ```
 ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
-        ▲                      17 layers: cell → clock → event → device → gesture → backend →
-        │                      document → reference → selection → operation → binding →
-        │                      iomap → projection → tool → llm → agent → editor
+        ▲                      18 layers: fault → cell → clock → event → device → gesture →
+        │                      backend → document → reference → selection → operation →
+        │                      binding → iomap → projection → tool → llm → agent → editor
         │                      Zero runtime deps, zero concrete documents.
 The substrate: 28 packages     one concept each, an acyclic package graph
         ▲                      the vocabulary — collection, primitive, domain,
@@ -344,44 +344,47 @@ The substrate packages form their own DAG, and so do the twenty domains.
 [packages.md](../rule/package-rules.md) has the substrate table; [domains.md](domain-inventory.md)
 has the domain table.
 
-### The 17 kernel layers
+### The 18 kernel layers
 
 In include order, each importing only layers above it in this list — the order
 [package/ProjecturedKernel/src/ProjecturedKernel.jl](../../package/ProjecturedKernel/src/ProjecturedKernel.jl)
 includes them in:
 
 ```
- 1 cell        AbstractCell + the ReactiveCell / MutableCell / ImmutableCell kinds,
+ 1 fault       the FaultRecord, the FaultStore a thunk may write, the FaultPolicy,
+               run_fault_barrier and the report_fault! cascade. It imports nothing,
+               which is why it comes first: every layer above can report.
+ 2 cell        AbstractCell + the ReactiveCell / MutableCell / ImmutableCell kinds,
                @cell_struct, the per-frame performance counters
- 2 clock       the animation Clock (a @cell_struct with a reactive time field),
+ 3 clock       the animation Clock (a @cell_struct with a reactive time field),
                get_clock_time / set_clock_time!, the get_wall_clock singleton
- 3 event       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys,
+ 4 event       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys,
                KeyDown/KeyPress/Mouse*/Window*, WindowInput), the event pattern
                language (EventPattern, matches, describe, @event_case)
- 4 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
- 5 gesture     event → gesture recognition (MousePress / KeyChord synthesis)
- 6 backend     the Backend seam (lifecycle, text, device I/O, display size, device
+ 5 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
+ 6 gesture     event → gesture recognition (MousePress / KeyChord synthesis)
+ 7 backend     the Backend seam (lifecycle, text, device I/O, display size, device
                config, image/video output)
- 7 document    the Document supertype, @document, the is_element_collection /
+ 8 document    the Document supertype, @document, the is_element_collection /
                is_walk_opaque traits, search_documents
- 8 reference   ReferenceStep / Reference and the step seam, evaluate_reference,
+ 9 reference   ReferenceStep / Reference and the step seam, evaluate_reference,
                search_references, the @reference / @reference_case /
                @reference_rules DSLs
- 9 selection   get_selection / set_selection! / clear_selection! / with_selection
-10 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
-11 binding     GestureBinding, the per-document-type registry, @gestures /
+10 selection   get_selection / set_selection! / clear_selection! / with_selection
+11 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
+12 binding     GestureBinding, the per-document-type registry, @gestures /
                @gesture_set, read_gesture / read_bound_gesture
-12 iomap       the IoMap contract (IoMap + accessors) and the concrete IO maps
+13 iomap       the IoMap contract (IoMap + accessors) and the concrete IO maps
                (SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap)
-13 projection  the four interface functions, Intent, @projection,
+14 projection  the four interface functions, Intent, @projection,
                ProjectionTemplate, ProjectionReferenceStep
-14 tool        the editor's capability surface: Tool / Resource / ToolSet,
+15 tool        the editor's capability surface: Tool / Resource / ToolSet,
                execute_julia_code, doc/API search, register_default_tools!
-15 llm         the LLM provider abstraction: Llm, stream_turn, render_tool_schema,
+16 llm         the LLM provider abstraction: Llm, stream_turn, render_tool_schema,
                LlmMessage / LlmRequest, LlmEvent
-16 agent       the AI control surface: AgentServerModule (inbound, the MCP
+17 agent       the AI control surface: AgentServerModule (inbound, the MCP
                seam) and AgentModule (outbound, the Agent and run_turn! loop)
-17 editor      run_editor!, the read-eval-print loop, Playback
+18 editor      run_editor!, the read-eval-print loop, Playback
 ```
 
 **The twenty-eight substrate packages**, in a topological order. Each is one

@@ -138,6 +138,7 @@ requirement; the rule is its own lead sentence.
 | [PAR-OPT-IN-DEPENDENCY](#par-opt-in-dependency) | Add a backend/engine as an opt-in package behind a factory seam, not by coupling core code to the dependency |
 | [PAR-PROFILE-WITH-COUNTERS](#par-profile-with-counters) | Profile edits with the per-frame performance counters |
 | [PAR-PER-EDITOR-STATE](#par-per-editor-state) | No process-global state in the editor or the machinery it drives; one process must run many editors at once |
+| [PAR-REPORT-NEVER-THROWS](#par-report-never-throws) | A fault report never throws, and a barrier never swallows a fault in silence |
 
 **Package, layer, slice, and module structure**
 
@@ -194,6 +195,16 @@ logical change and its cached result is reused until invalidation, so impurity
 produces a wrong cache, not just a style smell. This is a correctness
 requirement.
 
+**Accepted carve-out — an idempotent write to a collector outside the graph.**
+The requirement is that the *cached result* be right: a thunk that runs many
+times for one logical change must leave the same value behind. A write whose
+effect is keyed and idempotent, to an object the graph does not contain, changes
+no result and can not be observed through any cell. `PAR-NO-WRITE-IN-THUNK`
+carries the same carve-out and names the case: the fault store. Nothing else
+qualifies by default — a counter that grows on every run, a log that appends, or
+anything a later read can see through a cell all produce a wrong cache and stay
+forbidden.
+
 ### PAR-NO-WRITE-IN-THUNK
 
 **A thunk must never write another cell or mutate shared document state.**
@@ -204,6 +215,22 @@ the graph inconsistent (graphics-domain cells do have consumers, e.g.
 a *persistent* object whose fields are `set_cell_function!` cells that **derive**
 from the upstream layout cell — do not rebuild objects, and do not
 reuse-then-mutate them with imperative cell writes.
+
+**Accepted carve-out — a plain collector outside the reactive graph.** The ban
+protects one thing: a write in the middle of a computation invalidates that
+cell's consumers mid-computation, so recomputation becomes order-dependent and
+the graph inconsistent. An object that is not a cell and has no dependents can
+not do that, so a thunk may write one. The fault store
+(`source/kernel/fault/FaultStore.jl`) is the case the carve-out was written for,
+and it exists because of this rule rather than in spite of it: a printer throws
+inside the thunk that derives its output, not inside `print_document`, so the
+barrier has to catch inside the thunk — and the message log it reports to is a
+document made of cells, which the thunk may not write. It writes the store
+instead, and the editor's frame drains the store into the log afterwards, on its
+own task, outside every thunk. Two properties make it safe, and a collector that
+lacks either does not qualify: it is **outside the reactive graph**, so no
+consumer can be invalidated half way; and its write is **idempotent**, keyed by
+identity, so a thunk that runs ten times for one logical event leaves one entry.
 
 ### PAR-ACYCLIC-CELLS
 
@@ -875,6 +902,31 @@ A shared read of one such value does not reintroduce the cross-editor *write*
 conflict PAR-PER-EDITOR-STATE targets.
 
 ## Package, layer, slice, and module structure
+
+### PAR-REPORT-NEVER-THROWS
+
+**A fault report never throws, and a barrier never swallows a fault in
+silence.** `report_fault!` is the one function in the system that may not raise:
+it runs when everything else has already failed, and an exception from it turns
+one broken frame into a dead editor. It reports at the first tier that works — a
+mark in the document, the message log, the console, a sound, nothing — and each
+tier falls to the next. A store that throws, a log target that throws and a
+backend that throws, all at once, still answer a tier. A test asserts exactly
+that.
+
+The second half is what keeps the first half honest. **A barrier that catches
+must record**, so no fault is lost, and the policy that governs the barriers
+must default to catching **nothing** wherever a test can reach it. An `Editor`
+starts with `make_strict_fault_policy()` and `run_editor!` is what turns the
+barriers on, because every test in the tree builds an `Editor` directly and none
+of them calls `run_editor!`. A barrier that is on under test turns a real bug
+into a passing run, which is the one way error tolerance can make the program
+worse than it was.
+
+An exception that means the program is to stop or can not go on is never caught:
+`is_passthrough_exception` names them one at a time — `QuitEditorException`,
+`InterruptException`, `StackOverflowError`, `OutOfMemoryError` — and a layer that
+owns a control-flow exception adds its own method.
 
 ### PAR-PACKAGE-CHAIN
 
