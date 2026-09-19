@@ -27,6 +27,7 @@ using ..SelectionModule
 using ..ReferenceModule
 using ..CellModule
 using ..FeedModule
+using ..FrameSampleModule
 import ..FeedModule: drain_changes!
 
 export Editor, run_editor!, read!, evaluate!, print!, run_frame!,
@@ -78,6 +79,10 @@ Holds the state for a read-eval-print loop:
                    from then on.
   - `wake_pending` — set by [`wake_editor!`](@ref) from any task; each frame
                    takes ownership of every wake posted before it (internal).
+  - `frame_samples` — the `FrameSampleStore` the loop folds one sample per
+                   frame into: always the frame time, plus the performance
+                   counters when they are compiled in. A statistics feed
+                   flushes it into a document on its own deadline.
 """
 mutable struct Editor
     backend::Backend
@@ -95,6 +100,7 @@ mutable struct Editor
     replaced_projection::Union{Projection, Nothing}
     feeds::Vector{Feed}
     wake_pending::Threads.Atomic{Bool}
+    frame_samples::FrameSampleStore
 end
 
 # The inbox is bounded: a producer that outruns the editor should wait for it,
@@ -109,7 +115,11 @@ function Editor(backend, document, projection, devices;
     editor = Editor(backend, document, projection, devices, clock, tools,
                     Channel{Operation}(INBOX_CAPACITY),
                     nothing, nothing, GestureRecognizer(), faults, fault_policy, nothing,
-                    Feed[InboxFeed(); feeds], Threads.Atomic{Bool}(false))
+                    # The wake starts pending: the first frame runs before the
+                    # first wait, so the editor paints once before anything
+                    # has happened.
+                    Feed[InboxFeed(); feeds], Threads.Atomic{Bool}(true),
+                    FrameSampleStore())
     # Registration is the one moment a feed meets its editor. The callback is
     # the only handle a producer-side store gets: a store lives below the
     # editor layer and must not name `Editor`.
@@ -233,11 +243,34 @@ few more frames; each of them drains nothing and repaints nothing.
 function compute_wait_timeout(editor::Editor)
     timeout = has_dependents(getfield(editor.clock, :time)) ? FRAME_INTERVAL : Inf
     for feed in editor.feeds
-        deadline = compute_wake_deadline(feed)
+        deadline = compute_wake_deadline(feed, editor)
         deadline === nothing && continue
         deadline < timeout && (timeout = deadline)
     end
     timeout
+end
+
+"""
+    record_frame_measurements!(editor, frame_seconds) -> Nothing
+
+Fold what this frame measured into `editor.frame_samples`: the frame time
+always, and the performance counters when they are compiled in. Runs at the
+end of each frame of `run_editor!`, inside the counter scope, so the counter
+keys of this frame are still bound. Times fold in seconds.
+"""
+function record_frame_measurements!(editor::Editor, frame_seconds::Float64)
+    measurements = Pair{Symbol, Float64}[:frame_time => frame_seconds]
+    if PERFORMANCE_COUNTERS_ENABLED
+        counters = get_performance_counters()
+        for key in (:reads, :computes, :invalidations, :writes)
+            push!(measurements, key => Float64(get(counters, key, 0)))
+        end
+        for key in (:read_time, :evaluate_time, :print_time)
+            push!(measurements, key => get(counters, key, 0) / 1e9)
+        end
+    end
+    record_frame_sample!(editor.frame_samples, measurements)
+    nothing
 end
 
 """
@@ -753,8 +786,9 @@ function run_editor!(editor::Editor; mcp::Bool=false,
             Threads.atomic_xchg!(editor.wake_pending, false)
             # A fresh per-frame counter store, bound for this frame's dynamic
             # extent; the cell operations below count into it and `perf!` reads it.
+            frame_started = Base.time()
             with_performance_counters() do
-                set_clock_time!(editor.clock, Base.time() - t_start)
+                set_clock_time!(editor.clock, frame_started - t_start)
                 # What was posted or stored from outside this task, applied
                 # here so the frame paints what its feeds just wrote.
                 _run_barrier(editor, :evaluate) do
@@ -763,6 +797,7 @@ function run_editor!(editor::Editor; mcp::Bool=false,
                 run_frame!(editor)
                 _run_barrier(editor, :report) do
                     perf!(editor)
+                    record_frame_measurements!(editor, Base.time() - frame_started)
                 end
             end
         end

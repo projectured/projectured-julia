@@ -195,5 +195,6 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `editor/FeedModule.jl`
   - ⬜ `editor/FeedInterface.jl`
   - ⬜ `editor/FeedDefaults.jl`
+  - ⬜ `editor/FrameSampleModule.jl`
   - ⬜ `editor/EditorModule.jl`
   - ⬜ `editor/PlaybackModule.jl`

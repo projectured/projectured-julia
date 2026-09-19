@@ -114,6 +114,9 @@ The answer is a flag, and the flag is the truth:
 The worst case is one spurious frame per wake, and a spurious frame drains
 nothing, changes nothing and repaints nothing.
 
+The flag starts set. The first frame therefore runs before the first wait,
+and an editor nothing has happened to still paints once.
+
 ### 2.5 The deadline
 
 A wait without a bound freezes three timed things. Each contributes a
@@ -162,9 +165,10 @@ drain_changes!(feed::Feed, editor) -> Int
 # items moved. Must write only what is new. No default — a feed that
 # cannot drain is a bug, not a no-op.
 
-compute_wake_deadline(feed::Feed) -> Float64 or nothing
+compute_wake_deadline(feed::Feed, editor) -> Float64 or nothing
 # At most this many seconds until this feed needs a frame, or nothing for
-# "no bound". Default: nothing.
+# "no bound". The editor is passed because the data may live on it, as the
+# frame sample store does. Default: nothing.
 
 attach_wake_callback!(feed::Feed, wake) -> Nothing
 # Hand the feed the editor's wake function, once, at registration. The
@@ -349,10 +353,15 @@ performance counters (`:reads`, `:computes`, `:invalidations`, `:writes`,
 plain arithmetic on a plain object; it costs no cell.
 
 The feed flushes the aggregate into a statistics document at
-`compute_wake_deadline` = 0.25 s while unflushed samples exist. The store and
-the fold live in the editor layer. The document, its projection and the feed
-live in a new substrate package, `ProjecturedStatistics` (`source/statistics/`),
-which mirrors the shape of `ProjecturedLog`.
+`compute_wake_deadline` = 0.25 s while unflushed samples exist — and only
+while a view subscribes to the document. The probe is `has_dependents` on
+the document's `frame_count` cell, which every view reads. So a watched
+table refreshes four times a second, and an unwatched editor folds for free
+and never flushes: without the probe, the flush would fold a new sample of
+its own frame and the loop would feed itself forever. The store and the
+fold live in the editor layer. The document, its projection and the feed
+live in a new substrate package, `ProjecturedStatistics`
+(`source/statistics/`), which mirrors the shape of `ProjecturedLog`.
 
 ### 4.5 MCP and the assistant — the minimal fix now
 
@@ -490,15 +499,26 @@ the fault plan section 9 already records.
    throwing wake (25 assertions); the feed suite asserts a fault recorded
    on `editor.faults` sets `wake_pending`.
 
-### Phase 8 — The frame statistics feed ⬜
+### Phase 8 — The frame statistics feed ✅ (2026-09-20)
 
-1. Add the sample store and the per-frame fold to the editor layer.
-2. Create `package/ProjecturedStatistics/` and `source/statistics/`, copying
-   the shape of `ProjecturedLog`; write the statistics document, its
-   projection and its feed there.
-3. Test: the fold matches a reference computation; the feed never wakes;
-   the flush honours the deadline; an editor with no statistics view folds
-   for free and flushes nothing.
+1. ✅ `FrameSampleModule` in the editor layer: `MeasurementSummary` (count,
+   minimum, maximum, mean, total, Welford deviation) and `FrameSampleStore`.
+   `Editor` always holds one, and the loop folds the frame time — plus the
+   performance counters when they are compiled in — at the end of every
+   frame (`record_frame_measurements!`).
+2. ✅ `package/ProjecturedStatistics/` and `source/statistics/`, mirroring
+   `ProjecturedLog`: `FrameStatistics`/`FrameMeasurement` (session
+   singleton, tab alias `statistics`), `FrameStatisticsFeed`,
+   `FrameStatisticsToSyntax`. Registered in the `Projectured` umbrella,
+   `environment/all` and the application's feed list.
+3. ✅ Tests: the kernel fold against a reference computation
+   (`test_frame_samples`, 16); the feed's watched/unwatched behaviour and
+   in-place row update (`test_frame_statistics_feed`, 14). The export
+   collision and package graph guards stay at their `main` baseline.
+4. Two changes this phase forced on the phases before it, both recorded
+   above: `compute_wake_deadline` gained the `editor` argument, and the
+   wake-pending flag starts set so the first frame paints before the first
+   wait.
 
 ### Phase 9 — Documentation ⬜
 

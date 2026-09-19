@@ -1,0 +1,26 @@
+name = "ProjecturedStatistics"
+uuid = "81408ee2-9581-4f43-8547-c7ccf1bed4ef"
+version = "0.1.0"
+authors = []
+
+# What the editor loop measures about itself: the frame statistics document,
+# the feed that flushes the editor's frame sample store into it, and its
+# syntax printer.
+
+[deps]
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedDomain = "56e9f339-7147-459f-9ae1-7785cace5f24"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
+ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
+ProjecturedSyntax = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
+ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
+
+[sources]
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedCollection = {path = "../ProjecturedCollection"}
+ProjecturedDomain = {path = "../ProjecturedDomain"}
+ProjecturedSerialization = {path = "../ProjecturedSerialization"}
+ProjecturedStyle = {path = "../ProjecturedStyle"}
+ProjecturedSyntax = {path = "../ProjecturedSyntax"}
+ProjecturedText = {path = "../ProjecturedText"}

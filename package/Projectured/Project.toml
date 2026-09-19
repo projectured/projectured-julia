@@ -48,6 +48,7 @@ ProjecturedSequenceChart = "52f7693d-4ffe-48c4-8e5b-a1c83c826c09"
 ProjecturedShell = "6a0c2129-78cc-4dfb-a683-9b93dbf5d518"
 ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
 ProjecturedSql = "d8115f9e-353f-406e-8661-6168b14bd6fd"
+ProjecturedStatistics = "81408ee2-9581-4f43-8547-c7ccf1bed4ef"
 ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
 ProjecturedSyntax = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
 ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
@@ -103,6 +104,7 @@ ProjecturedSequenceChart = {path = "../ProjecturedSequenceChart"}
 ProjecturedShell = {path = "../ProjecturedShell"}
 ProjecturedSerialization = {path = "../ProjecturedSerialization"}
 ProjecturedSql = {path = "../ProjecturedSql"}
+ProjecturedStatistics = {path = "../ProjecturedStatistics"}
 ProjecturedStyle = {path = "../ProjecturedStyle"}
 ProjecturedSyntax = {path = "../ProjecturedSyntax"}
 ProjecturedText = {path = "../ProjecturedText"}

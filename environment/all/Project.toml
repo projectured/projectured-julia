@@ -1,15 +1,11 @@
-# The environment the whole suite resolves in: every package of this repository,
-# and the third-party packages the nine opt-in stems carry. `jp` activates it.
-#
-# It holds a Project.toml and a Manifest.toml and no code at all — that is what
-# an environment is, and `plan/pending/repository-tree.md` §3 is the rule.
-
 [deps]
 Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 ProjecturedAdaptagrams = "c86b9063-147e-43d0-b3a0-65343fae9a66"
 ProjecturedAdaptagramsExample = "ba4baf6a-71dc-4770-b160-cab6259a07f0"
-ProjecturedBench = "87fc7a1c-8193-40d7-8f93-8f0e7c2529c7"
+ProjecturedAnthropic = "7a22cfc9-547a-444c-98bf-c26ac0f0a0b0"
+ProjecturedAnthropicTest = "6d6e7243-47fe-4ef5-bfc4-3f9d59ae8572"
 ProjecturedAssistant = "3f5a9c21-7b48-4d6e-9a02-1c8d5e4b7f39"
+ProjecturedBench = "87fc7a1c-8193-40d7-8f93-8f0e7c2529c7"
 ProjecturedBook = "9f92ab8d-1e4b-4b34-8cd3-a68ecab7f845"
 ProjecturedBookExample = "6d92c15d-7915-41b5-b681-43ccc0e928a7"
 ProjecturedBookTest = "ed85f55b-e74c-4f3b-8176-8899111cfda7"
@@ -65,10 +61,6 @@ ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedLayout = "131aea98-bff0-4be4-86bf-c6e8c408eb61"
 ProjecturedLog = "afbb0e85-b78b-48af-ad63-1ba46eea4377"
-ProjecturedAnthropic = "7a22cfc9-547a-444c-98bf-c26ac0f0a0b0"
-ProjecturedOllama = "1e313069-2975-45bd-ba6e-35a6296eb437"
-ProjecturedAnthropicTest = "6d6e7243-47fe-4ef5-bfc4-3f9d59ae8572"
-ProjecturedOllamaTest = "5226cae2-817a-4f8b-bb8c-b345e62d49a4"
 ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
 ProjecturedMarkdownExample = "722875ac-d894-402c-8041-e4d11ad1bcfb"
 ProjecturedMarkdownTest = "9b6ed84a-435e-4201-b17d-e2031f977df8"
@@ -80,6 +72,8 @@ ProjecturedNatural = "09daa789-626e-40de-aeba-3b7256e1b478"
 ProjecturedOdbc = "aed26263-2fd3-42de-9b03-7ee91ffa11a3"
 ProjecturedOdbcExample = "774a7e67-86a2-4b07-97c4-9f1e93809c7a"
 ProjecturedOdbcTest = "b5c88522-b0a8-403b-b9a3-0ff1b237a7b9"
+ProjecturedOllama = "1e313069-2975-45bd-ba6e-35a6296eb437"
+ProjecturedOllamaTest = "5226cae2-817a-4f8b-bb8c-b345e62d49a4"
 ProjecturedPane = "6bac0b38-2033-4280-9d64-c7881579a7c3"
 ProjecturedPdf = "18e37c66-e2b2-4424-ab73-223891693292"
 ProjecturedPlot = "fab29e63-3751-46a0-88a9-22680e33c7d8"
@@ -101,11 +95,12 @@ ProjecturedSequenceChart = "52f7693d-4ffe-48c4-8e5b-a1c83c826c09"
 ProjecturedSequenceChartExample = "5b64cb16-3395-4b64-9318-fc74b96892aa"
 ProjecturedSequenceChartTest = "b8f37bf2-d7d5-44f6-aa47-dae3ecf6ffb1"
 ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
+ProjecturedShell = "6a0c2129-78cc-4dfb-a683-9b93dbf5d518"
+ProjecturedShellTest = "b74f1b3e-5d2a-41c8-93ae-0c7f2c1d9a56"
 ProjecturedSql = "d8115f9e-353f-406e-8661-6168b14bd6fd"
 ProjecturedSqlExample = "6f92ce12-1ac0-47da-9eed-863a565badaf"
 ProjecturedSqlTest = "74717b3c-e326-42b6-b898-33b3a53c04ca"
-ProjecturedShell = "6a0c2129-78cc-4dfb-a683-9b93dbf5d518"
-ProjecturedShellTest = "b74f1b3e-5d2a-41c8-93ae-0c7f2c1d9a56"
+ProjecturedStatistics = "81408ee2-9581-4f43-8547-c7ccf1bed4ef"
 ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
 ProjecturedSubstrateExample = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 ProjecturedSubstrateTest = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
@@ -116,13 +111,13 @@ ProjecturedTooltip = "999c5553-b481-430d-b45f-24840119fc11"
 ProjecturedTulip = "bf3b10cf-befa-4ac9-98d3-9c1678f27146"
 ProjecturedTulipExample = "4b11a654-d873-42c4-ad7f-89627ca1ee14"
 ProjecturedTulipTest = "6e7ca9da-6789-4ac4-a4d2-74571a5e8aba"
+ProjecturedUndo = "b5651271-34dd-43c3-9dbd-d52110b52ef5"
+ProjecturedUndoTest = "ff42c033-56bf-4821-aac3-7e6b3c7c8f0b"
 ProjecturedVersioning = "a4ca456b-a893-43e8-800f-57a1f4488681"
 ProjecturedVideo = "8d225f56-7fda-4c1e-a58b-db6d64f8335c"
 ProjecturedVideoTest = "fbb35dcc-61b4-4d33-836d-9545da8fa976"
 ProjecturedWeb = "893c803c-8c7c-42c1-85f1-cc97ca81befb"
 ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
-ProjecturedUndo = "b5651271-34dd-43c3-9dbd-d52110b52ef5"
-ProjecturedUndoTest = "ff42c033-56bf-4821-aac3-7e6b3c7c8f0b"
 ProjecturedXml = "6f8deb26-6771-4202-9df0-376c19aef1c5"
 ProjecturedXmlExample = "903c9982-1817-4ad4-896f-97194f4d58e8"
 ProjecturedXmlTest = "e1c62fea-11da-4947-a567-721c2ab4f06a"
@@ -132,13 +127,14 @@ ProjecturedYamlTest = "c50c731e-0b3d-49a3-9d62-8794fc19745c"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
-
 [sources]
 Projectured = {path = "../../package/Projectured"}
 ProjecturedAdaptagrams = {path = "../../package/ProjecturedAdaptagrams"}
 ProjecturedAdaptagramsExample = {path = "../../package/ProjecturedAdaptagramsExample"}
-ProjecturedBench = {path = "../../package/ProjecturedBench"}
+ProjecturedAnthropic = {path = "../../package/ProjecturedAnthropic"}
+ProjecturedAnthropicTest = {path = "../../package/ProjecturedAnthropicTest"}
 ProjecturedAssistant = {path = "../../package/ProjecturedAssistant"}
+ProjecturedBench = {path = "../../package/ProjecturedBench"}
 ProjecturedBook = {path = "../../package/ProjecturedBook"}
 ProjecturedBookExample = {path = "../../package/ProjecturedBookExample"}
 ProjecturedBookTest = {path = "../../package/ProjecturedBookTest"}
@@ -194,10 +190,6 @@ ProjecturedKernelExample = {path = "../../package/ProjecturedKernelExample"}
 ProjecturedKernelTest = {path = "../../package/ProjecturedKernelTest"}
 ProjecturedLayout = {path = "../../package/ProjecturedLayout"}
 ProjecturedLog = {path = "../../package/ProjecturedLog"}
-ProjecturedAnthropic = {path = "../../package/ProjecturedAnthropic"}
-ProjecturedOllama = {path = "../../package/ProjecturedOllama"}
-ProjecturedAnthropicTest = {path = "../../package/ProjecturedAnthropicTest"}
-ProjecturedOllamaTest = {path = "../../package/ProjecturedOllamaTest"}
 ProjecturedMarkdown = {path = "../../package/ProjecturedMarkdown"}
 ProjecturedMarkdownExample = {path = "../../package/ProjecturedMarkdownExample"}
 ProjecturedMarkdownTest = {path = "../../package/ProjecturedMarkdownTest"}
@@ -209,6 +201,8 @@ ProjecturedNatural = {path = "../../package/ProjecturedNatural"}
 ProjecturedOdbc = {path = "../../package/ProjecturedOdbc"}
 ProjecturedOdbcExample = {path = "../../package/ProjecturedOdbcExample"}
 ProjecturedOdbcTest = {path = "../../package/ProjecturedOdbcTest"}
+ProjecturedOllama = {path = "../../package/ProjecturedOllama"}
+ProjecturedOllamaTest = {path = "../../package/ProjecturedOllamaTest"}
 ProjecturedPane = {path = "../../package/ProjecturedPane"}
 ProjecturedPdf = {path = "../../package/ProjecturedPdf"}
 ProjecturedPlot = {path = "../../package/ProjecturedPlot"}
@@ -230,11 +224,12 @@ ProjecturedSequenceChart = {path = "../../package/ProjecturedSequenceChart"}
 ProjecturedSequenceChartExample = {path = "../../package/ProjecturedSequenceChartExample"}
 ProjecturedSequenceChartTest = {path = "../../package/ProjecturedSequenceChartTest"}
 ProjecturedSerialization = {path = "../../package/ProjecturedSerialization"}
+ProjecturedShell = {path = "../../package/ProjecturedShell"}
+ProjecturedShellTest = {path = "../../package/ProjecturedShellTest"}
 ProjecturedSql = {path = "../../package/ProjecturedSql"}
 ProjecturedSqlExample = {path = "../../package/ProjecturedSqlExample"}
 ProjecturedSqlTest = {path = "../../package/ProjecturedSqlTest"}
-ProjecturedShell = {path = "../../package/ProjecturedShell"}
-ProjecturedShellTest = {path = "../../package/ProjecturedShellTest"}
+ProjecturedStatistics = {path = "../../package/ProjecturedStatistics"}
 ProjecturedStyle = {path = "../../package/ProjecturedStyle"}
 ProjecturedSubstrateExample = {path = "../../package/ProjecturedSubstrateExample"}
 ProjecturedSubstrateTest = {path = "../../package/ProjecturedSubstrateTest"}
@@ -245,13 +240,13 @@ ProjecturedTooltip = {path = "../../package/ProjecturedTooltip"}
 ProjecturedTulip = {path = "../../package/ProjecturedTulip"}
 ProjecturedTulipExample = {path = "../../package/ProjecturedTulipExample"}
 ProjecturedTulipTest = {path = "../../package/ProjecturedTulipTest"}
+ProjecturedUndo = {path = "../../package/ProjecturedUndo"}
+ProjecturedUndoTest = {path = "../../package/ProjecturedUndoTest"}
 ProjecturedVersioning = {path = "../../package/ProjecturedVersioning"}
 ProjecturedVideo = {path = "../../package/ProjecturedVideo"}
 ProjecturedVideoTest = {path = "../../package/ProjecturedVideoTest"}
 ProjecturedWeb = {path = "../../package/ProjecturedWeb"}
 ProjecturedWidget = {path = "../../package/ProjecturedWidget"}
-ProjecturedUndo = {path = "../../package/ProjecturedUndo"}
-ProjecturedUndoTest = {path = "../../package/ProjecturedUndoTest"}
 ProjecturedXml = {path = "../../package/ProjecturedXml"}
 ProjecturedXmlExample = {path = "../../package/ProjecturedXmlExample"}
 ProjecturedXmlTest = {path = "../../package/ProjecturedXmlTest"}

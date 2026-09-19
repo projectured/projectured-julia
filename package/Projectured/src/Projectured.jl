@@ -50,6 +50,7 @@ import ProjecturedGestureHelp
 import ProjecturedGestureLog
 import ProjecturedFault
 import ProjecturedLog
+import ProjecturedStatistics
 import ProjecturedShell
 import ProjecturedFileFormat
 import ProjecturedNatural

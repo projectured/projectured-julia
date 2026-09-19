@@ -38,22 +38,25 @@ mutable struct ProbeWaitBackend <: Backend
     gate::Base.Event
     waits::Vector{Float64}
     wakes::Threads.Atomic{Int}
+    writes::Threads.Atomic{Int}
 end
-ProbeWaitBackend() = ProbeWaitBackend(Base.Event(true), Float64[], Threads.Atomic{Int}(0))
+ProbeWaitBackend() = ProbeWaitBackend(Base.Event(true), Float64[],
+                                      Threads.Atomic{Int}(0), Threads.Atomic{Int}(0))
 
 BackendModule.wait_for_input(backend::ProbeWaitBackend, devices, timeout_seconds) =
     (push!(backend.waits, timeout_seconds); wait(backend.gate); nothing)
 BackendModule.wake_backend!(backend::ProbeWaitBackend) =
     (Threads.atomic_add!(backend.wakes, 1); notify(backend.gate); nothing)
 BackendModule.read_from_devices(::ProbeWaitBackend, devices) = nothing
-BackendModule.write_to_devices(::ProbeWaitBackend, devices, output) = nothing
+BackendModule.write_to_devices(backend::ProbeWaitBackend, devices, output) =
+    (Threads.atomic_add!(backend.writes, 1); nothing)
 
 # A feed with nothing to drain and a fixed deadline.
 struct DeadlineFeed <: Feed
     deadline::Union{Float64, Nothing}
 end
 FeedModule.drain_changes!(::DeadlineFeed, editor::Editor) = 0
-FeedModule.compute_wake_deadline(feed::DeadlineFeed) = feed.deadline
+FeedModule.compute_wake_deadline(feed::DeadlineFeed, editor) = feed.deadline
 
 struct ProbeWaitOperation <: Operation
     log::Vector{Any}
@@ -91,6 +94,7 @@ function test_editor_wait()
     @testset "only the false-to-true transition kicks the backend" begin
         backend = ProbeWaitBackend()
         editor = _wait_editor(backend)
+        Threads.atomic_xchg!(editor.wake_pending, false)   # construction leaves it pending
         wake_editor!(editor)
         wake_editor!(editor)
         @test backend.wakes[] == 1        # the second wake found the flag set
@@ -104,6 +108,10 @@ function test_editor_wait()
         editor = _wait_editor(backend)
         log = Any[]
         loop = @async run_editor!(editor)
+        # The first frame runs before the first wait: by the time the loop
+        # blocks, the editor painted once with nothing having happened.
+        @test timedwait(() -> !isempty(backend.waits), 5.0) === :ok
+        @test backend.writes[] >= 1
         post_operation!(editor, ProbeWaitOperation(log, :posted))
         @test timedwait(() -> length(log) == 1, 5.0) === :ok
         post_operation!(editor, QuitEditorOperation())

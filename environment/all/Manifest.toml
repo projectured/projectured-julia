@@ -2,7 +2,7 @@
 
 julia_version = "1.13.0"
 manifest_format = "2.1"
-project_hash = "0b35f6abce9f01e98c8743fe22a4036b129f1c35"
+project_hash = "cc39fd87f265cccb0e4d4249faa0f34c43d9f5f7"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -827,7 +827,7 @@ uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.Projectured]]
-deps = ["ProjecturedAssistant", "ProjecturedBook", "ProjecturedChart", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedConversation", "ProjecturedDatabase", "ProjecturedDbCatalog", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFault", "ProjecturedFileFormat", "ProjecturedFileSystem", "ProjecturedFocus", "ProjecturedFormula", "ProjecturedFsm", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraph", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedJson", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedLog", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProcess", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedRst", "ProjecturedScreen", "ProjecturedSequenceChart", "ProjecturedSerialization", "ProjecturedShell", "ProjecturedSql", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedUndo", "ProjecturedVersioning", "ProjecturedWidget", "ProjecturedXml", "ProjecturedYaml"]
+deps = ["ProjecturedAssistant", "ProjecturedBook", "ProjecturedChart", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedConversation", "ProjecturedDatabase", "ProjecturedDbCatalog", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFault", "ProjecturedFileFormat", "ProjecturedFileSystem", "ProjecturedFocus", "ProjecturedFormula", "ProjecturedFsm", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraph", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedJson", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedLog", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProcess", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedRst", "ProjecturedScreen", "ProjecturedSequenceChart", "ProjecturedSerialization", "ProjecturedShell", "ProjecturedSql", "ProjecturedStatistics", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedUndo", "ProjecturedVersioning", "ProjecturedWidget", "ProjecturedXml", "ProjecturedYaml"]
 path = "../../package/Projectured"
 uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
@@ -1019,7 +1019,7 @@ uuid = "d499710c-e3ef-422e-9e97-2622a1fb16a4"
 version = "0.1.0"
 
 [[deps.ProjecturedFaultTest]]
-deps = ["ProjecturedCollection", "ProjecturedFault", "ProjecturedFaultExample", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedProjection", "ProjecturedSyntax", "ProjecturedText", "Test"]
+deps = ["ProjecturedCollection", "ProjecturedFault", "ProjecturedFaultExample", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedProjection", "ProjecturedSyntax", "ProjecturedText", "Test"]
 path = "../../package/ProjecturedFaultTest"
 uuid = "19518bda-e4ea-4f11-b817-77f61b264b70"
 version = "0.1.0"
@@ -1429,6 +1429,12 @@ version = "0.1.0"
 deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedSql", "ProjecturedSqlExample", "ProjecturedStyle", "ProjecturedSubstrateExample", "ProjecturedSubstrateTest", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "Test"]
 path = "../../package/ProjecturedSqlTest"
 uuid = "74717b3c-e326-42b6-b898-33b3a53c04ca"
+version = "0.1.0"
+
+[[deps.ProjecturedStatistics]]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
+path = "../../package/ProjecturedStatistics"
+uuid = "81408ee2-9581-4f43-8547-c7ccf1bed4ef"
 version = "0.1.0"
 
 [[deps.ProjecturedStyle]]

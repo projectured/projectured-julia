@@ -86,18 +86,25 @@ function test_editor_feeds()
         @test drain_feeds!(editor) == 0      # everything is drained
     end
 
+    @testset "construction starts with a pending wake" begin
+        # The first frame runs before the first wait, so the editor paints
+        # once before anything has happened.
+        editor = _feed_editor()
+        @test editor.wake_pending[]
+    end
+
     @testset "construction attaches the wake callback" begin
         probe = ProbeFeed(Any[], :probe)
         editor = _feed_editor(Feed[probe])
         @test probe.wake !== nothing
-        @test !editor.wake_pending[]
+        Threads.atomic_xchg!(editor.wake_pending, false)
         probe.wake()
         @test editor.wake_pending[]
     end
 
     @testset "post_operation! wakes the editor" begin
         editor = _feed_editor()
-        @test !editor.wake_pending[]
+        Threads.atomic_xchg!(editor.wake_pending, false)
         post_operation!(editor, ProbeFeedOperation(Any[]))
         @test editor.wake_pending[]
     end
@@ -112,13 +119,14 @@ function test_editor_feeds()
     end
 
     @testset "the default deadline is no bound" begin
-        @test compute_wake_deadline(InboxFeed()) === nothing
-        @test compute_wake_deadline(ProbeFeed(Any[], :probe)) === nothing
+        editor = _feed_editor()
+        @test compute_wake_deadline(InboxFeed(), editor) === nothing
+        @test compute_wake_deadline(ProbeFeed(Any[], :probe), editor) === nothing
     end
 
     @testset "a recorded fault wakes the editor" begin
         editor = _feed_editor()
-        @test !editor.wake_pending[]
+        Threads.atomic_xchg!(editor.wake_pending, false)
         record_fault!(editor.faults, :print, :Probe, nothing, ErrorException("e"))
         @test editor.wake_pending[]
     end

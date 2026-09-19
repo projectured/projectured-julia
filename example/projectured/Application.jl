@@ -356,7 +356,7 @@ function run_application(paths::AbstractString...;
     try
         run_window_editor(document, projection, "ProjecturEd";
                           backend = backend, width = width, height = height, mcp = mcp,
-                          feeds = Feed[MessageLogFeed()],
+                          feeds = Feed[MessageLogFeed(), FrameStatisticsFeed()],
                           # A tooltip holds a document of one of this
                           # application's own domains, so the window a wrapper
                           # opens draws with the rows a pane draws with.
