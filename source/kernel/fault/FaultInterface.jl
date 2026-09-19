@@ -44,6 +44,33 @@ See also [`report_fault!`](@ref), which is what calls it.
 function play_fault_sound! end
 
 """
+    get_fault_store(target) -> FaultStore or nothing
+
+The store that collects the faults of `target`, or `nothing` where it keeps none.
+
+Use it where code holds something an editor owns but may not name the editor
+itself. The kernel's agent layer is the case: it drives a tool against a target
+it only knows as `Any`, and a tool that throws is a fault like any other.
+
+The default is `nothing`. The editor layer answers it for `Editor`.
+
+# Example
+
+    record_fault!(get_fault_store(target), :tool, name, nothing, exception, traceback)
+
+See also [`get_fault_policy`](@ref).
+"""
+function get_fault_store end
+
+"""
+    get_fault_policy(target) -> FaultPolicy
+
+What `target` does with a fault. The default is the strict policy, so anything
+that answers nothing of its own catches nothing of its own.
+"""
+function get_fault_policy end
+
+"""
     is_passthrough_exception(exception) -> Bool
 
 Whether a barrier must let `exception` through rather than catch it.

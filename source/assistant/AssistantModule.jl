@@ -20,6 +20,7 @@ using ..ConversationModule
 using ..DocumentModule
 using ..EventModule
 using ..EventPatternModule
+using ..FaultModule
 using ..GestureBindingModule
 using ..IoMapModule
 using ..LayoutModule

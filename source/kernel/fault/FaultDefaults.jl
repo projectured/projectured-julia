@@ -21,6 +21,10 @@ Write the BEL character. Every backend that adds no method of its own gets this.
 """
 play_fault_sound!(backend) = (print(_get_fault_sound_stream(), _BELL); nothing)
 
+# Most things keep no faults of their own, and an editor is what does.
+get_fault_store(target) = nothing
+get_fault_policy(target) = make_strict_fault_policy()
+
 # An ordinary exception is one a barrier may catch. The exceptions that mean
 # stop are named one at a time, by the layer that owns each.
 is_passthrough_exception(exception) = false

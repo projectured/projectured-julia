@@ -73,8 +73,12 @@ function run_turn!(agent::Agent, target; messages::Function, on_event::Function)
             catch e
                 # A tool that throws is not a broken turn: the model is told what went
                 # wrong and can try something else, which is the whole point of giving
-                # it tools it can misuse.
-                sprint(showerror, e, catch_backtrace())
+                # it tools it can misuse. The fault is recorded as well, so a person
+                # reading the editor's log sees what the model ran into.
+                traceback = catch_backtrace()
+                record_fault!(get_fault_store(target), :tool, Symbol(call.name),
+                              nothing, e, traceback)
+                sprint(showerror, e, traceback)
             end
             on_event(AgentToolResult(call, output, _is_error_output(output)))
         end

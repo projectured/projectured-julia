@@ -73,6 +73,7 @@ function start_mcp!(mcp::McpServer)
         ModelContextProtocol.connect(transport)
         mcp.task = @async start!(mcp.server)
     catch e
+        record_fault!(mcp.editor.faults, :tool, :McpServer, nothing, e, catch_backtrace())
         @warn "MCP server failed to start" exception = e
     end
     mcp
@@ -119,7 +120,20 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
         let tool = t
             handler = params_dict -> begin
                 args = Dict{String,Any}(string(k) => v for (k, v) in pairs(params_dict))
-                TextContent(text = tool.handler(editor, args))
+                # The barrier is here and not only in the transport library. A
+                # tool that throws must answer the client an error text and must
+                # not take the server task with it, and this file is the only
+                # place that can promise both. The fault is recorded too, so a
+                # person reading the editor's log sees what a client ran into.
+                text = try
+                    tool.handler(editor, args)
+                catch exception
+                    traceback = catch_backtrace()
+                    record_fault!(editor.faults, :tool, Symbol(tool.name), nothing,
+                                  exception, traceback)
+                    sprint(showerror, exception, traceback)
+                end
+                TextContent(text = text)
             end
             push!(out, MCPTool(
                 name        = tool.name,

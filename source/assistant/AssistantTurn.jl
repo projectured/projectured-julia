@@ -232,8 +232,13 @@ function _launch_agent_turn!(editor, a::Assistant)
             _run_agent_loop!(editor, a)
         catch e
             a.status = :error
-            err = sprint(showerror, e, catch_backtrace())
-            @error "Assistant turn failed" exception = (e, catch_backtrace())
+            traceback = catch_backtrace()
+            err = sprint(showerror, e, traceback)
+            # The turn is told to the person in the chat, and the fault is told
+            # to the editor's log as well, so one place carries every failure.
+            record_fault!(get_fault_store(editor), :tool, :Assistant, nothing,
+                          e, traceback)
+            @error "Assistant turn failed" exception = (e, traceback)
             push!(a.conversation.turns,
                   ConversationTurn(:assistant, [ConversationPart("Error: " * err)]))
         finally

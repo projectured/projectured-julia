@@ -544,7 +544,7 @@ being called after eight frames and the editor runs on.
    substitute of the stage before it is the only thing that protects it. Record
    what you find in this plan.
 
-### Phase 6 — Guard the tools, the agent and the MCP server ⬜
+### Phase 6 — Guard the tools, the agent and the MCP server ✅ DONE
 
 1. Add a local barrier to the MCP wire handler
    (`source/mcp/Mcp.jl:118-123`), so the server does not depend on the external
@@ -554,6 +554,18 @@ being called after eight frames and the editor runs on.
    already answer to the model.
 3. Add a fault record to `start_mcp!`, which only warns today
    (`source/mcp/Mcp.jl:72-77`).
+
+**Needed while it was built: a seam for the store.** The kernel's agent layer
+drives a tool against a target it knows only as `Any`, and it may not name
+`Editor`, which sits above it. So the fault layer declares `get_fault_store` and
+`get_fault_policy`, each answering nothing of its own by default, and the editor
+layer answers both for `Editor`. The MCP package names the editor directly and
+needs neither.
+
+The three barriers that existed keep the text they answer the model: a tool that
+throws is not a broken turn, and the model is told what went wrong so it can try
+something else. They now record the fault as well, so one log carries every
+failure.
 
 ### Phase 7 — Add the safe mode ⬜
 

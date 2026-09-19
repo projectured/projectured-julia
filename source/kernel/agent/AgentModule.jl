@@ -25,6 +25,7 @@ outside the process drives *this* editor.
 """
 module AgentModule
 
+using ..FaultModule
 using ..ToolModule
 using ..LlmModule
 
