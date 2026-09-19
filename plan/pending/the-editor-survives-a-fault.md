@@ -559,6 +559,13 @@ constructor.
    would have reported it, and a fault in the panel is what the frame barrier is
    for. A pipeline that wants a fault contained to one node rather than to the
    whole window still puts a `FaultCatchingProjection` at each of its own steps.
+
+   `run_example` takes it as `fault_tolerant = true`. Every other wrapper the
+   gallery offers is a flag that defaults to off; this one defaults to on,
+   because the panel draws no pixel while the log is empty and the barrier costs
+   a `try` that nothing enters. `ProjecturedExample` needs no new dependency:
+   the umbrella re-exports the whole package, and `Gallery.jl` already says
+   `using Projectured`.
 5. ✅ **The `Any`-entry survey, done 2026-09-19.**
 
    **Every bare stage constructor throws, and that is the good news.**

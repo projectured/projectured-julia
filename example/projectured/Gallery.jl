@@ -18,7 +18,8 @@ end
                 caching=false, scrolling=false, reset=false,
                 tooltip=false, inspector=false, introspection=false, selection=nothing,
                 shell=false, hover=false, dragging=false, gesture_help=false,
-                command_palette=false, gesture_log=false, profile=false)
+                command_palette=false, gesture_log=false,
+                fault_tolerant=true, profile=false)
 
 Open one window per example, side by side. Each example contributes a
 `WindowDocument` with the example's domain document as content; the
@@ -178,6 +179,7 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
                      shell=false, hover=false, dragging=false,
                      gesture_help=false, command_palette=false,
                      gesture_log=false, gesture_log_filter=nothing, gesture_log_capacity=20,
+                     fault_tolerant=true,
                      profile=false, backend=nothing, on_start=nothing)
     isempty(documents) && error("run_example: empty documents vector")
     length(documents) == length(projections) == length(names) ||
@@ -314,6 +316,24 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
             inner  = inner_compose(p, b),
             log    = log_document,
             filter = something(gesture_log_filter, default_gesture_log_filter))
+    end
+    # The last wrapper, and the one that costs nothing until something fails: a
+    # barrier around the whole composed pipeline and the panel that reports what
+    # it caught. The panel draws no pixel while the log is empty, so this is on
+    # by default where every other wrapper here is a flag.
+    if fault_tolerant
+        fault_log = FaultLog()
+        inner_compose = compose
+        compose = function (p, b)
+            projection, _ = make_fault_tolerant_projection(inner_compose(p, b);
+                                                           log = fault_log)
+            projection
+        end
+        previous_on_start = on_start
+        on_start = function (editor)
+            attach_fault_target!(editor.faults, fault_log)
+            previous_on_start === nothing || previous_on_start(editor)
+        end
     end
     _run_window_scene(docs, projs, names;
                       width=width, height=height, backend=backend,
