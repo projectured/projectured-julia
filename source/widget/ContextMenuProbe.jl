@@ -11,21 +11,21 @@
 
 struct ContextMenuProbeProjection <: Projection
     inner::Projection
-    find_context_menu::Function   # (document) -> Document | Nothing
-    width::Int                    # the popup's width
-    row_height::Int               # and one row of it, which sets the height
+    compute_context_menu::Function  # (document) -> Document | Nothing
+    width::Int                      # the popup's width
+    row_height::Int                 # and one row of it, which sets the height
 end
 
 """
-    ContextMenuProbeProjection(; inner, find_context_menu, width = 220,
+    ContextMenuProbeProjection(; inner, compute_context_menu, width = 220,
                                  row_height = 24)
 
 Wrap `inner`, the content projection of the window whose documents should offer
 their own menus.
 
-`find_context_menu` is `(document) -> Document | Nothing`;
-`compute_context_menu` is the generic every document answers. A widget reads a
-field somebody set; every other document computes what it offers, which is what
+`compute_context_menu` is `(document) -> Document | Nothing`. A host passes the
+generic of that name, which every document answers: a widget reads a field
+somebody set, and every other document computes what it offers, which is what
 makes the menu worth having.
 
 `width` and `row_height` size the popup. They are given rather than measured
@@ -37,9 +37,9 @@ pointer. The resolver places a popup at its anchor plus an offset in the anchor'
 own coordinates, and the probe knows the document it found but not where inside
 it the press landed.
 """
-ContextMenuProbeProjection(; inner::Projection, find_context_menu::Function,
+ContextMenuProbeProjection(; inner::Projection, compute_context_menu::Function,
                              width::Integer = 220, row_height::Integer = 24) =
-    ContextMenuProbeProjection(inner, find_context_menu, Int(width), Int(row_height))
+    ContextMenuProbeProjection(inner, compute_context_menu, Int(width), Int(row_height))
 
 @iomap struct ContextMenuProbeIoMap
     projection::Any
@@ -70,11 +70,11 @@ function read_intent(p::ContextMenuProbeProjection, recursion, change::Intent,
     probed = probe isa Intent ? probe.operation : probe
     path = probed isa ReplaceSelectionOperation ? probed.path : nothing
     node = path === nothing ? nothing : try_evaluate_reference(iomap.input, path, nothing)
-    menu = node === nothing ? nothing : p.find_context_menu(node)
+    menu = node === nothing ? nothing : p.compute_context_menu(node)
     # What the window itself offers, where the document under the pointer offers
     # nothing. A press on empty space finds no document at all, which is the
     # same case.
-    menu === nothing && (menu = p.find_context_menu(iomap.input))
+    menu === nothing && (menu = p.compute_context_menu(iomap.input))
     menu === nothing && return inner_answer
     path === nothing && (path = EmptyReference())
     rows = menu isa WidgetMenu ? max(1, length(menu.elements)) : 1

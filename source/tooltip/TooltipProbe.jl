@@ -7,7 +7,7 @@
 # **Reader** — on a `MouseMove` it reverse-projects the pointer by feeding the
 # inner reader a synthetic **Alt+left press**, which is the gesture that selects
 # whatever is under the pointer as a whole. It reads the path back without
-# committing it, resolves it, and asks `find_tooltip` what that document says.
+# committing it, resolves it, and asks `compute_tooltip` what that document says.
 # What comes back opens a window of its own, beside the pointer.
 #
 # **Alt, and not a plain press.** A plain press is a widget's own gesture: a
@@ -24,7 +24,7 @@
 struct TooltipProbeProjection <: Projection
     inner::Projection
     id::Symbol
-    find_tooltip::Function     # (document) -> Document | Nothing
+    compute_tooltip::Function  # (document) -> Document | Nothing
     pointer::Function          # () -> (x, y), the pointer in screen coordinates
     offset::Tuple{Int,Int}     # pointer -> window offset, in screen pixels
     size::Tuple{Int,Int}       # the window's (width, height)
@@ -35,15 +35,15 @@ struct TooltipProbeProjection <: Projection
 end
 
 """
-    TooltipProbeProjection(; inner, find_tooltip, pointer, id = :tooltip,
+    TooltipProbeProjection(; inner, compute_tooltip, pointer, id = :tooltip,
                              offset = (16, 20), size = (420, 120),
                              title = "tooltip")
 
 Wrap `inner`, the content projection of the window whose documents should answer
 for themselves.
 
-`find_tooltip` is `(document) -> Document | Nothing`. A host passes
-`compute_tooltip`, the generic every document answers; a host that wants another
+`compute_tooltip` is `(document) -> Document | Nothing`. A host passes the
+generic of that name, which every document answers; a host that wants another
 rule passes another function, and this slice needs no dependency on the slices
 that answer it.
 
@@ -52,13 +52,13 @@ coordinates, which is where a window is placed. `get_pointer_position` of the SD
 backend answers exactly that.
 """
 TooltipProbeProjection(; inner::Projection,
-                         find_tooltip::Function,
+                         compute_tooltip::Function,
                          pointer::Function,
                          id::Symbol = :tooltip,
                          offset = (16, 20),
                          size = (420, 120),
                          title::AbstractString = "tooltip") =
-    TooltipProbeProjection(inner, id, find_tooltip, pointer,
+    TooltipProbeProjection(inner, id, compute_tooltip, pointer,
                            (Int(offset[1]), Int(offset[2])),
                            (Int(size[1]), Int(size[2])), String(title),
                            Ref(false), Ref{Any}(nothing))
@@ -100,7 +100,7 @@ read_intent(p::TooltipProbeProjection, iomap::TooltipProbeIoMap, payload) =
 function _tooltip_operation(p::TooltipProbeProjection, iomap::TooltipProbeIoMap, path)
     node = path === nothing ? nothing :
            try_evaluate_reference(iomap.input, path, nothing)
-    content = node === nothing ? nothing : p.find_tooltip(node)
+    content = node === nothing ? nothing : p.compute_tooltip(node)
     if content === nothing
         p.open[] || return nothing
         p.open[] = false

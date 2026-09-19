@@ -5,6 +5,8 @@
     make_window_wrap(; gesture_help = true, command_palette = true,
                      gesture_log = false, selection = true,
                      clipboard_gestures = CLIPBOARD_GESTURES,
+                     history = identity, tooltip = nothing, pointer = nothing,
+                     context_menu = nothing, shell = nothing,
                      measure = measure_truetype_text) -> Function
 
 The wrappers a window gets, as the fold `(document, projection) -> (document,
@@ -98,11 +100,11 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
         # window that one of them opened.
         tooltip === nothing ||
             (projection = TooltipProbeProjection(inner = projection,
-                                                 find_tooltip = tooltip,
+                                                 compute_tooltip = tooltip,
                                                  pointer = pointer))
         context_menu === nothing ||
             (projection = ContextMenuProbeProjection(inner = projection,
-                                                     find_context_menu = context_menu))
+                                                     compute_context_menu = context_menu))
         gesture_help &&
             (projection = GestureHelpDecoratorProjection(inner = projection, state = help_state))
         command_palette &&

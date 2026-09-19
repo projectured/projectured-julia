@@ -7,6 +7,19 @@
 # item for a command that does not exist waits until the command does.
 
 """
+    make_window_command(label, callback; icon = nothing, shortcut = nothing) -> WidgetMenuItem
+
+One command for a band: what it says, and what it does when it is pressed.
+
+`callback` takes the editor and does the work, which is what makes an item
+honest — a band holds commands and never promises. A host builds its own
+commands with this and needs no widget package of its own.
+"""
+make_window_command(label, callback; icon = nothing, shortcut = nothing) =
+    WidgetMenuItem(label; action = Action(label; icon = icon, shortcut = shortcut,
+                                          callback = callback))
+
+"""
     make_window_menu_bar(; extra = []) -> WidgetMenu
 
 The menu bar both binaries share.
@@ -31,24 +44,18 @@ until the host's own menus begin.
 make_window_menu_bar(; extra = []) =
     WidgetMenu(Any[
         WidgetMenuItem("File"; submenu = WidgetMenu(Any[
-            WidgetMenuItem("New tab";
-                           action = Action("New tab";
-                                           shortcut = Shortcut(:t; ctrl = true),
-                                           callback = _open_tab!)),
-            WidgetMenuItem("Close tab";
-                           action = Action("Close tab";
-                                           shortcut = Shortcut(:w; ctrl = true),
-                                           callback = _close_tab!)),
+            make_window_command("New tab", _open_tab!;
+                                shortcut = Shortcut(:t; ctrl = true)),
+            make_window_command("Close tab", _close_tab!;
+                                shortcut = Shortcut(:w; ctrl = true)),
         ])),
         WidgetMenuItem("View"; submenu = WidgetMenu(Any[
-            WidgetMenuItem("Split vertically";
-                           action = Action("Split vertically";
-                                           shortcut = Shortcut(:backslash; ctrl = true),
-                                           callback = editor -> _split!(editor, :vertical))),
-            WidgetMenuItem("Split horizontally";
-                           action = Action("Split horizontally";
-                                           shortcut = Shortcut(:backslash; ctrl = true, shift = true),
-                                           callback = editor -> _split!(editor, :horizontal))),
+            make_window_command("Split vertically",
+                                editor -> _split!(editor, :vertical);
+                                shortcut = Shortcut(:backslash; ctrl = true)),
+            make_window_command("Split horizontally",
+                                editor -> _split!(editor, :horizontal);
+                                shortcut = Shortcut(:backslash; ctrl = true, shift = true)),
         ])),
         extra...,
     ]; orientation = :horizontal)
@@ -64,8 +71,7 @@ one binary has belongs.
 """
 make_window_toolbar(; extra = []) =
     WidgetToolbar(Any[
-        WidgetMenuItem("New tab";
-                       action = Action("New tab"; callback = _open_tab!)),
+        make_window_command("New tab", _open_tab!),
         extra...,
     ]; padding = Inset(4, 4, 4, 4))
 
