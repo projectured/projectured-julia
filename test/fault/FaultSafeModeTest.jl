@@ -5,19 +5,6 @@
 # person is left looking at a window that stopped moving, or at the list of what
 # went wrong.
 
-using Test
-using ProjecturedKernel.CellModule
-using ProjecturedKernel.DeviceModule
-using ProjecturedKernel.DocumentModule
-using ProjecturedKernel.EventModule
-using ProjecturedKernel.FaultModule
-using ProjecturedKernel.IntentModule
-using ProjecturedKernel.IoMapModule
-using ProjecturedKernel.ProjectionModule
-using ProjecturedKernel.EditorModule
-import ProjecturedKernel.EditorModule: read!
-using ProjecturedKernelExample
-using ProjecturedFault.FaultViewModule
 
 @document struct SafeModeProbe
     value::Int = 0

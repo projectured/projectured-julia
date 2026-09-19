@@ -12,6 +12,7 @@ ProjecturedFaultExample = "d499710c-e3ef-422e-9e97-2622a1fb16a4"
 ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
+ProjecturedKernelTest = "8053727f-93c2-44b0-a108-4c98e4ff6a44"
 ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
 ProjecturedSyntax = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
 ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
@@ -23,6 +24,7 @@ ProjecturedFaultExample = {path = "../ProjecturedFaultExample"}
 ProjecturedCollection = {path = "../ProjecturedCollection"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
+ProjecturedKernelTest = {path = "../ProjecturedKernelTest"}
 ProjecturedProjection = {path = "../ProjecturedProjection"}
 ProjecturedSyntax = {path = "../ProjecturedSyntax"}
 ProjecturedText = {path = "../ProjecturedText"}

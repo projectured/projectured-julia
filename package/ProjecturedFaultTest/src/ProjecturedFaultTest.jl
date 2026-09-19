@@ -1,36 +1,42 @@
 """
     ProjecturedFaultTest
 
-The Fault tier of the test-package DAG: the suite whose fixtures are fault
-reports, the catching barrier and the log panel.
+The suite of `ProjecturedFault`, aggregated by `test_fault()`.
 
-Aggregated by `test_fault()`.
+It tests two things that no other suite can. The first is containment: a printer
+that fails on one node must cost that node and nothing else, and the failure is
+raised from inside the output cell rather than from `print_document`, because
+that is where a real printer fails. The second is that the report never lies —
+a store, a log target and a backend that all throw at once still answer a tier.
 """
 module ProjecturedFaultTest
 
 using Test
-using ProjecturedCollection
-using ProjecturedFault
-using ProjecturedFaultExample
-using ProjecturedKernel
+import ProjecturedFault
+# The shared static layering guard lives at the bottom of the test-package DAG.
+using ProjecturedKernelTest: check_layering, get_package_source_root
+using ProjecturedCollection.CollectionModule
+using ProjecturedFault.FaultViewModule
+using ProjecturedKernel.CellModule
+using ProjecturedKernel.DeviceModule
+using ProjecturedKernel.DocumentModule
+using ProjecturedKernel.EditorModule
+using ProjecturedKernel.EventModule
+using ProjecturedKernel.FaultModule
+using ProjecturedKernel.IntentModule
+using ProjecturedKernel.IoMapModule
+using ProjecturedKernel.ProjectionModule
+using ProjecturedKernel.ReferenceModule
 using ProjecturedKernelExample
-using ProjecturedProjection
-using ProjecturedSyntax
-using ProjecturedText
+using ProjecturedProjection.ProjectionAlgebraModule
+using ProjecturedSyntax.SyntaxModule
+using ProjecturedText.TextModule
 
-export test_fault, test_fault_store, test_fault_report, test_fault_catching,
-       test_fault_safe_mode, test_fault_tolerant_projection
+import ProjecturedKernel.EditorModule: read!
 
 include("../../../test/fault/FaultStoreTest.jl")
 include("../../../test/fault/FaultCatchingTest.jl")
 include("../../../test/fault/FaultSafeModeTest.jl")
-
-test_fault() = @testset "ProjecturedFault" begin
-    test_fault_store()
-    test_fault_report()
-    test_fault_catching()
-    test_fault_safe_mode()
-    test_fault_tolerant_projection()
-end
+include("../../../test/fault/FaultSuite.jl")
 
 end # module ProjecturedFaultTest

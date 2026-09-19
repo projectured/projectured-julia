@@ -528,6 +528,12 @@ being called after eight frames and the editor runs on.
    two calls to `_print_fault_mark` outside the `try`, so a mark that can not be
    printed re-raises.
 4. Create `package/ProjecturedFaultTest/` and `package/ProjecturedFaultExample/`.
+   **The naming guard is what settles the shape**, and it caught three
+   violations before a human did: a slice's aggregator lives in
+   `test/<slice>/<Slice>Suite.jl`, not in the package root file, it is named
+   `test_<slice>()`, and it must sit beside a `test_<slice>_layering()`. Run
+   `julia test/suite/naming.jl` — it needs no environment — before believing a
+   new package is shaped right.
 5. Write test 9 of section 8 before the package is wired to anything. A store
    that groups by reference passes every other test and fails only this one.
 

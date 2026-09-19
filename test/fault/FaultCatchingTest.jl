@@ -10,19 +10,6 @@
 # output. A barrier that only wraps the call to `print_document` catches none of
 # this, and a test that raises from the call would not notice.
 
-using Test
-using ProjecturedKernel.CellModule
-using ProjecturedKernel.DocumentModule
-using ProjecturedKernel.FaultModule
-using ProjecturedKernel.IntentModule
-using ProjecturedKernel.IoMapModule
-using ProjecturedKernel.ProjectionModule
-using ProjecturedKernel.ReferenceModule
-using ProjecturedCollection.CollectionModule
-using ProjecturedProjection.ProjectionAlgebraModule
-using ProjecturedSyntax.SyntaxModule
-using ProjecturedText.TextModule
-using ProjecturedFault.FaultViewModule
 
 @document struct FaultProbeLeaf
     value::Int = 0
