@@ -192,5 +192,6 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `agent/AgentLoop.jl`
 - **Layer 18 — editor** (`editor/`)
   - ⬜ `editor/EditorLayer.jl`
+  - ⬜ `editor/FeedModule.jl`
   - ⬜ `editor/EditorModule.jl`
   - ⬜ `editor/PlaybackModule.jl`

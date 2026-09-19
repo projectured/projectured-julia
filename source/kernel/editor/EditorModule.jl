@@ -25,14 +25,18 @@ using ..AgentServerModule
 using ..FaultModule
 using ..SelectionModule
 using ..ReferenceModule
+using ..FeedModule
+import ..FeedModule: drain_changes!
 
 export Editor, run_editor!, read!, evaluate!, print!, run_frame!,
        post_operation!, drain_operations!, is_editor_degraded,
        is_editor_in_safe_mode, enter_safe_mode!, leave_safe_mode!,
-       report_frame_faults!
+       report_frame_faults!,
+       InboxFeed, wake_editor!, drain_feeds!
 
 """
-    Editor(backend, document, projection, devices; clock = Clock(), tools = ToolSet())
+    Editor(backend, document, projection, devices;
+           clock = Clock(), tools = ToolSet(), feeds = Feed[])
 
 Holds the state for a read-eval-print loop:
   - `backend`    — the display/input backend (e.g. SdlBackend)
@@ -67,6 +71,12 @@ Holds the state for a read-eval-print loop:
                    is the thing that must survive.
   - `replaced_projection` — the projection the safe mode put aside, or
                    `nothing` when the editor is not in the safe mode.
+  - `feeds`      — the registered inflows, drained once per frame by
+                   [`drain_feeds!`](@ref). The built-in [`InboxFeed`](@ref) is
+                   always first; the rest is given at construction and fixed
+                   from then on.
+  - `wake_pending` — set by [`wake_editor!`](@ref) from any task; each frame
+                   takes ownership of every wake posted before it (internal).
 """
 mutable struct Editor
     backend::Backend
@@ -82,19 +92,32 @@ mutable struct Editor
     faults::FaultStore
     fault_policy::FaultPolicy
     replaced_projection::Union{Projection, Nothing}
+    feeds::Vector{Feed}
+    wake_pending::Threads.Atomic{Bool}
 end
 
 # The inbox is bounded: a producer that outruns the editor should wait for it,
 # not build a queue of syncs that are stale by the time they are applied.
 const INBOX_CAPACITY = 64
 
-Editor(backend, document, projection, devices;
-       clock::Clock = Clock(), tools::ToolSet = ToolSet(),
-       faults::FaultStore = FaultStore(),
-       fault_policy::FaultPolicy = make_strict_fault_policy()) =
-    Editor(backend, document, projection, devices, clock, tools,
-           Channel{Operation}(INBOX_CAPACITY),
-           nothing, nothing, GestureRecognizer(), faults, fault_policy, nothing)
+function Editor(backend, document, projection, devices;
+                clock::Clock = Clock(), tools::ToolSet = ToolSet(),
+                faults::FaultStore = FaultStore(),
+                fault_policy::FaultPolicy = make_strict_fault_policy(),
+                feeds::Vector{Feed} = Feed[])
+    editor = Editor(backend, document, projection, devices, clock, tools,
+                    Channel{Operation}(INBOX_CAPACITY),
+                    nothing, nothing, GestureRecognizer(), faults, fault_policy, nothing,
+                    Feed[InboxFeed(); feeds], Threads.Atomic{Bool}(false))
+    # Registration is the one moment a feed meets its editor. The callback is
+    # the only handle a producer-side store gets: a store lives below the
+    # editor layer and must not name `Editor`.
+    wake = () -> wake_editor!(editor)
+    for feed in editor.feeds
+        attach_wake_callback!(feed, wake)
+    end
+    editor
+end
 
 # Drop the cached IoMap so the next `print!` rebuilds the projection from scratch.
 # `invalidate_projection!` is a no-op for an object that caches nothing; this method
@@ -121,9 +144,26 @@ simulation, a file watcher, an agent, a timer — to change what it shows.
 Blocks once `INBOX_CAPACITY` operations are waiting, so a producer faster than
 the editor is slowed down rather than allowed to queue work that will be stale
 before it is applied.
+
+Wakes the editor after the `put!`, so a posted operation is applied on the
+next frame rather than on the next tick of a timer.
 """
 post_operation!(editor::Editor, operation::Operation) =
-    (put!(editor.inbox, operation); operation)
+    (put!(editor.inbox, operation); wake_editor!(editor); operation)
+
+"""
+    wake_editor!(editor) -> Nothing
+
+Ask `editor` to run a frame now. Thread-safe, non-blocking and coalescing:
+any number of calls before the next frame cost one frame, because the frame
+takes the whole flag at once. [`post_operation!`](@ref) calls it after
+`put!`; a feed's producer-side store calls it through the callback
+[`attach_wake_callback!`](@ref) gave it.
+"""
+function wake_editor!(editor::Editor)
+    Threads.atomic_xchg!(editor.wake_pending, true)
+    nothing
+end
 
 """
     drain_operations!(editor) -> Int
@@ -143,6 +183,39 @@ function drain_operations!(editor::Editor)
     while isready(editor.inbox)
         evaluate_operation(editor, take!(editor.inbox))
         count += 1
+    end
+    count
+end
+
+# ── The feeds ─────────────────────────────────────────────────────────
+#
+# The generalisation of the inbox: every registered inflow of this editor,
+# drained at the same point of the frame the inbox is. The contract lives in
+# `FeedModule`; the inbox is the one feed the editor always has.
+
+"""
+    InboxFeed
+
+The built-in queue feed over `editor.inbox`. Always first in `editor.feeds`,
+so a posted operation applies before any other feed writes its target
+document.
+"""
+struct InboxFeed <: Feed end
+
+drain_changes!(::InboxFeed, editor::Editor) = drain_operations!(editor)
+
+"""
+    drain_feeds!(editor) -> Int
+
+Drain every registered feed, in registration order, and answer how many
+items moved in total. Runs once per frame on the editor task, inside the
+`:evaluate` barrier of [`run_editor!`](@ref), before `read!` — so the frame
+paints what its feeds just wrote.
+"""
+function drain_feeds!(editor::Editor)
+    count = 0
+    for feed in editor.feeds
+        count += drain_changes!(feed, editor)
     end
     count
 end
@@ -584,13 +657,13 @@ end
 """
     run_editor!(editor::Editor; mcp::Bool=false)
 
-Execute the read-eval-print loop. Each frame: `drain_operations!` applies
-whatever was posted from outside, then `run_frame!` applies every operation the
-backend has waiting and repaints once. `read!` internally swallows envelopes that
-don't translate to an operation, so no outer drain is needed. The trailing
-`sleep` yields to Julia's scheduler so
-cooperative `@async` tasks (e.g. the MCP server, a simulation driver) get to
-run between polls.
+Execute the read-eval-print loop. Each frame: `drain_feeds!` moves what
+producers posted or stored from outside — the inbox first, then every
+registered feed — then `run_frame!` applies every operation the backend has
+waiting and repaints once. `read!` internally swallows envelopes that don't
+translate to an operation, so no outer drain is needed. The trailing `sleep`
+yields to Julia's scheduler so cooperative `@async` tasks (e.g. the MCP
+server, a simulation driver) get to run between polls.
 
 When `mcp=true`, an MCP server is started alongside the loop so external
 clients can drive the editor; off by default.
@@ -625,12 +698,15 @@ function run_editor!(editor::Editor; mcp::Bool=false,
         while true
             # A fresh per-frame counter store, bound for this frame's dynamic
             # extent; the cell operations below count into it and `perf!` reads it.
+            # The frame takes ownership of every wake posted before it;
+            # a wake that arrives from here on belongs to the next frame.
+            Threads.atomic_xchg!(editor.wake_pending, false)
             with_performance_counters() do
                 set_clock_time!(editor.clock, Base.time() - t_start)
-                # What was posted from outside this task, applied here so the
-                # frame paints what it just applied.
+                # What was posted or stored from outside this task, applied
+                # here so the frame paints what its feeds just wrote.
                 _run_barrier(editor, :evaluate) do
-                    drain_operations!(editor)
+                    drain_feeds!(editor)
                 end
                 run_frame!(editor)
                 _run_barrier(editor, :report) do

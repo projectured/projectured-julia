@@ -151,7 +151,7 @@ polls, recognises gestures and runs the projection reader as today.
 
 ## 3. The new code
 
-### 3.1 The `Feed` seam — editor layer, new fragment `source/kernel/editor/Feed.jl`
+### 3.1 The `Feed` seam — editor layer, new module `source/kernel/editor/FeedModule.jl`
 
 ```julia
 abstract type Feed end
@@ -172,7 +172,10 @@ attach_wake_callback!(feed::Feed, wake) -> Nothing
 # whose producers never wake (statistics) declines it.
 ```
 
-`Feed.jl` loads before `EditorModule.jl` in
+The contract is its own module, `FeedModule`, not a fragment of
+`EditorModule`: the editor layer holds one module per concept
+(`EditorModule`, `PlaybackModule`), and the contract names no editor.
+`FeedModule.jl` loads before `EditorModule.jl` in
 [EditorLayer.jl](../../source/kernel/editor/EditorLayer.jl), so `Editor` can
 hold `Vector{Feed}`.
 
@@ -360,18 +363,25 @@ the fault plan section 9 already records.
 
 ## 5. The phases
 
-### Phase 1 — The feed seam and the inbox feed ⬜
+### Phase 1 — The feed seam and the inbox feed ✅ (2026-09-19)
 
-1. Write `source/kernel/editor/Feed.jl`: `Feed`, `drain_changes!`,
-   `compute_wake_deadline`, `attach_wake_callback!`, `InboxFeed`.
-2. Add the include to `EditorLayer.jl`, before `EditorModule.jl`.
-3. Add `feeds` and `wake_pending` to `Editor`; add the `feeds` keyword;
+1. ✅ Write `source/kernel/editor/FeedModule.jl`: `Feed`, `drain_changes!`,
+   `compute_wake_deadline`, `attach_wake_callback!`. `InboxFeed` lives in
+   `EditorModule`, beside the inbox it wraps.
+2. ✅ Add the include to `EditorLayer.jl`, before `EditorModule.jl`, and the
+   inventory row to `SEALING.md`.
+3. ✅ Add `feeds` and `wake_pending` to `Editor`; add the `feeds` keyword;
    prepend `InboxFeed`; attach the wake callbacks at construction.
-4. Add `wake_editor!`; call it from `post_operation!`.
-5. Run the feed loop each frame in `run_editor!`, before `run_frame!`. The
+4. ✅ Add `wake_editor!`; call it from `post_operation!`. The loop clears
+   `wake_pending` at the top of each frame: the frame takes ownership of
+   every wake posted before it.
+5. ✅ Add `drain_feeds!` and run it each frame in `run_editor!`, in place of
+   the bare `drain_operations!` call, inside the `:evaluate` barrier. The
    `sleep(0.01)` stays in this phase.
-6. Tests: registration order, feeds run every frame, the inbox drains
-   through the seam, wake coalescing.
+6. ✅ Tests (`test_editor_feeds`, 16 assertions): registration order, drains
+   on the editor task, totals, callback attachment, wake on post, wake
+   coalescing, the default deadline. The inbox, frame-drain and layering
+   suites stay green.
 
 ### Phase 2 — The wait seam and the loop rewrite ⬜
 
@@ -451,7 +461,7 @@ the fault plan section 9 already records.
 
 | file | change | sealed |
 | --- | --- | --- |
-| `source/kernel/editor/Feed.jl` | new | no |
+| `source/kernel/editor/FeedModule.jl` | new | no |
 | `source/kernel/editor/EditorLayer.jl` | one include | no |
 | `source/kernel/editor/EditorModule.jl` | two fields, the loop rewrite, `wake_editor!` | no |
 | `source/kernel/backend/BackendInterface.jl` | two declarations | **yes — permission given 2026-09-19** |
