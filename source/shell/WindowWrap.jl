@@ -119,20 +119,30 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
 end
 
 """
-    make_opened_window_projections(; gesture_help = true,
+    make_opened_window_projections(; gesture_help = true, content = [],
                                    measure = measure_truetype_text) -> Vector
 
 What draws the content of a window that a wrapper of [`make_window_wrap`](@ref)
 opens. It is the value of the `opened_window_projections` keyword of
 `run_window_editor`.
 
+**A window whose content type is named by no row draws nothing.** The help
+window holds a `GestureMap`, which this function names. A tooltip holds whatever
+the document under the pointer answered — a string, a block of prose, a document
+of any domain the host has — so **a host that turns the tooltip on passes the
+rows that draw its own documents** as `content`. They are the rows the window
+already draws a pane's content with.
+
 The help window holds a `GestureMap`. The palette and the log draw into the
 window they wrap and open none.
 """
 make_opened_window_projections(; gesture_help::Bool = true,
+                                 content = Pair{Type,Any}[],
                                  measure = measure_truetype_text) =
-    gesture_help ? Pair{Type,Any}[GestureMap => make_gesture_map_projection(measure)] :
-                   Pair{Type,Any}[]
+    vcat(gesture_help ?
+             Pair{Type,Any}[GestureMap => make_gesture_map_projection(measure)] :
+             Pair{Type,Any}[],
+         Pair{Type,Any}[content...])
 
 """
     make_popup_screen_wrap() -> Function

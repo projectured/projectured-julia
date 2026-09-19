@@ -16,15 +16,38 @@ _content() = VerticalLayout(Any[
     WidgetLabel(Point2D(0, 40), "silent"),
 ])
 
-function _scene_and_projection(; tooltip = compute_tooltip)
+# What draws what a tooltip holds. A window whose content type is named by no row
+# opens and draws nothing, so a host that turns the tooltip on passes the rows
+# for its own documents.
+_tooltip_content() = Pair{Type,Any}[
+    PrimitiveDocument => ChainingProjection(RecursiveProjection(PrimitiveToText()),
+                                            TextToGraphics(measure = measure_truetype_text))]
+
+function _scene_and_projection(; tooltip = compute_tooltip, content = _tooltip_content())
     document, projection = make_window_wrap(;
         gesture_help = false, command_palette = false, gesture_log = false,
         selection = false, tooltip = tooltip,
         pointer = _pointer)(_content(), make_layout_projection_example())
     scene = make_window_scene(document, "shell"; width = 400, height = 300)
     composed = make_window_scene_projection(projection;
-        opened_window_projections = make_opened_window_projections())
+        opened_window_projections = make_opened_window_projections(; content = content))
     (scene, composed)
+end
+
+# Every string a printed window holds, so a case can ask what was drawn rather
+# than what was stored.
+function _drawn_strings(node, found = String[])
+    node === nothing && return found
+    if hasproperty(node, :elements)
+        for element in node.elements
+            _drawn_strings(element, found)
+        end
+    elseif hasproperty(node, :text) && node.text isa AbstractString
+        push!(found, String(node.text))
+    elseif hasproperty(node, :content)
+        _drawn_strings(node.content, found)
+    end
+    found
 end
 
 _move(composed, scene, x, y) = begin
@@ -46,6 +69,23 @@ end
     @test tip.x == 300 + 16 && tip.y == 400 + 20
     @test tip.content isa PrimitiveString
     @test tip.content.value == "what this label is for"
+end
+
+@testset "the window draws what the document said" begin
+    scene, composed = _scene_and_projection()
+    _move(composed, scene, 20, 10)
+    output = print_document(composed, scene).output
+    @test any(text -> occursin("what this label is for", text),
+              _drawn_strings(output.windows[end].content))
+end
+
+# A tooltip is a document of the host's own domains, and the window that holds
+# one draws nothing when the host named no row for it.
+@testset "no row for what it holds, and it draws nothing" begin
+    scene, composed = _scene_and_projection(; content = Pair{Type,Any}[])
+    _move(composed, scene, 20, 10)
+    output = print_document(composed, scene).output
+    @test isempty(_drawn_strings(output.windows[end].content))
 end
 
 @testset "a document that says nothing opens none" begin

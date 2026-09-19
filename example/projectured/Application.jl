@@ -355,8 +355,13 @@ function run_application(paths::AbstractString...;
     try
         run_window_editor(document, projection, "ProjecturEd";
                           backend = backend, width = width, height = height, mcp = mcp,
+                          # A tooltip holds a document of one of this
+                          # application's own domains, so the window a wrapper
+                          # opens draws with the rows a pane draws with.
                           opened_window_projections =
-                              make_opened_window_projections(; measure = measure),
+                              make_opened_window_projections(;
+                                  content = make_application_content_projections(measure = measure),
+                                  measure = measure),
                           screen_wrap = make_popup_screen_wrap(),
                           on_start = editor -> _start_application!(editor, mcp, assistant, model))
     finally
@@ -481,7 +486,8 @@ function warm_application()
             assistant = make_application_assistant(:ollama))
         scene = make_window_scene(document, "ProjecturEd"; width = 1280, height = 800)
         composed = make_window_scene_projection(projection;
-            opened_window_projections = make_opened_window_projections(),
+            opened_window_projections = make_opened_window_projections(;
+                content = make_application_content_projections()),
             screen_wrap = make_popup_screen_wrap())
         editor = Editor(ConsoleBackend(), scene, composed,
                         Device[Display(), Keyboard(), Mouse()])

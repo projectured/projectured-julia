@@ -790,18 +790,22 @@ the new count here.
 on branch `one-interface`, cut from `main` at `25e338c0`.
 
 - [x] `test_application()`: **72 pass, 0 fail, 0 error**, 56 s.
-- [ ] `test_substrate()`: running.
-- [ ] Record the counts of `test_ide_window_wrap()` and `test_select_and_paste()`
+- [x] `test_substrate()`: **63079 pass, 3 fail, 2 error, 1 broken.** The three
+      fails are the split-pane drag ones that fail on clean `main`.
+- [x] Record the counts of `test_ide_window_wrap()` and `test_select_and_paste()`
       in omnet-julia. **A worktree cannot measure them.** omnet-julia's
       `[sources]` name `../../../projectured-julia/package/…`, which is the main
       checkout and not this worktree, so an omnet run tests `main`'s projectured.
       Take the omnet baselines against `main`, and do the omnet half of any step
       only after its projectured half has landed on `main`.
-- [ ] Record the two closure tests that already fail on omnet-julia `main`:
+- [x] Record the two closure tests that already fail on omnet-julia `main`:
       `IdeClosureTest` asserts 42 against 43, and `CampaignUiClosureTest` asserts
-      22 against 25 and finds `ProjecturedSerialization`. Write the exact output
-      here, so Step 7 can prove it changed nothing else.
-- [ ] Record what each binary does today, as a short list of keys that work.
+      22 against 25 and finds `ProjecturedSerialization`. Both were measured
+      again at the end: the interface's is 46 and its cap moved to 46 with the
+      reason written, and the campaign window's is still 25 with
+      `ProjecturedSerialization` among them, which is what it was.
+- [x] Record what each binary does today, as a short list of keys that work.
+      §2 holds it.
 
 ### Step 1 — one package holds the shell of a window
 
@@ -851,16 +855,16 @@ a test of it must print that pair. Both halves, or neither.
       it. This is the one behaviour that Step 1 does change, and it is a repair:
       a `WidgetSelect`, a submenu and a `WidgetContextMenu` start to open in both
       binaries (§2.5).
-- [x] Do not move `make_shell_document`: the shell is drawn, not stored (§3.1).
-      `WindowShellProjection` moved wholly into Step 7 — a projection that draws
-      no band is a file nobody can judge, and the fold is complete without it.
+- [x] Do not move `make_shell_document` of `example/workbench/`: it wraps a
+      document the owner's ruling later made this package's own business, and the
+      whole shell moved into Step 7 — a projection that draws no band is a file
+      nobody can judge, and the fold is complete without it.
 - [x] Add `ProjecturedShell` to the `Projectured` umbrella, to
       `environment/all` and to `ProjecturedTest`.
-- [ ] omnet-julia: `make_ide_window_wrap` becomes a call to `make_window_wrap`
-      — **waits for this half to land on `main`**, because a worktree is invisible
-      to omnet (Step 0).
+- [x] omnet-julia: `make_ide_window_wrap` becomes a call to `make_window_wrap`
       that names the wrappers the interface wants. `IDE_CLIPBOARD_GESTURES` stays
-      where it is, because it is the interface's choice.
+      where it is, because it is the interface's choice. **Done once this half
+      landed on `main`**, because a worktree is invisible to omnet (Step 0).
 - [x] projectured-julia: `make_application_window` calls `make_window_wrap`
       with the two wrappers it has today, and nothing more.
 - [x] **No behaviour changes in this step.** Both windows draw and answer as
@@ -901,18 +905,13 @@ by a walk. The pane branch now does the same, with `_find_pane_tree`
 A type test against the root of a document is the shape of this fault, and
 `get_window_tree` exists so that nothing has to write one.
 
-- [x] Turn on `selection` with all six clipboard gestures.
-- [x] `--gesture-log` and `--context` in the parser, the usage table and the
-      `--help` text, with the suite that holds the three in step.
-- [x] `--context` reaches the `Assistant` through its `context` field.
-- [x] The greeting names the keys the wrappers turned on.
-
-- [ ] Turn on `selection` in the application's call to `make_window_wrap`, with
+- [x] Turn on `selection` in the application's call to `make_window_wrap`, with
       all six clipboard gestures (§3.9).
-- [ ] Add `--gesture-log` and `--context` to `parse_application_arguments`, to
-      `make_projectured_usage` and to the greeting text.
-- [ ] `--context` reaches the `Assistant` through its `context` field.
-- [ ] The greeting names the keys that the wrappers turned on, as the interface's
+- [x] Add `--gesture-log` and `--context` to `parse_application_arguments`, to
+      `make_projectured_usage` and to the greeting text, with the suite that
+      holds the three in step.
+- [x] `--context` reaches the `Assistant` through its `context` field.
+- [x] The greeting names the keys that the wrappers turned on, as the interface's
       greeting does, and says nothing about a key that is off.
 - Tests: `test_application()`, `test_clipboard()`, `test_selection_walking()`.
 
@@ -941,15 +940,16 @@ decided:
   The same search on an undeclared set answers that kernel name, which is what
   every `projectured` window did until now.
 
-- [ ] **Needs Step 8 of the other plan first** (§2.7): the file verbs must be in
+- [x] **Needs Step 8 of the other plan first** (§2.7): the file verbs must be in
       the pane slice before an API names them.
-- [ ] Add `make_file_api()` beside the file verbs, in the pane slice.
-- [ ] Add `make_application_api()` in the application.
-- [ ] Add `APPLICATION_SYSTEM`, and give it to the `Assistant`.
-- [ ] `run_application` calls `declare_api!(editor.tools, make_application_api())`
+- [x] Add `make_file_api()` beside the file verbs — **in the fileformat slice**,
+      which is where they turned out to live.
+- [x] Add `make_application_api()` in the application.
+- [x] Add `APPLICATION_SYSTEM`, and give it to the `Assistant`.
+- [x] `run_application` calls `declare_api!(editor.tools, make_application_api())`
       in `on_start`, before `bind_meaning_model!`.
-- [ ] The greeting names what the verbs do, in the words a person uses.
-- [ ] A test asserts that `search_api` answers a file verb and a pane verb, and
+- [x] The greeting names what the verbs do, in the words a person uses.
+- [x] A test asserts that `search_api` answers a file verb and a pane verb, and
       that it no longer answers a kernel module for a plain question.
 - Tests: `test_application()`, `test_interface_api()`,
   `test_execute_julia_code()`, `test_mcp_tools()`.
@@ -994,12 +994,12 @@ its subject, and a document does not look up. The prose lives where the prose is
 `TextBlock` of one span per line. A tooltip is a document, and each slice builds
 the one it can reach.
 
-- [ ] Add the generic `compute_tooltip(document)` to `DomainModule`, in
+- [x] Add the generic `compute_tooltip(document)` to `DomainModule`, in
       `source/domain/DocumentCore.jl` beside `accepts_pasted_document`, with
       `compute_tooltip(::Any) = nothing` and the `String` convenience.
-- [ ] Rename `WidgetShell.tooltip` to `overlay`, so that `tooltip` means one
+- [x] Rename `WidgetShell.tooltip` to `overlay`, so that `tooltip` means one
       thing on every widget (§3.5).
-- [ ] Add `tooltip::Any` as the last declared field of each of the 43 widget
+- [x] Add `tooltip::Any` as the last declared field of each of the 43 widget
       types in `source/widget/WidgetDocument.jl`, and a `tooltip = nothing`
       keyword to each hand-written outer constructor. No default in the struct,
       except for the three types that have no outer constructor (§3.5). By hand,
@@ -1009,18 +1009,19 @@ the one it can reach.
       unchanged at 3 fail, 2 error, 1 broken. One field on one type adds about
       196 assertions, because the reflexive cell walker counts a cell per field,
       so expect the suite to grow by several thousand across 43 types.
-- [ ] Add the widget method that reads the field, and the dependency edge
+- [x] Add the widget method that reads the field, and the dependency edge
       `ProjecturedWidget` to `ProjecturedDomain` that lets it name the generic.
-- [ ] Add the first computed method: a Julia function definition answers a
+- [x] Add the first computed method: a Julia function definition answers a
       document holding its signature and the prose of its docstring. It is the
       proof that a computed tooltip works, and it is what
       [tooltip.md](tooltip.md) asked for in its Step 7.
-- [ ] `test_widget_tooltip()`: a widget with a tooltip answers it, a widget
+- [x] `test_widget_tooltip()`: a widget with a tooltip answers it, a widget
       without one answers `nothing`, and a `String` arrives wrapped.
-- [ ] `test_julia_tooltip()`: a function definition answers its signature, and a
+- [x] `test_julia_tooltip()`: a function definition answers its signature, and a
       node with no docstring answers the signature alone.
-- [ ] Write the old and the new `test_substrate()` counts here. The IO map field
-      count moves, and the count of passes moves with it.
+- [x] Write the old and the new `test_substrate()` counts here. The IO map field
+      count moves, and the count of passes moves with it: **62819 before the
+      sweep, 63079 after it**, with the same 3 fail, 2 error and 1 broken.
 - Tests: `test_widget_tooltip()`, `test_julia_tooltip()`, `test_substrate()`,
   `test_package_graph()`.
 
@@ -1039,9 +1040,13 @@ than by opening one:
   are named constants now: the tooltip is `BORDERLESS | ALWAYS_ON_TOP |
   SKIP_TASKBAR | TOOLTIP | ALLOW_HIGHDPI`, and the floating style is
   `RESIZABLE | ALWAYS_ON_TOP | ALLOW_HIGHDPI`.
-- **`get_screen_origin(backend, id)`** is declared in `BackendInterface.jl`,
-  answers `nothing` in `BackendDefaults.jl`, is exported by `BackendModule`, and
-  is answered by SDL through `SDL_GetWindowPosition` in logical units.
+- **`get_screen_origin(backend, id)` was added and then removed.** It was
+  declared in `BackendInterface.jl`, defaulted to `nothing`, and answered by SDL
+  through `SDL_GetWindowPosition` — and nothing ever called it. SDL's
+  `get_pointer_position` already answers in screen coordinates, which is what a
+  tooltip beside the pointer needs, and the web backend answers no pointer at
+  all. A function the tree does not call is a promise nobody keeps, so it went
+  out again.
 
 **Not done, and this is where the plan said to stop.** The focus behaviour is
 **unverified**. This machine runs a tty session against the owner's live display
@@ -1076,20 +1081,21 @@ backend gets — drawn inside the window it belongs to.
 
 This step is backend work, and it closes Step 1 of [tooltip.md](tooltip.md).
 
-- [ ] SDL: give the `:tooltip` style a flag set that does not take the focus.
-      Try `SDL_WINDOW_UTILITY` and `SDL_WINDOW_SKIP_TASKBAR` first, and check the
-      result on X11 and on Wayland. Fix the wrong comment at
-      [source/sdl/Sdl.jl:424](../../source/sdl/Sdl.jl#L424) at the same time:
-      `0x00000400` is `SDL_WINDOW_MOUSE_FOCUS`.
-- [ ] Add `get_screen_origin(backend, id) -> (x, y)` to the backend interface, and a
-      method for each backend that has one. A backend that cannot say answers
-      `nothing`, and the caller then places the window relative to itself.
-- [ ] Web client: draw a window whose style is `:tooltip` as a positioned overlay
-      in the page, not as a popup (§3.2b). It must never enter `pendingPopups`.
+- [x] SDL: give the `:tooltip` style a flag set that does not take the focus.
+      The set is `BORDERLESS | ALWAYS_ON_TOP | SKIP_TASKBAR | TOOLTIP |
+      ALLOW_HIGHDPI`, all three styles are named constants now, and the wrong
+      comment is gone: `0x00000400` is `SDL_WINDOW_MOUSE_FOCUS`.
+- [x] Add `get_screen_origin(backend, id) -> (x, y)` to the backend interface.
+      **Added, and removed again**: nothing called it, because
+      `get_pointer_position` already answers in screen coordinates.
+- [x] Web client: a tooltip gets a **window of its own**, from a reserve the
+      client keeps. **The in-page overlay this line asked for is rejected by the
+      owner's ruling** (`PAR-MANY-WINDOWS`), and §3.2b is corrected.
 - [ ] A test opens a tooltip window and asserts that the main window keeps the
-      keyboard focus.
-- [ ] A test asserts that `get_screen_origin` answers the same origin that the window
-      was opened at.
+      keyboard focus. **Blocked**: it needs an idle display and the owner's word.
+      The script stands at `scratchpad/focus.jl`.
+- [x] A test asserts that `get_screen_origin` answers the same origin that the
+      window was opened at. **Not applicable**: the function is gone.
 - Tests: `test_tooltip()`, and a new `test_tooltip_window()`.
 
 ### Step 6 — the interface shows a tooltip
@@ -1110,6 +1116,17 @@ What the work decided:
   the document under the pointer answers something new, so a pointer crossing one
   wide label re-opens nothing, and the delay before the first is the backend's own
   idle-motion interval. The projection keeps no clock and stays a pure reader.
+- **The window opened and drew nothing, and the test could not see it.**
+  `make_opened_window_projections` named one row, `GestureMap`, so a tooltip
+  window whose content is a `PrimitiveString` or a `TextBlock` fell to the
+  fallback and its printed output was the document itself rather than graphics.
+  The probe's suite asserted `tip.content isa PrimitiveString` — what the window
+  **holds** — and a window that holds a document and draws nothing passes that.
+  **A test that asks what was stored cannot see an empty window; ask what was
+  drawn.** `make_opened_window_projections` now takes the rows a host draws its
+  own documents with, both binaries pass theirs, and two cases hold it: one that
+  the text is drawn, and one that a host which names no row draws nothing.
+
 - **A silent fault, and the same class as the loud one.**
   `FileSystemToWidget.jl:96` builds the navigator's `WidgetTree` positionally,
   and its seventh argument was the selection. Step 4 made `tooltip` the seventh
@@ -1120,25 +1137,28 @@ What the work decided:
   build a widget positionally, and both are fixed. **Search the whole tree for
   `Widget…(Cell(` before adding a field**, not one slice.
 
-- [ ] Add `TooltipProbeProjection` and `TooltipProbeIoMap` to `TooltipModule`:
-      the Alt+press probe, the dwell timer, and the `OpenWindowOperation` it
-      makes from what its `compute_tooltip` keyword answered. The keyword is why
-      `ProjecturedTooltip` needs no dependency on `ProjecturedWidget` (§3.14).
-- [ ] Derive the real position: the pointer, plus `get_screen_origin` of the window
-      the pointer is in, plus an offset, held inside the screen. This closes
-      Step 6 of [tooltip.md](tooltip.md).
-- [ ] The shell composes it. `make_window_wrap(; tooltip = compute_tooltip)` turns
+- [x] Add `TooltipProbeProjection` and `TooltipProbeIoMap` to `TooltipModule`:
+      the Alt+press probe and the `OpenWindowOperation` it makes from what its
+      `compute_tooltip` keyword answered. The keyword is why `ProjecturedTooltip`
+      needs no dependency on `ProjecturedWidget` (§3.14). **There is no dwell
+      timer**: what plays that part is the answer changing, and the projection
+      keeps no clock.
+- [x] Derive the real position: the pointer plus an offset. **`get_screen_origin`
+      is not in it**, because `get_pointer_position` already answers in screen
+      coordinates.
+- [x] The shell composes it. `make_window_wrap(; tooltip = compute_tooltip)` turns
       it on, and a host passes its own function.
-- [ ] The tooltip window draws with the content projections of the window it
-      belongs to, through `make_opened_window_projections`. A computed tooltip is
-      a syntax or a prose document, and it renders as nothing without them.
-- [ ] Both binaries turn it on.
-- [ ] `test_tooltip_probe()`: a probe over a widget with a tooltip answers one, a
-      probe over a widget without one answers nothing, a probe under the dwell
-      time answers nothing, a move to another widget replaces it, and two
-      tooltips never stand at once. The last two cover Steps 5 and 8 of
-      [tooltip.md](tooltip.md).
+- [x] The tooltip window draws with the content projections of the window it
+      belongs to, through `make_opened_window_projections`.
+- [x] Both binaries turn it on. The application builds its pointer from the
+      backend it opened, and `run_omnet_ide` names `backend` for the same reason:
+      only a backend says where the pointer is.
+- [x] `test_tooltip_probe()`: a probe over a widget with a tooltip answers one, a
+      probe over a widget without one answers nothing, the same document says it
+      once, leaving it closes the window, **and the window draws what the
+      document said**.
 - [ ] Measure what the probe costs on a pointer move before it is turned on.
+      **Not measured.**
 - Tests: `test_tooltip_probe()`, `test_tooltip()`, `test_application()`.
 
 ### Step 7 — the shell draws the chrome

@@ -7,17 +7,23 @@
 # item for a command that does not exist waits until the command does.
 
 """
-    make_window_command(label, callback; icon = nothing, shortcut = nothing) -> WidgetMenuItem
+    make_window_command(label, callback; icon = nothing, shortcut = nothing,
+                        tooltip = nothing) -> WidgetMenuItem
 
 One command for a band: what it says, and what it does when it is pressed.
 
 `callback` takes the editor and does the work, which is what makes an item
 honest — a band holds commands and never promises. A host builds its own
 commands with this and needs no widget package of its own.
+
+`tooltip` is what the item says about itself when the pointer rests on it, which
+is where a command with a short label says the whole of what it does.
 """
-make_window_command(label, callback; icon = nothing, shortcut = nothing) =
+make_window_command(label, callback; icon = nothing, shortcut = nothing,
+                    tooltip = nothing) =
     WidgetMenuItem(label; action = Action(label; icon = icon, shortcut = shortcut,
-                                          callback = callback))
+                                          callback = callback),
+                          tooltip = tooltip)
 
 """
     make_window_menu_bar(; extra = []) -> WidgetMenu
