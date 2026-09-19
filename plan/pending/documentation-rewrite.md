@@ -1204,11 +1204,14 @@ picture of the application until that is fixed.
       wait for the video and for the owner's words in the two marked places.
 - [ ] Check that the public documents do not name the private repositories or
       products (§3.9, D16, D17). The result of the `git grep` must be empty.
-- [ ] D1a: change `LICENCE-PD` §3 so that it allows modification for
+- [x] D1a: change `LICENCE-PD` §3 so that it allows modification for
       non-commercial purposes. The owner approves the wording.
 
-      **Written on 2026-09-20, on the branch, and it waits for the owner's
-      word before it lands.** A clause in §3 alone was not enough: §1, §2(b)
+      **The owner approved the wording on 2026-09-20.** The share-alike
+      condition stays ("absolutely"), the removal of the ban on reverse
+      engineering is accepted, and a lawyer reads the text later.
+
+      **Written on 2026-09-20.** A clause in §3 alone was not enough: §1, §2(b)
       and §4 also said "verbatim only", so the text would contradict itself.
       What changed:
 
