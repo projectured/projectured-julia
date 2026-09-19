@@ -27,6 +27,7 @@
   const windowsMeta = new Map();        // id -> full window object {id,...,draw}
   const popups = new Map();             // id -> { win, canvas, ctx, dpr }
   const pendingPopups = new Map();      // id -> meta, awaiting a user gesture to open
+  const overlays = new Map();           // id -> { win, canvas, ctx, dpr } drawn IN the page
 
   // The page itself is a popup-shaped surface ({win,canvas,ctx,dpr}) so the
   // render/event helpers below are shared between the tab and the popups.
@@ -41,9 +42,49 @@
     else { overlayEl.style.display = "none"; }
   }
 
-  // The surface for a window id: the page for the primary window, else its popup.
+  // The surface for a window id: the page for the primary window, an overlay in
+  // the page for a tooltip, else its popup.
   function surfaceFor(id) {
-    return id === mainId ? pageSurface : popups.get(id);
+    return id === mainId ? pageSurface : (overlays.get(id) || popups.get(id));
+  }
+
+  // ── Tooltips (drawn in the page, never opened as a popup) ───────────────────
+  //
+  // A browser opens a window only inside a transient user activation. A menu is
+  // opened by a click and has one; a tooltip is opened by the pointer resting
+  // and has none, so a tooltip asked for as a popup would sit in `pendingPopups`
+  // until the next click and appear at the wrong moment. It is drawn in the page
+  // instead: the document model is the same everywhere, and only this client
+  // draws a `tooltip` window differently.
+  function ensureOverlay(meta) {
+    let o = overlays.get(meta.id);
+    if (!o) {
+      const canvas = document.createElement("canvas");
+      canvas.style.position = "fixed";
+      canvas.style.zIndex = "2147483647";
+      // A tooltip says something; it never takes the pointer away from what it
+      // says it about.
+      canvas.style.pointerEvents = "none";
+      document.body.appendChild(canvas);
+      o = { win: window, canvas, ctx: canvas.getContext("2d"),
+            dpr: window.devicePixelRatio || 1 };
+      overlays.set(meta.id, o);
+    }
+    // The server places a window in screen coordinates; in a page the only
+    // coordinates there are are the page's own, so the two agree at the origin
+    // of the tab and drift by whatever the browser chrome takes.
+    o.canvas.style.left = (meta.x >= 0 ? meta.x : 0) + "px";
+    o.canvas.style.top = (meta.y >= 0 ? meta.y : 0) + "px";
+    o.canvas.style.width = (meta.w > 0 ? meta.w : 200) + "px";
+    o.canvas.style.height = (meta.h > 0 ? meta.h : 60) + "px";
+    return o;
+  }
+
+  function closeOverlay(id) {
+    const o = overlays.get(id);
+    if (!o) return;
+    try { o.canvas.remove(); } catch {}
+    overlays.delete(id);
   }
 
   // ── Fonts ────────────────────────────────────────────────────────────────
@@ -119,6 +160,7 @@
         setOverlay("Editor window closed.");
         mainId = null;
       } else {
+        closeOverlay(id);
         closePopup(id);
         pendingPopups.delete(id);
       }
@@ -255,6 +297,7 @@
       paint(pageSurface, meta);
       return;
     }
+    if (meta.style === "tooltip") { paint(ensureOverlay(meta), meta); return; }
     const p = ensurePopup(meta);
     if (!p) { pendingPopups.set(meta.id, meta); return; }  // blocked: open on next gesture
     try { p.win.document.title = meta.title || "ProjecturEd"; } catch {}

@@ -1031,8 +1031,23 @@ window still holds `SDL_WINDOW_INPUT_FOCUS` after a tooltip window opens. The
 script is written and stands at
 `scratchpad/focus.jl`; it needs a display nobody is using.
 
-Also not done: the web client draws a `:tooltip` window as a positioned overlay
-instead of queueing it as a popup (§3.2b).
+**The web half is done**, 2026-09-19. The server already sent each window's
+`style`, so this was the client alone: a window styled `tooltip` is drawn as a
+positioned canvas in the page, never entered into `pendingPopups`, and removed
+when the server closes it. It takes no pointer events, because a tooltip says
+something about what is under it and must not take the pointer from it.
+
+**No JavaScript engine is installed here**, so the change is checked only by a
+bracket balance and by reading. It is not parsed and it is not run.
+
+**A note for whoever meets this on another machine.** This SDL is built with the
+drivers `x11`, `offscreen`, `dummy` and `evdev`, and it chooses `x11`. The
+desktop here is Wayland, so the window goes through XWayland, where a client may
+still place its own windows. **A native Wayland driver could not**: a Wayland
+client does not position its own surface on the screen, so `get_screen_origin`
+and a tooltip placed beside the pointer both depend on the X11 path. If SDL is
+ever built with the wayland driver, the tooltip needs the same answer the web
+backend gets — drawn inside the window it belongs to.
 
 This step is backend work, and it closes Step 1 of [tooltip.md](tooltip.md).
 
