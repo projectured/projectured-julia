@@ -9,7 +9,7 @@ what caused what* — and it answers it for anything with participants and
 messages: a simulation trace, a protocol exchange, a distributed system's logs,
 a UML interaction.
 
-The `sequencechart` slice knows only the shapes that question needs:
+The `sequencechart` slice models only the shapes that question needs:
 
 | Concept | Document | What it is |
 | --- | --- | --- |
@@ -85,7 +85,7 @@ pair of times, and not in pixels.
 
 Times will not do. Inside a burst of events sharing one instant, both ends of
 any sub-window are that same instant, so a pair of times cannot name a position
-inside it — and zooming into a burst is exactly what the non-time mappings
+inside it. Zooming into a burst is exactly what the non-time mappings
 exist for. Anchoring to an occurrence also keeps the window still when data
 arrives behind it, which is what lets `follow_end` track a trace that is still
 being written.

@@ -116,8 +116,8 @@ the json example, the first click costs 475 ms at `:recorded` and 2600 ms at
 `:live`, of which the read half is 221 ms against 1494 ms.
 
 Record again with `record_precompile_statements()` when the list falls behind
-the code. It goes stale gracefully — a statement that names nothing is skipped —
-and the build says how many were skipped, warning past a tenth of them.
+the code. It goes stale gracefully: a statement that names nothing is skipped.
+The build says how many were skipped, warning past a tenth of them.
 Recording needs a display: the driver opens a real window.
 
 **Set `workload = :none` before you record, and put it back after.** A trace
@@ -145,7 +145,7 @@ fraction of the dropped entries that no longer resolve says whether the old list
 was stale or the new run missed coverage.
 
 Each level caches its own image, so switching back to one you have built is
-instant — and `~/.julia/compiled/*/ProjecturedRepl/` grows accordingly
+instant. `~/.julia/compiled/*/ProjecturedRepl/` grows accordingly
 (13 MB at `:none`, 149 MB at `:live`, 217 MB at `:recorded`). `Pkg.gc()` clears
 what you no longer use.
 
@@ -238,8 +238,8 @@ the domains it embeds. [domains.md](../design/domain-inventory.md) has the table
 - **DBInterface**, **ODBC**, **Tables** — a database driver.
 - **MathOptInterface**, **Tulip** — a linear-programming solver.
 - **FFMPEG** — encodes a recording.
-- **HTTP**, **JSON3**, **ModelContextProtocol** — wire protocols we do not
-  define.
+- **HTTP**, **JSON3**, **ModelContextProtocol** — wire protocols this project
+  does not define.
 - **PackageCompiler**, **FixedPointNumbers** — building the binary. A leaf;
   nothing depends on it.
 - **PrecompileTools**, **Preferences** — the workload mechanism itself.

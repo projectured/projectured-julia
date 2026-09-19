@@ -2,18 +2,16 @@
 
 > **Kind:** rule · **Status:** current · **Stands on:** [division-terminology.md](division-terminology.md), [architecture-invariants.md](architecture-invariants.md)
 
-The decision rules behind the package/layer/slice/module structure (the terms
-are defined precisely in [terminology.md](division-terminology.md)). They apply to the
-codebase as it exists today (the opt-in packages already obey them); the structure
-was established by
-[plan/done/kernel-layered-architecture.md](../../plan/done/kernel-layered-architecture.md)
-and
+The decision rules behind the package/layer/slice/module structure. The terms
+are defined precisely in [terminology.md](division-terminology.md). They apply
+to the codebase as it exists today, including the opt-in packages. The design
+rationale is in
+[plan/done/kernel-layered-architecture.md](../../plan/done/kernel-layered-architecture.md),
 [plan/done/domain-layered-architecture.md](../../plan/done/domain-layered-architecture.md),
-and extended to the sibling test/example DAGs by
 [plan/done/test-package-split.md](../../plan/done/test-package-split.md) and
 [plan/done/example-package-split.md](../../plan/done/example-package-split.md).
-When a "where does this go?" question comes up, answer it from these rules — and if
-the rules don't answer it, extend the rules, don't improvise.
+When a "where does this go?" question comes up, answer it from these rules; if
+the rules don't answer it, extend the rules, do not improvise.
 
 These are the *placement* rules (where code lives). For the *invariants and
 conventions* every change must respect — reactivity, the projection contract,
@@ -119,12 +117,11 @@ each under its opt-in package's folder: `package/odbc/example`
 (`ProjecturedOdbcExample`, the live-DB catalog/SQL examples),
 `package/adaptagrams/example` (`ProjecturedAdaptagramsExample`, the native
 graph-layout examples), `package/tulip/example` (`ProjecturedTulipExample`, the
-LP-solved constraint layout). They replace the old single `ProjecturedExtrasExample`
-aggregate ([plan/done/extras-example-split.md](../../plan/done/extras-example-split.md)).
-One example, `dvdrental_relationship`, needs two engines (its document is
-DB-derived, its layout native), so `adaptagrams/example` depends on
-`odbc/example` for that document — the lowest-home rule applied to a genuinely
-cross-engine example, keeping each projection source file whole.
+LP-solved constraint layout). One example, `dvdrental_relationship`, needs two
+engines (its document is DB-derived, its layout native), so
+`adaptagrams/example` depends on `odbc/example` for that document. This is the
+lowest-home rule applied to a genuinely cross-engine example, keeping each
+projection source file whole.
 
 - A **test package** depends on the main package it tests, plus the test packages
   below it (for the shared drivers and enumerators). It must never depend on a
@@ -222,11 +219,11 @@ package whose document walk can express them.
   implements; the double subtypes/implements that seam from its `test`/`example`
   home. This keeps a production build free of fakes: a fake may still be *defined*
   in an example package the executable bundles, but no `main` code path ever
-  constructs one, so a real user can never be served a faked result. The offline
-  behaviour that used to lean on a `main` fallback moves to the example that wants
-  it (pass an explicit fake `llm`); a `main` path with no real backend fails
-  loudly instead. Precedent: `FakeLlm` / `ScriptedLlm` moved from kernel `main`
-  to `ProjecturedKernelExample`. See architecture requirement PAR-NO-TEST-DOUBLES-IN-MAIN.
+  constructs one, so a real user can never be served a faked result. Offline
+  behaviour that needs a fake backend belongs in the example that wants it:
+  pass an explicit fake `llm`; a `main` path with no real backend fails
+  loudly instead. `FakeLlm` / `ScriptedLlm` live in `ProjecturedKernelExample`,
+  not in kernel `main`. See architecture requirement PAR-NO-TEST-DOUBLES-IN-MAIN.
 
 ## Enforcement
 

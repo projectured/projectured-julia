@@ -95,7 +95,7 @@ yet.
 ## Reflecting a plain object
 
 `sync_document!` needs a `Document` on both sides, and the things one most wants
-to inspect — a live engine, a model, a driver — are ordinary structs.
+to inspect, such as a live engine, a model or a driver, are ordinary structs.
 `DocumentReflection` closes that gap: it walks any Julia object into a tree of
 
 ```julia
@@ -120,8 +120,8 @@ Teach it about a type whose useful structure is not its fields by extending
 `reflect_child_count` and `reflect_child_pairs`. Note that these are an
 **iterator and a count**, never a vector: building a thousand pairs to show the
 first eight puts the cost back exactly where the bound was meant to remove it.
-That mistake cost 162 KB per sync in the first version, and it is the failure
-mode to watch for in any extension.
+Building a thousand pairs to show the first eight can cost as much as 162 KB
+per sync; that is the failure mode to watch for in any extension.
 
 ## Rendering it
 
@@ -168,10 +168,9 @@ piece of vocabulary the contract needs — the elements a capped walk is not
 keeping, handed over without copying them, since a positional collection document
 is not `view`-able.
 
-An earlier version put a second, bounded walk in
-[BoundedSync.jl](../../../source/reflection/BoundedSync.jl) beside the sealed one. It
-worked, but it mirrored `_sync_fields!` / `_sync_elements!` / `copy_document`
-line for line — two traversals differing only by a policy check, kept in step by
-hand — and it could only reach the kinded-copy machinery by importing kernel
-internals, which the module boundary forbids. Folding the bound in removed ~150
-lines from this package and that violation with them.
+A second, bounded walk kept beside the sealed one would mirror
+`_sync_fields!` / `_sync_elements!` / `copy_document` line for line: two
+traversals differing only by a policy check, kept in step by hand. It would
+also have to reach the kinded-copy machinery by importing kernel internals,
+which the module boundary forbids. Folding the bound into the sealed walk
+avoids both problems.

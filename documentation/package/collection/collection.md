@@ -49,16 +49,16 @@ not a document). The rationale for those placements is documented in
 end
 ```
 
-(`@document` injects the `selection::Reference` field automatically, appended
-as the struct's last field — it is not written here.) `elements` defaults to
+`@document` injects the `selection::Reference` field automatically, appended
+as the struct's last field; it is not written here. `elements` defaults to
 an empty `Cell[]`, so `CellVector()` comes from the macro's own generated
 keyword constructor; there is no hand-written zero-arg constructor to
 maintain. `CellTable`'s `rows::CellVector = CellVector()` and `CellMatrix`'s
 `elements::Matrix{Cell} = Matrix{Cell}(undef, 0, 0)` follow the same pattern.
 
 A growable indexed vector where **each slot is a reactive `Cell`**. A
-write to one slot invalidates only the dependents that read *that* slot —
-not the whole container — which is the key to scalable updates.
+write to one slot invalidates only the dependents that read *that* slot,
+not the whole container. This is the key to scalable updates.
 
 Construction:
 
@@ -133,7 +133,7 @@ Because `prev` and `next` are `Cell` fields, they can be backed by
 computations. `CopyingProjection` exploits this: when it projects a
 `ListNode`, only the head is computed eagerly; the directions are
 re-projected on demand. The result is that copying an *infinite* list is
-still O(1) at construction time — extra nodes are materialised when
+still O(1) at construction time. Extra nodes are materialised when
 something reads them.
 
 ### Iteration
