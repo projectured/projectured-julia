@@ -44,7 +44,7 @@ root and stays fixed, `path` is a `Reference` addressing the value inside it.
 reactive cell; reading it outside one freezes the render at the first value.
 A write goes through `ReplaceReferencedValueOperation(object, path, value)`. `ObjectField` carries
 no label field on purpose: `get_object_field_name` derives one from the last
-`FieldReferenceStep` of the path when a projection wants it, and returns
+`FieldReferenceStep` of the path when a projection needs it, and returns
 `nothing` for a path that does not end in a field.
 
 ## How it fits

@@ -220,7 +220,7 @@ package whose document walk can express them.
   home. This keeps a production build free of fakes: a fake may still be *defined*
   in an example package the executable bundles, but no `main` code path ever
   constructs one, so a real user can never be served a faked result. Offline
-  behaviour that needs a fake backend belongs in the example that wants it:
+  or deterministic behaviour belongs in the example that needs it:
   pass an explicit fake `llm`; a `main` path with no real backend fails
   loudly instead. `FakeLlm` / `ScriptedLlm` live in `ProjecturedKernelExample`,
   not in kernel `main`. See architecture requirement PAR-NO-TEST-DOUBLES-IN-MAIN.

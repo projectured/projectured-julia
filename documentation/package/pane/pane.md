@@ -336,7 +336,7 @@ ChainingProjection(
 
 A tab's content passes through the first stage untouched, so `renderer`
 determines how each content document is drawn. `make_pane_projection_example` builds one
-that knows widgets, layouts, and primitive documents.
+that handles widgets, layouts, and primitive documents.
 
 Each split slot is wrapped in a `LayoutConstraint` whose weight on the split axis
 is the element's share. Where the parent seeded an available extent the slot also
