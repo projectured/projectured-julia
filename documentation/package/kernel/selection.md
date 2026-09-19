@@ -297,11 +297,11 @@ The reader chain walks right-to-left, threading an
 [`Intent`](projection-system.md#the-intent-the-reader-threads) (gesture +
 operation) and translating its `ReplaceSelectionOperation` from the output
 domain back to the input domain at each step. Each reader is the 4-arg
-`read_intent(p, recursion, change::Intent, iomap) → Intent`; the `gesture` rides
-along unchanged while the `operation` is re-mapped one domain inward. (Most steps
-need no `read_intent` method at all — the default re-targets a
+`read_intent(p, recursion, change::Intent, iomap) → Intent`; the `gesture` passes
+through unchanged while the `operation` is re-mapped one domain inward. Most steps
+need no `read_intent` method at all: the default re-targets a
 `ReplaceSelectionOperation`'s path via `map_reference_backward`. The steps below
-spell out the path translation each one's mapper performs.)
+spell out the path translation each one's mapper performs.
 
 **`TextToGraphics`** (outermost reader):
 - The `Intent.gesture` is a raw key event (`KeyDown(:right, ...)`).

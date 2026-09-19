@@ -62,7 +62,7 @@ TypeDispatchingProjection(
 ```
 
 Tries each `(Type, projection)` pair in order; the first `input isa T`
-wins. It's a transparent wrapper — the IoMap returned is the *inner*
+wins. It is a transparent wrapper — the IoMap returned is the *inner*
 projection's IoMap, not a wrapping one. Use this whenever you need to
 project a heterogeneous tree (JSON, XML, widgets, …). Pairs are tried in
 declaration order, so put specific types before general fallbacks
@@ -109,10 +109,9 @@ RecursiveProjection(TypeDispatchingProjection(
 ```
 
 Calls `print_document(child, self, input, ctx)` — that is, it passes
-*itself* as the `recursion` argument. (The 4th argument is a
+*itself* as the `recursion` argument. The 4th argument is a
 `PrinterContext` that *carries* the document-root-relative reference path
-plus layout extent and properties; it was historically a bare
-`Reference`, since promoted to the context struct.) This lets node-shaped
+plus layout extent and properties. This lets node-shaped
 inner projections recurse with `print_child(recursion, child, child_ctx)`
 without hard-coding the inner pipeline. Every multi-shape domain projection
 (JsonToSyntax, XmlToSyntax, ObjectToSyntax, WidgetToGraphics, …) wraps a
@@ -121,7 +120,7 @@ TypeDispatchingProjection in a RecursiveProjection.
 The reason node projections take `recursion` instead of calling a fixed inner
 projection is precisely to keep each projection **single-level and composable**:
 a projection renders one level and delegates children, so any subtree can be
-swapped for — or composed with — another projection. A projection that recurses
+swapped for, or composed with, another projection. A projection that recurses
 over its own subtree instead would foreclose that. `recursion` is the printer's
 half of [the recursion contract](projection-system.md#the-recursion-contract):
 descent rides the four core functions and never a fifth one (see also the recursion
@@ -199,8 +198,8 @@ hit-tests `MousePress`.
 [operations.md](operation.md)). The reader resolves each reference to a
 `(CellVector, index)` pair (splitting the path at its last element
 `RangeReferenceStep`; the prefix resolves to the owning collection) and stores the
-`CellVector`s **directly** in the operation — like the split-pane operations
-carry the `WidgetSplitPane` itself, which sidesteps re-rooting the reference up
+`CellVector`s **directly** in the operation, the way the split-pane operations
+carry the `WidgetSplitPane` itself. This sidesteps re-rooting the reference up
 through the projections above. `evaluate_operation` then lifts the raw `Cell`s
 out of the source and `insert!`s them at the destination, preserving cell
 identity.
