@@ -42,7 +42,7 @@ const DOMAIN_EDGES = Dict(
 )
 
 # The kernel is the one package every other package may reach. The substrate is
-# the twenty-eight packages between it and the domains; a domain may depend on
+# the twenty-nine packages between it and the domains; a domain may depend on
 # any of them, and none of them may depend on a domain.
 const KERNEL = "ProjecturedKernel"
 
@@ -55,6 +55,7 @@ const SUBSTRATE = [
     "ProjecturedText", "ProjecturedWidget", "ProjecturedSyntax",
     "ProjecturedPane", "ProjecturedClipboard", "ProjecturedTooltip",
     "ProjecturedInspector", "ProjecturedGestureHelp", "ProjecturedGestureLog",
+    "ProjecturedFault",
     "ProjecturedFileFormat", "ProjecturedNatural", "ProjecturedConsole",
     "ProjecturedPdf",
 ]

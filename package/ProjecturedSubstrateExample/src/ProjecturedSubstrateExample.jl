@@ -45,6 +45,7 @@ import ProjecturedTooltip
 import ProjecturedInspector
 import ProjecturedGestureHelp
 import ProjecturedGestureLog
+import ProjecturedFault
 import ProjecturedFileFormat
 import ProjecturedNatural
 import ProjecturedConsole
@@ -82,6 +83,7 @@ const _SOURCES = (ProjecturedKernel,
                   ProjecturedInspector,
                   ProjecturedGestureHelp,
                   ProjecturedGestureLog,
+                  ProjecturedFault,
                   ProjecturedFileFormat,
                   ProjecturedNatural,
                   ProjecturedConsole,

@@ -33,6 +33,9 @@ ProjecturedDbCatalogTest = "3273370f-c929-4bc9-ba87-1db3095df6c3"
 ProjecturedDomain = "56e9f339-7147-459f-9ae1-7785cace5f24"
 ProjecturedDragging = "c2201571-ac9c-4e1e-8310-82dedfa62c65"
 ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
+ProjecturedFault = "3d8d2e46-3dcd-42af-87df-e4fd98837f5d"
+ProjecturedFaultExample = "d499710c-e3ef-422e-9e97-2622a1fb16a4"
+ProjecturedFaultTest = "19518bda-e4ea-4f11-b817-77f61b264b70"
 ProjecturedFileFormat = "44b08bd6-3ef1-426c-9816-1b2d08d0c221"
 ProjecturedFileSystem = "d20df666-2dae-4a0b-8892-08ed6c45272c"
 ProjecturedFileSystemExample = "1210db9c-5a25-40af-bbe6-70ed48d554fe"
@@ -159,6 +162,9 @@ ProjecturedDbCatalogTest = {path = "../../package/ProjecturedDbCatalogTest"}
 ProjecturedDomain = {path = "../../package/ProjecturedDomain"}
 ProjecturedDragging = {path = "../../package/ProjecturedDragging"}
 ProjecturedExample = {path = "../../package/ProjecturedExample"}
+ProjecturedFault = {path = "../../package/ProjecturedFault"}
+ProjecturedFaultExample = {path = "../../package/ProjecturedFaultExample"}
+ProjecturedFaultTest = {path = "../../package/ProjecturedFaultTest"}
 ProjecturedFileFormat = {path = "../../package/ProjecturedFileFormat"}
 ProjecturedFileSystem = {path = "../../package/ProjecturedFileSystem"}
 ProjecturedFileSystemExample = {path = "../../package/ProjecturedFileSystemExample"}

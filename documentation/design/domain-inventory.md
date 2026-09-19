@@ -81,7 +81,8 @@ package, below every domain:
   thing is what makes it a framework.
 - **A domain-neutral editor feature.** The gesture help map and the command
   palette (`ProjecturedGestureHelp`), the gesture log
-  (`ProjecturedGestureLog`). They render a *projection*, not a content kind.
+  (`ProjecturedGestureLog`), the fault barrier and its log panel
+  (`ProjecturedFault`). They render a *projection*, not a content kind.
 - **The render-anything projection.** `NaturalToGraphics`
   (`ProjecturedNatural`) draws any document, so it cannot name any
   domain. Both its tables come from `NaturalModule`, and each domain

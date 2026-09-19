@@ -1,0 +1,26 @@
+name = "ProjecturedFaultTest"
+uuid = "19518bda-e4ea-4f11-b817-77f61b264b70"
+version = "0.1.0"
+authors = []
+
+# The Fault tier of the test-package DAG: the suite whose fixtures are fault
+# reports, the catching barrier and the log panel. Aggregated by test_fault().
+
+[deps]
+ProjecturedFault = "3d8d2e46-3dcd-42af-87df-e4fd98837f5d"
+ProjecturedFaultExample = "d499710c-e3ef-422e-9e97-2622a1fb16a4"
+ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
+ProjecturedSyntax = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
+ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[sources]
+ProjecturedFault = {path = "../ProjecturedFault"}
+ProjecturedFaultExample = {path = "../ProjecturedFaultExample"}
+ProjecturedCollection = {path = "../ProjecturedCollection"}
+ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedProjection = {path = "../ProjecturedProjection"}
+ProjecturedSyntax = {path = "../ProjecturedSyntax"}
+ProjecturedText = {path = "../ProjecturedText"}

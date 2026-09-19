@@ -518,7 +518,7 @@ site, and the editor passes `:device_write` and `:device_read` while both still
 record under the one site `:device`. With it, a broken `write_to_devices` stops
 being called after eight frames and the editor runs on.
 
-### Phase 4 — Add the `ProjecturedFault` package ⬜
+### Phase 4 — Add the `ProjecturedFault` package ✅ DONE
 
 1. Create `package/ProjecturedFault/` and `source/fault/`, copying the shape of
    `ProjecturedGestureLog`.
@@ -531,7 +531,23 @@ being called after eight frames and the editor runs on.
 5. Write test 9 of section 8 before the package is wired to anything. A store
    that groups by reference passes every other test and fails only this one.
 
-### Phase 5 — Make the fault visible ⬜
+**Two traps the build walked into, both worth keeping in mind.**
+
+*A module must IMPORT what it extends.* `FaultViewModule` began with a bare
+`using ..ProjectionModule` and its own `function print_document`. That makes a
+**new** function in the module rather than a method on the kernel's, so the
+pipeline never finds it and every call answers a `MethodError` naming a
+projection the dispatcher should have handled. `PAR-QUALIFIED-EXTENSION` is the
+rule and the layering guard is what catches it.
+
+*`@document` emits no positional constructor when every field has a default.*
+`FaultReport(record)` was written as a three-argument positional call and had to
+become the keyword form. Required-field count zero kills the positional
+constructor.
+
+**Result.** `test_fault()` answers 37 pass, 0 fail, 0 error.
+
+### Phase 5 — Make the fault visible ✅ DONE (the `Any`-entry survey is open)
 
 1. Write all four renderers: `FaultToSyntax`, `FaultToText`, `FaultToWidget`
    and `FaultToGraphics`.
@@ -539,10 +555,10 @@ being called after eight frames and the editor runs on.
 3. Write `FaultLogToSyntax` so a person can open the log as a document.
 4. Add the barrier to the gallery pipelines, **with a `substitute` on every
    stage**. A stage with no substitute is the degraded path of section 3.3.
-5. Find which stages end their type dispatcher in an `Any` entry. Such a stage
-   prints a `FaultReport` as something wrong rather than throwing, so the
-   substitute of the stage before it is the only thing that protects it. Record
-   what you find in this plan.
+5. ⬜ **Still open.** Find which stages end their type dispatcher in an `Any`
+   entry. Such a stage prints a `FaultReport` as something wrong rather than
+   throwing, so the substitute of the stage before it is the only thing that
+   protects it. Record what you find in this plan.
 
 ### Phase 6 — Guard the tools, the agent and the MCP server ✅ DONE
 

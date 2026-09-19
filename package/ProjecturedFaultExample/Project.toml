@@ -1,0 +1,13 @@
+name = "ProjecturedFaultExample"
+uuid = "d499710c-e3ef-422e-9e97-2622a1fb16a4"
+version = "0.1.0"
+authors = []
+
+# The Fault tier of the example-package DAG: the document and projection
+# factories the fault barrier's and the log panel's examples are built from.
+
+[deps]
+ProjecturedFault = "3d8d2e46-3dcd-42af-87df-e4fd98837f5d"
+
+[sources]
+ProjecturedFault = {path = "../ProjecturedFault"}

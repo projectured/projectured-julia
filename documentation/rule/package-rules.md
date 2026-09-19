@@ -164,7 +164,7 @@ the packages its own source names — no more and no less.
 The kernel depends on nothing. A row names it only where it is the one
 dependency.
 
-### The twenty-eight packages of the substrate
+### The twenty-nine packages of the substrate
 
 | package | depends on | third-party |
 | --- | --- | --- |
@@ -194,6 +194,7 @@ dependency.
 | `ProjecturedGestureLog` | Collection, Graphics, Projection, Style, Syntax, Text | — |
 | `ProjecturedFileFormat` | Collection, Domain, Layout, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
 | `ProjecturedNatural` | Collection, Domain, FileFormat, Layout, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
+| `ProjecturedFault` | Collection, Graphics, Natural, Projection, Style, Syntax, Text, Widget | — |
 | `ProjecturedConsole` | Style, Text | — |
 | `ProjecturedPdf` | Graphics, Style | — |
 
@@ -220,9 +221,9 @@ the domains it embeds. [domains.md](../design/domain-inventory.md) has the table
 
 | package | depends on |
 | --- | --- |
-| `Projectured` (umbrella) | Kernel, the 28 substrate packages, the 21 domains |
-| `ProjecturedSubstrateExample` | the 28 substrate packages, KernelExample |
-| `ProjecturedSubstrateTest` | the 28 substrate packages, KernelTest, SubstrateExample |
+| `Projectured` (umbrella) | Kernel, the 29 substrate packages, the 21 domains |
+| `ProjecturedSubstrateExample` | the 29 substrate packages, KernelExample |
+| `ProjecturedSubstrateTest` | the 29 substrate packages, KernelTest, SubstrateExample |
 | `<Stem>Example` | `<Stem>`, the Examples below it |
 | `<Stem>Test` | `<Stem>`, `<Stem>Example`, the Tests below it |
 | `ProjecturedRepl` **(leaf)** | Projectured, Example, Test, Sdl |

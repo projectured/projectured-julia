@@ -1,0 +1,196 @@
+# Fragment of `FaultViewModule`.
+#
+# A decorator that draws the [`FaultLog`](FaultDocument.jl) as a panel over the
+# content of a window. It is tier 2 of the report ladder: the place a person
+# reads a fault that has no room in the document itself.
+#
+# **Printer** — it projects the wrapped `inner`, projects the log through the
+# `content` chain (Syntax → Text → Graphics), and answers a canvas holding the
+# inner output at the origin and the panel at a corner. The inner output keeps
+# the origin, so a pixel coordinate means the same thing above and below this
+# decorator.
+#
+# **The panel is not there while the log is empty.** An empty panel is noise on
+# every screen of a program that is working, so the decorator costs a pixel only
+# once something has failed.
+#
+# **Reader** — a pure pass-through. The panel is not a hit target, so a click on
+# it reaches the content below.
+#
+# The log chain is printed one time. It stays up to date because
+# [`FaultLogToSyntax`](FaultLogToSyntax.jl) derives its lines from `log.entries`
+# inside a cell: an append invalidates the lines, and the text and graphics
+# stages below re-derive from there.
+
+"""
+    FAULT_LOG_BACKGROUND
+
+The panel background: a dark, translucent rectangle with a red cast. The content
+below stays readable, and the panel says at a glance that it is not chrome.
+"""
+const FAULT_LOG_BACKGROUND = StyleColor(0.18, 0.02, 0.02, 0.80)
+
+# Extra width of the panel, in pixels. It covers the small difference between
+# the measure function the printer used and the text metrics of the backend that
+# draws. Without it the last characters of the longest line sit on the border.
+const _FAULT_WIDTH_SLACK = 8
+
+"""
+    make_fault_log_content_projection(; measure = measure_truetype_text)
+
+The chain that renders a `FaultLog` down to graphics.
+"""
+make_fault_log_content_projection(; measure = measure_truetype_text) =
+    ChainingProjection(FaultLogToSyntax(),
+                       RecursiveProjection(SyntaxToText()),
+                       TextToGraphics(measure = measure))
+
+"""
+    FaultLogOverlayProjection(; inner, log, content = …, anchor = :bottom_left,
+                                margin = 12, padding = 8,
+                                background = FAULT_LOG_BACKGROUND)
+
+Decorator over `inner` (a content pipeline whose output is a `GraphicsCanvas`)
+that draws `log` in the corner that `anchor` names: `:top_right`, `:top_left`,
+`:bottom_right` or `:bottom_left`. The default corner is the bottom left, which
+is the one the gesture log panel does not use.
+
+Nothing is drawn while `log` is empty.
+
+Wire it with one line at the root of a pipeline, and one more to fill the log:
+
+    attach_fault_target!(editor.faults, log)
+    projection = FaultLogOverlayProjection(inner = root, log = log)
+
+The panel needs the size of the window to reach a right or a bottom corner. The
+printer takes it from the available size of the printer context, which the
+window level sets. Without one the panel stays at the top left.
+"""
+struct FaultLogOverlayProjection <: Projection
+    inner::Any
+    log::FaultLog
+    content::Any
+    anchor::Symbol
+    margin::Int
+    padding::Int
+    background::StyleColor
+end
+
+function FaultLogOverlayProjection(; inner, log::FaultLog,
+                                     content = make_fault_log_content_projection(),
+                                     anchor::Symbol = :bottom_left,
+                                     margin::Integer = 12, padding::Integer = 8,
+                                     background::StyleColor = FAULT_LOG_BACKGROUND)
+    anchor in (:top_right, :top_left, :bottom_right, :bottom_left) ||
+        error("FaultLogOverlayProjection: unknown anchor :$anchor")
+    FaultLogOverlayProjection(inner, log, content, anchor, Int(margin), Int(padding),
+                              background)
+end
+
+@iomap struct FaultLogOverlayIoMap
+    projection::Any
+    input::Any
+    output::Any
+    inner_iomap::Any
+    log_iomap::Any
+end
+
+# ── Printer ──────────────────────────────────────────────────────────────────
+
+function print_document(p::FaultLogOverlayProjection, recursion, input, ctx)
+    inner_iomap = print_document(p.inner, recursion, input, ctx)
+    # The log gets a context of its own: the panel takes the space it needs and
+    # must not inherit the layout space of the content.
+    log_iomap = print_document(p.content, nothing, p.log, PrinterContext())
+
+    inner_output = ComputedCell(() -> _force_fault_cell(inner_iomap.output))
+    log_output = ComputedCell(() -> _force_fault_cell(log_iomap.output))
+
+    body_width() = _fault_width(log_output[])
+    body_height() = _fault_height(log_output[])
+    panel_width() = body_width() + 2 * p.padding + _FAULT_WIDTH_SLACK
+    panel_height() = body_height() + 2 * p.padding
+
+    body = GraphicsCanvas(p.padding, p.padding, 0, 0,
+                          CellVector(Cell[log_output]), layout_none, true)
+    set_cell_function!(getfield(body, :w), () -> Int32(body_width()))
+    set_cell_function!(getfield(body, :h), () -> Int32(body_height()))
+
+    background = GraphicsRect(0, 0, 0, 0, p.background, 4)
+    set_cell_function!(getfield(background, :w), () -> Int32(panel_width()))
+    set_cell_function!(getfield(background, :h), () -> Int32(panel_height()))
+
+    panel = GraphicsCanvas(0, 0, 0, 0,
+                           CellVector(Cell[Cell(background), Cell(body)]), layout_none, true)
+    set_cell_function!(getfield(panel, :x), () -> Int32(_fault_panel_x(p, ctx, panel_width())))
+    set_cell_function!(getfield(panel, :y), () -> Int32(_fault_panel_y(p, ctx, panel_height())))
+    set_cell_function!(getfield(panel, :w), () -> Int32(panel_width()))
+    set_cell_function!(getfield(panel, :h), () -> Int32(panel_height()))
+
+    # The panel joins the canvas only once something has failed. The read of
+    # `log.entries` is what subscribes this list to the log, so the first fault
+    # brings the panel in by itself.
+    children = ComputedCellVector(() ->
+        length(p.log.entries) == 0 ? Any[inner_output[]] : Any[inner_output[], panel])
+
+    # The inner output keeps the origin, so the coordinates the reader sees are
+    # the coordinates the inner pipeline printed.
+    output = GraphicsCanvas(0, 0, 0, 0, children, layout_none, true)
+    set_cell_function!(getfield(output, :w), function ()
+        length(p.log.entries) == 0 && return Int32(_fault_width(inner_output[]))
+        Int32(max(_fault_width(inner_output[]), panel.x + panel_width()))
+    end)
+    set_cell_function!(getfield(output, :h), function ()
+        length(p.log.entries) == 0 && return Int32(_fault_height(inner_output[]))
+        Int32(max(_fault_height(inner_output[]), panel.y + panel_height()))
+    end)
+
+    FaultLogOverlayIoMap(p, input, output, inner_iomap, log_iomap)
+end
+
+_force_fault_cell(value) = value isa Cell ? value[] : value
+
+# The size of a printed document, for the documents that carry one. A projection
+# whose output names no size contributes nothing to the size of the panel.
+_fault_width(document) = hasproperty(document, :w) ? Int(document.w) : 0
+_fault_height(document) = hasproperty(document, :h) ? Int(document.h) : 0
+
+# The available size of the context is what the window gives the content. It is
+# a `Cell`, so the panel follows a resize of the window.
+_fault_available(size::Cell) = Int(size[])
+_fault_available(::Nothing) = 0
+
+_fault_panel_x(p::FaultLogOverlayProjection, ctx, width::Integer) =
+    _is_fault_right(p.anchor) ?
+        max(p.margin, _fault_available(ctx.available_width) - width - p.margin) :
+        p.margin
+
+_fault_panel_y(p::FaultLogOverlayProjection, ctx, height::Integer) =
+    _is_fault_bottom(p.anchor) ?
+        max(p.margin, _fault_available(ctx.available_height) - height - p.margin) :
+        p.margin
+
+_is_fault_right(anchor::Symbol) = anchor === :top_right || anchor === :bottom_right
+_is_fault_bottom(anchor::Symbol) = anchor === :bottom_right || anchor === :bottom_left
+
+# ── Reader (pass-through) ────────────────────────────────────────────────────
+
+read_intent(p::FaultLogOverlayProjection, recursion, change::Intent,
+            iomap::FaultLogOverlayIoMap) =
+    read_intent(p.inner, recursion, change, iomap.inner_iomap)
+
+read_intent(p::FaultLogOverlayProjection, iomap::FaultLogOverlayIoMap, payload) =
+    read_intent(p, nothing, Intent(payload), iomap).operation
+
+# ── Reference mapping ────────────────────────────────────────────────────────
+#
+# The panel adds one canvas level around the inner output, and the inner output
+# keeps the origin. A coordinate therefore needs no change.
+
+map_reference_forward(p::FaultLogOverlayProjection,
+                      iomap::FaultLogOverlayIoMap, reference) =
+    map_reference_forward(p.inner, iomap.inner_iomap, reference)
+
+map_reference_backward(p::FaultLogOverlayProjection,
+                       iomap::FaultLogOverlayIoMap, reference) =
+    map_reference_backward(p.inner, iomap.inner_iomap, reference)
