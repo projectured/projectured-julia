@@ -121,7 +121,7 @@ A read-mostly *view*: it queries the live catalog tree and the live FK
 constraints once (no back-mapping to the schema, by design). Needs a reachable
 dvdrental database; pair it with `make_dvdrental_relationship_projection_example`
 to lay it out (Adaptagrams) and render it. Kept out of the auto-test `examples`
-registry — see `dvdrental_relationship_example` in `Examples.jl`.
+registry — see `make_dvdrental_relationship_example` in `AdaptagramsExamples.jl`.
 """
 function make_dvdrental_relationship_graph_document_example(;
         schema="public",
