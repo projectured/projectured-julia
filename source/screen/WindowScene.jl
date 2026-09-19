@@ -115,6 +115,7 @@ function run_window_editor(document, projection, title::AbstractString;
                            on_start = nothing, mcp::Bool = false,
                            mcp_instructions::Union{AbstractString,Nothing} = nothing,
                            opened_window_projections = Pair{Type,Any}[],
+                           feeds::Vector{Feed} = Feed[],
                            screen_wrap = identity)
     backend === nothing &&
         error("run_window_editor: name the backend to draw on, " *
@@ -131,5 +132,5 @@ function run_window_editor(document, projection, title::AbstractString;
                     screen_wrap = screen_wrap),
                 scene;
                              mcp = mcp, mcp_instructions = mcp_instructions,
-                             on_start = on_start)
+                             feeds = feeds, on_start = on_start)
 end

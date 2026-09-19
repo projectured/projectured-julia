@@ -15,13 +15,16 @@
 # records the message and then forwards the call, so the terminal still shows
 # what it showed before the capture was installed.
 """
-    MessageLogLogger(log, previous)
+    MessageLogLogger(store, previous)
 
-A logger that records `(string(level), string(message))` into `log` and then
-forwards every message to `previous`, the logger it replaced.
+A logger that records `(string(level), string(message))` into `store` — the
+producer-side [`MessageLogStore`](@ref), never the log document, because a
+logger runs on whatever task logs and only the editor task may write a
+document — and then forwards every message to `previous`, the logger it
+replaced. The [`MessageLogFeed`](@ref) is what moves the lines on.
 """
 struct MessageLogLogger <: Base.CoreLogging.AbstractLogger
-    log::MessageLog
+    store::MessageLogStore
     previous::Base.CoreLogging.AbstractLogger
 end
 
@@ -36,7 +39,7 @@ Base.CoreLogging.catch_exceptions(logger::MessageLogLogger) =
 
 function Base.CoreLogging.handle_message(logger::MessageLogLogger, level, message, _module,
                                          group, id, file, line; kwargs...)
-    record_message!(logger.log, string(level), string(message))
+    record_message!(logger.store, string(level), string(message))
     Base.CoreLogging.handle_message(logger.previous, level, message, _module, group, id, file, line;
                                     kwargs...)
 end
@@ -44,20 +47,21 @@ end
 # ── Install and remove ───────────────────────────────────────────────────────
 
 """
-    install_message_log_capture!(log = get_session_message_log()) -> Base.CoreLogging.AbstractLogger
+    install_message_log_capture!(store = get_session_message_log_store()) -> Base.CoreLogging.AbstractLogger
 
-Install a `MessageLogLogger` over `log` as the global logger, and answer the
-logger it replaced.
+Install a `MessageLogLogger` over `store` as the global logger, and answer
+the logger it replaced. Register a [`MessageLogFeed`](@ref) over the same
+store on the editor, or the captured lines stay in the store.
 
 Do not install twice. Each install wraps the current logger, so two installs
 would record every message twice. This is safe to call twice: when the current
 global logger is already a `MessageLogLogger`, it is answered unchanged and
 nothing is wrapped again.
 """
-function install_message_log_capture!(log::MessageLog = get_session_message_log())
+function install_message_log_capture!(store::MessageLogStore = get_session_message_log_store())
     current = Base.CoreLogging.global_logger()
     current isa MessageLogLogger && return current
-    Base.CoreLogging.global_logger(MessageLogLogger(log, current))
+    Base.CoreLogging.global_logger(MessageLogLogger(store, current))
     current
 end
 

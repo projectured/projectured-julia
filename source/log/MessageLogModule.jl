@@ -28,19 +28,26 @@ using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
 
+using ..FeedModule
+
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
 import ..DomainModule: get_insertion_aliases, make_insertion_document
+import ..FeedModule: drain_changes!, attach_wake_callback!
 import ..ProjectionModule: print_document
 import ..SerializationModule: pred_arguments
 
+export MessageLogStore, get_session_message_log_store, take_message_lines!,
+       attach_message_log_wake!, MessageLogFeed
 export MessageLogEntry, MessageLog, get_session_message_log,
        record_message!, clear_message_log!
 export MessageLogLogger, install_message_log_capture!, remove_message_log_capture!
 export MessageLogToSyntax
 
 include("MessageLogDocument.jl")
+include("MessageLogStore.jl")
 include("MessageLogCapture.jl")
+include("MessageLogFeed.jl")
 include("MessageLogToSyntax.jl")
 
 end # module

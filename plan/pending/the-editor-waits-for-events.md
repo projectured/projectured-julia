@@ -463,13 +463,21 @@ the fault plan section 9 already records.
 2. ✅ The omnet watch wakes through `post_operation!` with no change on its
    side.
 
-### Phase 6 — The message log becomes a feed ⬜
+### Phase 6 — The message log becomes a feed ✅ (2026-09-20)
 
-1. Add the ring-buffer store and the wake to `MessageLogLogger`.
-2. Write `MessageLogFeed` in `ProjecturedLog`; wire it in the examples that
-   install the capture.
-3. Test: a log line from a foreign task lands in the document on the next
-   frame, and no cell is written from the foreign task.
+1. ✅ `MessageLogStore` (ring, lock, wake, dropped counter) is the producer
+   side; `MessageLogLogger` records into the store, never the document, and
+   its wake fires per line. The drain reports dropped lines as one warning
+   line in the log.
+2. ✅ `MessageLogFeed` in `ProjecturedLog`, with the session store beside
+   the session log. The `feeds` keyword now flows through the bootstrap
+   `run_editor!` and `run_window_editor`, and the application registers
+   `MessageLogFeed()` beside its capture install.
+3. ✅ Tests (`test_message_log_feed`, 11 assertions): a captured line stays
+   out of the document until the drain and wakes the editor; a foreign-task
+   line the same; the bound drops oldest and the drain says so. One trap
+   recorded: the transparent wrapper defers filtering to the logger it
+   wraps, so a test must wrap one that accepts Info.
 
 ### Phase 7 — The fault wake ✅ (2026-09-19)
 

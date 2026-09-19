@@ -32,6 +32,7 @@ const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const BackendModule = ProjecturedKernel.BackendModule
 const EditorModule = ProjecturedKernel.EditorModule
+const FeedModule = ProjecturedKernel.FeedModule
 const SerializationModule = ProjecturedSerialization.SerializationModule
 
 include("../../../source/screen/ScreenModule.jl")

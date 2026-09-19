@@ -806,6 +806,7 @@ post them to, since this overload is what constructs it.
 function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
               mcp_instructions::Union{AbstractString,Nothing}=nothing,
               devices::Vector{Device}=Device[Display(), Keyboard(), Mouse()],
+              feeds::Vector{Feed}=Feed[],
               on_start=nothing)
     initialize_backend!(backend)
     try
@@ -815,7 +816,7 @@ function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
         # for. Nothing has read a cell yet, so the correction invalidates
         # nothing.
         open_native_windows!(backend, document)
-        editor = Editor(backend, document, projection, devices)
+        editor = Editor(backend, document, projection, devices; feeds = feeds)
         run_editor!(editor; mcp=mcp, mcp_instructions=mcp_instructions, on_start=on_start)
     finally
         quit_backend!(backend)

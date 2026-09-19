@@ -348,13 +348,15 @@ function run_application(paths::AbstractString...;
                                                    pointer = () -> get_pointer_position(backend),
                                                    measure = measure)
     # What a log view shows is what the program said, and what says it is the
-    # Julia logger. The capture records each message and forwards it, so the
-    # terminal shows what it showed and a tab can show it too. The logger the
-    # window replaced comes back when the window closes.
+    # Julia logger. The capture records each message into the session store
+    # from whatever task logs, and the feed below moves the lines into the
+    # log document once per frame, on the editor task. The logger the window
+    # replaced comes back when the window closes.
     previous_logger = install_message_log_capture!()
     try
         run_window_editor(document, projection, "ProjecturEd";
                           backend = backend, width = width, height = height, mcp = mcp,
+                          feeds = Feed[MessageLogFeed()],
                           # A tooltip holds a document of one of this
                           # application's own domains, so the window a wrapper
                           # opens draws with the rows a pane draws with.

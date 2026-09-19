@@ -30,6 +30,7 @@ const StyleModule = ProjecturedStyle.StyleModule
 const SyntaxModule = ProjecturedSyntax.SyntaxModule
 const NaturalModule = ProjecturedNatural.NaturalModule
 const SerializationModule = ProjecturedSerialization.SerializationModule
+const FeedModule = ProjecturedKernel.FeedModule
 
 include("../../../source/log/MessageLogModule.jl")
 
