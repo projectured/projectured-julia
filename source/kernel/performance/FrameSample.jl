@@ -1,20 +1,12 @@
-"""
-    FrameSampleModule
-
-What the editor loop measures about its own frames, folded so a statistics
-view can show it. `FrameSampleStore` is a plain object outside the reactive
-graph: the loop folds one sample per frame into it for the cost of a few
-arithmetic operations per measurement, and a statistics feed flushes the
-summaries into a document on its own deadline. Nothing here is a cell, and
-nothing here names a document — the store is the producer side of that feed,
-and the producer is the editor loop itself.
-"""
-module FrameSampleModule
-
-export MeasurementSummary, FrameSampleStore,
-       record_measurement!, record_frame_sample!, compute_standard_deviation,
-       find_measurement_summary, get_measurement_names,
-       count_unflushed_samples, mark_samples_flushed!
+# Fragment of `PerformanceModule` — what the editor loop measures about its own frames.
+#
+# What the editor loop measures about its own frames, folded so a statistics
+# view can show it. `FrameSampleStore` is a plain object outside the reactive
+# graph: the loop folds one sample per frame into it for the cost of a few
+# arithmetic operations per measurement, and a statistics feed flushes the
+# summaries into a document on its own deadline. Nothing here is a cell, and
+# nothing here names a document — the store is the producer side of that feed,
+# and the producer is the editor loop itself.
 
 """
     MeasurementSummary()
@@ -124,5 +116,3 @@ Say that a flush showed everything folded so far. The summaries keep
 accumulating; only the unflushed count resets.
 """
 mark_samples_flushed!(store::FrameSampleStore) = (store.unflushed = 0; store)
-
-end # module

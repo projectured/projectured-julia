@@ -35,7 +35,7 @@ using ..OperationModule
 using ..SelectionModule
 using ..DomainModule
 
-using ..EventPatternModule
+using ..EventModule
 using ..GestureBindingModule
 
 

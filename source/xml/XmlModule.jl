@@ -15,7 +15,7 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
-using ..EventPatternModule
+using ..EventModule
 using ..GestureBindingModule
 using ..NaturalModule
 using ..OperationModule

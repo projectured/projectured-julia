@@ -14,9 +14,11 @@ function test_kernel_layering()
     main = get_package_source_root(ProjecturedKernel)
     check_layering(main, pathof(ProjecturedKernel);
                    name = "kernel",
-                   layers = ["fault", "cell", "clock", "event", "device", "gesture", "backend",
-                             "document", "reference", "selection", "operation",
-                             "binding", "iomap", "projection", "tool", "llm", "agent", "editor"],
+                   layers = ["fault", "performance", "cell", "struct", "clock", "event",
+                             "device", "gesture", "backend",
+                             "document", "reference", "selection", "operation", "intent",
+                             "binding", "iomap", "projection", "tool", "llm", "agent",
+                             "feed", "editor", "playback"],
                    check_private_imports = true,
                    # A layer's contract file, and its owning module.
                    interface_files = Dict(
@@ -28,7 +30,7 @@ function test_kernel_layering()
                        "selection/SelectionInterface.jl"      => :SelectionModule,
                        "operation/Interface.jl"      => :OperationModule,
                        "backend/BackendInterface.jl" => :BackendModule,
-                       "editor/FeedInterface.jl"     => :FeedModule,
+                       "feed/FeedInterface.jl"       => :FeedModule,
                        "device/Device.jl"            => :DeviceModule,
                        "projection/ProjectionInterface.jl" => :ProjectionModule,
                        "iomap/IoMapInterface.jl"     => :IoMapModule))

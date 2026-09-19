@@ -1,60 +1,47 @@
-"""
-    EventPatternModule
-
-The **event pattern language**: one surface syntax for saying "this kind of event,
-with these field values and these modifiers held", and two ways to use it.
-
-- Reified — an [`EventPattern`](@ref) is *data* that answers two questions about an
-  event: [`matches_event_pattern`](@ref)`(pattern, event)` (would this event fire it?) and
-  [`describe_event_pattern`](@ref)`(pattern)` (how is it written for a human, e.g. `"Ctrl+."`).
-  A pattern that can be shown is a pattern that can be listed, so whatever is
-  matched can also be documented.
-- Compiled — [`@event_case`](@ref) compiles a table of `pattern => result` rules to
-  plain `isa`/field tests, first match wins, falling through to `nothing`.
-
-Both ride on one parser, exported here as a reusable macro-authoring API
-([`parse_event_pattern_rule`](@ref), [`build_event_pattern_expr`](@ref),
-[`build_event_field_bindings`](@ref)) — the surface syntax defined in one place
-rather than re-implemented.
-
-Every event type is matchable, and the field table is *derived* from the event
-structs themselves — a new event needs no entry here, and no pattern can go stale
-against the struct it matches.
-
-# Pattern syntax
-
-Patterns mirror the event constructors:
-
-- The constructor name selects the event type: any concrete `Event` — `KeyDown`,
-  `KeyPress`, `MousePress`, `MouseScroll`, `WindowClose`, … A bare type name
-  (`MouseScroll`) is a type-only match.
-- Positional args match or bind the struct's **non-modifier** fields, in declared
-  order: a literal (`:period`, `'a'`, `42`) is an equality test, a bare identifier
-  (`k`, `x`) binds that field, `_` ignores it, and `^(expr)` (or any other
-  expression) is compared `==` to the runtime value.
-- Modifier flags after `;` (`ctrl`, `shift`, `alt`, `meta`) are matched **exactly**:
-  every listed flag must be held and every unlisted flag must be absent. Omitting
-  the `;` block leaves modifiers unconstrained, so `KeyPress(c)` still matches a
-  shifted capital letter.
-- `when(pattern, condition)` adds a boolean guard; bound variables are in scope in
-  the condition.
-- `_` on its own is the catch-all (`@event_case` only).
-
-Positional slots are the event struct's fields, minus `modifiers` (always given via
-`;`, never positionally): `KeyDown(key, repeat)`, `KeyPress(char, text)`,
-`MousePress(button, x, y, count)`, `MouseScroll(dx, dy, x, y)`, and so on.
-"""
-module EventPatternModule
-
-using ..EventModule
-
-export EventPattern,
-       KeyPressPattern, KeyDownPattern, KeyUpPattern,
-       MouseDownPattern, MouseUpPattern, MousePressPattern,
-       MouseMovePattern, MouseEnterPattern, MouseLeavePattern, MouseScrollPattern,
-       matches_event_pattern, describe_event_pattern,
-       EventPatternRule, parse_event_pattern_rule, build_event_pattern_expr, build_event_field_bindings,
-       var"@event_case"
+# Fragment of `EventModule` — the event pattern language.
+#
+# The **event pattern language**: one surface syntax for saying "this kind of event,
+# with these field values and these modifiers held", and two ways to use it.
+#
+# - Reified — an [`EventPattern`](@ref) is *data* that answers two questions about an
+#   event: [`matches_event_pattern`](@ref)`(pattern, event)` (would this event fire it?) and
+#   [`describe_event_pattern`](@ref)`(pattern)` (how is it written for a human, e.g. `"Ctrl+."`).
+#   A pattern that can be shown is a pattern that can be listed, so whatever is
+#   matched can also be documented.
+# - Compiled — [`@event_case`](@ref) compiles a table of `pattern => result` rules to
+#   plain `isa`/field tests, first match wins, falling through to `nothing`.
+#
+# Both ride on one parser, exported here as a reusable macro-authoring API
+# ([`parse_event_pattern_rule`](@ref), [`build_event_pattern_expr`](@ref),
+# [`build_event_field_bindings`](@ref)) — the surface syntax defined in one place
+# rather than re-implemented.
+#
+# Every event type is matchable, and the field table is *derived* from the event
+# structs themselves — a new event needs no entry here, and no pattern can go stale
+# against the struct it matches.
+#
+# # Pattern syntax
+#
+# Patterns mirror the event constructors:
+#
+# - The constructor name selects the event type: any concrete `Event` — `KeyDown`,
+#   `KeyPress`, `MousePress`, `MouseScroll`, `WindowClose`, … A bare type name
+#   (`MouseScroll`) is a type-only match.
+# - Positional args match or bind the struct's **non-modifier** fields, in declared
+#   order: a literal (`:period`, `'a'`, `42`) is an equality test, a bare identifier
+#   (`k`, `x`) binds that field, `_` ignores it, and `^(expr)` (or any other
+#   expression) is compared `==` to the runtime value.
+# - Modifier flags after `;` (`ctrl`, `shift`, `alt`, `meta`) are matched **exactly**:
+#   every listed flag must be held and every unlisted flag must be absent. Omitting
+#   the `;` block leaves modifiers unconstrained, so `KeyPress(c)` still matches a
+#   shifted capital letter.
+# - `when(pattern, condition)` adds a boolean guard; bound variables are in scope in
+#   the condition.
+# - `_` on its own is the catch-all (`@event_case` only).
+#
+# Positional slots are the event struct's fields, minus `modifiers` (always given via
+# `;`, never positionally): `KeyDown(key, repeat)`, `KeyPress(char, text)`,
+# `MousePress(button, x, y, count)`, `MouseScroll(dx, dy, x, y)`, and so on.
 
 # ─────────────────────────────────────────────────────────────────────────
 # The event table
@@ -442,7 +429,7 @@ A first-match-wins dispatch table over the input events, compiled to plain
 `isa`/field tests. Rules are tried top to bottom; when none matches, the expression
 evaluates to `nothing`, so a reader body can simply
 `return @event_case event begin … end`. The pattern surface is documented on
-[`EventPatternModule`](@ref).
+[`EventModule`](@ref).
 """
 macro event_case(scrutinee, block)
     entries = block isa Expr && block.head == :block ? block.args : [block]
@@ -466,5 +453,3 @@ macro event_case(scrutinee, block)
         end
     end
 end
-
-end # module

@@ -16,7 +16,7 @@ using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
 using ..FeedModule
-using ..FrameSampleModule
+using ..PerformanceModule
 using ..IoMapModule
 using ..ProjectionModule
 using ..ReferenceModule

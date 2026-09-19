@@ -27,7 +27,7 @@ const DomainModule = ProjecturedDomain.DomainModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
-const EventPatternModule = ProjecturedKernel.EventPatternModule
+const EventModule = ProjecturedKernel.EventModule
 
 include("../../../source/versioning/VersioningModule.jl")
 

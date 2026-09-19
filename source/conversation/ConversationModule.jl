@@ -22,7 +22,7 @@ using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
 using ..EventModule
-using ..EventPatternModule
+using ..EventModule
 using ..FocusModule
 using ..GestureBindingModule
 using ..IntentModule

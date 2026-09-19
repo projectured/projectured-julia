@@ -1,6 +1,6 @@
 # Fragment of `GestureBindingModule` — the `@gestures` / `@gesture_set` authoring
 # DSL. The left-hand side of a rule is the event pattern syntax, parsed by
-# `EventPatternModule`'s exported parser (`parse_event_pattern_rule`, `build_event_pattern_expr`,
+# `EventModule`'s exported parser (`parse_event_pattern_rule`, `build_event_pattern_expr`,
 # `build_event_field_bindings`) rather than re-implemented here.
 #
 # Surface:

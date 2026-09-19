@@ -8,7 +8,7 @@ using ProjecturedKernel.ProjectionModule
 using ProjecturedKernel.IoMapModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.DeviceModule
-using ProjecturedKernel.FrameSampleModule
+using ProjecturedKernel.PerformanceModule
 import ProjecturedKernel.EditorModule: Editor, record_frame_measurements!
 using ProjecturedKernelExample
 

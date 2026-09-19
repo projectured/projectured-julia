@@ -44,7 +44,7 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
-using ..EventPatternModule
+using ..EventModule
 using ..GestureBindingModule
 using ..GraphModule
 using ..IoMapModule

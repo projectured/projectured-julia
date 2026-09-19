@@ -5,7 +5,7 @@ reified event patterns.
 
 using Test
 using ProjecturedKernel.EventModule
-using ProjecturedKernel.EventPatternModule
+using ProjecturedKernel.EventModule
 
 function test_event_module()
 @testset "EventModule" begin

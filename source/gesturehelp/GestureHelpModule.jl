@@ -24,7 +24,7 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..EventModule
-using ..EventPatternModule
+using ..EventModule
 using ..GestureBindingModule
 using ..GraphicsModule
 using ..IntentModule

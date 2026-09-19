@@ -20,7 +20,7 @@ using ProjecturedText
 const CellModule = ProjecturedKernel.CellModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const DocumentModule = ProjecturedKernel.DocumentModule
-const EventPatternModule = ProjecturedKernel.EventPatternModule
+const EventModule = ProjecturedKernel.EventModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const IntentModule = ProjecturedKernel.IntentModule
 const IoMapModule = ProjecturedKernel.IoMapModule

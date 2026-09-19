@@ -146,12 +146,12 @@ beside the three backend files of the previous plan.
 
 ## 7. The phases
 
-### Phase 1 — The gate ⬜
+### Phase 1 — The gate ✅ (2026-09-20)
 
 Prepare the five diffs of section 6, show them, and get acceptance. No edit
 before it.
 
-### Phase 2 — The splits and the root ⬜
+### Phase 2 — The splits and the root ✅ (2026-09-20)
 
 One commit, because the tree only loads whole: move the four split groups
 into their folders (`struct/`, `intent/`, `feed/`, `playback/`), rewrite the
@@ -159,7 +159,7 @@ root include list, delete the 18 layer files, update the layering guard's
 folder list and `SEALING.md`. Run `test_kernel_layering()` and
 `test_kernel()`.
 
-### Phase 3 — Merge event ⬜
+### Phase 3 — Merge event ✅ (2026-09-20)
 
 Strip `EventPattern.jl`'s module head, include it from `EventModule`, merge
 the exports, sweep the ~42 `EventPatternModule` references (the rename tool
@@ -167,31 +167,52 @@ first, then the grep sweep for module-qualified references, docstrings and
 package aliases). Run `test_kernel()` and one domain suite that uses
 `@event_case`.
 
-### Phase 4 — Merge agent ⬜
+### Phase 4 — Merge agent ✅ (2026-09-20)
 
 The same motion for `AgentServer.jl` into `AgentModule`; sweep ~6 files.
 Run the agent seam and MCP tests.
 
-### Phase 5 — Merge performance ⬜
+### Phase 5 — Merge performance ✅ (2026-09-20)
 
 Fold `PerformanceCounter.jl` and `FrameSample.jl` under `PerformanceModule`;
 sweep ~7 files; move the two test files. Run `test_cell()`,
 `test_frame_samples()` and the statistics feed test.
 
-### Phase 6 — Sweeps and guards ⬜
+### Phase 6 — Sweeps and guards ✅ (2026-09-20)
 
 `Pkg.precompile()` over `environment/all` and **read the warnings** — a
 missing imported binding warns and still exits 0. Run the export-collision
 and package-graph guards, and grep the repository for the three dead module
 names.
 
-### Phase 7 — Documentation ⬜
+### Phase 7 — Documentation ✅ (2026-09-20)
 
 Update [system-anatomy.md](../../documentation/design/system-anatomy.md),
 the root comment, [editor.md](../../documentation/package/kernel/editor.md)
 (the feed table names `PerformanceModule`), and add the two-sentence
 statement of the rule — one layer, one module, the root is the diagram — to
 system-anatomy.
+
+### How the phases landed (2026-09-20)
+
+The tree only loads whole, and a merge and its reference sweep must land
+together, so phases 2 to 6 landed as **one commit**; the phases above were
+the checklist inside it, and the documentation followed as its own commit.
+Facts the execution added:
+
+- The gate was shown in full and the user accepted it.
+- The strips ran by script: each module docstring became the fragment's
+  header comment, and nothing else in the four stripped files changed.
+- The sweep converted 57 files and left three duplicate `using` lines
+  (projection, binding, editor) and two self-referential "mirror image"
+  sentences in the agent files — all five fixed by hand.
+- Verification: the layering guard passes with the 23 folders; the kernel
+  suite sits exactly at the pre-existing baseline (3 failures, 3 errors);
+  export-collision, package-graph and documentation guards at baseline; the
+  event-pattern, gesture-binding, console, message-log-feed,
+  frame-statistics-feed, SDL-wait and fault-store suites all green; the
+  world precompiles with one pre-existing warning (`test_focusing`, an
+  import that is byte-identical on `main`).
 
 ## 8. The hazards, and what stops each
 

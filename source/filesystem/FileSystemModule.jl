@@ -18,7 +18,7 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
-using ..EventPatternModule
+using ..EventModule
 using ..FileFormatModule
 using ..GestureBindingModule
 using ..IoMapModule

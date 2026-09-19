@@ -29,7 +29,7 @@ using ProjecturedKernel.SelectionModule: set_selection!, clear_selection!
 using ProjecturedKernel.OperationModule: evaluate_operation
 using ProjecturedKernel.EventModule: KeyPress, KeyDown, ModifierKeys
 using ProjecturedKernel.GestureBindingModule: get_document_gesture_bindings
-using ProjecturedKernel.EventPatternModule: EventPattern
+using ProjecturedKernel.EventModule: EventPattern
 using ProjecturedKernel.ProjectionModule: print_document, read_intent
 using ProjecturedKernel.CellModule: Cell, ComputedCell
 using ProjecturedProjection.ProjectionAlgebraModule: ChainingProjection

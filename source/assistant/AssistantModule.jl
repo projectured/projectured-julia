@@ -19,7 +19,7 @@ using ..CollectionModule
 using ..ConversationModule
 using ..DocumentModule
 using ..EventModule
-using ..EventPatternModule
+using ..EventModule
 using ..FaultModule
 using ..GestureBindingModule
 using ..IoMapModule

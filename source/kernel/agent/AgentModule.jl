@@ -20,8 +20,9 @@ they are the caller's domain and not an agent's. The seam is two functions:
 `messages`, which the loop calls to get the prompt, and `on_event`, which the loop
 calls with everything that happens.
 
-`AgentServerModule` is the mirror image: the inbound direction, where an agent
-outside the process drives *this* editor.
+The agent-server seam of [`AgentServer.jl`](AgentServer.jl) is the mirror
+image: the inbound direction, where an agent outside the process drives
+*this* editor.
 """
 module AgentModule
 
@@ -30,7 +31,9 @@ using ..ToolModule
 using ..LlmModule
 
 export Agent, run_turn!, AgentEvent, AgentToolResult
+export make_agent_server, start_agent_server!, stop_agent_server!
 
+include("AgentServer.jl")
 include("Agent.jl")
 include("AgentLoop.jl")
 

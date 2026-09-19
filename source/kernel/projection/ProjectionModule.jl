@@ -76,7 +76,6 @@ using ..CellStructModule
 using ..ClockModule
 using ..DocumentModule
 using ..EventModule
-using ..EventPatternModule
 using ..GestureBindingModule
 using ..IntentModule
 using ..IoMapModule

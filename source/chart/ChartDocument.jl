@@ -21,7 +21,7 @@ using ..CollectionModule
 using ..ReferenceModule
 using ..OperationModule
 using ..SelectionModule
-using ..EventPatternModule
+using ..EventModule
 using ..GestureBindingModule
 using ..DomainModule
 

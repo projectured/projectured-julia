@@ -30,7 +30,7 @@ const StyleModule = ProjecturedStyle.StyleModule
 const SyntaxModule = ProjecturedSyntax.SyntaxModule
 const SerializationModule = ProjecturedSerialization.SerializationModule
 const FeedModule = ProjecturedKernel.FeedModule
-const FrameSampleModule = ProjecturedKernel.FrameSampleModule
+const PerformanceModule = ProjecturedKernel.PerformanceModule
 
 include("../../../source/statistics/FrameStatisticsModule.jl")
 

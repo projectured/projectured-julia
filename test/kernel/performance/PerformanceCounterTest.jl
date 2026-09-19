@@ -1,11 +1,11 @@
 """
-`PerformanceCounterModule` — conditionally-compiled reactive instrumentation.
+`PerformanceModule` — conditionally-compiled reactive instrumentation.
 The active counter store is a task-local binding established by
 `with_performance_counters`; the reactive engine bumps it via `@count_performance`.
 """
 
 using Test
-using ProjecturedKernel.PerformanceCounterModule
+using ProjecturedKernel.PerformanceModule
 using ProjecturedKernel.CellModule: Cell, ComputedCell
 
 function test_performance_counter()

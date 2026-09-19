@@ -1,29 +1,21 @@
-"""
-    PerformanceCounterModule
-
-Conditionally-compiled instrumentation counters, seeded with `:reads`,
-`:computes`, `:invalidations`, `:writes`.
-
-Counting is off unless `PERFORMANCE_COUNTERS_ENABLED` is set (via the
-`PROJECTURED_PERFORMANCE_COUNTERS` environment variable, read once at precompile
-time). While it is off, `@count_performance`, `record_performance!`, and
-`@performance_time` expand to `nothing` (or a bare evaluation of their
-expression), so a normal build carries no instrumentation at all.
-
-There is no process-global counter store. The active store is a task-local
-dynamic binding (`ScopedValue`): `with_performance_counters(f)` binds a fresh
-`Dict{Symbol,Int}` for the dynamic extent of `f`, and every `@count_performance`
-/ `record_performance!` inside that extent records into it. Outside any such
-scope the binding is `nothing`, so a bump records nothing and shares no state —
-which is what lets many editors run in one process without their counters
-colliding.
-"""
-module PerformanceCounterModule
-
-using Base.ScopedValues: ScopedValue, with
-
-export with_performance_counters, get_performance_counters, record_performance!,
-    @performance_time, @count_performance, PERFORMANCE_COUNTERS_ENABLED
+# Fragment of `PerformanceModule` — the conditionally-compiled instrumentation counters.
+#
+# Conditionally-compiled instrumentation counters, seeded with `:reads`,
+# `:computes`, `:invalidations`, `:writes`.
+#
+# Counting is off unless `PERFORMANCE_COUNTERS_ENABLED` is set (via the
+# `PROJECTURED_PERFORMANCE_COUNTERS` environment variable, read once at precompile
+# time). While it is off, `@count_performance`, `record_performance!`, and
+# `@performance_time` expand to `nothing` (or a bare evaluation of their
+# expression), so a normal build carries no instrumentation at all.
+#
+# There is no process-global counter store. The active store is a task-local
+# dynamic binding (`ScopedValue`): `with_performance_counters(f)` binds a fresh
+# `Dict{Symbol,Int}` for the dynamic extent of `f`, and every `@count_performance`
+# / `record_performance!` inside that extent records into it. Outside any such
+# scope the binding is `nothing`, so a bump records nothing and shares no state —
+# which is what lets many editors run in one process without their counters
+# colliding.
 
 # Compile-time switch, seeded from the environment at precompile time. Counting
 # is off by default, so a normal build carries no instrumentation: the counter
@@ -113,5 +105,3 @@ macro performance_time(key, expr)
         result
     end
 end
-
-end # module

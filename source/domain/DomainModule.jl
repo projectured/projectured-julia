@@ -13,7 +13,7 @@ module DomainModule
 
 using ..CellModule
 using ..DocumentModule
-using ..EventPatternModule
+using ..EventModule
 using ..GestureBindingModule
 using ..OperationModule
 using ..ProjectionModule

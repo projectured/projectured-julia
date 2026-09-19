@@ -1,7 +1,7 @@
 # Fragment of `CellModule` — the pull-based reactive kind and its engine.
 # `AbstractCell` is already in scope. This is the only cell kind that touches the
 # performance counters, so it pulls in the bump macro.
-using ..PerformanceCounterModule
+using ..PerformanceModule
 
 """
     ReactiveCell{T}   (alias: `Cell`; `Cell(v)` ≡ `ReactiveCell{Any}(v)`)
@@ -150,7 +150,7 @@ _computing_stack() =
     get!(() -> ReactiveCell[], task_local_storage(), :projectured_reactive_computing)::Vector{ReactiveCell}
 
 # The reactive hot path bumps the performance counters via `@count_performance`
-# (imported at the top of this file). The macro lives in `PerformanceCounterModule`
+# (imported at the top of this file). The macro lives in `PerformanceModule`
 # (cell/PerformanceCounter.jl); it expands to a bump into the task-local counter
 # store when counting is compiled in, and to `nothing` when it is not — so these
 # call sites cost nothing in a normal build.

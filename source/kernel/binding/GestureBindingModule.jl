@@ -30,7 +30,6 @@ module GestureBindingModule
 
 using ..DocumentModule
 using ..EventModule
-using ..EventPatternModule
 using ..IntentModule
 
 export GestureBinding,

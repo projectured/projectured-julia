@@ -12,7 +12,7 @@ tools, `register_default_tools!`) are not an MCP concept and live in the kernel'
 `ModelContextProtocol` and therefore lives here.
 
 The editor loop never names `McpServer`: it goes through the generic
-`AgentServerModule` seam (`make_agent_server(:mcp, editor)` etc.), whose
+`AgentModule` seam (`make_agent_server(:mcp, editor)` etc.), whose
 `:mcp` methods this package registers.
 """
 module ProjecturedMcp
@@ -24,7 +24,7 @@ import ProjecturedKernel.EditorModule: wake_editor!
 import ProjecturedKernel.FaultModule: record_fault!
 import ProjecturedKernel.ToolModule: Tool, Resource, ToolSet,
                                      list_tools, list_resources, register_default_tools!
-import ProjecturedKernel.AgentServerModule: make_agent_server, start_agent_server!, stop_agent_server!
+import ProjecturedKernel.AgentModule: make_agent_server, start_agent_server!, stop_agent_server!
 
 include("../../../source/mcp/Mcp.jl")
 

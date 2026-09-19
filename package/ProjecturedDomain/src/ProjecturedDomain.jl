@@ -16,7 +16,7 @@ using ProjecturedSerialization
 const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
-const EventPatternModule = ProjecturedKernel.EventPatternModule
+const EventModule = ProjecturedKernel.EventModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule

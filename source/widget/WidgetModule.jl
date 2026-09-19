@@ -13,7 +13,7 @@ using ..ClockModule
 using ..CollectionModule
 using ..DocumentModule
 using ..EventModule
-using ..EventPatternModule
+using ..EventModule
 using ..FocusModule
 using ..GestureBindingModule
 using ..GraphicsModule

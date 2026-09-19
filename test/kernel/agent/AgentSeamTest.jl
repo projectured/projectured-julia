@@ -1,16 +1,16 @@
 """
-`AgentServerModule` — the inbound agent-server seam.
+`AgentModule` — the inbound agent-server seam.
 """
 
 using Test
-using ProjecturedKernel.AgentServerModule
+using ProjecturedKernel.AgentModule
 
 # A test-local backend kind: the `Val`-keyed factory method registers `:toy`
 # the same way a real transport package (llm/mcp) registers its kind. Julia
 # only allows `struct` at the top level, so the fixture lives here rather than
 # inside the testset.
 struct ToyServer end
-AgentServerModule.make_agent_server(::Val{:toy}, editor; kwargs...) = ToyServer()
+AgentModule.make_agent_server(::Val{:toy}, editor; kwargs...) = ToyServer()
 
 function test_agent_seam()
 @testset "Agent seam" begin

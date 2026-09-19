@@ -15,7 +15,7 @@ const DEFAULT_MCP_INSTRUCTIONS =
 """
     McpServer(editor; instructions = DEFAULT_MCP_INSTRUCTIONS)
 
-An MCP server bound to an editor. Start/stop it through the `AgentServerModule`
+An MCP server bound to an editor. Start/stop it through the `AgentModule`
 generics (`start_agent_server!` / `stop_agent_server!`).
 """
 mutable struct McpServer
@@ -49,7 +49,7 @@ function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIO
 end
 
 # Agent control-surface factory methods: the editor loop drives the MCP server
-# through the generic AgentServerModule interface without naming `McpServer`.
+# through the generic AgentModule interface without naming `McpServer`.
 make_agent_server(::Val{:mcp}, editor; kwargs...) = McpServer(editor; kwargs...)
 start_agent_server!(mcp::McpServer) = start_mcp!(mcp)
 stop_agent_server!(mcp::McpServer) = stop_mcp!(mcp)

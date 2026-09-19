@@ -34,7 +34,7 @@ using ..GraphicsModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
-using ..EventPatternModule
+using ..EventModule
 using ..GestureBindingModule
 using ..IntentModule
 using ..IoMapModule

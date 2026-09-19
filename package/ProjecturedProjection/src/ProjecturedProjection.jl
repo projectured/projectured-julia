@@ -26,7 +26,7 @@ const EventModule = ProjecturedKernel.EventModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const OperationModule = ProjecturedKernel.OperationModule
 const SelectionModule = ProjecturedKernel.SelectionModule
-const EventPatternModule = ProjecturedKernel.EventPatternModule
+const EventModule = ProjecturedKernel.EventModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 
 include("../../../source/projection/ProjectionAlgebraModule.jl")

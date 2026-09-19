@@ -32,7 +32,7 @@ using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
 using ..EventModule
-using ..EventPatternModule
+using ..EventModule
 using ..GestureBindingModule
 using ..IntentModule
 using ..IoMapModule

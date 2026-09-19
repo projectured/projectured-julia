@@ -31,7 +31,7 @@ const SelectionModule = ProjecturedKernel.SelectionModule
 const TextModule = ProjecturedText.TextModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
-const EventPatternModule = ProjecturedKernel.EventPatternModule
+const EventModule = ProjecturedKernel.EventModule
 
 include("../../../source/clipboard/ClipboardModule.jl")
 

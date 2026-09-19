@@ -46,7 +46,7 @@ using ProjecturedKernel.OperationModule
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.EventModule
-using ProjecturedKernel.EventPatternModule
+using ProjecturedKernel.EventModule
 using ProjecturedKernel.GestureBindingModule
 using ProjecturedKernel.ProjectionModule: print_document, read_intent
 
@@ -55,9 +55,9 @@ include("../../../test/kernel/layering/CheckLayering.jl")
 
 # ── kernel unit tests (one suite per kernel layer) ──────────────────────────
 include("../../../test/kernel/cell/CellTest.jl")
-include("../../../test/kernel/cell/CellStructTest.jl")
-include("../../../test/kernel/cell/CellStructPlanTest.jl")
-include("../../../test/kernel/cell/PerformanceCounterTest.jl")
+include("../../../test/kernel/struct/CellStructTest.jl")
+include("../../../test/kernel/struct/CellStructPlanTest.jl")
+include("../../../test/kernel/performance/PerformanceCounterTest.jl")
 include("../../../test/kernel/clock/ClockTest.jl")
 include("../../../test/kernel/document/DocumentContractTest.jl")
 include("../../../test/kernel/document/DocumentMacroTest.jl")
@@ -88,9 +88,9 @@ include("../../../test/kernel/editor/ConstructTest.jl")
 include("../../../test/kernel/editor/EscapeQuitTest.jl")
 include("../../../test/kernel/editor/InboxTest.jl")
 include("../../../test/kernel/editor/FrameDrainTest.jl")
-include("../../../test/kernel/editor/FeedTest.jl")
+include("../../../test/kernel/feed/FeedTest.jl")
 include("../../../test/kernel/editor/WaitTest.jl")
-include("../../../test/kernel/editor/FrameSampleTest.jl")
+include("../../../test/kernel/performance/FrameSampleTest.jl")
 
 include("../../../test/kernel/KernelSuite.jl")
 

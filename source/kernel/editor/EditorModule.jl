@@ -15,19 +15,18 @@ using ..IoMapModule
 using ..DeviceModule
 using ..BackendModule
 using ..EventModule
-using ..PerformanceCounterModule
+using ..PerformanceModule
 using ..ClockModule
 using ..DocumentModule
 using ..OperationModule
 using ..GestureRecognizerModule
 using ..ToolModule
-using ..AgentServerModule
+using ..AgentModule
 using ..FaultModule
 using ..SelectionModule
 using ..ReferenceModule
 using ..CellModule
 using ..FeedModule
-using ..FrameSampleModule
 import ..FeedModule: drain_changes!
 
 export Editor, run_editor!, read!, evaluate!, print!, run_frame!,

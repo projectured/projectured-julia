@@ -19,7 +19,7 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..EventModule
-using ..EventPatternModule
+using ..EventModule
 using ..GraphicsModule
 using ..IoMapModule
 using ..NaturalModule

@@ -27,6 +27,13 @@ export Event, DeviceEvent, SyntheticEvent,
        MouseDown, MouseUp, MousePress, MouseMove, MouseEnter, MouseLeave, MouseScroll,
        WindowQuit, WindowClose, WindowResize, WindowDefocus,
        WindowInput
+export EventPattern,
+       KeyPressPattern, KeyDownPattern, KeyUpPattern,
+       MouseDownPattern, MouseUpPattern, MousePressPattern,
+       MouseMovePattern, MouseEnterPattern, MouseLeavePattern, MouseScrollPattern,
+       matches_event_pattern, describe_event_pattern,
+       EventPatternRule, parse_event_pattern_rule, build_event_pattern_expr, build_event_field_bindings,
+       var"@event_case"
 
 include("EventInterface.jl")
 include("ModifierKeys.jl")
@@ -35,5 +42,6 @@ include("MouseEvent.jl")
 include("WindowEvent.jl")
 include("WindowInput.jl")
 include("EventDefaults.jl")
+include("EventPattern.jl")
 
 end # module
