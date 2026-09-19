@@ -59,7 +59,8 @@ export Operation, WrappingOperation, get_wrapped_operation, rewrap_operation,
        # from Description.jl
        describe_operation
 
-include("Interface.jl")   # Operation + evaluate_operation + invalidate_projection!
+include("OperationInterface.jl")   # the operation contract (declaration-only)
+include("OperationDefaults.jl")    # the fallback behaviours the contract supplies itself
 include("Operations.jl")  # concrete ops, splice helpers, traversal seam
 include("Rerooting.jl")   # reference-rewrite seams + reroot_reference
 include("Inversion.jl")  # the way back: inverses + the slot seam

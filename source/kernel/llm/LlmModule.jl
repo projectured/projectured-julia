@@ -45,6 +45,8 @@ export Llm, stream_turn, render_tool_schema,
        LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
        LlmTurnEnd, LlmFailure
 
+include("LlmInterface.jl")  # the provider contract (declaration-only)
+include("LlmDefaults.jl")   # the fallback behaviours the contract supplies itself
 include("Llm.jl")
 include("LlmMessage.jl")
 include("LlmEvent.jl")

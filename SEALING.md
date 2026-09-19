@@ -79,7 +79,10 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `struct/CellStructPlan.jl` (moved from `cell/` 2026-09-20, content unchanged)
   - 🔒 `struct/CellStruct.jl` (moved from `cell/` 2026-09-20, content unchanged)
 - **Layer 5 — clock** (`clock/`)
-  - 🔒 `clock/ClockModule.jl`
+  - 🔒 `clock/ClockModule.jl` (body split out 2026-09-20 with the user's
+    acceptance; the head remains — re-audit before resealing)
+  - 🔒 `clock/Clock.jl` (the body of `ClockModule.jl`, moved verbatim
+    2026-09-20)
 - **Layer 6 — event** (`event/`)
   - 🔒 `event/EventModule.jl` (gained the pattern exports and the
     `EventPattern.jl` include with the user's acceptance 2026-09-20 — re-audit
@@ -95,13 +98,18 @@ include order — the source files state their dependencies, never their index.
     stripped into `EventModule.jl` with the user's acceptance 2026-09-20 —
     re-audit before resealing)
 - **Layer 7 — device** (`device/`)
-  - 🔒 `device/DeviceModule.jl`
-  - 🔒 `device/Device.jl`
+  - 🔒 `device/DeviceModule.jl` (one include line follows the interface
+    rename 2026-09-20 — re-audit before resealing)
+  - 🔒 `device/DeviceInterface.jl` (was `device/Device.jl`, renamed
+    2026-09-20, content unchanged)
   - 🔒 `device/Keyboard.jl`
   - 🔒 `device/Mouse.jl`
   - 🔒 `device/Display.jl`
 - **Layer 8 — gesture** (`gesture/`)
-  - 🔒 `gesture/GestureRecognizerModule.jl`
+  - 🔒 `gesture/GestureRecognizerModule.jl` (body split out 2026-09-20 with
+    the user's acceptance; the head remains — re-audit before resealing)
+  - 🔒 `gesture/GestureRecognizer.jl` (the body of
+    `GestureRecognizerModule.jl`, moved verbatim 2026-09-20)
 - **Layer 9 — backend** (`backend/`)
   - 🔒 `backend/BackendModule.jl`
   - 🔒 `backend/BackendInterface.jl`
@@ -119,7 +127,9 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `document/ForwardProtocol.jl`
 - **Layer 11 — reference** (`reference/`)
   - ⬜ `reference/ReferenceModule.jl`
-  - 🔒 `reference/ReferenceInterface.jl`
+  - 🔒 `reference/ReferenceInterface.jl` (gained the
+    `match_reference_step_value` declaration from `ReferenceRules.jl`
+    2026-09-20 with the user's acceptance — re-audit before resealing)
   - ⬜ `reference/ReferenceStep.jl` (unsealed 2026-08-24: `@cell_struct` → `@document [C, M]`, the user's direction — re-audit before resealing)
   - ⬜ `reference/ReferencePath.jl` (unsealed 2026-09-14: `head` and `tail`
     become `get_reference_head` and `get_reference_tail` and are exported, the
@@ -140,15 +150,18 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `selection/SelectionDefaults.jl`
 - **Layer 13 — operation** (`operation/`)
   - ⬜ `operation/OperationModule.jl`
-  - ⬜ `operation/Interface.jl`
+  - ⬜ `operation/OperationInterface.jl`
+  - ⬜ `operation/OperationDefaults.jl`
   - ⬜ `operation/Operations.jl`
   - ⬜ `operation/Rerooting.jl`
   - ⬜ `operation/Inversion.jl`
   - ⬜ `operation/Description.jl`
 - **Layer 14 — intent** (`intent/`)
   - ⬜ `intent/IntentModule.jl` (moved from `operation/` 2026-09-20, content unchanged)
+  - ⬜ `intent/Intent.jl`
 - **Layer 15 — binding** (`binding/`)
   - ⬜ `binding/GestureBindingModule.jl`
+  - ⬜ `binding/GestureBindingInterface.jl`
   - ⬜ `binding/GestureBinding.jl`
   - ⬜ `binding/Gestures.jl`
 - **Layer 16 — iomap** (`iomap/`)
@@ -177,12 +190,15 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `tool/DefaultTools.jl`
 - **Layer 19 — llm** (`llm/`)
   - ⬜ `llm/LlmModule.jl`
+  - ⬜ `llm/LlmInterface.jl`
+  - ⬜ `llm/LlmDefaults.jl`
   - ⬜ `llm/Llm.jl`
   - ⬜ `llm/LlmMessage.jl`
   - ⬜ `llm/LlmEvent.jl`
 - **Layer 20 — agent** (`agent/`)
   - ⬜ `agent/AgentModule.jl`
-  - ⬜ `agent/AgentServer.jl`
+  - ⬜ `agent/AgentInterface.jl`
+  - ⬜ `agent/AgentDefaults.jl`
   - ⬜ `agent/Agent.jl`
   - ⬜ `agent/AgentLoop.jl`
 - **Layer 21 — feed** (`feed/`)
@@ -191,5 +207,13 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `feed/FeedDefaults.jl`
 - **Layer 22 — editor** (`editor/`)
   - ⬜ `editor/EditorModule.jl`
+  - ⬜ `editor/Editor.jl`
+  - ⬜ `editor/Inbox.jl`
+  - ⬜ `editor/Feeds.jl`
+  - ⬜ `editor/ReadEvaluatePrint.jl`
+  - ⬜ `editor/SafeMode.jl`
+  - ⬜ `editor/FaultBarriers.jl`
+  - ⬜ `editor/EditorLoop.jl`
 - **Layer 23 — playback** (`playback/`)
   - ⬜ `playback/PlaybackModule.jl`
+  - ⬜ `playback/Playback.jl`

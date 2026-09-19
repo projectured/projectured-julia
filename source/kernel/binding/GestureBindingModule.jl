@@ -41,6 +41,7 @@ export GestureBinding,
        var"@gestures", var"@gesture_set"
 
 
+include("GestureBindingInterface.jl")
 include("GestureBinding.jl")
 include("Gestures.jl")
 

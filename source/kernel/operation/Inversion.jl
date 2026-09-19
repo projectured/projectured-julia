@@ -13,56 +13,9 @@
 # declarations, exactly as they declare `reroot_operation` there. The methods here
 # cover the operations this layer owns.
 
-"""
-    make_inverse_operation(document, operation) -> operation or nothing
-
-The operation that takes `document` back to the state it is in now, once
-`operation` has been applied to it.
-
-Use it before you apply a change you may have to take back. It reads the
-document, so call it while the document still holds what the change is about to
-overwrite. `nothing` means this operation has no way back, which is a truthful
-answer and not an error: a caller that keeps a history records a point it can
-not undo past.
-
-An operation that changes no document — a file that is written, a zoom — answers
-`DoNothingOperation()` rather than `nothing`. There is nothing to take back, so
-taking it back is doing nothing.
-
-# Example
-
-    inverse = make_inverse_operation(editor.document, operation)
-    evaluate_operation(editor, operation)
-    inverse === nothing || push!(history, inverse)
-
-See also `evaluate_invertible_operation!`, which does the two in the right
-order, and `reroot_operation`, the other open seam every operation may extend.
-"""
-function make_inverse_operation end
-
 # The default: an operation nobody taught to invert has no way back. A caller
 # that records a history marks the point and refuses to undo past it.
 make_inverse_operation(document, operation) = nothing
-
-"""
-    evaluate_invertible_operation!(editor, operation) -> operation or nothing
-
-Apply `operation` against `editor` and answer the way back.
-
-Use it wherever a change must be remembered as well as made. The default takes
-the inverse first and applies second, because an inverse reads the state the
-change starts from.
-
-A container operation needs its own method, because the inverse of its second
-member depends on what its first member did. `CompoundOperation` has one below.
-
-# Example
-
-    inverse = evaluate_invertible_operation!(editor, operation)
-
-See also `make_inverse_operation`, which answers the way back without applying.
-"""
-function evaluate_invertible_operation! end
 
 function evaluate_invertible_operation!(editor, operation)
     inverse = make_inverse_operation(editor.document, operation)
@@ -83,27 +36,6 @@ function evaluate_invertible_operation!(editor, op::CompoundOperation)
     end
     lost ? nothing : CompoundOperation(inverses)
 end
-
-"""
-    get_slot_at(container, index)
-
-What the element at `index` of a sequence container is, as a write would put it
-back.
-
-Use it to read an element you intend to restore. The default answers the value.
-A container whose elements live in cells answers the cell, so a restored element
-is the same object it was and whatever followed that cell follows it still.
-
-This layer can not name a cell collection — those live in a package above it — so
-it asks through this seam and the collection package answers.
-
-# Example
-
-    old = [get_slot_at(elements, i) for i in 1:3]
-
-See also `make_inverse_operation`, which is what needs it.
-"""
-function get_slot_at end
 
 get_slot_at(container, index::Integer) = container[index]
 

@@ -15,7 +15,7 @@ module DeviceModule
 
 export Device, Keyboard, Mouse, Display
 
-include("Device.jl")
+include("DeviceInterface.jl")
 include("Keyboard.jl")
 include("Mouse.jl")
 include("Display.jl")

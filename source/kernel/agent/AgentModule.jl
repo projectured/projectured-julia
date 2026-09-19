@@ -33,7 +33,8 @@ using ..LlmModule
 export Agent, run_turn!, AgentEvent, AgentToolResult
 export make_agent_server, start_agent_server!, stop_agent_server!
 
-include("AgentServer.jl")
+include("AgentInterface.jl")
+include("AgentDefaults.jl")
 include("Agent.jl")
 include("AgentLoop.jl")
 

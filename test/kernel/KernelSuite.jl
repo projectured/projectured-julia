@@ -28,10 +28,13 @@ function test_kernel_layering()
                        "document/DocumentInterface.jl" => :DocumentModule,
                        "reference/ReferenceInterface.jl" => :ReferenceModule,
                        "selection/SelectionInterface.jl"      => :SelectionModule,
-                       "operation/Interface.jl"      => :OperationModule,
+                       "operation/OperationInterface.jl" => :OperationModule,
                        "backend/BackendInterface.jl" => :BackendModule,
                        "feed/FeedInterface.jl"       => :FeedModule,
-                       "device/Device.jl"            => :DeviceModule,
+                       "device/DeviceInterface.jl"   => :DeviceModule,
+                       "llm/LlmInterface.jl"         => :LlmModule,
+                       "agent/AgentInterface.jl"     => :AgentModule,
+                       "binding/GestureBindingInterface.jl" => :GestureBindingModule,
                        "projection/ProjectionInterface.jl" => :ProjectionModule,
                        "iomap/IoMapInterface.jl"     => :IoMapModule))
 end

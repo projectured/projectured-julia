@@ -352,3 +352,22 @@ dispatching on the child's type. Coordinates and structural paths travel the sam
 single mapper in both directions; do not add a parallel generic for either.
 """
 function map_reference_backward end
+
+# ── The children-container seam (methods in ChildrenContainer.jl) ──────
+
+"""
+    make_children_container(cells_or_thunk) -> children container
+
+Construct a children container from either a `Vector` of cells or a
+`Function` (a zero-argument thunk producing the child sequence
+reactively).
+"""
+function make_children_container end
+
+"""
+    get_children_container_type() -> Type
+
+The concrete children container type a registrant supplies. Used by the
+template engine for `TypeReferenceStep(...)` markers.
+"""
+function get_children_container_type end

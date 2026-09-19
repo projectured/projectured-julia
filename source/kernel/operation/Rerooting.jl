@@ -34,14 +34,6 @@ function reroot_reference(ref::Reference, steps::Tuple)
     result
 end
 
-"""
-    reroot_operation(op, steps::Tuple) -> op
-
-Prepend `steps` to the reference inside a path-bearing operation. Open generic:
-new path-bearing operation types add methods for themselves.
-"""
-function reroot_operation end
-
 reroot_operation(::Nothing, steps::Tuple) = nothing
 reroot_operation(op, steps::Tuple) = op          # catch-all: unchanged
 reroot_operation(op::ReplaceSelectionOperation, steps::Tuple) =
@@ -60,48 +52,8 @@ reroot_operation(op::CompoundOperation, steps::Tuple) =
 reroot_operation(op::WrappingOperation, steps::Tuple) =
     rewrap_operation(op, reroot_operation(get_wrapped_operation(op), steps))
 
-"""
-    operation_reference(op) -> Reference or nothing
-
-The reference that `op` targets, or `nothing` when `op` carries none. Open
-generic: a path-bearing operation type defined in a higher package adds a method
-for itself. The default `read_intent` uses this pair of seams to re-target an
-operation it does not name, so a projection stays generic over operation types
-the kernel cannot enumerate.
-"""
-function operation_reference end
-
 operation_reference(op) = nothing
 
-"""
-    retarget_operation(op, reference) -> op
-
-`op` rebuilt against `reference`, which replaces the reference that
-`operation_reference` reports. Open generic, and the inverse of
-`operation_reference`: define both methods together or neither.
-"""
-function retarget_operation end
-
 retarget_operation(op, reference) = op
-
-"""
-    operation_travels_unchanged(op) -> Bool
-
-Whether `op` should be passed up the chain as it is, rather than dropped, when it
-names no reference.
-
-An operation either says WHERE it acts or says WHAT it acts on. One that names a
-reference is re-targeted at every level, through `operation_reference` and
-`retarget_operation`. One that names its subject — the widget it toggles, the
-draft it types into — has nothing to re-target, and the only two useful answers
-are to forward it or to drop it. Forwarding is right whenever the subject is the
-operation's own and not something a projection could have re-rooted.
-
-The default is `false`, because a projection that answers an operation it does
-not understand is worse than one that declines: the kernel drops what it cannot
-place. A package whose operations carry their subject says so with one method,
-and the kernel names none of them.
-"""
-function operation_travels_unchanged end
 
 operation_travels_unchanged(op) = false

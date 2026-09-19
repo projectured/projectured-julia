@@ -148,30 +148,6 @@ Base.hash(r::ReferenceRules, h::UInt) = hash(r.rules, hash(:ReferenceRules, h))
 # The extension-step seam
 # ------------------------------------------------------------
 
-"""
-    match_reference_step_value(::Val{name}, step, argpats, bindings,
-                               match_value, match_path) -> bindings | nothing
-
-Match a `.name(patterns...)` pattern against an actual `step` value, for the
-`@reference_rules` interpreter. The **interpreted sibling** of
-[`match_reference_step`](@ref), which generates a match branch for `@reference_case`
-instead: an interpreter cannot use a codegen seam, so a step type that wants to appear
-in a rules pattern registers both.
-
-`argpats` is the vector of parsed patterns (a `PatValue` for a value argument, a
-`Vector{PatStep}` for a subpath argument) and `bindings` the `Dict{Symbol,Any}`
-accumulated so far. Return the bindings (updated in place is fine) on a match, or
-`nothing`. `match_value` and `match_path` are the callbacks so extension methods match
-value and subpath patterns without reaching into kernel internals:
-
-    match_value(value, pat, bindings)      -> bindings | nothing
-    match_path(path, patsteps, bindings)   -> bindings | nothing
-
-Each package registers a `::Val{:name}` method for its own step types; none live in the
-kernel's reference layer. An unregistered name is an error the matcher raises.
-"""
-function match_reference_step_value end
-
 # The seam's answer for a name whose owner registered only the codegen half: this DSL is
 # where the gap is first reachable, so this is where it is reported.
 match_reference_step_value(::Val{n}, step, argpats, bindings, mv, mp) where {n} =

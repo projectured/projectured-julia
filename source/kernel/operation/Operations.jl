@@ -16,14 +16,6 @@ gesture pattern to a `DoNothingOperation()`.
 struct DoNothingOperation <: Operation end
 
 evaluate_operation(editor, ::DoNothingOperation) = nothing
-function evaluate_operation(editor, op::Nothing) end
-
-# Catch-all: silently ignore anything that is not an Operation. Unlike the device
-# I/O generics (which deliberately omit a catch-all so an unimplemented backend
-# fails loudly), this one is *meant* to swallow: a reader that declines returns a
-# raw gesture/event or `nothing`, and those flow all the way up to here, where
-# "not an operation" simply means "nothing to apply".
-function evaluate_operation(editor, op) end
 
 # Catch-all: an object that caches no projection has nothing to drop; one that
 # does overrides this to clear its cache. Lets an operation ask without naming a
@@ -63,24 +55,6 @@ function splice_number(old_str::AbstractString, s::Int, e::Int, replacement::Abs
     isempty(new_str) && return nothing
     something(tryparse(Int, new_str), tryparse(Float64, new_str), Some(nothing))
 end
-
-"""
-    splice_value!(owner, field, value, s, e, replacement)
-
-Apply a text-replace edit to `owner.<field>` between 0-based boundaries `[s, e]`.
-Dispatch is on the *representation* of the current `value` (read from the field
-by the caller), not on the document type — so a single small set of methods
-covers every domain:
-
-- `AbstractString` — write the spliced string back through the field.
-- `Nothing`        — a cleared text field; splice against the empty string.
-- `Number`         — splice the textual form and reparse (editing a number's text
-                     means "reparse it"; see [`splice_number`](@ref)).
-
-A domain whose field holds a richer text representation (a styled span, a
-sequence of spans) adds its own method for it.
-"""
-function splice_value! end
 
 splice_value!(owner, field::Symbol, value::AbstractString, s::Int, e::Int, replacement::AbstractString) =
     setproperty!(owner, field, splice_string(value, s, e, replacement))
@@ -357,16 +331,6 @@ function evaluate_operation(editor, op::SelectNextInsertionOperation)
     return
 end
 
-"""
-    child_reference_steps(node) -> iterable of (step, child) pairs
-
-Open traversal seam. The default enumerates struct fields as
-`FieldReferenceStep` steps, skipping `selection` and any field whose (unwrapped)
-value is not a `Document`. Override for container documents whose children
-are addressed by index (an element collection), by position, etc.
-"""
-function child_reference_steps end
-
 function child_reference_steps(node)
     pairs = Tuple{Any, Any}[]
     for nm in fieldnames(typeof(node))
@@ -435,4 +399,3 @@ end
 # Window operations are not here: an operation whose vocabulary belongs to a
 # single domain is declared with that domain's own document, and only
 # cross-domain operations live in this layer.
-
