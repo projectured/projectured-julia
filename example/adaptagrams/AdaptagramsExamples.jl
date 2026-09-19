@@ -8,9 +8,24 @@
 # Native AdaptagramsLayout graph layout.
 const graph_adaptagrams_example      = Example("graph_adaptagrams",      make_graph_document_example,                        make_graph_adaptagrams_projection_example)
 
-# The dvdrental entity-relationship diagram (live DB + native shim). Kept OUT of
-# the sweep — needs a live database and the built shim. Run directly.
-const dvdrental_relationship_example = Example("dvdrental_relationship",
+"""
+    make_dvdrental_relationship_example() -> Example
+
+Build the dvdrental entity-relationship example: the live catalog of the
+database, drawn as cards and foreign-key edges, laid out by the native
+Adaptagrams shim.
+
+A function rather than a constant. The `Example` constructor calls its document
+builder at once, and that builder opens a connection to the dvdrental database.
+A constant therefore opens the connection while the package precompiles, where
+no database is reachable. Call this at the prompt instead, where the database
+is there:
+
+    run_example(make_dvdrental_relationship_example())
+
+The example also stays out of `adaptagrams_examples`, so no sweep runs it.
+"""
+make_dvdrental_relationship_example() = Example("dvdrental_relationship",
     make_dvdrental_relationship_graph_document_example,
     make_dvdrental_relationship_projection_example)
 

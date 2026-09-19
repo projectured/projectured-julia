@@ -30,7 +30,7 @@ include(joinpath(_PKG_DIR, "GraphProjectionExample.jl"))
 include(joinpath(_PKG_DIR, "AdaptagramsExamples.jl"))
 
 export make_graph_adaptagrams_projection_example, make_dvdrental_relationship_projection_example
-export graph_adaptagrams_example, dvdrental_relationship_example, adaptagrams_examples
+export graph_adaptagrams_example, make_dvdrental_relationship_example, adaptagrams_examples
 export Example, run_example, run_console_example,
        print_example, write_example_image, write_example_pdf, record_example_video
 
