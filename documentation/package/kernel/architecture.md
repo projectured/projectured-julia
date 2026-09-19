@@ -77,7 +77,7 @@ the shape is more interesting than "N depends on N−1":
 **The interface files are the cycle-breaker.** Each layer opens with its contract:
 `document/DocumentInterface.jl` (the `Document` supertype), `reference/ReferenceInterface.jl` (the
 `ReferenceStep` / `Reference` types and the step seam), `selection/SelectionInterface.jl`,
-`operation/Interface.jl` (`Operation` + `evaluate_operation`), the iomap layer's
+`operation/OperationInterface.jl` (`Operation` + `evaluate_operation`), the iomap layer's
 `IoMapInterface.jl`, and the projection layer's `ProjectionInterface.jl`. These hold abstract types plus open
 generic *declarations* (`function f end`) and nothing else. A higher layer, or a
 higher *package*, extends them by adding methods at its own definition site, so a

@@ -12,7 +12,7 @@ dispatch.
 
 The abstract interfaces live in
 [backend/BackendInterface.jl](../../../source/kernel/backend/BackendInterface.jl) and
-[device/Device.jl](../../../source/kernel/device/Device.jl). There are three backends: the
+[device/DeviceInterface.jl](../../../source/kernel/device/DeviceInterface.jl). There are three backends: the
 SDL2 graphics backend (default; native windows), a terminal `ConsoleBackend`, and
 a `WebBackend` that runs the editor in an HTTP + WebSocket server and renders in
 the browser (all described below).

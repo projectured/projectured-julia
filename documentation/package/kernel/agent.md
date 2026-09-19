@@ -255,7 +255,7 @@ model are the backend's own configuration, so a cached backend would freeze
 whichever model was selected first and editing `assistant.model` would stop taking
 effect.
 
-Three functions carry the whole selection, and all three live in `llm/Llm.jl`:
+Three functions carry the whole selection, and all three live in `llm/LlmInterface.jl`:
 
 | function | what it answers |
 | --- | --- |
@@ -407,5 +407,5 @@ parts; something else might simply print them.
 | Seam | Declared in | Implemented by |
 | --- | --- | --- |
 | `make_agent_server(:mcp, …)` | `agent/AgentModule.jl` | `ProjecturedMcp` (`package/ProjecturedMcp`, source in `source/mcp/`) |
-| `stream_turn`, `render_tool_schema`, `make_llm` | `llm/Llm.jl` | `ProjecturedAnthropic`, `ProjecturedOllama`; `FakeLlm` / `ScriptedLlm` in `ProjecturedKernelExample` |
+| `stream_turn`, `render_tool_schema`, `make_llm` | `llm/LlmInterface.jl` | `ProjecturedAnthropic`, `ProjecturedOllama`; `FakeLlm` / `ScriptedLlm` in `ProjecturedKernelExample` |
 | a `Tool`'s handler | `tool/Tool.jl` | `register_default_tools!`, and anyone else who registers one |

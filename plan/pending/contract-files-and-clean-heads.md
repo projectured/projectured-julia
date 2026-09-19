@@ -60,8 +60,18 @@ include in). Allowed by the user on 2026-09-20; each gets a dated note in
 
 ## 5. The phases
 
-1. ⬜ Part A, one commit: the renames, the extractions, the consolidations,
-   the guard map, `SEALING.md`.
-2. ⬜ Part B, one commit: the five body splits, `SEALING.md`.
-3. ⬜ Verification and the documentation touch-up (architecture-rules names
-   the convention; the kernel guides' file references follow the renames).
+1. ✅ (2026-09-20) Part A, one commit. Two facts the execution added: the
+   operation layer also had two no-op `evaluate_operation` fallbacks hiding
+   in `Operations.jl` — they became `OperationDefaults.jl`; and the llm
+   split left `Llm.jl` holding what the layer itself does (`is_walk_opaque`,
+   `bind_meaning_model!`, the registry read off the method table).
+2. ✅ (2026-09-20) Part B, one commit. The editor cut on its own section
+   banners into seven fragments: `Editor.jl`, `Inbox.jl`, `Feeds.jl`,
+   `ReadEvaluatePrint.jl`, `SafeMode.jl`, `FaultBarriers.jl`,
+   `EditorLoop.jl`. Both `SEALING.md` halves landed with part A.
+3. ✅ (2026-09-20) Verification: the layering guard passes with the three
+   new interface files under declares-only; the kernel suite sits at its
+   3+3 baseline; export-collision, documentation, event-case,
+   gesture-binding, feeds, statistics and agent-seam suites green; the
+   world precompiles with only the pre-existing `test_focusing` warning.
+   The five stale file references in the guides follow the renames.

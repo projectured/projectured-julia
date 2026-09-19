@@ -31,7 +31,7 @@ throws an error naming the models the server does have.
 
 ## The `Llm` interface both answer
 
-`source/kernel/llm/Llm.jl` declares the abstract `Llm` and the seam:
+`source/kernel/llm/LlmInterface.jl` declares the abstract `Llm` and the seam:
 
 - `stream_turn(llm, request; on_event)` — run one turn, translating the
   provider's own streaming protocol (Anthropic's server-sent events,
