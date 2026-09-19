@@ -10,7 +10,7 @@ it can not resolve, it stops with a verifier error.
 come from PackageCompiler, through the builder that
 [build-guide.md](build-guide.md) describes.
 
-This guide states the one rule that decides whether a call resolves, shows what
+This guide states the one rule that determines whether a call resolves, shows what
 that rule costs ProjecturEd, and gives four ways to keep an abstract type and
 still compile. The probe that measured every number is in
 [bench/juliac-trim/](../../tool/juliac-trim).

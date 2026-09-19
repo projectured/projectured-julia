@@ -2,7 +2,7 @@
 
 > **Kind:** procedure · **Status:** current · **Stands on:** [domain-inventory.md](../design/domain-inventory.md), [system-anatomy.md](../design/system-anatomy.md)
 
-This tutorial walks through adding a complete new domain to ProjecturEd —
+This tutorial walks through adding a complete new domain to ProjecturEd:
 document types, projection to Syntax, reader, example, and test.
 
 We will build a **Bookmark** domain: a list of bookmarks where each bookmark
@@ -88,8 +88,8 @@ end # module BookmarkModule
 
 **Key points:**
 - `@document` injects a `selection::Union{Nothing, Reference}` field into every
-  document automatically, appended as the struct's last field — you never
-  declare it yourself (declaring one by hand is an error).
+  document automatically, appended as the struct's last field. You never
+  declare it yourself; declaring one by hand is an error.
 - `@document` also generates the constructor: `BookmarkEntry("Julia", "https://julialang.org")`
   already works with no code of your own — a raw value is wrapped in a
   reactive `Cell`, and `doc.title` reads it back transparently
@@ -97,12 +97,12 @@ end # module BookmarkModule
   convenience the macro does not cover (see [macros.md](../package/kernel/macros.md)).
 - **Field names are public API.** A selection path reaches `title` / `url` /
   `entries` by `getfield`, so these names *are* the domain's reference
-  vocabulary — choose them deliberately; renaming one later breaks stored
-  references. (See the `Document` contract in
-  [document/DocumentInterface.jl](../../source/kernel/document/DocumentInterface.jl).)
-- `CellVector` wraps a `Vector{Cell}` reactively — length changes invalidate
+  vocabulary. Choose them deliberately; renaming one later breaks stored
+  references. See the `Document` contract in
+  [document/DocumentInterface.jl](../../source/kernel/document/DocumentInterface.jl).
+- `CellVector` wraps a `Vector{Cell}` reactively; length changes invalidate
   downstream computed cells. `BookmarkList("My Bookmarks", [BookmarkEntry("t", "u"), …])`
-  builds one from a plain `Vector` — this is [Rule C](../package/kernel/macros.md#the-layout-list),
+  builds one from a plain `Vector`. This is [Rule C](../package/kernel/macros.md#the-layout-list),
   the constructor `@document` generates for a struct with one collection field.
 - See [reactive cells](../package/kernel/cell.md) and [macros](../package/kernel/macros.md)
   for the cell system and the `@document` macro.
@@ -208,8 +208,8 @@ end
 `bound(:title, String, render)` marks the first leaf as holding
 `entry.title`'s value, drawn by `render`; a cursor there maps back to
 `.title{k}` with no code of your own. `collection(:entries)` marks the list's
-children as `list.entries`, each projected through the type dispatcher above —
-this is what recurses into every `BookmarkEntry` and keeps its own selection
+children as `list.entries`, each projected through the type dispatcher above.
+This is what recurses into every `BookmarkEntry` and keeps its own selection
 mapping working underneath the list's. Checked in a real session:
 
 ```julia
@@ -248,10 +248,10 @@ julia> iomap.output.selection   # forward-mapped with no mapper of your own
 
 A projection writes a hand-rolled `print_document`/`map_reference_forward`/
 `map_reference_backward` group instead when it must introduce output
-structure the template's markers cannot express — a caret on a delimiter with
-no field behind it, for instance (`XmlElementToSyntaxNode` does this for its
+structure the template's markers cannot express: a caret on a delimiter with
+no field behind it, for instance. `XmlElementToSyntaxNode` does this for its
 `<`/`>`/`</` chrome; see
-[source/xml/XmlToSyntax.jl](../../source/xml/XmlToSyntax.jl)). Reach for
+[source/xml/XmlToSyntax.jl](../../source/xml/XmlToSyntax.jl). Reach for
 `@projection_template` first, and drop to a hand-written pair only for the one
 piece it cannot cover — most domains, Bookmark included, never need to.
 
@@ -433,19 +433,19 @@ BookmarkList
 
 ## What to add next
 
-- **Character editing:** already works — a `ReplaceStringRangeOperation` on a
+- **Character editing:** already works. A `ReplaceStringRangeOperation` on a
   leaf's value flows back through the default reader `@projection_template`
   generated, which re-targets its reference through the `bound(:title, …)` /
   `bound(:url, …)` markers. No extra `read_intent` needed.
 - **Structural editing:** `insert_elements` (a `ReplaceReferencedValueOperation` splice) to
-  append bookmarks — this *does* need a `read_intent` method, since it is more than a
+  append bookmarks. This *does* need a `read_intent` method, since it is more than a
   reference re-target.
 - **A custom operation:** e.g. `BookmarkOpenOperation` that opens the URL
   in a browser when Enter is pressed.
 
-For the next level of complexity — a domain with cross-references, a custom
-reader that handles structural events, or a projection whose output document
-draws itself directly rather than going through Syntax — read
+For the next level of complexity, such as a domain with cross-references, a
+custom reader that handles structural events, or a projection whose output
+document draws itself directly rather than going through Syntax, read
 [the projection system guide](../package/kernel/projection-system.md)
 and look at `MathToSyntax.jl` as a real-world reference; its arithmetic
 precedence/parenthesization is exactly the kind of structural rewrite
