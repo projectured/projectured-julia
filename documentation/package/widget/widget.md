@@ -101,10 +101,11 @@ Every widget has a minimal isolated example, rendered below.
 
 ## Theme
 
-Widget look & feel is driven by a single `WidgetTheme` token object (a neutral
+A single `WidgetTheme` token object (a neutral
 zinc palette: `background`, `foreground`, `card`, `muted`, `primary`,
-`destructive`, `border`, `input`, `ring`, `radius`, …). It is the source of
-truth — individual widgets should not carry their own colors. Two presets ship:
+`destructive`, `border`, `input`, `ring`, `radius`, …) drives widget look and
+feel. It is the source of truth; individual widgets should not carry their
+own colors. Two presets ship:
 `make_light_theme()` (the default) and `make_dark_theme()`. Pass one to the
 projection factory:
 
@@ -172,7 +173,7 @@ a `MouseEnter`/`MouseLeave` to the `hovered` write (call it from the reader), an
 `_push_hover_surface!(elems, w, enabled, …)` paints a faint themed surface behind
 the control while `enabled && w.hovered === true` (call it from the printer,
 *before* the content so it sits underneath). `WidgetButton` and `WidgetMenuItem`
-are the reference adopters — the latter gives every menu, submenu, context menu,
+are the reference adopters. The latter gives every menu, submenu, context menu,
 menu bar, and toolbar a highlight on the row under the pointer.
 
 ## Form & data widgets
@@ -202,7 +203,7 @@ shows them together.
   existing grids are unchanged. The field column only stretches when a parent
   seeded an `available_width`. `FormLayout` lives in
   [layout/LayoutModule.jl](../../../source/layout/LayoutModule.jl) (not Widget.jl)
-  because layouts load before widgets — hence it takes pre-built label documents
+  because layouts load before widgets. It therefore takes pre-built label documents
   rather than wrapping strings itself.
 - **`StackLayout(children; active=0)`** — `active = 0` keeps the original z-stack
   (all children overlaid); `active = i` lays out **only** child `i`, sized to it —
@@ -217,7 +218,7 @@ shows them together.
 ## A form of object fields
 
 `ObjectToWidget` reflects **one** object into a fixed two-column grid of that
-object's own fields. A form usually wants less and more at once: three fields of
+object's own fields. A form usually needs less and more at once: three fields of
 this object, one of that one, in an order and a layout the author chose.
 `ObjectField` is the document for that, and `ObjectFieldToWidget` is its
 projection.
@@ -354,7 +355,7 @@ one button draws it across the whole column. `WidgetTabPage` carries the page's
 own `duplicable`, and a caller passes it as the fourth part of a tab tuple,
 `(label, element, icon, duplicable)`.
 
-The strip knows a button was pressed and **nothing about what it means** — what
+The strip reports a button was pressed and **nothing about what it means** — what
 closing a tab does to the document behind it is the owning projection's business,
 exactly as `SelectTabOperation` already worked. A report that nobody claims is
 inert: `evaluate_operation` does nothing with it rather than failing.
@@ -384,7 +385,7 @@ Two cases this covers, both of which look like "the drag does not work":
   text loses its own release and stays held.
 - **A nested split's divider lives in exactly that gap.** It is drawn inside the
   child, but the parent hit-tests the child's canvas first, and a hairline
-  between two panes is not a hit — so without the ungated pass only the outermost
+  between two panes is not a hit. So without the ungated pass only the outermost
   splitter can ever be grabbed.
 
 ## A split pane follows its slots
@@ -456,9 +457,9 @@ which dispatches on the payload.
 Container hit-test routing delivers a `MouseMove` only to the child *under* the
 pointer, so a button learns when the pointer enters it but never when it leaves.
 
-The split of responsibility is deliberate: the **generic tracker decides *when*
-the pointer crosses a boundary; each widget decides *what that means* for its
-own state.** `WidgetHoverTrackingProjection`
+The split of responsibility is deliberate: the **generic tracker determines
+*when* the pointer crosses a boundary; each widget determines *what that
+means* for its own state.** `WidgetHoverTrackingProjection`
 ([projection/higherorder/WidgetHoverTracking.jl](../../../source/widget/WidgetHoverTracking.jl))
 is transparent on print; on each `MouseMove` it:
 
@@ -482,10 +483,10 @@ To make this work, the container readers route `MouseEnter` / `MouseLeave` /
 `MouseDown` / `MouseUp` to the hit child, alongside the `MousePress` /
 `MouseScroll` they already routed. `WidgetComposite` does it for free-positioned
 children; `WidgetMenu` and `WidgetToolbar` route the crossings to their items
-(`_route_crossing_to_children`) so the menu/toolbar hover surfaces light up — and
-the toolbar now routes `MousePress` too, so its items are clickable. (Wiring the
-remaining containers — shell, split pane — is follow-up; these cover the menu,
-toolbar, and free-layout examples.)
+(`_route_crossing_to_children`) so the menu/toolbar hover surfaces light up, and
+the toolbar routes `MousePress` too, so its items are clickable. Wiring the
+remaining containers, such as the shell and the split pane, is follow-up work;
+these examples cover the menu, toolbar, and free-layout cases.
 
 ## Popups (the window route)
 
@@ -546,7 +547,7 @@ machinery) but it **is modal**:
   `auto_dismiss`, copied through by `WindowManager`/`ScreenToScreen`.
 
 **Deferred (v1 limitation):** the scrim fills the dialog's own window, which opens
-at a generous fixed box — a true full-screen scrim and exact screen-centering need
+at a generous fixed box. A true full-screen scrim and exact screen-centering need
 a screen-size source the document model does not yet carry (`ScreenDocument` holds
 only per-window `x/y/w/h`). The modal *input blocking* is complete regardless of
 window size.
@@ -582,8 +583,8 @@ reference the **same** `Action`, so one object drives all three and toggling its
   selected; a non-matching key still reaches the selection.
 - **Status bar.** `WidgetStatusBar(segments)` is a thin, non-interactive bottom
   band of stringified segments (Qt's `QStatusBar`); place one on a `WidgetShell`
-  via its `status_bar` field and it renders along the bottom edge. *(v1: a
-  fixed print-time bottom position, like the other bands.)*
+  via its `status_bar` field and it renders along the bottom edge. v1 uses a
+  fixed print-time bottom position, like the other bands.
 
 See `make_widget_shell_document_example` (menu + toolbar sharing `Action`s,
 `Ctrl+S`, a status bar) and `WidgetActionTest`.
@@ -637,8 +638,8 @@ the same machinery — a scroll is `translate(−offset)`, a zoom is `scale(z)`.
 - **Gestures (reader).** `Ctrl`+wheel zooms about the cursor
   (`M' = T(c)∘S(f)∘T(−c)∘M`, total scale clamped to `[0.25, 4.0]`); a plain wheel
   pans (`M' = T(Δ)∘M`). **Keyboard:** `Ctrl`+`=`/`-` zoom in/out and `Ctrl`+`0`
-  resets, all about the viewport centre. The keyboard zoom is a *fallback* —
-  the key is forwarded to the content first, so a `Ctrl`+`=`/`-` bound inside the
+  resets, all about the viewport centre. The keyboard zoom is a *fallback*.
+  The key is forwarded to the content first, so a `Ctrl`+`=`/`-` bound inside the
   content (e.g. collection add/remove) still wins. Every edit is a single
   `ReplaceReferencedValueOperation(pane, "transform", M')`, like other widget edits; other
   events are forwarded to the content with the pointer mapped through
@@ -723,9 +724,9 @@ the child its selection points at, and returns `nothing` when the selection is
 not inside it — **never** to a default child (no "active tab", no broadcast, no
 first-answer fallback). When the selection is elsewhere the container is
 untouched and its prior state simply stays. This holds for `WidgetComposite`,
-`WidgetSplitPane`, `WidgetTabbedPane`, and the `LayoutDocument` family. (The
+`WidgetSplitPane`, `WidgetTabbedPane`, and the `LayoutDocument` family. The
 tabbed pane still falls back to tab 1 to *render* a tab when nothing is selected;
-that is a printing concern, not routing.) An unselected tree therefore delivers
+that is a printing concern, not routing. An unselected tree therefore delivers
 keystrokes nowhere — the first selection is established by a click or by Tab
 traversal, not by a routing guess.
 
