@@ -35,6 +35,7 @@ any object carrying `editor.document`.
 """
 module OperationModule
 
+using ..FaultModule
 using ..CellModule
 using ..DocumentModule
 using ..ReferenceModule

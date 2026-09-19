@@ -22,9 +22,12 @@ using ..OperationModule
 using ..GestureRecognizerModule
 using ..ToolModule
 using ..AgentServerModule
+using ..FaultModule
+using ..SelectionModule
+using ..ReferenceModule
 
 export Editor, run_editor!, read!, evaluate!, print!, run_frame!,
-       post_operation!, drain_operations!
+       post_operation!, drain_operations!, is_editor_degraded
 
 """
     Editor(backend, document, projection, devices; clock = Clock(), tools = ToolSet())
@@ -50,6 +53,16 @@ Holds the state for a read-eval-print loop:
   - `iomap`      — the latest IoMap from the printer (internal)
   - `operation`  — the latest operation from the reader (internal)
   - `recognizer` — the event → gesture recogniser (internal)
+  - `faults`     — the per-editor `FaultStore` every barrier writes to, and the
+                   frame drains once. Per editor, so two editors in one process
+                   never read each other's faults.
+  - `fault_policy` — what this editor does with a fault. **It starts strict: a
+                   barrier catches nothing.** A programmatic editor — every one
+                   a test builds — therefore behaves exactly as it does without
+                   this feature, and a broken projection fails its test rather
+                   than passing quietly. [`run_editor!`](@ref) is what turns the
+                   barriers on, because a loop a person is sitting in front of
+                   is the thing that must survive.
 """
 mutable struct Editor
     backend::Backend
@@ -62,6 +75,8 @@ mutable struct Editor
     iomap::Union{IoMap, Nothing}
     operation::Union{Operation, Nothing}
     recognizer::GestureRecognizer
+    faults::FaultStore
+    fault_policy::FaultPolicy
 end
 
 # The inbox is bounded: a producer that outruns the editor should wait for it,
@@ -69,10 +84,12 @@ end
 const INBOX_CAPACITY = 64
 
 Editor(backend, document, projection, devices;
-       clock::Clock = Clock(), tools::ToolSet = ToolSet()) =
+       clock::Clock = Clock(), tools::ToolSet = ToolSet(),
+       faults::FaultStore = FaultStore(),
+       fault_policy::FaultPolicy = make_strict_fault_policy()) =
     Editor(backend, document, projection, devices, clock, tools,
            Channel{Operation}(INBOX_CAPACITY),
-           nothing, nothing, GestureRecognizer())
+           nothing, nothing, GestureRecognizer(), faults, fault_policy)
 
 # Drop the cached IoMap so the next `print!` rebuilds the projection from scratch.
 # `invalidate_projection!` is a no-op for an object that caches nothing; this method
@@ -228,6 +245,107 @@ function _zoom_operation(window_input)
     m.alt ? AdjustFontZoomOperation(delta) : AdjustZoomOperation(delta)
 end
 
+
+# ── The fault barriers ───────────────────────────────────────────────────────
+#
+# One barrier per stage of the frame. Each one answers its fallback rather than
+# the exception, so a stage that fails costs that stage and not the editor.
+# `editor.fault_policy` decides whether any of them catches at all; a programmatic
+# editor starts strict, and `run_editor!` is what turns them on.
+
+# What a barrier answers when it caught. A sentinel rather than `nothing`,
+# because `nothing` is a value a stage may answer for itself.
+struct _BarrierFailed end
+const _BARRIER_FAILED = _BarrierFailed()
+
+_run_barrier(body, editor::Editor, site::Symbol; origin = :editor,
+             reference = nothing, fallback = nothing) =
+    run_fault_barrier(body, editor.faults, editor.fault_policy, editor.backend,
+                      site; origin = origin, reference = reference,
+                      fallback = fallback)
+
+"""
+    report_frame_faults!(editor) -> Int
+
+Hand every fault the last frame collected to whatever shows it, and answer how
+many there were.
+
+Call it once per frame, before anything reads the projection. This is the one
+place a fault is reported on the console, because it is the one place that knows
+which records are new — a printer's fault arrives here too, recorded from inside
+a thunk that could not report anything itself.
+"""
+function report_frame_faults!(editor::Editor)
+    records = drain_faults!(editor.faults)
+    for record in records
+        report_fault!(editor.faults, editor.fault_policy, editor.backend, record)
+    end
+    length(records)
+end
+
+"""
+    is_editor_degraded(editor, site) -> Bool
+
+Whether the barrier at `site` has failed often enough in a row that the editor
+is to stop calling it.
+
+A backend that throws in `write_to_devices` throws again on the next frame, a
+hundred times a second, and calling it again is worse than leaving it alone.
+"""
+function is_editor_degraded(editor::Editor, site::Symbol)
+    limit = site === :print ? editor.fault_policy.print_failure_limit :
+                              editor.fault_policy.device_failure_limit
+    get_consecutive_fault_count(editor.faults, site) >= limit
+end
+
+# An inverse reads the state the change starts from, so it is taken BEFORE the
+# change is applied. Taking one can itself fail, and a way back that could not be
+# worked out is `nothing` — a truthful answer, not an error.
+function _make_operation_inverse(editor::Editor, operation)
+    operation === nothing && return nothing
+    try
+        make_inverse_operation(editor.document, operation)
+    catch
+        nothing
+    end
+end
+
+# What the editor does to itself after an operation failed half way.
+function _repair_after_operation_fault!(editor::Editor, inverse)
+    # Repair 0 — take the change back, where there is a way back. A
+    # `CompoundOperation` has none: its way back is built member by member, and
+    # only `evaluate_invertible_operation!` does that interleave.
+    if inverse !== nothing
+        try
+            evaluate_operation(editor, inverse)
+        catch
+            # The way back failed too. The document stands as it is, and the
+            # two repairs below still run.
+        end
+    end
+    # Repair 1 — re-print from scratch. A change that failed half way often
+    # leaves the reactive graph inconsistent, and a fresh print rebuilds it.
+    invalidate_projection!(editor)
+    # Repair 2 — a selection that no longer resolves is the usual reason a
+    # printer then fails on every frame that follows.
+    _repair_selection!(editor)
+    nothing
+end
+
+function _repair_selection!(editor::Editor)
+    try
+        path = get_selection(editor.document)
+        path === nothing && return nothing
+        is_valid_reference(editor.document, path) && return nothing
+        clear_selection!(editor.document)
+        @warn "[fault] the selection did not survive a failed operation and was cleared"
+    catch
+        # A document that can not even be asked where its selection is has
+        # nothing this repair can do for it.
+    end
+    nothing
+end
+
 """
     evaluate!(editor::Editor)
 
@@ -241,7 +359,18 @@ function evaluate!(editor::Editor)
     # in that closed pipe and crash. The logger writes to the stream captured at
     # startup, which the redirect leaves untouched.
     editor.operation !== nothing && @info "[operation] $(editor.operation)"
-    evaluate_operation(editor, editor.operation)
+    operation = editor.operation
+    editor.fault_policy.is_barrier_enabled ||
+        return evaluate_operation(editor, operation)
+    inverse = _make_operation_inverse(editor, operation)
+    answer = _run_barrier(editor, :evaluate;
+                          origin = operation === nothing ? :nothing : typeof(operation),
+                          fallback = _BARRIER_FAILED) do
+        evaluate_operation(editor, operation)
+    end
+    answer === _BARRIER_FAILED || return answer
+    _repair_after_operation_fault!(editor, inverse)
+    nothing
 end
 
 """
@@ -257,12 +386,20 @@ the whole editor — where the selection is, which tabs are open — needs it.
 """
 function print!(editor::Editor)
     if editor.iomap === nothing
-        ctx = with_property(with_clock(PrinterContext(), editor.clock),
-                            :root, editor.document)
+        # The store rides down with the context. A projection barrier deep in
+        # the tree records into it from inside a thunk, where it can write no
+        # cell and reach no editor. `PrinterContext` itself does not change.
+        ctx = with_property(
+                  with_property(with_clock(PrinterContext(), editor.clock),
+                                :root, editor.document),
+                  :fault_store, editor.faults)
         editor.iomap = print_document(editor.projection, nothing,
                                       editor.document, ctx)
     end
-    write_to_devices(editor.backend, editor.devices, editor.iomap.output)
+    is_editor_degraded(editor, :device) && return nothing
+    _run_barrier(editor, :device; origin = typeof(editor.backend)) do
+        write_to_devices(editor.backend, editor.devices, editor.iomap.output)
+    end
 end
 
 # ── Performance logging ───────────────────────────────────────────────
@@ -323,13 +460,22 @@ something from an idle one.
 function run_frame!(editor::Editor)
     applied = nothing
     for _ in 1:MAX_OPERATIONS_PER_FRAME
-        (@performance_time :read_time read!(editor)) || break
+        # A reader that throws is a reader that declined: the gesture is lost,
+        # the frame goes on, and the fault says which reader lost it.
+        has_input = @performance_time :read_time _run_barrier(editor, :read;
+                                                              fallback = false) do
+            read!(editor)
+        end
+        has_input || break
         @performance_time :evaluate_time evaluate!(editor)
         applied = editor.operation
         editor.iomap === nothing && break     # repaint before reading anything else
     end
     editor.operation = applied
-    @performance_time :print_time print!(editor)
+    @performance_time :print_time _run_barrier(editor, :print;
+                                               origin = typeof(editor.projection)) do
+        print!(editor)
+    end
 end
 
 # ── Main loop ──────────────────────────────────────────────────────────
@@ -350,7 +496,14 @@ clients can drive the editor; off by default.
 """
 function run_editor!(editor::Editor; mcp::Bool=false,
               mcp_instructions::Union{AbstractString,Nothing}=nothing,
-              on_start=nothing)
+              on_start=nothing,
+              fault_policy::FaultPolicy=FaultPolicy())
+    # This is the moment the barriers go on. An `Editor` starts strict, so every
+    # editor a test builds behaves as it does without this feature and a broken
+    # projection fails its test. A loop a person sits in front of is the thing
+    # that must survive instead, and this is that loop. Pass
+    # `make_strict_fault_policy()` to run it without barriers.
+    editor.fault_policy = fault_policy
     server = if mcp
         mcp_instructions === nothing ?
             make_agent_server(:mcp, editor) :
@@ -373,11 +526,21 @@ function run_editor!(editor::Editor; mcp::Bool=false,
             # extent; the cell operations below count into it and `perf!` reads it.
             with_performance_counters() do
                 set_clock_time!(editor.clock, Base.time() - t_start)
+                # Every fault the last frame collected, shown before this one
+                # reads anything. It runs first so a write to a log document
+                # happens outside every thunk, which is the only place it may.
+                _run_barrier(editor, :report) do
+                    report_frame_faults!(editor)
+                end
                 # What was posted from outside this task, applied here so the
                 # frame paints what it just applied.
-                drain_operations!(editor)
+                _run_barrier(editor, :evaluate) do
+                    drain_operations!(editor)
+                end
                 run_frame!(editor)
-                perf!(editor)
+                _run_barrier(editor, :report) do
+                    perf!(editor)
+                end
             end
             sleep(0.01)
         end

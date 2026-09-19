@@ -19,8 +19,11 @@ What it does, in order:
    how long this has been going on. A run without a fault resets it.
 3. The fault goes in the store, keyed, so the thousands of nodes one bug fails
    at become one record with a number.
-4. A record that is new is reported by [`report_fault!`](@ref). A repeat is not,
-   because a console that takes one line per frame is a fault of its own.
+4. Reporting is left to [`drain_faults!`](@ref) and the frame that calls it,
+   because the drain is the one place that knows which records are new and it
+   is where the projection barrier's records arrive too. One reporter, one line
+   per new fault. A barrier given no store has no drain behind it, so that one
+   reports for itself.
 
 **`policy.is_barrier_enabled` false means it catches nothing.** A test editor
 sets it false, so a broken projection fails its test rather than passing quietly.
@@ -46,13 +49,12 @@ function run_fault_barrier(body, store, policy::FaultPolicy, backend, site::Symb
         is_passthrough_exception(exception) && rethrow()
         traceback = catch_backtrace()
         _count_fault!(store, site)
-        record = record_fault!(store, site, origin, reference, exception, traceback)
-        # No store means no place a record could be kept and no place a repeat
-        # could be noticed, so the report is made from the exception itself.
-        store === nothing &&
-            (record = make_fault_record(site, origin, reference, exception, traceback))
-        if record !== nothing && record.count == 1
-            report_fault!(store, policy, backend, record)
+        record_fault!(store, site, origin, reference, exception, traceback)
+        # No store means no drain will ever see this, so the report is made here
+        # and now, from the exception itself.
+        if store === nothing
+            report_fault!(store, policy, backend,
+                          make_fault_record(site, origin, reference, exception, traceback))
         end
         fallback
     end

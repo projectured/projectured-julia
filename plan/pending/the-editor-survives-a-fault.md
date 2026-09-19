@@ -467,18 +467,36 @@ FaultLogOverlayProjection(inner = root, log = fault_log)
    [system-anatomy.md](../../documentation/design/system-anatomy.md).
 5. Run `test_kernel_layering()`.
 
-### Phase 2 — Put barriers in the editor loop ⬜
+### Phase 2 — Put barriers in the editor loop ✅ DONE
 
 1. Add `faults::FaultStore` and `fault_policy::FaultPolicy` to `Editor`
-   (`EditorModule.jl:54-65`, not sealed). Both per editor, so
-   `PAR-PER-EDITOR-STATE` holds.
+   (`EditorModule.jl`, not sealed). Both per editor, so `PAR-PER-EDITOR-STATE`
+   holds.
+
+   **Settled while it was built: an `Editor` starts strict and `run_editor!`
+   turns the barriers on.** Every test in the tree builds an `Editor`
+   directly and none of them calls `run_editor!`, so this keeps every existing
+   test at today's behaviour with no edit to any of them, and leaves no way for
+   a barrier to turn a real bug into a passing run. `run_editor!` takes a
+   `fault_policy` keyword for a caller that wants it the other way.
 2. Wrap `drain_operations!`, `read!`, `evaluate!` and `print!` in
    `run_fault_barrier`.
 3. Pass the store to the printer: `with_property(ctx, :fault_store,
    editor.faults)` in `print!`. `PrinterContext` does not change.
-4. Call `drain_faults!(editor.faults)` once per frame, before `read!`.
+4. Call `report_frame_faults!(editor)` once per frame, before `read!`. It
+   drains and reports. **The drain is the one console reporter**, because it is
+   the one place that knows which records are new and it is where the
+   projection barrier's records arrive as well. `run_fault_barrier` reports for
+   itself only when it was given no store, since nothing will drain that.
 5. Add the four repairs of section 3.4 to the operation barrier. Take the
    inverse BEFORE `evaluate_operation`, not after.
+6. `is_passthrough_exception(::QuitEditorException) = true` in the operation
+   layer, so a request to quit still stops the loop.
+
+**Result.** `test_kernel()` answers 1964 pass, 3 fail, 3 error. The three
+failures and three errors are the Rule C group in `DocumentMacroTest.jl` and
+`MEvalBranch` in `ReferenceEvalTest.jl`, which are the known baseline and sit in
+files this branch does not touch. `test_kernel_layering()` is 10 of 10.
 
 ### Phase 3 — Guard the backend seam and add the sound ⬜
 

@@ -93,6 +93,10 @@ splice_value!(owner, field::Symbol, value::Number, s::Int, e::Int, replacement::
 
 struct QuitEditorException <: Exception end
 
+# A request to quit is not a fault and no barrier may catch it: catching one
+# turns a clean stop into a loop that will not end.
+FaultModule.is_passthrough_exception(::QuitEditorException) = true
+
 """
     CompoundOperation(operations)
 
