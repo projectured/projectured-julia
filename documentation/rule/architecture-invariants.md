@@ -669,8 +669,8 @@ differently depending on whether the projection that read it happened to take th
 shortcut. Two projections over the same domain then disagree about what an input
 *means*, which is precisely what the printer/reader pair exists to prevent.
 
-The temptation is a reader that already knows the target and the new value, where
-building an operation feels like ceremony. Build it anyway;
+The temptation is a reader that already has the target and the new value in
+hand, where building an operation feels like ceremony. Build it anyway;
 `ReplaceReferencedValueOperation` covers the common case (PAR-PREFER-REPLACE-VALUE)
 and `InvokeActionOperation` carries a callback for an effect that is not a field
 write.
@@ -795,7 +795,7 @@ bar, its toolbar, its status bar — is a `WidgetShell` holding the window's own
 document, not something a printer conjures on the way to the screen. A projectional
 editor presents structured data through projections, so anything a projection
 invents for itself can be neither selected, referenced, walked, copied nor reached
-by a verb. Chrome that only the printer knows about is outside the editor.
+by a verb. Chrome that only the printer produces is outside the editor.
 
 ### PAR-BACKEND-SEAM
 
@@ -946,7 +946,7 @@ imply an API boundary the module does not enforce. See
 hard-references.** Source, test, example, and harness alike sink to their
 lowest home. A seam call (`record_video(…)`, `default_backend()`) is not a
 reference; only a `using`/`import` or naming a package's types/functions
-anchors code. For a test or example, the *fixture* decides the home (a
+anchors code. For a test or example, the *fixture* determines the home (a
 Pdf-backend test driven by a JSON pipeline is a domain test), not the machinery
 it happens to exercise.
 
@@ -1245,7 +1245,7 @@ for both.
 ### PAR-NAMING-LAW
 
 **Follow the naming law — names must be guessable in both directions.** A name
-tells you what kind of thing it is and what it does, and a concept tells you
+shows you what kind of thing it is and what it does, and a concept gives you
 its name, without a lookup (see
 [naming-rules.md](naming-rules.md)). Module name =
 filename + `Module`, and every exported name has exactly one owning module.
@@ -1298,7 +1298,7 @@ the real seam (the abstract type + generic) the double implements; the double
 subtypes that seam from its `test`/`example` home. Production code that finds
 no real backend fails loudly rather than fabricating a fake, so a real user is
 never served a faked result; offline/deterministic behaviour is opted into by
-the example or test that wants it (it passes an explicit double). A double may
+the example or test that needs it (it passes an explicit double). A double may
 still be *defined* in an example package the executable bundles, but because no
 `main` path constructs one, none is reachable at runtime in production. See the
 "No test doubles in `main`" bullet in
@@ -1313,7 +1313,7 @@ fallback.
 docstring or comment must not name, enumerate, or explain the higher-layer
 modules, macros, or callers that build on the code it documents — that is
 forward knowledge a lower layer cannot have without inverting the dependency
-direction. Describe what the code *is* and the contract it offers to *any*
+direction. Describe what the code *is* and the contract it gives to *any*
 caller, as a self-contained service; let each consumer's own documentation
 state that it builds on this. This is the documentation-level companion to
 PAR-MODULE-BOUNDARY-IS-API (imports name only exported symbols) and
