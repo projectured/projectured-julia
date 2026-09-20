@@ -3,11 +3,18 @@ uuid = "d499710c-e3ef-422e-9e97-2622a1fb16a4"
 version = "0.1.0"
 authors = []
 
-# The Fault tier of the example-package DAG: the document and projection
-# factories the fault barrier's and the log panel's examples are built from.
+# The Fault tier of the example-package DAG: one runnable example per fault
+# category. Depends on the example umbrella for the gallery runner, like the
+# opt-in example packages do.
 
 [deps]
+Projectured = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
+ProjecturedExample = "e5f6a7b8-c9d0-4e1f-2a3b-4c5d6e7f8a9b"
 ProjecturedFault = "3d8d2e46-3dcd-42af-87df-e4fd98837f5d"
+ProjecturedKernelExample = "b2967ee9-386e-4698-a92b-2bf5f698f2fd"
 
 [sources]
+Projectured = {path = "../Projectured"}
+ProjecturedExample = {path = "../ProjecturedExample"}
 ProjecturedFault = {path = "../ProjecturedFault"}
+ProjecturedKernelExample = {path = "../ProjecturedKernelExample"}
