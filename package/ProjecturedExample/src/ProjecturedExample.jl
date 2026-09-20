@@ -107,6 +107,7 @@ export default_backend
 # The gallery (`run_example` and its wrappers), the file-editor harness and the
 # application: all three compose several domains, so they live at the umbrella.
 include(joinpath(_EXAMPLE_DIR, "Gallery.jl"))
+include(joinpath(_EXAMPLE_DIR, "FeedExamples.jl"))
 include(joinpath(_EXAMPLE_DIR, "FileEditor.jl"))
 include(joinpath(_EXAMPLE_DIR, "ValueViewer.jl"))
 include(joinpath(_EXAMPLE_DIR, "Application.jl"))
@@ -364,6 +365,8 @@ export make_dragging_document, make_dragging_projection
 export make_shell_document, make_shell_projection, make_command_palette_decorator_projection
 export make_text_configuring_projection
 export Example, examples, run_example, run_assistant_example, run_console_example, print_example, write_example_image, write_example_pdf, record_example_video, make_typein_gestures
+export run_message_log_feed_example, run_frame_statistics_feed_example,
+       make_message_log_feed_projection_example, make_frame_statistics_feed_projection_example
 export make_json_console_projection_example
 export record_assistant_conversation_video
 export json_typein_live, json_select_and_edit_live, json_insert_live, json_build_live, json_build_example

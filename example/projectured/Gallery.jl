@@ -180,7 +180,7 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
                      gesture_help=false, command_palette=false,
                      gesture_log=false, gesture_log_filter=nothing, gesture_log_capacity=20,
                      fault_tolerant=true,
-                     profile=false, backend=nothing, on_start=nothing)
+                     profile=false, backend=nothing, feeds::Vector{Feed}=Feed[], on_start=nothing)
     isempty(documents) && error("run_example: empty documents vector")
     length(documents) == length(projections) == length(names) ||
         error("run_example: documents, projections and names must have equal length")
@@ -344,7 +344,7 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
     _run_window_scene(docs, projs, names;
                       width=width, height=height, backend=backend,
                       compose=compose, profile=profile, content_unwrap=content_unwrap,
-                      on_start=on_start)
+                      feeds=feeds, on_start=on_start)
 end
 
 # Lay out `docs` as side-by-side WindowDocuments into a ScreenDocument and lift the
@@ -424,18 +424,18 @@ end
 # of `run_example` and `run_file_editor`.
 function _run_window_scene(docs, projs, names; width, height, backend,
                            compose, profile::Bool=false, content_unwrap::Vector{Symbol}=Symbol[],
-                           mcp::Bool=false, on_start=nothing)
+                           mcp::Bool=false, feeds::Vector{Feed}=Feed[], on_start=nothing)
     screen = _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap)
     composed = compose(projs, backend)
     if profile
         Profile.clear()
         try
-            Profile.@profile run_editor!(backend, composed, screen; mcp=mcp, on_start=on_start)
+            Profile.@profile run_editor!(backend, composed, screen; mcp=mcp, feeds=feeds, on_start=on_start)
         finally
             Profile.print(; mincount=10)
         end
     else
-        run_editor!(backend, composed, screen; mcp=mcp, on_start=on_start)
+        run_editor!(backend, composed, screen; mcp=mcp, feeds=feeds, on_start=on_start)
     end
 end
 
