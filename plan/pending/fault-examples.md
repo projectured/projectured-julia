@@ -76,9 +76,32 @@ Two categories do not fit the `Example` shape and get runner functions:
 - The suites: kernel at baseline, `test_fault()`, the export and
   documentation guards.
 
+## 3a. The feed examples (added at the user's direction)
+
+One runnable example per feed, beside the fault set, in the example
+umbrella. The gallery's `run_example` gains a `feeds` keyword for them:
+
+    run_message_log_feed_example()      # lines arrive from another task, once a second
+    run_frame_statistics_feed_example() # the loop's own numbers, live while watched
+
+The inbox feed needs no example of its own — every `post_operation!` driver
+demonstrates it — and the fault store's wake shows in `fault_print_example`.
+
 ## 4. The phases
 
-1. ⬜ Fix the gallery altitude; verify under SDL.
-2. ⬜ The demo domain and the four projection-category examples.
-3. ⬜ The two runner functions.
-4. ⬜ Tests and registration; the plan records what each example shows.
+1. ✅ (2026-09-20) Fix the gallery altitude; verified under SDL —
+   `run_example(json_example)` paints, holds zero faults, quits cleanly.
+2. ✅ (2026-09-20) The demo domain and the four projection-category
+   examples. Verified: `:print` live under SDL (one record, the reference
+   names `.windows[1].content.entries[2].value`); `:read`, `:evaluate` and
+   `:map` through the pipeline with a store attached.
+3. ✅ (2026-09-20) The two runners. Verified live: the device breaker
+   degrades `:device_write` and the editor still quits; the tool fault
+   lands through the agent loop's barrier — the script needs **two**
+   rounds, because the loop reads the tool result back before it ends.
+4. ✅ (2026-09-20) The feed examples of section 3a, verified live under
+   SDL. The fault constants stay out of the sweep registry on purpose:
+   they throw by design. The probes double as the record of expected
+   behaviour; suite-level tests were not added — the categories the suites
+   can drive are already covered by `ProjecturedFaultTest`, and what these
+   examples add is the visible surface.
