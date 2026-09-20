@@ -209,6 +209,14 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
     # recorder at the root fills it.
     log_document = gesture_log ? GestureLog(; capacity = gesture_log_capacity) : nothing
 
+    # One fault log for the whole screen, on the same shape: the editor's
+    # store fills it (attached in `on_start` below), and every window's panel
+    # shows it. The panel and its barrier wrap each window's content, where
+    # the output is a `GraphicsCanvas` the panel can compose over — the
+    # multi-window projection above produces a `ScreenDocument`, which is no
+    # altitude for either.
+    fault_log = fault_tolerant ? FaultLog() : nothing
+
     # Apply the flags to each (document, projection) pair.
     docs  = Any[]
     projs = Any[]
@@ -281,6 +289,12 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
         if gesture_log
             projection = GestureLogOverlayProjection(inner = projection, log = log_document)
         end
+        # The fault barrier and its panel wrap everything, so a fault in any
+        # wrapper above still shows. The panel draws no pixel while the log
+        # is empty, which is why this one is on by default.
+        if fault_tolerant
+            projection, _ = make_fault_tolerant_projection(projection; log = fault_log)
+        end
         push!(docs, document)
         push!(projs, projection)
     end
@@ -317,18 +331,10 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
             log    = log_document,
             filter = something(gesture_log_filter, default_gesture_log_filter))
     end
-    # The last wrapper, and the one that costs nothing until something fails: a
-    # barrier around the whole composed pipeline and the panel that reports what
-    # it caught. The panel draws no pixel while the log is empty, so this is on
-    # by default where every other wrapper here is a flag.
+    # The editor's own fault store — what the frame barriers catch — reports
+    # into the same log the per-window panels show, so one panel carries
+    # every tier.
     if fault_tolerant
-        fault_log = FaultLog()
-        inner_compose = compose
-        compose = function (p, b)
-            projection, _ = make_fault_tolerant_projection(inner_compose(p, b);
-                                                           log = fault_log)
-            projection
-        end
         previous_on_start = on_start
         on_start = function (editor)
             attach_fault_target!(editor.faults, fault_log)
