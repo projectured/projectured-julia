@@ -59,7 +59,7 @@ function GraphicsText(text::AbstractString, x::Integer, y::Integer,
 end
 
 """
-    GraphicsRect(x, y, w, h, r, g, b, a, radius=0;
+    GraphicsRect(x, y, w, h, color=color_white, radius=0;
                  radius_tl=radius, radius_tr=radius,
                  radius_br=radius, radius_bl=radius,
                  border_width=0, border_color=nothing)
@@ -71,7 +71,7 @@ behind a selected row, a caret, a rule, a border drawn as four thin boxes.
 
 # Example
 
-    GraphicsRect(Int32(0), Int32(0), Int32(120), Int32(24), 0.9, 0.9, 0.9, 1.0, 4)
+    GraphicsRect(Int32(0), Int32(0), Int32(120), Int32(24), StyleColor(0.9, 0.9, 0.9, 1.0), 4)
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsText`.
 
@@ -587,7 +587,7 @@ end
 """
     hit_element_at(canvas::GraphicsCanvas, x::Int, y::Int) -> Int or nothing
 
-Returns the 1-based index of the first element in `canvas` whose bounding area
+Returns the 0-based offset of the first element in `canvas` whose bounding area
 contains `(x, y)`, or `nothing` if no element matches.
 Supports `GraphicsViewport` (rectangle bounds), `GraphicsRect` (rectangle
 bounds), and `GraphicsText` (vertical font-size band).
