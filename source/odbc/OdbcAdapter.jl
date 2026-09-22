@@ -148,6 +148,11 @@ end
 
 # ── OdbcDatabaseAdapter — catalog queries ────────────────────────────────────
 
+# A name as a SQL string literal: the name between two quotes, with each quote of
+# it written twice. Every catalog query writes a name this way, so a name with a
+# quote in it stays one literal.
+_quote_sql_string(value::AbstractString) = "'" * replace(value, "'" => "''") * "'"
+
 # The text of the query that lists every database of the server, except the
 # templates. `information_schema` shows a connection its own database only, so
 # the list comes from `pg_database`.
@@ -160,9 +165,22 @@ _make_catalog_databases_query() =
 # an empty list.
 _make_catalog_schemas_query(database::String) =
     "SELECT schema_name FROM information_schema.schemata " *
-    "WHERE catalog_name = '$(database)' " *
+    "WHERE catalog_name = $(_quote_sql_string(database)) " *
     "AND schema_name NOT LIKE 'pg_%' AND schema_name <> 'information_schema' " *
     "ORDER BY schema_name"
+
+# The text of the query that lists the base tables of `schema`.
+_make_catalog_tables_query(schema::String) =
+    "SELECT table_name FROM information_schema.tables " *
+    "WHERE table_schema = $(_quote_sql_string(schema)) AND table_type = 'BASE TABLE' " *
+    "ORDER BY table_name"
+
+# The text of the query that lists the columns of `table` in `schema`, in the
+# order that the table holds them.
+_make_catalog_columns_query(schema::String, table::String) =
+    "SELECT column_name, data_type FROM information_schema.columns " *
+    "WHERE table_schema = $(_quote_sql_string(schema)) " *
+    "AND table_name = $(_quote_sql_string(table)) ORDER BY ordinal_position"
 
 function get_db_catalog_databases(adapter::OdbcDatabaseAdapter)::Vector{String}
     if adapter._conn === nothing || !is_db_alive(adapter)
@@ -186,10 +204,7 @@ function get_db_catalog_tables(adapter::OdbcDatabaseAdapter, schema::String)::Ve
     if adapter._conn === nothing || !is_db_alive(adapter)
         connect_db!(adapter)
     end
-    cursor = DBInterface.execute(adapter._conn,
-        "SELECT table_name FROM information_schema.tables " *
-        "WHERE table_schema = '$(schema)' AND table_type = 'BASE TABLE' " *
-        "ORDER BY table_name")
+    cursor = DBInterface.execute(adapter._conn, _make_catalog_tables_query(schema))
     _, rows = _materialize(cursor)
     String[String(row[1]) for row in rows]
 end
@@ -199,9 +214,7 @@ function get_db_catalog_columns(adapter::OdbcDatabaseAdapter,
     if adapter._conn === nothing || !is_db_alive(adapter)
         connect_db!(adapter)
     end
-    cursor = DBInterface.execute(adapter._conn,
-        "SELECT column_name, data_type FROM information_schema.columns " *
-        "WHERE table_schema = '$(schema)' AND table_name = '$(table)' ORDER BY ordinal_position")
+    cursor = DBInterface.execute(adapter._conn, _make_catalog_columns_query(schema, table))
     _, rows = _materialize(cursor)
     [(name=String(row[1]), data_type=String(row[2])) for row in rows]
 end
@@ -217,25 +230,27 @@ end
 # regardless of ownership. `unnest(... WITH ORDINALITY)` pairs each
 # `conkey[i]` (referencing column) with the matching `confkey[i]` (referenced
 # column), yielding one row per FK column — multi-column FKs span multiple rows.
+_make_catalog_foreign_keys_query(schema::String) =
+    "SELECT rel.relname  AS from_table, " *
+    "       att.attname  AS from_column, " *
+    "       frel.relname AS to_table, " *
+    "       fatt.attname AS to_column " *
+    "FROM pg_constraint con " *
+    "JOIN pg_class rel  ON rel.oid  = con.conrelid " *
+    "JOIN pg_class frel ON frel.oid = con.confrelid " *
+    "JOIN pg_namespace ns ON ns.oid = con.connamespace " *
+    "JOIN unnest(con.conkey)  WITH ORDINALITY AS ck(attnum, ord)  ON true " *
+    "JOIN unnest(con.confkey) WITH ORDINALITY AS fk(attnum, ord2) ON ck.ord = fk.ord2 " *
+    "JOIN pg_attribute att  ON att.attrelid  = con.conrelid  AND att.attnum  = ck.attnum " *
+    "JOIN pg_attribute fatt ON fatt.attrelid = con.confrelid AND fatt.attnum = fk.attnum " *
+    "WHERE con.contype = 'f' AND ns.nspname = $(_quote_sql_string(schema)) " *
+    "ORDER BY from_table, from_column"
+
 function get_db_catalog_foreign_keys(adapter::OdbcDatabaseAdapter, schema::String)
     if adapter._conn === nothing || !is_db_alive(adapter)
         connect_db!(adapter)
     end
-    cursor = DBInterface.execute(adapter._conn,
-        "SELECT rel.relname  AS from_table, " *
-        "       att.attname  AS from_column, " *
-        "       frel.relname AS to_table, " *
-        "       fatt.attname AS to_column " *
-        "FROM pg_constraint con " *
-        "JOIN pg_class rel  ON rel.oid  = con.conrelid " *
-        "JOIN pg_class frel ON frel.oid = con.confrelid " *
-        "JOIN pg_namespace ns ON ns.oid = con.connamespace " *
-        "JOIN unnest(con.conkey)  WITH ORDINALITY AS ck(attnum, ord)  ON true " *
-        "JOIN unnest(con.confkey) WITH ORDINALITY AS fk(attnum, ord2) ON ck.ord = fk.ord2 " *
-        "JOIN pg_attribute att  ON att.attrelid  = con.conrelid  AND att.attnum  = ck.attnum " *
-        "JOIN pg_attribute fatt ON fatt.attrelid = con.confrelid AND fatt.attnum = fk.attnum " *
-        "WHERE con.contype = 'f' AND ns.nspname = '$(schema)' " *
-        "ORDER BY from_table, from_column")
+    cursor = DBInterface.execute(adapter._conn, _make_catalog_foreign_keys_query(schema))
     _, rows = _materialize(cursor)
     [(from_table=String(row[1]), from_column=String(row[2]),
       to_table=String(row[3]), to_column=String(row[4])) for row in rows]

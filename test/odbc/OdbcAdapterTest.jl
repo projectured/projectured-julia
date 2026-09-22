@@ -6,8 +6,9 @@
 
 The catalog queries of the ODBC adapter name what their arguments ask for:
 the schemas of the database that the caller names, and every database of the
-server. A database of the catalog connects to that database, with the server
-and the credentials of the instance. Needs no database.
+server. A name goes into a query as a string literal, with each quote of it
+written twice. A database of the catalog connects to that database, with the
+server and the credentials of the instance. Needs no database.
 """
 function test_odbc_adapter()
     @testset "the catalog query of the schemas names the database" begin
@@ -21,6 +22,18 @@ function test_odbc_adapter()
         query = ProjecturedOdbc.OdbcModule._make_catalog_databases_query()
         @test occursin("pg_database", query)
         @test !occursin("information_schema.tables", query)
+    end
+
+    @testset "a name with a quote is one string literal in each catalog query" begin
+        odbc = ProjecturedOdbc.OdbcModule
+        @test occursin("catalog_name = 'it''s'", odbc._make_catalog_schemas_query("it's"))
+        @test occursin("table_schema = 'o''neil'", odbc._make_catalog_tables_query("o'neil"))
+        query = odbc._make_catalog_columns_query("o'neil", "it's")
+        @test occursin("table_schema = 'o''neil'", query)
+        @test occursin("table_name = 'it''s'", query)
+        @test occursin("ns.nspname = 'o''neil'", odbc._make_catalog_foreign_keys_query("o'neil"))
+        # The name of a schema with no quote is written as it is.
+        @test occursin("table_schema = 'public'", odbc._make_catalog_tables_query("public"))
     end
 
     @testset "a database of the catalog connects to that database, on the server of the instance" begin
