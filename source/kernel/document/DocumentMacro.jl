@@ -292,7 +292,22 @@ function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
     # The `_declared_value_types` method is added through the function object's
     # singleton type: a spliced object is not a valid method-definition *name*,
     # but `(::typeof(f))(…)` is.
-    dvt = :((::typeof($(_declared_value_types)))(::Type{<:$(plan.name)}) = ($(Tvals...),))
+    #
+    # The types it answers with mention the programmer's parameters when the
+    # schema has any, so the method takes them from the type it is asked about:
+    # `Type{<:Foo{A}} where {A}`. A caller that asks about the bare name — which
+    # is what a copy does — names no parameter, matches no method here, and gets
+    # the default `nothing`, so the copy reads the source's own field types
+    # instead. The types are not knowable without the parameters, and saying so
+    # is what the default means.
+    dvt = isempty(plan.params) ?
+        :((::typeof($(_declared_value_types)))(::Type{<:$(plan.name)}) = ($(Tvals...),)) :
+        Expr(:(=),
+             Expr(:where,
+                  :((::typeof($(_declared_value_types)))(
+                        ::Type{<:$(Expr(:curly, plan.name, plan.params...))})),
+                  plan.params...),
+             Expr(:tuple, Tvals...))
 
     # The cell layout and its spelling aliases are all generated API, so the macro
     # exports them itself. A module re-exporting any of these names explicitly (e.g.

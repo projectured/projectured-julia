@@ -195,6 +195,12 @@ end
     @test node.value == 3
     @test getfield(node, :value) isa ImmutableCell{Int}
     @test MCDmParametric{Int}(3, nothing) isa MCDmParametric{Int}
+    # The declared value types mention the parameter too, so that method takes
+    # it from the type. Asked about the bare name, which is what a copy does,
+    # it answers `nothing` and the copy reads the source's own field types.
+    types = DocumentModule._declared_value_types(DmParametric{Int})
+    @test types isa Tuple && first(types) === Int
+    @test DocumentModule._declared_value_types(DmParametric) === nothing
 end
 
 @testset "the layout registry answers for every variant" begin
