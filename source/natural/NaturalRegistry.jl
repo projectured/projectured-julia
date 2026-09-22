@@ -50,14 +50,19 @@ const _FALLBACK_FACTORIES = Pair{Symbol,Any}[]
 Teach the natural renderer how a domain becomes syntax, as ready-made rows. Call
 it from the registering module's `__init__` — the table is runtime state, not
 something to bake into a precompiled image. A type registered twice keeps the
-first row.
+first row. [`get_natural_syntax_entries`](@ref) gives these rows before the rows
+of the syntax factories and of the rung table, so a row here overrides another
+row of its type. The rows serve the renderer only: the notation that
+[`make_natural_projection`](@ref) reads is [`register_natural_notation!`](@ref).
 
 Without this a document from a package the renderer cannot see falls through to
 the reflection tail and renders as its field names instead of as itself.
 """
 function register_natural_syntax!(pairs::Pair...)
     for pr in pairs
-        register_natural_notation!(first(pr)::Type, :syntax, () -> last(pr))
+        document_type = first(pr)::Type
+        any(e -> first(e) === document_type, _SYNTAX_PAIRS) && continue
+        push!(_SYNTAX_PAIRS, Pair{Type,Any}(document_type, last(pr)))
     end
     nothing
 end
@@ -114,7 +119,7 @@ end
     get_natural_syntax_entries() -> Vector{Pair{Type,Any}}
 
 Every registered to-syntax row: the ready-made ones first, then what the
-factories build now.
+factories build now, then the `:syntax` rows of the rung table.
 """
 function get_natural_syntax_entries()
     out = Pair{Type,Any}[e for e in _SYNTAX_PAIRS]

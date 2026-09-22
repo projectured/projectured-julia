@@ -114,13 +114,23 @@ end
 
 # ── Reading the tables ──────────────────────────────────────────────────────
 
-# The rows a type declared, most-derived match first: a registration on an
-# abstract root answers for every document under it.
-function _notations(T::Type)
-    for entry in _NOTATIONS
-        T <: first(entry) && return last(entry)
+# The entry of a type-keyed table whose type is the most derived one that `T` is
+# a subtype of, whatever the order of the registrations, or `nothing`. A
+# registration on an abstract root answers for every document under it, and a
+# registration on a subtype answers for that subtype.
+function _find_most_derived_entry(table, T::Type)
+    found = nothing
+    for entry in table
+        T <: first(entry) || continue
+        (found === nothing || first(entry) <: first(found)) && (found = entry)
     end
-    Tuple{Symbol,Any}[]
+    found
+end
+
+# The rows that the most derived registered type declared.
+function _notations(T::Type)
+    entry = _find_most_derived_entry(_NOTATIONS, T)
+    entry === nothing ? Tuple{Symbol,Any}[] : last(entry)
 end
 
 _notation(T::Type, rung::Symbol) =
@@ -157,10 +167,8 @@ The format key a type's documents are written in — `JsonDocument` → `:json`.
 insertion a person is typing into — has no instance to ask for.
 """
 function get_natural_format(T::Type)
-    for entry in _FORMATS
-        T <: first(entry) && return first(last(entry))
-    end
-    nothing
+    entry = _find_most_derived_entry(_FORMATS, T)
+    entry === nothing ? nothing : first(last(entry))
 end
 
 """
@@ -170,10 +178,8 @@ The file extension `document` is written as, `".json"`. `nothing` for a document
 no domain claimed.
 """
 function get_natural_extension(document)
-    for entry in _FORMATS
-        typeof(document) <: first(entry) && return last(last(entry))
-    end
-    nothing
+    entry = _find_most_derived_entry(_FORMATS, typeof(document))
+    entry === nothing ? nothing : last(last(entry))
 end
 
 """

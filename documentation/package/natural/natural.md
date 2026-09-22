@@ -47,7 +47,7 @@ end
 | parsers | a format | `register_natural_parser!(format, parse)` | `parse_natural_text`, `has_natural_parser`, `find_natural_parser` |
 | ladder | a pair of rungs | `register_natural_rung!(from, to, make)` | `make_natural_projection` |
 
-The parser is keyed by the format and not by a type, so a package can register a grammar without the projection that prints it. YAML uses this to read `.yml` with `register_natural_parser!(:yml, parse_yaml)`. The `make` of a `:graphics` notation takes `(; measure)`, the text measure of the backend, and the `make` of another notation takes no argument. The `make` of a ladder step always takes `(; measure)`. A row that is registered twice keeps the first, so a reload adds no copy.
+The parser is keyed by the format and not by a type, so a package can register a grammar without the projection that prints it. YAML uses this to read `.yml` with `register_natural_parser!(:yml, parse_yaml)`. The `make` of a `:graphics` notation takes `(; measure)`, the text measure of the backend, and the `make` of another notation takes no argument. The `make` of a ladder step always takes `(; measure)`. A row that is registered twice keeps the first, so a reload adds no copy. A lookup of a notation or a format takes the most derived registered type that the document is a subtype of, whatever the order of the registrations: a row on an abstract root answers for every document under it, and a row on a subtype answers for that subtype.
 
 `make_natural_projection(document, target)` builds the chain from the document up to `:syntax`, `:text`, `:graphics` or `:string`. It takes the highest rung that the document declares and for which the ladder has every step, and it considers `:graphics` only for a graphics target. The result is a `ChainingProjection` of `RecursiveProjection` stages, or `nothing` when no path exists. `print_natural_text(document)` is `make_natural_projection(document, :string)`, one print and a `String`.
 
@@ -55,15 +55,16 @@ The parser is keyed by the format and not by a type, so a package can register a
 
 `NaturalToGraphics(; measure, font, wrap, extra)` returns a `RecursiveProjection` over one `TypeDispatchingProjection` that draws almost any document to a `GraphicsCanvas`. The first row whose type matches the document wins, and each child of a matched row enters the same dispatcher again. So a JSON value inside a page and a widget inside a diagram each draw in their own domain. The dispatcher adds no printer, reader or reference map of its own; see `plan/done/natural-projection.md`.
 
-Three keyed factory lists fill the table. The key is a `Symbol` that names the domain and makes a second call do nothing. A factory runs on each table build, so each renderer gets its own projection instances.
+A list of ready-made rows and three keyed factory lists fill the table. The key of a factory is a `Symbol` that names the domain and makes a second call do nothing. A factory runs on each table build, so each renderer gets its own projection instances.
 
 | List | Filled by | Read by |
 | --- | --- | --- |
+| ready-made syntax rows | `register_natural_syntax!(pairs...)` | `get_natural_syntax_entries()` |
 | syntax factories | `register_natural_syntax!(key, () -> rows)` | `get_natural_syntax_entries()` |
 | graphics factories | `register_natural_graphics!(key, (; measure) -> rows)` | `get_natural_graphics_entries(; measure)` |
 | fallback factories | `register_natural_fallback!(key, (; measure, font, wrap) -> rows)` | `get_natural_fallback_entries(; …)` |
 
-**The renderer table takes the rows of the rung table.** `get_natural_syntax_entries()` returns the rows of the syntax factories, then every `:syntax` row of the rung table. `get_natural_graphics_entries` does the same with the `:graphics` rows. So one `register_natural_domain!` call is enough for a file, for text export and for a tab. The factory rows come first, so a factory row wins over a rung row of the same type. Markdown and RST use this: their syntax factory gives the rendered style to a tab, and their rung row gives the source form to a file. The form `register_natural_syntax!(pairs...)` writes each pair into the rung table as a `:syntax` row.
+**The renderer table takes the rows of the rung table.** `get_natural_syntax_entries()` returns the ready-made rows, then the rows of the syntax factories, then every `:syntax` row of the rung table. `get_natural_graphics_entries` does the same with the `:graphics` rows. So one `register_natural_domain!` call is enough for a file, for text export and for a tab. The factory rows come first, so a factory row wins over a rung row of the same type. Markdown and RST use this: their syntax factory gives the rendered style to a tab, and their rung row gives the source form to a file. The form `register_natural_syntax!(pairs...)` adds ready-made rows, which come first, so a ready-made row wins over every other row of its type. A ready-made row serves the renderer only, and gives the type no notation in the rung table.
 
 `NaturalToGraphics` puts the rows in this order:
 
@@ -114,10 +115,9 @@ renderer = NaturalToGraphics(measure = measure_truetype_text)
 ```
 
 - Example: `natural_example` draws a `CellVector` of a JSON, a math, a Julia, a text and an XML document with `NaturalToGraphics` alone.
-- Tests: no `test/natural/` folder exists. `test_natural_renders_every_atom()` checks that every atomic example draws through `NaturalToGraphics`, and `test_natural_round_trips_every_atom()` checks that every atom with a format prints and parses back. Both are in `test/projectured/projection/CatalogCoverageTest.jl`.
+- Tests: no `test/natural/` folder exists. `test_natural_renders_every_atom()` checks that every atomic example draws through `NaturalToGraphics`, and `test_natural_round_trips_every_atom()` checks that every atom with a format prints and parses back. Both are in `test/projectured/projection/CatalogCoverageTest.jl`. `test_natural_notation()` checks that the most derived registered type gives the notation and the format, and `test_natural_registry()` checks the order of the ready-made rows; both are in `test/projectured/projection/`.
 
 ## Limits
 
-- The lookup of a notation takes the first registered type that the document is a subtype of, not the most derived one. A row on a subtype that is registered after a row on its root has no effect, although the comment above `_notations` says "most-derived match first".
 - `NaturalToGraphics` takes the `:syntax` and `:graphics` rows of the rung table, but not the `:text` rows. `TextDocument` has a row of its own in the renderer, so no document loses its view today.
 - A document that reaches the reflection tail shows its fields. It does not get the view of its domain.

@@ -182,6 +182,8 @@ include("editor/RecursionContractTest.jl")
 include("editor/MouseClickTest.jl")
 include("projection/CatalogTest.jl")
 include("projection/CatalogCoverageTest.jl")
+include("projection/NaturalNotationTest.jl")
+include("projection/NaturalRegistryTest.jl")
 
 """
     test_documents()
@@ -374,6 +376,8 @@ function test_all()
     test_catalog_coverage()
     test_natural_renders_every_atom()
     test_natural_round_trips_every_atom()
+    test_natural_notation()
+    test_natural_registry()
     test_printers()
     test_readers()
     test_position_navigations()
@@ -456,7 +460,8 @@ export test_reader, test_readers, walk_reader_events
 export test_repl, test_repls, walk_repl_loop
 export test_catalog, test_catalog_typeins
 export test_catalog_coverage, get_catalog_coverage_gap
-export test_natural_renders_every_atom, test_natural_round_trips_every_atom
+export test_natural_renders_every_atom, test_natural_round_trips_every_atom,
+       test_natural_notation, test_natural_registry
 export test_typein, test_typeins, walk_typein
 export test_julia_typein
 export test_mouse_click_roundtrip, test_mouse_clicks
