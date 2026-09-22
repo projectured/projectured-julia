@@ -125,14 +125,29 @@ nothing.
 
 ### Step 0 — baselines
 
-- [ ] `test_shell()`, `test_application()`, `test_substrate()` (known: 3 fail,
-      2 error, 1 broken, in the split-pane drag cases).
-- [ ] omnet-julia: `test_ide_window_wrap()` 25, `test_ide_file_navigator()` 8,
+**Done, 2026-09-22**, in the worktree `workspace/projectured-julia-pointer` on
+branch `pointer`, cut from `main` at `8c934f40`.
+
+- [x] `test_substrate()` **63337 pass, 3 fail, 2 error, 1 broken**: the five are
+      the split-pane drag cases known on `main`. `test_shell()` **157**.
+      `test_kernel()` **2017 pass, 3 fail, 3 error**: the Rule C cases and one
+      reference case, known on `main`. `test_application()` **108**.
+- [x] omnet-julia, measured on `main` earlier the same day:
+      `test_ide_window_wrap()` 25, `test_ide_file_navigator()` 8,
       `test_select_and_paste()` 72 pass, 7 fail, 3 error (known, §4 of
       `the-shell-fills-its-window.md`).
-- [ ] Record, through the application's window history, which pointer gestures
-      add an undo step today: a hover, a press on a button, a tab drag's zone
-      move and a divider resize. Step 5 turns the first three into none.
+- [x] What pointer gestures add to the application window's history today, with
+      the tooltip off: **four moves over tree rows add four undo steps**, one per
+      hover, and **a divider drag of three moves adds five**, the grab, each move
+      and the release.
+
+**What Step 0 adds to the plan.** Two more writes hold pointer state and are
+marked in Step 5 with the others: `dragging`, which splitter a divider drag
+holds, and the tab strip's own drag flag. After Step 5 a divider drag still adds
+a step for the grab, which clears the measured `sizes`, and one for each move.
+**A drag that becomes one step is not in this plan**; the owner has the count.
+Scroll positions (`scroll_position`, `tab_scroll`, `follow_end`) are view state
+too, but no gesture of this plan writes them.
 
 ### Step 1 — the shell routes and captures the pointer
 
