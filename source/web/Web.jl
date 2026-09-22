@@ -690,9 +690,11 @@ function _enqueue!(backend::WebBackend, conn::WebConnection, msg::String, snapsh
     return
 end
 
-# Force the next frame to send every window in full (on connect / resync / queue
-# overflow). Clearing per-window state drops stale incremental bookkeeping. The
-# wake ends a wait of the editor, so that the frame comes without an input.
+# Force the next frame to send every window in full (on connect / resync).
+# Clearing per-window state drops stale incremental bookkeeping. The wake ends
+# a wait of the editor, so that the frame comes without an input. Queue
+# overflow (`_enqueue!`) sets `force_full` and wakes the backend directly,
+# without clearing this per-window state.
 function _reset_for_full!(backend::WebBackend)
     empty!(backend.windows)
     backend.last_ids = Symbol[]

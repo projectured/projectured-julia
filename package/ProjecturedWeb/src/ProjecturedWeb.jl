@@ -2,22 +2,18 @@
     Web
 
 Opt-in package: the HTTP/WebSocket web backend (browser-rendered editor). Depends
-on `ProjecturedDomain` + HTTP/JSON3; `using ProjecturedWeb` exports `WebBackend`
-(construct it directly). SDL-free — reuses the pure-Julia TrueType text metrics.
-Relocated from the former program/src/backend/Web.jl (ProjecturedWeb).
+on `ProjecturedCollection`, `ProjecturedGraphics`, `ProjecturedKernel`,
+`ProjecturedScreen`, `ProjecturedStyle` + HTTP/JSON3; `using ProjecturedWeb`
+exports `WebBackend` (construct it directly). SDL-free — reuses the pure-Julia
+TrueType text metrics.
 """
 module ProjecturedWeb
 
 using ProjecturedCollection
 using ProjecturedGraphics
-using ProjecturedCollection
-using ProjecturedGraphics
 using ProjecturedKernel
 using ProjecturedScreen
 using ProjecturedStyle
-using ProjecturedScreen
-using ProjecturedStyle
-
 
 using HTTP
 using JSON3
