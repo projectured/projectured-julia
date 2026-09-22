@@ -267,7 +267,8 @@ end
 Submit the composer's draft turn: finalize it (`finalize_draft!`), push it into
 the conversation history, reset the draft in place, and launch a streaming turn.
 This is what the panel emits when the composer's `ComposerSubmitOperation` fires
-(ENTER on a text typein).
+(ENTER on a text typein). While a turn streams it does nothing, and the draft
+keeps its text.
 """
 struct SubmitDraftTurnOperation <: Operation
     assistant::Assistant
@@ -275,6 +276,9 @@ end
 
 function evaluate_operation(editor, op::SubmitDraftTurnOperation)
     a = op.assistant
+    # A turn that streams owns the end of the conversation, so Return waits for
+    # it to end and the draft keeps its text.
+    a.status === :streaming && return nothing
     draft = a.draft
     finalize_draft!(draft) || return nothing          # nothing to submit
     push!(a.conversation.turns, ConversationTurn(:user, collect(draft.parts)))

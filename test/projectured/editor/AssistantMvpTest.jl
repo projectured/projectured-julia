@@ -231,6 +231,39 @@ function _mvp_test_backend_must_be_named()
     end
 end
 
+# ── Return while a turn streams ────────────────────────────────────────
+#
+# A turn streams on a task of its own. Return in that time submits nothing: the
+# draft keeps its text, and no second turn starts on the same conversation.
+
+# An editor with no loop, on the assistant, for an operation to be evaluated in.
+_mvp_editor(a::Assistant) =
+    Editor(HeadlessBackend(), a, make_assistant_projection_example(), Device[];
+           tools = register_default_tools!(ToolSet()))
+
+function _mvp_test_submit_while_streaming()
+    @testset "Return while a turn streams does nothing" begin
+        a = make_assistant_mvp_setup()
+        editor = _mvp_editor(a)
+        _mvp_type!(a, "Hello")
+        evaluate_operation(editor, SubmitDraftTurnOperation(a))
+        @test a.status === :streaming
+        # The task of the turn has not run yet, so the turn still streams.
+        _mvp_type!(a, "What?")
+        evaluate_operation(editor, SubmitDraftTurnOperation(a))
+        @test length(a.conversation.turns) == 1
+        @test _mvp_draft_text(a) == "What?"
+        @test _mvp_wait_idle!(a) === :idle
+        @test [t.role for t in a.conversation.turns] == [:user, :assistant]
+        @test _mvp_draft_text(a) == "What?"
+        # Once the turn ended, Return submits the draft.
+        evaluate_operation(editor, SubmitDraftTurnOperation(a))
+        @test _mvp_wait_idle!(a) === :idle
+        @test [t.role for t in a.conversation.turns] == [:user, :assistant, :user, :assistant]
+        @test _text_to_string(a.conversation.turns[3].parts[1].content) == "What?"
+    end
+end
+
 """
     test_assistant_mvp()
 
@@ -299,6 +332,7 @@ function test_assistant_mvp()
         _mvp_test_resource_collapse()
         _mvp_test_collapse_containment()
         _mvp_test_backend_must_be_named()
+        _mvp_test_submit_while_streaming()
     end
 end
 

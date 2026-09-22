@@ -25,7 +25,7 @@
 
 ### A turn
 
-Return in the composer makes `SubmitDraftTurnOperation(assistant)`. It finalizes the draft, pushes it as a user turn, resets the draft in place, puts the caret back in it, and starts the turn on an `@async` task with `status = :streaming`. The task runs `_run_agent_loop!`:
+Return in the composer makes `SubmitDraftTurnOperation(assistant)`. While a turn streams, it does nothing and the draft keeps its text. Otherwise it finalizes the draft, pushes it as a user turn, resets the draft in place, puts the caret back in it, and starts the turn on an `@async` task with `status = :streaming`. The task runs `_run_agent_loop!`:
 
 1. It builds the backend at this point: `llm` when it is set, else `make_llm(backend; api_key, model, context)`. The key is `api_key`, or the `ANTHROPIC_API_KEY` environment variable when `api_key` is empty. With `backend = :none` and no `llm`, it throws an error that lists `get_llm_backend_names()`.
 2. It calls `bind_meaning_model!(editor.tools, llm)`, so a search by description in this turn ranks by meaning when the backend has a meaning model.
@@ -100,7 +100,6 @@ run_assistant_example(; backend = :ollama)                   # the example with 
 ## Limits
 
 - **The turn task writes the document from outside the frame.** It pushes turns and parts and sets `status` on `editor.document` directly, and not through `post_operation!`, the inbox that orders such writes with the frame. A frame that runs between two writes can read a state that is half done. `plan/done/the-editor-survives-a-fault.md`, section 9, records this as open work. The MCP server has the same fault.
-- Nothing reads `status` before a submit, so Return while a turn streams starts a second turn on the same conversation.
 - No view draws `status`. A person sees a running turn only by the parts that arrive.
 - `input`, `SubmitProseOperation`, `SubmitJuliaOperation`, `ClearInputOperation` and `ResetConversationOperation` are exported, but no printer shows `input` and no reader makes these operations. Only the tests call two of them.
 - The natural row gives a pane tab a widget and not graphics. A host that shows an assistant in a tab chains `AssistantToWidgetSplitPane` to `NaturalToGraphics` with the rows of the conversation, as `make_application_content_projections` in `example/projectured/Application.jl` does.
