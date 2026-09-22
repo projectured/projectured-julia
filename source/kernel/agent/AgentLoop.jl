@@ -76,8 +76,9 @@ function run_turn!(agent::Agent, target; messages::Function, on_event::Function)
                 # it tools it can misuse. The fault is recorded as well, so a person
                 # reading the editor's log sees what the model ran into.
                 traceback = catch_backtrace()
-                record_fault!(get_fault_store(target), :tool, Symbol(call.name),
-                              nothing, e, traceback)
+                record_fault!(get_fault_store(target), :tool; origin = Symbol(call.name),
+                              exception = e,
+                              traceback)
                 sprint(showerror, e, traceback)
             end
             on_event(AgentToolResult(call, output, _is_error_output(output)))

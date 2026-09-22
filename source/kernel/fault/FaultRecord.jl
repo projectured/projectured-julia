@@ -21,7 +21,7 @@ concrete document, and a record is what a document above it shows.
 
 # Example
 
-    record = make_fault_record(:print, JsonToSyntax, reference, exception, traceback)
+    record = make_fault_record(:print; origin = JsonToSyntax, reference, exception, traceback)
 
 See also [`record_fault!`](@ref), which is what a barrier calls.
 """
@@ -102,7 +102,8 @@ function format_fault_traceback(exception, traceback; maximum_lines::Integer = 1
 end
 
 """
-    make_fault_record(site, origin, reference, exception, traceback = nothing) -> FaultRecord
+    make_fault_record(site; origin, reference = nothing, exception,
+                      traceback = nothing) -> FaultRecord
 
 One fault as a value, with its key computed and its message formatted.
 
@@ -111,12 +112,12 @@ One fault as a value, with its key computed and its message formatted.
 
 # Example
 
-    record = make_fault_record(:read, p.inner, nothing, exception, catch_backtrace())
+    record = make_fault_record(:read; origin = p.inner, exception, traceback = catch_backtrace())
 
 See also [`record_fault!`](@ref), which makes one only when the key is new.
 """
-function make_fault_record(site::Symbol, origin, reference, exception,
-                           traceback = nothing)
+function make_fault_record(site::Symbol;
+                           origin, reference = nothing, exception, traceback = nothing)
     origin_name = get_fault_origin_name(origin)
     exception_name = get_fault_exception_name(exception)
     FaultRecord(compute_fault_key(site, origin_name, exception_name),

@@ -15,7 +15,7 @@
 # happens when a person can still be told and neither of those reaches one.
 
 """
-    report_fault!(store, policy, backend, record) -> Symbol
+    report_fault!(store, record; policy, backend) -> Symbol
 
 Report `record` at the first tier that works, and answer the tier it reached:
 `:console`, `:sound` or `:swallowed`.
@@ -35,11 +35,12 @@ has nothing else to notice.
 
 # Example
 
-    report_fault!(editor.faults, editor.fault_policy, editor.backend, record)
+    report_fault!(editor.faults, record; policy = editor.fault_policy,
+                  backend = editor.backend)
 
 See also [`run_fault_barrier`](@ref), which is what calls it.
 """
-function report_fault!(store, policy::FaultPolicy, backend, record)
+function report_fault!(store, record; policy::FaultPolicy, backend)
     try
         record === nothing && return :swallowed
         depth = _enter_fault_report!(store)
@@ -61,7 +62,7 @@ function report_fault!(store, policy::FaultPolicy, backend, record)
     end
 end
 
-report_fault!(store, policy::FaultPolicy, backend, ::Nothing) = :swallowed
+report_fault!(store, ::Nothing; policy::FaultPolicy, backend) = :swallowed
 
 _enter_fault_report!(store::FaultStore) = (store.depth += 1; store.depth)
 _enter_fault_report!(::Nothing) = 1

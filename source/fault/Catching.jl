@@ -123,9 +123,9 @@ end
 # either way. The traceback is handed over raw: the store formats one for a key
 # it has not seen, and a repeat needs none.
 function _take_fault(store, origin, reference, exception, traceback)
-    record = record_fault!(store, :print, origin, reference, exception, traceback)
+    record = record_fault!(store, :print; origin, reference, exception, traceback)
     record === nothing || return record
-    make_fault_record(:print, origin, reference, exception, traceback)
+    make_fault_record(:print; origin, reference, exception, traceback)
 end
 
 # **This is called from outside the `try` above, deliberately.** A substitute
@@ -152,7 +152,8 @@ function read_intent(p::FaultCatchingProjection, recursion, change::Intent,
     try
         read_intent(p.inner, recursion, change, inner_iomap)
     catch exception
-        record_fault!(iomap.store, :read, p.inner, nothing, exception, catch_backtrace())
+        record_fault!(iomap.store, :read; origin = p.inner, exception,
+                      traceback = catch_backtrace())
         Intent(change.gesture, nothing)
     end
 end
@@ -171,7 +172,8 @@ function map_reference_forward(p::FaultCatchingProjection,
     try
         map_reference_forward(p.inner, iomap.inner_iomap, reference)
     catch exception
-        record_fault!(iomap.store, :map, p.inner, reference, exception, catch_backtrace())
+        record_fault!(iomap.store, :map; origin = p.inner, reference, exception,
+                      traceback = catch_backtrace())
         nothing
     end
 end
@@ -182,7 +184,8 @@ function map_reference_backward(p::FaultCatchingProjection,
     try
         map_reference_backward(p.inner, iomap.inner_iomap, reference)
     catch exception
-        record_fault!(iomap.store, :map, p.inner, reference, exception, catch_backtrace())
+        record_fault!(iomap.store, :map; origin = p.inner, reference, exception,
+                      traceback = catch_backtrace())
         nothing
     end
 end

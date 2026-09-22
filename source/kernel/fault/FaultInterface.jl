@@ -56,7 +56,7 @@ The default is `nothing`. The editor layer answers it for `Editor`.
 
 # Example
 
-    record_fault!(get_fault_store(target), :tool, name, nothing, exception, traceback)
+    record_fault!(get_fault_store(target), :tool; origin = name, exception, traceback)
 
 See also [`get_fault_policy`](@ref).
 """
