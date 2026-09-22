@@ -1386,6 +1386,23 @@ does not name is `color_transparent`, and an inset that it does not name is
         `theme.selection` and `theme.hover_layer` rather than a table-local
         constant — do not show in these renders).
 
+- [x] Step 7, the layouts: the four layout projections that draw a ring around
+      a child selected as a whole — the horizontal, the vertical, the grid and
+      the flow layout — and the constraint and the anchored layout hold a
+      `selection_ring_stroke`, and `LayoutToGraphics` takes it as a keyword.
+      The layout slice has no theme, so the default is the ring of the graphics
+      slice, `StyleStroke(SELECTION_RING_COLOR, 2)`. The widget factory now
+      registers every layout, built with the selection of its theme, in place
+      of its single `GridLayout` entry, so the ring of a layout follows the
+      theme. A caller that composes `LayoutToGraphics()` of its own before the
+      widget factory keeps the default ring; every preset gives `selection`
+      that same color, so nothing changes until a theme says otherwise.
+      `ProjecturedLayout` gains `ProjecturedStyle` as a dependency, for
+      `StyleStroke`; the manifest of `environment/all` is resolved again. The
+      layering guard of the kernel reads an `import` list as "what this file
+      extends", so the layout module takes `using ..StyleModule`. Both suites
+      keep their baseline.
+
 ### 8.6 omnet-julia
 
 omnet-julia reaches projectured-julia through the main checkout, so it can not

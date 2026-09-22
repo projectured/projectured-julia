@@ -26,6 +26,7 @@ using ..OperationModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..StyleModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: has_document_duplicate

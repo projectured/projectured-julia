@@ -18,10 +18,27 @@
 
 # ── Projection structs ─────────────────────────────────────────────────────
 
-struct HorizontalLayoutToGraphicsCanvas <: Projection end
-struct VerticalLayoutToGraphicsCanvas   <: Projection end
-struct GridLayoutToGraphicsCanvas       <: Projection end
-struct FlowLayoutToGraphicsCanvas       <: Projection end
+# A layout that draws a ring around a child selected as a whole holds the stroke
+# of that ring. The layout slice has no theme, so the default is the ring of the
+# graphics slice; the widget factory builds the layouts with the selection of
+# its theme.
+
+@projection struct HorizontalLayoutToGraphicsCanvas
+    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+end
+
+@projection struct VerticalLayoutToGraphicsCanvas
+    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+end
+
+@projection struct GridLayoutToGraphicsCanvas
+    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+end
+
+@projection struct FlowLayoutToGraphicsCanvas
+    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+end
+
 struct StackLayoutToGraphicsCanvas      <: Projection end
 struct LayoutConstraintToGraphicsCanvas <: Projection end
 
@@ -36,10 +53,12 @@ for real LP-based constraint solving — same injection pattern as
 """
 struct ConstraintLayoutToGraphicsCanvas <: Projection
     solver::ConstraintSolver
+    selection_ring_stroke::StyleStroke
 end
 
-ConstraintLayoutToGraphicsCanvas(; solver::ConstraintSolver=FallbackConstraintSolver()) =
-    ConstraintLayoutToGraphicsCanvas(solver)
+ConstraintLayoutToGraphicsCanvas(; solver::ConstraintSolver=FallbackConstraintSolver(),
+                                 selection_ring_stroke::StyleStroke=StyleStroke(SELECTION_RING_COLOR, 2)) =
+    ConstraintLayoutToGraphicsCanvas(solver, selection_ring_stroke)
 
 # ── GridLayout iomap (geometry-bearing) ─────────────────────────────────────
 
@@ -151,15 +170,16 @@ function read_child_event(child_iomap, event)
 end
 
 """
-    make_layout_selection_ring(layout, entries) -> GraphicsRect
+    make_layout_selection_ring(layout, entries, stroke) -> GraphicsRect
 
 The ring over the child that `layout`'s selection names as a whole
 (`children[i]`). `entries()` answers the layout's routing entries, the
 `(x, y, child_iomap)` triples of its children in order. A child that takes the
 focus gets no ring, because it draws its own focus ring when it is selected.
 """
-make_layout_selection_ring(layout, entries::Function) =
-    make_selection_ring(() -> _find_whole_selected_child_box(layout, entries()))
+make_layout_selection_ring(layout, entries::Function, stroke::StyleStroke) =
+    make_selection_ring(() -> _find_whole_selected_child_box(layout, entries());
+                        color = stroke.color, width = stroke.width)
 
 function _find_whole_selected_child_box(layout, entries)
     i = find_whole_selected_index(layout.selection, "children")
@@ -772,7 +792,7 @@ end
 function print_document(p::HorizontalLayoutToGraphicsCanvas,
                           recursion, doc::HorizontalLayout, ctx)
     build = ComputedCell(() -> _hl_build(recursion, doc, ctx))
-    ring = make_layout_selection_ring(doc, () -> build[].entries)
+    ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            ComputedCell(() -> Int32(build[].w[])),
                            ComputedCell(() -> Int32(build[].h[])),
@@ -941,7 +961,7 @@ function print_document(p::VerticalLayoutToGraphicsCanvas,
     # entries are all derived reactively from it, so adding/removing a child
     # repaints without reprinting the projection (and without `iomap = nothing`).
     build = ComputedCell(() -> _vl_build(recursion, doc, ctx))
-    ring = make_layout_selection_ring(doc, () -> build[].entries)
+    ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            ComputedCell(() -> Int32(build[].w[])),
                            ComputedCell(() -> Int32(build[].h[])),
@@ -1263,7 +1283,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     for i in 1:n
         push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
     end
-    push!(outer.elements, make_layout_selection_ring(doc, () -> entries))
+    push!(outer.elements, make_layout_selection_ring(doc, () -> entries, p.selection_ring_stroke))
 
     row_count = row_count_cell
 
@@ -1446,7 +1466,7 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
         end
         (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
     end)
-    ring = make_layout_selection_ring(doc, () -> build[].entries)
+    ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            ComputedCell(() -> Int32(build[].w[])),
                            ComputedCell(() -> Int32(build[].h[])),
@@ -1794,7 +1814,7 @@ function print_document(p::ConstraintLayoutToGraphicsCanvas,
                           recursion, doc::ConstraintLayout, ctx)
     solver = p.solver
     build = ComputedCell(() -> _cl_build(solver, recursion, doc, ctx))
-    ring = make_layout_selection_ring(doc, () -> build[].entries)
+    ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            ComputedCell(() -> Int32(build[].w[])),
                            ComputedCell(() -> Int32(build[].h[])),
@@ -1829,7 +1849,9 @@ end
 Project an [`AnchoredLayout`](@ref): the content, with each anchored child
 composited over it beside its target.
 """
-struct AnchoredLayoutToGraphicsCanvas <: Projection end
+@projection struct AnchoredLayoutToGraphicsCanvas
+    selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2)
+end
 
 # Where a target sits, as `(x, y, w, h)` in the content's own coordinates.
 #
@@ -1938,7 +1960,7 @@ end
 function print_document(p::AnchoredLayoutToGraphicsCanvas, recursion,
                         doc::AnchoredLayout, ctx)
     build = ComputedCell(() -> _al_build(recursion, doc, ctx))
-    ring = make_layout_selection_ring(doc, () -> build[].entries)
+    ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            ComputedCell(() -> Int32(build[].w[])),
                            ComputedCell(() -> Int32(build[].h[])),
@@ -1963,21 +1985,23 @@ read_intent(::AnchoredLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt) =
 # ── Factory ────────────────────────────────────────────────────────────────
 
 """
-    LayoutToGraphics()
+    LayoutToGraphics(; selection_ring_stroke = StyleStroke(SELECTION_RING_COLOR, 2))
 
 A type-dispatching projection that routes any layout document to its
-`…ToGraphicsCanvas` projection. Wrap in a `RecursiveProjection` (or
+`…ToGraphicsCanvas` projection. `selection_ring_stroke` is the ring around a
+child selected as a whole; the widget factory passes the selection of its
+theme. Wrap in a `RecursiveProjection` (or
 include in a larger dispatcher) so children re-enter the recursion.
 """
-function LayoutToGraphics()
+function LayoutToGraphics(; selection_ring_stroke::StyleStroke = StyleStroke(SELECTION_RING_COLOR, 2))
     TypeDispatchingProjection(
-        HorizontalLayout => HorizontalLayoutToGraphicsCanvas(),
-        VerticalLayout   => VerticalLayoutToGraphicsCanvas(),
-        GridLayout       => GridLayoutToGraphicsCanvas(),
-        FlowLayout       => FlowLayoutToGraphicsCanvas(),
+        HorizontalLayout => HorizontalLayoutToGraphicsCanvas(; selection_ring_stroke),
+        VerticalLayout   => VerticalLayoutToGraphicsCanvas(; selection_ring_stroke),
+        GridLayout       => GridLayoutToGraphicsCanvas(; selection_ring_stroke),
+        FlowLayout       => FlowLayoutToGraphicsCanvas(; selection_ring_stroke),
         StackLayout      => StackLayoutToGraphicsCanvas(),
         LayoutConstraint => LayoutConstraintToGraphicsCanvas(),
-        ConstraintLayout => ConstraintLayoutToGraphicsCanvas(),
-        AnchoredLayout   => AnchoredLayoutToGraphicsCanvas(),
+        ConstraintLayout => ConstraintLayoutToGraphicsCanvas(; selection_ring_stroke),
+        AnchoredLayout   => AnchoredLayoutToGraphicsCanvas(; selection_ring_stroke),
     )
 end

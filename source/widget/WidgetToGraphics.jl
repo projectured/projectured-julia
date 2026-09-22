@@ -8620,7 +8620,7 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
     # Wrapped measure for the `@projection`-based widget projections, which store
     # their fields in Cells (a bare Function would be read as a thunk).
     measurer = TextMeasurer(measure)
-    TypeDispatchingProjection(
+    widgets = TypeDispatchingProjection(
         WidgetInsertion  => WidgetInsertionToGraphicsCanvas(theme; measure = measurer),
         WidgetLabel      => WidgetLabelToGraphicsCanvas(theme; measure = measurer),
         WidgetText       => WidgetTextToGraphicsCanvas(theme; measure = measurer),
@@ -8633,10 +8633,6 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(theme; measure = measurer),
         WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(theme; measure = measurer),
         WidgetComposite  => WidgetCompositeToGraphicsCanvas(theme),
-        # Widgets embed layouts (a composite/table holds a GridLayout); register
-        # it so the recursion can render an embedded grid without an outer
-        # layout dispatcher.
-        GridLayout       => GridLayoutToGraphicsCanvas(),
         WidgetShell      => WidgetShellToGraphicsCanvas(theme; measure = measurer),
         WidgetTitlePane  => WidgetTitlePaneToGraphicsCanvas(theme; measure = measurer),
         WidgetSplitPane  => WidgetSplitPaneToGraphicsCanvas(theme),
@@ -8668,4 +8664,10 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetTable       => WidgetTableToGraphicsCanvas(theme),
         WidgetTree        => WidgetTreeToGraphicsCanvas(theme; measure = measurer),
     )
+    # Widgets embed layouts (a composite or a table holds a GridLayout), so the
+    # recursion renders an embedded layout without an outer layout dispatcher.
+    # A layout draws the ring around a child selected as a whole, and it takes
+    # the selection of this theme.
+    TypeDispatchingProjection(vcat(widgets.dispatch,
+        LayoutToGraphics(; selection_ring_stroke = StyleStroke(theme.selection, 2)).dispatch))
 end
