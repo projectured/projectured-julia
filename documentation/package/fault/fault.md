@@ -93,7 +93,7 @@ A substitute prints the report as a document of the right domain: a red `SyntaxL
 
 ### Why the key holds no reference
 
-A chain limits how far a fault spreads downward. Nothing limits how far it spreads sideways: one bug in one projection fails at every leaf of one kind, which in a large document is thousands of nodes. So `compute_fault_key` holds the site, the origin and the exception type, and not the reference or the message. Three thousand failures become one record with `count = 3000`, and one place kept as an example. The document still shows one mark for each node, because each mark is a value in the cell of its node. The drain gives a record to the log once for each power of ten of its count. So a fault that repeats on every frame does not write the log on every frame.
+A chain limits how far a fault spreads downward. Nothing limits how far it spreads sideways: one bug in one projection fails at every leaf of one kind, which in a large document is thousands of nodes. So `compute_fault_key` holds the site, the origin and the exception type, and not the reference or the message. Three thousand failures become one record with `count = 3000`, and one place kept as an example. A line of the `FaultLog` keeps the key of its record, so the log has one line for each record of the store. The document still shows one mark for each node, because each mark is a value in the cell of its node. The drain gives a record to the log once for each power of ten of its count. So a fault that repeats on every frame does not write the log on every frame.
 
 ### Repair
 
@@ -145,4 +145,3 @@ run_fault_tool_example()             # a tool throws; the same panel reports it
 - A `CompoundOperation` is not atomic and gets no rollback. Only `evaluate_invertible_operation!` builds its way back member by member.
 - The race between a tool task and the frame stays. The assistant and the MCP server change the document from their own task, not through `post_operation!`.
 - A parse error is not a fault. A parser that returns a partial document is a separate concern.
-- The log keeps one line for each site and origin. Two exception types from one origin share one line, and the later message replaces the earlier one.

@@ -46,16 +46,18 @@ format_fault_label(report::FaultReport) = "⚠ $(report.origin): $(report.messag
 # ── The log ──────────────────────────────────────────────────────────────────
 
 """
-    FaultLogEntry(index, site, origin, message, count)
+    FaultLogEntry(index, key, site, origin, message, count)
 
 One line of the log. A plain value: the buffer that keeps entries is the
 document, and an entry is one of the things it holds.
 
-`count` is how many places the fault was found in, which for one bug across a
-large document is the number that matters.
+`key` is the key of the `FaultRecord` that the line shows, so one line is one
+fault exactly as the store counts one. `count` is how many places the fault was
+found in, which for one bug across a large document is the number that matters.
 """
 struct FaultLogEntry
     index::Int
+    key::UInt64
     site::Symbol
     origin::Symbol
     message::String
@@ -100,15 +102,15 @@ what calls it, once per frame, on the editor's own task.
 function append_fault!(log::FaultLog, record::FaultRecord)
     position = _find_fault_line(log, record)
     if position === nothing
-        push!(log.entries, FaultLogEntry(length(log.entries) + 1, record.site,
+        push!(log.entries, FaultLogEntry(length(log.entries) + 1, record.key, record.site,
                                          record.origin, record.message, record.count))
     else
         # The same fault again, with a larger count. It takes its own line back
         # rather than a second one, which is what keeps one bug at three
         # thousand nodes to one line.
         known = log.entries[position]
-        log.entries[position] = FaultLogEntry(known.index, record.site, record.origin,
-                                              record.message, record.count)
+        log.entries[position] = FaultLogEntry(known.index, record.key, record.site,
+                                              record.origin, record.message, record.count)
     end
     while length(log.entries) > log.capacity
         deleteat!(log.entries, 1)
@@ -120,7 +122,7 @@ function _find_fault_line(log::FaultLog, record::FaultRecord)
     for index in 1:length(log.entries)
         known = log.entries[index]
         known isa FaultLogEntry || continue
-        known.site === record.site && known.origin === record.origin && return index
+        known.key == record.key && return index
     end
     nothing
 end

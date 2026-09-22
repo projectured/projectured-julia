@@ -145,6 +145,28 @@ function test_fault_catching()
         @test log.entries[1].count == 3
     end
 
+    @testset "two exceptions of one origin are two lines" begin
+        # The store keys a fault by its site, its origin and its exception type,
+        # and the log keys a line the same way.
+        store = FaultStore()
+        log = FaultLog()
+        attach_fault_target!(store, log)
+        record_fault!(store, :print, :SyntaxToText, nothing, BoundsError([1], 3))
+        record_fault!(store, :print, :SyntaxToText, nothing, ArgumentError("bad"))
+        drain_faults!(store)
+        @test length(log.entries) == 2
+        @test occursin("BoundsError", log.entries[1].message)
+        @test occursin("bad", log.entries[2].message)
+        # The same fault again takes its own line back, and not the other one.
+        for _ in 1:9
+            record_fault!(store, :print, :SyntaxToText, nothing, BoundsError([1], 3))
+        end
+        drain_faults!(store)
+        @test length(log.entries) == 2
+        @test log.entries[1].count == 10
+        @test log.entries[2].count == 1
+    end
+
     @testset "a person opens the session's log, and a window fills it" begin
         domain = ProjecturedFault.DomainModule
         log = get_session_fault_log()
