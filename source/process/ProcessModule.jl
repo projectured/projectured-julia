@@ -36,7 +36,7 @@ Embedded code (a decision's condition, a step's action, a loop's variable and
 iterable, the model's parameters) are `JuliaDocument` subtrees held here as
 opaque `Document` values, so the slice has no julia edge at the document
 level. Execution and realization semantics — what a tree *means* — are
-specified in `package/domain/doc/process.md`.
+specified in `documentation/package/process/process.md`.
 """
 module ProcessModule
 
