@@ -5,8 +5,8 @@
 # commitability colouring.
 #
 # `InsertionToSyntaxLeaf(commit; prefix, suffix, completion)` projects any
-# document with an editable `value::String` to a `SyntaxNode` rendered as
-# `prefix · value · ⟨continuation⟩ · suffix`. The reader edits `value`
+# document with an editable `value::String` to a `SyntaxDelimitation` rendered
+# as `prefix · value · ⟨continuation⟩ · suffix`. The reader edits `value`
 # character-by-character; the value's colour and the pale continuation are
 # computed cells driven by the `completion` policy (see `name_completion`):
 #
@@ -32,8 +32,9 @@
 # Nothing here names a domain. A domain that wants a *source* insertion — one
 # that commits by parsing rather than by naming a type — builds its own leaf from
 # `InsertionToSyntaxLeaf` and `parse_completion`, in a file it already has.
-# `SqlInsertionToSyntaxLeaf` and `JuliaInsertionToSyntaxLeaf` are the two
-# examples.
+# `SqlInsertionToSyntaxLeaf` is such an example. `JuliaInsertionToSyntaxLeaf` is
+# not: it is a hand-written `@projection` of its own, with its own
+# `print_document` and reference mapping.
 # ── Projection ────────────────────────────────────────────────────────────────
 
 struct InsertionToSyntaxLeaf <: Projection
