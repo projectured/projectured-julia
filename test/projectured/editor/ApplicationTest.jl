@@ -291,6 +291,66 @@ function test_application()
                 @test any(text -> occursin("Gestures", text), drawn())
             end
 
+            @testset "the toolbar holds the tools, and draws no word" begin
+                document, scene, composed, _ = _app_make_scene(paths[1:1], dir)
+                toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
+                # A window opened with no assistant has no assistant button.
+                @test [string(item.action.label) for item in toolbar.elements] ==
+                      ["Explorer", "Evaluator", "Message log", "Gesture log", "Fault log",
+                       "Statistics", "Selection"]
+                drawn = _app_drawn_strings(print_document(composed, scene).output.windows[1].content)
+                for word in ("New tab", "Evaluator", "Message log", "Fault log", "Statistics")
+                    @test !any(text -> occursin(word, text), drawn)
+                end
+            end
+
+            @testset "a closed assistant and a closed navigator come back as they were" begin
+                started = make_application_assistant(:ollama; model = "small", context = 4096)
+                document, _ = make_application_window(paths[1:1]; root = dir,
+                                                      assistant = started)
+                tree = _app_window(document)
+                editor = _AppFakeEditor(document, nothing)
+                toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
+                button(label) = only(item for item in toolbar.elements
+                                     if string(item.action.label) == label)
+                holding(type) = [(group, index) for group in get_pane_groups(tree)
+                                 for (index, tab) in enumerate(group.tabs)
+                                 if get_wrapped_document(tab.content) isa type]
+                close!(type) = begin
+                    (group, index) = only(holding(type))
+                    apply_pane_operation!(tree, make_pane_close_tab_operation(tree, group, index))
+                end
+                @test [string(item.action.label) for item in toolbar.elements][2] == "Assistant"
+
+                # While the assistant is open, the button reaches it and makes none.
+                evaluate_operation(editor, InvokeActionOperation(button("Assistant").action))
+                @test length(holding(Assistant)) == 1
+                (group, index) = only(holding(Assistant))
+                @test get_wrapped_document(group.tabs[index].content) === started
+
+                # Closed, it comes back with the backend, the model, the window
+                # of tokens and the greeting of the one the window opened with.
+                close!(Assistant)
+                @test isempty(holding(Assistant))
+                evaluate_operation(editor, InvokeActionOperation(button("Assistant").action))
+                (group, index) = only(holding(Assistant))
+                again = get_wrapped_document(group.tabs[index].content)
+                @test again !== started
+                @test again.backend === :ollama
+                @test again.model == "small"
+                @test again.context == 4096
+                @test get_pane_tab_title_string(group.tabs[index]) == "Assistant"
+                greeting(assistant) = string(assistant.conversation.turns[1].parts[1].content)
+                @test greeting(again) == greeting(started)
+                @test occursin("Ollama", greeting(again))
+
+                # The navigator comes back over the folder the window lists.
+                close!(Workspace)
+                evaluate_operation(editor, InvokeActionOperation(button("Explorer").action))
+                (group, index) = only(holding(Workspace))
+                @test get_wrapped_document(group.tabs[index].content).folders[1].pathname == abspath(dir)
+            end
+
             @testset "the navigator opens a file beside the files" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = _AppFakeEditor(scene, iomap)

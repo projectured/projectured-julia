@@ -78,8 +78,7 @@ exist opens as the empty seed of its extension.
 function make_application_document(paths::AbstractVector;
                                    root::AbstractString = pwd(), assistant = nothing)
     tabs = [make_file_tab(path, UndoBuffer) for path in paths]
-    folder = abspath(root)
-    navigator = Workspace([WorkspaceFolder(basename(folder), folder)])
+    navigator = _make_application_navigator(root)
     content = _make_application_pane_tree(tabs, navigator, assistant)
     # Two levels of history, and the four rules of the undo slice make them one
     # story. Each file tab holds its own, so `Ctrl+Z` takes back an edit in the
@@ -95,6 +94,13 @@ function make_application_document(paths::AbstractVector;
         concat_references(ConcreteReference(FieldReferenceStep("content"), EmptyReference()),
                           strip_reference_types(inner)))
     buffer
+end
+
+# The folder the window lists. The toolbar's explorer opens the same one, so a
+# navigator a person closed comes back as it was.
+function _make_application_navigator(root::AbstractString)
+    folder = abspath(root)
+    Workspace([WorkspaceFolder(basename(folder), folder)])
 end
 
 # The navigator, the files and the assistant side by side. The focus starts
@@ -224,7 +230,7 @@ function make_application_window(paths::AbstractVector;
                        tooltip = pointer === nothing ? nothing : compute_tooltip,
                        pointer = pointer,
                        context_menu = compute_context_menu,
-                       shell = _application_shell,
+                       shell = document -> _make_application_shell(document, assistant, root),
                        measure = measure)(document, projection)
 end
 
@@ -232,9 +238,20 @@ end
 # own document, so it says which tab has the focus and where the selection is,
 # and it follows both. The shell has no size of its own: it takes the space the
 # window offers, so it fills the window and follows it when it resizes.
-_application_shell(document) =
-    (make_window_menu_bar(), make_window_toolbar(),
+#
+# The toolbar's assistant is a fresh one with the backend, the model and the
+# greeting of the one the window opened with, and its explorer lists `root`. A
+# window opened with no assistant has no assistant button.
+_make_application_shell(document, assistant, root) =
+    (make_window_menu_bar(),
+     make_window_toolbar(; assistant = _make_assistant_factory(assistant),
+                           explorer = _ -> _make_application_navigator(root)),
      make_window_status_bar(document), nothing, nothing)
+
+_make_assistant_factory(::Nothing) = nothing
+_make_assistant_factory(assistant::Assistant) =
+    _ -> make_application_assistant(assistant.backend; model = assistant.model,
+                                    context = assistant.context)
 
 # The window content sits inside a history of its own, so a change that belongs
 # to no file — a splitter that moves, a tab that opens — can be taken back too.
@@ -342,16 +359,13 @@ function run_application(paths::AbstractString...;
                                                    root = root, assistant = chat,
                                                    pointer = () -> get_pointer_position(backend),
                                                    measure = measure)
-    # What a log view shows is what the program said, and what says it is the
-    # Julia logger. The capture records each message into the session store
-    # from whatever task logs, and the feed below moves the lines into the
-    # log document once per frame, on the editor task. The logger the window
-    # replaced comes back when the window closes.
-    previous_logger = install_message_log_capture!()
-    try
+    # The tools of the toolbar are filled by the window: the message log by a
+    # capture of the Julia logger and a feed, the statistics by a feed, and the
+    # fault log by the store of the editor. The shell gives all of them.
+    run_with_window_tools() do feeds, start
         run_window_editor(document, projection, "ProjecturEd";
                           backend = backend, width = width, height = height, mcp = mcp,
-                          feeds = Feed[MessageLogFeed(), FrameStatisticsFeed()],
+                          feeds = feeds,
                           # A tooltip holds a document of one of this
                           # application's own domains, so the window a wrapper
                           # opens draws with the rows a pane draws with.
@@ -361,9 +375,10 @@ function run_application(paths::AbstractString...;
                                   measure = measure),
                           screen_wrap = make_popup_screen_wrap(),
                           fault_policy = fault_policy,
-                          on_start = editor -> _start_application!(editor, mcp, assistant, model))
-    finally
-        remove_message_log_capture!(previous_logger)
+                          on_start = editor -> begin
+                              start(editor)
+                              _start_application!(editor, mcp, assistant, model)
+                          end)
     end
 end
 

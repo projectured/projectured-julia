@@ -454,16 +454,25 @@ the other one.
 
 ### Step 6: the application uses the shared toolbar
 
-- [ ] `_application_shell` gives `make_window_toolbar` the assistant of R8 and
-      the explorer of R9. `make_application_window` takes what it needs for
-      that. The warm-up of the build and `ApplicationTest.jl` call it too, so
-      they must keep working.
-- [ ] `run_application` uses the setup of R11 in place of its own capture and
-      feeds.
-- [ ] `test_application()`: the toolbar holds the eight tools; there is no
-      assistant button with `assistant = :none`; a reopened assistant has the
-      backend and the greeting of the command line; a reopened explorer lists
-      `root`.
+- [x] The shell of the application is a closure over the start assistant and
+      `root`: `make_window_toolbar` gets an assistant made by
+      `make_application_assistant` with the backend, the model and the window
+      of tokens of the start assistant, and an explorer over `root`, made by
+      the same `_make_application_navigator` that makes the navigator at
+      start. `make_application_window` needs no new keyword: it already gets
+      the start assistant. The warm-up of the build and `ApplicationTest.jl`
+      call it unchanged.
+- [x] `run_application` opens its window through `run_with_window_tools`, in
+      place of its own capture and feeds; its `on_start` calls `start` and then
+      `_start_application!`.
+- [x] `test_application()`: the toolbar holds the seven tools of a window with
+      no assistant, and the window draws none of their names nor "New tab";
+      with an assistant, the button reaches the open one and makes none, and
+      after its tab closes it makes one with the backend, the model, the
+      window of tokens, the title "Assistant" and the greeting of the start
+      assistant; a closed navigator comes back over `root`. **88** (70 + 18).
+- [x] The README, the delivery roadmap and the system anatomy name the
+      toolbar of tools, the new tab names and the new widget.
 
 ### Step 7: the real window
 
