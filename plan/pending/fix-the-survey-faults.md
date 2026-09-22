@@ -158,7 +158,15 @@ memory cap of 20 GB. No second Julia process runs at the same time.
       event through the inverse transform (`e10b3bbf`); each database of a
       catalog reads through its own connection, opened when a person opens it
       (`7dd8f4f4`).
-- [ ] Group A9: the faults that group A8 found.
+- [x] Group A9: a WHERE condition that the parser can not read keeps its text
+      as a `SqlRawCondition`, `IN` and a call in `ORDER BY` parse, and `1e5`
+      reads as a number (`7ca09200`); the ODBC catalog queries escape a name
+      (`340201cc`); `sync_document!` of a `ListNode` ends, for both cell kinds
+      and for an endless list (`0dab2402`).
+- [ ] Group A10: a join that the parser drops, the identifiers of the database
+      operations, the ODBC connection string, `test_video` and the process
+      atoms.
+- [ ] Group A11: the stale comments, the stale docstrings and the dead code.
 
 ### Step 5: tests, dead code, comments
 
@@ -239,5 +247,10 @@ memory cap of 20 GB. No second Julia process runs at the same time.
   no error (`a - 1 = 0`, `a = -b`, `LIKE`, and everything after `AND` or `OR`
   from there); `WHERE a IN (1, 2)` does not parse; `1e5` reads as `1`; the
   ODBC catalog queries put a name into the SQL text without escaping a `'`.
+- New faults from group A9: `SELECT * FROM a NATURAL JOIN b` reads as
+  `SELECT * FROM a`, and a join whose `ON` has no condition is dropped;
+  `_build_select`, `insert_into_db!`, `update_db!` and `delete_from_db!` put an
+  identifier between double quotes with no escape; the ODBC connection string
+  is built with no escape, so a name with a `;` or a `}` changes it.
 - `test_catalog_coverage` fails on `main` for 28 types (Assistant, Process,
   Pane, FaultLog and others). It is not caused by this work.
