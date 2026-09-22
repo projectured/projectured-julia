@@ -14,7 +14,7 @@ The editor has no reference to the protocol. It gets a server by a name:
 run_editor!(backend, projection, document; mcp = true)
 ```
 
-`run_editor!` calls `make_agent_server(:mcp, editor)` with `instructions`, `host` and `port` from its keywords `mcp_instructions`, `mcp_host` and `mcp_port`, each one only when the caller gives it. It calls `start_agent_server!` before `on_start` and before the first frame, and `stop_agent_server!` in a `finally` when the loop ends. `ProjecturedMcp` adds the three methods: `make_agent_server(::Val{:mcp}, editor; kwargs...)` makes an `McpServer`, and the other two call `start_mcp!` and `stop_mcp!`. When the package is not loaded, the fallback of the kernel throws an error that says no agent server is registered for `:mcp`. So the kernel holds no protocol code and no HTTP dependency. `run_window_editor` passes `mcp`, `mcp_instructions`, `mcp_host` and `mcp_port` to `run_editor!`.
+`run_editor!` calls `make_agent_server(:mcp, editor)` with `instructions`, `host` and `port` from its keywords `mcp_instructions`, `mcp_host` and `mcp_port`, each one only when the caller gives it. It calls `start_agent_server!` after `on_start` and before the first frame, so a tool that `on_start` registers is served, and `stop_agent_server!` in a `finally` when the loop ends. `ProjecturedMcp` adds the three methods: `make_agent_server(::Val{:mcp}, editor; kwargs...)` makes an `McpServer`, and the other two call `start_mcp!` and `stop_mcp!`. When the package is not loaded, the fallback of the kernel throws an error that says no agent server is registered for `:mcp`. So the kernel holds no protocol code and no HTTP dependency. `run_window_editor` passes `mcp`, `mcp_instructions`, `mcp_host` and `mcp_port` to `run_editor!`.
 
 ### The server
 
@@ -66,11 +66,11 @@ stop_mcp!(mcp)
 mcp = McpServer(editor; port = 9900)   # http://127.0.0.1:9900/mcp
 ```
 
-- Tests: `test_mcp_tools()` and `test_mcp_resources()` in `test/projectured/editor/McpTest.jl` cover the tool set that the server renders: `execute_julia_code`, the searches and the documentation resources. `test_mcp_server()` in the same file starts a server at a free port and stops it, and checks that the port is free again. No test calls `render_mcp_tools` or `render_mcp_resources`, or connects a client.
+- Tests: `test_mcp_tools()` and `test_mcp_resources()` in `test/projectured/editor/McpTest.jl` cover the tool set that the server renders: `execute_julia_code`, the searches and the documentation resources. `test_mcp_server()` in the same file starts a server at a free port and stops it, and checks that the port is free again. It also runs `run_editor!` with a server, and a client lists over HTTP the tools of the set, with a tool that `on_start` registered. No test calls `render_mcp_resources`, or reads a resource over HTTP.
 
 ## Limits
 
 - **A tool writes the document from the server task.** The handler runs on the `@async` task of the server, and `execute_julia_code` changes `editor.document` there directly, and not through `post_operation!`, the inbox that orders such writes with the frame. A frame that runs between two writes can read a state that is half done. `plan/done/the-editor-survives-a-fault.md`, section 9, records this as open work. The assistant turn has the same fault.
-- **The server renders the tool set once, when it starts.** A tool that is registered after `start_mcp!` does not reach a client. `run_editor!` starts the server before it calls `on_start`, so the `undo` and `redo` tools that the application registers in `on_start` are not served over MCP.
+- **The server renders the tool set once, when it starts.** `run_editor!` starts it after `on_start`, so the `undo` and `redo` tools that the application registers there are served. A tool that is registered after `start_mcp!` does not reach a client: the library of the protocol lists its own vector of tools, and it calls no code of this package when a client lists them.
 - The server listens on the loopback address with no authentication. Every program on the machine can reach it.
 - One server serves one editor.

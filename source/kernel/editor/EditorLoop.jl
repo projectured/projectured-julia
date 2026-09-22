@@ -125,12 +125,14 @@ function run_editor!(editor::Editor; mcp::Bool=false,
     # printed under another policy prints again.
     editor.fault_policy == fault_policy || invalidate_projection!(editor)
     editor.fault_policy = fault_policy
-    server = mcp ? _make_mcp_server(editor, mcp_instructions, mcp_host, mcp_port) : nothing
-    server === nothing || start_agent_server!(server)
     # The editor exists now, and this is the first moment anything outside can
     # have it. What needs to reach a running editor — a driver that will post
     # its work, a watcher, a client — is handed it here, once, before any frame.
     on_start === nothing || on_start(editor)
+    # The server renders the tool set when it starts, so it starts after
+    # `on_start`: a tool that `on_start` registers reaches a client too.
+    server = mcp ? _make_mcp_server(editor, mcp_instructions, mcp_host, mcp_port) : nothing
+    server === nothing || start_agent_server!(server)
     # Advance this editor's private animation clock once per frame; subscribers
     # via `get_reactive_clock_time(editor.clock)` re-evaluate on the next pull.
     # Logical time is wall-clock seconds since the loop started.

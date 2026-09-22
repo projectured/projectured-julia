@@ -677,6 +677,31 @@ function test_mcp_server()
                 @test !_is_mcp_port_open(port)
                 @test timedwait(() -> istaskdone(server.task), 5.0) === :ok
             end
+
+            @testset "a client lists a tool that on_start registers" begin
+                port = _find_free_mcp_port()
+                editor = _mcp_editor()
+                listing = Ref("")
+                probe = Tool("probe_on_start", "A tool that on_start registers.",
+                             NamedTuple[], (target, args) -> "probed")
+                run_editor!(editor; mcp = true, mcp_host = "127.0.0.1", mcp_port = port,
+                            on_start = function (editor)
+                                register_tool!(editor.tools, probe)
+                                # The server starts once `on_start` returns,
+                                # and the client asks when it listens.
+                                @async begin
+                                    listing[] = try
+                                        timedwait(() -> _is_mcp_port_open(port), 10.0)
+                                        _post_mcp_request(port, "tools/list")
+                                    catch exception
+                                        sprint(showerror, exception)
+                                    end
+                                    post_operation!(editor, QuitEditorOperation())
+                                end
+                            end)
+                @test occursin("\"execute_julia_code\"", listing[])
+                @test occursin("\"probe_on_start\"", listing[])
+            end
         finally
             Base.CoreLogging.global_logger(logger)
         end

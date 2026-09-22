@@ -130,8 +130,8 @@ this frame's input", which is what `perf!` uses to tell a frame the user acted
 in from an idle one, and what `evaluate!` writes to the operation log.
 
 A `QuitEditorException` thrown out of `evaluate_operation` exits the loop
-cleanly. The MCP server is started before the loop and stopped in the
-`finally` block — see below.
+cleanly. The MCP server is started after `on_start`, before the first frame,
+and stopped in the `finally` block — see below.
 
 ### The feeds
 
@@ -344,8 +344,10 @@ In the example packages this is wired up for you — see `play_live_example` and
 
 ## MCP server
 
-When `run_editor!` starts, it constructs an `McpServer` bound to the editor and
-launches it at `mcp_host` and `mcp_port`, `http://127.0.0.1:9876/mcp` by default, via the `make_agent_server(:mcp, …)`
+When `run_editor!` starts with `mcp=true`, it constructs an `McpServer` bound to
+the editor after `on_start` has run, so the server serves the tools that
+`on_start` registers. It launches the server at `mcp_host` and `mcp_port`,
+`http://127.0.0.1:9876/mcp` by default, via the `make_agent_server(:mcp, …)`
 seam (see
 [source/kernel/agent/AgentModule.jl](../../../source/kernel/agent/AgentModule.jl)). The server
 speaks JSON-RPC 2.0 via HTTP+SSE using

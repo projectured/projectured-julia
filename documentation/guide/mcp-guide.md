@@ -53,6 +53,8 @@ The tools are the tool set of the kernel, so a client and the assistant in the w
 | `list_resources`, `read_resource` | lists and reads the resources below |
 | `execute_julia_code` | runs Julia in the running program, with `editor` bound to the editor |
 
+The application adds `undo` and `redo`, which take the last change back and put it back, as a person does.
+
 The resources are named by a URI:
 
 | Resource | What it holds |
@@ -71,5 +73,5 @@ A guide name comes from its path: `documentation/guide/setup-guide.md` is `guide
 ## The limits
 
 - The server answers on the loopback address, with no authentication. Anything that runs on your machine can reach it. Do not start it on a machine you share.
-- The server publishes the tools that the tool set has when the server starts. The application registers `undo` and `redo` after that, in `on_start`, so an MCP client of the application does not get them. The assistant in the window has them.
+- The server publishes the tools that the tool set has when the server starts, and the application starts it after it registered `undo` and `redo`. A tool that a program registers later reaches the assistant in the window and not an MCP client.
 - The server stops when the editor stops.
