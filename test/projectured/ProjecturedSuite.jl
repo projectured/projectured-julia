@@ -93,6 +93,9 @@ using ProjecturedOdbc
 # Opt into the Tulip solver package so ConstraintSolverTest can construct a
 # TulipConstraintSolver and exercise the LP-backed constraint layout.
 using ProjecturedTulip
+# Opt into the web backend package so WebTest can construct a WebBackend, decode
+# client messages into its queue, and start its server.
+using ProjecturedWeb
 # The opt-in tests themselves now live in per-package test packages (their src
 # moved down with the runtime they exercise). The umbrella `using`s them so its
 # integration entry points (`test_all`, `test_documents`, `test_projections`)
@@ -134,6 +137,7 @@ include("../suite/documentation.jl")
 # fixture names several domains, so none of them belongs to one.
 include("backend/ConsoleBackendTest.jl")
 include("backend/PdfTest.jl")
+include("backend/WebTest.jl")
 include("../builder/BuilderTest.jl")
 include("document/SelectionEnumeration.jl")
 include("reference/TypeReferenceTest.jl")
@@ -217,6 +221,9 @@ function test_projections()
         test_write_image()
         test_record_video()
         test_dirty_rect()
+        test_console_backend()
+        test_write_pdf()
+        test_web_backend()
     end
 end
 
@@ -435,7 +442,7 @@ export test_search_scale
 export test_type_reference, test_event_case, test_gesture_binding, test_focusing, test_console_backend, test_gesture_recognizer, test_message_log_feed, test_frame_statistics_feed
 export test_json_document, test_syntax, test_text, test_graphics, test_affine_transform, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_constraint_solver, test_collection, test_primitive, test_json_parser, test_xml_parser, test_sql_parser, test_serialization
 export test_formula_to_syntax, test_projection_template_hygiene
-export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection, test_gesture_map, test_gesture_help, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_selection_inverting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_widget_button_behavior, test_widget_gestures, test_widget_select_dropdown, test_widget_menu, test_widget_context_menu, test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree, test_widget_toolbar, test_widget_table, test_layout_closeout, test_widget_forms, test_widget_popup_example, test_copying_projection, test_clipboard, test_versioning_to_any, test_write_image, test_record_video, test_tooltip, test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline, test_split_pane_drag, test_widget_transform_pane, test_dragging, test_anchor_point, test_write_pdf, test_dirty_rect
+export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection, test_gesture_map, test_gesture_help, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_selection_inverting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_widget_button_behavior, test_widget_gestures, test_widget_select_dropdown, test_widget_menu, test_widget_context_menu, test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree, test_widget_toolbar, test_widget_table, test_layout_closeout, test_widget_forms, test_widget_popup_example, test_copying_projection, test_clipboard, test_versioning_to_any, test_write_image, test_record_video, test_tooltip, test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline, test_split_pane_drag, test_widget_transform_pane, test_dragging, test_anchor_point, test_write_pdf, test_dirty_rect, test_web_backend
 export test_table, test_table_selection, test_table_navigation, explore_table_selections
 export test_graph_projection
 export test_examples, test_position_navigations, test_position_navigations_complete

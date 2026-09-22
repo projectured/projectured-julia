@@ -200,6 +200,10 @@ arguments; `WebBackend`'s constructor defaults `host`/`port`.
   The backend makes no `MousePress`: the gesture recognizer of the editor makes
   it from a `MouseDown` and a `MouseUp`, as for SDL. [web.md](../web/web.md) is
   its design document.
+- **`wait_for_input`** blocks on an autoreset gate until the receive task puts
+  an event into the channel, `wake_backend!` is called, or the timeout ends. A
+  new connection and a `resync` notify the gate too, because the next frame
+  must send every window in full.
 
 #### Wire protocol (JSON, both directions)
 

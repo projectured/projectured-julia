@@ -49,6 +49,7 @@ mutable struct WebBackend <: Backend
     fontdir::String
     server::Any
     inbound::Channel{Any}                 # decoded EventEnvelopes from the client
+    wake_gate::Base.Event                 # autoreset: ends `wait_for_input`, stores a notification that comes first
     conn::Union{WebConnection,Nothing}          # the one live connection
     windows::Dict{Symbol,WebWindowState}  # per-window incremental state
     last_ids::Vector{Symbol}              # window ids sent last frame (for close detection)
@@ -58,7 +59,7 @@ end
 function WebBackend(; host::AbstractString="127.0.0.1", port::Integer=8080)
     WebBackend(String(host), Int(port), get_web_asset_directory("web"),
                get_web_asset_directory("font"),
-               nothing, Channel{Any}(256), nothing,
+               nothing, Channel{Any}(256), Base.Event(true), nothing,
                Dict{Symbol,WebWindowState}(), Symbol[], false)
 end
 
@@ -598,6 +599,9 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
         # Client (re)launched popups and wants a fresh full state for everything.
         _reset_for_full!(backend)
     end
+    # The event is in the channel before the wake, so the wait that the wake
+    # ends finds it.
+    BackendModule.wake_backend!(backend)
     return
 end
 
@@ -676,18 +680,24 @@ function _enqueue!(backend::WebBackend, conn::WebConnection, msg::String, snapsh
         while isready(conn.outbox)
             try; take!(conn.outbox); catch; break; end
         end
-        overflow && (backend.force_full = true)
+        if overflow
+            # The wake ends the next wait, so the full frame comes without an input.
+            backend.force_full = true
+            BackendModule.wake_backend!(backend)
+        end
     end
     try; put!(conn.outbox, msg); catch; end
     return
 end
 
 # Force the next frame to send every window in full (on connect / resync / queue
-# overflow). Clearing per-window state drops stale incremental bookkeeping.
+# overflow). Clearing per-window state drops stale incremental bookkeeping. The
+# wake ends a wait of the editor, so that the frame comes without an input.
 function _reset_for_full!(backend::WebBackend)
     empty!(backend.windows)
     backend.last_ids = Symbol[]
     backend.force_full = true
+    BackendModule.wake_backend!(backend)
     return
 end
 
@@ -767,6 +777,50 @@ BackendModule.measure_text(::WebBackend, text::AbstractString, font::StyleFont) 
 # Non-blocking poll: hand back the next decoded event, or nothing.
 BackendModule.read_from_devices(backend::WebBackend, devices) =
     isready(backend.inbound) ? take!(backend.inbound) : nothing
+
+"""
+    wait_for_input(backend::WebBackend, devices, timeout_seconds) -> Nothing
+
+Block until the receive task puts an event into `inbound`, [`wake_backend!`](@ref)
+is called, or `timeout_seconds` passes. An event already in `inbound` ends the
+wait before it starts. The receive task wakes the backend after each message
+that it decodes, and a new connection wakes it too, because the frame after it
+sends every window in full. Everything here is a cooperative Julia wait; no
+thread blocks.
+"""
+function BackendModule.wait_for_input(backend::WebBackend, devices, timeout_seconds)
+    if isready(backend.inbound)
+        # The frame after this wait reads every event in `inbound`, so the
+        # notifications of those events are spent.
+        reset(backend.wake_gate)
+        return nothing
+    end
+    _wait_for_gate(backend.wake_gate, timeout_seconds)
+    return nothing
+end
+
+"""
+    wake_backend!(backend::WebBackend) -> Nothing
+
+End a [`wait_for_input`](@ref) in progress, from any task or thread. The
+autoreset gate stores a notification that arrives before the wait, so a wake
+can not slip between the check of `inbound` and the block.
+"""
+BackendModule.wake_backend!(backend::WebBackend) =
+    (notify(backend.wake_gate); nothing)
+
+# Wait on the gate, at most `timeout_seconds`. The timer notifies the same
+# gate; a timer that fires after the gate already opened leaves one stored
+# notification behind, which costs one prompt wait later and nothing else.
+function _wait_for_gate(gate::Base.Event, timeout_seconds)
+    timeout_seconds == Inf && return wait(gate)
+    timer = Timer(_ -> notify(gate), timeout_seconds)
+    try
+        wait(gate)
+    finally
+        close(timer)
+    end
+end
 
 # `primary` marks the in-tab window (the first `WindowDocument` in list order):
 # the client renders it directly in the page it was opened from, never a popup.

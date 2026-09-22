@@ -49,6 +49,10 @@ The socket handler decodes each JSON message and puts a `WindowInput` into the c
 
 `convert_web_key_to_symbol` maps the `key` and `code` of a browser key event to the key symbols that `sdl_keysym_to_symbol` gives, so both backends speak one vocabulary. Escape is an ordinary key. The backend makes no `MousePress`: the `GestureRecognizer` of the editor builds the click, as for SDL.
 
+### Wait and wake
+
+`wait_for_input` returns at once when an event waits in `inbound`. Else it waits on an autoreset `Base.Event`, with a `Timer` for the timeout. The socket handler notifies the event after it puts the event of a message into `inbound`, and `wake_backend!` notifies the same event, from any task or thread. A new connection, a `resync` and an overflow of the queue notify it too. Each of them needs a frame that sends every window in full, and an idle editor waits with no timeout. So an idle editor uses no processor time, and a browser that connects gets its first frame at once.
+
 ## How it fits
 
 `ProjecturedWeb` depends on `ProjecturedCollection`, `ProjecturedGraphics`, `ProjecturedScreen`, `ProjecturedStyle` and the kernel, and on `HTTP`, `JSON3` and `Base64`. It needs no SDL. It registers nothing.
@@ -73,11 +77,10 @@ run_example(["json", "xml"]; backend = WebBackend())       # the first in the pa
 ```
 
 - Example: the gallery with `backend = WebBackend()`. The package has no example of its own.
-- Test: no test exercises `WebBackend`. `test/builder/BuilderTest.jl` checks only that a build names it, and `test/projectured/editor/ApplicationTest.jl` checks the parse of `--backend=web`.
+- Test: `test_web_backend()` in `test/projectured/backend/WebTest.jl` decodes client messages into the queue, reads them, and checks the wait and the wake. One of its tests starts the server on a free port of 127.0.0.1, connects a WebSocket client and reads a static file. `test/builder/BuilderTest.jl` checks that a build names the backend, and `test/projectured/editor/ApplicationTest.jl` checks the parse of `--backend=web`.
 
 ## Limits
 
-- No test covers the server, the draw list, the patches or the decode of events.
+- No test covers the draw list or the patches.
 - The client sends pointer motion only while a button is held. A hover effect and a tooltip, which need motion with no button, do not happen in the browser.
-- The backend has no `wait_for_input` or `wake_backend!` of its own, so the editor polls every 10 ms, the default of the kernel.
 - One client for each editor, and the transport is JSON in both directions. `plan/done/web-backend.md` holds both as the choices of the first version.
