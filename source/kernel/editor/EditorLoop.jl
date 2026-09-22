@@ -116,7 +116,10 @@ function run_editor!(editor::Editor; mcp::Bool=false,
     # editor a test builds behaves as it does without this feature and a broken
     # projection fails its test. A loop a person sits in front of is the thing
     # that must survive instead, and this is that loop. Pass
-    # `make_strict_fault_policy()` to run it without barriers.
+    # `make_strict_fault_policy()` to run it without barriers. A barrier in the
+    # projection reads the policy from the printer context, so a projection
+    # printed under another policy prints again.
+    editor.fault_policy == fault_policy || invalidate_projection!(editor)
     editor.fault_policy = fault_policy
     server = if mcp
         mcp_instructions === nothing ?

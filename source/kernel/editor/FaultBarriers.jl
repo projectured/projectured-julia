@@ -157,13 +157,16 @@ the whole editor — where the selection is, which tabs are open — needs it.
 """
 function print!(editor::Editor)
     if editor.iomap === nothing
-        # The store rides down with the context. A projection barrier deep in
-        # the tree records into it from inside a thunk, where it can write no
-        # cell and reach no editor. `PrinterContext` itself does not change.
+        # The store and the policy ride down with the context. A projection
+        # barrier deep in the tree records into the store from inside a thunk,
+        # where it can write no cell and reach no editor, and it catches only
+        # what the policy lets it catch. `PrinterContext` itself does not change.
         ctx = with_property(
-                  with_property(with_clock(PrinterContext(), editor.clock),
-                                :root, editor.document),
-                  :fault_store, editor.faults)
+                  with_property(
+                      with_property(with_clock(PrinterContext(), editor.clock),
+                                    :root, editor.document),
+                      :fault_store, editor.faults),
+                  :fault_policy, editor.fault_policy)
         editor.iomap = print_document(editor.projection, nothing,
                                       editor.document, ctx)
     end

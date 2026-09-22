@@ -58,8 +58,15 @@ an `Any` entry will not throw on a `FaultReport`. It prints something wrong, and
 quietly.
 
 The projection reads the store from the printer context under `:fault_store`,
-which `Editor` puts there. Given none, it still runs and still substitutes; the
-fault is then simply not collected.
+and the policy under `:fault_policy`, which `Editor` puts there. Given no store,
+it still runs and still substitutes; the fault is then simply not collected.
+
+It catches nothing under a policy whose `is_barrier_enabled` is false, which is
+what `make_strict_fault_policy()` gives a test editor, so a broken projection
+fails its test. A context with no policy is the same as the strict policy, for
+the same reason: a test that prints outside an editor must see the fault. It
+never catches an exception that `is_passthrough_exception` names, such as an
+interrupt or a request to quit.
 
 See also `FaultReport`, `FaultLog` and the kernel's `FaultStore`.
 """
@@ -80,26 +87,34 @@ FaultCatchingProjection(; inner, substitute = nothing) =
 # fail, and with what" is exactly that kind of question. A decorator above can
 # ask without walking the output looking for a mark. `inner_iomap` is `nothing`
 # when the child could not even build its own, which is the other thing a
-# consumer has to be able to tell apart.
+# consumer has to be able to tell apart. `store` and `policy` are the ones the
+# printer context held, because the reader and the maps get no context.
 @iomap struct FaultCatchingIoMap
     projection::Any
     input::Any
     output::Any
     inner_iomap::Any
     store::Any
+    policy::Any
     fault::Any
 end
+
+# Whether the barrier takes `exception` rather than let it go on.
+_is_fault_caught(policy::FaultPolicy, exception) =
+    policy.is_barrier_enabled && !is_passthrough_exception(exception)
 
 # ── Printer ──────────────────────────────────────────────────────────────────
 
 function print_document(p::FaultCatchingProjection, recursion, input, ctx)
     store = get_property(ctx, :fault_store, nothing)
+    policy = get_property(ctx, :fault_policy, make_strict_fault_policy())
     reference = ctx.reference
     inner = nothing
     early = nothing              # a fault raised while the child built its IoMap
     try
         inner = print_document(p.inner, recursion, input, ctx)
     catch exception
+        _is_fault_caught(policy, exception) || rethrow()
         early = _take_fault(store, p.inner, reference, exception, catch_backtrace())
     end
     guarded = ComputedCell() do
@@ -108,13 +123,14 @@ function print_document(p::FaultCatchingProjection, recursion, input, ctx)
         try
             (output = inner.output, fault = nothing)
         catch exception
+            _is_fault_caught(policy, exception) || rethrow()
             late = _take_fault(store, p.inner, reference, exception, catch_backtrace())
             (output = _print_fault_mark(p, late, ctx), fault = late)
         end
     end
     FaultCatchingIoMap(p, input,
                        ComputedCell(() -> guarded[].output),
-                       inner, store,
+                       inner, store, policy,
                        ComputedCell(() -> guarded[].fault))
 end
 
@@ -152,6 +168,7 @@ function read_intent(p::FaultCatchingProjection, recursion, change::Intent,
     try
         read_intent(p.inner, recursion, change, inner_iomap)
     catch exception
+        _is_fault_caught(iomap.policy, exception) || rethrow()
         record_fault!(iomap.store, :read, p.inner, nothing, exception, catch_backtrace())
         Intent(change.gesture, nothing)
     end
@@ -171,6 +188,7 @@ function map_reference_forward(p::FaultCatchingProjection,
     try
         map_reference_forward(p.inner, iomap.inner_iomap, reference)
     catch exception
+        _is_fault_caught(iomap.policy, exception) || rethrow()
         record_fault!(iomap.store, :map, p.inner, reference, exception, catch_backtrace())
         nothing
     end
@@ -182,6 +200,7 @@ function map_reference_backward(p::FaultCatchingProjection,
     try
         map_reference_backward(p.inner, iomap.inner_iomap, reference)
     catch exception
+        _is_fault_caught(iomap.policy, exception) || rethrow()
         record_fault!(iomap.store, :map, p.inner, reference, exception, catch_backtrace())
         nothing
     end

@@ -79,8 +79,8 @@ julia> run_window_editor(document, projection, "Title";
                          backend = SdlBackend(), fault_policy = make_strict_fault_policy())
 ```
 
-A `FaultCatchingProjection` in the pipeline does not read the policy. It still
-catches inside a printer and draws its mark.
+A `FaultCatchingProjection` in the pipeline reads the same policy, so it raises
+the exception again too and draws no mark.
 
 ## The gesture log overlay
 

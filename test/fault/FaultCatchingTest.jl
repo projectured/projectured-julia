@@ -48,6 +48,32 @@ ProjectionModule.read_intent(::FaultProbeBranchToSyntax, recursion, change::Inte
 ProjectionModule.map_reference_forward(::FaultProbeBranchToSyntax, iomap, reference) = nothing
 ProjectionModule.map_reference_backward(::FaultProbeBranchToSyntax, iomap, reference) = nothing
 
+# Throws at one moment of its life, chosen by `when`: `:early` while it builds
+# its IoMap, `:late` when its output cell is read, and `:read` in its reader and
+# its reference maps. Each of those throws an interrupt. `:failing_read` throws
+# an ordinary error from its reader.
+Base.@kwdef struct InterruptingProjection <: Projection
+    when::Symbol
+end
+
+function ProjectionModule.print_document(p::InterruptingProjection, recursion,
+                                         leaf::FaultProbeLeaf, ctx)
+    p.when === :early && throw(InterruptException())
+    SimpleIoMap(nothing, leaf,
+                ComputedCell(() -> p.when === :late ? throw(InterruptException()) :
+                                   SyntaxLeaf(TextString(string(leaf.value)))))
+end
+
+function ProjectionModule.read_intent(p::InterruptingProjection, recursion,
+                                      change::Intent, iomap)
+    p.when === :failing_read && error("the reader is broken")
+    throw(InterruptException())
+end
+ProjectionModule.map_reference_forward(::InterruptingProjection, iomap, reference) =
+    throw(InterruptException())
+ProjectionModule.map_reference_backward(::InterruptingProjection, iomap, reference) =
+    throw(InterruptException())
+
 _probe_dispatch() = TypeDispatchingProjection(
     FaultProbeLeaf => OddLeafBreaker(),
     FaultProbeBranch => FaultProbeBranchToSyntax())
@@ -55,6 +81,13 @@ _probe_dispatch() = TypeDispatchingProjection(
 _probe_branch(count::Integer) =
     FaultProbeBranch(children = CellVector(Cell[Cell(FaultProbeLeaf(value = index))
                                                 for index in 1:count]))
+
+# A printer context whose barriers catch, as the one of a running editor. With
+# no policy in its context a barrier catches nothing, the way a test editor does.
+_make_tolerant_context(store) =
+    with_property(with_property(PrinterContext(), :fault_store, store),
+                  :fault_policy, FaultPolicy(is_console_enabled = false,
+                                             is_sound_enabled = false))
 
 # The drawn children of the printed output. Every cell on the way is forced,
 # because the failure this suite is about happens when a cell is READ and a test
@@ -81,7 +114,7 @@ function test_fault_catching()
         projection = RecursiveProjection(
             FaultCatchingProjection(inner = _probe_dispatch(),
                                     substitute = FaultToSyntax()))
-        context = with_property(PrinterContext(), :fault_store, store)
+        context = _make_tolerant_context(store)
         iomap = print_document(projection, nothing, _probe_branch(6), context)
         children = _drawn_children(iomap.output)
         @test length(children) == 6
@@ -97,7 +130,7 @@ function test_fault_catching()
         projection = RecursiveProjection(
             FaultCatchingProjection(inner = _probe_dispatch(),
                                     substitute = FaultToSyntax()))
-        context = with_property(PrinterContext(), :fault_store, store)
+        context = _make_tolerant_context(store)
         iomap = print_document(projection, nothing, _probe_branch(6), context)
         _drawn_children(iomap.output)
         records = get_fault_records(store)
@@ -110,7 +143,7 @@ function test_fault_catching()
         store = FaultStore()
         barrier = FaultCatchingProjection(inner = _probe_dispatch(),
                                           substitute = FaultToSyntax())
-        context = with_property(PrinterContext(), :fault_store, store)
+        context = _make_tolerant_context(store)
         iomap = print_document(barrier, barrier, FaultProbeLeaf(value = 1), context)
         _force = iomap.output isa Cell ? iomap.output[] : iomap.output
         # The reader declines and the mappers answer no image, which is what
@@ -123,7 +156,8 @@ function test_fault_catching()
         projection = RecursiveProjection(
             FaultCatchingProjection(inner = _probe_dispatch(),
                                     substitute = FaultToSyntax()))
-        iomap = print_document(projection, nothing, _probe_branch(4), PrinterContext())
+        iomap = print_document(projection, nothing, _probe_branch(4),
+                               _make_tolerant_context(nothing))
         @test length(_drawn_children(iomap.output)) == 4
     end
 
@@ -134,7 +168,7 @@ function test_fault_catching()
         projection = RecursiveProjection(
             FaultCatchingProjection(inner = _probe_dispatch(),
                                     substitute = FaultToSyntax()))
-        context = with_property(PrinterContext(), :fault_store, store)
+        context = _make_tolerant_context(store)
         iomap = print_document(projection, nothing, _probe_branch(6), context)
         _drawn_children(iomap.output)
         drain_faults!(store)
@@ -167,6 +201,62 @@ function test_fault_catching()
         @test log.entries[2].count == 1
     end
 
+    @testset "an interrupt passes through the barrier" begin
+        # An interrupt means stop. A barrier that caught it would turn Ctrl+C
+        # into a mark on the screen.
+        context = _make_tolerant_context(FaultStore())
+        late = FaultCatchingProjection(inner = InterruptingProjection(when = :late),
+                                       substitute = FaultToSyntax())
+        iomap = print_document(late, late, FaultProbeLeaf(value = 1), context)
+        @test_throws InterruptException _force_cell(iomap.output)
+        early = FaultCatchingProjection(inner = InterruptingProjection(when = :early),
+                                        substitute = FaultToSyntax())
+        @test_throws InterruptException print_document(early, early,
+                                                       FaultProbeLeaf(value = 1), context)
+        reader = FaultCatchingProjection(inner = InterruptingProjection(when = :read),
+                                         substitute = FaultToSyntax())
+        iomap = print_document(reader, reader, FaultProbeLeaf(value = 1), context)
+        @test_throws InterruptException read_intent(reader, iomap, KeyPress('x'))
+        @test_throws InterruptException map_reference_forward(reader, iomap, EmptyReference())
+    end
+
+    @testset "the strict policy catches nothing" begin
+        store = FaultStore()
+        projection = RecursiveProjection(
+            FaultCatchingProjection(inner = _probe_dispatch(),
+                                    substitute = FaultToSyntax()))
+        context = with_property(with_property(PrinterContext(), :fault_store, store),
+                                :fault_policy, make_strict_fault_policy())
+        iomap = print_document(projection, nothing, _probe_branch(2), context)
+        @test_throws ErrorException _drawn_children(iomap.output)
+        @test isempty(get_fault_records(store))
+        # A context with no policy is strict too.
+        iomap = print_document(projection, nothing, _probe_branch(2), PrinterContext())
+        @test_throws ErrorException _drawn_children(iomap.output)
+        reader = FaultCatchingProjection(inner = InterruptingProjection(when = :failing_read),
+                                         substitute = FaultToSyntax())
+        iomap = print_document(reader, reader, FaultProbeLeaf(value = 1), context)
+        @test_throws ErrorException read_intent(reader, iomap, KeyPress('x'))
+    end
+
+    @testset "an editor hands its policy to the barrier" begin
+        projection = RecursiveProjection(
+            FaultCatchingProjection(inner = _probe_dispatch(),
+                                    substitute = FaultToSyntax()))
+        # An editor starts strict, so the barrier catches nothing and a test sees
+        # the fault.
+        strict = Editor(HeadlessBackend(), _probe_branch(2), projection, Device[])
+        print!(strict)
+        @test_throws ErrorException _drawn_children(strict.iomap.output)
+        # The policy of a loop that a person sits in front of turns it on.
+        tolerant = Editor(HeadlessBackend(), _probe_branch(2), projection, Device[])
+        tolerant.fault_policy = FaultPolicy(is_console_enabled = false,
+                                            is_sound_enabled = false)
+        print!(tolerant)
+        @test length(_drawn_children(tolerant.iomap.output)) == 2
+        @test length(get_fault_records(tolerant.faults)) == 1
+    end
+
     @testset "a person opens the session's log, and a window fills it" begin
         domain = ProjecturedFault.DomainModule
         log = get_session_fault_log()
@@ -184,7 +274,7 @@ function test_fault_catching()
         projection = RecursiveProjection(
             FaultCatchingProjection(inner = _probe_dispatch(),
                                     substitute = FaultToSyntax()))
-        context = with_property(PrinterContext(), :fault_store, store)
+        context = _make_tolerant_context(store)
         iomap = print_document(projection, nothing, _probe_branch(6), context)
         _drawn_children(iomap.output)
         drain_faults!(store)

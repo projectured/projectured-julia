@@ -28,7 +28,7 @@ The package has [the shared shape](../gesturelog/gesturelog.md#the-shared-shape)
 
 ### Turn it on
 
-`Editor(…)` starts with `make_strict_fault_policy()`: no editor barrier catches, so a broken projection fails its test. `run_editor!` defaults to `FaultPolicy()`, because a loop that a person sits in front of must survive.
+`Editor(…)` starts with `make_strict_fault_policy()`: no barrier catches, so a broken projection fails its test. `run_editor!` defaults to `FaultPolicy()`, because a loop that a person sits in front of must survive. `print!` puts the policy of the editor in the printer context under `:fault_policy`, beside the store under `:fault_store`, so a barrier in a chain follows the same policy as the barriers of the editor. A context with no policy, such as one that a test makes by hand, counts as the strict policy.
 
 ```julia
 run_editor!(editor)                                             # barriers on
@@ -64,7 +64,7 @@ The editor reports a fault at the first tier that works. A tier that fails falls
 | 4 | a sound | `report_fault!` calls `play_fault_sound!` |
 | 5 | nothing | `report_fault!` returns |
 
-`report_fault!` must never throw, because it runs when everything else already failed. `PAR-REPORT-NEVER-THROWS` holds the rule. `run_fault_barrier` lets `InterruptException`, `StackOverflowError` and `OutOfMemoryError` through, by `is_passthrough_exception`.
+`report_fault!` must never throw, because it runs when everything else already failed. `PAR-REPORT-NEVER-THROWS` holds the rule. `run_fault_barrier` and `FaultCatchingProjection` let `InterruptException`, `StackOverflowError`, `OutOfMemoryError` and the request to quit through, by `is_passthrough_exception`.
 
 ### Why a printer needs two catches
 
@@ -122,7 +122,7 @@ The package registers the natural row `:fault` for `FaultLog`, the title `Faults
 - **The catch returns a value.** The reactive engine then caches, heals and contains the fault; a catch that only logs would throw again on every frame.
 - **The store is outside the reactive graph.** A thunk may write it, and the frame drains it into the log.
 - **The key holds no reference.** One bug is one record, whatever the size of the document.
-- **A barrier in a chain is opt-in.** A pipeline without one behaves as before. The strict policy keeps the editor barriers off under test.
+- **A barrier in a chain is opt-in.** A pipeline without one behaves as before. The strict policy keeps every barrier off under test, the barriers in a chain too.
 - **The fault log is not saved.** The faults of one session say nothing about the next one.
 
 ## Usage
@@ -141,7 +141,6 @@ run_fault_tool_example()             # a tool throws; the same panel reports it
 
 ## Limits
 
-- `FaultCatchingProjection` reads no `FaultPolicy`. It catches also under the strict policy. It does not call `is_passthrough_exception`, so it catches an `InterruptException` too.
 - A `CompoundOperation` is not atomic and gets no rollback. Only `evaluate_invertible_operation!` builds its way back member by member.
 - The race between a tool task and the frame stays. The assistant and the MCP server change the document from their own task, not through `post_operation!`.
 - A parse error is not a fault. A parser that returns a partial document is a separate concern.
