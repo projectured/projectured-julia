@@ -1,8 +1,10 @@
 # The public functions name their arguments
 
-**Status (2026-09-22): PENDING.** The rules landed in
-[code-quality-rules.md](../../documentation/rule/code-quality-rules.md) §4, and
-`tool/survey-arguments.jl` measures them. No signature changed yet.
+**Status (2026-09-22): WAVE 1 DONE.** The rules landed in
+[code-quality-rules.md](../../documentation/rule/code-quality-rules.md) §4,
+`tool/survey-arguments.jl` measures them, and `test/suite/arguments.jl` guards
+them. Wave 1 changed 26 public functions in a worktree and landed on `main`.
+Waves 2 to 4 are open.
 
 **Goal:** every public function of `source/` and `example/` takes at most three
 positional arguments, or carries a `# @positional:` marker that says why it does
@@ -37,7 +39,26 @@ plot 10, layout 7, syntax 6, pane 5, and five more slices with one or two each.
 
 ## 3. The waves
 
-### Wave 1: the signatures a caller can get wrong
+### Wave 1: the signatures a caller can get wrong — DONE
+
+**Done, 2026-09-22.** All 26 changed, in four commits: the fault family, the
+gesture bindings, the pane makers with the layout and the reflection, and the
+geometry of the plot, the sequence chart and the graph. `print_template_rule`
+and `read_template_intent` took a `# @positional:` marker instead of a change:
+they are the printer and the reader of the projection protocol, which the
+template macro emits with that shape.
+
+What the measure says, before and after: definitions over the line 835 → 811,
+of them public 137 → 107; definitions that take a keyword argument 665 → 736.
+
+The suites that cover the changed slices keep their known results:
+`test_fault()` 73 of 73, `test_kernel()` 3 failures and 3 errors of Rule C and
+the reference schema, `test_substrate()` 3 failures and 2 errors of the
+split-pane drag, `test_conversation()` its one import check, and
+`test_shell()`, `test_application()`, `test_plot_geometry()`,
+`test_sequencechart()`, `test_graph()`, `test_chart()`, `test_naming()`,
+`test_documentation()` and `test_tree()` all pass.
+
 
 A `Bool` in the call, or two arguments of one type that a caller can swap. These
 are the ones where an order is a defect waiting, and each has few call sites.
@@ -148,6 +169,12 @@ with two methods over the line, such as `record_fault!`, stands once.
 5. Take the name out of the ledger of `test/suite/arguments.jl`. The guard
    fails while a name stands there that no definition needs.
 6. Re-run `julia tool/survey-arguments.jl` and watch the public count fall.
+
+**A script that rewrites call sites pays for itself**, and wave 1 used one that
+reads balanced parentheses and splits at top-level commas. Two traps: it rewrites
+a signature line inside a docstring as if it were a call, and it swallows a
+comment that stands inside an argument list. Read the diff for `= #` and for a
+`->` in a docstring after each run.
 
 ## 6. What is not in this plan
 
