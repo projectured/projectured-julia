@@ -47,7 +47,16 @@ was dropped.
    `test_insertion_in_tab()` 11 of 11, `test_application()` 76 of 76. In the
    session of `ProjecturedRepl` both filter orders give the same 159 candidates,
    and the `insertable` probes fall from 988 to 486.
-2. [ ] Record the list again at `:none`.
+2. [x] Record the list again at `:none`, after a rebase onto `7c3cd5ad`, which
+   brought the toolbar work. 10857 statements, against 11332 on main. 501 of the
+   dropped are the `insertable` probes that the new filter order no longer runs
+   (971 fall to 471); about 170 of the added are `ProjecturedWidget` methods of
+   the toolbar, and the rest of the churn is closures that main renumbered. The
+   driver drove 105 examples, and none refused. At `:recorded`, headless in the
+   application window: the first key compiles 1 method, Backspace 0, Left 1,
+   Delete 0, and "evaluatorxy" with Backspace, Left and Delete commits
+   `EvaluatorToplevel`. On the rebased branch `test_document_insertion()` 119 of
+   119, `test_insertion_in_tab()` 11 of 11, `test_application()` 100 of 100.
 
 ## Found, and left for a decision
 
