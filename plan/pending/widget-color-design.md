@@ -1478,6 +1478,41 @@ What main brings that the model must take in:
 The order: rebase the branch onto main, convert `WidgetToolbarItem`, measure
 the baseline of `test_substrate()` on the new main, and run the suites again.
 
+**Done on 2026-09-22**, onto `235404ec`. Nine conflicts:
+
+1. The export list of `WidgetModule`, once per group: main's widget list and the
+   style list of the branch.
+2. The label, which takes main's branch for a bare `StyleFont` and reads the ink
+   from `_get_part_text`.
+3. The tick of the checkbox, which main draws as a glyph. A glyph has no stroke
+   width, so `check_stroke` becomes `check_color` and the style field
+   `check_stroke_color` becomes `check_color`.
+4. The chevron of the card, the select, the accordion and the tree, for the same
+   reason: every `chevron_stroke` becomes `chevron_color`, and every
+   `chevron_stroke_color` of a style becomes `chevron_color`.
+5. The alert, which takes main's icon before the title, in the color that the
+   title's style field gives.
+6. The tree, which takes main's `geom.icon_column` and its `_write_view_state`
+   write of the hover, with the content offset of the branch.
+7. `WidgetToolbarItem`, converted as this section says. Its default padding
+   stays `inset_default`, because `make_window_tool_command` passes
+   `Inset(4, 4, 4, 4)` itself.
+8. The icons: main deleted every vector renderer, so the fix of the search icon
+   goes with them.
+9. `widget.md`, which main rewrote as a design document of 185 lines. The three
+   paragraphs of the model go into its "The theme" section, and the line on the
+   fields of a widget names the insets and the `style`.
+
+Two faults the suite found after the replay, both from a field that main added
+to a struct the branch rewrote:
+
+- `WidgetShellToGraphicsCanvas` gained `capture`, and the constructor of the
+  theme passed ten of its eleven fields. It passes `Ref{Any}(nothing)`.
+- `WidgetScrollPaneToGraphicsCanvas` gained `chrome`, which omits the fill of
+  the viewport. `content_color = color_transparent` says the same, so the
+  registration of the evaluator in `EvaluatorToWidget.jl` builds the pane from
+  `make_slate_light_theme` with a transparent content.
+
 ## Appendix A. The style fields of each widget projection
 
 Each entry is `field ← source`. `(t, w)` is `StyleStroke(theme.t, theme.w)`, and
