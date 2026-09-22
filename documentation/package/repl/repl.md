@@ -44,10 +44,13 @@ needs a restart to take effect.
 `source/repl/record/driver.jl` is not run by a build. A person runs
 `record_precompile_statements()`. It opens a real SDL window, since the shim
 needs a display and SDL requires an accelerated renderer that the dummy
-video driver does not offer. It then drives every example the way a reader
-drives it (the mouse, the arrow keys, Tab, Home, End, Backspace, Delete,
-Enter, and two character keys), and writes down every method instance Julia
-had to compile under `--trace-compile`. The list this produces is checked in at
+video driver does not offer. It first runs the `:live` workload and
+`warm_application()`, the warm-up of the binary. The warm-up opens a tab with
+`Ctrl+T`, presses Insert on the placeholder, and types a name into the buffer.
+It then drives every example the
+way a reader drives it (the mouse, the arrow keys, Tab, Home, End, Backspace,
+Delete, Enter, and two character keys), and writes down every method instance
+Julia had to compile under `--trace-compile`. The list this produces is checked in at
 `asset/precompile/PrecompileStatements.jl` and replayed by
 `replay_precompile_statements()`, either inside `@compile_workload` during a
 build or at the prompt to see what the list is worth without a rebuild. The

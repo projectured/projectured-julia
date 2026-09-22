@@ -15,7 +15,7 @@ headless application window:
 | Insert | 200 |
 | `e`, the first key of "evaluator" | 338 |
 | each of the other eight keys | 0 |
-| Enter, which commits `EvaluatorToplevel` | 70 |
+| Enter, which commits `EvaluatorToplevel` | 69 |
 
 257 of the 338 are `insertable(::Type{T})`, one for each document type in each
 loaded module. The first key calls `name_completion`, which calls
@@ -48,8 +48,37 @@ the recorded list does not hold them.
 
 1. [x] The warm-up types into a name buffer, the test asserts it, and the driver
    runs the warm-up.
-2. [ ] Record the list again at `:none`.
-3. [ ] Count the compiles of the first key again at `:recorded`.
+2. [x] Record the list again at `:none`. The driver drove 105 examples, and
+   none refused. The list holds 11314 statements, against 11975 in the list it
+   replaces. All 338 statements of the first key are in it; the old list held 2
+   of them. Of the 9246 statements dropped, 7681 no longer resolve. Of the 1565
+   that still resolve, about 1100 are `DocumentWalk` closures and
+   `search_documents` methods. `precompile_atom_walks` compiled them, and
+   commit `30ab2d63` deleted it after the last recording. So the new run did not
+   lose coverage.
+3. [x] Count the compiles again at `:recorded`, with the same headless script:
+
+   | key | before | after |
+   | --- | ---: | ---: |
+   | `Ctrl+T` | 106 | 6 |
+   | Insert | 200 | 5 |
+   | `e`, the first key | 338 | 1 |
+   | each of the other eight keys | 0 | 0 |
+   | Enter | 69 | 1 |
+
+   What remains is small `Base` methods. These are counts, not times: no timing
+   measurement was taken.
+4. [x] `documentation/package/repl/repl.md` says that the driver runs the
+   warm-up.
+
+## Decisions found during the work
+
+- The application document is wrapped by the window. The test reaches the pane
+  tree with `get_wrapped_document`, as the other cases in `ApplicationTest.jl`
+  do.
+- The recording was made in the worktree environment. A cache slot belongs to
+  the environment, so the build at `:none` did not touch the `:recorded` image
+  of the main checkout.
 
 ## Not in this change
 
