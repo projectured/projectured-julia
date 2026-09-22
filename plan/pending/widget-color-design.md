@@ -1093,7 +1093,7 @@ does not name is `color_transparent`, and an inset that it does not name is
 | `WidgetToggleGroup` | border `border`; padding 2; surface `muted` | `padding_disabled_color`, `content_disabled_color` ← `muted`; `segment_color`; `segment_selected_color` ← `background`; `segment_disabled_color` ← `muted`; `label_text` ← (`font`, `muted_foreground`); `label_selected_text` ← (`font`, `foreground`); `label_disabled_text`; `segment_padding` ← `pad`; `focus_ring_stroke`; `corner_radius` |
 | `WidgetSelect` | border `input`; padding `pad`; surface `background` | `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_text`; `label_disabled_text`; `chevron_stroke` ← (`muted_foreground`, `stroke`); `focus_ring_stroke`; `gap`; `chevron_size`; `corner_radius` |
 | `WidgetOption` | padding `pad`; surface `background` | `label_text`; `layer_hovered_color` |
-| `WidgetSpinBox` | border `input`; padding `pad`; surface `background` | `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_text`; `label_disabled_text`; `stepper_color` ← `foreground`; `stepper_disabled_color` ← `muted_foreground`; `divider_stroke` ← (`input`, `border_width`); `focus_ring_stroke`; `corner_radius` |
+| `WidgetSpinBox` | border `input`; padding `pad` with no right side, so the steppers reach the border; surface `background` | `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_text`; `label_disabled_text`; `stepper_color` ← `foreground`; `stepper_disabled_color` ← `muted_foreground`; `divider_stroke` ← (`input`, `border_width`); `focus_ring_stroke`; `corner_radius` |
 | `WidgetList` | border `border`; surface `background` | `label_text`; `row_selected_color` ← `selection` at 25%; `layer_hovered_color`; `row_padding` ← `pad`; `corner_radius` |
 | `WidgetTextarea` | border `input`; padding `pad`; surface `background` | `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_text`; `label_disabled_text`; `focus_ring_stroke`; `corner_radius` |
 | `WidgetAccordion` | | `title_text`; `body_text`; `divider_stroke` ← (`border`, `border_width`); `chevron_stroke`; `item_padding`; the sizes of today |
@@ -1270,6 +1270,56 @@ does not name is `color_transparent`, and an inset that it does not name is
         composite differs in content at the same 1024×768 size, from the same
         causes plus the changes groups 1-4 already made to the other widgets
         it also shows.
+- [x] Group 6, the lists: select, option, spin box, list, textarea and
+      accordion, with `WidgetSelectStyle`, `WidgetSpinBoxStyle`,
+      `WidgetListStyle` and `WidgetAccordionStyle`. None of these widgets had
+      the box insets before; all six get `margin`, `border`, `padding` and
+      `style` (D11). The padding of the whole control becomes the box
+      `padding` for the select, the spin box, the textarea and the option; the
+      list's row padding becomes `row_padding` and the accordion's item
+      padding becomes `item_padding`, and neither gets a box `padding` of its
+      own beyond `inset_default` (§8.2). `test_substrate()` keeps the baseline
+      (3 failures, 2 errors, both `SplitPaneDragTest`) with 77903 passes, and
+      the naming guard finds 0 violations.
+      - Found on the way: the spin box's stepper column, first sized to the
+        bare text height of the new content, shrank its + and − marks to a
+        barely visible 8px (half their old size) — padding, now real space
+        around the content, no longer implicitly padded the steppers the way
+        the old flat box did. The stepper and its divider now span the
+        padding above and below the text as well as the text itself; the
+        surface the box paints there is one color, so this costs no element
+        and restores the old proportions. The control widens by the padding
+        that now shows to the right of the steppers, which used to sit flush
+        with the border with no reserved space there.
+      - `WidgetOption` keeps `layer_hovered_color` on its projection for a
+        later state — the document has no `hovered` field today — and draws
+        no layer; it needs no style of its own, since that decoration is its
+        only field beyond the five of `WidgetStyle`.
+      - No call site of any of the six widgets set a color keyword (none of
+        them had one to set before), so there was nothing to remove or report
+        as a dead write.
+      - Images: `widget_select` grows from 220×38 to 220×40 (its default
+        1-pixel border top and bottom, D8; the authored width of 220 stays
+        fixed, since an authored size is the outer size, not the content).
+        `widget_textarea` grows from 340×98 to 340×100 for the same reason.
+        `widget_accordion` renders the same pixels as the base (its box stays
+        transparent; §8.3 names no border for it). `widget_disabled` stays
+        220 wide and grows from 444 to 448 tall (its two `WidgetSelect` rows,
+        +2 px each, on top of group 5's growth). `widget_popup` is not a
+        registered example name (`write_example_image` answers "Unknown
+        example"), so it was not compared. `widget_list` and `widget_option`
+        have no example of their own registered under `Example("widget_…")`
+        in `SubstrateExamples.jl` (only as `AtomicDocument` entries under
+        `:widget`); both were rendered ad hoc with the same document and
+        projection pair `make_widget_projection_example` uses elsewhere.
+        `widget_option` renders the same pixels as the base (no border is
+        named for it, and its padding was already the box's own).
+        `widget_list` grows in height only (its default 1-pixel border, D8;
+        its own box `padding` stays `inset_default`, only `row_padding` keeps
+        the old value). `widget_spin_box`, rendered the same way, grows by
+        its border only. Its default padding has no right side, so the
+        steppers reach the border as they did before; with the full control
+        padding, an empty strip of padding followed the steppers.
 
 ### 8.6 omnet-julia
 

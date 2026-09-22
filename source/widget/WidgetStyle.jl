@@ -358,3 +358,68 @@ fields, not the other fields of `WidgetStyle`.
     content_color::Any = nothing
     border_stroke_color::Any = nothing
 end
+
+"""
+    WidgetSelectStyle(; <the fields of WidgetStyle>, chevron_color)
+
+The style of a `WidgetSelect`: the fields of `WidgetStyle`, and the trailing
+chevron.
+"""
+@document struct WidgetSelectStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    chevron_color::Any = nothing
+end
+
+"""
+    WidgetSpinBoxStyle(; <the fields of WidgetStyle>, stepper_color, divider_stroke_color)
+
+The style of a `WidgetSpinBox`: the fields of `WidgetStyle`, the + and − marks
+(`stepper_color`), and the line beside them (`divider_stroke_color`).
+"""
+@document struct WidgetSpinBoxStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    stepper_color::Any = nothing
+    divider_stroke_color::Any = nothing
+end
+
+"""
+    WidgetListStyle(; <the fields of WidgetStyle>, row_selected_color)
+
+The style of a `WidgetList`: the fields of `WidgetStyle`, and the band of the
+selected row.
+"""
+@document struct WidgetListStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    row_selected_color::Any = nothing
+end
+
+"""
+    WidgetAccordionStyle(; <the fields of WidgetStyle>, title_text_color, body_text_color,
+                         divider_stroke_color, chevron_color)
+
+The style of a `WidgetAccordion`: the fields of `WidgetStyle`, its title and
+body text, the hairline between items, and the fold mark.
+"""
+@document struct WidgetAccordionStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    title_text_color::Any = nothing
+    body_text_color::Any = nothing
+    divider_stroke_color::Any = nothing
+    chevron_color::Any = nothing
+end

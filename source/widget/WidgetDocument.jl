@@ -176,15 +176,21 @@ a value typed as text.
     validator::Any
     visible::Bool
     enabled::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     tooltip::Any
 end
 
 function WidgetSpinBox(position::Point2D, value;
                        min=nothing, max=nothing, step=1, width::Integer=0,
                        validator=make_numeric_validator(),
-                       visible::Bool=true, enabled::Bool=true, tooltip=nothing)
+                       visible::Bool=true, enabled::Bool=true,
+                       margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing)
     WidgetSpinBox(Cell(position), Cell(value), Cell(min), Cell(max), Cell(step),
-                  Cell(Int(width)), Cell(validator), Cell(visible), Cell(enabled), Cell(tooltip), Cell(nothing))
+                  Cell(Int(width)), Cell(validator), Cell(visible), Cell(enabled),
+                  Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 # ── WidgetList ───────────────────────────────────────────────────────────────
@@ -223,6 +229,10 @@ opens on a click, and `WidgetRadioGroup` for a few choices that stay visible.
     width::Int
     visible::Bool
     enabled::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     hovered::Int
     tooltip::Any
 end
@@ -260,9 +270,11 @@ get_widget_list_selected(w::WidgetList) = _widget_element_selected(w.selection, 
 
 function WidgetList(position::Point2D, items::Vector;
                     selected::Integer=0, width::Integer=0,
-                    visible::Bool=true, enabled::Bool=true, tooltip=nothing)
+                    visible::Bool=true, enabled::Bool=true,
+                    margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing)
     WidgetList(Cell(position), CellVector(Cell[Cell(x) for x in items]),
-               Cell(Int(width)), Cell(visible), Cell(enabled), Cell(0), Cell(tooltip),
+               Cell(Int(width)), Cell(visible), Cell(enabled),
+               Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(0), Cell(tooltip),
                Cell(make_widget_list_selection(selected)))
 end
 
@@ -1973,13 +1985,19 @@ visible, and `WidgetList` for a list that stays open.
     width::Int
     visible::Bool
     enabled::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     tooltip::Any
 end
 WidgetSelect(position::Point2D, value; options::Vector=Any[], width::Integer=0,
-             visible::Bool=true, enabled::Bool=true, tooltip=nothing) =
+             visible::Bool=true, enabled::Bool=true,
+             margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetSelect(Cell(position), Cell(value),
                  CellVector(Cell[o isa Cell ? o : Cell(o) for o in options]),
-                 Cell(Int(width)), Cell(visible), Cell(enabled), Cell(tooltip), Cell(nothing))
+                 Cell(Int(width)), Cell(visible), Cell(enabled),
+                 Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetOption ──────────────────────────────────────────────────────────────
 
@@ -2002,12 +2020,18 @@ to `evaluate_operation`.
     popup_id::Symbol
     width::Int
     visible::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     tooltip::Any
 end
 WidgetOption(position::Point2D, select, value; label=string(value),
-             popup_id::Symbol=:widget_popup, width::Integer=0, visible::Bool=true, tooltip=nothing) =
+             popup_id::Symbol=:widget_popup, width::Integer=0, visible::Bool=true,
+             margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetOption(Cell(position), Cell(select), Cell(value), Cell(label),
-                 Cell(popup_id), Cell(Int(width)), Cell(visible), Cell(tooltip), Cell(nothing))
+                 Cell(popup_id), Cell(Int(width)), Cell(visible),
+                 Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetTextarea ──────────────────────────────────────────────────────────
 
@@ -2034,11 +2058,17 @@ read.
     rows::Int
     visible::Bool
     enabled::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     tooltip::Any
 end
-WidgetTextarea(position::Point2D, content; width::Integer=0, rows::Integer=4, visible::Bool=true, enabled::Bool=true, tooltip=nothing) =
+WidgetTextarea(position::Point2D, content; width::Integer=0, rows::Integer=4, visible::Bool=true, enabled::Bool=true,
+               margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetTextarea(Cell(position), Cell(content), Cell(Int(width)), Cell(Int(rows)),
-                   Cell(visible), Cell(enabled), Cell(tooltip), Cell(nothing))
+                   Cell(visible), Cell(enabled),
+                   Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
 
@@ -2085,11 +2115,17 @@ section that folds.
     expanded::Int
     width::Int
     visible::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     tooltip::Any
 end
-WidgetAccordion(position::Point2D, items::Vector; expanded::Integer=1, width::Integer=0, visible::Bool=true, tooltip=nothing) =
+WidgetAccordion(position::Point2D, items::Vector; expanded::Integer=1, width::Integer=0, visible::Bool=true,
+                margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetAccordion(Cell(position), CellVector(Cell[Cell(_as_accordion_item(it)) for it in items]),
-                    Cell(Int(expanded)), Cell(Int(width)), Cell(visible), Cell(tooltip), Cell(nothing))
+                    Cell(Int(expanded)), Cell(Int(width)), Cell(visible),
+                    Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 

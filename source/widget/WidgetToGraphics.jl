@@ -6732,18 +6732,39 @@ end
 
 @projection struct WidgetSelectToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{StyleText}            # value font + color
-    background_color::StyleColor
-    border::StyleStroke         # input outline
+    margin::Inset
+    border::Inset
     padding::Inset
-    corner_radius::Int
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    padding_disabled_color::StyleColor
+    content_disabled_color::StyleColor
+    label_text::ImmutableCell{StyleText}            # value font + color
+    label_disabled_text::ImmutableCell{StyleText}
+    chevron_color::StyleColor          # the mark that opens the list
+    focus_ring_stroke::StyleStroke     # focus ring when selected
     gap::Int                   # space between value and chevron
-    chevron::StyleStroke        # chevron color + width
     chevron_size::Int
-    disabled_color::StyleColor  # box fill when !enabled
-    disabled_foreground::StyleColor # value + chevron when !enabled
-    ring_color::StyleColor      # focus ring when selected
+    corner_radius::Int
 end
+
+WidgetSelectToGraphicsCanvas(theme::WidgetTheme; measure,
+                             margin = inset_default, border = _make_uniform_inset(theme.border_width),
+                             padding = _make_control_padding(theme),
+                             margin_color = color_transparent, border_color = theme.input,
+                             padding_color = theme.background, content_color = theme.background,
+                             padding_disabled_color = theme.muted, content_disabled_color = theme.muted,
+                             label_text = theme.body_text,
+                             label_disabled_text = StyleText(theme.body_text.font, theme.muted_foreground),
+                             chevron_color = theme.muted_foreground,
+                             focus_ring_stroke = StyleStroke(theme.ring, 2),
+                             gap = theme.gap, chevron_size = theme.chevron, corner_radius = theme.radius) =
+    WidgetSelectToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
+                                 content_color, padding_disabled_color, content_disabled_color, label_text,
+                                 label_disabled_text, chevron_color, focus_ring_stroke, gap, chevron_size,
+                                 corner_radius)
 
 # Carries the anchor (the select's own document path, captured from `ctx.reference`
 # at print time) and the rendered box size, so the reader can open the dropdown
@@ -6766,25 +6787,29 @@ function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSel
     build = ComputedCell(() -> begin
         text = string(w.value)
         enabled = !(w.enabled === false)
-        padding_x = _sc(Int(p.padding.left[]))
-        padding_y = _sc(Int(p.padding.top[]))
-        text_width, text_height = _text_size(p.measure, p.text.font, text)
+        state = enabled ? nothing : :disabled
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w; state)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
+        label = _get_state_text(p, w, :label; state)
+        text_width, text_height = _text_size(p.measure, label.font, text)
         chevron_size = _sc(p.chevron_size)
-        # Fit the value text, a gap, the trailing chevron and both paddings.
-        content_min = 2padding_x + text_width + _sc(p.gap) + 2chevron_size
-        control_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
-        control_height = _resolve_height(ctx, 0, text_height + 2padding_y)
-        box_fill   = enabled ? p.background_color : p.disabled_color
-        text_color = enabled ? p.text.color : p.disabled_foreground
-        chevron_color = enabled ? p.chevron.color : p.disabled_foreground
+        # Fit the value text, a gap and the trailing chevron; the box's own
+        # padding is already in `inset_width`.
+        content_min = text_width + _sc(p.gap) + 2chevron_size
+        outer_width = _resolve_width(ctx, _sc(Int(w.width)), content_min + inset_width)
+        outer_height = _resolve_height(ctx, 0, text_height + inset_height)
+        content_width, content_height = outer_width - inset_width, outer_height - inset_height
+        radius = _sc(p.corner_radius)
+        chevron_color = _get_state_color(p, w, :chevron; state)
         elements = Any[]
-        _push_panel!(elements, 0, 0, control_width, control_height; fill=box_fill, border=p.border.color,
-                     border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
-        push!(elements, GraphicsText(text, padding_x, (control_height - text_height) ÷ 2, p.text.font, text_color))
-        _push_chevron!(elements, control_width - padding_x - chevron_size, control_height ÷ 2, chevron_size, :down,
-                       chevron_color)
-        _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
-        (width=control_width, height=control_height, elements=elements)
+        _push_box_parts!(elements, box, colors, content_width, content_height; radius)
+        push!(elements, GraphicsText(text, content_x, content_y + (content_height - text_height) ÷ 2, label.font, label.color))
+        _push_chevron!(elements, content_x + content_width - chevron_size, content_y + content_height ÷ 2, chevron_size,
+                       :down, chevron_color)
+        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, radius)
+        (width=outer_width, height=outer_height, elements=elements)
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetSelectToGraphicsCanvasIoMap(p, w, canvas, ctx.reference,
@@ -6837,25 +6862,45 @@ end
 
 @projection struct WidgetOptionToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{StyleText}
-    background_color::StyleColor
+    margin::Inset
+    border::Inset
     padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    label_text::ImmutableCell{StyleText}
+    layer_hovered_color::StyleColor   # over the surface while the option is hovered
 end
+
+WidgetOptionToGraphicsCanvas(theme::WidgetTheme; measure,
+                             margin = inset_default, border = inset_default,
+                             padding = _make_control_padding(theme),
+                             margin_color = color_transparent, border_color = color_transparent,
+                             padding_color = theme.background, content_color = theme.background,
+                             label_text = theme.body_text,
+                             layer_hovered_color = theme.hover_layer) =
+    WidgetOptionToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                 padding_color, content_color, label_text, layer_hovered_color)
 
 function print_document(p::WidgetOptionToGraphicsCanvas, recursion, w::WidgetOption, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        label = string(w.label)
-        padding_x = _sc(Int(p.padding.left[]))
-        padding_y = _sc(Int(p.padding.top[]))
-        text_width, text_height = _text_size(p.measure, p.text.font, label)
-        row_width = _resolve_width(ctx, _sc(Int(w.width)), text_width + 2padding_x)
-        row_height = _resolve_height(ctx, 0, text_height + 2padding_y)
+        label_str = string(w.label)
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
+        label = _get_state_text(p, w, :label)
+        text_width, text_height = _text_size(p.measure, label.font, label_str)
+        outer_width = _resolve_width(ctx, _sc(Int(w.width)), text_width + inset_width)
+        outer_height = _resolve_height(ctx, 0, text_height + inset_height)
+        content_width, content_height = outer_width - inset_width, outer_height - inset_height
         elements = Any[]
-        _push_panel!(elements, 0, 0, row_width, row_height; fill=p.background_color)
-        push!(elements, GraphicsText(label, padding_x, (row_height - text_height) ÷ 2, p.text.font, p.text.color))
-        (width=row_width, height=row_height, elements=elements)
+        _push_box_parts!(elements, box, colors, content_width, content_height)
+        push!(elements, GraphicsText(label_str, content_x, content_y + (content_height - text_height) ÷ 2, label.font, label.color))
+        (width=outer_width, height=outer_height, elements=elements)
     end))
 end
 
@@ -6886,16 +6931,40 @@ _spin_clamp(v, lo, hi) = (lo !== nothing && v < lo) ? lo : ((hi !== nothing && v
 
 @projection struct WidgetSpinBoxToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{StyleText}
-    background_color::StyleColor
-    border::StyleStroke
+    margin::Inset
+    border::Inset
     padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    padding_disabled_color::StyleColor
+    content_disabled_color::StyleColor
+    label_text::ImmutableCell{StyleText}
+    label_disabled_text::ImmutableCell{StyleText}
+    stepper_color::StyleColor           # the + and − marks
+    stepper_disabled_color::StyleColor
+    divider_stroke::StyleStroke         # the line beside the steppers
+    focus_ring_stroke::StyleStroke
     corner_radius::Int
-    disabled_color::StyleColor
-    disabled_foreground::StyleColor
-    stepper_color::StyleColor
-    ring_color::StyleColor
 end
+
+WidgetSpinBoxToGraphicsCanvas(theme::WidgetTheme; measure,
+                              margin = inset_default, border = _make_uniform_inset(theme.border_width),
+                              padding = Inset(theme.pad_y, theme.pad_y, theme.pad_x, 0),
+                              margin_color = color_transparent, border_color = theme.input,
+                              padding_color = theme.background, content_color = theme.background,
+                              padding_disabled_color = theme.muted, content_disabled_color = theme.muted,
+                              label_text = theme.body_text,
+                              label_disabled_text = StyleText(theme.body_text.font, theme.muted_foreground),
+                              stepper_color = theme.foreground, stepper_disabled_color = theme.muted_foreground,
+                              divider_stroke = StyleStroke(theme.input, theme.border_width),
+                              focus_ring_stroke = StyleStroke(theme.ring, 2),
+                              corner_radius = theme.radius) =
+    WidgetSpinBoxToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
+                                  content_color, padding_disabled_color, content_disabled_color, label_text,
+                                  label_disabled_text, stepper_color, stepper_disabled_color, divider_stroke,
+                                  focus_ring_stroke, corner_radius)
 
 # @iomap so the reader reads control_width/control_height/stepper_w transparently
 # (extent shared from the build cell); PAR-STABLE-IOMAP-IDENTITY.
@@ -6913,29 +6982,41 @@ function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSp
     position = w.position::Point2D
     build = ComputedCell(() -> begin
         enabled = !(w.enabled === false)
+        state = enabled ? nothing : :disabled
         text = string(w.value)
-        pad_x = _sc(Int(p.padding.left[])); pad_y = _sc(Int(p.padding.top[]))
-        tw, th = _text_size(p.measure, p.text.font, text)
-        control_height = _resolve_height(ctx, 0, th + 2pad_y)
-        stepper_w = control_height
-        content_min = 2pad_x + tw + stepper_w
-        control_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
-        box_fill   = enabled ? p.background_color : p.disabled_color
-        text_color = enabled ? p.text.color : p.disabled_foreground
-        step_color = enabled ? p.stepper_color : p.disabled_foreground
-        bw = max(1, _sc(p.border.width))
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w; state)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
+        label = _get_state_text(p, w, :label; state)
+        tw, th = _text_size(p.measure, label.font, text)
+        outer_height = _resolve_height(ctx, 0, th + inset_height)
+        content_height = outer_height - inset_height
+        padding_top, padding_bottom = box.padding[2], box.padding[4]
+        # The stepper column spans the padding above and below the text as well
+        # as the text itself, and it ends at the right edge of the content. The
+        # default padding has no right side, so the column reaches the border.
+        # The gap before it is the left padding, the space before the text.
+        stepper_w = padding_top + content_height + padding_bottom
+        gap = box.padding[1]
+        outer_width = _resolve_width(ctx, _sc(Int(w.width)), tw + gap + stepper_w + inset_width)
+        content_width = outer_width - inset_width
+        radius = _sc(p.corner_radius)
+        step_color = _get_state_color(p, w, :stepper; state)
+        divider_stroke = _get_state_stroke(p, w, :divider; state)
         elements = Any[]
-        _push_panel!(elements, 0, 0, control_width, control_height; fill=box_fill,
-                     border=p.border.color, border_w=bw, radius=_sc(p.corner_radius))
-        _push_text!(elements, p.text.font, text, pad_x, (control_height - th) ÷ 2, text_color)
-        sx = control_width - stepper_w
-        push!(elements, GraphicsLine(sx, 0, sx, control_height, p.border.color; width=bw))
-        isz = max(8, control_height ÷ 2 - _sc(3))
+        _push_box_parts!(elements, box, colors, content_width, content_height; radius)
+        _push_text!(elements, label.font, text, content_x, content_y + (content_height - th) ÷ 2, label.color)
+        sx = content_x + content_width - stepper_w
+        sy = content_y - padding_top
+        dw = max(1, _sc(divider_stroke.width))
+        push!(elements, GraphicsLine(sx, sy, sx, sy + stepper_w, divider_stroke.color; width=dw))
+        isz = max(8, stepper_w ÷ 2 - _sc(3))
         ix = sx + (stepper_w - isz) ÷ 2
-        _push_icon!(elements, :plus,  ix, (control_height ÷ 2 - isz) ÷ 2, isz, step_color)
-        _push_icon!(elements, :minus, ix, control_height ÷ 2 + (control_height ÷ 2 - isz) ÷ 2, isz, step_color)
-        _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
-        (width=control_width, height=control_height, stepper_w=stepper_w, elements=elements)
+        _push_icon!(elements, :plus,  ix, sy + (stepper_w ÷ 2 - isz) ÷ 2, isz, step_color)
+        _push_icon!(elements, :minus, ix, sy + stepper_w ÷ 2 + (stepper_w ÷ 2 - isz) ÷ 2, isz, step_color)
+        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, radius)
+        (width=outer_width, height=outer_height, stepper_w=stepper_w, elements=elements)
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetSpinBoxToGraphicsCanvasIoMap(p, w, canvas,
@@ -6951,11 +7032,17 @@ function read_intent(p::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGra
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     (w.enabled === false) && return nothing
+    content_x, content_y = _content_offset(p, w)
+    box = _get_box_insets(p, w)
+    inset_width, _ = _inset_total(p, w)
+    content_width = Int(iomap.control_width) - inset_width
+    stepper_w = Int(iomap.stepper_w)
+    sy = content_y - box.padding[2]
     _step(delta) = ReplaceReferencedValueOperation(w, "value", _spin_clamp(w.value + delta, w.min, w.max))
     @event_case evt begin
         MousePress(button, x, y) =>
-            (button === :left && x >= iomap.control_width - iomap.stepper_w) ?
-                (y < iomap.control_height ÷ 2 ? _step(w.step) : _step(-w.step)) : nothing
+            (button === :left && x - content_x >= content_width - stepper_w) ?
+                (y - sy < stepper_w ÷ 2 ? _step(w.step) : _step(-w.step)) : nothing
         when(KeyDown(k), k === :up)   => _step(w.step)
         when(KeyDown(k), k === :down) => _step(-w.step)
         _ => nothing
@@ -6966,14 +7053,33 @@ end
 
 @projection struct WidgetListToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{StyleText}
-    background_color::StyleColor
-    border::StyleStroke
-    selected_color::StyleColor
-    selected_foreground::StyleColor
+    margin::Inset
+    border::Inset
     padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    label_text::ImmutableCell{StyleText}
+    row_selected_color::StyleColor      # the band of the selected row
+    layer_hovered_color::StyleColor     # over a hovered row, behind the band
+    row_padding::Inset                  # a row's own text padding
     corner_radius::Int
 end
+
+WidgetListToGraphicsCanvas(theme::WidgetTheme; measure,
+                           margin = inset_default, border = _make_uniform_inset(theme.border_width),
+                           padding = inset_default,
+                           margin_color = color_transparent, border_color = theme.border,
+                           padding_color = theme.background, content_color = theme.background,
+                           label_text = theme.body_text,
+                           row_selected_color = _with_alpha(theme.selection, 0.25),
+                           layer_hovered_color = theme.hover_layer,
+                           row_padding = _make_control_padding(theme),
+                           corner_radius = theme.radius) =
+    WidgetListToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
+                               content_color, label_text, row_selected_color, layer_hovered_color,
+                               row_padding, corner_radius)
 
 # @iomap so the reader reads row_height/control_width transparently (extent shared
 # from the build cell); PAR-STABLE-IOMAP-IDENTITY.
@@ -6989,38 +7095,44 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     build = ComputedCell(() -> begin
-        pad_x = _sc(Int(p.padding.left[])); pad_y = _sc(Int(p.padding.top[]))
+        row_pad_x = _sc(Int(p.row_padding.left[])); row_pad_y = _sc(Int(p.row_padding.top[]))
         items = collect(w.items)
         n = length(items)
-        _, th = _text_size(p.measure, p.text.font, "M")
-        row_height = th + 2pad_y
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
+        label = _get_state_text(p, w, :label)
+        _, th = _text_size(p.measure, label.font, "M")
+        row_height = th + 2row_pad_y
         intrinsic = 0
         for it in items
-            tw, _ = _text_size(p.measure, p.text.font, string(it))
-            intrinsic = max(intrinsic, tw + 2pad_x)
+            tw, _ = _text_size(p.measure, label.font, string(it))
+            intrinsic = max(intrinsic, tw + 2row_pad_x)
         end
-        control_width = _resolve_width(ctx, _sc(Int(w.width)), intrinsic)
-        control_height = _resolve_height(ctx, 0, max(row_height, n * row_height))
+        outer_width = _resolve_width(ctx, _sc(Int(w.width)), intrinsic + inset_width)
+        outer_height = _resolve_height(ctx, 0, max(row_height, n * row_height) + inset_height)
+        content_width, content_height = outer_width - inset_width, outer_height - inset_height
+        radius = _sc(p.corner_radius)
         sel = get_widget_list_selected(w)
-        hov = w.enabled === false ? 0 : w.hovered
+        enabled = !(w.enabled === false)
+        hov = enabled ? w.hovered : 0
+        row_selected_color = _get_state_color(p, w, :row; state = :selected)
         elements = Any[]
-        _push_panel!(elements, 0, 0, control_width, control_height; fill=p.background_color,
-                     border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
+        _push_box_parts!(elements, box, colors, content_width, content_height; radius)
         for (i, it) in enumerate(items)
-            y = (i - 1) * row_height
-            fg = p.text.color
+            y = content_y + (i - 1) * row_height
             # The hover tint sits UNDER the selection band, so hovering the
             # selected row does not repaint it — same tint the tree and table use.
             if i == hov && i != sel
-                _push_panel!(elements, 0, y, control_width, row_height; fill=_WT_HOVER_COLOR)
+                _push_state_layer!(elements, p.layer_hovered_color, content_x, y, content_width, row_height)
             end
             if i == sel
-                _push_panel!(elements, 0, y, control_width, row_height; fill=p.selected_color)
-                fg = p.selected_foreground
+                _push_panel!(elements, content_x, y, content_width, row_height; fill = row_selected_color)
             end
-            _push_text!(elements, p.text.font, string(it), pad_x, y + pad_y, fg)
+            _push_text!(elements, label.font, string(it), content_x + row_pad_x, y + row_pad_y, label.color)
         end
-        (width=control_width, height=control_height, row_height=row_height, elements=elements)
+        (width=outer_width, height=outer_height, row_height=row_height, elements=elements)
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetListToGraphicsCanvasIoMap(p, w, canvas,
@@ -7039,12 +7151,13 @@ function read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsC
     n = length(collect(w.items))
     n == 0 && return nothing
     sel = get_widget_list_selected(w)
+    _, content_y = _content_offset(p, w)
     # Selection is a selection: like every other widget, the reader reports it as
     # a ReplaceSelectionOperation carrying a reference (`items[i-1:i]`), not as a
     # write to a private index field. That is what lets an enclosing projection
     # map the reference into its own domain (and map it back when printing).
     pick(r) = ReplaceSelectionOperation(make_widget_list_selection(r))
-    row_at(yy) = (r = yy ÷ iomap.row_height + 1; (1 <= r <= n) ? r : 0)
+    row_at(yy) = (r = (yy - content_y) ÷ iomap.row_height + 1; (1 <= r <= n) ? r : 0)
     click_row(yy) = (r = row_at(yy); r == 0 ? nothing : pick(r))
     # Hover is per ROW, so it follows motion rather than the shared enter/leave
     # Bool: report it only when the row actually changes, or every mouse move
@@ -7064,41 +7177,65 @@ end
 
 @projection struct WidgetTextareaToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{StyleText}            # content font + color
-    background_color::StyleColor
-    border::StyleStroke         # input outline
+    margin::Inset
+    border::Inset
     padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    padding_disabled_color::StyleColor
+    content_disabled_color::StyleColor
+    label_text::ImmutableCell{StyleText}            # content font + color
+    label_disabled_text::ImmutableCell{StyleText}
+    focus_ring_stroke::StyleStroke      # focus ring when selected
     corner_radius::Int
-    disabled_color::StyleColor  # background when !enabled
-    disabled_foreground::StyleColor # text when !enabled
-    ring_color::StyleColor      # focus ring when selected
 end
+
+WidgetTextareaToGraphicsCanvas(theme::WidgetTheme; measure,
+                               margin = inset_default, border = _make_uniform_inset(theme.border_width),
+                               padding = _make_control_padding(theme),
+                               margin_color = color_transparent, border_color = theme.input,
+                               padding_color = theme.background, content_color = theme.background,
+                               padding_disabled_color = theme.muted, content_disabled_color = theme.muted,
+                               label_text = theme.body_text,
+                               label_disabled_text = StyleText(theme.body_text.font, theme.muted_foreground),
+                               focus_ring_stroke = StyleStroke(theme.ring, 2),
+                               corner_radius = theme.radius) =
+    WidgetTextareaToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                   padding_color, content_color, padding_disabled_color,
+                                   content_disabled_color, label_text, label_disabled_text,
+                                   focus_ring_stroke, corner_radius)
 
 function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetTextarea, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         enabled = !(w.enabled === false)
-        padding_x = _sc(Int(p.padding.left[]))
-        padding_y = _sc(Int(p.padding.top[]))
+        state = enabled ? nothing : :disabled
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w; state)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
+        label = _get_state_text(p, w, :label; state)
         lines = split(string(w.content), '\n')
-        _, line_height = _text_size(p.measure, p.text.font, "M")
+        _, line_height = _text_size(p.measure, label.font, "M")
         row_count = max(Int(w.rows), length(lines))
-        authored_height = Int(w.rows) > 0 ? row_count * line_height + 2padding_y : 0
-        area_height = _resolve_height(ctx, authored_height,
-                                      length(lines) * line_height + 2padding_y)
-        longest_line = isempty(lines) ? 0 : maximum(_text_size(p.measure, p.text.font, String(l))[1] for l in lines)
-        area_width = _resolve_width(ctx, _sc(Int(w.width)), longest_line + 2padding_x)
-        box_fill   = enabled ? p.background_color : p.disabled_color
-        text_color = enabled ? p.text.color       : p.disabled_foreground
+        authored_height = Int(w.rows) > 0 ? row_count * line_height + inset_height : 0
+        outer_height = _resolve_height(ctx, authored_height,
+                                       length(lines) * line_height + inset_height)
+        content_height = outer_height - inset_height
+        longest_line = isempty(lines) ? 0 : maximum(_text_size(p.measure, label.font, String(l))[1] for l in lines)
+        outer_width = _resolve_width(ctx, _sc(Int(w.width)), longest_line + inset_width)
+        content_width = outer_width - inset_width
+        radius = _sc(p.corner_radius)
         elements = Any[]
-        _push_panel!(elements, 0, 0, area_width, area_height; fill=box_fill, border=p.border.color,
-                     border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
+        _push_box_parts!(elements, box, colors, content_width, content_height; radius)
         for (i, line) in enumerate(lines)
-            push!(elements, GraphicsText(String(line), padding_x, padding_y + (i - 1) * line_height, p.text.font, text_color))
+            push!(elements, GraphicsText(String(line), content_x, content_y + (i - 1) * line_height, label.font, label.color))
         end
-        _push_focus_ring!(elements, w, area_width, area_height, p.ring_color, _sc(p.corner_radius))
-        (width=area_width, height=area_height, elements=elements)
+        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, radius)
+        (width=outer_width, height=outer_height, elements=elements)
     end))
 end
 @_printer_only WidgetTextareaToGraphicsCanvas
@@ -7107,55 +7244,97 @@ end
 
 @projection struct WidgetAccordionToGraphicsCanvas
     measure::Function
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
     title_text::ImmutableCell{StyleText}        # bold title
     body_text::ImmutableCell{StyleText}          # muted body
-    rule::StyleStroke             # hairline between items
-    padding::Inset                # horizontal + vertical row padding
+    divider_stroke::StyleStroke   # hairline between items
+    chevron_color::StyleColor     # the mark that opens a section
+    item_padding::Inset           # a row's own horizontal + vertical padding
     gap::Int                      # space before the trailing chevron
     body_gap::Int                 # gap above the expanded body
-    chevron::StyleStroke          # chevron color + width
     chevron_size::Int
 end
+
+WidgetAccordionToGraphicsCanvas(theme::WidgetTheme; measure,
+                                margin = inset_default, border = inset_default, padding = inset_default,
+                                margin_color = color_transparent, border_color = color_transparent,
+                                padding_color = color_transparent, content_color = color_transparent,
+                                title_text = StyleText(theme.font_bold, theme.foreground),
+                                body_text = StyleText(theme.font_small, theme.muted_foreground),
+                                divider_stroke = StyleStroke(theme.border, theme.border_width),
+                                chevron_color = theme.muted_foreground,
+                                item_padding = Inset(10, 10, theme.pad_x, theme.pad_x),
+                                gap = theme.gap, body_gap = 2, chevron_size = theme.chevron) =
+    WidgetAccordionToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                    padding_color, content_color, title_text, body_text, divider_stroke,
+                                    chevron_color, item_padding, gap, body_gap, chevron_size)
 
 function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::WidgetAccordion, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     expanded = Int(w.expanded)
-    padding_x = _sc(Int(p.padding.left[]))
-    padding_y = _sc(Int(p.padding.top[]))
+    box = _get_box_insets(p, w)
+    colors = _get_box_colors(p, w)
+    inset_width, inset_height = _inset_total(p, w)
+    content_x, content_y = _content_offset(p, w)
+    item_padding_x = _sc(Int(p.item_padding.left[]))
+    item_padding_y = _sc(Int(p.item_padding.top[]))
     chevron_size = _sc(p.chevron_size)
+    title_style = _get_state_text(p, w, :title)
+    body_style  = _get_state_text(p, w, :body)
+    chevron_color = _get_state_color(p, w, :chevron)
+    divider_stroke = _get_state_stroke(p, w, :divider)
     # Size to content: widest title (leaving room for the trailing chevron) and
     # the widest visible (expanded) body. The authored width is the minimum.
     title_min = 0; body_min = 0
     for (i, item) in enumerate(w.items)
-        title_min = max(title_min, _text_size(p.measure, p.title_text.font, string(item.title))[1])
+        title_min = max(title_min, _text_size(p.measure, title_style.font, string(item.title))[1])
         if i == expanded && item.body !== nothing
-            body_min = max(body_min, _text_size(p.measure, p.body_text.font, string(item.body))[1])
+            body_min = max(body_min, _text_size(p.measure, body_style.font, string(item.body))[1])
         end
     end
-    content_min = max(2padding_x + title_min + _sc(p.gap) + 2chevron_size, 2padding_x + body_min)
-    accordion_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
-    elements = Any[]
+    item_content_min = max(2item_padding_x + title_min + _sc(p.gap) + 2chevron_size, 2item_padding_x + body_min)
+    outer_width = _resolve_width(ctx, _sc(Int(w.width)), item_content_min + inset_width)
+    content_width = outer_width - inset_width
+    # The rows are laid out first, at their own content-relative y, because the
+    # box behind them is painted at the resolved content height, and
+    # `_push_box_parts!` must see that final size before the row elements that
+    # draw over it.
+    row_elements = Any[]
     y = 0
-    rule_width = max(1, _sc(p.rule.width))
+    divider_width = max(1, _sc(divider_stroke.width))
     for (i, item) in enumerate(w.items)
         title = string(item.title)
         body  = item.body === nothing ? "" : string(item.body)
-        _, title_height = _text_size(p.measure, p.title_text.font, title)
-        row_height = title_height + 2padding_y
-        push!(elements, GraphicsText(title, padding_x, y + padding_y, p.title_text.font, p.title_text.color))
-        _push_chevron!(elements, accordion_width - padding_x - chevron_size, y + row_height ÷ 2, chevron_size,
-                       i == expanded ? :down : :right, p.chevron.color)
+        _, title_height = _text_size(p.measure, title_style.font, title)
+        row_height = title_height + 2item_padding_y
+        push!(row_elements, GraphicsText(title, content_x + item_padding_x, content_y + y + item_padding_y,
+                                         title_style.font, title_style.color))
+        _push_chevron!(row_elements, content_x + content_width - item_padding_x - chevron_size,
+                       content_y + y + row_height ÷ 2, chevron_size,
+                       i == expanded ? :down : :right, chevron_color)
         y += row_height
         if i == expanded && !isempty(body)
-            _, body_height = _text_size(p.measure, p.body_text.font, body)
-            push!(elements, GraphicsText(body, padding_x, y + _sc(p.body_gap), p.body_text.font, p.body_text.color))
-            y += body_height + padding_y
+            _, body_height = _text_size(p.measure, body_style.font, body)
+            push!(row_elements, GraphicsText(body, content_x + item_padding_x, content_y + y + _sc(p.body_gap),
+                                             body_style.font, body_style.color))
+            y += body_height + item_padding_y
         end
-        push!(elements, GraphicsLine(0, y, accordion_width, y, p.rule.color; width=rule_width))
+        push!(row_elements, GraphicsLine(content_x, content_y + y, content_x + content_width, content_y + y,
+                                         divider_stroke.color; width=divider_width))
     end
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., accordion_width,
-                                   _resolve_height(ctx, 0, y), elements))
+    outer_height = _resolve_height(ctx, 0, y + inset_height)
+    content_height = outer_height - inset_height
+    elements = Any[]
+    _push_box_parts!(elements, box, colors, content_width, content_height)
+    append!(elements, row_elements)
+    SimpleIoMap(p, w, _make_canvas(_origin(position)..., outer_width, outer_height, elements))
 end
 @_printer_only WidgetAccordionToGraphicsCanvas
 
@@ -8381,30 +8560,12 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetHighlight  => WidgetHighlightToGraphicsCanvas(theme),
         WidgetToggle      => WidgetToggleToGraphicsCanvas(theme; measure = measurer),
         WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(theme; measure = measurer),
-        WidgetSelect      => WidgetSelectToGraphicsCanvas(measurer, theme.body_text, theme.background,
-            StyleStroke(theme.input, theme.border_width),
-            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
-            theme.gap, StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron,
-            theme.muted, theme.muted_foreground, theme.ring),
-        WidgetSpinBox     => WidgetSpinBoxToGraphicsCanvas(measurer, theme.body_text, theme.background,
-            StyleStroke(theme.input, theme.border_width),
-            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
-            theme.muted, theme.muted_foreground, theme.foreground, theme.ring),
-        WidgetList        => WidgetListToGraphicsCanvas(measurer, theme.body_text, theme.background,
-            StyleStroke(theme.border, theme.border_width),
-            theme.accent, theme.accent_foreground,
-            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius),
-        WidgetOption      => WidgetOptionToGraphicsCanvas(measurer, theme.body_text, theme.background,
-            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x)),
-        WidgetTextarea    => WidgetTextareaToGraphicsCanvas(measurer, theme.body_text, theme.background,
-            StyleStroke(theme.input, theme.border_width),
-            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
-            theme.muted, theme.muted_foreground, theme.ring),
-        WidgetAccordion   => WidgetAccordionToGraphicsCanvas(measurer,
-            StyleText(theme.font_bold, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
-            StyleStroke(theme.border, theme.border_width),
-            Inset(10, 10, theme.pad_x, theme.pad_x),
-            theme.gap, 2, StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
+        WidgetSelect      => WidgetSelectToGraphicsCanvas(theme; measure = measurer),
+        WidgetSpinBox     => WidgetSpinBoxToGraphicsCanvas(theme; measure = measurer),
+        WidgetList        => WidgetListToGraphicsCanvas(theme; measure = measurer),
+        WidgetOption      => WidgetOptionToGraphicsCanvas(theme; measure = measurer),
+        WidgetTextarea    => WidgetTextareaToGraphicsCanvas(theme; measure = measurer),
+        WidgetAccordion   => WidgetAccordionToGraphicsCanvas(theme; measure = measurer),
         WidgetTable       => WidgetTableToGraphicsCanvas(
             StyleText(theme.font, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
             StyleStroke(theme.border, theme.border_width),

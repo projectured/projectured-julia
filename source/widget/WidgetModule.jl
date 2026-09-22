@@ -90,7 +90,8 @@ export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, W
 export WidgetStyle, WidgetCheckboxStyle, WidgetDialogStyle, WidgetTitlePaneStyle, WidgetSplitPaneStyle,
        WidgetTabbedPaneStyle, WidgetScrollBarStyle, WidgetBadgeStyle, WidgetSeparatorStyle, WidgetCardStyle,
        WidgetAlertStyle, WidgetHighlightStyle, WidgetSwitchStyle, WidgetProgressStyle, WidgetSliderStyle,
-       WidgetRadioGroupStyle, WidgetToggleStyle, WidgetToggleGroupStyle
+       WidgetRadioGroupStyle, WidgetToggleStyle, WidgetToggleGroupStyle, WidgetSelectStyle, WidgetSpinBoxStyle,
+       WidgetListStyle, WidgetAccordionStyle
 
 
 include("WidgetDocument.jl")
