@@ -22,6 +22,7 @@ _scroll_pane_list() =
 # The row a pointer event resolves to, whatever form the answer takes.
 function _scroll_pane_row(projection, iomap, evt)
     op = read_intent(projection, iomap, evt)
+    op isa ReplaceViewStateOperation && (op = get_wrapped_operation(op))
     op === nothing ? nothing :
     hasproperty(op, :value) ? op.value :
     hasproperty(op, :path)  ? op.path  : op

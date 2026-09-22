@@ -172,8 +172,8 @@ end
     xy = _first_text_xy(iomap.output)
     # The menu routes the crossing to the hit item, which flips `hovered`.
     op = read_intent(proj, iomap, MouseEnter(xy[1] + 2, xy[2] + 2, :none, ModifierKeys()))
-    @test op isa ReplaceReferencedValueOperation
-    @test op.value === true
+    @test _view_state_write(op) isa ReplaceReferencedValueOperation
+    @test _view_state_write(op).value === true
 
     # A hovered item renders an extra (hover surface) element vs an un-hovered one.
     plain = print_document(proj, WidgetMenuItem("New"))

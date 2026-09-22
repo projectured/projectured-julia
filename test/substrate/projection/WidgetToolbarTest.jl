@@ -42,7 +42,7 @@ end
             g = MouseEnter(Int(c.x) + 6, Int(c.y) + dy, :none, _mods)
             ch = read_intent(proj, nothing, Intent(g, nothing), io)
             op = ch isa Intent ? ch.operation : ch
-            op isa ReplaceReferencedValueOperation && return op.document.action.label
+            _view_state_write(op) isa ReplaceReferencedValueOperation && return _view_state_write(op).document.action.label
         end
         return nothing
     end
@@ -109,7 +109,7 @@ end
         x, y = _centre(c)
         crossing = read_intent(proj, nothing, Intent(MouseEnter(x, y, :none, _mods), nothing), io)
         op = crossing isa Intent ? crossing.operation : crossing
-        @test op isa ReplaceReferencedValueOperation && op.document.action.label == labels[i]
+        @test _view_state_write(op) isa ReplaceReferencedValueOperation && _view_state_write(op).document.action.label == labels[i]
         # A left press invokes the action of that item, and only reads it: the
         # reader answers the operation and runs nothing.
         op = _press(io, (x, y))

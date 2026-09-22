@@ -201,6 +201,26 @@ struct ReplaceReferencedValueOperation <: Operation
     value::Any
 end
 
+"""
+    ReplaceViewStateOperation(operation)
+
+`operation`, marked as a write of view state: what the pointer is over, what it
+holds down, what a drag carries. Applying it applies `operation`.
+
+**A history does not record it**, because a hover or a held button is not an edit:
+Ctrl+Z after a hover must take back the edit before it. The reader that writes
+the state marks it, because only that reader knows the field is the pointer's and
+not the document's.
+"""
+struct ReplaceViewStateOperation <: WrappingOperation
+    operation::Any
+end
+
+get_wrapped_operation(operation::ReplaceViewStateOperation) = operation.operation
+rewrap_operation(::ReplaceViewStateOperation, inner) = ReplaceViewStateOperation(inner)
+evaluate_operation(editor, operation::ReplaceViewStateOperation) =
+    evaluate_operation(editor, operation.operation)
+
 # Convenience for the common single-field write on a carried root:
 # `ReplaceReferencedValueOperation(obj, "field", v)` writes `obj.field = v`. Dispatches by
 # the second argument's type (`AbstractString` vs `Reference`), so it never

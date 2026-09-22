@@ -297,8 +297,8 @@ end
 # A widget's reader falls through to this for crossing events: it writes the
 # `hovered` state, or `nothing` for any other event.
 _hover_state_op(w, evt) =
-    evt isa MouseEnter ? ReplaceReferencedValueOperation(w, "hovered", true) :
-    evt isa MouseLeave ? ReplaceReferencedValueOperation(w, "hovered", false) : nothing
+    evt isa MouseEnter ? _write_view_state(w, "hovered", true) :
+    evt isa MouseLeave ? _write_view_state(w, "hovered", false) : nothing
 
 # Draw the hover surface behind a widget when its `hovered` cell is set and it is
 # enabled. Pushed first so the content draws over it.
@@ -1349,13 +1349,13 @@ function read_intent(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
     op === nothing || return op
     @event_case evt begin
         MousePress(button, x, y) => button === :left ? _button_primary_op(w) : nothing
-        MouseDown(button, x, y)  => button === :left ? ReplaceReferencedValueOperation(w, "pressed", true) : nothing
-        MouseUp(button, x, y)    => button === :left ? ReplaceReferencedValueOperation(w, "pressed", false) : nothing
-        MouseEnter               => ReplaceReferencedValueOperation(w, "hovered", true)
+        MouseDown(button, x, y)  => button === :left ? _write_view_state(w, "pressed", true) : nothing
+        MouseUp(button, x, y)    => button === :left ? _write_view_state(w, "pressed", false) : nothing
+        MouseEnter               => _write_view_state(w, "hovered", true)
         # Leaving clears hover *and* any in-progress press (the release may land
         # off the button when dragged away).
-        MouseLeave               => CompoundOperation(Any[ReplaceReferencedValueOperation(w, "hovered", false),
-                                                          ReplaceReferencedValueOperation(w, "pressed", false)])
+        MouseLeave               => CompoundOperation(Any[_write_view_state(w, "hovered", false),
+                                                          _write_view_state(w, "pressed", false)])
         # Enter / Space activate the focused button (key reaches it via selection
         # routing). `:tab` is intentionally not matched, so it falls through to
         # `nothing` and focus traversal can claim it.
@@ -5052,7 +5052,7 @@ function read_intent(::WidgetSliderToGraphicsCanvas,
             # Taking the knob is a second write, and it is on the slider itself
             # rather than on the target: what is held is a property of the
             # control, not of the value it stands for.
-            CompoundOperation(Any[ReplaceReferencedValueOperation(w, "dragging", true),
+            CompoundOperation(Any[_write_view_state(w, "dragging", true),
                                   ReplaceReferencedValueOperation(document, field, value)])
         end
         MouseMove(x, y) => begin
@@ -5067,7 +5067,7 @@ function read_intent(::WidgetSliderToGraphicsCanvas,
         end
         MouseUp(button, x, y) => begin
             w.dragging === true || return nothing
-            ReplaceReferencedValueOperation(w, "dragging", false)
+            _write_view_state(w, "dragging", false)
         end
         _ => nothing
     end
@@ -5957,7 +5957,7 @@ function read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsC
     # Hover is per ROW, so it follows motion rather than the shared enter/leave
     # Bool: report it only when the row actually changes, or every mouse move
     # would write a cell and invalidate the canvas.
-    hover_row(r) = r == w.hovered ? nothing : ReplaceReferencedValueOperation(w, "hovered", r)
+    hover_row(r) = r == w.hovered ? nothing : _write_view_state(w, "hovered", r)
     @event_case evt begin
         MousePress(button, x, y) => button === :left ? click_row(y) : nothing
         MouseMove(x, y)          => hover_row(row_at(y))
@@ -6684,13 +6684,13 @@ function _wt_hover_set(iomap::WidgetTableToGraphicsCanvasIoMap, x::Int, y::Int, 
     ref = _wt_hover_ref(iomap.geometry, x, y)
     ref === nothing && return nothing
     (!force && w.hovered == ref) && return nothing
-    ReplaceReferencedValueOperation(w, "hovered", ref)
+    _write_view_state(w, "hovered", ref)
 end
 
 function _wt_hover_clear(iomap::WidgetTableToGraphicsCanvasIoMap)
     w = iomap.input
     w.hovered === nothing && return nothing
-    ReplaceReferencedValueOperation(w, "hovered", nothing)
+    _write_view_state(w, "hovered", nothing)
 end
 
 # Route a plain click into a data cell's content sub-pipeline (via the grid
@@ -7205,7 +7205,7 @@ function _wtree_hover_set(iomap::WidgetTreeToGraphicsCanvasIoMap, x::Int, y::Int
         for row in geom.rows
             if row.y0 <= y < row.y0 + row.height
                 (!force && _wtree_ref_path(w.hovered) == row.path) && return nothing
-                return ReplaceReferencedValueOperation(w, "hovered", _wtree_path_ref(row.path))
+                return _write_view_state(w, "hovered", _wtree_path_ref(row.path))
             end
         end
     end
@@ -7215,7 +7215,7 @@ end
 function _wtree_hover_clear(iomap::WidgetTreeToGraphicsCanvasIoMap)
     w = iomap.input
     w.hovered === nothing && return nothing
-    ReplaceReferencedValueOperation(w, "hovered", nothing)
+    _write_view_state(w, "hovered", nothing)
 end
 
 function _wtree_key_navigate(iomap::WidgetTreeToGraphicsCanvasIoMap, g::KeyDown)

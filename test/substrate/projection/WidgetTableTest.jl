@@ -20,10 +20,13 @@ _rec = RecursiveProjection(TypeDispatchingProjection(vcat(LayoutToGraphics().dis
 _mods = ModifierKeys()
 _mktable() = WidgetTable(Point2D(0, 0), ["ID", "Name"],
                          [["1", "Ada"], ["2", "Bob"], ["3", "Cy"]])
-_rd(io, g) = begin
+_rd_marked(io, g) = begin
     ch = read_intent(_rec, nothing, Intent(g, nothing), io)
     ch isa Intent ? ch.operation : ch
 end
+# The answer, looking through the mark a hover carries as view state.
+_rd(io, g) = (op = _rd_marked(io, g);
+              op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op)
 # Centre coordinate of body row r's band, and of a body column.
 _bx(g) = (g.col_x[g.col_offset + 1] + g.col_x[g.col_offset + 2]) ÷ 2
 _rowy(g, r) = let gr = r + g.row_offset; (g.row_y[gr] + g.row_y[gr + 1]) ÷ 2 end
@@ -39,6 +42,8 @@ end
 @testset "MouseEnter/Move/Leave drive the whole-row hover" begin
     w = _mktable(); io = print_document(_rec, w); g = io.geometry
     # Enter a body cell → its whole row.
+    # A hover is view state, and marked so that no history records it.
+    @test _rd_marked(io, MouseEnter(_bx(g), _rowy(g, 1), :none, _mods)) isa ReplaceViewStateOperation
     op = _rd(io, MouseEnter(_bx(g), _rowy(g, 1), :none, _mods))
     @test op isa ReplaceReferencedValueOperation && op.document === w && op.value !== nothing
     getfield(w, :hovered)[] = op.value

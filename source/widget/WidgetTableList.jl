@@ -480,7 +480,7 @@ function _wtl_hover(iomap::WidgetTableListIoMap, x::Int, y::Int, force::Bool)
                 _widget_element_selected(current, "rows") == k)
         same && return nothing
     end
-    ReplaceReferencedValueOperation(w, "hovered", reference)
+    _write_view_state(w, "hovered", reference)
 end
 
 function _wtl_key_navigate(iomap::WidgetTableListIoMap, evt::KeyDown)
@@ -563,7 +563,7 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
     change.operation === nothing && g isa MouseMove && return Intent(g, _wtl_hover(iomap, g.x, g.y, false))
     change.operation === nothing && g isa MouseLeave &&
         return Intent(g, iomap.input.hovered === nothing ? nothing :
-                         ReplaceReferencedValueOperation(iomap.input, "hovered", nothing))
+                         _write_view_state(iomap.input, "hovered", nothing))
     if change.operation === nothing && g isa KeyDown
         op = _wtl_key_navigate(iomap, g)
         op === nothing || return Intent(g, op)

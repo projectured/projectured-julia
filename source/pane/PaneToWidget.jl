@@ -617,7 +617,10 @@ end
 
 const _PANE_STRIP_PIXELS = 32
 
-_drag_write(tree, state) = ReplaceReferencedValueOperation(tree, "drag", state)
+# A drag in progress is the pointer's state and not the layout's, so the write is
+# marked and no history records it; the drop is the edit.
+_drag_write(tree, state) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(tree, "drag", state))
 
 function _drag_step(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, gesture)
     tree = iomap.input

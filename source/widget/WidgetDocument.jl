@@ -2703,10 +2703,14 @@ OperationModule.operation_travels_unchanged(::Union{
     DragTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
     EndSplitterDragOperation}) = true
 
-# SetWidgetHoverOperation / SetWidgetPressedOperation were folded into
-# ReplaceReferencedValueOperation: the WidgetButton reader emits
-# `ReplaceReferencedValueOperation(widget, "hovered"/"pressed", bool)`. See
-# plan/done/consolidate-operations-replace.md (step 2).
+"""
+    _write_view_state(widget, field, value) -> ReplaceViewStateOperation
+
+The write of a widget's pointer state — `hovered`, `pressed`, a slider's
+`dragging` — marked as view state, so a history never records it.
+"""
+_write_view_state(widget, field::AbstractString, value) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(widget, field, value))
 
 # ── Dormant selections ─────────────────────────────────────────────────────
 #

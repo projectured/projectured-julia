@@ -2,6 +2,12 @@ mutable struct _WidgetButtonMockEditor
     document::Any
 end
 
+# What a hover, a held button or a drag in flight answers: a write of the widget's
+# pointer state, marked as view state so that a history never records it. The
+# write inside, or `nothing` when `op` is not marked — so an assertion on it
+# checks the mark and the write at once.
+_view_state_write(op) = op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : nothing
+
 function test_widget_button_behavior()
 
 _font = font_ubuntu_monospace_regular_20
@@ -83,14 +89,14 @@ end
     iomap = print_document(proj, nothing, button, PrinterContext())
 
     down = read_intent(proj, iomap, MouseDown(:left, 10, 10, ModifierKeys()))
-    @test down isa ReplaceReferencedValueOperation
-    @test down.value == true
+    @test _view_state_write(down) isa ReplaceReferencedValueOperation
+    @test _view_state_write(down).value == true
     evaluate_operation(_WidgetButtonMockEditor(button), down)
     @test button.pressed == true
 
     up = read_intent(proj, iomap, MouseUp(:left, 10, 10, ModifierKeys()))
-    @test up isa ReplaceReferencedValueOperation
-    @test up.value == false
+    @test _view_state_write(up) isa ReplaceReferencedValueOperation
+    @test _view_state_write(up).value == false
     evaluate_operation(_WidgetButtonMockEditor(button), up)
     @test button.pressed == false
 end
@@ -100,8 +106,8 @@ end
     proj = _proj()
     iomap = print_document(proj, nothing, button, PrinterContext())
     op = read_intent(proj, iomap, MouseMove(10, 10, :none, ModifierKeys()))
-    @test op isa ReplaceReferencedValueOperation
-    @test op.document === button && op.value == true
+    @test _view_state_write(op) isa ReplaceReferencedValueOperation
+    @test _view_state_write(op).document === button && _view_state_write(op).value == true
     evaluate_operation(_WidgetButtonMockEditor(button), op)
     @test button.hovered == true
 end
@@ -116,7 +122,7 @@ end
 
     iomap = print_document(proj, nothing, composite, PrinterContext())
     op_a = read_intent(proj, iomap, MouseMove(10, 10, :none, ModifierKeys()))
-    @test op_a isa ReplaceReferencedValueOperation && op_a.document === a
+    @test _view_state_write(op_a) isa ReplaceReferencedValueOperation && _view_state_write(op_a).document === a
     evaluate_operation(ed, op_a)
     @test a.hovered == true
 
@@ -446,9 +452,9 @@ end
     iomap = print_document(proj, nothing, layout, PrinterContext())
 
     dn = read_intent(proj, iomap, MouseDown(:left, 10, 10, ModifierKeys()))
-    @test dn isa ReplaceReferencedValueOperation && dn.document === button && dn.value == true
+    @test _view_state_write(dn) isa ReplaceReferencedValueOperation && _view_state_write(dn).document === button && _view_state_write(dn).value == true
     up = read_intent(proj, iomap, MouseUp(:left, 10, 10, ModifierKeys()))
-    @test up isa ReplaceReferencedValueOperation && up.document === button && up.value == false
+    @test _view_state_write(up) isa ReplaceReferencedValueOperation && _view_state_write(up).document === button && _view_state_write(up).value == false
     # The composed click still reaches the action, as before.
     @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys())) isa InvokeActionOperation
 end
@@ -478,9 +484,9 @@ end
     cx = bx + bw ÷ 2; cy = by + bh ÷ 2
 
     hov = read_intent(proj, iomap, MouseEnter(cx, cy, :none, ModifierKeys()))
-    @test hov isa ReplaceReferencedValueOperation && hov.document === button && hov.value == true
+    @test _view_state_write(hov) isa ReplaceReferencedValueOperation && _view_state_write(hov).document === button && _view_state_write(hov).value == true
     dn = read_intent(proj, iomap, MouseDown(:left, cx, cy, ModifierKeys()))
-    @test dn isa ReplaceReferencedValueOperation && dn.document === button && dn.value == true
+    @test _view_state_write(dn) isa ReplaceReferencedValueOperation && _view_state_write(dn).document === button && _view_state_write(dn).value == true
     # And a click still reaches the action through the card.
     @test read_intent(proj, iomap, MousePress(:left, cx, cy, ModifierKeys())) isa InvokeActionOperation
 end
