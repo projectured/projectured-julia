@@ -69,7 +69,7 @@ stop_agent_server!(mcp::McpServer) = stop_mcp!(mcp)
     start_mcp!(mcp::McpServer) -> McpServer
 
 Launch the MCP server as an async task, with an HTTP transport at the host and
-the port of `mcp`.
+the port of `mcp`. The global logger after the start is the one before it.
 """
 function start_mcp!(mcp::McpServer)
     for tool in _make_tools(mcp.editor)
@@ -81,12 +81,20 @@ function start_mcp!(mcp::McpServer)
         endpoint = "/mcp",
     )
     mcp.server.transport = transport
+    # `start!` of the library installs a logger of its own as the global logger,
+    # with no option to keep the one that is there. That logger writes only to
+    # stderr, so the capture of the message log would get no more records. So
+    # the logger of the process is put back once the loop of the server runs.
+    previous = Base.CoreLogging.global_logger()
     try
         ModelContextProtocol.connect(transport)
         mcp.task = @async start!(mcp.server)
+        timedwait(() -> mcp.server.active || istaskdone(mcp.task), 10.0; pollint = 0.001)
     catch e
         record_fault!(mcp.editor.faults, :tool, :McpServer, nothing, e, catch_backtrace())
         @warn "MCP server failed to start" exception = e
+    finally
+        Base.CoreLogging.global_logger(previous)
     end
     mcp
 end

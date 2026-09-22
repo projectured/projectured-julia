@@ -618,8 +618,9 @@ end
 #
 # A test that starts a server binds a port that no other program holds, and
 # stops the server before it ends. The library of the protocol puts a logger of
-# its own in place of the global one when its loop starts, so a test puts the
-# logger it found back.
+# its own in place of the global one when its loop starts. `start_mcp!` puts the
+# logger that was there before back, and a test puts the logger it found back
+# too, so a server that fails to start leaves no foreign logger behind.
 
 function _find_free_mcp_port()
     port, listener = listenany(ip"127.0.0.1", 20000)
@@ -666,6 +667,27 @@ function test_mcp_server()
                     @test _is_mcp_port_open(port)
                 finally
                     stop_agent_server!(server)
+                end
+            end
+
+            @testset "a message logged after the start reaches the message log" begin
+                store = MessageLogStore()
+                # The capture wraps a logger that takes Info and prints nowhere.
+                capture = MessageLogLogger(store, Base.CoreLogging.SimpleLogger(devnull))
+                Base.CoreLogging.global_logger(capture)
+                port = _find_free_mcp_port()
+                server = make_agent_server(:mcp, _mcp_editor(); port = port)
+                try
+                    start_agent_server!(server)
+                    @test _is_mcp_port_open(port)
+                    @test Base.CoreLogging.global_logger() === capture
+                    take_message_lines!(store)
+                    @info "a line after the start"
+                    lines, _ = take_message_lines!(store)
+                    @test ("Info", "a line after the start") in lines
+                finally
+                    stop_agent_server!(server)
+                    Base.CoreLogging.global_logger(logger)
                 end
             end
 

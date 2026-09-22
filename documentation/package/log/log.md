@@ -22,6 +22,8 @@ A message travels through three parts. This is the feed pattern of the editor; [
 
 `ProjecturedShell` uses it: `run_with_window_tools` installs the capture and gives the editor a `MessageLogFeed`, and the toolbar has a button that opens the log.
 
+The library of the MCP server installs a logger of its own when its server starts. `start_mcp!` puts the logger that was installed before back, so the capture stays in place when the editor runs with `--mcp`; see [mcp.md](../mcp/mcp.md).
+
 ## Design decisions
 
 - **No task writes a document cell except the editor task.** A write from the logging task raced the frame. The store is the only shared state, and the drain is the only writer. See `plan/done/the-editor-waits-for-events.md` and the invariant `PAR-STORE-THEN-DRAIN`.
@@ -39,7 +41,7 @@ remove_message_log_capture!(previous)
 
 `run_with_window_tools(run)` in `ProjecturedShell` does these steps for you. `run_message_log_feed_example()` in `example/projectured/FeedExamples.jl` opens a window with a log.
 
-- Tests: `test_message_log_feed()` and `test_message_log()`, in the application test package. `test_message_log()` installs the capture of the session, drains the feed by hand, and checks the log and its view. The package has no suite of its own.
+- Tests: `test_message_log_feed()` and `test_message_log()`, in the application test package. `test_message_log()` installs the capture of the session, drains the feed by hand, and checks the log and its view. `test_mcp_server()` checks that the capture keeps its records after an MCP server starts. The package has no suite of its own.
 
 ## Limits
 
