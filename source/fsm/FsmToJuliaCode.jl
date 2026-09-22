@@ -79,10 +79,6 @@ get_fsm_field_name(machine::FsmMachine) = "fsm_" * _lower(machine.name)
 "The machine's dispatch function, e.g. `mac_dispatch!`."
 dispatch_function_name(machine::FsmMachine) = _lower(machine.name) * "_dispatch!"
 
-"The callback a timer's expiry schedules for one machine."
-expiry_function_name(machine::FsmMachine, timer::FsmTimer) =
-    _lower(machine.name) * "_expire_" * _lower(timer.name) * "!"
-
 "The component-wide callback a timer's expiry schedules."
 timer_expiry_name(timer::FsmTimer) = "expire_" * _lower(timer.name) * "!"
 
