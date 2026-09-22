@@ -163,16 +163,21 @@ memory cap of 20 GB. No second Julia process runs at the same time.
       reads as a number (`7ca09200`); the ODBC catalog queries escape a name
       (`340201cc`); `sync_document!` of a `ListNode` ends, for both cell kinds
       and for an endless list (`0dab2402`).
-- [ ] Group A10: a join that the parser drops, the identifiers of the database
-      operations, the ODBC connection string, `test_video` and the process
-      atoms.
+- [x] Group A10: a join that the parser can not read raises an error, and so
+      does an `ON` or a `USING` with no condition (`8612036f`); the ODBC
+      operations quote an identifier and the connection string escapes its
+      values (`29fabbf5`); `test_video()` runs its layering guard (`7ef96815`);
+      the twelve process atoms are in the catalog, and the gap of
+      `test_catalog_coverage` went from 28 types to 17 (`fc771bb0`).
 - [ ] Group A11: the stale comments, the stale docstrings and the dead code.
 
 ### Step 5: tests, dead code, comments
 
-- [ ] `test_video()` runs its layering guard; the process atoms are in the catalog.
-- [ ] Dead code: `SelectTabOperation`, the unused fields and functions.
-- [ ] The stale comments and docstrings of section 7 of the survey plan.
+- [x] `test_video()` runs its layering guard; the process atoms are in the
+      catalog. Group A10.
+- [x] `SelectTabOperation` is removed. Group A5.
+- [ ] The other dead code, and the stale comments and docstrings of section 7
+      of the survey plan. Group A11.
 
 ### Step 6: close
 
