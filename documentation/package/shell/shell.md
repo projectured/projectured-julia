@@ -27,7 +27,6 @@ names by keyword what its window has:
 | --- | --- |
 | `gesture_help` | F1 opens a window that lists the gestures that work where the person is |
 | `command_palette` | Ctrl+Shift+P finds a command by name and runs it |
-| `gesture_log` | a panel that lists the last gestures; the record itself is always kept |
 | `selection` | Alt and an arrow walk the objects, and the clipboard acts on the one selected |
 | `clipboard_gestures` | which of the five the window has |
 | `history` | a `projection -> projection` wrapper for what the window remembers |
@@ -37,7 +36,7 @@ names by keyword what its window has:
 
 **The order is not a preference.** From the inside out: the history, the shell,
 the selection walk with the clipboard, the tooltip probe, the context menu
-probe, the help, the palette, the log's panel, and the log's recorder.
+probe, the help, the palette, and the gesture log's recorder.
 
 - The **history** is innermost because it is a recursive type dispatch over the
   tree. A wrapper between it and the tree prints that subtree itself, and the
@@ -49,6 +48,10 @@ probe, the help, the palette, the log's panel, and the log's recorder.
   selects in, and under the help and the palette, because a probe must not answer
   for a window that one of those opened.
 - The **recorder** is outermost, where it sees every operation the window makes.
+  It is always there and takes no keyword: it writes into the session's own log,
+  and **View → Gesture log** opens that log in a tab. So the tab holds what
+  happened before it opened, and a person opens it after a fault rather than
+  before one.
 
 A wrapper that opens a window of its own needs
 `make_opened_window_projections()`, which is the value of the

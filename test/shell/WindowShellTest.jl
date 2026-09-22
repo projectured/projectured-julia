@@ -102,7 +102,7 @@ end
 
 @testset "the shell is a document, and the fold puts the window inside it" begin
     document, projection = make_window_wrap(;
-        gesture_help = false, command_palette = false, gesture_log = false,
+        gesture_help = false, command_palette = false,
         selection = false,
         shell = document -> (make_window_menu_bar(), make_window_toolbar(),
                              make_window_status_bar(document), nothing,

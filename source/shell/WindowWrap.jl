@@ -3,7 +3,7 @@
 
 """
     make_window_wrap(; gesture_help = true, command_palette = true,
-                     gesture_log = false, selection = true,
+                     selection = true,
                      clipboard_gestures = CLIPBOARD_GESTURES,
                      history = identity, tooltip = nothing, pointer = nothing,
                      context_menu = nothing, shell = nothing,
@@ -17,11 +17,6 @@ projection)` that a window entry applies before it opens.
   [`make_opened_window_projections`](@ref).
 - `command_palette`: Ctrl+Shift+P opens a field over the window. Typing narrows
   the commands that work here, Enter runs the selected one, Escape closes it.
-- `gesture_log`: a panel in the top-right corner lists the last gestures and the
-  operation each one made. Off by default: it is for a demonstration and for a
-  fault report, not for daily work. **The log is recorded either way.** A gesture
-  log a person opens in a tab is the session's own, so it must already hold what
-  happened before the tab existed; this keyword adds the panel, not the record.
 - `tooltip`: what the document under the pointer says about itself, shown in a
   window of its own beside the pointer (`PAR-MANY-WINDOWS`). It is the function
   the probe asks, `(document) -> Document | Nothing`; `compute_tooltip` is the
@@ -49,17 +44,21 @@ projection)` that a window entry applies before it opens.
   `clipboard_gestures` says which of [`CLIPBOARD_GESTURES`](@ref) are offered; a
   host whose documents must not be cut leaves `:cut` out.
 
-The help, the palette and the log wrap the projection and leave the document as
-it is. The clipboard wraps the document too, so a verb that walks the window
+**The gesture log is always recorded**, into the session's own log, and no
+keyword turns it off. A person reads it in a tab that View → Gesture log opens,
+so the tab must already hold what happened before it existed.
+
+The help, the palette and the recorder wrap the projection and leave the
+document as it is. The clipboard wraps the document too, so a verb that walks the window
 must look inside it.
 
 The order is the history innermost, the shell over it, the walk and the
 clipboard over that, the tooltip probe over them, the help over that, the palette
-over it, the log's panel over the palette, and the log's recorder outermost,
-where it sees every operation the window makes.
+over it, and the log's recorder outermost, where it sees every operation the
+window makes.
 """
 function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = true,
-                            gesture_log::Bool = false, selection::Bool = true,
+                            selection::Bool = true,
                             clipboard_gestures::Tuple = CLIPBOARD_GESTURES,
                             history = identity,
                             tooltip = nothing, pointer = nothing,
@@ -109,8 +108,6 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
             (projection = GestureHelpDecoratorProjection(inner = projection, state = help_state))
         command_palette &&
             (projection = CommandPaletteDecoratorProjection(inner = projection, measure = measure))
-        gesture_log &&
-            (projection = GestureLogOverlayProjection(inner = projection, log = log))
         # The recorder is outermost, where it sees every operation the window
         # makes, and it is always there.
         projection = GestureLogRecordingProjection(inner = projection, log = log)

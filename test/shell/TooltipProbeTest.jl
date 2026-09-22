@@ -25,7 +25,7 @@ _tooltip_content() = Pair{Type,Any}[
 
 function _scene_and_projection(; tooltip = compute_tooltip, content = _tooltip_content())
     document, projection = make_window_wrap(;
-        gesture_help = false, command_palette = false, gesture_log = false,
+        gesture_help = false, command_palette = false,
         selection = false, tooltip = tooltip,
         pointer = _pointer)(_content(), make_layout_projection_example())
     scene = make_window_scene(document, "shell"; width = 400, height = 300)
@@ -140,7 +140,7 @@ _speaks() = WidgetShell(WidgetLabel(Point2D(0, 0), "speaks");
 
 function _read(document; menu = compute_context_menu)
     _, projection = make_window_wrap(;
-        gesture_help = false, command_palette = false, gesture_log = false,
+        gesture_help = false, command_palette = false,
         selection = false, context_menu = menu)(document, make_layout_projection_example())
     iomap = print_document(projection, document)
     answer = read_intent(projection, nothing,

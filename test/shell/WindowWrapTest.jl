@@ -23,7 +23,7 @@ end
     document, base = _document(), IdentityProjection()
     answer_document, answer_projection =
         make_window_wrap(; gesture_help = false, command_palette = false,
-                           gesture_log = false, selection = false)(document, base)
+                           selection = false)(document, base)
     @test answer_document === document
     @test _under_recorder(answer_projection) === base
 end
@@ -31,12 +31,11 @@ end
 @testset "a keyword adds the wrapper it names" begin
     document, base = _document(), IdentityProjection()
     wrap(; keywords...) = make_window_wrap(; gesture_help = false, command_palette = false,
-                                             gesture_log = false, selection = false,
+                                             selection = false,
                                              keywords...)(document, base)
 
     @test _under_recorder(wrap(; gesture_help = true)[2]) isa GestureHelpDecoratorProjection
     @test _under_recorder(wrap(; command_palette = true)[2]) isa CommandPaletteDecoratorProjection
-    @test _under_recorder(wrap(; gesture_log = true)[2]) isa GestureLogOverlayProjection
     # The history is a wrapper the host gives, and the default changes nothing.
     marked = wrap(; history = projection -> GestureHelpDecoratorProjection(
                       inner = projection, state = GestureHelpState()))[2]
@@ -48,7 +47,7 @@ end
 @testset "the palette sits outside the help" begin
     document, base = _document(), IdentityProjection()
     _, projection = make_window_wrap(; gesture_help = true, command_palette = true,
-                                       gesture_log = false, selection = false)(document, base)
+                                       selection = false)(document, base)
     palette = _under_recorder(projection)
     @test palette isa CommandPaletteDecoratorProjection
     @test palette.inner isa GestureHelpDecoratorProjection
