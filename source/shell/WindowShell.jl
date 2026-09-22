@@ -18,8 +18,10 @@
 
 Put `document` in a window's chrome.
 
-A `WidgetShell` **with no size hugs its content**, which a window shell must not
-do, so a caller that knows the window's size says it.
+A `WidgetShell` with no `size` fills the space its parent offers, and **hugs its
+content only where its parent offers none either**. A window's shell is drawn
+with no parent context, so it would hug its content instead of filling the
+window unless a caller that knows the window's size says it.
 
 Wrapping is idempotent: a document that is already a shell — one read back from a
 saved user interface — keeps its identity and takes the bands it is given, so a
