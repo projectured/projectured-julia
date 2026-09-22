@@ -1,8 +1,8 @@
 # Up and Down recall the history of the evaluator
 
-**Status (2026-09-22): IN PROGRESS.** Worktree
+**Status (2026-09-22): DONE.** Implemented in the worktree
 `../projectured-julia-evaluator-history`, branch `evaluator-history`, from `main`
-at `c8e55cf7`.
+at `c8e55cf7`, and landed on `main`.
 
 **Goal:** in the bottom form of an Evaluator tab, Up on the first line of the code
 recalls an older form, and Down on the last line recalls a newer one, as the Julia
@@ -118,7 +118,7 @@ The owner decided all seven on 2026-09-22.
       and a two-line form typed with Shift+Enter, then Up, Up, Up, Down, Down.
       The keys reach the toplevel only where the text layer has no line to move
       to, as §2 said. `test_application()` passes 136 of 136.
-- [ ] **Step 4. Documents and landing.** `conversation.md` and `text.md` say what
+- [x] **Step 4. Documents and landing.** `conversation.md` and `text.md` say what
       the keys do. The plan moves to `plan/done/`, and `main` fast-forwards to the
       branch.
 
