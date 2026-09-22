@@ -2,8 +2,10 @@
 
 **Status (2026-09-22): PROPOSED.** Nothing is implemented. §3 records the
 present state, §4 describes the target model, and §5 lists the decisions. Each
-decision in §5 carries a recommendation. On 2026-09-22 the owner decided how a
-part becomes transparent (D3, §4.3). The other decisions are open.
+decision in §5 carries a recommendation. On 2026-09-22 the owner decided two
+things: every part of the structure of a widget has its own color (§4.4, D3),
+and a part becomes transparent with `color_transparent` (§4.3, D3). The other
+decisions are open.
 
 **Goal:** one rule that gives, for each color that a widget draws, the value
 that the renderer uses. The rule covers the three places that can hold a color:
@@ -31,6 +33,12 @@ fields of the theme changes omnet-julia too.
 3. The **widget document** holds no theme and no token name. For its own
    instance it can hold a **tone or variant**, which selects style fields of the
    projection, and an **override**, which is a color for one part.
+
+**Every part has a color.** Each part that has a meaning in the structure of a
+widget, and a size that a caller can control, has its own color: the margin, the
+border, the padding, the content, and the regions of one widget type, such as
+the tab strip. A part that the look does not show is transparent, and it costs
+no element.
 
 The renderer resolves the color of one part in this order:
 
@@ -65,7 +73,9 @@ printer code, and four different colors mark a selected thing.
 | **factory** | `WidgetToGraphics(font; measure, theme)`. It builds one widget projection for each widget type. |
 | **widget projection** | a `Widget<X>ToGraphicsCanvas`. It prints one widget type to graphics. |
 | **style field** | a field of a widget projection that holds a `StyleColor`, a `StyleStroke` or a `StyleText` |
-| **part** | a visible piece of a widget that has a color: the surface, the outline, the text, the focus ring, a chevron |
+| **part** | a region of a widget that has a meaning in its structure and its own size: the margin, the border, the padding, the content, or a region of one widget type, such as the tab strip or the knob. Every part has a color (§4.4). |
+| **surface** | the padding and the content of a widget together |
+| **decoration** | a mark of a state that the printer draws over the parts: the focus ring, the hover and pressed layers, the selection band, the shadow, the scrim |
 | **state** | a field of the widget document that the actions of the user change: `enabled`, `hovered`, `pressed`, checked, the selection, the active tab |
 | **variant** | a `Symbol` field of the widget document that selects one set of style fields, for example `WidgetCard.variant = :muted` |
 | **tone** | a proposed `Symbol` field that gives the meaning of a widget, such as `:destructive` or `:warning` (D5) |
@@ -168,7 +178,16 @@ fills it.
   ([WidgetToGraphics.jl:507](../../source/widget/WidgetToGraphics.jl#L507)).
   Commit `641b2e60` of 2026-06-13, the shadcn restyle, removed its eight
   callers. The widgets still reserve the space of the margin, the border and the
-  padding.
+  padding. `_push_box_rects!` paints the margin, the border and the padding as
+  separate bands with square corners.
+- The Lisp original has the same fields on `widget/base`: `margin-color`,
+  `border-color` and `padding-color`, and `content-fill-color` on some widgets.
+  There `nil` means "draw nothing", and `widget/make-surrounding-graphics`
+  paints each part that has a color.
+- `_push_box!` paints the surface of `WidgetText` over the whole box, the margin
+  included
+  ([WidgetToGraphics.jl:258-264](../../source/widget/WidgetToGraphics.jl#L258-L264)).
+  So the margin of a text box shows the surface color, not the parent.
 - `text_style` takes three forms: `nothing`, a `StyleText` with font and color,
   or a bare `StyleColor`. The bare color keeps the font of the theme
   ([WidgetDocument.jl:40-48](../../source/widget/WidgetDocument.jl#L40-L48)).
@@ -322,11 +341,13 @@ are drawn, and "draw nothing" in the fields that are not drawn.
 15. One shell can not change or remove its fill. Every shell that has a size
     on both axes paints `theme.background`
     ([WidgetToGraphics.jl:2152](../../source/widget/WidgetToGraphics.jl#L2152)).
-    The page area of `WidgetTabbedPane` has no surface part: its printer paints
+    The page area of `WidgetTabbedPane` is not a part: its printer paints
     only the tab strip and the active tab
     ([:3056](../../source/widget/WidgetToGraphics.jl#L3056),
     [:3061](../../source/widget/WidgetToGraphics.jl#L3061)). So no theme and no
     override can give the page a color.
+16. The margin of `WidgetText` shows its surface color, because `_push_box!`
+    fills the whole box (§3.3).
 
 ## 4. The target model
 
@@ -352,6 +373,9 @@ The rules of the model:
 4. A widget document holds no theme and no token name.
 5. The transparent color is the global `color_transparent` in `Color.jl`, beside
    `color_white`. It replaces the 12 literals and the three local names of §3.4.
+6. Every part has a color: a style field on the projection, and an override on
+   the document (§4.4). A part that the look does not show has
+   `color_transparent`.
 
 ### 4.2 The order of resolution
 
@@ -420,24 +444,79 @@ alpha to decide whether to add the element. A change between transparent and a
 visible color then builds the list again. A change of `variant` on `WidgetCard`
 has the same cost today.
 
-### 4.4 The box model
+### 4.4 The parts of a widget
 
-- **The margin has no color.** The surface of the parent shows through it.
-  `margin_color` goes.
-- **The border is the outline of the surface.** Its color is the color of the
-  outline part: the override, else the style field. D8 asks where its width
-  comes from.
-- **The padding is part of the surface.** The fill of the surface covers the
-  padding and the content. `padding_color` and `content_fill_color` become one
-  override for the surface part.
-- A widget with two surfaces names each part. `WidgetTitlePane` has a title
-  surface and a content surface.
-- **Every surface part can be transparent** (§4.3). `WidgetShell` keeps
-  `theme.background` as the default of its surface, and one shell becomes
-  transparent with the override `color_transparent`.
-- **`WidgetTabbedPane` gets a page surface part**, the area below the tab strip.
-  Its factory value is `color_transparent`, which keeps the present look. A
-  theme factory or an override can give it a color.
+**Decided by the owner on 2026-09-22.** Every part that has a meaning in the
+structure of a widget, and a size that a caller can control, has its own color.
+The rule holds also where the look does not show the part. Its color is then
+`color_transparent`, and it costs no element (§4.3). The margin is such a part.
+A second reason for the rule: a developer can give each part a color to see the
+layout.
+
+**The box parts.** Every widget that has the box insets has four parts, from the
+outside in:
+
+| Part | Size | Default color |
+| --- | --- | --- |
+| margin | the `margin` inset | `color_transparent` |
+| border | the `border` inset (D8) | the outline token of the widget, for example `theme.border` or `theme.input`. `color_transparent` for a widget that shows no outline. |
+| padding | the `padding` inset | the surface token of the widget, for example `theme.card` |
+| content | the size of the content | the same surface token as the padding |
+
+The padding and the content have the same default color, so the widget shows one
+surface. An override on one of them makes the two areas visible.
+
+**The painter of the box.**
+
+- The printer paints the four parts from the outside in, and skips a
+  transparent part (§4.3). With the default colors, the border, the padding and
+  the content are one `GraphicsRect` with a fill and an outline, as today. So the
+  default look costs no more elements than today.
+- `_push_box_rects!` is the start of this painter (§3.3). It needs the corner
+  radius, the content part and the skip of a transparent part.
+- The surface starts at the border. The margin is outside it, so the defect of
+  `WidgetText` (defect 16) goes away.
+- With a corner radius, the border, the padding and the content are rounded.
+- A translucent color on an inner part must not show the color of an outer part
+  through it. So where a color is translucent, the painter paints each part as a
+  band, not as rects inside each other.
+
+**The parts of one widget type.** A widget type has more parts where its printer
+lays out a region with its own size. Some examples:
+
+| Widget | Parts of its own |
+| --- | --- |
+| `WidgetShell` | none. Its bands are child widgets with their own parts. |
+| `WidgetTabbedPane` | tab strip, tab, active tab, page |
+| `WidgetTitlePane` | title bar, content |
+| `WidgetSplitPane` | splitter |
+| `WidgetScrollBar` | track, thumb |
+| `WidgetSwitch`, `WidgetSlider`, `WidgetProgress` | track, indicator, knob |
+| `WidgetTable` | header row, row, cell |
+| `WidgetList`, `WidgetTree` | row |
+| `WidgetCard` | header, body, footer |
+
+Step 4 makes the full list, with one row for each widget type.
+
+**Two parts that this plan names.**
+
+- `WidgetShell` keeps `theme.background` as the default color of its surface.
+  One shell becomes transparent with the override `color_transparent`.
+- `WidgetTabbedPane` gets a page part, the area below the tab strip. Its factory
+  value is `color_transparent`, which keeps the present look. A theme factory or
+  an override can give it a color.
+
+**Text and marks.** The text of a part, and a mark in it such as a chevron or a
+check, have their own color: the color of a `StyleText` or a `StyleStroke`.
+
+**Decorations are not parts.** The focus ring, the hover and the pressed layers,
+the selection band, the shadow and the scrim show a state, not a part of the
+structure. They have style fields on the projection. D3 asks whether a document
+can override them.
+
+**Debugging a whole window.** To color one part in every widget of a window, a
+developer gives the style field of that part a color at the factory, for example
+a red margin for every widget type. No document changes.
 
 ### 4.5 States
 
@@ -490,20 +569,24 @@ the decisions.
 ## 5. Decisions
 
 Each decision gives the options and a recommendation. The recommendations are
-mine. Only the second half of D3, how an override removes a fill, is decided.
+mine. The owner decided D3, except for the decorations. The other decisions are
+open.
 
 ### D1. The names of the style fields
 
 - **(a)** Keep the names, and fix only the collisions of §3.2.
 - **(b)** Use one scheme in every projection: `<part>_<state>_<kind>`. The kind
   is `color` for a `StyleColor`, `stroke` for a `StyleStroke` and `text` for a
-  `StyleText`. The normal state has no state word. Parts: `surface`, `outline`,
-  `label`, `focus_ring`, `shadow`, `divider`, `chevron`, `track`, `thumb`,
-  `knob`, `indicator`, `row`. States: `hovered`, `pressed`, `checked`,
-  `selected`, `disabled`. `WidgetButton` then has `surface_color`,
-  `surface_hovered_color`, `surface_pressed_color`, `surface_disabled_color`,
-  `outline_stroke`, `label_text`, `label_disabled_text`, `shadow_color` and
-  `focus_ring_stroke`.
+  `StyleText`. The normal state has no state word. The part words are the box
+  parts `margin`, `border`, `padding` and `content`; the parts of one widget
+  type, such as `tab_strip`, `page`, `splitter`, `track`, `thumb`, `knob`,
+  `indicator` and `row`; the marks `label`, `chevron` and `check`; and the
+  decorations `focus_ring` and `shadow`. The state words are `hovered`,
+  `pressed`, `checked`, `selected` and `disabled`. `WidgetButton` then has
+  `margin_color`, `border_color`, `padding_color`, `content_color`,
+  `padding_disabled_color`, `content_disabled_color`, `label_text`,
+  `label_disabled_text`, `shadow_color` and `focus_ring_stroke`. With D4 (c),
+  the hovered and the pressed state need no fields of their own.
 - **(c)** A compound type for each state, with a fill, an outline and a text,
   and one field for each state: `normal`, `hovered`, `pressed`, `disabled`.
 
@@ -512,30 +595,57 @@ override (D2) can have the same name as the style field that it replaces, and a
 test can check that every interactive widget has its `_disabled_` fields. (c) is
 shorter, but most states change only one of the three aspects.
 
+The box parts keep the names that the document uses today: `margin_color`,
+`border_color` and `padding_color`. `content_color` replaces
+`content_fill_color`. The kind word keeps a fill and a text apart:
+`content_color` is the fill of the content, and `label_text` is its text.
+
+**What moved this recommendation:** the owner's rule of §4.4. The first version
+of this plan had the parts `surface` and `outline`. The four box parts replace
+them, because each has its own size. The border is then a band with the width of
+the `border` inset, and its color is a fill, not a stroke.
+
 ### D2. The form of the override on the document
 
-- **(a)** Flat fields on each widget, for example `surface_color`,
-  `outline_color` and `text_color`, each `nothing` by default.
+- **(a)** Flat fields on each widget, for example `margin_color`,
+  `border_color`, `padding_color`, `content_color` and `text_color`, each
+  `nothing` by default.
 - **(b)** One field `style` on each widget. It holds `nothing` or a
   `WidgetStyle` document whose fields are `nothing` by default, in the form of
   `ChartStyle`.
 
-**Recommendation: (b).** It costs one cell per widget instead of three to six.
-`ChartStyle` and `SequenceChartStyle` already use this form. Another part that
-an override can cover is one field in one struct, not a field in 43 structs. A
-person can edit a `WidgetStyle` in the editor like any other document, and many
-widgets can share one `WidgetStyle`. The cost: a call site writes
-`style = WidgetStyle(surface_color = …)`.
+**Recommendation: (b).** Every part has a color (§4.4), so (a) gives each widget
+at least four color fields, one for each box part, and more for its own parts
+and its text. (b) costs one cell per widget. `ChartStyle` and
+`SequenceChartStyle` already use this form. Another part that an override can
+cover is one field in one struct, not a field in 43 structs. A person can edit a
+`WidgetStyle` in the editor like any other document, and many widgets can share
+one `WidgetStyle`. The cost: a call site writes
+`style = WidgetStyle(padding_color = …)`.
+
+One detail of (b) is open: the parts of one widget type. My recommendation: the
+`style` field takes either a `WidgetStyle` or the style of the widget type. A
+`WidgetStyle` has the box parts and the text, and every widget takes it. The
+style of a widget type, for example `WidgetTabbedPaneStyle`, has the same fields
+and the parts of that type. So one `WidgetStyle` can color the margins of widgets
+of many types.
 
 ### D3. The parts that an override covers, and how it removes a fill
 
-**The parts.** Open.
+**The parts.** Decided by the owner on 2026-09-22: an override can cover every
+part of §4.4, the margin included, and the text and the marks in a part. The
+first version of this plan recommended only the surface, the outline and the
+text. The owner rejected that: every part that has a meaning in the structure
+and a size can have a color, also for debugging.
 
-- **(a)** The surface, the outline and the text, on every widget.
-- **(b)** Every part that the widget draws.
+**The decorations.** Open.
 
-**Recommendation: (a).** The call sites of §3.6 set only these three parts.
-Another part can come when a caller needs it.
+- **(a)** A document can not override a decoration. The theme and the projection
+  give its color.
+- **(b)** A document can override a decoration, as it can override a part.
+
+**Recommendation: (a).** A decoration shows a state, and one state must look the
+same in every widget: a focused widget shows the same ring everywhere.
 
 **How an override removes a fill.** Decided by the owner on 2026-09-22.
 
@@ -624,8 +734,17 @@ swapped arguments of the same type give no error.
 - **(b)** The `StyleStroke` of the projection gives the width and the color. The
   `border` inset of the document only reserves space.
 
-**No recommendation yet.** This is a layout question more than a color question.
-It needs its own check of which widgets read which source.
+**Recommendation: (a).** The border is a part whose size a caller controls
+(§4.4), and the `border` inset is that size. With (b) the border has two sizes:
+the inset reserves space, and the stroke draws a line of another width.
+
+**What moved this recommendation:** the owner's rule of §4.4. The first version
+of this plan gave no recommendation.
+
+The cost of (a): a widget that shows a 1-pixel outline today draws it inside its
+box, and its `border` inset is 0. With (a) its `border` inset becomes 1, and its
+box grows by 1 pixel on each side. The theme token `inset` can give this default,
+so the token gets a job, and step 3 keeps it. The images of the examples change.
 
 ### D9. The selection ring of the layouts
 
@@ -651,6 +770,21 @@ widget and in a layout, and the theme sets it.
 **Recommendation: (a),** until a real case needs (b). With (b) a document holds a
 theme name, and the printer context must carry the themes.
 
+### D11. The box parts on every widget
+
+19 widgets have the `margin`, `border` and `padding` insets. `WidgetCard` has
+only `padding`. 23 widgets have none, for example `WidgetBadge`, `WidgetSwitch`
+and `WidgetTable`. A widget with no insets has no box parts, so a caller can not
+color its margin.
+
+- **(a)** Every widget gets the three insets, and so the four box parts.
+- **(b)** Only the widgets of today have box parts.
+
+**Recommendation: (a).** Then the rule of §4.4 holds for every widget, and a
+developer can color the margin of any widget to see the layout. The cost: 23
+widget types get three inset fields and `WidgetCard` gets two, and their
+printers and readers must respect the insets.
+
 ## 6. Steps
 
 The steps start after the owner decides §5. Each step is one commit, and the
@@ -662,20 +796,25 @@ targeted tests run after each step.
       land before the other decisions.
 - [ ] 3. Theme: add the tokens that the decisions need, for example the shadow,
       the scrim, the selection band, the hover and pressed layers, the knob,
-      `warning` and `success`. Remove `inset`. Change
+      `warning` and `success`. Keep `inset` as the default box insets if D8
+      takes (a), else remove it. Change
       `build_qtenv_widget_theme` in omnet-julia, which calls the positional
       constructor.
 - [ ] 4. Projections: give each widget projection a constructor that takes the
       theme (D7), with the names of D1. Move the constants of §3.4 into style
       fields. Remove the two style fields that are never read. Make
       `_push_panel!` skip a transparent fill that has no outline (§4.3), and
-      give `WidgetCard` `:plain` a transparent surface. Add the page surface part
-      of `WidgetTabbedPane` (§4.4).
+      give `WidgetCard` `:plain` a transparent surface. Write the full list of
+      the parts of each widget type (§4.4), and give each part a style field.
+      Paint the four box parts with one painter, made from `_push_box_rects!`,
+      with the corner radius and the skip of a transparent part. Add the page
+      part of `WidgetTabbedPane`.
 - [ ] 5. States: give every interactive widget a disabled look, and use one
       selection token and one hover token everywhere (D4).
-- [ ] 6. Documents: replace `margin_color`, `border_color`, `padding_color`,
-      `content_fill_color` and `title_fill_color` with the override of D2. Add
-      `tone` (D5). Change the 26 call sites in both repositories. For each of the
+- [ ] 6. Documents: move `margin_color`, `border_color`, `padding_color`,
+      `content_fill_color` and `title_fill_color` into the override of D2, with
+      one color for every part (§4.4). No part loses its color. Give the box
+      insets to the widgets that have none, if D11 takes (a). Add `tone` (D5). Change the 26 call sites in both repositories. For each of the
       16 call sites that have no effect today, check whether the color is still
       wanted. For example, `AssistantToWidget` asks for white panes but shows
       `theme.background`.
@@ -694,6 +833,11 @@ targeted tests run after each step.
   a printer fails the test. This test keeps defect 3 from coming back.
 - **A test of the order of §4.2** on one widget: an override, a variant, the
   default, and each state.
+- **A test of the parts.** A widget example gives each part a different color.
+  The rendered image shows each color at the size of its part: the margin band
+  as wide as the `margin` inset, the border band as wide as the `border` inset,
+  and so on. The margin of `WidgetText` shows the parent, not the surface
+  (defect 16).
 - **A test of the transparent fill.** A shell and a tabbed pane with the
   override `color_transparent` add no fill element. The same widgets with a
   visible color add one. A transparent fill with a visible outline keeps its
