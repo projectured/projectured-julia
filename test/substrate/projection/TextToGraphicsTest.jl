@@ -443,4 +443,30 @@ canvas = print_document(TextToGraphics(measure=m), with_selection(block, TextMod
 
 end # @testset "TextToGraphics empty span"
 
+@testset "TextToGraphics moves the caret onto an empty line and off it" begin
+
+m = _test_measure(10, 18)
+p = TextToGraphics(measure=m)
+block(text, k) = with_selection(TextBlock(TextString(text, font_ubuntu_monospace_regular_20, color_red)),
+                                TextModule.make_flat_caret_reference(k))
+flat(op) = (strip_reference_types(op.path).head::TextRangeReferenceStep).start
+press(text, k, key) = (op = read_intent(p, print_document(p, block(text, k)), KeyDown(key, ModifierKeys()));
+                       op === nothing ? nothing : flat(op))
+# "a", an empty line, then "b": Up goes from "b" onto the empty line, then onto
+# "a", and Down comes back the same way.
+@test press("a\n\nb", 3, :up) == 2
+@test press("a\n\nb", 2, :up) == 0
+@test press("a\n\nb", 0, :down) == 2
+@test press("a\n\nb", 2, :down) == 3
+# The line after a line break at the end of the text.
+@test press("ab\n", 3, :up) == 0
+@test press("ab\n", 0, :down) == 3
+# An empty text has no line above and none below, so the key goes to the caller.
+@test press("", 0, :up) === nothing
+@test press("", 0, :down) === nothing
+# A text with no glyph keeps its one line of height.
+@test Int(print_document(p, block("", 0)).output.h) == 18
+
+end # @testset "TextToGraphics empty line"
+
 end # test_text_to_graphics

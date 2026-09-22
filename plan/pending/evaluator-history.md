@@ -91,9 +91,15 @@ The owner decided all seven on 2026-09-22.
 
 ## 4. Steps
 
-- [ ] **Step 1. An empty line has a place in the text layer.** Test in
+- [x] **Step 1. An empty line has a place in the text layer.** Test in
       `TextToGraphicsTest.jl`: Up and Down stop on an empty line, a caret on an
       empty line moves up and down, and an empty span keeps its one line of height.
+      **Done.** A zero-width coordinate is recorded for every empty sub-line, and
+      the ones on a line that draws a glyph are dropped at the end of
+      `_layout_group`. So syntax text, whose line breaks are spans of their own on
+      lines with glyphs, gets no new coordinate. `_draws_glyph` tells the two kinds
+      apart for the blank-line height and for `_translate_click`. The text suites
+      pass, and `test_mouse_clicks()` fails the same 10 examples as on `main`.
 - [ ] **Step 2. The history of the evaluator.** The three fields, the operation
       and the gestures. Tests in `EvaluatorToplevelTest.jl` for D1 to D7.
 - [ ] **Step 3. Through the window.** A case in `ApplicationTest.jl` on a standing

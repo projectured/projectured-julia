@@ -578,6 +578,12 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
             if isempty(line)
                 li == 1 && at_caret(char_offset) &&
                     (cursor = (cx, cy, max(line_h, p.measure(" ", sf)[2], 1)))
+                # An empty line draws no glyph, but it has a place: a zero-width
+                # coordinate where a caret on it stands, so a key moves the caret
+                # onto the line and off it. One on a line that draws a glyph is
+                # dropped below.
+                push!(coord_map, SegmentCoordinate(path, char_offset, char_offset, cx, cy,
+                                                   sf, "", 0, p.measure(" ", sf)[2]))
                 continue
             end
 
@@ -611,9 +617,14 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
         end
     end
 
+    # On a line that draws a glyph, the glyphs give every caret of the line its
+    # place, so a zero-width coordinate stays only on a line that draws none.
+    glyph_rows = Set(sc.y for sc in coord_map if _draws_glyph(sc))
+    filter!(sc -> _draws_glyph(sc) || !(sc.y in glyph_rows), coord_map)
+
     max_cx = max(max_cx, cx)
     height = cy + line_h - y0
-    if isempty(coord_map) && (group.newline !== nothing || group.is_line || _has_text_span(group))
+    if !any(_draws_glyph, coord_map) && (group.newline !== nothing || group.is_line || _has_text_span(group))
         # A blank line still occupies one row, sized by the font it has no glyph to
         # take one from. A group that holds only an empty span is such a line,
         # because a caret can stand in it. The empty group left behind by a
@@ -691,6 +702,10 @@ _line_height_font(group, block_font::Cell) =
     group.newline === nothing ? block_font[] : group.newline.font::StyleFont
 
 _has_text_span(group) = any(entry -> entry[2] isa TextString, group.spans)
+
+# Whether a coordinate stands for something drawn: text, or an embedded image.
+# The zero-width coordinate of an empty line draws nothing.
+_draws_glyph(sc::SegmentCoordinate) = sc.width > 0 || !isempty(sc.text)
 
 # The block's prevailing font — the first font any element offers, in document
 # order, or `nothing` for a block that has none. It sizes an empty `TextLine`,
@@ -1019,7 +1034,8 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     # Adjust for highlight rects prepended before text segments
     hl_off = iomap.highlight_offset
     i -= hl_off
-    coord_map = iomap.char_to_coord
+    # The drawn elements, and not the places of empty lines, which draw nothing.
+    coord_map = filter(_draws_glyph, iomap.char_to_coord)
     (i < 1 || i > length(coord_map)) && return nothing
     seg = coord_map[i]
 
