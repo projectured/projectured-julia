@@ -417,6 +417,7 @@ end
 function _push_following_band!(elements::Vector, x_of, y_of, width_of, height_of, sides, color::StyleColor)
     is_color_transparent(color) && return
     left, top, right, bottom = sides
+    # @positional: a rectangle, as its origin and its size
     function push_rect!(x, y, width, height)
         push!(elements, GraphicsRect(ComputedCell(() -> Int32(x())), ComputedCell(() -> Int32(y())),
                                      ComputedCell(() -> Int32(max(0, width()))),
@@ -460,19 +461,6 @@ function _push_state_layer!(elements::Vector, color, x::Int, y::Int, width::Int,
     _push_panel!(elements, x, y, width, height; fill = color, radius = radius)
 end
 
-# Draw a themed rounded surface (fill + optional outline) covering a widget's
-# full box (content size `cw×ch` plus its box-model insets), reusing the widget's
-# geometry so print and reader stay in sync. The outline width is the document's
-# left border (font-scaled); `border=nothing` or zero border → no outline.
-function _push_box!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int;
-                    fill::StyleColor, border=nothing, radius::Int=0)
-    tx, ty = _inset_total(w)
-    bl = Int(w.border.left[])
-    bw = (border !== nothing && bl > 0) ? _sc(bl) : 0
-    _push_panel!(elems, 0, 0, cw + tx, ch + ty;
-                 fill=fill, border=(bw > 0 ? border : nothing), border_w=bw, radius=radius)
-end
-
 # A focus ring around a focused widget (Stage 2). Focus is selection. The ring is
 # a **persistent overlay** (always pushed) whose `w`/`h` read the selection — full
 # control bounds when focused, 0 when not (a zero-size rect the renderer skips).
@@ -499,29 +487,17 @@ function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
     push!(elems, rect)
 end
 
-_push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int, ring_color::StyleColor, radius::Int;
-                  whole_color = nothing) =
-    _push_focus_ring!(elems, w, cw, ch, StyleStroke(ring_color, 2), radius;
-                      whole = whole_color === nothing ? nothing : StyleStroke(whole_color, 2))
-
-# ── Hover feedback (Stage 6) ─────────────────────────────────────────────────
+# ── Hover feedback ───────────────────────────────────────────────────────────
 # The shared convention: an actionable widget carries a `hovered` cell, set by the
-# WidgetHoverTrackingProjection via MouseEnter/MouseLeave, and renders a faint
-# surface behind itself while hovered + enabled. A disabled widget never hovers.
+# WidgetHoverTrackingProjection via MouseEnter/MouseLeave, and draws the layer of
+# the hovered state over its surface while hovered and enabled. A disabled widget
+# never hovers.
 
 # A widget's reader falls through to this for crossing events: it writes the
 # `hovered` state, or `nothing` for any other event.
 _hover_state_op(w, evt) =
     evt isa MouseEnter ? _write_view_state(w, "hovered", true) :
     evt isa MouseLeave ? _write_view_state(w, "hovered", false) : nothing
-
-# Draw the hover surface behind a widget when its `hovered` cell is set and it is
-# enabled. Pushed first so the content draws over it.
-function _push_hover_surface!(elems::Vector, w, enabled::Bool, cw::Int, ch::Int,
-                              color::StyleColor, radius::Int=0)
-    (enabled && hasproperty(w, :hovered) && w.hovered === true) || return
-    _push_panel!(elems, 0, 0, cw, ch; fill=color, radius=radius)
-end
 
 # ── Projection structs ─────────────────────────────────────────────────────
 #
@@ -1002,84 +978,6 @@ end
     input::WidgetTransformPane
     output::GraphicsCanvas
     content_iomap::Any
-end
-
-# ── Color helpers ──────────────────────────────────────────────────────────
-
-
-# ── Box model helpers ──────────────────────────────────────────────────────
-
-# Box-model insets are authored in logical pixels; scale them by the font scale
-# so padding/border track the (also-scaled) text size on hi-dpi displays. The
-# reader uses the same offsets, so click mapping stays in sync.
-"""
-Return the (x, y) content-area offset from the widget's outer top-left corner,
-i.e. margin + border + padding on each axis (font-scaled).
-"""
-function _content_offset(w::WidgetDocument)
-    m   = w.margin::Inset
-    brd = w.border::Inset
-    pad = w.padding::Inset
-    ox = _sc(Int(m.left[]) + Int(brd.left[]) + Int(pad.left[]))
-    oy = _sc(Int(m.top[])  + Int(brd.top[])  + Int(pad.top[]))
-    (ox, oy)
-end
-
-"""
-Return the total (horizontal, vertical) space consumed by all box-model layers
-(font-scaled).
-"""
-function _inset_total(w::WidgetDocument)
-    m   = w.margin::Inset
-    brd = w.border::Inset
-    pad = w.padding::Inset
-    tx = _sc(Int(m.left[]) + Int(m.right[]) + Int(brd.left[]) + Int(brd.right[]) +
-             Int(pad.left[]) + Int(pad.right[]))
-    ty = _sc(Int(m.top[])  + Int(m.bottom[]) + Int(brd.top[])  + Int(brd.bottom[]) +
-             Int(pad.top[])  + Int(pad.bottom[]))
-    (tx, ty)
-end
-
-"""
-Push colored rectangles for every non-transparent box-model layer of `w`.
-`bx, by` is the widget's outer top-left (outermost edge of margin).
-`cw, ch` is the content size (inside padding).
-"""
-function _push_box_rects!(elems::Vector, w::WidgetDocument,
-                          bx::Int, by::Int, cw::Int, ch::Int)
-    m   = w.margin::Inset
-    brd = w.border::Inset
-    pad = w.padding::Inset
-
-    ml, mt, mr, mb = Int(m.left[]),   Int(m.top[]),   Int(m.right[]),  Int(m.bottom[])
-    bl, bt, br, bb = Int(brd.left[]), Int(brd.top[]), Int(brd.right[]), Int(brd.bottom[])
-    pl, pt, pr, pb = Int(pad.left[]), Int(pad.top[]), Int(pad.right[]), Int(pad.bottom[])
-
-    pw = cw + pl + pr    # padded-content width  (inside border)
-    ph = ch + pt + pb    # padded-content height
-
-    mc = w.margin_color
-    if mc isa StyleColor
-        total_w = ml + bl + pw + br + mr
-        mt > 0 && push!(elems, GraphicsRect(bx,                      by, total_w, mt,  mc))
-        mb > 0 && push!(elems, GraphicsRect(bx, by + mt + bt + ph + bb, total_w, mb,  mc))
-        ml > 0 && push!(elems, GraphicsRect(bx,              by + mt,   ml, bt + ph + bb, mc))
-        mr > 0 && push!(elems, GraphicsRect(bx + ml + bl + pw + br, by + mt, mr, bt + ph + bb, mc))
-    end
-
-    bc = w.border_color
-    if bc isa StyleColor
-        bx2, by2 = bx + ml, by + mt
-        bt > 0 && push!(elems, GraphicsRect(bx2,              by2,         bl + pw + br, bt,  bc))
-        bb > 0 && push!(elems, GraphicsRect(bx2, by2 + bt + ph,            bl + pw + br, bb,  bc))
-        bl > 0 && push!(elems, GraphicsRect(bx2,         by2 + bt,         bl, ph,           bc))
-        br > 0 && push!(elems, GraphicsRect(bx2 + bl + pw, by2 + bt,       br, ph,           bc))
-    end
-
-    pc = w.padding_color
-    if pc isa StyleColor
-        push!(elems, GraphicsRect(bx + ml + bl, by + mt + bt, pw, ph, pc))
-    end
 end
 
 # ── Text helpers ───────────────────────────────────────────────────────────
