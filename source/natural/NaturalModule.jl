@@ -10,7 +10,7 @@ A notation is a rung on one ladder:
 
 A domain declares the one rung it can reach on its own, and everything above it
 is composition. The composition is a `ChainingProjection`, which is what every
-caller that wanted a document as text used to build by hand.
+caller that wants a document as text would otherwise build by hand.
 
 # The three starting rungs
 

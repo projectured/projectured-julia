@@ -16,10 +16,11 @@
 # - Symbols in violet, function names in green
 # - Numbers in magenta (via PrimitiveNumberToSyntaxLeaf)
 #
-# The rules added after the original five are `@projection_template` builders, so
-# printing, reference mapping and the structural readers are generic. Each
-# compound rule collapses an unmapped caret to a bounded flat offset
-# (`_syntax_to_flat`), because a formula is full of projection-introduced chrome.
+# The rules from `MathSymbolToSyntaxLeaf` on are `@projection_template`
+# builders, so printing, reference mapping and the structural readers are
+# generic. Each compound rule collapses an unmapped caret to a bounded flat
+# offset (`_syntax_to_flat`), because a formula is full of
+# projection-introduced chrome.
 # ── MathInsertionToSyntaxLeaf ─────────────────────────────────────────────────
 
 @projection struct MathInsertionToSyntaxLeaf
