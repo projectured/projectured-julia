@@ -140,6 +140,21 @@ memory cap of 20 GB. No second Julia process runs at the same time.
 - [x] `OdbcAdapter` catalog calls honour their `database` argument; the query
       text is a function that a test checks with no database. `bbe37a8c`.
 
+### Step 4b: the faults that the fix groups found
+
+- [x] Group A7: a press on a focusable control selects it on the mouse-down,
+      so the next key goes to it (`4e56cd8c`); a plain string in `WidgetText`
+      and `WidgetTextarea` is editable (`3e42fe85`); lists, spin boxes, check
+      boxes, switches and buttons take bare keys and the left button only
+      (`fd154256`); the accordion prints its titles and bodies through the
+      recursion (`fbad1697`); Alt+Return and a prose submit do nothing while a
+      turn streams, and two old assistant tests follow the code (`210aa515`);
+      the MCP start puts the previous logger back (`f49a036b`);
+      `test_message_log` drains a feed (`6803710e`).
+- [ ] Group A8: the SQL sign and `''` escape, the kinded copy of a `ListNode`,
+      the key of `TextLineNumbering`, the natural test types, the coordinates
+      of `WidgetTransformPane`.
+
 ### Step 5: tests, dead code, comments
 
 - [ ] `test_video()` runs its layering guard; the process atoms are in the catalog.
@@ -166,6 +181,16 @@ memory cap of 20 GB. No second Julia process runs at the same time.
   fault log, and the turn goes on. An operation that is posted after the last
   frame is dropped when the loop ends; a pending call runs then, so no caller
   waits forever.
+- **The focus moves on the mouse-down, not on the press.** A compound of a
+  selection and an action on the press fails as a whole wherever a projection
+  maps the action but not the selection, and the object views and the
+  configuring bar would stop acting. So a button, which answers the down with
+  its pressed look, does not take the focus from a click.
+- **`WidgetShell` gives a down and an up to the band under the pointer**, in the
+  frame of that band, and to each band in order when that band answers nothing.
+  This is part of step 1 of `plan/pending/hover-drag-and-tooltip-share-the-pointer.md`.
+- **A plain string in a text widget is editable.** `WidgetLabel` is the read-only
+  widget, and the filter bar and the input dialog hold plain strings.
 - **The MCP server starts after `on_start`.** A listing at request time needs a
   hook that the MCP library does not have.
 - **A SQL statement ends at `;` or at the end of the text.** Extra text after a
