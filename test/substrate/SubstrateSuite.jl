@@ -63,6 +63,8 @@ function test_substrate()
         test_text_to_graphics()
         test_word_wrapping()
         test_text_filtering()
+        test_text_first_line()
+        test_text_line_numbering()
         test_text_highlighting()
         test_selection_inverting()
         # widget projections
@@ -156,8 +158,8 @@ export test_syntax, test_text, test_graphics, test_affine_transform, test_font_m
 export test_projection_template_hygiene, test_projection_template_fixed_children
 export test_plot_geometry,
        test_syntax_to_text, test_primitive_to_text, test_text_to_graphics,
-       test_word_wrapping, test_text_filtering, test_text_highlighting,
-       test_selection_inverting
+       test_word_wrapping, test_text_filtering, test_text_first_line, test_text_line_numbering,
+       test_text_highlighting, test_selection_inverting
 export test_reflection_to_widget
 export test_object_field_to_widget, test_object_field_to_syntax
 export test_object_to_widget, test_projection_configuring,

@@ -181,6 +181,8 @@ include("../../../test/substrate/projection/PrimitiveToTextTest.jl")
 include("../../../test/substrate/projection/TextToGraphicsTest.jl")
 include("../../../test/substrate/projection/WordWrappingTest.jl")
 include("../../../test/substrate/projection/TextFilteringTest.jl")
+include("../../../test/substrate/projection/TextFirstLineTest.jl")
+include("../../../test/substrate/projection/TextLineNumberingTest.jl")
 include("../../../test/substrate/projection/TextHighlightingTest.jl")
 include("../../../test/substrate/projection/SelectionInvertingTest.jl")
 # ── widget projections ───────────────────────────────────────────────────────

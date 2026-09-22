@@ -341,29 +341,8 @@ read_intent(::WordWrapping, ::WordWrappingIoMap, op::Operation) = op
 
 # ── Path helpers ────────────────────────────────────────────────────────────
 
-function _parse_text_elem_path(path)
-    path = strip_reference_types(path)
-    path isa ConcreteReference || return nothing
-    h1 = path.head
-    h1 isa FieldReferenceStep && h1.name == "elements" || return nothing
-    t1 = path.tail
-    t1 isa ConcreteReference || return nothing
-    h2 = t1.head
-    h2 isa RangeReferenceStep || return nothing
-    span_idx = h2.start + 1
-    t2 = t1.tail
-    t2 isa ConcreteReference || return nothing
-    h3 = t2.head
-    h3 isa FieldReferenceStep && h3.name == "content" || return nothing
-    t3 = t2.tail
-    t3 isa ConcreteReference || return nothing
-    h4 = t3.head
-    h4 isa RangeReferenceStep || return nothing
-    (span_idx, h4.start::Int)
-end
-
-# Like `_parse_text_elem_path` but returns the full `(span_idx, char_start,
-# char_stop)` of the terminal `RangeReferenceStep` instead of only its start.
+# The `(span_idx, char_start, char_stop)` of a `.elements[i].content[s:e]` path:
+# the 1-based span and the 0-based range of its terminal `RangeReferenceStep`.
 function _parse_text_elem_range(path)
     path = strip_reference_types(path)
     path isa ConcreteReference || return nothing

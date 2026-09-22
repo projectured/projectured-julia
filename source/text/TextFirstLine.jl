@@ -19,8 +19,8 @@
 # Invertibility: because kept spans keep their original index and order (the kept
 # input spans are `1..k`, emitted as output spans `1..k`), reference mapping is the
 # identity over the visible prefix. A position past the break maps forward to
-# `nothing` (not drawn while collapsed); the backward map is a pure identity, so
-# edits/selection inside the first line land on the real underlying span.
+# `nothing` (not drawn while collapsed); the backward map is the identity over the
+# prefix, so edits/selection inside the first line land on the real underlying span.
 # ── Projection struct ─────────────────────────────────────────────────────────
 
 """
@@ -50,7 +50,10 @@ function print_document(p::TextFirstLine, recursion, text::TextBlock, ctx)
     both = ComputedCell(() -> _first_line(text))
     elements_cv = ComputedCellVector(() -> both[][1])
     info_cell = ComputedCell(() -> both[][2])
-    out_selection = ComputedCell(() -> _forward(info_cell[], text.selection))
+    out_selection = ComputedCell(() -> begin
+        kept = TextBlock(elements_cv, Cell(nothing))
+        _map_selection_over_runs(_make_first_line_runs(info_cell[], text, kept), text, text.selection)
+    end)
     output = TextBlock(elements_cv, out_selection)
     TextFirstLineIoMap(p, text, output, info_cell)
 end
@@ -86,32 +89,21 @@ end
 
 # ── Selection / reference mapping ─────────────────────────────────────────────
 
-# Forward: an input cursor `elements[s].content{c}` survives unchanged iff its
-# span is within the kept prefix (and, for the truncated span, the char offset
-# is within the kept length). Anything at/after the break is not drawn → nothing.
-function _forward(info, sel)
-    sel === nothing && return nothing
-    parsed = _parse_text_elem_path(sel)
-    parsed === nothing && return nothing
-    in_span, in_char = parsed
-    in_span <= info.kept || return nothing
-    if in_span == info.trunc_span && in_char > info.trunc_len
-        return nothing
-    end
-    _text_elem_path(in_span, in_char)
-end
+# The runs of flat offsets that the first line keeps: each kept span is one run
+# with the same offsets in both blocks, and the truncated span is as long as its
+# kept prefix. A caret at or after the break is in no run, so it is not drawn.
+_make_first_line_runs(info, input::TextBlock, output::TextBlock) =
+    _make_flat_runs(input, output, [(i, 0, i, get_flat_length(output.elements[i])) for i in 1:info.kept])
 
+# Forward and backward, a caret or a range in either caret form maps to the same
+# flat offsets while it lies on the first line.
 map_reference_forward(p::TextFirstLine, iomap::TextFirstLineIoMap, reference) =
-    _forward(iomap.info, reference)
+    _map_selection_over_runs(_make_first_line_runs(iomap.info, iomap.input, iomap.output),
+                             iomap.input, reference)
 
-# Backward: output spans are index-aligned with their input spans, so the map is
-# the identity over the visible prefix.
-function map_reference_backward(p::TextFirstLine, iomap::TextFirstLineIoMap, reference)
-    parsed = _parse_text_elem_path(reference)
-    parsed === nothing && return nothing
-    out_span, out_char = parsed
-    _text_elem_path(out_span, out_char)
-end
+map_reference_backward(p::TextFirstLine, iomap::TextFirstLineIoMap, reference) =
+    _map_selection_over_runs(_reverse_flat_runs(_make_first_line_runs(iomap.info, iomap.input, iomap.output)),
+                             iomap.output, reference)
 
 function read_intent(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplaceSelectionOperation)
     input_path = map_reference_backward(p, iomap, op.path)
@@ -138,8 +130,3 @@ end
 # via `read_gesture(input, evt)` — otherwise a wildcard here would echo the raw
 # gesture back as if it were an operation, breaking upstream chain dispatch.
 read_intent(::TextFirstLine, ::TextFirstLineIoMap, op::Operation) = op
-
-# ── Path helpers (mirrors WordWrapping) ───────────────────────────────────────
-
-_text_elem_path(span_idx::Int, char_idx::Int) =
-    @reference ::TextBlock.elements::CellVector[span_idx]::TextString.content::String{char_idx}::Position

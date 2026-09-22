@@ -60,7 +60,11 @@ function print_document(p::TextLineNumbering, recursion, text::TextBlock, ctx)
         end
         result
     end)
-    SimpleIoMap(p, text, TextBlock(elements_cv, Cell(nothing)))
+    out_selection = ComputedCell(() -> begin
+        numbered = TextBlock(elements_cv, Cell(nothing))
+        _map_selection_over_runs(_make_numbering_runs(text, numbered), text, text.selection)
+    end)
+    SimpleIoMap(p, text, TextBlock(elements_cv, out_selection))
 end
 
 function _line_numbering_span(original::TextString, content::AbstractString)
@@ -90,27 +94,29 @@ function _text_range_pair(ref)
     (r.head.start::Int, r.head.stop::Int)
 end
 
-# Reader: map an output flat caret back to the matching input span. Prefix spans
-# (the line-number text this projection inserts) have no pre-image, so they
-# round-trip to char 0 of the next real input span.
+# The runs of flat offsets that the numbering carries from `input` to `output`: one
+# for each output element that holds input text. A number prefix has no input, so
+# it lies between two runs and moves the offsets after it.
+function _make_numbering_runs(input::TextBlock, output::TextBlock)
+    entries = [(in_span, char_offset, j, get_flat_length(output.elements[j]))
+               for (j, (in_span, char_offset, is_prefix)) in enumerate(_output_to_input_map(input.elements))
+               if !is_prefix]
+    _make_flat_runs(input, output, entries)
+end
+
+map_reference_forward(p::TextLineNumbering, iomap::SimpleIoMap, reference) =
+    _map_selection_over_runs(_make_numbering_runs(iomap.input, iomap.output), iomap.input, reference)
+
+# A caret on a number prefix has no pre-image, so it goes to the first character
+# of its line.
+map_reference_backward(p::TextLineNumbering, iomap::SimpleIoMap, reference) =
+    _map_selection_over_runs(_reverse_flat_runs(_make_numbering_runs(iomap.input, iomap.output)),
+                             iomap.output, reference)
+
 function read_intent(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
-    flat = _text_range_caret(op.path)
-    flat === nothing && return nothing
-    loc = convert_flat_offset_to_element(iomap.output, flat)
-    loc === nothing && return nothing
-    out_span, out_char = loc
-    mapping = _output_to_input_map(iomap.input.elements)
-    out_span <= length(mapping) || return nothing
-    in_span, char_offset, is_prefix = mapping[out_span]
-    if is_prefix
-        next = findnext(t -> !t[3], mapping, out_span + 1)
-        next === nothing && return nothing
-        in_span, char_offset, _ = mapping[next]
-        out_char = 0
-    end
-    f = convert_element_to_flat_offset(iomap.input, in_span, char_offset + out_char)
-    f === nothing && return nothing
-    ReplaceSelectionOperation(ConcreteReference(TextRangeReferenceStep(f, f), EmptyReference()))
+    input_path = map_reference_backward(p, iomap, op.path)
+    input_path === nothing && return nothing
+    ReplaceSelectionOperation(input_path)
 end
 
 read_intent(::TextLineNumbering, ::SimpleIoMap, evt::KeyDown) = evt

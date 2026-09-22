@@ -82,7 +82,9 @@ A decorator is a projection from `TextBlock` to `TextBlock`. You put it before `
 
 **The shared design: a decorator never changes a character of its input.** It splits a span into pieces, restyles the pieces, adds a span that has no input, or drops whole lines. So each output span is either a piece of one input span at a known offset, or an added span. The IO map is a table of these pieces. `WrapSegment`, `HighlightSegment` and `SelectionSegment` have the same four fields. `TextFilteringIoMap.kept` holds the input index of each output span, and `TextFirstLineIoMap` holds the length of the kept prefix. The forward map, the backward map and the reader all read that table, and none of them searches the text to find where a caret goes.
 
-A whole-element box, a `TextSpanReferenceStep`, maps through the same table. A soft `TextNewline` counts one flat offset, and a dropped line counts none in the output, so `WordWrapping` and `TextFiltering` move a box past each soft break and each dropped line before it. A box on a dropped line has no image. The other decorators keep every flat offset, so a box passes through them unchanged.
+A whole-element box, a `TextSpanReferenceStep`, maps through the same table. A soft `TextNewline` and a number prefix count flat offsets, and a dropped line counts none in the output, so `WordWrapping`, `TextLineNumbering` and `TextFiltering` move a box past each soft break, number and dropped line before it. A box on a dropped line has no image. `TextHighlighting` and `SelectionInverting` keep every flat offset, so a box passes through them unchanged.
+
+Each decorator maps the caret in both of its forms, and its output selection is the flat form. `TextLineNumbering` puts the caret after the number of its line, and `TextFirstLine` draws no caret that is after the first line.
 
 The added spans are the soft `TextNewline` of `WordWrapping` and the number prefix of `TextLineNumbering`. They have no input, so a click on a number goes to the first character of the line. A space at a wrap stays at the end of the upper line, so every input character is in the output once.
 
@@ -130,12 +132,12 @@ projection = ChainingProjection(WordWrapping(measure = measure_truetype_text),
 ```
 
 - Examples: `text_example`, `plain_text_example`, `text_with_image_example`, `word_wrapping_example`, `line_numbering_example`, `text_filtering_example` and `text_highlighting_example` in `example/substrate/`. The atomic catalog has one document for each span type and for `TextLine`.
-- Tests: `test_text()` for the documents and the gesture table, `test_text_to_graphics()`, `test_word_wrapping()`, `test_text_filtering()`, `test_text_highlighting()` and `test_selection_inverting()` in `test/substrate/`, and `test_text_range_selection()` in the umbrella suite.
+- Tests: `test_text()` for the documents and the gesture table, `test_text_to_graphics()`, `test_word_wrapping()`, `test_text_filtering()`, `test_text_first_line()`, `test_text_line_numbering()`, `test_text_highlighting()` and `test_selection_inverting()` in `test/substrate/`, and `test_text_range_selection()` in the umbrella suite.
 
 ## Limits
 
 - An edit over a range that crosses two spans does nothing.
 - `TextColumnReferenceStep` has no gesture that makes it.
-- `TextLineNumbering` does not map the selection forward, so no caret shows through it. `TextFirstLine` maps only the structural caret form, not the flat one. No code in `source/` or `example/` uses `TextFirstLine`.
+- No code in `source/` or `example/` uses `TextFirstLine`.
 - In `text` and `text_with_image`, a walk with Left does not reach the start of the text. It also takes a different number of steps than a walk with Right. `formula` and `markdown_rendered` have the same fault. `NAV_LEFT_WALK_STALLS` in `test/projectured/editor/ExampleSweeps.jl` marks the four as broken; see `plan/pending/left-motion-stalls-on-introduced-text.md`.
 - `run_example` with `text_filtering = true` or `text_highlighting = true` replaces the whole projection of the example. See `plan/pending/fix-text-configuring-run-example.md` and `plan/pending/text-projection-config-into-document.md`.

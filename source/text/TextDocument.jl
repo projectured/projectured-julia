@@ -978,6 +978,22 @@ function _map_text_box(runs, box::TextSpanReferenceStep)
     ConcreteReference(TextSpanReferenceStep(start, stop), EmptyReference())
 end
 
+# A selection of `block` carried over `runs`: a caret or a range in either caret
+# form, which comes out flat, or a whole-element box. `∅` passes through.
+function _map_selection_over_runs(runs, block::TextBlock, selection)
+    selection isa EmptyReference && return selection
+    box = _get_text_box(selection)
+    box === nothing || return _map_text_box(runs, box)
+    pair = _text_flat_selection(block, selection)
+    pair === nothing && return nothing
+    start = _map_flat_over_runs(runs, pair[1], true)
+    start === nothing && return nothing
+    pair[1] == pair[2] && return make_flat_caret_reference(start)
+    stop = _map_flat_over_runs(runs, pair[2], false)
+    (stop === nothing || stop < start) && return nothing
+    make_flat_range_reference(start, stop)
+end
+
 # ── ReplaceTextRangeOperation — the flat text edit ─────────────────────────
 #
 # The text-domain edit expressed in the canonical flat coordinate (the
