@@ -115,17 +115,27 @@ A composer operation calls it after it edits the draft, and so does a host that
 replaces the draft's parts, such as the assistant after a submit.
 """
 function sync_draft_selection!(editor, draft::ConversationDraft)
-    root = (editor !== nothing && hasproperty(editor, :document)) ? editor.document : nothing
-    root === nothing && return nothing
-    path = root.selection
-    path isa Reference || return nothing
-    prefix = _find_draft_prefix(root, path, draft)
-    prefix === nothing && return nothing
     tail = make_draft_caret_reference(draft)
     tail === nothing && return nothing
+    _select_under!(editor, draft, tail)
+    nothing
+end
+
+# Put the editor's complete selection on `tail` inside `node`: the steps of the
+# complete selection that lead to `node`, then `tail`. The old selection is
+# cleared first, so no node on its path still shows it. Answers whether the
+# selection moved, which it does not with no editor, or with a complete selection
+# that does not pass through `node`.
+function _select_under!(editor, node, tail)
+    root = (editor !== nothing && hasproperty(editor, :document)) ? editor.document : nothing
+    root === nothing && return false
+    path = root.selection
+    path isa Reference || return false
+    prefix = _find_selection_prefix(root, path, node)
+    prefix === nothing && return false
     clear_selection!(root)
     set_selection!(root, _from_steps(prefix, tail))
-    nothing
+    true
 end
 
 """
@@ -145,14 +155,14 @@ function make_draft_caret_reference(draft::ConversationDraft)
                 _is_editable(content) ? _valpath(_cursor(content)) : EmptyReference())))
 end
 
-# The steps of `path` that lead from `root` to `draft`, or `nothing` when the
+# The steps of `path` that lead from `root` to `target`, or `nothing` when the
 # path does not pass through it.
-function _find_draft_prefix(root, path, draft)
+function _find_selection_prefix(root, path, target)
     steps = get_reference_steps(strip_reference_types(path))
-    root === draft && return Any[]
+    root === target && return Any[]
     for k in 1:length(steps)
         node = try_evaluate_reference(root, _from_steps(steps[1:k]), nothing)
-        node === draft && return steps[1:k]
+        node === target && return steps[1:k]
     end
     nothing
 end

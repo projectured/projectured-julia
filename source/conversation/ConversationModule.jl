@@ -58,7 +58,7 @@ export ConversationConversationToWidgetComposite,
        ConversationTurnToWidgetComposite,
        ConversationPartToWidget,
        ConversationToWidget, compute_transcript_walk
-export EvaluatorFormToWidgetCard, EvaluatorToplevelToWidgetComposite
+export EvaluatorFormToVerticalLayout, EvaluatorToplevelToWidgetComposite
 export ConversationComposerToWidget, read_composer_gesture, resolve_composer_host_operation,
        finalize_draft!, make_conversation_draft, reset_draft!, sync_draft_selection!,
        make_draft_caret_reference,

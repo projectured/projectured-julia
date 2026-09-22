@@ -111,7 +111,7 @@ make_window_toolbar(; assistant = nothing, explorer = nothing, extra = []) =
                                       tooltip = "Assistant: ask a model about what this window shows",
                                       make = assistant),))...,
         make_window_tool_command("Evaluator", EvaluatorToplevel; icon = :terminal,
-                                 tooltip = "Evaluator: type Julia, and Alt+Enter evaluates it"),
+                                 tooltip = "Evaluator: type Julia, and Enter evaluates it"),
         make_window_tool_command("Message log", MessageLog; icon = :list,
                                  tooltip = "Message log: what the program said in this session"),
         make_window_tool_command("Gesture log", GestureLog; icon = :keyboard,

@@ -195,10 +195,11 @@ get_insertion_aliases(::Type{EvaluatorToplevel}) = ["repl", "evaluator"]
 """
     EvaluateSelectedFormOperation(toplevel)
 
-ALT+ENTER on an [`EvaluatorToplevel`](@ref): evaluate the [`EvaluatorForm`](@ref)
+ENTER on an [`EvaluatorToplevel`](@ref): evaluate the [`EvaluatorForm`](@ref)
 the caret sits in, the same evaluation [`ComposerEvaluateOperation`](@ref) runs
 for the composer's draft, and open a fresh empty form after it so a person can
-keep typing at once.
+keep typing at once. The complete selection moves to the fresh form, so the form
+that was evaluated shows no caret.
 
 Declines — leaves the toplevel untouched — when the caret names no element, or
 that element's source is blank. Both are checked here, at evaluation time, not
@@ -255,12 +256,33 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     element.is_error = is_err
     push!(t.elements, EvaluatorForm(PrimitiveString("")))
     n = length(t.elements)
-    set_selection!(t, ConcreteReference(FieldReferenceStep("elements"),
+    caret = ConcreteReference(FieldReferenceStep("elements"),
         ConcreteReference(RangeReferenceStep(n - 1, n),
-            ConcreteReference(FieldReferenceStep("form"), _valpath(0)))))
+            ConcreteReference(FieldReferenceStep("form"), _valpath(0))))
+    # A key goes where the complete selection points, so the selection moves
+    # from the root. A toplevel that the complete selection does not pass
+    # through moves its own.
+    if !_select_under!(editor, t, caret)
+        clear_selection!(t)
+        set_selection!(t, caret)
+    end
     nothing
 end
 
+# SHIFT+ENTER: a line break at the caret of the form the caret is in, the same
+# edit a typed character makes. `nothing` when the selection is not in the text
+# of a form.
+function _make_form_newline_operation(t::EvaluatorToplevel)
+    i = _find_selected_form_index(t)
+    i === nothing && return nothing
+    t.elements[i].form isa PrimitiveString || return nothing
+    steps = get_reference_steps(strip_reference_types(t.selection))
+    (length(steps) == 5 && _is_field_step(steps[3], "form") &&
+     _is_field_step(steps[4], "value") && steps[5] isa RangeReferenceStep) || return nothing
+    ReplaceStringRangeOperation(t.selection, "\n")
+end
+
 @gestures EvaluatorToplevel begin
-    KeyDown(:return; alt) => "Evaluate" => EvaluateSelectedFormOperation(doc)
+    KeyDown(:return;) => "Evaluate" => EvaluateSelectedFormOperation(doc)
+    KeyDown(:return; shift) => "Insert a line break" => _make_form_newline_operation(doc)
 end

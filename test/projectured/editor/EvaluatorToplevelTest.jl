@@ -1,6 +1,6 @@
 # The evaluator toplevel is a persistent REPL: a person types `repl` into an
 # empty tab, types a Julia expression into the fresh form it opens with, and
-# ALT+ENTER evaluates it in place — appending a fresh empty form and keeping
+# ENTER evaluates it in place — appending a fresh empty form and keeping
 # the interpreter's own state, so a variable one form binds is visible from the
 # next. That persistence is what tells it apart from a one-shot sandbox.
 
@@ -36,12 +36,27 @@ function drawn(node, depth = 0)
     ""
 end
 
-render(document) =
-    drawn(get_iomap_output(print_document(NaturalToGraphics(measure = _stub), nothing, document,
-                           PrinterContext(EmptyReference(), Cell(600), Cell(400), Dict{Symbol,Any}()))))
+# Every text the canvas draws, at its place in the canvas.
+function placed(node, ox = 0, oy = 0, found = Tuple{String,Int,Int}[], depth = 0)
+    depth > 40 && return found
+    if node isa GraphicsText
+        push!(found, (String(node.text), ox + Int(node.x), oy + Int(node.y)))
+    elseif node isa GraphicsCanvas
+        for i in 1:length(node.elements)
+            placed(node.elements[i], ox + Int(node.x), oy + Int(node.y), found, depth + 1)
+        end
+    end
+    found
+end
+
+print_natural(document) =
+    get_iomap_output(print_document(NaturalToGraphics(measure = _stub), nothing, document,
+                     PrinterContext(EmptyReference(), Cell(600), Cell(400), Dict{Symbol,Any}())))
+render(document) = drawn(print_natural(document))
 
 editor(t) = _EvaluatorToplevelMockEditor(t, ToolSet())
-alt_enter() = KeyDown(:return, ModifierKeys(alt = true))
+enter() = KeyDown(:return, ModifierKeys())
+shift_enter() = KeyDown(:return, ModifierKeys(shift = true))
 
 @testset "a fresh loop holds one empty form, caret inside it" begin
     toplevel = make_insertion_document(EvaluatorToplevel)
@@ -61,12 +76,28 @@ end
     toplevel = make_insertion_document(EvaluatorToplevel)
     text = render(toplevel)
     @test !occursin("no natural rendering", text)
-    # The toplevel draws its one form and nothing more: the labels of the two
-    # sections of the form, and not a canvas drawn as a tree of its fields.
+    # The toplevel draws its one form and nothing more, and not a canvas drawn as
+    # a tree of its fields. A fresh form draws its prompt, and no result.
     @test text == render(toplevel.elements[1])
-    form_label, result_label = get_evaluation_section_labels(toplevel.elements[1])
-    @test first(split(text)) == form_label
-    @test last(split(text)) == result_label
+    @test first(split(text)) == ">"
+    @test !occursin("=", text)
+end
+
+@testset "the prompts stand in a column of their own, and the code and the result beside it" begin
+    toplevel = make_insertion_document(EvaluatorToplevel)
+    toplevel.elements[1].form.value = "1 + 1"
+    evaluate_operation(editor(toplevel), read_gesture(toplevel, enter()))
+    texts = placed(print_natural(toplevel))
+    prompts = [(x, y) for (text, x, y) in texts if text in (">", "=")]
+    others = [(text, x, y) for (text, x, y) in texts if !(text in (">", "="))]
+    # The code of the first form, its result, and the code of the fresh form.
+    @test [text for (text, _, _) in texts if text in (">", "=")] == [">", "=", ">"]
+    @test length(unique(x for (x, _) in prompts)) == 1
+    # Nothing else stands in the column of the prompts.
+    @test all(x > prompts[1][1] for (_, x, _) in others)
+    # The code and the result start at one x, right of their prompts.
+    result_x = only(x for (text, x, _) in others if text == "2")
+    @test result_x == minimum(x for (_, x, y) in others if y < prompts[2][2])
 end
 
 @testset "it draws in a pane tab" begin
@@ -83,11 +114,11 @@ end
     @test text == "Evaluator " * render(toplevel.elements[1])
 end
 
-@testset "ALT+ENTER evaluates the form the caret is in" begin
+@testset "ENTER evaluates the form the caret is in" begin
     toplevel = make_insertion_document(EvaluatorToplevel)
     toplevel.elements[1].form.value = "1 + 1"
 
-    operation = read_gesture(toplevel, alt_enter())
+    operation = read_gesture(toplevel, enter())
     @test operation isa EvaluateSelectedFormOperation
 
     evaluate_operation(editor(toplevel), operation)
@@ -101,6 +132,25 @@ end
     steps = get_reference_steps(strip_reference_types(toplevel.selection))
     @test steps[1] == FieldReferenceStep("elements")
     @test steps[2] == RangeReferenceStep(1, 2)
+    # The form that was evaluated keeps no selection, so it draws no caret.
+    @test toplevel.elements[1].selection === nothing
+    @test toplevel.elements[1].form.selection === nothing
+    @test toplevel.elements[2].form.selection !== nothing
+    # Alt+Enter evaluates nothing: Enter alone does.
+    @test read_gesture(toplevel, KeyDown(:return, ModifierKeys(alt = true))) === nothing
+end
+
+@testset "SHIFT+ENTER puts a line break at the caret" begin
+    toplevel = make_insertion_document(EvaluatorToplevel)
+    operation = read_gesture(toplevel, shift_enter())
+    @test operation isa ReplaceStringRangeOperation
+    @test operation.replacement == "\n"
+    # The edit replaces the caret of the first form, `elements[1].form.value{0}`.
+    @test get_reference_steps(strip_reference_types(operation.reference)) ==
+          get_reference_steps(strip_reference_types(toplevel.selection))
+    evaluate_operation(editor(toplevel), operation)
+    @test toplevel.elements[1].form.value == "\n"
+    @test length(toplevel.elements) == 1
 end
 
 @testset "state persists across forms, like a real REPL and not a sandbox" begin
@@ -108,11 +158,11 @@ end
     ed = editor(toplevel)
 
     toplevel.elements[1].form.value = "x = 41"
-    evaluate_operation(ed, read_gesture(toplevel, alt_enter()))
+    evaluate_operation(ed, read_gesture(toplevel, enter()))
     @test length(toplevel.elements) == 2
 
     toplevel.elements[2].form.value = "x + 1"
-    evaluate_operation(ed, read_gesture(toplevel, alt_enter()))
+    evaluate_operation(ed, read_gesture(toplevel, enter()))
     @test length(toplevel.elements) == 3
     @test occursin("42", _et_flatten(toplevel.elements[2].result))
 end
@@ -120,13 +170,13 @@ end
 @testset "an expression that throws marks the form is_error" begin
     toplevel = make_insertion_document(EvaluatorToplevel)
     toplevel.elements[1].form.value = "undefined_name_xyz123"
-    evaluate_operation(editor(toplevel), read_gesture(toplevel, alt_enter()))
+    evaluate_operation(editor(toplevel), read_gesture(toplevel, enter()))
     @test toplevel.elements[1].is_error
 end
 
 @testset "declines when the source is blank" begin
     toplevel = make_insertion_document(EvaluatorToplevel)
-    operation = read_gesture(toplevel, alt_enter())
+    operation = read_gesture(toplevel, enter())
     @test operation isa EvaluateSelectedFormOperation
     evaluate_operation(editor(toplevel), operation)
     # No code ran: the toplevel keeps its one empty form.

@@ -95,6 +95,25 @@ function _app_drawn_at(node, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
     found
 end
 
+# Every live caret a printed window draws, at its position in the window. A text
+# layer draws its caret as a black rectangle two pixels wide, and a caret the
+# keyboard is not on in a muted color.
+function _app_drawn_carets(node, ox = 0, oy = 0, found = Tuple{Int,Int}[])
+    node = _app_value(node)
+    node === nothing && return found
+    x = hasproperty(node, :x) ? ox + Int(_app_value(node.x)) : ox
+    y = hasproperty(node, :y) ? oy + Int(_app_value(node.y)) : oy
+    if node isa GraphicsRect
+        _app_value(node.w) == 2 && _app_value(node.h) > 0 &&
+            _app_value(node.color) == color_black && push!(found, (x, y))
+    elseif hasproperty(node, :elements)
+        foreach(element -> _app_drawn_carets(element, x, y, found), _app_value(node.elements))
+    elseif hasproperty(node, :content)
+        _app_drawn_carets(node.content, x, y, found)
+    end
+    found
+end
+
 # The first height at which a double click on the navigator opens a file, and
 # the operation it makes. The navigator is the leftmost part of the window.
 function _app_find_file_row(composed, iomap)
@@ -304,42 +323,70 @@ function test_application()
                 end
             end
 
-            @testset "the Evaluator button opens an evaluator, and Alt+Enter evaluates what is typed" begin
+            @testset "the Evaluator button opens an evaluator, and Enter evaluates what is typed" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 # A real editor, because an evaluation reads the tools of the editor.
+                # The iomap stands, as it does in a live editor, so what is drawn
+                # is what the cells follow and not what a fresh print shows.
                 editor = Editor(ConsoleBackend(), scene, composed,
                                 Device[Display(), Keyboard(), Mouse()])
                 editor.iomap = iomap
                 press!(event) = begin
                     operation = _app_fire(composed, editor.iomap, event)
                     operation isa Operation && evaluate_operation(editor, operation)
-                    editor.iomap = print_document(composed, scene)
                     operation
                 end
                 drawn() = _app_drawn_strings(get_iomap_output(editor.iomap).windows[1].content)
+                drawn_at() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
+                carets() = _app_drawn_carets(get_iomap_output(editor.iomap).windows[1].content)
+                y_of(word) = only(y for (text, _, y) in drawn_at() if text == word)
                 toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
                 button = only(item for item in toolbar.elements
                               if string(item.action.label) == "Evaluator")
                 evaluate_operation(editor, InvokeActionOperation(button.action))
-                editor.iomap = print_document(composed, scene)
                 (group, index) = get_pane_focus(_app_window(document))
                 evaluator = get_wrapped_document(group.tabs[index].content)
                 @test evaluator isa EvaluatorToplevel
-                # The tab draws the two sections of the form, and not the canvas
-                # of the form as a tree of its fields.
-                form_label, result_label = get_evaluation_section_labels(evaluator.elements[1])
-                @test form_label in drawn() && result_label in drawn()
+                # The tab draws the prompt of the form, and not the canvas of the
+                # form as a tree of its fields.
+                @test ">" in drawn() && !("=" in drawn())
                 @test !any(text -> occursin("GraphicsCanvas", text), drawn())
-                # The keys reach the form, and Alt+Enter reaches the editor.
+                # The keys reach the form, and Enter reaches the editor.
                 for character in "1 + 41"
                     press!(KeyPress(character))
                 end
                 @test evaluator.elements[1].form.value == "1 + 41"
                 @test !any(text -> occursin("42", text), drawn())
-                @test _app_plain(press!(KeyDown(:return, ModifierKeys(alt = true)))) isa
+                @test _app_plain(press!(KeyDown(:return, ModifierKeys()))) isa
                       EvaluateSelectedFormOperation
                 @test length(evaluator.elements) == 2
-                @test any(text -> occursin("42", text), drawn())
+                # One caret, and it is in the fresh form below the result: the
+                # form that was evaluated shows none.
+                @test "42" in drawn()
+                @test length(carets()) == 1
+                @test only(carets())[2] > y_of("42")
+                # Shift+Enter breaks the line, and Enter evaluates both lines.
+                for character in "x = 1"
+                    press!(KeyPress(character))
+                end
+                press!(KeyDown(:return, ModifierKeys(shift = true)))
+                for character in "x + 1"
+                    press!(KeyPress(character))
+                end
+                @test evaluator.elements[2].form.value == "x = 1\nx + 1"
+                @test length(evaluator.elements) == 2
+                @test y_of("x + 1") > y_of("x = 1")
+                press!(KeyDown(:return, ModifierKeys()))
+                @test length(evaluator.elements) == 3
+                @test "2" in drawn()
+                @test length(carets()) == 1
+                @test only(carets())[2] > y_of("2")
+                # The prompts stand in one column. The second line of the code and
+                # the result stand right of it, where the code starts.
+                x_of(word) = only(x for (text, x, _) in drawn_at() if text == word)
+                prompts_x = unique(x for (text, x, _) in drawn_at() if text in (">", "="))
+                @test length(prompts_x) == 1
+                @test x_of("x + 1") == x_of("x = 1") == x_of("2") > only(prompts_x)
             end
 
             @testset "a closed assistant and a closed navigator come back as they were" begin
