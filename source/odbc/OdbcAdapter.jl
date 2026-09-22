@@ -148,13 +148,27 @@ end
 
 # ── OdbcDatabaseAdapter — catalog queries ────────────────────────────────────
 
+# The text of the query that lists every database of the server, except the
+# templates. `information_schema` shows a connection its own database only, so
+# the list comes from `pg_database`.
+_make_catalog_databases_query() =
+    "SELECT datname FROM pg_database WHERE NOT datistemplate " *
+    "ORDER BY datname"
+
+# The text of the query that lists the schemas of `database`. A connection sees
+# the schemas of its own database only, so the schemas of another database are
+# an empty list.
+_make_catalog_schemas_query(database::String) =
+    "SELECT schema_name FROM information_schema.schemata " *
+    "WHERE catalog_name = '$(database)' " *
+    "AND schema_name NOT LIKE 'pg_%' AND schema_name <> 'information_schema' " *
+    "ORDER BY schema_name"
+
 function get_db_catalog_databases(adapter::OdbcDatabaseAdapter)::Vector{String}
     if adapter._conn === nothing || !is_db_alive(adapter)
         connect_db!(adapter)
     end
-    cursor = DBInterface.execute(adapter._conn,
-        "SELECT DISTINCT table_catalog FROM information_schema.tables " *
-        "ORDER BY table_catalog")
+    cursor = DBInterface.execute(adapter._conn, _make_catalog_databases_query())
     _, rows = _materialize(cursor)
     String[String(row[1]) for row in rows]
 end
@@ -163,10 +177,7 @@ function get_db_catalog_schemas(adapter::OdbcDatabaseAdapter, database::String):
     if adapter._conn === nothing || !is_db_alive(adapter)
         connect_db!(adapter)
     end
-    cursor = DBInterface.execute(adapter._conn,
-        "SELECT schema_name FROM information_schema.schemata " *
-        "WHERE schema_name NOT LIKE 'pg_%' AND schema_name <> 'information_schema' " *
-        "ORDER BY schema_name")
+    cursor = DBInterface.execute(adapter._conn, _make_catalog_schemas_query(database))
     _, rows = _materialize(cursor)
     String[String(row[1]) for row in rows]
 end

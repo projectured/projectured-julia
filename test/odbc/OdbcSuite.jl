@@ -8,6 +8,7 @@ function teardown_persons_table(adapter)
     execute_db_raw(adapter, "DROP TABLE IF EXISTS persons", RawDatabaseResult)
 end
 
+include("OdbcAdapterTest.jl")
 include("external/DatabaseResultTest.jl")
 include("external/DbCatalogQueryTest.jl")
 include("external/DbCatalogSyntaxTest.jl")
@@ -32,6 +33,7 @@ end
 "Run the ODBC database + catalog suite (skips when no DB is reachable)."
 function test_odbc()
     @testset "ProjecturedOdbc" begin
+        test_odbc_adapter()
         test_odbc_database_no_db()
         test_odbc_database()
         test_db_catalog()
@@ -39,4 +41,4 @@ function test_odbc()
     end
 end
 
-export test_odbc, test_odbc_layering, test_odbc_database, test_odbc_database_no_db, test_db_catalog, test_db_catalog_syntax
+export test_odbc, test_odbc_layering, test_odbc_adapter, test_odbc_database, test_odbc_database_no_db, test_db_catalog, test_db_catalog_syntax
