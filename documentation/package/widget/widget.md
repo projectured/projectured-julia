@@ -55,7 +55,7 @@ A container keeps an entry `(x, y, child_iomap)` for each child. For a pointer e
 
 Each widget also compares the point with its own canvas in `_outside_widget`. A container clips before it routes, but a widget can have no container above it. Without this test, a button at the root answers a press 800 pixels to its right.
 
-**A drag is not hit-tested.** `WidgetComposite` and `WidgetSplitPane` give `MouseDown`, `MouseMove` and `MouseUp` to the hit child first, and to each child in order when no child is hit. `WidgetTabbedPane` gives them to the tab that it shows. Two cases need this. A slot is drawn only where its content draws, so a splitter dragged past the text loses its release. The divider of a nested split is in the gap between two panes, and a hit test of the parent finds no element there.
+**A drag is not hit-tested.** `WidgetComposite` and `WidgetSplitPane` give `MouseDown`, `MouseMove` and `MouseUp` to the hit child first, and to each child in order when no child is hit. `WidgetShell` does the same with `MouseDown` and `MouseUp`, in the frame of each band. `WidgetTabbedPane` gives them to the tab that it shows. Two cases need this. A slot is drawn only where its content draws, so a splitter dragged past the text loses its release. The divider of a nested split is in the gap between two panes, and a hit test of the parent finds no element there.
 
 A container routes a `MouseMove` only to the child under the pointer, so a widget gets no event when the pointer leaves it. `WidgetHoverTrackingProjection` wraps a widget chain for this. On each `MouseMove`, it gives the move to the chain, then routes a synthetic `MouseEnter` at the pointer. When the widget that answers is a different one, it routes a `MouseLeave` to the last widget, and returns the operations together. The tracker makes no widget operation of its own: `WidgetButton` sets `hovered` on an enter and clears it on a leave.
 
@@ -69,6 +69,12 @@ Tab moves the selection to the next focusable widget. A container gives Tab to i
 
 A tabbed pane draws its first tab when its selection names no tab. `has_dormant_selection` is `true` for `WidgetTabbedPane`, `WidgetTabPage` and `WidgetSplitPane`, so a pane that loses the focus keeps the tab that it shows and the caret in that tab.
 
+### A press moves the focus
+
+A left button down with no modifier gives the focus to the control under the pointer. The rule is in `read_child_event`, which every widget container calls to give a press or a down to a child. When the down lands on a focusable child that answers nothing and holds no selection, `convert_to_focus_selection` of the focus package answers `ReplaceSelectionOperation` of the child as a whole. That is the selection that Tab gives the child. So a key after the click goes to the control that was pressed.
+
+The focus moves on the down, and the control acts on the press that the gesture recognizer makes after the up. So the move of the focus and the action are two operations. A projection that can not map the selection, such as `ObjectToWidget`, drops the move of the focus, and the press still acts. A control that answers the down itself keeps its answer and does not take the focus: a button answers the down with its pressed look. `WidgetMenu` and `WidgetToolbar` give no down to their items, so a menu item and a toolbar item leave the focus in the content.
+
 ### Selecting a whole widget
 
 A left press with Alt and no other modifier selects the innermost document under the pointer as a whole. The rule is in `read_child_event`, which every widget container calls, and it uses `convert_to_whole_selection` of the focus package. A control never acts on an Alt+press, because the rule drops the action that the control returns. No widget declares that it can be selected.
@@ -79,7 +85,7 @@ A projection can draw a widget that no document of the domain stands behind, suc
 
 ### What a control reads
 
-Each control has a reader in `WidgetToGraphics.jl`. The keys in the table work while the control has the focus. A control takes Return, Space and an arrow only with no modifier, so Alt and an arrow still walk the selection and a chord still reaches a shortcut. A disabled control returns `nothing` for every event.
+Each control has a reader in `WidgetToGraphics.jl`. The keys in the table work while the control has the focus. A control takes Return, Space and an arrow only with no modifier, so Alt and an arrow still walk the selection and a chord still reaches a shortcut. A left press on a focusable control gives it the focus first. A disabled control returns `nothing` for every event.
 
 | Widget | A press | A key |
 | --- | --- | --- |
@@ -204,9 +210,9 @@ write_example_image(widget_tree_example, "tree.png")
 
 ## Limits
 
-- A press on a control that writes its own value, such as a checkbox, a toggle or a radio group, does not move the selection to it. So a key after the press goes to the control that had the focus before. Tab or an Alt+press moves the focus to the control.
+- A press on a button does not move the focus to it, because the button answers the down with its pressed look. Tab or an Alt+press moves the focus to a button.
 - `WidgetAccordion` has no `enabled` field.
-- `WidgetShell` gives `MouseDown` and `MouseUp` to its bands with window coordinates, and it keeps no drag. So a tab drag under a shell does not start, and a drag that crosses a band loses its moves. `plan/pending/hover-drag-and-tooltip-share-the-pointer.md` describes the fault and a fix.
+- `WidgetShell` keeps no drag. A move goes only to the band under the pointer, so a drag that crosses a band loses its moves. `plan/pending/hover-drag-and-tooltip-share-the-pointer.md` describes the fault and a fix.
 - `ObjectToWidget` maps no reference in either direction, so a caret can not move into the form from outside.
 - A path whose last step is a range writes a vector value as a splice. So an `ObjectField` whose value is a vector can not be replaced as one value.
 - The backends draw only the translation and the scale of a transform. Rotation and shear are dropped.

@@ -2438,12 +2438,25 @@ function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
         MouseMove   => _route_move_to_children(child_iomaps, evt)
         MouseEnter  => _route_crossing_to_children(child_iomaps, evt)
         MouseLeave  => _route_crossing_to_children(child_iomaps, evt)
+        MouseDown   => _route_shell_button(child_iomaps, evt)
+        MouseUp     => _route_shell_button(child_iomaps, evt)
         # Forward keyboard (and other coordless) events to the wrapped
         # child. The reader at the focused leaf returns an op; others
         # return nothing.
         _           => _forward_to_children(child_iomaps, evt)
     end
     _retarget_op(p, iomap, op)
+end
+
+# A button down and a button up go to the band under the pointer, in the frame of
+# that band, as a press does. When that band answers nothing, each band gets the
+# event in order, in its own frame, so the release of a drag that ends over
+# another band still reaches the band that holds the drag.
+function _route_shell_button(child_iomaps::Vector, evt)
+    found = _route_composite_drag(child_iomaps, evt.x, evt.y,
+        (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers) :
+                                      MouseUp(evt.button, x, y, evt.modifiers))
+    found === nothing ? nothing : first(found)
 end
 
 # An Alt+press over a band selects in that band, and the path names the band's
@@ -3978,8 +3991,7 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
         end
         MouseDown(button, x, y) => begin
             lx, ly = _local(x, y)
-            read_intent(content_iomap.projection, content_iomap,
-                             MouseDown(button, lx, ly, evt.modifiers))
+            read_child_event(content_iomap, MouseDown(button, lx, ly, evt.modifiers))
         end
         MouseUp(button, x, y) => begin
             lx, ly = _local(x, y)

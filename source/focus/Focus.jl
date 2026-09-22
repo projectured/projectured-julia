@@ -1,6 +1,6 @@
 # Fragment of `FocusModule` — the walk that finds what a document can focus:
-# which nodes are focusable, and the child steps that reach them in document
-# order.
+# which nodes are focusable, the child steps that reach them in document order,
+# and the selection that a left button down on a focusable node makes.
 
 is_focusable_document(node) = false
 
@@ -93,4 +93,33 @@ function get_next_focusable_index(children, after::Int, reverse::Bool)
         end
     end
     0
+end
+
+"""
+    is_focusing_press(event) -> Bool
+
+Whether `event` gives the focus to the control under the pointer: a left button
+down with no modifier. The focus moves on the down and the control acts on the
+press that follows the up, so the move of the focus is an operation of its own.
+A projection that can not map the selection drops the move, and the press still
+acts.
+"""
+is_focusing_press(event) =
+    event isa MouseDown && event.button === :left && event.modifiers == ModifierKeys()
+
+"""
+    convert_to_focus_selection(operation, child) -> operation | nothing
+
+The answer a container gives for a focusing press that hit `child`, where
+`operation` is what `child` answered. A focusable `child` that answered nothing
+and holds no selection is selected as a whole, which is the selection that Tab
+gives it. Every other answer is kept. So a control that answers the down itself,
+such as a button that draws itself pressed, keeps its answer and the focus stays
+where it is.
+"""
+function convert_to_focus_selection(operation, child)
+    operation === nothing || return operation
+    is_focusable_document(child) || return nothing
+    hasproperty(child, :selection) && getproperty(child, :selection) !== nothing && return nothing
+    ReplaceSelectionOperation(EmptyReference())
 end

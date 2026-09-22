@@ -82,6 +82,44 @@ end
 
 _press(x, y, modifiers = ModifierKeys()) = MousePress(:left, x, y, modifiers)
 
+# The first point, row by row, where a press writes the value of `control`. The
+# reader says where the control is, so the test repeats no layout arithmetic.
+function _selection_point_of(projection, iomap, control)
+    for y in 0:3:400, x in 0:3:120
+        answer = read_intent(projection, iomap, _press(x, y))
+        answer isa ReplaceReferencedValueOperation && answer.document === control &&
+            return (x, y)
+    end
+    error("no press reaches the control")
+end
+
+# A click as the gesture recognizer makes it: a down, an up, and the press that
+# the two make. The editor evaluates the answer of each at the root.
+function _selection_click!(projection, iomap, root, x, y; button = :left,
+                           modifiers = ModifierKeys())
+    for event in (MouseDown(button, x, y, modifiers), MouseUp(button, x, y, modifiers),
+                  MousePress(button, x, y, modifiers))
+        answer = read_intent(projection, iomap, event)
+        answer === nothing || evaluate_operation((document = root,), answer)
+    end
+end
+
+function _selection_space!(projection, iomap, root)
+    answer = read_intent(projection, iomap, KeyDown(:space, ModifierKeys()))
+    answer === nothing || evaluate_operation((document = root,), answer)
+    answer
+end
+
+# Two check boxes with a label between them, and the focus on the first one.
+function _selection_boxes()
+    first = WidgetCheckbox(Point2D(0, 0), false)
+    second = WidgetCheckbox(Point2D(0, 0), false)
+    layout = VerticalLayout(Any[first, WidgetLabel(Point2D(0, 0), "between"), second]; gap = 10)
+    set_selection!(layout, ConcreteReference(FieldReferenceStep("children"),
+        ConcreteReference(RangeReferenceStep(0, 1), EmptyReference())))
+    (layout = layout, first = first, second = second)
+end
+
 function test_widget_selection()
     @testset "a whole selection names a document, and a caret does not" begin
         text = PrimitiveString("abc")
@@ -256,5 +294,69 @@ function test_widget_selection()
         # A caret in it is the focus, and its ring keeps the theme's colour.
         t.field.selection = ConcreteReference(RangeReferenceStep(0, 0), EmptyReference())
         @test isempty(_selection_rings(iomap.output))
+    end
+
+    @testset "a press on a control gives it the focus, and a key goes to it" begin
+        projection = _selection_projection()
+        b = _selection_boxes()
+        iomap = print_document(projection, projection, b.layout, PrinterContext())
+        (x, y) = _selection_point_of(projection, iomap, b.second)
+        _selection_click!(projection, iomap, b.layout, x, y)
+        @test b.second.content === true
+        @test find_whole_selected_index(b.layout.selection, "children") == 3
+        # Space goes to the box that was pressed, and not to the first one.
+        @test _selection_space!(projection, iomap, b.layout) !== nothing
+        @test b.second.content === false
+        @test b.first.content === false
+    end
+
+    @testset "only a plain left down moves the focus" begin
+        projection = _selection_projection()
+        focus = ProjecturedFocus.FocusModule
+        box = WidgetCheckbox(Point2D(0, 0), false)
+        down = MouseDown(:left, 1, 1, ModifierKeys())
+        @test focus.is_focusing_press(down)
+        @test !focus.is_focusing_press(MouseDown(:right, 1, 1, ModifierKeys()))
+        @test !focus.is_focusing_press(MouseDown(:left, 1, 1, ModifierKeys(alt = true)))
+        @test !focus.is_focusing_press(_press(1, 1))
+        # A focusable control that answered nothing is selected as a whole.
+        @test focus.convert_to_focus_selection(nothing, box).path isa EmptyReference
+        # A control that answers the down keeps its answer.
+        pressed = ReplaceReferencedValueOperation(box, "content", true)
+        @test focus.convert_to_focus_selection(pressed, box) === pressed
+        # Not a control, a disabled control, and a control that holds the focus.
+        @test focus.convert_to_focus_selection(nothing, WidgetLabel(Point2D(0, 0), "x")) === nothing
+        @test focus.convert_to_focus_selection(nothing,
+                  WidgetCheckbox(Point2D(0, 0), false; enabled = false)) === nothing
+        box.selection = EmptyReference()
+        @test focus.convert_to_focus_selection(nothing, box) === nothing
+
+        # A right click and an Alt click leave the focus where it is.
+        b = _selection_boxes()
+        iomap = print_document(projection, projection, b.layout, PrinterContext())
+        (x, y) = _selection_point_of(projection, iomap, b.second)
+        _selection_click!(projection, iomap, b.layout, x, y; button = :right)
+        @test find_whole_selected_index(b.layout.selection, "children") == 1
+        @test read_intent(projection, iomap,
+                          MouseDown(:left, x, y, ModifierKeys(alt = true))) === nothing
+        @test find_whole_selected_index(b.layout.selection, "children") == 1
+    end
+
+    @testset "a press under a shell gives the focus to the control under the pointer" begin
+        projection = _selection_projection()
+        b = _selection_boxes()
+        shell = WidgetShell(b.layout;
+                            menu_bar = WidgetMenu(Any[WidgetMenuItem("File")];
+                                                  orientation = :horizontal))
+        iomap = print_document(projection, projection, shell, PrinterContext())
+        (x, y) = _selection_point_of(projection, iomap, b.second)
+        # The content is below the menu bar, so a down must reach it in its own frame.
+        @test y >= 24
+        _selection_click!(projection, iomap, shell, x, y)
+        @test b.second.content === true
+        @test find_whole_selected_index(b.layout.selection, "children") == 3
+        @test _selection_space!(projection, iomap, shell) !== nothing
+        @test b.second.content === false
+        @test b.first.content === false
     end
 end

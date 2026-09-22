@@ -2,7 +2,8 @@
     FocusModule
 
 Focus traversal — the generic walk that finds the first / last focusable leaf
-in a document subtree.
+in a document subtree, and the selection that a left button down on a focusable
+leaf makes.
 
 Focus is selection. These pure helpers locate the *first* / *last* focusable
 leaf as a relative whole-element (∅) path, mirroring the generic field/element
@@ -39,7 +40,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 import ..ReferenceModule: get_reference_step_kind, evaluate_reference_step
 
 export get_first_focusable_path, get_last_focusable_path, get_next_focusable_index,
-       is_focusable_document
+       is_focusable_document, is_focusing_press, convert_to_focus_selection
 export is_whole_selection_press, is_whole_selection, convert_to_whole_selection,
        find_whole_selected_index, is_whole_selected_field
 export SelectionWalkingProjection, SelectionWalkingIoMap,

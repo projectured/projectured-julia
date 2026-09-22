@@ -59,6 +59,7 @@ Every layout reader goes through one router:
 - A key goes only to the child that the selection of the layout names. There is no broadcast.
 - Tab goes to the selected child first; if it returns nothing, the focus moves to the next focusable sibling with the functions of `ProjecturedFocus`.
 - An Alt+press selects the innermost document under the pointer as a whole (`read_child_event`).
+- A left button down with no modifier on a focusable child that answers nothing selects that child as a whole, so a key after the click goes to it (`read_child_event`).
 
 The router roots the operation of a child under `children[i]` and adds the type checkpoints of the path, so a container above can use the reference.
 

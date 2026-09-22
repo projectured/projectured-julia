@@ -2776,13 +2776,14 @@ end
 # ── Focus traversal (Stage 2): which widgets are Tab stops ──────────────────
 #
 # The walk itself is generic and lives in `FocusModule`. This is the widget
-# domain's one answer to its open trait. See plan/pending/widget-focus-traversal.md.
+# domain's one answer to its open trait. See plan/done/widget-focus-traversal.md.
 
 # The interactive widget types that are Tab stops — exactly the Stage-1
 # `enabled`-bearing leaves. A disabled instance is *not* a stop.
 const FocusableWidget = Union{WidgetButton, WidgetCheckbox, WidgetText,
-    WidgetTextarea, WidgetSelect, WidgetSwitch, WidgetSlider, WidgetToggle,
-    WidgetToggleGroup, WidgetRadioGroup, WidgetMenuItem, WidgetToolbarItem}
+    WidgetTextarea, WidgetSelect, WidgetSwitch, WidgetSlider, WidgetSpinBox,
+    WidgetToggle, WidgetToggleGroup, WidgetRadioGroup, WidgetMenuItem,
+    WidgetToolbarItem}
 
 # Every FocusableWidget carries the `enabled` cell, so the read is safe.
 FocusModule.is_focusable_document(w::FocusableWidget) = !(getfield(w, :enabled)[] === false)
