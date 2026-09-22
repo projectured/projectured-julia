@@ -1,7 +1,7 @@
 # Fragment of `OdbcModule`.
 #
 import ProjecturedCollection.CollectionModule: CellVector, ComputedCellVector
-import ProjecturedDatabase.DatabaseModule: DatabaseInstance
+import ProjecturedDatabase.DatabaseModule: DatabaseInstance, DatabaseCredentials
 import ProjecturedDbCatalog.DbCatalogModule: DbCatalogRdbms, DbCatalogDatabase,
                                   DbCatalogSchema, DbCatalogTable, DbCatalogColumn
 import ProjecturedDatabase.DatabaseModule: get_db_catalog_databases, get_db_catalog_schemas,
@@ -18,6 +18,17 @@ import ProjecturedKernel.ReferenceModule: var"@reference"
 # ── Lazy tree builders ──────────────────────────────────────────────────────────
 # Each helper returns a CellVector whose contents are recomputed lazily by
 # querying through the pool. The pool + instance are captured by closure.
+#
+# A connection reads the schemas of its own database only, so each database of
+# the list reads its schemas, tables and columns through an instance of its own.
+# The pool opens a connection to that database the first time its schemas are
+# read, that is when a person opens its group.
+
+# The instance of `database` on the server of `instance`, with the same credentials.
+_make_database_instance(instance::DatabaseInstance, database::String) =
+    DatabaseInstance(database = database, host = instance.host, port = instance.port,
+                     credentials = DatabaseCredentials(user = instance.credentials.user,
+                                                       password = instance.credentials.password))
 
 function _build_columns(pool, inst, schema_name::String, table_name::String)
     ComputedCellVector(() -> begin
@@ -53,7 +64,7 @@ function _build_databases(pool, inst)
         names = with_connection(pool, inst) do adapter
             get_db_catalog_databases(adapter)
         end
-        DbCatalogDatabase[DbCatalogDatabase(n, _build_schemas(pool, inst, n))
+        DbCatalogDatabase[DbCatalogDatabase(n, _build_schemas(pool, _make_database_instance(inst, n), n))
                           for n in names]
     end)
 end
