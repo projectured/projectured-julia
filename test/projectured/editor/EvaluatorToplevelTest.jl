@@ -133,6 +133,42 @@ end
     @test 0 <= last(prompts_y()) < 120
 end
 
+# Every circle the canvas draws.
+circles(node, depth = 0) =
+    depth > 60 ? 0 :
+    node isa GraphicsCircle ? 1 :
+    node isa GraphicsCanvas ? sum((circles(node.elements[i], depth + 1) for i in 1:length(node.elements)); init = 0) :
+    node isa GraphicsViewport ? circles(node.content, depth + 1) : 0
+
+@testset "the evaluator is a REPL that no API limits, and the assistant keeps its API" begin
+    # The tools of the editor declare one name, as a host declares its API.
+    tools = ToolSet(; api = Any[parentmodule(PrimitiveString) => (:PrimitiveString,)])
+    seen = Any[]
+    observe_evaluations!(value -> push!(seen, value), tools)
+    toplevel = make_insertion_document(EvaluatorToplevel)
+    ed = _EvaluatorToplevelMockEditor(toplevel, tools)
+    toplevel.elements[1].form.value = "GraphicsCircle(10, 10, 10)"
+    evaluate_operation(ed, read_gesture(toplevel, enter()))
+    @test !toplevel.elements[1].is_error
+    @test toplevel.elements[1].result isa GraphicsCircle
+    # The host still hears what an evaluation of the evaluator made.
+    @test length(seen) == 1 && only(seen) isa GraphicsCircle
+    # The code of the assistant runs in the tools of the editor, with its API.
+    @test occursin("UndefVarError", execute_julia_code(tools, ed, "GraphicsCircle(10, 10, 10)"))
+end
+
+@testset "a graphics value draws as itself, not as a tree of its fields" begin
+    circle = GraphicsCircle(10, 10, 10)
+    @test print_natural(circle) === circle
+    iomap = print_document(GraphicsToGraphics(), nothing, circle, nothing)
+    @test read_intent(GraphicsToGraphics(), iomap, KeyPress('x')) === nothing
+    toplevel = make_insertion_document(EvaluatorToplevel)
+    toplevel.elements[1].form.value = "GraphicsCircle(10, 10, 10)"
+    evaluate_operation(editor(toplevel), read_gesture(toplevel, enter()))
+    @test circles(print_natural(toplevel)) == 1
+    @test !occursin("radius", render(toplevel))
+end
+
 @testset "it draws in a pane tab" begin
     # A tab reads its content through `print_child`, which does not print an
     # output again until it is graphics, so the row itself must end in graphics.
@@ -143,8 +179,11 @@ end
     text = drawn(get_iomap_output(print_document(host, nothing, tree,
                  PrinterContext(EmptyReference(), Cell(600), Cell(400), Dict{Symbol,Any}()))))
     # The page draws the title of the tab, then the one form of the evaluator,
-    # word for word.
-    @test text == "Evaluator " * render(toplevel.elements[1])
+    # word for word. The icons of the tab strip are glyphs of the private use
+    # area, and they are not words.
+    is_icon(word) = all(c -> '\ue000' <= c <= '\uf8ff', word)
+    @test [word for word in split(text) if !is_icon(word)] ==
+          ["Evaluator"; split(render(toplevel.elements[1]))]
 end
 
 @testset "ENTER evaluates the form the caret is in" begin

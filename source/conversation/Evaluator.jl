@@ -239,6 +239,34 @@ end
 _get_form_source_text(form::PrimitiveString) = something(form.value, "")
 _get_form_source_text(form::Document) = print_natural_text(form)
 
+# ── The namespace of the evaluator ───────────────────────────────────────────
+#
+# A person types into the evaluator, and the assistant does not, so it evaluates
+# as a Julia REPL does: in a namespace that no API limits. Every name that
+# `Projectured` exports is in scope, and `using` loads what the environment
+# declares. The assistant's `execute_julia_code` keeps the API its host declares
+# on `editor.tools`.
+#
+# The namespace belongs to the tools of the editor, so the evaluators of one
+# window are one session, as the windows of one Julia process share `Main`, and
+# a name one form binds is defined in the next. It shares the observers of those
+# tools, so a host still hears what an evaluation made. The table is weak, and
+# the namespace lets go of `editor` after each evaluation, so an editor that is
+# gone takes its namespace with it.
+const _EVALUATOR_TOOL_SETS = Ref{Any}(nothing)
+
+function _get_evaluator_tool_set(editor)
+    tools = hasproperty(editor, :tools) ? editor.tools : nothing
+    tools isa ToolSet || return ToolSet()
+    sets = _EVALUATOR_TOOL_SETS[]
+    sets === nothing && (sets = _EVALUATOR_TOOL_SETS[] = WeakKeyDict{ToolSet,ToolSet}())
+    get!(sets, tools) do
+        set = ToolSet()
+        set.observers = tools.observers
+        set
+    end
+end
+
 function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     t = op.toplevel
     i = _find_selected_form_index(t)
@@ -246,12 +274,14 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     element = t.elements[i]
     text = _get_form_source_text(element.form)
     isempty(strip(text)) && return nothing
-    set = editor.tools
+    set = _get_evaluator_tool_set(editor)
     output = try
         execute_julia_code(set, editor, text)
     catch e
         sprint(showerror, e, catch_backtrace())
     end
+    # The next evaluation binds `editor` again, so the namespace holds none.
+    set.scratch === nothing || Core.eval(set.scratch, :(editor = nothing))
     is_err = occursin("ERROR", output) || occursin("Error", output)
     # A `Document` return value is kept as the result so it renders live;
     # otherwise the printed output, exactly as the composer's own evaluate does.
