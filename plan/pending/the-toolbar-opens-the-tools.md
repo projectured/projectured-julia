@@ -503,13 +503,40 @@ the other one.
       An Alt+press on the menu bar names `menu_bar`, where it named the window
       content before. The menu does not yet re-root into its items, so a menu
       item's tooltip still does not show; that is outside this plan.
-- [x] `test_widget_toolbar()` **31**: an Alt+press on an item runs nothing,
-      and in a toolbar it names `elements[i]`. The other tests of a shell pass
+- [x] `test_widget_toolbar()` **36**: an Alt+press on an item runs nothing,
+      and in a toolbar it names `elements[i]`; a press anywhere on the item,
+      also a corner or between the bars of `:chart`, hits it; with an offered
+      height of 1000 the item stays 24 × 24. The other tests of a shell pass
       unchanged: `test_widget_action()` 43, `test_widget_tree()` 31,
       `test_anchor_point()` 17, the seven table and pane size tests,
       `test_shell()` 154, `test_gallery_wrappers()` 13.
-- [ ] Run `bin/projectured` and press each button with the real pointer. Put a
-      screenshot of the toolbar in this plan.
+- [x] Run the real window, as far as this machine allows. It has no display
+      tool, no Xvfb and no browser, and a window on the owner's desktop would
+      disturb the owner's work, so the window was driven offscreen: the
+      application window exactly as `run_application` builds it (with an
+      Ollama assistant), in a window scene, with presses and a pointer move
+      read through the scene, and drawn by the SDL renderer with `write_image`.
+      **Nobody pressed a button with a real pointer in a real window yet.**
+      What the offscreen run showed:
+      - the band draws the eight pictures in the order of R10, and no word;
+      - a press along the band found all eight buttons, and the pointer at
+        rest on "Message log" opened a `:tooltip` window that draws "Message
+        log: what the program said in this session".
+      It also found two faults, both fixed in `5c323e31`, with tests:
+      - **the "Statistics" button missed presses.** A toolbar item took a hit
+        only on the strokes of its picture, and the thin bars of `:chart` left
+        gaps. The item now draws a clear surface over its whole box, as a
+        button draws its panel.
+      - **then every press below a button hit the button.** The item took its
+        height from the offer of the band, which is the height of the window,
+        so the clear surface covered the navigator and "the navigator opens a
+        file" failed. The hover surface had the same fault before: it would
+        have painted a column down the window. The item is now as large as its
+        content on both axes.
+      One more observation, not caused by this plan: the offscreen write-out
+      draws only "File" in the menu bar, and no "View". The branch point
+      `b8f221f9` draws the same, and the window scene draws "View", so it is
+      a fault of the offscreen write-out alone. It is not investigated here.
 - [ ] Land Steps 1 to 7 on `main` of projectured-julia.
 
 ### Step 8: omnet-julia, the IDE gets the same toolbar
