@@ -123,7 +123,14 @@ end
     @test click.path.tail.head.start > 4       # past "one" and the line break
 end
 
-@testset "a disabled WidgetTextarea, or one of a plain string, takes no edit" begin
+# A caret in a plain string is a range of the `content` field itself.
+_plain_cursor(n) = ConcreteReference(FieldReferenceStep("content"),
+    ConcreteReference(RangeReferenceStep(n, n), EmptyReference()))
+
+# The caret a widget holds, with the node types of the path left out.
+_held_caret(widget) = strip_reference_types(widget.selection)
+
+@testset "a disabled WidgetTextarea takes no edit" begin
     content = TextBlock(TextString("one", _font, color_default))
     off = WidgetTextarea(Point2D(0, 0), content; enabled = false)
     set_selection!(off, _cursor(1))
@@ -133,10 +140,66 @@ end
     @test read_intent(_proj(), iomap, MousePress(:left, 10, 10, ModifierKeys())) === nothing
     @test off.content.elements[1].content == "one"
 
-    plain = WidgetTextarea(Point2D(0, 0), "one\ntwo")
+    plain = WidgetTextarea(Point2D(0, 0), "one\ntwo"; enabled = false)
+    set_selection!(plain, _plain_cursor(1))
     plain_iomap = print_document(_proj(), nothing, plain, PrinterContext())
     @test read_intent(_proj(), plain_iomap, KeyPress('X', "X", ModifierKeys())) === nothing
-    @test [text for (text, _, _) in _drawn_texts(plain_iomap.output)] == ["one", "two"]
+    @test plain.content == "one\ntwo"
+end
+
+@testset "a WidgetText of a plain string edits the string" begin
+    doc = WidgetText(Point2D(0, 0), "edit me")
+    iomap = print_document(_proj(), nothing, doc, PrinterContext())
+    # With no caret the string is drawn whole, and a key has nowhere to go.
+    @test occursin("edit me", join(text for (text, _, _) in _drawn_texts(iomap.output)))
+    @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys())) === nothing
+
+    # A press puts the caret into the string, under the pointer.
+    _, x, y = first(t for t in _drawn_texts(iomap.output) if startswith(t[1], "edit"))
+    click = read_intent(_proj(), iomap, MousePress(:left, x + 32, y + 4, ModifierKeys()))
+    @test click isa ReplaceSelectionOperation
+    @test click.path == _plain_cursor(3)
+    evaluate_operation(_WidgetTextMockEditor(doc), click)
+    @test _held_caret(doc) == _plain_cursor(3)
+
+    # A typed letter is a string edit of the field, and the caret moves past it.
+    typed = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys()))
+    @test typed isa ReplaceStringRangeOperation
+    @test typed.reference == _plain_cursor(3)
+    evaluate_operation(_WidgetTextMockEditor(doc), typed)
+    @test doc.content == "ediXt me"
+    @test _held_caret(doc) == _plain_cursor(4)
+    @test occursin("ediXt me", join(text for (text, _, _) in _drawn_texts(iomap.output)))
+
+    # Backspace and an arrow go through the text domain too.
+    erased = read_intent(_proj(), iomap, KeyDown(:backspace, ModifierKeys()))
+    evaluate_operation(_WidgetTextMockEditor(doc), erased)
+    @test doc.content == "edit me"
+    moved = read_intent(_proj(), iomap, KeyDown(:left, ModifierKeys()))
+    @test moved isa ReplaceSelectionOperation && moved.path == _plain_cursor(2)
+
+    # A validator sees the edit of a plain string as it sees any other.
+    digits = WidgetText(Point2D(0, 0), "12"; validator = make_numeric_validator())
+    set_selection!(digits, _plain_cursor(2))
+    digits_iomap = print_document(_proj(), nothing, digits, PrinterContext())
+    @test read_intent(_proj(), digits_iomap, KeyPress('a', "a", ModifierKeys())) === nothing
+    @test read_intent(_proj(), digits_iomap, KeyPress('3', "3", ModifierKeys())) isa
+          ReplaceStringRangeOperation
+end
+
+@testset "a WidgetTextarea of a plain string edits the string, and Return breaks the line" begin
+    doc = WidgetTextarea(Point2D(0, 0), "one two"; rows = 3)
+    set_selection!(doc, _plain_cursor(3))
+    iomap = print_document(_proj(), nothing, doc, PrinterContext())
+    broken = read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys()))
+    @test broken isa ReplaceStringRangeOperation
+    @test broken.replacement == "\n"
+    evaluate_operation(_WidgetTextMockEditor(doc), broken)
+    @test doc.content == "one\n two"
+    lines = [(text, y) for (text, _, y) in _drawn_texts(iomap.output) if !isempty(strip(text))]
+    one_y = first(y for (text, y) in lines if occursin("one", text))
+    two_y = first(y for (text, y) in lines if occursin("two", text))
+    @test two_y > one_y
 end
 
 end # test_widget_text_editing

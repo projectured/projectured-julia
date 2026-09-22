@@ -1036,12 +1036,13 @@ read_intent(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothin
 
 # ── WidgetText ──────────────────────────────────────────────────────────────
 
-# IoMap for an *editable* WidgetText: its `content` is a Document (typically a
-# `TextBlock`) recursed through the Text domain, so all caret navigation and text
-# editing is produced by `TextToGraphics`. The widget only re-roots the resulting
-# operations by prepending `content` (see `map_reference_backward`).
+# IoMap for a WidgetText. The text domain draws the content and makes every caret
+# move and every edit, and the widget re-roots what it answers under `content`
+# (see `map_reference_backward`). A Document content, typically a `TextBlock`, is
+# recursed through the chain. A plain value is drawn through a text view of its
+# string, which `_make_plain_text_view` makes.
 # @iomap so the reader reads content_iomap/input transparently; the content is
-# reconciled so an editable field grows reactively as text is typed
+# reconciled so a field grows reactively as text is typed
 # (PAR-STABLE-IOMAP-IDENTITY).
 @iomap struct WidgetTextToGraphicsCanvasIoMap
     projection::Any
@@ -1050,64 +1051,110 @@ read_intent(::WidgetInsertionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothin
     content_iomap::Any
 end
 
+# ── A plain value as a text ─────────────────────────────────────────────────
+#
+# A `WidgetText` or a `WidgetTextarea` whose `content` is a plain value, such as
+# a `String`, is edited as a text too. The printer makes one `TextBlock` of one
+# span, whose text is the string of the value and whose caret is the range of
+# `content` that the widget holds, and draws it with a `TextToGraphics` of its
+# own, so a chain with no rule for a `TextBlock` draws it too. The reader maps
+# what the text domain answers back to a range of the `content` field. So a
+# string edit writes the field itself, and the caret after the edit is again a
+# range of the field.
+
+function _make_plain_text_view(w, style::StyleText)
+    span = TextString(() -> string(w.content), style)
+    view = TextBlock(span)
+    set_cell_function!(getfield(view, :selection), () -> _get_plain_text_caret(w.selection))
+    view
+end
+
+function _print_plain_text_view(p, recursion, w, style::StyleText, ctx)
+    view = _make_plain_text_view(w, style)
+    measure = p.measure isa TextMeasurer ? p.measure.measure : p.measure
+    reconcile_child_iomap(() -> view,
+                          v -> print_document(TextToGraphics(measure = measure), recursion, v, ctx))
+end
+
+# The caret of the view: the range of `content` that the widget holds, as a flat
+# range of the one span. A widget that holds no such range shows no caret.
+function _get_plain_text_caret(selection)
+    selection isa Reference || return nothing
+    steps = get_reference_steps(strip_reference_types(selection))
+    length(steps) == 2 || return nothing
+    (steps[1] isa FieldReferenceStep && steps[1].name == "content") || return nothing
+    range = steps[2]
+    (range isa RangeReferenceStep || range isa TextRangeReferenceStep) || return nothing
+    make_flat_range_reference(range.start, range.stop)
+end
+
+_make_content_range_reference(start::Int, stop::Int) =
+    ConcreteReference(FieldReferenceStep("content"),
+                      ConcreteReference(RangeReferenceStep(start, stop), EmptyReference()))
+
+# A reference of the view, mapped to a range of the `content` field. The text
+# domain answers a caret or a selection as a flat range, and an edit of the one
+# span as `elements[1].content[start:stop]`. The whole view, which a press on an
+# empty string answers, is the caret at the end of the string.
+function _map_plain_text_reference(w, reference)
+    reference === nothing && return nothing
+    steps = get_reference_steps(strip_reference_types(reference))
+    if isempty(steps)
+        n = length(string(w.content))
+        return _make_content_range_reference(n, n)
+    end
+    range = steps[end]
+    if length(steps) == 1 && range isa TextRangeReferenceStep
+        return _make_content_range_reference(range.start, range.stop)
+    end
+    if length(steps) == 4 && range isa RangeReferenceStep &&
+       steps[1] isa FieldReferenceStep && steps[1].name == "elements" &&
+       steps[2] isa RangeReferenceStep && steps[2].start == 0 &&
+       steps[3] isa FieldReferenceStep && steps[3].name == "content"
+        return _make_content_range_reference(range.start, range.stop)
+    end
+    nothing
+end
+
 function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
     cox, coy = _content_offset(w)
 
-    # Editable form: a Document content (e.g. a TextBlock) is recursed through the
-    # outer projection chain (which routes it to TextToGraphics). Navigation and
-    # editing operations then originate in the Text domain; this projection just
-    # maps them backward. Mirrors WidgetScrollPane's content recursion.
-    if w.content isa Document
-        # Editable: reconcile the recursed content, and derive extent+membership
-        # from the child canvas in a build cell (the field grows as text is typed).
-        content_iomap = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
-        build = ComputedCell(() -> begin
-            radius = _sc(p.corner_radius)
-            inner = content_iomap[].output::GraphicsCanvas
-            # The box is at least as wide as the widget asks for, and always at
-            # least one line tall. An empty document measures nothing in both
-            # directions, and a form field of nothing cannot be clicked.
-            tx, ty = _inset_total(w)
-            # `w.width` is an authored inner width, so it and the offer are both
-            # outer measures here: resolve the outer extent by the one rule, then
-            # take the inner box back out of it.
-            outer_w = _resolve_width(ctx, w.width > 0 ? w.width + tx : 0,
-                                     Int(inner.w[]) + tx)
-            outer_h = _resolve_height(ctx, 0,
-                                      max(Int(inner.h[]),
-                                          _text_size(p.measure, p.text.font, "X")[2]) + ty)
-            iw = outer_w - tx
-            ih = outer_h - ty
-            elems = Any[]
-            # Themed input surface: background fill + input outline + rounded corners.
-            _push_box!(elems, w, iw, ih; fill=p.background_color, border=p.border_color, radius=radius)
-            push!(elems, _make_canvas(cox, coy, Any[inner]))
-            _push_focus_ring!(elems, w, outer_w, outer_h, p.ring_color, radius;
-                              whole_color = SELECTION_RING_COLOR)
-            (width=outer_w, height=outer_h, elements=elems)
-        end)
-        return WidgetTextToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), content_iomap)
-    end
-
-    # Non-editable form: a plain value is stringified (input-like).
-    SimpleIoMap(p, w, _reactive_canvas(_origin(pos)..., () -> begin
+    # The content is drawn by the text domain, and the box grows with the text.
+    # A Document content (e.g. a TextBlock) is recursed through the outer
+    # projection chain (which routes it to TextToGraphics); a plain value is
+    # drawn through a text view of its string. Mirrors WidgetScrollPane's
+    # content recursion.
+    content_iomap = w.content isa Document ?
+        reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx)) :
+        _print_plain_text_view(p, recursion, w, p.text, ctx)
+    build = ComputedCell(() -> begin
         radius = _sc(p.corner_radius)
-        text = string(w.content)
-        cw, ch = _text_size(p.measure, p.text.font, text)
+        inner = content_iomap[].output::GraphicsCanvas
+        # The box is at least as wide as the widget asks for, and always at
+        # least one line tall. An empty document measures nothing in both
+        # directions, and a form field of nothing cannot be clicked.
         tx, ty = _inset_total(w)
-        outer_w = _resolve_width(ctx, w.width > 0 ? w.width + tx : 0, cw + tx)
-        outer_h = _resolve_height(ctx, 0, ch + ty)
-        cw = outer_w - tx
-        ch = outer_h - ty
+        # `w.width` is an authored inner width, so it and the offer are both
+        # outer measures here: resolve the outer extent by the one rule, then
+        # take the inner box back out of it.
+        outer_w = _resolve_width(ctx, w.width > 0 ? w.width + tx : 0,
+                                 Int(inner.w[]) + tx)
+        outer_h = _resolve_height(ctx, 0,
+                                  max(Int(inner.h[]),
+                                      _text_size(p.measure, p.text.font, "X")[2]) + ty)
+        iw = outer_w - tx
+        ih = outer_h - ty
         elems = Any[]
-        _push_box!(elems, w, cw, ch; fill=p.background_color, border=p.border_color, radius=radius)
-        _push_text!(elems, p.text.font, text, cox, coy, p.text.color)
+        # Themed input surface: background fill + input outline + rounded corners.
+        _push_box!(elems, w, iw, ih; fill=p.background_color, border=p.border_color, radius=radius)
+        push!(elems, _make_canvas(cox, coy, Any[inner]))
         _push_focus_ring!(elems, w, outer_w, outer_h, p.ring_color, radius;
                           whole_color = SELECTION_RING_COLOR)
         (width=outer_w, height=outer_h, elements=elems)
-    end))
+    end)
+    WidgetTextToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), content_iomap)
 end
 
 function map_reference_forward(::WidgetTextToGraphicsCanvas, iomap, reference)
@@ -1120,16 +1167,17 @@ end
 
 # Re-root a content-domain reference (already translated by the inner Text-domain
 # reader) into this widget's domain by prepending `.content`. Same contribution
-# WidgetScrollPane makes for its wrapped document.
+# WidgetScrollPane makes for its wrapped document. A reference of the text view
+# of a plain value is a range of `content` itself.
 function map_reference_backward(::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, reference)
     reference === nothing && return nothing
+    w = iomap.input
+    w.content isa Document || return _map_plain_text_reference(w, reference)
     ConcreteReference(FieldReferenceStep("content"), reference)
 end
 
-function read_intent(::WidgetTextToGraphicsCanvas, iomap::SimpleIoMap, evt)
-    _outside_widget(iomap, evt) && return nothing
-    return nothing
-end
+# Invisible text (the printer returned a bare empty canvas): inert.
+read_intent(::WidgetTextToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
 # Delegate every event to the recursed content (Text domain), then re-root the
 # returned path-bearing operation through `map_reference_backward`.
@@ -5990,9 +6038,10 @@ end
     ring_color::StyleColor      # focus ring when selected
 end
 
-# IoMap for an editable WidgetTextarea: its `content` is a Document, typically a
-# `TextBlock`, recursed through the Text domain, as the content of an editable
-# `WidgetText` is. PAR-STABLE-IOMAP-IDENTITY.
+# IoMap for a WidgetTextarea. The text domain draws and edits the content, as it
+# does for a `WidgetText`: a Document content, typically a `TextBlock`, is
+# recursed through the chain, and a plain value is drawn through a text view of
+# its string. PAR-STABLE-IOMAP-IDENTITY.
 @iomap struct WidgetTextareaToGraphicsCanvasIoMap
     projection::Any
     input::Any
@@ -6008,67 +6057,53 @@ _get_textarea_padding(p::WidgetTextareaToGraphicsCanvas) =
 function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetTextarea, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    # Editable form: a Document content is recursed through the outer projection
-    # chain, which gives it to TextToGraphics, and the box grows with the text.
-    if w.content isa Document
-        content_iomap = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
-        build = ComputedCell(() -> begin
-            enabled = !(w.enabled === false)
-            padding_x, padding_y = _get_textarea_padding(p)
-            inner = content_iomap[].output::GraphicsCanvas
-            _, line_height = _text_size(p.measure, p.text.font, "M")
-            text_height = max(Int(inner.h[]), line_height)
-            authored_height = Int(w.rows) > 0 ?
-                max(Int(w.rows) * line_height, text_height) + 2padding_y : 0
-            area_height = _resolve_height(ctx, authored_height, text_height + 2padding_y)
-            area_width = _resolve_width(ctx, _sc(Int(w.width)), Int(inner.w[]) + 2padding_x)
-            radius = _sc(p.corner_radius)
-            elements = Any[]
-            _push_panel!(elements, 0, 0, area_width, area_height;
-                         fill=enabled ? p.background_color : p.disabled_color,
-                         border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=radius)
-            push!(elements, _make_canvas(padding_x, padding_y, Any[inner]))
-            _push_focus_ring!(elements, w, area_width, area_height, p.ring_color, radius;
-                              whole_color = SELECTION_RING_COLOR)
-            (width=area_width, height=area_height, elements=elements)
-        end)
-        return WidgetTextareaToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
-                                                   content_iomap)
+    # A Document content is recursed through the outer projection chain, which
+    # gives it to TextToGraphics; a plain value is drawn through a text view of
+    # its string, in the muted color while the area is disabled. The box grows
+    # with the text.
+    content_iomap = if w.content isa Document
+        reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
+    else
+        style = w.enabled === false ? StyleText(p.text.font, p.disabled_foreground) : p.text
+        _print_plain_text_view(p, recursion, w, style, ctx)
     end
-
-    # Read-only form: a plain value is drawn as its string, one row for each line.
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    build = ComputedCell(() -> begin
         enabled = !(w.enabled === false)
         padding_x, padding_y = _get_textarea_padding(p)
-        lines = split(string(w.content), '\n')
+        inner = content_iomap[].output::GraphicsCanvas
         _, line_height = _text_size(p.measure, p.text.font, "M")
-        row_count = max(Int(w.rows), length(lines))
-        authored_height = Int(w.rows) > 0 ? row_count * line_height + 2padding_y : 0
-        area_height = _resolve_height(ctx, authored_height,
-                                      length(lines) * line_height + 2padding_y)
-        longest_line = isempty(lines) ? 0 : maximum(_text_size(p.measure, p.text.font, String(l))[1] for l in lines)
-        area_width = _resolve_width(ctx, _sc(Int(w.width)), longest_line + 2padding_x)
-        box_fill   = enabled ? p.background_color : p.disabled_color
-        text_color = enabled ? p.text.color       : p.disabled_foreground
+        text_height = max(Int(inner.h[]), line_height)
+        authored_height = Int(w.rows) > 0 ?
+            max(Int(w.rows) * line_height, text_height) + 2padding_y : 0
+        area_height = _resolve_height(ctx, authored_height, text_height + 2padding_y)
+        area_width = _resolve_width(ctx, _sc(Int(w.width)), Int(inner.w[]) + 2padding_x)
+        radius = _sc(p.corner_radius)
         elements = Any[]
-        _push_panel!(elements, 0, 0, area_width, area_height; fill=box_fill, border=p.border.color,
-                     border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
-        for (i, line) in enumerate(lines)
-            push!(elements, GraphicsText(String(line), padding_x, padding_y + (i - 1) * line_height, p.text.font, text_color))
-        end
-        _push_focus_ring!(elements, w, area_width, area_height, p.ring_color, _sc(p.corner_radius))
+        _push_panel!(elements, 0, 0, area_width, area_height;
+                     fill=enabled ? p.background_color : p.disabled_color,
+                     border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=radius)
+        push!(elements, _make_canvas(padding_x, padding_y, Any[inner]))
+        _push_focus_ring!(elements, w, area_width, area_height, p.ring_color, radius;
+                          whole_color = SELECTION_RING_COLOR)
         (width=area_width, height=area_height, elements=elements)
-    end))
+    end)
+    WidgetTextareaToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
+                                        content_iomap)
 end
 
 map_reference_forward(::WidgetTextareaToGraphicsCanvas, iomap, reference) = nothing
 map_reference_backward(::WidgetTextareaToGraphicsCanvas, iomap, reference) = nothing
 
 # Re-root a reference of the Text domain under `.content`, as `WidgetText` does.
-map_reference_backward(::WidgetTextareaToGraphicsCanvas, iomap::WidgetTextareaToGraphicsCanvasIoMap, reference) =
-    reference === nothing ? nothing : ConcreteReference(FieldReferenceStep("content"), reference)
+# A reference of the text view of a plain value is a range of `content` itself.
+function map_reference_backward(::WidgetTextareaToGraphicsCanvas, iomap::WidgetTextareaToGraphicsCanvasIoMap, reference)
+    reference === nothing && return nothing
+    w = iomap.input
+    w.content isa Document || return _map_plain_text_reference(w, reference)
+    ConcreteReference(FieldReferenceStep("content"), reference)
+end
 
-# A plain value is read only.
+# Invisible text area (the printer returned a bare empty canvas): inert.
 read_intent(::WidgetTextareaToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
 # The Text domain edits the content, as it edits the content of a `WidgetText`.

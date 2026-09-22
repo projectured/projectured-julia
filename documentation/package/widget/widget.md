@@ -96,7 +96,9 @@ Each control has a reader in `WidgetToGraphics.jl`. The keys in the table work w
 | `WidgetCard` | a press on the chevron folds the card | none |
 | `WidgetAccordion` | a left press on the header of an item opens that item, or closes it when it is open. A press on an open body that is a document goes to the body. | the keys of an open body that is a document, while the selection is in it |
 
-`WidgetText` and `WidgetTextarea` are editable when their `content` is a document, usually a `TextBlock`. The printer recurses the content through the chain, so `TextToGraphics` draws it and makes every caret move and every edit. The reader moves a press into the frame of the content and puts the `content` step in front of the answer. The textarea gives Return to the content as a typed line break, because the text domain has no meaning for Return. A plain value is drawn as its string, and it is read only.
+`WidgetText` and `WidgetTextarea` are edited by the text domain. A `content` that is a document, usually a `TextBlock`, is recursed through the chain, so `TextToGraphics` draws it and makes every caret move and every edit. The reader moves a press into the frame of the content and puts the `content` step in front of the answer. The textarea gives Return to the content as a typed line break, because the text domain has no meaning for Return.
+
+A plain value, such as a `String`, is edited too. The printer makes a `TextBlock` of one span that shows the string of the value, and draws it with a `TextToGraphics` of its own, so a chain with no rule for a `TextBlock` draws it. The caret of that view is the range of `content` that the widget holds, `content[i:j]`. The reader maps a caret of the view to such a range, and an edit to a `ReplaceStringRangeOperation` of the range, so the edit writes the field and the caret after it is again a range of the field. A number keeps a number: the evaluation ignores a character that can not be part of a number.
 
 `WidgetAccordion` holds the index of the open item in `expanded`, and `0` when no item is open. So one item is open at a time, and the press that opens an item closes the item that was open. A title and a body that are documents are drawn through the recursion, as `WidgetCard` draws its content: each title once, and a body while its item is open. A title or a body that is a plain value is drawn as its string. The answer of a body is re-rooted under `items[i].body`.
 
@@ -202,7 +204,6 @@ write_example_image(widget_tree_example, "tree.png")
 
 ## Limits
 
-- A `WidgetText` or a `WidgetTextarea` whose `content` is a plain value, and not a document, is read only. Tab can select it, but a key there does nothing.
 - A press on a control that writes its own value, such as a checkbox, a toggle or a radio group, does not move the selection to it. So a key after the press goes to the control that had the focus before. Tab or an Alt+press moves the focus to the control.
 - `WidgetAccordion` has no `enabled` field.
 - `WidgetShell` gives `MouseDown` and `MouseUp` to its bands with window coordinates, and it keeps no drag. So a tab drag under a shell does not start, and a drag that crosses a band loses its moves. `plan/pending/hover-drag-and-tooltip-share-the-pointer.md` describes the fault and a fix.
