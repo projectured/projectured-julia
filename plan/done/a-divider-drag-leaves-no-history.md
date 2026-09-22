@@ -1,7 +1,8 @@
 # A divider drag leaves no history
 
-**Status (2026-09-22): READY.** The owner asked on 2026-09-22 that a divider drag
-add nothing to the undo buffer.
+**Status (2026-09-22): DONE.** Landed on `main` at `f4225eef`. Nothing is
+pushed. The owner asked on 2026-09-22 that a divider drag add nothing to the
+undo buffer.
 
 **Goal:** the grab, each move and the release of a divider add no undo step, in
 a split of the pane tree and in a split that a tab's content builds. Ctrl+Z after
@@ -62,5 +63,12 @@ of a drag by type, and it assumed a wrapper would hide them from those readers.
 - [x] `shell.md`: the limit about a divider drag goes. `undo.md` and
       `widget.md`: the divider drag is view state. `pane.md` also says that its
       reader reads the operation inside the mark.
-- [ ] omnet-julia after the landing: `test_ide_window_wrap()` (32).
-- [ ] Move this plan to `plan/done/`.
+- [x] omnet-julia after the landing: `test_ide_window_wrap()` **32**, with no
+      change of omnet. Its test environment first needed `Pkg.resolve()`: the
+      manifests are local, and the last plan gave `OmnetIde` a new dependency,
+      `ProjecturedTooltip`. `bin/omnet_ide` resolves its own environment at each
+      start; omnet's `environment/all` still needs one `Pkg.resolve()`.
+      After the rebase onto the icon work, substrate is **63059** with the
+      same five known failures: the icon commit moved the count, and this
+      change adds the same 3 assertions. Shell is **178**, application **127**.
+- [x] Move this plan to `plan/done/`.
