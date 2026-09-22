@@ -39,7 +39,7 @@ remove_message_log_capture!(previous)
 
 `run_with_window_tools(run)` in `ProjecturedShell` does these steps for you. `run_message_log_feed_example()` in `example/projectured/FeedExamples.jl` opens a window with a log.
 
-- Tests: `test_message_log_feed()` and `test_message_log()`, in the application test package. The package has no suite of its own.
+- Tests: `test_message_log_feed()` and `test_message_log()`, in the application test package. `test_message_log()` installs the capture of the session, drains the feed by hand, and checks the log and its view. The package has no suite of its own.
 
 ## Limits
 

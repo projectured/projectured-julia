@@ -223,8 +223,10 @@ end
 # A log view captures what the program says.
 #
 # The capture is a Julia logger installed for the session. It records each
-# message and then forwards it to the logger it replaced, so the terminal still
-# shows what it showed. A log a person opens by name is the session's own log,
+# message into the store of the session and then forwards it to the logger it
+# replaced, so the terminal still shows what it showed. The feed moves the
+# stored lines into the log, once per frame in an editor, and here by a drain
+# that the test calls. A log a person opens by name is the session's own log,
 # because a fresh empty one would never fill.
 function test_message_log()
 @testset "a log view captures log statements" begin
@@ -241,12 +243,18 @@ function drawn(node, depth = 0)
 end
 
 log = get_session_message_log()
+feed = MessageLogFeed(store = get_session_message_log_store(), log = log)
 clear_message_log!(log)
+# The store can hold lines that another test of the session logged.
+take_message_lines!(get_session_message_log_store())
 previous = install_message_log_capture!()
 try
     @testset "the capture records and forwards" begin
         @info "a message the log view keeps"
         @warn "and a warning"
+        # The capture writes the store, and only the drain writes the log.
+        @test length(log.entries) == 0
+        @test drain_changes!(feed, nothing) == 2
         @test length(log.entries) == 2
         @test any(occursin("a message the log view keeps", String(log.entries[i].message))
                   for i in 1:length(log.entries))
@@ -259,6 +267,7 @@ try
         install_message_log_capture!()
         before = length(log.entries)
         @info "once"
+        @test drain_changes!(feed, nothing) == 1
         @test length(log.entries) == before + 1
     end
 
@@ -272,6 +281,7 @@ try
     end
 finally
     remove_message_log_capture!(previous)
+    take_message_lines!(get_session_message_log_store())
     clear_message_log!(log)
 end
 
