@@ -216,18 +216,64 @@ the licence texts of the font folder with the fonts. That also brings
 
 ### Step 5: omnet-julia
 
-- [ ] The controls use the shared names (D6), the status marks use registry
-      names, and the four vector icons go. Tested with a scratch environment
-      whose projectured-julia paths point at this worktree, because the
-      `[sources]` of omnet-julia reach only the main checkout.
+In the worktree `omnet-julia-lucide-icons`, branch `every-icon-is-a-lucide-glyph`,
+commit `70d4febf`; and one commit here, `b7a5a3c3`.
+
+- [x] projectured-julia: a `WidgetLabel` takes a `StyleFont` alone as its
+      `text_style`, and draws in that font and the theme's color. A run's
+      status mark needs a label in the icon font in the color of the text
+      beside it; no form of the style said that before. `test_widget_icon()`
+      **309**.
+- [x] The run status: `format_status_strip` answers the text alone,
+      `get_status_icon(view)` the icon name (`:loader`, `:circle_pause`,
+      `:warning`, `:circle_check`, `:circle`), and `make_status_line(get_view)`
+      the line: a label in the icon font, then the text. The status view, the
+      session card and the embed card all use it, so the three cannot differ.
+- [x] The embed toolbar names `:play` (Go on, Run), `:fast_forward` (Fast) and
+      `:chevrons_right` (Express). The four vector icons, their helpers, their
+      registration in `__init__` and the `GraphicsPolygon` import are gone
+      (D6). `:until` had no user.
+- [x] Tested in scratch environments whose projectured-julia paths point at
+      this worktree: `test_execution_status_view()` **12** (+ the icon and the
+      two labels), `test_session_view()` 15, the three embed tests,
+      `test_playback_mode()` 22; `test_ide_window_wrap()` 29,
+      `test_ide_file_navigator()` 8, `test_select_and_paste()` 81 pass, 4 fail,
+      1 error (the same as on `main`).
+- [x] **A hang, not from this plan.** The first run seemed to take 45 minutes.
+      A `SIGUSR1` sample showed three worker threads spinning in
+      `try_claim_and_execute!` of the parallel engine. The tests had finished in
+      minutes; the process could not exit while the threads spun, and the
+      buffered results appeared only when the time limit killed it.
+      `test_demo_catalog()` 357 pass, 4 fail, 4 errors: `exec_less` is not
+      defined in `OmnetSimulator.ParallelModule`, a page marker names an
+      unregistered `Assistant`, two capture paths name "mm1k", and the topology
+      pane is empty. **omnet-julia `main` fails the same eight, on the same
+      lines** (357 pass, 4 fail, 4 errors), so none is from this plan. A test
+      script that must end while those threads spin ends with
+      `ccall(:_exit, Cvoid, (Cint,), 0)` after it flushes its output.
 
 ### Step 6: pictures for the owner
 
-- [ ] Offscreen pictures of the toolbar, the tab strip, the navigator, the
-      card, the select, the accordion, the tree, the checkbox, the
-      conversation, and the simulation controls of omnet-julia.
-- [ ] A PDF of a toolbar, to see the glyph embed.
-- [ ] The gallery pictures of the widget guide that show an icon, drawn again.
+- [x] The gallery pictures, drawn at the branch point and on the branch with
+      `generate_example_screenshots`, and compared pixel for pixel: 11 of 48
+      differ (`assistant`, `conversation-widget`, `filesystem-widget`,
+      `widget-accordion`, `widget-checkbox`, `widget-collapsible-card`,
+      `widget-disabled`, `widget-focus`, `widget-select`, `widget-tree`,
+      `widget`). Those 11 replace the pictures in `asset/image/example`; the
+      other 37 are the same and stay as they are.
+- [x] **The pictures showed one fault, fixed here.** The tree reserved an icon
+      column of 20 pixels, made for one character, and a named icon is as tall
+      as a line: the file icons of the navigator touched their names. A tree
+      that shows a named icon now reserves the line height and a gap of 6
+      pixels (`WTreeGeometry.icon_column`); a tree of plain labels keeps the
+      column of its theme, so its labels do not move. `test_widget_icon()`
+      **310** (the label starts after the icon and a gap).
+- What the pictures show beside that: the Lucide chevrons are a little lighter
+  than the two-stroke chevrons were; the role marks of the conversation are
+  outlines and lighter than the solid `☻` `✱`, and they read clearly; the tab
+  strip of `widget.png` is 5 pixels lower.
+- [ ] The application window and the simulation controls of omnet-julia, drawn
+      offscreen for the owner.
 
 ### Step 7: the owner's review
 

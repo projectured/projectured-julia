@@ -143,8 +143,14 @@ end
     tr = WidgetTree(Point2D(0, 0), Any[
         WidgetTreeNode(:folder, "src", Any[WidgetTreeNode(:file, "a.jl")]),
     ])
-    glyphs = _glyphs_of(print_document(proj, tr).output)
+    canvas = print_document(proj, tr).output
+    glyphs = _glyphs_of(canvas)
     @test _glyph(:folder) in glyphs && _glyph(:file) in glyphs
+    # A named icon is as tall as a line, and the label starts after it and a gap.
+    texts = _prims_of(canvas, GraphicsText)
+    folder = only(t for t in texts if string(_icon_value(t.text)) == _glyph(:folder))
+    src = only(t for t in texts if string(_icon_value(t.text)) == "src")
+    @test Int(_icon_value(src.x)) > Int(_icon_value(folder.x)) + _icon_value(folder.font).size
     # An icon-less tree (bare tuple form) draws no icon of a node.
     tuple_tree = WidgetTree(Point2D(0, 0), Any[("src", Any["a.jl"])])
     glyphs = _glyphs_of(print_document(proj, tuple_tree).output)

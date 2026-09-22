@@ -6880,6 +6880,7 @@ struct WTreeGeometry
     rows::Vector{WTreeRow}
     total_w::Int
     total_h::Int
+    icon_column::Int   # the width before a label: an icon and its gap
 end
 
 @iomap struct WidgetTreeToGraphicsCanvasIoMap
@@ -6951,7 +6952,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     geometry = ComputedCell(() -> begin
         collapsed = w.collapsed
         rows = WTreeRow[]
-        max_width = Ref(0)
+        label_widths = Int[]
         y = Ref(0)
         function walk(node, depth, path)
             x = depth * indent
@@ -6962,7 +6963,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
             label_width, _ = _text_size(p.measure, p.label_text.font, label)
             push!(rows, WTreeRow(path, depth, _tree_icon(node), label,
                                  has_kids, is_collapsed, x, x + chevron_column, y[], row_height))
-            max_width[] = max(max_width[], x + chevron_column + icon_column + label_width)
+            push!(label_widths, label_width)
             y[] += row_height
             if has_kids && !is_collapsed
                 for (i, c) in enumerate(kids)
@@ -6973,7 +6974,16 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         for (i, n) in enumerate(w.roots)
             walk(n, 0, [i])
         end
-        WTreeGeometry(rows, max_width[], y[])
+        # A named icon is as tall as a line, so a tree that shows one reserves a
+        # column that holds it and a gap; a tree of plain labels keeps the column
+        # of its theme.
+        column = any(row -> row.icon isa Symbol, rows) ?
+                 max(icon_column, line_height + _sc(6)) : icon_column
+        max_width = 0
+        for (row, label_width) in zip(rows, label_widths)
+            max_width = max(max_width, row.depth * indent + chevron_column + column + label_width)
+        end
+        WTreeGeometry(rows, max_width, y[], column)
     end)
 
 
@@ -7033,7 +7043,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                 push!(result, GraphicsText(icon, x + chevron_column, row.y0 + pad,
                                            p.icon_text.font, p.icon_text.color))
             end
-            push!(result, GraphicsText(row.label, x + chevron_column + icon_column, row.y0 + pad,
+            push!(result, GraphicsText(row.label, x + chevron_column + geom.icon_column, row.y0 + pad,
                                        p.label_text.font, p.label_text.color))
         end
         result
