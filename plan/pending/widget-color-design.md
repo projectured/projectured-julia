@@ -1320,6 +1320,71 @@ does not name is `color_transparent`, and an inset that it does not name is
         its border only. Its default padding has no right side, so the
         steppers reach the border as they did before; with the full control
         padding, an empty strip of padding followed the steppers.
+- [x] Group 7, the table and the tree: `WidgetTable` (both printers — the
+      grid-backed one in `WidgetToGraphics.jl` and the list-backed one in
+      `WidgetTableList.jl`) and `WidgetTree`, with `WidgetTableStyle` and
+      `WidgetTreeStyle`. Neither widget had the box insets before; both get
+      `margin`, `border`, `padding` and `style` (D11), with the box colors of
+      `color_transparent` and the insets of `inset_default` — the table's own
+      frame and grid lines stay `divider_stroke`, not the box border, so their
+      look does not change. `_WT_HL_COLOR` and `_WT_HOVER_COLOR` are gone,
+      replaced by the style fields `row_selected_color` (`_with_alpha(theme.selection,
+      0.25)`) and `layer_hovered_color` (`theme.hover_layer`); `_WT_HL_RADIUS`
+      is renamed `_WT_ROW_RADIUS` (a full word, kept as a shared size constant,
+      not a style field — both widgets and both table printers use one radius
+      for the row bands). The table's `padding` (cell inside a data cell) is
+      renamed `cell_padding`; `cell_text` and `header_text`, never read, are
+      gone. `test_substrate()` keeps the baseline (3 failures, 2 errors, both
+      `SplitPaneDragTest`) with 78809 passes, and the naming guard finds 0
+      violations.
+      - Found on the way: `WidgetTable`'s document-cell constructor (the
+        `Vector`-of-rows form) has a pre-existing field-order bug — its inner
+        positional call passes `Cell(tooltip), Cell(nothing)` for the trailing
+        `hovered, tooltip` fields, so `tooltip` lands in `hovered` and
+        `tooltip` itself is always `nothing`. Confirmed live: `WidgetTable(pos,
+        ["a"], [["x"]]; tooltip="hi").hovered == "hi"`. The `ListNode` form
+        does not have this bug. Left as found — out of scope for this group —
+        with the four new fields inserted in the same (buggy) positions so the
+        conversion changes nothing about it.
+      - Two direct constructions of the raw `WidgetTable`/`WidgetTree`
+        cell-layer constructors needed the four new positional `Cell(nothing)`
+        arguments inserted between `visible` and `hovered`:
+        `source/widget/CellTableToWidgetTable.jl` (`WidgetTable(Cell(...), …)`)
+        and `source/filesystem/FileSystemToWidget.jl` (`WidgetTree(Cell(...),
+        …)`, which also names `selection` explicitly as its last argument).
+        No other direct construction and no removed-keyword call site was
+        found; every other call site uses the `Point2D`-taking public
+        constructor and passes no color keyword (neither widget had one to
+        remove).
+      - The list-backed table's rows are unbounded (a `ListNode` walked both
+        ways from a head with no total extent), so its box has a well-defined
+        left, right and top (which shift the header and the columns, and are
+        applied) but no defined bottom to paint a margin/border/padding rect
+        against. Its box colors are therefore not painted — a caller who gives
+        a list-backed table a colored margin, border or padding gets the
+        spacing but not the fill; this is a judgment call, not one the plan or
+        the group notes name, and it needs a decision if the box color of a
+        list-backed table is ever wanted. `_wtl_band` now takes `p` and reads
+        `p.row_selected_color` / `p.layer_hovered_color` (through the style
+        override for the selected band), as the notes ask.
+      - Every reader that turns a pointer position into a row, a column or a
+        cell now subtracts the content offset first, clamping a press on the
+        margin, the border or the padding into the grid/rows — the table's
+        `_wt_mouse_select`/`_wt_hover_set`/`_wt_route_cell_click`, the list
+        table's `_wtl_click`/`_wtl_hover`/`_wtl_route_cell_click`, and the
+        tree's `_wtree_mouse_press`/`_wtree_node_gesture`/`_wtree_hover_set`.
+        The list table's own bound checks (there is no `_outside_widget` gate
+        for it) are widened by the box's total inset width, so a press
+        genuinely outside the table's outer box still declines, exactly as
+        before at the default zero insets.
+      - Images: `widget_table`, `widget_table_offered`, `widget_table_frozen`
+        and `widget_tree` render the same pixels as the base (no box default is
+        named for either widget in §8.3, so nothing moves, and none of the four
+        examples pre-selects or pre-hovers a row, so the new `row_selected_color`
+        / `layer_hovered_color` tokens — a different blue than the old
+        `_WT_HL_COLOR/_WT_HOVER_COLOR` constants, since they now come from
+        `theme.selection` and `theme.hover_layer` rather than a table-local
+        constant — do not show in these renders).
 
 ### 8.6 omnet-julia
 

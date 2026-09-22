@@ -91,7 +91,7 @@ export WidgetStyle, WidgetCheckboxStyle, WidgetDialogStyle, WidgetTitlePaneStyle
        WidgetTabbedPaneStyle, WidgetScrollBarStyle, WidgetBadgeStyle, WidgetSeparatorStyle, WidgetCardStyle,
        WidgetAlertStyle, WidgetHighlightStyle, WidgetSwitchStyle, WidgetProgressStyle, WidgetSliderStyle,
        WidgetRadioGroupStyle, WidgetToggleStyle, WidgetToggleGroupStyle, WidgetSelectStyle, WidgetSpinBoxStyle,
-       WidgetListStyle, WidgetAccordionStyle
+       WidgetListStyle, WidgetAccordionStyle, WidgetTableStyle, WidgetTreeStyle
 
 
 include("WidgetDocument.jl")

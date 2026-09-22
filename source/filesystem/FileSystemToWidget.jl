@@ -95,9 +95,11 @@ function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDoc
     # node tree without re-running `print_document`.
     roots = ComputedCellVector(() -> Any[_fs_node(doc, p.open_file)])
     # Positional, so every declared field is named here in order and the
-    # selection comes last: position, roots, visible, hovered, collapsed,
-    # gestures, tooltip, selection.
-    tree = WidgetTree(Cell(p.position), roots, Cell(true), Cell(nothing), Cell(Set{Vector{Int}}()),
+    # selection comes last: position, roots, visible, margin, border, padding,
+    # style, hovered, collapsed, gestures, tooltip, selection.
+    tree = WidgetTree(Cell(p.position), roots, Cell(true),
+                      Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
+                      Cell(nothing), Cell(Set{Vector{Int}}()),
                       Cell(GestureBinding[]), Cell(nothing), sel)
     iomap = SimpleIoMap(p, doc, tree)
     iomap_cell[] = iomap

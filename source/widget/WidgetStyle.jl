@@ -423,3 +423,40 @@ body text, the hairline between items, and the fold mark.
     divider_stroke_color::Any = nothing
     chevron_color::Any = nothing
 end
+
+"""
+    WidgetTableStyle(; <the fields of WidgetStyle>, divider_stroke_color, header_row_color,
+                     row_selected_color)
+
+The style of a `WidgetTable`: the fields of `WidgetStyle`, the outer frame and
+the grid lines (`divider_stroke_color`), the header strip fill, and the band of
+the selected row, column or cell.
+"""
+@document struct WidgetTableStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    divider_stroke_color::Any = nothing
+    header_row_color::Any = nothing
+    row_selected_color::Any = nothing
+end
+
+"""
+    WidgetTreeStyle(; <the fields of WidgetStyle>, icon_text_color, chevron_color,
+                    row_selected_color)
+
+The style of a `WidgetTree`: the fields of `WidgetStyle`, the icon glyph, the
+expand chevron, and the band of the selected row.
+"""
+@document struct WidgetTreeStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    icon_text_color::Any = nothing
+    chevron_color::Any = nothing
+    row_selected_color::Any = nothing
+end

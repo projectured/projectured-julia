@@ -7346,12 +7346,16 @@ end
 # the grid geometry it reads off the `GridLayoutIoMap` ("layout is just layout").
 #
 # Layout / padding model. The grid's children are the bare cell documents; the
-# grid uses `horizontal_gap = vertical_gap = 2*padding + border_width` so that
-# every inter-cell gap is "padding-right + rule + padding-left", and the whole
-# grid canvas is offset by `border_width + padding` inside the outer canvas so
-# the first row/column is padded too. Rules are then drawn centred in the gaps
-# (and on the outer edges) at edges computed from the grid geometry. This yields
-# uniformly-padded cells while reusing GridLayout for the actual positioning.
+# grid uses `horizontal_gap = vertical_gap = 2*cell_padding + border_width` so
+# that every inter-cell gap is "padding-right + rule + padding-left", and the
+# whole grid canvas is offset by `border_width + cell_padding` inside the box's
+# content area so the first row/column is padded too. Rules are then drawn
+# centred in the gaps (and on the outer edges) at edges computed from the grid
+# geometry. This yields uniformly-padded cells while reusing GridLayout for the
+# actual positioning. The table's own box (margin/border/padding) is separate
+# from this cell padding and the outer frame drawn in `divider_stroke`; by
+# default every box part is transparent and every inset is zero, so the box
+# costs nothing and the look is what it always was.
 #
 # Selection. Field names `rows` / `column_headers` / `row_headers` are the public
 # reference vocabulary. A whole-element selection is a path terminating at the element (`∅`);
@@ -7360,19 +7364,37 @@ end
 # own sub-pipeline and is drawn there.
 
 @projection struct WidgetTableToGraphicsCanvas
-    cell_text::ImmutableCell{StyleText}          # (kept for theming parity; cells render via recursion)
-    header_text::ImmutableCell{StyleText}        # header strip text style
-    rule::StyleStroke             # border / hairline rules
-    header_fill::StyleColor       # header strip background
-    padding::Inset                # inside a cell: top and bottom, left and right
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    divider_stroke::StyleStroke         # the outer frame and the grid lines
+    header_row_color::StyleColor        # header strip background
+    row_selected_color::StyleColor      # the band of the selected row, column or cell
+    layer_hovered_color::StyleColor     # over a hovered row, column or cell, behind the band
+    cell_padding::Inset                 # inside a cell: top and bottom, left and right
 end
 
-# Translucent selection accent (same blue the syntax-text / old table highlight used).
-const _WT_HL_COLOR = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x40 / 255)
-# Fainter still: the hover band drawn behind the row under the pointer (half the
-# selection alpha, so a selected+hovered row still reads as selected).
-const _WT_HOVER_COLOR = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x20 / 255)
-const _WT_HL_RADIUS = 4
+WidgetTableToGraphicsCanvas(theme::WidgetTheme;
+                            margin = inset_default, border = inset_default, padding = inset_default,
+                            margin_color = color_transparent, border_color = color_transparent,
+                            padding_color = color_transparent, content_color = color_transparent,
+                            divider_stroke = StyleStroke(theme.border, theme.border_width),
+                            header_row_color = theme.muted,
+                            row_selected_color = _with_alpha(theme.selection, 0.25),
+                            layer_hovered_color = theme.hover_layer,
+                            cell_padding = _make_control_padding(theme)) =
+    WidgetTableToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
+                                content_color, divider_stroke, header_row_color, row_selected_color,
+                                layer_hovered_color, cell_padding)
+
+# The corner radius of the hover and the selection band. Shared by the table
+# (both printers) and the tree; not a box part, so it is a size constant, not a
+# style field.
+const _WT_ROW_RADIUS = 4
 
 # Grid geometry snapshot for a WidgetTable, derived from the GridLayoutIoMap plus
 # the table's own padding / border. `col_x` / `row_y` are cumulative left/top
@@ -7620,22 +7642,30 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # this is: a list draws the rows a viewport shows, a vector draws them all.
     w.rows isa ListNode && return _wtl_print(p, recursion, w, ctx)
     position = w.position::Point2D
-    # The padding is the projection's, from the theme: how a table is drawn is
-    # not what a table is.
-    pad_x = _sc(Int(p.padding.left[]))
-    pad_y = _sc(Int(p.padding.top[]))
+    # The cell padding is the projection's, from the theme: how a table is
+    # drawn is not what a table is.
+    pad_x = _sc(Int(p.cell_padding.left[]))
+    pad_y = _sc(Int(p.cell_padding.top[]))
     bw  = max(1, _sc(Int(w.border_width)))
+    box = _get_box_insets(p, w)
+    colors = _get_box_colors(p, w)
+    inset_width, inset_height = _inset_total(p, w)
+    content_x, content_y = _content_offset(p, w)
+    divider_stroke = _get_state_stroke(p, w, :divider)
+    header_row_color = _get_state_color(p, w, :header_row)
+    row_selected_color = _get_state_color(p, w, :row; state = :selected)
 
     layout_info = ComputedCell(() -> _wt_grid_children(w))
 
-    # The grid is drawn inside the table's outer rules and the padding beside
-    # them, so it is offered what the table was offered less those. A table
-    # whose columns share an offer then ends where the offer does.
+    # The grid is drawn inside the table's own box, its outer rules and the
+    # cell padding beside them, so it is offered what the table was offered
+    # less those. A table whose columns share an offer then ends where the
+    # offer does.
     grid_ctx = ctx === nothing ? ctx : with_available_size(ctx;
         width = ctx.available_width === nothing ? nothing :
-                ComputedCell(() -> Int32(max(0, Int(ctx.available_width[]) - 2 * (pad_x + bw)))),
+                ComputedCell(() -> Int32(max(0, Int(ctx.available_width[]) - 2 * (pad_x + bw) - inset_width))),
         height = ctx.available_height === nothing ? nothing :
-                 ComputedCell(() -> Int32(max(0, Int(ctx.available_height[]) - 2 * (pad_y + bw)))))
+                 ComputedCell(() -> Int32(max(0, Int(ctx.available_height[]) - 2 * (pad_y + bw) - inset_height))))
 
     # Build a GridLayout whose children are the recursed cell documents and
     # project it through `recursion` (which dispatches GridLayout → its renderer
@@ -7651,8 +7681,9 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
                           column_policies = _wt_shift(w.column_policies, col_offset),
                           row_policies = _wt_shift(w.row_policies, row_offset),
                           column_offers = _wt_column_offers(w, grid_cols, col_offset))
-        # The grid is positioned at (grid_off_x, grid_off_y) inside the outer canvas; extend the
-        # context reference to the table's grid so child contexts are rooted here.
+        # The grid is positioned at (grid_off_x, grid_off_y) inside the table's
+        # content area; extend the context reference to the table's grid so
+        # child contexts are rooted here.
         print_child(recursion, grid, grid_ctx)
     end)
 
@@ -7670,10 +7701,12 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # Keeping the selection read OUT of the elements thunk means a caret move
     # invalidates only this rect's geometry, not the whole content vector
     # (printer-locality dimension A; the focus-ring / text-cursor overlay pattern).
+    # Bounds are content-local; the table's own box sits outside the content,
+    # so the band is shifted by the content offset.
     hl_bounds = ComputedCell(() -> _wt_highlight_bounds(w.selection, geometry[]))
-    highlight_rect = GraphicsRect(0, 0, 0, 0, _WT_HL_COLOR, _WT_HL_RADIUS)
-    set_cell_function!(getfield(highlight_rect, :x), () -> Int32(hl_bounds[][1]))
-    set_cell_function!(getfield(highlight_rect, :y), () -> Int32(hl_bounds[][2]))
+    highlight_rect = GraphicsRect(0, 0, 0, 0, row_selected_color, _WT_ROW_RADIUS)
+    set_cell_function!(getfield(highlight_rect, :x), () -> Int32(hl_bounds[][1] + content_x))
+    set_cell_function!(getfield(highlight_rect, :y), () -> Int32(hl_bounds[][2] + content_y))
     set_cell_function!(getfield(highlight_rect, :w), () -> Int32(hl_bounds[][3]))
     set_cell_function!(getfield(highlight_rect, :h), () -> Int32(hl_bounds[][4]))
 
@@ -7682,18 +7715,18 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # colour. Drawn behind the selection band so a selected+hovered row still reads
     # as selected.
     hov_bounds = ComputedCell(() -> _wt_highlight_bounds(w.hovered, geometry[]))
-    hover_rect = GraphicsRect(0, 0, 0, 0, _WT_HOVER_COLOR, _WT_HL_RADIUS)
-    set_cell_function!(getfield(hover_rect, :x), () -> Int32(hov_bounds[][1]))
-    set_cell_function!(getfield(hover_rect, :y), () -> Int32(hov_bounds[][2]))
+    hover_rect = GraphicsRect(0, 0, 0, 0, p.layer_hovered_color, _WT_ROW_RADIUS)
+    set_cell_function!(getfield(hover_rect, :x), () -> Int32(hov_bounds[][1] + content_x))
+    set_cell_function!(getfield(hover_rect, :y), () -> Int32(hov_bounds[][2] + content_y))
     set_cell_function!(getfield(hover_rect, :w), () -> Int32(hov_bounds[][3]))
     set_cell_function!(getfield(hover_rect, :h), () -> Int32(hov_bounds[][4]))
 
     # Invisible whole-canvas hit target so a table nested in a container (which
-    # gates routing on `hit_element_at`) is hoverable/clickable over empty cell
-    # interiors, not just over drawn glyphs/rules. Cf. the WidgetTree hit target.
+    # gates routing on `hit_element_at`) is hoverable/clickable over the whole
+    # box, not just over drawn glyphs/rules. Cf. the WidgetTree hit target.
     hit_target = GraphicsRect(0, 0, 0, 0, color_transparent, 0)
-    set_cell_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w))
-    set_cell_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h))
+    set_cell_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w + inset_width))
+    set_cell_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h + inset_height))
 
     elements = ComputedCellVector(() -> begin
         geom = geometry[]
@@ -7702,43 +7735,47 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
         geom.grid_cols == 0 && return result
         # 0. Whole-canvas hit target (behind everything).
         push!(result, hit_target)
-        # 1. Header strip backgrounds (behind everything). The column-header strip
+        # 1. The box: margin, border, padding and content, from the outside in.
+        #    Transparent and zero-width by default, so it costs nothing.
+        _push_box_parts!(result, box, colors, geom.total_w, geom.total_h)
+        # 2. Header strip backgrounds (behind the grid). The column-header strip
         #    occupies grid row 1; the row-header strip occupies grid column 1.
         if geom.has_col_headers
-            push!(result, GraphicsRect(0, 0, geom.total_w, geom.row_y[2], p.header_fill))
+            push!(result, GraphicsRect(content_x, content_y, geom.total_w, geom.row_y[2], header_row_color))
         end
         if geom.has_row_headers
-            push!(result, GraphicsRect(0, 0, geom.col_x[2], geom.total_h, p.header_fill))
+            push!(result, GraphicsRect(content_x, content_y, geom.col_x[2], geom.total_h, header_row_color))
         end
-        # 2. Hover + selection highlight overlays (persistent; their geometry reads
+        # 3. Hover + selection highlight overlays (persistent; their geometry reads
         #    the hovered / selected node so this thunk does not), behind the grid
         #    content and rules. Hover is behind selection.
         push!(result, hover_rect)
         push!(result, highlight_rect)
-        # 3. The positioned grid content (from GridLayout), offset by the grid offset.
+        # 4. The positioned grid content (from GridLayout), offset by the content
+        #    offset and the grid offset.
         if gim isa GridLayoutIoMap
             gcanvas = gim.output
             if gcanvas isa GraphicsCanvas
-                push!(result, _make_canvas(geom.grid_off_x, geom.grid_off_y, Any[gcanvas]))
+                push!(result, _make_canvas(content_x + geom.grid_off_x, content_y + geom.grid_off_y, Any[gcanvas]))
             end
         end
-        # 4. Horizontal rules — at row_y[gr] for gr in 1..grid_rows+1 (top border,
+        # 5. Horizontal rules — at row_y[gr] for gr in 1..grid_rows+1 (top border,
         #    inner rules, bottom border).
         for gr in 1:(geom.grid_rows + 1)
-            push!(result, GraphicsRect(0, geom.row_y[gr], geom.total_w, bw,
-                                       p.rule.color))
+            push!(result, GraphicsRect(content_x, content_y + geom.row_y[gr], geom.total_w, bw,
+                                       divider_stroke.color))
         end
-        # 5. Vertical rules — at col_x[gc] for gc in 1..grid_cols+1.
+        # 6. Vertical rules — at col_x[gc] for gc in 1..grid_cols+1.
         for gc in 1:(geom.grid_cols + 1)
-            push!(result, GraphicsRect(geom.col_x[gc], 0, bw, geom.total_h,
-                                       p.rule.color))
+            push!(result, GraphicsRect(content_x + geom.col_x[gc], content_y, bw, geom.total_h,
+                                       divider_stroke.color))
         end
         result
     end)
 
     canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
-                            ComputedCell(() -> Int32(geometry[].total_w)),
-                            ComputedCell(() -> Int32(geometry[].total_h)),
+                            ComputedCell(() -> Int32(geometry[].total_w + inset_width)),
+                            ComputedCell(() -> Int32(geometry[].total_h + inset_height)),
                             elements, layout_none, true, Cell(nothing))
     WidgetTableToGraphicsCanvasIoMap(p, w, canvas, grid_iomap, geometry)
 end
@@ -7855,17 +7892,17 @@ end
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, iomap::WidgetTableToGraphicsCanvasIoMap)
     g = change.gesture
     if change.operation === nothing && g isa MousePress && g.button === :left
-        return Intent(g, _wt_mouse_select(iomap, g))
+        return Intent(g, _wt_mouse_select(p, iomap, g))
     end
     # Pointer crossings (synthesised by WidgetHoverTrackingProjection) drive the
     # hover band: MouseEnter always re-writes (so the tracker keeps the table as its
     # hover target), MouseMove writes only when the hovered row changes, MouseLeave
     # clears.
     if change.operation === nothing && g isa MouseEnter
-        return Intent(g, _wt_hover_set(iomap, g.x, g.y, true))
+        return Intent(g, _wt_hover_set(p, iomap, g.x, g.y, true))
     end
     if change.operation === nothing && g isa MouseMove
-        return Intent(g, _wt_hover_set(iomap, g.x, g.y, false))
+        return Intent(g, _wt_hover_set(p, iomap, g.x, g.y, false))
     end
     if change.operation === nothing && g isa MouseLeave
         return Intent(g, _wt_hover_clear(iomap))
@@ -7881,10 +7918,15 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
     return Intent(g, _wt_grid_passthrough(p, iomap, payload))
 end
 
-# Resolve a left click into a selection operation (or nothing).
-function _wt_mouse_select(iomap::WidgetTableToGraphicsCanvasIoMap, g::MousePress)
+# Resolve a left click into a selection operation (or nothing). The margin,
+# the border and the padding belong to the table, so a press there is clamped
+# into the grid.
+function _wt_mouse_select(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, g::MousePress)
     geom = iomap.geometry
-    hit = _wt_hit_test(geom, g.x, g.y)
+    content_x, content_y = _content_offset(p, iomap.input)
+    x = clamp(g.x - content_x, 0, max(0, geom.total_w - 1))
+    y = clamp(g.y - content_y, 0, max(0, geom.total_h - 1))
+    hit = _wt_hit_test(geom, x, y)
     kind = hit[1]
     if kind === :corner
         return ReplaceSelectionOperation(EmptyReference())
@@ -7906,7 +7948,7 @@ function _wt_mouse_select(iomap::WidgetTableToGraphicsCanvasIoMap, g::MousePress
                     ConcreteReference(RangeReferenceStep(r - 1, r),
                     ConcreteReference(RangeReferenceStep(c - 1, c), EmptyReference()))))
         else
-            return _wt_route_cell_click(iomap, geom, r, c, g)
+            return _wt_route_cell_click(iomap, geom, r, c, g, content_x, content_y)
         end
     end
     return nothing
@@ -7943,13 +7985,19 @@ function _wt_hover_ref(geom::WTGeometry, x::Int, y::Int)
     return nothing
 end
 
-# Set `hovered` to the row/column under (x, y). `force` (a MouseEnter, i.e. a
-# boundary crossing) always re-emits so the hover tracker keeps the table as its
+# Set `hovered` to the row/column under (x, y), clamped from the margin, the
+# border or the padding into the grid. `force` (a MouseEnter, i.e. a boundary
+# crossing) always re-emits so the hover tracker keeps the table as its
 # target; a plain MouseMove emits only when the hovered region changes. Off the
 # grid returns nothing (the tracker's MouseLeave clears it).
-function _wt_hover_set(iomap::WidgetTableToGraphicsCanvasIoMap, x::Int, y::Int, force::Bool)
+function _wt_hover_set(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap,
+                       x::Int, y::Int, force::Bool)
     w = iomap.input
-    ref = _wt_hover_ref(iomap.geometry, x, y)
+    geom = iomap.geometry
+    content_x, content_y = _content_offset(p, w)
+    lx = clamp(x - content_x, 0, max(0, geom.total_w - 1))
+    ly = clamp(y - content_y, 0, max(0, geom.total_h - 1))
+    ref = _wt_hover_ref(geom, lx, ly)
     ref === nothing && return nothing
     (!force && w.hovered == ref) && return nothing
     _write_view_state(w, "hovered", ref)
@@ -7965,7 +8013,7 @@ end
 # child), translating the click into the cell's frame, then wrap the resulting
 # operation back into the table domain.
 function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTGeometry,
-                              r::Int, c::Int, g::MousePress)
+                              r::Int, c::Int, g::MousePress, content_x::Int, content_y::Int)
     gim = iomap.grid_iomap
     gim isa GridLayoutIoMap || return nothing
     gr = r + geom.row_offset
@@ -7978,9 +8026,10 @@ function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTG
     (ox_cell, oy_cell, cim) = entry::Tuple{Cell,Cell,Any}
     canvas = cim.output
     canvas isa GraphicsCanvas || return nothing
-    # Child position = the grid offset + child wrapper offset + child canvas offset.
-    cell_x = geom.grid_off_x + Int(ox_cell[]) + Int(canvas.x)
-    cell_y = geom.grid_off_y + Int(oy_cell[]) + Int(canvas.y)
+    # Child position = the content offset + the grid offset + child wrapper
+    # offset + child canvas offset.
+    cell_x = content_x + geom.grid_off_x + Int(ox_cell[]) + Int(canvas.x)
+    cell_y = content_y + geom.grid_off_y + Int(oy_cell[]) + Int(canvas.y)
     local_evt = MousePress(g.button, g.x - cell_x, g.y - cell_y, g.count, g.modifiers)
     op = read_intent(cim.projection, cim, local_evt)
     # A cell that declines the click — a label has nothing to say to one —
@@ -8137,15 +8186,39 @@ end
 
 @projection struct WidgetTreeToGraphicsCanvas
     measure::Function
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
     label_text::ImmutableCell{StyleText}         # node labels
     icon_text::ImmutableCell{StyleText}          # node icon glyphs (own column)
+    chevron_color::StyleColor                    # the mark that expands a node
+    row_selected_color::StyleColor               # the band of the selected row
+    layer_hovered_color::StyleColor              # over a hovered row, behind the band
     indent::Int                   # per-depth horizontal step
     chevron_column::Int           # width reserved for the expand chevron
     icon_column::Int              # width reserved for the icon glyph
     row_padding::Int              # vertical padding per row
-    chevron::StyleStroke          # chevron color + width
     chevron_size::Int
 end
+
+WidgetTreeToGraphicsCanvas(theme::WidgetTheme; measure,
+                           margin = inset_default, border = inset_default, padding = inset_default,
+                           margin_color = color_transparent, border_color = color_transparent,
+                           padding_color = color_transparent, content_color = color_transparent,
+                           label_text = StyleText(theme.font, theme.foreground),
+                           icon_text = StyleText(theme.font, theme.muted_foreground),
+                           chevron_color = theme.muted_foreground,
+                           row_selected_color = _with_alpha(theme.selection, 0.25),
+                           layer_hovered_color = theme.hover_layer,
+                           indent = 22, chevron_column = 18, icon_column = 20, row_padding = 4,
+                           chevron_size = theme.chevron) =
+    WidgetTreeToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
+                               content_color, label_text, icon_text, chevron_color, row_selected_color,
+                               layer_hovered_color, indent, chevron_column, icon_column, row_padding, chevron_size)
 
 # A node is a WidgetTreeNode (icon + label + children), a leaf label (String), or
 # a bare (label, children::Vector) tuple. Icon-less nodes report an empty icon.
@@ -8251,13 +8324,23 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     icon_column = _sc(p.icon_column)
     chevron_size = _sc(p.chevron_size)
     pad = _sc(p.row_padding)
-    _, line_height = _text_size(p.measure, p.label_text.font, "M")
+    box = _get_box_insets(p, w)
+    colors = _get_box_colors(p, w)
+    inset_width, inset_height = _inset_total(p, w)
+    content_x, content_y = _content_offset(p, w)
+    label_style = _get_state_text(p, w, :label)
+    icon_style = _get_state_text(p, w, :icon)
+    chevron_color = _get_state_color(p, w, :chevron)
+    row_selected_color = _get_state_color(p, w, :row; state = :selected)
+    _, line_height = _text_size(p.measure, label_style.font, "M")
     row_height = line_height + 2 * pad
 
     # Flatten the node tree into rows once; both the geometry (hit-testing) and the
     # element pass (drawing) read these rows, so they can never drift apart. Reading
     # `w.collapsed` here ties the flattened geometry to the collapse state, so a
     # chevron toggle re-runs the walk (hiding / revealing subtrees) reactively.
+    # Rows stay content-local (starting at the origin); the content offset is
+    # added where they are drawn and where a reader turns a position into a row.
     geometry = ComputedCell(() -> begin
         collapsed = w.collapsed
         rows = WTreeRow[]
@@ -8269,7 +8352,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
             kids = _tree_children(node)
             has_kids = kids !== nothing && !isempty(kids)
             is_collapsed = has_kids && (path in collapsed)
-            label_width, _ = _text_size(p.measure, p.label_text.font, label)
+            label_width, _ = _text_size(p.measure, label_style.font, label)
             push!(rows, WTreeRow(path, depth, _tree_icon(node), label,
                                  has_kids, is_collapsed, x, x + chevron_column, y[], row_height))
             push!(label_widths, label_width)
@@ -8303,17 +8386,19 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # A full-size (invisible) rect makes the whole canvas a hit target, matching the
     # top-level tree. Its geometry reads `geometry[]` so it tracks size reactively.
     hit_target = GraphicsRect(0, 0, 0, 0, color_transparent, 0)
-    set_cell_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w))
-    set_cell_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h))
+    set_cell_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w + inset_width))
+    set_cell_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h + inset_height))
 
     # Persistent selection-band overlay: one full-width rect whose y/height read
     # the selection (0 height when no node is selected → the renderer skips it).
     # Keeping the selection read OUT of the elements thunk means a node move
     # invalidates only this rect's geometry, not the content vector (dimension A;
-    # the focus-ring / text-cursor overlay pattern).
+    # the focus-ring / text-cursor overlay pattern). Bounds are content-local, so
+    # the band is shifted by the content offset.
     band_yh = ComputedCell(() -> _wtree_highlight_band(w.selection, geometry[]))
-    selection_band = GraphicsRect(0, 0, 0, 0, _WT_HL_COLOR, _WT_HL_RADIUS)
-    set_cell_function!(getfield(selection_band, :y), () -> Int32(band_yh[][1]))
+    selection_band = GraphicsRect(0, 0, 0, 0, row_selected_color, _WT_ROW_RADIUS)
+    set_cell_function!(getfield(selection_band, :x), () -> Int32(content_x))
+    set_cell_function!(getfield(selection_band, :y), () -> Int32(band_yh[][1] + content_y))
     set_cell_function!(getfield(selection_band, :h), () -> Int32(band_yh[][2]))
     set_cell_function!(getfield(selection_band, :w), () -> Int32(geometry[].total_w))
 
@@ -8321,8 +8406,9 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # `w.hovered` (the row under the pointer). Drawn behind the selection band so a
     # selected+hovered row still reads as selected.
     hover_yh = ComputedCell(() -> _wtree_highlight_band(w.hovered, geometry[]))
-    hover_band = GraphicsRect(0, 0, 0, 0, _WT_HOVER_COLOR, _WT_HL_RADIUS)
-    set_cell_function!(getfield(hover_band, :y), () -> Int32(hover_yh[][1]))
+    hover_band = GraphicsRect(0, 0, 0, 0, p.layer_hovered_color, _WT_ROW_RADIUS)
+    set_cell_function!(getfield(hover_band, :x), () -> Int32(content_x))
+    set_cell_function!(getfield(hover_band, :y), () -> Int32(hover_yh[][1] + content_y))
     set_cell_function!(getfield(hover_band, :h), () -> Int32(hover_yh[][2]))
     set_cell_function!(getfield(hover_band, :w), () -> Int32(geometry[].total_w))
 
@@ -8330,37 +8416,41 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         geom = geometry[]
         result = Any[]
         # 0. Invisible whole-canvas hit target (behind everything) so a nested tree
-        #    is clickable/hoverable over the whole row, not just over its glyphs.
+        #    is clickable/hoverable over the whole box, not just over its glyphs.
         push!(result, hit_target)
-        # 1. Hover + selection band overlays (persistent; their geometry reads the
+        # 1. The box: margin, border, padding and content, from the outside in.
+        #    Transparent and zero-width by default, so it costs nothing.
+        _push_box_parts!(result, box, colors, geom.total_w, geom.total_h)
+        # 2. Hover + selection band overlays (persistent; their geometry reads the
         #    hovered / selected node so this thunk does not), behind the row content.
         push!(result, hover_band)
         push!(result, selection_band)
-        # 2. Per-row decoration: chevron (parents) + icon glyph + label.
+        # 3. Per-row decoration: chevron (parents) + icon glyph + label.
         for row in geom.rows
-            x = row.depth * indent
+            x = content_x + row.depth * indent
+            y0 = content_y + row.y0
             if row.has_children
-                _push_chevron!(result, x + chevron_column ÷ 2, row.y0 + row_height ÷ 2,
-                               chevron_size, row.collapsed ? :right : :down, p.chevron.color)
+                _push_chevron!(result, x + chevron_column ÷ 2, y0 + row_height ÷ 2,
+                               chevron_size, row.collapsed ? :right : :down, chevron_color)
             end
             icon = row.icon
             if icon isa Symbol
                 # A registered icon name: a glyph, tinted to the icon color.
-                _push_icon!(result, icon, x + chevron_column, row.y0 + pad, line_height, p.icon_text.color)
+                _push_icon!(result, icon, x + chevron_column, y0 + pad, line_height, icon_style.color)
             elseif icon isa AbstractString && !isempty(icon)
                 # A literal glyph string (e.g. an emoji), drawn as text.
-                push!(result, GraphicsText(icon, x + chevron_column, row.y0 + pad,
-                                           p.icon_text.font, p.icon_text.color))
+                push!(result, GraphicsText(icon, x + chevron_column, y0 + pad,
+                                           icon_style.font, icon_style.color))
             end
-            push!(result, GraphicsText(row.label, x + chevron_column + geom.icon_column, row.y0 + pad,
-                                       p.label_text.font, p.label_text.color))
+            push!(result, GraphicsText(row.label, x + chevron_column + geom.icon_column, y0 + pad,
+                                       label_style.font, label_style.color))
         end
         result
     end)
 
     canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
-                            ComputedCell(() -> Int32(geometry[].total_w)),
-                            ComputedCell(() -> Int32(geometry[].total_h)),
+                            ComputedCell(() -> Int32(geometry[].total_w + inset_width)),
+                            ComputedCell(() -> Int32(geometry[].total_h + inset_height)),
                             elements, layout_none, true, Cell(nothing))
     WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry)
 end
@@ -8388,14 +8478,14 @@ function read_intent(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsC
     w = iomap.input
     op = read_bound_gesture(w, evt)
     op === nothing || return op
-    nop = _wtree_node_gesture(iomap, evt)
+    nop = _wtree_node_gesture(p, iomap, evt)
     nop === nothing || return nop
     if evt isa MousePress && evt.button === :left
-        return _wtree_mouse_press(iomap, evt)
+        return _wtree_mouse_press(p, iomap, evt)
     elseif evt isa MouseEnter
-        return _wtree_hover_set(iomap, evt.x, evt.y, true)
+        return _wtree_hover_set(p, iomap, evt.x, evt.y, true)
     elseif evt isa MouseMove
-        return _wtree_hover_set(iomap, evt.x, evt.y, false)
+        return _wtree_hover_set(p, iomap, evt.x, evt.y, false)
     elseif evt isa MouseLeave
         return _wtree_hover_clear(iomap)
     elseif evt isa KeyDown
@@ -8423,15 +8513,18 @@ end
 # pointer for a `MousePress` (any button/modifier; the binding's own pattern does
 # the matching), or the currently selected node for a `KeyDown` — and fire its
 # `get_instance_gesture_bindings` against the enclosing tree's selection. A node has no
-# `selection` of its own, hence the explicit-selection `read_bound_gesture`.
-function _wtree_node_gesture(iomap::WidgetTreeToGraphicsCanvasIoMap, g)
+# `selection` of its own, hence the explicit-selection `read_bound_gesture`. The
+# margin, the border and the padding belong to the tree, so a press there is
+# clamped into the rows.
+function _wtree_node_gesture(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, g)
     w = iomap.input
     geom = iomap.geometry
     path = nothing
     if g isa MousePress
-        (0 <= g.x < geom.total_w && 0 <= g.y < geom.total_h) || return nothing
+        _, content_y = _content_offset(p, w)
+        y = clamp(g.y - content_y, 0, max(0, geom.total_h - 1))
         for row in geom.rows
-            if row.y0 <= g.y < row.y0 + row.height
+            if row.y0 <= y < row.y0 + row.height
                 path = row.path
                 break
             end
@@ -8446,13 +8539,16 @@ function _wtree_node_gesture(iomap::WidgetTreeToGraphicsCanvasIoMap, g)
 end
 
 # A left click on a parent row's chevron column toggles its collapse; anywhere
-# else on a row selects it.
-function _wtree_mouse_press(iomap::WidgetTreeToGraphicsCanvasIoMap, g::MousePress)
+# else on a row selects it. A press on the margin, the border or the padding is
+# clamped into the rows.
+function _wtree_mouse_press(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, g::MousePress)
     geom = iomap.geometry
-    (0 <= g.x < geom.total_w && 0 <= g.y < geom.total_h) || return nothing
+    content_x, content_y = _content_offset(p, iomap.input)
+    x = clamp(g.x - content_x, 0, max(0, geom.total_w - 1))
+    y = clamp(g.y - content_y, 0, max(0, geom.total_h - 1))
     for row in geom.rows
-        if row.y0 <= g.y < row.y0 + row.height
-            if row.has_children && row.chevron_x0 <= g.x < row.chevron_x1
+        if row.y0 <= y < row.y0 + row.height
+            if row.has_children && row.chevron_x0 <= x < row.chevron_x1
                 return _wtree_toggle_collapse(iomap, row.path)
             end
             return ReplaceSelectionOperation(_wtree_path_ref(row.path))
@@ -8470,19 +8566,22 @@ function _wtree_toggle_collapse(iomap::WidgetTreeToGraphicsCanvasIoMap, path::Ve
     ReplaceReferencedValueOperation(w, "collapsed", next)
 end
 
-# Set the hovered row to the one under (x, y). `force` (a `MouseEnter`, i.e. a
+# Set the hovered row to the one under (x, y), clamped from the margin, the
+# border or the padding into the rows. `force` (a `MouseEnter`, i.e. a
 # tree-boundary crossing) always re-emits the write so the hover tracker keeps the
 # tree as its target; a plain `MouseMove` emits only when the row actually changes,
-# and returns nothing outside every row (the tracker's MouseLeave clears it).
-function _wtree_hover_set(iomap::WidgetTreeToGraphicsCanvasIoMap, x::Int, y::Int, force::Bool)
+# and returns nothing when the tree has no rows.
+function _wtree_hover_set(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap,
+                          x::Int, y::Int, force::Bool)
     geom = iomap.geometry
     w = iomap.input
-    if 0 <= x < geom.total_w && 0 <= y < geom.total_h
-        for row in geom.rows
-            if row.y0 <= y < row.y0 + row.height
-                (!force && _wtree_ref_path(w.hovered) == row.path) && return nothing
-                return _write_view_state(w, "hovered", _wtree_path_ref(row.path))
-            end
+    isempty(geom.rows) && return nothing
+    _, content_y = _content_offset(p, w)
+    ly = clamp(y - content_y, 0, max(0, geom.total_h - 1))
+    for row in geom.rows
+        if row.y0 <= ly < row.y0 + row.height
+            (!force && _wtree_ref_path(w.hovered) == row.path) && return nothing
+            return _write_view_state(w, "hovered", _wtree_path_ref(row.path))
         end
     end
     return nothing
@@ -8566,15 +8665,7 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetOption      => WidgetOptionToGraphicsCanvas(theme; measure = measurer),
         WidgetTextarea    => WidgetTextareaToGraphicsCanvas(theme; measure = measurer),
         WidgetAccordion   => WidgetAccordionToGraphicsCanvas(theme; measure = measurer),
-        WidgetTable       => WidgetTableToGraphicsCanvas(
-            StyleText(theme.font, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
-            StyleStroke(theme.border, theme.border_width),
-            theme.muted,
-            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x)),
-        WidgetTree        => WidgetTreeToGraphicsCanvas(measurer,
-            StyleText(theme.font, theme.foreground),
-            StyleText(theme.font, theme.muted_foreground),
-            22, 18, 20, 4,
-            StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
+        WidgetTable       => WidgetTableToGraphicsCanvas(theme),
+        WidgetTree        => WidgetTreeToGraphicsCanvas(theme; measure = measurer),
     )
 end

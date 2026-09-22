@@ -2166,8 +2166,8 @@ layout iomap ("layout is just layout").
   index of zero or less. Field names `rows` / `column_headers` / `row_headers`
   are the public reference vocabulary for selection.
 - `column_count::Int` — number of columns.
-- `border_width::Int` — hairline rule / border width (px). The padding inside a
-  cell is the projection's, from the theme.
+- `border_width::Int` — the width of the outer frame and the grid lines. The
+  padding inside a cell is the projection's `cell_padding`, from the theme.
 - `cell_policy::Symbol` — what a cell does with text wider than its column,
   when the column was given a width: `:clip` draws one line and cuts it at the
   column's edge, `:wrap` breaks the lines there and the row grows. A column
@@ -2175,6 +2175,11 @@ layout iomap ("layout is just layout").
 - `column_cell_policies` — `Vector{Symbol}`, the body columns whose cell policy
   differs from the table's; a column past its end takes the table's.
 - `visible::Bool` — standard Document field; `selection` is macro-injected.
+- `margin`, `border`, `padding` — the box around the frame and the grid, each
+  `nothing` or an `Inset`; `nothing` takes the projection's default (transparent,
+  zero width). Distinct from `border_width` and the cell padding above.
+- `style` — `nothing`, a `WidgetStyle`, or a `WidgetTableStyle`; overrides one
+  color of the projection.
 
 The string convenience constructor wraps each string in a `WidgetLabel` so
 existing call sites (`WidgetTable(pos, headers, rows)`) keep working unchanged.
@@ -2195,6 +2200,10 @@ See also `make_result_table` and `WidgetList` for one column.
     cell_policy::Symbol          # :clip | :wrap — what every body column's cells do
     column_cell_policies::Any    # Vector{Symbol} — the body columns that differ
     visible::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     hovered::Union{Nothing, Reference}   # transient: whole-row (or column-header) ref under the pointer, or nothing
     tooltip::Any
 end
@@ -2248,7 +2257,8 @@ function WidgetTable(position::Point2D, column_headers::Vector, row_headers::Vec
                      border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
-                     cell_policy::Symbol=:clip, column_cell_policies=Symbol[], tooltip=nothing)
+                     cell_policy::Symbol=:clip, column_cell_policies=Symbol[],
+                     margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing)
     cell_policy in (:clip, :wrap) ||
         error("WidgetTable: cell_policy is :clip or :wrap, not ", repr(cell_policy))
     WidgetTable(Cell(position),
@@ -2259,7 +2269,8 @@ function WidgetTable(position::Point2D, column_headers::Vector, row_headers::Vec
                 Cell(column_policy), Cell(row_policy),
                 Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
                 Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
-                Cell(visible), Cell(tooltip), Cell(nothing))
+                Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
+                Cell(tooltip), Cell(nothing))
 end
 
 """
@@ -2278,6 +2289,7 @@ function WidgetTable(position::Point2D, column_headers::Vector, rows::ListNode,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
                      cell_policy::Symbol=:clip, column_cell_policies=Symbol[],
+                     margin=nothing, border=nothing, padding=nothing, style=nothing,
                      tooltip=nothing)
     cell_policy in (:clip, :wrap) ||
         error("WidgetTable: cell_policy is :clip or :wrap, not ", repr(cell_policy))
@@ -2289,7 +2301,8 @@ function WidgetTable(position::Point2D, column_headers::Vector, rows::ListNode,
                 Cell(column_policy), Cell(row_policy),
                 Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
                 Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
-                Cell(visible), Cell(nothing), Cell(tooltip))
+                Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
+                Cell(nothing), Cell(tooltip))
 end
 
 """
@@ -2309,6 +2322,7 @@ function WidgetTable(position::Point2D, headers::Vector, rows::Vector;
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
                      cell_policy::Symbol=:clip, column_cell_policies=Symbol[],
+                     margin=nothing, border=nothing, padding=nothing, style=nothing,
                      tooltip=nothing)
     column_count = isempty(headers) ?
         (isempty(rows) ? 0 : maximum(length(r) for r in rows)) : length(headers)
@@ -2317,6 +2331,7 @@ function WidgetTable(position::Point2D, headers::Vector, rows::Vector;
                 column_policy=column_policy, row_policy=row_policy,
                 column_policies=column_policies, row_policies=row_policies,
                 cell_policy=cell_policy, column_cell_policies=column_cell_policies,
+                margin=margin, border=border, padding=padding, style=style,
                 tooltip=tooltip)
 end
 
@@ -2366,18 +2381,29 @@ navigator trees.)
 crossings; `collapsed` is the set of node paths (1-based index chains) whose
 children are currently hidden, toggled by clicking a parent's chevron. Neither is
 part of the tree's content.
+
+`margin`, `border` and `padding` are `nothing` or an `Inset`, each `nothing`
+taking the projection's default (transparent, zero width); `style` is `nothing`,
+a `WidgetStyle`, or a `WidgetTreeStyle`, overriding one color of the projection.
 """
 @document struct WidgetTree <: WidgetDocument
     position::Point2D
     roots::CellVector
     visible::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     hovered::Union{Nothing, Reference}           # transient: node-path ref of the row under the pointer, or nothing
     collapsed::Set{Vector{Int}}  # transient: node paths whose children are hidden
     gestures::Any                # per-instance tree-level gesture bindings
     tooltip::Any
 end
-WidgetTree(position::Point2D, roots::Vector; visible::Bool=true, gestures=GestureBinding[], tooltip=nothing) =
+WidgetTree(position::Point2D, roots::Vector; visible::Bool=true,
+           margin=nothing, border=nothing, padding=nothing, style=nothing,
+           gestures=GestureBinding[], tooltip=nothing) =
     WidgetTree(Cell(position), CellVector(Cell[Cell(n) for n in roots]), Cell(visible),
+               Cell(margin), Cell(border), Cell(padding), Cell(style),
                Cell(nothing), Cell(Set{Vector{Int}}()), Cell(gestures), Cell(tooltip))
 
 # Tree-level gestures (over the whole tree); per-node gestures live on each

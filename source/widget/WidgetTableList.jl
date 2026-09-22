@@ -108,7 +108,8 @@ _wtl_child_h(cim) = (cim !== nothing && cim.output isa GraphicsCanvas) ? Int(cim
 # The band under a row: the whole row when the row is named, the one cell when
 # a cell is, and nothing when neither. `kind` is `:hover` or `:selection`, and
 # the rect reads the document itself, so a caret move rebuilds no row.
-function _wtl_band(w::WidgetTable, k::Int, st::WidgetTableListState, height::Cell, kind::Symbol)
+function _wtl_band(p::WidgetTableToGraphicsCanvas, w::WidgetTable, k::Int, st::WidgetTableListState,
+                   height::Cell, kind::Symbol)
     bounds = ComputedCell(() -> begin
         reference = kind === :hover ? w.hovered : w.selection
         named = _wtl_named(reference)
@@ -120,7 +121,8 @@ function _wtl_band(w::WidgetTable, k::Int, st::WidgetTableListState, height::Cel
         (1 <= column <= length(edges) - 1) || return (0, 0)
         (edges[column], edges[column + 1] - edges[column])
     end)
-    rect = GraphicsRect(0, 0, 0, 0, kind === :hover ? _WT_HOVER_COLOR : _WT_HL_COLOR, _WT_HL_RADIUS)
+    color = kind === :hover ? p.layer_hovered_color : _get_state_color(p, w, :row; state = :selected)
+    rect = GraphicsRect(0, 0, 0, 0, color, _WT_ROW_RADIUS)
     set_cell_function!(getfield(rect, :x), () -> Int32(bounds[][1]))
     set_cell_function!(getfield(rect, :y), () -> Int32(st.bw))
     set_cell_function!(getfield(rect, :w), () -> Int32(bounds[][2]))
@@ -158,6 +160,7 @@ function _wtl_row(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx
     row_h = ComputedCell(() -> st.row_extent !== nothing ? st.row_extent :
         maximum((_wtl_child_h(entry[3]) for entry in entries); init = 0))
     height = ComputedCell(() -> Int32(bw + pad_y + Int(row_h[]) + pad_y))
+    divider_stroke = _get_state_stroke(p, w, :divider)
     elements = ComputedCellVector(() -> begin
         total_w = Int(st.total_w[])
         edges = st.columns[]
@@ -165,8 +168,8 @@ function _wtl_row(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx
         # A transparent rect the size of the row, so a click on the empty part
         # of a cell reaches the table through a container that gates on a hit.
         push!(out, GraphicsRect(0, 0, total_w, Int(height[]), color_transparent, 0))
-        push!(out, _wtl_band(w, k, st, height, :hover))
-        push!(out, _wtl_band(w, k, st, height, :selection))
+        push!(out, _wtl_band(p, w, k, st, height, :hover))
+        push!(out, _wtl_band(p, w, k, st, height, :selection))
         for c in 1:st.ncols
             (x_cell, y_cell, cim) = entries[c]
             cim === nothing && continue
@@ -177,9 +180,9 @@ function _wtl_row(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx
             push!(out, clip_child_to_slot(child, cim, x_cell, y_cell, x_cell, y_cell, slot_w, slot_h,
                                           true, st.row_extent !== nothing))
         end
-        push!(out, GraphicsRect(0, 0, total_w, bw, p.rule.color))
+        push!(out, GraphicsRect(0, 0, total_w, bw, divider_stroke.color))
         for edge in edges
-            push!(out, GraphicsRect(edge, 0, bw, Int(height[]), p.rule.color))
+            push!(out, GraphicsRect(edge, 0, bw, Int(height[]), divider_stroke.color))
         end
         out
     end)
@@ -249,13 +252,24 @@ end
 function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx)
     _wtl_check(w)
     ncols = Int(w.column_count)
-    pad_x = _sc(Int(p.padding.left[]))
-    pad_y = _sc(Int(p.padding.top[]))
+    pad_x = _sc(Int(p.cell_padding.left[]))
+    pad_y = _sc(Int(p.cell_padding.top[]))
     bw = max(1, _sc(Int(w.border_width)))
     hgap = 2 * pad_x + bw
+    # The table's own box, outside the header and the rows. Its left and right
+    # insets shift every column; its top inset shifts the header down (baked
+    # into `header_height`, below) and, with it, every row. A list has no
+    # bottom edge — rows are drawn one at a time with no total extent — so the
+    # box paints no fill: only its geometry (the offset, and the width it takes
+    # from the offer) applies. Transparent, zero-width by default, so nothing
+    # about the list moves.
+    inset_width, _ = _inset_total(p, w)
+    content_x, content_y = _content_offset(p, w)
     avail_w = ctx === nothing ? nothing : ctx.available_width
+    header_row_color = _get_state_color(p, w, :header_row)
+    divider_stroke = _get_state_stroke(p, w, :divider)
     # The columns from the policies; a weighted column shares what the table was
-    # offered, less the gaps and the closing rule the edges add.
+    # offered, less the gaps, the closing rule and the box that the edges add.
     #
     # A weighted column with no minimum of its own takes the width of its header
     # as its minimum, so a narrow pane scrolls rather than cutting the names of
@@ -271,16 +285,19 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
     end
     widths = ComputedCell(() -> compute_axis_extents(
         SizePolicy[header_floor(c, _wtl_column_policy(w, c)) for c in 1:ncols], hgap,
-        avail_w === nothing ? nothing : max(0, Int(avail_w[]) - hgap - bw)))
+        avail_w === nothing ? nothing : max(0, Int(avail_w[]) - hgap - bw - inset_width)))
     columns = ComputedCell(() -> compute_axis_offsets(widths[], hgap))
     total_w = ComputedCell(() -> last(columns[]) + bw)
     row_policy = w.row_policy::SizePolicy
     row_extent = row_policy.preferred === nothing ? nothing : Int(row_policy.preferred)
+    # `header_height` is the body's y from the table's own origin, which is
+    # the content offset even with no header strip.
     st = WidgetTableListState(ncols, widths, columns, total_w, pad_x, pad_y, bw,
-                              Cell(0), row_extent, Any[], Dict{Int,Any}(), Cell(nothing))
+                              Cell(content_y), row_extent, Any[], Dict{Int,Any}(), Cell(nothing))
 
     # The header strip: the column names, a filled band behind them, drawn at
-    # the top and held still by an enclosing pane. Its height is the body's y.
+    # the top and held still by an enclosing pane. Its height (plus the content
+    # offset) is the body's y.
     has_header = length(w.column_headers) > 0
     header_canvas = nothing
     if has_header
@@ -295,9 +312,9 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
         end
         header_h = ComputedCell(() -> maximum((_wtl_child_h(entry[3]) for entry in st.header_entries); init = 0))
         strip_h = ComputedCell(() -> bw + pad_y + Int(header_h[]) + pad_y)
-        set_cell_function!(st.header_height, () -> Int(strip_h[]))
+        set_cell_function!(st.header_height, () -> content_y + Int(strip_h[]))
         header_elements = ComputedCellVector(() -> begin
-            out = Any[GraphicsRect(0, 0, Int(total_w[]), Int(strip_h[]), p.header_fill)]
+            out = Any[GraphicsRect(0, 0, Int(total_w[]), Int(strip_h[]), header_row_color)]
             for c in 1:ncols
                 (x_cell, y_cell, cim) = st.header_entries[c]
                 cim === nothing && continue
@@ -308,13 +325,13 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
                 push!(out, clip_child_to_slot(child, cim, x_cell, y_cell, x_cell, y_cell,
                                               slot_w, slot_h, true, false))
             end
-            push!(out, GraphicsRect(0, 0, Int(total_w[]), bw, p.rule.color))
+            push!(out, GraphicsRect(0, 0, Int(total_w[]), bw, divider_stroke.color))
             for edge in columns[]
-                push!(out, GraphicsRect(edge, 0, bw, Int(strip_h[]), p.rule.color))
+                push!(out, GraphicsRect(edge, 0, bw, Int(strip_h[]), divider_stroke.color))
             end
             out
         end)
-        header_canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
+        header_canvas = GraphicsCanvas(Cell(Int32(content_x)), Cell(Int32(content_y)),
                                        ComputedCell(() -> Int32(Int(total_w[]))),
                                        ComputedCell(() -> Int32(Int(strip_h[]))),
                                        header_elements, layout_none, true, Cell(nothing))
@@ -332,13 +349,13 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
         head = st.head[]
         head === nothing ? CellVector() : head
     end)
-    body = GraphicsCanvas(Cell(Int32(0)), ComputedCell(() -> Int32(Int(st.header_height[]))),
+    body = GraphicsCanvas(Cell(Int32(content_x)), ComputedCell(() -> Int32(Int(st.header_height[]))),
                           ComputedCell(() -> Int32(Int(total_w[]))), Cell(Int32(0)),
                           body_elements, layout_vertical, false, Cell(nothing))
     ox, oy = _origin(w.position::Point2D)
     elements = CellVector(Cell[Cell(e) for e in (has_header ? Any[header_canvas, body] : Any[body])])
     canvas = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
-                            ComputedCell(() -> Int32(Int(total_w[]))), Cell(Int32(0)),
+                            ComputedCell(() -> Int32(Int(total_w[]) + inset_width)), Cell(Int32(0)),
                             elements, layout_none, true, Cell(nothing))
     WidgetTableListIoMap(p, w, canvas, st)
 end
@@ -363,14 +380,19 @@ _wtl_column_reference(c::Int) =
 
 # Forward: `rows[k][c].…` is answered by the cell's own iomap, once row `k` is
 # built, and a point it answers is moved by the row's place and the header's.
-# `column_headers[c].…` is the header cell's own answer, at the top.
+# `column_headers[c].…` is the header cell's own answer, at the top. Both are
+# in body-local coordinates, so the table's own content offset (the box) is
+# added; `st.header_height` already carries it on the y axis.
 function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, reference)
     st = iomap.state
     reference isa ConcreteReference || return nothing
     head = reference.head
     head isa FieldReferenceStep || return nothing
+    content_x, _ = _content_offset(p, iomap.input)
     if head.name == "column_headers"
-        return descend_reference_forward(st.header_entries, "column_headers", reference)
+        image = descend_reference_forward(st.header_entries, "column_headers", reference)
+        image isa PointReferenceStep || return image
+        return PointReferenceStep(Int(image.x[]) + content_x, Int(image.y[]))
     elseif head.name == "rows"
         split = _wt_cell_split(reference)
         split === nothing && return nothing
@@ -382,14 +404,14 @@ function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTabl
         # cell's own answer, moved by the row's place and the header's.
         if tail isa EmptyReference
             (x_cell, y_cell, _) = entries[c]
-            return PointReferenceStep(Int(x_cell[]),
+            return PointReferenceStep(Int(x_cell[]) + content_x,
                                       Int(y_cell[]) + Int(st.header_height[]) + Int(canvas.y))
         end
         image = descend_reference_forward(entries, "children",
             ConcreteReference(FieldReferenceStep("children"),
                 ConcreteReference(RangeReferenceStep(c - 1, c), tail)))
         image isa PointReferenceStep || return image
-        return PointReferenceStep(Int(image.x[]),
+        return PointReferenceStep(Int(image.x[]) + content_x,
                                   Int(image.y[]) + Int(st.header_height[]) + Int(canvas.y))
     end
     nothing
@@ -424,11 +446,19 @@ function _wtl_row_at(st::WidgetTableListState, y::Int)
     k
 end
 
-function _wtl_click(iomap::WidgetTableListIoMap, g::MousePress)
+# Outside the table's own box (its full outer width) there is no column to
+# answer; inside it, a press on the margin, the border or the padding is
+# clamped into the grid, like every other reader that maps a position to a
+# row or a column.
+function _wtl_click(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, g::MousePress)
     st = iomap.state
+    w = iomap.input
+    content_x, _ = _content_offset(p, w)
+    inset_width, _ = _inset_total(p, w)
     edges = st.columns[]
-    (0 <= g.x < last(edges) + st.bw) || return nothing
-    c = find_axis_band(edges, g.x)
+    (0 <= g.x < last(edges) + st.bw + inset_width) || return nothing
+    x = clamp(g.x - content_x, 0, max(0, last(edges) + st.bw - 1))
+    c = find_axis_band(edges, x)
     c === nothing && return nothing
     header_height = Int(st.header_height[])
     if g.y < header_height
@@ -438,7 +468,7 @@ function _wtl_click(iomap::WidgetTableListIoMap, g::MousePress)
     k = _wtl_row_at(st, g.y - header_height)
     k === nothing && return nothing
     g.modifiers.alt && return ReplaceSelectionOperation(_wtl_cell_reference(k, c, EmptyReference()))
-    _wtl_route_cell_click(iomap, k, c, g)
+    _wtl_route_cell_click(iomap, k, c, g, content_x)
 end
 
 # A click inside a cell goes to the cell's own reader, in the cell's own
@@ -448,7 +478,7 @@ end
 # the click — a label has nothing to say to one — leaves the click to the row,
 # and the row is selected: a table of text is a table of rows, and a list
 # draws no row-header strip to click on instead.
-function _wtl_route_cell_click(iomap::WidgetTableListIoMap, k::Int, c::Int, g::MousePress)
+function _wtl_route_cell_click(iomap::WidgetTableListIoMap, k::Int, c::Int, g::MousePress, content_x::Int)
     st = iomap.state
     _wtl_row_node(st, k) === nothing && return nothing
     canvas, entries = st.built[k]
@@ -457,7 +487,7 @@ function _wtl_route_cell_click(iomap::WidgetTableListIoMap, k::Int, c::Int, g::M
     cim === nothing && return row
     cell = cim.output
     cell isa GraphicsCanvas || return row
-    cell_x = Int(x_cell[]) + Int(cell.x)
+    cell_x = content_x + Int(x_cell[]) + Int(cell.x)
     cell_y = Int(st.header_height[]) + Int(canvas.y) + Int(y_cell[]) + Int(cell.y)
     op = read_intent(cim.projection, cim, MousePress(g.button, g.x - cell_x, g.y - cell_y, g.count, g.modifiers))
     op === nothing && return row
@@ -466,11 +496,13 @@ function _wtl_route_cell_click(iomap::WidgetTableListIoMap, k::Int, c::Int, g::M
 end
 
 # The row, or the row and the cell, under the pointer, written to `hovered`.
-function _wtl_hover(iomap::WidgetTableListIoMap, x::Int, y::Int, force::Bool)
+# Outside the table's own box there is no row to hover.
+function _wtl_hover(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, x::Int, y::Int, force::Bool)
     st = iomap.state
     w = iomap.input
+    inset_width, _ = _inset_total(p, w)
     edges = st.columns[]
-    inside = 0 <= x < last(edges) + st.bw && y >= Int(st.header_height[])
+    inside = 0 <= x < last(edges) + st.bw + inset_width && y >= Int(st.header_height[])
     k = inside ? _wtl_row_at(st, y - Int(st.header_height[])) : nothing
     reference = k === nothing ? nothing : _wtl_row_reference(k)
     current = w.hovered
@@ -557,10 +589,10 @@ end
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, iomap::WidgetTableListIoMap)
     g = change.gesture
     if change.operation === nothing && g isa MousePress && g.button === :left
-        return Intent(g, _wtl_click(iomap, g))
+        return Intent(g, _wtl_click(p, iomap, g))
     end
-    change.operation === nothing && g isa MouseEnter && return Intent(g, _wtl_hover(iomap, g.x, g.y, true))
-    change.operation === nothing && g isa MouseMove && return Intent(g, _wtl_hover(iomap, g.x, g.y, false))
+    change.operation === nothing && g isa MouseEnter && return Intent(g, _wtl_hover(p, iomap, g.x, g.y, true))
+    change.operation === nothing && g isa MouseMove && return Intent(g, _wtl_hover(p, iomap, g.x, g.y, false))
     change.operation === nothing && g isa MouseLeave &&
         return Intent(g, iomap.input.hovered === nothing ? nothing :
                          _write_view_state(iomap.input, "hovered", nothing))
