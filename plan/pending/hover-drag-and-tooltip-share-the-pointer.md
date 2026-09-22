@@ -141,11 +141,14 @@ branch `pointer`, cut from `main` at `8c934f40`.
       hover, and **a divider drag of three moves adds five**, the grab, each move
       and the release.
 
-**What Step 0 adds to the plan.** Two more writes hold pointer state and are
-marked in Step 5 with the others: `dragging`, which splitter a divider drag
-holds, and the tab strip's own drag flag. After Step 5 a divider drag still adds
-a step for the grab, which clears the measured `sizes`, and one for each move.
-**A drag that becomes one step is not in this plan**; the owner has the count.
+**What Step 0 adds to the plan.** One more write holds pointer state and is
+marked in Step 5 with the others: a slider's `dragging`, the flag of a held
+thumb. A divider holds its grab with two typed operations of its own,
+`StartSplitterDragOperation` and `EndSplitterDragOperation`, which the pane layer
+reads by type; they stay steps, and wrapping them would hide them from those
+readers. So after Step 5 a divider drag still adds a step for the grab, one for
+each move and one for the release. **A drag that becomes one step is not in this
+plan**; the owner has the count.
 Scroll positions (`scroll_position`, `tab_scroll`, `follow_end`) are view state
 too, but no gesture of this plan writes them.
 
