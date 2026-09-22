@@ -1,6 +1,6 @@
 # Fix the faults that the documentation survey found
 
-**Status (2026-09-22): IN PROGRESS.** Step 0 runs.
+**Status (2026-09-22): IN PROGRESS.** Step 1 runs.
 
 **Goal:** the faults in the code that `plan/done/package-design-documents.md`
 lists in its section 7 are fixed, each one with a test that fails before the fix
@@ -49,19 +49,26 @@ memory cap of 20 GB. No second Julia process runs at the same time.
 
 ### Step 0: the worktree and the session
 
-- [ ] The worktree, `LocalPreferences.toml` copied, the warm session loaded.
+- [x] The worktree, `LocalPreferences.toml` copied, the warm session loaded
+      (168 s). The session runs as the systemd unit `survey-faults-session`;
+      `run.sh` and `restart.sh` in the scratchpad drive it.
 
 ### Step 1: behaviour a user sees
 
 - [ ] The statistics tab has a natural row.
-- [ ] XML reads a numeric character reference, so a save does not change it.
-- [ ] XML `=` in an attribute name (confirm first).
-- [ ] SQL: a file with several statements, a function call, `JOIN … USING`.
+- [x] XML reads a numeric character reference, so a save does not change it.
+      `a89c7a84`.
+- [x] XML `=` in an attribute name: confirmed; the binding has `override`.
+      `d2581e7f`.
+- [x] SQL: several statements parse into a `SqlStatementList`, a raw
+      expression is a `SqlRawExpression` that prints unquoted, and
+      `JOIN … USING` has a printer rule. `f9d8adfc`.
 - [ ] Console: Escape, an Alt chord, and a CSI key with modifiers.
 - [ ] Assistant: Return while a turn streams does not start a second turn.
 - [ ] PDF: the text size follows the font zoom; glyph fallback.
-- [ ] YAML: export to a `.yml` path.
-- [ ] JSON: a `\u` surrogate pair.
+- [x] YAML: export to a `.yml` path. The guard compares the parsers, through
+      the new `find_natural_parser(format)`. `f7a804bd`.
+- [x] JSON: a `\u` surrogate pair. `d07ae6d9`.
 - [ ] A letter typed into a number is ignored.
 - [ ] Value viewer: a chevron click opens the node (confirm first).
 - [ ] `FaultCatchingProjection` follows the fault policy and passes an
@@ -107,4 +114,17 @@ memory cap of 20 GB. No second Julia process runs at the same time.
 
 ## 5. Decisions
 
+- **Fix agents run one at a time.** They share the warm session, and a
+  restart by one would break the runs of another.
+- **A SQL statement ends at `;` or at the end of the text.** Extra text after a
+  statement raises an error now; before, it was ignored. A SELECT in a
+  `SqlStatementList` prints its `;`.
+
 ## 6. Facts found on the way
+
+- New faults from group A1, not in the survey: `SELECT a + 1 FROM t` reads as
+  `SELECT a`; `SELECT 1` prints an empty `FROM`; the SQL tokenizer raises
+  `StringIndexError` on non-ASCII text; a JSON `\u` with non-hex digits raises
+  `ArgumentError` and not the parser error. The last two go into step 4.
+- `test_catalog_coverage` fails on `main` for 28 types (Assistant, Process,
+  Pane, FaultLog and others). It is not caused by this work.
