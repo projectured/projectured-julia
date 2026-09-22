@@ -209,6 +209,11 @@ struct EvaluateSelectedFormOperation <: Operation
     toplevel::EvaluatorToplevel
 end
 
+# It names the toplevel it evaluates, not a path into one, so there is nothing
+# for a projection to re-root. It travels up the chain as it is, which is what
+# lets an evaluator in a pane tab reach the editor.
+OperationModule.operation_travels_unchanged(::EvaluateSelectedFormOperation) = true
+
 # The 1-based index of the `elements[i]` the caret sits in, or `nothing` when
 # the toplevel's selection does not reach into an element at all.
 function _find_selected_form_index(t::EvaluatorToplevel)

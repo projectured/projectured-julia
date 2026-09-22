@@ -304,6 +304,44 @@ function test_application()
                 end
             end
 
+            @testset "the Evaluator button opens an evaluator, and Alt+Enter evaluates what is typed" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                # A real editor, because an evaluation reads the tools of the editor.
+                editor = Editor(ConsoleBackend(), scene, composed,
+                                Device[Display(), Keyboard(), Mouse()])
+                editor.iomap = iomap
+                press!(event) = begin
+                    operation = _app_fire(composed, editor.iomap, event)
+                    operation isa Operation && evaluate_operation(editor, operation)
+                    editor.iomap = print_document(composed, scene)
+                    operation
+                end
+                drawn() = _app_drawn_strings(get_iomap_output(editor.iomap).windows[1].content)
+                toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
+                button = only(item for item in toolbar.elements
+                              if string(item.action.label) == "Evaluator")
+                evaluate_operation(editor, InvokeActionOperation(button.action))
+                editor.iomap = print_document(composed, scene)
+                (group, index) = get_pane_focus(_app_window(document))
+                evaluator = get_wrapped_document(group.tabs[index].content)
+                @test evaluator isa EvaluatorToplevel
+                # The tab draws the two sections of the form, and not the canvas
+                # of the form as a tree of its fields.
+                form_label, result_label = get_evaluation_section_labels(evaluator.elements[1])
+                @test form_label in drawn() && result_label in drawn()
+                @test !any(text -> occursin("GraphicsCanvas", text), drawn())
+                # The keys reach the form, and Alt+Enter reaches the editor.
+                for character in "1 + 41"
+                    press!(KeyPress(character))
+                end
+                @test evaluator.elements[1].form.value == "1 + 41"
+                @test !any(text -> occursin("42", text), drawn())
+                @test _app_plain(press!(KeyDown(:return, ModifierKeys(alt = true)))) isa
+                      EvaluateSelectedFormOperation
+                @test length(evaluator.elements) == 2
+                @test any(text -> occursin("42", text), drawn())
+            end
+
             @testset "a closed assistant and a closed navigator come back as they were" begin
                 started = make_application_assistant(:ollama; model = "small", context = 4096)
                 document, _ = make_application_window(paths[1:1]; root = dir,
