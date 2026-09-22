@@ -224,5 +224,4 @@ save_user_interface(editor, "session.pred")
 
 - The strip prints a title as a label, so the name changes as a person types it, but the strip draws no caret.
 - An Alt+click on the tab title of a group without the focus brings back the selection that the tab kept. The kernel revives a dormant selection on a write that ends at its keeper. The fix needs a change of a sealed kernel file. `plan/pending/select-a-widget-and-paste-it-into-a-tab.md` holds the item.
-- Under a `WidgetShell`, a tab drag does not start, because the shell gives `MouseDown` to the content with window coordinates. `plan/pending/hover-drag-and-tooltip-share-the-pointer.md` describes the fault.
 - The geometry is proportional. It is not a model of the pixels of the drawing.

@@ -23,7 +23,7 @@
 
 Two values of the package are not widgets. `Action` is a `@document` for a command, and `WidgetTreeNode` is a plain `struct` for a row of a tree. `WidgetToolButton`, `WidgetMessageBox`, `WidgetInputDialog` and `make_embed_card` are builders that return one of the types above.
 
-Most widgets have `visible`, a `tooltip`, and the box fields `margin`, `border` and `padding` with a color for each. An interactive widget also has `enabled`: its reader returns `nothing` for every event while `enabled` is `false`, and its printer uses the muted colors of the theme. Some cells hold the state of the view and not content. Examples are `hovered` and `pressed` of a button, `scroll_position` of a scroll pane, `transform` of a transform pane, `collapsed` of a card, and the drag cells of a split pane. The reader writes them with ordinary operations, so the printer reads them as it reads any other cell.
+Most widgets have `visible`, a `tooltip`, and the box fields `margin`, `border` and `padding` with a color for each. An interactive widget also has `enabled`: its reader returns `nothing` for every event while `enabled` is `false`, and its printer uses the muted colors of the theme. Some cells hold the state of the view and not content. Examples are `hovered` and `pressed` of a button, `scroll_position` of a scroll pane, `transform` of a transform pane, `collapsed` of a card, and the drag cells of a split pane. The reader writes them with ordinary operations, so the printer reads them as it reads any other cell. A write of `hovered`, `pressed` or `dragging` is also marked with `ReplaceViewStateOperation`, so a history does not record the pointer.
 
 `has_document_duplicate(::WidgetDocument)` is `true`, so the duplicate of a pane that holds widgets is a copy. The copy shares its `Action`, because an `Action` declares no duplicate.
 
@@ -178,7 +178,6 @@ write_example_image(widget_tree_example, "tree.png")
 ## Limits
 
 - The readers of `WidgetBadge`, `WidgetSeparator`, `WidgetProgress`, `WidgetRadioGroup`, `WidgetAvatar`, `WidgetAlert`, `WidgetHighlight`, `WidgetSkeleton`, `WidgetToggle`, `WidgetTextarea` and `WidgetAccordion` return `nothing`, and they map no reference. Tab can select a `WidgetToggle`, a `WidgetRadioGroup` or a `WidgetTextarea`, but a key there does nothing.
-- `WidgetShell` gives `MouseDown` and `MouseUp` to its bands with window coordinates, and it keeps no drag. So a tab drag under a shell does not start, and a drag that crosses a band loses its moves. `plan/pending/hover-drag-and-tooltip-share-the-pointer.md` describes the fault and a fix.
 - `ObjectToWidget` maps no reference in either direction, so a caret can not move into the form from outside.
 - A path whose last step is a range writes a vector value as a splice. So an `ObjectField` whose value is a vector can not be replaced as one value.
 - The backends draw only the translation and the scale of a transform. Rotation and shear are dropped.

@@ -251,9 +251,12 @@ too, but no gesture of this plan writes them.
 
 ### Step 7 — close
 
-- [ ] `documentation/package/shell/shell.md`: the order of the fold, the capture,
+- [x] `documentation/package/shell/shell.md`: the order of the fold, the capture,
       and the tooltip's rest. `plan/pending/tooltip.md`: its Step 5, the show
-      delay, is answered by the deadline.
+      delay, is answered by the deadline. The guides of the tooltip, the widget,
+      the pane, the inspector and the undo slice lose the fault as a limit and
+      name the view state; the shell's one limit left is the divider drag, one
+      undo step per move.
 - [ ] Move this plan to `plan/done/`.
 
 ## 5. Risks
