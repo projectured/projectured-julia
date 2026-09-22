@@ -52,7 +52,21 @@ Today the assistant of the study is a `ScriptedLlm` with fixed replies. The Juli
 
 On 2026-09-16 `qwen3.8:27b` solved 5 of 8 problems of the omnet-julia application. One turn took from 13 s to 143 s (`plan/done/assistant-finds-the-api.md`, the baseline table). Later work raised the result to 29 of 33 turns on eleven problems (`documentation/requirement/delivery-roadmap.md`). This machine has 32 cores and 61 GB of memory, and no NVIDIA GPU, so the model runs on the CPU.
 
-### 2.4 The gaps
+### 2.4 The faults found while recording
+
+Three faults of the editor came out of the work on S3 on 2026-09-22. The owner said not to fix a fault that the video work finds, so each one is written here and left alone. Each was found with a headless replay of the gestures through `read_intent` and `evaluate_operation`, over a real `Editor` with a `ConsoleBackend`.
+
+**F1. A file tab of the application takes no character.** Open `person.json` in `bin/projectured`, with content or empty. The pane focus is on the tab, the JSON draws, and no key reaches the document: `x`, `,` and `{` each answer no operation. `Alt+Down`, `Tab` and `Alt+click` answer a `ReplaceSelectionOperation`, so the selection moves, but a key after them still answers nothing. A plain click on the text answers nothing at all. The evaluator tab is the control: in the same window `Ctrl+T`, `Insert`, `repl`, Enter and then `1+2` Enter draw `= 3`. So the window, the reader and the loop work, and what fails is the seat of the selection inside a file tab.
+
+What F1 blocks: every screenplay whose keys go into a file tab, which is S3 in the window, and S5 to S8. It does not block S1, S2 and S4, which type into a tool tab: the evaluator and the assistant.
+
+**F2. After a string value, `Right` then `,` inserts nothing.** This is the rule the `json_build` live example is built on. A replay of its timeline today: 192 of its 210 keys answer no operation, and the document stops at `{"name": "Alice"}`. `Alt+Up` in place of the `Right` works, and the same build then runs with no dead key.
+
+**F3. A nested container is never left.** Inside `"address": { … }`, an `Alt+Up` once, twice or three times does not bring the caret back to the root object. The next entry lands inside the nested object again. The live example uses `Alt+Up` four times for exactly this, so F3 is the other half of what broke it.
+
+The `json_build` recording of Step 0 produced a file of the right length, which is why the baseline called it good. The file shows a document that stops after one entry. §7 Step 0 says so now.
+
+### 2.5 The gaps
 
 | Gap | What is missing |
 | --- | --- |
@@ -162,8 +176,12 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 
 - **Feature:** a structural editor. A key makes a typed element, not a character: `{`, `[`, `"`, `,` and Tab.
 - **Claim:** edits are typed operations on the data, and F1 and the command palette list what works where you are.
-- **Setup:** the timeline of `json_build_live`, moved into the application window after Step 1, 1280×720.
-- **Beats:** the beats of `json_build_live`, then:
+- **Setup:** the single-document recorder (`record_live_example`), 900×720. The application window is not possible while F1 stands, so this video has no menu bar, no toolbar and no tabs.
+- **The take of 2026-09-22.** Recorded: 900×720, 767 frames, 25.6 s, 92 KB, with the human rhythm of D13. The build is `{"name": "Alice", "age": 30, "city": "Wonderland", "address": {"street": "12 Rabbit Lane", "zip": "12345"}}`, and every one of its 84 keys answers an operation, which the script checks headless before it records.
+
+  **What the build must obey, while F2 and F3 stand:** a value is left with `Alt+Up` and never with `Right`; a nested object comes last, because the build can not come out of it again. A number value works when the entry before it was left that way.
+
+- **Beats that wait for F1:** the three below need the window of the application, so they are not in this take.
 
 | # | Action | On the screen | Caption |
 | --- | --- | --- | --- |
@@ -171,7 +189,7 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 | 2 | Press Ctrl+Shift+P, type `sort`, Enter. | The entries of the object sort by key. | A rule with no key is found by its name. |
 | 3 | Press Ctrl+Z. | The old order comes back. | |
 
-- **Acceptance:** the video lasts at most 60 s. Where `json_build_live` is long, the typed values are shortened.
+- **Acceptance:** the video lasts at most 60 s, and every key of the timeline answers an operation. The script replays the timeline headless first, and it records only when no key did nothing. Where `json_build_live` is long, the typed values are shortened.
 
 #### S4. A tool window from widgets
 
@@ -273,7 +291,7 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 ### Step 0: the worktree and the baseline
 
 - [x] Make the worktree: `workspace/projectured-julia-feature-videos`, branch `feature-videos`, from `main` at 47790c4f.
-- [x] Record `json_build_live` as it is today. **It works.** `record_live_example("json_build", path)` in the environment `environment/all` made an MP4 of 760×1000, 1257 frames, 41.9 s, 73 KB. The renames broke nothing of the recording.
+- [x] Record `json_build_live` as it is today. **The recorder works; the example does not.** `record_live_example("json_build", path)` made an MP4 of 760×1000, 1257 frames, 41.9 s, 73 KB, so the machinery of the recording survived the renames. The document in those frames stops at `{"name": "Alice"}`: F2 and F3 of §2.4 break the rest of the timeline. A baseline that counts frames and not content says nothing about the content.
 
       The run also showed this: `ProjecturedSdlExample` exports `LiveExample`, `live_examples`, `play_live_example`, `record_live_example`, `timed_event`, `timed_operation` and `timed_await`, but not the constant of one example. A caller names an example by its string, which the second method of `record_live_example` takes.
 - [ ] The baseline of the scripted `record_mm1k_demo` moves to Step 7, where the work on that video happens. It needs the omnet-julia environment and a built OMNeT++, and minutes of compilation that Step 0 does not need.
@@ -314,7 +332,9 @@ The number of the frames follows the wall clock, so one second of the session is
 
 ### Step 3: S3, JSON from nothing
 
-- [ ] Move `json_build_live` into the application window, add the three beats of §5, record.
+- [x] Find a build that works today, and check it headless before recording. F2 and F3 rule the shape: `Alt+Up` leaves a value, and a nested object comes last.
+- [x] Record it: 25.6 s, 900×720, 84 keys, none of them dead (2026-09-22).
+- [ ] When F1 is fixed, move the video into the application window and add the beats of F1, the command palette and Ctrl+Z.
 
 ### Step 4: S4, a tool window from widgets
 
