@@ -119,7 +119,9 @@ function read_intent(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplaceSelect
     ReplaceSelectionOperation(input_path)
 end
 
-read_intent(::TextLineNumbering, ::SimpleIoMap, evt::KeyDown) = evt
+# A raw gesture falls through to the base `Projection.read_intent`, which reads it
+# with `read_gesture` of the input block: a key is an edit at the caret of the
+# input, or `nothing`, so the stage before this one gets it.
 
 # Walk the input element list mirroring the printer's prefix-insertion
 # logic. For each emitted output element, record the corresponding input

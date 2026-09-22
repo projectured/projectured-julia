@@ -48,4 +48,24 @@ end
     @test map_reference_backward(proj, iomap, _caret(12)) == _caret(4)
 end
 
+@testset "TextLineNumbering reads a key against its input, or returns nothing" begin
+    proj = TextLineNumbering()
+    input = TextBlock(_span("abc"), TextNewline(font = _font), _span("def"))
+    iomap = print_document(proj, input)
+    set_selection!(input, _caret(5))
+    # A key with a rule of the text is an edit at the caret of the input.
+    op = read_intent(proj, iomap, KeyDown(:backspace, ModifierKeys()))
+    @test op isa ReplaceTextRangeOperation
+    @test op isa ReplaceTextRangeOperation &&
+          strip_reference_types(op.reference) == make_flat_range_reference(4, 5) && op.replacement == ""
+    # A key with no rule gets no operation, and the gesture is never the answer.
+    @test read_intent(proj, iomap, KeyDown(:tab, ModifierKeys())) === nothing
+    # In a chain, the stage before the numbering then gets the key.
+    measure(text, font) = (max(1, length(text)) * 10, 24)
+    chain = ChainingProjection(TextLineNumbering(), TextToGraphics(measure = measure))
+    chain_iomap = print_document(chain, input)
+    @test read_intent(chain, chain_iomap, KeyDown(:tab, ModifierKeys())) === nothing
+    @test read_intent(chain, chain_iomap, KeyDown(:return, ModifierKeys())) === nothing
+end
+
 end # test_text_line_numbering

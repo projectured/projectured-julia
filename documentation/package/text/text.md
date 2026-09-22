@@ -86,6 +86,8 @@ A whole-element box, a `TextSpanReferenceStep`, maps through the same table. A s
 
 Each decorator maps the caret in both of its forms, and its output selection is the flat form. `TextLineNumbering` puts the caret after the number of its line, and `TextFirstLine` draws no caret that is after the first line.
 
+A decorator gets a key only when the stages after it return no operation for it. `SelectionInverting` returns `nothing` for a key. The other decorators read the key with `read_gesture` of their input block, so the answer is an edit at the caret of the input, or `nothing`. No decorator returns the key itself, so on `nothing` the stage before it gets the key.
+
 The added spans are the soft `TextNewline` of `WordWrapping` and the number prefix of `TextLineNumbering`. They have no input, so a click on a number goes to the first character of the line. A space at a wrap stays at the end of the upper line, so every input character is in the output once.
 
 `WordWrapping` must get the same `measure` as `TextToGraphics`, or the wrap points and the layout do not agree. Its reader also reads a key against the unwrapped input, so a Backspace across a soft break is an edit inside one span. `TextFiltering` and `TextHighlighting` keep the pattern in a `Cell`: a new pattern filters again, and `nothing` passes everything through. A line of `TextFiltering` ends at a `TextNewline`, and `TextHighlighting` matches inside one span only.
