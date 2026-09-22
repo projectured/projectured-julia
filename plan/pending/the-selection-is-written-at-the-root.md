@@ -11,8 +11,6 @@ reads only its own, and Ctrl+C copies the focused tab in both binaries.
 
 **Repositories:** projectured-julia, then omnet-julia. The plan changes no
 sealed file: the selection layer (`selection/`, 🔒) is called, not changed.
-`document/DocumentInterface.jl` and `document/DocumentDefaults.jl` are not
-sealed.
 
 ## 1. What is wrong
 
