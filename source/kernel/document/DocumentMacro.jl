@@ -380,11 +380,15 @@ function _emit_collection_ctor_at(plan, k)
     filled   = Any[defaults[fields[j]] for j in (k + 1):n]
     params   = Any[j == p ? :($(fields[p])::AbstractVector)         : fields[j] for j in 1:k]
     callargs = Any[j == p ? :($(plan.field_types[p])($(fields[p]))) : fields[j] for j in 1:k]
-    # Named the way Rule Y names it: a schema with parameters of the
-    # programmer's own takes them at the call.
-    named = isempty(plan.params) ? plan.name : Expr(:curly, plan.name, plan.params...)
-    head  = isempty(plan.params) ? :($(plan.name)($(params...))) :
-            Expr(:where, :($(named)($(params...))), plan.params...)
+    # Named the way Rule Y names it: a parameter that no field's declared type
+    # is takes its place at the call, and one that a field's type is comes from
+    # the argument.
+    needs_parameters = !isempty(plan.params) &&
+                       !all(P -> P in plan.field_types, plan.params)
+    named    = needs_parameters ? Expr(:curly, plan.name, plan.params...) : plan.name
+    head     = needs_parameters ?
+               Expr(:where, :($(named)($(params...))), plan.params...) :
+               :($(plan.name)($(params...)))
     (Expr(:(=), head, Expr(:block, Expr(:call, named, callargs..., filled...))),)
 end
 

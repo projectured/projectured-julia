@@ -96,12 +96,19 @@ end
     selection::Nothing
 end
 
-# A schema with a parameter of the programmer's own. Its declared field type is
-# the parameter, so the kind constructors name it and take it at the call —
-# `ICDmParametric{Int}(…)`, the spelling the bare constructor of such a schema
-# takes too.
+# A schema with a parameter of the programmer's own, which IS a field's declared
+# type. The kind constructors name that type, so they take the parameter at the
+# call — `ICDmParametric{Int}(…)`. The bare name stays callable, because the
+# schema's own inferring constructor binds the parameter from the argument.
 @document struct DmParametric{A}
     value::A
+end
+
+# A schema whose parameter appears only INSIDE a field's type, the way
+# `SequentialEngine{A}` holds an `EventHeap{A}`. Nothing binds it from an
+# argument, so every generated constructor takes it at the call.
+@document struct DmNested{A}
+    box::Tuple{A}
 end
 
 # How many methods of `T` take exactly `n` positional arguments, of which the one
@@ -201,10 +208,20 @@ end
     types = DocumentModule._declared_value_types(DmParametric{Int})
     @test types isa Tuple && first(types) === Int
     @test DocumentModule._declared_value_types(DmParametric) === nothing
-    # Rule Y fills the trailing defaults, and it names the parameter the same
-    # way: the injected `selection` is the run it fills.
-    short = DmParametric{Int}(3)
+    # Rule Y fills the trailing defaults — here the injected `selection` — and
+    # the bare name reaches it, because `value` binds the parameter.
+    short = DmParametric(3)
     @test short.value == 3 && short.selection === nothing
+end
+
+@testset "a parameter no field's type is, is taken at every call" begin
+    # Nothing binds `A` from an argument here, so the bare name is not callable
+    # and each generated constructor carries the parameter: the kind ctors, and
+    # Rule Y, which fills the injected `selection`.
+    node = ICDmNested{Int}((3,), nothing)
+    @test node isa ICDmNested{Int} && node.box === (3,)
+    short = DmNested{Int}((3,))
+    @test short.box === (3,) && short.selection === nothing
 end
 
 @testset "the layout registry answers for every variant" begin
