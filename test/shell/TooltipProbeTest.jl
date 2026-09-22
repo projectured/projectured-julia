@@ -160,8 +160,7 @@ end
     end
     @test grab !== nothing
     (x, operation) = grab
-    evaluate_operation(nothing, operation isa StartSplitterDragOperation ? operation :
-                                only(o for o in operation.operations if o isa StartSplitterDragOperation))
+    evaluate_operation(nothing, operation)
     moved = _tooltip_read(composed, scene, MouseMove(x + 30, 100, :left, ModifierKeys()))
     @test _holds_operation(moved, ResizeSplitPaneOperation)
 end

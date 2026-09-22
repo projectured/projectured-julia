@@ -105,6 +105,8 @@ function test_widget_shell_pointer()
         menu_bar = WidgetMenu(Any[WidgetMenuItem("File")]; orientation = :horizontal),
         toolbar = WidgetToolbar(Any[WidgetMenuItem("New tab")]),
         status_bar = WidgetStatusBar(Any["ready"]))
+    # A drag is view state, so its operations come marked.
+    _unmark(op) = op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op
 
     @testset "a down on a tab starts a drag of that tab" begin
         tabs = WidgetTabbedPane(Any[("One", WidgetLabel(Point2D(0, 0), "first")),
@@ -127,7 +129,7 @@ function test_widget_shell_pointer()
         grab = nothing
         for x in 0:799
             operation = read_intent(rec, iomap, MouseDown(:left, x, 300))
-            operation isa StartSplitterDragOperation && (grab = (x, operation); break)
+            _unmark(operation) isa StartSplitterDragOperation && (grab = (x, operation); break)
         end
         @test grab !== nothing
         (x, operation) = grab
@@ -135,9 +137,9 @@ function test_widget_shell_pointer()
         # The pointer moves on over the status line with the button held: the
         # divider still follows, and the release still ends the drag.
         moved = read_intent(rec, iomap, MouseMove(x + 40, 600 - line ÷ 2, :left, ModifierKeys()))
-        @test moved isa ResizeSplitPaneOperation
+        @test _unmark(moved) isa ResizeSplitPaneOperation
         released = read_intent(rec, iomap, MouseUp(:left, x + 40, 600 - line ÷ 2))
-        @test released isa EndSplitterDragOperation
+        @test _unmark(released) isa EndSplitterDragOperation
     end
 end
 end

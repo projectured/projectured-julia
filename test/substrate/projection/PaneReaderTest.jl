@@ -32,7 +32,8 @@ end
 # A grab now arrives inside a compound: the widget's stale measurements are
 # cleared in the same step.
 _starts_drag(op) = op isa StartSplitterDragOperation ||
-                   (op isa CompoundOperation && any(_starts_drag, op.operations))
+                   (op isa CompoundOperation && any(_starts_drag, op.operations)) ||
+                   (op isa ReplaceViewStateOperation && _starts_drag(get_wrapped_operation(op)))
 
 _is_delete(op) = any(w -> w.value isa AbstractVector && isempty(w.value), _writes(op))
 _inserted_titles(op) = [get_pane_tab_title_string(w.value[1]) for w in _writes(op)
@@ -225,14 +226,18 @@ end
     end
     @test grab !== nothing
 
+    # The weight write comes back marked as view state, as the widget marked the
+    # resize it answers, so a history records no part of the drag.
     move = read_intent(proj, iomap, MouseMove(300, 150, :left, ModifierKeys()))
-    @test move isa ReplaceReferencedValueOperation
+    @test move isa ReplaceViewStateOperation
+    @test get_wrapped_operation(move) isa ReplaceReferencedValueOperation
     _apply!(editor, move)
     @test get_pane_weights(tree.root)[1] > 0.6        # the left pane took the space
     @test sum(get_pane_weights(tree.root)) ≈ 1.0
 
     finish = read_intent(proj, iomap, MouseUp(:left, 300, 150, ModifierKeys()))
-    @test finish isa EndSplitterDragOperation
+    @test finish isa ReplaceViewStateOperation
+    @test get_wrapped_operation(finish) isa EndSplitterDragOperation
     _apply!(editor, finish)
     @test tree.root.elements[1] === left          # and the layout kept its shape
 end

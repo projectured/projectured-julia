@@ -523,17 +523,21 @@ function test_application()
                 apply(fire(MouseMove(100, y + 40)))
                 @test steps() == before
 
-                # The divider between the navigator and the files follows the pointer.
+                # The divider between the navigator and the files follows the
+                # pointer, and the history does not grow: a drag is view state.
                 weights() = [Float64(w) for w in tree.root.weights]
                 grab = findfirst(x -> holds(fire(MouseDown(:left, x, 500)),
                                             StartSplitterDragOperation), 280:360)
                 @test grab !== nothing
                 x = (280:360)[grab]
+                recorded = steps()
                 apply(fire(MouseDown(:left, x, 500)))
                 before = weights()
                 apply(fire(held(x + 80, 500)))
-                apply(fire(MouseUp(:left, x + 80, 500)))
+                apply(fire(held(x + 40, 500)))
+                apply(fire(MouseUp(:left, x + 40, 500)))
                 @test weights() != before
+                @test steps() == recorded
 
                 # The file's tab — the one the window opened on — drags into the
                 # navigator's group.

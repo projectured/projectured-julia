@@ -37,17 +37,25 @@ of a drag by type, and it assumed a wrapper would hide them from those readers.
 
 ### Step 1 — the split pane marks its drag
 
-- [ ] `_split_drag_read` in `WidgetToGraphics.jl` answers the three operations
+- [x] `_split_drag_read` in `WidgetToGraphics.jl` answers the three operations
       marked.
-- [ ] The tests that check the three types look through the mark:
+- [x] The tests that check the three types look through the mark:
       `SplitPaneDragTest.jl`, `WidgetShellTest.jl`, `PaneReaderTest.jl`,
       `TooltipProbeTest.jl`. The two negative assertions of
       `SplitPaneDragTest.jl` must unwrap, or they pass for the wrong reason.
       One assertion checks the mark itself.
-- [ ] `test_application()`: across a divider drag in the real window, the
+- [x] `test_application()`: across a divider drag in the real window, the
       window's history does not grow, and the weights still change.
-- [ ] Run `test_substrate()` (baseline 63401 pass, 3 fail, 2 error, 1 broken),
-      `test_shell()` (177) and `test_application()` (126).
+- [x] Run `test_substrate()` (baseline 63401 pass, 3 fail, 2 error, 1 broken),
+      `test_shell()` (177) and `test_application()` (126). Measured:
+      substrate **63404 pass, 3 fail, 2 error, 1 broken**, the 3 new passes
+      being the mark's own assertions and the five failures the known
+      split-pane cases, moved by the lines added above them; shell **177**;
+      application **127**, one new assertion. The pane layer's typed readers
+      run on the operation inside the mark with no change, as §2 expected:
+      the application's drag still changes the weights.
+      A new worktree has no manifest in `package/*Test`: run
+      `Pkg.instantiate()` before the first `using`.
 
 ### Step 2 — the guides, and close
 

@@ -2918,7 +2918,8 @@ end
 # starts, continues, or ends a drag; `nothing` lets the event fall through to
 # the normal child-routing path below. A `MouseDown` on a band starts a drag;
 # `MouseMove` while a drag is active resizes the two adjacent slots relative to
-# the grab origin (so rounding doesn't accumulate); `MouseUp` ends it.
+# the grab origin (so rounding doesn't accumulate); `MouseUp` ends it. All three
+# are marked as view state, so a history records no part of a drag.
 function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap,
                           w::WidgetSplitPane, evt)
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
@@ -2938,7 +2939,7 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoM
         content_main = max(0, outer_main - (orientation === :horizontal ? inset_x : inset_y))
         slot_sizes = _split_measured_sizes(child_iomaps, orientation, thickness, content_main)
         coord = orientation === :horizontal ? evt.x : evt.y
-        return StartSplitterDragOperation(w, k, coord, slot_sizes)
+        return ReplaceViewStateOperation(StartSplitterDragOperation(w, k, coord, slot_sizes))
     elseif evt isa MouseMove && active != 0
         anchor = w.drag_anchor
         anchor === nothing && return nothing
@@ -2960,9 +2961,9 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoM
         new_b = clamp(size_b - (new_a - size_a), min_b, max_b)
         new_a = clamp(size_a + size_b - new_b, min_a, max_a)
         new_b = size_a + size_b - new_a
-        return ResizeSplitPaneOperation(w, k, new_a, new_b)
+        return ReplaceViewStateOperation(ResizeSplitPaneOperation(w, k, new_a, new_b))
     elseif evt isa MouseUp && evt.button === :left && active != 0
-        return EndSplitterDragOperation(w)
+        return ReplaceViewStateOperation(EndSplitterDragOperation(w))
     end
     nothing
 end
