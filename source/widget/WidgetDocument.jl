@@ -1368,7 +1368,7 @@ end
 # ── WidgetBadge ─────────────────────────────────────────────────────────────
 
 """
-    WidgetBadge(position, content; variant=:default)
+    WidgetBadge(position, content; variant=:default, <base kwargs>)
 
 A small pill with one word: a status.
 
@@ -1389,15 +1389,21 @@ See also `WidgetAlert` for a message with a title, and `WidgetLabel`.
     content::Any
     variant::Symbol
     visible::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     tooltip::Any
 end
-WidgetBadge(position::Point2D, content; variant::Symbol=:default, visible::Bool=true, tooltip=nothing) =
-    WidgetBadge(Cell(position), Cell(content), Cell(variant), Cell(visible), Cell(tooltip), Cell(nothing))
+WidgetBadge(position::Point2D, content; variant::Symbol=:default, visible::Bool=true,
+            margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
+    WidgetBadge(Cell(position), Cell(content), Cell(variant), Cell(visible),
+               Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
 
 """
-    WidgetSeparator(position; orientation=:horizontal, length=200)
+    WidgetSeparator(position; orientation=:horizontal, length=200, <base kwargs>)
 
 A thin rule that divides two parts.
 
@@ -1418,17 +1424,23 @@ See also `WidgetCard`, which frames a group instead of dividing two.
     orientation::Symbol
     length::Int
     visible::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     tooltip::Any
 end
 WidgetSeparator(position::Point2D; orientation::Symbol=:horizontal,
-                length::Integer=200, visible::Bool=true, tooltip=nothing) =
-    WidgetSeparator(Cell(position), Cell(orientation), Cell(Int(length)), Cell(visible), Cell(tooltip), Cell(nothing))
+                length::Integer=200, visible::Bool=true,
+                margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
+    WidgetSeparator(Cell(position), Cell(orientation), Cell(Int(length)), Cell(visible),
+                    Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetCard ──────────────────────────────────────────────────────────────
 
 """
     WidgetCard(position; title, description, content, footer, width=0, collapsed=false,
-               variant=:card, collapsible=false, padding=-1)
+               variant=:card, collapsible=false, <base kwargs>)
 
 A surface with a title, a description, a content body and a footer, stacked
 from top to bottom; each part is optional.
@@ -1459,11 +1471,11 @@ read, so a card that is not collapsible does not fold from a click. It needs a
 box. A producer whose fold state lives elsewhere — a domain node's flag — makes
 `collapsed` a computed cell that reads it.
 
-`padding` is the card's own padding: a number of pixels on every side, or an
-`Inset` with a number per side. A negative number, the default, means the
-theme's. A `:plain` card with `padding = 0` draws nothing and occupies nothing
-beyond its content, and one with `padding = Inset(0, 0, 12, 0)` is indented by
-12 pixels and nothing else, which is what a section inside another card needs.
+`padding` is the card's own padding: an `Inset` with a number of pixels per
+side. `nothing`, the default, means the theme's. A `:plain` card with
+`padding = Inset(0, 0, 0, 0)` draws nothing and occupies nothing beyond its
+content, and one with `padding = Inset(0, 0, 12, 0)` is indented by 12 pixels
+and nothing else, which is what a section inside another card needs.
 
 `variant` says how loud the surface is. The card keeps its shape, its padding
 and its header in every variant — only the panel behind them changes:
@@ -1500,7 +1512,10 @@ folding sections, and `VerticalLayout` to stack cards.
     collapsed::Bool
     variant::Symbol
     collapsible::Bool
-    padding::Any
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     tooltip::Any
 end
 
@@ -1520,11 +1535,13 @@ tall content simply extends past the card.
 WidgetCard(position::Point2D; title=nothing, description=nothing, content=nothing,
            footer=nothing, width::Integer=0, height::Integer=0,
            visible::Bool=true, collapsed::Bool=false, variant::Symbol=:card,
-           collapsible::Bool=false, padding::Union{Integer,Inset}=-1, tooltip=nothing) =
+           collapsible::Bool=false, margin=nothing, border=nothing, padding=nothing,
+           style=nothing, tooltip=nothing) =
     WidgetCard(Cell(position), Cell(title), Cell(description), Cell(content),
                Cell(footer), Cell(Int(width)), Cell(Int(height)),
                Cell(visible), Cell(collapsed), Cell(variant),
-               Cell(collapsible), Cell(padding isa Inset ? padding : Int(padding)), Cell(tooltip), Cell(nothing))
+               Cell(collapsible), Cell(margin), Cell(border), Cell(padding), Cell(style),
+               Cell(tooltip), Cell(nothing))
 
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
@@ -1698,7 +1715,7 @@ WidgetRadioGroup(position::Point2D, options::Vector; selected::Integer=1, visibl
 # ── WidgetAvatar ────────────────────────────────────────────────────────────
 
 """
-    WidgetAvatar(position, initials; size=64)
+    WidgetAvatar(position, initials; size=64, <base kwargs>)
 
 A circular avatar showing initials (image-clipping is future work).
 """
@@ -1707,15 +1724,21 @@ A circular avatar showing initials (image-clipping is future work).
     initials::Any
     size::Int
     visible::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     tooltip::Any
 end
-WidgetAvatar(position::Point2D, initials; size::Integer=64, visible::Bool=true, tooltip=nothing) =
-    WidgetAvatar(Cell(position), Cell(initials), Cell(Int(size)), Cell(visible), Cell(tooltip), Cell(nothing))
+WidgetAvatar(position::Point2D, initials; size::Integer=64, visible::Bool=true,
+             margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
+    WidgetAvatar(Cell(position), Cell(initials), Cell(Int(size)), Cell(visible),
+                Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetAlert ─────────────────────────────────────────────────────────────
 
 """
-    WidgetAlert(position, title, description; icon=nothing, variant=:default, width=0)
+    WidgetAlert(position, title, description; icon=nothing, variant=:default, width=0, <base kwargs>)
 
 A bordered message with a bold title and a muted description.
 
@@ -1742,17 +1765,23 @@ line.
     variant::Symbol
     width::Int
     visible::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     tooltip::Any
 end
 WidgetAlert(position::Point2D, title, description=nothing; icon=nothing,
-            variant::Symbol=:default, width::Integer=0, visible::Bool=true, tooltip=nothing) =
+            variant::Symbol=:default, width::Integer=0, visible::Bool=true,
+            margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetAlert(Cell(position), Cell(title), Cell(description), Cell(icon), Cell(variant),
-                Cell(Int(width)), Cell(visible), Cell(tooltip), Cell(nothing))
+                Cell(Int(width)), Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetSkeleton ──────────────────────────────────────────────────────────
 
 """
-    WidgetSkeleton(position; width=240, height=20)
+    WidgetSkeleton(position; width=240, height=20, <base kwargs>)
 
 A muted rounded placeholder block for loading states.
 """
@@ -1761,15 +1790,21 @@ A muted rounded placeholder block for loading states.
     width::Int
     height::Int
     visible::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     tooltip::Any
 end
-WidgetSkeleton(position::Point2D; width::Integer=240, height::Integer=20, visible::Bool=true, tooltip=nothing) =
-    WidgetSkeleton(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible), Cell(tooltip), Cell(nothing))
+WidgetSkeleton(position::Point2D; width::Integer=240, height::Integer=20, visible::Bool=true,
+               margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
+    WidgetSkeleton(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible),
+                  Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetHighlight ─────────────────────────────────────────────────────────
 
 """
-    WidgetHighlight(position; width, height, visible)
+    WidgetHighlight(position; width, height, visible, style)
 
 A translucent accent rectangle with an accent outline: **an area called out**,
 not a control. It draws nothing of its own beyond that, takes no input, and is
@@ -1787,10 +1822,13 @@ must not do.
     width::Int
     height::Int
     visible::Bool
+    style::Any
     tooltip::Any
 end
-WidgetHighlight(position::Point2D; width::Integer=120, height::Integer=80, visible::Bool=true, tooltip=nothing) =
-    WidgetHighlight(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible), Cell(tooltip), Cell(nothing))
+WidgetHighlight(position::Point2D; width::Integer=120, height::Integer=80, visible::Bool=true,
+                style=nothing, tooltip=nothing) =
+    WidgetHighlight(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible), Cell(style),
+                    Cell(tooltip), Cell(nothing))
 
 # ── WidgetToggle ────────────────────────────────────────────────────────────
 

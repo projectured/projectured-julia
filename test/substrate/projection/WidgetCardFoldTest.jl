@@ -108,7 +108,8 @@ function test_widget_card_fold()
         proj = _fold_proj()
         themed = print_document(proj, proj, WidgetCard(Point2D(0, 0); content = "abc", variant = :plain),
                                 PrinterContext()).output
-        bare = print_document(proj, proj, WidgetCard(Point2D(0, 0); content = "abc", variant = :plain, padding = 0),
+        bare = print_document(proj, proj, WidgetCard(Point2D(0, 0); content = "abc", variant = :plain,
+                                                     padding = Inset(0, 0, 0, 0)),
                               PrinterContext()).output
         # The themed padding is 16 on each side; the bare card has none.
         @test Int(bare.w[]) == Int(themed.w[]) - 32

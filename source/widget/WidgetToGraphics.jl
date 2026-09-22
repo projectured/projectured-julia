@@ -404,8 +404,11 @@ function _push_box_parts!(elements::Vector, box, colors, content_width::Int, con
     _push_band!(elements, margin_left + border_left, margin_top + border_top,
                 padding_left + content_width + padding_right, padding_top + content_height + padding_bottom,
                 box.padding, colors.padding)
+    # The content keeps the corner radius, less the border and the padding
+    # that lie between it and the rounded outline.
     _push_panel!(elements, margin_left + border_left + padding_left, margin_top + border_top + padding_top,
-                 content_width, content_height; fill = colors.content)
+                 content_width, content_height; fill = colors.content,
+                 radius = max(0, radius - border_left - padding_left))
 end
 
 # Push the band of `sides` inside a rectangle whose origin and size are thunks:
@@ -5091,43 +5094,74 @@ end
 
 @projection struct WidgetBadgeToGraphicsCanvas
     measure::Function
-    font::StyleFont                # small pill font
+    margin::Inset
+    border::Inset
     padding::Inset
-    border_width::Int              # outline width (outline variant only)
-    default_fill::StyleColor
-    default_foreground::StyleColor
-    secondary_fill::StyleColor
-    secondary_foreground::StyleColor
-    destructive_fill::StyleColor
-    destructive_foreground::StyleColor
-    outline_fill::StyleColor
-    outline_foreground::StyleColor
-    outline_border::StyleColor
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    label_text::ImmutableCell{StyleText}
+    secondary_padding_color::StyleColor
+    secondary_content_color::StyleColor
+    secondary_border_color::StyleColor
+    secondary_label_text::ImmutableCell{StyleText}
+    destructive_padding_color::StyleColor
+    destructive_content_color::StyleColor
+    destructive_border_color::StyleColor
+    destructive_label_text::ImmutableCell{StyleText}
+    outline_padding_color::StyleColor
+    outline_content_color::StyleColor
+    outline_border_color::StyleColor
+    outline_label_text::ImmutableCell{StyleText}
 end
+
+# The border inset is the theme's width in every variant, so a badge keeps its
+# size when its variant changes; only the outline variant shows a visible
+# border color.
+WidgetBadgeToGraphicsCanvas(theme::WidgetTheme; measure,
+                            margin = inset_default, border = _make_uniform_inset(theme.border_width),
+                            padding = Inset(3, 3, 10, 10),
+                            margin_color = color_transparent, border_color = color_transparent,
+                            padding_color = theme.primary, content_color = theme.primary,
+                            label_text = StyleText(theme.font_small, theme.primary_foreground),
+                            secondary_padding_color = theme.secondary, secondary_content_color = theme.secondary,
+                            secondary_border_color = color_transparent,
+                            secondary_label_text = StyleText(theme.font_small, theme.secondary_foreground),
+                            destructive_padding_color = theme.destructive, destructive_content_color = theme.destructive,
+                            destructive_border_color = color_transparent,
+                            destructive_label_text = StyleText(theme.font_small, theme.destructive_foreground),
+                            outline_padding_color = theme.background, outline_content_color = theme.background,
+                            outline_border_color = theme.border,
+                            outline_label_text = StyleText(theme.font_small, theme.foreground)) =
+    WidgetBadgeToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
+                                content_color, label_text,
+                                secondary_padding_color, secondary_content_color, secondary_border_color,
+                                secondary_label_text,
+                                destructive_padding_color, destructive_content_color, destructive_border_color,
+                                destructive_label_text,
+                                outline_padding_color, outline_content_color, outline_border_color,
+                                outline_label_text)
 
 function print_document(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBadge, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         text = string(w.content)
-        fill, foreground, border = if w.variant === :secondary
-            (p.secondary_fill, p.secondary_foreground, nothing)
-        elseif w.variant === :destructive
-            (p.destructive_fill, p.destructive_foreground, nothing)
-        elseif w.variant === :outline
-            (p.outline_fill, p.outline_foreground, p.outline_border)
-        else
-            (p.default_fill, p.default_foreground, nothing)
-        end
-        padding_x = _sc(Int(p.padding.left[]))
-        padding_y = _sc(Int(p.padding.top[]))
-        text_width, text_height = _text_size(p.measure, p.font, text)
-        badge_width  = _resolve_width(ctx, 0, text_width + 2padding_x)
-        badge_height = _resolve_height(ctx, 0, text_height + 2padding_y)
-        border_width = border !== nothing ? max(1, _sc(p.border_width)) : 0
+        variant = w.variant === :default ? nothing : w.variant
+        label = _get_state_text(p, w, :label; variant)
+        content_width, content_height = _text_size(p.measure, label.font, text)
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w; variant)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
+        badge_width  = _resolve_width(ctx, 0, content_width + inset_width)
+        badge_height = _resolve_height(ctx, 0, content_height + inset_height)
+        border_box_height = box.border[2] + box.padding[2] + content_height + box.padding[4] + box.border[4]
+        radius = border_box_height ÷ 2
         elements = Any[]
-        _push_panel!(elements, 0, 0, badge_width, badge_height; fill=fill, border=border, border_w=border_width, radius=badge_height ÷ 2)
-        push!(elements, GraphicsText(text, padding_x, (badge_height - text_height) ÷ 2, p.font, foreground))
+        _push_box_parts!(elements, box, colors, badge_width - inset_width, badge_height - inset_height; radius)
+        push!(elements, GraphicsText(text, content_x, content_y, label.font, label.color))
         (width=badge_width, height=badge_height, elements=elements)
     end))
 end
@@ -5136,24 +5170,54 @@ end
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
 
 @projection struct WidgetSeparatorToGraphicsCanvas
-    stroke::StyleStroke    # color + width of the rule
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    divider_stroke::StyleStroke    # color + width of the rule
 end
+
+WidgetSeparatorToGraphicsCanvas(theme::WidgetTheme;
+                                margin = inset_default, border = inset_default, padding = inset_default,
+                                margin_color = color_transparent, border_color = color_transparent,
+                                padding_color = color_transparent, content_color = color_transparent,
+                                divider_stroke = StyleStroke(theme.border, theme.border_width)) =
+    WidgetSeparatorToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
+                                    content_color, divider_stroke)
 
 function print_document(p::WidgetSeparatorToGraphicsCanvas, recursion, w::WidgetSeparator, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         rule_length = _sc(Int(w.length))
-        thickness = max(1, _sc(p.stroke.width))
+        divider_stroke = _get_state_stroke(p, w, :divider)
+        thickness = max(1, _sc(divider_stroke.width))
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
         elements = Any[]
         if w.orientation === :vertical
-            len = _resolve_height(ctx, rule_length)
-            push!(elements, GraphicsLine(0, 0, 0, len, p.stroke.color; width=thickness))
-            (width=thickness, height=len, elements=elements)
+            outer_height = _resolve_height(ctx, rule_length > 0 ? rule_length + inset_height : 0,
+                                           rule_length + inset_height)
+            line_length = outer_height - inset_height
+            outer_width = thickness + inset_width
+            _push_box_parts!(elements, box, colors, thickness, line_length)
+            push!(elements, GraphicsLine(content_x, content_y, content_x, content_y + line_length,
+                                         divider_stroke.color; width=thickness))
+            (width=outer_width, height=outer_height, elements=elements)
         else
-            len = _resolve_width(ctx, rule_length)
-            push!(elements, GraphicsLine(0, 0, len, 0, p.stroke.color; width=thickness))
-            (width=len, height=thickness, elements=elements)
+            outer_width = _resolve_width(ctx, rule_length > 0 ? rule_length + inset_width : 0,
+                                         rule_length + inset_width)
+            line_length = outer_width - inset_width
+            outer_height = thickness + inset_height
+            _push_box_parts!(elements, box, colors, line_length, thickness)
+            push!(elements, GraphicsLine(content_x, content_y, content_x + line_length, content_y,
+                                         divider_stroke.color; width=thickness))
+            (width=outer_width, height=outer_height, elements=elements)
         end
     end))
 end
@@ -5163,21 +5227,79 @@ end
 
 @projection struct WidgetCardToGraphicsCanvas
     measure::Function
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor          # card fill, in the :card variant
+    content_color::StyleColor          # card fill, in the :card variant
     title_text::ImmutableCell{StyleText}
     description_text::ImmutableCell{StyleText}
-    content_text::ImmutableCell{StyleText}
+    body_text::ImmutableCell{StyleText}
     footer_text::ImmutableCell{StyleText}
-    surface_color::StyleColor      # card fill, in the :card variant
-    tint_color::StyleColor         # card fill, in the :tinted variant
-    muted_color::StyleColor        # card fill, in the :muted variant
-    border::StyleStroke
+    header_color::StyleColor           # behind the title and the description
+    body_color::StyleColor             # behind the content
+    footer_color::StyleColor           # behind the footer
+    tinted_border_color::StyleColor
+    tinted_padding_color::StyleColor   # card fill, in the :tinted variant
+    tinted_content_color::StyleColor   # card fill, in the :tinted variant
+    muted_border_color::StyleColor
+    muted_padding_color::StyleColor    # card fill, in the :muted variant
+    muted_content_color::StyleColor    # card fill, in the :muted variant
+    plain_border_color::StyleColor
+    plain_padding_color::StyleColor
+    plain_content_color::StyleColor
+    chevron_color::StyleColor          # the fold mark of a collapsible card
+    selection_ring_stroke::StyleStroke # the ring over the slot selected as a whole
     corner_radius::Int
-    padding::Int                   # uniform card padding, unless the card names its own
     title_gap::Int
     section_gap::Int
-    chevron::StyleStroke           # the fold mark of a collapsible card
-    chevron_size::Int              # its half-size
+    chevron_size::Int                  # its half-size
 end
+
+# The padding of the projection is 16 on every side, unless the card names its
+# own (`nothing` takes this default, by the rule of `_get_box_insets`).
+WidgetCardToGraphicsCanvas(theme::WidgetTheme; measure,
+                           margin = inset_default, border = _make_uniform_inset(theme.border_width),
+                           padding = Inset(16, 16, 16, 16),
+                           margin_color = color_transparent, border_color = theme.border,
+                           padding_color = theme.card, content_color = theme.card,
+                           title_text = StyleText(theme.font_bold, theme.foreground),
+                           description_text = StyleText(theme.font_small, theme.muted_foreground),
+                           body_text = StyleText(theme.font, theme.card_foreground),
+                           footer_text = StyleText(theme.font_small, theme.muted_foreground),
+                           header_color = color_transparent, body_color = color_transparent,
+                           footer_color = color_transparent,
+                           # The tint is NEUTRAL, and it is a step of depth rather than a change
+                           # of hue. Two quiet surfaces nest — a band holds a panel — so they have
+                           # to be ordered, and a ladder only reads as one if every rung moves the
+                           # same way. The accent-derived tint moved toward BLUE while `muted`
+                           # moved toward grey, so against any other color on the page the band
+                           # read as a cast on the background rather than as a surface, and beside
+                           # a panel the two pulled apart instead of stacking.
+                           #
+                           # Neutral leaves the role to be said by the thing that says it well: the
+                           # colored mark and word on the role line.
+                           tinted_border_color = color_transparent,
+                           tinted_padding_color = color_interpolate(theme.muted, theme.background, 0.5),
+                           tinted_content_color = color_interpolate(theme.muted, theme.background, 0.5),
+                           muted_border_color = color_transparent,
+                           muted_padding_color = theme.muted, muted_content_color = theme.muted,
+                           plain_border_color = color_transparent,
+                           plain_padding_color = color_transparent, plain_content_color = color_transparent,
+                           chevron_color = theme.muted_foreground,
+                           selection_ring_stroke = StyleStroke(theme.selection, 2),
+                           corner_radius = theme.radius, title_gap = 4, section_gap = 10,
+                           chevron_size = theme.chevron) =
+    WidgetCardToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
+                               content_color, title_text, description_text, body_text, footer_text,
+                               header_color, body_color, footer_color,
+                               tinted_border_color, tinted_padding_color, tinted_content_color,
+                               muted_border_color, muted_padding_color, muted_content_color,
+                               plain_border_color, plain_padding_color, plain_content_color,
+                               chevron_color, selection_ring_stroke, corner_radius, title_gap, section_gap,
+                               chevron_size)
 
 # The column a collapsible card's chevron takes, left of everything else the
 # card draws: two half-sizes of the mark and the title gap. Zero for a card that
@@ -5191,31 +5313,28 @@ _card_chevron_column(p, w::WidgetCard) =
 # click on the title is a click on the title.
 function _card_fold_box(p, w::WidgetCard, header_h::Integer)
     (w.collapsible === true && w.title isa Document) || return nothing
-    pad_top, _, pad_left, _ = _card_padding(p, w)
-    (pad_left, pad_top, pad_left + _card_chevron_column(p, w), pad_top + Int(header_h))
-end
-
-# The padding a card draws with, as `(top, bottom, left, right)`: its own when it
-# names one — one number for every side, or an `Inset` — else the theme's.
-function _card_padding(p, w::WidgetCard)
-    own = w.padding
-    own isa Inset && return (_sc(Int(own.top[])), _sc(Int(own.bottom[])),
-                             _sc(Int(own.left[])), _sc(Int(own.right[])))
-    n = Int(own) >= 0 ? _sc(Int(own)) : _sc(p.padding)
-    (n, n, n, n)
+    content_x, content_y = _content_offset(p, w)
+    (content_x, content_y, content_x + _card_chevron_column(p, w), content_y + Int(header_h))
 end
 
 # Lay out the card body: stack title/description/content/footer top-to-bottom,
-# size the card to them, and draw the surface panel behind. Reads the recursed
-# title/content iomaps' reactive sizes (`inner.h[]`/`inner.w[]`), so the enclosing
-# `build` cell re-runs when the content grows — that is what keeps the card's
-# border, height, and child positions in step with reactive content.
+# size the card to them, and draw the box and the three region panels behind
+# them. Reads the recursed title/content iomaps' reactive sizes (`inner.h[]`/
+# `inner.w[]`), so the enclosing `build` cell re-runs when the content grows —
+# that is what keeps the card's border, height, and child positions in step
+# with reactive content.
 function _card_build(p, w, ctx, tim, cim)
-    pad_top, pad_bottom, pad_left, pad_right = _card_padding(p, w)
-    elements = Any[]
+    variant = w.variant === :card ? nothing : w.variant
+    box = _get_box_insets(p, w)
+    colors = _get_box_colors(p, w; variant)
+    content_x, content_y = _content_offset(p, w)
+    inset_width, inset_height = _inset_total(p, w)
+    header_elements = Any[]
+    body_elements = Any[]
+    footer_elements = Any[]
     child_iomaps = Any[]
     max_content_width = 0   # widest content row, to size the card to its content
-    y = pad_top
+    y = content_y
     # A collapsible card draws a chevron in a column of its own, and everything
     # else — the title, the description, the body, the footer — starts past
     # that column, so the body lines up under the title's word and not under
@@ -5223,20 +5342,22 @@ function _card_build(p, w, ctx, tim, cim)
     # on the header's own middle line. Reading `collapsed` here is what flips it
     # without a re-print.
     column = _card_chevron_column(p, w)
-    padding = pad_left + column
-    pad_x = padding + pad_right
+    padding = content_x + column
+    pad_x = inset_width + column
     # The width the card's own texts break to: the width it was told to be, else
-    # the width it was offered, less the padding on both sides and the chevron
+    # the width it was offered, less the insets on both sides and the chevron
     # column. With neither there is no bound, and each text is the one line it
     # measures.
     avail_w = ctx === nothing ? nothing : ctx.available_width
     authored_width = _sc(Int(w.width))
     text_bound = authored_width > 0 ? max(0, authored_width - pad_x) :
                  avail_w !== nothing ? max(0, Int(avail_w[]) - pad_x) : 0
+    header_top = y
     header_h = 0
+    title_text = _get_state_text(p, w, :title)
     if tim !== nothing
         push!(child_iomaps, (padding, y, tim))
-        push!(elements, _make_canvas(padding, y, Any[tim.output]))
+        push!(header_elements, _make_canvas(padding, y, Any[tim.output]))
         inner = tim.output
         if inner isa GraphicsCanvas
             header_h = Int(inner.h[])
@@ -5246,7 +5367,7 @@ function _card_build(p, w, ctx, tim, cim)
             y += _sc(p.title_gap)
         end
     elseif w.title !== nothing
-        title_width, title_height = _push_text_block!(elements, p.measure, p.title_text,
+        title_width, title_height = _push_text_block!(header_elements, p.measure, title_text,
                                                       string(w.title), padding, y, text_bound)
         header_h = title_height
         max_content_width = max(max_content_width, title_width); y += title_height + _sc(p.title_gap)
@@ -5255,8 +5376,9 @@ function _card_build(p, w, ctx, tim, cim)
         chevron_size = _sc(p.chevron_size)
         # The mark sits one pixel under the header's middle line: a word's ink
         # sits under the middle of its box, and the mark belongs beside the ink.
-        _push_chevron!(elements, pad_left + chevron_size, pad_top + header_h ÷ 2 + _sc(1), chevron_size,
-                       w.collapsed === true ? :right : :down, p.chevron.color)
+        _push_chevron!(header_elements, content_x + chevron_size, content_y + header_h ÷ 2 + _sc(1),
+                       chevron_size, w.collapsed === true ? :right : :down,
+                       _get_state_color(p, w, :chevron))
     end
     fold_box = _card_fold_box(p, w, header_h)
     if fold_box !== nothing
@@ -5264,15 +5386,18 @@ function _card_build(p, w, ctx, tim, cim)
         # drew, and the two strokes of the mark cover little of its column. A
         # transparent rectangle makes the whole column the target.
         x0, y0, x1, y1 = fold_box
-        push!(elements, GraphicsRect(x0, y0, x1 - x0, y1 - y0, color_transparent, 0))
+        push!(header_elements, GraphicsRect(x0, y0, x1 - x0, y1 - y0, color_transparent, 0))
     end
+    description_text = _get_state_text(p, w, :description)
     if w.description !== nothing
         description_width, description_height =
-            _push_text_block!(elements, p.measure, p.description_text,
+            _push_text_block!(header_elements, p.measure, description_text,
                               string(w.description), padding, y, text_bound)
         max_content_width = max(max_content_width, description_width)
         y += description_height + _sc(p.section_gap)
     end
+    header_bottom = y
+    body_top = y
     content = w.content
     # A collapsed card draws its header and nothing else. Reading `collapsed`
     # here is what lets a card whose body is a plain Document fold: such a body
@@ -5280,6 +5405,7 @@ function _card_build(p, w, ctx, tim, cim)
     # `_collapsible_card` in ObjectToWidget). The recursed `cim` stays alive
     # outside this cell, so unfolding places the child again without a re-print.
     collapsed = w.collapsed === true
+    body_text = _get_state_text(p, w, :body)
     if collapsed
         nothing                        # the header is the whole card
     elseif cim !== nothing
@@ -5293,50 +5419,59 @@ function _card_build(p, w, ctx, tim, cim)
         # what the body drew.
         if inner isa GraphicsCanvas && text_bound > 0
             clip_w = text_bound
-            push!(elements, GraphicsViewport(Cell(Int32(padding)), Cell(Int32(y)),
+            push!(body_elements, GraphicsViewport(Cell(Int32(padding)), Cell(Int32(y)),
                                              Cell(Int32(clip_w)), Cell(Int32(Int(inner.h[]))),
                                              Cell(_make_canvas(0, 0, Any[inner])),
                                              Cell(affine_identity),
                                              Cell(nothing)))
             max_content_width = max(max_content_width, min(Int(inner.w[]), clip_w))
         else
-            push!(elements, _make_canvas(padding, y, Any[inner]))
+            push!(body_elements, _make_canvas(padding, y, Any[inner]))
             inner isa GraphicsCanvas && (max_content_width = max(max_content_width, Int(inner.w[])))
         end
         y += inner isa GraphicsCanvas ? Int(inner.h[]) : 0
     elseif content isa AbstractString
-        content_width, content_height = _push_text_block!(elements, p.measure, p.content_text,
+        content_width, content_height = _push_text_block!(body_elements, p.measure, body_text,
                                                           content, padding, y, text_bound)
         max_content_width = max(max_content_width, content_width); y += content_height
     end
+    body_bottom = y
     # The section gap separates the content from a footer. With no footer there
     # is nothing to separate, and the card ends at its padding.
+    footer_top = y
+    footer_text = _get_state_text(p, w, :footer)
     if w.footer !== nothing
         y += _sc(p.section_gap)
-        footer_width, footer_height = _push_text_block!(elements, p.measure, p.footer_text,
+        footer_top = y
+        footer_width, footer_height = _push_text_block!(footer_elements, p.measure, footer_text,
                                                         string(w.footer), padding, y, text_bound)
         max_content_width = max(max_content_width, footer_width); y += footer_height
     end
+    footer_bottom = y
     card_width = _resolve_width(ctx, authored_width, max_content_width + pad_x)
     # A fixed card is exactly its declared height; a content-tall one grows to fit.
     fixed_height = _sc(Int(w.height))
+    bottom_inset = box.margin[4] + box.border[4] + box.padding[4]
     card_height = fixed_height > 0 ? fixed_height :
-                  _resolve_height(ctx, 0, y + pad_bottom)
-    # Card surface drawn first (behind content). The variant says how loud that
-    # surface is; the card keeps its shape and its padding in all three, so only
-    # the panel changes. `:plain` draws no panel at all — a fill with zero alpha
-    # would still cost a rect, and a card that announces nothing should cost
-    # nothing.
+                  _resolve_height(ctx, 0, y + bottom_inset)
+    region_width = card_width - inset_width
+    # The box, drawn first (behind content). The variant says how loud its
+    # surface is; the card keeps its shape and its insets in all four, so only
+    # the colors change. `:plain` draws no panel at all: its three box colors
+    # are transparent, and `_push_box_parts!` skips a transparent part.
     surface = Any[]
-    variant = w.variant
-    if variant !== :plain
-        fill = variant === :tinted ? p.tint_color :
-               variant === :muted  ? p.muted_color : p.surface_color
-        border = variant === :card ? p.border.color : nothing
-        _push_panel!(surface, 0, 0, card_width, card_height; fill=fill, border=border,
-                     border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
-    end
-    append!(surface, elements)
+    _push_box_parts!(surface, box, colors, region_width, card_height - inset_height; radius = _sc(p.corner_radius))
+    # The three regions, each a panel (transparent by default, so it costs
+    # nothing) behind the elements that fill it.
+    _push_panel!(surface, content_x, header_top, region_width, header_bottom - header_top;
+                fill = _get_state_color(p, w, :header))
+    append!(surface, header_elements)
+    _push_panel!(surface, content_x, body_top, region_width, body_bottom - body_top;
+                fill = _get_state_color(p, w, :body))
+    append!(surface, body_elements)
+    _push_panel!(surface, content_x, footer_top, region_width, footer_bottom - footer_top;
+                fill = _get_state_color(p, w, :footer))
+    append!(surface, footer_elements)
     (w = card_width, h = card_height, elements = surface, child_iomaps = child_iomaps)
 end
 
@@ -5372,8 +5507,8 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     # The body is offered the card's OWN inner width. A card told a width draws
     # that width whatever it was offered, so a body sized from the offer would be
     # wider than the card that holds it.
-    _, _, pad_left, pad_right = _card_padding(p, w)
-    pad_x = pad_left + pad_right + _card_chevron_column(p, w)
+    inset_width, _ = _inset_total(p, w)
+    pad_x = inset_width + _card_chevron_column(p, w)
     avail_w = ctx.available_width
     authored_width = _sc(Int(w.width))
     inner_w = authored_width > 0 ? Cell(Int32(max(0, authored_width - pad_x))) :
@@ -5401,7 +5536,7 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
             return _get_entry_box(x, y, child, _p_measure(p))
         end
         nothing
-    end)
+    end; color = p.selection_ring_stroke.color, width = p.selection_ring_stroke.width)
     outer = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
                            ComputedCell(() -> Int32(build[].w)),
                            ComputedCell(() -> Int32(build[].h)),
@@ -5861,22 +5996,45 @@ end
 
 @projection struct WidgetAvatarToGraphicsCanvas
     measure::Function
-    initials::ImmutableCell{StyleText}          # font + color of the initials
-    background_color::StyleColor  # circle fill
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor      # circle fill
+    label_text::ImmutableCell{StyleText}          # font + color of the initials
 end
 
+WidgetAvatarToGraphicsCanvas(theme::WidgetTheme; measure,
+                             margin = inset_default, border = inset_default, padding = inset_default,
+                             margin_color = color_transparent, border_color = color_transparent,
+                             padding_color = color_transparent, content_color = theme.muted,
+                             label_text = StyleText(theme.font, theme.muted_foreground)) =
+    WidgetAvatarToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
+                                 content_color, label_text)
+
+# The margin, the border and the padding are rectangular bands; the content is a
+# circle, so it is excluded from the box's own fill and drawn on top of it.
 function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAvatar, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         size = _sc(Int(w.size))
         radius = size ÷ 2
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
         initials = string(w.initials)
+        label = _get_state_text(p, w, :label)
         elements = Any[]
-        push!(elements, GraphicsCircle(radius, radius, radius, p.background_color))
-        initials_width, initials_height = _text_size(p.measure, p.initials.font, initials)
-        push!(elements, GraphicsText(initials, radius - initials_width ÷ 2, radius - initials_height ÷ 2, p.initials.font, p.initials.color))
-        (width=size, height=size, elements=elements)
+        _push_box_parts!(elements, box, merge(colors, (content = color_transparent,)), size, size; radius)
+        push!(elements, GraphicsCircle(content_x + radius, content_y + radius, radius, colors.content))
+        initials_width, initials_height = _text_size(p.measure, label.font, initials)
+        push!(elements, GraphicsText(initials, content_x + radius - initials_width ÷ 2,
+                                     content_y + radius - initials_height ÷ 2, label.font, label.color))
+        (width=size + inset_width, height=size + inset_height, elements=elements)
     end))
 end
 @_printer_only WidgetAvatarToGraphicsCanvas
@@ -5885,49 +6043,70 @@ end
 
 @projection struct WidgetAlertToGraphicsCanvas
     measure::Function
-    title_font::StyleFont
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    title_text::ImmutableCell{StyleText}
     description_text::ImmutableCell{StyleText}        # muted description
-    background_color::StyleColor
-    padding::Int                       # uniform alert padding
+    destructive_border_color::StyleColor
+    destructive_title_text::ImmutableCell{StyleText}
     title_gap::Int                     # gap between title and description
     corner_radius::Int
-    border_width::Int
-    default_title_color::StyleColor
-    default_border_color::StyleColor
-    destructive_color::StyleColor      # title + border in the destructive variant
 end
+
+WidgetAlertToGraphicsCanvas(theme::WidgetTheme; measure,
+                            margin = inset_default, border = _make_uniform_inset(theme.border_width),
+                            padding = Inset(14, 14, 14, 14),
+                            margin_color = color_transparent, border_color = theme.border,
+                            padding_color = theme.background, content_color = theme.background,
+                            title_text = StyleText(theme.font_bold, theme.foreground),
+                            description_text = StyleText(theme.font_small, theme.muted_foreground),
+                            destructive_border_color = theme.destructive,
+                            destructive_title_text = StyleText(theme.font_bold, theme.destructive),
+                            title_gap = 4, corner_radius = theme.radius) =
+    WidgetAlertToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color, padding_color,
+                                content_color, title_text, description_text, destructive_border_color,
+                                destructive_title_text, title_gap, corner_radius)
 
 function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAlert, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
-        destructive = w.variant === :destructive
-        padding = _sc(p.padding)
-        title_color  = destructive ? p.destructive_color : p.default_title_color
-        border_color = destructive ? p.destructive_color : p.default_border_color
+        variant = w.variant === :default ? nothing : w.variant
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w; variant)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
+        title = _get_state_text(p, w, :title; variant)
+        description = _get_state_text(p, w, :description; variant)
         elements = Any[]
         max_content_width = 0
-        y = padding
-        title = string(w.title)
-        title_width, title_height = _text_size(p.measure, p.title_font, title)
+        y = content_y
+        title_string = string(w.title)
+        title_width, title_height = _text_size(p.measure, title.font, title_string)
         # The icon stands before the title, as tall as it and in its color.
         icon_size = icon_width(w.icon, title_height)
         icon_gap = icon_size > 0 ? _sc(8) : 0
-        icon_size > 0 && _push_icon!(elements, w.icon, padding, y, icon_size, title_color)
-        _push_text!(elements, p.title_font, title, padding + icon_size + icon_gap, y, title_color)
+        icon_size > 0 && _push_icon!(elements, w.icon, content_x, y, icon_size, title.color)
+        _push_text!(elements, title.font, title_string, content_x + icon_size + icon_gap, y, title.color)
         max_content_width = max(max_content_width, icon_size + icon_gap + title_width); y += title_height
         if w.description !== nothing
             y += _sc(p.title_gap)
-            description = string(w.description)
-            description_width, description_height = _text_size(p.measure, p.description_text.font, description)
-            _push_text!(elements, p.description_text.font, description, padding, y, p.description_text.color)
+            description_string = string(w.description)
+            description_width, description_height = _text_size(p.measure, description.font, description_string)
+            _push_text!(elements, description.font, description_string, content_x, y, description.color)
             max_content_width = max(max_content_width, description_width); y += description_height
         end
-        alert_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + 2padding)
-        alert_height = _resolve_height(ctx, 0, y + padding)
+        alert_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + inset_width)
+        bottom_inset = box.margin[4] + box.border[4] + box.padding[4]
+        alert_height = _resolve_height(ctx, 0, y + bottom_inset)
         surface = Any[]
-        _push_panel!(surface, 0, 0, alert_width, alert_height; fill=p.background_color, border=border_color,
-                     border_w=max(1, _sc(p.border_width)), radius=_sc(p.corner_radius))
+        _push_box_parts!(surface, box, colors, alert_width - inset_width, alert_height - inset_height;
+                         radius = _sc(p.corner_radius))
         append!(surface, elements)
         (width=alert_width, height=alert_height, elements=surface)
     end))
@@ -5942,13 +6121,20 @@ _with_alpha(color::StyleColor, alpha::Real) =
     StyleColor(color.red, color.green, color.blue, Float64(alpha))
 
 # The drop-indicator surface: a translucent accent fill under a solid accent
-# outline, so the called-out area reads over whatever it covers.
+# outline, so the called-out area reads over whatever it covers. It marks an
+# area its caller sizes, so it keeps no insets (D11): a margin would move the
+# mark away from that area.
 @projection struct WidgetHighlightToGraphicsCanvas
-    fill_color::StyleColor
-    border_color::StyleColor
-    border_width::Int
+    content_color::StyleColor
+    border_stroke::StyleStroke
     corner_radius::Int
 end
+
+WidgetHighlightToGraphicsCanvas(theme::WidgetTheme;
+                                content_color = _with_alpha(theme.primary, 0.25),
+                                border_stroke = StyleStroke(theme.primary, 2),
+                                corner_radius = 6) =
+    WidgetHighlightToGraphicsCanvas(content_color, border_stroke, corner_radius)
 
 # Everything here is read **inside** a cell, `position` and `visible` included: a
 # highlight is moved and shown while it is already printed — that is its whole
@@ -5964,8 +6150,10 @@ function print_document(p::WidgetHighlightToGraphicsCanvas, recursion, w::Widget
     elements = ComputedCellVector(() -> begin
         cw, ch = Int(width[]), Int(height[])
         (cw <= 0 || ch <= 0) && return Any[]
-        Any[GraphicsRect(0, 0, cw, ch, p.fill_color, _sc(p.corner_radius);
-                         border_width = _sc(p.border_width), border_color = p.border_color)]
+        content_color = _get_state_color(p, w, :content)
+        border_stroke = _get_state_stroke(p, w, :border)
+        Any[GraphicsRect(0, 0, cw, ch, content_color, _sc(p.corner_radius);
+                         border_width = _sc(border_stroke.width), border_color = border_stroke.color)]
     end)
     SimpleIoMap(p, w, GraphicsCanvas(x, y, width, height, elements,
                                      layout_none, true, Cell(nothing)))
@@ -5973,9 +6161,25 @@ end
 @_printer_only WidgetHighlightToGraphicsCanvas
 
 @projection struct WidgetSkeletonToGraphicsCanvas
-    fill_color::StyleColor
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor      # the block
     corner_radius::Int
 end
+
+WidgetSkeletonToGraphicsCanvas(theme::WidgetTheme;
+                               margin = inset_default, border = inset_default, padding = inset_default,
+                               margin_color = color_transparent, border_color = color_transparent,
+                               # The padding and the content share the muted default (§4.4), so the
+                               # block is one rounded surface, as it is with no padding inset drawn.
+                               padding_color = theme.muted, content_color = theme.muted,
+                               corner_radius = 6) =
+    WidgetSkeletonToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
+                                   content_color, corner_radius)
 
 function print_document(p::WidgetSkeletonToGraphicsCanvas, recursion, w::WidgetSkeleton, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
@@ -5983,8 +6187,12 @@ function print_document(p::WidgetSkeletonToGraphicsCanvas, recursion, w::WidgetS
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         block_width  = _resolve_width(ctx, _sc(Int(w.width)))
         block_height = _resolve_height(ctx, _sc(Int(w.height)))
-        elements = Any[GraphicsRect(0, 0, block_width, block_height, p.fill_color, _sc(p.corner_radius))]
-        (width=block_width, height=block_height, elements=elements)
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w)
+        inset_width, inset_height = _inset_total(p, w)
+        elements = Any[]
+        _push_box_parts!(elements, box, colors, block_width, block_height; radius = _sc(p.corner_radius))
+        (width=block_width + inset_width, height=block_height + inset_height, elements=elements)
     end))
 end
 @_printer_only WidgetSkeletonToGraphicsCanvas
@@ -7965,30 +8173,9 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetToolbar    => WidgetToolbarToGraphicsCanvas(theme; measure = measurer),
         WidgetStatusBar  => WidgetStatusBarToGraphicsCanvas(theme; measure = measurer),
         WidgetScrollBar  => WidgetScrollBarToGraphicsCanvas(theme),
-        WidgetBadge      => WidgetBadgeToGraphicsCanvas(measurer, theme.font_small,
-            Inset(3, 3, 10, 10), theme.border_width,
-            theme.primary, theme.primary_foreground,
-            theme.secondary, theme.secondary_foreground,
-            theme.destructive, theme.destructive_foreground,
-            theme.background, theme.foreground, theme.border),
-        WidgetSeparator  => WidgetSeparatorToGraphicsCanvas(StyleStroke(theme.border, theme.border_width)),
-        WidgetCard       => WidgetCardToGraphicsCanvas(measurer,
-            StyleText(theme.font_bold, theme.foreground), StyleText(theme.font_small, theme.muted_foreground),
-            StyleText(theme.font, theme.card_foreground), StyleText(theme.font_small, theme.muted_foreground),
-            # The tint is NEUTRAL, and it is a step of depth rather than a change
-            # of hue. Two quiet surfaces nest — a band holds a panel — so they have
-            # to be ordered, and a ladder only reads as one if every rung moves the
-            # same way. The accent-derived tint moved toward BLUE while `muted`
-            # moved toward grey, so against any other color on the page the band
-            # read as a cast on the background rather than as a surface, and beside
-            # a panel the two pulled apart instead of stacking.
-            #
-            # Neutral leaves the role to be said by the thing that says it well: the
-            # colored mark and word on the role line.
-            theme.card, color_interpolate(theme.muted, theme.background, 0.5), theme.muted,
-            StyleStroke(theme.border, theme.border_width), theme.radius,
-            16, 4, 10,
-            StyleStroke(theme.muted_foreground, theme.stroke), theme.chevron),
+        WidgetBadge      => WidgetBadgeToGraphicsCanvas(theme; measure = measurer),
+        WidgetSeparator  => WidgetSeparatorToGraphicsCanvas(theme),
+        WidgetCard       => WidgetCardToGraphicsCanvas(theme; measure = measurer),
         WidgetSwitch     => WidgetSwitchToGraphicsCanvas(
             Point2D(44, 24), 3,
             color_white, StyleStroke(theme.border, theme.border_width),
@@ -8002,14 +8189,10 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             18, 10, 12, 5,
             theme.background, StyleStroke(theme.primary, theme.stroke), StyleStroke(theme.input, theme.stroke),
             theme.primary, theme.muted_foreground, theme.ring),
-        WidgetAvatar     => WidgetAvatarToGraphicsCanvas(measurer, StyleText(theme.font, theme.muted_foreground), theme.muted),
-        WidgetAlert      => WidgetAlertToGraphicsCanvas(measurer, theme.font_bold,
-            StyleText(theme.font_small, theme.muted_foreground), theme.background,
-            14, 4, theme.radius, theme.border_width,
-            theme.foreground, theme.border, theme.destructive),
-        WidgetSkeleton   => WidgetSkeletonToGraphicsCanvas(theme.muted, 6),
-        WidgetHighlight  => WidgetHighlightToGraphicsCanvas(_with_alpha(theme.primary, 0.25),
-                                                            theme.primary, 2, 6),
+        WidgetAvatar     => WidgetAvatarToGraphicsCanvas(theme; measure = measurer),
+        WidgetAlert      => WidgetAlertToGraphicsCanvas(theme; measure = measurer),
+        WidgetSkeleton   => WidgetSkeletonToGraphicsCanvas(theme),
+        WidgetHighlight  => WidgetHighlightToGraphicsCanvas(theme),
         WidgetToggle      => WidgetToggleToGraphicsCanvas(measurer, theme.font,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
             StyleStroke(theme.border, theme.border_width),

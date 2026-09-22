@@ -135,3 +135,116 @@ The style of a `WidgetScrollBar`: the fields of `WidgetStyle`, the rail
     track_color::Any = nothing
     thumb_color::Any = nothing
 end
+
+"""
+    WidgetBadgeStyle(; <the fields of WidgetStyle>, secondary_padding_color, secondary_content_color,
+                     secondary_border_color, secondary_label_text_color, destructive_padding_color,
+                     destructive_content_color, destructive_border_color, destructive_label_text_color,
+                     outline_padding_color, outline_content_color, outline_border_color,
+                     outline_label_text_color)
+
+The style of a `WidgetBadge`: the fields of `WidgetStyle`, and the surface and
+the label of each of its three other variants.
+"""
+@document struct WidgetBadgeStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    secondary_padding_color::Any = nothing
+    secondary_content_color::Any = nothing
+    secondary_border_color::Any = nothing
+    secondary_label_text_color::Any = nothing
+    destructive_padding_color::Any = nothing
+    destructive_content_color::Any = nothing
+    destructive_border_color::Any = nothing
+    destructive_label_text_color::Any = nothing
+    outline_padding_color::Any = nothing
+    outline_content_color::Any = nothing
+    outline_border_color::Any = nothing
+    outline_label_text_color::Any = nothing
+end
+
+"""
+    WidgetSeparatorStyle(; <the fields of WidgetStyle>, divider_stroke_color)
+
+The style of a `WidgetSeparator`: the fields of `WidgetStyle`, and the color of
+its rule.
+"""
+@document struct WidgetSeparatorStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    divider_stroke_color::Any = nothing
+end
+
+"""
+    WidgetCardStyle(; <the fields of WidgetStyle>, title_text_color, description_text_color,
+                    body_text_color, footer_text_color, header_color, body_color, footer_color,
+                    chevron_color, tinted_border_color, tinted_padding_color,
+                    tinted_content_color, muted_border_color, muted_padding_color,
+                    muted_content_color, plain_border_color, plain_padding_color,
+                    plain_content_color)
+
+The style of a `WidgetCard`: the fields of `WidgetStyle`, its title, description,
+body and footer text, the fill behind each of its three regions, the fold mark,
+and the surface of each of its three other variants.
+"""
+@document struct WidgetCardStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    title_text_color::Any = nothing
+    description_text_color::Any = nothing
+    body_text_color::Any = nothing
+    footer_text_color::Any = nothing
+    header_color::Any = nothing
+    body_color::Any = nothing
+    footer_color::Any = nothing
+    chevron_color::Any = nothing
+    tinted_border_color::Any = nothing
+    tinted_padding_color::Any = nothing
+    tinted_content_color::Any = nothing
+    muted_border_color::Any = nothing
+    muted_padding_color::Any = nothing
+    muted_content_color::Any = nothing
+    plain_border_color::Any = nothing
+    plain_padding_color::Any = nothing
+    plain_content_color::Any = nothing
+end
+
+"""
+    WidgetAlertStyle(; <the fields of WidgetStyle>, title_text_color, description_text_color,
+                     destructive_border_color, destructive_title_text_color)
+
+The style of a `WidgetAlert`: the fields of `WidgetStyle`, its title and
+description text, and the border and the title of its destructive variant.
+"""
+@document struct WidgetAlertStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    title_text_color::Any = nothing
+    description_text_color::Any = nothing
+    destructive_border_color::Any = nothing
+    destructive_title_text_color::Any = nothing
+end
+
+"""
+    WidgetHighlightStyle(; content_color, border_stroke_color)
+
+The style of a `WidgetHighlight`: its fill and its outline. A highlight has no
+box (it keeps no margin, border or padding), so its style holds only these two
+fields, not the other fields of `WidgetStyle`.
+"""
+@document struct WidgetHighlightStyle <: WidgetDocument
+    content_color::Any = nothing
+    border_stroke_color::Any = nothing
+end

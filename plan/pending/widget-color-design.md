@@ -1168,6 +1168,48 @@ does not name is `color_transparent`, and an inset that it does not name is
         bar painted its surface at the width of its text instead of the width
         that it fills, and the context menu painted its box before it
         resolved its size.
+- [x] Group 4, the badge, the separator, the card and the small surfaces:
+      badge, separator, card, alert, avatar and skeleton, with
+      `WidgetBadgeStyle`, `WidgetSeparatorStyle`, `WidgetCardStyle`,
+      `WidgetAlertStyle` and `WidgetHighlightStyle`. `WidgetHighlight` keeps
+      no box (D11): its style holds only `content_color` and
+      `border_stroke_color`. Both suites keep their baseline; `test_substrate()`
+      has 73030 passes.
+      - The card's `padding` was an `Integer` (−1 meant the theme's) or an
+        `Inset`; it is now `nothing` or an `Inset`, like every other inset, and
+        `_card_padding` is gone. The card gets `header_color`, `body_color`
+        and `footer_color` for its three regions, painted with `_push_panel!`
+        behind their elements; each is transparent by default, so it costs
+        nothing. `:plain` needs no special case any more — its three box
+        colors are transparent, and `_push_box_parts!` already skips a
+        transparent part.
+      - The badge keeps one border inset (`Inset(theme.border_width)`) in
+        every variant, so it does not resize when its variant changes; only
+        `outline_border_color` is a visible color, the other variants'
+        border colors are transparent.
+      - The avatar's content is a circle: `_push_box_parts!` draws its
+        margin, border and padding, with `content = color_transparent` in the
+        colors it is given, and the circle is drawn separately in the
+        resolved content color.
+      - Found on the way: the skeleton's `padding_color` defaulted to
+        `color_transparent` while `content_color` defaulted to `muted`. Since
+        `_push_box_parts!` pushes the content part with no `radius` when the
+        padding and the content colors differ (only the border-box panel of
+        the equal-color and the uniform-border branches carries the radius),
+        the block lost its rounded corners. The default now gives `padding_color`
+        the same `muted` as `content_color`, by the rule of §4.4 that the two
+        share a default, and the block is one rounded surface again.
+        `_push_box_parts!` is fixed as well: the content part keeps the corner
+        radius, less the border and the padding between it and the outline,
+        so a content with a color of its own stays rounded.
+      - The images of `widget_badge`, `widget_card`, `widget_collapsible_card`
+        and `widget_alert` grow by 2 pixels on each axis per widget shown (the
+        default border inset of D8); `widget_separator` and `widget_avatar`
+        render the same pixels as the base, since neither has a border by
+        default.
+      - `WidgetCardFoldTest` passed `padding = 0` to mean no padding; it now
+        passes `padding = Inset(0, 0, 0, 0)`, the same value under the new
+        contract.
 
 ### 8.6 omnet-julia
 
