@@ -182,8 +182,8 @@ arguments; `WebBackend`'s constructor defaults `host`/`port`.
 - **`measure_text` stays on the server.** The layout pipeline calls
   `measure_text` synchronously *while printing*, long before any primitive
   reaches the browser, so the server must measure glyphs the same way the browser
-  renders them. `initialize_backend!` runs `SDL_Init` + `TTF_Init` (no window) and reuses
-  `measure_sdl_text`; the same TTFs are served to the browser (`/font/<name>`,
+  renders them. The backend measures with `measure_truetype_text`, the pure-Julia
+  TrueType measurer of `ProjecturedStyle`, so it needs no SDL; the same TTFs are served to the browser (`/font/<name>`,
   loaded via the `FontFace` API) so metrics line up. The browser handles HiDPI
   with `devicePixelRatio`, so the server stays in logical pixels.
 - **`write_to_devices`** serializes the projection-output `ScreenDocument` into a
@@ -266,7 +266,7 @@ file:
 - **`write_pdf`** ([source/pdf/Pdf.jl](../../../source/pdf/Pdf.jl)) walks the same
   canvas and emits a **vector** PDF (paths + selectable text, embedded TrueType
   fonts, optional multi-page pagination). It is entirely SDL-free — it measures
-  text from the embedded font metrics via `pdf_measure_text`, a drop-in for
+  text with `measure_truetype_text`, which has the same contract as
   `measure_sdl_text`.
 - **`record_video`** ([package/ProjecturedVideo/src/ProjecturedVideo.jl](../../../package/ProjecturedVideo/src/ProjecturedVideo.jl))
   renders a timed sequence of gestures or operations to an `.mp4` file, with no

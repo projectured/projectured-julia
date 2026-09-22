@@ -131,9 +131,9 @@ These do something other than a single-slot write, so they stay their own types:
 | `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation` | `document/Primitive.jl` | character-range edits on a string/number value; kept distinct because ~19 projection readers dispatch on the type to specialize char-edit handling (span↔flat mapping, control-edit parsing, …) |
 | `SelectTabOperation(tabbed_pane, index)` | `widget/WidgetDocument.jl` | event-like signal — the pane layer leaves it unclaimed; a tab click reaches the tree as an ordinary reference-mapped selection instead |
 | `ReplaceFocusPartOperation(projection, part)` | `projection/generic/Focusing.jl` | retargets a `FocusingProjection` |
-| `MoveRangeOperation(src, a, b, dst, i)` | `projection/higherorder/Dragging.jl` | identity-preserving relocation of `CellVector` elements (carries the `CellVector`s directly) |
+| `MoveRangeOperation(src, a, b, dst, i)` | `dragging/Dragging.jl` | identity-preserving relocation of `CellVector` elements (carries the `CellVector`s directly) |
 | `ToggleCollapseOperation`, `ResizeWindowOperation`, `Open`/`CloseWindowOperation` | `operation/Operations.jl` | view/window state |
-| `Toggle{ClipboardSlice,ClipboardCollection}DisplayOperation`, `SetVersionCriterionOperation` | `projection/primitive/{ClipboardToAny,VersioningToAny}.jl` | switch *which child* a projection exposes — a structural change that drops `editor.iomap`, not an in-place cell write (the reactive engine only propagates value changes within a fixed structure) |
+| `ToggleClipboardSliceOperation`, `ToggleClipboardCollectionOperation`, `SetVersionCriterionOperation` | `clipboard/ClipboardSliceToAny.jl`, `clipboard/ClipboardCollectionToAny.jl`, `versioning/VersioningToAny.jl` | switch *which child* a projection exposes. Each one writes a cell, and the output of the projection is a computed cell over it, so the stages after it print again with no `editor.iomap` drop |
 
 ### A text paste is a range edit
 

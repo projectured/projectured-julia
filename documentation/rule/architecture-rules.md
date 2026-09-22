@@ -79,7 +79,7 @@ kernel  →  base  →  visual  →  domain  →  (umbrella)     opt-in: sdl web
   layer above. No shared layers between them: anything two slices need is a
   framework and belongs in base (or visual, if it renders).
 - **opt-in packages** — exactly one per external dependency or transport (sdl=SDL2,
-  web=HTTP, odbc=ODBC, tulip=C++ solver, llm/mcp=protocol clients). They implement
+  web=HTTP, odbc=ODBC, tulip=linear-programming solver, llm/mcp=protocol clients). They implement
   seams owned below (the render/image/record backend generics, database adapters)
   and bind to the narrowest package that has what they render (sdl/web → visual,
   odbc → domain's sql surface).

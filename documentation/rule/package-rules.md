@@ -169,32 +169,32 @@ dependency.
 | package | depends on | third-party |
 | --- | --- | --- |
 | `ProjecturedCollection` | Kernel | — |
-| `ProjecturedPrimitive` | Kernel | — |
-| `ProjecturedDomain` | Kernel | InteractiveUtils |
 | `ProjecturedSerialization` | Kernel | Serialization |
+| `ProjecturedPrimitive` | Serialization | — |
+| `ProjecturedDomain` | Serialization | — |
 | `ProjecturedStyle` | Kernel | — |
 | `ProjecturedComponent` | Kernel | — |
 | `ProjecturedProjection` | Collection, Primitive | — |
-| `ProjecturedReflection` | Collection | — |
-| `ProjecturedDragging` | Collection | — |
+| `ProjecturedDragging` | Collection, Projection | — |
 | `ProjecturedFocus` | Collection | — |
 | `ProjecturedVersioning` | Collection, Domain, Primitive | — |
 | `ProjecturedPlot` | Style | — |
 | `ProjecturedGraphics` | Collection, Projection, Style | — |
-| `ProjecturedScreen` | Collection, Graphics, Primitive | — |
+| `ProjecturedScreen` | Collection, Graphics, Primitive, Projection, Serialization | — |
 | `ProjecturedLayout` | Collection, Focus, Graphics, Projection | — |
 | `ProjecturedText` | Collection, Domain, Graphics, Primitive, Projection, Style | — |
-| `ProjecturedWidget` | Collection, Focus, Graphics, Layout, Primitive, Projection, Reflection, Screen, Style, Text | — |
-| `ProjecturedSyntax` | Collection, Domain, Primitive, Projection, Style, Text | — |
-| `ProjecturedPane` | Collection, Domain, Dragging, Layout, Primitive, Projection, Widget | — |
-| `ProjecturedClipboard` | Collection, Domain, Primitive, Text | — |
+| `ProjecturedWidget` | Collection, Domain, Focus, Graphics, Layout, Primitive, Projection, Screen, Serialization, Style, Text | — |
+| `ProjecturedReflection` | Collection, Widget | — |
+| `ProjecturedClipboard` | Collection, Domain, Primitive, Projection, Serialization, Text | — |
+| `ProjecturedPane` | Clipboard, Collection, Domain, Dragging, Focus, Layout, Primitive, Projection, Serialization, Widget | — |
 | `ProjecturedTooltip` | Screen | — |
-| `ProjecturedInspector` | Screen, Style, Text | — |
+| `ProjecturedNatural` | Collection, Domain, Layout, Primitive, Projection, Style, Text, Widget | — |
+| `ProjecturedSyntax` | Collection, Domain, Natural, Primitive, Projection, Style, Text | — |
+| `ProjecturedInspector` | Domain, Natural, Projection, Screen, Serialization, Style, Text | — |
 | `ProjecturedGestureHelp` | Collection, Graphics, Projection, Screen, Style, Syntax, Text | — |
-| `ProjecturedGestureLog` | Collection, Graphics, Projection, Style, Syntax, Text | — |
-| `ProjecturedFileFormat` | Collection, Domain, Layout, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
-| `ProjecturedNatural` | Collection, Domain, FileFormat, Layout, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
-| `ProjecturedFault` | Collection, Graphics, Natural, Projection, Style, Syntax, Text, Widget | — |
+| `ProjecturedGestureLog` | Collection, Domain, Graphics, Natural, Projection, Serialization, Style, Syntax, Text | — |
+| `ProjecturedFileFormat` | Collection, Domain, Layout, Natural, Primitive, Projection, Serialization, Style, Syntax, Text, Widget | — |
+| `ProjecturedFault` | Collection, Domain, Graphics, Natural, Projection, Serialization, Style, Syntax, Text, Widget | — |
 | `ProjecturedConsole` | Style, Text | — |
 | `ProjecturedPdf` | Graphics, Style | — |
 

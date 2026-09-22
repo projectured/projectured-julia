@@ -267,7 +267,7 @@ leaf, Enter-commit of unambiguous prefixes, Tab completion, and the
 Insert ⇄ Escape loop between placeholder and insertion. Not generated
 (layering): the two projection-table lines in the domain's `ToSyntax`
 (`XInsertion => DomainInsertionToSyntaxLeaf(XDocument)` via the domain's
-`XInsertionToSyntaxLeaf()` delegate, `XNothing => NothingToSyntaxLeaf()`).
+`XInsertionToSyntaxLeaf()` delegate, `XNothing => InsertionNothingToSyntaxLeaf()`).
 
 ## `@insertion`
 
