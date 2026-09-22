@@ -155,10 +155,12 @@ end
 
 function __init__()
     register_natural_graphics!(:evaluator, (; measure) -> Pair{Type,Any}[
-        EvaluatorToplevel => ChainingProjection(EvaluatorToplevelToWidgetComposite(),
-                                                WidgetScrollPaneToGraphicsCanvas(
-                                                    measure = measure, chrome = false,
-                                                    font = font_ubuntu_monospace_regular_20)),
+        EvaluatorToplevel => ChainingProjection(
+            EvaluatorToplevelToWidgetComposite(),
+            WidgetScrollPaneToGraphicsCanvas(
+                make_slate_light_theme(font = font_ubuntu_monospace_regular_20);
+                measure = measure, font = font_ubuntu_monospace_regular_20,
+                content_color = color_transparent)),
         EvaluatorForm     => ChainingProjection(EvaluatorFormToVerticalLayout(),
                                                 VerticalLayoutToGraphicsCanvas()),
     ])

@@ -64,3 +64,74 @@ body text.
     title_text_color::Any = nothing
     body_text_color::Any = nothing
 end
+
+"""
+    WidgetTitlePaneStyle(; <the fields of WidgetStyle>, title_bar_color, title_text_color,
+                         body_text_color)
+
+The style of a `WidgetTitlePane`: the fields of `WidgetStyle`, the fill of the
+title row (`title_bar_color`), and the title and the body text.
+"""
+@document struct WidgetTitlePaneStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    title_bar_color::Any = nothing
+    title_text_color::Any = nothing
+    body_text_color::Any = nothing
+end
+
+"""
+    WidgetSplitPaneStyle(; <the fields of WidgetStyle>, splitter_stroke_color)
+
+The style of a `WidgetSplitPane`: the fields of `WidgetStyle`, and the color of
+the splitter between its slots.
+"""
+@document struct WidgetSplitPaneStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    splitter_stroke_color::Any = nothing
+end
+
+"""
+    WidgetTabbedPaneStyle(; <the fields of WidgetStyle>, tab_strip_color, tab_color,
+                          tab_selected_color, tab_text_color, tab_selected_text_color,
+                          page_color)
+
+The style of a `WidgetTabbedPane`: the fields of `WidgetStyle`, the tab strip and
+its tabs, and the page area below the strip.
+"""
+@document struct WidgetTabbedPaneStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    tab_strip_color::Any = nothing
+    tab_color::Any = nothing
+    tab_selected_color::Any = nothing
+    tab_text_color::Any = nothing
+    tab_selected_text_color::Any = nothing
+    page_color::Any = nothing
+end
+
+"""
+    WidgetScrollBarStyle(; <the fields of WidgetStyle>, track_color, thumb_color)
+
+The style of a `WidgetScrollBar`: the fields of `WidgetStyle`, the rail
+(`track_color`) and the thumb (`thumb_color`).
+"""
+@document struct WidgetScrollBarStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    track_color::Any = nothing
+    thumb_color::Any = nothing
+end

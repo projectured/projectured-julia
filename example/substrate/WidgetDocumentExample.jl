@@ -306,12 +306,12 @@ function make_widget_offered_document_example(; width=760, height=420)
     holding = VerticalLayout(Any[
         WidgetScrollPane(WidgetLabel(Point2D(4, 4), "authored 200x90");
                          size=Point2D(200, 90),
-                         content_fill_color=StyleColor(0.86, 0.92, 0.98, 1.0)),
+                         style=WidgetStyle(content_color=StyleColor(0.86, 0.92, 0.98, 1.0))),
         # No size of its own, and a weight instead: it asks the column for the
         # height the sized pane leaves. That is how a viewport gets an extent
         # without one being written on it.
         LayoutConstraint(WidgetScrollPane(WidgetLabel(Point2D(4, 4), "asks for the rest");
-                                          content_fill_color=StyleColor(0.98, 0.92, 0.86, 1.0));
+                                          style=WidgetStyle(content_color=StyleColor(0.98, 0.92, 0.86, 1.0)));
                          height=Fill),
     ]; gap=12, child_width=Fill)
     split = WidgetSplitPane(:horizontal, Any[filling, holding];
@@ -564,7 +564,7 @@ make_widget_table_offered_document_example() =
                      ["INV002", "Pending", "\$150.00"],
                      ["INV003", "Unpaid",  "\$350.00"]]);
         size = Point2D(300, 140),
-        content_fill_color = StyleColor(0.98, 0.96, 0.90, 1.0))
+        style = WidgetStyle(content_color = StyleColor(0.98, 0.96, 0.90, 1.0)))
 
 # A table whose header strips stay put while its body scrolls.
 #
@@ -580,7 +580,7 @@ make_widget_table_frozen_document_example() =
                     4);
         size = Point2D(320, 150),
         scroll_position = Point2D(40, 60),
-        content_fill_color = StyleColor(0.98, 0.96, 0.90, 1.0))
+        style = WidgetStyle(content_color = StyleColor(0.98, 0.96, 0.90, 1.0)))
 
 # WidgetTree — a nested outline with expand chevrons.
 make_widget_tree_document_example() =

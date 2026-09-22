@@ -1148,6 +1148,26 @@ does not name is `color_transparent`, and an inset that it does not name is
       `selection_ring_stroke`. The menu item draws its hover as a layer, and the
       dialog paints its card as its box, with the scrim from the theme. Both
       suites keep their baseline; `test_substrate()` has 67770 passes.
+- [x] Group 3, the panes: shell, title pane, split pane, tabbed pane, scroll
+      pane, transform pane and scroll bar, with `WidgetTitlePaneStyle`,
+      `WidgetSplitPaneStyle`, `WidgetTabbedPaneStyle` and `WidgetScrollBarStyle`.
+      Both suites keep their baseline; `test_substrate()` has 70072 passes, and
+      the pane examples render the same pixels as the base.
+      - The viewport of a scroll pane and of a transform pane has an extent
+        that is a cell, so the pane is not printed again when its content
+        grows. Its margin, border and padding are drawn by
+        `_push_following_box_bands!`, whose rects follow the extent cells; the
+        viewport is the content part.
+      - `chrome` is gone; `content_color = color_transparent` does the same.
+        The one example that built a pane with `chrome = false` passes a
+        theme and that color.
+      - `AssistantToWidget` gave four panes `padding_color = _WHITE`, which
+        never drew. The keyword and the constant go; the panes keep the
+        theme's background.
+      - Two mistakes of group 2 showed in the images and are fixed: the status
+        bar painted its surface at the width of its text instead of the width
+        that it fills, and the context menu painted its box before it
+        resolved its size.
 
 ### 8.6 omnet-julia
 

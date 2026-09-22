@@ -967,14 +967,13 @@ set_cell_function!(w::WidgetStatusBar, f::Function) =
 # ── WidgetShell ────────────────────────────────────────────────────────────
 
 """
-    WidgetShell(content; content_fill_color, size, overlay, menu_bar,
+    WidgetShell(content; size, overlay, menu_bar,
                 context_menu, <base kwargs>)
 
 Top-level window shell..
 """
 @document struct WidgetShell <: WidgetDocument
     content::Any
-    content_fill_color::StyleColor
     size::Point2D
     overlay::WidgetTooltip
     menu_bar::WidgetMenu
@@ -983,16 +982,13 @@ Top-level window shell..
     status_bar::WidgetStatusBar
     visible::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     tooltip::Any
 end
 
 function WidgetShell(content;
-                     content_fill_color=nothing,
                      size=nothing,
                      overlay=nothing,
                      menu_bar=nothing,
@@ -1000,19 +996,13 @@ function WidgetShell(content;
                      context_menu=nothing,
                      status_bar=nothing,
                      visible::Bool=true,
-                     margin::Inset=inset_default,
-                     margin_color=nothing,
-                     border::Inset=inset_default,
-                     border_color=nothing,
-                     padding::Inset=inset_default,
-                     padding_color=nothing, tooltip=nothing)
-    WidgetShell(Cell(content), Cell(content_fill_color), Cell(size),
+                     margin=nothing, border=nothing, padding=nothing,
+                     style=nothing, tooltip=nothing)
+    WidgetShell(Cell(content), Cell(size),
                 Cell(overlay), Cell(menu_bar), Cell(toolbar), Cell(context_menu),
                 Cell(status_bar),
-                Cell(visible), Cell(margin), Cell(margin_color),
-                Cell(border), Cell(border_color),
-                Cell(padding), Cell(padding_color),
-                Cell(tooltip), Cell(nothing))
+                Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetShell, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -1020,8 +1010,7 @@ set_cell_function!(w::WidgetShell, f::Function) = (set_cell_function!(getfield(w
 # ── WidgetTitlePane ────────────────────────────────────────────────────────
 
 """
-    WidgetTitlePane(title, content; title_fill_color, content_fill_color,
-                    <base kwargs>)
+    WidgetTitlePane(title, content; <base kwargs>)
 
 A pane with a title bar over a content area.
 
@@ -1039,35 +1028,22 @@ whose `title` names a tab.
 """
 @document struct WidgetTitlePane <: WidgetDocument
     title::Any
-    title_fill_color::StyleColor
     content::Any
-    content_fill_color::StyleColor
     visible::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     tooltip::Any
 end
 
 function WidgetTitlePane(title, content;
-                         title_fill_color=nothing,
-                         content_fill_color=nothing,
                          visible::Bool=true,
-                         margin::Inset=inset_default,
-                         margin_color=nothing,
-                         border::Inset=inset_default,
-                         border_color=nothing,
-                         padding::Inset=inset_default,
-                         padding_color=nothing, tooltip=nothing)
-    WidgetTitlePane(Cell(title), Cell(title_fill_color),
-                    Cell(content), Cell(content_fill_color),
-                    Cell(visible), Cell(margin), Cell(margin_color),
-                    Cell(border), Cell(border_color),
-                    Cell(padding), Cell(padding_color),
-                    Cell(tooltip), Cell(nothing))
+                         margin=nothing, border=nothing, padding=nothing,
+                         style=nothing, tooltip=nothing)
+    WidgetTitlePane(Cell(title), Cell(content),
+                    Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                    Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetTitlePane, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -1112,11 +1088,9 @@ See also `HorizontalLayout`, `VerticalLayout` and `WidgetTabbedPane`.
     sizes::CellVector
     visible::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     active_splitter::Int
     drag_anchor::Any
     pinned::CellVector
@@ -1126,18 +1100,12 @@ end
 function WidgetSplitPane(orientation::Symbol, elements::Vector;
                          sizes=nothing,
                          visible::Bool=true,
-                         margin::Inset=inset_default,
-                         margin_color=nothing,
-                         border::Inset=inset_default,
-                         border_color=nothing,
-                         padding::Inset=inset_default,
-                         padding_color=nothing, tooltip=nothing)
+                         margin=nothing, border=nothing, padding=nothing,
+                         style=nothing, tooltip=nothing)
     sizes_cv = sizes isa Vector ? CellVector(Cell[Cell(s) for s in sizes]) : CellVector()
     WidgetSplitPane(Cell(orientation), CellVector(Cell[Cell(x) for x in elements]), sizes_cv,
-                    Cell(visible), Cell(margin), Cell(margin_color),
-                    Cell(border), Cell(border_color),
-                    Cell(padding), Cell(padding_color),
-                    Cell(0), Cell(nothing), CellVector(), Cell(tooltip))
+                    Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                    Cell(style), Cell(0), Cell(nothing), CellVector(), Cell(tooltip))
 end
 
 WidgetSplitPane(elements::Vector; kwargs...) =
@@ -1209,12 +1177,10 @@ children shown at once.
 @document struct WidgetTabbedPane <: WidgetDocument
     selector_element_pairs::CellVector = CellVector()
     visible::Bool = true
-    margin::Inset = inset_default
-    margin_color::StyleColor = nothing
-    border::Inset = inset_default
-    border_color::StyleColor = nothing
-    padding::Inset = inset_default
-    padding_color::StyleColor = nothing
+    margin::Inset = nothing
+    border::Inset = nothing
+    padding::Inset = nothing
+    style::Any = nothing
     tab_scroll::Int = 0
     closable::Bool = false
     new_tab::Bool = false
@@ -1228,21 +1194,16 @@ end
 # pane, so overflow tabs stay reachable. 0 ⇒ no scroll.
 function WidgetTabbedPane(selector_element_pairs::Vector;
                           visible::Bool=true,
-                          margin::Inset=inset_default,
-                          margin_color=nothing,
-                          border::Inset=inset_default,
-                          border_color=nothing,
-                          padding::Inset=inset_default,
-                          padding_color=nothing,
+                          margin=nothing, border=nothing, padding=nothing,
+                          style=nothing,
                           tab_scroll::Integer=0,
                           closable::Bool=false,
                           new_tab::Bool=false,
                           draggable::Bool=false,
                           duplicable::Bool=false, tooltip=nothing)
     WidgetTabbedPane(CellVector(Cell[Cell(_as_tab_page(p)) for p in selector_element_pairs]),
-                     Cell(visible), Cell(margin), Cell(margin_color),
-                     Cell(border), Cell(border_color),
-                     Cell(padding), Cell(padding_color),
+                     Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                     Cell(style),
                      Cell(Int(tab_scroll)),
                      Cell(closable), Cell(new_tab), Cell(draggable), Cell(duplicable),
                      Cell(tooltip), Cell(nothing))
@@ -1257,7 +1218,7 @@ set_cell_function!(w::WidgetTabbedPane, f::Function) = (set_cell_function!(getfi
 # ── WidgetScrollPane ───────────────────────────────────────────────────────
 
 """
-    WidgetScrollPane(content; content_fill_color, position, size,
+    WidgetScrollPane(content; position, size,
                      scroll_position, follow_end, <base kwargs>)
 
 A viewport a person scrolls over content that is taller or wider than its
@@ -1285,41 +1246,31 @@ See also `WidgetCard`, whose `height` bounds a body that scrolls.
 """
 @document struct WidgetScrollPane <: WidgetDocument
     content::Any
-    content_fill_color::StyleColor
     position::Point2D
     size::Point2D
     scroll_position::Point2D
     follow_end::Bool
     visible::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     tooltip::Any
 end
 
 function WidgetScrollPane(content;
-                          content_fill_color=nothing,
                           position=nothing,
                           size=nothing,
                           scroll_position::Point2D=Point2D(0, 0),
                           follow_end::Union{Bool,AbstractCell}=false,
                           visible::Bool=true,
-                          margin::Inset=inset_default,
-                          margin_color=nothing,
-                          border::Inset=inset_default,
-                          border_color=nothing,
-                          padding::Inset=inset_default,
-                          padding_color=nothing, tooltip=nothing)
-    WidgetScrollPane(Cell(content), Cell(content_fill_color),
+                          margin=nothing, border=nothing, padding=nothing,
+                          style=nothing, tooltip=nothing)
+    WidgetScrollPane(Cell(content),
                      Cell(position), Cell(size), Cell(scroll_position),
                      follow_end isa AbstractCell ? follow_end : Cell(follow_end),
-                     Cell(visible), Cell(margin), Cell(margin_color),
-                     Cell(border), Cell(border_color),
-                     Cell(padding), Cell(padding_color),
-                     Cell(tooltip), Cell(nothing))
+                     Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                     Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetScrollPane, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -1327,7 +1278,7 @@ set_cell_function!(w::WidgetScrollPane, f::Function) = (set_cell_function!(getfi
 # ── WidgetTransformPane ──────────────────────────────────────────────────────
 
 """
-    WidgetTransformPane(content; transform, content_fill_color, position, size,
+    WidgetTransformPane(content; transform, position, size,
                         <base kwargs>)
 
 A pane that applies a 2-D affine [`AffineTransform`](@ref) to its `content` —
@@ -1343,38 +1294,28 @@ translate+scale subset is rendered today; rotation/shear is future work.
 """
 @document struct WidgetTransformPane <: WidgetDocument
     content::Any
-    content_fill_color::StyleColor
     position::Point2D
     size::Point2D
     transform::AffineTransform
     visible::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     tooltip::Any
 end
 
 function WidgetTransformPane(content;
                             transform::AffineTransform=affine_identity,
-                            content_fill_color=nothing,
                             position=nothing,
                             size=nothing,
                             visible::Bool=true,
-                            margin::Inset=inset_default,
-                            margin_color=nothing,
-                            border::Inset=inset_default,
-                            border_color=nothing,
-                            padding::Inset=inset_default,
-                            padding_color=nothing, tooltip=nothing)
-    WidgetTransformPane(Cell(content), Cell(content_fill_color),
+                            margin=nothing, border=nothing, padding=nothing,
+                            style=nothing, tooltip=nothing)
+    WidgetTransformPane(Cell(content),
                         Cell(position), Cell(size), Cell(transform),
-                        Cell(visible), Cell(margin), Cell(margin_color),
-                        Cell(border), Cell(border_color),
-                        Cell(padding), Cell(padding_color),
-                        Cell(tooltip), Cell(nothing))
+                        Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                        Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetTransformPane, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -1396,11 +1337,9 @@ the visible-fraction represented by the thumb.
     size::Point2D
     visible::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     tooltip::Any
 end
 
@@ -1410,18 +1349,12 @@ function WidgetScrollBar(orientation::Symbol;
                          position=nothing,
                          size=nothing,
                          visible::Bool=true,
-                         margin::Inset=inset_default,
-                         margin_color=nothing,
-                         border::Inset=inset_default,
-                         border_color=nothing,
-                         padding::Inset=inset_default,
-                         padding_color=nothing, tooltip=nothing)
+                         margin=nothing, border=nothing, padding=nothing,
+                         style=nothing, tooltip=nothing)
     WidgetScrollBar(Cell(orientation), Cell(value), Cell(thumb_size),
                     Cell(position), Cell(size),
-                    Cell(visible), Cell(margin), Cell(margin_color),
-                    Cell(border), Cell(border_color),
-                    Cell(padding), Cell(padding_color),
-                    Cell(tooltip), Cell(nothing))
+                    Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                    Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 # ════════════════════════════════════════════════════════════════════════════
