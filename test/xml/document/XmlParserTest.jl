@@ -1,5 +1,5 @@
-# The XML text parser: tags, attributes, text and the malformed-input cases.
-# Split out of JsonParserTest when the domains became separate packages.
+# The XML text parser: tags, attributes, text, character references and the
+# malformed-input cases.
 
 using Test
 
@@ -24,6 +24,20 @@ function test_xml_parser()
         # Entity unescaping in text.
         ent = parse_xml("<p>a &amp; b &lt; c</p>")
         @test ent.children[1].content == "a & b < c"
+
+        # A numeric character reference reads as its character, in decimal or in
+        # hexadecimal, in text and in an attribute value.
+        @test parse_xml("<p>&#65;&#x42;&#x263a;</p>").children[1].content == "AB☺"
+        @test parse_xml("<p a=\"&#65;\"/>").attrs[1].value == "A"
+        # One pass reads the named and the numeric references, so the `&` that
+        # `&amp;` gives does not start a second reference.
+        @test parse_xml("<p>&amp;#65;</p>").children[1].content == "&#65;"
+        # A code point that is not a character stays as it is written.
+        @test parse_xml("<p>&#xD800;</p>").children[1].content == "&#xD800;"
+        @test parse_xml("<p>&#99999999999;</p>").children[1].content == "&#99999999999;"
+        # A save writes the character, not the escaped reference.
+        x2s = RecursiveProjection(XmlToSyntax())
+        @test render(print_document(x2s, parse_xml("<p>&#65;</p>")).output) == "<p>A</p>"
 
         # Mismatched close tag errors.
         @test_throws Exception parse_xml("<a></b>")

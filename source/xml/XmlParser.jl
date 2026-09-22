@@ -8,9 +8,9 @@
 # - `parse_xml_file(path)` — read and parse a `.xml` file from disk
 #
 # Deliberately minimal: one root element, nested elements, attributes
-# (`name="value"` or `name='value'`), text content, self-closing tags, and the
-# common entity escapes. The XML declaration (`<?xml …?>`), comments (`<!-- … -->`),
-# and `<!…>` declarations are skipped. Not namespace- or DTD-aware — enough to turn
+# (`name="value"` or `name='value'`), text content, self-closing tags, the five
+# named entities and the numeric character references. The XML declaration
+# (`<?xml …?>`), comments (`<!-- … -->`), and `<!…>` declarations are skipped. Not namespace- or DTD-aware — enough to turn
 # typed XML in the editor into a real document. Malformed input raises an error.
 # ── Cursor over the source ─────────────────────────────────────────────────────
 
@@ -55,8 +55,21 @@ function _name!(p)
     String(p.cs[start:p.i - 1])
 end
 
-_unescape(s) = replace(String(s),
-    "&lt;" => "<", "&gt;" => ">", "&quot;" => "\"", "&apos;" => "'", "&amp;" => "&")
+const _NAMED_ENTITIES = Dict("lt" => "<", "gt" => ">", "quot" => "\"", "apos" => "'", "amp" => "&")
+
+# One pass reads the named entities and the numeric character references, so the
+# `&` that `&amp;` gives never starts a second reference: `&amp;#65;` is `&#65;`.
+_unescape(s) = replace(String(s), r"&(lt|gt|quot|apos|amp|#[0-9]+|#x[0-9A-Fa-f]+);" => _unescape_reference)
+
+# A code point that is not a valid `Char` stays as it is written.
+function _unescape_reference(reference)
+    name = SubString(reference, 2, lastindex(reference) - 1)
+    startswith(name, '#') || return _NAMED_ENTITIES[name]
+    code = startswith(name, "#x") ? tryparse(UInt32, SubString(name, 3); base = 16) :
+                                    tryparse(UInt32, SubString(name, 2))
+    (code === nothing || !isvalid(Char, code)) && return reference
+    string(Char(code))
+end
 
 # Skip whitespace, the XML declaration, comments, and `<!…>` declarations.
 function _skip_prolog!(p)

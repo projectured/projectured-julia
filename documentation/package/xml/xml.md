@@ -53,7 +53,7 @@ A letter or a digit on a placeholder is not a retype key, so it goes into the na
 
 ### The text form
 
-`parse_xml` returns the root element. It reads nested elements, attributes in double or single quotes, text, self-closing tags and the five named entities. It skips the XML declaration, comments and `<!…>` declarations, so a save does not write them back. A text node that holds only white space is dropped. The parser has no namespaces and no DTD: a `:` is a character of a name.
+`parse_xml` returns the root element. It reads nested elements, attributes in double or single quotes, text, self-closing tags, the five named entities and the numeric character references, such as `&#65;` and `&#x41;`. One pass reads all of them, so `&amp;#65;` gives the text `&#65;`. A reference to a code point that is not a character stays as text. It skips the XML declaration, comments and `<!…>` declarations, so a save does not write them back. A text node that holds only white space is dropped. The parser has no namespaces and no DTD: a `:` is a character of a name.
 
 `XmlFile` is the file type for `.xml`. A reference to a node in another file is a `pred:ref` element whose one text child is the marker, for example `<pred:ref>&lt;&lt;file("a.xml")&gt;&gt;</pred:ref>`. An element is the opaque unit of XML, and a text node can exist only inside an element. `find_reference_marker` accepts only an element with the tag `PRED_REF_ELEMENT_TAG` and exactly one `XmlText` child. An `.xml` path that does not exist opens as an `XmlInsertion`.
 
@@ -107,4 +107,4 @@ The paths use `[i]` for the i-th item, from 1, and `{k}` for the caret at bounda
 - No projection reads `collapsed`. `XmlToSyntax` does not give it to the output, and `SyntaxConcatenation` has no `collapsed` field. `plan/pending/collapse-expand-syntax-nodes.md` holds the open step.
 - `=` has no `override`, and only the test of the XML stage alone covers it. No test checks `=` in the full chain, where the text stage can take the key as a character of the name first.
 - An element with no children prints as `<tag></tag>`, never as `<tag/>`.
-- The parser raises an error on a CDATA section. It keeps a numeric character reference such as `&#65;` as text, and a save then writes it as `&amp;#65;`.
+- The parser raises an error on a CDATA section.
