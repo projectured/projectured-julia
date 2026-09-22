@@ -1,102 +1,94 @@
-# Versioning domain
+# Versioning
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** design · **Status:** current · **Stands on:** [projection-system.md](../kernel/projection-system.md), [clipboard.md](../clipboard/clipboard.md), [undo.md](../undo/undo.md)
 
-A generic, domain-neutral overlay that lets **any** document subtree carry
-multiple versions of itself. Versioning is an optional, recursive wrapper layer
-plus an *elimination projection* that collapses the wrapper away. After that,
-the downstream domains are ordinary, non-versioned documents, and every
-existing projection pipeline works unchanged.
+`ProjecturedVersioning` lets any subtree of a document hold several versions of itself. A `VersionedObject` holds the versions, and `VersioningToAnyProjection` shows one of them in place of the wrapper, so every projection after it sees an ordinary document. This document says how the active version is chosen, how edits reach it, and why versions are documents and not a log of operations.
 
-It is structurally the same pattern as the clipboard
-([`ClipboardModule`](../../../source/clipboard/Clipboard.jl) +
-[`ClipboardSliceToAny.jl`](../../../source/clipboard/ClipboardSliceToAny.jl)):
-a wrapper document holding a payload, and a projection that selects which
-child becomes the output and re-roots edits back into that child.
+## How it works
 
-## Documents — `VersioningModule`
+The package has two levels of documents:
 
-Two levels, defined in
-[`source/versioning/VersioningDocument.jl`](../../../source/versioning/VersioningDocument.jl):
+| Document | Fields |
+| --- | --- |
+| `VersionedObject` | `versions`, a `CellVector` of `ObjectVersion`, newest first; `criterion`, which selects the active one |
+| `ObjectVersion` | `value`, the document of this version; `properties` |
+| `VersionProperties` | `timestamp`, `author`, `origin`, `label`, each optional |
 
-- **`VersionedObject`** — the container that *has versions*: a `versions`
-  `CellVector` of `ObjectVersion`s (newest-first by convention) plus the active
-  selection `criterion`.
-- **`ObjectVersion`** — one *value object* (`value::Document`, the actual domain
-  document for this version) together with its `properties`.
-- **`VersionProperties`** — version metadata (`timestamp`, `author`, `origin`,
-  `label`), all optional. A document so it is itself inspectable/editable/
-  projectable.
+Versioning is **optional**: only a subtree inside a `VersionedObject` has versions, and nothing else changes. It is **recursive**: the value of a version can hold more `VersionedObject`s, and each one selects its own version.
 
-Convenience constructors: `VersionedObject(value)` wraps a single initial
-version; `VersionedObject([v1, v2, …])` takes an explicit list;
-`ObjectVersion(value; timestamp=…, author=…, …)` builds the properties for you.
+### The criterion
 
-Two essential properties:
-
-- **Optional** — a subtree is versioned only if wrapped in a `VersionedObject`.
-  Nothing else changes.
-- **Recursive** — a version's value may itself contain `VersionedObject`s nested
-  anywhere; each resolves independently.
-
-## Criteria
-
-The active version is chosen by a `VersionCriterion` stored *on the document*
-(so different versioned nodes in one tree can use different criteria at once):
+**The criterion is a field of the document, not of the projection.** So two versioned nodes in one tree can use two criteria at the same time. The choice is saved with the document, and one projection instance serves every versioned node.
 
 | Criterion | Selects |
-|---|---|
-| `VersionCriterionLatest()` | the newest version (index 1) |
-| `VersionCriterionIndex(i)` | the 1-based pin `i` |
-| `VersionCriterionByAuthor(a)` | newest version with `properties.author == a` |
-| `VersionCriterionAsOf(t)` | newest version with `properties.timestamp ≤ t` |
-| `VersionCriterionPredicate(f)` | newest version with `f(properties)` true |
+| --- | --- |
+| `VersionCriterionLatest()` | the newest version, index 1; the default |
+| `VersionCriterionIndex(i)` | the version at index `i`, from 1 |
+| `VersionCriterionByAuthor(a)` | the newest version with `properties.author == a` |
+| `VersionCriterionAsOf(t)` | the newest version with `properties.timestamp <= t` |
+| `VersionCriterionPredicate(f)` | the newest version for which `f(properties)` is `true` |
 
-`select_version(vo) -> Union{Nothing, Tuple{Int, ObjectVersion}}` dispatches on
-the criterion and returns the chosen `(index, version)`, or `nothing` when none
-matches. New modes are new subtypes with zero changes to the projection.
+`select_version(object)` dispatches on the criterion and returns `(index, version)`, or `nothing` when no version matches. The versions are newest first, so the newest match is the lowest index. A new way to select is a new subtype of `VersionCriterion` and a method of `_select_version`; the projection does not change.
 
-## Elimination projection — `VersioningToAnyProjection`
+`SetVersionCriterionOperation(object, criterion)` writes the `criterion` cell. The projection computes the selected version in a cell that reads the criterion. So the view prints the new version, and the editor keeps its IO map. The clipboard uses the same pattern for its toggle; see [clipboard.md](../clipboard/clipboard.md).
 
-[`source/versioning/VersioningToAny.jl`](../../../source/versioning/VersioningToAny.jl)
-is the direct analogue of `ClipboardSliceToAnyProjection`:
+### The projection
 
-- **Printer** — `(idx, version) = select_version(input)`, recurse into
-  `version.value` through `print_child`, and make that recursion's
-  output *be* the projection's output (the wrapper vanishes). When no version
-  matches, the output is a `DocumentNothing` (the clipboard's empty-slice
-  fallback).
-- **Reference mapping** — asymmetric peel/prepend of the three steps
-  `versions[idx].value`: forward strips them and delegates the tail to the value
-  child; backward delegates to the value child and prepends them.
-- **Reader** — own gestures manage versions (`Ctrl+Shift+S` snapshots the active
-  value into a new front `ObjectVersion` via a standard `insert_elements` splice on
-  `versions`; `Ctrl+Delete` deletes the active version via `delete_elements`). Using
-  the standard sequence-splice helpers, which build a `ReplaceReferencedValueOperation` with
-  a terminal `RangeReferenceStep` rather than bespoke version ops, lets every
-  ancestor projection re-root them when the `VersionedObject` is nested. `SetVersionCriterionOperation` switches the
-  active criterion (it drops `editor.iomap`, like the clipboard display toggle).
-  Every other gesture is delegated into the value child's reader and the returned
-  operation is re-rooted under `versions[idx].value`.
+`VersioningToAnyProjection` prints the `value` of the selected version through `print_child`, and that output is its own output. The wrapper draws nothing. When no version matches, the output is `DocumentNothing()`, as for an empty clipboard slice. A nested `VersionedObject` needs no special code: `print_child` dispatches again at each node, so each level is resolved by its own criterion.
 
-Recursion across nested versioned objects falls out of
-`print_child` re-dispatching on each node, so a versioned value
-containing further versioned objects is resolved layer by layer.
+The IO map holds `selection_cell`, a computed cell of `(index, value_iomap)`, and three computed fields that read it: `output`, `index` and `value_iomap`. The reference maps and the reader therefore always use the version that is selected now.
 
-### Criterion swapping
+The reference maps are asymmetric, because the wrapper is not in the output. The forward map requires the three steps `versions[index].value` with the selected index, removes them, and gives the rest to the map of the value. The backward map calls the map of the value and puts the three steps in front.
 
-`SetVersionCriterionOperation` replaces `vo.criterion` and, like the clipboard
-display toggle, drops `editor.iomap` to force a rebuild on the new criterion
-(see `ToggleClipboardSliceOperation`).
+### The reader
 
-## Example & tests
+**The reader reads its own keys first and the value second.** Two keys belong to the projection, in a `get_projection_gesture_bindings` table:
 
-- Example: `make_versioning_document_example` / `make_versioning_projection_example`
-  (`versioning_example`) — a `VersionedObject` over a `JsonObject` with three
-  `ObjectVersion`s. Like `clipboard_example`, it is kept out of the enumeration
-  registry; run it directly, e.g. `test_printer(versioning_example)`.
-- Tests: `test/substrate/projection/VersioningToAnyTest.jl` (`test_versioning_to_any`)
-  covers `select_version` per criterion, the printer under Latest vs Index, the
-  empty/no-match → `DocumentNothing` case, reference peel/prepend, reader
-  re-rooting, the version-management gestures, and versioned-in-versioned
-  recursion.
+| Key | What it does |
+| --- | --- |
+| Ctrl+Shift+S | copies the active value with `copy_document`, clears its selection, and puts it in a new `ObjectVersion` at the front of `versions` |
+| Ctrl+Delete | deletes the active version |
+
+A key that the table does not take goes to the reader of the selected value. `_prefix_op` puts the three steps `versions[index].value` in front of the operation that comes back. It has a case for each operation shape that holds a reference, from a selection and a range edit to a compound and a collection of intents.
+
+The undo buffer reads in the opposite order, content first and its own keys last, so that the innermost buffer takes Ctrl+Z. [undo.md](../undo/undo.md) gives the reason, and `source/undo/UndoBufferToAny.jl` states it at its head. With the versioning order, the outermost `VersionedObject` on the path takes Ctrl+Shift+S, and a value below it never gets these two keys while a version is selected.
+
+**The two keys use the standard sequence edits.** `insert_elements` and `delete_elements` make a `ReplaceReferencedValueOperation` that ends in a `RangeReferenceStep` on `versions`. Every projection above reroots that operation, so the keys work when the `VersionedObject` is deep in a tree. The operation also has an inverse, so an undo buffer above it can take a new version back.
+
+## How it fits
+
+`ProjecturedVersioning` depends on the kernel, `ProjecturedCollection` for `versions`, `ProjecturedDomain` for `DocumentNothing` and `ProjecturedPrimitive` for the range edits that `_prefix_op` reroots. No other package depends on it. A program puts a `VersionedObject` into its document and a `VersionedObject => VersioningToAnyProjection()` row into its dispatch table.
+
+It registers nothing at load time; the two keys belong to the projection.
+
+## Design decisions
+
+- **Versions are values in the document, not a log of operations.** A version can then be inspected, printed, edited, copied, saved and versioned again with the machinery that exists. A log that replays inverse operations can not express a branch or a version of one subtree. The undo buffer is that other model, and the two exist side by side. See `plan/pending/object-versioning.md`.
+- **Two levels, not two parallel arrays.** A `values` array beside a `metadata` array falls out of step on an insert or a delete. The properties of a version could then not be selected as one document. `ObjectVersion` keeps the value and its properties together.
+- **The criterion is a type with subtypes.** A new way to select is a new subtype, with no `if` chain in the projection.
+- **Wrapping turns versioning on.** The projection matches only `VersionedObject`, so no global switch exists.
+- **The criterion is on the document.** Two nodes can use two criteria, and a change of the criterion is a cell write.
+- **No operation type of its own for a version.** A snapshot and a delete are sequence edits, so every ancestor projection reroots them. A `CreateVersionOperation` and a `DeleteVersionOperation` were the rejected alternative; step 3 of the plan records the reason.
+
+## Usage
+
+```julia
+object = VersionedObject(parse_json("""{"status": "draft"}"""); author = "alice", timestamp = 1)
+object = VersionedObject([ObjectVersion(parse_json("""{"status": "review"}"""); author = "bob", timestamp = 2),
+                          ObjectVersion(parse_json("""{"status": "draft"}"""); author = "alice", timestamp = 1)])
+select_version(object)                                        # (1, the version of bob)
+operation  = SetVersionCriterionOperation(object, VersionCriterionByAuthor("alice"))
+projection = TypeDispatchingProjection(VersionedObject => VersioningToAnyProjection(),
+                                       JsonObject => JsonObjectToSyntaxNode())
+```
+
+- Example: `versioning_example`, a `VersionedObject` over a JSON object with three versions by three authors. The factories are `make_versioning_document_example()` and `make_versioning_projection_example()` in `example/projectured/`. The example is outside the `examples` registry, because the sweeps share one document; run a test on it by name, for example `test_printer(versioning_example)`.
+- Test: `test_versioning_to_any()` in `test/substrate/projection/VersioningToAnyTest.jl`. It covers each criterion, the printer, the empty case, both reference maps, the reader, the two keys and a versioned object inside another.
+
+## Limits
+
+- No view shows all versions of an object at once, to browse or compare them. It is step 5 of `plan/pending/object-versioning.md` and is open.
+- An edit always changes the selected version. To edit another version, you change the criterion first.
+- No key changes the criterion. `SetVersionCriterionOperation` comes from code.
+- A version made with Ctrl+Shift+S has empty properties, so `VersionCriterionByAuthor` and `VersionCriterionAsOf` never select it.
+- A new version goes to the front, so `VersionCriterionIndex(i)` then selects a different version than before.

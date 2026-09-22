@@ -1,176 +1,150 @@
-# Syntax Domain
+# Syntax domain
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** design · **Status:** current · **Stands on:** [text.md](../text/text.md), [projection-system.md](../kernel/projection-system.md), [domain-anatomy.md](../../design/domain-anatomy.md)
 
-<img width="586" alt="Syntax example" src="../../../asset/image/example/syntax.png">
+`ProjecturedSyntax` holds the generic tree between a structured document and styled text: leaves and compounds with delimiters, separators, indentation and a fold state. Every domain with a text form prints to it, and `SyntaxToText` prints it to a `TextBlock`. This document says how the tree is built, how `SyntaxToText` splices the output of the children, and how the shared insertion leaf and placeholder printer work.
 
-The syntax domain provides a generic intermediate representation between semantic domains (JSON, XML) and text. It represents structured data as a tree of nodes with delimiters.
+<img width="396" alt="Syntax example" src="../../../asset/image/example/syntax.png">
 
-**Indexing conventions**: paths use `[i]` for the i-th item (1-based) and `{k}` for the cursor at boundary `k` (0-based). The two are readings of the same axis; see [the boundary axis](../kernel/reference.md#the-boundary-axis). In Syntax the axis appears as child nodes *and* as characters within delimiters or leaf values; the same `[i]` / `{k}` syntax addresses both.
+## How it works
 
-## Types
-
-`SyntaxDocument` is the abstract root. `SyntaxLeaf` (a primitive value with
-optional open/close delimiters) is the only leaf type; every other type is a
-`SyntaxCompound` — an interior node, declared in
-[SyntaxDocument.jl](../../../source/syntax/SyntaxDocument.jl):
+`SyntaxLeaf` is the only leaf. It holds a `value` and an optional `open` and `close`, each a `TextString`. Every other type is a `SyntaxCompound`:
 
 | Type | Kind | Holds |
-|---|---|---|
-| `SyntaxNode` | `SyntaxSequence` | `children` (`CellVector`), plus `open`/`close`/`sep` delimiters, `indentation`, `collapsed` |
-| `SyntaxConcatenation` | `SyntaxSequence` | `children` only — no delimiters, no separator, no indentation, no collapse |
-| `SyntaxSeparation` | `SyntaxSequence` | `children` and a `separator` between each pair — nothing else |
-| `SyntaxDelimitation` | `SyntaxWrapper` | one `content`, plus `opening_delimiter`/`closing_delimiter` |
-| `SyntaxIndentation` | `SyntaxWrapper` | one `content`, plus an `indentation` level |
-| `SyntaxCollapsible` | `SyntaxWrapper` | one `content`, plus a `collapsed` flag |
-| `SyntaxNavigation` | `SyntaxWrapper` | one `content`; marks a caret landing point, no fields of its own |
-| `SyntaxInsertion` | (leaf-shaped) | the domain-neutral insertion-kit placeholder |
+| --- | --- | --- |
+| `SyntaxNode` | `SyntaxSequence` | `children`, `open`, `close`, `sep`, `indentation`, `collapsed` |
+| `SyntaxConcatenation` | `SyntaxSequence` | `children` only |
+| `SyntaxSeparation` | `SyntaxSequence` | `children` and a `separator` |
+| `SyntaxDelimitation` | `SyntaxWrapper` | `content`, `opening_delimiter`, `closing_delimiter` |
+| `SyntaxIndentation` | `SyntaxWrapper` | `content` and an `indentation` |
+| `SyntaxCollapsible` | `SyntaxWrapper` | `content` and a `collapsed` flag |
+| `SyntaxNavigation` | `SyntaxWrapper` | `content` only; it marks a place where the caret can stop |
 
-A `SyntaxSequence` addresses any number of children as `.children[i]`; a
-`SyntaxWrapper` addresses its exactly-one child as `.content`. Every function
-that walks the tree — navigation, collapse resolution, printing — is written
-against `SyntaxCompound`, not against `SyntaxNode`, so a wrapper is a real
-level of the tree and not a special case: a domain adds delimiters,
-indentation, a fold state, or a navigation marker to *any* document by
-wrapping it, without `SyntaxNode`'s five combined fields.
+A sequence addresses child `i` as `.children[i]`, and a wrapper addresses its one child as `.content`. `build_syntax_child_path` and `peel_child_step` are the only functions that see this difference. Tree navigation, collapse, the printer and both reference maps are written against `SyntaxCompound`, so a wrapper is a real level of the tree and not a special case.
 
-`SyntaxNode` and `SyntaxSeparation` are what a domain reaches for the same
-node with only some of those five: `SyntaxConcatenation` when it needs none
-of them (a pure sequence), `SyntaxSeparation` when it needs only a separator.
-Both render the same as a `SyntaxNode` with the other fields left `nothing`.
-The distinction is precision: a type that can only sequence cannot later
-acquire a delimiter by accident.
-
-The **compound contract** — what a compound answers about itself, independent
-of which type it is — is five generic functions, each with a default of
-`nothing`/`0`/`false`:
+**The compound contract** is the set of functions that describe a compound. Each function has a default of `nothing`, `0` or `false`:
 
 | Function | Answers |
-|---|---|
-| `get_opening_delimiter(compound)` / `get_closing_delimiter(compound)` | `field => span`, or `nothing` |
-| `get_separator(compound)` | `field => span`, or `nothing` |
-| `get_indentation(compound)` | the pretty-print indentation, `0` if it does not indent |
-| `is_syntax_collapsed(compound)` | whether it is currently collapsed |
-| `is_syntax_collapsible(compound)` | whether it *can* collapse at all — only such a compound gets a fold marker |
+| --- | --- |
+| `get_opening_delimiter`, `get_closing_delimiter`, `get_separator` | `field => span`, or `nothing` |
+| `get_indentation` | the indentation, `0` when the compound does not indent |
+| `is_syntax_collapsed` | whether the compound is folded now |
+| `is_syntax_collapsible` | whether it can fold; only such a compound gets a fold marker |
 
-`SyntaxLeaf` and `SyntaxNode` answer all the delimiter/indentation/collapse
-ones directly, from their own fields of the same shape; a `SyntaxDelimitation`/
-`SyntaxIndentation`/`SyntaxCollapsible` wrapper answers only the one function
-its name says. Code that reads `node.indentation`/`node.collapsed` directly
-works for the two combined types but not for a wrapper stack — read through
-the contract functions instead of the field when the input might be any
-`SyntaxCompound`.
+`SyntaxNode` has a method of each function that reads its own fields. A wrapper has a method of only the one function that matches its name. Code that reads `node.indentation` works for a `SyntaxNode` and not for a wrapper, so call the contract when the input can be any compound. A delimiter comes back as `field => span` with the name of the document field. So a caret in the span maps back to `.<field>{k}`, and the printer does not depend on the name of the field.
 
-## Examples
+**An absent delimiter is `nothing`, not `TextString("")`.** An absent delimiter makes no span and so no caret. An empty `TextString` makes a span that draws nothing and still holds a caret. A bare empty `String` becomes `nothing`. A `TextString` stays, because its content is a cell that can grow later. The tag close of an XML element changes between `" "` and `""`.
+
+### The splice of SyntaxToText
+
+`SyntaxToText()` is a `TypeDispatchingProjection` with `SyntaxLeafToText` for the leaf, one shared `SyntaxCompoundToText` for every compound, and `SyntaxListToText` for a lazy `ListNode`. The chain wraps it in a `RecursiveProjection`.
+
+**A compound prints only its own level.** It prints each child through `print_child` and splices the `elements` of the child output into its own list. It never walks the subtree below a child. `_splice_compound` lays out every compound in the same five steps. They are the fold marker, the opening delimiter, the children with separators, the line breaks and indentation, and the closing delimiter. A compound whose contract returns `nothing` or `0` for a step adds nothing for it. A folded compound prints no children and adds one ellipsis span.
+
+The IO map, `SyntaxCompoundToTextIoMap`, records where each part went:
+
+| Field | What it holds |
+| --- | --- |
+| `child_iomaps` | the IO map of each child |
+| `child_elem_ranges` | the range of output elements that each child fills |
+| `own_spans` | each delimiter span, as element index `=>` document field |
+| `sep_indices` | each separator span |
+| `indent_indices` | each indentation span, of this level and of all the levels below |
+| `marker_index` | the fold marker, or 0 |
+
+Both reference maps use these ranges. A path under `.children[i]` goes to the map of child `i`, and the result moves by the start of the range of that child. A whole-element selection of a child becomes a `TextSpanReferenceStep` box over the range. A caret in a delimiter maps back to `.<field>{k}`. A caret on the marker, a line break, an indentation, the ellipsis or a separator maps back as a projection-introduced position, because no document field holds it. A separator is not in `own_spans`: one field makes `n - 1` spans, so a caret in one of them names no single place in the document.
+
+**An indenting ancestor widens the indentation of its children.** A compound with `indentation != 0` puts a line break and an indentation span of one level before each child. When it splices a child, it widens every span that the child lists in `indent_indices` by one more level, and it adds them to its own list. So the depth adds up level by level, and no compound computes its absolute depth. A compound that indents also adds a line break and an empty indentation before its closing delimiter, so that an ancestor has a span to widen there too.
+
+The reader has the same shape. An edit in a span of child `i` goes to the reader of that child, and `.children[i]` goes in front of the result. An edit in a separator span changes the one separator field, so every gap changes. An edit on other spans of the node gives `nothing`. A click on the marker or on the ellipsis gives a `ToggleCollapseOperation` for the node, and an Alt+click selects the whole leaf or node under it. Ctrl+. arrives with no target, and the reader resolves it to the innermost compound that can fold and holds the caret.
+
+At the seam between a value and its closing delimiter, the backward map of a leaf returns `value{n}` and not `close{0}`. The two are the same place on the screen, but only the value is editable. Without this, the only caret of an empty string could not be reached.
+
+### Tree gestures
+
+The keyboard half of the reader is two `@gestures` tables in `source/syntax/SyntaxDocument.jl`. They walk selection paths and read no pixels.
+
+| Key | On | Edit |
+| --- | --- | --- |
+| Ctrl+Alt+Home | a compound or a leaf | select the root node, or the whole leaf |
+| Ctrl+Space | a compound or a leaf | toggle between a whole-element selection and a text caret |
+| Alt+arrow | a compound | move in the tree from any selection |
+| an arrow | a compound | move in the tree, only when a whole element is selected |
+
+The table is on `SyntaxCompound`, so every wrapper type has tree navigation. `SyntaxCompoundToText` gives a `KeyDown` to this table and keeps only the mouse arms.
+
+### The insertion leaf
+
+`InsertionToSyntaxLeaf(commit; prefix, suffix, completion)` prints a document that has an editable `value` string as a typed-name buffer. The output is a `SyntaxDelimitation` around one leaf: `prefix`, the typed value, a pale continuation, `suffix`. The colour of the value and the text of the continuation are computed cells over `completion(insertion)`, so the feedback changes with each key and nothing prints again.
+
+The default policy is `name_completion` of `ProjecturedDomain`. It returns one of four states:
+
+| State | The typed value | The continuation |
+| --- | --- | --- |
+| `:empty` | the neutral colour | none |
+| `:invalid` | red | none |
+| `:ambiguous` | green | none; Tab adds the part that all the matching names share |
+| `:unambiguous` | green | the rest of the one matching name |
+
+The keys are in a gesture table of the projection, `get_projection_gesture_bindings`, because two of them call the projection. Enter calls `commit(value)` and replaces the buffer with the result. Escape replaces it with `get_nothing_document(typeof(insertion))()`, the placeholder of the domain. Tab adds the extension. When the table gives `nothing` for a key, the key goes to the `@gestures` table of the insertion document. So a type-to-replace key of the domain still works on the buffer.
+
+Two constructors cover the name insertions. `DocumentInsertionToSyntaxLeaf()` reads "Insert a new … here" and completes over every document type. `DomainInsertionToSyntaxLeaf(root)` completes over the candidates of one domain without the domain prefix, so inside a `JsonInsertion` the name `string` makes a `JsonString`. The candidates come from reflection over the loaded types; [domain.md](../domain/domain.md) describes it. A domain whose buffer holds source text passes `completion = parse_completion(parser)`, and the value is green when it parses. `SqlInsertionToSyntaxLeaf` is built this way. `JuliaInsertionToSyntaxLeaf` is a separate projection, and the `@gestures JuliaInsertion` table does its editing.
+
+### The placeholder printer
+
+`InsertionNothingToSyntaxLeaf()` prints every `*Nothing` placeholder that `@domain` makes. It shows a muted italic label made from the type name: `JsonNothing` prints "empty json". It has no reference maps of its own. The fallback of `Projection` maps a whole-element selection, and it keeps a caret on the label as a projection-introduced position.
+
+**A typed key on the placeholder runs the create gesture of the document type.** The text stage turns the key into an insert on the label, which arrives as a `ReplaceStringRangeOperation`. The reader gives it back to `read_gesture` on the placeholder as a `KeyPress`. So `{` on "empty json" makes a `JsonObject`, from any caret and without a whole-element selection first. A key with no create rule does nothing, and a delete does nothing. The Insert key goes through the fallback to the placeholder table and opens the insertion buffer.
+
+`SyntaxNothing` does not exist. `SyntaxInsertion` is declared, but no projection prints it and no code makes one; see `plan/pending/simplest-syntax-document.md`.
+
+### The bridges
+
+- `ObjectToSyntax()` reflects any Julia value into a tree by its runtime type. A struct becomes a node of its type name and one node for each field. A `Bool`, number, string, `Symbol`, `Char` or `nothing` becomes a leaf.
+- `ObjectFieldToSyntax()` prints one field of one object, an `ObjectField` of `ProjecturedPrimitive`, as the name leaf and the value. `ObjectToSyntax` prints each field from its `Cell` through `CellToSyntax`, so a write to the cell repaints the field. An `ObjectField` has no cell, so it needs a separate projection. Put its row in front of the `ObjectToSyntax` table, or the `Any` row prints the whole object.
+- `CollectionToSyntax()` prints a `CellVector` as a node in brackets and keeps a `ListNode` lazy.
+- `PrimitiveToSyntax()` prints a `PrimitiveBool`, `PrimitiveNumber` or `PrimitiveString` as a leaf.
+
+`make_natural_to_syntax_dispatch()` builds the table of the general renderer. The rows that domains register with `register_natural_syntax!` come first. Then come `PrimitiveToSyntax`, the placeholder and insertion rows of `Text` and `Document`, `CollectionToSyntax` and the `ObjectToSyntax` table. The `DocumentNothing` and `DocumentInsertion` rows are what an empty pane tab shows.
+
+## How it fits
+
+`ProjecturedSyntax` depends on `ProjecturedText`, `ProjecturedDomain`, `ProjecturedNatural`, `ProjecturedPrimitive`, `ProjecturedCollection`, `ProjecturedProjection`, `ProjecturedStyle` and the kernel. Every domain with a syntax chain depends on it; [domain-anatomy.md](../../design/domain-anatomy.md) shows the chain.
+
+Its `__init__` calls `register_syntax_fallback!()`. That registers the reflection table as the fallback of the natural renderer and the rung from syntax to text. So a session that loads this package can draw a document of any shape, and `ProjecturedNatural` does not name this package.
+
+## Design decisions
+
+- **A compound prints only its own level.** A printer that walks the whole subtree prints every node again for one edit and loses the identity of each child output. The splice keeps the output of an unchanged child. See `plan/done/syntaxtotext-delegation.md`.
+- **The depth adds up level by level.** An indenting ancestor widens the indentation spans that its children report, which gives the same width as `depth * indent_size`. No compound needs its absolute depth.
+- **The printer records where each span went.** With optional delimiters no position identifies the opening or the closing span, so `own_spans` holds the field of each one.
+- **The contract is five functions, not one type with five fields.** A wrapper adds one thing to any document and is a real level of the tree. `SyntaxConcatenation` and `SyntaxSeparation` can not get a delimiter by accident. See `plan/pending/simplest-syntax-document.md`, whose first two phases are done.
+- **Content is positional and chrome is a keyword.** `SyntaxLeaf(value; open, close)` and `SyntaxNode(children; open, close, sep)` put the content first. See `plan/done/syntax-constructor-keywords.md`.
+- **A placeholder key is a create gesture, not a text edit.** The label is a prompt, so a typed key goes to the document table and not into the label.
+- **Completion is reflection.** No list of names exists; a new document type is a candidate as soon as Julia evaluates its `struct`.
+
+## Usage
 
 ```julia
-# Create a syntax leaf (e.g., for a JSON string)
-leaf = SyntaxLeaf(
-    TextString("\""),           # open delimiter
-    TextString("\""),           # close delimiter
-    TextString("hello")         # value
-)
+leaf = SyntaxLeaf("hello"; open = "(", close = ")")
+render(leaf)                         # "(hello)"
 
-# Create a syntax node (e.g., for a JSON array)
-node = SyntaxNode(
-    TextString("["),            # open delimiter
-    TextString("]"),            # close delimiter
-    TextString(", "),           # separator
-    [child1, child2];           # children (Vector{<:SyntaxDocument})
-    indentation = 0             # indentation depth (Int keyword, default 0)
-)
+node = SyntaxNode(SyntaxDocument[SyntaxLeaf("a"), SyntaxLeaf("b")]; open = "[", close = "]", sep = ", ")
+render(node)                         # "[a, b]"
+
+wrapped = SyntaxDelimitation(SyntaxLeaf("x"); opening_delimiter = "<", closing_delimiter = ">")
+chain   = RecursiveProjection(SyntaxToText(; indent_size = 2))
 ```
 
-## Selection
+A path into a leaf is `.open{k}`, `.value{k}` or `.close{k}`. A path into a compound is `.children[i]` or `.content` for a child, or a caret in one of its delimiters, such as `.open{k}` on a `SyntaxNode`.
 
-Selection paths can reference:
-- Delimiters: `.open[i]` / `.open{k}`, `.close[i]` / `.close{k}` — i-th character or cursor between characters (on both `SyntaxLeaf` and `SyntaxNode`)
-- Separator: `.sep[i]` / `.sep{k}` — **`SyntaxNode` only** (`SyntaxLeaf` has no `sep` field)
-- Children: `.children[i]` for the i-th child, `.children{k}` for the cursor between children (`SyntaxNode`)
-- Leaf values: `.value[i]` for the i-th character, `.value{k}` for the cursor between characters (`SyntaxLeaf`)
+- Examples: `syntax_example` and `object_field_syntax_example` in `example/substrate/`. Each domain has its own syntax examples, such as `sql_syntax_example`.
+- Tests: `test_syntax()`, `test_syntax_to_text()` and `test_object_field_to_syntax()` in `test/substrate/`; `test_syntax_tree_selection()` and `test_document_insertion()` in the umbrella suite.
 
-## TextString
+## Limits
 
-Each delimiter or value is a `TextString` containing:
-- Text content
-- Font style
-- Font color
-- Background fill
-
-## Collapsed and indentation fields
-
-`SyntaxLeaf` and `SyntaxNode` both carry `indentation::Int` (pretty-print
-nesting depth, set by the upstream projection; consumers typically leave it
-at `0`) and `collapsed::Bool` (when `true`, the node renders on one line;
-children or value are not expanded) as plain fields. A `SyntaxCollapsible` /
-`SyntaxIndentation` wrapper carries the same state for any other compound —
-read it through the [compound contract](#types) (`is_syntax_collapsed`,
-`get_indentation`), not the field, when the input might be either shape:
-
-```julia
-node.collapsed = true    # collapse this node to one line (SyntaxLeaf/SyntaxNode)
-node.indentation = 2     # override indentation depth (SyntaxLeaf/SyntaxNode)
-```
-
-## One field of one object
-
-`ObjectFieldToSyntax` projects an `ObjectField` — one field of one object — to
-the field node `ObjectNodeToSyntaxNode` builds inline for each field of a struct:
-the name leaf, then the projected value.
-
-```julia
-ObjectField(server, "name")      →   name "gateway"
-ObjectField(server, "capacity")  →   capacity 4
-ObjectField(server, "enabled")   →   enabled true
-```
-
-The name comes from the last `FieldReferenceStep` of the path. A step that names
-no field, such as an element step, leaves the value alone, because an
-index makes a poor label and the caller can put one beside it.
-
-Put its entry in front of `ObjectToSyntax`'s own table. Without it the `Any` row
-dispatches to `ObjectNodeToSyntaxNode`, which dumps the whole object and its
-reference path:
-
-```julia
-RecursiveProjection(TypeDispatchingProjection(vcat(
-    Pair{Type,Any}[ObjectField => ObjectFieldToSyntax()],
-    ObjectToSyntax().dispatch)))
-```
-
-`ObjectNodeToSyntaxNode` keeps its private version. It projects each field's
-**`Cell`** through `CellToSyntax`, which is how a field repaints when its cell is
-written. An `ObjectField` names a value reached by `evaluate_reference` and has no
-cell to hand on, so the two are reactive by different means.
-
-## Key Features
-
-- Generic representation for multiple domains
-- Delimiters are valid cursor positions, not decoration
-- Supports indentation for pretty-printing
-- Selection mechanism works on delimiters and content
-
-## Gesture mapping (`read_gesture`)
-
-The syntax tree's keyboard navigation is entirely geometry-free — it walks the
-compound tree and its selection paths, with no reference to pixels — so it
-lives on the document as a reified gesture table:
-`@gestures SyntaxCompound begin … end`
-([SyntaxDocument.jl](../../../source/syntax/SyntaxDocument.jl)) maps an input
-gesture to a `ReplaceSelectionOperation` on the tree. It is registered on
-`SyntaxCompound`, the abstract supertype every interior node shares — not on
-`SyntaxNode` — so every wrapper type gets tree navigation for free, with no
-table of its own. A separate `@gestures SyntaxLeaf begin … end` table covers
-the character-cursor rules a leaf needs instead. The generic `read_gesture`
-interpreter fires whichever table matches the node's type, so this is also
-exactly the table the gesture-help overlay enumerates.
-
-- `Ctrl+Alt+Home` → select the root node (`∅`)
-- `Ctrl+Space` → toggle structural ⇄ text (character-cursor) selection
-- `Alt` + arrow → tree-navigate from any selection (enters structural mode)
-- a plain arrow → tree-navigate, but only once a whole element is selected
-  (parent / first child / previous / next sibling)
-
-`SyntaxCompoundToText` delegates to this and keeps only the geometry/output-driven
-mouse hit-testing (collapse glyph, Alt+click). See
-[projection-system.md](../kernel/projection-system.md) for the full reader split.
+- `SyntaxLeaf` has `indentation` and `collapsed` fields, but the compound contract is not defined for a leaf and `SyntaxLeafToText` reads neither.
+- A `@projection_template` node with a fixed list of children must use the positional seven-argument `SyntaxNode` form. The keyword form stores a `CellVector`, and the template engine then does not find the markers inside it.
+- JSON and XML do not pass `collapsed` to their nodes, so their containers do not fold. See `plan/pending/collapse-expand-syntax-nodes.md`.
+- A selection of a range of siblings, such as `.children[2..4]`, does not exist. See `plan/pending/syntax-tree-selection.md`.
+- `SyntaxToText` makes no `TextLine` and keeps its own indentation spans. See `plan/pending/text-domain-kit.md`.

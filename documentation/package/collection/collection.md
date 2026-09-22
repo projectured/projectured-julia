@@ -1,183 +1,105 @@
 # Collections
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** design · **Status:** current · **Stands on:** [cell.md](../kernel/cell.md), [document.md](../kernel/document.md), [reference.md](../kernel/reference.md)
 
-<img width="240" alt="Collection example" src="../../../asset/image/example/collection.png">
+`ProjecturedCollection` holds four generic containers for the children of a document: a vector, a matrix, a table and a linked list. Each element is in a reactive cell of its own. This document says which kind of change reaches which reader, and how the kernel uses these types without naming them.
 
-The collection domain provides four generic, reactive container types used
-everywhere in ProjecturEd. They are defined in
-[source/collection/CollectionModule.jl](../../../source/collection/CollectionModule.jl)
-and subtype `Document` so they participate in the selection mechanism. This guide
-covers the two most common ones, `CellVector` and `ListNode`; `CellMatrix`
-(2-D) and `CellTable` (rows of `CellVector`s) follow the same reactive-cell design.
+<img width="396" alt="Collection example" src="../../../asset/image/example/collection.png">
 
-```julia
-const CollectionDocument = Union{CellVector, CellMatrix, CellTable, ListNode}
-```
+## How it works
 
-## Where Collection and Primitive sit
+| Document | Field | Shape |
+| --- | --- | --- |
+| `CellVector` | `elements`, a `Vector{Cell}` | a growable sequence, addressed `[i]` |
+| `CellMatrix` | `elements`, a `Matrix{Cell}` | a fixed rectangle, addressed `[r, c]` |
+| `CellTable` | `rows`, a `CellVector` of `CellVector` rows | a grid that grows a row at a time |
+| `ListNode` | `value`, `prev`, `next` | a chain that is read from the node you hold |
 
-Collection is one of the two **shipped engine documents** that make up layer 1
-of the `ProjecturedCollection` package — the concrete, domain-independent documents
-every domain reuses:
+`CollectionDocument` is the union of the four. Each is an `@document` struct, so each also has a `selection` field, and `CellVector()`, `CellMatrix()` and `CellTable()` make an empty one.
 
-- **Collection** — `CellVector` (reactive sequence container), `CellMatrix`,
-  `CellTable`, `ListNode`. Provides the seam method
-  `child_reference_steps(::CellVector) = [(RangeReferenceStep(i-1, i), node[i]) …]`
-  registered on the kernel's `OperationModule`, so the pre-order document
-  walk driving `SelectNextInsertionOperation` picks up `CellVector` elements
-  without the kernel referencing the concrete type.
-- **Primitive** — the editable domain-independent Bool/Number/String/Insertion
-  documents with selection and identity, plus `ReplaceStringRangeOperation`
-  / `ReplaceNumberRangeOperation` (the splice-range ops) with their
-  `reroot_operation` methods.
+### A cell for each element
 
-A document type belongs in this base layer when it is shipped for reuse by
-every domain and is domain-independent — Collection and Primitive pass; see
-[architecture.md](../kernel/architecture.md) for the full membership rule. Two related
-types that might look like they belong here do not: `ScreenDocument` lives in
-`source/screen/` (window things are visual) and `WindowInput` lives in the
-kernel's `EventModule` (it is a protocol type consumed by the editor loop,
-not a document). The rationale for those placements is documented in
-[devices-and-backends.md](../kernel/devices-and-backends.md).
+**Each element of a reactive collection is in a cell of its own, and the container is one more cell.** Reading `cv[i]` reads the `elements` cell and then the cell of slot `i`. Two kinds of change follow from this:
 
-## CellVector
+- **A value change**, `cv[i] = value`, writes into the existing cell of slot `i`. Only the readers of that slot get it.
+- **A structural change**, `push!`, `pop!`, `insert!`, `deleteat!` or `cv[i] = cell`, changes the vector in place and then assigns the same vector to `cv.elements` again. That assignment invalidates every reader of the shape: a layout that reads `length(cv)`, and every reader that read an element through an index.
+
+Every structural mutator must end with that assignment, or the readers of the shape keep a stale value. The module docstring of `CollectionModule` states the rule. `cv[i] = cell` with a `Cell` replaces the slot, so the readers of the old cell get no more changes.
+
+An insert or a delete keeps the cells of the other elements. `get_cell_at(cv, i)` returns the cell of a slot, and a reader that holds that cell keeps its dependency when the slot moves. `make_inverse_operation` of the kernel reads the old element through the seam `get_slot_at`, which returns the cell. So an undo puts back the same cell, and whatever followed that cell follows it again.
+
+A reactive vector stores `Vector{Cell}`. An immutable or mutable vector, made by the cell-kind variants of `@document`, stores a plain `Vector` of values with no cell for each element. Every method dispatches on the kind of the `elements` cell, so the reactive path is fully typed. An immutable vector raises an `ArgumentError` before it changes anything.
+
+### A derived vector
+
+`ComputedCellVector(f)`, which is `CellVector(Computed(f))`, computes its whole element list from a thunk and puts each element in a new cell on each computation. A projection uses it for children that it builds from its input:
 
 ```julia
-@document struct CellVector
-    elements::Vector = Cell[]
-end
+SyntaxNode(ComputedCellVector(() -> [project_child(c) for c in input.children]); open = "[", close = "]")
 ```
 
-`@document` injects the `selection::Reference` field automatically, appended
-as the struct's last field; it is not written here. `elements` defaults to
-an empty `Cell[]`, so `CellVector()` comes from the macro's own generated
-keyword constructor; there is no hand-written zero-arg constructor to
-maintain. `CellTable`'s `rows::CellVector = CellVector()` and `CellMatrix`'s
-`elements::Matrix{Cell} = Matrix{Cell}(undef, 0, 0)` follow the same pattern.
+`CellVector(f)` with a plain function is a vector of one element, the function. Only `Computed` derives the element list, as with `ComputedCell`.
 
-A growable indexed vector where **each slot is a reactive `Cell`**. A
-write to one slot invalidates only the dependents that read *that* slot,
-not the whole container. This is the key to scalable updates.
+### The list
 
-Construction:
+A `ListNode` is the middle of a chain. `prev` and `next` are two tails that grow outward, and each is a cell, so a thunk can compute either one. A chain can then have no end in either direction, and only the nodes that a reader walks to exist. `head[1]` is the held node, `head[2]` walks `next` and `head[0]` walks `prev`. `push!` adds to the right tail, `pushfirst!` to the left tail, and iteration starts at `get_left_tail`. `take_first(node, n)` and `take_first(node, n_prev, n_next)` read a finite window.
+
+`CopyingProjection` of [projection.md](../projection/projection.md) copies a list node by node on demand, so a copy of an endless list costs nothing until it is read. A `GraphicsCanvas` holds a `ListNode` for a view whose elements have no end; see [graphics.md](../graphics/graphics.md).
+
+### Seams for the kernel
+
+The kernel names no collection type. This package adds methods to kernel generics instead:
+
+| Method | What it gives the kernel |
+| --- | --- |
+| `is_element_collection(::CellVector)` | a reflection walk makes `[i]` paths and does not descend into `.elements` |
+| `is_collection_field_type(::Val{:CellVector})` | `Foo([a, b])` wraps the vector for a `CellVector` field |
+| `get_cell_layout_field_type(::Val{:Vector})` | a field declared `Vector{T}` is a `CellVector` in the reactive layout and a plain `Vector` in the native one |
+| `child_reference_steps(::CellVector)` | the walk that finds the next insertion reaches each element as `RangeReferenceStep(i - 1, i)` |
+| `get_slot_at(::CellVector, i)` | an inverse operation puts back the same cell |
+| `make_children_container`, `get_children_container_type` | `@projection_template` builds children as a `CellVector` |
+| `copy_document`, `has_document_duplicate` | a deep copy under a `CopyPolicy`; see [document.md](../kernel/document.md) |
+
+A reference addresses an element as `[i]`, from 1, and the place between two elements as `{k}`, from 0. Both are readings of one `RangeReferenceStep`; see [reference.md](../kernel/reference.md).
+
+## How it fits
+
+`ProjecturedCollection` depends only on the kernel. Almost every other package depends on it: the projection algebra, text, syntax, graphics, layout, widgets, panes and every domain with a list of children. `ProjecturedProjection` holds the projections that sort, filter and search a collection.
+
+It registers nothing at load time. The methods in the table above are what connect it to the kernel.
+
+## Design decisions
+
+- **A cell for each element, not one cell for the vector.** A write to one element must reach only the readers of that element.
+- **A structural change assigns the same vector again.** The container cell then fires without a copy of the vector.
+- **The storage depends on the cell kind.** A cell for each element of a vector that never changes costs memory and time. A branch on the storage at run time made the reactive read about two times slower, so each method dispatches on the kind.
+- **The collection logic is in the collection types.** A document holds its children in a collection field, and a caller indexes that field: `node.children[i]`. The collection wraps a plain value in a cell, so no document writes its own `push!` or `getindex`. See `plan/done/fold-collection-methods.md`. A domain can still give a node the vector methods of its field with `@forward_vector_protocol` of the kernel; JSON, YAML, Markdown and RST do.
+- **The list is symmetric.** Both tails can be computed, so a reader walks either way from the held node and no end is the start.
+
+## Usage
 
 ```julia
-CellVector()                       # empty — the macro's keyword constructor
-CellVector(cells::Vector{Cell})    # adopt these cells
-CellVector(items::AbstractVector)  # wrap each item in a Cell
-CellVector(undef, n::Integer)      # n empty slots
-CellVector(items...)               # wrap each positional arg in a Cell
-ComputedCellVector(f)              # computed slots — thunk returns the element Vector
-CellVector(Computed(f))            # the same thing spelled out
+rows = CellVector(["one", "two"])
+rows[2] = "three"                         # a value change: only the readers of slot 2
+push!(rows, "four")                       # a structural change: the readers of the shape
+slot = get_cell_at(rows, 1)
+
+grid = CellMatrix(3, 3)
+grid[2, 2] = "x"
+insert_row!(grid, 1, Cell[Cell(nothing) for _ in 1:3])
+
+table = CellTable(["name" "age"; "Alice" 30; "Bob" 25])
+insert_row!(table, 2, ["Carol", 41])
+
+head = ListNode("alpha"); push!(head, "beta")
+take_first(head, 2)                       # ["alpha", "beta"]
 ```
 
-A single argument is always one *element*, whatever its type — `CellVector(f)` is a
-one-element vector holding the function `f`. Deriving the element list is a different
-request and says so, with `Computed`; the marker is the same one `ComputedCell` uses.
+- Examples: `collection_example` and the sorting, filtering, reversing and searching examples use `make_collection_document_example()`. The atomic catalog has a vector, a table and a list node, in `example/substrate/CollectionDocumentExample.jl`.
+- Test: `test_collection()` in `test/substrate/document/CollectionDocumentTest.jl`.
 
-The computed form is what enables lazy children:
+## Limits
 
-```julia
-SyntaxNode("[", "]", ", ",
-    ComputedCellVector(() -> [project_child(c) for c in input.children]))
-```
-
-The thunk is wrapped via `set_cell_function!` and re-runs whenever its reactive
-dependencies invalidate.
-
-### Access patterns
-
-- `cv[i]` — returns the *value* stored at slot `i` (1-based).
-- `get_cell_at(cv, i)` — returns the raw `Cell` at slot `i` (escape hatch).
-- `cv[i] = val` — writes the value into the cell.
-- `cv[i] = cell` (where `cell isa Cell`) — replaces the slot itself.
-- `push!`, `pop!`, `insert!`, `deleteat!`, `sort`, `reverse` — standard
-  vector operations, all updating the underlying `elements` cell.
-- `length`, `firstindex`, `lastindex`, `iterate`, `eachindex`, `isempty` —
-  standard.
-
-### Reference semantics
-
-The selection mechanism treats a `CellVector` as a sequence:
-
-- `ElementReferenceStep(i)` (or `[i]` in the `@reference` DSL) → slot `i` (1-based).
-- `PositionReferenceStep(i)` (or `{i}`) → cursor *between* slots (0-based).
-
-## ListNode
-
-```julia
-@document struct ListNode
-    value::Any
-    prev::Union{ListNode, Nothing}
-    next::Union{ListNode, Nothing}
-end
-```
-
-A doubly-linked list where the node you hold is the **middle** — `prev`
-and `next` are two tails growing outward in opposite directions. The
-design is deliberately asymmetric in *use* but symmetric in *structure*:
-both directions can be lazy.
-
-- `head[1]` is the head itself
-- `head[2]`, `head[3]`, … walk `next`
-- `head[0]`, `head[-1]`, … walk `prev`
-
-`push!(head, v)` appends to the right tail, `pushfirst!(head, v)`
-prepends to the left tail. `get_left_tail(node)` and `get_right_tail(node)` walk
-to the far end of the respective direction.
-
-### Laziness
-
-Because `prev` and `next` are `Cell` fields, they can be backed by
-computations. `CopyingProjection` exploits this: when it projects a
-`ListNode`, only the head is computed eagerly; the directions are
-re-projected on demand. The result is that copying an *infinite* list is
-still O(1) at construction time. Extra nodes are materialised when
-something reads them.
-
-### Iteration
-
-```julia
-for n in head_node
-    println(n.value)
-end
-```
-
-Iteration starts from `get_left_tail(head_node)` and walks rightward through
-`next`, yielding the whole reachable list. `Base.IteratorSize(ListNode) =
-SizeUnknown()` because the right tail may be unbounded.
-
-### `take_first` helpers
-
-```julia
-take_first(node, n)                 # n values walking :next
-take_first(node, n, :prev)          # n values walking :prev
-take_first(node, n_prev, n_next)    # window centred on node
-```
-
-Useful when projecting a slice of a potentially infinite list to a
-finite-area widget.
-
-## When to use which
-
-- **CellVector** — for finite, bounded collections (JSON arrays, JSON
-  object entries, syntax-tree children, file-system directory listings,
-  widget children). The structure is finite and you have an index to
-  address slots.
-- **ListNode** — for sequences where the natural addressing is "the node
-  in front of / behind this one" and where either direction may extend
-  indefinitely. Used in the graphics module for lazy lines/elements and
-  by `CopyingProjection`'s lazy traversal.
-
-## Reactivity rules of thumb
-
-1. **Reading one slot** registers a dependency on that slot only. A write
-   to another slot does *not* invalidate readers of unaffected slots.
-2. **Structural changes** (push/pop/insert/delete) update the outer
-   `elements` cell, which invalidates anything that depends on the
-   *shape* of the vector (e.g. layout code reading `length(cv)`), while
-   leaving per-slot readers alone unless the slot they observe was
-   actually moved.
-3. **`ComputedCellVector(f)`** is the way to make a computed collection
-   — recreate the whole thing reactively from upstream cells.
+- `CellVector(a, b)` with two arguments calls the constructor of the struct, `(elements, selection)`, and does not make a vector of two elements. Write `CellVector([a, b])`.
+- An insert or a delete of a row or a column of a `CellMatrix` allocates a new matrix. The cells stay the same.
+- `copy_document` of a `ListNode` walks every node in both directions, so a deep copy of a list without an end does not finish.

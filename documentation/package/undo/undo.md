@@ -1,165 +1,120 @@
-# Undo slice
+# Undo
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** design · **Status:** current · **Stands on:** [operation.md](../kernel/operation.md), [projection-system.md](../kernel/projection-system.md), [versioning.md](../versioning/versioning.md)
 
-A domain-neutral overlay that gives **any** document a history. An `UndoBuffer`
-holds another document and the steps that take it back, and a transparent
-projection makes the buffer invisible and records what passes through it.
+`ProjecturedUndo` gives any document a history. An `UndoBuffer` holds a document and the steps that take it back, and a transparent projection records each operation that passes through it. This document says how a step is recorded while no reader changes anything, how two buffers on one path work together, and what is not recorded.
 
-It is the same wrapper-plus-elimination shape the clipboard and the versioning
-slice use: a document that holds a payload, and a projection that answers the
-payload's own output and re-roots edits back into it. What this one adds is on
-the way back — every operation it forwards is wrapped, so applying it also
-records the way back.
+## How it works
 
-## What it is made of
+The package has the shape of the clipboard and of versioning: a wrapper document, and a projection whose output is the output of the wrapped document. The difference is on the way back. The projection wraps each operation that it passes up, so applying the operation also records its inverse.
 
-| Where | What |
+| Part | What it is |
 | --- | --- |
-| [`source/undo/UndoDocument.jl`](../../../source/undo/UndoDocument.jl) | `UndoBuffer`, `UndoEntry`, the three operations, `is_undo_step` |
-| [`source/undo/UndoBufferToAny.jl`](../../../source/undo/UndoBufferToAny.jl) | `UndoBufferToAnyProjection`: the printer, the two reference maps, the reader, the gestures |
-| [`source/undo/UndoBufferToSyntax.jl`](../../../source/undo/UndoBufferToSyntax.jl) | `UndoBufferToSyntax`: the history drawn for a person to read |
-| [`source/kernel/operation/Inversion.jl`](../../../source/kernel/operation/Inversion.jl) | `make_inverse_operation` and `evaluate_invertible_operation!`, the kernel seams this slice rests on |
+| `UndoBuffer` | `content`, the document; `undo_entries`, oldest first; `redo_entries`; `capacity`, 100 by default |
+| `UndoEntry` | `label`, a description for a person; `inverse`, the operation that goes back; `selection`, the caret before the step |
+| `UndoBufferToAnyProjection(; filter)` | the transparent projection, its reader and its keys |
+| `UndoBufferToSyntax` | the history itself, drawn as lines |
 
-## The way back is an operation
+An `UndoEntry` is a plain struct with no cell. The buffer is the document, and an entry is a value that it holds. `get_wrapped_document(buffer)` returns the content, so a save writes the document and not the buffer. `replace_wrapped_document!` puts in a new document and clears both lists, because the steps of the old document do not apply to the new one.
 
-`make_inverse_operation(document, operation)` answers the operation that takes
-`document` back, or `nothing` when there is none. It is an open generic beside
-`reroot_operation`: the kernel answers for the operations it owns, and every
-package declares the inverses of its own operations beside their declarations.
+### The way back is an operation
 
-Two rules follow from what an inverse is.
+`make_inverse_operation(document, operation)` of the kernel returns the operation that takes `document` back, or `nothing` when none exists. Each package declares the inverses of its own operations beside them; [primitive.md](../primitive/primitive.md) shows the inverse of a range edit. Two rules follow:
 
-**It is taken before the change is applied**, because it reads the state the
-change starts from. A field write keeps the value the field holds now; a splice
-of `[start, stop)` with `n` items keeps the slots that are there now and answers
-a splice of `[start, start + n)` with them.
+- **The inverse is taken before the change is applied**, because it reads the state that the change starts from. A field write keeps the current value. A splice of `[start, stop)` with `n` items keeps the current slots and returns a splice of `[start, start + n)` with them.
+- **A compound is inverted while it is applied.** The inverse of the second member of a `CompoundOperation` depends on what the first member did, so `evaluate_invertible_operation!` applies and inverts one member at a time. Two deletes of the same index are the smallest case that shows it.
 
-**A container is inverted while it is applied.** The inverse of the second
-member of a `CompoundOperation` depends on what the first member did, so
-`evaluate_invertible_operation!` interleaves the two rather than inverting the
-whole compound up front. Two deletes of the same index are the smallest case
-that shows it.
+An inverse keeps the slot, not only the value. `get_slot_at` returns the cell of a reactive collection, so an element that comes back is the same object, and whatever followed its cell follows it again; see [collection.md](../collection/collection.md).
 
-An inverse captures the **slot**, not the value: `get_slot_at` answers the cell
-of a reactive collection, so an element that comes back is the object it was and
-whatever followed its cell follows it still.
-
-## Three answers, three mechanisms
-
-They are different questions, and each has one mechanism.
+Three questions have three separate mechanisms:
 
 | Question | Mechanism |
 | --- | --- |
-| Does this step belong in a history at all? | the `filter` of the projection, at read time |
-| Can this step be taken back? | `make_inverse_operation`, at evaluate time |
-| What happens when it can not? | a **barrier** entry, which undo does not cross |
+| Does this step belong in the history? | the `filter` of the projection, when the reader runs |
+| Can this step be taken back? | `make_inverse_operation`, when the operation is evaluated |
+| What happens when it can not? | a **barrier** entry, whose `inverse` is `nothing`; undo stops at it |
 
-`is_undo_step` is the default filter. It drops the operations that change
-nothing and the bare selection moves, because a caret move follows almost every
-key and a history full of them is one a person can not use.
+`is_undo_step`, the default filter, drops `nothing`, `DoNothingOperation` and a bare `ReplaceSelectionOperation`. A caret move follows almost every key, and a history full of them is not usable. A compound that holds a write stays. An operation that changes no document, such as a file write or a zoom, has the inverse `DoNothingOperation()`, and no entry is added for it. Undo does not step over a barrier, because that would make a document that matches no state the user saw.
 
-An operation that changes no document — a file that is written, a zoom — answers
-`DoNothingOperation()`, so a history steps over it. An operation nobody taught to
-invert answers `nothing`, and the entry becomes a barrier. Stepping over a
-barrier would build a document that matches no state the person ever saw.
+### The reader wraps and never records
 
-## The reader wraps; it never records
+`PAR-READER-IS-PURE` in [architecture-invariants.md](../../rule/architecture-invariants.md) forbids a reader to change anything. So the reader returns `RecordUndoOperation(buffer, operation)`, and its `evaluate_operation` takes the label and the caret, applies the operation through `evaluate_invertible_operation!` and pushes the entry. A new entry empties `redo_entries` and drops the oldest entry above `capacity`.
 
-`PAR-READER-IS-PURE` forbids a reader to change anything, and its own text names
-undo as a mechanism a mutating reader would break. So the reader answers a
-`RecordUndoOperation`, and `evaluate_operation` is what takes the inverse,
-applies the change and pushes the entry.
+`RecordUndoOperation` is a `WrappingOperation`: `get_wrapped_operation` and `rewrap_operation` reach the operation inside it. Every seam that maps a `CompoundOperation` member by member uses these two, so the wrapper needs no special case anywhere. `UndoOperation` and `RedoOperation` hold the buffer itself, so `operation_travels_unchanged` is `true` for both and they need no rerooting.
 
-`RecordUndoOperation` is a `WrappingOperation`: it holds one operation and
-answers `get_wrapped_operation` and `rewrap_operation`. Every seam that maps a
-`CompoundOperation` member by member reaches what a wrapper holds through those
-two, so a wrapper needs no branch of its own anywhere. See
-[operation.md](../kernel/operation.md).
+**The reader reads the content first and its own keys last.** It gives the gesture to the content, reroots the returned operation under `content` and wraps it. Only when the content returns no operation does the reader try Ctrl+Z and the redo keys. The source gives the reason: with a buffer inside a buffer, the inner one must take the key. The reader of `VersioningToAnyProjection` uses the opposite order on purpose; see [versioning.md](../versioning/versioning.md).
 
-## One buffer, or one per document
+### One buffer, or one for each document
 
-Both, and the mechanism composes them, because a buffer is a document node and a
-buffer can hold a buffer.
+A buffer is a document node, so a buffer can hold a buffer, and both arrangements work at the same time:
 
-- A buffer around a **window** is the floor: a splitter move, a tab that opens
-  and a chat draft are edits too, and no per-document buffer sees them.
-- A buffer around **each file** is what `Ctrl+Z` means to a person: an undo in
-  one file must not take back an edit in another.
+- A buffer around the **window** records everything. A splitter move, a new tab and a chat draft are edits too, and no buffer of a document sees them.
+- A buffer around **each file** gives Ctrl+Z its usual meaning: an undo in one file does not take back an edit in another.
 
-Four rules make the two work together.
+Four rules make the two work together:
 
-1. **The innermost buffer answers the gesture.** The reader delegates into the
-   content first and fires its own bindings last.
-2. **Undo and redo are each other's inverses.** The way back from "this buffer
-   recorded a step" is that buffer's undo, and the way back from an undo is a
-   redo. So an outer buffer never repeats an inner buffer's work: it asks, and
-   the inner buffer's own two lists stay right.
-3. **A buffer never records its own undo or redo.** It records another
-   buffer's.
-4. **An outer buffer does not re-decide the filter** for a step an inner buffer
-   already recorded. Two levels that disagree lose the order they share, and
-   that order is what lets an outer entry name an inner step.
+1. **The innermost buffer takes the key**, because the reader reads the content first.
+2. **Undo and redo are the inverses of each other.** The inverse of a `RecordUndoOperation` is an `UndoOperation` of that buffer. The inverse of an undo is a redo, and the inverse of a redo is an undo. So an outer buffer takes back an inner step with an `UndoOperation` of the inner buffer. The outer buffer does not repeat the recording of the inner one, and the two lists of the inner buffer stay correct.
+3. **A buffer never records its own undo or redo.** It records the undo of another buffer.
+4. **An outer buffer does not apply its filter again** to a step that an inner buffer recorded. Two levels that disagree lose the order that they share, and that order is what lets an outer entry name an inner step.
 
-## The keys
+### The keys
 
-| Gesture | What it does |
+| Key | What it does |
 | --- | --- |
-| `Ctrl+Z` | take the last change back |
-| `Ctrl+Y`, `Ctrl+Shift+Z` | put it back |
+| Ctrl+Z | take the last step back |
+| Ctrl+Y, Ctrl+Shift+Z | put the last step back |
 
-A key with nothing to do answers `nothing` and falls through, so it is not
-swallowed.
+A key with an empty list returns `nothing`, so the key goes on to the next reader. After a step, the caret goes back to the place saved in the entry. A saved path that no longer matches the document is ignored.
 
-## What is not recorded
+### What is not recorded
 
-- The operations the editor makes itself — the zoom, the quit. They are made
-  after the pipeline declines the gesture, so they never reach a buffer.
-- An operation from `post_operation!`. The inbox goes straight to
-  `evaluate_operation`, so a driver advancing a simulation does not fill the
-  history of the person editing beside it.
-- An edit outside the buffer. A buffer records what passes through it, which is
-  the point of its being a node.
+- An operation that the editor makes itself, such as the zoom or the quit. The editor makes it after the chain returns nothing for the gesture, so no buffer sees it.
+- An operation from `post_operation!`. The inbox goes directly to `evaluate_operation`, so a driver that runs a simulation does not fill the history of the person who edits beside it.
+- An edit outside the buffer.
+- Code that a model runs through `execute_julia_code`. It changes the document as any code does.
 
-A tool or a driver that **wants** its change recorded wraps it with
-`make_undoable_operation(buffer, operation)`.
+A tool, a driver or a script that must record its change wraps it with `make_undoable_operation(buffer, operation)`.
 
-## The history drawn
+### The history drawn
 
-`UndoBufferToSyntax` draws the buffer itself rather than the document it holds:
-one line per step, newest at the top, with a marker line for where the document
-stands now. What is above the marker can be put back, what is below it can be
-taken back, and a barrier says `stop`.
+`UndoBufferToSyntax` prints the buffer itself, not its content: one line for each step, with the newest at the top and a marker line where the document stands now. The lines above the marker can be put back, and the lines below it can be taken back. A barrier line says `stop` in its own colour. The lines come from a `ComputedCellVector` that reads both lists, so the panel changes with each step. The font is DejaVu Sans Mono, which has a glyph for the empty reference, so the columns stay aligned.
 
-It is read-only, as the gesture log's panel is. A click on an entry would need a
-reference map through three stages and an operation that takes several steps back
-at once; neither exists yet.
+### A model takes a change back
 
-## A model takes a change back
+`register_undo_tools!(set)` adds an `undo` and a `redo` tool. Each one finds the buffer with `find_undo_buffer` on the document of the editor, runs the step and returns a sentence about what it did. `find_undo_buffer` returns the **outermost** buffer: an outer buffer records every step of the buffers below it, so one step back there takes back the last change anywhere below. The kernel tool set does not hold these tools; the application adds them in `_start_application!`.
 
-`register_undo_tools!(set)` adds an `undo` and a `redo` tool. Each finds the
-buffer with `find_undo_buffer` on the document of the editor it is called
-against, and answers what it took back or says there was nothing to take back.
+## How it fits
 
-`find_undo_buffer` answers the **outermost** buffer, because a buffer above
-another records every step the one below it records: one step back there takes
-back the last thing that happened anywhere under it.
+`ProjecturedUndo` depends on the kernel, `ProjecturedCollection` for the two lists, `ProjecturedProjection`, and `ProjecturedSyntax`, `ProjecturedText`, `ProjecturedGraphics` and `ProjecturedStyle` for the history panel. It rests on one kernel seam, `source/kernel/operation/Inversion.jl`, which holds `make_inverse_operation` and `evaluate_invertible_operation!`. No other package depends on it; an application puts a buffer into its document and a `UndoBuffer => UndoBufferToAnyProjection()` row into its dispatch table.
 
-The kernel's own tool list does not hold these. It has no reference to a history,
-and a program that needs one adds it — the application does it in
-`_start_application!`.
+It registers nothing at load time. The keys are a `get_projection_gesture_bindings` table of the projection, and the tools are added only by a program that calls `register_undo_tools!`.
 
-Code a model runs through `execute_julia_code` records nothing by itself. It
-changes the document the way any code does, and it enters a history only if it
-wraps its operation with `make_undoable_operation`.
+## Design decisions
 
-## Where to see it
+- **A history is a document node, not a field of the editor.** A window can then have one history and each file another. See `plan/done/undo-and-redo.md`.
+- **The evaluation records, the reader does not.** A reader that changes state is invisible to undo, playback and scripting, so recording is an operation.
+- **The inverse is taken before the change.** It must read the state that the change starts from, and a compound is inverted member by member for the same reason.
+- **A barrier stops the history.** Stepping over a step that has no inverse would make a state that never existed.
+- **An outer buffer undoes through the inner one.** The chain of inverses from record to undo to redo lets a buffer record another buffer without a special case.
+- **The inner buffer takes the key first.** This is the reverse of the reader order of versioning, and the comment at the head of `source/undo/UndoBufferToAny.jl` says so.
 
-- The examples: `undo_example` is the document with a history behind it, and
-  `undo_history_example` is the history itself, drawn. Built from
-  [`UndoDocumentExample.jl`](../../../example/projectured/UndoDocumentExample.jl)
-  and [`UndoProjectionExample.jl`](../../../example/projectured/UndoProjectionExample.jl).
-- The suite: `test_undo()`, in
-  [`test/undo/UndoBufferTest.jl`](../../../test/undo/UndoBufferTest.jl). It holds
-  no domain — the documents are declared in the suite and the content projection
-  is the identity — so the slice is tested on its own.
+## Usage
+
+```julia
+buffer     = UndoBuffer(read_document_file("data.json"); capacity = 200)
+projection = TypeDispatchingProjection(UndoBuffer => UndoBufferToAnyProjection(),
+                                       JsonObject => JsonObjectToSyntaxNode())
+every_move = UndoBufferToAnyProjection(filter = (gesture, operation) -> operation !== nothing)
+find_undo_buffer(editor.document)
+make_undoable_operation(buffer, operation)          # record a change made outside the readers
+register_undo_tools!(editor.tools)
+```
+
+- Examples: `undo_example`, a JSON document with a history behind it, and `undo_history_example`, the history drawn. The factories are in `example/projectured/UndoDocumentExample.jl` and `UndoProjectionExample.jl`. Both examples are outside the `examples` registry, because a sweep would leave a history for the next test.
+- Tests: `test_undo()` in `test/undo/UndoSuite.jl` runs the layering guard and `test_undo_buffer()`. Its documents are declared in the suite and the content projection is the identity, so no domain is needed. `test_undo_round_trip()` in `test/projectured/projection/UndoRoundTripTest.jl` edits `undo_example` at sampled carets and undoes each edit.
+
+## Limits
+
+- `test_undo_round_trip()` marks `@test_broken` each sampled gesture whose operation has no inverse, and logs the gesture. Such a step becomes a barrier.
+- The history panel is read-only. A click on a line would need a reference map through three stages and an operation that takes several steps back at once; neither exists.

@@ -1,70 +1,89 @@
 # Primitive
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** design · **Status:** current · **Stands on:** [document.md](../kernel/document.md), [operation.md](../kernel/operation.md), [serialization.md](../serialization/serialization.md)
 
-The primitive substrate: `PrimitiveBool`, `PrimitiveNumber` and `PrimitiveString`,
-one document per scalar value, each holding its value in a reactive `Cell`
-with a selection and an identity of its own. Every other domain uses these
-where it needs an editable scalar instead of inventing its own boolean or
-string leaf.
+`ProjecturedPrimitive` holds the editable scalar documents, the `ObjectField` that makes one field of any object a document, and the two operations that edit a range of characters. A domain uses these where it needs a value that you edit and that has a selection of its own. This document says how a range edit finds its target, how it is undone, and why `ObjectField` has the form it has.
 
-## What is in the slice
+<img width="396" alt="Primitive string example" src="../../../asset/image/example/primitive-string.png">
 
-| File | What it holds |
+## How it works
+
+| Document | Field |
 | --- | --- |
-| `source/primitive/PrimitiveModule.jl` | the module, and what it exports |
-| `source/primitive/PrimitiveDocument.jl` | `PrimitiveDocument`, `PrimitiveInsertion`, `PrimitiveBool`, `PrimitiveNumber`, `PrimitiveString`, and the range operations that edit them |
-| `source/primitive/ObjectField.jl` | `ObjectField`, one field of one object addressed by a `Reference` |
+| `PrimitiveBool` | `value::Bool` |
+| `PrimitiveNumber` | `value`, a `Number` or `nothing` |
+| `PrimitiveString` | `value`, a `String` or `nothing` |
+| `PrimitiveInsertion` | `value`, what is typed so far, or `nothing` |
+| `ObjectField` | `object`, the root, and `path`, a `Reference` into it |
 
-## The document types
+Each is an `@document` struct, so the value is in a reactive cell and the document has a `selection`. `PrimitiveDocument` is the abstract root of the first four. A `PrimitiveString` indexes by character, not by byte: `length`, `getindex` and `setindex!` go through `collect` and `splice_string`, so a multibyte character is one position.
 
-`PrimitiveDocument` is the abstract root. `PrimitiveInsertion` is the
-domain's insertion placeholder, a hole awaiting a value: its `value` field
-holds whatever has been typed so far, or `nothing` while still empty.
-`PrimitiveBool`, `PrimitiveNumber` and `PrimitiveString` each wrap one value
-— a `Bool`; a `Number` or `nothing`; a `String` or `nothing`.
+This package has no projection. `PrimitiveToSyntax` of [syntax.md](../syntax/syntax.md) prints a primitive as a leaf, and `PrimitiveToText` of [text.md](../text/text.md) prints it as one span. `CellTableToWidgetTable` makes a primitive of each cell of a table.
 
-`ReplaceRangeOperation` is the common shape a range edit takes;
-`ReplaceNumberRangeOperation` and `ReplaceStringRangeOperation` are the two
-concrete operations a text-editing reader resolves a keystroke to, one per
-value type.
+### The range edits
 
-## `ObjectField`
+A typed key reaches the domain as one of two operations. Each holds a `reference` from the root of the editor document and a `replacement` string:
 
-```julia
-ObjectField(server, "name")
-ObjectField(net, Reference(FieldReferenceStep("hosts"),
-                           ElementReferenceStep(2),
-                           FieldReferenceStep("address")))
-```
+- `ReplaceStringRangeOperation` edits the characters of a string field.
+- `ReplaceNumberRangeOperation` edits the text form of a number and parses the result again.
 
-`ObjectField(object, path)` names one field of one object: `object` is the
-root and stays fixed, `path` is a `Reference` addressing the value inside it.
-`get_object_field_value` reads the value the path names. Read it inside a
-reactive cell; reading it outside one freezes the render at the first value.
-A write goes through `ReplaceReferencedValueOperation(object, path, value)`. `ObjectField` carries
-no label field on purpose: `get_object_field_name` derives one from the last
-`FieldReferenceStep` of the path when a projection needs it, and returns
-`nothing` for a path that does not end in a field.
+**The path ends in `.<field>[s:e]`, and the field can be on any document.** `_split_replace_reference` splits the path into the target, the field name and the range. `evaluate_operation` then calls `splice_value!` of the kernel with the current value of the field. The kind of that value selects the method: a string, `nothing`, a number, a `TextString` or a `TextBlock`. So one operation edits a `JsonString`, a syntax delimiter and a text span. The number operation does not use this dispatch. It always parses, so an empty field becomes a number when you type a digit. After the edit, the selection is a caret after the inserted text.
+
+A path with no `.<field>[range]` at its end, for example a caret on a span that a projection added, splits to `nothing`. The operation then does nothing, and its inverse is `DoNothingOperation()`.
+
+A projection reader maps a range edit back through the chain with no method of its own. Each operation has methods of `operation_reference`, `retarget_operation` and `reroot_operation`, and the default `read_intent` of the kernel uses these three. [operation.md](../kernel/operation.md) describes the rerooting.
+
+`ReplaceRangeOperation` is the abstract type of a range edit with these two fields. `ReplaceStringRangeOperation` and `ReplaceTextRangeOperation` of the text package are its subtypes, so the transport methods are written once. `ReplaceNumberRangeOperation` is not a subtype, because its meaning does not depend on the value of the field.
+
+### The undo of a range edit
+
+**The inverse of a range edit is a write of the whole field, not another range edit.** `make_inverse_operation` reads the old value of the field and returns `ReplaceReferencedValueOperation(target, field, old_value)`. The operation holds the target object and not a path from the root, so the undo still works after the document moves in the tree. It also puts back any kind of value: a string, `nothing`, a number or a styled span.
+
+### One field of one object
+
+`ObjectField(object, path)` makes one value inside an object a document, so a projection can show one field of a struct that is not a document. `ObjectField(object, "name")` is the form for one field step. `get_object_field_value` reads the value with `evaluate_reference`, and a write is `ReplaceReferencedValueOperation(object, path, value)`.
+
+`get_object_field_value` must be read inside a cell. A printer that reads it outside one keeps the value of the first print.
+
+`ObjectField` has no label field. `ObjectFieldToWidget` shows a bare control and needs no label, and `ObjectFieldToSyntax` takes the name from the last field step of the path with `get_object_field_name`. A path that ends in an element step has no name, and `get_object_field_name` returns `nothing`.
 
 ## How it fits
 
-The primitive documents are the leaf values every projection pipeline ends
-at: `ObjectFieldToSyntax` and `ObjectFieldToWidget` (in the `syntax` and
-`widget` slices) each print an `ObjectField` as a single editable control or
-token, which is how the reflection view
-([reflection.md](../reflection/reflection.md)) and any other one-field
-editor render a scalar without a domain of their own. `has_document_duplicate`
-is `true` for every `PrimitiveDocument`, so copying one copies its value
-rather than sharing the cell.
+`ProjecturedPrimitive` depends on the kernel and on `ProjecturedSerialization`. Text, syntax, widgets, the projection algebra, panes and many domains depend on it. `ObjectField` is in this package because it is the lowest package that both `ProjecturedWidget` and `ProjecturedSyntax` use, and each of them holds one projection of it.
 
-## What to check when a change touches this slice
+Its `__init__` registers `PrimitiveString` as a `.pred` type, so a file can hold a bare string, such as the title of a tab. `make_pred_document(::Type{PrimitiveString}, …)` builds it from `PrimitiveString("hi")` or `PrimitiveString(value = "hi")`; the field has no default, so the macro gives no keyword constructor. `has_document_duplicate` is `true` for every primitive, so a duplicated pane copies the value and does not share it; see [document.md](../kernel/document.md).
 
-There is no `test/primitive/` folder; the direct test is
-`test/substrate/document/PrimitiveDocumentTest.jl`, and `ObjectField`'s two
-projections are covered by `test/substrate/projection/ObjectFieldToWidgetTest.jl`
-and `test/substrate/projection/ObjectToWidgetTest.jl`. Because the primitive
-types back the insertion and the range edit of nearly every domain, a broad
-regression after a change here usually shows first in
-`test/substrate/editor/TypeinTest.jl` or in one domain's own printer/reader
-suite rather than in this slice's own test.
+## Design decisions
+
+- **A scalar is a document.** A value then has its own selection and identity, and a domain does not write its own boolean or string leaf.
+- **The edit dispatches on the value, not on the field name.** The field name is data. A new kind of text value needs one `splice_value!` method and no new operation.
+- **The undo writes the whole field.** A range edit back would need a path that stays valid and a value of the same kind; the whole-field write needs neither. The reason is in `source/primitive/PrimitiveDocument.jl`.
+- **The number edit stays outside `ReplaceRangeOperation`.** It parses the text in every case, so it does not share the dispatch of the string edit.
+- **`ObjectField` has no label.** The two projections need different labels, so a stored label would be wrong for one of them.
+
+## Usage
+
+```julia
+flag = PrimitiveBool(true)
+limit = PrimitiveNumber(42)
+name = PrimitiveString("hé!")
+length(name)                  # 3 characters
+name[1:2]                     # PrimitiveString("hé")
+
+edit = ReplaceStringRangeOperation(@reference(value{3}), " there")   # insert at the end
+
+field = ObjectField(server, "name")
+path  = ObjectField(net, Reference(FieldReferenceStep("hosts"), ElementReferenceStep(2),
+                                   FieldReferenceStep("address")))
+get_object_field_value(field)
+get_object_field_name(path)   # "address"
+```
+
+- Examples: the atomic catalog has `primitive/string`, `primitive/number` and `primitive/bool`, from `example/substrate/PrimitiveDocumentExample.jl`. `collection_example` shows a vector of `PrimitiveString`.
+- Tests: `test_primitive()` in `test/substrate/document/PrimitiveDocumentTest.jl`, `test_primitive_to_text()` and `test_object_field_to_widget()` in `test/substrate/projection/`. A fault in a range edit often shows first in `test/substrate/editor/TypeinTest.jl` or in the reader test of a domain.
+
+## Limits
+
+- A number edit whose text does not parse sets the value to `nothing`. A letter typed into `42` clears the number.
+- The docstring of `ReplaceStringRangeOperation` leaves the result undefined when the caret is on the boundary between two adjacent strings.
+- No projection prints a `PrimitiveInsertion`, and no code outside this package makes one.

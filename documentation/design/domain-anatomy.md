@@ -70,7 +70,7 @@ A rule marked `override(...)` takes a key before the text stage uses it. XML use
 
 An empty place in a document holds `JsonNothing`. `InsertionNothingToSyntaxLeaf` prints it as a muted label, "empty json". A printable key on the placeholder runs the create gesture of the document type. So `{` on "empty json" makes a `JsonObject`.
 
-The Insert key replaces the placeholder with a `JsonInsertion` buffer. The candidates of the buffer come from reflection over the loaded types: every concrete, insertable subtype of `JsonDocument`. No list of names exists, so a new document type is a candidate as soon as Julia evaluates its `struct`. Tab completes the name, Enter commits it, and Escape goes back to the placeholder. A domain whose insertion parses source text, such as `sql` and `julia`, builds its own leaf with a parsing completion.
+The Insert key replaces the placeholder with a `JsonInsertion` buffer. The candidates of the buffer come from reflection over the loaded types: every concrete, insertable subtype of `JsonDocument`. No list of names exists, so a new document type is a candidate as soon as Julia evaluates its `struct`. Tab completes the name, Enter commits it, and Escape goes back to the placeholder. A domain whose insertion parses source text builds its own leaf. `SqlInsertionToSyntaxLeaf` is an `InsertionToSyntaxLeaf` with `parse_completion(parse_sql_text)`. `JuliaInsertionToSyntaxLeaf` is a projection of its own, and the `@gestures` table of `JuliaInsertion` parses the text on commit.
 
 ## The text form and the file
 
