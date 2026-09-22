@@ -173,21 +173,30 @@ too, but no gesture of this plan writes them.
 
 ### Step 2 — the probe passes every event on
 
-- [ ] `TooltipProbeProjection` forwards every event inward first and adds its own
+- [x] `TooltipProbeProjection` forwards every event inward first and adds its own
       operation. A move notes the position and the time, and closes an open
-      tooltip after a few pixels.
-- [ ] Tests: a move under the probe reaches a divider drag and the hover tracker;
-      a press, a key and a scroll close an open tooltip.
+      tooltip after four pixels.
+- [x] Tests: a move under the probe reaches a divider drag held inside it; a move
+      alone opens nothing; a press closes an open tooltip; a move of two pixels
+      keeps it and a move away closes it.
+- Steps 2 and 3 are one commit: both live in the rewritten probe.
 
 ### Step 3 — the tooltip opens at a deadline
 
-- [ ] `PointerRest`, `TooltipFeed`, `make_tooltip_feed(; delay = 0.5)`; the probe
-      answers `PointerRest`.
-- [ ] The application and the interface make the feed and pass it to the fold and
-      to `run_window_editor`.
-- [ ] Tests with an injected clock: no deadline before a move; a deadline of the
-      delay after one; a new move moves the deadline; at the deadline the feed
-      posts the opening; a move after it closes; no deadline while one is shown.
+- [x] `PointerRest`, `TooltipRest`, `TooltipFeed` and `make_tooltip_feed(; delay =
+      0.5, now, window)` in `source/tooltip/TooltipRest.jl`; the probe answers
+      `PointerRest`. The fold takes the feed as `tooltip_feed` and refuses a
+      tooltip without one, as it refuses one without a pointer.
+- [x] The application makes the feed and passes it to the fold and, beside the
+      tools' own feeds, to `run_window_editor`. **The interface follows once this
+      lands**, because the fold now refuses its tooltip without a feed.
+- [x] `test_tooltip_feed()`, with an injected clock, in a real editor over a
+      `HeadlessBackend`: no deadline before a move; a deadline of the delay after
+      one; a later move moves it; before it nothing opens; at it the feed posts
+      and the inbox applies the opening; no deadline while one is shown; a move
+      away closes it and the wait starts again. The application's toolbar case now
+      asserts that a move alone opens nothing and a rest opens the tooltip.
+- **`test_shell()` is 172** (157 before) and **`test_application()` 109** (108).
 
 ### Step 4 — the hover tracker covers the window
 

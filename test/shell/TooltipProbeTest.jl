@@ -1,17 +1,20 @@
-# The probe that shows what the document under the pointer says about itself.
+# The probe that shows what the document under the pointer says about itself,
+# once the pointer has rested there.
 #
 # It is read through a real window scene, because what it answers is a window
 # operation and the window manager is what applies one. A tooltip is a window of
 # its own on every backend — PAR-MANY-WINDOWS — so the proof is the window that
 # appears, not the operation that comes back.
+#
+# A rest is what the window's `TooltipFeed` reads when its deadline passes: a
+# `PointerRest` at the place the pointer last moved to. `_rest` reads it the way
+# the feed does, through the window's whole projection; `test_tooltip_feed`
+# drives the feed itself.
 
-function test_tooltip_probe()
-@testset "the tooltip probe" begin
-
-_pointer() = (300, 400)
+_tooltip_pointer() = (300, 400)
 
 # A widget that says something, and one that says nothing, side by side.
-_content() = VerticalLayout(Any[
+_tooltip_labels() = VerticalLayout(Any[
     WidgetLabel(Point2D(0, 0), "speaks"; tooltip = "what this label is for"),
     WidgetLabel(Point2D(0, 40), "silent"),
 ])
@@ -23,15 +26,18 @@ _tooltip_content() = Pair{Type,Any}[
     PrimitiveDocument => ChainingProjection(RecursiveProjection(PrimitiveToText()),
                                             TextToGraphics(measure = measure_truetype_text))]
 
-function _scene_and_projection(; tooltip = compute_tooltip, content = _tooltip_content())
+function _tooltip_scene(; tooltip = compute_tooltip, content = _tooltip_content(),
+                          feed = make_tooltip_feed(now = () -> 0.0),
+                          document = _tooltip_labels())
     document, projection = make_window_wrap(;
         gesture_help = false, command_palette = false,
-        selection = false, tooltip = tooltip,
-        pointer = _pointer)(_content(), make_layout_projection_example())
+        selection = false, tooltip = tooltip, pointer = _tooltip_pointer,
+        tooltip_feed = tooltip === nothing ? nothing : feed)(document,
+                                                             make_layout_projection_example())
     scene = make_window_scene(document, "shell"; width = 400, height = 300)
     composed = make_window_scene_projection(projection;
         opened_window_projections = make_opened_window_projections(; content = content))
-    (scene, composed)
+    (scene, composed, feed)
 end
 
 # Every string a printed window holds, so a case can ask what was drawn rather
@@ -50,18 +56,35 @@ function _drawn_strings(node, found = String[])
     found
 end
 
-_move(composed, scene, x, y) = begin
-    iomap = print_document(composed, scene)
-    change = read_intent(composed, nothing,
-                         Intent(WindowInput(:shell, MouseMove(x, y))),
-                         iomap)
+function _tooltip_read(composed, scene, event)
+    change = read_intent(composed, nothing, Intent(WindowInput(:shell, event)),
+                         print_document(composed, scene))
     change isa Intent ? change.operation : change
 end
 
-@testset "a document that says something opens a window of its own" begin
-    scene, composed = _scene_and_projection()
-    @test length(scene.windows) == 1
+_move(composed, scene, x, y) = _tooltip_read(composed, scene, MouseMove(x, y))
+_rest(composed, scene, feed) =
+    _tooltip_read(composed, scene, PointerRest(feed.rest.x, feed.rest.y))
+
+# Whether an operation is, or holds, one of type `T`.
+_holds_operation(op, T) =
+    op isa T ||
+    (op isa CompoundOperation && any(o -> _holds_operation(o, T), op.operations)) ||
+    (op isa WrappingOperation && _holds_operation(get_wrapped_operation(op), T))
+
+function test_tooltip_probe()
+@testset "the tooltip probe" begin
+
+@testset "a move alone opens nothing" begin
+    scene, composed, _ = _tooltip_scene()
     _move(composed, scene, 20, 10)
+    @test length(scene.windows) == 1
+end
+
+@testset "a rest on a document that says something opens a window of its own" begin
+    scene, composed, feed = _tooltip_scene()
+    _move(composed, scene, 20, 10)
+    _rest(composed, scene, feed)
     @test length(scene.windows) == 2
     tip = last(scene.windows)
     # Its own window, beside the pointer, in the style a tooltip is given.
@@ -72,8 +95,9 @@ end
 end
 
 @testset "the window draws what the document said" begin
-    scene, composed = _scene_and_projection()
+    scene, composed, feed = _tooltip_scene()
     _move(composed, scene, 20, 10)
+    _rest(composed, scene, feed)
     output = print_document(composed, scene).output
     @test any(text -> occursin("what this label is for", text),
               _drawn_strings(output.windows[end].content))
@@ -82,48 +106,132 @@ end
 # A tooltip is a document of the host's own domains, and the window that holds
 # one draws nothing when the host named no row for it.
 @testset "no row for what it holds, and it draws nothing" begin
-    scene, composed = _scene_and_projection(; content = Pair{Type,Any}[])
+    scene, composed, feed = _tooltip_scene(; content = Pair{Type,Any}[])
     _move(composed, scene, 20, 10)
+    _rest(composed, scene, feed)
     output = print_document(composed, scene).output
     @test isempty(_drawn_strings(output.windows[end].content))
 end
 
-@testset "a document that says nothing opens none" begin
-    scene, composed = _scene_and_projection()
+@testset "a rest on a document that says nothing opens none" begin
+    scene, composed, feed = _tooltip_scene()
+    _move(composed, scene, 20, 50)
+    _rest(composed, scene, feed)
+    @test length(scene.windows) == 1
+end
+
+@testset "a second rest opens no second window" begin
+    scene, composed, feed = _tooltip_scene()
+    _move(composed, scene, 20, 10)
+    _rest(composed, scene, feed)
+    @test _rest(composed, scene, feed) === nothing
+    @test length(scene.windows) == 2
+end
+
+@testset "a move away closes the window, and a small one keeps it" begin
+    scene, composed, feed = _tooltip_scene()
+    _move(composed, scene, 20, 10)
+    _rest(composed, scene, feed)
+    _move(composed, scene, 22, 11)
+    @test length(scene.windows) == 2
     _move(composed, scene, 20, 50)
     @test length(scene.windows) == 1
 end
 
-@testset "the same document says it once" begin
-    scene, composed = _scene_and_projection()
+@testset "a press closes the window" begin
+    scene, composed, feed = _tooltip_scene()
     _move(composed, scene, 20, 10)
-    @test length(scene.windows) == 2
-    # A pointer crossing the same label re-opens nothing: the answer has not
-    # changed, so the probe stays quiet.
-    @test _move(composed, scene, 26, 12) === nothing
-    @test length(scene.windows) == 2
+    _rest(composed, scene, feed)
+    _tooltip_read(composed, scene, MousePress(:left, 20, 10, 1, ModifierKeys()))
+    @test length(scene.windows) == 1
 end
 
-@testset "leaving the document closes the window" begin
-    scene, composed = _scene_and_projection()
-    _move(composed, scene, 20, 10)
-    @test length(scene.windows) == 2
-    _move(composed, scene, 20, 50)
-    @test length(scene.windows) == 1
+# The probe only watches the pointer: a move goes on to the readers inside, so a
+# divider held under the probe still follows it.
+@testset "a move passes on to the readers inside" begin
+    split = WidgetSplitPane(:horizontal, Any[WidgetLabel(Point2D(0, 0), "left"),
+                                             WidgetLabel(Point2D(0, 0), "right")];
+                            sizes = [150, 150])
+    scene, composed, _ = _tooltip_scene(; document = split)
+    grab = nothing
+    for x in 0:399
+        operation = _tooltip_read(composed, scene, MouseDown(:left, x, 100))
+        _holds_operation(operation, StartSplitterDragOperation) && (grab = (x, operation); break)
+    end
+    @test grab !== nothing
+    (x, operation) = grab
+    evaluate_operation(nothing, operation isa StartSplitterDragOperation ? operation :
+                                only(o for o in operation.operations if o isa StartSplitterDragOperation))
+    moved = _tooltip_read(composed, scene, MouseMove(x + 30, 100, :left, ModifierKeys()))
+    @test _holds_operation(moved, ResizeSplitPaneOperation)
 end
 
 @testset "no tooltip function, no probe" begin
-    scene, composed = _scene_and_projection(tooltip = nothing)
+    scene, composed, feed = _tooltip_scene(; tooltip = nothing)
     _move(composed, scene, 20, 10)
+    _rest(composed, scene, feed)
     @test length(scene.windows) == 1
 end
 
-@testset "a tooltip needs somewhere to go" begin
+@testset "a tooltip needs somewhere to go and a clock to wait with" begin
     @test_throws ErrorException make_window_wrap(; tooltip = compute_tooltip)
+    @test_throws ErrorException make_window_wrap(; tooltip = compute_tooltip,
+                                                   pointer = _tooltip_pointer)
 end
 
 end # @testset
 end # function
+
+# The feed that keeps the tooltip's time, in a real editor: it names a deadline
+# once the pointer stops, the loop would sleep until it, and at the deadline the
+# feed posts what the probe answers to the rest.
+function test_tooltip_feed()
+@testset "the tooltip feed" begin
+    clock = Ref(10.0)
+    feed = make_tooltip_feed(; delay = 0.5, now = () -> clock[])
+    scene, composed, _ = _tooltip_scene(; feed = feed)
+    backend = HeadlessBackend()
+    editor = Editor(backend, scene, composed, Device[Keyboard(), Mouse()];
+                    feeds = Feed[feed])
+    run_frame!(editor)
+    press!(event) = (push_event!(backend, WindowInput(:shell, event)); run_frame!(editor))
+
+    @testset "no move, no deadline" begin
+        @test compute_wake_deadline(feed, editor) === nothing
+    end
+
+    @testset "a move names a deadline, and a later move moves it" begin
+        press!(MouseMove(20, 10))
+        @test compute_wake_deadline(feed, editor) ≈ 0.5
+        clock[] = 10.3
+        @test compute_wake_deadline(feed, editor) ≈ 0.2
+        press!(MouseMove(21, 10))
+        @test compute_wake_deadline(feed, editor) ≈ 0.5
+    end
+
+    @testset "before the deadline nothing opens" begin
+        @test drain_changes!(feed, editor) == 0
+        drain_feeds!(editor)
+        @test length(scene.windows) == 1
+    end
+
+    @testset "at the deadline the window opens, and nothing more is due" begin
+        clock[] = 10.9
+        @test compute_wake_deadline(feed, editor) == 0
+        drain_feeds!(editor)    # the feed posts what the probe answers
+        drain_feeds!(editor)    # the inbox applies it
+        @test length(scene.windows) == 2
+        @test last(scene.windows).style === :tooltip
+        @test compute_wake_deadline(feed, editor) === nothing
+    end
+
+    @testset "a move away closes it, and the wait starts again" begin
+        press!(MouseMove(20, 50))
+        @test length(scene.windows) == 1
+        @test compute_wake_deadline(feed, editor) ≈ 0.5
+    end
+end
+end
 
 # The right press asks the same document the same kind of question, and what it
 # answers opens through the popup route a menu already takes.

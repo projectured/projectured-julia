@@ -6,7 +6,7 @@
                      selection = true,
                      clipboard_gestures = CLIPBOARD_GESTURES,
                      history = identity, tooltip = nothing, pointer = nothing,
-                     context_menu = nothing, shell = nothing,
+                     tooltip_feed = nothing, context_menu = nothing, shell = nothing,
                      measure = measure_truetype_text) -> Function
 
 The wrappers a window gets, as the fold `(document, projection) -> (document,
@@ -22,7 +22,11 @@ projection)` that a window entry applies before it opens.
   the probe asks, `(document) -> Document | Nothing`; `compute_tooltip` is the
   one every document answers. `nothing` leaves the wrapper out. It needs
   `pointer`, because a window is placed in screen coordinates and only a backend
-  knows where the pointer is.
+  knows where the pointer is, and `tooltip_feed`, a `TooltipFeed` from
+  `make_tooltip_feed`. A tooltip opens once the pointer has rested, and a resting
+  pointer sends nothing, so the time comes from the loop: the entry hands the same
+  feed to `run_window_editor(feeds = …)`, and the feed wakes the loop when the
+  rest is long enough.
 - `shell`: the window's chrome. It is `(document) -> (menu_bar, toolbar,
   status_bar, context_menu, size)`, so a host says what its window offers and
   this package names none of it. It is given the window's own document, because
@@ -61,11 +65,13 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
                             selection::Bool = true,
                             clipboard_gestures::Tuple = CLIPBOARD_GESTURES,
                             history = identity,
-                            tooltip = nothing, pointer = nothing,
+                            tooltip = nothing, pointer = nothing, tooltip_feed = nothing,
                             context_menu = nothing, shell = nothing,
                             measure = measure_truetype_text)
     tooltip === nothing || pointer !== nothing ||
         error("make_window_wrap: a tooltip is placed beside the pointer, so it needs `pointer`")
+    tooltip === nothing || tooltip_feed !== nothing ||
+        error("make_window_wrap: a tooltip opens when the pointer has rested, so it needs `tooltip_feed`")
     # One flag for the help window, which the decorator reads each time F1 comes.
     help_state = GestureHelpState()
     # The session's own log, and not one this fold made: a tab that opens a
@@ -100,7 +106,8 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
         tooltip === nothing ||
             (projection = TooltipProbeProjection(inner = projection,
                                                  compute_tooltip = tooltip,
-                                                 pointer = pointer))
+                                                 pointer = pointer,
+                                                 feed = tooltip_feed))
         context_menu === nothing ||
             (projection = ContextMenuProbeProjection(inner = projection,
                                                      compute_context_menu = context_menu))

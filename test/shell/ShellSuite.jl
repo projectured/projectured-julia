@@ -71,6 +71,7 @@ function test_shell()
         test_widget_tooltip()
         test_julia_tooltip()
         test_tooltip_probe()
+        test_tooltip_feed()
         test_context_menu_probe()
         test_window_shell()
         test_file_dialog()
@@ -78,5 +79,5 @@ function test_shell()
 end
 
 export test_shell, test_shell_layering, test_shell_completeness, test_window_wrap,
-       test_widget_tooltip, test_julia_tooltip, test_tooltip_probe,
+       test_widget_tooltip, test_julia_tooltip, test_tooltip_probe, test_tooltip_feed,
        test_context_menu_probe, test_window_shell, test_file_dialog

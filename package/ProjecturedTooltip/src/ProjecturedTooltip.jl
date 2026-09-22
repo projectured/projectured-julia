@@ -22,6 +22,8 @@ const ScreenModule = ProjecturedScreen.ScreenModule
 const OperationModule = ProjecturedKernel.OperationModule
 const EventModule = ProjecturedKernel.EventModule
 const SelectionModule = ProjecturedKernel.SelectionModule
+const FeedModule = ProjecturedKernel.FeedModule
+const EditorModule = ProjecturedKernel.EditorModule
 
 include("../../../source/tooltip/TooltipModule.jl")
 

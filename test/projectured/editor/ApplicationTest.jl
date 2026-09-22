@@ -439,7 +439,8 @@ function test_application()
             @testset "a press on the picture opens the tool, and the pointer at rest names it" begin
                 document, projection = make_application_window(paths[1:1]; root = dir,
                                                                assistant = nothing,
-                                                               pointer = () -> (300, 400))
+                                                               pointer = () -> (300, 400),
+                                                               tooltip_feed = make_tooltip_feed())
                 scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
                 composed = make_window_scene_projection(projection;
                     opened_window_projections = make_opened_window_projections(;
@@ -467,10 +468,16 @@ function test_application()
                             [tab for group in get_pane_groups(tree) for tab in group.tabs]) == 1
 
                 # The pointer at rest on the picture opens a window of its own
-                # that says the name of the tool and what it shows.
+                # that says the name of the tool and what it shows. A move only
+                # says where the pointer is; the rest is what the window's feed
+                # reads once the delay has passed.
                 before = length(scene.windows)
                 read_intent(composed, nothing,
                             Intent(WindowInput(:ProjecturEd, MouseMove(x, y))),
+                            print_document(composed, scene))
+                @test length(scene.windows) == before
+                read_intent(composed, nothing,
+                            Intent(WindowInput(:ProjecturEd, PointerRest(x, y))),
                             print_document(composed, scene))
                 @test length(scene.windows) == before + 1
                 tip = last(scene.windows)
