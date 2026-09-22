@@ -98,13 +98,50 @@ _flip(ctx::PageContext, gy) = ctx.page_height - (gy - ctx.y0)
 # current page's band, so off-page elements can be culled during pagination.
 _on_page(ctx::PageContext, top, bottom) = bottom >= ctx.band_lo && top <= ctx.band_hi
 
-function register_font!(ctx::PageContext, font::StyleFont)
-    get!(ctx.fonts, font.filename) do
+function register_font!(ctx::PageContext, path::AbstractString)
+    get!(ctx.fonts, String(path)) do
         idx = length(ctx.fonts) + 1
-        base = replace(splitext(basename(font.filename))[1], r"[^A-Za-z0-9]" => "")
+        base = replace(splitext(basename(path))[1], r"[^A-Za-z0-9]" => "")
         isempty(base) && (base = "Font$idx")
-        FontRegistration("F$idx", base, load_truetype_font(font.filename), Set{UInt16}(), Dict{UInt16,UInt32}())
+        FontRegistration("F$idx", base, load_truetype_font(path), Set{UInt16}(), Dict{UInt16,UInt32}())
     end
+end
+
+# The writer embeds a font as `/FontFile2`, which holds TrueType outlines: a
+# `glyf` table. A font with CFF outlines has no `glyf` table.
+_is_embeddable_font(ttf::TrueTypeFont) = ttf.glyf_off != 0
+
+# The registration of the font that draws `character` in a text set in the font
+# at `path`. It is the font that `find_glyph_font_file` names, which is the font
+# that `measure_truetype_text` measures the character in. A fallback font that
+# the writer can not embed is skipped, and the character is drawn in the font
+# of the text.
+function _register_glyph_font!(ctx::PageContext, primary::FontRegistration,
+                               path::AbstractString, character::UInt32)
+    character <= 0xFFFF && has_font_glyph(primary.ttf, character) && return primary
+    file = find_glyph_font_file(path, character)
+    (file === nothing || file == path) && return primary
+    _is_embeddable_font(load_truetype_font(file)) || return primary
+    register_font!(ctx, file)
+end
+
+# Split `text` into runs of consecutive characters that one font draws. Each run
+# is the registration of its font and the glyph identifiers in hexadecimal. A
+# presentation selector has no width, and the measurer skips it, so it is dropped.
+function _split_font_runs!(ctx::PageContext, text::AbstractString, path::AbstractString)
+    primary = register_font!(ctx, path)
+    runs = Tuple{FontRegistration,IOBuffer}[]
+    for c in text
+        character = UInt32(c)
+        is_presentation_selector(character) && continue
+        reg = _register_glyph_font!(ctx, primary, path, character)
+        gid = get_glyph_id(reg.ttf, character)
+        push!(reg.used, gid)
+        get!(reg.gid_to_uni, gid, character)
+        (isempty(runs) || runs[end][1] !== reg) && push!(runs, (reg, IOBuffer()))
+        print(runs[end][2], string(gid, base = 16, pad = 4))
+    end
+    [(reg, String(take!(io))) for (reg, io) in runs]
 end
 
 gs_for!(ctx::PageContext, a::UInt8) = get!(() -> "GS$(length(ctx.gstates) + 1)", ctx.gstates, a)
@@ -339,28 +376,26 @@ function paint_spline!(ctx, sp, ox, oy)
 end
 
 # The text is written at the size that the layout measured it at, which
-# follows the font zoom.
+# follows the font zoom. Each run of one font is a `Tf` and a `Tj` in one text
+# object. A `Tj` moves the text position by the advances of its glyphs, so a
+# run starts where the run before it ends, on the baseline of the text's font.
 function paint_text!(ctx, t, ox, oy)
     (isempty(t.text) || t.color.alpha == 0) && return
     tr, tg, tb, ta = _rgba8(t.color)
     gy = oy + Int(t.y)
     size = font_logical_size(t.font)
     _on_page(ctx, gy, gy + size) || return
-    reg = register_font!(ctx, t.font)
-    ttf = reg.ttf
-    io = IOBuffer()
-    for c in t.text
-        cp = UInt32(c)
-        gid = get_glyph_id(ttf, cp)
-        push!(reg.used, gid)
-        get!(reg.gid_to_uni, gid, cp)
-        print(io, string(gid, base = 16, pad = 4))
-    end
-    hex = String(take!(io))
+    runs = _split_font_runs!(ctx, t.text, t.font.filename)
+    isempty(runs) && return
+    ttf = register_font!(ctx, t.font.filename).ttf
     baseline = _flip(ctx, gy + get_ascent_pixels(ttf, size))
     print(ctx.buf, "/", gs_for!(ctx, ta), " gs ",
-          c01(tr), " ", c01(tg), " ", c01(tb), " rg BT /", reg.resname, " ",
-          n2(size), " Tf 1 0 0 1 ", n2(ox + Int(t.x)), " ", n2(baseline), " Tm <", hex, "> Tj ET\n")
+          c01(tr), " ", c01(tg), " ", c01(tb), " rg BT 1 0 0 1 ",
+          n2(ox + Int(t.x)), " ", n2(baseline), " Tm")
+    for (reg, hex) in runs
+        print(ctx.buf, " /", reg.resname, " ", n2(size), " Tf <", hex, "> Tj")
+    end
+    print(ctx.buf, " ET\n")
 end
 
 function paint_image!(ctx, img, ox, oy)

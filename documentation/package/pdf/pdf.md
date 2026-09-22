@@ -38,11 +38,13 @@ The canvas has its origin at the top left with y down, and PDF has its origin at
 - An image becomes an image object with an RGB stream and a grey soft mask for the alpha.
 - A `GraphicsFence` paints nothing.
 
-Each alpha value gets one `ExtGState` resource. A text becomes a `Tj` show of glyph identifiers in hexadecimal.
+Each alpha value gets one `ExtGState` resource. A text becomes one text object, with a `Tj` show of glyph identifiers in hexadecimal for each run of one font.
 
 ### Fonts
 
 Each font file is embedded once and shared by every page and every size. It is a Type0 font over a `CIDFontType2`, with the encoding `Identity-H` and the map `CIDToGIDMap /Identity`. So a character identifier is the glyph identifier, and every Unicode character of the font is available. The writer embeds the whole file as `/FontFile2` and writes a `/W` array only for the glyphs that the document uses. A `ToUnicode` map lets a copy from the PDF give the real text. The TrueType reader is `TrueType.jl` of `ProjecturedStyle`.
+
+A text can need more than one font. For a character that the font of the text does not have, `find_glyph_font_file` of `ProjecturedStyle` names the font that has it: DejaVu Sans Mono, then Noto Emoji. `measure_truetype_text` measures the character in that font, and `paint_text!` draws it in that font too. It splits the text into runs of consecutive characters in one font and embeds each font that a run uses. Each run selects its font with `Tf` and shows its glyphs with `Tj`. A `Tj` moves the text position by the advances of its glyphs, so a run starts where the run before it ends, on the baseline of the font of the text. A presentation selector, U+FE0E or U+FE0F, has no width, and the painter drops it, as the measurer does.
 
 The writer itself, `PdfWriter`, is a small PDF 1.7 writer: it numbers the objects, records the byte offset of each one, and ends with the cross-reference table and the trailer. The content streams are not compressed.
 
@@ -70,11 +72,11 @@ projection = ChainingProjection(make_graphics_image_projection_example(),
 write_example_pdf("json", "json.pdf")
 ```
 
-- Test: `test_write_pdf()` in `test/projectured/backend/PdfTest.jl` checks the file envelope, the content-fit size, every primitive with an embedded font, the projection form, and the page count of pagination. The package has no test suite of its own.
+- Test: `test_write_pdf()` in `test/projectured/backend/PdfTest.jl` checks the file envelope, the content-fit size, every primitive with an embedded font, the projection form, the page count of pagination, the text size under a font zoom, and the runs of a text in a fallback font. The package has no test suite of its own.
 
 ## Limits
 
-- A character that the font does not have is written as glyph 0 of that font. `measure_truetype_text` measures such a character in a fallback font, but the writer embeds no fallback font.
+- A fallback font that the writer can not embed is skipped, and its character is drawn as glyph 0 of the font of the text, while `measure_truetype_text` measures it in the fallback font. A font with CFF outlines is such a font, because it needs `/FontFile3`. The fallback fonts in `asset/font` are TrueType, so none is skipped.
 - Every font is embedded as `/FontFile2`, the TrueType form. An `.otf` font with CFF outlines, such as `Inconsolata.otf`, needs `/FontFile3`, which the writer does not write.
 - An image in the form of an SDL texture pointer paints nothing; only an RGBA buffer paints.
 - The streams are not compressed, and the fonts are not subset, so a file is larger than it must be.

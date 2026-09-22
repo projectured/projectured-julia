@@ -176,4 +176,38 @@ end
     end
 end
 
+@testset "a character that the font lacks is drawn in the font that has it" begin
+    font = StyleModule.font_ubuntu_monospace_regular_20
+    primary = load_truetype_font(font.filename)
+    check = '✓'
+    @test !has_font_glyph(primary, UInt32(check))
+    fallback_file = find_glyph_font_file(font.filename, UInt32(check))
+    @test fallback_file isa String && fallback_file != font.filename
+    fallback = load_truetype_font(fallback_file)
+    # U+FE0F asks for emoji presentation; it has no width, and the writer drops it.
+    canvas = GraphicsCanvas([GraphicsText("ok $(check)️", 10, 10, font, color_black)])
+    filename = tempname() * ".pdf"
+    write_pdf(canvas, filename; width=200, height=80)
+    # The file with each byte outside ASCII replaced, so a regular expression can read it.
+    text = String(map(b -> b < 0x80 ? b : UInt8('?'), read(filename)))
+    content = _first_content_stream(filename)
+    runs = [(m.captures[1], m.captures[2]) for m in eachmatch(r"/(F\d+) \d+ Tf <([0-9a-f]+)> Tj", content)]
+    glyphs(ttf, s) = join(string(get_glyph_id(ttf, UInt32(c)), base=16, pad=4) for c in s)
+    @test length(runs) == 2
+    @test runs[1][2] == glyphs(primary, "ok ")
+    @test runs[2][2] == glyphs(fallback, string(check))
+    @test runs[1][1] != runs[2][1]
+    # Both fonts are embedded, and the resource of the second run is the fallback font.
+    @test count("/Subtype /Type0", text) == 2
+    @test count("/FontFile2", text) == 2
+    number = match(Regex("/$(runs[2][1]) (\\d+) 0 R"), text).captures[1]
+    base_font = match(Regex("\\n$(number) 0 obj\\n<< /Type /Font /Subtype /Type0 /BaseFont /(\\w+)"), text)
+    @test base_font.captures[1] == replace(splitext(basename(fallback_file))[1], r"[^A-Za-z0-9]" => "")
+    rm(filename)
+    # The writer embeds a font as `/FontFile2`, which holds TrueType outlines. A
+    # CFF font has none, so a fallback font in that form is skipped.
+    @test PdfBackendModule._is_embeddable_font(fallback)
+    @test !PdfBackendModule._is_embeddable_font(load_truetype_font(StyleModule.font_inconsolata_regular_18.filename))
+end
+
 end # test_write_pdf
