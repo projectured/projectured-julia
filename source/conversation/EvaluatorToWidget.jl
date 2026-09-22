@@ -3,17 +3,17 @@
 # EvaluatorForm / EvaluatorToplevel → WidgetDocument projection, for the
 # standalone REPL a person opens by typing `repl` into an empty tab:
 #
-#     EvaluatorToplevelToWidgetComposite → VerticalLayout of the elements' outputs
+#     EvaluatorToplevelToWidgetComposite → VerticalLayout of the elements
 #     EvaluatorFormToWidgetCard          → the same code/result section pair the
 #                                          composer draws for a draft in
 #                                          progress (`_eval_sections`), with no
 #                                          part-level panel around it — a bare
 #                                          form has no turn or part to sit in.
 #
-# Both mirror `ConversationToWidget.jl`'s printers exactly: child iomaps kept in
-# a `ComputedCell`, a `VerticalLayout` stacking their outputs, a `ChildrenIoMap`,
-# and `_follow_selection!` so a caret set on the domain node shows up on the
-# widget it produced.
+# Neither prints a child. The toplevel's layout holds the forms, and a form's
+# cards hold its code and its result, so the layout stage that follows prints
+# each of them once, through the recursion. `_follow_selection!` makes a caret
+# set on the domain node show up on the widget it produced.
 #
 # Unlike the read-only transcript, a bare form is EDITED: `EvaluatorFormToWidgetCard`'s
 # reference maps pass the tail of a `form`/`result` reference through unchanged,
@@ -70,29 +70,43 @@ function map_reference_backward(::EvaluatorFormToWidgetCard, iomap, reference)
     EmptyReference()
 end
 
-# ── print_document: the toplevel → a stack of its elements' outputs ────────
+# ── print_document: the toplevel → a stack of its forms ────────────────────
+#
+# The layout holds the forms themselves, as `CellVectorToVerticalLayout` holds
+# the elements of a bare vector. A form printed here would reach the layout
+# stage as graphics, and that stage prints each child again: the renderer has no
+# row for graphics, so it would draw the canvas as a tree of its fields.
 
 function print_document(projection::EvaluatorToplevelToWidgetComposite,
                           recursion, t::EvaluatorToplevel, ctx)
-    rec, ref = recursion, ctx.reference
-    ioms = ComputedCell(() -> Any[
-        print_document(rec, rec, t.elements[i], make_child_context(ctx, ref))
-        for i in eachindex(t.elements)
-    ])
-    layout = VerticalLayout(ComputedCellVector(() -> Any[im.output for im in ioms[]]),
+    layout = VerticalLayout(ComputedCellVector(() -> Any[element for element in t.elements]),
                             Cell(:left), Cell(_ELEMENT_GAP),
                             Cell(Fill), Cell(Content), Cell(nothing))
-    iomap = ChildrenIoMap(projection, t, layout, ioms)
+    iomap = SimpleIoMap(projection, t, layout)
     _follow_selection!(layout, t, projection, iomap, Any[])
     iomap
 end
 
-# `elements[i].<rest>` ↔ `children[i].<rest>`, exactly the conversation's own
-# `turns` ↔ `children` map.
-map_reference_backward(::EvaluatorToplevelToWidgetComposite, iomap, reference) =
-    _backward_level(iomap, reference, "children", "elements", 0)
-map_reference_forward(::EvaluatorToplevelToWidgetComposite, iomap, reference) =
-    _forward_level(iomap, reference, "elements", Any[], "children")
+# `elements[i].<rest>` ↔ `children[i].<rest>`. The rest is a path in the form,
+# which the layout stage maps through the form's own row.
+function map_reference_forward(::EvaluatorToplevelToWidgetComposite, iomap, reference)
+    steps = _steps(reference)
+    steps === nothing && return nothing
+    isempty(steps) && return EmptyReference()
+    found = _indexed(steps, "elements")
+    found === nothing && return nothing
+    (i, rest) = found
+    _from_steps(Any[FieldReferenceStep("children"), RangeReferenceStep(i - 1, i)], _from_steps(rest))
+end
+
+function map_reference_backward(::EvaluatorToplevelToWidgetComposite, iomap, reference)
+    steps = _steps(reference)
+    steps === nothing && return EmptyReference()
+    found = _indexed(steps, "children")
+    found === nothing && return EmptyReference()
+    (i, rest) = found
+    _from_steps(Any[FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i)], _from_steps(rest))
+end
 
 # ── Natural-projection registration ──────────────────────────────────────────
 #

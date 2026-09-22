@@ -61,6 +61,12 @@ end
     toplevel = make_insertion_document(EvaluatorToplevel)
     text = render(toplevel)
     @test !occursin("no natural rendering", text)
+    # The toplevel draws its one form and nothing more: the labels of the two
+    # sections of the form, and not a canvas drawn as a tree of its fields.
+    @test text == render(toplevel.elements[1])
+    form_label, result_label = get_evaluation_section_labels(toplevel.elements[1])
+    @test first(split(text)) == form_label
+    @test last(split(text)) == result_label
 end
 
 @testset "it draws in a pane tab" begin
@@ -72,10 +78,9 @@ end
     host = ChainingProjection(RecursiveProjection(PaneToWidget()), NaturalToGraphics(measure = _stub))
     text = drawn(get_iomap_output(print_document(host, nothing, tree,
                  PrinterContext(EmptyReference(), Cell(600), Cell(400), Dict{Symbol,Any}()))))
-    alone = split(render(toplevel))
-    @test !isempty(alone)
-    # The page draws what a print of the evaluator alone draws.
-    @test all(word -> occursin(word, text), alone)
+    # The page draws the title of the tab, then the one form of the evaluator,
+    # word for word.
+    @test text == "Evaluator " * render(toplevel.elements[1])
 end
 
 @testset "ALT+ENTER evaluates the form the caret is in" begin
