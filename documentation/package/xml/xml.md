@@ -49,7 +49,7 @@ A flat offset is one integer, so the set of carets is bounded and the search end
 | `=` | in the name of an attribute | move the caret to the value |
 | no key | in the value of an attribute | move the caret to the name |
 
-A letter or a digit on a placeholder is not a retype key, so it goes into the name of an insertion buffer. The two element keys `<` and `"` are `override` bindings: a tag name can not hold either character, so the element takes the key before the text stage makes it a character. Space does not fire when the caret is in a child, so a space in text stays a space.
+A letter or a digit on a placeholder is not a retype key, so it goes into the name of an insertion buffer. The two element keys `<` and `"` are `override` bindings: a tag name can not hold either character, so the element takes the key before the text stage makes it a character. `=` is an `override` binding for the same reason: an attribute name can not hold it. Outside an attribute name its rule returns `nothing`, so there `=` stays a character. Space does not fire when the caret is in a child, so a space in text stays a space.
 
 ### The text form
 
@@ -68,7 +68,7 @@ The mixed example puts XML inside JSON: `JsonXmlToSyntax()` in `example/xml/` is
 - **An attribute is a document.** A selection can then reach an attribute value as it reaches a child, and the attribute can be inserted and replaced. See `plan/done/xml-attribute-insertable.md`.
 - **The authoring edits are `@gestures` on the document types.** The projection keeps only the printer and the caret mapping. The edits are splices through `ReplaceReferencedValueOperation`, so XML defines no operation type. See `plan/done/xml-authoring-gestures.md` and `plan/done/xml-to-syntax-template.md`.
 - **A caret on the chrome is a flat offset.** It is the one part that the template does not supply for XML. The reason is in the comment above `read_intent` in `source/xml/XmlToSyntax.jl`.
-- **`<` and `"` override the text stage.** Neither character can occur in a tag name, so the keys can mean "insert a child" with the caret in the name.
+- **`<`, `"` and `=` override the text stage.** Neither `<` nor `"` can occur in a tag name, so the keys can mean "insert a child" with the caret in the name. `=` can not occur in an attribute name, so it moves the caret to the value.
 - **The reference marker is an element.** JSON and YAML use a string, Markdown a fence: each format spells a reference with its own opaque unit. See `plan/done/document-file-storage.md`.
 
 ## Usage
@@ -105,6 +105,5 @@ The paths use `[i]` for the i-th item, from 1, and `{k}` for the caret at bounda
 
 - An empty text, tag, attribute name or attribute value shows no hint. JSON and YAML show one with `make_hinted_text`. The four hints "enter xml text", "enter xml element name", "enter xml attribute name" and "enter xml attribute value" are phase 5 of `plan/pending/xml-to-syntax-lisp-parity.md`.
 - No projection reads `collapsed`. `XmlToSyntax` does not give it to the output, and `SyntaxConcatenation` has no `collapsed` field. `plan/pending/collapse-expand-syntax-nodes.md` holds the open step.
-- `=` has no `override`, and only the test of the XML stage alone covers it. No test checks `=` in the full chain, where the text stage can take the key as a character of the name first.
 - An element with no children prints as `<tag></tag>`, never as `<tag/>`.
 - The parser raises an error on a CDATA section.

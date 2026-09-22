@@ -67,7 +67,9 @@ XmlElement(tag::AbstractString, attrs::Vector{<:XmlAttribute}, children::Vector{
 # The reader runs last-to-first, so a key the text layer absorbed never reaches these
 # gestures — a character typed into a tag name stays a character. `<` and `"` are the
 # exception: neither can occur *in* a tag name, so they mean "insert a child" even
-# while the caret is in one, and are declared `override` to claim the key back.
+# while the caret is in one, and are declared `override` to claim the key back. `=`
+# is the same for an attribute name: it moves the caret to the value. Outside a name
+# its rule returns `nothing`, so there `=` stays a character.
 
 _xml_selected(doc) = try_evaluate_reference(doc, getfield(doc, :selection)[])
 
@@ -114,7 +116,7 @@ _xml_insert_attr(e) = _xml_in_attr_context(getfield(e, :selection)[]) ?
     override(KeyPress('"')) => "Insert text"             => _xml_insert_text(doc)
     KeyDown(:insert)        => "Insert a node"           => _xml_insert_node(doc)
     KeyDown(:space)         => "Insert an attribute"     => _xml_insert_attr(doc)
-    KeyPress('=')           => "Move to attribute value" => move_to_field(doc, :name, :value)
+    override(KeyPress('=')) => "Move to attribute value" => move_to_field(doc, :name, :value)
     # The way back has no key of its own. A rule with no gesture reaches the user by
     # name instead, through the command palette.
     nothing                 => "Move to attribute name"  => move_to_field(doc, :value, :name)

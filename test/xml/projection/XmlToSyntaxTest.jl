@@ -146,11 +146,11 @@ end # @testset "XmlToSyntax reader commands"
 end # test_xml_to_syntax_reader
 
 # The reader runs last-to-first, so a printable key the *output* layers turn into a
-# character edit never reaches the domain. `<` and `"` inside a tag name are the
-# exception: a tag cannot contain them, so the XML gestures claim those keys even
-# though the text layer would happily absorb them — an `override` binding. The
-# single-stage tests above cannot see this (with one stage there is no text layer to
-# override), so drive the whole chain.
+# character edit never reaches the domain. `<` and `"` inside a tag name, and `=`
+# inside an attribute name, are the exception: a name cannot contain them, so the
+# XML gestures claim those keys even though the text layer would happily absorb
+# them — an `override` binding. The single-stage tests above cannot see this (with
+# one stage there is no text layer to override), so drive the whole chain.
 function test_xml_override_gestures()
 @testset "XmlToSyntax override gestures (full chain)" begin
 
@@ -178,6 +178,22 @@ end
     e = XmlElement("div", XmlDocument[XmlText("hi")])
     @test read_key(e, EmptyReference(), KeyPress('<')) isa CompoundOperation
     @test read_key(e, EmptyReference(), KeyPress('"')) isa CompoundOperation
+end
+
+# An attribute name can not hold `=`, so in the name the key moves the caret to the
+# value, although the text stage would make it a character.
+@testset "`=` in an attribute name moves to the value (override)" begin
+    e = XmlElement("div", [XmlAttribute("key", "v")])
+    op = read_key(e, @reference(e, attrs[1].name{1}), KeyPress('='))
+    @test op isa ReplaceSelectionOperation
+    @test is_reference_equal(op.path, @reference(e, attrs[1].value{0}))
+end
+
+@testset "`=` in an attribute value or a text is a character edit" begin
+    e = XmlElement("div", [XmlAttribute("key", "v")], XmlDocument[XmlText("hi")])
+    @test read_key(e, @reference(e, attrs[1].value{1}), KeyPress('=')) isa ReplaceStringRangeOperation
+    @test read_key(e, @reference(e, children[1].content{1}), KeyPress('=')) isa ReplaceStringRangeOperation
+    @test read_key(e, @reference(e, tag{1}), KeyPress('=')) isa ReplaceStringRangeOperation
 end
 
 end # @testset "XmlToSyntax override gestures (full chain)"
