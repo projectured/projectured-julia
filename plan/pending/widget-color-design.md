@@ -1,8 +1,8 @@
 # Widget colors: where each color comes from
 
-**Status (2026-09-22): DECIDED.** Nothing is implemented. §3 records the
-present state, §4 describes the target model, and §5 records the decisions. The
-owner decided every decision of §5 on 2026-09-22:
+**Status (2026-09-22): DECIDED, except D5.** Nothing is implemented. §3 records
+the present state, §4 describes the target model, and §5 records the decisions.
+The owner decided every decision of §5 on 2026-09-22, and then opened D5 again:
 
 - Every part of the structure of a widget has its own color (§4.4, D3).
 - A part becomes transparent with `color_transparent` (§4.3, D3).
@@ -10,11 +10,12 @@ owner decided every decision of §5 on 2026-09-22:
 - Every widget that the factory prints on its own has the box insets, with
   three exceptions (D11).
 - No new type holds an inset and its color together (D12).
-- For D1, D4 to D10 and the decorations of D3, the owner accepted the
+- For D1, D4, D6 to D10 and the decorations of D3, the owner accepted the
   recommendation of this plan.
+- The colors of another domain, such as a conversation, belong to the
+  projection that makes widgets from it, not to the widget theme (§4.7).
 
-One question stays open: the colors of categories, such as the roles of a
-conversation (D5).
+D5 is open: how a widget document carries a meaning, such as "destructive".
 
 **Goal:** one rule that gives, for each color that a widget draws, the value
 that the renderer uses. The rule covers the three places that can hold a color:
@@ -40,8 +41,9 @@ fields of the theme changes omnet-julia too.
    give another value. The projection is the only place that holds the look of
    a widget type.
 3. The **widget document** holds no theme and no token name. For its own
-   instance it can hold a **tone or variant**, which selects style fields of the
-   projection, and an **override**, which is a color for one part.
+   instance it can hold a **variant**, which selects style fields of the
+   projection, and an **override**, which is a color for one part. D5 asks how
+   it carries a meaning.
 
 **Every part has a color.** Each part that has a meaning in the structure of a
 widget, and a size that a caller can control, has its own color: the margin, the
@@ -87,7 +89,7 @@ printer code, and four different colors mark a selected thing.
 | **decoration** | a mark of a state that the printer draws over the parts: the focus ring, the hover and pressed layers, the selection band, the shadow, the scrim |
 | **state** | a field of the widget document that the actions of the user change: `enabled`, `hovered`, `pressed`, checked, the selection, the active tab |
 | **variant** | a `Symbol` field of the widget document that selects one set of style fields, for example `WidgetCard.variant = :muted` |
-| **tone** | a planned `Symbol` field that gives the meaning of a widget, such as `:destructive` or `:warning` (D5) |
+| **tone** | a possible `Symbol` field that gives the meaning of a widget, such as `:destructive`. D5 is open. |
 | **override** | a field of the widget document that holds a color for one part of this one widget |
 | **transparent** | the color with alpha 0, as the planned global `color_transparent`. A part in this color adds no element (§4.3). |
 | **upstream projection** | a projection that makes widget documents, for example `ConversationToWidget` |
@@ -279,9 +281,19 @@ Four colors mark a selected thing:
 
 ### 3.6 Colors that upstream projections write
 
-An upstream projection makes widget documents. It has no theme, because the
-theme exists only in `WidgetToGraphics`, which runs after it. So each upstream
-projection that needs a color writes a constant.
+An upstream projection makes widget documents from the documents of another
+domain, for example a conversation. The colors of that domain belong to the
+upstream projection, as the colors of JSON belong to `JsonToSyntax`. The
+projection gives them to the widgets as overrides, and it does not read the
+widget theme (§4.7).
+
+`ObjectToWidget` holds its color in a style field, `style::StyleText`. The other
+upstream projections of the table hold their colors as module constants, and a
+caller can not change them. For example, the projection structs of
+`ConversationToWidget` are empty, such as
+`struct ConversationPartToWidget <: Projection end`. This is a defect of each of
+those slices, and this plan does not fix it. The table lists what they write,
+because step 6 moves these call sites to the new override form.
 
 | Projection | Color | Effect |
 | --- | --- | --- |
@@ -334,10 +346,11 @@ are drawn, and "draw nothing" in the fields that are not drawn.
    the theme.
 7. One name of a style field means different parts, and one part has many names
    (§3.2).
-8. An upstream projection can not get a color of the theme, so it writes a
-   constant (§3.6).
-9. The theme has no token for a warning, a success, a shadow, a scrim, a
-   selection band, a hover band or a knob.
+8. Some upstream projections hold their colors as module constants, not as
+   style fields (§3.6). This defect is outside the widget model, and this plan
+   does not fix it.
+9. The theme has no token for a shadow, a scrim, a selection band, a hover band
+   or a knob.
 10. Only `WidgetLabel` can change the text color of one instance.
 11. Two style fields and one theme token are never read.
 12. The border width has two sources: the `border` inset of the document, which
@@ -562,12 +575,19 @@ No widget document selects a theme for its children (D10).
 
 ### 4.7 Colors from an upstream projection
 
-An upstream projection gives the meaning of a widget, not its color. For
-example, `LogView` gives a warning line the tone `:warning`, and the widget
-projection draws the line in the warning color of the theme. When the theme
-changes, the log colors change with it. An override is for a color that has no
-meaning in the theme, for example a color that the user selected. D5 and D6
-record this.
+The colors of another domain belong to the projection that makes widgets from
+it. `ConversationToWidget` owns the colors of a conversation, and `LogView` owns
+the colors of the severities of a log, as `JsonToSyntax` owns the colors of
+JSON. Such a projection holds its colors in its own style fields, and it gives
+them to the widgets as overrides. It does not read the widget theme (D6).
+
+An application that wants another look gives another style to each of these
+projections, and another theme to the widget factory. This is the rule of §3.1
+for every projection: another look is another factory.
+
+So the widget theme holds only the colors of the widgets themselves. D5 asks
+whether a widget document can also carry a meaning, such as "destructive", that
+the widget theme resolves.
 
 ### 4.8 Out of scope
 
@@ -581,9 +601,9 @@ record this.
 ## 5. Decisions
 
 Each decision gives the options, the outcome and the reasons. The owner decided
-all of them on 2026-09-22. Where a decision says "the owner accepted the
-recommendation", the outcome is the recommendation of this plan. One question
-stays open: the colors of categories in D5.
+all of them on 2026-09-22, and then opened D5 again. Where a decision says "the
+owner accepted the recommendation", the outcome is the recommendation of this
+plan.
 
 ### D1. The names of the style fields
 
@@ -697,7 +717,17 @@ constant `_WT_HOVER_COLOR`, with two tokens. The cost: the hover look of the
 button, the menu item, the list, the table and the tree changes, and the images
 of the examples change with it.
 
-### D5. A tone for the meaning of a widget
+### D5. The meaning of a widget
+
+**Open again.** The owner accepted (b) on 2026-09-22 and opened the question
+again on the same day, for two reasons:
+
+- The first reason for (b) was that `LogView` and `ConversationToWidget` could
+  mark an error or a warning with a tone. That reason is gone: these projections
+  own their colors (§4.7). The `warning` and `success` tokens came from the log
+  view too.
+- The owner doubts that any finite list of meanings in the widget library is
+  enough.
 
 The `variant` fields of today answer two questions: how loud a surface is
 (`WidgetCard`), and what a widget means (`:destructive` on `WidgetAlert`).
@@ -712,17 +742,13 @@ The `variant` fields of today answer two questions: how loud a surface is
   loud a surface is. The theme gets the tokens `warning`,
   `warning_foreground`, `success` and `success_foreground`.
 
-**Decision: (b).** The owner accepted the
-recommendation on 2026-09-22. `LogView` and `ConversationToWidget` can then mark an
-error or a warning, and the colors follow the theme. One question stays open:
-the role colors of the conversation (user, assistant) are categories, not
-meanings. Either the theme gets a list of category colors, like the color cycle
-of a chart, or they stay overrides.
+No decision yet. The first version of this plan recommended (b).
 
 ### D6. How an upstream projection gets a color of the theme
 
-- **(a)** Only through a tone or a variant (D5). The upstream projection never
-  gets the theme.
+- **(a)** The upstream projection never gets the widget theme. It holds the
+  colors of its domain in its own style fields (§4.7), and it can select a
+  variant of a widget.
 - **(b)** The upstream projection also takes the theme as a constructor argument
   and writes resolved colors into the document.
 
@@ -732,6 +758,11 @@ places, and another theme needs a new upstream projection too. (b) stays correct
 for a projection that draws graphics itself, such as
 `build_module_appearance_graphics`. There the caller must give the theme, and
 `nothing` must not select black on white.
+
+The first wording of (a) said "only through a tone or a variant". It changed on
+2026-09-22, when §4.7 gave the colors of a domain to the projection of that
+domain. The decision itself did not change: the upstream projection never gets
+the widget theme.
 
 ### D7. A caller that builds one projection
 
@@ -860,9 +891,9 @@ targeted tests run after each step.
       three local names of §3.4 with it. This step changes no image, so it can
       land before the other decisions.
 - [ ] 3. Theme: add the tokens that the decisions need, for example the shadow,
-      the scrim, the selection band, the hover and pressed layers, the knob,
-      `warning` and `success`. Keep `inset` as the default box insets
-      (D8). Change
+      the scrim, the selection band, the hover and pressed layers and the knob.
+      D5 decides whether tokens for meanings join them. Keep `inset` as the
+      default box insets (D8). Change
       `build_qtenv_widget_theme` in omnet-julia, which calls the positional
       constructor.
 - [ ] 4. Projections: give each widget projection a constructor that takes the
@@ -880,14 +911,14 @@ targeted tests run after each step.
       `content_fill_color` and `title_fill_color` into the override of D2, with
       one color for every part (§4.4). No part loses its color. The insets stay
       separate fields (D12). Give the box insets to the 20 widget types and to
-      `WidgetCard` (D11). Add `tone` (D5). Change the 26 call sites in both repositories. For each of the
-      16 call sites that have no effect today, check whether the color is still
-      wanted. For example, `AssistantToWidget` asks for white panes but shows
-      `theme.background`.
-- [ ] 7. Upstream projections: `ConversationToWidget`, `LogView`,
-      `ObjectToWidget` and `ConfigurationFormToWidget` use tones or overrides.
-- [ ] 8. Layouts: the selection ring takes its color from the theme (D9).
-- [ ] 9. Documentation: write the "Theme" and "Shared visual fields" sections
+      `WidgetCard` (D11). Carry out D5, when it is decided. Change the 26 call
+      sites in both repositories to the new override form. This is a
+      mechanical change: the colors of an upstream projection stay its own
+      (§4.7). For each of the 16 call sites that have no effect today, check
+      whether the color is still wanted. For example, `AssistantToWidget` asks
+      for white panes but shows `theme.background`.
+- [ ] 7. Layouts: the selection ring takes its color from the theme (D9).
+- [ ] 8. Documentation: write the "Theme" and "Shared visual fields" sections
       of [widget.md](../../documentation/package/widget/widget.md) from §4.
 
 ## 7. Verification
