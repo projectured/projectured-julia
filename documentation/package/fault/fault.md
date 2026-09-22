@@ -62,6 +62,12 @@ attach_fault_target!(editor.faults, log)
 projection = FaultLogOverlayProjection(inner = root, log = log)
 ```
 
+A window with tabs reads the log in a tab instead. `get_session_fault_log()`
+is the one log of the session, and `Ctrl+T` with `faults` opens it. The toolbar
+of the shell has a button for it, and the shell attaches it to the store of the
+editor when the window starts. A saved window keeps the capacity of the log and
+none of its faults.
+
 ## The report ladder
 
 A fault is reported at the first tier that works, and a tier that fails falls to

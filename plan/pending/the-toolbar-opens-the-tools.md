@@ -406,10 +406,16 @@ the other one.
 
 ### Step 4: the session fault log
 
-- [ ] `get_session_fault_log()`, `make_insertion_document(::Type{FaultLog})`,
-      the alias `faults` and the title "Faults", in the fault slice.
-- [ ] `test_fault()`: a fault that a barrier records reaches the session log
-      after `drain_faults!`.
+- [x] `get_session_fault_log()`, `make_insertion_document(::Type{FaultLog})`,
+      the alias `faults` and the title "Faults", in the fault slice. Like the
+      two other session logs, `pred_arguments` saves the capacity and none of
+      the entries: the faults of one session say nothing about the next. The
+      fault package now depends on `ProjecturedDomain` and
+      `ProjecturedSerialization`, and the layering guard passes.
+- [x] `test_fault()`: `Ctrl+T` and `faults` give the session log, its title
+      and its saved form are right, and a fault that a barrier records reaches
+      it after `drain_faults!`. **73** (68 + 5).
+- [x] The fault guide says how a window with tabs reads the log.
 
 ### Step 5: the shared toolbar and its setup, in the shell
 

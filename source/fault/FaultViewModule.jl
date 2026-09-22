@@ -59,11 +59,14 @@ using ..WidgetModule
 # function in this module rather than a method on the kernel's. The pipeline
 # then never finds it. PAR-QUALIFIED-EXTENSION is the rule, and the layering
 # guard is what catches a file that forgets.
+import ..DocumentModule: get_document_title
+import ..DomainModule: get_insertion_aliases, make_insertion_document
 import ..FaultModule: append_fault!
+import ..SerializationModule: pred_arguments
 import ..ProjectionModule: print_document, read_intent,
                            map_reference_forward, map_reference_backward
 
-export FaultReport, FaultLog, FaultLogEntry,
+export FaultReport, FaultLog, FaultLogEntry, get_session_fault_log,
        format_fault_label, clear_fault_log!,
        FaultCatchingProjection, FaultCatchingIoMap,
        FaultToSyntax, FaultToText, FaultToWidget, FaultToGraphics,

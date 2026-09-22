@@ -136,3 +136,36 @@ function clear_fault_log!(log::FaultLog)
     end
     log
 end
+
+get_document_title(::FaultLog) = "Faults"
+get_insertion_aliases(::Type{FaultLog}) = ["faults"]
+
+# A saved window keeps where the log was and how much it holds, never what it
+# held: the faults of one session say nothing about the next.
+pred_arguments(log::FaultLog) = (), Pair{Symbol,Any}[:capacity => log.capacity]
+
+# ── The session's log ────────────────────────────────────────────────────────
+
+# One log for the session, because there is one editor and one program that
+# fails in it. `FaultLog()` still builds an empty one, which a test and a
+# gallery window want.
+const _SESSION_FAULT_LOG = FaultLog()
+
+"""
+    get_session_fault_log() -> FaultLog
+
+The one log of the session.
+
+A window fills it once it is attached to the store of its editor:
+
+    attach_fault_target!(editor.faults, get_session_fault_log())
+
+Every fault log a person opens is this document, so two of them show the same
+faults rather than two halves of them.
+"""
+get_session_fault_log() = _SESSION_FAULT_LOG
+
+# A person who types `faults` into an empty tab gets the session's log, not a
+# fresh empty one. A fresh one would never fill: what fills a log is the drain
+# of the store it is attached to.
+make_insertion_document(::Type{FaultLog}) = get_session_fault_log()

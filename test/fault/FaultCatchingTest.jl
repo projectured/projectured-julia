@@ -144,5 +144,30 @@ function test_fault_catching()
         @test log.entries[1].site === :print
         @test log.entries[1].count == 3
     end
+
+    @testset "a person opens the session's log, and a window fills it" begin
+        domain = ProjecturedFault.DomainModule
+        log = get_session_fault_log()
+        # `Ctrl+T` and `faults` give the one log of the session, never a fresh
+        # one that nothing fills.
+        @test domain.make_insertion_document(FaultLog) === log
+        @test "faults" in domain.get_insertion_names(FaultLog)
+        @test get_document_title(log) == "Faults"
+        # A saved window keeps the capacity of the log and none of its faults.
+        @test ProjecturedFault.SerializationModule.pred_arguments(log) ==
+              ((), Pair{Symbol,Any}[:capacity => log.capacity])
+
+        store = FaultStore()
+        attach_fault_target!(store, log)
+        projection = RecursiveProjection(
+            FaultCatchingProjection(inner = _probe_dispatch(),
+                                    substitute = FaultToSyntax()))
+        context = with_property(PrinterContext(), :fault_store, store)
+        iomap = print_document(projection, nothing, _probe_branch(6), context)
+        _drawn_children(iomap.output)
+        drain_faults!(store)
+        @test any(entry -> entry isa FaultLogEntry && entry.site === :print && entry.count >= 3,
+                  collect(log.entries))
+    end
 end
 end

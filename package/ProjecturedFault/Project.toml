@@ -8,10 +8,12 @@ authors = []
 
 [deps]
 ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedDomain = "56e9f339-7147-459f-9ae1-7785cace5f24"
 ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedNatural = "09daa789-626e-40de-aeba-3b7256e1b478"
 ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
+ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
 ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
 ProjecturedSyntax = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
 ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
@@ -19,10 +21,12 @@ ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 
 [sources]
 ProjecturedCollection = {path = "../ProjecturedCollection"}
+ProjecturedDomain = {path = "../ProjecturedDomain"}
 ProjecturedGraphics = {path = "../ProjecturedGraphics"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedNatural = {path = "../ProjecturedNatural"}
 ProjecturedProjection = {path = "../ProjecturedProjection"}
+ProjecturedSerialization = {path = "../ProjecturedSerialization"}
 ProjecturedStyle = {path = "../ProjecturedStyle"}
 ProjecturedSyntax = {path = "../ProjecturedSyntax"}
 ProjecturedText = {path = "../ProjecturedText"}

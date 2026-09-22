@@ -10,10 +10,12 @@ relative `..XxxModule` references.
 module ProjecturedFault
 
 using ProjecturedCollection
+using ProjecturedDomain
 using ProjecturedGraphics
 using ProjecturedKernel
 using ProjecturedNatural
 using ProjecturedProjection
+using ProjecturedSerialization
 using ProjecturedStyle
 using ProjecturedSyntax
 using ProjecturedText
@@ -21,6 +23,7 @@ using ProjecturedWidget
 
 const CellModule = ProjecturedKernel.CellModule
 const CollectionModule = ProjecturedCollection.CollectionModule
+const DomainModule = ProjecturedDomain.DomainModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const OperationModule = ProjecturedKernel.OperationModule
@@ -29,6 +32,7 @@ const IoMapModule = ProjecturedKernel.IoMapModule
 const IntentModule = ProjecturedKernel.IntentModule
 const FaultModule = ProjecturedKernel.FaultModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
+const SerializationModule = ProjecturedSerialization.SerializationModule
 const SyntaxModule = ProjecturedSyntax.SyntaxModule
 const TextModule = ProjecturedText.TextModule
 const StyleModule = ProjecturedStyle.StyleModule
