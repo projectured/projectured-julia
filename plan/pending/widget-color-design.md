@@ -1,8 +1,8 @@
 # Widget colors: where each color comes from
 
-**Status (2026-09-22): DECIDED, except D5.** Nothing is implemented. §3 records
-the present state, §4 describes the target model, and §5 records the decisions.
-The owner decided every decision of §5 on 2026-09-22, and then opened D5 again:
+**Status (2026-09-22): DECIDED.** Nothing is implemented. §3 records the
+present state, §4 describes the target model, and §5 records the decisions. The
+owner decided every decision of §5 on 2026-09-22:
 
 - Every part of the structure of a widget has its own color (§4.4, D3).
 - A part becomes transparent with `color_transparent` (§4.3, D3).
@@ -14,8 +14,8 @@ The owner decided every decision of §5 on 2026-09-22, and then opened D5 again:
   recommendation of this plan.
 - The colors of another domain, such as a conversation, belong to the
   projection that makes widgets from it, not to the widget theme (§4.7).
-
-D5 is open: how a widget document carries a meaning, such as "destructive".
+- A widget has no `tone`. A `variant` value exists only where the widget library
+  draws the widget differently with no knowledge of a domain (D5).
 
 **Goal:** one rule that gives, for each color that a widget draws, the value
 that the renderer uses. The rule covers the three places that can hold a color:
@@ -42,8 +42,8 @@ fields of the theme changes omnet-julia too.
    a widget type.
 3. The **widget document** holds no theme and no token name. For its own
    instance it can hold a **variant**, which selects style fields of the
-   projection, and an **override**, which is a color for one part. D5 asks how
-   it carries a meaning.
+   projection, and an **override**, which is a color for one part. A domain
+   gives its meanings their colors in its own projection (§4.7, D5).
 
 **Every part has a color.** Each part that has a meaning in the structure of a
 widget, and a size that a caller can control, has its own color: the margin, the
@@ -89,7 +89,6 @@ printer code, and four different colors mark a selected thing.
 | **decoration** | a mark of a state that the printer draws over the parts: the focus ring, the hover and pressed layers, the selection band, the shadow, the scrim |
 | **state** | a field of the widget document that the actions of the user change: `enabled`, `hovered`, `pressed`, checked, the selection, the active tab |
 | **variant** | a `Symbol` field of the widget document that selects one set of style fields, for example `WidgetCard.variant = :muted` |
-| **tone** | a possible `Symbol` field that gives the meaning of a widget, such as `:destructive`. D5 is open. |
 | **override** | a field of the widget document that holds a color for one part of this one widget |
 | **transparent** | the color with alpha 0, as the planned global `color_transparent`. A part in this color adds no element (§4.3). |
 | **upstream projection** | a projection that makes widget documents, for example `ConversationToWidget` |
@@ -377,10 +376,10 @@ are drawn, and "draw nothing" in the fields that are not drawn.
 
 | | Theme | Widget projection | Widget document |
 | --- | --- | --- | --- |
-| Holds | colors with names that give their meaning | one style field for each part and state that it draws | a tone or a variant; an override for one part |
+| Holds | colors with names that give their meaning | one style field for each part and state that it draws | a variant; an override for one part |
 | Scope | every widget that one factory builds | every widget of one type that this projection prints | one widget |
 | Set by | the application | the factory, from the theme; or a caller | the author, or an upstream projection |
-| Follows a change of theme | it is the theme | yes, when the factory fills it | the tone and the variant: yes; the override: no |
+| Follows a change of theme | it is the theme | yes, when the factory fills it | the variant: yes; the override: no |
 | Reads | nothing | the theme, in its constructor only | nothing |
 
 The rules of the model:
@@ -405,7 +404,7 @@ For one part P of a widget w in state S, printed by projection p:
 
 1. If w has an override for P that is not `nothing`, the printer uses it. §4.5
    and D4 give the rule for the states.
-2. Else the printer uses the style field of p for P that the variant or tone of
+2. Else the printer uses the style field of p for P that the variant of
    w and the state S select. A projection that has one field for P in every
    variant uses that field.
 
@@ -420,7 +419,7 @@ tokens. There is no later fallback, and no printer falls back to a constant.
 | theme token | not allowed. A theme gives every token. |
 | projection style field | not allowed. A look that draws no fill for a part gives `color_transparent`. |
 | document override | no override. The style field of the projection applies. |
-| document variant or tone | not allowed. The field is a `Symbol` with a default. |
+| document variant | not allowed. The field is a `Symbol` with a default. |
 
 So `nothing` has one meaning in the model: this layer sets no value, and the
 next layer applies. Only a document override can be `nothing`.
@@ -568,7 +567,7 @@ From the widest scope to the narrowest:
 | every widget of an application | give a theme to the factory | it is the theme | works, for example the Qtenv window |
 | the widgets in one part of the tree | a second factory with another theme, joined with a `NestingProjection` or given to one pane | yes, its own theme | works only where the tree already changes projection |
 | every widget of one type | a caller gives a projection its own style fields, or a person edits them with `ProjectionConfiguringProjection` | yes, when the caller derives them from the theme | works, but a projection built by hand loses the theme (defect 6) |
-| one widget | a tone or a variant on the document | yes | three widgets have a variant |
+| one widget | a variant on the document | yes | three widgets have a variant |
 | one part of one widget | an override on the document | no | works in two fields |
 
 No widget document selects a theme for its children (D10).
@@ -585,9 +584,11 @@ An application that wants another look gives another style to each of these
 projections, and another theme to the widget factory. This is the rule of §3.1
 for every projection: another look is another factory.
 
-So the widget theme holds only the colors of the widgets themselves. D5 asks
-whether a widget document can also carry a meaning, such as "destructive", that
-the widget theme resolves.
+So the widget theme holds only the colors of the widgets themselves. A domain
+can come with its own theme, in the same way as the widget theme: that theme
+gives the default style fields of the projections of the domain. Where the
+domain needs a color on a widget, its projection overrides the default of the
+widget. A widget document carries no meaning of a domain (D5).
 
 ### 4.8 Out of scope
 
@@ -601,9 +602,9 @@ the widget theme resolves.
 ## 5. Decisions
 
 Each decision gives the options, the outcome and the reasons. The owner decided
-all of them on 2026-09-22, and then opened D5 again. Where a decision says "the
-owner accepted the recommendation", the outcome is the recommendation of this
-plan.
+all of them on 2026-09-22. D5 was opened again and decided a second time on the
+same day. Where a decision says "the owner accepted the recommendation", the
+outcome is the recommendation of this plan.
 
 ### D1. The names of the style fields
 
@@ -719,8 +720,8 @@ of the examples change with it.
 
 ### D5. The meaning of a widget
 
-**Open again.** The owner accepted (b) on 2026-09-22 and opened the question
-again on the same day, for two reasons:
+**History.** The owner first accepted (b) on 2026-09-22, and opened the
+question again on the same day, for two reasons:
 
 - The first reason for (b) was that `LogView` and `ConversationToWidget` could
   mark an error or a warning with a tone. That reason is gone: these projections
@@ -732,8 +733,9 @@ again on the same day, for two reasons:
 The `variant` fields of today answer two questions: how loud a surface is
 (`WidgetCard`), and what a widget means (`:destructive` on `WidgetAlert`).
 
-- **(a)** Keep one `variant` per widget, and add values where a caller needs
-  them.
+- **(a)** No `tone`. Keep one `variant` per widget. A `variant` value exists
+  only where the widget library draws the widget differently with no knowledge
+  of a domain.
 - **(b)** Add one field `tone` to the widgets that can carry a meaning: the
   label, the badge, the alert, the card and the button. It has one set of
   values in every widget: `:neutral`, `:primary`, `:destructive`, `:warning`,
@@ -742,7 +744,29 @@ The `variant` fields of today answer two questions: how loud a surface is
   loud a surface is. The theme gets the tokens `warning`,
   `warning_foreground`, `success` and `success_foreground`.
 
-No decision yet. The first version of this plan recommended (b).
+- **(c)** An open `tone`: any `Symbol`. The theme maps each tone to its colors,
+  and an application adds its own entries.
+
+**Decision: (a).** Decided by the owner on 2026-09-22. The reasons:
+
+- A meaning belongs to a domain: the severities of a log, the states of a diff,
+  the roles of a conversation. No finite list in the widget library can hold
+  the meanings of every domain. A short list puts different meanings into one
+  group, and the difference is lost.
+- A domain can come with its own theme, in the same way as the widget theme.
+  That theme gives the defaults of the projections of the domain, and those
+  projections override the defaults of a widget where the domain needs it
+  (§4.7). The override of D2 takes any color on any part, so a domain needs
+  nothing more from the widget library.
+- A `variant` is a look that the widget library itself defines, so a closed list
+  is correct there. `:tinted` on `WidgetCard`, `:outline` on `WidgetBadge` and
+  `:destructive` on `WidgetAlert` are such looks. A domain selects one where it
+  fits.
+- (c) is open, but the widget theme then holds names from domains, and a tone
+  with no entry falls back to the default with no error. It also does the job
+  of the theme of the domain.
+
+The theme gets no `warning` and no `success` token.
 
 ### D6. How an upstream projection gets a color of the theme
 
@@ -892,8 +916,8 @@ targeted tests run after each step.
       land before the other decisions.
 - [ ] 3. Theme: add the tokens that the decisions need, for example the shadow,
       the scrim, the selection band, the hover and pressed layers and the knob.
-      D5 decides whether tokens for meanings join them. Keep `inset` as the
-      default box insets (D8). Change
+      No token for a meaning of a domain (D5). Keep `inset` as the default box
+      insets (D8). Change
       `build_qtenv_widget_theme` in omnet-julia, which calls the positional
       constructor.
 - [ ] 4. Projections: give each widget projection a constructor that takes the
@@ -911,7 +935,7 @@ targeted tests run after each step.
       `content_fill_color` and `title_fill_color` into the override of D2, with
       one color for every part (§4.4). No part loses its color. The insets stay
       separate fields (D12). Give the box insets to the 20 widget types and to
-      `WidgetCard` (D11). Carry out D5, when it is decided. Change the 26 call
+      `WidgetCard` (D11). Add no `tone` (D5). Change the 26 call
       sites in both repositories to the new override form. This is a
       mechanical change: the colors of an upstream projection stay its own
       (§4.7). For each of the 16 call sites that have no effect today, check
