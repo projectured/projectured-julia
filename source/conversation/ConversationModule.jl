@@ -52,7 +52,8 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 
 export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label,
        get_evaluation_title, get_evaluation_section_labels, make_evaluator_arguments_text,
-       ToggleEvaluatorSectionOperation, EvaluateSelectedFormOperation
+       ToggleEvaluatorSectionOperation, EvaluateSelectedFormOperation,
+       RecallEvaluatorFormOperation
 export ConversationDocument, make_conversation_thinking_part
 export ConversationConversationToWidgetComposite,
        ConversationTurnToWidgetComposite,

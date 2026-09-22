@@ -225,6 +225,85 @@ end
     @test length(toplevel.elements) == 1
 end
 
+# A toplevel with the forms `codes` evaluated, as a person types and evaluates them,
+# and the functions a test of the history needs.
+function history_session(codes...)
+    toplevel = make_insertion_document(EvaluatorToplevel)
+    ed = editor(toplevel)
+    type!(text) = evaluate_operation(ed, ReplaceStringRangeOperation(toplevel.selection, text))
+    press!(key) = (op = read_gesture(toplevel, KeyDown(key, ModifierKeys()));
+                   op === nothing || evaluate_operation(ed, op); op)
+    shown() = toplevel.elements[length(toplevel.elements)].form.value
+    caret() = last(get_reference_steps(strip_reference_types(toplevel.selection)))
+    for code in codes
+        type!(code)
+        press!(:return)
+    end
+    (; toplevel, ed, type!, press!, shown, caret)
+end
+
+@testset "UP and DOWN in the bottom form walk the history, as a Julia REPL does" begin
+    s = history_session("x = 1", "y = 2", "x + y")
+    @test s.shown() == ""
+    # Up goes back from the newest form, and the caret stands at the end.
+    @test s.press!(:up) isa RecallEvaluatorFormOperation
+    @test s.shown() == "x + y"
+    @test s.caret() == RangeReferenceStep(5, 5)
+    s.press!(:up); @test s.shown() == "y = 2"
+    s.press!(:up); @test s.shown() == "x = 1"
+    # Past the oldest form nothing changes.
+    s.press!(:up); @test s.shown() == "x = 1"
+    # Down comes forward, and past the newest form the draft comes back.
+    s.press!(:down); @test s.shown() == "y = 2"
+    s.press!(:down); @test s.shown() == "x + y"
+    s.press!(:down); @test s.shown() == ""
+    s.press!(:down); @test s.shown() == ""
+    # Evaluated forms keep their code: a recall writes only the bottom form.
+    @test [s.toplevel.elements[i].form.value for i in 1:3] == ["x = 1", "y = 2", "x + y"]
+end
+
+@testset "the text before the caret is a prefix, and the draft comes back" begin
+    s = history_session("x = 1", "y = 2", "x + y")
+    s.type!("x")
+    s.press!(:up); @test s.shown() == "x + y"
+    # "y = 2" does not start with "x".
+    s.press!(:up); @test s.shown() == "x = 1"
+    s.press!(:up); @test s.shown() == "x = 1"
+    s.press!(:down); @test s.shown() == "x + y"
+    s.press!(:down); @test s.shown() == "x"
+    # Edited, a recalled code is a new draft: its text is the new prefix.
+    s.press!(:up); s.type!(" + 1")
+    @test s.shown() == "x + y + 1"
+    s.press!(:up); @test s.shown() == "x + y + 1"
+end
+
+@testset "a failed form is in the history, and the text shown now is skipped" begin
+    s = history_session("a = 1", "a = 1", "undefined_name_xyz123")
+    @test s.toplevel.elements[3].is_error
+    s.press!(:up); @test s.shown() == "undefined_name_xyz123"
+    s.press!(:up); @test s.shown() == "a = 1"
+    # The older "a = 1" is the text shown now, so Up stays.
+    s.press!(:up); @test s.shown() == "a = 1"
+    s.press!(:down); @test s.shown() == "undefined_name_xyz123"
+end
+
+@testset "UP and DOWN in a form above move the caret to its neighbors" begin
+    s = history_session("1", "22", "333")
+    form_caret(i, k) = ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(i - 1, i), ConcreteReference(FieldReferenceStep("form"),
+            ConcreteReference(FieldReferenceStep("value"), ConcreteReference(RangeReferenceStep(k, k), EmptyReference())))))
+    steps(reference) = get_reference_steps(strip_reference_types(reference))
+    set_selection!(s.toplevel, form_caret(2, 1))
+    # Up goes to the end of the form above, and Down to the start of the form below.
+    @test steps(s.press!(:up).path) == steps(form_caret(1, 1))
+    @test steps(s.toplevel.selection) == steps(form_caret(1, 1))
+    @test s.press!(:up) === nothing
+    set_selection!(s.toplevel, form_caret(2, 1))
+    @test steps(s.press!(:down).path) == steps(form_caret(3, 0))
+    # A form above is never written.
+    @test [s.toplevel.elements[i].form.value for i in 1:3] == ["1", "22", "333"]
+end
+
 @testset "state persists across forms, like a real REPL and not a sandbox" begin
     toplevel = make_insertion_document(EvaluatorToplevel)
     ed = editor(toplevel)

@@ -100,8 +100,16 @@ The owner decided all seven on 2026-09-22.
       lines with glyphs, gets no new coordinate. `_draws_glyph` tells the two kinds
       apart for the blank-line height and for `_translate_click`. The text suites
       pass, and `test_mouse_clicks()` fails the same 10 examples as on `main`.
-- [ ] **Step 2. The history of the evaluator.** The three fields, the operation
+- [x] **Step 2. The history of the evaluator.** The three fields, the operation
       and the gestures. Tests in `EvaluatorToplevelTest.jl` for D1 to D7.
+      **Done.** `RecallEvaluatorFormOperation` holds the toplevel and a direction.
+      The caret moves through `_select_in_toplevel!`, which the evaluation now
+      shares: `_select_under!`, and the toplevel's own selection when the complete
+      selection does not pass through it. `_find_selected_value_range` and
+      `_make_form_caret_reference` serve the Shift+Enter key, the evaluation and
+      the recall alike. Four new cases cover D1 to D7 at the level of the
+      document; the key reaches the toplevel from the first or the last line only
+      through the window, which Step 3 tests.
 - [ ] **Step 3. Through the window.** A case in `ApplicationTest.jl` on a standing
       iomap: type and evaluate two forms, Up recalls the newest, Up again the
       older, Down comes back, Down again restores the draft, and code of two lines
