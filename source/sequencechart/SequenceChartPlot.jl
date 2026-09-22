@@ -2,7 +2,7 @@
 #
 # The sequence chart's presentation document: a `SequenceChart` plus everything
 # about *looking at* one — the window onto the timeline, where the pointer is,
-# what is hovered, a drag in progress.
+# what is hovered.
 #
 # None of that is chart content. A saved chart should not remember where someone
 # had scrolled to, and the same trace shown in two panes should be able to be
@@ -69,8 +69,6 @@ A sequence chart together with how it is currently being looked at.
   the layout.
 - `cursor` — the pointer, driving the gutter's time readout.
 - `hovered` — a `Reference` naming the hovered event, arrow or lane.
-- `drag_anchor` / `drag_rect` — pixel state while a rubber-band zoom or a pan is
-  in progress, cleared when it commits or cancels.
 """
 @document struct SequenceChartPlot <: SequenceChartDocument
     chart::Any
@@ -79,8 +77,6 @@ A sequence chart together with how it is currently being looked at.
     cross_offset::Int = 0
     cursor::Any = nothing
     hovered::Any = nothing
-    drag_anchor::Any = nothing
-    drag_rect::Any = nothing
 end
 
 """

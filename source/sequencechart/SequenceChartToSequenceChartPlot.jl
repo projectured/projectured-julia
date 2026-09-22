@@ -2,9 +2,9 @@
 #
 # SequenceChart → SequenceChartPlot: the first stage of the sequence chart
 # pipeline, and a thin one. It wraps the semantic chart in the presentation
-# document carrying the view window, the pointer, the hover and any drag in
-# progress, so the renderer downstream has one place to read all of it and the
-# chart itself stays pure content.
+# document carrying the view window, the pointer and the hover, so the
+# renderer downstream has one place to read all of it and the chart itself
+# stays pure content.
 #
 # The `SequenceChartPlot` is built once per projection setup and keeps its
 # identity, so the window survives a data change: appending events invalidates the
@@ -37,7 +37,7 @@ function print_document(p::SequenceChartToSequenceChartPlot, recursion,
     plot = SequenceChartPlot(
         Cell(chart),
         Cell(nothing), Cell(false), Cell(0),
-        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
+        Cell(nothing), Cell(nothing),
         ComputedCell(() -> let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, chart.selection)
         end))
