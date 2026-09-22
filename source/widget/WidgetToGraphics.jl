@@ -392,6 +392,9 @@ struct WidgetCompositeToGraphicsCanvas <: Projection end
     font::StyleFont             # measures the menu/toolbar band heights
     background_color::StyleColor
     band_gap::Int               # gap below the toolbar band
+    # The band that took the last `MouseDown`, as `(shell, band)`, until the
+    # `MouseUp`. One shell projection serves one window, so this is per window.
+    capture::Base.RefValue{Any}
 end
 
 @projection struct WidgetTitlePaneToGraphicsCanvas
@@ -2358,10 +2361,16 @@ function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     op = @event_case evt begin
         MouseScroll => _route_scroll_to_children(child_iomaps, evt)
         MousePress  => _route_click_to_children(child_iomaps, evt)
+        # A down and an up carry coordinates like a press, so they go to the band
+        # under the pointer in that band's frame. A down also names the band that
+        # owns the drag it may start, and that band keeps it until the up.
+        MouseDown   => _route_shell_down!(p, iomap.input, child_iomaps, evt)
+        MouseUp     => _route_shell_up!(p, iomap.input, child_iomaps, evt)
         # Pointer motion / crossings carry coordinates: route them to the band under
         # the pointer (coordinate-translated), so a hovered widget inside the content
         # band gets the MouseMove/MouseEnter/MouseLeave the hover tracker synthesises.
-        MouseMove   => _route_move_to_children(child_iomaps, evt)
+        # A move with a button held goes to the band that owns the drag.
+        MouseMove   => _route_shell_move(p, iomap.input, child_iomaps, evt)
         MouseEnter  => _route_crossing_to_children(child_iomaps, evt)
         MouseLeave  => _route_crossing_to_children(child_iomaps, evt)
         # Forward keyboard (and other coordless) events to the wrapped
@@ -2402,6 +2411,77 @@ function _find_band_field(shell::WidgetShell, band)
     band === shell.toolbar && return "toolbar"
     band === shell.status_bar && return "status_bar"
     nothing
+end
+
+# ── The pointer in a shell ──────────────────────────────────────────────────
+#
+# A drag belongs to the band it started in. The band that takes a `MouseDown` gets
+# every move with a button held and the next `MouseUp`, translated into its own
+# frame wherever the pointer is, so a divider dragged across the status line keeps
+# moving and its release is not lost.
+
+# The entry of the band under a point, or `nothing`.
+function _find_shell_band_at(child_iomaps::Vector, x::Int, y::Int)
+    for entry in child_iomaps
+        entry === nothing && continue
+        (ox, oy, cim) = entry::Tuple{Int,Int,Any}
+        canvas = cim.output
+        canvas isa GraphicsCanvas || continue
+        hit_element_at(canvas, x - ox - Int(canvas.x), y - oy - Int(canvas.y)) === nothing && continue
+        return entry
+    end
+    nothing
+end
+
+# The entry of the band that owns the drag in progress, or `nothing`.
+function _find_captured_band(p::WidgetShellToGraphicsCanvas, shell, child_iomaps::Vector)
+    captured = p.capture[]
+    captured === nothing && return nothing
+    captured.shell === shell || return nothing
+    for entry in child_iomaps
+        entry === nothing && continue
+        get_iomap_input(entry[3]) === captured.band && return entry
+    end
+    nothing
+end
+
+# The same pointer event at another point.
+_move_pointer_event(evt::MouseDown, x, y) = MouseDown(evt.button, x, y, evt.modifiers)
+_move_pointer_event(evt::MouseUp, x, y) = MouseUp(evt.button, x, y, evt.modifiers)
+_move_pointer_event(evt::MouseMove, x, y) = MouseMove(x, y, evt.buttons, evt.modifiers)
+
+# Hand `evt` to one band, translated into its frame.
+function _read_band_event(entry, evt)
+    (ox, oy, cim) = entry::Tuple{Int,Int,Any}
+    canvas = cim.output
+    canvas isa GraphicsCanvas || return nothing
+    read_child_event(cim, _move_pointer_event(evt, evt.x - ox - Int(canvas.x),
+                                              evt.y - oy - Int(canvas.y)))
+end
+
+function _route_shell_down!(p::WidgetShellToGraphicsCanvas, shell, child_iomaps::Vector,
+                            evt::MouseDown)
+    entry = _find_shell_band_at(child_iomaps, evt.x, evt.y)
+    p.capture[] = entry === nothing ? nothing :
+                  (shell = shell, band = get_iomap_input(entry[3]))
+    entry === nothing ? nothing : _read_band_event(entry, evt)
+end
+
+function _route_shell_up!(p::WidgetShellToGraphicsCanvas, shell, child_iomaps::Vector,
+                          evt::MouseUp)
+    entry = _find_captured_band(p, shell, child_iomaps)
+    p.capture[] = nothing
+    entry === nothing && return _route_downup_to_children(child_iomaps, evt)
+    _read_band_event(entry, evt)
+end
+
+function _route_shell_move(p::WidgetShellToGraphicsCanvas, shell, child_iomaps::Vector,
+                           evt::MouseMove)
+    if evt.buttons !== :none
+        entry = _find_captured_band(p, shell, child_iomaps)
+        entry === nothing || return _read_band_event(entry, evt)
+    end
+    _route_move_to_children(child_iomaps, evt)
 end
 
 # Forward a coordless event to each child entry's reader, returning the
@@ -2891,8 +2971,15 @@ function _split_drag_read(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoM
 end
 
 function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
-    _outside_widget(iomap, evt) && return nothing
     w = iomap.input
+    # A drag in progress follows the pointer past the pane's own edge: the band
+    # that holds the drag hands it every held move and the release, wherever
+    # they land, and a divider must not stop where the pane ends.
+    if w isa WidgetSplitPane && w.active_splitter > 0
+        drag = _split_drag_read(p, iomap, w, evt)
+        drag !== nothing && return drag
+    end
+    _outside_widget(iomap, evt) && return nothing
     if w isa WidgetSplitPane
         drag = _split_drag_read(p, iomap, w, evt)
         drag !== nothing && return drag
@@ -7189,7 +7276,8 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         # it so the recursion can render an embedded grid without an outer
         # layout dispatcher.
         GridLayout       => GridLayoutToGraphicsCanvas(),
-        WidgetShell      => WidgetShellToGraphicsCanvas(measurer, theme.font, theme.background, theme.gap),
+        WidgetShell      => WidgetShellToGraphicsCanvas(measurer, theme.font, theme.background, theme.gap,
+                                                       Ref{Any}(nothing)),
         WidgetTitlePane  => WidgetTitlePaneToGraphicsCanvas(measurer,
             StyleText(theme.font_bold, theme.foreground), StyleText(theme.font, theme.card_foreground), 6),
         WidgetSplitPane  => WidgetSplitPaneToGraphicsCanvas(StyleStroke(theme.border, theme.border_width)),

@@ -154,11 +154,22 @@ too, but no gesture of this plan writes them.
 
 ### Step 1 — the shell routes and captures the pointer
 
-- [ ] `MouseDown` and `MouseUp` route to the band under the pointer, translated.
-- [ ] A drag is captured by the band that took the down, until the up.
-- [ ] Tests in the substrate suite: a down on a tab of a draggable pane inside a
-      shell makes `DragTabOperation`; a held move over the status line still
-      reaches a divider drag in the content; the up ends it.
+- [x] `MouseDown` and `MouseUp` route to the band under the pointer, translated.
+- [x] A drag is captured by the band that took the down, until the up. The shell
+      projection keeps the capture in a `Ref`, as the hover tracker keeps its
+      state; one shell projection serves one window.
+- [x] **A split pane now reads its drag before its own bounds check, while a drag
+      is active.** Found by the test: the shell handed the held move to the
+      content, and `_outside_widget` dropped it, because it landed past the split
+      pane's edge. Before the shell a split pane at the root covered the window,
+      so a drag never left it.
+- [x] Tests in the substrate suite, `test_widget_shell_pointer()`: a down on a tab
+      of a draggable pane inside a shell makes `DragTabOperation` for that tab; a
+      held move over the status line still resizes a divider in the content; the
+      up ends the drag. **`test_substrate()` is 63391** with the baseline's 3 fail,
+      2 error and 1 broken: 5 new assertions, and the rest from the walkers that
+      count one assertion per field, which meet the shell projection's new
+      `capture` field. That remainder was not broken down further.
 
 ### Step 2 — the probe passes every event on
 
