@@ -212,20 +212,20 @@ function test_gesture_binding()
         probe.selection = EmptyReference()
         own = get_document_gesture_bindings(CommandProbe)
         sel = probe.selection
-        @test fire_named_gesture_binding(own, probe, sel, "sort the keys") == MarkOperation(:sort)
-        @test fire_named_gesture_binding(own, probe, sel, "reverse") == MarkOperation(:reverse)
+        @test fire_named_gesture_binding(own, probe, "sort the keys"; selection = sel) == MarkOperation(:sort)
+        @test fire_named_gesture_binding(own, probe, "reverse"; selection = sel) == MarkOperation(:reverse)
         # A gesture rule that carries a name runs by that name too.
-        @test fire_named_gesture_binding(own, probe, sel, "cut it") == MarkOperation(:cut)
+        @test fire_named_gesture_binding(own, probe, "cut it"; selection = sel) == MarkOperation(:cut)
         # An unknown name, and a description that is not a name, run nothing.
-        @test fire_named_gesture_binding(own, probe, sel, "no such command") === nothing
-        @test fire_named_gesture_binding(own, probe, sel, "set digit") === nothing
-        @test fire_named_gesture_binding(own, probe, sel, "y") === nothing
+        @test fire_named_gesture_binding(own, probe, "no such command"; selection = sel) === nothing
+        @test fire_named_gesture_binding(own, probe, "set digit"; selection = sel) === nothing
+        @test fire_named_gesture_binding(own, probe, "y"; selection = sel) === nothing
     end
 
     @testset "the precondition gates a named run as it gates a gesture" begin
         probe = CommandProbe()                # selection === nothing → precondition false
         own = get_document_gesture_bindings(CommandProbe)
-        @test fire_named_gesture_binding(own, probe, probe.selection, "sort the keys") === nothing
+        @test fire_named_gesture_binding(own, probe, "sort the keys"; selection = probe.selection) === nothing
     end
 
     # Collection is the same table, asked a different question. Every row a listing
@@ -234,7 +234,7 @@ function test_gesture_binding()
         probe = CommandProbe()
         probe.selection = EmptyReference()
         own = get_document_gesture_bindings(CommandProbe)
-        collected = fire_gesture_bindings(own, probe, probe.selection, CollectIntents())
+        collected = fire_gesture_bindings(own, probe, CollectIntents(); selection = probe.selection)
         @test collected isa CollectedIntentsOperation
         # One intent per binding — including the ones that cannot run.
         @test length(collected.intents) == length(own)
@@ -260,7 +260,7 @@ function test_gesture_binding()
     @testset "a failed precondition greys a row instead of dropping it" begin
         probe = CommandProbe()                # selection === nothing → precondition false
         own = get_document_gesture_bindings(CommandProbe)
-        collected = fire_gesture_bindings(own, probe, probe.selection, CollectIntents())
+        collected = fire_gesture_bindings(own, probe, CollectIntents(); selection = probe.selection)
         @test length(collected.intents) == length(own)
         @test all(i -> i.operation === nothing, collected.intents)
     end

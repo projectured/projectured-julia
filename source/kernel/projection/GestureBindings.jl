@@ -33,5 +33,5 @@ function read_projection_gesture(projection, iomap, event)
     input = hasproperty(iomap, :input) ? iomap.input : nothing
     selection = (input !== nothing && hasfield(typeof(input), :selection)) ?
                 getfield(input, :selection)[] : nothing
-    return fire_gesture_bindings(bindings, input, selection, event)
+    return fire_gesture_bindings(bindings, input, event; selection)
 end

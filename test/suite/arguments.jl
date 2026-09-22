@@ -45,7 +45,7 @@ const ARGUMENT_PROTOCOL = Set(String[
 # list only shrinks.
 const LEDGER = Set(String[
     "AxisScale", "Body", "Cc", "ChartView",
-    "Editor", "ElectricRepulsion", "FlowFrame", "GestureBinding",
+    "Editor", "ElectricRepulsion", "FlowFrame", 
     "GraphicsCanvas", "GraphicsCircle", "GraphicsImage", "GraphicsLine",
     "GraphicsRect", "GraphicsText", "GraphicsViewport", "HorizontalSpring",
     "Inset", "KeyDownPattern", "KeyUpPattern", "Ln",
@@ -58,7 +58,7 @@ const LEDGER = Set(String[
     "build_marker_polygon", "call_tool", "clip_child_to_slot", "compute_anchored_positions",
     "compute_histogram_values", "compute_legend_layout", "compute_window_place", "decimate_events",
     "decimate_minmax", "find_arrow_hit", "find_band_hit", "find_event_hit",
-    "find_lane_hit", "find_nearest_sample", "fire_gesture_bindings", "fire_named_gesture_binding",
+    "find_lane_hit", "find_nearest_sample", 
     "fit_into_extent!", "flow_rect", "flow_ticks", "fold_bins",
     "fold_scatter", "fold_strips", "get_anchor_offset", "get_arc_geometry",
     "get_axis_cross_positions", "get_band_intervals", "get_band_reference", "get_extent_transform",

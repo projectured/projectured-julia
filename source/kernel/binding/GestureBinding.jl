@@ -12,11 +12,24 @@ struct GestureBinding
     name::Union{String,Nothing}
 end
 
-GestureBinding(pattern, operation, applicable, description, domain) =
-    GestureBinding(pattern, operation, applicable, description, domain, false, nothing)
+"""
+    GestureBinding(pattern, operation; applicable, description, domain,
+                   override = false, name = nothing)
 
-GestureBinding(pattern, operation, applicable, description, domain, override::Bool) =
-    GestureBinding(pattern, operation, applicable, description, domain, override, nothing)
+One rule: `pattern` is the gesture it answers and `operation` is what it makes of
+it. The rest says when the rule stands and how it is shown.
+
+`applicable(document, selection)` answers whether the rule stands where the
+selection is, and the default is a rule that always stands. `description` is the
+line the gesture help draws, `domain` is the vocabulary it belongs to, and `name`
+is what a command palette calls it. `override = true` takes a key from a layer
+below, which is what `override(...)` in a `@gestures` table writes.
+"""
+GestureBinding(pattern, operation; applicable = (document, selection) -> true,
+               description::AbstractString, domain::AbstractString,
+               override::Bool = false, name = nothing) =
+    GestureBinding(pattern, operation, applicable, String(description), String(domain),
+                   override, name)
 
 # ─────────────────────────────────────────────────────────────────────────
 # Registry (own bindings per type) + supertype inheritance
@@ -80,7 +93,8 @@ values that are not `Document`s — pass such a target's selection to
 get_instance_gesture_bindings(document) = GestureBinding[]
 
 """
-    fire_gesture_bindings(bindings, target, selection, event, claimed = nothing) -> Operation | Nothing
+    fire_gesture_bindings(bindings, target, event; selection, claimed = nothing)
+        -> Operation | Nothing
 
 The firing loop: the first binding whose pattern matches the event, whose
 `applicable` precondition holds for `target` + `selection`, and whose `operation`
@@ -101,7 +115,7 @@ This is the one place a table of bindings becomes an operation. Anything holding
 bindings — a document, an instance, a projection — fires them through here rather
 than walking them itself, so *what fires* cannot drift from what a listing shows.
 """
-function fire_gesture_bindings(bindings, target, selection, event, claimed = nothing)
+function fire_gesture_bindings(bindings, target, event; selection, claimed = nothing)
     # Asked what is available rather than for one thing to happen: answer with all
     # of them instead of the first match. Same table, same preconditions, same
     # operation closures — so what is listed cannot drift from what fires.
@@ -119,7 +133,7 @@ function fire_gesture_bindings(bindings, target, selection, event, claimed = not
 end
 
 """
-    fire_named_gesture_binding(bindings, target, selection, name) -> Operation | Nothing
+    fire_named_gesture_binding(bindings, target, name; selection) -> Operation | Nothing
 
 Run the first binding of `bindings` called `name`, whose `applicable`
 precondition holds for `target` + `selection`, and whose `operation` returns
@@ -134,7 +148,7 @@ pattern variable.
 `claimed` has no counterpart here. A name comes from a user who picked a command
 from a list, so no output layer can have taken it first.
 """
-function fire_named_gesture_binding(bindings, target, selection, name::AbstractString)
+function fire_named_gesture_binding(bindings, target, name::AbstractString; selection)
     for binding in bindings
         binding.name == name || continue
         binding.applicable(target, selection) || continue
@@ -191,7 +205,7 @@ see [`fire_gesture_bindings`](@ref).
 function read_bound_gesture(target, event, selection; claimed = nothing)
     bindings = _gesture_bindings(target)
     isempty(bindings) && return nothing
-    return fire_gesture_bindings(bindings, target, selection, event, claimed)
+    return fire_gesture_bindings(bindings, target, event; selection, claimed)
 end
 
 function read_bound_gesture(target, event; claimed = nothing)
@@ -199,7 +213,8 @@ function read_bound_gesture(target, event; claimed = nothing)
     # Read the selection only once a binding could fire: reading a cell to answer
     # "no bindings" would register a dependency on it for nothing.
     isempty(bindings) && return nothing
-    return fire_gesture_bindings(bindings, target, getfield(target, :selection)[], event, claimed)
+    return fire_gesture_bindings(bindings, target, event;
+                                 selection = getfield(target, :selection)[], claimed)
 end
 
 # The instance's own bindings ahead of its type's, so an instance shadows a

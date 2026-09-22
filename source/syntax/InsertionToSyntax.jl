@@ -228,31 +228,36 @@ end
 function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
     ins = iomap.input
     GestureBinding[
-        GestureBinding(KeyDownPattern(:return, nothing, nothing),
-            (doc, event) -> _insertion_commit(p, ins),
-            (doc, sel) -> true, "Commit insertion", "insertion"),
+        GestureBinding(KeyDownPattern(:return, nothing, nothing), (doc, event) -> _insertion_commit(p, ins);
+                       applicable = (doc, sel) -> true,
+                       description = "Commit insertion",
+                       domain = "insertion"),
         # Escape aborts to the domain's own placeholder (`get_nothing_document`, a
         # `@domain` trait) — `JsonInsertion` → `JsonNothing`, … — closing the
         # Insert ⇄ Escape loop within each domain.
-        GestureBinding(KeyDownPattern(:escape, nothing, nothing),
-            (doc, event) -> replace_document(EmptyReference(),
-                                             get_nothing_document(typeof(ins))()),
-            (doc, sel) -> true, "Cancel insertion", "insertion"),
+        GestureBinding(KeyDownPattern(:escape, nothing, nothing), (doc, event) -> replace_document(EmptyReference(), get_nothing_document(typeof(ins))());
+                       applicable = (doc, sel) -> true,
+                       description = "Cancel insertion",
+                       domain = "insertion"),
         # Tab accepts the completion: the full remainder when unambiguous, the
         # longest-common-prefix *partial* completion when ambiguous; declines
         # (keeps propagating) when there is nothing to extend.
-        GestureBinding(KeyDownPattern(:tab, nothing, nothing),
-            (doc, event) -> _insertion_tab(p, ins),
-            (doc, sel) -> true, "Accept completion", "insertion"),
-        GestureBinding(KeyDownPattern(:backspace, nothing, nothing),
-            (doc, event) -> delete_insertion_text_operation(ins, :backspace),
-            (doc, sel) -> true, "Delete backward", "insertion"),
-        GestureBinding(KeyDownPattern(:delete, nothing, nothing),
-            (doc, event) -> delete_insertion_text_operation(ins, :delete),
-            (doc, sel) -> true, "Delete forward", "insertion"),
-        GestureBinding(KeyPressPattern(nothing),
-            (doc, event) -> insert_insertion_text_operation(ins, event.text),
-            (doc, sel) -> true, "Insert character", "insertion"),
+        GestureBinding(KeyDownPattern(:tab, nothing, nothing), (doc, event) -> _insertion_tab(p, ins);
+                       applicable = (doc, sel) -> true,
+                       description = "Accept completion",
+                       domain = "insertion"),
+        GestureBinding(KeyDownPattern(:backspace, nothing, nothing), (doc, event) -> delete_insertion_text_operation(ins, :backspace);
+                       applicable = (doc, sel) -> true,
+                       description = "Delete backward",
+                       domain = "insertion"),
+        GestureBinding(KeyDownPattern(:delete, nothing, nothing), (doc, event) -> delete_insertion_text_operation(ins, :delete);
+                       applicable = (doc, sel) -> true,
+                       description = "Delete forward",
+                       domain = "insertion"),
+        GestureBinding(KeyPressPattern(nothing), (doc, event) -> insert_insertion_text_operation(ins, event.text);
+                       applicable = (doc, sel) -> true,
+                       description = "Insert character",
+                       domain = "insertion"),
     ]
 end
 

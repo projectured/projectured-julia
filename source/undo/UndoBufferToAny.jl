@@ -92,12 +92,21 @@ function get_projection_gesture_bindings(p::UndoBufferToAnyProjection, iomap)
     redo = (document, event) -> length(buffer.redo_entries) == 0 ? nothing : RedoOperation(buffer)
     always = (document, selection) -> true
     GestureBinding[
-        GestureBinding(KeyDownPattern(:z, [:ctrl], nothing), undo, always,
-                       "Undo the last change", "undo", false, "Undo"),
-        GestureBinding(KeyDownPattern(:y, [:ctrl], nothing), redo, always,
-                       "Redo the last change that was undone", "undo", false, "Redo"),
-        GestureBinding(KeyDownPattern(:z, [:ctrl, :shift], nothing), redo, always,
-                       "Redo the last change that was undone", "undo", false, "Redo"),
+        GestureBinding(KeyDownPattern(:z, [:ctrl], nothing), undo; applicable = always,
+                       description = "Undo the last change",
+                       domain = "undo",
+                       override = false,
+                       name = "Undo"),
+        GestureBinding(KeyDownPattern(:y, [:ctrl], nothing), redo; applicable = always,
+                       description = "Redo the last change that was undone",
+                       domain = "undo",
+                       override = false,
+                       name = "Redo"),
+        GestureBinding(KeyDownPattern(:z, [:ctrl, :shift], nothing), redo; applicable = always,
+                       description = "Redo the last change that was undone",
+                       domain = "undo",
+                       override = false,
+                       name = "Redo"),
     ]
 end
 
