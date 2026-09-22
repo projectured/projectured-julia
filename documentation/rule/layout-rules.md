@@ -120,6 +120,11 @@ content on the rest, and nothing anywhere names an axis that "scrolls". This is
 what keeps a collapsed card body — clipped to `Fixed(30)` in height — as wide as
 its text.
 
+A `WidgetShell` offers its content the same way: its authored `size`, else the
+space its parent gave, less its insets and its bands. So the shell of a window
+fills the window with no number of its own, and a shell with neither takes the
+extent of its content. A shell never offers 0.
+
 The two directions cannot form a cycle. A clipped axis gives the content a
 cell to read. An unclipped axis reads a cell that the content produces.
 

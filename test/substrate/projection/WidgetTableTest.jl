@@ -165,25 +165,36 @@ function test_widget_table_content_floor()
 end
 end
 
-# A shell offers its content the room inside it when it has a size, and nothing
-# when it has none: then a pane in it that authors no size is as big as what it
-# holds.
+# A shell offers its content the room inside it: its own size when it has one,
+# else the space its parent offered. With neither it offers nothing, and a pane in
+# it that authors no size is as big as what it holds. It never offers 0, which
+# would leave that pane drawing nothing.
 function test_shell_offers_only_its_size()
-@testset "a shell with no size withholds its offer" begin
+@testset "a shell offers its size, else its parent's offer, and never 0" begin
     det = (t, f) -> (length(t) * 8, 16)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
     pane() = WidgetScrollPane(WidgetLabel(Point2D(0, 0), "a label"); size = Point2D(0, 0))
-    function viewport_of(shell)
-        ctx = with_available_size(PrinterContext(); width = Cell(Int32(700)), height = Cell(Int32(500)))
+    function viewport_of(shell; offered = true)
+        ctx = offered ?
+            with_available_size(PrinterContext(); width = Cell(Int32(700)), height = Cell(Int32(500))) :
+            PrinterContext()
         found = GraphicsViewport[]
         walk(node) = node isa GraphicsViewport ? push!(found, node) :
                      node isa GraphicsCanvas ? foreach(walk, node.elements) : nothing
         walk(print_document(rec, nothing, shell, ctx).output)
         only(found)
     end
-    free = viewport_of(WidgetShell(pane()))
+    # Inside an offer, a shell with no size draws its content exactly as a shell
+    # that authors that size does: the offer is its size.
+    offered = viewport_of(WidgetShell(pane()))
+    authored = viewport_of(WidgetShell(pane(); size = Point2D(700, 500)))
+    @test Int(offered.w) == Int(authored.w)
+    @test Int(offered.h) == Int(authored.h)
+    @test Int(offered.w) > 600
+    # With no offer and no size, the pane is as wide as its label.
+    free = viewport_of(WidgetShell(pane()); offered = false)
     @test Int(free.w) == 8 * length("a label")
     sized = viewport_of(WidgetShell(pane(); size = Point2D(400, 300)))
     @test Int(sized.w) > 300

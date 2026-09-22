@@ -42,6 +42,29 @@ function _click_first_item(menu, button=:left)
     (op, iomap)
 end
 
+@testset "a menu bar keeps its items side by side, each as wide as its label" begin
+    # A menu bar is offered the width of its window. It is as wide as its items
+    # together, so it offers them no width: an item that took the offer would be
+    # as wide as the window, and the next item would start past its right edge.
+    det = (t, f) -> (length(t) * 8, 16)
+    rec = RecursiveProjection(TypeDispatchingProjection(
+        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch))
+    bar = WidgetMenu(Any[WidgetMenuItem("File"), WidgetMenuItem("View"), WidgetMenuItem("Help")];
+                     orientation = :horizontal)
+    ctx = with_available_size(PrinterContext(); width = Cell(Int32(1000)), height = Cell(Int32(600)))
+    output = print_document(rec, nothing, bar, ctx).output
+    xs = Int[]
+    for element in output.elements
+        element = element isa CellModule.Cell ? element[] : element
+        push!(xs, Int(element.x isa CellModule.Cell ? element.x[] : element.x))
+    end
+    @test length(xs) == 3
+    @test issorted(xs) && allunique(xs)
+    # Each step is one label and the gap between items, not the window.
+    @test all(step -> step < 8 * 4 + 40, diff(xs))
+    @test Int(output.w) < 1000
+end
+
 @testset "a left click on an enabled item invokes its action and closes the popup" begin
     fired = Ref(0)
     item = WidgetMenuItem("New"; action = (_e) -> (fired[] += 1))

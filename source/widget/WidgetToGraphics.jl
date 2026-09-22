@@ -1816,6 +1816,13 @@ end
 # A laid-out item's advance along the main axis. A `WidgetMenuItem` knows its own
 # rendered width (its canvas is 0-sized — the size lives on the iomap); any other
 # widget carries it on its output canvas.
+# What a menu offers an item. A menu bar is as wide as its items together, so it
+# offers them no width and each takes its label's (`layout-rules.md` §3). The
+# items of a dropdown fill its width, which is what makes a row's highlight span
+# the menu.
+_menu_item_context(w::WidgetMenu, ctx) =
+    w.orientation === :horizontal ? withhold_offer(ctx, :x) : ctx
+
 _menu_item_width(cim) =
     cim isa WidgetMenuItemToGraphicsCanvasIoMap ? cim.control_width :
         (cim.output isa GraphicsCanvas ? Int(cim.output.w[]) : 0)
@@ -1830,7 +1837,8 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         () -> w.elements,
         (i, item) -> item isa WidgetDocument ?
             print_child(recursion, item,
-                make_child_context(ctx, FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i))) :
+                make_child_context(_menu_item_context(w, ctx), FieldReferenceStep("elements"),
+                                   RangeReferenceStep(i - 1, i))) :
             nothing)
     build = ComputedCell(() -> begin
         cox, coy = _content_offset(w)
@@ -2078,82 +2086,101 @@ end
 
 function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShell, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
+    # The shell's extent on an axis is its own `size` when it has one, else the
+    # space its parent offered, and it has none on an axis where it has neither
+    # (`layout-rules.md` §3). A window offers its size, so the shell of a window
+    # fills it and follows it when it resizes, with no number of its own.
+    authored = getfield(w, :size)[] isa Point2D
+    has_width = authored || ctx.available_width !== nothing
+    has_height = authored || ctx.available_height !== nothing
+    outer_width = ComputedCell(() -> begin
+        sz = getfield(w, :size)[]
+        sz isa Point2D ? Int(sz.x[]) : Int(ctx.available_width[])
+    end)
+    outer_height = ComputedCell(() -> begin
+        sz = getfield(w, :size)[]
+        sz isa Point2D ? Int(sz.y[]) : Int(ctx.available_height[])
+    end)
+    # The room inside the shell, across, less its insets.
+    avail_w_cell = ComputedCell(() -> begin
+        tx, _ = _inset_total(w)
+        max(0, outer_width[] - tx)
+    end)
+    # A band spans the shell and is as tall as what it holds, so it is offered
+    # the width and no height. An item of a band that is offered the window's
+    # height draws as tall as the window.
+    band_ctx = with_available_size(ctx; width = has_width ? avail_w_cell : nothing,
+                                        height = nothing)
     # Each named slot is reconciled by its field value and forced only in the
     # branch that renders it (a nil slot never re-projects). The menu bar's
     # reference is extended into `menu_bar` so a submenu anchor forward-maps back
-    # through the shell (Step 4c).
+    # through the shell.
     mb_cell = reconcile_child_iomap(() -> w.menu_bar,
-        c -> print_child(recursion, c, make_child_context(ctx, FieldReferenceStep("menu_bar"))))
-    tb_cell = reconcile_child_iomap(() -> w.toolbar, c -> print_child(recursion, c, ctx))
-    sb_cell = reconcile_child_iomap(() -> w.status_bar, c -> print_child(recursion, c, ctx))
+        c -> print_child(recursion, c, make_child_context(band_ctx, FieldReferenceStep("menu_bar"))))
+    tb_cell = reconcile_child_iomap(() -> w.toolbar, c -> print_child(recursion, c, band_ctx))
+    sb_cell = reconcile_child_iomap(() -> w.status_bar, c -> print_child(recursion, c, band_ctx))
     tt_cell = reconcile_child_iomap(() -> w.overlay, c -> print_child(recursion, c, ctx))
-    # Band offsets + status-bar height, reactive on which slots are present.
+    # Where the bands sit, from the height each one draws. A band's height comes
+    # from what it holds, never from the shell, so reading it closes no cycle.
     bands = ComputedCell(() -> begin
         cox, coy = _content_offset(w)
-        _, line_h = p.measure("M", p.font)
-        content_y = coy
-        w.menu_bar isa WidgetDocument && (content_y += line_h)
-        w.toolbar isa WidgetDocument && (content_y += line_h + p.band_gap)
-        status_h = w.status_bar isa WidgetDocument ? line_h : 0
-        (cox=cox, coy=coy, line_h=line_h, content_y=content_y, status_h=status_h)
+        menu_h = w.menu_bar isa WidgetDocument ? _shell_band_height(mb_cell[]) : 0
+        tool_h = w.toolbar isa WidgetDocument ? _shell_band_height(tb_cell[]) + p.band_gap : 0
+        status_h = w.status_bar isa WidgetDocument ? _shell_band_height(sb_cell[]) : 0
+        (cox=cox, coy=coy, menu_h=menu_h, tool_h=tool_h,
+         content_y=coy + menu_h + tool_h, status_h=status_h)
     end)
-    # Seed available size on the content context so any layout/split descendant
-    # re-flows on resize, from the shell's `size` cell + insets + band offsets.
-    avail_w_cell = ComputedCell(() -> begin
-        sz = getfield(w, :size)[]
-        sz isa Point2D || return 0
-        tx, _ = _inset_total(w)
-        max(0, Int(sz.x[]) - tx)
-    end)
+    # The room inside the shell, down, less its insets and the bands above and
+    # below the content.
     avail_h_cell = ComputedCell(() -> begin
-        sz = getfield(w, :size)[]
-        sz isa Point2D || return 0
         _, ty = _inset_total(w)
         b = bands[]
-        max(0, Int(sz.y[]) - ty - (b.content_y - b.coy) - b.status_h)
+        max(0, outer_height[] - ty - (b.content_y - b.coy) - b.status_h)
     end)
-    # A shell with no size of its own has nothing to offer, so it withholds the
-    # offer and its content takes its own extent (`layout-rules.md` §3).
-    content_ctx = getfield(w, :size)[] isa Point2D ?
-        with_available_size(ctx; width=avail_w_cell, height=avail_h_cell) :
-        withhold_offer(withhold_offer(ctx, :x), :y)
+    # The content is offered that room on each axis where the shell has an
+    # extent, and nothing where it has none: then it takes its own extent, and
+    # a shell never offers 0.
+    content_ctx = with_available_size(ctx; width = has_width ? avail_w_cell : nothing,
+                                           height = has_height ? avail_h_cell : nothing)
     content_cell = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, content_ctx))
     build = ComputedCell(() -> begin
         b = bands[]
         cox, coy = b.cox, b.coy
         elems = Any[]
         child_iomaps = Any[]
-        sz = getfield(w, :size)[]
-        if sz isa Point2D
-            push!(elems, GraphicsRect(cox, coy, Int(sz.x[]), Int(sz.y[]), p.background_color))
+        if has_width && has_height
+            push!(elems, GraphicsRect(cox, coy, outer_width[], outer_height[], p.background_color))
         end
         content_y = coy
         if w.menu_bar isa WidgetDocument
             cim = mb_cell[]
             push!(child_iomaps, (cox, content_y, cim))
             push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
-            content_y += b.line_h
+            content_y += b.menu_h
         end
         if w.toolbar isa WidgetDocument
             cim = tb_cell[]
             push!(child_iomaps, (cox, content_y, cim))
             push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
-            content_y += b.line_h + p.band_gap
+            content_y += b.tool_h
         end
         # Any content, not only a widget: the recursion decides how it renders, so
         # a shell frames a domain document the same way a tab of a
         # WidgetTabbedPane holds one. An absent content is the only empty case.
+        content_bottom = content_y
         if w.content !== nothing
             cim = content_cell[]
             push!(child_iomaps, (cox, content_y, cim))
             push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
+            has_height || (content_bottom += _shell_band_height(cim))
         end
-        # Status bar along the shell's bottom edge (a fixed y from the size; live
-        # repositioning on resize is a v1 limitation, like the other bands).
-        if w.status_bar isa WidgetDocument && sz isa Point2D
+        # The status bar runs along the bottom edge when the shell has a height,
+        # and under the content when it has none, so a shell that hugs its
+        # content still shows it.
+        if w.status_bar isa WidgetDocument
             cim = sb_cell[]
             _, ty = _inset_total(w)
-            sb_y = coy + Int(sz.y[]) - ty - b.status_h
+            sb_y = has_height ? coy + outer_height[] - ty - b.status_h : content_bottom
             push!(child_iomaps, (cox, sb_y, cim))
             push!(elems, _make_canvas(cox, sb_y, Any[cim.output]))
         end
@@ -2167,6 +2194,9 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
     ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements, _p_measure(p)),
                   ComputedCell(() -> build[].child_iomaps))
 end
+
+# How tall a band's printed output is.
+_shell_band_height(cim) = cim.output isa GraphicsCanvas ? Int(cim.output.h[]) : 0
 
 # A shell renders several field-addressed children (`menu_bar`, `toolbar`,
 # `content`, `tooltip`), each wrapped at its band offset. Descend the leading
