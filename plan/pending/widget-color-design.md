@@ -1449,6 +1449,35 @@ a branch of its own, `widget-color-design`, in a sibling worktree, and a
 throwaway environment in the scratchpad tests it against this branch. The
 branch lands after the projectured-julia branch.
 
+### 8.7 The rebase onto main
+
+The branch starts at `91cb3348` (2026-09-22 11:22). main took 83 commits on the
+same day, and 12 of them change `source/widget/`. A merge probe names five
+files that conflict: `WidgetToGraphics.jl`, `WidgetDocument.jl`,
+`WidgetModule.jl`, `SubstrateSuite.jl` and
+[widget.md](../../documentation/package/widget/widget.md).
+
+What main brings that the model must take in:
+
+- **`WidgetToolbarItem`** (`f1641020`), a new widget that holds
+  `margin_color`, `border_color` and `padding_color` on the document and draws
+  with `_push_hover_surface!` and `_content_offset(w)`. It needs the whole
+  conversion: the box fields and a theme constructor on
+  `WidgetToolbarItemToGraphicsCanvas`, `_push_box_parts!` and
+  `_push_state_layer!` in its printer, `style::Any` in place of the three
+  colors, and no style type of its own, because `WidgetStyle` covers its parts.
+- **The Lucide glyphs** (`24ef243e`). Every vector icon renderer is gone, and
+  `_push_chevron!` and the tick of the checkbox draw a glyph. The color that
+  each one takes stays a style field, resolved with `_get_part_stroke` or
+  `_get_state_color`.
+- **A label takes a bare `StyleFont`** (`c692c3dc`): one more branch in the
+  chooser of the style, which reads the color of the style field of the
+  projection.
+- The shell, the split pane, the tree and the factory take smaller changes.
+
+The order: rebase the branch onto main, convert `WidgetToolbarItem`, measure
+the baseline of `test_substrate()` on the new main, and run the suites again.
+
 ## Appendix A. The style fields of each widget projection
 
 Each entry is `field ← source`. `(t, w)` is `StyleStroke(theme.t, theme.w)`, and
