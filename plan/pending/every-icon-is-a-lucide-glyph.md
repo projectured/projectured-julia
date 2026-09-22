@@ -272,10 +272,17 @@ commit `70d4febf`; and one commit here, `b7a5a3c3`.
   than the two-stroke chevrons were; the role marks of the conversation are
   outlines and lighter than the solid `☻` `✱`, and they read clearly; the tab
   strip of `widget.png` is 5 pixels lower.
-- [ ] The application window and the simulation controls of omnet-julia, drawn
-      offscreen for the owner.
+- [x] The application window and a simulation page of omnet-julia, drawn
+      offscreen with no supersampling, as the live window draws: the toolbar,
+      the navigator, the tab strip and the bot mark are glyphs with smooth
+      edges; the page shows Run, Pause and Stop with the Lucide play, pause and
+      square, and the status line draws a circle before "ready — press Run".
+- Step 6 did not draw a PDF: `test_write_pdf()` already embeds a TrueType font
+  per drawn font, and `lucide.ttf` is one.
 
 ### Step 7: the owner's review
+
+**Waiting for the owner.** Nothing is merged into `main` in either repository.
 
 - [ ] The owner sees the pictures, and can run
       `~/workspace/projectured-julia-lucide-icons/bin/projectured`.
