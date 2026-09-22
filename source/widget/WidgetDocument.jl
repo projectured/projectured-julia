@@ -37,11 +37,13 @@ and `WidgetAlert` for a message with a title.
 @document struct WidgetLabel <: WidgetDocument
     position::Point2D
     content::Any
-    # A per-label override. Three things may go here:
+    # A per-label override. Four things may go here:
     #
     #   * `nothing` — the theme's label style, which is what most labels want;
     #   * a `StyleText` — font AND colour, for a label that owns both;
-    #   * a bare `StyleColor` — **this colour, the theme's font**.
+    #   * a bare `StyleColor` — **this colour, the theme's font**;
+    #   * a bare `StyleFont` — **this font, the theme's colour**, for a label
+    #     that writes an icon of the icon font beside text of the theme.
     #
     # The third exists because the second was the only way to colour a word, and
     # it made colouring cost a font: a line coloured by severity would quietly

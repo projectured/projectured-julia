@@ -925,11 +925,14 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
         content = w.content
         # A label may carry its own font+color (e.g. a chat card's title) that
         # overrides the theme's default label style — or a bare COLOUR, which
-        # takes the theme's font and only changes the ink. The second is what
-        # lets a severity, a diff or a status be coloured without a caller
-        # naming a font and so dropping out of the theme.
+        # takes the theme's font and only changes the ink, or a bare FONT, which
+        # takes the theme's ink. The colour is what lets a severity, a diff or a
+        # status be coloured without a caller naming a font and so dropping out
+        # of the theme; the font is what lets a label write an icon of the icon
+        # font in the color of the text beside it.
         style = w.text_style === nothing ? p.text :
                 w.text_style isa StyleColor ? StyleText(p.text.font, w.text_style) :
+                w.text_style isa StyleFont ? StyleText(w.text_style, p.text.color) :
                 w.text_style
         content_width, content_height = _content_size(p.measure, style.font, content)
         # Text breaks at the width the parent offered. A label that fills a

@@ -128,6 +128,17 @@ end
     @test find_icon_character(:no_such_icon) === nothing
 end
 
+@testset "a label with a font of its own writes an icon in the theme's color" begin
+    plain = only(_prims_of(print_document(proj, WidgetLabel(Point2D(0, 0), "x")).output, GraphicsText))
+    icon = only(_prims_of(print_document(proj, WidgetLabel(Point2D(0, 0), _glyph(:loader);
+                                                           text_style = font_lucide_icons_20)).output,
+                          GraphicsText))
+    @test _is_icon_glyph(icon)
+    @test string(_icon_value(icon.text)) == _glyph(:loader)
+    pc, ic = _icon_value(plain.color), _icon_value(icon.color)
+    @test (pc.red, pc.green, pc.blue, pc.alpha) == (ic.red, ic.green, ic.blue, ic.alpha)
+end
+
 @testset "a tree node draws its registered icon" begin
     tr = WidgetTree(Point2D(0, 0), Any[
         WidgetTreeNode(:folder, "src", Any[WidgetTreeNode(:file, "a.jl")]),
