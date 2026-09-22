@@ -73,12 +73,11 @@ record_assistant_conversation_video("assistant.mp4")
 ```
 
 - Examples: `record_assistant_conversation_video` and `record_live_example`.
-- Test: `test_video()` in `ProjecturedVideoTest` runs `test_record_video()`: it encodes an `.mp4`, types with an initial selection, seeds the caret with an operation entry, and records the assistant demo with `wait_for`.
+- Test: `test_video()` in `ProjecturedVideoTest` runs the layering guard and `test_record_video()`: it encodes an `.mp4`, types with an initial selection, seeds the caret with an operation entry, and records the assistant demo with `wait_for`.
 
 ## Limits
 
 - `_VideoEditor` has only `document` and `iomap`. An operation whose evaluation reads any other field of the editor fails.
 - No `GestureRecognizer` runs, so no click, double click or key chord is built from the raw events.
 - No test covers an `await` entry, and the docstring of `record_video` does not describe it.
-- `test_video()` does not run `test_video_layering()`, so the layering guard of the package runs in no suite.
 - Only `.mp4` is written.

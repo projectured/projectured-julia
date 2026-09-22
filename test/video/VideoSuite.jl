@@ -15,9 +15,10 @@ function test_video_layering()
                             parentmodule(getfield(ProjecturedVideo, n)) !== ProjecturedVideo))
 end
 
-"Run the video-recording suite."
+"Run this package's whole suite: the layering guard and every video test."
 function test_video()
     @testset "ProjecturedVideo" begin
+        test_video_layering()
         test_record_video()
     end
 end
