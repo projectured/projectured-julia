@@ -1,12 +1,13 @@
 # Hover, drag and tooltip share the pointer
 
-**Status (2026-09-22): PROPOSED.** Nothing is implemented. The owner chose a
-deadline for the tooltip's delay; the other decisions in §3 are recommendations
-until the owner confirms them.
+**Status (2026-09-22): READY.** Nothing is implemented. The owner chose a
+deadline for the tooltip's delay, confirmed the other decisions of §3 on the same
+day, and ruled that a hover must not land in the undo history.
 
 **Goal:** in both binaries, a button or a row lights up under the pointer, a
-divider and a tab drag again, and a tooltip opens only after the pointer rests
-on something for a moment.
+divider and a tab drag again, a tooltip opens only after the pointer rests on
+something for a moment, and none of this pointer state lands in the undo
+history.
 
 **Repositories:** projectured-julia, and omnet-julia for the interface's entry.
 The plan changes no sealed file: `event/MouseEvent.jl` and
@@ -25,7 +26,7 @@ be dragged. Measured in the application window at 1850 × 1150:
 | a down on a divider, then a move with the button held | the split resizes | the move answers nothing |
 | a down on the Assistant tab, then moves with the button held | no drag starts | no drag starts |
 
-Four faults, all from the one-interface plan:
+Five faults. The first four come from the one-interface plan:
 
 1. **The tooltip probe takes every `MouseMove`.** On a move it sends a synthetic
    Alt+press inward and answers only its own tooltip operation; the real move
@@ -46,6 +47,13 @@ Four faults, all from the one-interface plan:
    the whole window and received everything.
 4. **The hover tracker sits inside the shell**, around the pane tree only, so the
    menu bar and the toolbar never light up even with the tooltip off.
+5. **A hover lands in the undo history.** A widget answers a crossing with
+   `ReplaceReferencedValueOperation(widget, "hovered", true)`, a real write, and
+   the history's default filter `is_undo_step` keeps every write that is not a
+   bare selection move. A move over a tree row answered `RecordUndoOperation`, so
+   Ctrl+Z would take back a hover. A button's `pressed` state and a tab drag's
+   drop zone (`PaneTree.drag`) are written the same way. Fixing faults 1 and 4
+   makes this one worse, because every button and row starts to hover again.
 
 **How it passed.** The probe's suite drove the probe alone. No test sent a hover,
 a divider drag or a tab drag through the whole fold, and none through the shell.
@@ -86,9 +94,9 @@ nothing.
 - **The tooltip closes** on a move of more than a few pixels, a press, a down, a
   key, a scroll, or the pointer leaving the window. No move probes, so it can not
   know whether the pointer is still on the same document; a move closes, and the
-  next rest opens it again.
-- **The delay is 500 ms by default**, a keyword of the fold and of the feed. It is
-  the owner's to change.
+  next rest opens it again. Confirmed by the owner.
+- **The delay is 500 ms by default**, a keyword of the fold and of the feed.
+  Confirmed by the owner.
 - **The entry makes the feed** with `make_tooltip_feed(; delay)` and hands it to
   both the fold and `run_window_editor(feeds = …)`, as it hands the fold its
   `pointer`. The fold's contract, `(document, projection)`, does not change.
@@ -102,7 +110,16 @@ nothing.
   `_make_application_pane_projection`. `run_campaign_window` builds its projection
   with a tracker only when no `wrap` is given: the plain campaign binary has no
   fold and keeps its own, and the interface gets the fold's. Two trackers would
-  each synthesise crossings.
+  each synthesise crossings. Confirmed by the owner.
+- **Pointer state is view state, and the history does not record it.** A reader
+  that writes view state — a widget's `hovered` or `pressed`, a pane tree's
+  `drag` — marks the write with `ReplaceViewStateOperation`, a
+  `WrappingOperation` around it, and `is_undo_step` drops what is marked. It
+  lives in the kernel's operation layer, which is not sealed, because that is the
+  one layer both the writers and the undo slice see: `ProjecturedUndo` depends on
+  no widget and no pane package. Applying it applies the write inside, and
+  rerooting and rewrapping work as for every wrapper. A divider's resize stays a
+  step of the history, as the application's window history promises.
 
 ## 4. Steps
 
@@ -113,9 +130,9 @@ nothing.
 - [ ] omnet-julia: `test_ide_window_wrap()` 25, `test_ide_file_navigator()` 8,
       `test_select_and_paste()` 72 pass, 7 fail, 3 error (known, §4 of
       `the-shell-fills-its-window.md`).
-- [ ] Measure whether a hover writes an undo entry: a move over a tree row
-      answered `RecordUndoOperation`. If a hover lands in the history, write it
-      down for the owner; this plan does not change the history.
+- [ ] Record, through the application's window history, which pointer gestures
+      add an undo step today: a hover, a press on a button, a tab drag's zone
+      move and a divider resize. Step 5 turns the first three into none.
 
 ### Step 1 — the shell routes and captures the pointer
 
@@ -152,14 +169,25 @@ nothing.
       button, the "+" of a tab group and a tree row each light it, and a move away
       puts it out.
 
-### Step 5 — the windows, end to end
+### Step 5 — pointer state stays out of the history
+
+- [ ] `ReplaceViewStateOperation` in the kernel's operation layer, with the
+      rerooting and the rewrapping every wrapper has; `is_undo_step` drops it.
+- [ ] The widget slice answers a crossing and a press state with it, and the pane
+      slice writes `drag` with it.
+- [ ] Tests: through an `UndoBuffer`, a hover, a press state and a tab drag's zone
+      move add no step, and a divider resize still adds one; Ctrl+Z after a
+      hover takes back the edit before it.
+
+### Step 6 — the windows, end to end
 
 - [ ] `test_application()`: in the real window, with the tooltip on, a divider
-      drags, a tab drags to another group, and a row lights up.
+      drags, a tab drags to another group, a row lights up, and the window's
+      history holds none of the hover.
 - [ ] omnet-julia: the same three in the interface's window, and the counts of
       Step 0 hold.
 
-### Step 6 — close
+### Step 7 — close
 
 - [ ] `documentation/package/shell/shell.md`: the order of the fold, the capture,
       and the tooltip's rest. `plan/pending/tooltip.md`: its Step 5, the show
@@ -173,3 +201,4 @@ nothing.
 | The toolbar plan of another session edits `WindowChrome.jl` and the toolbar now. | This plan edits the fold, the shell printer, the probe and the entries, not the bands. Rebase before each landing and run both suites. |
 | A feed that reads the projection runs before `read!` in the frame. | It reads with the io map of the last print, as `read!` does, and posts its operation; the next frame applies it. |
 | A captured drag whose up never comes, for example when the window loses the pointer. | The capture ends on the next down too, and on a leave of the window. |
+| A new operation type in the kernel touches the layer every slice stands on. | It is one wrapper, beside the other wrappers of `Operations.jl`, and the layer is not sealed. The kernel suite runs with Step 5, and its known failures (5 Rule C, 1 MEvalBranch) are the baseline. |
