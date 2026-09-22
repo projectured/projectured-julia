@@ -66,3 +66,12 @@ function _measurement_line(p::FrameStatisticsToSyntax, row::FrameMeasurement)
                                  row.standard_deviation, row.total))
     SyntaxLeaf(TextString(columns, p.row))
 end
+
+# ── Natural-projection registration ─────────────────────────────────────────
+# The row that lets a tab draw a statistics table. The factory form, so every
+# renderer builds its own projection instance.
+
+function __init__()
+    register_natural_syntax!(:statistics, () -> Pair{Type,Any}[FrameStatistics => FrameStatisticsToSyntax()])
+    register_pred_type!(FrameStatistics)
+end

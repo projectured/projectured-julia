@@ -51,6 +51,10 @@ end
     for tool in (Assistant(), GestureLog(), ReferenceInspector())
         @test !occursin("no natural rendering", render(tool))
     end
+    # The reflection tail draws the fields of a table that no row claims, so
+    # the phrase is not enough. The head line is what `FrameStatisticsToSyntax`
+    # prints, and the fields do not say it.
+    @test occursin("0 frames", render(FrameStatistics()))
 end
 
 @testset "the file explorer opens by name, seeded" begin

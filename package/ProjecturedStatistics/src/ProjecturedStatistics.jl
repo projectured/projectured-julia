@@ -13,6 +13,7 @@ module ProjecturedStatistics
 using ProjecturedCollection
 using ProjecturedDomain
 using ProjecturedKernel
+using ProjecturedNatural
 using ProjecturedSerialization
 using ProjecturedStyle
 using ProjecturedSyntax
@@ -28,6 +29,7 @@ const IoMapModule = ProjecturedKernel.IoMapModule
 const TextModule = ProjecturedText.TextModule
 const StyleModule = ProjecturedStyle.StyleModule
 const SyntaxModule = ProjecturedSyntax.SyntaxModule
+const NaturalModule = ProjecturedNatural.NaturalModule
 const SerializationModule = ProjecturedSerialization.SerializationModule
 const FeedModule = ProjecturedKernel.FeedModule
 const PerformanceModule = ProjecturedKernel.PerformanceModule

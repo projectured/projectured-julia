@@ -1432,7 +1432,7 @@ uuid = "74717b3c-e326-42b6-b898-33b3a53c04ca"
 version = "0.1.0"
 
 [[deps.ProjecturedStatistics]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedNatural", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText"]
 path = "../../package/ProjecturedStatistics"
 uuid = "81408ee2-9581-4f43-8547-c7ccf1bed4ef"
 version = "0.1.0"

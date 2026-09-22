@@ -18,6 +18,7 @@ using ..DomainModule
 using ..FeedModule
 using ..PerformanceModule
 using ..IoMapModule
+using ..NaturalModule
 using ..ProjectionModule
 using ..ReferenceModule
 using ..SerializationModule

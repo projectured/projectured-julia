@@ -20,7 +20,9 @@ The kernel measures each frame into a `FrameSampleStore` on the editor, `editor.
 
 ## How it fits
 
-`ProjecturedStatistics` depends on the kernel for the feed contract and the performance layer, and on `ProjecturedSyntax` and `ProjecturedText` for the view. `ProjecturedShell` gives the editor a `FrameStatisticsFeed` in `run_with_window_tools`, and the toolbar has a button that opens the table.
+`ProjecturedStatistics` depends on the kernel for the feed contract and the performance layer, on `ProjecturedSyntax` and `ProjecturedText` for the view, and on `ProjecturedNatural` for its row. `ProjecturedShell` gives the editor a `FrameStatisticsFeed` in `run_with_window_tools`, and the toolbar has a button that opens the table.
+
+The package registers the natural row `:statistics`, so a tab that holds a `FrameStatistics` draws it with `FrameStatisticsToSyntax`. It also registers `FrameStatistics` as a `.pred` type, so a saved window can hold a statistics tab. `MessageLog` has the same two registrations; see [log.md](../log/log.md).
 
 `pred_arguments` saves nothing: the numbers of one session are not the numbers of the next.
 
@@ -38,9 +40,8 @@ run_window_editor(document, projection, "Title"; backend = SdlBackend(),
 
 Then open a tab and type `statistics`. `example/projectured/FeedExamples.jl` builds the view with `FrameStatisticsToSyntax()`.
 
-- Test: `test/projectured/editor/FrameStatisticsFeedTest.jl` covers the flush and the gate. The package has no suite of its own.
+- Test: `test/projectured/editor/FrameStatisticsFeedTest.jl` covers the flush and the gate, and `test_tool_views()` in `test/projectured/projection/ToolViewTest.jl` checks that a tab draws the table. The package has no suite of its own.
 
 ## Limits
 
-- The package registers no natural row for `FrameStatistics`. A statistics tab that the toolbar opens goes through the general renderer, which then shows the reflected fields and not `FrameStatisticsToSyntax`. `MessageLog` has the row that this package lacks.
 - `run_with_window_tools` makes the feed with the default interval. No setting changes it.
