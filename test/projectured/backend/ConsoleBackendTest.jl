@@ -96,6 +96,88 @@ function test_console_backend()
         @test _parse(0x1b, UInt8('[')) === nothing
     end
 
+    # ── Escape, Alt chords and the modifiers of a CSI sequence ───────────
+    @testset "escape and modifiers" begin
+        ESC = 0x1b
+        csi(text) = _parse(ESC, collect(UInt8, "[" * text)...)
+        # A lone ESC waits for the next byte. When no byte follows, it is Escape.
+        @test _parse(ESC) === nothing
+        @test _CB._next_event!(UInt8[ESC]; settled = true) == KeyDown(:escape, ModifierKeys())
+        # A second ESC starts a new key, so the first ESC is Escape.
+        buffer = UInt8[ESC, ESC]
+        @test _CB._next_event!(buffer) == KeyDown(:escape, ModifierKeys())
+        @test buffer == UInt8[ESC]
+        # ESC and another key is that key with Alt.
+        @test _parse(ESC, UInt8('x')) == KeyPress('x', ModifierKeys(alt = true))
+        @test _parse(ESC, 0x7f) == KeyDown(:backspace, ModifierKeys(alt = true))
+        @test _parse(ESC, codeunits("é")...) == KeyPress('é', ModifierKeys(alt = true))
+        # ESC [ with no more bytes is Alt and `[`.
+        @test _CB._next_event!(UInt8[ESC, UInt8('[')]; settled = true) ==
+              KeyPress('[', ModifierKeys(alt = true))
+        # The modifier parameter m of xterm is 1 + the sum of 1 Shift, 2 Alt, 4 Ctrl.
+        @test csi("1;5D") == KeyDown(:left, ModifierKeys(ctrl = true))
+        @test csi("1;2A") == KeyDown(:up, ModifierKeys(shift = true))
+        @test csi("1;3C") == KeyDown(:right, ModifierKeys(alt = true))
+        @test csi("1;6B") == KeyDown(:down, ModifierKeys(ctrl = true, shift = true))
+        @test csi("1;7D") == KeyDown(:left, ModifierKeys(ctrl = true, alt = true))
+        @test csi("1;5H") == KeyDown(:home, ModifierKeys(ctrl = true))
+        @test csi("1;2F") == KeyDown(:end, ModifierKeys(shift = true))
+        @test csi("3~") == KeyDown(:delete, ModifierKeys())
+        @test csi("3;5~") == KeyDown(:delete, ModifierKeys(ctrl = true))
+        @test csi("5;2~") == KeyDown(:page_up, ModifierKeys(shift = true))
+        @test csi("6~") == KeyDown(:page_down, ModifierKeys())
+        @test csi("2~") == KeyDown(:insert, ModifierKeys())
+        @test csi("15;5~") == KeyDown(:f5, ModifierKeys(ctrl = true))
+        @test csi("1;2P") == KeyDown(:f1, ModifierKeys(shift = true))
+        @test csi("Z") == KeyDown(:tab, ModifierKeys(shift = true))
+        @test _parse(ESC, UInt8('O'), UInt8('Q')) == KeyDown(:f2, ModifierKeys())
+        # The parser takes the whole sequence, so no stray character follows it.
+        buffer = collect(UInt8, "\e[1;5Dx")
+        @test _CB._next_event!(buffer) == KeyDown(:left, ModifierKeys(ctrl = true))
+        @test buffer == UInt8['x']
+        # An unknown sequence is dropped whole.
+        buffer = collect(UInt8, "\e[200~y")
+        @test _CB._next_event!(buffer) === nothing
+        @test buffer == UInt8['y']
+        # A sequence whose final byte has not arrived waits for it.
+        @test csi("1;5") === nothing
+        # Ctrl+C quits.
+        @test _parse(0x03) isa WindowQuit
+    end
+
+    # ── read_from_devices settles a lone ESC when no byte follows ─────────
+    @testset "lone escape" begin
+        b = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(UInt8[0x1b]))
+        window_input = read_from_devices(b, Device[])
+        @test window_input isa WindowInput
+        @test window_input.event == KeyDown(:escape, ModifierKeys())
+        @test isempty(b.inbuf)
+        b = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(UInt8[0x1b, UInt8('x')]))
+        @test read_from_devices(b, Device[]).event == KeyPress('x', ModifierKeys(alt = true))
+        @test read_from_devices(b, Device[]) === nothing
+        # Bytes that make no event are skipped, and the next key is read.
+        b = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(collect(UInt8, "\e[200~q")))
+        @test read_from_devices(b, Device[]).event == KeyPress('q')
+    end
+
+    # ── the editor quits on Escape, and an Alt chord does not quit ────────
+    @testset "escape quits the editor" begin
+        function read_operation(bytes)
+            backend = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(bytes), ansi=true, clear=false)
+            editor = Editor(backend, make_json_document_example(),
+                            make_json_console_projection_example(), Device[Keyboard()])
+            Base.CoreLogging.with_logger(Base.CoreLogging.NullLogger()) do
+                _ED.print!(editor)
+                _ED.read!(editor)
+            end
+            return editor.operation
+        end
+        @test read_operation(UInt8[0x1b]) isa QuitEditorOperation
+        @test read_operation(UInt8[0x03]) isa QuitEditorOperation
+        @test !(read_operation(UInt8[0x1b, UInt8('x')]) isa QuitEditorOperation)
+        @test !(read_operation(collect(UInt8, "\e[1;5D")) isa QuitEditorOperation)
+    end
+
     # ── read_from_devices wraps events in a :console WindowInput ─────────
     @testset "read_from_devices" begin
         b = ConsoleBackend(; io=IOBuffer(), input=IOBuffer(UInt8[UInt8('a')]))

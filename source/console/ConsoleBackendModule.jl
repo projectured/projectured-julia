@@ -23,7 +23,8 @@ case). What this backend drives is therefore:
   - **Character editing** (via the Text domain's `read_gesture`): character
     insert (`KeyPress`), `Backspace`/`Delete`, and character left/right cursor
     movement — none of which need pixel geometry.
-  - **`Ctrl+C`** quits.
+  - **`Ctrl+C`** quits, and so does an Escape that no reader handles. ESC
+    followed by a key is that key with Alt.
 
 Still SDL-only (they need the laid-out glyph geometry): visual up/down line
 movement, plain (non-Ctrl) `Home`/`End` to the visual line edges, and

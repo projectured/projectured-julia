@@ -277,12 +277,42 @@ Poll `backend.input` (non-blocking) and translate the next keystroke into a
 backend-agnostic event wrapped in an `WindowInput`. The window id is the
 sentinel `:console` (there is no `WindowDocument`). Returns `nothing` when no
 complete event is buffered.
+
+A buffer that ends in the start of an escape sequence gets
+`_ESCAPE_SEQUENCE_TIMEOUT_SECONDS` for the rest of the sequence to arrive.
+When no byte arrives in that time, the bytes are the keys that the user typed:
+a lone ESC is Escape, and ESC with one more byte is that key with Alt.
 """
 function BackendModule.read_from_devices(backend::ConsoleBackend, devices)
     _drain_input!(backend)
-    event = _next_event!(backend.inbuf)
-    event === nothing && return nothing
-    return WindowInput(:console, event)
+    buffer = backend.inbuf
+    while !isempty(buffer)
+        count = length(buffer)
+        event = _next_event!(buffer)
+        if event === nothing && length(buffer) == count
+            _wait_for_input_bytes(backend.input, _ESCAPE_SEQUENCE_TIMEOUT_SECONDS)
+            _drain_input!(backend)
+            event = _next_event!(buffer; settled = length(buffer) == count)
+        end
+        event === nothing || return WindowInput(:console, event)
+    end
+    return nothing
+end
+
+# A terminal writes a whole escape sequence at once, so its bytes normally
+# arrive in one read. The timeout covers a sequence that a slow link splits,
+# and it is the time that a lone Escape waits before it is read.
+const _ESCAPE_SEQUENCE_TIMEOUT_SECONDS = 0.05
+
+# Wait at most `seconds` for a byte on `io`. The short sleeps let the libuv
+# loop fill the buffer of a TTY. An `IOBuffer` gets no new byte, so a wait on
+# it takes the whole time.
+function _wait_for_input_bytes(io::IO, seconds::Real)
+    deadline = time() + seconds
+    while bytesavailable(io) == 0 && time() < deadline
+        sleep(0.005)
+    end
+    return nothing
 end
 
 # Append all currently-available bytes from `input` to the pending buffer
@@ -295,40 +325,17 @@ function _drain_input!(backend::ConsoleBackend)
     return
 end
 
-# Parse and consume one event from the front of `buf`, or return `nothing`
-# (leaving the bytes in place) when the buffer holds only an incomplete escape
-# sequence. Pure aside from mutating `buf`, so it is unit-testable.
-function _next_event!(buf::Vector{UInt8})
+# Parse and consume one event from the front of `buf`. Return `nothing` and
+# leave the bytes in place when the buffer holds only the start of a sequence
+# and `settled` is false. With `settled`, no more bytes follow, so the start of
+# a sequence is read as the keys that were typed, and at least one byte is
+# consumed. A sequence that makes no event is consumed, and `nothing` is
+# returned. Pure aside from mutating `buf`, so it is unit-testable.
+function _next_event!(buf::Vector{UInt8}; settled::Bool = false)
     isempty(buf) && return nothing
     b0 = buf[1]
-
-    if b0 == 0x1b  # ESC — possibly a CSI sequence (arrows, Home/End, Delete)
-        if length(buf) >= 2 && buf[2] == UInt8('[')
-            length(buf) < 3 && return nothing  # incomplete CSI; wait for more
-            final = buf[3]
-            if final == UInt8('A'); deleteat!(buf, 1:3); return KeyDown(:up, ModifierKeys())
-            elseif final == UInt8('B'); deleteat!(buf, 1:3); return KeyDown(:down, ModifierKeys())
-            elseif final == UInt8('C'); deleteat!(buf, 1:3); return KeyDown(:right, ModifierKeys())
-            elseif final == UInt8('D'); deleteat!(buf, 1:3); return KeyDown(:left, ModifierKeys())
-            elseif final == UInt8('H'); deleteat!(buf, 1:3); return _home_event()
-            elseif final == UInt8('F'); deleteat!(buf, 1:3); return KeyDown(:end, ModifierKeys())
-            elseif final == UInt8('3')  # ESC [ 3 ~  → Delete
-                length(buf) < 4 && return nothing
-                deleteat!(buf, 1:min(4, length(buf)))
-                return KeyDown(:delete, ModifierKeys())
-            elseif final == UInt8('1')  # ESC [ 1 ~  → Home (some terminals)
-                length(buf) < 4 && return nothing
-                deleteat!(buf, 1:min(4, length(buf)))
-                return _home_event()
-            else
-                deleteat!(buf, 1:3); return nothing  # unknown CSI: ignore
-            end
-        elseif length(buf) == 1
-            return nothing  # lone ESC so far; wait (Ctrl-C is the quit key)
-        else
-            deleteat!(buf, 1); return WindowQuit()  # ESC + non-'[' → quit
-        end
-    end
+    b0 == 0x1b && return _next_escape_event!(buf, settled)
+    b0 >= 0x80 && !settled && length(buf) < _count_utf8_bytes(b0) && return nothing
 
     deleteat!(buf, 1)
     if b0 == 0x03;  return WindowQuit()                                  # Ctrl-C
@@ -338,7 +345,7 @@ function _next_event!(buf::Vector{UInt8})
     elseif b0 == 0x09; return KeyDown(:tab, ModifierKeys())
     elseif 0x20 <= b0 < 0x7f; return KeyPress(Char(b0))                 # printable ASCII
     elseif b0 >= 0x80                                                   # UTF-8 lead byte
-        nbytes = b0 >= 0xf0 ? 4 : b0 >= 0xe0 ? 3 : 2
+        nbytes = _count_utf8_bytes(b0)
         bytes = UInt8[b0]
         while length(bytes) < nbytes && !isempty(buf)
             push!(bytes, popfirst!(buf))
@@ -349,6 +356,100 @@ function _next_event!(buf::Vector{UInt8})
     end
     return nothing  # other C0 control byte: ignore
 end
+
+_count_utf8_bytes(lead::UInt8) = lead >= 0xf0 ? 4 : lead >= 0xe0 ? 3 : 2
+
+# Parse the event at the front of `buf`, which starts with ESC. ESC starts a
+# control sequence (`ESC [`), a key of the keypad (`ESC O`), an Alt chord (ESC
+# and the key, as xterm sends it), or it is the Escape key itself.
+function _next_escape_event!(buf::Vector{UInt8}, settled::Bool)
+    if length(buf) == 1
+        settled || return nothing
+        popfirst!(buf)
+        return KeyDown(:escape, ModifierKeys())
+    end
+    second = buf[2]
+    if second == 0x1b
+        # A second ESC starts a new key, so the first ESC is Escape.
+        popfirst!(buf)
+        return KeyDown(:escape, ModifierKeys())
+    elseif second == UInt8('[') || second == UInt8('O')
+        event, count = _decode_escape_sequence(buf)
+        if count > 0
+            deleteat!(buf, 1:count)
+            return event
+        end
+        # The sequence is not complete. With no more bytes to come, ESC and
+        # `[` or `O` were typed as an Alt chord.
+        settled || return nothing
+    end
+    tail = buf[2:end]
+    event = _next_event!(tail; settled)
+    consumed = length(buf) - 1 - length(tail)
+    consumed == 0 && return nothing
+    deleteat!(buf, 1:(1 + consumed))
+    return event === nothing ? nothing : _with_alt_modifier(event)
+end
+
+# The keys of the final byte of a control sequence, and of the byte after `ESC O`.
+const _FINAL_BYTE_KEYS = Dict{UInt8,Symbol}(
+    UInt8('A') => :up, UInt8('B') => :down, UInt8('C') => :right, UInt8('D') => :left,
+    UInt8('H') => :home, UInt8('F') => :end,
+    UInt8('P') => :f1, UInt8('Q') => :f2, UInt8('R') => :f3, UInt8('S') => :f4)
+
+# The keys of `ESC [ n ~`, by the number n. 1 and 7 are Home, 4 and 8 are End:
+# xterm and rxvt send different numbers.
+const _TILDE_KEYS = Dict{Int,Symbol}(
+    1 => :home, 2 => :insert, 3 => :delete, 4 => :end, 5 => :page_up, 6 => :page_down,
+    7 => :home, 8 => :end, 11 => :f1, 12 => :f2, 13 => :f3, 14 => :f4, 15 => :f5,
+    17 => :f6, 18 => :f7, 19 => :f8, 20 => :f9, 21 => :f10, 23 => :f11, 24 => :f12)
+
+# Decode the sequence `ESC [ parameters final` or `ESC O final` at the front of
+# `buf`. Return the event and the count of bytes that the sequence takes. The
+# event is `nothing` for a sequence that has no key here, and the count is 0
+# for a sequence whose final byte has not arrived.
+function _decode_escape_sequence(buf::Vector{UInt8})
+    if buf[2] == UInt8('O')
+        length(buf) < 3 && return (nothing, 0)
+        key = get(_FINAL_BYTE_KEYS, buf[3], nothing)
+        # `ESC O` and a byte that no keypad key sends is Alt+O.
+        key === nothing && return (KeyPress('O', ModifierKeys(alt = true)), 2)
+        return (_make_key_event(key, ModifierKeys()), 3)
+    end
+    index = 3
+    while index <= length(buf) && 0x20 <= buf[index] <= 0x3f
+        index += 1
+    end
+    index > length(buf) && return (nothing, 0)
+    final = buf[index]
+    # A byte that can not end a sequence ends the sequence without an event;
+    # that byte is parsed on its own.
+    0x40 <= final <= 0x7e || return (nothing, index - 1)
+    parameters = [something(tryparse(Int, text), 1) for text in split(String(buf[3:index - 1]), ';')]
+    modifiers = _decode_modifier_parameter(length(parameters) >= 2 ? parameters[2] : 1)
+    key = final == UInt8('~') ? get(_TILDE_KEYS, parameters[1], nothing) :
+          final == UInt8('Z') ? :tab :
+          get(_FINAL_BYTE_KEYS, final, nothing)
+    key === nothing && return (nothing, index)
+    final == UInt8('Z') && (modifiers = ModifierKeys(modifiers.ctrl, true, modifiers.alt, modifiers.meta))
+    return (_make_key_event(key, modifiers), index)
+end
+
+# xterm sends the modifiers of a key as the parameter 1 + m, where m is the sum
+# of 1 for Shift, 2 for Alt, 4 for Ctrl and 8 for Meta.
+function _decode_modifier_parameter(parameter::Int)
+    m = max(parameter - 1, 0)
+    ModifierKeys(ctrl = m & 4 != 0, shift = m & 1 != 0, alt = m & 2 != 0, meta = m & 8 != 0)
+end
+
+# Home with no modifier is the chord that selects the root; see `_home_event`.
+_make_key_event(key::Symbol, modifiers::ModifierKeys) =
+    key === :home && modifiers == ModifierKeys() ? _home_event() : KeyDown(key, modifiers)
+
+_with_alt_modifier(event::KeyDown) = KeyDown(event.key, _with_alt_modifier(event.modifiers), event.repeat)
+_with_alt_modifier(event::KeyPress) = KeyPress(event.char, event.text, _with_alt_modifier(event.modifiers))
+_with_alt_modifier(modifiers::ModifierKeys) = ModifierKeys(modifiers.ctrl, modifiers.shift, true, modifiers.meta)
+_with_alt_modifier(event) = event
 
 # The terminal Home key maps to the reader's "select the root node" chord
 # (Ctrl+Alt+Home). It is the console's entry point into structural navigation

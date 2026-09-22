@@ -119,8 +119,10 @@ a `TextBlock` rather than a `ScreenDocument`. Highlights:
   in by the `SelectionInverting` projection at the end of the console pipeline,
   so the backend itself just emits each span's colors.
 - `read_from_devices` polls `backend.input` (default `stdin`) non-blockingly and
-  translates terminal bytes — printable chars, `ESC[` arrow/Home/End/Delete
-  sequences, Enter/Backspace/Tab, Ctrl-Space, Ctrl-C — into the same
+  translates terminal bytes — printable chars, the `ESC [` sequences of the
+  arrows, Home/End, Insert/Delete, Page Up/Down and the function keys with the
+  modifiers of their xterm parameter, Enter/Backspace/Tab, Ctrl-Space, Ctrl-C,
+  Escape and the ESC-prefixed Alt chords — into the same
   `KeyDown`/`KeyPress`/`WindowQuit` vocabulary the readers already use, wrapped in
   an `WindowInput(:console, …)`. `initialize_backend!`/`quit_backend!` toggle the terminal's raw mode.
 - `wait_for_input` waits on an autoreset gate a watcher task notifies: the

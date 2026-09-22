@@ -42,17 +42,29 @@ For any other output, `write_to_devices` raises an error that says to drop the `
 | Bytes | Event |
 | --- | --- |
 | `ESC [ A`, `B`, `C`, `D` | `KeyDown` of `:up`, `:down`, `:right`, `:left` |
-| `ESC [ H`, `ESC [ 1 ~` | `KeyDown(:home)` with Ctrl and Alt, the chord that selects the root |
-| `ESC [ F` | `KeyDown(:end)` |
-| `ESC [ 3 ~` | `KeyDown(:delete)` |
+| `ESC [ H`, `ESC [ 1 ~`, `ESC [ 7 ~` | `KeyDown(:home)` with Ctrl and Alt, the chord that selects the root |
+| `ESC [ F`, `ESC [ 4 ~`, `ESC [ 8 ~` | `KeyDown(:end)` |
+| `ESC [ 2 ~`, `3 ~`, `5 ~`, `6 ~` | `KeyDown` of `:insert`, `:delete`, `:page_up`, `:page_down` |
+| `ESC [ P` to `S`, `ESC [ 11 ~` to `ESC [ 24 ~` | `KeyDown` of `:f1` to `:f12` |
+| `ESC O` and a letter of the rows above | the same key as `ESC [` and that letter |
+| `ESC [ Z` | `KeyDown(:tab)` with Shift |
+| `ESC [ 1 ; m X`, `ESC [ n ; m ~` | the key of `X` or of `n`, with the modifiers of `m` |
+| a lone ESC | `KeyDown(:escape)` |
+| ESC and another key | that key with Alt |
 | CR, LF | `KeyDown(:return)` |
 | DEL, BS | `KeyDown(:backspace)` |
 | TAB | `KeyDown(:tab)` |
 | NUL | `KeyDown(:space)` with Ctrl |
-| Ctrl+C, or ESC and a byte that is not `[` | `WindowQuit()` |
+| Ctrl+C | `WindowQuit()` |
 | a printable byte, a UTF-8 sequence | `KeyPress(char)` |
 
-Every event is wrapped as `WindowInput(:console, event)`, because the console has no window. An incomplete escape sequence stays in the buffer for the next poll. Home selects the root because the console has no mouse to make a first selection.
+The parameter `m` is 1 plus the sum of 1 for Shift, 2 for Alt, 4 for Ctrl and 8 for Meta, as xterm sends it. So `ESC [ 1 ; 5 D` is Ctrl+Left. Home with a modifier is `KeyDown(:home)` with that modifier, and only a plain Home selects the root. The parser drops a whole control sequence that has no key in the table, such as a mouse report or the marks of a bracketed paste.
+
+A lone ESC is Escape, and ESC followed by a key is that key with Alt. The two differ only in the time between the bytes. A terminal writes a whole escape sequence at once, so its bytes normally arrive in one read. When the bytes end in the start of a sequence, `read_from_devices` waits at most 50 ms for more. When no byte arrives in that time, the bytes are the keys that the user typed: a lone ESC is Escape, and `ESC [` is Alt+`[`. When more bytes arrive, the parser reads the sequence that they complete.
+
+Ctrl+C gives `WindowQuit`, and the editor quits. Escape reaches the readers as a key, as [devices-and-backends.md](../kernel/devices-and-backends.md) requires, and the editor loop quits on an Escape that no reader handled.
+
+Every event is wrapped as `WindowInput(:console, event)`, because the console has no window. Home selects the root because the console has no mouse to make a first selection.
 
 ### Wait and wake
 
@@ -92,7 +104,7 @@ The interactive run gives the editor `Device[Keyboard()]` and a `NullLogger`, be
 
 ## Limits
 
-- Escape followed by another key quits the editor. The parser holds a lone ESC until the next byte arrives, then turns the pair into `WindowQuit`. So an Alt chord quits too, and no reader gets Escape, against the rule in [devices-and-backends.md](../kernel/devices-and-backends.md).
-- The parser reads only the sequences in the table, and it drops an unknown CSI sequence. It reads no modifier on an arrow. A terminal sends Ctrl+Left as `ESC [ 1 ; 5 D`, and the parser reads that as Home followed by the characters `5` and `D`.
+- A lone Escape reaches the editor 50 ms after the key, because the parser waits for the rest of a sequence. Escape and a key that arrive in one read are one Alt chord.
+- The parser reads only the sequences in the table, and it drops any other control sequence.
 - There is no mouse.
 - `TextSpacing` prints one space whatever its width, and an image in the text prints nothing.
