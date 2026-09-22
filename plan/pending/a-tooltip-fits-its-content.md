@@ -65,18 +65,34 @@ Names, checked against `naming-rules.md`:
 
 ### Step 0 — baselines, and what a canvas reports
 
-- [ ] `test_sdl()` 97, `test_shell()` 178, `test_application()` 127,
-      `test_substrate()` 63059 with 3 fail, 2 error, 1 broken, `test_screen()`.
-- [ ] The main window's own sizing, which this plan must not touch: what
-      `run_window_editor` asks for, what `open_native_windows!` writes back
-      after the window manager answers, and the size the document holds after
-      the first frame. Write the numbers here, and read them again at the end.
-- [ ] Measure, in the application window with the tooltip on: the `w` and `h`
-      of the printed canvas of a tooltip that holds one line, and of one that
-      holds a docstring, at the offer of today (420 × 120) and at an offer of
-      560 × 400. **The whole plan stands on this**: a content that fills the
-      offer instead of shrinking to its own extent would always come back as
-      the maximum. Write the numbers here.
+**Done, 2026-09-22**, in the worktree `workspace/projectured-julia-tooltip-fit`
+on branch `tooltip-fit`, cut from `main` at `1b8cb64d`.
+
+- [x] Measured on `main` the same day: `test_sdl()` **97**, `test_shell()`
+      **178**, `test_application()` **127**, `test_substrate()` **63059** with
+      3 fail, 2 error, 1 broken. The screen has no suite of its own; its tests
+      sit in the substrate and the projectured suites.
+- [x] The main window's own sizing, which this plan must not touch. The
+      display's work area is 1853 × 1168; the window asks for that, the window
+      manager grants **1853 × 1131** — it keeps the title bar inside the work
+      area — and `open_native_windows!` writes that size into the document.
+- [x] What the printed canvas of a tooltip reports. The content is the name of
+      a toolbar button, and a long text in the same window:
+
+      | Content | Offer | Canvas |
+      | --- | --- | --- |
+      | one line | 420 × 120 | 370 × 40 |
+      | one line | 560 × 400 | 430 × 20 |
+      | one line | 200 × 60 | 200 × 60 |
+      | a long text | 560 × 400 | 560 × 160 |
+      | a long text | 420 × 120 | 420 × 200 |
+
+      **The canvas answers the content, not the offer.** The text wraps at the
+      offered width, and the height follows the lines it took: one line is 20
+      high at an offer of 560 and 40 high at an offer of 420, where it wraps in
+      two. A canvas that is as wide as the offer is a text that filled the
+      width, and its height still answers the content — 200 at an offer of 120.
+      So the plan holds: offer the maximum, take the extent, clamp it.
 
 ### Step 1 — a window says its bounds
 
