@@ -279,7 +279,7 @@ end
 # a selection of the box as an object, and it shows as one.
 function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
                            ring_color::StyleColor, radius::Int; whole_color = nothing)
-    ring = GraphicsRect(0, 0, 0, 0, StyleColor(0.0, 0.0, 0.0, 0.0), radius;
+    ring = GraphicsRect(0, 0, 0, 0, color_transparent, radius;
                         border_width=2, border_color=ring_color)
     set_cell_function!(getfield(ring, :w), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(cw))
     set_cell_function!(getfield(ring, :h), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(ch))
@@ -3816,7 +3816,7 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
                               Cell(bgc),
                               Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
                               Cell(Int32(0)),
-                              Cell(StyleColor(0.0, 0.0, 0.0, 0.0)),
+                              Cell(color_transparent),
                               Cell(nothing)))
     if inner_canvas !== nothing
         inner_elems_cv = inner_canvas.elements
@@ -4067,7 +4067,7 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
                               Cell(bgc),
                               Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
                               Cell(Int32(0)),
-                              Cell(StyleColor(0.0, 0.0, 0.0, 0.0)),
+                              Cell(color_transparent),
                               Cell(nothing)))
     # Recurse into the content at the viewport's (unscaled) logical extent — the
     # content lays out at 1× and the viewport's transform magnifies it.
@@ -4535,7 +4535,7 @@ function _card_build(p, w, ctx, tim, cim)
         # drew, and the two strokes of the mark cover little of its column. A
         # transparent rectangle makes the whole column the target.
         x0, y0, x1, y1 = fold_box
-        push!(elements, GraphicsRect(x0, y0, x1 - x0, y1 - y0, _WT_HIT_COLOR, 0))
+        push!(elements, GraphicsRect(x0, y0, x1 - x0, y1 - y0, color_transparent, 0))
     end
     if w.description !== nothing
         description_width, description_height =
@@ -6062,9 +6062,6 @@ const _WT_HL_COLOR = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x40 / 255)
 # selection alpha, so a selected+hovered row still reads as selected).
 const _WT_HOVER_COLOR = StyleColor(0x88 / 255, 0xbb / 255, 0xee / 255, 0x20 / 255)
 const _WT_HL_RADIUS = 4
-# Fully transparent fill for a hit target: the whole canvas of a tree or a table,
-# and the chevron column of a collapsible card.
-const _WT_HIT_COLOR = StyleColor(0.0, 0.0, 0.0, 0.0)
 
 # Grid geometry snapshot for a WidgetTable, derived from the GridLayoutIoMap plus
 # the table's own padding / border. `col_x` / `row_y` are cumulative left/top
@@ -6383,7 +6380,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # Invisible whole-canvas hit target so a table nested in a container (which
     # gates routing on `hit_element_at`) is hoverable/clickable over empty cell
     # interiors, not just over drawn glyphs/rules. Cf. the WidgetTree hit target.
-    hit_target = GraphicsRect(0, 0, 0, 0, _WT_HIT_COLOR, 0)
+    hit_target = GraphicsRect(0, 0, 0, 0, color_transparent, 0)
     set_cell_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w))
     set_cell_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h))
 
@@ -6994,7 +6991,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # nested in a layout/tab would ignore clicks/hover on the empty part of a row.
     # A full-size (invisible) rect makes the whole canvas a hit target, matching the
     # top-level tree. Its geometry reads `geometry[]` so it tracks size reactively.
-    hit_target = GraphicsRect(0, 0, 0, 0, _WT_HIT_COLOR, 0)
+    hit_target = GraphicsRect(0, 0, 0, 0, color_transparent, 0)
     set_cell_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w))
     set_cell_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h))
 

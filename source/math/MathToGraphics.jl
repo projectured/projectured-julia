@@ -238,12 +238,12 @@ _text_element(text, font, color::StyleColor, x = () -> 0, y = () -> 0) =
 _rule_element(x, y, w, h, color::StyleColor) =
     GraphicsRect(_int32(x), _int32(y), _int32(w), _int32(h), Cell(color),
                  Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
-                 Cell(Int32(0)), Cell(StyleColor(0.0, 0.0, 0.0, 0.0)), Cell(nothing))
+                 Cell(Int32(0)), Cell(color_transparent), Cell(nothing))
 
 # An outlined rule: the placeholder box of an empty slot.
 _outline_element(x, y, w, h, color::StyleColor) =
     GraphicsRect(_int32(x), _int32(y), _int32(w), _int32(h),
-                 Cell(StyleColor(0.0, 0.0, 0.0, 0.0)),
+                 Cell(color_transparent),
                  Cell(Int32(2)), Cell(Int32(2)), Cell(Int32(2)), Cell(Int32(2)),
                  Cell(Int32(1)), Cell(color), Cell(nothing))
 
@@ -1676,7 +1676,6 @@ end
 # The wash a selected box paints over itself. The color cell reads the
 # document's own selection, so selecting is a repaint and never a re-layout.
 const _SELECTION_WASH = StyleColor(0.15, 0.39, 0.68, 0.22)
-const _NO_WASH = StyleColor(0.0, 0.0, 0.0, 0.0)
 
 # A selection carries type checkpoints — a whole-element selection on a node is
 # an empty path *plus* that node's type — so every comparison here strips them
@@ -1689,9 +1688,9 @@ function _selection_element(p, doc, build::Cell)
     GraphicsRect(Cell(Int32(0)), Cell(Int32(0)),
                  _int32(() -> build[].width[]),
                  _int32(() -> build[].ascent[] + build[].descent[]),
-                 ComputedCell(() -> _is_selected(doc) ? _SELECTION_WASH : _NO_WASH),
+                 ComputedCell(() -> _is_selected(doc) ? _SELECTION_WASH : color_transparent),
                  Cell(Int32(2)), Cell(Int32(2)), Cell(Int32(2)), Cell(Int32(2)),
-                 Cell(Int32(0)), Cell(_NO_WASH), Cell(nothing))
+                 Cell(Int32(0)), Cell(color_transparent), Cell(nothing))
 end
 
 # The children of one box, in document order.

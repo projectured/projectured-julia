@@ -164,7 +164,7 @@ function _wtl_row(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx
         out = Any[]
         # A transparent rect the size of the row, so a click on the empty part
         # of a cell reaches the table through a container that gates on a hit.
-        push!(out, GraphicsRect(0, 0, total_w, Int(height[]), _WT_HIT_COLOR, 0))
+        push!(out, GraphicsRect(0, 0, total_w, Int(height[]), color_transparent, 0))
         push!(out, _wtl_band(w, k, st, height, :hover))
         push!(out, _wtl_band(w, k, st, height, :selection))
         for c in 1:st.ncols

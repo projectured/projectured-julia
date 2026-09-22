@@ -42,6 +42,9 @@ const color_default = _color(0, 0, 0)
 
 const color_black  = _color(0, 0, 0)
 const color_white  = _color(255, 255, 255)
+
+# The one color that draws nothing: alpha 0. A part in this color is not drawn.
+const color_transparent = StyleColor(0.0, 0.0, 0.0, 0.0)
 const color_red    = _color(255, 0, 0)
 const color_green  = _color(0, 255, 0)
 const color_blue   = _color(0, 0, 255)
@@ -1167,6 +1170,14 @@ Return `true` if all four RGBA components of `c1` and `c2` are identical.
 """
 is_color_equal(c1::StyleColor, c2::StyleColor) =
     c1.alpha == c2.alpha && c1.red == c2.red && c1.green == c2.green && c1.blue == c2.blue
+
+"""
+    is_color_transparent(color) -> Bool
+
+Return `true` if `color` has alpha 0, as `color_transparent` has. The check is
+exact: a color with a very small alpha is not transparent.
+"""
+is_color_transparent(color::StyleColor) = color.alpha == 0.0
 
 """
     is_color_equal_safe(c1, c2) -> Bool

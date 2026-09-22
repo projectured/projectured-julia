@@ -911,9 +911,10 @@ The owner decided §5 on 2026-09-22. Each step is one commit, and the
 targeted tests run after each step.
 
 - [x] 1. Record the decisions of §5 in this plan. Done on 2026-09-22.
-- [ ] 2. Add `color_transparent` to `Color.jl`. Replace the 12 literals and the
+- [x] 2. Add `color_transparent` to `Color.jl`. Replace the 12 literals and the
       three local names of §3.4 with it. This step changes no image, so it can
-      land before the other decisions.
+      land before the other decisions. Done: the graphics, text, widget, math,
+      chart and sequence chart suites pass.
 - [ ] 3. Theme: add the tokens that the decisions need, for example the shadow,
       the scrim, the selection band, the hover and pressed layers and the knob.
       No token for a meaning of a domain (D5). Keep `inset` as the default box
@@ -971,6 +972,163 @@ targeted tests run after each step.
   each cell.
 - The images of the examples change where D4 changes the hover look. Make new
   reference images and compare them by eye.
+
+## 8. Implementation
+
+### 8.1 The order of the commits
+
+The steps of §6 are ordered by concern. The implementation goes in commits that
+each leave the tree consistent and the tests at their baseline:
+
+1. Step 2: `color_transparent`.
+2. The shared code: the new theme tokens and a keyword constructor for
+   `WidgetTheme`, the style documents of D2, and the helpers of §8.4. No widget
+   uses them yet.
+3. One commit for each group of widgets. A commit converts the projections of
+   its group (§8.3 names, the constructor of D7, the constants of §3.4 as style
+   fields, the default insets), their printers and readers (the box parts, the
+   overrides, the layers of D4, the disabled look), their documents (the `style`
+   field, the insets of D11) and the call sites.
+   - leaf controls: label, insertion, text, button, checkbox, tooltip;
+   - menus and bars: context menu, menu, menu item, dialog, composite,
+     toolbar, status bar;
+   - panes: shell, title pane, split pane, tabbed pane, scroll pane, transform
+     pane, scroll bar;
+   - surfaces: badge, separator, card, alert, avatar, skeleton, highlight;
+   - value controls: switch, progress, slider, radio group, toggle, toggle
+     group;
+   - lists: select, option, spin box, list, textarea, accordion, table, tree.
+4. The layouts (step 7), and the removal of the old helpers and fields.
+5. omnet-julia, in a branch of its own (§8.6).
+6. The documentation, the tests of §7, and the move of this plan to `done`.
+
+The baseline of each suite comes from a separate worktree at the base commit
+`91cb3348`, `projectured-julia-widget-color-base`, so that no change of the
+branch can reach it.
+
+### 8.2 Decisions made in the implementation
+
+- **The document insets default to `nothing`.** `nothing` takes the default
+  inset of the projection, by the rule of §4.3 for an override. The projection
+  names its default insets as the document does: `margin`, `border` and
+  `padding`. So a caller who writes `padding = Inset(…)` overrides the padding of
+  the look, and a caller who writes nothing gets it.
+- **The default border is `Inset(theme.border_width)`** for a widget that shows
+  an outline (D8). The token `border_width` gives it, so the token `inset` has
+  no job and goes after all. D8 said that `inset` can give the default.
+- **A cell padding, a row padding or an item padding is not the box padding.**
+  The table, the list and the accordion name it `cell_padding`, `row_padding` and
+  `item_padding`.
+- **The scroll pane loses `chrome`.** `content_color = color_transparent` does
+  the same.
+- **An override replaces the style field of the same name** in every state
+  except the disabled state (D4 (c)). A style document holds one field for each
+  color of its projection: the box parts, the parts of the type and their
+  states, and the variants. It holds no field for the disabled state and none
+  for a decoration. For a `_text` or a `_stroke` field, the override holds the
+  color and is named `<field>_color`, for example `label_text_color`. The font
+  and the width stay those of the projection.
+- **`WidgetStyle`** has the fields that every widget has: `margin_color`,
+  `border_color`, `padding_color`, `content_color` and `label_text_color`. A
+  widget type with more parts has a style of its own, for example
+  `WidgetTabbedPaneStyle`, with the same five fields and the fields of its type.
+  All fields are `nothing` by default.
+- **`text_style` of `WidgetLabel` stays.** It holds a font and a color, which a
+  style can not. The order for the label text: `text_style`, then
+  `label_text_color` of the style, then `label_text` of the projection.
+- **The new theme tokens**, with their values in every preset: `shadow` is
+  black at 8%, `scrim` is black at 40%, `selection` is `SELECTION_RING_COLOR`,
+  `knob` is `color_white`, `hover_layer` is `primary` at 12% and
+  `pressed_layer` is `primary` at 20%. The selection band of a row is
+  `selection` at 25%. The placeholder of an image that is not decoded yet takes
+  `muted`. `WidgetTheme` gets a keyword constructor, so a caller names each
+  token.
+- **"On" is a checked state.** A switch or a toggle that is on uses the
+  `checked` state word.
+
+### 8.3 The names of the style fields
+
+The grammar of D1, with a variant word in front where a projection has
+variants: `[<variant>_]<part>[_<state>]_<kind>`. The kind is `color`, `stroke`
+or `text`. An inset field has no kind word, as on the document.
+
+Every widget with the box insets has `margin`, `border`, `padding`,
+`margin_color`, `border_color`, `padding_color` and `content_color`. The table
+gives each widget its defaults and its other fields. A box color that the table
+does not name is `color_transparent`, and an inset that it does not name is
+`inset_default`. `border` below means `Inset(theme.border_width)`, `pad` means
+`Inset(pad_y, pad_y, pad_x, pad_x)`, and `(t, w)` is `StyleStroke(theme.t, w)`.
+
+| Widget | Defaults of the box | Other style fields |
+| --- | --- | --- |
+| `WidgetInsertion` | | `label_text` ← `body_text` |
+| `WidgetLabel` | | `label_text` ← `body_text` |
+| `WidgetText` | border `input`; surface `background` | `label_text`; `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_disabled_text`; `focus_ring_stroke` ← (`ring`, 2); `selection_ring_stroke` ← (`selection`, 2); `corner_radius` |
+| `WidgetCheckbox` | | `indicator_color` ← `background`; `indicator_checked_color` ← `primary`; `indicator_disabled_color` ← `muted`; `indicator_stroke` ← (`input`, `stroke`); `indicator_disabled_stroke` ← (`muted_foreground`, `stroke`); `check_stroke` ← (`primary_foreground`, `stroke`); `check_disabled_stroke` ← (`muted_foreground`, `stroke`); `focus_ring_stroke`; `indicator_size`; `corner_radius` |
+| `WidgetButton` | border `border`; padding `pad`; surface `background` | `label_text` ← `label_text`; `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_disabled_text`; `layer_hovered_color` ← `hover_layer`; `layer_pressed_color` ← `pressed_layer`; `shadow_color` ← `shadow`; `shadow_offset`; `focus_ring_stroke`; `corner_radius` |
+| `WidgetTooltip` | border `border`; padding `pad`; surface `popover` | `label_text` ← (`font`, `popover_foreground`); `corner_radius` |
+| `WidgetContextMenu`, `WidgetMenu`, `WidgetToolbar` | | none |
+| `WidgetDialog` | border `border`; padding `pad`; surface `card` | `title_text`; `body_text`; `scrim_color` ← `scrim`; `gap`; `corner_radius` |
+| `WidgetMenuItem` | | `label_text`; `label_disabled_text`; `layer_hovered_color` |
+| `WidgetComposite` | | `selection_ring_stroke` |
+| `WidgetShell` | surface `background` | `band_gap` |
+| `WidgetTitlePane` | | `title_bar_color`; `title_text` ← (`font_bold`, `foreground`); `body_text` ← (`font`, `card_foreground`); `title_gap` |
+| `WidgetSplitPane` | | `splitter_stroke` ← (`border`, `border_width`) |
+| `WidgetTabbedPane` | | `tab_strip_color` ← `muted`; `tab_color`; `tab_selected_color` ← `background`; `tab_text` ← (`font`, `muted_foreground`); `tab_selected_text` ← (`font`, `foreground`); `page_color`; `selection_ring_stroke`; `tab_padding`; `corner_radius` |
+| `WidgetScrollPane`, `WidgetTransformPane` | content `background` | none |
+| `WidgetStatusBar` | surface `muted` | `label_text` ← `caption_text`; `item_gap` |
+| `WidgetScrollBar` | | `track_color` ← `muted`; `thumb_color` ← `border`; `minimum_thumb_length` |
+| `WidgetBadge` | border `border`; padding `Inset(3, 3, 10, 10)`; surface `primary` | `label_text` ← (`font_small`, `primary_foreground`); for each of the variants `secondary`, `destructive` and `outline`: `<variant>_padding_color`, `<variant>_content_color`, `<variant>_border_color`, `<variant>_label_text` |
+| `WidgetSeparator` | | `divider_stroke` ← (`border`, `border_width`) |
+| `WidgetCard` | border `border`; surface `card` | `title_text`; `description_text`; `body_text`; `footer_text`; `header_color`; `body_color`; `footer_color`; for each of the variants `tinted`, `muted` and `plain`: `<variant>_border_color`, `<variant>_padding_color`, `<variant>_content_color`; `chevron_stroke`; `selection_ring_stroke`; the sizes of today |
+| `WidgetSwitch` | | `track_color` ← `track_off`; `track_checked_color` ← `primary`; `track_disabled_color` ← `muted`; `knob_color` ← `knob`; `knob_stroke` ← (`border`, `border_width`); `focus_ring_stroke`; the sizes of today |
+| `WidgetProgress` | | `track_color` ← `muted`; `indicator_color` ← `primary`; `bar_height` |
+| `WidgetSlider` | | `track_color` ← `muted`; `indicator_color` ← `primary`; `knob_color` ← `knob`; `knob_stroke` ← (`primary`, `stroke`); `track_disabled_color`, `indicator_disabled_color`, `knob_disabled_color` ← `muted`; `focus_ring_stroke`; the sizes of today |
+| `WidgetRadioGroup` | | `label_text`; `label_disabled_text`; `indicator_color` ← `background`; `indicator_stroke` ← (`input`, `stroke`); `indicator_selected_stroke` ← (`primary`, `stroke`); `indicator_disabled_stroke`; `dot_color` ← `primary`; `dot_disabled_color` ← `muted_foreground`; `focus_ring_stroke`; the sizes of today |
+| `WidgetAvatar` | content `muted` | `label_text` ← (`font`, `muted_foreground`) |
+| `WidgetAlert` | border `border`; padding 14; surface `background` | `title_text` ← (`font_bold`, `foreground`); `description_text`; `destructive_border_color` ← `destructive`; `destructive_title_text` ← (`font_bold`, `destructive`); `title_gap`; `corner_radius` |
+| `WidgetHighlight` | no box (D11) | `content_color` ← `primary` at 25%; `border_stroke` ← (`primary`, 2); `corner_radius` |
+| `WidgetSkeleton` | content `muted` | `corner_radius` |
+| `WidgetToggle` | border `border`; padding `pad`; surface `background` | `border_checked_color`; `padding_checked_color`, `content_checked_color` ← `accent`; `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_text` ← (`font`, `foreground`); `label_checked_text` ← (`font`, `accent_foreground`); `label_disabled_text`; `focus_ring_stroke`; `corner_radius` |
+| `WidgetToggleGroup` | padding 2; surface `muted` | `padding_disabled_color`, `content_disabled_color` ← `muted`; `segment_color`; `segment_selected_color` ← `background`; `segment_disabled_color` ← `muted`; `label_text` ← (`font`, `muted_foreground`); `label_selected_text` ← (`font`, `foreground`); `label_disabled_text`; `segment_padding` ← `pad`; `focus_ring_stroke`; `corner_radius` |
+| `WidgetSelect` | border `input`; padding `pad`; surface `background` | `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_text`; `label_disabled_text`; `chevron_stroke` ← (`muted_foreground`, `stroke`); `focus_ring_stroke`; `gap`; `chevron_size`; `corner_radius` |
+| `WidgetOption` | padding `pad`; surface `background` | `label_text`; `layer_hovered_color` |
+| `WidgetSpinBox` | border `input`; padding `pad`; surface `background` | `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_text`; `label_disabled_text`; `stepper_color` ← `foreground`; `stepper_disabled_color` ← `muted_foreground`; `divider_stroke` ← (`input`, `border_width`); `focus_ring_stroke`; `corner_radius` |
+| `WidgetList` | border `border`; surface `background` | `label_text`; `row_selected_color` ← `selection` at 25%; `layer_hovered_color`; `row_padding` ← `pad`; `corner_radius` |
+| `WidgetTextarea` | border `input`; padding `pad`; surface `background` | `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_text`; `label_disabled_text`; `focus_ring_stroke`; `corner_radius` |
+| `WidgetAccordion` | | `title_text`; `body_text`; `divider_stroke` ← (`border`, `border_width`); `chevron_stroke`; `item_padding`; the sizes of today |
+| `WidgetTable` | | `divider_stroke` ← (`border`, `border_width`); `header_row_color` ← `muted`; `row_selected_color`; `layer_hovered_color`; `cell_padding` ← `pad` |
+| `WidgetTree` | | `label_text`; `icon_text` ← (`font`, `muted_foreground`); `chevron_stroke`; `row_selected_color`; `layer_hovered_color`; the sizes of today |
+
+`label_disabled_text` is the font of `label_text` in `muted_foreground`.
+`focus_ring_stroke` is (`ring`, 2) and `selection_ring_stroke` is
+(`selection`, 2) wherever the table names them.
+
+### 8.4 The shared helpers
+
+- `_get_part_color(w, name, default)`, `_get_part_text(w, name, default)` and
+  `_get_part_stroke(w, name, default)` read the override of one part from the
+  `style` field of `w`, and return `default` when there is none.
+- `_get_box_insets(p, w)` resolves the three insets of `w` against the defaults
+  of `p`. `_content_offset` and `_inset_total` take `p` as well.
+- `_push_box_parts!` paints the four box parts from the outside in, and skips a
+  transparent part (§4.3). With a uniform border and the same color for the
+  padding and the content, it pushes one `GraphicsRect`.
+- `_push_panel!` skips a transparent fill that has no outline.
+- `_push_state_layer!` paints the layer of the hovered or the pressed state
+  (D4 (c)).
+
+### 8.5 Progress
+
+- [x] Step 2: `color_transparent`, `is_color_transparent`, and the 12 literals.
+
+### 8.6 omnet-julia
+
+omnet-julia reaches projectured-julia through the main checkout, so it can not
+see this branch (see the note on cross-repository worktrees). Its changes go in
+a branch of its own, `widget-color-design`, in a sibling worktree, and a
+throwaway environment in the scratchpad tests it against this branch. The
+branch lands after the projectured-julia branch.
 
 ## Appendix A. The style fields of each widget projection
 

@@ -21,7 +21,7 @@ ring's geometry follows the selection. So the list keeps its shape, and a
 selection move repaints the ring and nothing else.
 """
 function make_selection_ring(bounds::Function)
-    ring = GraphicsRect(0, 0, 0, 0, StyleColor(0.0, 0.0, 0.0, 0.0), 3;
+    ring = GraphicsRect(0, 0, 0, 0, color_transparent, 3;
                         border_width = 2, border_color = SELECTION_RING_COLOR)
     box = ComputedCell(() -> something(bounds(), (0, 0, 0, 0)))
     set_cell_function!(getfield(ring, :border_width), () -> Int32(box[][3] > 0 ? 2 : 0))

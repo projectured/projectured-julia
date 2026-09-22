@@ -765,8 +765,7 @@ _persistent_graphic!(cache, layout, pl) =
          cache, pl.key)
 
 # When a placement disappears (segment removed in a re-layout), the cell falls
-# back to a fully transparent color so the persistent graphic paints nothing.
-const _transparent = StyleColor(0.0, 0.0, 0.0, 0.0)
+# back to `color_transparent`, so the persistent graphic paints nothing.
 
 function _make_persistent_text(layout, pl0)
     key = pl0.key
@@ -775,7 +774,7 @@ function _make_persistent_text(layout, pl0)
     set_cell_function!(getfield(gt, :x),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.x)))
     set_cell_function!(getfield(gt, :y),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
     set_cell_function!(getfield(gt, :font),  () -> (q = _plget(layout, key); q === nothing ? pl0.font : q.font))
-    set_cell_function!(getfield(gt, :color), () -> (q = _plget(layout, key); q === nothing ? _transparent : q.color))
+    set_cell_function!(getfield(gt, :color), () -> (q = _plget(layout, key); q === nothing ? color_transparent : q.color))
     gt
 end
 
@@ -786,7 +785,7 @@ function _make_persistent_rect(layout, pl0)
     set_cell_function!(getfield(rect, :y),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
     set_cell_function!(getfield(rect, :w),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.w)))
     set_cell_function!(getfield(rect, :h),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.h)))
-    set_cell_function!(getfield(rect, :color), () -> (q = _plget(layout, key); q === nothing ? _transparent : q.color))
+    set_cell_function!(getfield(rect, :color), () -> (q = _plget(layout, key); q === nothing ? color_transparent : q.color))
     rect
 end
 

@@ -1087,7 +1087,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
                 sx = round(Int, to_pixel(g.xs, point[1])) - g.plot_x
                 sy = round(Int, to_pixel(g.ys, point[2])) - g.plot_y
                 color = get_series_color(series.color, sample[1], g.style.color_cycle)
-                push!(out, GraphicsCircle(sx, sy, 6, StyleColor(0.0, 0.0, 0.0, 0.0);
+                push!(out, GraphicsCircle(sx, sy, 6, color_transparent;
                                           border_width=2, border_color=_SELECTION_EDGE))
                 push!(out, GraphicsCircle(sx, sy, 3, color))
             end

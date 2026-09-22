@@ -754,7 +754,7 @@ function _event_ring!(out, g, row::Integer, color)
     radius = g.style.event_radius + 4
     # Transparent fill, so the mark underneath still shows through the ring.
     push!(out, GraphicsCircle(round(Int, x), round(Int, y), radius,
-                              StyleColor(0.0, 0.0, 0.0, 0.0);
+                              color_transparent;
                               border_width=2, border_color=color))
     out
 end
