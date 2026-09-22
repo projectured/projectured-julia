@@ -228,6 +228,54 @@ end
     @test Base.CoreLogging.global_logger() === before
 end
 
+@testset "the pointer lights what it is over, in the bands and in the content" begin
+    # The whole fold, with a toolbar and a tooltip, because the hover tracker has
+    # to see the bands and the probe must not take the moves it needs.
+    press = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Press")
+    command = make_window_command("Run", editor -> nothing)
+    bands(document) = (nothing, WidgetToolbar(Any[command]), nothing, nothing, nothing)
+    document, projection = make_window_wrap(;
+        gesture_help = false, command_palette = false, selection = false,
+        tooltip = compute_tooltip, pointer = () -> (0, 0),
+        tooltip_feed = make_tooltip_feed(now = () -> 0.0),
+        shell = bands)(VerticalLayout(Any[press]), make_layout_projection_example())
+    scene = make_window_scene(document, "shell"; width = 400, height = 300)
+    composed = make_window_scene_projection(projection;
+        opened_window_projections = make_opened_window_projections())
+    editor = _ShellFakeEditor(scene)
+    function move!(x, y)
+        change = read_intent(composed, nothing, Intent(WindowInput(:shell, MouseMove(x, y))),
+                             print_document(composed, scene))
+        operation = change isa Intent ? change.operation : change
+        operation isa Operation && evaluate_operation(editor, operation)
+    end
+    value(v) = v isa Cell ? value(v[]) : v
+    function place_of(text, node = print_document(composed, scene).output.windows[1].content,
+                      ox = 0, oy = 0)
+        node = value(node)
+        node === nothing && return nothing
+        x = hasproperty(node, :x) ? ox + Int(value(node.x)) : ox
+        y = hasproperty(node, :y) ? oy + Int(value(node.y)) : oy
+        hasproperty(node, :text) && value(node.text) == text && return (x, y)
+        if hasproperty(node, :elements)
+            for element in value(node.elements)
+                found = place_of(text, element, x, y)
+                found === nothing || return found
+            end
+        end
+        nothing
+    end
+    (rx, ry) = place_of("Run")
+    (px, py) = place_of("Press")
+    move!(rx + 2, ry + 2)
+    @test command.hovered == true
+    move!(px + 2, py + 2)
+    @test command.hovered == false
+    @test press.hovered == true
+    move!(390, 290)
+    @test press.hovered == false
+end
+
 @testset "the status bar says where the person is" begin
     tree = PaneTree(PaneGroup(PaneTab[PaneTab("a.json", PrimitiveString("x"))]))
     apply_pane_operation!(tree, make_pane_focus_operation(tree, first(get_pane_groups(tree)), 1))

@@ -272,9 +272,7 @@ _with_window_history(base) = RecursiveProjection(TypeDispatchingProjection(
 # row, so the renderer draws them without this application naming them.
 function _make_application_pane_projection(content, measure)
     renderer = NaturalToGraphics(measure = measure, extra = content)
-    WidgetHoverTrackingProjection(inner = ChainingProjection(
-        RecursiveProjection(PaneToWidget()),
-        renderer))
+    ChainingProjection(RecursiveProjection(PaneToWidget()), renderer)
 end
 
 """

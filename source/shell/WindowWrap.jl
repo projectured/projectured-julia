@@ -56,10 +56,11 @@ The help, the palette and the recorder wrap the projection and leave the
 document as it is. The clipboard wraps the document too, so a verb that walks the window
 must look inside it.
 
-The order is the history innermost, the shell over it, the walk and the
-clipboard over that, the tooltip probe over them, the help over that, the palette
-over it, and the log's recorder outermost, where it sees every operation the
-window makes.
+The order is the history innermost, the shell over it, the hover tracker over the
+shell, the walk and the clipboard over that, the tooltip probe over them, the help
+over that, the palette over it, and the log's recorder outermost, where it sees
+every operation the window makes. The hover tracker is always there: a window
+that shows a button must light it.
 """
 function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = true,
                             selection::Bool = true,
@@ -95,6 +96,10 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
                                                   size = size)
             projection = make_window_shell_projection(projection; measure = measure)
         end
+        # The hover tracker sees the whole window, the bands with the panes: only
+        # something that sees all of it can tell that the pointer left a button in
+        # the toolbar for a row in a pane.
+        projection = WidgetHoverTrackingProjection(inner = projection)
         if selection
             projection = make_clipboard_projection(SelectionWalkingProjection(inner = projection);
                                                    offered_gestures = clipboard_gestures)
