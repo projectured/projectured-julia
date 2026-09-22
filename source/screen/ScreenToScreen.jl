@@ -59,9 +59,18 @@ end
 function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx)
     # Seed the window's pixel size as the available layout extent for its
     # content, so split/tabbed/scroll panes size to the window.
+    #
+    # A window that fits its content is offered its **maximum**, and always that:
+    # the backend gives such a window the extent of what it printed, and an offer
+    # that followed that size would chase it. So a text wraps at the maximum
+    # width, and the window ends as wide as the text needed.
+    maximum_size = getfield(input, :maximum_size)
+    offer_width = ComputedCell(() -> (m = maximum_size[];
+                                      m[1] > 0 ? m[1] : getfield(input, :width)[]))
+    offer_height = ComputedCell(() -> (m = maximum_size[];
+                                       m[2] > 0 ? m[2] : getfield(input, :height)[]))
     content_ctx = with_available_size(make_child_context(ctx, FieldReferenceStep("content"));
-                                      width=getfield(input, :width),
-                                      height=getfield(input, :height))
+                                      width=offer_width, height=offer_height)
     # Reconcile the content by identity so replacing a same-id window's content
     # (a hover probe following the cursor, a re-opened tooltip) re-projects it
     # reactively; a same object mutated in place reuses the iomap and re-derives
@@ -78,12 +87,19 @@ function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx
     # Metadata cells are shared verbatim (non-document fields), so a metadata edit on
     # the input window is reflected here through the shared cell; only content and
     # selection are produced fresh.
-    output = WindowDocument(getfield(input, :id), getfield(input, :title),
-                            getfield(input, :x), getfield(input, :y),
-                            getfield(input, :width), getfield(input, :height),
-                            getfield(input, :bg), getfield(input, :style),
-                            getfield(input, :auto_dismiss), getfield(input, :modal),
-                            ComputedCell(() -> content_iomap[].output), sel)
+    # By keyword, and not by position: a field added to `WindowDocument` shifts
+    # a positional list, and `x`, `y`, `width` and `height` are all `Int`, so a
+    # shifted argument would mis-size or misplace a window with no error.
+    output = WindowDocument(; id = getfield(input, :id), title = getfield(input, :title),
+                            x = getfield(input, :x), y = getfield(input, :y),
+                            width = getfield(input, :width), height = getfield(input, :height),
+                            minimum_size = getfield(input, :minimum_size),
+                            maximum_size = getfield(input, :maximum_size),
+                            bg = getfield(input, :bg), style = getfield(input, :style),
+                            auto_dismiss = getfield(input, :auto_dismiss),
+                            modal = getfield(input, :modal),
+                            content = ComputedCell(() -> content_iomap[].output),
+                            selection = sel)
     iomap = ScreenWindowIoMap(p, input, output, content_iomap)
     iomap_cell[] = iomap
     iomap

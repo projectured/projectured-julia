@@ -92,6 +92,11 @@ end
     @test tip.x == 300 + 16 && tip.y == 400 + 20
     @test tip.content isa PrimitiveString
     @test tip.content.value == "what this label is for"
+    # It says its bounds rather than a size: it is printed at the maximum, and
+    # the backend gives it the extent of what it printed, never below the
+    # minimum.
+    @test tip.minimum_size == (120, 32)
+    @test tip.maximum_size == (560, 400)
 end
 
 @testset "the window draws what the document said" begin

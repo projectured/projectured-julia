@@ -84,4 +84,47 @@ end
     quit_backend!(backend)
 
 end
+
+@testset "a window with a maximum fits what it printed" begin
+    SDL = ProjecturedSdl
+    fit(canvas_width, canvas_height; minimum_size, maximum_size) = begin
+        window = WindowDocument(; id = :fit_test, title = "fit_test", x = 0, y = 0,
+                                  width = maximum_size[1], height = maximum_size[2],
+                                  minimum_size = minimum_size, maximum_size = maximum_size,
+                                  content = "content")
+        canvas = GraphicsCanvas(CellVector(Any[]), layout_none)
+        canvas.w = Int32(canvas_width)
+        canvas.h = Int32(canvas_height)
+        SDL._fit_window_size!(window, canvas)
+        (window.width, window.height)
+    end
+
+    # What the content needed, between the two bounds.
+    @test fit(150, 40; minimum_size = (120, 32), maximum_size = (560, 400)) == (150, 40)
+    # A content larger than the maximum is cut to it; a smaller one takes the minimum.
+    @test fit(900, 900; minimum_size = (120, 32), maximum_size = (560, 400)) == (560, 400)
+    @test fit(10, 5; minimum_size = (120, 32), maximum_size = (560, 400)) == (120, 32)
+    # A window with no maximum keeps the size it was asked for.
+    fixed = WindowDocument(; id = :fixed_test, title = "fixed_test", x = 0, y = 0,
+                             width = 420, height = 120, content = "content")
+    canvas = GraphicsCanvas(CellVector(Any[]), layout_none)
+    canvas.w = Int32(150)
+    canvas.h = Int32(40)
+    SDL._fit_window_size!(fixed, canvas)
+    @test (fixed.width, fixed.height) == (420, 120)
+end
+
+@testset "such a window stays on the screen, and beside the pointer" begin
+    place = ProjecturedSdl.compute_window_place
+
+    # Inside the work area, wherever it was asked for.
+    @test place(100, 100, 200, 80, 1000, 800, nothing) == (100, 100)
+    # Over the right or the bottom edge: moved in.
+    @test place(900, 100, 200, 80, 1000, 800, nothing) == (800, 100)
+    @test place(100, 780, 200, 80, 1000, 800, nothing) == (100, 720)
+    # A window that would hold the pointer goes to the left of it, and to the
+    # right when there is no room on the left.
+    @test place(900, 100, 200, 80, 1000, 800, (850, 120)) == (642, 100)
+    @test place(0, 100, 200, 80, 1000, 800, (40, 120)) == (48, 100)
+end
 end # test_native_window

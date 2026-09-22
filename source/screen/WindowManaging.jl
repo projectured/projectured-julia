@@ -149,6 +149,7 @@ function _apply_open!(iomap::WindowManagingIoMap, op::OpenWindowOperation)
     new_in = WindowDocument(; id=op.id, title=op.title,
                               x=op.x, y=op.y,
                               width=op.width, height=op.height,
+                              minimum_size=op.minimum_size, maximum_size=op.maximum_size,
                               bg=op.bg, style=op.style,
                               auto_dismiss=op.auto_dismiss, modal=op.modal,
                               content=op.content)
@@ -161,6 +162,8 @@ function _update_window!(w::WindowDocument, op::OpenWindowOperation)
     w.y      = op.y
     w.width  = op.width
     w.height = op.height
+    w.minimum_size = op.minimum_size
+    w.maximum_size = op.maximum_size
     w.bg     = op.bg
     w.style  = op.style
     w.auto_dismiss = op.auto_dismiss

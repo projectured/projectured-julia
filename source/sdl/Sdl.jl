@@ -3000,6 +3000,13 @@ function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Dev
     # Open / update / paint each desired window.
     for w in screen.windows
         w isa WindowDocument || continue
+        canvas = w.content
+        canvas isa GraphicsCanvas ||
+            error("write_to_devices: WindowDocument(id=:$(w.id)).content is $(typeof(canvas)), expected GraphicsCanvas")
+        # The size before the window is made, so the first frame a person sees
+        # already fits, and before it is placed, because the place depends on it.
+        _fit_window_size!(w, canvas)
+        _place_fitted_window!(backend, w)
         res = get(backend.windows, w.id, nothing)
         if res === nothing
             res = _open_native_window!(w; hidden = true)
@@ -3009,11 +3016,88 @@ function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Dev
         else
             _update_window_geometry!(res, w)
         end
-        canvas = w.content
-        canvas isa GraphicsCanvas ||
-            error("write_to_devices: WindowDocument(id=:$(w.id)).content is $(typeof(canvas)), expected GraphicsCanvas")
         _render_window!(res, canvas)
     end
+end
+
+"""
+    _fit_window_size!(w::WindowDocument, canvas::GraphicsCanvas) -> w
+
+Give a window that carries a `maximum_size` the extent of what it printed,
+clamped between its `minimum_size` and its `maximum_size`. A window whose
+maximum is `(0, 0)` keeps the size it was asked for.
+
+The screen prints such a window at its maximum, so the canvas answers what the
+content needed there: a text wraps at the maximum width, and the height follows
+the lines it took.
+"""
+function _fit_window_size!(w::WindowDocument, canvas::GraphicsCanvas)
+    maximum_size = w.maximum_size
+    (maximum_size[1] <= 0 && maximum_size[2] <= 0) && return w
+    minimum_size = w.minimum_size
+    width  = _fit_extent(Int(canvas.w[]), minimum_size[1], maximum_size[1])
+    height = _fit_extent(Int(canvas.h[]), minimum_size[2], maximum_size[2])
+    # Only a size that changed is written: an equal write would invalidate the
+    # cell that the mirrored window shares, on every frame.
+    (w.width == width && w.height == height) && return w
+    w.width = width
+    w.height = height
+    w
+end
+
+"""
+    _place_fitted_window!(backend::SdlBackend, w::WindowDocument) -> w
+
+Keep a window that fits its content on the screen. A window that would cross the
+right or the bottom edge of the work area is moved inside it, and one that would
+then hold the pointer goes to the side of the pointer instead: a window under the
+pointer covers the very thing it is about, and the next move of the pointer
+closes it.
+
+A window of a fixed size is left alone, and so is one that asks the backend to
+place it (`x` or `y` below zero).
+"""
+function _place_fitted_window!(backend::SdlBackend, w::WindowDocument)
+    maximum_size = w.maximum_size
+    (maximum_size[1] <= 0 && maximum_size[2] <= 0) && return w
+    (w.x < 0 || w.y < 0) && return w
+    area = get_display_size(backend)
+    (x, y) = compute_window_place(Int(w.x), Int(w.y), Int(w.width), Int(w.height),
+                                  Int(area[1]), Int(area[2]), get_pointer_position(backend))
+    (w.x == x && w.y == y) && return w
+    w.x = x
+    w.y = y
+    w
+end
+
+# How far a window that had to move stays from the pointer.
+const _POINTER_GAP = 8
+
+"""
+    compute_window_place(x, y, width, height, area_width, area_height, pointer) -> (x, y)
+
+Where a window of that size goes: inside the work area, and beside `pointer`
+rather than under it. `pointer` is the pointer in screen coordinates, or
+`nothing` when nobody says where it is.
+"""
+function compute_window_place(x::Int, y::Int, width::Int, height::Int,
+                              area_width::Int, area_height::Int, pointer)
+    x + width  > area_width  && (x = area_width  - width)
+    y + height > area_height && (y = area_height - height)
+    x = max(x, 0)
+    y = max(y, 0)
+    if pointer !== nothing && x <= pointer[1] < x + width && y <= pointer[2] < y + height
+        left = Int(pointer[1]) - width - _POINTER_GAP
+        x = left >= 0 ? left : Int(pointer[1]) + _POINTER_GAP
+    end
+    (x, y)
+end
+
+# One extent, clamped. A bound of 0 or less is no bound.
+function _fit_extent(extent::Int, minimum::Int, maximum::Int)
+    maximum > 0 && (extent = min(extent, maximum))
+    minimum > 0 && (extent = max(extent, minimum))
+    max(extent, 1)
 end
 
 # Whether the native window is on screen. A window is made hidden and shown once

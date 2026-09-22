@@ -532,6 +532,15 @@ function test_application()
                 output = print_document(composed, scene).output
                 @test any(text -> startswith(text, "Message log:"),
                           _app_drawn_strings(output.windows[end].content))
+                # The window says its bounds and is printed at its maximum, so
+                # what it holds fits: a name of one line needs neither the whole
+                # width nor the whole height a tooltip may take.
+                @test tip.maximum_size == (560, 400)
+                @test tip.minimum_size == (120, 32)
+                canvas = output.windows[end].content
+                canvas = canvas isa Cell ? canvas[] : canvas
+                @test 0 < Int(canvas.w[]) < tip.maximum_size[1]
+                @test 0 < Int(canvas.h[]) < tip.maximum_size[2]
             end
 
             @testset "with the tooltip on, the pointer drags, lights, and leaves no history" begin

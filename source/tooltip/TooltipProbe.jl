@@ -26,7 +26,8 @@ struct TooltipProbeProjection <: Projection
     compute_tooltip::Function  # (document) -> Document | Nothing
     pointer::Function          # () -> (x, y), the pointer in screen coordinates
     offset::Tuple{Int,Int}     # pointer -> window offset, in screen pixels
-    size::Tuple{Int,Int}       # the window's (width, height)
+    minimum_size::Tuple{Int,Int}   # the window never gets smaller than this
+    maximum_size::Tuple{Int,Int}   # it is printed at this, and never grows past it
     title::String
     rest::TooltipRest          # shared with the window's `TooltipFeed`
     now::Function              # () -> seconds, the feed's own clock
@@ -35,7 +36,8 @@ end
 
 """
     TooltipProbeProjection(; inner, compute_tooltip, pointer, feed,
-                             id = :tooltip, offset = (16, 20), size = (420, 120),
+                             id = :tooltip, offset = (16, 20),
+                             minimum_size = (120, 32), maximum_size = (560, 400),
                              title = "tooltip", slop = 4)
 
 Wrap `inner`, the content projection of the window whose documents should answer
@@ -53,6 +55,10 @@ backend answers exactly that.
 `feed` is the window's [`TooltipFeed`](@ref): the probe tells it where the pointer
 is and when it moved, and the feed says when the pointer has rested. A move of
 more than `slop` pixels from where a tooltip opened closes it.
+
+**The window fits what it holds.** It is printed at `maximum_size`, so a text
+wraps at that width, and it ends with the extent of what it printed, never
+smaller than `minimum_size`. The backend keeps it on the screen.
 """
 TooltipProbeProjection(; inner::Projection,
                          compute_tooltip::Function,
@@ -60,12 +66,14 @@ TooltipProbeProjection(; inner::Projection,
                          feed::TooltipFeed,
                          id::Symbol = :tooltip,
                          offset = (16, 20),
-                         size = (420, 120),
+                         minimum_size = (120, 32),
+                         maximum_size = (560, 400),
                          title::AbstractString = "tooltip",
                          slop::Integer = 4) =
     TooltipProbeProjection(inner, id, compute_tooltip, pointer,
                            (Int(offset[1]), Int(offset[2])),
-                           (Int(size[1]), Int(size[2])), String(title),
+                           (Int(minimum_size[1]), Int(minimum_size[2])),
+                           (Int(maximum_size[1]), Int(maximum_size[2])), String(title),
                            feed.rest, feed.now, Int(slop))
 
 @iomap struct TooltipProbeIoMap
@@ -146,7 +154,8 @@ function _open_at_rest(p::TooltipProbeProjection, recursion, iomap::TooltipProbe
     rest.shown_y = event.y
     OpenWindowOperation(id = p.id, title = p.title,
                         x = Int(x) + p.offset[1], y = Int(y) + p.offset[2],
-                        width = p.size[1], height = p.size[2],
+                        width = p.maximum_size[1], height = p.maximum_size[2],
+                        minimum_size = p.minimum_size, maximum_size = p.maximum_size,
                         style = :tooltip, content = content)
 end
 
