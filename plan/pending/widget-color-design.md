@@ -1,9 +1,8 @@
 # Widget colors: where each color comes from
 
-**Status (2026-09-22): PROPOSED.** Nothing is implemented. §3 records the
-present state, §4 describes the target model, and §5 lists the decisions. Each
-decision in §5 carries a recommendation. On 2026-09-22 the owner decided these
-things:
+**Status (2026-09-22): DECIDED.** Nothing is implemented. §3 records the
+present state, §4 describes the target model, and §5 records the decisions. The
+owner decided every decision of §5 on 2026-09-22:
 
 - Every part of the structure of a widget has its own color (§4.4, D3).
 - A part becomes transparent with `color_transparent` (§4.3, D3).
@@ -11,8 +10,11 @@ things:
 - Every widget that the factory prints on its own has the box insets, with
   three exceptions (D11).
 - No new type holds an inset and its color together (D12).
+- For D1, D4 to D10 and the decorations of D3, the owner accepted the
+  recommendation of this plan.
 
-The other decisions are open.
+One question stays open: the colors of categories, such as the roles of a
+conversation (D5).
 
 **Goal:** one rule that gives, for each color that a widget draws, the value
 that the renderer uses. The rule covers the three places that can hold a color:
@@ -85,9 +87,9 @@ printer code, and four different colors mark a selected thing.
 | **decoration** | a mark of a state that the printer draws over the parts: the focus ring, the hover and pressed layers, the selection band, the shadow, the scrim |
 | **state** | a field of the widget document that the actions of the user change: `enabled`, `hovered`, `pressed`, checked, the selection, the active tab |
 | **variant** | a `Symbol` field of the widget document that selects one set of style fields, for example `WidgetCard.variant = :muted` |
-| **tone** | a proposed `Symbol` field that gives the meaning of a widget, such as `:destructive` or `:warning` (D5) |
+| **tone** | a planned `Symbol` field that gives the meaning of a widget, such as `:destructive` or `:warning` (D5) |
 | **override** | a field of the widget document that holds a color for one part of this one widget |
-| **transparent** | the color with alpha 0, as the proposed global `color_transparent`. A part in this color adds no element (§4.3). |
+| **transparent** | the color with alpha 0, as the planned global `color_transparent`. A part in this color adds no element (§4.3). |
 | **upstream projection** | a projection that makes widget documents, for example `ConversationToWidget` |
 
 ## 3. The present state
@@ -520,8 +522,8 @@ check, have their own color: the color of a `StyleText` or a `StyleStroke`.
 
 **Decorations are not parts.** The focus ring, the hover and the pressed layers,
 the selection band, the shadow and the scrim show a state, not a part of the
-structure. They have style fields on the projection. D3 asks whether a document
-can override them.
+structure. They have style fields on the projection, and a document can not
+override them (D3).
 
 **Debugging a whole window.** To color one part in every widget of a window, a
 developer gives the style field of that part a color at the factory, for example
@@ -539,9 +541,10 @@ Two rules are new:
 2. One token marks a selection and one token marks a hover, in every widget
    (defect 4).
 
-D4 decides how an override and a state combine. Example: a button has a red
-surface override. The question is what the button shows when the pointer is on
-it.
+An override and a state combine as D4 (c) says. The printer draws the hovered
+and the pressed state as a translucent layer over the surface. So a button with
+a red surface override still shows a hover. The disabled state keeps its own
+style fields and ignores the override.
 
 ### 4.6 How one widget gets different colors
 
@@ -555,7 +558,7 @@ From the widest scope to the narrowest:
 | one widget | a tone or a variant on the document | yes | three widgets have a variant |
 | one part of one widget | an override on the document | no | works in two fields |
 
-No widget document selects a theme for its children. D10 asks whether one must.
+No widget document selects a theme for its children (D10).
 
 ### 4.7 Colors from an upstream projection
 
@@ -563,8 +566,8 @@ An upstream projection gives the meaning of a widget, not its color. For
 example, `LogView` gives a warning line the tone `:warning`, and the widget
 projection draws the line in the warning color of the theme. When the theme
 changes, the log colors change with it. An override is for a color that has no
-meaning in the theme, for example a color that the user selected. D5 and D6 are
-the decisions.
+meaning in the theme, for example a color that the user selected. D5 and D6
+record this.
 
 ### 4.8 Out of scope
 
@@ -577,9 +580,10 @@ the decisions.
 
 ## 5. Decisions
 
-Each decision gives the options and a recommendation. The recommendations are
-mine. The owner decided D2, D3 except for the decorations, D11 and D12. The
-other decisions are open.
+Each decision gives the options, the outcome and the reasons. The owner decided
+all of them on 2026-09-22. Where a decision says "the owner accepted the
+recommendation", the outcome is the recommendation of this plan. One question
+stays open: the colors of categories in D5.
 
 ### D1. The names of the style fields
 
@@ -599,7 +603,8 @@ other decisions are open.
 - **(c)** A compound type for each state, with a fill, an outline and a text,
   and one field for each state: `normal`, `hovered`, `pressed`, `disabled`.
 
-**Recommendation: (b).** One part then has one name in every widget. So an
+**Decision: (b).** The owner accepted the
+recommendation on 2026-09-22. One part then has one name in every widget. So an
 override (D2) can have the same name as the style field that it replaces, and a
 test can check that every interactive widget has its `_disabled_` fields. (c) is
 shorter, but most states change only one of the three aspects.
@@ -633,8 +638,9 @@ cover is one field in one struct, not a field in 43 structs. A person can edit a
 one `WidgetStyle`. The cost: a call site writes
 `style = WidgetStyle(padding_color = …)`.
 
-One detail of (b) is open: the parts of one widget type. My recommendation: the
-`style` field takes either a `WidgetStyle` or the style of the widget type. A
+One detail of (b) is the parts of one widget type. The owner accepted the
+recommendation on 2026-09-22: the `style` field takes either a `WidgetStyle` or
+the style of the widget type. A
 `WidgetStyle` has the box parts and the text, and every widget takes it. The
 style of a widget type, for example `WidgetTabbedPaneStyle`, has the same fields
 and the parts of that type. So one `WidgetStyle` can color the margins of widgets
@@ -648,13 +654,14 @@ first version of this plan recommended only the surface, the outline and the
 text. The owner rejected that: every part that has a meaning in the structure
 and a size can have a color, also for debugging.
 
-**The decorations.** Open.
+**The decorations.**
 
 - **(a)** A document can not override a decoration. The theme and the projection
   give its color.
 - **(b)** A document can override a decoration, as it can override a part.
 
-**Recommendation: (a).** A decoration shows a state, and one state must look the
+**Decision: (a).** The owner accepted the
+recommendation on 2026-09-22. A decoration shows a state, and one state must look the
 same in every widget: a focused widget shows the same ring everywhere.
 
 **How an override removes a fill.** Decided by the owner on 2026-09-22.
@@ -683,7 +690,8 @@ The transparent color is a global constant, `color_transparent`.
   these layers. The disabled state keeps its own style fields and ignores the
   override.
 
-**Recommendation: (c).** It is the only option where an override and a hover
+**Decision: (c).** The owner accepted the
+recommendation on 2026-09-22. It is the only option where an override and a hover
 both show. It also replaces the hover and pressed fields of each widget, and the
 constant `_WT_HOVER_COLOR`, with two tokens. The cost: the hover look of the
 button, the menu item, the list, the table and the tree changes, and the images
@@ -704,7 +712,8 @@ The `variant` fields of today answer two questions: how loud a surface is
   loud a surface is. The theme gets the tokens `warning`,
   `warning_foreground`, `success` and `success_foreground`.
 
-**Recommendation: (b).** `LogView` and `ConversationToWidget` can then mark an
+**Decision: (b).** The owner accepted the
+recommendation on 2026-09-22. `LogView` and `ConversationToWidget` can then mark an
 error or a warning, and the colors follow the theme. One question stays open:
 the role colors of the conversation (user, assistant) are categories, not
 meanings. Either the theme gets a list of category colors, like the color cycle
@@ -717,7 +726,8 @@ of a chart, or they stay overrides.
 - **(b)** The upstream projection also takes the theme as a constructor argument
   and writes resolved colors into the document.
 
-**Recommendation: (a) for widget documents.** With (b) the theme is in two
+**Decision: (a) for widget documents.** The owner accepted the
+recommendation on 2026-09-22. With (b) the theme is in two
 places, and another theme needs a new upstream projection too. (b) stays correct
 for a projection that draws graphics itself, such as
 `build_module_appearance_graphics`. There the caller must give the theme, and
@@ -732,7 +742,8 @@ for a projection that draws graphics itself, such as
   `WidgetToGraphics(font; theme, changes = …)`.
 - **(c)** The caller builds the factory and sets the cell of one style field.
 
-**Recommendation: (a).** It removes the literal defaults (defect 6). It also
+**Decision: (a).** The owner accepted the
+recommendation on 2026-09-22. It removes the literal defaults (defect 6). It also
 puts the mapping from token to style field beside each struct, with keyword
 arguments. Today that mapping is a positional table of about 40 calls, where two
 swapped arguments of the same type give no error.
@@ -744,7 +755,8 @@ swapped arguments of the same type give no error.
 - **(b)** The `StyleStroke` of the projection gives the width and the color. The
   `border` inset of the document only reserves space.
 
-**Recommendation: (a).** The border is a part whose size a caller controls
+**Decision: (a).** The owner accepted the
+recommendation on 2026-09-22. The border is a part whose size a caller controls
 (§4.4), and the `border` inset is that size. With (b) the border has two sizes:
 the inset reserves space, and the stroke draws a line of another width.
 
@@ -767,7 +779,8 @@ Layouts are not widgets and get no theme. They draw `SELECTION_RING_COLOR`.
 - **(b)** Keep the constant for the layouts, and make it the default of a theme
   token that every whole-selection ring uses.
 
-**Recommendation: (a).** A ring around a selected object then has one color in a
+**Decision: (a).** The owner accepted the
+recommendation on 2026-09-22. A ring around a selected object then has one color in a
 widget and in a layout, and the theme sets it.
 
 ### D10. A theme for a part of the tree
@@ -777,8 +790,9 @@ widget and in a layout, and the theme sets it.
 - **(b)** A widget, for example `WidgetShell`, holds the name of a theme, and the
   factory resolves it.
 
-**Recommendation: (a),** until a real case needs (b). With (b) a document holds a
-theme name, and the printer context must carry the themes.
+**Decision: (a),** until a real case needs (b). The owner accepted the
+recommendation on 2026-09-22. With (b) a document holds a theme name, and the
+printer context must carry the themes.
 
 ### D11. The box parts on every widget
 
@@ -838,17 +852,17 @@ not lay the widget out again.
 
 ## 6. Steps
 
-The steps start after the owner decides §5. Each step is one commit, and the
+The owner decided §5 on 2026-09-22. Each step is one commit, and the
 targeted tests run after each step.
 
-- [ ] 1. Record the decisions of §5 in this plan.
+- [x] 1. Record the decisions of §5 in this plan. Done on 2026-09-22.
 - [ ] 2. Add `color_transparent` to `Color.jl`. Replace the 12 literals and the
       three local names of §3.4 with it. This step changes no image, so it can
       land before the other decisions.
 - [ ] 3. Theme: add the tokens that the decisions need, for example the shadow,
       the scrim, the selection band, the hover and pressed layers, the knob,
-      `warning` and `success`. Keep `inset` as the default box insets if D8
-      takes (a), else remove it. Change
+      `warning` and `success`. Keep `inset` as the default box insets
+      (D8). Change
       `build_qtenv_widget_theme` in omnet-julia, which calls the positional
       constructor.
 - [ ] 4. Projections: give each widget projection a constructor that takes the
