@@ -1,6 +1,7 @@
 # One design document for each package
 
-**Status (2026-09-22): IN PROGRESS.** Steps 1 and 2 are done. Step 3 runs.
+**Status (2026-09-22): DONE on the branch, not landed.** Steps 1 to 4 are done
+on `domain-design-docs`. The landing on `main` waits for the owner.
 
 **Goal:** each package outside the kernel has one document that says how the
 package works, how it fits with the other packages, which large design decisions
@@ -127,8 +128,10 @@ checks the part that a program can check. It needs no environment.
 - [x] The lead writes the documents of the slices with no guide: yaml,
       markdown, book, julia, formula, style, screen, domain, projection,
       filesystem, log, statistics, layout, dragging, clipboard, tooltip, tulip.
-- [ ] Six Opus writers revise the guides that exist and write the rest, three
+- [x] Six Opus writers revise the guides that exist and write the rest, three
       at a time. Instructions: `writer-instructions.md` in the scratchpad.
+      The lead read each result, checked the claims that looked wrong against
+      the code, ran the guard, and committed each writer group on its own.
 
 | Writer | Documents |
 | --- | --- |
@@ -139,14 +142,16 @@ checks the part that a program can check. It needs no environment.
 | W5 rendering and vocabulary | text, syntax, graphics, collection, primitive, serialization, versioning, undo |
 | W6 features and backends | fault, gesturehelp, repl; new: gesturelog, console, pdf, sdl, web, video, builder |
 
-- [ ] The lead fixes the stale facts in the kernel, rule and design documents
-      (section 6).
+- [x] The lead fixes the stale facts in the kernel, rule and design documents
+      (section 6): `package-rules.md`, `domain-inventory.md`, `macros.md`,
+      `operation.md`, `devices-and-backends.md`, `agent.md`, `mcp-guide.md`,
+      `architecture-decisions.md`, `bounded-sync.md`.
 
 ### Step 4: the indexes and the check
 
-- [ ] `documentation/README.md`, `documentation/package/README.md` and
-      `domain-inventory.md` list the new documents.
-- [ ] `julia test/suite/documentation.jl` reports no violation.
+- [x] `documentation/README.md`, `documentation/package/README.md` and
+      `domain-inventory.md` list the new documents. `CLAUDE.md` points to them.
+- [x] `julia test/suite/documentation.jl` reports no violation.
 - [ ] Land on `main` with `git merge --ff-only`, and move this plan to
       `plan/done/`.
 
@@ -175,7 +180,17 @@ checks the part that a program can check. It needs no environment.
   each claim against the code. The lead reviews each document and runs the
   guard.
 
-## 6. Facts found on the way
+## 6. Result
+
+- 60 design documents, one for each slice; `llm.md` covers two packages and
+  `database.md` three. 26 are new, and 34 are revised guides. They are 40 to
+  230 lines, most of them near 100.
+- One shared design document, `documentation/design/domain-anatomy.md`.
+- The survey notes and the writers found about 60 faults in the code and its
+  comments. They are listed below and are not fixed: this plan changes
+  documents only.
+
+## 7. Facts found on the way
 
 Found by the survey and checked against the code. The ones in a document are
 fixed there; the ones in code are for the owner.
@@ -234,6 +249,57 @@ fixed there; the ones in code are for the owner.
   `kernel/agent.md` gives an old default model of the Anthropic backend;
   `design/architecture-decisions.md` section 12 holds only for a tool that is
   registered before the MCP server starts.
+- Code, from the W2 writer: `GraphModule.jl` exports `GraphLayoutToGraphics`,
+  which is not defined, and `GraphToGraphics` has no method. Stale comments in
+  `Adaptagrams.jl:39` (a README path), `deps/build.jl` (a missing shim raises
+  an error; it falls back), `FsmModule.jl:16` and `ProcessModule.jl:39`
+  (`package/domain/doc/*.md`), the header examples of `FsmToSyntax.jl` and
+  `FsmToJuliaCode.jl`, and `ChartPlotToGraphics.jl` and
+  `SequenceChartModule.jl` (`ChartGeometry`). The process atoms exist but the
+  atomic catalog does not register them. `SequenceChartPlot.drag_anchor` and
+  `drag_rect` are never written; `find_state`, `find_event` and `find_timer`
+  are never called.
+- Code, from the W1 writer, not run: `SqlToSyntax` has no rule for
+  `SqlJoinUsingCondition`; the SQL parser reads a function call as a string
+  value (`COUNT(*)` prints as `'COUNT(*)'`) and reads only the first statement
+  of a file; `export_document` raises an error for a YAML document on a `.yml`
+  path; `OdbcAdapter.get_db_catalog_schemas` ignores its `database` argument;
+  `_notations` in `NaturalNotation.jl` takes the first registered type, not the
+  most derived one, and `_SYNTAX_PAIRS` is never filled; XML saves `&#65;` as
+  `&amp;#65;`; the XML `=` gesture has no `override`; a JSON `\u` surrogate
+  pair parses into two characters. Stale comments in `SqlParser.jl`,
+  `NaturalModule`, `MathToSyntax.jl`, `XmlToSyntax.jl`, `RstModule`,
+  `RstToSyntax.jl`, `DbCatalogToSyntax.jl` and `DatabaseModule`.
+- Code, from the W4 writer: nothing in `example/projectured/ValueViewer.jl`
+  calls `sync_reflection!`, so a chevron click in `run_value_viewer` likely
+  opens nothing; `WidgetToggle`, `WidgetRadioGroup` and `WidgetTextarea` take
+  the focus but their readers do nothing; `DuplicateTabOperation` is missing
+  from the `operation_travels_unchanged` list; `SelectTabOperation` is never
+  made. Stale comments in `SelectionInspector`, `PaneProgram.jl`,
+  `WidgetToGraphics.jl` and `WidgetHoverTracking.jl`.
+- Code, from the W5 writer, found by reading only: `WordWrapping` and
+  `TextFiltering` pass a `TextSpanReferenceStep` through unchanged, so a
+  whole-element box after a soft break or a filtered line can be misplaced;
+  `TextFirstLine` maps only the structural caret; `TextLineNumbering` has no
+  output selection; `copy_document` of a `ListNode` walks every node, so a copy
+  of an endless list does not finish; a letter typed into a number clears it; a
+  version made with Ctrl+Shift+S has empty properties, so the by-author and
+  as-of criteria never select it. Docstring examples of `GraphicsRect`,
+  `GraphicsCanvas`, `CellTable` and `CellMatrix` match no method, and
+  `hit_element_at` returns a 0-based offset where its docstring says 1-based.
+- Code, from the W6 writer: `source/repl/record/driver.jl` sends
+  `KeyDown(:enter)`, but the backends report Enter as `:return`, so no Enter
+  binding fires in the recording; the console parser quits on ESC followed by
+  any byte other than `[`, and reads Ctrl+Left as Home and two characters;
+  `FaultCatchingProjection` reads no `FaultPolicy` and catches
+  `InterruptException`; the PDF painter writes text at `font.size` while the
+  layout measured at `font_logical_size`; `test_video()` does not call
+  `test_video_layering()`; `WebBackend` has no `wait_for_input`, so the editor
+  polls it, and no test exercises it; `FaultLog` keeps one line for each site
+  and origin, so two exception types from one origin overwrite each other.
+  Stale docstrings in `run_console_example`, `ProjecturedSdl`, `Sdl.jl`,
+  `GestureHelpModule`, `CommandPaletteDecorator.jl`, `PdfBackendModule`,
+  `ProjecturedRepl.jl` and `PrecompileRecording.jl`.
 - Code: `FormulaInsertion` has a docstring that says typed text commits to a
   formula. No reader does that (`plan/pending/excel-julia-formulas.md`, Phase 5).
 
