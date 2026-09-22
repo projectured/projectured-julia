@@ -1,7 +1,8 @@
 # One design document for each package
 
-**Status (2026-09-22): DONE on the branch, not landed.** Steps 1 to 4 are done
-on `domain-design-docs`. The landing on `main` waits for the owner.
+**Status (2026-09-22): DONE.** Steps 1 to 4 are done, and the branch
+`domain-design-docs` is landed on `main`. The code faults of section 7 are
+not fixed; the owner takes them up next.
 
 **Goal:** each package outside the kernel has one document that says how the
 package works, how it fits with the other packages, which large design decisions
@@ -152,7 +153,7 @@ checks the part that a program can check. It needs no environment.
 - [x] `documentation/README.md`, `documentation/package/README.md` and
       `domain-inventory.md` list the new documents. `CLAUDE.md` points to them.
 - [x] `julia test/suite/documentation.jl` reports no violation.
-- [ ] Land on `main` with `git merge --ff-only`, and move this plan to
+- [x] Land on `main` with `git merge --ff-only`, and move this plan to
       `plan/done/`.
 
 ## 5. Decisions
