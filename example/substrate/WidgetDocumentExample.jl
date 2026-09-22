@@ -196,13 +196,11 @@ end
 # WidgetCheckbox — a checkbox; content is the boolean checked state.
 make_widget_checkbox_document_example() =
     WidgetCheckbox(Point2D(40, 40), true;
-                   border=Inset(1, 1, 1, 1), border_color=color_default,
                    padding=Inset(4, 4, 4, 4))
 
 # WidgetButton — a clickable button.
 make_widget_button_document_example() =
     WidgetButton(Point2D(40, 40), Point2D(180, 56), "Click me";
-                 border=Inset(1, 1, 1, 1), border_color=color_default,
                  padding=Inset(4, 4, 8, 8))
 
 # WidgetButton (behaviour) — a button whose `action` increments a counter shown
@@ -219,7 +217,6 @@ function make_widget_button_action_document_example()
                               count[] += 1
                               label.content = "count: $(count[])"
                           end,
-                          border=Inset(1, 1, 1, 1), border_color=color_default,
                           padding=Inset(4, 4, 8, 8))
     WidgetComposite(Point2D(0, 0), Any[label, button])
 end
@@ -234,16 +231,13 @@ function make_widget_button_image_document_example()
     picture_label = WidgetLabel(Point2D(40, 40), logo)
     icon_button = WidgetButton(Point2D(40, 200), Point2D(72, 72), icon;
                                action = (_editor) -> nothing,
-                               border=Inset(1, 1, 1, 1), border_color=color_default,
                                padding=Inset(8, 8, 8, 8))
     WidgetComposite(Point2D(0, 0), Any[picture_label, icon_button])
 end
 
 # WidgetTooltip — a floating tooltip overlay (visible so it renders standalone).
 make_widget_tooltip_document_example() =
-    WidgetTooltip(Point2D(40, 40), Point2D(360, 56), "A floating tooltip";
-                  border=Inset(1, 1, 1, 1), border_color=color_default,
-                  padding=Inset(4, 4, 4, 4))
+    WidgetTooltip(Point2D(40, 40), Point2D(360, 56), "A floating tooltip")
 
 # WidgetMenuItem — a single item, normally found inside a menu or toolbar.
 make_widget_menu_item_document_example() =

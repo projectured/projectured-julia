@@ -14,6 +14,10 @@ has_document_duplicate(::WidgetDocument) = true
 
 @document struct WidgetInsertion <: WidgetDocument
     value::Any = nothing
+    margin::Any = nothing
+    border::Any = nothing
+    padding::Any = nothing
+    style::Any = nothing
     tooltip::Any = nothing
 end
 
@@ -45,34 +49,25 @@ and `WidgetAlert` for a message with a title.
     #   * a bare `StyleFont` — **this font, the theme's colour**, for a label
     #     that writes an icon of the icon font beside text of the theme.
     #
-    # The third exists because the second was the only way to colour a word, and
-    # it made colouring cost a font: a line coloured by severity would quietly
-    # stop following the window's theme. A colour is now sayable on its own.
+    # The bare colour keeps the font of the theme, so a line coloured by
+    # severity still follows the window's theme. It wins over `style`.
     text_style::ImmutableCell{StyleText}
     visible::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     tooltip::Any
 end
 
 function WidgetLabel(position::Point2D, content;
                      text_style=nothing,
                      visible::Bool=true,
-                     margin::Inset=inset_default,
-                     margin_color=nothing,
-                     border::Inset=inset_default,
-                     border_color=nothing,
-                     padding::Inset=inset_default,
-                     padding_color=nothing, tooltip=nothing)
+                     margin=nothing, border=nothing, padding=nothing,
+                     style=nothing, tooltip=nothing)
     WidgetLabel(Cell(position), Cell(content), Cell(text_style),
-                Cell(visible), Cell(margin), Cell(margin_color),
-                Cell(border), Cell(border_color),
-                Cell(padding), Cell(padding_color),
-                Cell(tooltip), Cell(nothing))
+                Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetLabel, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -80,7 +75,7 @@ set_cell_function!(w::WidgetLabel, f::Function) = (set_cell_function!(getfield(w
 # ── WidgetText ─────────────────────────────────────────────────────────────
 
 """
-    WidgetText(position, content; width, content_fill_color, <base kwargs>)
+    WidgetText(position, content; width, <base kwargs>)
 
 One line of text a person edits.
 
@@ -104,38 +99,27 @@ only read, and `WidgetSpinBox` for a number.
     position::Point2D
     content::Any
     width::Int
-    content_fill_color::StyleColor
     validator::Any
     visible::Bool
     enabled::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     tooltip::Any
 end
 
 function WidgetText(position::Point2D, content;
                     width::Integer=0,
-                    content_fill_color=nothing,
                     validator=nothing,
                     visible::Bool=true,
                     enabled::Bool=true,
-                    margin::Inset=inset_default,
-                    margin_color=nothing,
-                    border::Inset=inset_default,
-                    border_color=nothing,
-                    padding::Inset=inset_default,
-                    padding_color=nothing, tooltip=nothing)
+                    margin=nothing, border=nothing, padding=nothing,
+                    style=nothing, tooltip=nothing)
     # `validator` (optional) is a callable consulted before an edit commits (Stage 6).
-    WidgetText(Cell(position), Cell(content), Cell(Int(width)),
-               Cell(content_fill_color), Cell(validator),
-               Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
-               Cell(border), Cell(border_color),
-               Cell(padding), Cell(padding_color),
-               Cell(tooltip), Cell(nothing))
+    WidgetText(Cell(position), Cell(content), Cell(Int(width)), Cell(validator),
+               Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
+               Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetText, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -313,11 +297,9 @@ See also `WidgetSwitch`, which is the same choice drawn as a slide, and
     visible::Bool
     enabled::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     gestures::Any               # per-instance gesture bindings (see get_instance_gesture_bindings)
     tooltip::Any
 end
@@ -326,17 +308,11 @@ function WidgetCheckbox(position::Point2D, content;
                         gestures=GestureBinding[],
                         visible::Bool=true,
                         enabled::Bool=true,
-                        margin::Inset=inset_default,
-                        margin_color=nothing,
-                        border::Inset=inset_default,
-                        border_color=nothing,
-                        padding::Inset=inset_default,
-                        padding_color=nothing, tooltip=nothing)
+                        margin=nothing, border=nothing, padding=nothing,
+                        style=nothing, tooltip=nothing)
     WidgetCheckbox(Cell(position), Cell(content),
-                   Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
-                   Cell(border), Cell(border_color),
-                   Cell(padding), Cell(padding_color),
-                   Cell(gestures), Cell(tooltip))
+                   Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
+                   Cell(style), Cell(gestures), Cell(tooltip))
 end
 
 set_cell_function!(w::WidgetCheckbox, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -409,11 +385,9 @@ for one choice among several.
     visible::Bool
     enabled::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     hovered::Bool
     pressed::Bool
     labels::Any
@@ -427,12 +401,8 @@ function WidgetButton(position::Point2D, size::Point2D, content;
                       dialog=nothing,
                       visible::Bool=true,
                       enabled::Bool=true,
-                      margin::Inset=inset_default,
-                      margin_color=nothing,
-                      border::Inset=inset_default,
-                      border_color=nothing,
-                      padding::Inset=inset_default,
-                      padding_color=nothing,
+                      margin=nothing, border=nothing, padding=nothing,
+                      style=nothing,
                       labels=String[], tooltip=nothing)
     # `gestures` is a per-instance `Vector{GestureBinding}` (behavior, not content).
     # It is consulted by the reader ahead of the built-in click/key handling, so a
@@ -445,9 +415,8 @@ function WidgetButton(position::Point2D, size::Point2D, content;
     WidgetButton(Cell(position), Cell(size),
                  Cell(resolve_action(content, icon, action)), Cell(gestures),
                  Cell(dialog),
-                 Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
-                 Cell(border), Cell(border_color),
-                 Cell(padding), Cell(padding_color),
+                 Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
+                 Cell(style),
                  Cell(false), Cell(false), Cell(labels), Cell(tooltip))
 end
 
@@ -483,27 +452,19 @@ A floating tooltip overlay..
     content::Any
     visible::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     tooltip::Any
 end
 
 function WidgetTooltip(position::Point2D, size::Point2D, content;
                        visible::Bool=true,
-                       margin::Inset=inset_default,
-                       margin_color=nothing,
-                       border::Inset=inset_default,
-                       border_color=nothing,
-                       padding::Inset=inset_default,
-                       padding_color=nothing, tooltip=nothing)
+                       margin=nothing, border=nothing, padding=nothing,
+                       style=nothing, tooltip=nothing)
     WidgetTooltip(Cell(position), Cell(size), Cell(content),
-                  Cell(visible), Cell(margin), Cell(margin_color),
-                  Cell(border), Cell(border_color),
-                  Cell(padding), Cell(padding_color),
-                  Cell(tooltip), Cell(nothing))
+                  Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                  Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetTooltip, f::Function) = (set_cell_function!(getfield(w, :content), f); w)

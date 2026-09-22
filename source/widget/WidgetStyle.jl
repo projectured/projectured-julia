@@ -29,3 +29,22 @@ change to the style changes all of them.
     content_color::Any = nothing
     label_text_color::Any = nothing
 end
+
+"""
+    WidgetCheckboxStyle(; <the fields of WidgetStyle>, indicator_color, indicator_checked_color,
+                        indicator_stroke_color, check_color)
+
+The style of a `WidgetCheckbox`: the fields of `WidgetStyle`, and the box that
+shows the value (`indicator_…`) and the tick in it (`check_color`).
+"""
+@document struct WidgetCheckboxStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    indicator_color::Any = nothing
+    indicator_checked_color::Any = nothing
+    indicator_stroke_color::Any = nothing
+    check_color::Any = nothing
+end

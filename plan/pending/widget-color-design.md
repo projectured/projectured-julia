@@ -1062,10 +1062,10 @@ does not name is `color_transparent`, and an inset that it does not name is
 | Widget | Defaults of the box | Other style fields |
 | --- | --- | --- |
 | `WidgetInsertion` | | `label_text` ← `body_text` |
-| `WidgetLabel` | | `label_text` ← `body_text` |
+| `WidgetLabel` | | `label_text` ← `body_text`; `placeholder_color` ← `muted` |
 | `WidgetText` | border `input`; surface `background` | `label_text`; `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_disabled_text`; `focus_ring_stroke` ← (`ring`, 2); `selection_ring_stroke` ← (`selection`, 2); `corner_radius` |
 | `WidgetCheckbox` | | `indicator_color` ← `background`; `indicator_checked_color` ← `primary`; `indicator_disabled_color` ← `muted`; `indicator_stroke` ← (`input`, `stroke`); `indicator_disabled_stroke` ← (`muted_foreground`, `stroke`); `check_stroke` ← (`primary_foreground`, `stroke`); `check_disabled_stroke` ← (`muted_foreground`, `stroke`); `focus_ring_stroke`; `indicator_size`; `corner_radius` |
-| `WidgetButton` | border `border`; padding `pad`; surface `background` | `label_text` ← `label_text`; `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_disabled_text`; `layer_hovered_color` ← `hover_layer`; `layer_pressed_color` ← `pressed_layer`; `shadow_color` ← `shadow`; `shadow_offset`; `focus_ring_stroke`; `corner_radius` |
+| `WidgetButton` | border `border`; padding `pad`; surface `background` | `label_text` ← `label_text`; `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_disabled_text`; `layer_hovered_color` ← `hover_layer`; `layer_pressed_color` ← `pressed_layer`; `shadow_color` ← `shadow`; `shadow_offset`; `placeholder_color` ← `muted`; `focus_ring_stroke`; `corner_radius` |
 | `WidgetTooltip` | border `border`; padding `pad`; surface `popover` | `label_text` ← (`font`, `popover_foreground`); `corner_radius` |
 | `WidgetContextMenu`, `WidgetMenu`, `WidgetToolbar` | | none |
 | `WidgetDialog` | border `border`; padding `pad`; surface `card` | `title_text`; `body_text`; `scrim_color` ← `scrim`; `gap`; `corner_radius` |
@@ -1127,6 +1127,21 @@ does not name is `color_transparent`, and an inset that it does not name is
       the color and width of `make_selection_ring` as keywords. `test_substrate()`
       is at its baseline: 63119 pass, and the 3 failures and 2 errors of
       `SplitPaneDragTest` that clean main has too.
+- [x] Group 1, the leaf controls: label, insertion, text, button, checkbox and
+      tooltip, and `WidgetCheckboxStyle`. `test_substrate()` keeps the 3
+      failures and 2 errors of the baseline and has 65506 passes, and the
+      twenty domain suites match their baseline exactly; the walker counts one pass for each cell,
+      and the projections have more cells. Found on the way:
+      - An image that is not decoded yet needs a color, so the label and the
+        button get `placeholder_color` ← `muted`.
+      - A padding that the document gives now wins over the padding of the
+        projection, where the tooltip took the larger of the two. The tooltip
+        example gave `padding = Inset(4, 4, 4, 4)`, which never showed; it
+        goes, with the black `border_color` of four widget examples, which never
+        drew either.
+      - The layout example gives its buttons and tags a blue border. It never
+        drew; as `style = WidgetStyle(border_color = …)` it draws now, with the
+        padding of the tags, which the label ignored before.
 
 ### 8.6 omnet-julia
 

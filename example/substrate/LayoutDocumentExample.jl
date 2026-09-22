@@ -28,7 +28,7 @@ function make_layout_document_example(; width=600, height=600)
     # ── Grid: 2 columns of buttons ────────────────────────────────────────
     buttons = [
         WidgetButton(Point2D(0, 0), Point2D(140, 36), label;
-                     border=Inset(1, 1, 1, 1), border_color=text_color,
+                     border=Inset(1, 1, 1, 1), style=WidgetStyle(border_color=text_color),
                      padding=Inset(4, 4, 8, 8))
         for label in ("New", "Open", "Save", "Close", "Help")
     ]
@@ -40,7 +40,7 @@ function make_layout_document_example(; width=600, height=600)
     tags = [
         WidgetLabel(Point2D(0, 0), t;
                     padding=Inset(2, 2, 6, 6),
-                    border=Inset(1, 1, 1, 1), border_color=text_color)
+                    border=Inset(1, 1, 1, 1), style=WidgetStyle(border_color=text_color))
         for t in ("alpha", "beta", "gamma", "delta", "epsilon",
                   "zeta", "eta", "theta", "iota", "kappa")
     ]
@@ -73,7 +73,7 @@ explicit intrinsic size as its starting point.
 function make_constraint_layout_document_example(; width=560, height=560)
     fg = StyleColor(40/255, 80/255, 160/255, 1.0)
     mkbtn(w, h, label) = WidgetButton(Point2D(0, 0), Point2D(w, h), label;
-                                      border=Inset(1, 1, 1, 1), border_color=fg,
+                                      border=Inset(1, 1, 1, 1), style=WidgetStyle(border_color=fg),
                                       padding=Inset(4, 4, 8, 8))
 
     header  = mkbtn(width - 20, 40,  "Header")

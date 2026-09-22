@@ -287,6 +287,52 @@ function _get_part_stroke(w, name::Symbol, default::StyleStroke)
     color === nothing ? default : StyleStroke(color, default.width; dash = default.dash)
 end
 
+# The style field of `part` of the kind `kind` (`:color`, `:text` or `:stroke`) in
+# a variant and a state. The names follow `[<variant>_]<part>[_<state>]_<kind>`,
+# and a projection that has no field for the variant or the state has one field
+# for all of them, so the search drops the state, then the variant. Answers the
+# name and whether it names the disabled state.
+function _find_style_field(p, part::Symbol, kind::Symbol, variant, state)
+    variant_word = variant === nothing ? "" : string(variant, "_")
+    state_word = state === nothing ? "" : string("_", state)
+    for (name, stated) in ((Symbol(variant_word, part, state_word, "_", kind), true),
+                           (Symbol(variant_word, part, "_", kind), false),
+                           (Symbol(part, state_word, "_", kind), true),
+                           (Symbol(part, "_", kind), false))
+        hasproperty(p, name) && return (name, stated && state === :disabled)
+    end
+    nothing
+end
+
+# The color of `part`: the style field that the variant and the state select, or
+# the override of the same name. A disabled field ignores the override, so a
+# disabled widget looks disabled whatever its style says. A part with no style
+# field draws nothing.
+function _get_state_color(p, w, part::Symbol; variant = nothing, state = nothing)
+    found = _find_style_field(p, part, :color, variant, state)
+    found === nothing && return color_transparent
+    name, disabled = found
+    disabled ? getproperty(p, name) : _get_part_color(w, name, getproperty(p, name))
+end
+
+function _get_state_text(p, w, part::Symbol; variant = nothing, state = nothing)
+    name, disabled = _find_style_field(p, part, :text, variant, state)
+    disabled ? getproperty(p, name) : _get_part_text(w, name, getproperty(p, name))
+end
+
+function _get_state_stroke(p, w, part::Symbol; variant = nothing, state = nothing)
+    name, disabled = _find_style_field(p, part, :stroke, variant, state)
+    disabled ? getproperty(p, name) : _get_part_stroke(w, name, getproperty(p, name))
+end
+
+# The colors of the four box parts of `w` in a variant and a state, for
+# `_push_box_parts!`.
+_get_box_colors(p, w; variant = nothing, state = nothing) =
+    (margin  = _get_state_color(p, w, :margin; variant, state),
+     border  = _get_state_color(p, w, :border; variant, state),
+     padding = _get_state_color(p, w, :padding; variant, state),
+     content = _get_state_color(p, w, :content; variant, state))
+
 # ── The box ─────────────────────────────────────────────────────────────────
 # A widget with the box insets has four parts, from the outside in: the margin,
 # the border, the padding and the content. An inset of the document that is
@@ -434,62 +480,178 @@ function _push_hover_surface!(elems::Vector, w, enabled::Bool, cw::Int, ch::Int,
 end
 
 # ── Projection structs ─────────────────────────────────────────────────────
+#
+# A widget projection holds one style field for each part and state that it
+# draws, named `[<variant>_]<part>[_<state>]_<kind>`, and a constructor that
+# fills every field from a `WidgetTheme`. A keyword of that constructor replaces
+# one field. A widget with the box insets has the default insets `margin`,
+# `border` and `padding`, which an inset of the document replaces, and a color
+# for each of its four box parts. `@projection` puts each field in a cell, so a
+# person can edit it while the editor runs.
+
+# The inset of `width` on every side, for a border.
+_make_uniform_inset(width::Integer) = Inset(width, width, width, width)
+
+# The padding of a control: `pad_y` above and below, `pad_x` left and right.
+_make_control_padding(theme) = Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x)
 
 @projection struct WidgetLabelToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{StyleText}        # font + color of the label
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    label_text::ImmutableCell{StyleText}
+    placeholder_color::StyleColor          # an image that is not decoded yet
 end
+
+WidgetLabelToGraphicsCanvas(theme::WidgetTheme; measure,
+                            margin = inset_default, border = inset_default, padding = inset_default,
+                            margin_color = color_transparent, border_color = color_transparent,
+                            padding_color = color_transparent, content_color = color_transparent,
+                            label_text = theme.body_text, placeholder_color = theme.muted) =
+    WidgetLabelToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                padding_color, content_color, label_text, placeholder_color)
 
 @projection struct WidgetTextToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{StyleText}            # font + color of the non-editable form
-    background_color::StyleColor
-    border_color::StyleColor    # input outline
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    padding_disabled_color::StyleColor
+    content_disabled_color::StyleColor
+    label_text::ImmutableCell{StyleText}          # the text of the non-editable form
+    label_disabled_text::ImmutableCell{StyleText}
+    focus_ring_stroke::StyleStroke                # the widget holds the focus
+    selection_ring_stroke::StyleStroke            # the widget is selected as a whole
     corner_radius::Int
-    ring_color::StyleColor      # focus ring when selected
 end
+
+WidgetTextToGraphicsCanvas(theme::WidgetTheme; measure,
+                           margin = inset_default, border = _make_uniform_inset(theme.border_width),
+                           padding = inset_default,
+                           margin_color = color_transparent, border_color = theme.input,
+                           padding_color = theme.background, content_color = theme.background,
+                           padding_disabled_color = theme.muted, content_disabled_color = theme.muted,
+                           label_text = theme.body_text,
+                           label_disabled_text = StyleText(theme.body_text.font, theme.muted_foreground),
+                           focus_ring_stroke = StyleStroke(theme.ring, 2),
+                           selection_ring_stroke = StyleStroke(theme.selection, 2),
+                           corner_radius = theme.radius) =
+    WidgetTextToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                               padding_color, content_color, padding_disabled_color,
+                               content_disabled_color, label_text, label_disabled_text,
+                               focus_ring_stroke, selection_ring_stroke, corner_radius)
 
 @projection struct WidgetCheckboxToGraphicsCanvas
-    box_size::Int
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    indicator_color::StyleColor              # the empty box
+    indicator_checked_color::StyleColor      # the box when checked
+    indicator_disabled_color::StyleColor
+    indicator_stroke::StyleStroke            # the outline of the empty box
+    indicator_disabled_stroke::StyleStroke
+    check_color::StyleColor                  # the tick
+    check_disabled_color::StyleColor
+    focus_ring_stroke::StyleStroke
+    indicator_size::Int
     corner_radius::Int
-    checked_color::StyleColor      # filled box when checked
-    check::StyleStroke             # the tick (color + width)
-    background_color::StyleColor   # empty box fill
-    outline::StyleStroke           # empty box outline (color + width)
-    disabled_color::StyleColor     # box fill when !enabled
-    disabled_foreground::StyleColor # tick / outline when !enabled
-    ring_color::StyleColor         # focus ring when selected
 end
 
-# Style parameters owned by the button projection (hybrid model, §8 of the plan):
-# fed from the theme by the `WidgetToGraphics` factory, full names + compound
-# types, so the renderer reads `p.<field>` directly with no `p.theme.*`.
-# `@projection` Cell-wraps every field (so each is live-editable via
-# ObjectToWidget and linkable by sharing a Cell) while keeping `p.field`
-# transparent; the factory may pass plain values or Cells.
+WidgetCheckboxToGraphicsCanvas(theme::WidgetTheme;
+                               margin = inset_default, border = inset_default, padding = inset_default,
+                               margin_color = color_transparent, border_color = color_transparent,
+                               padding_color = color_transparent, content_color = color_transparent,
+                               indicator_color = theme.background, indicator_checked_color = theme.primary,
+                               indicator_disabled_color = theme.muted,
+                               indicator_stroke = StyleStroke(theme.input, theme.stroke),
+                               indicator_disabled_stroke = StyleStroke(theme.muted_foreground, theme.stroke),
+                               check_color = theme.primary_foreground,
+                               check_disabled_color = theme.muted_foreground,
+                               focus_ring_stroke = StyleStroke(theme.ring, 2),
+                               indicator_size = 18, corner_radius = theme.radius ÷ 2) =
+    WidgetCheckboxToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
+                                   content_color, indicator_color, indicator_checked_color,
+                                   indicator_disabled_color, indicator_stroke, indicator_disabled_stroke,
+                                   check_color, check_disabled_color, focus_ring_stroke,
+                                   indicator_size, corner_radius)
+
 @projection struct WidgetButtonToGraphicsCanvas
     measure::Function
-    label::ImmutableCell{StyleText}            # font + color of the button text
-    background_color::StyleColor # resting surface
-    hover_color::StyleColor      # surface while the pointer is inside
-    active_color::StyleColor     # surface while pressed (held down)
-    border::StyleStroke         # outline color + width
-    padding::Inset              # content padding (was pad_x / pad_y)
-    corner_radius::Int
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    padding_disabled_color::StyleColor
+    content_disabled_color::StyleColor
+    label_text::ImmutableCell{StyleText}
+    label_disabled_text::ImmutableCell{StyleText}
+    layer_hovered_color::StyleColor        # over the surface while the pointer is inside
+    layer_pressed_color::StyleColor        # over the surface while it is held down
+    shadow_color::StyleColor
     shadow_offset::Int
-    disabled_color::StyleColor   # surface when !enabled
-    disabled_foreground::StyleColor # label color when !enabled
-    ring_color::StyleColor       # focus ring when selected
+    placeholder_color::StyleColor          # an image that is not decoded yet
+    focus_ring_stroke::StyleStroke
+    corner_radius::Int
 end
+
+WidgetButtonToGraphicsCanvas(theme::WidgetTheme; measure,
+                             margin = inset_default, border = _make_uniform_inset(theme.border_width),
+                             padding = _make_control_padding(theme),
+                             margin_color = color_transparent, border_color = theme.border,
+                             padding_color = theme.background, content_color = theme.background,
+                             padding_disabled_color = theme.muted, content_disabled_color = theme.muted,
+                             label_text = theme.label_text,
+                             label_disabled_text = StyleText(theme.label_text.font, theme.muted_foreground),
+                             layer_hovered_color = theme.hover_layer,
+                             layer_pressed_color = theme.pressed_layer,
+                             shadow_color = theme.shadow, shadow_offset = 2,
+                             placeholder_color = theme.muted,
+                             focus_ring_stroke = StyleStroke(theme.ring, 2),
+                             corner_radius = theme.radius) =
+    WidgetButtonToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                 padding_color, content_color, padding_disabled_color,
+                                 content_disabled_color, label_text, label_disabled_text,
+                                 layer_hovered_color, layer_pressed_color, shadow_color, shadow_offset,
+                                 placeholder_color, focus_ring_stroke, corner_radius)
 
 @projection struct WidgetTooltipToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{StyleText}             # font + popover foreground
-    surface_color::StyleColor    # popover fill
-    border::StyleStroke
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    label_text::ImmutableCell{StyleText}
     corner_radius::Int
-    default_padding::Inset       # fallback padding when the document specifies none
 end
+
+WidgetTooltipToGraphicsCanvas(theme::WidgetTheme; measure,
+                              margin = inset_default, border = _make_uniform_inset(theme.border_width),
+                              padding = _make_control_padding(theme),
+                              margin_color = color_transparent, border_color = theme.border,
+                              padding_color = theme.popover, content_color = theme.popover,
+                              label_text = StyleText(theme.font, theme.popover_foreground),
+                              corner_radius = theme.radius) =
+    WidgetTooltipToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                  padding_color, content_color, label_text, corner_radius)
 
 @projection struct WidgetMenuToGraphicsCanvas
     measure::Function
@@ -770,15 +932,15 @@ function _content_size(measure, font::StyleFont, content)
 end
 
 # Push a widget's polymorphic `content` into `elems` at (x, y). An ImageDocument
-# becomes a GraphicsImage (a muted placeholder rect when not yet decoded);
+# becomes a GraphicsImage (a rect in `placeholder_color` when not yet decoded);
 # everything else is drawn as label text. `cw`/`ch` are the resolved content box.
 function _push_content!(elems::Vector, measure, label::StyleText, content,
-                        x::Int, y::Int, cw::Int, ch::Int)
+                        x::Int, y::Int, cw::Int, ch::Int; placeholder_color::StyleColor)
     if content isa ImageDocument
         data, _, _ = _image_payload(content)
         if data === nothing
-            # Not decoded yet — keep layout stable with a faint placeholder.
-            push!(elems, GraphicsRect(x, y, cw, ch, StyleColor(0.0, 0.0, 0.0, 0x14 / 255)))
+            # Not decoded yet — keep layout stable with a placeholder.
+            _push_panel!(elems, x, y, cw, ch; fill = placeholder_color)
         else
             push!(elems, GraphicsImage(Int32(x), Int32(y), Int32(cw), Int32(ch), data))
         end
@@ -1054,32 +1216,43 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
         # takes the theme's ink. The colour is what lets a severity, a diff or a
         # status be coloured without a caller naming a font and so dropping out
         # of the theme; the font is what lets a label write an icon of the icon
-        # font in the color of the text beside it.
-        style = w.text_style === nothing ? p.text :
-                w.text_style isa StyleColor ? StyleText(p.text.font, w.text_style) :
-                w.text_style isa StyleFont ? StyleText(w.text_style, p.text.color) :
+        # font in the color of the text beside it. `text_style` wins over the
+        # `label_text_color` of a style.
+        label = _get_part_text(w, :label_text, p.label_text)
+        style = w.text_style === nothing ? label :
+                w.text_style isa StyleColor ? StyleText(label.font, w.text_style) :
+                w.text_style isa StyleFont ? StyleText(w.text_style, label.color) :
                 w.text_style
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
         content_width, content_height = _content_size(p.measure, style.font, content)
-        # Text breaks at the width the parent offered. A label that fills a
-        # column holds prose in that column, and a line longer than the column
-        # is drawn past it and lost. An image is not broken; it fills its box.
+        elements = Any[]
+        # Text breaks at the width the parent offered, less the box. A label that
+        # fills a column holds prose in that column, and a line longer than the
+        # column is drawn past it and lost. An image is not broken; it fills its box.
         avail = ctx === nothing ? nothing : ctx.available_width
-        bound = avail === nothing || content isa ImageDocument ? 0 : max(0, Int(avail[]))
+        bound = avail === nothing || content isa ImageDocument ? 0 : max(0, Int(avail[]) - inset_width)
         if bound > 0 && content_width > bound
-            elements = Any[]
-            text_width, text_height =
-                _push_text_block!(elements, p.measure, style, string(content), 0, 0, bound)
-            return (width = _resolve_width(ctx, 0, text_width),
-                    height = _resolve_height(ctx, 0, text_height),
-                    elements = elements)
+            text_elements = Any[]
+            text_width, text_height = _push_text_block!(text_elements, p.measure, style, string(content),
+                                                        content_x, content_y, bound)
+            outer_width = _resolve_width(ctx, 0, text_width + inset_width)
+            outer_height = _resolve_height(ctx, 0, text_height + inset_height)
+            _push_box_parts!(elements, box, colors, outer_width - inset_width, outer_height - inset_height)
+            append!(elements, text_elements)
+            return (width = outer_width, height = outer_height, elements = elements)
         end
         # No size of its own, so the offer decides and the content is the floor.
         # An image label fills what it is given; text stays where it is drawn.
-        content_width  = _resolve_width(ctx, 0, content_width)
-        content_height = _resolve_height(ctx, 0, content_height)
-        elements = Any[]
-        _push_content!(elements, p.measure, style, content, 0, 0, content_width, content_height)
-        (width=content_width, height=content_height, elements=elements)
+        outer_width  = _resolve_width(ctx, 0, content_width + inset_width)
+        outer_height = _resolve_height(ctx, 0, content_height + inset_height)
+        content_width, content_height = outer_width - inset_width, outer_height - inset_height
+        _push_box_parts!(elements, box, colors, content_width, content_height)
+        _push_content!(elements, p.measure, style, content, content_x, content_y, content_width,
+                       content_height; placeholder_color = p.placeholder_color)
+        (width = outer_width, height = outer_height, elements = elements)
     end))
 end
 
@@ -1135,15 +1308,34 @@ end
 # projection-introduced placeholder and its reference maps are no-ops.
 @projection struct WidgetInsertionToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{StyleText}
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    label_text::ImmutableCell{StyleText}
 end
+
+WidgetInsertionToGraphicsCanvas(theme::WidgetTheme; measure,
+                                margin = inset_default, border = inset_default, padding = inset_default,
+                                margin_color = color_transparent, border_color = color_transparent,
+                                padding_color = color_transparent, content_color = color_transparent,
+                                label_text = theme.body_text) =
+    WidgetInsertionToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                    padding_color, content_color, label_text)
 
 function print_document(p::WidgetInsertionToGraphicsCanvas, recursion, w::WidgetInsertion, ctx)
     content = "insert here"
-    content_width, content_height = _text_size(p.measure, p.text.font, content)
+    label = _get_part_text(w, :label_text, p.label_text)
+    content_width, content_height = _text_size(p.measure, label.font, content)
+    inset_width, inset_height = _inset_total(p, w)
+    content_x, content_y = _content_offset(p, w)
     elements = Any[]
-    _push_text!(elements, p.text.font, content, 0, 0, p.text.color)
-    SimpleIoMap(p, w, _make_canvas(0, 0, content_width, content_height, elements))
+    _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
+    _push_text!(elements, label.font, content, content_x, content_y, label.color)
+    SimpleIoMap(p, w, _make_canvas(0, 0, content_width + inset_width, content_height + inset_height, elements))
 end
 
 map_reference_forward(::WidgetInsertionToGraphicsCanvas, iomap, reference) = nothing
@@ -1169,7 +1361,6 @@ end
 function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     pos = w.position::Point2D
-    cox, coy = _content_offset(w)
 
     # Editable form: a Document content (e.g. a TextBlock) is recursed through the
     # outer projection chain (which routes it to TextToGraphics). Navigation and
@@ -1185,23 +1376,23 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
             # The box is at least as wide as the widget asks for, and always at
             # least one line tall. An empty document measures nothing in both
             # directions, and a form field of nothing cannot be clicked.
-            tx, ty = _inset_total(w)
+            inset_width, inset_height = _inset_total(p, w)
+            content_x, content_y = _content_offset(p, w)
             # `w.width` is an authored inner width, so it and the offer are both
             # outer measures here: resolve the outer extent by the one rule, then
             # take the inner box back out of it.
-            outer_w = _resolve_width(ctx, w.width > 0 ? w.width + tx : 0,
-                                     Int(inner.w[]) + tx)
+            outer_w = _resolve_width(ctx, w.width > 0 ? w.width + inset_width : 0,
+                                     Int(inner.w[]) + inset_width)
             outer_h = _resolve_height(ctx, 0,
                                       max(Int(inner.h[]),
-                                          _text_size(p.measure, p.text.font, "X")[2]) + ty)
-            iw = outer_w - tx
-            ih = outer_h - ty
+                                          _text_size(p.measure, p.label_text.font, "X")[2]) + inset_height)
             elems = Any[]
-            # Themed input surface: background fill + input outline + rounded corners.
-            _push_box!(elems, w, iw, ih; fill=p.background_color, border=p.border_color, radius=radius)
-            push!(elems, _make_canvas(cox, coy, Any[inner]))
-            _push_focus_ring!(elems, w, outer_w, outer_h, p.ring_color, radius;
-                              whole_color = SELECTION_RING_COLOR)
+            state = w.enabled === false ? :disabled : nothing
+            _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w; state),
+                             outer_w - inset_width, outer_h - inset_height; radius)
+            push!(elems, _make_canvas(content_x, content_y, Any[inner]))
+            _push_focus_ring!(elems, w, outer_w, outer_h, p.focus_ring_stroke, radius;
+                              whole = p.selection_ring_stroke)
             (width=outer_w, height=outer_h, elements=elems)
         end)
         return WidgetTextToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(pos)..., build), content_iomap)
@@ -1210,18 +1401,20 @@ function print_document(p::WidgetTextToGraphicsCanvas, recursion, w::WidgetText,
     # Non-editable form: a plain value is stringified (input-like).
     SimpleIoMap(p, w, _reactive_canvas(_origin(pos)..., () -> begin
         radius = _sc(p.corner_radius)
+        state = w.enabled === false ? :disabled : nothing
+        label = _get_state_text(p, w, :label; state)
         text = string(w.content)
-        cw, ch = _text_size(p.measure, p.text.font, text)
-        tx, ty = _inset_total(w)
-        outer_w = _resolve_width(ctx, w.width > 0 ? w.width + tx : 0, cw + tx)
-        outer_h = _resolve_height(ctx, 0, ch + ty)
-        cw = outer_w - tx
-        ch = outer_h - ty
+        content_width, content_height = _text_size(p.measure, label.font, text)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
+        outer_w = _resolve_width(ctx, w.width > 0 ? w.width + inset_width : 0, content_width + inset_width)
+        outer_h = _resolve_height(ctx, 0, content_height + inset_height)
         elems = Any[]
-        _push_box!(elems, w, cw, ch; fill=p.background_color, border=p.border_color, radius=radius)
-        _push_text!(elems, p.text.font, text, cox, coy, p.text.color)
-        _push_focus_ring!(elems, w, outer_w, outer_h, p.ring_color, radius;
-                          whole_color = SELECTION_RING_COLOR)
+        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w; state),
+                         outer_w - inset_width, outer_h - inset_height; radius)
+        _push_text!(elems, label.font, text, content_x, content_y, label.color)
+        _push_focus_ring!(elems, w, outer_w, outer_h, p.focus_ring_stroke, radius;
+                          whole = p.selection_ring_stroke)
         (width=outer_w, height=outer_h, elements=elems)
     end))
 end
@@ -1257,7 +1450,7 @@ function read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsC
     content_iomap === nothing && return nothing
     op = @event_case evt begin
         MousePress(button, x, y) => begin
-            cox, coy = _content_offset(iomap.input)
+            cox, coy = _content_offset(p, iomap.input)
             # The box can be wider and taller than what it holds: it has a `width`
             # floor, and an empty document measures nothing at all. Clamp the
             # press into the content's own extent, so a click anywhere in the box
@@ -1301,25 +1494,28 @@ function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetC
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         checked = w.content === true
         enabled = !(w.enabled === false)
-        box_size = _sc(p.box_size)
+        box_size = _sc(p.indicator_size)
         corner_radius = _sc(p.corner_radius)
+        inset_width, inset_height = _inset_total(p, w)
+        x, y = _content_offset(p, w)
         elements = Any[]
+        _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w), box_size, box_size)
         # When disabled, the box uses the muted surface and the tick/outline render in
         # the muted foreground, keeping the checked/unchecked shape but signalling that
         # the control is inert (its reader also swallows clicks).
-        checked_fill = enabled ? p.checked_color : p.disabled_color
-        check_color  = enabled ? p.check.color   : p.disabled_foreground
-        empty_fill   = enabled ? p.background_color : p.disabled_color
-        outline_color = enabled ? p.outline.color : p.disabled_foreground
+        state = !enabled ? :disabled : checked ? :checked : nothing
+        indicator_color = _get_state_color(p, w, :indicator; state)
         if checked
-            _push_panel!(elements, 0, 0, box_size, box_size; fill=checked_fill, radius=corner_radius)
-            _push_icon!(elements, :check, 0, 0, box_size, check_color)
+            _push_panel!(elements, x, y, box_size, box_size; fill=indicator_color, radius=corner_radius)
+            _push_icon!(elements, :check, x, y, box_size, _get_state_color(p, w, :check; state))
         else
-            _push_panel!(elements, 0, 0, box_size, box_size; fill=empty_fill,
-                         border=outline_color, border_w=max(1, _sc(p.outline.width)), radius=corner_radius)
+            outline = _get_state_stroke(p, w, :indicator; state)
+            _push_panel!(elements, x, y, box_size, box_size; fill=indicator_color,
+                         border=outline.color, border_w=max(1, _sc(outline.width)), radius=corner_radius)
         end
-        _push_focus_ring!(elements, w, box_size, box_size, p.ring_color, corner_radius)
-        (width=box_size, height=box_size, elements=elements)
+        outer_width, outer_height = box_size + inset_width, box_size + inset_height
+        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, corner_radius)
+        (width=outer_width, height=outer_height, elements=elements)
     end))
 end
 
@@ -1383,14 +1579,15 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         authored_size = w.size::Point2D
         label_content = _button_label_content(w)
-        content_width, content_height = _content_size(p.measure, p.label.font, label_content)
+        content_width, content_height = _content_size(p.measure, p.label_text.font, label_content)
         # A button that can show several labels is as wide as the widest, so the
         # row it stands in does not move when the label changes.
         for other in w.labels
-            content_width = max(content_width, first(_content_size(p.measure, p.label.font, other)))
+            content_width = max(content_width, first(_content_size(p.measure, p.label_text.font, other)))
         end
-        padding_x = _sc(Int(p.padding.left[]))
-        padding_y = _sc(Int(p.padding.top[]))
+        box = _get_box_insets(p, w)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
         # Optional leading icon (Stage 5): a square the size of the label text, with a
         # gap before the label. An unknown icon name contributes nothing.
         icon = _button_icon(w)
@@ -1398,39 +1595,49 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         icon_w  = icon_width(icon, icon_sz)
         icon_gap = icon_w > 0 ? _sc(6) : 0
         full_w = icon_w + icon_gap + content_width
-        button_width  = _resolve_width(ctx, Int(authored_size.x[]), full_w + 2padding_x)
-        button_height = _resolve_height(ctx, Int(authored_size.y[]), content_height + 2padding_y)
+        button_width  = _resolve_width(ctx, Int(authored_size.x[]), full_w + inset_width)
+        button_height = _resolve_height(ctx, Int(authored_size.y[]), content_height + inset_height)
+        inner_width, inner_height = button_width - inset_width, button_height - inset_height
         corner_radius = _sc(p.corner_radius)
-        # State-driven surface: pressed > hover > resting. The reader keeps the
-        # widget's transient `pressed`/`hovered` cells current; reading them here ties
-        # the rendered fill to that state reactively. A disabled button (or one bound to
-        # a disabled command) ignores that state entirely: flat muted surface, muted
-        # label, no shadow (its reader also never sets pressed/hovered).
+        # State-driven surface. The reader keeps the widget's transient
+        # `pressed`/`hovered` cells current; reading them here ties the rendered
+        # layer to that state reactively. A hovered or a pressed button draws a
+        # translucent layer over its surface, so the state shows over any surface
+        # color. A disabled button (or one bound to a disabled command) ignores
+        # that state entirely: its own muted surface and label, no shadow (its
+        # reader also never sets pressed/hovered).
         enabled = _button_enabled(w)
         pressed = enabled && w.pressed === true
         hovered = enabled && w.hovered === true
-        fill = !enabled ? p.disabled_color :
-               pressed ? p.active_color : hovered ? p.hover_color : p.background_color
-        label = enabled ? p.label : StyleText(p.label.font, p.disabled_foreground)
+        state = enabled ? nothing : :disabled
+        label = _get_state_text(p, w, :label; state)
+        # The rect of the border: the box without its margin.
+        margin_left, margin_top, margin_right, margin_bottom = box.margin
+        border_box_width = button_width - margin_left - margin_right
+        border_box_height = button_height - margin_top - margin_bottom
         elements = Any[]
         # Default button: light surface, subtle border, soft shadow, dark label —
         # matching the shadcn default button. A faint offset rect approximates the
         # shadow-sm drop shadow; it is dropped while pressed (so the button "sinks")
         # and while disabled (so it reads as inert/flat).
         if enabled && !pressed
-            push!(elements, GraphicsRect(0, _sc(p.shadow_offset), button_width, button_height, StyleColor(0.0, 0.0, 0.0, 0x14 / 255), corner_radius))
+            _push_panel!(elements, margin_left, margin_top + _sc(p.shadow_offset), border_box_width,
+                         border_box_height; fill = p.shadow_color, radius = corner_radius)
         end
-        _push_panel!(elements, 0, 0, button_width, button_height; fill=fill,
-                     border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=corner_radius)
+        _push_box_parts!(elements, box, _get_box_colors(p, w; state), inner_width, inner_height;
+                         radius = corner_radius)
+        _push_state_layer!(elements, pressed ? p.layer_pressed_color : hovered ? p.layer_hovered_color : nothing,
+                           margin_left, margin_top, border_box_width, border_box_height; radius = corner_radius)
         # Lay out icon + label as one centered group; the icon tints to the label color
         # (so it mutes with the button), the label sits to its right.
-        start_x = (button_width - full_w) ÷ 2
-        cy = (button_height - content_height) ÷ 2
+        start_x = content_x + (inner_width - full_w) ÷ 2
+        cy = content_y + (inner_height - content_height) ÷ 2
         if icon_w > 0
-            _push_icon!(elements, icon, start_x, (button_height - icon_sz) ÷ 2, icon_sz, label.color)
+            _push_icon!(elements, icon, start_x, content_y + (inner_height - icon_sz) ÷ 2, icon_sz, label.color)
         end
-        _push_content!(elements, p.measure, label, label_content, start_x + icon_w + icon_gap, cy, content_width, content_height)
-        _push_focus_ring!(elements, w, button_width, button_height, p.ring_color, corner_radius)
+        _push_content!(elements, p.measure, label, label_content, start_x + icon_w + icon_gap, cy, content_width,
+                       content_height; placeholder_color = p.placeholder_color)
+        _push_focus_ring!(elements, w, button_width, button_height, p.focus_ring_stroke, corner_radius)
         (width=button_width, height=button_height, elements=elements)
     end))
 end
@@ -1513,14 +1720,11 @@ function print_document(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTo
     # The child is reconciled and forced only in the WidgetDocument branch.
     child_iomap = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
     build = ComputedCell(() -> begin
-        cox, coy = _content_offset(w)
-        tx, ty = _inset_total(w)
-        # Use sensible default padding when the document specifies none, so the box
-        # never hugs the text.
-        default_padding_x = _sc(Int(p.default_padding.left[]))
-        default_padding_y = _sc(Int(p.default_padding.top[]))
-        cox = max(cox, default_padding_x); coy = max(coy, default_padding_y)
-        txp = max(tx, 2default_padding_x); typ = max(ty, 2default_padding_y)
+        # The padding of the projection keeps the box off the text, unless the
+        # document gives a padding of its own.
+        cox, coy = _content_offset(p, w)
+        txp, typ = _inset_total(p, w)
+        label = _get_part_text(w, :label_text, p.label_text)
         child_iomaps = Any[]
         content = w.content
         elems = Any[]
@@ -1528,8 +1732,8 @@ function print_document(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTo
         cw, ch = 0, 0
         body = Any[]
         if content isa AbstractString
-            cw, ch = _text_size(p.measure, p.text.font, content)
-            _push_text!(body, p.text.font, content, cox, coy, p.text.color)
+            cw, ch = _text_size(p.measure, label.font, content)
+            _push_text!(body, label.font, content, cox, coy, label.color)
         elseif content isa WidgetDocument
             cim = child_iomap[]
             inner = cim.output
@@ -1538,13 +1742,12 @@ function print_document(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTo
             push!(body, _make_canvas(cox, coy, Any[inner]))
         end
         # The size the caller asked for is a floor, its content is the other floor,
-        # and the window is the ceiling. `w.size` was never read before, though the
-        # line above has always claimed it was.
+        # and the window is the ceiling.
         sz = w.size
         vw = _resolve_overlay(ctx, :x, sz isa Point2D ? Int(sz.x[]) : 0, cw + txp)
         vh = _resolve_overlay(ctx, :y, sz isa Point2D ? Int(sz.y[]) : 0, ch + typ)
-        _push_panel!(elems, 0, 0, vw, vh; fill=p.surface_color,
-                     border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
+        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), vw - txp, vh - typ;
+                         radius = _sc(p.corner_radius))
         append!(elems, body)
         (width=vw, height=vh, elements=elems, child_iomaps=child_iomaps)
     end)
@@ -7336,24 +7539,12 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
     # their fields in Cells (a bare Function would be read as a thunk).
     measurer = TextMeasurer(measure)
     TypeDispatchingProjection(
-        WidgetInsertion  => WidgetInsertionToGraphicsCanvas(measurer, theme.body_text),
-        WidgetLabel      => WidgetLabelToGraphicsCanvas(measurer, theme.body_text),
-        WidgetText       => WidgetTextToGraphicsCanvas(measurer, theme.body_text, theme.background, theme.input, theme.radius, theme.ring),
-        WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(
-            18, theme.radius ÷ 2,
-            theme.primary, StyleStroke(theme.primary_foreground, theme.stroke),
-            theme.background, StyleStroke(theme.input, theme.stroke),
-            theme.muted, theme.muted_foreground, theme.ring),
-        WidgetButton     => WidgetButtonToGraphicsCanvas(
-            measurer, theme.label_text, theme.background,
-            theme.accent, theme.muted,
-            StyleStroke(theme.border, theme.border_width),
-            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x),
-            theme.radius, 2,
-            theme.muted, theme.muted_foreground, theme.ring),
-        WidgetTooltip    => WidgetTooltipToGraphicsCanvas(measurer, StyleText(theme.font, theme.popover_foreground),
-            theme.popover, StyleStroke(theme.border, theme.border_width), theme.radius,
-            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x)),
+        WidgetInsertion  => WidgetInsertionToGraphicsCanvas(theme; measure = measurer),
+        WidgetLabel      => WidgetLabelToGraphicsCanvas(theme; measure = measurer),
+        WidgetText       => WidgetTextToGraphicsCanvas(theme; measure = measurer),
+        WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(theme),
+        WidgetButton     => WidgetButtonToGraphicsCanvas(theme; measure = measurer),
+        WidgetTooltip    => WidgetTooltipToGraphicsCanvas(theme; measure = measurer),
         WidgetContextMenu => WidgetContextMenuToGraphicsCanvas(measurer, theme.font),
         WidgetDialog     => WidgetDialogToGraphicsCanvas(measurer, theme.title_text, theme.body_text,
             theme.card, StyleStroke(theme.border, theme.border_width), theme.radius,
