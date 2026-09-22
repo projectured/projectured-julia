@@ -9,6 +9,9 @@ mutable struct _PaneReaderMockEditor
     document::Any
 end
 
+# A projection with no reader of its own, so the reader of `Projection` answers.
+struct _PaneReaderGenericStage <: Projection end
+
 function test_pane_reader()
 @testset "PaneToWidget reader" begin
 
@@ -198,6 +201,19 @@ end
     @test read_intent(pane_stage, pane_iomap, SelectTabOperation(stranger, 1)) === nothing
     @test read_intent(pane_stage, pane_iomap, CloseTabOperation(stranger, 1)) === nothing
     @test read_intent(pane_stage, pane_iomap, OpenTabOperation(stranger)) === nothing
+end
+
+@testset "a report of the strip passes a projection that is not a widget" begin
+    # Between the strip and the tree, a projection that is not a widget has no
+    # reader for a report, so the reader of `Projection` answers for it. A report
+    # names its tabbed pane and no place, so that reader passes it up unchanged.
+    pane = WidgetTabbedPane(Any[("x", WidgetLabel(Point2D(0, 0), "x"))])
+    between = _PaneReaderGenericStage()
+    iomap = SimpleIoMap(between, pane, pane)
+    for report in (CloseTabOperation(pane, 1), OpenTabOperation(pane),
+                   DragTabOperation(pane, 1), DuplicateTabOperation(pane, 1))
+        @test read_intent(between, iomap, report) === report
+    end
 end
 
 @testset "a splitter drag runs from the pointer" begin

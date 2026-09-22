@@ -2700,13 +2700,8 @@ end
 # page is dead while it looks and draws exactly right.
 OperationModule.operation_travels_unchanged(::Union{
     InvokeActionOperation, CloseTabOperation, OpenTabOperation,
-    DragTabOperation, StartSplitterDragOperation, ResizeSplitPaneOperation,
-    EndSplitterDragOperation}) = true
-
-# SetWidgetHoverOperation / SetWidgetPressedOperation were folded into
-# ReplaceReferencedValueOperation: the WidgetButton reader emits
-# `ReplaceReferencedValueOperation(widget, "hovered"/"pressed", bool)`. See
-# plan/done/consolidate-operations-replace.md (step 2).
+    DragTabOperation, DuplicateTabOperation, StartSplitterDragOperation,
+    ResizeSplitPaneOperation, EndSplitterDragOperation}) = true
 
 # ── Dormant selections ─────────────────────────────────────────────────────
 #

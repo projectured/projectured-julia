@@ -89,7 +89,7 @@ The other operations are in `WidgetDocument.jl`:
 | `CloseTabOperation`, `OpenTabOperation`, `DragTabOperation`, `DuplicateTabOperation` | a button of the tab strip, or a button down on a tab |
 | `StartSplitterDragOperation`, `ResizeSplitPaneOperation`, `EndSplitterDragOperation` | a drag of a divider of a split pane |
 
-These name their subject and not a place. `operation_travels_unchanged` is `true` for them, except `DuplicateTabOperation`, so the generic reader of every projection passes them up. So a button inside a card inside a domain projection reaches the editor. A tab click is a `ReplaceSelectionOperation` of `selector_element_pairs[i]`.
+These name their subject and not a place. `operation_travels_unchanged` is `true` for them, so the generic reader of every projection passes them up. So a button inside a card inside a domain projection reaches the editor. A tab click is a `ReplaceSelectionOperation` of `selector_element_pairs[i]`.
 
 The four tab-strip operations only report a press. A tabbed pane draws the buttons when its flags `closable`, `new_tab`, `draggable` and `duplicable` are set. The meaning of a close belongs to the projection that owns the tabs: [pane.md](../pane/pane.md) answers all four. A report that no projection answers does nothing in `evaluate_operation`. `_tab_strip_geometry` lays out the strip for the printer and the reader both, so a change of the strip goes into that function.
 
