@@ -189,7 +189,7 @@ end
 
 """
     make_application_window(paths; root = pwd(), assistant = nothing,
-                            gesture_log = false, measure = measure_truetype_text)
+                            pointer = nothing, measure = measure_truetype_text)
         -> (document, projection)
 
 The application window, wrappers and all: the document of
@@ -200,10 +200,6 @@ The application window, wrappers and all: the document of
 **One place says which wrappers this binary has.** `run_application`, the
 warm-up of a build and the suite all come here, so none of them can hold a list
 of its own that drifts from the others.
-
-`gesture_log` is the `--gesture-log` flag, and it adds only the corner panel. The
-log itself is always recorded, because a gesture log a person opens in a tab is
-the session's own and must already hold what happened before the tab existed.
 
 `pointer` answers where the pointer is, in screen coordinates, and it is what
 turns the tooltip on: a tooltip is shown in a window of its own beside the
@@ -218,12 +214,12 @@ a cut would write into the record.
 """
 function make_application_window(paths::AbstractVector;
                                  root::AbstractString = pwd(), assistant = nothing,
-                                 gesture_log::Bool = false, pointer = nothing,
+                                 pointer = nothing,
                                  measure = measure_truetype_text)
     document = make_application_document(paths; root = root, assistant = assistant)
     projection = make_application_projection(; measure = measure)
     make_window_wrap(; gesture_help = true, command_palette = true,
-                       gesture_log = gesture_log, selection = true,
+                       selection = true,
                        history = _with_window_history,
                        tooltip = pointer === nothing ? nothing : compute_tooltip,
                        pointer = pointer,
@@ -326,8 +322,6 @@ window closes.
 - `context` is how many tokens of the conversation the model may see; `0` leaves
   the backend's own answer. It matters for a local model, whose window costs
   memory on this machine.
-- `gesture_log` puts a panel in a corner listing the last gestures and what each
-  one did.
 
 # Example
 
@@ -337,14 +331,12 @@ function run_application(paths::AbstractString...;
                          backend = nothing, assistant::Symbol = :ollama,
                          model::AbstractString = "", mcp::Bool = false,
                          root::AbstractString = pwd(), context::Integer = 0,
-                         gesture_log::Bool = false,
                          width = nothing, height = nothing,
                          measure = measure_truetype_text)
     chat = make_application_assistant(assistant; model = model, context = context)
     backend === nothing && (backend = default_backend())
     document, projection = make_application_window(collect(String, paths);
                                                    root = root, assistant = chat,
-                                                   gesture_log = gesture_log,
                                                    pointer = () -> get_pointer_position(backend),
                                                    measure = measure)
     # What a log view shows is what the program said, and what says it is the
@@ -389,13 +381,10 @@ function parse_application_arguments(arguments::AbstractVector{<:AbstractString}
                                  "assistant" => "ollama", "model" => "",
                                  "root" => pwd(), "context" => "0")
     mcp = false
-    gesture_log = false
     files = String[]
     for argument in arguments
         if argument == "--mcp"
             mcp = true
-        elseif argument == "--gesture-log"
-            gesture_log = true
         elseif startswith(argument, "--") && occursin('=', argument)
             key, value = split(argument[3:end], '='; limit = 2)
             haskey(values, key) || error("unknown option $(repr(argument))")
@@ -415,7 +404,7 @@ function parse_application_arguments(arguments::AbstractVector{<:AbstractString}
     (context === nothing || context < 0) &&
         error("--context is a count of tokens, not ", repr(values["context"]))
     (; files, backend, assistant,
-       model = values["model"], root = values["root"], mcp, context, gesture_log)
+       model = values["model"], root = values["root"], mcp, context)
 end
 
 """
@@ -448,7 +437,7 @@ function run_application_command(arguments; backends)
                         backend = backends[backend](),
                         assistant = command.assistant, model = command.model,
                         mcp = command.mcp, root = command.root,
-                        context = command.context, gesture_log = command.gesture_log)
+                        context = command.context)
         Cint(0)
     catch err
         err isa InterruptException && return Cint(0)

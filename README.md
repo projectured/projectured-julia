@@ -50,14 +50,13 @@ bin/projectured
 
 `bin/projectured` opens a window with a file navigator on the left, the open files in tabs in the middle, and the assistant on the right. The navigator lists the directory you start it in, and a double click opens a file. Name the files on the command line to open them at once: `bin/projectured notes.md data.json`. The first start compiles the code, which takes some minutes; later starts are fast.
 
-The window is drawn in its own chrome: a menu bar, a toolbar and a status line that says which tab has the focus. A right press opens the menu the thing under the pointer offers, **F1** lists the keys that work where you are, and **Ctrl+Shift+P** finds a command by its name.
+The window is drawn in its own chrome: a menu bar, a toolbar and a status line that says which tab has the focus. A right press opens the menu the thing under the pointer offers, **F1** lists the keys that work where you are, and **Ctrl+Shift+P** finds a command by its name. **View → Gesture log** opens a tab that lists every gesture of the session and what each one did, including the gestures made before the tab opened.
 
 ```sh
 bin/projectured --help                       # every option
 bin/projectured --assistant=none notes.txt   # no assistant
 bin/projectured --backend=web a.json         # in a browser, at http://127.0.0.1:8080
 bin/projectured --mcp a.json                 # with an MCP server for an external client
-bin/projectured --gesture-log a.json         # list each gesture and what it did
 ```
 
 The menu bar has **Open** and **Save As** for a file outside the directory the navigator lists. `save_user_interface(editor, path)` writes the whole window — its panes, its tabs and what each one holds — to one file, and `load_user_interface(path)` brings it back; an open file tab is saved as a reference to its file, not as a copy.

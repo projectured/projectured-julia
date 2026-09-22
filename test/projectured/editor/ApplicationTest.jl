@@ -24,6 +24,20 @@ _app_plain(operation) =
 
 _app_count_tabs(tree::PaneTree) = sum(length(group.tabs) for group in get_pane_groups(tree))
 
+# Every string a printed window draws, so a case asks what is on the screen and
+# not what a document holds.
+function _app_drawn_strings(node, found = String[])
+    node === nothing && return found
+    if hasproperty(node, :elements)
+        foreach(element -> _app_drawn_strings(element, found), node.elements)
+    elseif hasproperty(node, :text) && node.text isa AbstractString
+        push!(found, String(node.text))
+    elseif hasproperty(node, :content)
+        _app_drawn_strings(node.content, found)
+    end
+    found
+end
+
 # One small file of each format in `dir`. `TestRun` is the `.pred` document of
 # FileProjectTest.jl, in this module.
 function _app_write_files(dir)
@@ -121,16 +135,19 @@ function test_application()
             @test command.files == String[]
             @test command.backend === nothing && command.assistant === :ollama
             @test command.model == "" && !command.mcp
-            @test command.context == 0 && !command.gesture_log
+            @test command.context == 0
             command = parse_application_arguments(
                 ["a.json", "--backend=web", "--assistant=none",
                  "--model=small", "--root=/tmp", "--mcp", "--context=8192",
-                 "--gesture-log", "b.md"])
+                 "b.md"])
             @test command.files == ["a.json", "b.md"]
             @test command.backend === :web
             @test command.assistant === :none && command.model == "small"
             @test command.root == "/tmp" && command.mcp
-            @test command.context == 8192 && command.gesture_log
+            @test command.context == 8192
+            # The gesture log is read in a tab, which View opens, so no switch
+            # turns it on.
+            @test_throws ErrorException parse_application_arguments(["--gesture-log"])
             @test_throws ErrorException parse_application_arguments(["--context=many"])
             @test_throws ErrorException parse_application_arguments(["--context=-1"])
             @test_throws ErrorException parse_application_arguments(["--colour=red"])
@@ -149,9 +166,9 @@ function test_application()
             usage = make_projectured_usage([:sdl, :web])
             flags = Set(first(split(label, '=')) for (label, _) in usage.options)
             @test flags == Set(["--backend", "--assistant", "--model",
-                                "--root", "--mcp", "--context", "--gesture-log"])
-            # A flag spells a word with a hyphen and a keyword with an
-            # underscore, so `--gesture-log` is `gesture_log`.
+                                "--root", "--mcp", "--context"])
+            # A flag and the keyword it sets spell the same word, so
+            # `--context` is `context`.
             for flag in flags
                 @test haskey(pairs(parse_application_arguments(String[])),
                              Symbol(replace(flag[3:end], '-' => '_')))
@@ -192,6 +209,31 @@ function test_application()
                 evaluate_operation(editor, operation)
                 @test occursin("Bob", read(json, String))
                 write_document_file(parse_natural_text(:json, "{\"name\": \"Alice\", \"age\": 30}"), json)
+            end
+
+            @testset "View opens the gesture log in a tab, and the window draws it" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                editor = _AppFakeEditor(scene, iomap)
+                drawn() = _app_drawn_strings(print_document(composed, scene).output.windows[1].content)
+                @test !any(text -> occursin("Gestures", text), drawn())
+                function walk(node)
+                    if node isa WidgetMenuItem
+                        string(node.action.label) == "Gesture log" && return node.action
+                        node.submenu isa WidgetMenu && return walk(node.submenu)
+                    elseif node isa WidgetMenu
+                        for element in node.elements
+                            found = walk(element)
+                            found === nothing || return found
+                        end
+                    end
+                    nothing
+                end
+                action = walk(make_window_menu_bar())
+                @test action !== nothing
+                evaluate_operation(editor, InvokeActionOperation(action))
+                tabs = [tab for group in get_pane_groups(_app_window(document)) for tab in group.tabs]
+                @test count(tab -> tab.content === get_session_gesture_log(), tabs) == 1
+                @test any(text -> occursin("Gestures", text), drawn())
             end
 
             @testset "the navigator opens a file beside the files" begin
