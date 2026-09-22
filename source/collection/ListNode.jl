@@ -29,36 +29,35 @@ end
 ListNode(value) =
     ListNode(Cell(value), Cell(nothing), Cell(nothing), Cell(nothing))
 
-# A list is copied node by node, both ways from the node held, and the copies are
-# linked again: the generic walk would follow `next` into `prev` and back without
-# end. A `next` that a cell computes on demand is read here, so the copy holds
-# every node the list reaches.
+# A list is copied lazily, as `CopyingProjection` projects one. The node held is
+# copied at once, and `prev` and `next` of each copy are cells that copy the
+# neighbour when they are read, and link it back. A list can have no end in either
+# direction, and a copy of it costs one node until it is read. The generic walk
+# would follow `next` into `prev` and back without end.
 function copy_document(policy::CopyPolicy, held::ListNode)
     is_descendable_for_copy(policy, held) || return make_copy_placeholder(policy, held)
-    copied = ListNode(copy_document(policy, held.value))
-    last = copied
-    node = held.next
-    while node !== nothing
-        following = ListNode(copy_document(policy, node.value))
-        _link_list_nodes!(last, following)
-        last = following
-        node = node.next
-    end
-    first = copied
-    node = held.prev
-    while node !== nothing
-        preceding = ListNode(copy_document(policy, node.value))
-        _link_list_nodes!(preceding, first)
-        first = preceding
-        node = node.prev
-    end
+    _copy_list_node(policy, held)
+end
+
+function _copy_list_node(policy::CopyPolicy, original::ListNode)
+    copied = ListNode(copy_document(policy, original.value))
+    set_cell_function!(getfield(copied, :next), () -> _copy_list_link(policy, original, copied, :next, :prev))
+    set_cell_function!(getfield(copied, :prev), () -> _copy_list_link(policy, original, copied, :prev, :next))
     copied
 end
 
-function _link_list_nodes!(before::ListNode, after::ListNode)
-    set_cell_value!(getfield(before, :next), after)
-    set_cell_value!(getfield(after, :prev), before)
-end
+# The copy of the node that `link` of `original` holds, with its `back` link set
+# to `copied`, or `nothing` at the end of the list. The copy is made in a cell of
+# its own that is read with `peek`, so the link of the copy depends on no cell of
+# the original: once read, it keeps the node that it copied.
+_copy_list_link(policy::CopyPolicy, original::ListNode, copied::ListNode, link::Symbol, back::Symbol) =
+    peek(ComputedCell(() -> begin
+        linked = unwrap_cell(getfield(original, link))
+        linked === nothing && return nothing
+        linked_copy = _copy_list_node(policy, linked)
+        set_cell_value!(getfield(linked_copy, back), copied)
+        linked_copy
+    end))
 
 Base.getindex(n::ListNode)      = n.value
 Base.setindex!(n::ListNode, v)  = (n.value = v; v)

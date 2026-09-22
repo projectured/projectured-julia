@@ -44,7 +44,7 @@ SyntaxNode(ComputedCellVector(() -> [project_child(c) for c in input.children]);
 
 A `ListNode` is the middle of a chain. `prev` and `next` are two tails that grow outward, and each is a cell, so a thunk can compute either one. A chain can then have no end in either direction, and only the nodes that a reader walks to exist. `head[1]` is the held node, `head[2]` walks `next` and `head[0]` walks `prev`. `push!` adds to the right tail, `pushfirst!` to the left tail, and iteration starts at `get_left_tail`. `take_first(node, n)` and `take_first(node, n_prev, n_next)` read a finite window.
 
-`CopyingProjection` of [projection.md](../projection/projection.md) copies a list node by node on demand, so a copy of an endless list costs nothing until it is read. A `GraphicsCanvas` holds a `ListNode` for a view whose elements have no end; see [graphics.md](../graphics/graphics.md).
+`CopyingProjection` of [projection.md](../projection/projection.md) copies a list node by node on demand, so a copy of an endless list costs nothing until it is read. `copy_document` copies a list in the same way: it copies the held node at once, and a neighbour when `prev` or `next` of the copy is read. A link of the copy that was read keeps its node, and it does not follow a later change of the original. A `GraphicsCanvas` holds a `ListNode` for a view whose elements have no end; see [graphics.md](../graphics/graphics.md).
 
 ### Seams for the kernel
 
@@ -102,4 +102,4 @@ take_first(head, 2)                       # ["alpha", "beta"]
 
 - `CellVector(a, b)` with two arguments calls the constructor of the struct, `(elements, selection)`, and does not make a vector of two elements. Write `CellVector([a, b])`.
 - An insert or a delete of a row or a column of a `CellMatrix` allocates a new matrix. The cells stay the same.
-- `copy_document` of a `ListNode` walks every node in both directions, so a deep copy of a list without an end does not finish.
+- The kinded copy `copy_document(K, node)` of a `ListNode` follows `next` into `prev` and back, and raises a `StackOverflowError` for a list of two nodes.

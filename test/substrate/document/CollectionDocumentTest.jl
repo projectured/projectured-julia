@@ -145,6 +145,38 @@ first_5_from_100 = take_first(inf_ints_100, 5, :next)
     @test copied.next.next === nothing && copied.prev.prev === nothing
 end
 
+@testset "a copy of a list without an end ends, and copies a node when it is read" begin
+    # Each `next` computes a new node when it is read, so the list has no end. A
+    # read takes a millisecond, so a copy that walks the list does not end in the
+    # bound below; `stop` then ends that walk at the next node it reads.
+    stop = Threads.Atomic{Bool}(false)
+    reads = Threads.Atomic{Int}(0)
+    function make_endless_node(i)
+        node = ListNode(PrimitiveNumber(i))
+        set_cell_function!(getfield(node, :next), () -> begin
+            Threads.atomic_add!(reads, 1)
+            sleep(0.001)
+            stop[] ? nothing : make_endless_node(i + 1)
+        end)
+        node
+    end
+    head = make_endless_node(1)
+    task = Threads.@spawn copy_document(head)
+    finished = timedwait(() -> istaskdone(task), 5.0) === :ok
+    finished || (stop[] = true)
+    @test finished
+    copied = fetch(task)
+    @test reads[] == 0
+    @test copied.value.value == 1 && copied.value !== head.value
+    @test copied.next.next.value.value == 3
+    @test copied.next.prev === copied
+    @test copied.next.next.prev === copied.next
+    @test reads[] == 2
+    # A node of the copy, once read, does not follow a change of the original.
+    head.next.value.value = 20
+    @test copied.next.value.value == 2
+end
+
 end # @testset "ReactiveCollection"
 
 @testset "CellVector protocol" begin
