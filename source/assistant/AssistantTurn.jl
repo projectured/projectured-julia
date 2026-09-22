@@ -418,22 +418,21 @@ end
 
 Walk the conversation and produce the `LlmMessage`s the provider seam takes.
 
-Code executions are all stored as `ConversationCodeExecution`, with the
-originator carried on the `initiator` field:
+A code execution is an `EvaluatorForm` part, and the role of the turn that
+holds it says who ran it:
 
-  * `:user`      (ALT+ENTER) → serialised as a single `user` text turn
+  * a `:user` turn      (ALT+ENTER) → serialised as a single `user` text turn
     ("I ran the following Julia code: …  Result: …"). Claude sees this
     as the human reporting an execution they did themselves.
 
-  * `:assistant` (Claude calling `execute_julia_code`) → reassembled into
+  * an `:assistant` turn (Claude calling `execute_julia_code`) → reassembled into
     the tool-use shape: appended to the preceding
     assistant message as a `tool_use` block (using `tool_use_id`), and
     followed by a `user` turn whose `tool_result` block carries the
     result. The id pairs the two so the API recognises the call.
 
-Keep the `initiator` distinction load-bearing here: collapsing user calls
-into the tool-use shape would tell Claude it had asked for a run it
-never requested.
+Keep the turn's role load-bearing here: collapsing a user call into the
+tool-use shape would tell Claude it had asked for a run it never requested.
 
 The walk starts at the first `:user` turn. A conversation may open with an
 assistant turn nobody sent — a pane that greets the person on open writes one —
