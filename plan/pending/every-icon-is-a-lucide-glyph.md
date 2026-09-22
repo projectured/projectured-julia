@@ -1,9 +1,7 @@
 # Every icon is a Lucide glyph
 
-**Status (2026-09-22): IN PROGRESS.** Branch `every-icon-is-a-lucide-glyph`, in
-the worktree `workspace/projectured-julia-lucide-icons`. **Nothing lands on
-`main` before the owner has seen the result** (the owner's condition,
-2026-09-22). Step 7 is that review.
+**Status (2026-09-22): LANDING.** The owner reviewed the result and approved
+landing (Step 7). projectured-julia is on `main`; omnet-julia follows.
 
 **Goal:** every icon that the user interface draws comes from one icon font,
 Lucide, and is drawn as a glyph through the text renderer. So each icon has
@@ -282,11 +280,18 @@ commit `70d4febf`; and one commit here, `b7a5a3c3`.
 
 ### Step 7: the owner's review
 
-**Waiting for the owner.** Nothing is merged into `main` in either repository.
-
-- [ ] The owner sees the pictures, and can run
-      `~/workspace/projectured-julia-lucide-icons/bin/projectured`.
-- [ ] Only after the owner agrees: land projectured-julia, then omnet-julia.
+- [x] The owner saw a review sheet (the application window and a simulation
+      page drawn as the live window draws, and before-and-after pairs of the
+      gallery) and approved landing on 2026-09-22.
+- [x] projectured-julia: rebased onto `eae964d2` (19 commits of `main`; one
+      file in common, `WindowChrome.jl`, merged without conflict). On the
+      rebased branch the suites fail only what the branch point failed:
+      `test_substrate()` 62988 (the split pane drag tests), `test_shell()` 158,
+      `test_fault()` 73, `test_filesystem()` 28, `test_conversation()` 166 (the
+      layering guard), `test_application()` 119, `test_builder()` 167,
+      `test_write_pdf()` passes. The 11 gallery pictures drawn again on the
+      rebased branch are the same, pixel for pixel. Landed with a fast-forward.
+- [ ] omnet-julia: rebase, test, land.
 
 ### Step 8: close
 
