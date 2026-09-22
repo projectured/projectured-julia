@@ -1251,6 +1251,34 @@ function _focused_child(w::SectionsWiring, iomap, sel)
     nothing
 end
 
+"""
+    find_template_value_retype(iomap::RuleIoMap, reference) -> Type | Nothing
+
+The operation type that the leaf rule under `reference` makes of a text edit of
+its bound value: the `retype` of its `bound`, or `nothing` when it has none.
+`reference` is in the input domain of `iomap`, with no type checkpoints. A leaf
+answers for an edit of its own bound field. A node descends into the child that
+`reference` enters, so a leaf in a container retypes an edit as it does when it
+is the document.
+"""
+function find_template_value_retype(iomap::RuleIoMap, reference)
+    w = iomap.wiring
+    if w isa AtomicWiring
+        return reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
+               Symbol(reference.head.name) === w.bound_field ? w.retype : nothing
+    end
+    focused = _focused_child(w, iomap, reference)
+    focused === nothing && return nothing
+    child, steps = focused
+    child isa RuleIoMap || return nothing
+    rest = reference
+    for _ in steps
+        rest isa ConcreteReference || return nothing
+        rest = rest.tail
+    end
+    find_template_value_retype(child, rest)
+end
+
 # Innermost-first, bubbling to the nearest enclosing structural node: delegate to the
 # selected child's projection (lifting its operation back into this node's input
 # domain), and only when the child declines fall back to this node's own reified

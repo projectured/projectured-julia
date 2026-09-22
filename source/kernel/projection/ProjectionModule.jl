@@ -93,7 +93,7 @@ export PrinterContext, make_child_context, with_available_size, withhold_offer,
 export make_children_container, get_children_container_type
 export get_projection_gesture_bindings, read_projection_gesture
 export RuleIoMap, var"@projection_template"
-export print_template_rule, read_template_intent, make_template_builder
+export print_template_rule, read_template_intent, make_template_builder, find_template_value_retype
 
 include("ChildrenContainer.jl")
 include("PrinterContext.jl")

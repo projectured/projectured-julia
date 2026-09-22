@@ -153,6 +153,31 @@ end
     @test arr[1].value === 425
 end
 
+@testset "a digit typed into a cleared number in a container makes a number" begin
+    chain = ChainingProjection(RecursiveProjection(JsonToSyntax()),
+                               RecursiveProjection(SyntaxToText()),
+                               TextToGraphics(measure = measure_truetype_text))
+    function type_key!(document, caret, key)
+        set_selection!(document, caret)
+        op = read_intent(chain, print_document(chain, document), KeyPress(key))
+        op === nothing || evaluate_operation(_JsonReaderEditor(document, nothing), op)
+        op
+    end
+    # The number leaf retypes the edit also when a container holds it.
+    arr = JsonArray([JsonNumber(nothing)])
+    @test type_key!(arr, @reference(arr, elements[1].value{0}), '5') isa ReplaceNumberRangeOperation
+    @test arr[1].value === 5
+    @test type_key!(arr, @reference(arr, elements[1].value{1}), 'a') === nothing
+    @test arr[1].value === 5
+    obj = JsonObject("k" => JsonNumber(nothing))
+    @test type_key!(obj, @reference(obj, entries[1].value.value{0}), '7') isa ReplaceNumberRangeOperation
+    @test obj.entries[1].value.value === 7
+    # A string in a container stays a string edit.
+    strings = JsonArray([JsonString("ab")])
+    @test type_key!(strings, @reference(strings, elements[1].value{2}), '5') isa ReplaceStringRangeOperation
+    @test strings[1].value == "ab5"
+end
+
 @testset "array insert appends an insertion and selects it" begin
     arr = JsonArray([JsonNumber(1)])
     op = read_key(arr, whole, KeyPress(','))

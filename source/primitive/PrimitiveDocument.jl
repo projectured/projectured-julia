@@ -206,11 +206,28 @@ function evaluate_operation(editor, op::ReplaceStringRangeOperation)
     value = getproperty(target, field)
     # A text layer edits a number with a string edit, and the number ignores it
     # the way it ignores a number edit. A `Bool` is a `Number` to Julia and not
-    # to a person, so its edit is not filtered here.
-    value isa Number && !(value isa Bool) &&
+    # to a person, so its edit is not filtered here. A cleared number holds
+    # `nothing`, and its declared type says that the edit makes a number.
+    is_cleared_number = value === nothing && _is_number_field(target, field)
+    (value isa Number && !(value isa Bool) || is_cleared_number) &&
         !has_only_number_characters(op.replacement) && return
-    splice_value!(target, field, value, range_step.start, range_step.stop, op.replacement)
+    if is_cleared_number
+        setproperty!(target, field,
+                     splice_number("", range_step.start, range_step.stop, op.replacement))
+    else
+        splice_value!(target, field, value, range_step.start, range_step.stop, op.replacement)
+    end
     _replace_selection_with_cursor!(document, op)
+end
+
+# Whether `field` of `target` is declared to hold a number and not a text, read
+# from the native layout of its schema. A document with no native layout, such as
+# a hand-written one, answers `false`.
+function _is_number_field(target, field::Symbol)
+    native = get_document_native_type(target)
+    (native === nothing || !hasfield(native, field)) && return false
+    declared = fieldtype(native, field)
+    !(String <: declared) && Int <: declared
 end
 
 # Propagate a zero-width cursor selection at the post-edit position down

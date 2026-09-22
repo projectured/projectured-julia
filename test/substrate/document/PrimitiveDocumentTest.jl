@@ -147,6 +147,31 @@ end
     @test doc.value === 425
 end
 
+@testset "a string edit of a cleared number keeps a number" begin
+    # A cleared number holds `nothing`; its declared type says that a digit makes
+    # a number of it, and a letter is ignored.
+    doc = PrimitiveNumber(nothing)
+    evaluate_operation((document=doc,), ReplaceStringRangeOperation(_value_range_ref(0, 0), "5"))
+    @test doc.value === 5
+    @test _cursor_at(doc).start == 1
+    doc = PrimitiveNumber(nothing)
+    evaluate_operation((document=doc,), ReplaceStringRangeOperation(_value_range_ref(0, 0), "a"))
+    @test doc.value === nothing
+    # Through the text chain.
+    chain = ChainingProjection(PrimitiveToText(), TextToGraphics(measure = measure_truetype_text))
+    doc = PrimitiveNumber(nothing)
+    set_selection!(doc, _value_range_ref(0, 0))
+    evaluate_operation((document=doc,), read_intent(chain, print_document(chain, doc), KeyPress('5')))
+    @test doc.value === 5
+    # A cleared string, and a field that holds any value, take the text.
+    doc = PrimitiveString(nothing)
+    evaluate_operation((document=doc,), ReplaceStringRangeOperation(_value_range_ref(0, 0), "5"))
+    @test doc.value == "5"
+    doc = PrimitiveInsertion()
+    evaluate_operation((document=doc,), ReplaceStringRangeOperation(_value_range_ref(0, 0), "5"))
+    @test doc.value == "5"
+end
+
 # ── read_intent producer ────────────────────────────────────────────
 
 @testset "PrimitiveStringToSyntaxLeaf produces operation for printable key" begin

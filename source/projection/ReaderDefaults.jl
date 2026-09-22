@@ -16,7 +16,7 @@
 # needs over it.
 import ProjecturedKernel.ProjectionModule: read_intent, map_reference_backward, Projection
 import ProjecturedKernel.IntentModule: Intent
-import ProjecturedKernel.ProjectionModule: RuleIoMap, AtomicWiring
+import ProjecturedKernel.ProjectionModule: RuleIoMap, AtomicWiring, find_template_value_retype
 import ProjecturedKernel.OperationModule: ReplaceSelectionOperation
 import ProjecturedKernel.EventModule: KeyDown, KeyPress
 import ProjecturedKernel.ProjectionModule: ProjectionReferenceStep
@@ -52,12 +52,15 @@ function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceStringRangeOper
     # such a reference (at the head for a directly-projected scalar, or below an
     # `.elements[i]` step for a nested one), which `_targets_introduced_output` detects.
     _targets_introduced_output(new_ref) && return nothing
-    if w isa AtomicWiring && w.retype !== nothing
+    # The leaf that holds the edited value retypes the edit, also when a
+    # container holds the leaf: the container finds it through its children.
+    retype = find_template_value_retype(iomap, strip_reference_types(new_ref))
+    if retype !== nothing
         # A number declines a key that can not be part of a number, so the key
         # makes no edit, and no undo step, that the number then ignores.
-        w.retype === ReplaceNumberRangeOperation &&
+        retype === ReplaceNumberRangeOperation &&
             !has_only_number_characters(op.replacement) && return nothing
-        return w.retype(new_ref, op.replacement)
+        return retype(new_ref, op.replacement)
     end
     return ReplaceStringRangeOperation(new_ref, op.replacement)
 end
