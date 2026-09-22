@@ -55,7 +55,8 @@ memory cap of 20 GB. No second Julia process runs at the same time.
 
 ### Step 1: behaviour a user sees
 
-- [ ] The statistics tab has a natural row.
+- [x] The statistics tab has a natural row. `ProjecturedStatistics` depends on
+      `ProjecturedNatural` now. `e829dd19`.
 - [x] XML reads a numeric character reference, so a save does not change it.
       `a89c7a84`.
 - [x] XML `=` in an attribute name: confirmed; the binding has `override`.
@@ -69,12 +70,18 @@ memory cap of 20 GB. No second Julia process runs at the same time.
 - [x] YAML: export to a `.yml` path. The guard compares the parsers, through
       the new `find_natural_parser(format)`. `f7a804bd`.
 - [x] JSON: a `\u` surrogate pair. `d07ae6d9`.
-- [ ] A letter typed into a number is ignored.
-- [ ] Value viewer: a chevron click opens the node (confirm first).
-- [ ] `FaultCatchingProjection` follows the fault policy and passes an
-      interrupt through.
-- [ ] `FaultLog` keeps two exception types of one origin apart.
-- [ ] The precompile recording sends Enter as `:return`.
+- [x] A letter typed into a number is ignored: the evaluation of a number edit
+      ignores a replacement with a character that can not be part of a
+      number, and the template reader declines it. `5143ce0b`.
+- [x] Value viewer: confirmed, with two causes. `ReflectionFeed` syncs the
+      shadow on the editor task, and `ReflectionToWidget` reads the shadow in a
+      cell. `3211b6ec`.
+- [x] `FaultCatchingProjection` follows the fault policy and passes an
+      interrupt through. The printer context carries `:fault_policy`.
+      `3d3f5d79`.
+- [x] `FaultLog` keeps two exception types of one origin apart: a line matches
+      by the key of the record. `9b8a30b4`.
+- [x] The precompile recording sends Enter as `:return`. `501b00c0`.
 
 ### Step 2: the MCP server and the direct writes
 
@@ -116,6 +123,10 @@ memory cap of 20 GB. No second Julia process runs at the same time.
 
 - **Fix agents run one at a time.** They share the warm session, and a
   restart by one would break the runs of another.
+- **A printer context with no fault policy counts as the strict policy.**
+  `PAR-REPORT-NEVER-THROWS` asks that a barrier that a test can reach catches
+  nothing by default. The editor loop puts its own policy into the context, and
+  it drops the printed projection when the policy changes.
 - **A SQL statement ends at `;` or at the end of the text.** Extra text after a
   statement raises an error now; before, it was ignored. A SELECT in a
   `SqlStatementList` prints its `;`.
@@ -126,5 +137,10 @@ memory cap of 20 GB. No second Julia process runs at the same time.
   `SELECT a`; `SELECT 1` prints an empty `FROM`; the SQL tokenizer raises
   `StringIndexError` on non-ASCII text; a JSON `\u` with non-hex digits raises
   `ArgumentError` and not the parser error. The last two go into step 4.
+- New faults from group A2: a string edit writes a `String` into a number field
+  that holds `nothing`, so `5` typed into a cleared number gives `"5"`; a
+  `JsonNumber` inside a container gets a `ReplaceStringRangeOperation`, not the
+  retype. `test_message_log` fails 4 of 8 on `main`: it checks the log before
+  a feed drains it. All three go into step 4.
 - `test_catalog_coverage` fails on `main` for 28 types (Assistant, Process,
   Pane, FaultLog and others). It is not caused by this work.
