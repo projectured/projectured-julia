@@ -201,6 +201,10 @@ end
     types = DocumentModule._declared_value_types(DmParametric{Int})
     @test types isa Tuple && first(types) === Int
     @test DocumentModule._declared_value_types(DmParametric) === nothing
+    # Rule Y fills the trailing defaults, and it names the parameter the same
+    # way: the injected `selection` is the run it fills.
+    short = DmParametric{Int}(3)
+    @test short.value == 3 && short.selection === nothing
 end
 
 @testset "the layout registry answers for every variant" begin

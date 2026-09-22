@@ -230,11 +230,16 @@ function build_cell_struct_positional_ctors(plan::CellStructPlan, target_name; e
     req = get_cell_struct_required_count(plan)
     ctors = Any[]
     req ≥ 1 || return ctors
+    # A schema with parameters of the programmer's own is not callable by its
+    # bare name, so the head carries them and the call names them:
+    # `Foo{A}(kept…) where {A}`. A schema with none keeps the form it had.
+    named = isempty(plan.params) ? target_name : Expr(:curly, target_name, plan.params...)
     for k in req:(n - 1)
         kept   = plan.field_names[1:k]
         filled = Any[plan.defaults[plan.field_names[j]] for j in (k + 1):n]
-        push!(ctors, :($(target_name)($(kept...)) =
-            $(Expr(:call, target_name, kept..., filled...))))
+        head   = isempty(plan.params) ? :($(target_name)($(kept...))) :
+                 Expr(:where, :($(named)($(kept...))), plan.params...)
+        push!(ctors, Expr(:(=), head, Expr(:block, Expr(:call, named, kept..., filled...))))
         append!(ctors, each_arity(k))
     end
     ctors
