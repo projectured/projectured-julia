@@ -1,78 +1,88 @@
-# SQL Domain
+# SQL domain
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [domain-inventory.md](../../design/domain-inventory.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [syntax.md](../syntax/syntax.md)
 
-The SQL domain: a database-agnostic document model for a `SELECT`, `INSERT`,
-`UPDATE`, `CREATE TABLE` or `CREATE SCHEMA` statement, a hand-written parser
-that reads SQL text into it, and a projection that prints it back out as
-syntax. `source/sql/` holds the model; `source/dbcatalog/` and
-`source/odbc/` run a statement against a live connection (see the
-`database` slice's guide).
+The SQL domain, `ProjecturedSql`, holds a SQL statement as a tree of clause and expression documents, with a hand-written parser and a projection that prints the statement as syntax. It has no connection to a database; [database.md](../database/database.md) describes the packages that run a statement. This document says where the domain differs from the [shape of every domain](../../design/domain-anatomy.md): a statement is read and printed but not edited in place, the parser reads only two kinds of statement, and the printer is mostly hand-written.
 
-## What is in the slice
+<img width="396" alt="SQL example" src="../../../asset/image/example/sql-nested-syntax.png">
 
-| File | What it holds |
-| --- | --- |
-| `source/sql/SqlModule.jl` | the module, and what it exports |
-| `source/sql/SqlDocument.jl` | the document types: `SqlInsertion` and every clause and expression of a statement |
-| `source/sql/SqlParser.jl` | `parse_sql_text` / `parse_sql_file`, a recursive-descent parser over a hand-written tokenizer |
-| `source/sql/SqlToSyntax.jl` | the projection from a statement to a syntax tree, one method per document type |
+## How it works
 
-## The document
+`SqlDocument` is the abstract root, and `SqlStatement` is the abstract root of the statements:
 
-`SqlDocument` is the abstract root; `SqlStatement` is the abstract root of the
-five statements a caller builds or the parser returns: `SqlSelectStatement`,
-`SqlInsertStatement`, `SqlUpdateStatement`, `SqlCreateTableStatement` and
-`SqlCreateSchemaStatement`. Each prints through its own `*ToSyntaxNode` method
-in `SqlToSyntax.jl`. A `SELECT` is built from `SqlSelectClause`,
-`SqlFromClause` and `SqlWhereClause`, each a tree of smaller documents down to
-`SqlColumnName`, `SqlTableName` and the scalar and comparison expressions of a
-`WHERE` filter.
+| Statement | Built from | Parser |
+| --- | --- | --- |
+| `SqlSelectStatement` | `SqlSelectClause`, `SqlFromClause`, `SqlWhereClause` | yes |
+| `SqlCreateTableStatement` | a `SqlTableName` and `SqlColumnDefinition`s | yes |
+| `SqlCreateSchemaStatement` | a schema name | yes |
+| `SqlInsertStatement` | a table, `columns`, `values` | no |
+| `SqlUpdateStatement` | a table, `SqlUpdateAssignment`s, a `SqlWhereClause` | no |
 
-`SqlInsertion` is the domain's insertion placeholder: an empty statement being
-typed. Pressing Enter on it calls `parse_sql_text` on the text so far and
-replaces the insertion with the statement the parser returns, the same
-commit path every domain's insertion takes. `@domain Sql root = SqlDocument
-insertion = SqlInsertion` registers the domain under the `"sql"` alias and
-generates `SqlNothing` and the domain traits; the root and the insertion are
-hand-written because `SqlStatement` must exist before the generated code can
-name it.
+A `SELECT` goes down through select items, from items, joins with `ON` or `USING`, subqueries, and a `WHERE` tree of `SqlComparison`, `SqlAnd`, `SqlOr` and `SqlNot` to `SqlColumnName`, `SqlTableName` and `SqlScalarValue`. A `SqlColumnDefinition` has a `column_name` and a `data_type` that is a plain string. `SqlStatementList` holds a sequence of statements and prints them with a blank line between two statements. `ProjecturedDbCatalog` uses it to print a whole DDL script as one document.
 
-## The parser
+`SqlStatement` must exist before `SqlInsertion` can subtype it, so both roots and the insertion are hand-written. `@domain Sql root = SqlDocument insertion = SqlInsertion` then makes only `SqlNothing`, the traits, the `"sql"` alias and the Insert gesture.
+
+### A statement is a view with a selection
+
+`SqlToSyntax()` has one rule for each document type. The seven leaf rules, such as the column, table and scalar leaves, are `@projection_template` rules with no `bound` field: each prints a text computed from several fields. The rules of the clauses and statements are hand-written `print_document` methods. Each builds a `SyntaxNode` and maps the selection clause by clause through a `ChildrenIoMap`.
+
+Every reader of the domain maps a `ReplaceSelectionOperation` and returns `nothing` for every other operation. So you can select and navigate every part of a statement, but no key edits a statement in place, and no `@gestures` table exists. A caret on the computed text of a leaf becomes a flat offset in an introduced reference, as a caret on the chrome of an XML element does; see [xml.md](../xml/xml.md). The flat offset keeps the navigation search bounded.
+
+### The insertion parses source text
+
+The Insert key replaces a `SqlNothing` with a `SqlInsertion`, whose `value` is SQL source. `SqlInsertionToSyntaxLeaf` shows the buffer green when `parse_sql_text` reads it as a whole statement, and red when it does not. Enter commits the parsed statement, and a buffer that does not parse does not commit. So the way to write a new statement is to type its text.
+
+### The parser
+
+`parse_sql_text` runs a tokenizer and a recursive-descent parser with one token of lookahead. `parse_sql` looks at the first keyword and reads only two families:
+
+- **`SELECT`**: the select list with `DISTINCT`, `*` and aliases, the `FROM` list with joins and subqueries, `ON` and `USING` conditions, and a `WHERE` tree.
+- **`CREATE TABLE` and `CREATE SCHEMA`**: a column type is kept as its raw text up to the next comma at the top level, so `numeric(10, 2) NOT NULL` becomes one `data_type` string.
+
+A text that starts with any other keyword, such as `INSERT` or `UPDATE`, is not a statement for the parser, and `parse_sql_text` raises the error "SQL: not a parseable statement". `parse_sql` catches every error inside a statement and returns `nothing`, so each failure gives that same message.
+
+The parser does not raise an error for a part that it does not model. The tokenizer drops comments. The clauses after `WHERE`, such as `GROUP BY` and `ORDER BY`, are skipped to the end of the statement. A function call, arithmetic or a `CASE` becomes a `SqlScalarValue` whose value is the source text of the tokens.
+
+### The file
+
+`SqlFile` is the file type for `.sql`. A reference to a node in another file is a `SqlScalarValue` whose value is a string that holds only the marker, as in JSON and YAML. A number or a boolean value is never a marker. A `.sql` path that does not exist opens as a `SqlInsertion`.
+
+## How it fits
+
+`ProjecturedSql` depends on the kernel and on `ProjecturedDomain`, `ProjecturedSyntax`, `ProjecturedText`, `ProjecturedNatural`, `ProjecturedSerialization` and `ProjecturedFileFormat`. It does not depend on `ProjecturedDatabase` or `ProjecturedOdbc`. Two packages depend on it: `ProjecturedDbCatalog` makes `CREATE` statements from a catalog, and `ProjecturedOdbc` prints a `SqlSelectStatement` to text and runs it on a connection.
+
+Its `__init__` registers the natural row with the rung `:syntax`, the format `:sql`, the extension `.sql` and the parser `parse_sql_text`, and it registers `SqlFile` for `.sql`.
+
+## Design decisions
+
+- **Every clause is a document type.** A selection can then name a clause, a join or one comparison, and the catalog package can build a statement from parts. See `plan/done/sql-statement.md`.
+- **The parser is hand-written.** A domain has no third-party dependency, and the parser reads only the grammar that the documents model. See `plan/done/sql-parser.md`.
+- **A part that the model does not have degrades.** A skipped clause or a scalar that holds raw text lets a real query load, at the cost of that part.
+- **The composite rules are hand-written.** Some rules need an indent for each child between separators, which only the combined `SyntaxNode` can print. The reason is in the comment above `_comma_body` in `source/sql/SqlToSyntax.jl`. The selection mapping is `plan/done/sql-to-syntax-selection-support.md`.
+- **A column type is a string.** The catalog stores the type as a string too. A model of types, nullability and defaults is left for later.
+- **INSERT and UPDATE are single-row statements.** No multi-row `VALUES` and no update of more than one table. See `plan/pending/sql-insert-update-support.md`.
+
+## Usage
 
 ```julia
 statement = parse_sql_text("SELECT id, name FROM users WHERE age > 18")
 statement = parse_sql_file("query.sql")
+insert    = SqlInsertStatement(SqlTableName("persons"),
+                               [SqlColumnName("name"), SqlColumnName("age")],
+                               [SqlScalarValue("Ada"), SqlScalarValue(36)])
+print_natural_text(insert)       # INSERT prints, although it does not parse
+projection = SqlToSyntax()
 ```
 
-`parse_sql_text` tokenizes and parses one statement; a text that is not a
-complete, parseable statement raises an error rather than returning a partial
-tree. `parse_sql_file` reads the file and calls `parse_sql_text` on its
-content. The grammar covers `SELECT` with joins, a `WHERE` filter of
-comparisons and boolean connectives, `INSERT`, `UPDATE`, `CREATE TABLE` and
-`CREATE SCHEMA`. This is the subset the other slices of the domain-inventory
-table exercise, not the whole of ANSI SQL.
+- Examples: `sql_syntax_example`, `sql_insert_syntax_example`, `sql_update_syntax_example` and `sql_nested_syntax_example`, from `make_sql_*_document_example` and `make_sql_*_syntax_projection_example`. The atomic catalog has one document for each type.
+- Test: `test_sql()` runs the layering guard, the parser, the printer, the selection through a `SELECT`, an `INSERT` and an `UPDATE`, and the DDL printer and selection.
 
-## How it fits
+## Limits
 
-`SqlToSyntax` is what [text.md](../text/text.md) and
-[syntax.md](../syntax/syntax.md) print through to turn a statement into
-readable, editable text; a caller chains `SqlToSyntax()` into
-`SyntaxToText()` the way every syntax-backed domain does. `ProjecturedDbCatalog`
-builds a `SqlSelectStatement` from a catalog node
-(`DbCatalogRdbmsToSql`, …) and `ProjecturedOdbc`'s `SqlToCellTable` executes
-one against a `DatabaseInstance`; the `database` slice's guide covers that
-seam. The domain itself has no notion of a connection: nothing under
-`source/sql/` imports `ProjecturedDatabase` or `ProjecturedOdbc`.
-
-## What to check when a change touches this slice
-
-`test/sql/SqlSuite.jl` runs `test_sql()`: the document tests
-(`test/sql/document/SqlDocumentTest.jl`, `SqlParserTest.jl`) and the
-projection tests (`test/sql/projection/SqlToSyntaxTest.jl`), including
-selection through an `INSERT`/`UPDATE` statement and through a `CREATE`
-statement. `example/sql/` holds `SqlDocumentExample.jl` and
-`SqlProjectionExample.jl`, the examples the printer and reader sweeps drive.
-A grammar change that the parser accepts but `SqlToSyntax` cannot print back
-out breaks the round trip the printer/reader tests check, not the parser
-tests alone.
+- **The parser does not read `INSERT` or `UPDATE`.** The documents, the printer, the examples and the tests exist, but a typed `INSERT INTO …` stays red in the insertion and does not commit. This is the open step of `plan/pending/sql-insert-update-support.md`.
+- **The parser reads one statement.** It stops at the first `;`, so a `.sql` file with more than one statement loses every statement after the first on load.
+- **A function call prints as a string.** `COUNT(*)` becomes `SqlScalarValue("COUNT(*)")`, and the scalar leaf prints every string value in quotes, so a round trip gives `'COUNT(*)'`.
+- **A skipped clause is lost.** `GROUP BY`, `HAVING`, `ORDER BY` and `LIMIT` do not survive a round trip. `plan/pending/sql-select-aggregation-support.md` plans `GROUP BY` and the aggregate functions.
+- **`USING` does not print.** `SqlToSyntax` has no rule for `SqlJoinUsingCondition`, so a `JOIN … USING (…)` that the parser reads raises an error when it prints.
+- **A table constraint reads as a column.** A `PRIMARY KEY (id)` entry in the column list becomes a column named `PRIMARY` with the type `KEY (id)`. It prints back as the same text.
+- **No `CREATE INDEX`.** `plan/pending/dbcatalog-index-support.md` plans the index statements.

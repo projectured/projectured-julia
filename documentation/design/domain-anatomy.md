@@ -115,11 +115,12 @@ run_example(document, projection; name = "mine")
 print_natural_text(parse_json("""{"a": [1, 2]}"""))
 ```
 
-`example/projectured/DomainExamples.jl` holds the `Example(...)` registry. `atomic_documents()` holds one small, hand-written document for each document type. `example/projectured/Catalog.jl` builds a generated example from each one, and `CatalogCoverageTest` checks that no document type is without one. The narrowest test of a domain is `test_example(json_example)`; the test of the package is `test_json()`. [testing-guide.md](../guide/testing-guide.md) lists the others.
+`example/projectured/DomainExamples.jl` holds the `Example(...)` registry. `atomic_documents()` holds one small, hand-written document for each document type. `example/projectured/Catalog.jl` builds a generated example from each one, and `CatalogCoverageTest` compares the document types with the catalog and lists the types that have no entry yet. The narrowest test of a domain is `test_example(json_example)`; the test of the package is `test_json()`. [testing-guide.md](../guide/testing-guide.md) lists the others.
 
 ## Where the shape does not hold
 
 - `book` has no text form, no file type and no `register_natural_domain!` call.
 - `chart`, `sequencechart`, `fsm` and `process` register no natural row. A caller builds their projection chain.
-- `markdown`, `rst` and `book` declare their abstract root by hand and have no `@gestures` tables.
+- `markdown`, `rst`, `book` and `math` declare their abstract root by hand and have no `@gestures` tables. `sql` uses `@domain` but has no `@gestures` table either.
+- `MathFile` has no reference marker, so a multi-file project can not cut a math document into another file.
 - `database` holds an adapter interface and no projection. `odbc` is the opt-in package that implements it.

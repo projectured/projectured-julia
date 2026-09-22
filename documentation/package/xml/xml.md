@@ -1,56 +1,110 @@
-# XML Domain
+# XML domain
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [domain-inventory.md](../../design/domain-inventory.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-anatomy.md](../../design/domain-anatomy.md), [json.md](../json/json.md), [reference.md](../kernel/reference.md)
 
-<img width="816" alt="Xml example" src="../../../asset/image/example/xml.png">
+The XML domain, `ProjecturedXml`, holds an XML document as a tree of elements, text nodes and attributes. This document says where it differs from the [shape of every domain](../../design/domain-anatomy.md): the attribute as a document, the element chrome and its reader, the gestures, and the reference marker of a file.
 
-The XML domain represents XML documents as a tree of reactive nodes. Every node is a Document with reactive Cell fields. Attributes are documents of their own, so the selection mechanism can descend into attribute values.
+<img width="396" alt="XML example" src="../../../asset/image/example/xml.png">
 
-**Indexing conventions**: paths use `[i]` for the i-th item (1-based) and `{k}` for the cursor at boundary `k` (0-based). The two are readings of the same axis; see [the boundary axis](../kernel/reference.md#the-boundary-axis). In XML the axis appears as child nodes, attributes, *and* characters in text content or attribute values; the same `[i]` / `{k}` syntax addresses both.
+## How it works
 
-## Types
+| Document | Fields |
+| --- | --- |
+| `XmlElement` | `tag::String`, `attrs`, `children`, `collapsed` |
+| `XmlAttribute` | `name::String`, `value::String` |
+| `XmlText` | `content::String` |
 
-- **XmlAttribute**: Holds a name and value pair
-- **XmlText**: Text content within elements
-- **XmlElement**: Container with tag, attributes, and child nodes
+`attrs` and `children` are both `CellVector` fields. The constructors that the macro makes can not separate the two vectors, so three hand-written constructors select the slot by the element type of the vector: a `Vector{<:XmlAttribute}` goes to `attrs`, and a `Vector{<:XmlDocument}` goes to `children`. The signatures must stay covariant. An invariant `Vector{XmlAttribute}` does not match the vector of the concrete type that `@document` makes, so the attributes would go into `children`.
 
-## Examples
+### The attribute is a document
+
+An attribute is an `XmlAttribute` document, not a string on the element. So a selection can name an attribute as a whole, or descend into its name or value, as it descends into a child. `XmlToSyntax` has a rule for it, so an attribute also prints alone. You can insert an attribute with a key and replace a placeholder with one. `@adapt_map_protocol` also lets you use an element as a map from attribute name to value.
+
+### The element and its chrome
+
+`XmlToSyntax()` has one `@projection_template` rule for each document type. The element rule makes a `SyntaxConcatenation` of four parts:
+
+1. the tag leaf, `bound(:tag)`, with `<` in front. Its `close` is a space when the element has attributes, and empty when it has none;
+2. the attribute node, `collection(:attrs)`, with the separator `" "` and the closing `>`;
+3. the body node, `collection(:children)`, indented by one level;
+4. the closing tag `</tag>`, which prints the same `tag` field again but has no `bound`.
+
+An attribute prints as `name="value"`, and text prints with `&`, `<` and `>` escaped. An attribute value escapes `&`, `<` and `"`. An edit of the tag changes both tags, because both read the one field.
+
+The delimiters and the closing tag are chrome that no field produces. A caret there maps back to nothing through the template. The generic fallback of the template wraps the output path in a `ProjectionReferenceStep`, and each round trip through such a caret makes the path longer, so the navigation search does not end. So `XmlElementToSyntaxNode` has two hand-written methods:
+
+- `read_intent` for a `ReplaceSelectionOperation` maps the path back through the template first. If that returns `nothing`, it computes the flat offset of the caret in the printed element with `_syntax_to_flat` and returns an introduced reference to that offset.
+- `map_reference_forward` passes an introduced reference through unchanged, and gives any other reference to the template.
+
+A flat offset is one integer, so the set of carets is bounded and the search ends. The printer and every other reader come from the template.
+
+### The gestures
+
+| Key | Where | Edit |
+| --- | --- | --- |
+| `"`, `<`, `@` | an `XmlNothing` or `XmlInsertion` is selected | replace it with text, an element or an attribute |
+| `<`, `"` | in an element, also with the caret in the tag | append an empty element or text to `children` |
+| Insert | in an element | append an `XmlInsertion` to `children` |
+| Space | on the element, its tag or an attribute | append an empty attribute, with the caret in its name |
+| `=` | in the name of an attribute | move the caret to the value |
+| no key | in the value of an attribute | move the caret to the name |
+
+A letter or a digit on a placeholder is not a retype key, so it goes into the name of an insertion buffer. The two element keys `<` and `"` are `override` bindings: a tag name can not hold either character, so the element takes the key before the text stage makes it a character. Space does not fire when the caret is in a child, so a space in text stays a space.
+
+### The text form
+
+`parse_xml` returns the root element. It reads nested elements, attributes in double or single quotes, text, self-closing tags and the five named entities. It skips the XML declaration, comments and `<!…>` declarations, so a save does not write them back. A text node that holds only white space is dropped. The parser has no namespaces and no DTD: a `:` is a character of a name.
+
+`XmlFile` is the file type for `.xml`. A reference to a node in another file is a `pred:ref` element whose one text child is the marker, for example `<pred:ref>&lt;&lt;file("a.xml")&gt;&gt;</pred:ref>`. An element is the opaque unit of XML, and a text node can exist only inside an element. `find_reference_marker` accepts only an element with the tag `PRED_REF_ELEMENT_TAG` and exactly one `XmlText` child. An `.xml` path that does not exist opens as an `XmlInsertion`.
+
+## How it fits
+
+`ProjecturedXml` depends on the kernel and on `ProjecturedDomain`, `ProjecturedSyntax`, `ProjecturedText`, `ProjecturedNatural`, `ProjecturedSerialization` and `ProjecturedFileFormat`, with the small packages below them. No other domain package depends on it. Its `__init__` registers the natural row with the rung `:syntax`, the format `:xml`, the extension `.xml` and the parser `parse_xml`, and it registers `XmlFile` for `.xml`.
+
+The mixed example puts XML inside JSON: `JsonXmlToSyntax()` in `example/xml/` is one dispatch table with the rules of both domains, and the document is a `JsonObject` whose value is an `XmlElement`.
+
+## Design decisions
+
+- **An attribute is a document.** A selection can then reach an attribute value as it reaches a child, and the attribute can be inserted and replaced. See `plan/done/xml-attribute-insertable.md`.
+- **The authoring edits are `@gestures` on the document types.** The projection keeps only the printer and the caret mapping. The edits are splices through `ReplaceReferencedValueOperation`, so XML defines no operation type. See `plan/done/xml-authoring-gestures.md` and `plan/done/xml-to-syntax-template.md`.
+- **A caret on the chrome is a flat offset.** It is the one part that the template does not supply for XML. The reason is in the comment above `read_intent` in `source/xml/XmlToSyntax.jl`.
+- **`<` and `"` override the text stage.** Neither character can occur in a tag name, so the keys can mean "insert a child" with the caret in the name.
+- **The reference marker is an element.** JSON and YAML use a string, Markdown a fence: each format spells a reference with its own opaque unit. See `plan/done/document-file-storage.md`.
+
+## Usage
 
 ```julia
-# Create a text node
 text = XmlText("Hello world")
-
-# Create an attribute
 attr = XmlAttribute("id", "123")
+elem = XmlElement("div", [XmlAttribute("class", "container")])     # attributes only
+elem = XmlElement("p", [XmlText("Paragraph text")])                # children only
+elem = XmlElement("div", [XmlAttribute("class", "container")], [XmlText("Content")])
 
-# Create an element with attributes
-elem = XmlElement("div", [XmlAttribute("class", "container")])
-
-# Create an element with children
-elem = XmlElement("p", [XmlText("Paragraph text")])
-
-# Create a complete element
-elem = XmlElement("div", 
-    [XmlAttribute("class", "container")],
-    [XmlText("Content")]
-)
-
-# Access and modify (transparent via @document macro — no [] needed)
-text.content = "New text"
-attr.value = "456"
+text.content = "New text"                    # writes through the cell
 push!(elem.children, XmlText("More content"))
+doc = parse_xml("<a id=\"1\"><b>x</b></a>")
 ```
 
-## Selection
+- Examples: `xml_example` and `mixed_example`. The document of `xml_example` is a library of books with attributes and an `XmlInsertion`. The factories are `make_xml_document_example`, `make_xml_projection_example`, `make_mixed_document_example` and `make_mixed_projection_example`. The atomic catalog has one document for each type.
+- Test: `test_xml()` runs the layering guard, the parser, the printer, the reader on the XML stage alone, and `test_xml_override_gestures()` on the full chain.
 
-Selection paths can descend into (`[i]` = 1-based item, `{k}` = 0-based cursor):
-- Attribute access: `.attrs[i]` for the i-th attribute, `.attrs{k}` for the cursor between attributes
-- Attribute value: `.attrs[i].value[i]` for the i-th character, `.attrs[i].value{k}` for the cursor between characters
-- Child nodes: `.children[i]` for the i-th child, `.children{k}` for the cursor between children
-- Text content: `.content[i]` for the i-th character, `.content{k}` for the cursor between characters
+### Reference paths
 
-## Key Features
+The paths use `[i]` for the i-th item, from 1, and `{k}` for the caret at boundary `k`, from 0, as in [JSON](../json/json.md). In XML the axis is the children, the attributes and the characters of a text or an attribute:
 
-- Attributes are documents in their own right, not just strings
-- Full selection support for attribute values
-- Reactive updates through Cell system
+| Path | Names |
+| --- | --- |
+| `attrs[2]` | the second attribute, whole |
+| `attrs{1}` | the caret between the first and the second attribute |
+| `attrs[1].value{3}` | the caret after the third character of the first attribute value |
+| `children[1]` | the first child |
+| `children[1].content{0}` | the caret before the first character of a text child |
+| `tag{2}` | the caret after the second character of the tag |
+
+## Limits
+
+- An empty text, tag, attribute name or attribute value shows no hint. JSON and YAML show one with `make_hinted_text`. The four hints "enter xml text", "enter xml element name", "enter xml attribute name" and "enter xml attribute value" are phase 5 of `plan/pending/xml-to-syntax-lisp-parity.md`.
+- No projection reads `collapsed`. `XmlToSyntax` does not give it to the output, and `SyntaxConcatenation` has no `collapsed` field. `plan/pending/collapse-expand-syntax-nodes.md` holds the open step.
+- `=` has no `override`, and only the test of the XML stage alone covers it. No test checks `=` in the full chain, where the text stage can take the key as a character of the name first.
+- An element with no children prints as `<tag></tag>`, never as `<tag/>`.
+- The parser raises an error on a CDATA section. It keeps a numeric character reference such as `&#65;` as text, and a save then writes it as `&amp;#65;`.
