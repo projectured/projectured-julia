@@ -20,7 +20,7 @@ If the solve is not optimal, has no feasible point, or raises an error, the solv
 
 ## How it fits
 
-`ProjecturedTulip` depends on `ProjecturedLayout`. No package depends on it. It registers nothing, and loading it changes no default: a caller passes the solver to the projection. This is different from `ProjecturedAdaptagrams`, which becomes the default graph layout when it loads.
+`ProjecturedTulip` depends on `ProjecturedLayout`. No package depends on it. It registers nothing, and loading it changes no default: a caller passes the solver to the projection. This is different from `ProjecturedAdaptagrams`, which registers itself as the engine of `DeferredLayout` when it loads; see [graph.md](../graph/graph.md).
 
 ## Design decisions
 

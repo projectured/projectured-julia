@@ -1,67 +1,55 @@
-# Plot
+# Plot arithmetic
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** design · **Status:** current · **Stands on:** [domain-inventory.md](../../design/domain-inventory.md), [style.md](../style/style.md)
 
-The plot arithmetic every plotted notation shares: axis scaling, tick
-selection, the mapping from a data value to a pixel, and the colour and
-marker cycles a series draws with. It is a framework two domains share
-rather than a domain of its own, so nothing under `source/plot/` defines a
-document type. See
-[domain-inventory.md](../../design/domain-inventory.md#what-is-not-a-domain-package)
-for what counts as a domain.
+`ProjecturedPlot` holds the arithmetic that the chart and the sequence chart share: axis scaling, tick selection, the mapping from a data value to a pixel, the decimation that bounds the cost of a drawing, and the colour and marker cycles. It is a framework, not a domain, so it defines no document type. This document says what it holds, why it is pure, and what to check when you change it.
 
-## What is in the slice
+## How it works
+
+Every function of `PlotModule` is pure. It takes numbers, vectors and colours and returns numbers, vectors and colours. It reads no cell and makes no document.
 
 | File | What it holds |
 | --- | --- |
-| `source/plot/PlotModule.jl` | the module, and what it exports |
-| `source/plot/PlotGeometry.jl` | `AxisScale`, tick selection, data bounds, and the decimation and folding that keep a chart's drawing cost proportional to its pixels |
-| `source/plot/PlotStyle.jl` | the default colour and marker cycles, and the legend layout |
+| `source/plot/PlotGeometry.jl` | the axis mapping, the ticks, the data bounds, the decimation and folding, the legend geometry, and the values of bars and histograms |
+| `source/plot/PlotStyle.jl` | the default colour and marker cycles, and the polygons of the markers |
 
-## The public names
+The parts that are not obvious from their names:
 
-- `AxisScale(lo, hi, p0, p1; log=false)`, `to_pixel`, `to_data`,
-  `get_axis_span` — the affine, or log-affine, map between a data coordinate
-  and a pixel.
-- `get_column_bounds`, `merge_bounds`, `pad_range`, `compute_nice_number`,
-  `compute_nice_ticks`, `log_ticks`, `format_tick` — the extent of a column
-  and where to put its tick marks.
-- `get_visible_range` — binary-searches an ascending column for the indices
-  inside the current view, so panning a large series touches only what
-  shows.
-- `decimate_minmax` — collapses every run of samples landing on one pixel
-  column to at most four points (first, min, max, last). The result is
-  pixel-identical to drawing every sample, not an approximation.
-- `fold_scatter`, `fold_bins`, `strip_runs`, `fold_strips`, `label_step`,
-  `find_nearest_sample`, `step_points`, `build_pins_segments` — binning an
-  overplotted cloud, merging bars narrower than a pixel, and thinning
-  labels that would otherwise collide.
-- `compute_bin_values`, `compute_histogram_values` — the values a bar or
-  histogram series draws from raw data.
-- `default_color_cycle`, `default_symbol_cycle`, `get_series_color`,
-  `get_series_symbol`, `build_marker_polygon` — a series that leaves its
-  colour or symbol unset gets one by its position in the series list.
-- `compute_legend_layout`, `get_anchor_offset` — where a legend sits relative
-  to the plot area.
+- **`AxisScale(lo, hi, p0, p1; log = false)`** maps between a data coordinate and a pixel, affine or log-affine. `to_pixel` and `to_data` are the two directions. A chart builds a new scale from its data window on each zoom, so ticks and decimation follow the window.
+- **`get_visible_range`** finds, with a binary search, the indices of an ascending column that fall into the window. So a pan over a long series reads only what shows.
+- **`decimate_minmax`** keeps at most four samples for each pixel column: the first, the lowest, the highest and the last. The polyline through them is the same, pixel for pixel, as the polyline through all samples. So the output has at most four points for each pixel of width, and the picture is exact.
+- **`fold_scatter`**, **`fold_bins`**, **`strip_runs`** and **`fold_strips`** fold what is narrower than a pixel: a dense cloud into a density grid, thin bars into an envelope, and a state trace into runs and then into spans. [chart.md](../chart/chart.md#scale) says what each one draws.
+- **`label_step`** thins the tick labels that would collide, and **`find_nearest_sample`** snaps a crosshair to a sample.
+- **`get_series_color(color, index, cycle)`** returns the colour of a series, or the entry of the cycle at the position of the series when `color` is `nothing`. **`get_series_symbol(symbol, index, cycle)`** does the same for a marker when `symbol` is `:cycle`. So an insert into the list of series changes the colours of the series after it.
 
 ## How it fits
 
-Every function is pure, over plain numbers, vectors and colours — no cell, no
-document type, no dependency beyond `ProjecturedStyle` for the colour
-palette. [chart.md](../chart/chart.md) and
-[sequencechart.md](../sequencechart/sequencechart.md) are the two domains
-that import `PlotModule`: a chart and a sequence chart both scale an axis,
-map data to pixels and hand colours out by series position, so the
-arithmetic sits below both instead of one owning it. A caller that wants the
-result cached wraps a call in a reactive cell itself; nothing here holds
-state to invalidate.
+`ProjecturedPlot` depends only on `ProjecturedStyle`, for `StyleColor` and the Solarized colours. `ProjecturedChart` and `ProjecturedSequenceChart` depend on it:
 
-## What to check when a change touches this slice
+- The chart uses all of it: the scales, the ticks, every decimation and fold, the legend layout and the cycles.
+- The sequence chart uses `AxisScale`, `to_pixel`, `to_data`, `compute_nice_ticks`, `format_tick`, `default_color_cycle` and `get_series_color`. It has its own decimation for events and arrows in `SequenceChartGeometry.jl`.
 
-There is no `test/plot/` folder; the direct test is
-`test/substrate/projection/PlotGeometryTest.jl`, and
-`test/sequencechart/projection/SequenceChartGeometryTest.jl` exercises the
-same arithmetic through the sequence chart. `decimate_minmax` and
-`get_visible_range` are the two functions a large-series performance
-regression traces back to first, since they are what keeps a chart's redraw
-cost independent of how many samples a series holds.
+The package registers nothing.
+
+## Design decisions
+
+- **A framework below two domains.** The chart and the sequence chart both need the arithmetic, so neither of them owns it. [domain-inventory.md](../../design/domain-inventory.md#what-is-not-a-domain-package) states the rule: two domains that need the same thing make a framework.
+- **Pure functions, no cells.** The functions stay testable without an editor, and a caller keeps a result in a computed cell of its own. `layout_graph` of [graph.md](../graph/graph.md) has the same split.
+- **The decimation is exact.** `decimate_minmax` draws the same pixels as the full series. A chart is then correct at every zoom, and the cost depends on the width of the plot and not on the length of the data. See `plan/done/chart-domain.md`.
+
+## Usage
+
+```julia
+scale = AxisScale(0.0, 10.0, 40, 640)        # data 0..10 onto pixels 40..640
+to_pixel(scale, 2.5)                         # 190.0
+i0, i1 = get_visible_range(x, 2.0, 4.0)      # the indices of an ascending x inside the window
+points = decimate_minmax(x, y, xs, ys, i0, i1)
+```
+
+- Examples: none of its own. Every chart and sequence chart example uses it.
+- Test: `test_plot_geometry()` in `test/substrate/projection/PlotGeometryTest.jl`, which `test_substrate()` runs. `test_sequencechart_geometry()` covers the same arithmetic through the sequence chart.
+
+## Limits
+
+- The package holds no state, so it caches nothing. A caller that calls it outside a cell computes the result again on each call.
+- A change to `decimate_minmax` or to `get_visible_range` changes the cost of every large chart. Run `test_chart_scale()` and `test_sequencechart_scale()` after one.

@@ -1,6 +1,6 @@
 # Graph layout
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [domain-inventory.md](../../design/domain-inventory.md)
+> **Kind:** reference · **Status:** current · **Stands on:** [graph.md](graph.md), [domain-inventory.md](../../design/domain-inventory.md)
 
 How a graph gets from a list of vertices and edges to a picture: which engines
 exist, what each one is, what a caller can ask of them, and which one runs when
@@ -40,7 +40,7 @@ caller's business, and what `:pin` means to an algorithm is this package's.
 The two ported ones are the two that the C++ original draws a network with, and
 they are ports rather than new algorithms because the caller needs *the* picture
 the original draws, not *a* force-directed layout. Their positions are asserted against the C++
-originals — see [../test/reference/](../../../test/graph/reference/).
+originals — see [test/graph/reference/](../../../test/graph/reference/).
 
 `AdaptagramsLayout` is the only one with a native dependency, so it lives in its
 own package and reaches this one through `register_layout_engine!`. When its
@@ -131,6 +131,6 @@ its original.
 
 ## Measuring
 
-`graphlayoutbench()` in [../../../bench/](../../../package/ProjecturedBench/) times every engine
+`graphlayoutbench()`, in `test/bench/graphlayoutbench.jl` and exported by [ProjecturedBench](../../../package/ProjecturedBench/), times every engine
 over 10, 60 and 300 vertices and prints the answer as characters beside the
 numbers. Run it before changing a constant, and again after.
