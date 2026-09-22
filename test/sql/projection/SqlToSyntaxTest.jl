@@ -69,11 +69,14 @@ function test_sql_to_syntax()
              SqlUpdateAssignment(SqlColumnName("age"), SqlScalarValue(37))])
         @test sql_text(update_no_where) == "UPDATE persons SET name = 'Ada', age = 37"
 
-        # USING prints its column list in parentheses; a raw expression prints its
-        # text without quotes.
+        # USING prints its column list in parentheses; a raw expression and a raw
+        # condition print their text without quotes.
         @test sql_text(SqlJoinUsingCondition(SqlColumnName("id"), SqlColumnName("name"))) ==
               "USING (id, name)"
         @test sql_text(SqlRawExpression("COUNT(*)")) == "COUNT(*)"
+        @test sql_text(SqlRawCondition("name LIKE 'A%'")) == "name LIKE 'A%'"
+        @test sql_text(SqlWhereClause(SqlWhereFilterCondition(SqlRawCondition("a IN (1, 2)")))) ==
+              "WHERE \n  a IN (1, 2)\n"
 
         # A statement list ends each statement with `;`. A DDL statement prints
         # its own, and the list adds one after any other statement.

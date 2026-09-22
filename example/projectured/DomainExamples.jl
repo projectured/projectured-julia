@@ -376,6 +376,7 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:sql, "join_on_condition",      make_sql_join_on_condition_document_example),
     AtomicDocument(:sql, "join_using_condition",   make_sql_join_using_condition_document_example),
     AtomicDocument(:sql, "raw_expression",         make_sql_raw_expression_document_example),
+    AtomicDocument(:sql, "raw_condition",          make_sql_raw_condition_document_example),
     AtomicDocument(:sql, "joined_from_item",       make_sql_joined_from_item_document_example),
     AtomicDocument(:sql, "subquery_from_item",     make_sql_subquery_from_item_document_example),
     AtomicDocument(:sql, "column_definition",      make_sql_column_definition_document_example),

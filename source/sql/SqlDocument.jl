@@ -104,6 +104,14 @@ end
     value::Any                    # Number | String | Bool
 end
 
+"""
+The source text of a condition that the document model does not have, such as a
+`LIKE` or an `IN`. The parser keeps it as it is written, and it prints unquoted.
+"""
+@document struct SqlRawCondition <: SqlBooleanExpression
+    text::String
+end
+
 @document struct SqlComparison <: SqlBooleanExpression
     left::Any                     # SqlColumnReference | SqlScalarValue
     operator::String              # "=", "<>", "<", ">", "<=", ">="

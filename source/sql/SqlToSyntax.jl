@@ -893,7 +893,17 @@ end
 @projection_template SqlRawExpressionToSyntaxLeaf SqlRawExpression (p, doc) ->
     SyntaxLeaf(TextString(() -> doc.text, p.style))
 
-# All eight SQL leaf projections are opaque display leaves: their content is a
+# ── SqlRawConditionToSyntaxLeaf ──────────────────────────────────────────────
+# The source text of a condition that the model does not have, as it is written.
+
+@projection struct SqlRawConditionToSyntaxLeaf
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_default)
+end
+
+@projection_template SqlRawConditionToSyntaxLeaf SqlRawCondition (p, doc) ->
+    SyntaxLeaf(TextString(() -> doc.text, p.style))
+
+# All nine SQL leaf projections are opaque display leaves: their content is a
 # computed multi-field display with no editable interior. A caret on that introduced
 # text has no input pre-image, so — exactly like XmlElementToSyntaxNode — it is
 # collapsed to a bounded flat offset carried as a projection-introduced reference
@@ -912,7 +922,8 @@ end
 const _SqlDisplayLeaf = Union{SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
                               SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,
                               SqlTableExpressionToSyntaxLeaf, SqlJoinTypeToSyntaxLeaf,
-                              SqlScalarValueToSyntaxLeaf, SqlRawExpressionToSyntaxLeaf}
+                              SqlScalarValueToSyntaxLeaf, SqlRawExpressionToSyntaxLeaf,
+                              SqlRawConditionToSyntaxLeaf}
 
 const _SqlTemplateRule = Union{_SqlDisplayLeaf, SqlJoinUsingConditionToSyntaxNode}
 
@@ -2035,6 +2046,7 @@ function SqlToSyntax()
         SqlCrossJoin            => jt,
         SqlScalarValue          => SqlScalarValueToSyntaxLeaf(),
         SqlRawExpression        => SqlRawExpressionToSyntaxLeaf(),
+        SqlRawCondition         => SqlRawConditionToSyntaxLeaf(),
         SqlComparison           => SqlComparisonToSyntaxNode(),
         SqlAnd                  => SqlBooleanBinaryToSyntaxNode("AND"),
         SqlOr                   => SqlBooleanBinaryToSyntaxNode("OR"),

@@ -24,7 +24,9 @@
 # Unsupported fragments are handled gracefully: comments are stripped by the
 # tokeniser, trailing clauses (GROUP BY, ORDER BY, …) are consumed, and a select
 # expression that the model does not have, such as a function call, is kept as its
-# source text in a `SqlRawExpression` by a greedy token fallback. Input that is not a
+# source text in a `SqlRawExpression` by a greedy token fallback. A condition of a
+# `WHERE` or an `ON` that the model does not have, such as `a LIKE 'x%'`, is kept
+# in a `SqlRawCondition` by the same fallback. Input that is not a
 # parseable statement raises an error rather than guessing, matching the other
 # parsers in this directory.
 # ══════════════════════════════════════════════════════════════════════════════
@@ -204,6 +206,7 @@ function tokenize(sql::String)::Vector{SqlToken}
             while i <= n && (sql[i] >= '0' && sql[i] <= '9' || sql[i] == '.')
                 i += 1
             end
+            i = _get_number_exponent_end(sql, i, n)
             push!(tokens, SqlToken(TK_NUMBER_LIT, SubString(sql, start, i - 1), start))
             continue
         end
@@ -229,6 +232,21 @@ function tokenize(sql::String)::Vector{SqlToken}
 
     push!(tokens, SqlToken(TK_EOF, SubString(sql, n + 1, n), n + 1))
     return tokens
+end
+
+# The index after the exponent of the number literal that ends at `i`, or `i`
+# itself where no exponent stands there. An `e` or an `E` is part of the number
+# only when a digit follows it, with a sign between them or without one, so `1e5`
+# is one number and the `e` of `2e` is an identifier.
+function _get_number_exponent_end(sql::String, i::Int, n::Int)
+    (i <= n && (sql[i] == 'e' || sql[i] == 'E')) || return i
+    j = i + 1
+    (j <= n && (sql[j] == '+' || sql[j] == '-')) && (j += 1)
+    (j <= n && '0' <= sql[j] <= '9') || return i
+    while j <= n && '0' <= sql[j] <= '9'
+        j += 1
+    end
+    return j
 end
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -385,6 +403,7 @@ function parse_select_statement!(p::Parser)
     else
         SqlWhereClause()
     end
+    wc === nothing && return nothing
 
     # skip trailing clauses (GROUP BY, ORDER BY, HAVING, LIMIT, etc.)
     skip_trailing!(p)
@@ -845,8 +864,10 @@ end
 function parse_where_clause!(p::Parser)
     expect_keyword!(p, "WHERE") === nothing && return nothing
 
+    # A condition that the documents can not hold keeps its text, so `nothing`
+    # here means the `WHERE` has no condition at all, which is not a statement.
     expr = parse_boolean_expression!(p)
-    expr === nothing && return SqlWhereClause()
+    expr === nothing && return nothing
 
     return SqlWhereClause(SqlWhereFilterCondition(expr))
 end
@@ -864,7 +885,7 @@ function parse_or!(p::Parser)
     while match_keyword(p, "OR")
         advance!(p)
         right = parse_and!(p)
-        right === nothing && break
+        right === nothing && return nothing   # the OR stands before no condition
         left = SqlOr(left, right)
     end
     return left
@@ -877,7 +898,7 @@ function parse_and!(p::Parser)
     while match_keyword(p, "AND")
         advance!(p)
         right = parse_not!(p)
-        right === nothing && break
+        right === nothing && return nothing   # the AND stands before no condition
         left = SqlAnd(left, right)
     end
     return left
@@ -893,14 +914,26 @@ function parse_not!(p::Parser)
     return parse_boolean_primary!(p)
 end
 
+# One condition. The structured read comes first, and it stands only where the
+# condition ends after it; otherwise the condition is read again from its first
+# token as raw text, so no part of it is lost.
 function parse_boolean_primary!(p::Parser)
-    # parenthesised boolean expression
+    first_token = p.pos
+    expr = parse_structured_condition!(p)
+    expr !== nothing && _is_condition_end(p) && return expr
+    p.pos = first_token
+    return parse_raw_condition!(p)
+end
+
+# A parenthesised condition or a comparison, or `nothing` where neither stands at
+# the position of `p`.
+function parse_structured_condition!(p::Parser)
     if peek(p).kind == TK_LPAREN
         advance!(p)
         expr = parse_boolean_expression!(p)
-        if peek(p).kind == TK_RPAREN
-            advance!(p)
-        end
+        expr === nothing && return nothing
+        peek(p).kind == TK_RPAREN || return nothing
+        advance!(p)
         return expr
     end
 
@@ -924,13 +957,6 @@ function parse_comparison!(p::Parser)
         return SqlComparison(left, op, right)
     end
 
-    # bare operand used as boolean — wrap as comparison if it's a column ref
-    # This handles cases like just a column name in a WHERE position
-    if left isa SqlColumnReference || left isa SqlScalarValue
-        # Return as-is if it can serve as a boolean expression
-        # For our purposes, a bare scalar/column isn't a valid boolean
-        # but we return a comparison with itself to avoid losing it
-    end
     return nothing
 end
 
@@ -990,6 +1016,64 @@ function parse_scalar_operand!(p::Parser)
     end
 
     return nothing
+end
+
+# ── Fallback: the source text of a condition ─────────────────────────────────
+
+# The keywords that end a condition: the two that join two conditions, the clauses
+# that follow a `WHERE` or an `ON`, and the ones that start a join.
+const CONDITION_END_KEYWORDS = Set{String}([
+    "AND", "OR", "WHERE",
+    "GROUP", "ORDER", "HAVING", "LIMIT", "OFFSET", "UNION",
+    "JOIN", "INNER", "LEFT", "RIGHT", "FULL", "CROSS", "NATURAL",
+])
+
+# Whether a condition ends at the token of `p`: the end of the statement, a comma,
+# a closing parenthesis, or a keyword that starts what follows a condition. `LEFT (`
+# and `RIGHT (` are function calls, so they end no condition.
+function _is_condition_end(p::Parser)
+    at_end(p) && return true
+    tok = peek(p)
+    (tok.kind == TK_COMMA || tok.kind == TK_RPAREN) && return true
+    tok.kind == TK_KEYWORD || return false
+    word = uppercase(String(tok.value))
+    word in CONDITION_END_KEYWORDS || return false
+    (word == "LEFT" || word == "RIGHT") && p.tokens[p.pos + 1].kind == TK_LPAREN && return false
+    return true
+end
+
+# The source text of a condition that the documents do not have, from the token of
+# `p` to the token before the one that ends the condition. A parenthesis is
+# counted, so a condition such as `a IN (1, 2)` stays whole, and the `AND` of a
+# `BETWEEN` belongs to the condition that the `BETWEEN` is in.
+function parse_raw_condition!(p::Parser)
+    start_pos = peek(p).pos
+    last_end = -1
+    depth = 0
+    open_betweens = 0
+
+    while !at_end(p)
+        tok = peek(p)
+        if depth == 0 && _is_condition_end(p)
+            word = tok.kind == TK_KEYWORD ? uppercase(String(tok.value)) : ""
+            (open_betweens > 0 && word == "AND") || break
+            open_betweens -= 1
+        end
+        if tok.kind == TK_LPAREN
+            depth += 1
+        elseif tok.kind == TK_RPAREN
+            depth -= 1
+        elseif depth == 0 && tok.kind == TK_KEYWORD && uppercase(String(tok.value)) == "BETWEEN"
+            open_betweens += 1
+        end
+        last_end = _get_token_last_index(tok)
+        advance!(p)
+    end
+
+    last_end < start_pos && return nothing
+    raw = strip(SubString(p.source, start_pos, last_end))
+    isempty(raw) && return nothing
+    return SqlRawCondition(String(raw))
 end
 
 # ── Fallback: greedy token collection for unsupported expressions ─────────────
@@ -1057,8 +1141,20 @@ end
 
 # ── Skip trailing clauses ────────────────────────────────────────────────────
 
+# The clauses after the WHERE are skipped to the end of the statement. A
+# parenthesis is counted, so a `)` of a clause such as `ORDER BY lower(name)` does
+# not end the skip; a `)` that opens no parenthesis does, because it closes the
+# subquery that the statement is in.
 function skip_trailing!(p::Parser)
-    while !at_end(p) && peek(p).kind != TK_RPAREN
+    depth = 0
+    while !at_end(p)
+        tok = peek(p)
+        if tok.kind == TK_RPAREN
+            depth == 0 && break
+            depth -= 1
+        elseif tok.kind == TK_LPAREN
+            depth += 1
+        end
         advance!(p)
     end
 end
@@ -1085,7 +1181,7 @@ function parse_number_literal!(p::Parser)
 end
 
 function parse_number(s::String)
-    if occursin('.', s)
+    if occursin('.', s) || occursin('e', s) || occursin('E', s)
         return parse(Float64, s)
     else
         return parse(Int, s)

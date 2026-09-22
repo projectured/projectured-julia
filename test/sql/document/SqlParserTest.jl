@@ -270,6 +270,90 @@ function test_sql_parser()
             @test again.select_clause.items[2].expression.value == "o'clock"
         end
 
+        # ── A condition that the model does not have ─────────────────
+        @testset "a condition that the model does not have keeps its text" begin
+            # The printed text reads as the same document.
+            reads_back(stmt) = roundtrip(parse(print_document(sql_pipe, stmt).output)) == roundtrip(stmt)
+            where_expression(stmt) = stmt.where_clause.condition === nothing ? nothing :
+                                     stmt.where_clause.condition.expression
+            for text in ("a - 1 = 0", "a = -b", "name LIKE 'x%'", "a NOT LIKE 'x%'", "a IS NOT NULL",
+                         "a IN (1, 2)", "a IN (SELECT id FROM u)", "a BETWEEN 1 AND 5", "(a - 1) = 0",
+                         "EXISTS (SELECT * FROM u WHERE u.id = t.id AND u.x = 1)", "a = LEFT(name, 1)")
+                sql = "SELECT * FROM t WHERE " * text
+                stmt = try parse(sql) catch; nothing end
+                @test stmt isa SqlSelectStatement
+                stmt isa SqlSelectStatement || continue
+                @test roundtrip(stmt) == sql
+                @test where_expression(stmt) isa SqlRawCondition && where_expression(stmt).text == text
+                @test reads_back(stmt)
+            end
+            # A condition after AND or OR stays, and so does each condition after it.
+            stmt = parse("SELECT * FROM t WHERE a = 1 AND name LIKE 'x%' AND b = 2")
+            @test roundtrip(stmt) == "SELECT * FROM t WHERE ((a = 1 AND name LIKE 'x%') AND b = 2)"
+            expression = where_expression(stmt)
+            @test expression isa SqlAnd && expression.right isa SqlComparison &&
+                  expression.left.left isa SqlComparison && expression.left.right isa SqlRawCondition
+            @test reads_back(stmt)
+            stmt = parse("SELECT * FROM t WHERE a = 1 OR a - 1 = 0 OR NOT b LIKE 'y'")
+            @test roundtrip(stmt) == "SELECT * FROM t WHERE ((a = 1 OR a - 1 = 0) OR (NOT b LIKE 'y'))"
+            expression = where_expression(stmt)
+            @test expression isa SqlOr && expression.right isa SqlNot &&
+                  expression.right.expression isa SqlRawCondition && expression.left.right isa SqlRawCondition
+            @test reads_back(stmt)
+            # The AND of BETWEEN is part of the condition.
+            stmt = parse("SELECT * FROM t WHERE a BETWEEN 1 AND 5 AND b = 2")
+            expression = where_expression(stmt)
+            @test expression isa SqlAnd && expression.left isa SqlRawCondition &&
+                  expression.left.text == "a BETWEEN 1 AND 5" && expression.right isa SqlComparison
+            # A condition ends before a clause that the parser skips.
+            stmt = try parse("SELECT * FROM t WHERE name LIKE 'x%' ORDER BY lower(name)") catch; nothing end
+            @test stmt isa SqlSelectStatement && where_expression(stmt) isa SqlRawCondition &&
+                  where_expression(stmt).text == "name LIKE 'x%'"
+            # The condition of a join keeps its text too.
+            stmt = parse("SELECT * FROM a JOIN b ON a.id = b.id + 1 WHERE b.x = 1")
+            condition = stmt.from_clause.items[1].joins[1].condition
+            @test condition isa SqlJoinOnCondition && condition.expression isa SqlRawCondition &&
+                  condition.expression.text == "a.id = b.id + 1"
+            @test where_expression(stmt) isa SqlComparison
+            @test roundtrip(stmt) == "SELECT * FROM a INNER JOIN b ON a.id = b.id + 1 WHERE b.x = 1"
+            @test reads_back(stmt)
+            # The forms that the model has stay structured.
+            expression = where_expression(parse("SELECT * FROM t WHERE (a = 1 OR b <> 'x') AND NOT c >= -2"))
+            @test expression isa SqlAnd && expression.left isa SqlOr &&
+                  expression.left.left isa SqlComparison && expression.left.right isa SqlComparison &&
+                  expression.right isa SqlNot && expression.right.expression isa SqlComparison
+            # A parenthesis that does not close a condition is part of its text.
+            expression = where_expression(parse("SELECT * FROM t WHERE (a = 1 OR) AND b = 2"))
+            @test expression isa SqlAnd && expression.left isa SqlRawCondition &&
+                  expression.left.text == "(a = 1 OR)"
+            # A condition with no text is an error, so no text is dropped.
+            @test_throws ErrorException parse("SELECT * FROM t WHERE")
+            @test_throws ErrorException parse("SELECT * FROM t WHERE a = 1 AND")
+        end
+
+        # ── A clause that the parser skips ───────────────────────────
+        @testset "a skipped clause with a parenthesis ends at the end of the statement" begin
+            @test (try parse("SELECT * FROM t ORDER BY lower(name)") catch; nothing end) isa SqlSelectStatement
+            stmt = try parse("SELECT * FROM (SELECT a FROM t GROUP BY f(a)) AS s WHERE s.a = 1") catch; nothing end
+            @test stmt isa SqlSelectStatement && stmt.from_clause.items[1].base_item.alias.name == "s" &&
+                  stmt.where_clause.condition.expression isa SqlComparison
+        end
+
+        # ── A number with an exponent ────────────────────────────────
+        @testset "a number with an exponent reads as its value" begin
+            stmt = parse("SELECT * FROM t WHERE a = 1e5")
+            @test stmt.where_clause.condition.expression.right.value === 1.0e5
+            @test roundtrip(stmt) == "SELECT * FROM t WHERE a = 100000.0"
+            sql = "SELECT 2.5E-3, 1E+2, -3e2, 1e20 FROM t"
+            values = [2.5e-3, 100.0, -300.0, 1.0e20]
+            @test [item.expression.value for item in parse(sql).select_clause.items] == values
+            # The printed text reads as the same values.
+            again = parse(print_document(sql_pipe, parse(sql)).output)
+            @test [item.expression.value for item in again.select_clause.items] == values
+            # An `e` that no digit follows is not an exponent, and the text stays.
+            @test parse("SELECT 2e FROM t").select_clause.items[1].expression.text == "2e"
+        end
+
         # ── A SELECT with no FROM ────────────────────────────────────
         @testset "a SELECT with no FROM prints no FROM and reads back" begin
             stmt = parse("SELECT 1")
