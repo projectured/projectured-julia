@@ -161,7 +161,10 @@ A window that holds no pane tree says nothing about a tab it does not have.
 make_window_status_bar(document; extra = String[]) =
     WidgetStatusBar(Any[ComputedCell(() -> _window_status_title(document)),
                         ComputedCell(() -> _window_status_selection(document)),
-                        extra...])
+                        extra...];
+                    # Room around the text, so the line does not touch the
+                    # window's edges or the panes above it.
+                    padding = Inset(4, 4, 8, 8))
 
 function _window_status_title(document)
     tree = try

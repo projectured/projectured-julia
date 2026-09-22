@@ -100,6 +100,23 @@ end
     @test string(bar.elements[1]) == ""
 end
 
+@testset "the status line keeps its text off the edges" begin
+    measure = (text, font) -> (length(text) * 8, font_logical_size(font))
+    recursion = RecursiveProjection(TypeDispatchingProjection(
+        WidgetToGraphics(font_ubuntu_regular_20; measure = measure).dispatch))
+    bar = make_window_status_bar(PrimitiveString("x"); extra = ["ready"])
+    output = print_document(recursion, nothing, bar, PrinterContext()).output
+    value(v) = v isa Cell ? v[] : v
+    texts = [value(e) for e in output.elements if value(e) isa GraphicsText]
+    ready = only(t for t in texts if value(t.text) == "ready")
+    # The line is as tall as the font the bar draws its text with.
+    line = font_logical_size(value(ready.font))
+    # Four pixels above and below the text, and eight before it.
+    @test Int(value(ready.y)) == 4
+    @test Int(value(ready.x)) >= 8
+    @test Int(value(output.h)) == line + 8
+end
+
 @testset "the shell is a document, and the fold puts the window inside it" begin
     document, projection = make_window_wrap(;
         gesture_help = false, command_palette = false,
