@@ -48,3 +48,19 @@ shows the value (`indicator_…`) and the tick in it (`check_color`).
     indicator_stroke_color::Any = nothing
     check_color::Any = nothing
 end
+
+"""
+    WidgetDialogStyle(; <the fields of WidgetStyle>, title_text_color, body_text_color)
+
+The style of a `WidgetDialog`: the fields of `WidgetStyle`, and the title and the
+body text.
+"""
+@document struct WidgetDialogStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    title_text_color::Any = nothing
+    body_text_color::Any = nothing
+end

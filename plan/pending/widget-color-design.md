@@ -1142,6 +1142,12 @@ does not name is `color_transparent`, and an inset that it does not name is
       - The layout example gives its buttons and tags a blue border. It never
         drew; as `style = WidgetStyle(border_color = …)` it draws now, with the
         padding of the tags, which the label ignored before.
+- [x] Group 2, the menus and bars: context menu, menu, menu item, dialog,
+      composite, toolbar and status bar, and `WidgetDialogStyle`. The
+      composite projection becomes an `@projection` with the box fields and
+      `selection_ring_stroke`. The menu item draws its hover as a layer, and the
+      dialog paints its card as its box, with the scrim from the theme. Both
+      suites keep their baseline; `test_substrate()` has 67770 passes.
 
 ### 8.6 omnet-julia
 

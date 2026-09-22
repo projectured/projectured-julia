@@ -87,7 +87,7 @@ export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
 export WidgetPopupResolverProjection, WidgetPopupResolverIoMap
 export ContextMenuProbeProjection, ContextMenuProbeIoMap
 export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem, WidgetToolbarItem, WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar, WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress, WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton, WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetSpinBox, WidgetList, WidgetTable, WidgetTree, Action
-export WidgetStyle, WidgetCheckboxStyle
+export WidgetStyle, WidgetCheckboxStyle, WidgetDialogStyle
 
 
 include("WidgetDocument.jl")

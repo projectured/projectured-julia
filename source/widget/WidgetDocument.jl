@@ -488,28 +488,20 @@ wrapper ignores the right click (the child still works).
     visible::Bool
     enabled::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     tooltip::Any
 end
 
 function WidgetContextMenu(child, menu;
                           visible::Bool=true,
                           enabled::Bool=true,
-                          margin::Inset=inset_default,
-                          margin_color=nothing,
-                          border::Inset=inset_default,
-                          border_color=nothing,
-                          padding::Inset=inset_default,
-                          padding_color=nothing, tooltip=nothing)
+                          margin=nothing, border=nothing, padding=nothing,
+                          style=nothing, tooltip=nothing)
     WidgetContextMenu(Cell(child), Cell(menu),
-                      Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
-                      Cell(border), Cell(border_color),
-                      Cell(padding), Cell(padding_color),
-                      Cell(tooltip), Cell(nothing))
+                      Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
+                      Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetContextMenu, f::Function) = (set_cell_function!(getfield(w, :child), f); w)
@@ -535,30 +527,22 @@ open it from a `WidgetButton`'s `dialog` field.
     popup_id::Symbol
     visible::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     tooltip::Any
 end
 
 function WidgetDialog(title, content, buttons::Vector;
                      popup_id::Symbol=:widget_dialog,
                      visible::Bool=true,
-                     margin::Inset=inset_default,
-                     margin_color=nothing,
-                     border::Inset=inset_default,
-                     border_color=nothing,
-                     padding::Inset=inset_default,
-                     padding_color=nothing, tooltip=nothing)
+                     margin=nothing, border=nothing, padding=nothing,
+                     style=nothing, tooltip=nothing)
     WidgetDialog(Cell(title), Cell(content),
                  CellVector(Cell[Cell(b) for b in buttons]),
                  Cell(popup_id),
-                 Cell(visible), Cell(margin), Cell(margin_color),
-                 Cell(border), Cell(border_color),
-                 Cell(padding), Cell(padding_color),
-                 Cell(tooltip), Cell(nothing))
+                 Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                 Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetDialog, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
@@ -603,30 +587,22 @@ A menu containing a sequence of `WidgetMenuItem`s..
     elements::CellVector = CellVector()
     orientation::Symbol = :vertical
     visible::Bool = true
-    margin::Inset = inset_default
-    margin_color::StyleColor = nothing
-    border::Inset = inset_default
-    border_color::StyleColor = nothing
-    padding::Inset = inset_default
-    padding_color::StyleColor = nothing
+    margin::Inset = nothing
+    border::Inset = nothing
+    padding::Inset = nothing
+    style::Any = nothing
     tooltip::Any
 end
 
 function WidgetMenu(elements::Vector;
                     orientation::Symbol=:vertical,
                     visible::Bool=true,
-                    margin::Inset=inset_default,
-                    margin_color=nothing,
-                    border::Inset=inset_default,
-                    border_color=nothing,
-                    padding::Inset=inset_default,
-                    padding_color=nothing, tooltip=nothing)
+                    margin=nothing, border=nothing, padding=nothing,
+                    style=nothing, tooltip=nothing)
     WidgetMenu(CellVector(Cell[Cell(x) for x in elements]),
                Cell(orientation),
-               Cell(visible), Cell(margin), Cell(margin_color),
-               Cell(border), Cell(border_color),
-               Cell(padding), Cell(padding_color),
-               Cell(tooltip), Cell(nothing))
+               Cell(visible), Cell(margin), Cell(border), Cell(padding),
+               Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetMenu, f::Function) = (set_cell_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
@@ -657,11 +633,9 @@ disabled command) is inert.
     visible::Bool
     enabled::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     hovered::Bool
     tooltip::Any
 end
@@ -673,19 +647,13 @@ function WidgetMenuItem(content;
                         submenu=nothing,
                         visible::Bool=true,
                         enabled::Bool=true,
-                        margin::Inset=inset_default,
-                        margin_color=nothing,
-                        border::Inset=inset_default,
-                        border_color=nothing,
-                        padding::Inset=inset_default,
-                        padding_color=nothing, tooltip=nothing)
+                        margin=nothing, border=nothing, padding=nothing,
+                        style=nothing, tooltip=nothing)
     # See `WidgetButton`: `content` and `icon` are sugar that folds into the
     # item's `Action`.
     WidgetMenuItem(Cell(resolve_action(content, icon, action)), Cell(gestures), Cell(submenu),
-                   Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
-                   Cell(border), Cell(border_color),
-                   Cell(padding), Cell(padding_color),
-                   Cell(false), Cell(tooltip))
+                   Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
+                   Cell(style), Cell(false), Cell(tooltip))
 end
 get_instance_gesture_bindings(w::WidgetMenuItem) = w.gestures
 
@@ -717,11 +685,9 @@ bound to a disabled action, is inert.
     visible::Bool
     enabled::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     hovered::Bool
     tooltip::Any
 end
@@ -732,17 +698,11 @@ function WidgetToolbarItem(content;
                            icon=nothing,
                            visible::Bool=true,
                            enabled::Bool=true,
-                           margin::Inset=inset_default,
-                           margin_color=nothing,
-                           border::Inset=inset_default,
-                           border_color=nothing,
-                           padding::Inset=inset_default,
-                           padding_color=nothing, tooltip=nothing)
+                           margin=nothing, border=nothing, padding=nothing,
+                           style=nothing, tooltip=nothing)
     WidgetToolbarItem(Cell(resolve_action(content, icon, action)), Cell(gestures),
-                      Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
-                      Cell(border), Cell(border_color),
-                      Cell(padding), Cell(padding_color),
-                      Cell(false), Cell(tooltip))
+                      Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
+                      Cell(style), Cell(false), Cell(tooltip))
 end
 get_instance_gesture_bindings(w::WidgetToolbarItem) = w.gestures
 
@@ -773,27 +733,19 @@ See also `WidgetCard`, which frames one thing with a title, and `VerticalLayout`
     elements::CellVector
     visible::Bool
     margin::Inset
-    margin_color::StyleColor
     border::Inset
-    border_color::StyleColor
     padding::Inset
-    padding_color::StyleColor
+    style::Any
     tooltip::Any
 end
 
 function WidgetComposite(position::Point2D, elements::Vector;
                          visible::Bool=true,
-                         margin::Inset=inset_default,
-                         margin_color=nothing,
-                         border::Inset=inset_default,
-                         border_color=nothing,
-                         padding::Inset=inset_default,
-                         padding_color=nothing, tooltip=nothing)
+                         margin=nothing, border=nothing, padding=nothing,
+                         style=nothing, tooltip=nothing)
     WidgetComposite(Cell(position), CellVector(Cell[Cell(x) for x in elements]),
-                    Cell(visible), Cell(margin), Cell(margin_color),
-                    Cell(border), Cell(border_color),
-                    Cell(padding), Cell(padding_color),
-                    Cell(tooltip), Cell(nothing))
+                    Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                    Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetComposite, f::Function) = (set_cell_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
@@ -809,28 +761,20 @@ below the menu bar in a `WidgetShell`.
 @document struct WidgetToolbar <: WidgetDocument
     elements::CellVector = CellVector()
     visible::Bool = true
-    margin::Inset = inset_default
-    margin_color::StyleColor = nothing
-    border::Inset = inset_default
-    border_color::StyleColor = nothing
-    padding::Inset = inset_default
-    padding_color::StyleColor = nothing
+    margin::Inset = nothing
+    border::Inset = nothing
+    padding::Inset = nothing
+    style::Any = nothing
     tooltip::Any
 end
 
 function WidgetToolbar(elements::Vector;
                        visible::Bool=true,
-                       margin::Inset=inset_default,
-                       margin_color=nothing,
-                       border::Inset=inset_default,
-                       border_color=nothing,
-                       padding::Inset=inset_default,
-                       padding_color=nothing, tooltip=nothing)
+                       margin=nothing, border=nothing, padding=nothing,
+                       style=nothing, tooltip=nothing)
     WidgetToolbar(CellVector(Cell[Cell(x) for x in elements]),
-                  Cell(visible), Cell(margin), Cell(margin_color),
-                  Cell(border), Cell(border_color),
-                  Cell(padding), Cell(padding_color),
-                  Cell(tooltip), Cell(nothing))
+                  Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                  Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetToolbar, f::Function) =
@@ -998,31 +942,23 @@ A thin bottom band of status text `segments` (each stringified) — Qt's
 @document struct WidgetStatusBar <: WidgetDocument
     elements::CellVector = CellVector()
     visible::Bool = true
-    margin::Inset = inset_default
-    margin_color::StyleColor = nothing
-    border::Inset = inset_default
-    border_color::StyleColor = nothing
-    padding::Inset = inset_default
-    padding_color::StyleColor = nothing
+    margin::Inset = nothing
+    border::Inset = nothing
+    padding::Inset = nothing
+    style::Any = nothing
     tooltip::Any
 end
 
 function WidgetStatusBar(segments::Vector;
                          visible::Bool=true,
-                         margin::Inset=inset_default,
-                         margin_color=nothing,
-                         border::Inset=inset_default,
-                         border_color=nothing,
-                         padding::Inset=inset_default,
-                         padding_color=nothing, tooltip=nothing)
+                         margin=nothing, border=nothing, padding=nothing,
+                         style=nothing, tooltip=nothing)
     # A segment given as a cell is kept as it is, so a band can say something
     # that follows the window: `ComputedCell(() -> …)` re-derives when what it
     # read changes, where `Cell(value)` would freeze what it was given.
     WidgetStatusBar(CellVector(Cell[x isa Cell ? x : Cell(x) for x in segments]),
-                    Cell(visible), Cell(margin), Cell(margin_color),
-                    Cell(border), Cell(border_color),
-                    Cell(padding), Cell(padding_color),
-                    Cell(tooltip), Cell(nothing))
+                    Cell(visible), Cell(margin), Cell(border), Cell(padding),
+                    Cell(style), Cell(tooltip), Cell(nothing))
 end
 
 set_cell_function!(w::WidgetStatusBar, f::Function) =

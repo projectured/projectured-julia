@@ -655,24 +655,92 @@ WidgetTooltipToGraphicsCanvas(theme::WidgetTheme; measure,
 
 @projection struct WidgetMenuToGraphicsCanvas
     measure::Function
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
     font::StyleFont             # used to measure the per-item row height
 end
 
+WidgetMenuToGraphicsCanvas(theme::WidgetTheme; measure,
+                           margin = inset_default, border = inset_default, padding = inset_default,
+                           margin_color = color_transparent, border_color = color_transparent,
+                           padding_color = color_transparent, content_color = color_transparent,
+                           font = theme.font) =
+    WidgetMenuToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                               padding_color, content_color, font)
+
 @projection struct WidgetMenuItemToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{StyleText}             # font + foreground
-    disabled_foreground::StyleColor   # label color when disabled (item or bound command)
-    hover_color::StyleColor           # hover surface behind the item (Stage 6)
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    label_text::ImmutableCell{StyleText}            # font + foreground
+    label_disabled_text::ImmutableCell{StyleText}   # label when disabled (item or bound command)
+    layer_hovered_color::StyleColor                 # hover surface behind the item (Stage 6)
 end
+
+WidgetMenuItemToGraphicsCanvas(theme::WidgetTheme; measure,
+                               margin = inset_default, border = inset_default, padding = inset_default,
+                               margin_color = color_transparent, border_color = color_transparent,
+                               padding_color = color_transparent, content_color = color_transparent,
+                               label_text = theme.body_text,
+                               label_disabled_text = StyleText(theme.body_text.font, theme.muted_foreground),
+                               layer_hovered_color = theme.hover_layer) =
+    WidgetMenuItemToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                   padding_color, content_color, label_text, label_disabled_text,
+                                   layer_hovered_color)
 
 @projection struct WidgetToolbarItemToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{StyleText}    # font (the size of the icon) + foreground
-    disabled_foreground::StyleColor   # icon and label color when disabled (item or bound command)
-    hover_color::StyleColor           # the surface behind the item while the pointer is on it
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    label_text::ImmutableCell{StyleText}            # font (the size of the icon) + foreground
+    label_disabled_text::ImmutableCell{StyleText}   # icon and label when disabled
+    layer_hovered_color::StyleColor                 # the layer while the pointer is on the item
 end
 
-struct WidgetCompositeToGraphicsCanvas <: Projection end
+WidgetToolbarItemToGraphicsCanvas(theme::WidgetTheme; measure,
+                                  margin = inset_default, border = inset_default, padding = inset_default,
+                                  margin_color = color_transparent, border_color = color_transparent,
+                                  padding_color = color_transparent, content_color = color_transparent,
+                                  label_text = theme.body_text,
+                                  label_disabled_text = StyleText(theme.body_text.font, theme.muted_foreground),
+                                  layer_hovered_color = theme.hover_layer) =
+    WidgetToolbarItemToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                      padding_color, content_color, label_text, label_disabled_text,
+                                      layer_hovered_color)
+
+@projection struct WidgetCompositeToGraphicsCanvas
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    selection_ring_stroke::StyleStroke   # the ring around a child selected as a whole
+end
+
+WidgetCompositeToGraphicsCanvas(theme::WidgetTheme;
+                                margin = inset_default, border = inset_default, padding = inset_default,
+                                margin_color = color_transparent, border_color = color_transparent,
+                                padding_color = color_transparent, content_color = color_transparent,
+                                selection_ring_stroke = StyleStroke(theme.selection, 2)) =
+    WidgetCompositeToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
+                                    content_color, selection_ring_stroke)
 
 @projection struct WidgetShellToGraphicsCanvas
     measure::Function
@@ -732,9 +800,24 @@ end
 
 @projection struct WidgetToolbarToGraphicsCanvas
     measure::Function
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
     font::StyleFont          # measures each item's advance
     item_gap::Int
 end
+
+WidgetToolbarToGraphicsCanvas(theme::WidgetTheme; measure,
+                              margin = inset_default, border = inset_default, padding = inset_default,
+                              margin_color = color_transparent, border_color = color_transparent,
+                              padding_color = color_transparent, content_color = color_transparent,
+                              font = theme.font, item_gap = theme.gap) =
+    WidgetToolbarToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                  padding_color, content_color, font, item_gap)
 
 @projection struct WidgetScrollBarToGraphicsCanvas
     track_color::StyleColor       # rail fill
@@ -1773,8 +1856,23 @@ end
 
 @projection struct WidgetContextMenuToGraphicsCanvas
     measure::Function
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
     font::StyleFont    # measures the popup menu's row size
 end
+
+WidgetContextMenuToGraphicsCanvas(theme::WidgetTheme; measure,
+                                  margin = inset_default, border = inset_default, padding = inset_default,
+                                  margin_color = color_transparent, border_color = color_transparent,
+                                  padding_color = color_transparent, content_color = color_transparent,
+                                  font = theme.font) =
+    WidgetContextMenuToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                      padding_color, content_color, font)
 
 # Carries the recursed child's iomap (for event routing + re-rooting) and the
 # wrapper's own document path (captured from `ctx.reference`) — the anchor a right
@@ -1794,15 +1892,18 @@ function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::Widg
     w.child isa Document || return SimpleIoMap(p, w, _empty_canvas())
     child_iomap = reconcile_child_iomap(() -> w.child, c -> print_child(recursion, c, ctx))
     build = ComputedCell(() -> begin
-        cox, coy = _content_offset(w)
+        content_x, content_y = _content_offset(p, w)
         inner = child_iomap[].output::GraphicsCanvas
         iw, ih = Int(inner.w[]), Int(inner.h[])
-        tx, ty = _inset_total(w)
+        inset_width, inset_height = _inset_total(p, w)
+        elements = Any[]
+        _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w), iw, ih)
+        push!(elements, _make_canvas(content_x, content_y, Any[inner]))
         # An overlay: content-sized, and capped by the window rather than stretched
         # to it, so a menu opened near an edge does not run past it.
-        (width  = _resolve_overlay(ctx, :x, 0, iw + tx),
-         height = _resolve_overlay(ctx, :y, 0, ih + ty),
-         elements = Any[_make_canvas(cox, coy, Any[inner])])
+        (width  = _resolve_overlay(ctx, :x, 0, iw + inset_width),
+         height = _resolve_overlay(ctx, :y, 0, ih + inset_height),
+         elements = elements)
     end)
     canvas = _reactive_canvas_cell(0, 0, build)
     WidgetContextMenuToGraphicsCanvasIoMap(p, w, canvas, child_iomap, ctx.reference)
@@ -1836,7 +1937,7 @@ function read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextM
     end
     child_iomap = iomap.child_iomap
     child_iomap === nothing && return nothing
-    cox, coy = _content_offset(w)
+    cox, coy = _content_offset(p, w)
     op = @event_case evt begin
         MousePress(button, x, y) =>
             read_intent(child_iomap.projection, child_iomap, MousePress(button, x - cox, y - coy, evt.count, evt.modifiers))
@@ -1868,14 +1969,30 @@ end
 
 @projection struct WidgetDialogToGraphicsCanvas
     measure::Function
-    title::ImmutableCell{StyleText}        # title font + color
-    body::ImmutableCell{StyleText}         # content/label fallback font + color
-    card_color::StyleColor  # card fill
-    border::StyleStroke      # card outline
-    corner_radius::Int
+    margin::Inset                          # space around the card
+    border::Inset
     padding::Inset
-    gap::Int                # vertical gap between title / content / buttons
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    title_text::ImmutableCell{StyleText}
+    body_text::ImmutableCell{StyleText}    # content/label fallback font + color
+    scrim_color::StyleColor
+    gap::Int                               # vertical gap between title / content / buttons
+    corner_radius::Int
 end
+
+WidgetDialogToGraphicsCanvas(theme::WidgetTheme; measure,
+                             margin = inset_default, border = _make_uniform_inset(theme.border_width),
+                             padding = _make_control_padding(theme),
+                             margin_color = color_transparent, border_color = theme.border,
+                             padding_color = theme.card, content_color = theme.card,
+                             title_text = theme.title_text, body_text = theme.body_text,
+                             scrim_color = theme.scrim, gap = theme.gap, corner_radius = theme.radius) =
+    WidgetDialogToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                 padding_color, content_color, title_text, body_text, scrim_color,
+                                 gap, corner_radius)
 
 # Carries the centered card's bounds (for the backdrop hit-test) plus the content
 # and button child-iomaps (for routing + re-rooting), all in dialog-canvas coords.
@@ -1890,7 +2007,11 @@ end
 
 function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDialog, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    pad_x = _sc(Int(p.padding.left[])); pad_y = _sc(Int(p.padding.top[]))
+    box = _get_box_insets(p, w)
+    colors = _get_box_colors(p, w)
+    margin_left, margin_top, _margin_right, _margin_bottom = box.margin
+    border_left, border_top, border_right, border_bottom = box.border
+    padding_left, padding_top, padding_right, padding_bottom = box.padding
     gap = _sc(p.gap); radius = _sc(p.corner_radius)
     # The dialog fills its (modal) window; the scrim covers that whole area.
     aw = ctx === nothing ? nothing : ctx.available_width
@@ -1898,8 +2019,10 @@ function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDia
     avail_w = aw !== nothing ? max(0, Int(aw[])) : 480
     avail_h = ah !== nothing ? max(0, Int(ah[])) : 320
 
+    title_text = _get_part_text(w, :title_text, p.title_text)
+    body_text = _get_part_text(w, :body_text, p.body_text)
     title = string(w.title)
-    title_w, title_h = _text_size(p.measure, p.title.font, title)
+    title_w, title_h = _text_size(p.measure, title_text.font, title)
 
     # Content: a recursed child widget, a plain string, or nothing.
     content = w.content
@@ -1909,7 +2032,7 @@ function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDia
         cc = content_iomap.output
         content_w, content_h = cc isa GraphicsCanvas ? (Int(cc.w[]), Int(cc.h[])) : (0, 0)
     elseif content !== nothing
-        content_w, content_h = _text_size(p.measure, p.body.font, string(content))
+        content_w, content_h = _text_size(p.measure, body_text.font, string(content))
     end
 
     # Buttons laid out in a row.
@@ -1932,26 +2055,30 @@ function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDia
     inner_h = title_h
     has_content && (inner_h += gap + content_h)
     has_buttons && (inner_h += gap + btn_h)
-    card_w = inner_w + 2pad_x; card_h = inner_h + 2pad_y
+    # The card is the border box: the border and the padding around the content.
+    # The margin goes around the card.
+    card_w = border_left + padding_left + inner_w + padding_right + border_right
+    card_h = border_top + padding_top + inner_h + padding_bottom + border_bottom
     card_x = max(0, (avail_w - card_w) ÷ 2); card_y = max(0, (avail_h - card_h) ÷ 2)
 
     elements = Any[]
-    push!(elements, GraphicsRect(0, 0, avail_w, avail_h, StyleColor(0.0, 0.0, 0.0, 0x66 / 255)))  # scrim
-    _push_panel!(elements, card_x, card_y, card_w, card_h; fill=p.card_color,
-                 border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=radius)
-    tx = card_x + pad_x; ty = card_y + pad_y
-    _push_text!(elements, p.title.font, title, tx, ty, p.title.color)
+    _push_panel!(elements, 0, 0, avail_w, avail_h; fill = p.scrim_color)
+    box_elements = Any[]
+    _push_box_parts!(box_elements, box, colors, inner_w, inner_h; radius)
+    push!(elements, _make_canvas(card_x - margin_left, card_y - margin_top, box_elements))
+    tx = card_x + border_left + padding_left; ty = card_y + border_top + padding_top
+    _push_text!(elements, title_text.font, title, tx, ty, title_text.color)
     cursor_y = ty + title_h
 
     content_entry = nothing
     if has_content
         cursor_y += gap
         if content_iomap !== nothing
-            ox = card_x + pad_x; oy = cursor_y
+            ox = tx; oy = cursor_y
             push!(elements, _make_canvas(ox, oy, Any[content_iomap.output]))
             content_entry = (ox, oy, content_iomap)
         else
-            _push_text!(elements, p.body.font, string(content), card_x + pad_x, cursor_y, p.body.color)
+            _push_text!(elements, body_text.font, string(content), tx, cursor_y, body_text.color)
         end
         cursor_y += content_h
     end
@@ -1959,7 +2086,7 @@ function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDia
     button_entries = Any[]
     if has_buttons
         cursor_y += gap
-        bx = card_x + pad_x + max(0, inner_w - btn_w)   # right-align the row
+        bx = tx + max(0, inner_w - btn_w)   # right-align the row
         for (bim, bw, _bh) in button_iomaps
             push!(elements, _make_canvas(bx, cursor_y, Any[bim.output]))
             push!(button_entries, (bx, cursor_y, bim))
@@ -2036,10 +2163,13 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
     # WidgetDocument branch.
     child_iomap = reconcile_child_iomap(() -> w.action.label, c -> print_child(recursion, c, ctx))
     build = ComputedCell(() -> begin
-        cox, coy = _content_offset(w)
+        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _inset_total(p, w)
         command = _menu_item_command(w)
         enabled = _menu_item_enabled(w)
-        fg = enabled ? p.text.color : p.disabled_foreground
+        hovered = enabled && w.hovered === true
+        state = enabled ? nothing : :disabled
+        label = _get_state_text(p, w, :label; state)
         # A bound command's label overrides the content; otherwise the content is the
         # label (text) or a recursed widget. The label is passed RAW (the
         # WidgetDocument branch below and the text leaf's own string() do the
@@ -2052,24 +2182,27 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
             cim = child_iomap[]
             inner = cim.output
             cw, ch = inner isa GraphicsCanvas ? (Int(inner.w[]), Int(inner.h[])) : (0, 0)
-            push!(child_iomaps, (cox, coy, cim))
-            push!(elems, _make_canvas(cox, coy, Any[inner]))
+            push!(child_iomaps, (content_x, content_y, cim))
+            push!(elems, _make_canvas(content_x, content_y, Any[inner]))
         else
             text = string(content)
-            cw, ch = _text_size(p.measure, p.text.font, text)
+            cw, ch = _text_size(p.measure, label.font, text)
             # Optional leading icon (Stage 5), tinted to the item's foreground.
             icon = _menu_item_icon(w)
             icon_w = icon_width(icon, ch)
             gap = icon_w > 0 ? _sc(6) : 0
-            icon_w > 0 && _push_icon!(elems, icon, cox, coy, ch, fg)
-            _push_text!(elems, p.text.font, text, cox + icon_w + gap, coy, fg)
+            icon_w > 0 && _push_icon!(elems, icon, content_x, content_y, ch, label.color)
+            _push_text!(elems, label.font, text, content_x + icon_w + gap, content_y, label.color)
             cw += icon_w + gap
         end
-        # Hover surface behind the content (Stage 6), only when hovered + enabled.
-        control_w = _resolve_width(ctx, 0, cw + 2cox)
-        control_h = _resolve_height(ctx, 0, ch + 2coy)
+        control_w = _resolve_width(ctx, 0, cw + inset_width)
+        control_h = _resolve_height(ctx, 0, ch + inset_height)
         final = Any[]
-        _push_hover_surface!(final, w, enabled, control_w, control_h, p.hover_color)
+        _push_box_parts!(final, _get_box_insets(p, w), _get_box_colors(p, w),
+                         control_w - inset_width, control_h - inset_height)
+        # The hover layer, only when hovered + enabled, drawn over the box and
+        # under the content.
+        _push_state_layer!(final, hovered ? p.layer_hovered_color : nothing, 0, 0, control_w, control_h)
         append!(final, elems)
         (width=control_w, height=control_h, elements=final, child_iomaps=child_iomaps)
     end)
@@ -2136,8 +2269,8 @@ function _open_submenu_popup(p::WidgetMenuItemToGraphicsCanvas, submenu,
     width = iomap.control_width
     for it in items
         it isa WidgetMenuItem && !(it.action.label isa WidgetDocument) || continue
-        icox, _ = _content_offset(it)
-        tw, _ = _text_size(p.measure, p.text.font, string(it.action.label))
+        icox, _ = _content_offset(p, it)
+        tw, _ = _text_size(p.measure, p.label_text.font, string(it.action.label))
         width = max(width, tw + 2icox)
     end
     OpenPopupOperation(; id=:widget_popup, anchor=iomap.anchor,
@@ -2159,29 +2292,34 @@ _toolbar_item_enabled(w::WidgetToolbarItem) =
 function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::WidgetToolbarItem, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     SimpleIoMap(p, w, _reactive_canvas(0, 0, () -> begin
-        cox, coy = _content_offset(w)
+        cox, coy = _content_offset(p, w)
+        inset_width, inset_height = _inset_total(p, w)
         command = _toolbar_item_command(w)
         enabled = _toolbar_item_enabled(w)
-        color = enabled ? p.text.color : p.disabled_foreground
-        _, line = _text_size(p.measure, p.text.font, "M")
+        state = enabled ? nothing : :disabled
+        label = _get_state_text(p, w, :label; state)
+        _, line = _text_size(p.measure, label.font, "M")
         icon_size = icon_width(command.icon, line)
         elements = Any[]
         if icon_size > 0
-            _push_icon!(elements, command.icon, cox, coy, icon_size, color)
+            _push_icon!(elements, command.icon, cox, coy, icon_size, label.color)
             content_width, content_height = icon_size, line
         else
             text = string(command.label)
-            content_width, content_height = _text_size(p.measure, p.text.font, text)
-            _push_text!(elements, p.text.font, text, cox, coy, color)
+            content_width, content_height = _text_size(p.measure, label.font, text)
+            _push_text!(elements, label.font, text, cox, coy, label.color)
         end
         # As large as what it shows, on both axes. A band can offer the height of
         # the window, and an item that took it would take every press below it.
-        width = content_width + 2cox
-        height = content_height + 2coy
+        width = content_width + inset_width
+        height = content_height + inset_height
         # A clear surface over the whole button: a press anywhere on it hits the
         # item, and not only on the strokes of its picture.
-        drawn = Any[GraphicsRect(0, 0, width, height, StyleColor(0.0, 0.0, 0.0, 0.0), 0)]
-        _push_hover_surface!(drawn, w, enabled, width, height, p.hover_color)
+        drawn = Any[GraphicsRect(0, 0, width, height, color_transparent, 0)]
+        _push_box_parts!(drawn, _get_box_insets(p, w), _get_box_colors(p, w; state),
+                         content_width, content_height)
+        _push_state_layer!(drawn, enabled && w.hovered === true ? p.layer_hovered_color : nothing,
+                           0, 0, width, height)
         append!(drawn, elements)
         (width = width, height = height, elements = drawn)
     end))
@@ -2246,24 +2384,31 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
                                    RangeReferenceStep(i - 1, i))) :
             nothing)
     build = ComputedCell(() -> begin
-        cox, coy = _content_offset(w)
+        content_x, content_y = _content_offset(p, w)
         horizontal = w.orientation === :horizontal
         _, item_h = p.measure("M", p.font)
         item_gap = horizontal ? 12 : 0
         child_iomaps = Any[]
-        elems = Any[]
-        x_cursor = cox
-        y_cursor = coy
+        items = Any[]
+        x_cursor = 0
+        y_cursor = 0
+        item_w = 0
         for cim in child_cells[]
             cim === nothing && continue
-            push!(child_iomaps, (x_cursor, y_cursor, cim))
-            push!(elems, _make_canvas(x_cursor, y_cursor, Any[cim.output]))
+            push!(child_iomaps, (content_x + x_cursor, content_y + y_cursor, cim))
+            push!(items, _make_canvas(content_x + x_cursor, content_y + y_cursor, Any[cim.output]))
             if horizontal
                 x_cursor += _menu_item_width(cim) + item_gap
             else
+                item_w = max(item_w, _menu_item_width(cim))
                 y_cursor += item_h
             end
         end
+        content_width = horizontal ? max(0, x_cursor - item_gap) : item_w
+        content_height = horizontal ? item_h : y_cursor
+        elems = Any[]
+        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
+        append!(elems, items)
         (elements=elems, child_iomaps=child_iomaps)
     end)
     # A menu is an overlay: capped by the window, never stretched to it.
@@ -2303,10 +2448,20 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
         () -> Any[c for c in w.elements if (c isa WidgetDocument || c isa LayoutDocument)],
         (i, c) -> print_child(recursion, c, ctx))
     build = ComputedCell(() -> begin
-        cox, coy = _content_offset(w)
+        content_x, content_y = _content_offset(p, w)
         cims = child_cells[]
-        child_iomaps = Any[(cox, coy, cim) for cim in cims]
-        elems = Any[_make_canvas(cox, coy, Any[cim.output]) for cim in cims]
+        # The natural extent of the children together, before the box around them.
+        content_width, content_height = 0, 0
+        for cim in cims
+            ew, eh = _element_size(cim.output, _p_measure(p))
+            content_width = max(content_width, ew); content_height = max(content_height, eh)
+        end
+        child_iomaps = Any[(content_x, content_y, cim) for cim in cims]
+        elems = Any[]
+        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
+        for cim in cims
+            push!(elems, _make_canvas(content_x, content_y, Any[cim.output]))
+        end
         (elements=elems, child_iomaps=child_iomaps)
     end)
     # The ring over the element the composite's selection names as a whole.
@@ -2316,7 +2471,7 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
         (i === nothing || !(1 <= i <= length(entries))) && return nothing
         (x, y, cim) = entries[i]
         _get_entry_box(x, y, cim, _p_measure(p))
-    end)
+    end; color = p.selection_ring_stroke.color, width = p.selection_ring_stroke.width)
     ChildrenIoMap(p, w, _reactive_canvas_auto(_origin(pos)..., () -> vcat(build[].elements, Any[ring]),
                                               _p_measure(p)),
                   ComputedCell(() -> build[].child_iomaps))
@@ -4521,20 +4676,25 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
         # in a toolbar came out 800 wide.
         (i, item) -> print_child(recursion, item, withhold_offer(ctx, :x)))
     build = ComputedCell(() -> begin
-        cox, coy = _content_offset(w)
+        content_x, content_y = _content_offset(p, w)
         item_gap = p.item_gap
+        _, item_h = p.measure("M", p.font)
         child_iomaps = Any[]
-        elems = Any[]
-        x_cursor = cox
+        items = Any[]
+        x_cursor = 0
         for cim in child_cells[]
-            push!(child_iomaps, (x_cursor, coy, cim))
-            push!(elems, _make_canvas(x_cursor, coy, Any[cim.output]))
+            push!(child_iomaps, (content_x + x_cursor, content_y, cim))
+            push!(items, _make_canvas(content_x + x_cursor, content_y, Any[cim.output]))
             # Advance by the item's *rendered* width (includes a leading icon, Stage 5),
             # not just its text — otherwise an icon'd item overlaps the next one.
             iw = _menu_item_width(cim)
             iw <= 0 && ((iw, _) = p.measure("    ", p.font))
             x_cursor += iw + item_gap
         end
+        content_width = max(0, x_cursor - item_gap)
+        elems = Any[]
+        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, item_h)
+        append!(elems, items)
         (elements=elems, child_iomaps=child_iomaps)
     end)
     ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements, _p_measure(p)),
@@ -4579,28 +4739,45 @@ end
 
 @projection struct WidgetStatusBarToGraphicsCanvas
     measure::Function
-    text::ImmutableCell{StyleText}
-    background_color::StyleColor
-    gap::Int
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    label_text::ImmutableCell{StyleText}
+    item_gap::Int
 end
+
+WidgetStatusBarToGraphicsCanvas(theme::WidgetTheme; measure,
+                                margin = inset_default, border = inset_default, padding = inset_default,
+                                margin_color = color_transparent, border_color = color_transparent,
+                                padding_color = theme.muted, content_color = theme.muted,
+                                label_text = theme.caption_text, item_gap = theme.gap) =
+    WidgetStatusBarToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                    padding_color, content_color, label_text, item_gap)
 
 function print_document(p::WidgetStatusBarToGraphicsCanvas, recursion, w::WidgetStatusBar, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     SimpleIoMap(p, w, _reactive_canvas(0, 0, () -> begin
-        cox, coy = _content_offset(w)
-        gap = _sc(p.gap)
+        content_x, content_y = _content_offset(p, w)
+        inset_width, inset_height = _inset_total(p, w)
+        item_gap = _sc(p.item_gap)
+        label = _get_part_text(w, :label_text, p.label_text)
         labels = Any[]
-        x = cox; text_h = 0
-        for seg in w.elements
+        x = 0; text_h = 0
+        for (i, seg) in enumerate(w.elements)
             s = string(seg)
-            tw, th = _text_size(p.measure, p.text.font, s)
-            _push_text!(labels, p.text.font, s, x, coy, p.text.color)
-            x += tw + gap; text_h = max(text_h, th)
+            tw, th = _text_size(p.measure, label.font, s)
+            i == 1 || (x += item_gap)
+            _push_text!(labels, label.font, s, content_x + x, content_y, label.color)
+            x += tw; text_h = max(text_h, th)
         end
-        width  = _resolve_width(ctx, 0, x)
-        height = _resolve_height(ctx, 0, text_h + 2coy)
+        width  = _resolve_width(ctx, 0, x + inset_width)
+        height = _resolve_height(ctx, 0, text_h + inset_height)
         elements = Any[]
-        _push_panel!(elements, 0, 0, width, height; fill=p.background_color)
+        _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w), x, text_h)
         append!(elements, labels)
         (width=width, height=height, elements=elements)
     end))
@@ -7545,14 +7722,12 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(theme),
         WidgetButton     => WidgetButtonToGraphicsCanvas(theme; measure = measurer),
         WidgetTooltip    => WidgetTooltipToGraphicsCanvas(theme; measure = measurer),
-        WidgetContextMenu => WidgetContextMenuToGraphicsCanvas(measurer, theme.font),
-        WidgetDialog     => WidgetDialogToGraphicsCanvas(measurer, theme.title_text, theme.body_text,
-            theme.card, StyleStroke(theme.border, theme.border_width), theme.radius,
-            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.gap),
-        WidgetMenu       => WidgetMenuToGraphicsCanvas(measurer, theme.font),
-        WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(measurer, theme.body_text, theme.muted_foreground, theme.accent),
-        WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(measurer, theme.body_text, theme.muted_foreground, theme.accent),
-        WidgetComposite  => WidgetCompositeToGraphicsCanvas(),
+        WidgetContextMenu => WidgetContextMenuToGraphicsCanvas(theme; measure = measurer),
+        WidgetDialog     => WidgetDialogToGraphicsCanvas(theme; measure = measurer),
+        WidgetMenu       => WidgetMenuToGraphicsCanvas(theme; measure = measurer),
+        WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(theme; measure = measurer),
+        WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(theme; measure = measurer),
+        WidgetComposite  => WidgetCompositeToGraphicsCanvas(theme),
         # Widgets embed layouts (a composite/table holds a GridLayout); register
         # it so the recursion can render an embedded grid without an outer
         # layout dispatcher.
@@ -7567,8 +7742,8 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetScrollPane => WidgetScrollPaneToGraphicsCanvas(; measure = measurer, font = theme.font,
                                            background_color = theme.background),
         WidgetTransformPane => WidgetTransformPaneToGraphicsCanvas(measurer, theme.font, theme.background),
-        WidgetToolbar    => WidgetToolbarToGraphicsCanvas(measurer, theme.font, theme.gap),
-        WidgetStatusBar  => WidgetStatusBarToGraphicsCanvas(measurer, theme.caption_text, theme.muted, theme.gap),
+        WidgetToolbar    => WidgetToolbarToGraphicsCanvas(theme; measure = measurer),
+        WidgetStatusBar  => WidgetStatusBarToGraphicsCanvas(theme; measure = measurer),
         WidgetScrollBar  => WidgetScrollBarToGraphicsCanvas(theme.muted, theme.border, 8),
         WidgetBadge      => WidgetBadgeToGraphicsCanvas(measurer, theme.font_small,
             Inset(3, 3, 10, 10), theme.border_width,
