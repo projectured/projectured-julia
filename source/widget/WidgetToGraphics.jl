@@ -4149,16 +4149,39 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
                 ReplaceReferencedValueOperation(w, "transform", _pan_by(M, 0, dy * step))
         end
     end
-    # Forward other events to the content, mapping pointer coords through the
-    # inverse transform (screen → content-local), then re-root the result.
+    # Forward other events to the content, then re-root the result. Every pointer
+    # event reaches the content through the inverse transform (screen → content-local),
+    # so a down focuses, and a drag moves, what is drawn under the pointer.
     content_iomap = iomap.content_iomap
+    inverse = compute_affine_inverse(M)
+    _local(x, y) = round.(Int, apply_affine_transform(inverse, Float64(x - cox), Float64(y - coy)))
     op = content_iomap === nothing ? nothing : @event_case evt begin
         MousePress(button, x, y) => begin
-            inv = compute_affine_inverse(M)
-            lxf, lyf = apply_affine_transform(inv, Float64(x - cox), Float64(y - coy))
-            read_child_event(content_iomap,
-                             MousePress(button, round(Int, lxf), round(Int, lyf),
-                                        evt.count, evt.modifiers))
+            lx, ly = _local(x, y)
+            read_child_event(content_iomap, MousePress(button, lx, ly, evt.count, evt.modifiers))
+        end
+        MouseDown(button, x, y) => begin
+            lx, ly = _local(x, y)
+            read_child_event(content_iomap, MouseDown(button, lx, ly, evt.modifiers))
+        end
+        MouseUp(button, x, y) => begin
+            lx, ly = _local(x, y)
+            read_intent(content_iomap.projection, content_iomap, MouseUp(button, lx, ly, evt.modifiers))
+        end
+        MouseMove(x, y) => begin
+            lx, ly = _local(x, y)
+            read_intent(content_iomap.projection, content_iomap,
+                        MouseMove(lx, ly, evt.buttons, evt.modifiers))
+        end
+        MouseEnter(x, y) => begin
+            lx, ly = _local(x, y)
+            read_intent(content_iomap.projection, content_iomap,
+                        MouseEnter(lx, ly, evt.buttons, evt.modifiers))
+        end
+        MouseLeave(x, y) => begin
+            lx, ly = _local(x, y)
+            read_intent(content_iomap.projection, content_iomap,
+                        MouseLeave(lx, ly, evt.buttons, evt.modifiers))
         end
         _ => read_intent(content_iomap.projection, content_iomap, evt)
     end

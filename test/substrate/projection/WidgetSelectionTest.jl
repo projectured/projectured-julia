@@ -359,4 +359,25 @@ function test_widget_selection()
         @test b.second.content === false
         @test b.first.content === false
     end
+
+    @testset "a press in a transformed pane gives the focus to the control under the pointer" begin
+        projection = _selection_projection()
+        b = _selection_boxes()
+        pane = WidgetTransformPane(b.layout; size = Point2D(300, 400),
+                                   transform = make_affine_translate(40.0, 30.0) ∘
+                                               make_affine_scale(2.0, 2.0))
+        iomap = print_document(projection, projection, pane, PrinterContext())
+        (x, y) = _selection_point_of(projection, iomap, b.second)
+        # The pane draws its content at twice its size and 30 lower, so each pointer
+        # event must reach the content through the inverse of the transform.
+        plain = _selection_boxes()
+        plain_iomap = print_document(projection, projection, plain.layout, PrinterContext())
+        @test y >= 2 * last(_selection_point_of(projection, plain_iomap, plain.second))
+        _selection_click!(projection, iomap, pane, x, y)
+        @test b.second.content === true
+        @test find_whole_selected_index(b.layout.selection, "children") == 3
+        @test _selection_space!(projection, iomap, pane) !== nothing
+        @test b.second.content === false
+        @test b.first.content === false
+    end
 end

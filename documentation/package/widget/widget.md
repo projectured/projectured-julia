@@ -171,7 +171,7 @@ The `rows` of a `WidgetTable` can be a `ListNode`. `WidgetTableList.jl` then wal
 
 ### The transform pane
 
-`WidgetTransformPane` holds one affine `transform`, where a scroll pane holds one offset. Ctrl and the wheel zoom about the pointer, with a total scale from 0.25 to 4.0. The wheel alone pans. Ctrl with `=`, `-` or `0` zooms about the center, but only after the content returns `nothing` for the key. Other events go to the content, with the point mapped through the inverse transform.
+`WidgetTransformPane` holds one affine `transform`, where a scroll pane holds one offset. Ctrl and the wheel zoom about the pointer, with a total scale from 0.25 to 4.0. The wheel alone pans. Ctrl with `=`, `-` or `0` zooms about the center, but only after the content returns `nothing` for the key. Other events go to the content. Each pointer event, that is a press, a button down, a button up, a move and the two crossings, gets its point mapped through the inverse transform. So a button down gives the focus to the control that is drawn under the pointer, and a move of a drag reaches the content at the point that is drawn under the pointer.
 
 ## How it fits
 
