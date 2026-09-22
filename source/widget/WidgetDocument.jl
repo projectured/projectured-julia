@@ -1576,6 +1576,10 @@ See also `WidgetCheckbox` and `WidgetToggleGroup`.
     checked::Bool
     visible::Bool
     enabled::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     duration::Int        # slide length in ms; 0 disables the animation
     anim_from::Float64   # knob fraction [0,1] when the current slide began
     anim_t0::Float64     # editor time (s) when the current slide began; NaN = idle
@@ -1583,8 +1587,10 @@ See also `WidgetCheckbox` and `WidgetToggleGroup`.
     tooltip::Any
 end
 WidgetSwitch(position::Point2D, checked::Bool=false; visible::Bool=true, enabled::Bool=true,
+             margin=nothing, border=nothing, padding=nothing, style=nothing,
              duration::Integer=0, gestures=GestureBinding[], tooltip=nothing) =
     WidgetSwitch(Cell(position), Cell(checked), Cell(visible), Cell(enabled),
+                 Cell(margin), Cell(border), Cell(padding), Cell(style),
                  Cell(Int(duration)), Cell(0.0), Cell(NaN), Cell(gestures), Cell(tooltip))
 get_instance_gesture_bindings(w::WidgetSwitch) = w.gestures
 
@@ -1610,10 +1616,16 @@ in one word.
     value::Float64
     width::Int
     visible::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     tooltip::Any
 end
-WidgetProgress(position::Point2D, value::Real=0.0; width::Integer=240, visible::Bool=true, tooltip=nothing) =
-    WidgetProgress(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible), Cell(tooltip), Cell(nothing))
+WidgetProgress(position::Point2D, value::Real=0.0; width::Integer=240, visible::Bool=true,
+               margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
+    WidgetProgress(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible),
+                   Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetSlider ────────────────────────────────────────────────────────────
 
@@ -1638,6 +1650,10 @@ a share that is only shown.
     width::Int
     visible::Bool
     enabled::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     dragging::Bool     # the knob is held: a move keeps writing until release
     target::Any        # what a drag writes to, or nothing = this slider
     field::String      # which field of the target a drag writes
@@ -1658,10 +1674,12 @@ a share that is only shown.
     tooltip::Any
 end
 WidgetSlider(position::Point2D, value::Real=0.5; width::Integer=240, visible::Bool=true,
-             enabled::Bool=true, target=nothing, field::AbstractString="value",
+             enabled::Bool=true, margin=nothing, border=nothing, padding=nothing, style=nothing,
+             target=nothing, field::AbstractString="value",
              scale=nothing, tooltip=nothing) =
     WidgetSlider(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible),
-                 Cell(enabled), Cell(false), Cell(target), Cell(String(field)),
+                 Cell(enabled), Cell(margin), Cell(border), Cell(padding), Cell(style),
+                 Cell(false), Cell(target), Cell(String(field)),
                  Cell(scale), Cell(tooltip), Cell(nothing))
 
 """
@@ -1706,11 +1724,17 @@ for many choices that open on a click.
     selected::Int
     visible::Bool
     enabled::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     tooltip::Any
 end
-WidgetRadioGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true, enabled::Bool=true, tooltip=nothing) =
+WidgetRadioGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true, enabled::Bool=true,
+                 margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetRadioGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
-                     Cell(Int(selected)), Cell(visible), Cell(enabled), Cell(tooltip), Cell(nothing))
+                     Cell(Int(selected)), Cell(visible), Cell(enabled),
+                     Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetAvatar ────────────────────────────────────────────────────────────
 
@@ -1843,10 +1867,16 @@ A two-state toggle button (pressed = accent surface).
     pressed::Bool
     visible::Bool
     enabled::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     tooltip::Any
 end
-WidgetToggle(position::Point2D, content; pressed::Bool=false, visible::Bool=true, enabled::Bool=true, tooltip=nothing) =
-    WidgetToggle(Cell(position), Cell(content), Cell(pressed), Cell(visible), Cell(enabled), Cell(tooltip), Cell(nothing))
+WidgetToggle(position::Point2D, content; pressed::Bool=false, visible::Bool=true, enabled::Bool=true,
+             margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
+    WidgetToggle(Cell(position), Cell(content), Cell(pressed), Cell(visible), Cell(enabled),
+                Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetToggleGroup ───────────────────────────────────────────────────────
 
@@ -1882,16 +1912,22 @@ for on or off.
     selected::Int
     visible::Bool
     enabled::Bool
+    margin::Inset
+    border::Inset
+    padding::Inset
+    style::Any
     values::Any        # what each option means, or nothing = its index
     target::Any        # what a pick writes to, or nothing = this group
     field::String      # which field of the target a pick writes
     tooltip::Any
 end
 WidgetToggleGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true,
-                  enabled::Bool=true, values=nothing, target=nothing,
+                  enabled::Bool=true, margin=nothing, border=nothing, padding=nothing, style=nothing,
+                  values=nothing, target=nothing,
                   field::AbstractString="selected", tooltip=nothing) =
     WidgetToggleGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
                       Cell(Int(selected)), Cell(visible), Cell(enabled),
+                      Cell(margin), Cell(border), Cell(padding), Cell(style),
                       Cell(values), Cell(target), Cell(String(field)), Cell(tooltip), Cell(nothing))
 
 """

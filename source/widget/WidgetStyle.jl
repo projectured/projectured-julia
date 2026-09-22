@@ -238,6 +238,116 @@ description text, and the border and the title of its destructive variant.
 end
 
 """
+    WidgetSwitchStyle(; <the fields of WidgetStyle>, track_color, track_checked_color,
+                      knob_color, knob_stroke_color)
+
+The style of a `WidgetSwitch`: the fields of `WidgetStyle`, the track and the
+knob.
+"""
+@document struct WidgetSwitchStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    track_color::Any = nothing
+    track_checked_color::Any = nothing
+    knob_color::Any = nothing
+    knob_stroke_color::Any = nothing
+end
+
+"""
+    WidgetProgressStyle(; <the fields of WidgetStyle>, track_color, indicator_color)
+
+The style of a `WidgetProgress`: the fields of `WidgetStyle`, the track and the
+filled portion.
+"""
+@document struct WidgetProgressStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    track_color::Any = nothing
+    indicator_color::Any = nothing
+end
+
+"""
+    WidgetSliderStyle(; <the fields of WidgetStyle>, track_color, indicator_color,
+                      knob_color, knob_stroke_color)
+
+The style of a `WidgetSlider`: the fields of `WidgetStyle`, the track, the
+filled portion and the knob.
+"""
+@document struct WidgetSliderStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    track_color::Any = nothing
+    indicator_color::Any = nothing
+    knob_color::Any = nothing
+    knob_stroke_color::Any = nothing
+end
+
+"""
+    WidgetRadioGroupStyle(; <the fields of WidgetStyle>, indicator_color, indicator_stroke_color,
+                          indicator_selected_stroke_color, dot_color)
+
+The style of a `WidgetRadioGroup`: the fields of `WidgetStyle`, the circle of
+each option and its selected dot.
+"""
+@document struct WidgetRadioGroupStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    indicator_color::Any = nothing
+    indicator_stroke_color::Any = nothing
+    indicator_selected_stroke_color::Any = nothing
+    dot_color::Any = nothing
+end
+
+"""
+    WidgetToggleStyle(; <the fields of WidgetStyle>, border_checked_color, padding_checked_color,
+                      content_checked_color, label_checked_text_color)
+
+The style of a `WidgetToggle`: the fields of `WidgetStyle`, and its box and
+label when checked.
+"""
+@document struct WidgetToggleStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    border_checked_color::Any = nothing
+    padding_checked_color::Any = nothing
+    content_checked_color::Any = nothing
+    label_checked_text_color::Any = nothing
+end
+
+"""
+    WidgetToggleGroupStyle(; <the fields of WidgetStyle>, segment_color, segment_selected_color,
+                           label_selected_text_color)
+
+The style of a `WidgetToggleGroup`: the fields of `WidgetStyle`, an unselected
+segment, the selected segment, and its label.
+"""
+@document struct WidgetToggleGroupStyle <: WidgetDocument
+    margin_color::Any = nothing
+    border_color::Any = nothing
+    padding_color::Any = nothing
+    content_color::Any = nothing
+    label_text_color::Any = nothing
+    segment_color::Any = nothing
+    segment_selected_color::Any = nothing
+    label_selected_text_color::Any = nothing
+end
+
+"""
     WidgetHighlightStyle(; content_color, border_stroke_color)
 
 The style of a `WidgetHighlight`: its fill and its outline. A highlight has no

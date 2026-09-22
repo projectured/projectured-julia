@@ -1090,7 +1090,7 @@ does not name is `color_transparent`, and an inset that it does not name is
 | `WidgetHighlight` | no box (D11) | `content_color` ← `primary` at 25%; `border_stroke` ← (`primary`, 2); `corner_radius` |
 | `WidgetSkeleton` | content `muted` | `corner_radius` |
 | `WidgetToggle` | border `border`; padding `pad`; surface `background` | `border_checked_color`; `padding_checked_color`, `content_checked_color` ← `accent`; `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_text` ← (`font`, `foreground`); `label_checked_text` ← (`font`, `accent_foreground`); `label_disabled_text`; `focus_ring_stroke`; `corner_radius` |
-| `WidgetToggleGroup` | padding 2; surface `muted` | `padding_disabled_color`, `content_disabled_color` ← `muted`; `segment_color`; `segment_selected_color` ← `background`; `segment_disabled_color` ← `muted`; `label_text` ← (`font`, `muted_foreground`); `label_selected_text` ← (`font`, `foreground`); `label_disabled_text`; `segment_padding` ← `pad`; `focus_ring_stroke`; `corner_radius` |
+| `WidgetToggleGroup` | border `border`; padding 2; surface `muted` | `padding_disabled_color`, `content_disabled_color` ← `muted`; `segment_color`; `segment_selected_color` ← `background`; `segment_disabled_color` ← `muted`; `label_text` ← (`font`, `muted_foreground`); `label_selected_text` ← (`font`, `foreground`); `label_disabled_text`; `segment_padding` ← `pad`; `focus_ring_stroke`; `corner_radius` |
 | `WidgetSelect` | border `input`; padding `pad`; surface `background` | `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_text`; `label_disabled_text`; `chevron_stroke` ← (`muted_foreground`, `stroke`); `focus_ring_stroke`; `gap`; `chevron_size`; `corner_radius` |
 | `WidgetOption` | padding `pad`; surface `background` | `label_text`; `layer_hovered_color` |
 | `WidgetSpinBox` | border `input`; padding `pad`; surface `background` | `padding_disabled_color`, `content_disabled_color` ← `muted`; `label_text`; `label_disabled_text`; `stepper_color` ← `foreground`; `stepper_disabled_color` ← `muted_foreground`; `divider_stroke` ← (`input`, `border_width`); `focus_ring_stroke`; `corner_radius` |
@@ -1210,6 +1210,66 @@ does not name is `color_transparent`, and an inset that it does not name is
       - `WidgetCardFoldTest` passed `padding = 0` to mean no padding; it now
         passes `padding = Inset(0, 0, 0, 0)`, the same value under the new
         contract.
+- [x] Group 5, the switch, the progress bar, the slider, the radio group, the
+      toggle and the toggle group, with `WidgetSwitchStyle`,
+      `WidgetProgressStyle`, `WidgetSliderStyle`, `WidgetRadioGroupStyle`,
+      `WidgetToggleStyle` and `WidgetToggleGroupStyle`. None of these widgets
+      had the box insets before; all six get `margin`, `border`, `padding` and
+      `style` (D11), with the box colors of `color_transparent` and the insets
+      of `inset_default` that §8.3 leaves unnamed for switch, progress, slider
+      and radio group. `test_substrate()` keeps the baseline (3 failures, 2
+      errors, both `SplitPaneDragTest`) with 75311 passes, and the naming guard
+      finds 0 violations.
+      - The switch, the slider and the progress bar draw their own track,
+        indicator and knob inside the (by default invisible) box; the box
+        exists so a caller can inset or color it, but costs nothing at rest.
+        The slider's `knob_stroke` and the switch's `knob_stroke` keep no
+        disabled variant, matching today: the knob's outline does not change
+        when the control is disabled, only its fill does.
+      - The toggle's border drops to `color_transparent` when checked
+        (`border_checked_color`), which is how "the pressed toggle drops its
+        outline" now reads: the border inset stays, only its color goes,
+        so the control does not resize when it is pressed.
+      - The toggle group's container is the box: its border is
+        `Inset(theme.border_width)` in `theme.border`, as the outline that the
+        old printer drew, and its padding is `Inset(2, 2, 2, 2)`, which takes
+        the place of the old `segment_inset`. §8.3 named no border for it at
+        first; the table is corrected. The 2 pixels sit once around the whole
+        row, so a selected segment fills its slot. The test "a filled toggle
+        group answers a press with the segment under it" sums the segment
+        widths to the offered 900 less the border and the padding on both
+        sides, `900 - 2 * (1 + 2)`.
+        The border and the padding belong to the control, so the reader
+        clamps a press on them into the nearest segment, as the text box
+        clamps a press into its content; "toggle group picks the segment
+        under the press" presses 2 pixels from the left edge.
+      - The radio group and the switch have no reader of their own
+        (`@_printer_only`/no-op readers): a radio group cannot be clicked to
+        select an option today, and a switch's reader toggles on any press
+        inside its bounds without computing a position, so neither needed a
+        content-offset fix. The slider's reader subtracts `content_x` from the
+        press position before turning it into a value, and the toggle group's
+        reader subtracts it before finding the segment under the press; both
+        keep the track width / segment widths the printer drew with, in
+        content space, as before.
+      - Radio group's content (a column of option rows) can be offered more
+        width than its rows need; `_push_box_parts!` is given the *offered*
+        width and height, less the insets, not the raw measured content, by
+        the same rule group 4 used for a card region.
+      - No call site of any of the six widgets set a color keyword (none of
+        them had one to set before), so there was nothing to remove or report
+        as a dead write.
+      - Images: `widget_switch`, `widget_progress`, `widget_slider` and
+        `widget_radio_group` render the same pixels as the base (no box
+        default is named for them in §8.3, so nothing moved). `widget_toggle`
+        grows from 72×88 to 74×92 (two stacked toggles, each +2 px on both
+        axes from the default 1-pixel border, D8). `widget_toggle_group` grows
+        from 232×38 by the border and the padding of its box. `widget_disabled` stays 220 wide (a `WidgetSelect`
+        row is the widest and is outside this group) and grows from 440 to
+        444 tall (its two `WidgetToggle` rows, +2 px each). The full `widget`
+        composite differs in content at the same 1024×768 size, from the same
+        causes plus the changes groups 1-4 already made to the other widgets
+        it also shows.
 
 ### 8.6 omnet-julia
 

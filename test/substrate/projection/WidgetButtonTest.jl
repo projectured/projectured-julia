@@ -512,10 +512,12 @@ end
     @testset "it fills what it was offered" begin
         @test Int(iomap.output.w[]) == 900
         @test Int(iomap.output.h[]) == 60
-        # The control IS its segments: three of them, summing to its width.
+        # The control IS its segments: three of them, summing to its width,
+        # less the container's default border of 1 pixel and padding of 2
+        # pixels on each side.
         widths = getfield(iomap, :segment_widths)[]
         @test length(widths) == 3
-        @test sum(widths) == 900
+        @test sum(widths) == 900 - 2 * (1 + 2)
         # Each is at least its own label and they grew together.
         @test all(w -> w > 0, widths)
         @test maximum(widths) - minimum(widths) <= _stub("three", _font)[1] + 2

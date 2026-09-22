@@ -5680,15 +5680,35 @@ map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) =
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
 @projection struct WidgetSwitchToGraphicsCanvas
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
     track_size::Point2D        # width × height of the track
     knob_padding::Int          # inset of the knob from the track edge
+    track_color::StyleColor          # track fill when off
+    track_checked_color::StyleColor  # track fill when on
+    track_disabled_color::StyleColor # track fill when !enabled
     knob_color::StyleColor     # knob fill
-    knob_border::StyleStroke   # knob outline (color + width)
-    on_color::StyleColor       # track fill when checked
-    off_color::StyleColor      # track fill when unchecked
-    disabled_color::StyleColor # track fill when !enabled
-    ring_color::StyleColor     # focus ring when selected
+    knob_stroke::StyleStroke   # knob outline (color + width)
+    focus_ring_stroke::StyleStroke
 end
+
+WidgetSwitchToGraphicsCanvas(theme::WidgetTheme;
+                             margin = inset_default, border = inset_default, padding = inset_default,
+                             margin_color = color_transparent, border_color = color_transparent,
+                             padding_color = color_transparent, content_color = color_transparent,
+                             track_size = Point2D(44, 24), knob_padding = 3,
+                             track_color = theme.track_off, track_checked_color = theme.primary,
+                             track_disabled_color = theme.muted, knob_color = theme.knob,
+                             knob_stroke = StyleStroke(theme.border, theme.border_width),
+                             focus_ring_stroke = StyleStroke(theme.ring, 2)) =
+    WidgetSwitchToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
+                                 content_color, track_size, knob_padding, track_color, track_checked_color,
+                                 track_disabled_color, knob_color, knob_stroke, focus_ring_stroke)
 
 # Smoothstep easing on a normalised [0,1] progress.
 _switch_ease(u::Real) = (u = clamp(u, 0.0, 1.0); u * u * (3 - 2u))
@@ -5714,17 +5734,25 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         on  = w.checked === true
         enabled = !(w.enabled === false)
+        state = !enabled ? :disabled : on ? :checked : nothing
         track_width  = _sc(Int(p.track_size.x[]))
         track_height = _sc(Int(p.track_size.y[]))
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w; state)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
         elements = Any[]
-        track_color = !enabled ? p.disabled_color : on ? p.on_color : p.off_color
-        push!(elements, GraphicsRect(0, 0, track_width, track_height, track_color, track_height ÷ 2))
+        _push_box_parts!(elements, box, colors, track_width, track_height)
+        track_color = _get_state_color(p, w, :track; state)
+        push!(elements, GraphicsRect(content_x, content_y, track_width, track_height, track_color, track_height ÷ 2))
         knob_padding = _sc(p.knob_padding)
         knob_radius  = (track_height - 2knob_padding) ÷ 2
-        left_x  = knob_padding + knob_radius
-        right_x = track_width - knob_padding - knob_radius
-        knob = GraphicsCircle(on ? right_x : left_x, track_height ÷ 2, knob_radius, p.knob_color;
-                              border_width=max(1, _sc(p.knob_border.width)), border_color=p.knob_border.color)
+        left_x  = content_x + knob_padding + knob_radius
+        right_x = content_x + track_width - knob_padding - knob_radius
+        knob_color = _get_state_color(p, w, :knob; state)
+        knob_stroke = _get_state_stroke(p, w, :knob; state)
+        knob = GraphicsCircle(on ? right_x : left_x, content_y + track_height ÷ 2, knob_radius, knob_color;
+                              border_width=max(1, _sc(knob_stroke.width)), border_color=knob_stroke.color)
         # The knob's x is a computed cell. It reads `checked` (so it tracks the
         # logical state and snaps when there is no animation) and, while a slide is
         # in flight, `get_reactive_clock_time(get_wall_clock())` (so it re-evaluates every
@@ -5748,8 +5776,9 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
             Int32(round(from_x + (target_x - from_x) * _switch_ease((t - t0) / (t1 - t0))))
         end)
         push!(elements, knob)
-        _push_focus_ring!(elements, w, track_width, track_height, p.ring_color, track_height ÷ 2)
-        (width=track_width, height=track_height, elements=elements)
+        outer_width, outer_height = track_width + inset_width, track_height + inset_height
+        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, track_height ÷ 2)
+        (width=outer_width, height=outer_height, elements=elements)
     end))
 end
 
@@ -5798,30 +5827,54 @@ map_reference_backward(::WidgetSwitchToGraphicsCanvas, iomap, reference) = nothi
 # ── WidgetProgress ──────────────────────────────────────────────────────────
 
 @projection struct WidgetProgressToGraphicsCanvas
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
     bar_height::Int
-    track_color::StyleColor    # unfilled track
-    fill_color::StyleColor     # filled portion
+    track_color::StyleColor      # unfilled track
+    indicator_color::StyleColor  # filled portion
 end
+
+WidgetProgressToGraphicsCanvas(theme::WidgetTheme;
+                               margin = inset_default, border = inset_default, padding = inset_default,
+                               margin_color = color_transparent, border_color = color_transparent,
+                               padding_color = color_transparent, content_color = color_transparent,
+                               bar_height = 8, track_color = theme.muted, indicator_color = theme.primary) =
+    WidgetProgressToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
+                                   content_color, bar_height, track_color, indicator_color)
 
 function print_document(p::WidgetProgressToGraphicsCanvas, recursion, w::WidgetProgress, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         value = clamp(Float64(w.value), 0.0, 1.0)
-        bar_width  = _resolve_width(ctx, _sc(Int(w.width)))
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
+        bar_authored = _sc(Int(w.width))
+        outer_width  = _resolve_width(ctx, bar_authored > 0 ? bar_authored + inset_width : 0, inset_width)
         # The thickness is `Fixed` and NOT the content, which is the one place
         # step 8's word does not survive the rule: a number passed as content
         # loses to an offer, and a progress bar 700 pixels thick is not a
         # progress bar. A widget that cannot measure its own extent has authored
         # the number it draws.
-        bar_height = _resolve_height(ctx, _sc(p.bar_height))
+        outer_height = _resolve_height(ctx, _sc(p.bar_height) + inset_height, inset_height)
+        bar_width, bar_height = outer_width - inset_width, outer_height - inset_height
         elements = Any[]
-        push!(elements, GraphicsRect(0, 0, bar_width, bar_height, p.track_color, bar_height ÷ 2))
+        _push_box_parts!(elements, box, colors, bar_width, bar_height)
+        track_color = _get_state_color(p, w, :track)
+        indicator_color = _get_state_color(p, w, :indicator)
+        push!(elements, GraphicsRect(content_x, content_y, bar_width, bar_height, track_color, bar_height ÷ 2))
         filled_width = round(Int, value * bar_width)
         if filled_width > 0
-            push!(elements, GraphicsRect(0, 0, filled_width, bar_height, p.fill_color, bar_height ÷ 2))
+            push!(elements, GraphicsRect(content_x, content_y, filled_width, bar_height, indicator_color, bar_height ÷ 2))
         end
-        (width=bar_width, height=bar_height, elements=elements)
+        (width=outer_width, height=outer_height, elements=elements)
     end))
 end
 @_printer_only WidgetProgressToGraphicsCanvas
@@ -5829,41 +5882,78 @@ end
 # ── WidgetSlider ────────────────────────────────────────────────────────────
 
 @projection struct WidgetSliderToGraphicsCanvas
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
     height::Int                 # control height
     track_thickness::Int
     knob_radius::Int
-    knob_color::StyleColor      # knob fill
-    knob_border::StyleStroke    # knob outline (color + width)
-    track_color::StyleColor     # unfilled track
-    fill_color::StyleColor      # filled portion
-    disabled_color::StyleColor  # track / fill / knob when !enabled
-    ring_color::StyleColor      # focus ring when selected
+    track_color::StyleColor          # unfilled track
+    track_disabled_color::StyleColor
+    indicator_color::StyleColor      # filled portion
+    indicator_disabled_color::StyleColor
+    knob_color::StyleColor           # knob fill
+    knob_disabled_color::StyleColor
+    knob_stroke::StyleStroke         # knob outline (color + width)
+    focus_ring_stroke::StyleStroke
 end
+
+WidgetSliderToGraphicsCanvas(theme::WidgetTheme;
+                             margin = inset_default, border = inset_default, padding = inset_default,
+                             margin_color = color_transparent, border_color = color_transparent,
+                             padding_color = color_transparent, content_color = color_transparent,
+                             height = 24, track_thickness = 4, knob_radius = 9,
+                             track_color = theme.muted, track_disabled_color = theme.muted,
+                             indicator_color = theme.primary, indicator_disabled_color = theme.muted,
+                             knob_color = theme.knob, knob_disabled_color = theme.muted,
+                             knob_stroke = StyleStroke(theme.primary, theme.stroke),
+                             focus_ring_stroke = StyleStroke(theme.ring, 2)) =
+    WidgetSliderToGraphicsCanvas(margin, border, padding, margin_color, border_color, padding_color,
+                                 content_color, height, track_thickness, knob_radius, track_color,
+                                 track_disabled_color, indicator_color, indicator_disabled_color,
+                                 knob_color, knob_disabled_color, knob_stroke, focus_ring_stroke)
 
 function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSlider, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
     # Resolved once, here, and handed to both halves: the printer draws the track
-    # at this width and the reader turns a press into a value with it.
-    track_width = _resolve_width(ctx, _sc(Int(w.width)))
+    # at this width and the reader turns a press into a value with it. The
+    # track_width the IoMap stores is the width of the track itself, inside the
+    # box.
+    inset_width_only, _ = _inset_total(p, w)
+    track_authored = _sc(Int(w.width))
+    track_outer_width = _resolve_width(ctx, track_authored > 0 ? track_authored + inset_width_only : 0, inset_width_only)
+    track_width = track_outer_width - inset_width_only
     WidgetSliderToGraphicsCanvasIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         enabled = !(w.enabled === false)
+        state = enabled ? nothing : :disabled
         value = clamp(Float64(w.value), 0.0, 1.0)
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w; state)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
         slider_width  = track_width
-        slider_height = _resolve_height(ctx, _sc(p.height))
-        center_y = slider_height ÷ 2
+        slider_height = _resolve_height(ctx, _sc(p.height) + inset_height, inset_height) - inset_height
+        center_y = content_y + slider_height ÷ 2
         track_thickness = _sc(p.track_thickness)
         filled_width = round(Int, value * slider_width)
         elements = Any[]
-        track_c = enabled ? p.track_color : p.disabled_color
-        fill_c  = enabled ? p.fill_color  : p.disabled_color
-        knob_c  = enabled ? p.knob_color  : p.disabled_color
-        push!(elements, GraphicsRect(0, center_y - track_thickness ÷ 2, slider_width, track_thickness, track_c, track_thickness ÷ 2))
-        filled_width > 0 && push!(elements, GraphicsRect(0, center_y - track_thickness ÷ 2, filled_width, track_thickness, fill_c, track_thickness ÷ 2))
-        push!(elements, GraphicsCircle(filled_width, center_y, _sc(p.knob_radius), knob_c;
-                                       border_width=max(1, _sc(p.knob_border.width)), border_color=p.knob_border.color))
-        _push_focus_ring!(elements, w, slider_width, slider_height, p.ring_color, slider_height ÷ 2)
-        (width=slider_width, height=slider_height, elements=elements)
+        _push_box_parts!(elements, box, colors, slider_width, slider_height)
+        track_c = _get_state_color(p, w, :track; state)
+        indicator_c = _get_state_color(p, w, :indicator; state)
+        knob_c  = _get_state_color(p, w, :knob; state)
+        knob_stroke = _get_state_stroke(p, w, :knob; state)
+        push!(elements, GraphicsRect(content_x, center_y - track_thickness ÷ 2, slider_width, track_thickness, track_c, track_thickness ÷ 2))
+        filled_width > 0 && push!(elements, GraphicsRect(content_x, center_y - track_thickness ÷ 2, filled_width, track_thickness, indicator_c, track_thickness ÷ 2))
+        push!(elements, GraphicsCircle(content_x + filled_width, center_y, _sc(p.knob_radius), knob_c;
+                                       border_width=max(1, _sc(knob_stroke.width)), border_color=knob_stroke.color))
+        outer_width, outer_height = slider_width + inset_width, slider_height + inset_height
+        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, slider_height ÷ 2)
+        (width=outer_width, height=outer_height, elements=elements)
     end), track_width)
 end
 
@@ -5898,18 +5988,19 @@ _slider_value(track_width::Int, x::Real) =
 #
 # The value write names the slider's `target` when it has one, so a control that
 # is *for* something says so in the operation itself.
-function read_intent(::WidgetSliderToGraphicsCanvas,
+function read_intent(p::WidgetSliderToGraphicsCanvas,
                      iomap::WidgetSliderToGraphicsCanvasIoMap, evt)
     w = iomap.input
     w.enabled === false && return nothing
     canvas = iomap.output
     width  = Int(iomap.track_width)
+    content_x, _ = _content_offset(p, w)
     @event_case evt begin
         MousePress(button, x, y) => begin
             button === :left || return nothing
             _outside_widget(iomap, evt) && return nothing
             document, field, value =
-                resolve_slider_write(w, _slider_value(width, x - Int(canvas.x[])))
+                resolve_slider_write(w, _slider_value(width, x - Int(canvas.x[]) - content_x))
             # Taking the knob is a second write, and it is on the slider itself
             # rather than on the target: what is held is a property of the
             # control, not of the value it stands for.
@@ -5922,7 +6013,7 @@ function read_intent(::WidgetSliderToGraphicsCanvas,
             # difference between a slider and a row of buttons.
             w.dragging === true || return nothing
             document, field, value =
-                resolve_slider_write(w, _slider_value(width, x - Int(canvas.x[])))
+                resolve_slider_write(w, _slider_value(width, x - Int(canvas.x[]) - content_x))
             Float64(w.value) == value && return nothing
             ReplaceReferencedValueOperation(document, field, value)
         end
@@ -5938,18 +6029,46 @@ end
 
 @projection struct WidgetRadioGroupToGraphicsCanvas
     measure::Function
+    margin::Inset
+    border::Inset
+    padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
     label_text::ImmutableCell{StyleText}          # option labels
+    label_disabled_text::ImmutableCell{StyleText}
+    indicator_color::StyleColor           # the circle
+    indicator_stroke::StyleStroke         # the ring, unselected
+    indicator_selected_stroke::StyleStroke # the ring, selected
+    indicator_disabled_stroke::StyleStroke
+    dot_color::StyleColor                 # selected inner dot
+    dot_disabled_color::StyleColor
+    focus_ring_stroke::StyleStroke
     button_size::Int               # outer circle diameter
     label_gap::Int                 # gap between button and label
     row_gap::Int
     dot_radius::Int                # selected inner dot
-    button_fill::StyleColor        # circle fill
-    selected_ring::StyleStroke     # ring + inner-dot color when selected
-    unselected_ring::StyleStroke   # ring when unselected
-    selected_color::StyleColor     # inner dot fill
-    disabled_foreground::StyleColor # rings / dot / labels when !enabled
-    ring_color::StyleColor         # focus ring when selected
 end
+
+WidgetRadioGroupToGraphicsCanvas(theme::WidgetTheme; measure,
+                                 margin = inset_default, border = inset_default, padding = inset_default,
+                                 margin_color = color_transparent, border_color = color_transparent,
+                                 padding_color = color_transparent, content_color = color_transparent,
+                                 label_text = StyleText(theme.font, theme.foreground),
+                                 label_disabled_text = StyleText(theme.font, theme.muted_foreground),
+                                 indicator_color = theme.background,
+                                 indicator_stroke = StyleStroke(theme.input, theme.stroke),
+                                 indicator_selected_stroke = StyleStroke(theme.primary, theme.stroke),
+                                 indicator_disabled_stroke = StyleStroke(theme.muted_foreground, theme.stroke),
+                                 dot_color = theme.primary, dot_disabled_color = theme.muted_foreground,
+                                 focus_ring_stroke = StyleStroke(theme.ring, 2),
+                                 button_size = 18, label_gap = 10, row_gap = 12, dot_radius = 5) =
+    WidgetRadioGroupToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                     padding_color, content_color, label_text, label_disabled_text,
+                                     indicator_color, indicator_stroke, indicator_selected_stroke,
+                                     indicator_disabled_stroke, dot_color, dot_disabled_color,
+                                     focus_ring_stroke, button_size, label_gap, row_gap, dot_radius)
 
 function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::WidgetRadioGroup, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
@@ -5960,34 +6079,49 @@ function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Widge
         diameter = _sc(p.button_size)
         label_gap = _sc(p.label_gap)
         row_gap = _sc(p.row_gap)
-        sel_ring   = enabled ? p.selected_ring.color   : p.disabled_foreground
-        unsel_ring = enabled ? p.unselected_ring.color : p.disabled_foreground
-        dot_color  = enabled ? p.selected_color        : p.disabled_foreground
-        label_col  = enabled ? p.label_text.color      : p.disabled_foreground
-        elements = Any[]
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
+        # Two passes: the rows are measured first, because a row can be wider
+        # than its content when the offer fills more (the rule for a box whose
+        # content can grow), and `_push_box_parts!` must see that final size.
+        rows = Any[]
         y = 0
         max_width = 0
         for (i, opt) in enumerate(w.options)
-            label = string(opt)
-            label_width, label_height = _text_size(p.measure, p.label_text.font, label)
+            state = !enabled ? :disabled : i == selected ? :selected : nothing
+            label = _get_state_text(p, w, :label; state)
+            label_str = string(opt)
+            label_width, label_height = _text_size(p.measure, label.font, label_str)
             row_height = max(diameter, label_height)
-            center_y = y + row_height ÷ 2
-            if i == selected
-                push!(elements, GraphicsCircle(diameter ÷ 2, center_y, diameter ÷ 2, p.button_fill;
-                                               border_width=max(1, _sc(p.selected_ring.width)), border_color=sel_ring))
-                push!(elements, GraphicsCircle(diameter ÷ 2, center_y, _sc(p.dot_radius), dot_color))
-            else
-                push!(elements, GraphicsCircle(diameter ÷ 2, center_y, diameter ÷ 2, p.button_fill;
-                                               border_width=max(1, _sc(p.unselected_ring.width)), border_color=unsel_ring))
-            end
-            _push_text!(elements, p.label_text.font, label, diameter + label_gap, y + (row_height - label_height) ÷ 2, label_col)
+            push!(rows, (i, state, label, label_str, label_width, label_height, row_height, y))
             max_width = max(max_width, diameter + label_gap + label_width)
             y += row_height + row_gap
         end
-        group_width  = _resolve_width(ctx, 0, max_width)
-        group_height = _resolve_height(ctx, 0, max(0, y - row_gap))
-        _push_focus_ring!(elements, w, group_width, group_height, p.ring_color, 0)
-        (width=group_width, height=group_height, elements=elements)
+        content_width  = max_width
+        content_height = max(0, y - row_gap)
+        group_width  = _resolve_width(ctx, 0, content_width + inset_width) - inset_width
+        group_height = _resolve_height(ctx, 0, content_height + inset_height) - inset_height
+        elements = Any[]
+        _push_box_parts!(elements, box, colors, group_width, group_height)
+        for (i, state, label, label_str, label_width, label_height, row_height, row_y) in rows
+            center_y = content_y + row_y + row_height ÷ 2
+            cx = content_x + diameter ÷ 2
+            indicator_color = _get_state_color(p, w, :indicator; state)
+            indicator_stroke = _get_state_stroke(p, w, :indicator; state)
+            push!(elements, GraphicsCircle(cx, center_y, diameter ÷ 2, indicator_color;
+                                           border_width=max(1, _sc(indicator_stroke.width)), border_color=indicator_stroke.color))
+            if i == selected
+                dot_color = _get_state_color(p, w, :dot; state)
+                push!(elements, GraphicsCircle(cx, center_y, _sc(p.dot_radius), dot_color))
+            end
+            _push_text!(elements, label.font, label_str, content_x + diameter + label_gap,
+                       content_y + row_y + (row_height - label_height) ÷ 2, label.color)
+        end
+        outer_width, outer_height = group_width + inset_width, group_height + inset_height
+        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, 0)
+        (width=outer_width, height=outer_height, elements=elements)
     end))
 end
 @_printer_only WidgetRadioGroupToGraphicsCanvas
@@ -6348,18 +6482,43 @@ end
 
 @projection struct WidgetToggleToGraphicsCanvas
     measure::Function
-    font::StyleFont
+    margin::Inset
+    border::Inset
     padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    border_checked_color::StyleColor
+    padding_checked_color::StyleColor
+    content_checked_color::StyleColor
+    padding_disabled_color::StyleColor
+    content_disabled_color::StyleColor
+    label_text::ImmutableCell{StyleText}
+    label_checked_text::ImmutableCell{StyleText}
+    label_disabled_text::ImmutableCell{StyleText}
+    focus_ring_stroke::StyleStroke
     corner_radius::Int
-    border::StyleStroke              # outline (drawn only when released)
-    pressed_fill::StyleColor
-    pressed_foreground::StyleColor
-    released_fill::StyleColor
-    released_foreground::StyleColor
-    disabled_fill::StyleColor
-    disabled_foreground::StyleColor
-    ring_color::StyleColor
 end
+
+WidgetToggleToGraphicsCanvas(theme::WidgetTheme; measure,
+                             margin = inset_default, border = _make_uniform_inset(theme.border_width),
+                             padding = _make_control_padding(theme),
+                             margin_color = color_transparent, border_color = theme.border,
+                             padding_color = theme.background, content_color = theme.background,
+                             border_checked_color = color_transparent,
+                             padding_checked_color = theme.accent, content_checked_color = theme.accent,
+                             padding_disabled_color = theme.muted, content_disabled_color = theme.muted,
+                             label_text = StyleText(theme.font, theme.foreground),
+                             label_checked_text = StyleText(theme.font, theme.accent_foreground),
+                             label_disabled_text = StyleText(theme.font, theme.muted_foreground),
+                             focus_ring_stroke = StyleStroke(theme.ring, 2),
+                             corner_radius = theme.radius) =
+    WidgetToggleToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                 padding_color, content_color, border_checked_color, padding_checked_color,
+                                 content_checked_color, padding_disabled_color, content_disabled_color,
+                                 label_text, label_checked_text, label_disabled_text,
+                                 focus_ring_stroke, corner_radius)
 
 function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetToggle, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
@@ -6368,22 +6527,23 @@ function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetTog
         text = string(w.content)
         on  = w.pressed === true
         enabled = !(w.enabled === false)
-        padding_x = _sc(Int(p.padding.left[]))
-        padding_y = _sc(Int(p.padding.top[]))
-        text_width, text_height = _text_size(p.measure, p.font, text)
-        control_width  = _resolve_width(ctx, 0, text_width + 2padding_x)
-        control_height = _resolve_height(ctx, 0, text_height + 2padding_y)
-        fill       = !enabled ? p.disabled_fill : on ? p.pressed_fill : p.released_fill
-        foreground = !enabled ? p.disabled_foreground : on ? p.pressed_foreground : p.released_foreground
-        # Disabled and released states both show the outline; pressed drops it.
-        border_color = (on && enabled) ? nothing : p.border.color
-        border_width = (on && enabled) ? 0 : max(1, _sc(p.border.width))
+        state = !enabled ? :disabled : on ? :checked : nothing
+        label = _get_state_text(p, w, :label; state)
+        text_width, text_height = _text_size(p.measure, label.font, text)
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w; state)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
+        outer_width  = _resolve_width(ctx, 0, text_width + inset_width)
+        outer_height = _resolve_height(ctx, 0, text_height + inset_height)
+        content_width, content_height = outer_width - inset_width, outer_height - inset_height
+        radius = _sc(p.corner_radius)
         elements = Any[]
-        _push_panel!(elements, 0, 0, control_width, control_height; fill=fill, border=border_color,
-                     border_w=border_width, radius=_sc(p.corner_radius))
-        push!(elements, GraphicsText(text, (control_width - text_width) ÷ 2, (control_height - text_height) ÷ 2, p.font, foreground))
-        _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
-        (width=control_width, height=control_height, elements=elements)
+        _push_box_parts!(elements, box, colors, content_width, content_height; radius)
+        push!(elements, GraphicsText(text, content_x + (content_width - text_width) ÷ 2,
+                                     content_y + (content_height - text_height) ÷ 2, label.font, label.color))
+        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, radius)
+        (width=outer_width, height=outer_height, elements=elements)
     end))
 end
 @_printer_only WidgetToggleToGraphicsCanvas
@@ -6392,19 +6552,45 @@ end
 
 @projection struct WidgetToggleGroupToGraphicsCanvas
     measure::Function
-    font::StyleFont
+    margin::Inset
+    border::Inset
     padding::Inset
+    margin_color::StyleColor
+    border_color::StyleColor
+    padding_color::StyleColor
+    content_color::StyleColor
+    padding_disabled_color::StyleColor
+    content_disabled_color::StyleColor
+    segment_color::StyleColor          # unselected segment fill
+    segment_selected_color::StyleColor # raised segment fill
+    segment_disabled_color::StyleColor
+    label_text::ImmutableCell{StyleText}
+    label_selected_text::ImmutableCell{StyleText}
+    label_disabled_text::ImmutableCell{StyleText}
+    segment_padding::Inset             # a segment's own text padding
+    focus_ring_stroke::StyleStroke
     corner_radius::Int
-    segment_inset::Int
-    border::StyleStroke
-    track_color::StyleColor            # outer container fill
-    selected_fill::StyleColor          # raised segment fill
-    selected_foreground::StyleColor
-    unselected_foreground::StyleColor
-    disabled_color::StyleColor         # track / selected segment when !enabled
-    disabled_foreground::StyleColor    # labels when !enabled
-    ring_color::StyleColor             # focus ring when selected
 end
+
+WidgetToggleGroupToGraphicsCanvas(theme::WidgetTheme; measure,
+                                  margin = inset_default, border = _make_uniform_inset(theme.border_width),
+                                  padding = _make_uniform_inset(2),
+                                  margin_color = color_transparent, border_color = theme.border,
+                                  padding_color = theme.muted, content_color = theme.muted,
+                                  padding_disabled_color = theme.muted, content_disabled_color = theme.muted,
+                                  segment_color = color_transparent, segment_selected_color = theme.background,
+                                  segment_disabled_color = theme.muted,
+                                  label_text = StyleText(theme.font, theme.muted_foreground),
+                                  label_selected_text = StyleText(theme.font, theme.foreground),
+                                  label_disabled_text = StyleText(theme.font, theme.muted_foreground),
+                                  segment_padding = _make_control_padding(theme),
+                                  focus_ring_stroke = StyleStroke(theme.ring, 2),
+                                  corner_radius = theme.radius) =
+    WidgetToggleGroupToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
+                                      padding_color, content_color, padding_disabled_color, content_disabled_color,
+                                      segment_color, segment_selected_color, segment_disabled_color,
+                                      label_text, label_selected_text, label_disabled_text,
+                                      segment_padding, focus_ring_stroke, corner_radius)
 
 # The segment widths, so a press can be answered by the segment it landed in.
 # They are derived from the same measurement the printer draws with, in the same
@@ -6424,11 +6610,16 @@ function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Widg
     position = w.position::Point2D
     build = ComputedCell(() -> begin
         enabled = !(w.enabled === false)
+        state = enabled ? nothing : :disabled
         selected = Int(w.selected)
-        padding_x = _sc(Int(p.padding.left[]))
-        padding_y = _sc(Int(p.padding.top[]))
+        box = _get_box_insets(p, w)
+        colors = _get_box_colors(p, w; state)
+        inset_width, inset_height = _inset_total(p, w)
+        content_x, content_y = _content_offset(p, w)
+        segment_padding_x = _sc(Int(p.segment_padding.left[]))
+        segment_padding_y = _sc(Int(p.segment_padding.top[]))
         labels = [string(o) for o in w.options]
-        _, text_height = _text_size(p.measure, p.font, "M")
+        _, text_height = _text_size(p.measure, p.label_text.font, "M")
         # The segments divide what the control was given, and the control IS its
         # segments.
         #
@@ -6440,40 +6631,39 @@ function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Widg
         #
         # With no offer the sum is the content and `allocate_axis` has nothing to
         # share, which is why every picture is unchanged.
-        label_widths = Int[(_text_size(p.measure, p.font, l)[1] + 2padding_x) for l in labels]
+        label_widths = Int[(_text_size(p.measure, p.label_text.font, l)[1] + 2segment_padding_x) for l in labels]
         segment_count = length(label_widths)
-        offered_width = _resolve_width(ctx, 0, sum(label_widths; init=0))
+        offered_width = _resolve_width(ctx, 0, sum(label_widths; init=0) + inset_width) - inset_width
         segment_widths = segment_count == 0 ? label_widths :
             allocate_axis(offered_width, copy(label_widths),
                           fill(typemax(Int), segment_count), copy(label_widths),
                           fill(1.0, segment_count), 0, segment_count)
-        control_height = _resolve_height(ctx, 0, text_height + 2padding_y)
-        control_width  = sum(segment_widths; init=0)
+        content_height = _resolve_height(ctx, 0, text_height + 2segment_padding_y + inset_height) - inset_height
+        content_width  = sum(segment_widths; init=0)
         corner_radius = _sc(p.corner_radius)
-        segment_inset = _sc(p.segment_inset)
-        track_c    = enabled ? p.track_color    : p.disabled_color
-        seg_fill   = enabled ? p.selected_fill  : p.disabled_color
-        sel_fg     = enabled ? p.selected_foreground   : p.disabled_foreground
-        unsel_fg   = enabled ? p.unselected_foreground : p.disabled_foreground
+        # The content radius, less the border and the padding that lie between
+        # it and the rounded outline — the same rule `_push_box_parts!` applies
+        # to its own content part.
+        segment_radius = max(0, corner_radius - box.border[1] - box.padding[1])
         elements = Any[]
-        # Outer container (track + border).
-        _push_panel!(elements, 0, 0, control_width, control_height; fill=track_c, border=p.border.color,
-                     border_w=max(1, _sc(p.border.width)), radius=corner_radius)
-        x = 0
+        _push_box_parts!(elements, box, colors, content_width, content_height; radius = corner_radius)
+        x = content_x
         for i in eachindex(labels)
             segment_width = segment_widths[i]
-            if i == selected
-                _push_panel!(elements, x + segment_inset, segment_inset,
-                             segment_width - 2segment_inset, control_height - 2segment_inset;
-                             fill=seg_fill, radius=max(0, corner_radius - segment_inset))
-            end
-            text_width, segment_text_height = _text_size(p.measure, p.font, labels[i])
-            foreground = i == selected ? sel_fg : unsel_fg
-            push!(elements, GraphicsText(labels[i], x + (segment_width - text_width) ÷ 2, (control_height - segment_text_height) ÷ 2, p.font, foreground))
+            segment_state = i == selected ? (enabled ? :selected : :disabled) : nothing
+            segment_color = _get_state_color(p, w, :segment; state = segment_state)
+            _push_panel!(elements, x, content_y, segment_width, content_height;
+                        fill = segment_color, radius = segment_radius)
+            label_state = !enabled ? :disabled : i == selected ? :selected : nothing
+            label = _get_state_text(p, w, :label; state = label_state)
+            text_width, segment_text_height = _text_size(p.measure, label.font, labels[i])
+            push!(elements, GraphicsText(labels[i], x + (segment_width - text_width) ÷ 2,
+                                         content_y + (content_height - segment_text_height) ÷ 2, label.font, label.color))
             x += segment_width
         end
-        _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, corner_radius)
-        (width=control_width, height=control_height, elements=elements,
+        outer_width, outer_height = content_width + inset_width, content_height + inset_height
+        _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, corner_radius)
+        (width=outer_width, height=outer_height, elements=elements,
          segment_widths=segment_widths)
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
@@ -6511,16 +6701,21 @@ end
 # What the write names is the group's `target` when it has one, so a control that
 # is *for* something says so in the operation itself. Nothing above has to work
 # out which control was pressed — see `resolve_toggle_group_write`.
-function read_intent(::WidgetToggleGroupToGraphicsCanvas,
+function read_intent(p::WidgetToggleGroupToGraphicsCanvas,
                      iomap::WidgetToggleGroupToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing
+    content_x, _ = _content_offset(p, w)
     @event_case evt begin
         MousePress(button, x, y) => begin
             button === :left || return nothing
             canvas = iomap.output
-            segment = _toggle_group_segment(iomap.segment_widths, x - Int(canvas.x[]))
+            # The border and the padding belong to the control: a press on them
+            # picks the segment beside it, so the whole control answers.
+            widths = iomap.segment_widths
+            local_x = clamp(x - Int(canvas.x[]) - content_x, 0, max(0, sum(widths) - 1))
+            segment = _toggle_group_segment(widths, local_x)
             # Pressing the segment that is already on is not a change. Answering
             # nothing rather than a write of the same value keeps an enclosing
             # projection from seeing an edit that edits nothing.
@@ -8176,33 +8371,16 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
         WidgetBadge      => WidgetBadgeToGraphicsCanvas(theme; measure = measurer),
         WidgetSeparator  => WidgetSeparatorToGraphicsCanvas(theme),
         WidgetCard       => WidgetCardToGraphicsCanvas(theme; measure = measurer),
-        WidgetSwitch     => WidgetSwitchToGraphicsCanvas(
-            Point2D(44, 24), 3,
-            color_white, StyleStroke(theme.border, theme.border_width),
-            theme.primary, theme.track_off, theme.muted, theme.ring),
-        WidgetProgress   => WidgetProgressToGraphicsCanvas(8, theme.muted, theme.primary),
-        WidgetSlider     => WidgetSliderToGraphicsCanvas(
-            24, 4, 9,
-            color_white, StyleStroke(theme.primary, theme.stroke),
-            theme.muted, theme.primary, theme.muted, theme.ring),
-        WidgetRadioGroup => WidgetRadioGroupToGraphicsCanvas(measurer, StyleText(theme.font, theme.foreground),
-            18, 10, 12, 5,
-            theme.background, StyleStroke(theme.primary, theme.stroke), StyleStroke(theme.input, theme.stroke),
-            theme.primary, theme.muted_foreground, theme.ring),
+        WidgetSwitch     => WidgetSwitchToGraphicsCanvas(theme),
+        WidgetProgress   => WidgetProgressToGraphicsCanvas(theme),
+        WidgetSlider     => WidgetSliderToGraphicsCanvas(theme),
+        WidgetRadioGroup => WidgetRadioGroupToGraphicsCanvas(theme; measure = measurer),
         WidgetAvatar     => WidgetAvatarToGraphicsCanvas(theme; measure = measurer),
         WidgetAlert      => WidgetAlertToGraphicsCanvas(theme; measure = measurer),
         WidgetSkeleton   => WidgetSkeletonToGraphicsCanvas(theme),
         WidgetHighlight  => WidgetHighlightToGraphicsCanvas(theme),
-        WidgetToggle      => WidgetToggleToGraphicsCanvas(measurer, theme.font,
-            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
-            StyleStroke(theme.border, theme.border_width),
-            theme.accent, theme.accent_foreground, theme.background, theme.foreground,
-            theme.muted, theme.muted_foreground, theme.ring),
-        WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(measurer, theme.font,
-            Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius, 2,
-            StyleStroke(theme.border, theme.border_width),
-            theme.muted, theme.background, theme.foreground, theme.muted_foreground,
-            theme.muted, theme.muted_foreground, theme.ring),
+        WidgetToggle      => WidgetToggleToGraphicsCanvas(theme; measure = measurer),
+        WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(theme; measure = measurer),
         WidgetSelect      => WidgetSelectToGraphicsCanvas(measurer, theme.body_text, theme.background,
             StyleStroke(theme.input, theme.border_width),
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.radius,
