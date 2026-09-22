@@ -2,16 +2,15 @@
     Sdl
 
 Opt-in package: the SDL display/input backend (window, GPU rendering, SDL_ttf text
-rasterisation, offscreen image output). Depends on `ProjecturedDomain` +
-SimpleDirectMediaLayer/SDL2_jll; `using ProjecturedSdl` provides the
-render/decode/image seam methods. Exposes `SdlBackend`,
+rasterisation, offscreen image output). Depends on `ProjecturedCollection`,
+`ProjecturedGraphics`, `ProjecturedKernel`, `ProjecturedScreen`,
+`ProjecturedStyle` and SimpleDirectMediaLayer/SDL2_jll; `using ProjecturedSdl`
+provides the render/decode/image seam methods. Exposes `SdlBackend`,
 `GraphicsCanvasToImageFile`, and the `sdl_*` helpers. Also exports the offscreen
-primitives (`_open_offscreen_renderer`, `_close_offscreen_renderer`, `_emit_frames!`)
-that the opt-in `ProjecturedVideo` package builds `record_video` on (FFMPEG lives there,
-not here).
-
-Relocated from the former program/src/backend/Sdl.jl (ProjecturedSdl); relative
-submodule imports were rewritten to absolute ProjecturedDomain.* references.
+primitives `_open_offscreen_renderer` and `_close_offscreen_renderer` that the
+opt-in `ProjecturedVideo` package builds `record_video` on (FFMPEG lives
+there, not here); `record_video` reaches the unexported `_emit_frames!`
+through the qualified name.
 """
 module ProjecturedSdl
 

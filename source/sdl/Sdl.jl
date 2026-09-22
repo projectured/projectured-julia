@@ -166,7 +166,8 @@ end
 # `partial_render` / `debug_dirty` default to the PROJECTURED_PARTIAL_RENDER /
 # PROJECTURED_DEBUG_DIRTY env vars (via `_envflag`) when left as `nothing`, so a
 # bare `SdlBackend()` keeps the env-driven defaults; pass an explicit `Bool` to
-# override (e.g. from `run_example(; partial_render=false, debug_dirty=true)`).
+# override (e.g. `run_example(...; backend=SdlBackend(partial_render=false,
+# debug_dirty=true))` — `run_example` itself takes no such keywords).
 SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
              debug_dirty::Union{Bool,Nothing}    = nothing) =
     SdlBackend(Dict{Symbol, SdlWindowResources}(),

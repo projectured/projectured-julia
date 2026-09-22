@@ -628,8 +628,10 @@ Keywords:
                     keyboard, apply operations, repaint. `Home` selects the root
                     node, arrows navigate the tree, `Ctrl+Space` toggles
                     structural ⇄ text selection, `Ctrl+C` quits. Character-level
-                    text editing is not available (it lives in `TextToGraphics`,
-                    which this pipeline omits). Default `false` (one-shot).
+                    text editing works too: it is in the `@gestures TextBlock`
+                    table (`source/text/TextDocument.jl`), geometry-free and so
+                    available even though this pipeline omits `TextToGraphics`.
+                    Default `false` (one-shot).
 """
 function run_console_example(; document=make_json_document_example(),
                                projection=make_json_console_projection_example(),
