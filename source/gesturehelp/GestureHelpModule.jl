@@ -8,15 +8,14 @@ the map, which the rest of the slice is written in terms of.
 A `GestureMap` is a read-only document listing the gesture bindings available in some context — the
 rendered face of the reified `GestureBinding` data. Each [`GestureRow`](@ref)
 pairs a gesture rendering (`describe_event_pattern(pattern)`) with what it does and whether it
-is currently applicable; [`GestureMapToSyntax`](../projection/primitive/GestureMapToSyntax.jl)
+is currently applicable; [`GestureMapToSyntax`](@ref)
 projects a `GestureMap` onto the existing Syntax → Text → Graphics pipeline so the
 help window reuses the normal display path.
 
-Build one from a binding list and the document the bindings act on (applicability
-is evaluated against that document's current selection):
+Build one from a collection of intents (applicability is evaluated against the
+document's current selection at the time they were collected):
 
     make_gesture_map(read_intent(pipeline, recursion, Intent(CollectIntents()), iomap).operation)
-    make_gesture_map(get_document_gesture_bindings(JsonObject), some_object)   # global, by type
 """
 module GestureHelpModule
 

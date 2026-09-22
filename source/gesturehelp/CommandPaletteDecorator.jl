@@ -21,12 +21,13 @@
 # this decorator's own reader result, and every stage above reroots it exactly as if
 # a key had fired the binding.
 #
-# **Which bindings it runs.** Only the bindings of its own input document — the
-# per-instance table and the per-type table. Those build their operations in that
-# document's reference vocabulary, which is the vocabulary this reader returns. A
-# binding gathered from a deeper stage of the chain builds its operation against
-# *that* stage's document, and only the reader chain maps it back; the palette lists
-# such a row with its key and marks it "key only".
+# **Which bindings it lists.** `collect_gesture_rows` walks the whole
+# `CollectedIntentsOperation`, so a row's binding can come from any stage of
+# the reader chain, not only this decorator's own input document. Every row's
+# operation is already rooted back through every stage above, the same route a
+# real keystroke takes, so choosing a row runs it exactly as if a key had
+# fired the binding. A row whose collected intent carried no operation — not
+# applicable to the current selection — prints "(not now)" instead.
 """
     COMMAND_PALETTE_GESTURE
 

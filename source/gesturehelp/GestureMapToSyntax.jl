@@ -1,6 +1,6 @@
 # Fragment of `GestureHelpModule`.
 #
-# Projects a [`GestureMap`](../../document/GestureMap.jl) onto a `SyntaxNode` for
+# Projects a `GestureMap` (`GestureMap.jl`, in this same directory) onto a `SyntaxNode` for
 # display: one line per gesture row, grouped under a heading per domain, reusing the
 # existing `SyntaxToText → TextToGraphics` pipeline. Read-only — there are no
 # authoring gestures to invert — so it is a plain leaf printer with no reader or
