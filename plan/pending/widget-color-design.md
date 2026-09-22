@@ -1441,6 +1441,26 @@ does not name is `color_transparent`, and an inset that it does not name is
       `ReferenceToHumanReadableText` as its example of an inline field default,
       because the scroll pane projection declares none.
 
+**The verification after the replay** (the branch is `widget-color-rebase`,
+because the worktree of `widget-color-design` served the test of omnet-julia
+while the replay ran):
+
+- `test_substrate()`: 79610 pass, 3 failures, 2 errors, 1 broken. The base
+  `235404ec` answers 63068 pass and the same 3 failures, 2 errors and 1 broken,
+  all of `SplitPaneDragTest`. The 16541 passes that the branch adds are the
+  example walker: a widget that draws its parts offers more positions, and the
+  walker asserts on each.
+- The twenty domain suites: all ran, with the failures of the baseline.
+- The naming guard: 0 violations. The documentation guard passes.
+- The images: `widget_tree`, `widget_table`, `widget_toolbar`, `widget_shell`
+  and `widget_tabbed_pane` are identical to the base. `widget_card` is two
+  pixels wider and two taller, and the gallery moves its rows down by the same
+  amount, because the border inset of D8 takes the room that the outline drew
+  in before.
+- One fault the images found: the tree read `:chevron` as a color while its
+  projection still held `chevron_stroke`, so `_get_state_color` answered
+  `color_transparent` and the glyph drew black. The field is `chevron_color`.
+
 ### 8.6 omnet-julia
 
 omnet-julia reaches projectured-julia through the main checkout, so it can not
