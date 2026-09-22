@@ -36,7 +36,7 @@ function _warn_unavailable_once()
         using Pkg; Pkg.build("ProjecturedAdaptagrams")
     after installing or building Adaptagrams (set ADAPTAGRAMS_DIR to its cola/
     directory, or put its .pc files on PKG_CONFIG_PATH).
-    See package/adaptagrams/README.md."""
+    See documentation/package/adaptagrams/adaptagrams.md."""
     nothing
 end
 

@@ -3,8 +3,8 @@
 # package carries no dependency on the native ProjecturedAdaptagrams shim; these
 # reuse the base graph wiring (`make_graph_projection_example`) with the native
 # engine swapped in. Building the projection is cheap and engine-free — the native
-# call happens lazily when the projection is printed, so the shim must be built
-# (`using Pkg; Pkg.build("ProjecturedAdaptagrams")`) before printing.
+# call happens lazily when the projection is printed. The shim need not be built
+# first: an unbuilt shim falls back to a pure-Julia layout engine and warns once.
 
 function make_graph_adaptagrams_projection_example(; measure=measure_truetype_text)
     make_graph_projection_example(; measure=measure, engine=AdaptagramsLayout())

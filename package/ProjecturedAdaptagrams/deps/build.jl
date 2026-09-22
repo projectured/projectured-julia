@@ -2,7 +2,7 @@
 # (libcola + libavoid + libvpsc) into deps/libadaptagrams_shim.<ext>.
 #
 # Run automatically by `Pkg.build("ProjecturedAdaptagrams")`, or by hand:
-#   julia package/adaptagrams/deps/build.jl
+#   julia package/ProjecturedAdaptagrams/deps/build.jl
 #
 # The module loads the shim from this fixed path (no generated deps.jl); whether
 # it has been built is a runtime check (ProjecturedAdaptagrams.isavailable()), so
@@ -15,8 +15,9 @@
 #      (contains libavoid/ libcola/ libvpsc/). Defaults to ~/workspace/adaptagrams/cola.
 #
 # This script never throws: if Adaptagrams cannot be found or the compile fails,
-# it removes any stale shim and warns; AdaptagramsLayout then errors at call time
-# with build guidance. Re-run the build after installing the native library.
+# it removes any stale shim and warns; AdaptagramsLayout then falls back to a
+# pure-Julia layout engine at call time and warns once, rather than erroring.
+# Re-run the build after installing the native library.
 
 const HERE = @__DIR__
 const SHIM_SRC = joinpath(HERE, "adaptagrams_shim.cpp")

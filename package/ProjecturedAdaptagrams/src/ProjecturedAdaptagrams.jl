@@ -6,9 +6,9 @@ vertices with **libcola** (constraint-based force-directed layout) and routes
 edges with **libavoid** (obstacle-avoiding connectors), bridged through a small
 `extern "C"` shim (`deps/adaptagrams_shim.cpp`) via `ccall`.
 
-This lives in its own package, separate from `ProjecturedDomain`, precisely
+This lives in its own package, separate from `ProjecturedGraph`, precisely
 because it carries an external native dependency (the Adaptagrams C++ libraries).
-`ProjecturedDomain` only defines the `GraphLayoutEngine` interface and the
+`ProjecturedGraph` only defines the `GraphLayoutEngine` interface and the
 pure-Julia `GridEmbedding`; this package adds an `AdaptagramsLayout`
 method to `layout_graph` behind that same interface, so nothing in core depends
 on Adaptagrams being installed.
