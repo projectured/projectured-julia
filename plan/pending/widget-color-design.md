@@ -2,10 +2,17 @@
 
 **Status (2026-09-22): PROPOSED.** Nothing is implemented. §3 records the
 present state, §4 describes the target model, and §5 lists the decisions. Each
-decision in §5 carries a recommendation. On 2026-09-22 the owner decided two
-things: every part of the structure of a widget has its own color (§4.4, D3),
-and a part becomes transparent with `color_transparent` (§4.3, D3). The other
-decisions are open.
+decision in §5 carries a recommendation. On 2026-09-22 the owner decided these
+things:
+
+- Every part of the structure of a widget has its own color (§4.4, D3).
+- A part becomes transparent with `color_transparent` (§4.3, D3).
+- The color overrides of a widget are in one `style` field (D2).
+- Every widget that the factory prints on its own has the box insets, with
+  three exceptions (D11).
+- No new type holds an inset and its color together (D12).
+
+The other decisions are open.
 
 **Goal:** one rule that gives, for each color that a widget draws, the value
 that the renderer uses. The rule covers the three places that can hold a color:
@@ -453,8 +460,10 @@ The rule holds also where the look does not show the part. Its color is then
 A second reason for the rule: a developer can give each part a color to see the
 layout.
 
-**The box parts.** Every widget that has the box insets has four parts, from the
-outside in:
+**The box parts.** Every widget that the factory prints on its own has the box
+insets, except `WidgetHighlight` (D11). The insets and the colors stay separate
+fields (D12). Every widget with the box insets has four parts, from the outside
+in:
 
 | Part | Size | Default color |
 | --- | --- | --- |
@@ -569,8 +578,8 @@ the decisions.
 ## 5. Decisions
 
 Each decision gives the options and a recommendation. The recommendations are
-mine. The owner decided D3, except for the decorations. The other decisions are
-open.
+mine. The owner decided D2, D3 except for the decorations, D11 and D12. The
+other decisions are open.
 
 ### D1. The names of the style fields
 
@@ -614,7 +623,8 @@ the `border` inset, and its color is a fill, not a stroke.
   `WidgetStyle` document whose fields are `nothing` by default, in the form of
   `ChartStyle`.
 
-**Recommendation: (b).** Every part has a color (§4.4), so (a) gives each widget
+**Decision: (b).** Decided by the owner on 2026-09-22, together with D12. The
+reasons follow. Every part has a color (§4.4), so (a) gives each widget
 at least four color fields, one for each box part, and more for its own parts
 and its text. (b) costs one cell per widget. `ChartStyle` and
 `SequenceChartStyle` already use this form. Another part that an override can
@@ -780,10 +790,51 @@ color its margin.
 - **(a)** Every widget gets the three insets, and so the four box parts.
 - **(b)** Only the widgets of today have box parts.
 
-**Recommendation: (a).** Then the rule of §4.4 holds for every widget, and a
-developer can color the margin of any widget to see the layout. The cost: 23
-widget types get three inset fields and `WidgetCard` gets two, and their
-printers and readers must respect the insets.
+**Decision: (a), wherever it makes sense.** Decided by the owner on 2026-09-22.
+The rule: every widget that the factory prints on its own gets the `margin`,
+`border` and `padding` insets. Three widgets are exceptions:
+
+- `WidgetTabPage` and `WidgetAccordionItem` have no projection of their own.
+  The tabbed pane and the accordion draw them as their own parts: the tab and
+  the page, and the item.
+- `WidgetHighlight` marks an area that its caller sizes, for example a drop
+  target. A margin would move the mark away from that area.
+
+So 20 widget types get three inset fields, and `WidgetCard` gets `margin` and
+`border`. Their printers and readers must respect the insets. Then the rule of
+§4.4 holds for every widget that has a box, and a developer can color the margin
+of any of them to see the layout.
+
+### D12. A type for an inset and its color
+
+`StyleText` holds a font and a color together, and `StyleStroke` holds a color
+and a width.
+
+- **(a)** No new type. The document keeps `margin::Inset`, `border::Inset` and
+  `padding::Inset`. The colors of these parts are overrides in the `style` field
+  (D2).
+- **(b)** A new type, for example `StyleBand(inset, color)`, and one field for
+  each box part: `margin::StyleBand`. The color is `nothing` to use the color of
+  the projection.
+
+**Decision: (a).** Decided by the owner on 2026-09-22. The reasons:
+
+- An inset and a color belong to different layers. The inset is a layout
+  value: the layout, the printer geometry and the readers read it, and the
+  document holds it. The color is a paint value: only the painter reads it, its
+  default comes from the projection, and the document can override it. The two
+  values of `StyleText` are both paint values, and one printer reads them
+  together.
+- Only the margin, the border and the padding have an inset. The content and the
+  parts of one widget type have no inset, so with (b) the parts have two shapes.
+- With (b) the box colors are in the bands and the other colors are in the
+  style, so the overrides of a widget are in two places. A style that many
+  widgets share then shares a size too.
+
+(b) is the better choice where the colors are flat fields on the document
+(D2 (a)), because there it replaces a pair of fields with one field. With (b)
+the color needs its own cell in the type, so that a change of the color does
+not lay the widget out again.
 
 ## 6. Steps
 
@@ -813,8 +864,9 @@ targeted tests run after each step.
       selection token and one hover token everywhere (D4).
 - [ ] 6. Documents: move `margin_color`, `border_color`, `padding_color`,
       `content_fill_color` and `title_fill_color` into the override of D2, with
-      one color for every part (§4.4). No part loses its color. Give the box
-      insets to the widgets that have none, if D11 takes (a). Add `tone` (D5). Change the 26 call sites in both repositories. For each of the
+      one color for every part (§4.4). No part loses its color. The insets stay
+      separate fields (D12). Give the box insets to the 20 widget types and to
+      `WidgetCard` (D11). Add `tone` (D5). Change the 26 call sites in both repositories. For each of the
       16 call sites that have no effect today, check whether the color is still
       wanted. For example, `AssistantToWidget` asks for white panes but shows
       `theme.background`.
