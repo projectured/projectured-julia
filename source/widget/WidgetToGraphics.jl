@@ -2205,9 +2205,10 @@ end
 # my first focusable (this also covers the root with no selection).
 #
 # NOTE: Wrap-around (Tab on the very last focusable → the first) is the one
-# non-local case and is NOT handled here — it needs a single top-level rule
-# (a follow-up; see plan/pending/widget-focus-traversal.md). Until then Tab
-# advances forward and stops at the last focusable.
+# non-local case and is not handled here — a container only advances or
+# declines. The single top-level rule that wraps a declined Tab lives at the
+# outer widget seam, in `WidgetHoverTrackingProjection`'s reader
+# (`source/widget/WidgetHoverTracking.jl`).
 function _composite_tab(w::WidgetComposite, child_iomaps::Vector, evt)
     n = length(child_iomaps)
     reverse = evt.modifiers.shift

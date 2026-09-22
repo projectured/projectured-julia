@@ -76,7 +76,7 @@ function read_intent(p::WidgetHoverTrackingProjection, recursion, change::Intent
     # widget seam, a declined Tab wraps to the first focusable leaf (last for
     # Shift-Tab). Bootstrap (no selection) is handled by the containers themselves,
     # so this only fires for genuine wrap-around. See
-    # plan/pending/widget-focus-traversal.md.
+    # plan/done/widget-focus-traversal.md.
     if event isa KeyDown && event.key === :tab
         res = read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
         op = res isa Intent ? res.operation : res
