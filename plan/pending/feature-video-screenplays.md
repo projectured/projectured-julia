@@ -61,6 +61,7 @@ On 2026-09-16 `qwen3.8:27b` solved 5 of 8 problems of the omnet-julia applicatio
 | G3 | A recording shows no pointer and no key names. A viewer can not see what was pressed or clicked. |
 | G4 | The M/M/1/K study uses a `ScriptedLlm`, and it loads its functions silently before the run. |
 | G5 | The web page shows a Julia function whose body is an XML table (`assets/examples/mixed-julia-xml.jpg`, 2026-07-16), but no code in the repository makes that document now. |
+| G6 | S9 shows a terminal and a window side by side, which are two programs. `record_application_video` records one editor, so S9 needs a capture of the screen. The shell of this session is a tty, so the capture runs in the desktop session of the owner. The machine has `ffmpeg`; the tool and the display server are chosen in the step of S9. |
 
 ## 3. Decisions
 
@@ -78,6 +79,7 @@ On 2026-09-16 `qwen3.8:27b` solved 5 of 8 problems of the omnet-julia applicatio
 | D10 | Short videos are 1280×720 at 30 fps, so the 20 px text stays legible in a forum post. The main video is 1920×1080, as the study demo is now. | my choice |
 | D11 | The main video can show the M/M/1/K study of the omnet-julia application in a public post (answer to Q1). The caption does not name the private product, and the post says that the code of the study is not in the public repository. | owner, 2026-09-22 |
 | D12 | No part of a video is made faster. There is no time lapse and no speed marker (answer to Q3). A wait for the model stays as long as it is. The main video is then as long as the six turns take, which the measurement of §2.3 puts between about 10 min and 25 min. If a take is longer than that, the plan asks the owner again before it is published. | owner, 2026-09-22 |
+| D13 | A video types with the rhythm of `make_typein_gestures` itself: `hold = 0.15` on average and `jitter = 0.6`, which reads as a person typing. A faster rhythm is what the first take of S1 used, and the owner asked for the human one. | owner, 2026-09-22 |
 
 ## 4. Open questions for the owner
 
@@ -120,6 +122,19 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 | 7 | The same for the cosine trace. | A green cosine trace scrolls down under the ring. | |
 | 8 | A `push!` of the two axes of each trace, and of the two dashed links whose ends read `dot.cx` and `dot.cy`. | The picture is complete, and it is the same as the example. | A link reads the dot, not the clock. |
 | 9 | Hold 3 s. | | |
+
+- **One video, many forms.** The owner said on 2026-09-22 that the picture grows form by form in one video: "It simply makes it more interesting for the viewer." So each form of the table adds one part to the drawing, and the viewer watches the picture become the example. The video is not cut into parts, and no beat is left out.
+
+- **The first take, 2026-09-22.** Recorded: 1280×720, 3144 frames, 104.8 s, 1.1 MB, with `record_application_video`. The window opens `notes.json`, `Ctrl+T` and `repl` open the evaluator, and thirteen forms build the picture. Each form that changes the picture ends with `; canvas`, so the newest row shows the whole picture above the prompt. The canvas is 300×300, because a canvas of 420×420 and the prompt under it do not both fit in the pane, and the view follows the caret.
+
+  The forms that work, in order: `clock = get_wall_clock()`; the `GraphicsCanvas` with a `GraphicsRect` background; `ring = GraphicsCircle(90, 90, 60, …)`; `push!` of the ring; `phase() = -0.5 * get_reactive_clock_time(clock)`; `dot = GraphicsCircle(ComputedCell(…), ComputedCell(…), 5, …)`; `push!` of the dot; the sine `GraphicsPolyline`; its `push!`; the cosine `GraphicsPolyline`; its `push!`; and the two dashed `GraphicsLine`s, each in its own `push!`.
+
+- **The refinements the owner asked for, to do before the video is published:**
+  - **The typing rhythm.** The take typed with `hold = 0.045` and `jitter = 0.5`, which is faster than a person. Use the rhythm of `make_typein_gestures` itself (`hold = 0.15`, `jitter = 0.6`, `example/kernel/Harness.jl:118`), which is what the owner means by the human one. The forms hold about 1200 characters, so this rhythm adds about two minutes, and the forms must get shorter to stay inside D5.
+  - **The forms are long**, because a `GraphicsCircle`, a `GraphicsPolyline` and a `GraphicsLine` with a cell in a field take every positional field. A constructor that takes a function or a cell by keyword would cut the typing in half. It is an API change, and the owner approves it before it is made.
+  - **G3 is missing** from this take: no caption bar, no pointer, no key names.
+  - **The assistant pane is off** in this take (`assistant = :none`), so the window is narrower than the real one.
+  - The holds are 3 s after a form that changes the picture and 1.2 s after the others.
 
 - **Acceptance:**
   - The step writes the real forms of beats 5 to 8 into this table. They come from the example. `phase` replaces the local `angle` of the example, because `angle` is a function of `Base`.
@@ -208,6 +223,27 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 - **Beats:** in the evaluator, open a reflection view of `editor` in a new tab. Open it level by level: the panes, the tab with the JSON file, its document, its entries. Change a value in the JSON tab, and bring the view up to date.
 - **Acceptance:** Step 8 finds the call that opens the reflection view in a tab (`reflect_document`, `sync_reflection!`, `open_pane!`) and records it here.
 
+#### S9. The editor from a plain Julia REPL
+
+- **Feature:** ProjecturEd is a library. A person opens a window on a value from their own REPL, edits it, closes the window, and the value is there in the session, richer than before.
+- **Claim:** it is also a generic user interface for your own Julia program.
+- **The owner's words, 2026-09-22:** "demonstrate how to use the editor from the original Julia repl. Start from a text document, then syntax, then json, then widget warp, then add XML, each time exit to repl and start over."
+- **Setup:** a terminal with `julia --project=environment/all` beside the window that each round opens. One REPL session holds all five rounds, so each round builds on the value of the round before it. This video needs a capture of the screen (G6), because the terminal and the window are two programs.
+- **Beats:** five rounds. Each round is: type a few lines in the REPL, a window opens, edit in the window, close the window, and the REPL prompt is back.
+
+| Round | In the REPL | In the window |
+| --- | --- | --- |
+| 1 | a text document, and `run_window_editor(document, NaturalToGraphics(measure = measure_truetype_text), "Text"; backend = SdlBackend())` | type a word into the prose, then close the window |
+| 2 | a syntax tree of the same content | walk the tree, open and close a node |
+| 3 | `parse_natural_text(:json, "{\"name\": \"Alice\"}")` | edit a value, add an entry |
+| 4 | wrap the JSON of round 3 in a widget: a card with a title, and the JSON as its content | the card holds the live JSON, and an edit in it still works |
+| 5 | put an XML element in the document of round 4 | the caret crosses from the widget into the XML and back |
+
+- **Acceptance:**
+  - Each round runs from a REPL that the viewer sees, with no file of the repository and no helper of the examples: only the public API.
+  - After each round the REPL prompt is back and the value of that round is still bound, so the next round builds on it.
+  - The step writes the real lines of each round here, after it has run them.
+
 #### S8. Two domains in one document
 
 - **Feature:** a document of one domain holds a document of another, and navigation and editing cross the boundary.
@@ -262,16 +298,19 @@ The number of the frames follows the wall clock, so one second of the session is
 
 `record_application_video(paths, timeline, filename; …)` builds the document and the projection with `make_application_window`, runs `run_with_window_tools` and `run_editor!` with a `VideoBackend`, stops the loop after the last entry and the final hold, and encodes the frames with the `ffmpeg` call of `record_video`.
 
-- [ ] G1: `VideoBackend` and `record_application_video`. Test: a clip of 5 s of the application window, with the menu bar, the toolbar, the tabs, the navigator and the assistant pane.
-- [ ] G2: the frames follow the wall clock. Test: a recording of a wait of a known length has the frames of that length, and a slow render repeats a frame instead of making the video slower.
+- [x] G1: `VideoBackend` and `record_application_video` (commit 5b2b0cc6). The clip of 5 s shows the menu bar, the toolbar, the two tabs and the evaluator with its prompt. `test_video()` passes 15/15, `test_video_layering()` 7/7.
+
+      Two faults of the first cut, both found and fixed in that commit: an entry that fires before the first print is dropped, because `read!` has no IO map yet, so the clock of the timeline starts when the first frame is on disk; and `run_frame!` batches up to 32 operations into one repaint, so the backend holds the next entry until the frame of the one before it is rendered. `ProjecturedVideo` now also depends on `ProjecturedScreen`, and the table of `package-rules.md` says so.
+- [x] G2: the frames follow the wall clock. The clip of 5 s scripted 5.0 s and recorded 4.93 s, which is one frame.
 - [ ] G3: the pointer, the name of each pressed key for about one second, and the caption bar of the timeline.
-- [ ] `record_video` stays as it is. It records a single document, and the tests of `ProjecturedVideoTest` keep it honest.
+- [x] `record_video` stays as it is. Only the `ffmpeg` call moved into `_encode_frames_to_video!`, which both recorders use.
 
 ### Step 2: S1, the evaluator rebuilds the rotating vector
 
-- [ ] Write the real forms of beats 3 to 8, test each one in the evaluator of the application, and record them in §5.
-- [ ] Check that the canvas of beat 3 changes in its result row after a `push!`.
-- [ ] Write the timeline, record, and give the video to the owner.
+- [x] Write the real forms, test each one in the evaluator of the application, and record them in §5. All thirteen run, and the dot moves with the clock.
+- [x] Check that the canvas changes in its result row after a `push!`. It does, and each form that changes the picture ends with `; canvas`, so the newest row shows the whole picture.
+- [x] Write the timeline, record, and give the video to the owner. The first take is 104.8 s (2026-09-22).
+- [ ] Record again with the refinements of §5: the human rhythm of D13, shorter forms, and G3.
 
 ### Step 3: S3, JSON from nothing
 
@@ -305,6 +344,7 @@ The number of the frames follows the wall clock, so one second of the session is
 ### Step 8: tier 2
 
 - [ ] S5, S6, S7, S8, each with the checks of its acceptance.
+- [ ] S9, the editor from a plain Julia REPL. It needs G6 first: choose the tool that captures the screen of the desktop session, and check that the terminal and the window are both legible at 1920×1080.
 
 ### Step 9: publish and close
 
