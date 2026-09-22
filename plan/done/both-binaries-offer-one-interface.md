@@ -1238,6 +1238,12 @@ and `test_campaign_loop()` is 12.
 - [x] Wrap the content of the window in a `WidgetShell` inside the fold, and give
       the shell the size of the window. A shell with no size hugs its content
       (§2.6), which a window shell must not do.
+      **Corrected on 2026-09-22: the second half was ticked and not done.** Both
+      binaries built the shell with `size = nothing`, and the shell withheld the
+      window's offer, so the panes hugged their content, the status line was
+      never drawn, and the menu bar put "View" past the window's right edge. No
+      test measured where anything was drawn. The owner saw it in a window;
+      [the-shell-fills-its-window.md](the-shell-fills-its-window.md) is the fix.
 - [x] Add the generic `compute_context_menu(document)` to `DomainModule`, the widget
       method that reads a `context_menu` field, and
       `ContextMenuProbeProjection` with `ContextMenuProbeIoMap` in
