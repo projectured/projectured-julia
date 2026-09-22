@@ -487,6 +487,71 @@ function test_application()
                           _app_drawn_strings(output.windows[end].content))
             end
 
+            @testset "with the tooltip on, the pointer drags, lights, and leaves no history" begin
+                # The window as the binary opens it: a pointer and a feed, so the
+                # tooltip's probe sits over everything and must pass the pointer on.
+                document, projection = make_application_window(paths[1:1]; root = dir,
+                    assistant = nothing, pointer = () -> (0, 0),
+                    tooltip_feed = make_tooltip_feed())
+                scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
+                composed = make_window_scene_projection(projection;
+                    opened_window_projections = make_opened_window_projections(),
+                    screen_wrap = make_popup_screen_wrap())
+                # One print, kept, as the editor keeps it: a divider holds its drag
+                # on the widget the print made, and a second print makes another.
+                io = print_document(composed, scene)
+                editor = _AppFakeEditor(scene, io)
+                fire(event) = _app_fire(composed, io, event)
+                apply(operation) = operation isa Operation && evaluate_operation(editor, operation)
+                holds(operation, T) = operation isa T ||
+                    (operation isa CompoundOperation && any(o -> holds(o, T), operation.operations)) ||
+                    (operation isa WrappingOperation && holds(get_wrapped_operation(operation), T))
+                history = document
+                while !(history isa UndoBuffer) && hasproperty(history, :content)
+                    history = history.content
+                end
+                steps() = length(history.undo_entries)
+                tree = _app_window(document)
+                held(x, y) = MouseMove(x, y, :left, ModifierKeys())
+
+                # A row of the navigator lights up, and the history does not grow.
+                y, _ = _app_find_file_row(composed, io)
+                before = steps()
+                lit = fire(MouseMove(100, y))
+                @test holds(lit, ReplaceViewStateOperation)
+                apply(lit)
+                apply(fire(MouseMove(100, y + 40)))
+                @test steps() == before
+
+                # The divider between the navigator and the files follows the pointer.
+                weights() = [Float64(w) for w in tree.root.weights]
+                grab = findfirst(x -> holds(fire(MouseDown(:left, x, 500)),
+                                            StartSplitterDragOperation), 280:360)
+                @test grab !== nothing
+                x = (280:360)[grab]
+                apply(fire(MouseDown(:left, x, 500)))
+                before = weights()
+                apply(fire(held(x + 80, 500)))
+                apply(fire(MouseUp(:left, x + 80, 500)))
+                @test weights() != before
+
+                # The file's tab — the one the window opened on — drags into the
+                # navigator's group.
+                groups = get_pane_groups(tree)
+                files = groups[end]
+                (tx, ty) = last(sort([(x, y) for (text, x, y) in
+                                      _app_drawn_at(io.output.windows[1].content)
+                                      if text == "a.json"]))
+                apply(fire(MouseDown(:left, tx + 4, ty + 4)))
+                for (mx, my) in ((tx - 100, 500), (400, 500), (160, 500))
+                    apply(fire(held(mx, my)))
+                end
+                apply(fire(MouseUp(:left, 160, 500)))
+                title(tab) = get_pane_tab_title_string(tab)
+                @test !any(tab -> title(tab) == "a.json", files.tabs)
+                @test any(tab -> title(tab) == "a.json", groups[1].tabs)
+            end
+
             @testset "the navigator opens a file beside the files" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = _AppFakeEditor(scene, iomap)

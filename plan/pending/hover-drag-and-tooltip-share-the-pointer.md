@@ -200,28 +200,52 @@ too, but no gesture of this plan writes them.
 
 ### Step 4 — the hover tracker covers the window
 
-- [ ] The fold puts the tracker around the shell, inside the probe.
-- [ ] It leaves `_make_application_pane_projection`; `run_campaign_window` keeps
-      its own only without a `wrap`.
-- [ ] Tests through the whole fold, with the tooltip on: a move over a toolbar
-      button, the "+" of a tab group and a tree row each light it, and a move away
-      puts it out.
+- [x] The fold puts the tracker around the shell, inside the probe, with no
+      keyword: a window that shows a button must light it.
+- [x] It leaves `_make_application_pane_projection`. The campaign window keeps its
+      own only without a `wrap` — that half is omnet-julia's and follows.
+- [x] **The tracker looks through a wrapper to find the widget it entered.** It
+      took the target from a plain `ReplaceReferencedValueOperation`; outside the
+      history every answer arrives inside `RecordUndoOperation`, and after Step 5
+      inside the mark, so it saw no target at all.
+- [x] Test through the whole fold, with a toolbar and the tooltip on: a move over
+      a toolbar command lights it, a move over a button in the content lights the
+      button and puts the command out, and a move to empty space puts the button
+      out. The fold's own tests now find the tracker between the recorder and the
+      content.
 
 ### Step 5 — pointer state stays out of the history
 
-- [ ] `ReplaceViewStateOperation` in the kernel's operation layer, with the
-      rerooting and the rewrapping every wrapper has; `is_undo_step` drops it.
-- [ ] The widget slice answers a crossing and a press state with it, and the pane
-      slice writes `drag` with it.
-- [ ] Tests: through an `UndoBuffer`, a hover, a press state and a tab drag's zone
-      move add no step, and a divider resize still adds one; Ctrl+Z after a
-      hover takes back the edit before it.
+- [x] `ReplaceViewStateOperation` in `source/kernel/operation/Operations.jl`, with
+      the rewrapping every wrapper has and a description that is the write's own;
+      `is_undo_step` drops it, and a compound of nothing but marked writes.
+- [x] `_write_view_state` in the widget slice marks all sixteen writes of
+      `hovered`, `pressed` and a slider's `dragging`; the pane slice marks its
+      `drag`. A history comment in `WidgetDocument.jl` gave way to the helper's
+      docstring.
+- [x] `test_undo_buffer()`: a marked write is no step, a compound of marked writes
+      is none, and a compound with one real write is one. **`test_undo()` is 91.**
+      The window-level check is in Step 6. Fourteen substrate cases asserted the
+      old form of a hover or a press; they now assert the mark and the write in
+      it, through one helper, and the table's and the tree's readers look through
+      the mark, with one direct assertion of the mark each.
+- **`test_kernel()` is 2017 pass, 3 fail, 3 error**, its baseline exactly.
+- **A layering guard found a fault of Step 3**: the tooltip slice imported
+  `post_operation!`, and an import list states what a file extends. It uses
+  `EditorModule` now.
 
 ### Step 6 — the windows, end to end
 
-- [ ] `test_application()`: in the real window, with the tooltip on, a divider
-      drags, a tab drags to another group, a row lights up, and the window's
-      history holds none of the hover.
+- [x] `test_application()`: in the real window, with the tooltip on, a row of
+      the navigator lights up and the window's history does not grow, the divider
+      between the navigator and the files moves its weights, and the open file's
+      tab drags into the navigator's group. **`test_application()` is 115.**
+      **The case keeps one print**, as the editor keeps it: a divider holds its
+      drag on the widget a print made, and a case that printed before every event
+      lost the drag on the second print. The real editor prints once and keeps
+      its io map live.
+- **`test_substrate()` is 63393** with the baseline's 3 fail, 2 error and 1 broken,
+  and **`test_shell()` 177**.
 - [ ] omnet-julia: the same three in the interface's window, and the counts of
       Step 0 hold.
 
