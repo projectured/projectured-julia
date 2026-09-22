@@ -2,7 +2,8 @@
 
 **Status (2026-09-22): PROPOSED.** Nothing is implemented. §3 records the
 present state, §4 describes the target model, and §5 lists the decisions. Each
-decision in §5 carries a recommendation. The owner did not decide them yet.
+decision in §5 carries a recommendation. On 2026-09-22 the owner decided how a
+part becomes transparent (D3, §4.3). The other decisions are open.
 
 **Goal:** one rule that gives, for each color that a widget draws, the value
 that the renderer uses. The rule covers the three places that can hold a color:
@@ -44,8 +45,12 @@ constant.
 | Place | `nothing` means |
 | --- | --- |
 | theme token | not allowed |
-| projection style field | draw nothing for this part |
+| projection style field | not allowed |
 | document override | no override, so the projection field applies |
+
+The one way to draw no fill is the global color `color_transparent`, in every
+layer. The code that paints a part adds no element for a transparent fill
+(§4.3).
 
 **The present state breaks this rule in many places** (§3.8). The three largest:
 no code draws the box colors of 19 widgets, seven colors are constants in
@@ -65,6 +70,7 @@ printer code, and four different colors mark a selected thing.
 | **variant** | a `Symbol` field of the widget document that selects one set of style fields, for example `WidgetCard.variant = :muted` |
 | **tone** | a proposed `Symbol` field that gives the meaning of a widget, such as `:destructive` or `:warning` (D5) |
 | **override** | a field of the widget document that holds a color for one part of this one widget |
+| **transparent** | the color with alpha 0, as the proposed global `color_transparent`. A part in this color adds no element (§4.3). |
 | **upstream projection** | a projection that makes widget documents, for example `ConversationToWidget` |
 
 ## 3. The present state
@@ -196,6 +202,25 @@ Two more colors are outside the widget model:
   fixed default. They are decorators, not widgets, and they keep one color in
   every theme on purpose.
 
+**The transparent color has no name.** The code writes it as
+`StyleColor(0.0, 0.0, 0.0, 0.0)` in 12 places. Three of them give it a local
+name: `_WT_HIT_COLOR`
+([WidgetToGraphics.jl:5847](../../source/widget/WidgetToGraphics.jl#L5847)),
+`_transparent`
+([TextToGraphics.jl:741](../../source/text/TextToGraphics.jl#L741)) and
+`_NO_WASH` ([MathToGraphics.jl:1679](../../source/math/MathToGraphics.jl#L1679)).
+
+**A transparent rect catches the pointer.** A container sends a press to a child
+only over an element that the child drew. `hit_element_at` tests the position of
+a rect and not its alpha
+([GraphicsDocument.jl:676](../../source/graphics/GraphicsDocument.jl#L676)). The
+table, the tree, the fold column of the card and `WidgetTableList` push a
+transparent rect for this reason
+([WidgetToGraphics.jl:4326](../../source/widget/WidgetToGraphics.jl#L4326),
+[:6166](../../source/widget/WidgetToGraphics.jl#L6166),
+[:6768](../../source/widget/WidgetToGraphics.jl#L6768),
+[WidgetTableList.jl:167](../../source/widget/WidgetTableList.jl#L167)).
+
 ### 3.5 States
 
 Each printer selects the color for a state in its own code. Where two states
@@ -292,6 +317,16 @@ are drawn, and "draw nothing" in the fields that are not drawn.
     the projection, which the other widgets read.
 13. [widget.md](../../documentation/package/widget/widget.md) "Shared visual
     fields" still describes the box colors as boxes that the renderer draws.
+14. The transparent color has no name: 12 literals and three local names
+    (§3.4).
+15. One shell can not change or remove its fill. Every shell that has a size
+    on both axes paints `theme.background`
+    ([WidgetToGraphics.jl:2152](../../source/widget/WidgetToGraphics.jl#L2152)).
+    The page area of `WidgetTabbedPane` has no surface part: its printer paints
+    only the tab strip and the active tab
+    ([:3056](../../source/widget/WidgetToGraphics.jl#L3056),
+    [:3061](../../source/widget/WidgetToGraphics.jl#L3061)). So no theme and no
+    override can give the page a color.
 
 ## 4. The target model
 
@@ -315,6 +350,8 @@ The rules of the model:
 3. A color style field has no literal default in its struct. It gets its value
    from the theme or from the caller (D7).
 4. A widget document holds no theme and no token name.
+5. The transparent color is the global `color_transparent` in `Color.jl`, beside
+   `color_white`. It replaces the 12 literals and the three local names of §3.4.
 
 ### 4.2 The order of resolution
 
@@ -330,23 +367,58 @@ The value of a style field comes from the caller that built p, if the caller
 gave one. Else it comes from the factory: a token, or a color derived from
 tokens. There is no later fallback, and no printer falls back to a constant.
 
-### 4.3 What `nothing` means
+### 4.3 What `nothing` means, and the transparent color
 
 | Place | `nothing` means |
 | --- | --- |
 | theme token | not allowed. A theme gives every token. |
-| projection style field | this look draws nothing for this part: no shadow, no outline, no fill. The printer adds no element. |
+| projection style field | not allowed. A look that draws no fill for a part gives `color_transparent`. |
 | document override | no override. The style field of the projection applies. |
 | document variant or tone | not allowed. The field is a `Symbol` with a default. |
 
-A color with alpha 0 is not `nothing`. The printer draws it, and it costs one
-element. To draw no surface on one widget, the document selects a variant whose
-style field is `nothing`, as `WidgetCard` does with `:plain`. An override can not
-remove a part. D3 asks whether it must.
+So `nothing` has one meaning in the model: this layer sets no value, and the
+next layer applies. Only a document override can be `nothing`.
 
 This table matches the document fields that work today: `text_style`,
 `content_fill_color` and `ChartStyle`. The box colors are the only document
 fields where `nothing` meant "draw nothing", and no code draws them.
+
+**The transparent color is the one way to draw no fill.** It is a color, so it
+needs no new kind of value:
+
+- A projection style field gives `color_transparent` for a look that draws no
+  fill for a part. `WidgetCard` `:plain` becomes a variant whose surface is
+  `color_transparent`.
+- An override gives `color_transparent` to remove the fill of one widget, for
+  example of one shell.
+
+**The printer adds no element for a transparent fill.** So a transparent part
+costs nothing, which is the reason that `WidgetCard` gives for `:plain` today
+([WidgetToGraphics.jl:4386](../../source/widget/WidgetToGraphics.jl#L4386)).
+Three rules make the skip correct:
+
+1. Only the code that paints a part skips the element: `_push_panel!` and the
+   code like it. `GraphicsRect` and the hit test do not change. A hit target
+   (§3.4) stays a separate `GraphicsRect` that the printer always pushes. The
+   backend can skip the draw of any rect with alpha 0, because the draw does not
+   change the hit test.
+2. The code skips the element only when the fill is transparent and the part has
+   no visible outline. One `GraphicsRect` draws the fill and the outline
+   together.
+3. The check is exact: the alpha is 0. A color derived from tokens that has a
+   very small alpha is still drawn. It is not visible, and it costs one element.
+
+**A transparent surface lets the pointer through.** Where the surface of a
+widget is transparent and its content does not cover it, a press on the empty
+area does not reach the widget, because the widget drew nothing there. The
+press goes to the element below. A widget that must get a press on its empty
+area pushes its own hit target.
+
+**A reactive color can change the element list.** When a style field or an
+override is a reactive cell, the code that builds the element list reads the
+alpha to decide whether to add the element. A change between transparent and a
+visible color then builds the list again. A change of `variant` on `WidgetCard`
+has the same cost today.
 
 ### 4.4 The box model
 
@@ -360,6 +432,12 @@ fields where `nothing` meant "draw nothing", and no code draws them.
   override for the surface part.
 - A widget with two surfaces names each part. `WidgetTitlePane` has a title
   surface and a content surface.
+- **Every surface part can be transparent** (§4.3). `WidgetShell` keeps
+  `theme.background` as the default of its surface, and one shell becomes
+  transparent with the override `color_transparent`.
+- **`WidgetTabbedPane` gets a page surface part**, the area below the tab strip.
+  Its factory value is `color_transparent`, which keeps the present look. A
+  theme factory or an override can give it a color.
 
 ### 4.5 States
 
@@ -412,7 +490,7 @@ the decisions.
 ## 5. Decisions
 
 Each decision gives the options and a recommendation. The recommendations are
-mine. None of them is decided.
+mine. Only the second half of D3, how an override removes a fill, is decided.
 
 ### D1. The names of the style fields
 
@@ -449,14 +527,30 @@ person can edit a `WidgetStyle` in the editor like any other document, and many
 widgets can share one `WidgetStyle`. The cost: a call site writes
 `style = WidgetStyle(surface_color = …)`.
 
-### D3. The parts that an override covers
+### D3. The parts that an override covers, and how it removes a fill
+
+**The parts.** Open.
 
 - **(a)** The surface, the outline and the text, on every widget.
 - **(b)** Every part that the widget draws.
 
 **Recommendation: (a).** The call sites of §3.6 set only these three parts.
-Another part can come when a caller needs it. An override can not remove a part;
-a variant does that, as `:plain` does on `WidgetCard`.
+Another part can come when a caller needs it.
+
+**How an override removes a fill.** Decided by the owner on 2026-09-22.
+
+- **(a)** The override gives `color_transparent`, and the printer adds no
+  element for a transparent fill (§4.3).
+- **(b)** A separate marker value, not `nothing` and not a color, that means
+  "draw no fill".
+- **(c)** A `:plain` variant on each surface widget, as on `WidgetCard`.
+
+**Decision: (a).** The transparent color is a value that `StyleColor` already
+has, so the override needs no third kind of value. The only cost of (a) was the
+element for an alpha-0 fill, and the printer can skip that element. With (a),
+`nothing` keeps one meaning in every layer, and no projection field is
+`nothing`. (c) needs a new field on each widget that must become transparent.
+The transparent color is a global constant, `color_transparent`.
 
 ### D4. An override and the states
 
@@ -563,26 +657,32 @@ The steps start after the owner decides §5. Each step is one commit, and the
 targeted tests run after each step.
 
 - [ ] 1. Record the decisions of §5 in this plan.
-- [ ] 2. Theme: add the tokens that the decisions need, for example the shadow,
+- [ ] 2. Add `color_transparent` to `Color.jl`. Replace the 12 literals and the
+      three local names of §3.4 with it. This step changes no image, so it can
+      land before the other decisions.
+- [ ] 3. Theme: add the tokens that the decisions need, for example the shadow,
       the scrim, the selection band, the hover and pressed layers, the knob,
       `warning` and `success`. Remove `inset`. Change
       `build_qtenv_widget_theme` in omnet-julia, which calls the positional
       constructor.
-- [ ] 3. Projections: give each widget projection a constructor that takes the
+- [ ] 4. Projections: give each widget projection a constructor that takes the
       theme (D7), with the names of D1. Move the constants of §3.4 into style
-      fields. Remove the two style fields that are never read.
-- [ ] 4. States: give every interactive widget a disabled look, and use one
+      fields. Remove the two style fields that are never read. Make
+      `_push_panel!` skip a transparent fill that has no outline (§4.3), and
+      give `WidgetCard` `:plain` a transparent surface. Add the page surface part
+      of `WidgetTabbedPane` (§4.4).
+- [ ] 5. States: give every interactive widget a disabled look, and use one
       selection token and one hover token everywhere (D4).
-- [ ] 5. Documents: replace `margin_color`, `border_color`, `padding_color`,
+- [ ] 6. Documents: replace `margin_color`, `border_color`, `padding_color`,
       `content_fill_color` and `title_fill_color` with the override of D2. Add
       `tone` (D5). Change the 26 call sites in both repositories. For each of the
       16 call sites that have no effect today, check whether the color is still
       wanted. For example, `AssistantToWidget` asks for white panes but shows
       `theme.background`.
-- [ ] 6. Upstream projections: `ConversationToWidget`, `LogView`,
+- [ ] 7. Upstream projections: `ConversationToWidget`, `LogView`,
       `ObjectToWidget` and `ConfigurationFormToWidget` use tones or overrides.
-- [ ] 7. Layouts: the selection ring takes its color from the theme (D9).
-- [ ] 8. Documentation: write the "Theme" and "Shared visual fields" sections
+- [ ] 8. Layouts: the selection ring takes its color from the theme (D9).
+- [ ] 9. Documentation: write the "Theme" and "Shared visual fields" sections
       of [widget.md](../../documentation/package/widget/widget.md) from §4.
 
 ## 7. Verification
@@ -594,6 +694,13 @@ targeted tests run after each step.
   a printer fails the test. This test keeps defect 3 from coming back.
 - **A test of the order of §4.2** on one widget: an override, a variant, the
   default, and each state.
+- **A test of the transparent fill.** A shell and a tabbed pane with the
+  override `color_transparent` add no fill element. The same widgets with a
+  visible color add one. A transparent fill with a visible outline keeps its
+  element.
+- **A test of the hit targets.** A press over an empty area of the table, of the
+  tree and of the fold column of the card still reaches the widget after the
+  change of step 4.
 - The widget tests under `test/substrate/projection/`. A change to the number of
   fields of a widget document changes the pass counts, because the tests check
   each cell.
@@ -617,10 +724,10 @@ Each entry is `field ← source`. `(t, w)` is `StyleStroke(theme.t, theme.w)`, a
 | `WidgetComposite` | no style field. The whole-selection ring is the constant `SELECTION_RING_COLOR`. |
 | `WidgetDialog` | `title` ← `title_text`; `body` ← `body_text`; `card_color` ← `card`; `border` ← (`border`, `border_width`). The scrim is a constant. |
 | `WidgetMenuItem` | `text` ← `body_text`; `disabled_foreground` ← `muted_foreground`; `hover_color` ← `accent` |
-| `WidgetShell` | `background_color` ← `background` |
+| `WidgetShell` | `background_color` ← `background`. The shell paints it only when it has a size on both axes. |
 | `WidgetTitlePane` | `title_text` ← (`font_bold`, `foreground`); `content_text` ← (`font`, `card_foreground`) |
 | `WidgetSplitPane` | `splitter` ← (`border`, `border_width`) |
-| `WidgetTabbedPane` | `track_color` ← `muted`; `active_color` ← `background`; `active_foreground` ← `foreground`; `inactive_foreground` ← `muted_foreground`. The whole-selection ring is a constant. |
+| `WidgetTabbedPane` | `track_color` ← `muted`; `active_color` ← `background`; `active_foreground` ← `foreground`; `inactive_foreground` ← `muted_foreground`. The page area has no fill. The whole-selection ring is a constant. |
 | `WidgetScrollPane` | `background_color` ← `background`, struct default `color_white` |
 | `WidgetTransformPane` | `background_color` ← `background` |
 | `WidgetStatusBar` | `text` ← `caption_text`; `background_color` ← `muted` |
