@@ -47,7 +47,7 @@ The retype rules have the guard `_json_replaceable`. It returns `false` when the
 
 ### The text form
 
-`parse_json` is a recursive-descent parser over a vector of characters. It reads objects, arrays, strings, numbers, `true`, `false`, `null` and the backslash escapes with `\uXXXX`. A number that parses as an `Int` becomes an `Int`, and any other number becomes a `Float64`. The parser raises an error on malformed input and on characters after the value. `parse_json_file(path)` reads a file and parses it.
+`parse_json` is a recursive-descent parser over a vector of characters. It reads objects, arrays, strings, numbers, `true`, `false`, `null` and the backslash escapes with `\uXXXX`. A high surrogate escape followed by a low surrogate escape reads as one character, and a surrogate escape alone raises an error. A number that parses as an `Int` becomes an `Int`, and any other number becomes a `Float64`. The parser raises an error on malformed input and on characters after the value. `parse_json_file(path)` reads a file and parses it.
 
 `JsonFile` is the file type for `.json`. A reference to a node in another file is a `JsonString` whose whole value is the marker, because a string is the only unit of JSON that can hold any text. `emit_text` prints the content with `print_natural_text`. A `.json` path that does not exist opens as a `JsonInsertion`.
 
@@ -146,5 +146,5 @@ Each document also has a `selection` field, which `@document` adds. It holds a `
 
 - No projection reads `collapsed`. The field exists on `JsonArray`, `JsonObject` and `JsonObjectEntry`, but `JsonToSyntax` does not give it to the `SyntaxNode`, so a value set to `true` still prints expanded. `plan/pending/collapse-expand-syntax-nodes.md` holds the open step.
 - `,` appends at the end of the container, not after the selected element.
-- The parser is not a conformance parser. A `\uXXXX` escape becomes one character, so a surrogate pair becomes two characters that are not valid. An unknown escape gives the escaped character.
+- The parser is not a conformance parser. An unknown escape gives the escaped character.
 - An integer that does not fit in an `Int` becomes a `Float64`. A number prints with `string`, so `1e3` prints as `1000.0`.

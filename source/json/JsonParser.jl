@@ -74,10 +74,22 @@ function _string!(p)
     String(take!(io))
 end
 
+# A `\uXXXX` escape is one UTF-16 code unit. A character above U+FFFF is a high
+# surrogate escape followed by a low surrogate escape, and they read as one
+# character. A surrogate on its own is not a character, so it is malformed input.
 function _unicode!(p)
-    hex = String([_next!(p) for _ in 1:4])
-    Char(parse(UInt16, hex; base = 16))
+    start = p.i - 2
+    code = _read_code_unit!(p)
+    0xDC00 <= code <= 0xDFFF && error("JSON: a low surrogate with no high surrogate at position $start")
+    0xD800 <= code <= 0xDBFF || return Char(code)
+    (_next!(p) == '\\' && _next!(p) == 'u') ||
+        error("JSON: a high surrogate with no low surrogate at position $start")
+    low = _read_code_unit!(p)
+    0xDC00 <= low <= 0xDFFF || error("JSON: a high surrogate with no low surrogate at position $start")
+    Char(0x10000 + (UInt32(code - 0xD800) << 10) + (low - 0xDC00))
 end
+
+_read_code_unit!(p) = parse(UInt16, String([_next!(p) for _ in 1:4]); base = 16)
 
 function _number!(p)
     start = p.i
