@@ -26,6 +26,7 @@ using ..CollectionModule
 using ..DocumentModule
 using ..EditorModule
 using ..EventModule
+using ..FaultModule
 using ..FeedModule
 using ..GraphicsModule
 using ..IntentModule

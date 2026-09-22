@@ -87,7 +87,8 @@ end
 
 """
     run_window_editor(document, projection, title; backend, width, height, on_start,
-                      mcp, mcp_instructions, opened_window_projections, screen_wrap)
+                      mcp, mcp_instructions, opened_window_projections, screen_wrap,
+                      fault_policy)
 
 Open the window and run the loop until the person closes it.
 
@@ -109,6 +110,9 @@ gives the client, and the server's own generic one answers when it is `nothing`.
 The server needs `ProjecturedMcp` loaded, which registers it.
 
 `opened_window_projections` goes to [`make_window_scene_projection`](@ref).
+
+`fault_policy` goes to the loop. Pass `make_strict_fault_policy()` to stop at the
+first fault instead of surviving it.
 """
 function run_window_editor(document, projection, title::AbstractString;
                            backend, width = nothing, height = nothing,
@@ -116,7 +120,8 @@ function run_window_editor(document, projection, title::AbstractString;
                            mcp_instructions::Union{AbstractString,Nothing} = nothing,
                            opened_window_projections = Pair{Type,Any}[],
                            feeds::Vector{Feed} = Feed[],
-                           screen_wrap = identity)
+                           screen_wrap = identity,
+                           fault_policy::FaultPolicy = FaultPolicy())
     backend === nothing &&
         error("run_window_editor: name the backend to draw on, " *
               "for example `backend = SdlBackend()`")
@@ -132,5 +137,6 @@ function run_window_editor(document, projection, title::AbstractString;
                     screen_wrap = screen_wrap),
                 scene;
                              mcp = mcp, mcp_instructions = mcp_instructions,
-                             feeds = feeds, on_start = on_start)
+                             feeds = feeds, on_start = on_start,
+                             fault_policy = fault_policy)
 end
