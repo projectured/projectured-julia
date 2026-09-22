@@ -20,6 +20,17 @@ function test_json_parser()
         @test_throws ErrorException parse_json("\"\\ud83dx\"")
         @test_throws ErrorException parse_json("\"\\ud83d\\u0041\"")
         @test_throws ErrorException parse_json("\"\\ude00\"")
+        # A `\u` escape with a character that is not a hex digit is a parser error.
+        for text in ("\"\\u00zz\"", "\"\\u+123\"", "\"\\u 123\"", "\"\\ud83d\\u12g4\"")
+            error = try
+                parse_json(text)
+                nothing
+            catch caught
+                caught
+            end
+            @test error isa ErrorException
+            @test error isa ErrorException && startswith(error.msg, "JSON: ")
+        end
 
         arr = parse_json("[1, 2, 3]")
         @test arr isa JsonArray

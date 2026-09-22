@@ -89,7 +89,14 @@ function _unicode!(p)
     Char(0x10000 + (UInt32(code - 0xD800) << 10) + (low - 0xDC00))
 end
 
-_read_code_unit!(p) = parse(UInt16, String([_next!(p) for _ in 1:4]); base = 16)
+# The four hex digits of a `\u` escape. Any other character, a sign or a space
+# too, is malformed input.
+function _read_code_unit!(p)
+    start = p.i
+    digits = String([_next!(p) for _ in 1:4])
+    all(isxdigit, digits) || error("JSON: a \\u escape needs four hex digits at position $start")
+    parse(UInt16, digits; base = 16)
+end
 
 function _number!(p)
     start = p.i
