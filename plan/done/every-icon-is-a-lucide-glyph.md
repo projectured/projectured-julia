@@ -1,7 +1,7 @@
 # Every icon is a Lucide glyph
 
-**Status (2026-09-22): LANDING.** The owner reviewed the result and approved
-landing (Step 7). projectured-julia is on `main`; omnet-julia follows.
+**Status (2026-09-22): DONE.** The owner reviewed the result and approved
+landing (Step 7). Landed on `main` in both repositories. Nothing is pushed.
 
 **Goal:** every icon that the user interface draws comes from one icon font,
 Lucide, and is drawn as a glyph through the text renderer. So each icon has
@@ -291,11 +291,28 @@ commit `70d4febf`; and one commit here, `b7a5a3c3`.
       layering guard), `test_application()` 119, `test_builder()` 167,
       `test_write_pdf()` passes. The 11 gallery pictures drawn again on the
       rebased branch are the same, pixel for pixel. Landed with a fast-forward.
-- [ ] omnet-julia: rebase, test, land.
+- [x] projectured-julia `main` moved twice more while the tests ran. The
+      second move (the other session's pointer plan) touched four files of
+      this branch; the rebase was clean, and the suites ran again: the same
+      known failures, `test_shell()` 178, `test_application()` 126. The third
+      move touched no file of the branch. Landed at `3f48a344`.
+- [x] omnet-julia: rebased onto `234d77e4` (one commit, no file in common) and
+      tested in the worktree against projectured-julia `main`: the status view
+      12, the session view 15, the embed tests, `test_ide_window_wrap()` 32,
+      `test_ide_file_navigator()` 8. `test_select_and_paste()` and
+      `test_demo_catalog()` fail what `main` fails. `test_playback_mode()` fails
+      "a widget inside a pane can report its own state again": a press now
+      answers a `ReplaceViewStateOperation`, which the other session's commit
+      `6a5d5272` (projectured-julia) added, and that test still expects the
+      bare `ReplaceReferencedValueOperation`. Not from this plan. Landed at
+      `e569e027`.
 
 ### Step 8: close
 
-- [ ] The guides, the memory, and the move of this plan to `plan/done/`.
+- [x] The widget guide says that every built-in icon is a Lucide glyph, names
+      the table and `find_icon_character`, and how a label writes an icon. The
+      shell and fault guides and the README were right already.
+- [x] The memory, and the move of this plan to `plan/done/`.
 
 ## 5. What this plan does not do
 
