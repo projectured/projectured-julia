@@ -561,6 +561,19 @@ function test_builder()
             rm(bundle; recursive = true, force = true)
         end
 
+        @testset "a bundled font carries its licence" begin
+            # Lucide and Noto Emoji ask for their notice in every copy, and
+            # neither font holds it in its own tables.
+            # The fonts run to megabytes, and `/tmp` can be a memory filesystem.
+            bundle = mktempdir(get_staging_root())
+            bundle_fonts!(bundle)
+            fonts = readdir(joinpath(bundle, "share", "projectured", "font"))
+            @test "lucide.ttf" in fonts
+            @test "Lucide-ISC.txt" in fonts
+            @test "NotoEmoji-OFL.txt" in fonts
+            rm(bundle; recursive = true, force = true)
+        end
+
         @testset "the staging directory is not a memory filesystem" begin
             # A bundle can run to several hundred megabytes, and `/tmp` is a
             # `tmpfs` on many machines — a copy there is a copy into memory.
