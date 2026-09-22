@@ -163,6 +163,46 @@ function test_widget_card_fold()
         @test press(first[1] + 2, 5) === nothing
     end
 
+    @testset "an accordion draws a title and a body that are documents through the recursion" begin
+        box = WidgetCheckbox(Point2D(0, 0), false)
+        body = VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "inner body"), box]; gap = 4)
+        accordion = WidgetAccordion(Point2D(0, 0),
+                                    [(WidgetLabel(Point2D(0, 0), "Document title"), body),
+                                     ("Plain title", "the plain body")]; expanded = 1)
+        proj = RecursiveProjection(TypeDispatchingProjection(vcat(
+            LayoutToGraphics().dispatch,
+            WidgetToGraphics(_fold_font; measure = _fold_stub).dispatch)))
+        iomap = print_document(proj, proj, accordion, PrinterContext())
+        _, texts = _fold_collect(iomap.output)
+        # Each document draws its own text, and no document is drawn as its string.
+        @test "Document title" in texts
+        @test "inner body" in texts
+        @test "Plain title" in texts
+        @test !any(text -> occursin("Widget", text) || occursin("Layout", text), texts)
+        at = _fold_text_positions(iomap.output)
+        # The body is below the header of its item, and the next item below the body.
+        @test at["Document title"][2] < at["inner body"][2] < at["Plain title"][2]
+
+        # A press on a control in the open body reaches the control.
+        toggled = nothing
+        for y in at["inner body"][2]:2:(at["Plain title"][2] - 1), x in 0:2:60
+            answer = read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys()))
+            if answer isa ReplaceReferencedValueOperation && answer.document === box
+                toggled = answer
+                break
+            end
+        end
+        @test toggled !== nothing && toggled.value === true
+        # A press on the header of the item still closes it.
+        title = at["Document title"]
+        closed = read_intent(proj, iomap, MousePress(:left, title[1] + 2, title[2] + 2, ModifierKeys()))
+        @test closed isa ReplaceReferencedValueOperation && closed.document === accordion &&
+              closed.value == 0
+        evaluate_operation(nothing, closed)
+        _, texts = _fold_collect(iomap.output)
+        @test "Document title" in texts && !("inner body" in texts)
+    end
+
     @testset "a card with its own padding" begin
         proj = _fold_proj()
         themed = print_document(proj, proj, WidgetCard(Point2D(0, 0); content = "abc", variant = :plain),

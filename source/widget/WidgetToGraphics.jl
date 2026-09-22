@@ -6094,50 +6094,97 @@ end
     chevron_size::Int
 end
 
-# The header row of each item, so a press is answered by the header it landed in.
-# The printer derives them in the build that draws the rows, and the reader reads
-# them from here. PAR-STABLE-IOMAP-IDENTITY.
+# The header row of each item, so a press is answered by the header it landed in,
+# and the place of the open body when it is a document, so a press on the body
+# goes to it. The printer derives both in the build that draws the rows, and the
+# reader reads them from here. PAR-STABLE-IOMAP-IDENTITY.
 @iomap struct WidgetAccordionToGraphicsCanvasIoMap
     projection::Any
     input::Any
     output::Any
     header_bounds::Any
+    body_entry::Any
+end
+
+# The body of the open item, or `nothing` when no item is open.
+function _get_open_accordion_body(w::WidgetAccordion)
+    expanded = Int(w.expanded)
+    items = w.items
+    (1 <= expanded <= length(items)) ? items[expanded].body : nothing
+end
+
+# What the accordion offers a title or a body: the width inside its padding when
+# it has a width, and no height, because the accordion is as tall as its rows.
+function _get_accordion_item_context(p::WidgetAccordionToGraphicsCanvas, w::WidgetAccordion, ctx)
+    ctx === nothing && return ctx
+    padding = 2 * _sc(Int(p.padding.left[]))
+    authored = _sc(Int(w.width))
+    offered = ctx.available_width
+    inner = authored > 0 ? Cell(Int32(max(0, authored - padding))) :
+            offered === nothing ? nothing :
+            ComputedCell(() -> Int32(max(0, Int(offered[]) - padding)))
+    withhold_offer(with_available_size(ctx; width = inner), :y)
 end
 
 function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::WidgetAccordion, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
+    # A title or a body that is a document is drawn through the recursion, as a
+    # card draws its content. Each title is printed once, and the body only
+    # while its item is open.
+    item_ctx = _get_accordion_item_context(p, w, ctx)
+    title_iomaps = reconcile_child_iomaps(() -> Any[item.title for item in w.items],
+        (i, title) -> title isa Document ? print_child(recursion, title, item_ctx) : nothing)
+    body_iomap = reconcile_child_iomap(() -> _get_open_accordion_body(w),
+        body -> body isa Document ? print_child(recursion, body, item_ctx) : nothing)
     build = ComputedCell(() -> begin
         expanded = Int(w.expanded)
         padding_x = _sc(Int(p.padding.left[]))
         padding_y = _sc(Int(p.padding.top[]))
         chevron_size = _sc(p.chevron_size)
+        titles = title_iomaps[]
+        body_document = body_iomap[]
+        # The size of a title or a body: a document draws its own canvas, and a
+        # plain value is drawn as its string.
+        size_of(iomap, value, font) = iomap === nothing ?
+            _text_size(p.measure, font, string(value)) :
+            (Int(iomap.output.w[]), Int(iomap.output.h[]))
         # Size to content: widest title (leaving room for the trailing chevron) and
         # the widest visible (expanded) body. The authored width is the minimum.
         title_min = 0; body_min = 0
         for (i, item) in enumerate(w.items)
-            title_min = max(title_min, _text_size(p.measure, p.title_text.font, string(item.title))[1])
+            title_min = max(title_min, size_of(titles[i], item.title, p.title_text.font)[1])
             if i == expanded && item.body !== nothing
-                body_min = max(body_min, _text_size(p.measure, p.body_text.font, string(item.body))[1])
+                body_min = max(body_min, size_of(body_document, item.body, p.body_text.font)[1])
             end
         end
         content_min = max(2padding_x + title_min + _sc(p.gap) + 2chevron_size, 2padding_x + body_min)
         accordion_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
         elements = Any[]
         header_bounds = Tuple{Int,Int}[]
+        body_entry = nothing
         y = 0
         rule_width = max(1, _sc(p.rule.width))
         for (i, item) in enumerate(w.items)
-            title = string(item.title)
-            body  = item.body === nothing ? "" : string(item.body)
-            _, title_height = _text_size(p.measure, p.title_text.font, title)
+            _, title_height = size_of(titles[i], item.title, p.title_text.font)
             row_height = title_height + 2padding_y
-            push!(elements, GraphicsText(title, padding_x, y + padding_y, p.title_text.font, p.title_text.color))
+            if titles[i] === nothing
+                push!(elements, GraphicsText(string(item.title), padding_x, y + padding_y,
+                                             p.title_text.font, p.title_text.color))
+            else
+                push!(elements, _make_canvas(padding_x, y + padding_y, Any[titles[i].output]))
+            end
             _push_chevron!(elements, accordion_width - padding_x - chevron_size, y + row_height ÷ 2, chevron_size,
                            i == expanded ? :down : :right, p.chevron.color; stroke=max(1, _sc(p.chevron.width)))
             push!(header_bounds, (y, y + row_height))
             y += row_height
-            if i == expanded && !isempty(body)
+            if i == expanded && body_document !== nothing
+                body_y = y + _sc(p.body_gap)
+                push!(elements, _make_canvas(padding_x, body_y, Any[body_document.output]))
+                body_entry = (padding_x, body_y, i, body_document)
+                y = body_y + Int(body_document.output.h[]) + padding_y
+            elseif i == expanded && item.body !== nothing && !isempty(string(item.body))
+                body = string(item.body)
                 _, body_height = _text_size(p.measure, p.body_text.font, body)
                 push!(elements, GraphicsText(body, padding_x, y + _sc(p.body_gap), p.body_text.font, p.body_text.color))
                 y += body_height + padding_y
@@ -6145,10 +6192,11 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
             push!(elements, GraphicsLine(0, y, accordion_width, y, p.rule.color; width=rule_width))
         end
         (width=accordion_width, height=_resolve_height(ctx, 0, y), elements=elements,
-         header_bounds=header_bounds)
+         header_bounds=header_bounds, body_entry=body_entry)
     end)
     WidgetAccordionToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
-                                         ComputedCell(() -> build[].header_bounds))
+                                         ComputedCell(() -> build[].header_bounds),
+                                         ComputedCell(() -> build[].body_entry))
 end
 
 map_reference_forward(::WidgetAccordionToGraphicsCanvas, iomap, reference) = nothing
@@ -6159,16 +6207,59 @@ read_intent(::WidgetAccordionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothin
 
 # A left press on the header of an item opens that item, or closes it when it is
 # the open one. `expanded` holds one index, so the accordion shows one item at a
-# time, and opening one item closes the item that was open.
+# time, and opening one item closes the item that was open. A pointer event on an
+# open body that is a document goes to that body, and so does a key while the
+# selection of the accordion is inside the body. The answer of the body is
+# re-rooted under `items[i].body`.
 function read_intent(::WidgetAccordionToGraphicsCanvas,
                      iomap::WidgetAccordionToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
-    (evt isa MousePress && evt.button === :left) || return nothing
     w = iomap.input
-    item = _find_row_index(iomap.header_bounds, evt.y - Int(iomap.output.y))
-    item === nothing && return nothing
-    ReplaceReferencedValueOperation(w, "expanded", item == Int(w.expanded) ? 0 : item)
+    if evt isa MousePress && evt.button === :left
+        item = _find_row_index(iomap.header_bounds, evt.y - Int(iomap.output.y))
+        item === nothing ||
+            return ReplaceReferencedValueOperation(w, "expanded", item == Int(w.expanded) ? 0 : item)
+    end
+    entry = iomap.body_entry
+    entry === nothing && return nothing
+    (x, y, index, body_iomap) = entry
+    answer = if _positioned_event(evt) || evt isa MouseEnter || evt isa MouseLeave
+        canvas = body_iomap.output
+        canvas isa GraphicsCanvas || return nothing
+        local_event = _translate_pointer_event(evt, Int(iomap.output.x) + x + Int(canvas.x),
+                                               Int(iomap.output.y) + y + Int(canvas.y))
+        (evt isa MouseLeave || hit_element_at(canvas, local_event.x, local_event.y) !== nothing) ||
+            return nothing
+        read_child_event(body_iomap, local_event)
+    elseif _is_accordion_body_selected(w, index)
+        read_intent(body_iomap.projection, body_iomap, evt)
+    else
+        nothing
+    end
+    reroot_operation(answer, (FieldReferenceStep("items"), RangeReferenceStep(index - 1, index),
+                              FieldReferenceStep("body")))
 end
+
+# Whether the selection of the accordion is inside the body of item `index`.
+function _is_accordion_body_selected(w::WidgetAccordion, index::Int)
+    selection = w.selection
+    selection isa Reference || return false
+    steps = get_reference_steps(strip_reference_types(selection))
+    length(steps) >= 3 &&
+        steps[1] isa FieldReferenceStep && steps[1].name == "items" &&
+        steps[2] isa RangeReferenceStep && steps[2].start == index - 1 &&
+        steps[3] isa FieldReferenceStep && steps[3].name == "body"
+end
+
+# A pointer event moved by `(dx, dy)` into the frame of a child.
+_translate_pointer_event(evt::MousePress, dx, dy) =
+    MousePress(evt.button, evt.x - dx, evt.y - dy, evt.count, evt.modifiers)
+_translate_pointer_event(evt::MouseDown, dx, dy) = MouseDown(evt.button, evt.x - dx, evt.y - dy, evt.modifiers)
+_translate_pointer_event(evt::MouseUp, dx, dy) = MouseUp(evt.button, evt.x - dx, evt.y - dy, evt.modifiers)
+_translate_pointer_event(evt::MouseMove, dx, dy) = MouseMove(evt.x - dx, evt.y - dy, evt.buttons, evt.modifiers)
+_translate_pointer_event(evt::MouseScroll, dx, dy) = MouseScroll(evt.dx, evt.dy, evt.x - dx, evt.y - dy)
+_translate_pointer_event(evt::MouseEnter, dx, dy) = MouseEnter(evt.x - dx, evt.y - dy, evt.buttons, evt.modifiers)
+_translate_pointer_event(evt::MouseLeave, dx, dy) = MouseLeave(evt.x - dx, evt.y - dy, evt.buttons, evt.modifiers)
 
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 #
