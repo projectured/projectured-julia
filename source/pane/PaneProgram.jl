@@ -55,10 +55,13 @@
 #
 # # What else the model may write
 #
-# A layout is written with `PaneSplit`, `PaneGroup`, `GridLayout` and `@reference`,
-# and this module exports none of them — [`make_pane_api`](@ref) declares them **by
-# name** instead. A declaration is not an export, so each of those names still has
-# exactly one owning module, and the program says them plainly.
+# A layout is written with `PaneSplit`, `PaneGroup`, `GridLayout` and `@reference`.
+# `PaneSplit` and `PaneGroup` are this module's own types; `GridLayout` and
+# `@reference` belong to `LayoutModule` and `ReferenceModule` — and
+# [`make_pane_api`](@ref) declares all four **by name** to the model rather than
+# declaring any of their modules whole. A declaration is not an export, so each
+# of those names still has exactly one owning module, and the program says them
+# plainly.
 #
 # Their modules are not declared, and that is the point. `@document` exports about
 # thirty generated schema variants per document type — `APaneSplit`, `ACPaneSplit`,

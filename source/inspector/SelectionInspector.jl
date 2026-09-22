@@ -20,9 +20,9 @@ it whenever anything it read changed. That is what makes the view follow another
 document without a cell of its own, and it is the form's whole purpose: to
 follow a selection, not to run an arbitrary computation.
 
-A computed `source` does not survive a save. The file holds the reference the
-cell last produced, because the notation cannot write a computation. Use the
-document form for a view that must keep following after a load.
+No `source` form survives a save: `pred_arguments` writes nothing for any of
+them, so a load always starts from `SelectionInspector()` and follows the
+editor's own selection.
 
 # Example
 
