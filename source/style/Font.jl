@@ -340,3 +340,10 @@ const font_dejavu_sans_bold_24    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bo
 const font_dejavu_sans_regular_36 = StyleFont(joinpath(_FONT_DIR, "DejaVuSans.ttf"), 36)
 const font_dejavu_sans_italic_36  = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Oblique.ttf"), 36)
 const font_dejavu_sans_bold_36    = StyleFont(joinpath(_FONT_DIR, "DejaVuSans-Bold.ttf"), 36)
+
+# ── Lucide icons ────────────────────────────────────────────────────────────────
+
+# The icon font of the widget layer: every glyph is a picture, at a code point of
+# the private use area. An icon draws its glyph at the size of its box, so this
+# size is only the size of a label written in this font.
+const font_lucide_icons_20 = StyleFont(joinpath(_FONT_DIR, "lucide.ttf"), 20)

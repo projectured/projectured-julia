@@ -165,7 +165,12 @@ end
         element isa GraphicsCanvas && walk(element)
     end
     walk(print_document(make_widget_projection_example(), bar).output)
-    @test isempty(texts)
+    # Every text is a glyph of the icon font, one for each tool, in the order of
+    # the band.
+    value(v) = v isa Cell ? v[] : v
+    @test all(t -> value(t.font).filename == font_lucide_icons_20.filename, texts)
+    @test [string(value(t.text)) for t in texts] ==
+          [string(find_icon_character(item.action.icon)) for item in bar.elements]
     # A host's own buttons come after the tools.
     extra = make_window_command("Run", _ -> nothing)
     @test last(make_window_toolbar(; extra = [extra]).elements) === extra

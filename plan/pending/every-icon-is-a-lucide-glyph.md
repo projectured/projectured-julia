@@ -145,31 +145,56 @@ the licence texts of the font folder with the fonts. That also brings
 
 ### Step 0: baselines
 
-- [ ] projectured-julia at the branch point: `test_widget_icon()`,
-      `test_widget_toolbar()`, `test_shell()`, `test_application()`, and the
-      tests of the tree, the card, the select, the accordion, the checkbox, the
-      spin box, the tab strip, the file system navigator, the conversation and
-      the fault slice.
+- [x] projectured-julia at `52935e90` (the branch point): `test_substrate()`
+      63325 pass, 3 fail, 2 errors, 1 broken (the split pane drag tests, known
+      on `main`); `test_shell()` 157; `test_fault()` 73; `test_filesystem()` 27;
+      `test_conversation()` 166 pass, 1 fail (the layering guard "every file
+      imports what it extends"); `test_application()` 108; `test_write_pdf()`
+      all pass; `test_gallery_wrappers()` 13.
 
 ### Step 1: the font and its licence
 
-- [ ] `asset/font/lucide.ttf` and `asset/font/Lucide-ISC.txt`, with the version
-      in the licence file.
-- [ ] `bundle_fonts!` copies the licence texts too; the builder test that
-      counts the bundled fonts follows.
+- [x] `asset/font/lucide.ttf` and `asset/font/Lucide-ISC.txt`. The licence file
+      names the font and its version, then holds Lucide's ISC text and the MIT
+      text of the Feather icons Lucide grew from.
+- [x] `bundle_fonts!` copies the `.txt` licence texts with the fonts. The
+      builder test "a bundled font carries its licence" copies the fonts into
+      the staging root (the fonts are 12 MB, and `/tmp` can be memory) and
+      finds `lucide.ttf`, `Lucide-ISC.txt` and `NotoEmoji-OFL.txt`.
 
 ### Step 2: glyph icons
 
-- [ ] `make_glyph_icon` draws at the size of the box (D3).
-- [ ] The table of D4, registered with `make_glyph_icon`; the vector renderers
-      go (D5).
-- [ ] The icon tests assert a `GraphicsText` in the Lucide font and the right
-      character, not a vector shape; a toolbar item draws one glyph and no
-      word.
+- [x] `make_glyph_icon` draws at the size of the box (D3), with the file of the
+      font it is given.
+- [x] `font_lucide_icons_20` in the style slice. `LUCIDE_ICON_GLYPHS`, the
+      table of D4, is registered with `make_glyph_icon`, and every vector
+      renderer is gone (D5). `find_icon_character(name)` answers the character
+      of a name for a place that writes an icon as text in a label.
+- [x] A tool button has 4 pixels of padding: the glyphs stood almost edge to
+      edge, and the hover surface was no larger than the glyph.
+- [x] `test_widget_icon()` **306**: each case asserts the glyph, not a shape; a
+      glyph icon is drawn at the size of its box; every name of the table is a
+      glyph the font has (a wrong code point would draw nothing). The toolbar
+      and window shell tests assert that a toolbar item draws one text, the
+      glyph of its icon.
 
 ### Step 3: chevrons and the tick
 
-- [ ] `_push_chevron!` and the tick of the checkbox draw a glyph.
+- [x] `_push_chevron!(elements, cx, cy, s, dir, color)` draws the chevron glyph
+      in a box of `4s`: the glyph fills the middle half of its box, so its tips
+      stay `s` from the center. The `stroke` keyword went from the helper and
+      its four callers; the stroke width of the `chevron` and `check` styles is
+      no longer read.
+- [x] The checkbox draws the `:check` glyph in its box.
+- [x] `test_widget_card_fold()` reads the fold direction from the glyph.
+- [x] `test_substrate()` fails the same five assertions as Step 0, and passes
+      353 fewer. A verbose run of both states shows why: the 307 test sets are
+      the same, and three counts differ. `Icons` 69 → 306 and `WidgetToolbar
+      pointer routing` 36 → 34 are the changed tests. `SubstrateExamples`
+      59672 → 59084 asserts once per forced reactive cell, and a glyph is one
+      text where a vector icon was several polylines. `test_shell()` 158,
+      `test_application()` 108, `test_builder()` 164 → 167.
+- Steps 2 and 3 are one commit: both change `WidgetToGraphics.jl`.
 
 ### Step 4: the characters that are icons, in projectured-julia
 

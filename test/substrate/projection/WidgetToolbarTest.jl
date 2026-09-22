@@ -76,8 +76,8 @@ end
                                                    padding = Inset(4, 4, 4, 4))).output
     long = print_document(proj, WidgetToolbarItem("Every gesture of this session"; icon = :keyboard,
                                                   padding = Inset(4, 4, 4, 4))).output
-    @test isempty(_drawn(short, GraphicsText))
-    @test !isempty(_drawn(short, GraphicsPolyline))
+    # One text, and it is the glyph of the icon, not the label.
+    @test [string(t.text) for t in _drawn(short, GraphicsText)] == [string(find_icon_character(:list))]
     # As wide as the icon and its padding, whatever the label says: the icon is
     # a square as tall as a line of the font, so the item is square too.
     @test Int(short.w[]) == Int(long.w[])
@@ -94,7 +94,6 @@ end
 @testset "a toolbar item with no icon draws its label" begin
     canvas = print_document(proj, WidgetToolbarItem("Run")).output
     @test [string(t.text) for t in _drawn(canvas, GraphicsText)] == ["Run"]
-    @test isempty(_drawn(canvas, GraphicsPolyline))
 end
 
 @testset "a crossing and a press land on the toolbar item under the pointer" begin

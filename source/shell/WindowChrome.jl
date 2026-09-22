@@ -193,7 +193,10 @@ make_window_tool_command(label, type::Type; icon = nothing, tooltip = nothing,
                          make = _make_default_tool(type)) =
     WidgetToolbarItem(label; action = Action(label; icon = icon,
                                              callback = editor -> _reach_tool!(editor, type, make)),
-                             tooltip = tooltip)
+                             tooltip = tooltip,
+                             # Room around the picture: the buttons stand apart,
+                             # and the hover surface is larger than the glyph.
+                             padding = Inset(4, 4, 4, 4))
 
 _make_default_tool(type::Type) = _ -> make_insertion_document(type)
 

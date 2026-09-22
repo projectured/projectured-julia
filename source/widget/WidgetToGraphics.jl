@@ -1185,13 +1185,7 @@ function print_document(p::WidgetCheckboxToGraphicsCanvas, recursion, w::WidgetC
         outline_color = enabled ? p.outline.color : p.disabled_foreground
         if checked
             _push_panel!(elements, 0, 0, box_size, box_size; fill=checked_fill, radius=corner_radius)
-            check_width = max(1, _sc(p.check.width))
-            # Crisp two-stroke checkmark instead of a glyph.
-            x1, y1 = round(Int, 0.22box_size), round(Int, 0.52box_size)
-            x2, y2 = round(Int, 0.42box_size), round(Int, 0.70box_size)
-            x3, y3 = round(Int, 0.78box_size), round(Int, 0.30box_size)
-            push!(elements, GraphicsLine(x1, y1, x2, y2, check_color; width=check_width))
-            push!(elements, GraphicsLine(x2, y2, x3, y3, check_color; width=check_width))
+            _push_icon!(elements, :check, 0, 0, box_size, check_color)
         else
             _push_panel!(elements, 0, 0, box_size, box_size; fill=empty_fill,
                          border=outline_color, border_w=max(1, _sc(p.outline.width)), radius=corner_radius)
@@ -4529,8 +4523,7 @@ function _card_build(p, w, ctx, tim, cim)
         # The mark sits one pixel under the header's middle line: a word's ink
         # sits under the middle of its box, and the mark belongs beside the ink.
         _push_chevron!(elements, pad_left + chevron_size, pad_top + header_h ÷ 2 + _sc(1), chevron_size,
-                       w.collapsed === true ? :right : :down, p.chevron.color;
-                       stroke = max(1, _sc(p.chevron.width)))
+                       w.collapsed === true ? :right : :down, p.chevron.color)
     end
     fold_box = _card_fold_box(p, w, header_h)
     if fold_box !== nothing
@@ -5259,28 +5252,26 @@ function print_document(p::WidgetSkeletonToGraphicsCanvas, recursion, w::WidgetS
 end
 @_printer_only WidgetSkeletonToGraphicsCanvas
 
-# Push a small chevron (two AA strokes) centered at (cx, cy). `dir` ∈ :down :right.
-# `stroke` is the line width; callers pass the theme's icon stroke.
-function _push_chevron!(elems::Vector, cx::Int, cy::Int, s::Int, dir::Symbol, color::StyleColor;
-                        stroke::Int=max(1, _sc(2)))
-    w = stroke
-    if dir === :right
-        push!(elems, GraphicsLine(cx - s ÷ 2, cy - s, cx + s ÷ 2, cy, color; width=w))
-        push!(elems, GraphicsLine(cx + s ÷ 2, cy, cx - s ÷ 2, cy + s, color; width=w))
-    else
-        push!(elems, GraphicsLine(cx - s, cy - s ÷ 2, cx, cy + s ÷ 2, color; width=w))
-        push!(elems, GraphicsLine(cx, cy + s ÷ 2, cx + s, cy - s ÷ 2, color; width=w))
-    end
+# Push a small chevron centered at (cx, cy), `s` pixels from its center to its
+# tips: the glyph of the icon font. `dir` ∈ :down :right.
+function _push_chevron!(elems::Vector, cx::Int, cy::Int, s::Int, dir::Symbol, color::StyleColor)
+    # The chevron glyph fills the middle half of its box, so a box of 4s puts its
+    # tips `s` from the center, where a fold mark has them.
+    _push_icon!(elems, dir === :right ? :chevron_right : :chevron_down, cx - 2s, cy - 2s, 4s, color)
+    nothing
 end
 
-# ── Icons (Stage 5) ───────────────────────────────────────────────────────────
+# ── Icons ─────────────────────────────────────────────────────────────────────
 #
 # An icon is a *named* value, not a `GraphicsImage`. A registry maps each name to a
 # renderer with the uniform signature `(elems, x, y, size, color) -> nothing`; the
-# widget printers ask the registry to draw an icon at the label's color + size
-# (tinting like text), never branching on the backing. v1 ships a built-in vector
-# set (tinted `GraphicsPolyline`/`Line`/`Circle`/`Polygon`); a glyph-font or raster
-# icon drops in by name via `make_glyph_icon` / `make_image_icon` with no widget-code change.
+# widget printers ask the registry to draw an icon in a `size × size` box, tinted
+# like text, and never branch on the backing.
+#
+# Every built-in icon is a glyph of the Lucide icon font (`asset/font/lucide.ttf`,
+# ISC licence in `asset/font/Lucide-ISC.txt`), drawn through the text renderer. So
+# an icon has the smooth edges of text on every backend, and all icons have one
+# style. A raster picture drops in by name through `make_image_icon`.
 
 const ICON_REGISTRY = Dict{Symbol,Function}()
 
@@ -5307,11 +5298,17 @@ end
 # without an icon is unchanged.
 icon_width(name, size::Int) = (name !== nothing && haskey(ICON_REGISTRY, name)) ? size : 0
 
-# A glyph-font icon: render a codepoint as text in an icon font (tintable, scales).
-# (No icon font is bundled yet; use any `StyleFont` whose glyph the backend has.)
+"""
+    make_glyph_icon(font, codepoint)
+
+An icon renderer that draws the character `codepoint` of the icon font `font`,
+at the size of the icon box and in the caller's color. Only the file of `font`
+counts: the glyph is drawn at the box size, whatever size `font` names. An icon
+font whose ascent is its em, as Lucide's is, fills the box.
+"""
 make_glyph_icon(font::StyleFont, codepoint) =
     (elems, x, y, size, color) -> begin
-        push!(elems, GraphicsText(string(codepoint), x, y, font, color))
+        push!(elems, GraphicsText(string(Char(codepoint)), x, y, StyleFont(font.filename, size), color))
     end
 
 # A raster icon: blit an `ImageDocument`'s decoded pixels (NOT tinted — for art).
@@ -5321,130 +5318,85 @@ make_image_icon(image::ImageDocument) =
         data === nothing || push!(elems, GraphicsImage(Int32(x), Int32(y), Int32(size), Int32(size), data))
     end
 
-# Push a vector glyph: each point is normalized to the unit box, scaled to `size`
-# and offset to `(x, y)`. `closed` repeats the first point to close the outline.
-function _icon_path!(elems::Vector, x::Int, y::Int, size::Int, color::StyleColor,
-                     pts::Vector{<:Tuple}; closed::Bool=false, width::Int=0)
-    w = width > 0 ? width : max(1, size ÷ 8)
-    P = Tuple{Int,Int}[(x + round(Int, px * size), y + round(Int, py * size)) for (px, py) in pts]
-    closed && length(P) > 1 && push!(P, P[1])
-    push!(elems, GraphicsPolyline(P, color; width=w))
+"""
+    LUCIDE_ICON_GLYPHS
+
+The built-in icons: each name and its code point in the Lucide icon font
+(lucide-static 1.47.0). A name says what the picture shows, never which widget or
+tool uses it, so a second use of a picture needs no second name. The Lucide name
+is beside each code point.
+"""
+const LUCIDE_ICON_GLYPHS = (
+    # Controls
+    :chevron_down   => 0xe06d,  # chevron-down
+    :chevron_right  => 0xe06f,  # chevron-right
+    :check          => 0xe06c,  # check
+    :x              => 0xe1b2,  # x
+    :close          => 0xe1b2,  # x
+    :plus           => 0xe13d,  # plus
+    :minus          => 0xe11c,  # minus
+    :menu           => 0xe115,  # menu
+    # Documents
+    :file           => 0xe0c0,  # file
+    :folder         => 0xe0d7,  # folder
+    :save           => 0xe14d,  # save
+    :pencil         => 0xe1f9,  # pencil
+    :edit           => 0xe1f9,  # pencil
+    :trash          => 0xe18e,  # trash-2
+    :delete         => 0xe18e,  # trash-2
+    :search         => 0xe151,  # search
+    # A run
+    :play           => 0xe13c,  # play
+    :pause          => 0xe12e,  # pause
+    :stop           => 0xe167,  # square
+    :step_forward   => 0xe3ea,  # step-forward
+    :step           => 0xe3ea,  # step-forward
+    :finish         => 0xe0d1,  # flag
+    :fast_forward   => 0xe0bd,  # fast-forward
+    :chevrons_right => 0xe073,  # chevrons-right
+    :skip_forward   => 0xe160,  # skip-forward
+    :loader         => 0xe10a,  # loader-circle
+    :circle_pause   => 0xe07f,  # circle-pause
+    :circle_check   => 0xe226,  # circle-check
+    :circle         => 0xe076,  # circle
+    # The tools of a window
+    :chat           => 0xe117,  # message-square
+    :terminal       => 0xe20a,  # square-terminal
+    :list           => 0xe5f4,  # logs
+    :keyboard       => 0xe284,  # keyboard
+    :warning        => 0xe193,  # triangle-alert
+    :chart          => 0xe2a3,  # chart-column
+    :crosshair      => 0xe0ac,  # crosshair
+    # Kinds of file
+    :lambda         => 0xe780,  # lambda
+    :braces         => 0xe36a,  # braces
+    :pilcrow        => 0xe3a3,  # pilcrow
+    :diamond        => 0xe2d2,  # diamond
+    :hexagon        => 0xe0f3,  # hexagon
+    :file_sliders   => 0xe5a0,  # file-sliders
+    :sigma          => 0xe201,  # sigma
+    # Who speaks
+    :user           => 0xe19f,  # user
+    :bot            => 0xe1bb,  # bot
+    :dot            => 0xe44f,  # dot
+)
+
+for (name, codepoint) in LUCIDE_ICON_GLYPHS
+    register_icon!(name, make_glyph_icon(font_lucide_icons_20, codepoint))
 end
 
-# Push a filled vector glyph: `_icon_path!`'s solid counterpart (a `GraphicsPolygon`
-# through the normalized points). Media-transport glyphs are conventionally solid —
-# a stroked triangle stops reading as "play" at 16 px.
-function _icon_fill!(elems::Vector, x::Int, y::Int, size::Int, color::StyleColor,
-                     pts::Vector{<:Tuple})
-    P = Tuple{Int,Int}[(x + round(Int, px * size), y + round(Int, py * size)) for (px, py) in pts]
-    push!(elems, GraphicsPolygon(P, color))
-end
+"""
+    find_icon_character(name) -> Char or nothing
 
-# ── Built-in vector icon set ────────────────────────────────────────────────
-# Each draws inside a unit box (insets keep strokes off the very edge), tinted by
-# the caller's color. Generalises the chevron / checkmark drawers.
-
-_icon_chevron_down(e, x, y, s, c) = _icon_path!(e, x, y, s, c, [(0.25, 0.40), (0.50, 0.65), (0.75, 0.40)])
-_icon_chevron_right(e, x, y, s, c) = _icon_path!(e, x, y, s, c, [(0.40, 0.25), (0.65, 0.50), (0.40, 0.75)])
-_icon_check(e, x, y, s, c) = _icon_path!(e, x, y, s, c, [(0.20, 0.55), (0.42, 0.78), (0.80, 0.25)])
-_icon_x(e, x, y, s, c) = (_icon_path!(e, x, y, s, c, [(0.25, 0.25), (0.75, 0.75)]);
-                          _icon_path!(e, x, y, s, c, [(0.75, 0.25), (0.25, 0.75)]))
-_icon_plus(e, x, y, s, c) = (_icon_path!(e, x, y, s, c, [(0.50, 0.20), (0.50, 0.80)]);
-                             _icon_path!(e, x, y, s, c, [(0.20, 0.50), (0.80, 0.50)]))
-_icon_minus(e, x, y, s, c) = _icon_path!(e, x, y, s, c, [(0.20, 0.50), (0.80, 0.50)])
-_icon_menu(e, x, y, s, c) = (_icon_path!(e, x, y, s, c, [(0.18, 0.30), (0.82, 0.30)]);
-                             _icon_path!(e, x, y, s, c, [(0.18, 0.50), (0.82, 0.50)]);
-                             _icon_path!(e, x, y, s, c, [(0.18, 0.70), (0.82, 0.70)]))
-_icon_file(e, x, y, s, c) = _icon_path!(e, x, y, s, c,
-    [(0.28, 0.15), (0.62, 0.15), (0.74, 0.30), (0.74, 0.85), (0.28, 0.85)]; closed=true)
-_icon_folder(e, x, y, s, c) = _icon_path!(e, x, y, s, c,
-    [(0.15, 0.30), (0.42, 0.30), (0.50, 0.40), (0.85, 0.40), (0.85, 0.78), (0.15, 0.78)]; closed=true)
-_icon_save(e, x, y, s, c) = (_icon_path!(e, x, y, s, c,
-    [(0.20, 0.20), (0.66, 0.20), (0.80, 0.34), (0.80, 0.80), (0.20, 0.80)]; closed=true);
-    _icon_path!(e, x, y, s, c, [(0.34, 0.20), (0.34, 0.42), (0.62, 0.42), (0.62, 0.20)]))
-_icon_pencil(e, x, y, s, c) = (_icon_path!(e, x, y, s, c, [(0.62, 0.18), (0.82, 0.38), (0.34, 0.86), (0.16, 0.86), (0.16, 0.68)]; closed=true);
-                               _icon_path!(e, x, y, s, c, [(0.55, 0.25), (0.75, 0.45)]))
-_icon_trash(e, x, y, s, c) = (_icon_path!(e, x, y, s, c, [(0.20, 0.30), (0.80, 0.30)]);
-                              _icon_path!(e, x, y, s, c, [(0.40, 0.30), (0.40, 0.20), (0.60, 0.20), (0.60, 0.30)]);
-                              _icon_path!(e, x, y, s, c, [(0.27, 0.30), (0.31, 0.82), (0.69, 0.82), (0.73, 0.30)]))
-_icon_search(e, x, y, s, c) = begin
-    cx = x + round(Int, 0.42s); cy = y + round(Int, 0.42s); rad = max(2, round(Int, 0.22s))
-    # Hollow ring (transparent fill, tinted outline) + a diagonal handle.
-    push!(e, GraphicsCircle(cx, cy, rad, StyleColor(c.red, c.green, c.blue, 0.0); border_width=max(1, s ÷ 9), border_color=c))
-    _icon_path!(e, x, y, s, c, [(0.60, 0.60), (0.84, 0.84)])
-end
-
-# Media-transport set (filled, no circle enclosures — the widget provides the
-# enclosure). The universal vocabulary: play = triangle, pause = two bars,
-# stop = square, step = triangle + bar, finish = checkered flag.
-_icon_play(e, x, y, s, c) = _icon_fill!(e, x, y, s, c, [(0.28, 0.20), (0.80, 0.50), (0.28, 0.80)])
-_icon_pause(e, x, y, s, c) = (_icon_fill!(e, x, y, s, c, [(0.26, 0.20), (0.42, 0.20), (0.42, 0.80), (0.26, 0.80)]);
-                              _icon_fill!(e, x, y, s, c, [(0.58, 0.20), (0.74, 0.20), (0.74, 0.80), (0.58, 0.80)]))
-_icon_stop(e, x, y, s, c) = _icon_fill!(e, x, y, s, c, [(0.24, 0.24), (0.76, 0.24), (0.76, 0.76), (0.24, 0.76)])
-_icon_step_forward(e, x, y, s, c) = (_icon_fill!(e, x, y, s, c, [(0.22, 0.22), (0.64, 0.50), (0.22, 0.78)]);
-                                     _icon_fill!(e, x, y, s, c, [(0.68, 0.22), (0.80, 0.22), (0.80, 0.78), (0.68, 0.78)]))
-_icon_finish(e, x, y, s, c) = begin
-    _icon_path!(e, x, y, s, c, [(0.24, 0.15), (0.24, 0.85)])                                          # pole
-    _icon_path!(e, x, y, s, c, [(0.24, 0.15), (0.80, 0.15), (0.80, 0.51), (0.24, 0.51)]; closed=true) # flag
-    _icon_fill!(e, x, y, s, c, [(0.24, 0.15), (0.52, 0.15), (0.52, 0.33), (0.24, 0.33)])              # checker ▚
-    _icon_fill!(e, x, y, s, c, [(0.52, 0.33), (0.80, 0.33), (0.80, 0.51), (0.52, 0.51)])
-end
-
-# The tool set. Each name says what the picture shows, never which tool it
-# stands for, so a second use of a picture needs no second name.
-_icon_chat(e, x, y, s, c) = begin
-    _icon_path!(e, x, y, s, c, [(0.14, 0.22), (0.86, 0.22), (0.86, 0.66), (0.46, 0.66),
-                                (0.28, 0.84), (0.30, 0.66), (0.14, 0.66)]; closed=true)       # bubble
-    _icon_path!(e, x, y, s, c, [(0.30, 0.44), (0.70, 0.44)])                                 # a line of text
-end
-_icon_terminal(e, x, y, s, c) = begin
-    _icon_path!(e, x, y, s, c, [(0.12, 0.20), (0.88, 0.20), (0.88, 0.80), (0.12, 0.80)]; closed=true)
-    _icon_path!(e, x, y, s, c, [(0.26, 0.38), (0.40, 0.50), (0.26, 0.62)])                  # >
-    _icon_path!(e, x, y, s, c, [(0.46, 0.64), (0.68, 0.64)])                                 # _
-end
-_icon_list(e, x, y, s, c) = for row in (0.28, 0.50, 0.72)
-    _icon_fill!(e, x, y, s, c, [(0.16, row - 0.06), (0.28, row - 0.06), (0.28, row + 0.06), (0.16, row + 0.06)])
-    _icon_path!(e, x, y, s, c, [(0.38, row), (0.84, row)])
-end
-_icon_keyboard(e, x, y, s, c) = begin
-    _icon_path!(e, x, y, s, c, [(0.08, 0.26), (0.92, 0.26), (0.92, 0.76), (0.08, 0.76)]; closed=true)
-    for left in (0.20, 0.37, 0.54, 0.71)                                                    # a row of keys
-        _icon_fill!(e, x, y, s, c, [(left, 0.38), (left + 0.10, 0.38), (left + 0.10, 0.48), (left, 0.48)])
+The character of the built-in icon `name` in the Lucide font, or `nothing` for a
+name the table does not hold. It is for a place that writes an icon as text in
+`font_lucide_icons_20`, as a label does, rather than drawing it in a box.
+"""
+function find_icon_character(name::Symbol)
+    for (known, codepoint) in LUCIDE_ICON_GLYPHS
+        known === name && return Char(codepoint)
     end
-    _icon_path!(e, x, y, s, c, [(0.30, 0.62), (0.70, 0.62)])                                 # the space bar
-end
-_icon_warning(e, x, y, s, c) = begin
-    _icon_path!(e, x, y, s, c, [(0.50, 0.12), (0.90, 0.84), (0.10, 0.84)]; closed=true)
-    _icon_path!(e, x, y, s, c, [(0.50, 0.38), (0.50, 0.60)])                                 # !
-    _icon_fill!(e, x, y, s, c, [(0.45, 0.67), (0.55, 0.67), (0.55, 0.76), (0.45, 0.76)])
-end
-_icon_chart(e, x, y, s, c) = begin
-    _icon_fill!(e, x, y, s, c, [(0.16, 0.56), (0.32, 0.56), (0.32, 0.84), (0.16, 0.84)])
-    _icon_fill!(e, x, y, s, c, [(0.42, 0.36), (0.58, 0.36), (0.58, 0.84), (0.42, 0.84)])
-    _icon_fill!(e, x, y, s, c, [(0.68, 0.16), (0.84, 0.16), (0.84, 0.84), (0.68, 0.84)])
-end
-_icon_crosshair(e, x, y, s, c) = begin
-    cx = x + round(Int, 0.5s); cy = y + round(Int, 0.5s); rad = max(2, round(Int, 0.26s))
-    push!(e, GraphicsCircle(cx, cy, rad, StyleColor(c.red, c.green, c.blue, 0.0); border_width=max(1, s ÷ 9), border_color=c))
-    _icon_path!(e, x, y, s, c, [(0.50, 0.08), (0.50, 0.36)])
-    _icon_path!(e, x, y, s, c, [(0.50, 0.64), (0.50, 0.92)])
-    _icon_path!(e, x, y, s, c, [(0.08, 0.50), (0.36, 0.50)])
-    _icon_path!(e, x, y, s, c, [(0.64, 0.50), (0.92, 0.50)])
-end
-
-for (name, fn) in (:chevron_down => _icon_chevron_down, :chevron_right => _icon_chevron_right,
-                   :check => _icon_check, :x => _icon_x, :close => _icon_x,
-                   :plus => _icon_plus, :minus => _icon_minus, :menu => _icon_menu,
-                   :file => _icon_file, :folder => _icon_folder, :save => _icon_save,
-                   :pencil => _icon_pencil, :edit => _icon_pencil, :trash => _icon_trash,
-                   :delete => _icon_trash, :search => _icon_search,
-                   :play => _icon_play, :pause => _icon_pause, :stop => _icon_stop,
-                   :step_forward => _icon_step_forward, :step => _icon_step_forward,
-                   :finish => _icon_finish,
-                   :chat => _icon_chat, :terminal => _icon_terminal, :list => _icon_list,
-                   :keyboard => _icon_keyboard, :warning => _icon_warning,
-                   :chart => _icon_chart, :crosshair => _icon_crosshair)
-    register_icon!(name, fn)
+    nothing
 end
 
 # ── WidgetToggle ────────────────────────────────────────────────────────────
@@ -5690,7 +5642,7 @@ function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSel
                      border_w=max(1, _sc(p.border.width)), radius=_sc(p.corner_radius))
         push!(elements, GraphicsText(text, padding_x, (control_height - text_height) ÷ 2, p.text.font, text_color))
         _push_chevron!(elements, control_width - padding_x - chevron_size, control_height ÷ 2, chevron_size, :down,
-                       chevron_color; stroke=max(1, _sc(p.chevron.width)))
+                       chevron_color)
         _push_focus_ring!(elements, w, control_width, control_height, p.ring_color, _sc(p.corner_radius))
         (width=control_width, height=control_height, elements=elements)
     end)
@@ -6053,7 +6005,7 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
         row_height = title_height + 2padding_y
         push!(elements, GraphicsText(title, padding_x, y + padding_y, p.title_text.font, p.title_text.color))
         _push_chevron!(elements, accordion_width - padding_x - chevron_size, y + row_height ÷ 2, chevron_size,
-                       i == expanded ? :down : :right, p.chevron.color; stroke=max(1, _sc(p.chevron.width)))
+                       i == expanded ? :down : :right, p.chevron.color)
         y += row_height
         if i == expanded && !isempty(body)
             _, body_height = _text_size(p.measure, p.body_text.font, body)
@@ -7017,7 +6969,6 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         WTreeGeometry(rows, max_width[], y[])
     end)
 
-    chevron_stroke = max(1, _sc(p.chevron.width))
 
     # Whole-canvas transparent hit target. The tree hit-tests by *row band* (a whole
     # row is clickable/hoverable, not just its glyphs), but a parent container gates
@@ -7064,12 +7015,11 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
             x = row.depth * indent
             if row.has_children
                 _push_chevron!(result, x + chevron_column ÷ 2, row.y0 + row_height ÷ 2,
-                               chevron_size, row.collapsed ? :right : :down, p.chevron.color;
-                               stroke=chevron_stroke)
+                               chevron_size, row.collapsed ? :right : :down, p.chevron.color)
             end
             icon = row.icon
             if icon isa Symbol
-                # A registered icon name (Stage 5): vector/glyph, tinted to the icon color.
+                # A registered icon name: a glyph, tinted to the icon color.
                 _push_icon!(result, icon, x + chevron_column, row.y0 + pad, line_height, p.icon_text.color)
             elseif icon isa AbstractString && !isempty(icon)
                 # A literal glyph string (e.g. an emoji), drawn as text.

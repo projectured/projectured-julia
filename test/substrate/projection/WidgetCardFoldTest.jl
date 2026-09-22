@@ -9,32 +9,24 @@ _fold_stub(t, f) = (length(t) * 10, 24)
 _fold_proj() = RecursiveProjection(TypeDispatchingProjection(
     WidgetToGraphics(_fold_font; measure=_fold_stub).dispatch))
 
-# Every GraphicsLine under a canvas, and the text of every GraphicsText.
-function _fold_collect(canvas, lines = Any[], texts = String[])
+# The text of every GraphicsText under a canvas, the fold mark's glyph among them.
+function _fold_texts(canvas, texts = String[])
     for elem in canvas.elements
-        if elem isa GraphicsLine
-            push!(lines, elem)
-        elseif elem isa GraphicsText
+        if elem isa GraphicsText
             push!(texts, String(elem.text))
         elseif elem isa GraphicsCanvas
-            _fold_collect(elem, lines, texts)
+            _fold_texts(elem, texts)
         end
     end
-    (lines, texts)
+    texts
 end
 
-# The direction of a two-line chevron: the point the two lines share is the
-# lowest point of a `:down` mark and the rightmost point of a `:right` mark.
-function _chevron_direction(lines)
-    length(lines) == 2 || return nothing
-    a, b = lines
-    shared = (Int(a.x2), Int(a.y2))
-    (Int(b.x1), Int(b.y1)) == shared || return nothing
-    xs = (Int(a.x1), Int(a.x2), Int(b.x2))
-    ys = (Int(a.y1), Int(a.y2), Int(b.y2))
-    shared[1] == maximum(xs) && return :right
-    shared[2] == maximum(ys) && return :down
-    nothing
+# The direction of the fold mark: the chevron glyph among the drawn texts.
+function _chevron_direction(texts)
+    down = string(find_icon_character(:chevron_down)) in texts
+    right = string(find_icon_character(:chevron_right)) in texts
+    down == right && return nothing
+    down ? :down : :right
 end
 
 _fold_title() = WidgetLabel(Point2D(0, 0), "Details")
@@ -47,8 +39,8 @@ function test_widget_card_fold()
         proj = _fold_proj()
         iomap = print_document(proj, proj, card, PrinterContext())
         canvas = iomap.output
-        lines, texts = _fold_collect(canvas)
-        @test _chevron_direction(lines) === :down
+        texts = _fold_texts(canvas)
+        @test _chevron_direction(texts) === :down
         @test body in texts
         @test "Details" in texts
 
@@ -76,8 +68,8 @@ function test_widget_card_fold()
         # Folded: the mark points right, and the body is not drawn.
         evaluate_operation(nothing, on_chevron)
         @test card.collapsed == true
-        lines, texts = _fold_collect(canvas)
-        @test _chevron_direction(lines) === :right
+        texts = _fold_texts(canvas)
+        @test _chevron_direction(texts) === :right
         @test !(body in texts)
         @test "Details" in texts
     end
@@ -86,8 +78,8 @@ function test_widget_card_fold()
         card = WidgetCard(Point2D(0, 0); title = _fold_title(), content = "x")
         proj = _fold_proj()
         iomap = print_document(proj, proj, card, PrinterContext())
-        lines, _ = _fold_collect(iomap.output)
-        @test isempty(lines)
+        texts = _fold_texts(iomap.output)
+        @test _chevron_direction(texts) === nothing
         # A click left of the title is a click on the padding, not a fold, and a
         # click on the title is not a fold either: a card that draws no chevron
         # does not fold from a click.
