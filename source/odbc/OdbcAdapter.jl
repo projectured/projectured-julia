@@ -3,10 +3,10 @@
 
 function _build_select(table::String, columns, where_clause, limit)
     col_part = columns === nothing ? "*" :
-        join(["\"$(c)\"" for c in columns], ", ")
-    sql = "SELECT \"$(table)\".* FROM \"$(table)\""
+        join([_quote_sql_identifier(string(c)) for c in columns], ", ")
+    sql = "SELECT $(_quote_sql_identifier(table)).* FROM $(_quote_sql_identifier(table))"
     if columns !== nothing
-        sql = "SELECT $(col_part) FROM \"$(table)\""
+        sql = "SELECT $(col_part) FROM $(_quote_sql_identifier(table))"
     end
     params = Any[]
     if where_clause !== nothing
@@ -118,13 +118,30 @@ end
 
 # ── OdbcDatabaseAdapter — mutations ───────────────────────────────────────────
 
+# The text of the statement that inserts one row into `table`. The value of each
+# column is a `?`, so only the names go into the text.
+_make_insert_statement(table::AbstractString, columns) =
+    "INSERT INTO $(_quote_sql_identifier(table)) " *
+    "($(join([_quote_sql_identifier(string(c)) for c in columns], ", "))) " *
+    "VALUES ($(join(fill("?", length(columns)), ", ")))"
+
+# The text of the statement that writes one value for each column of `columns`
+# into the rows of `table` that `where_clause` names.
+_make_update_statement(table::AbstractString, columns, where_clause::AbstractString) =
+    "UPDATE $(_quote_sql_identifier(table)) SET " *
+    "$(join(["$(_quote_sql_identifier(string(c))) = ?" for c in columns], ", ")) " *
+    "WHERE $(where_clause)"
+
+# The text of the statement that deletes the rows of `table` that
+# `where_clause` names.
+_make_delete_statement(table::AbstractString, where_clause::AbstractString) =
+    "DELETE FROM $(_quote_sql_identifier(table)) WHERE $(where_clause)"
+
 function insert_into_db!(adapter::OdbcDatabaseAdapter,
                     table::String, row::AbstractDict)::Int
     cols = collect(keys(row))
     vals = collect(values(row))
-    placeholders = join(fill("?", length(cols)), ", ")
-    col_list = join(["\"$(c)\"" for c in cols], ", ")
-    sql = "INSERT INTO \"$(table)\" ($(col_list)) VALUES ($(placeholders))"
+    sql = _make_insert_statement(table, cols)
     cursor = DBInterface.execute(adapter._conn, sql, vals)
     cursor.rows
 end
@@ -133,15 +150,14 @@ function update_db!(adapter::OdbcDatabaseAdapter,
                     table::String, row::AbstractDict, where::String)::Int
     cols = collect(keys(row))
     vals = collect(values(row))
-    set_clause = join(["\"$(c)\" = ?" for c in cols], ", ")
-    sql = "UPDATE \"$(table)\" SET $(set_clause) WHERE $(where)"
+    sql = _make_update_statement(table, cols, where)
     cursor = DBInterface.execute(adapter._conn, sql, vals)
     cursor.rows
 end
 
 function delete_from_db!(adapter::OdbcDatabaseAdapter,
                     table::String, where::String)::Int
-    sql = "DELETE FROM \"$(table)\" WHERE $(where)"
+    sql = _make_delete_statement(table, where)
     cursor = DBInterface.execute(adapter._conn, sql)
     cursor.rows
 end
@@ -152,6 +168,12 @@ end
 # it written twice. Every catalog query writes a name this way, so a name with a
 # quote in it stays one literal.
 _quote_sql_string(value::AbstractString) = "'" * replace(value, "'" => "''") * "'"
+
+# A name as a SQL quoted identifier: the name between two double quotes, with
+# each double quote of it written twice. Every statement that names a table or a
+# column writes it this way, so a name with a double quote in it stays one
+# identifier.
+_quote_sql_identifier(name::AbstractString) = "\"" * replace(name, "\"" => "\"\"") * "\""
 
 # The text of the query that lists every database of the server, except the
 # templates. `information_schema` shows a connection its own database only, so

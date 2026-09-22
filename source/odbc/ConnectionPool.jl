@@ -22,16 +22,35 @@ OdbcConnectionPool(; driver::AbstractString="{PostgreSQL Unicode}",
 
 # ── DSN derivation ──────────────────────────────────────────────────────────────
 
+# A value of a connection string: a value that holds a character with a meaning
+# in the string — a `;`, a `{`, a `}`, an `=`, or a space at an end — goes
+# between braces, and each `}` of it is written twice. A value that holds none of
+# them is written as it is.
+function _escape_odbc_value(value::AbstractString)::String
+    text = String(value)
+    special = any(c -> c in (';', '{', '}', '='), text) ||
+              (!isempty(text) && (isspace(first(text)) || isspace(last(text))))
+    special || return text
+    "{" * replace(text, "}" => "}}") * "}"
+end
+
 """
     get_dsn(pool, inst::DatabaseInstance) -> String
 
 Build the ODBC connection string for `inst` using the pool's driver. Adapters
 are bucketed by this DSN, so two `DatabaseInstance`s that resolve to the same
 DSN share connections.
+
+The server, the database and the credentials of `inst` are escaped, so a name, a
+user or a password with a `;` or a `}` in it stays one value. The driver of the
+pool carries its own braces, as `"{PostgreSQL Unicode}"` does, and goes into the
+string as it is.
 """
 function get_dsn(pool::OdbcConnectionPool, inst::DatabaseInstance)::String
-    "Driver=$(pool.driver);Server=$(inst.host);Port=$(inst.port);" *
-    "Database=$(inst.database);Uid=$(inst.credentials.user);Pwd=$(inst.credentials.password);"
+    "Driver=$(pool.driver);Server=$(_escape_odbc_value(inst.host));Port=$(inst.port);" *
+    "Database=$(_escape_odbc_value(inst.database));" *
+    "Uid=$(_escape_odbc_value(inst.credentials.user));" *
+    "Pwd=$(_escape_odbc_value(inst.credentials.password));"
 end
 
 # ── Checkout / checkin ──────────────────────────────────────────────────────────
