@@ -2270,7 +2270,7 @@ function WidgetTable(position::Point2D, column_headers::Vector, row_headers::Vec
                 Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
                 Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
                 Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
-                Cell(tooltip), Cell(nothing))
+                Cell(nothing), Cell(tooltip))
 end
 
 """
