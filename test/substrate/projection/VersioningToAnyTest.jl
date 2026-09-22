@@ -178,6 +178,32 @@ end
     @test isempty(op.value)
 end
 
+@testset "a version made with Ctrl+Shift+S has its author and time" begin
+    vo = make_versioned()
+    before = time()
+    # With no author named, the author is the user of the system.
+    p = VersioningToAnyProjection()
+    iomap = print_document(p, IdentityProjection(), vo, PrinterContext())
+    snapshot = read_intent(p, iomap, KeyDown(:s, ctrl_shift)).value[1]
+    @test snapshot.properties.author == Sys.username()
+    @test snapshot.properties.timestamp isa Float64
+    @test before <= snapshot.properties.timestamp <= time()
+
+    # A named author, and the criteria select the new version.
+    p = VersioningToAnyProjection(author = "dora")
+    iomap = print_document(p, IdentityProjection(), vo, PrinterContext())
+    op = read_intent(p, iomap, KeyDown(:s, ctrl_shift))
+    @test op.value[1].properties.author == "dora"
+    evaluate_operation((document = vo,), op)
+    @test vo.versions[1].properties.author == "dora"
+    vo.criterion = VersionCriterionByAuthor("dora")
+    @test select_version(vo)[1] == 1
+    vo.criterion = VersionCriterionAsOf(time())
+    @test select_version(vo)[1] == 1
+    vo.criterion = VersionCriterionAsOf(3)
+    @test select_version(vo)[2].properties.author == "carol"
+end
+
 @testset "recursion: versioned-in-versioned" begin
     # The selected value of the outer version is itself a VersionedObject; the
     # full recursive pipeline must resolve both layers, each by its own criterion.

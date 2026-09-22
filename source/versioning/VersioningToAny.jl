@@ -36,7 +36,7 @@
 # ── Projection ────────────────────────────────────────────────────────────────
 
 """
-    VersioningToAnyProjection()
+    VersioningToAnyProjection(; author = nothing)
 
 Projects a `VersionedObject`. The output is the projection of the value object
 of the version selected by the document's own `criterion`; the wrapper vanishes.
@@ -44,8 +44,17 @@ When no version matches, the output is a `DocumentNothing`. The criterion lives
 on the document (not the projection) so different versioned nodes in one tree can
 be viewed under different criteria simultaneously, and a single projection
 instance serves every versioned node.
+
+A version that Ctrl+Shift+S makes gets `author` and the time, `time()`, as its
+properties. `author = nothing` names the user of the system, `Sys.username()`,
+when the version is made.
 """
-struct VersioningToAnyProjection <: Projection end
+struct VersioningToAnyProjection <: Projection
+    author::Union{Nothing, String}
+end
+
+VersioningToAnyProjection(; author = nothing) =
+    VersioningToAnyProjection(author === nothing ? nothing : String(author))
 
 # ── IoMap ─────────────────────────────────────────────────────────────────────
 
@@ -150,14 +159,16 @@ _field_path(name::AbstractString) =
 
 # Snapshot the current selected value into a new ObjectVersion (deep-copied) and
 # push it to the front of `versions` (index 0, newest-first). A standard sequence
-# splice (insert_elements) so every ancestor projection re-roots it. Returns
+# splice (insert_elements) so every ancestor projection re-roots it. The version
+# has the author of the projection and the time as its properties. Returns
 # nothing when there is no selected value to snapshot.
-function _create_version(iomap::VersioningToAnyIoMap)
+function _create_version(p::VersioningToAnyProjection, iomap::VersioningToAnyIoMap)
     version = iomap.index === nothing ? nothing : iomap.input.versions[iomap.index]
     version isa ObjectVersion || return nothing
     saved_value = copy_document(version.value)
     clear_selection!(saved_value)               # a saved version carries no cursor
-    snapshot = ObjectVersion(saved_value)
+    snapshot = ObjectVersion(saved_value; timestamp = time(),
+                             author = p.author === nothing ? Sys.username() : p.author)
     insert_elements(_field_path("versions"), 0, Any[snapshot])
 end
 
@@ -176,7 +187,7 @@ end
 function get_projection_gesture_bindings(p::VersioningToAnyProjection, iomap)
     GestureBinding[
         GestureBinding(KeyDownPattern(:s, [:ctrl, :shift], nothing),
-            (doc, event) -> _create_version(iomap),
+            (doc, event) -> _create_version(p, iomap),
             (doc, sel) -> true, "Create version", "versioning", false, "Create version"),
         GestureBinding(KeyDownPattern(:delete, [:ctrl], nothing),
             (doc, event) -> _delete_version(iomap),

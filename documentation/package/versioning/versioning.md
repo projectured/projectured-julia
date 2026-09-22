@@ -46,8 +46,10 @@ The reference maps are asymmetric, because the wrapper is not in the output. The
 
 | Key | What it does |
 | --- | --- |
-| Ctrl+Shift+S | copies the active value with `copy_document`, clears its selection, and puts it in a new `ObjectVersion` at the front of `versions` |
+| Ctrl+Shift+S | copies the active value with `copy_document`, clears its selection, and puts it in a new `ObjectVersion` at the front of `versions`, with an author and a time |
 | Ctrl+Delete | deletes the active version |
+
+A version that Ctrl+Shift+S makes has the properties that `VersionCriterionByAuthor` and `VersionCriterionAsOf` read. Its `timestamp` is `time()`, the seconds since 1970, and its `author` is the `author` of the projection, `VersioningToAnyProjection(author = "alice")`. With no author named, it is the user of the system, `Sys.username()`, when the version is made.
 
 A key that the table does not take goes to the reader of the selected value. `_prefix_op` puts the three steps `versions[index].value` in front of the operation that comes back. It has a case for each operation shape that holds a reference, from a selection and a range edit to a compound and a collection of intents.
 
@@ -90,5 +92,4 @@ projection = TypeDispatchingProjection(VersionedObject => VersioningToAnyProject
 - No view shows all versions of an object at once, to browse or compare them. It is step 5 of `plan/pending/object-versioning.md` and is open.
 - An edit always changes the selected version. To edit another version, you change the criterion first.
 - No key changes the criterion. `SetVersionCriterionOperation` comes from code.
-- A version made with Ctrl+Shift+S has empty properties, so `VersionCriterionByAuthor` and `VersionCriterionAsOf` never select it.
 - A new version goes to the front, so `VersionCriterionIndex(i)` then selects a different version than before.
