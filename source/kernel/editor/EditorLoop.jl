@@ -106,10 +106,14 @@ A backend without a real wait sleeps one 10 ms poll slice per call (the
 (e.g. the MCP server, a simulation driver) their turn on this thread.
 
 When `mcp=true`, an MCP server is started alongside the loop so external
-clients can drive the editor; off by default.
+clients can drive the editor; off by default. `mcp_instructions`, `mcp_host` and
+`mcp_port` go to the server, and each one that is `nothing` takes the server's
+own default.
 """
 function run_editor!(editor::Editor; mcp::Bool=false,
               mcp_instructions::Union{AbstractString,Nothing}=nothing,
+              mcp_host::Union{AbstractString,Nothing}=nothing,
+              mcp_port::Union{Integer,Nothing}=nothing,
               on_start=nothing,
               fault_policy::FaultPolicy=FaultPolicy())
     # This is the moment the barriers go on. An `Editor` starts strict, so every
@@ -121,13 +125,7 @@ function run_editor!(editor::Editor; mcp::Bool=false,
     # printed under another policy prints again.
     editor.fault_policy == fault_policy || invalidate_projection!(editor)
     editor.fault_policy = fault_policy
-    server = if mcp
-        mcp_instructions === nothing ?
-            make_agent_server(:mcp, editor) :
-            make_agent_server(:mcp, editor; instructions=mcp_instructions)
-    else
-        nothing
-    end
+    server = mcp ? _make_mcp_server(editor, mcp_instructions, mcp_host, mcp_port) : nothing
     server === nothing || start_agent_server!(server)
     # The editor exists now, and this is the first moment anything outside can
     # have it. What needs to reach a running editor — a driver that will post
@@ -175,9 +173,18 @@ function run_editor!(editor::Editor; mcp::Bool=false,
     end
 end
 
+# The server gets the settings the caller gave, and a setting that is `nothing` is
+# left out, so the server's own default answers for it.
+function _make_mcp_server(editor::Editor, instructions, host, port)
+    settings = (; instructions, host, port)
+    make_agent_server(:mcp, editor;
+                      (name => value for (name, value) in pairs(settings)
+                       if value !== nothing)...)
+end
+
 """
     run_editor!(backend::Backend, projection, document; mcp::Bool=false,
-                mcp_instructions=nothing)
+                mcp_instructions=nothing, mcp_host=nothing, mcp_port=nothing)
 
 Bootstrap overload: initialise the backend, wire up an `Editor` with
 the given projection and document, and run the read-eval-print loop
@@ -194,7 +201,8 @@ is projected at a size the window never has, and the answer then arrives as a
 resize that computes the whole document again. `Editor.devices` only carries the
 hardware kinds the editor needs: `Display`, `Keyboard`, `Mouse`.
 
-Pass `mcp=true` to start an MCP server alongside the loop.
+Pass `mcp=true` to start an MCP server alongside the loop, and `mcp_host` and
+`mcp_port` to say where it listens.
 
 `devices` defaults to the full SDL hardware set (`Display`, `Keyboard`,
 `Mouse`); backends that drive a different channel — e.g. the `ConsoleBackend`,
@@ -210,6 +218,8 @@ at the first fault instead of surviving it.
 """
 function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
               mcp_instructions::Union{AbstractString,Nothing}=nothing,
+              mcp_host::Union{AbstractString,Nothing}=nothing,
+              mcp_port::Union{Integer,Nothing}=nothing,
               devices::Vector{Device}=Device[Display(), Keyboard(), Mouse()],
               feeds::Vector{Feed}=Feed[],
               on_start=nothing,
@@ -223,7 +233,8 @@ function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
         # nothing.
         open_native_windows!(backend, document)
         editor = Editor(backend, document, projection, devices; feeds = feeds)
-        run_editor!(editor; mcp=mcp, mcp_instructions=mcp_instructions, on_start=on_start,
+        run_editor!(editor; mcp=mcp, mcp_instructions=mcp_instructions,
+                    mcp_host=mcp_host, mcp_port=mcp_port, on_start=on_start,
                     fault_policy=fault_policy)
     finally
         quit_backend!(backend)

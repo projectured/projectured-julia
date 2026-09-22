@@ -1,4 +1,7 @@
 using Test
+using Sockets
+import HTTP
+using ProjecturedMcp
 using ProjecturedKernel.ToolModule
 using ProjecturedAssistant.AssistantModule: SubmitJuliaOperation, SubmitProseOperation, _eval_result
 
@@ -611,6 +614,75 @@ function test_base_extensions()
     end
 end
 
+# ── The server ───────────────────────────────────────────────────────────────
+#
+# A test that starts a server binds a port that no other program holds, and
+# stops the server before it ends. The library of the protocol puts a logger of
+# its own in place of the global one when its loop starts, so a test puts the
+# logger it found back.
+
+function _find_free_mcp_port()
+    port, listener = listenany(ip"127.0.0.1", 20000)
+    close(listener)
+    Int(port)
+end
+
+_mcp_editor() = Editor(HeadlessBackend(), JsonString("x"), IdentityProjection(), Device[])
+
+# One request of the protocol, and the text of its answer.
+function _post_mcp_request(port, method)
+    body = "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"$method\"}"
+    response = HTTP.post("http://127.0.0.1:$port/mcp",
+                         ["Content-Type" => "application/json",
+                          "Accept" => "application/json, text/event-stream"],
+                         body; retry = false, readtimeout = 10)
+    String(response.body)
+end
+
+# Whether a server answers at `port`.
+function _is_mcp_port_open(port)
+    try
+        HTTP.get("http://127.0.0.1:$port/mcp"; retry = false, readtimeout = 5,
+                 connect_timeout = 5, status_exception = false).status == 200
+    catch
+        false
+    end
+end
+
+function test_mcp_server()
+    @testset "the MCP server" begin
+        logger = Base.CoreLogging.global_logger()
+        try
+            @testset "it listens at the host and the port it is given" begin
+                editor = _mcp_editor()
+                default = McpServer(editor)
+                @test default.host == "127.0.0.1" && default.port == 9876
+                port = _find_free_mcp_port()
+                server = make_agent_server(:mcp, editor; host = "127.0.0.1", port = port)
+                @test server.host == "127.0.0.1" && server.port == port
+                try
+                    start_agent_server!(server)
+                    @test _is_mcp_port_open(port)
+                finally
+                    stop_agent_server!(server)
+                end
+            end
+
+            @testset "a stopped server frees its port" begin
+                port = _find_free_mcp_port()
+                server = make_agent_server(:mcp, _mcp_editor(); port = port)
+                start_agent_server!(server)
+                @test _is_mcp_port_open(port)
+                stop_agent_server!(server)
+                @test !_is_mcp_port_open(port)
+                @test timedwait(() -> istaskdone(server.task), 5.0) === :ok
+            end
+        finally
+            Base.CoreLogging.global_logger(logger)
+        end
+    end
+end
+
 function test_mcp_resources()
     @testset "MCP Resources" begin
         test_list_guides()
@@ -637,6 +709,7 @@ function test_mcp_tools()
         test_pane_tab_b1()
         test_print_object_options()
         test_search_object()
+        test_mcp_server()
     end
 end
 
@@ -648,3 +721,4 @@ export test_execute_julia_code, test_function_availability, test_base_extensions
 export test_assistant_editor_reference, test_assistant_turn_binds_meaning_model
 export test_search_guides, test_search_api, test_search_tools_registered
 export test_pane_tab_b1, test_print_object_options, test_search_object
+export test_mcp_server

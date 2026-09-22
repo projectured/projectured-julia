@@ -14,13 +14,13 @@ The editor has no reference to the protocol. It gets a server by a name:
 run_editor!(backend, projection, document; mcp = true)
 ```
 
-`run_editor!` calls `make_agent_server(:mcp, editor)`, with `instructions = mcp_instructions` when the caller gives a prompt. It calls `start_agent_server!` before `on_start` and before the first frame, and `stop_agent_server!` in a `finally` when the loop ends. `ProjecturedMcp` adds the three methods: `make_agent_server(::Val{:mcp}, editor; kwargs...)` makes an `McpServer`, and the other two call `start_mcp!` and `stop_mcp!`. When the package is not loaded, the fallback of the kernel throws an error that says no agent server is registered for `:mcp`. So the kernel holds no protocol code and no HTTP dependency. `run_window_editor` passes `mcp` and `mcp_instructions` to `run_editor!`.
+`run_editor!` calls `make_agent_server(:mcp, editor)` with `instructions`, `host` and `port` from its keywords `mcp_instructions`, `mcp_host` and `mcp_port`, each one only when the caller gives it. It calls `start_agent_server!` before `on_start` and before the first frame, and `stop_agent_server!` in a `finally` when the loop ends. `ProjecturedMcp` adds the three methods: `make_agent_server(::Val{:mcp}, editor; kwargs...)` makes an `McpServer`, and the other two call `start_mcp!` and `stop_mcp!`. When the package is not loaded, the fallback of the kernel throws an error that says no agent server is registered for `:mcp`. So the kernel holds no protocol code and no HTTP dependency. `run_window_editor` passes `mcp`, `mcp_instructions`, `mcp_host` and `mcp_port` to `run_editor!`.
 
 ### The server
 
-`McpServer(editor; instructions)` makes a server of the `ModelContextProtocol` package with the resources of the tool set. The helper `mcp_server` of that package has no `instructions` keyword, so the constructor sets `instructions` on a new `ServerConfig`. The `initialize` answer of the protocol gives that text to the client. Its default is `DEFAULT_MCP_INSTRUCTIONS`, a short prompt that names no domain, because this package does not depend on the assistant.
+`McpServer(editor; instructions, host, port)` makes a server of the `ModelContextProtocol` package with the resources of the tool set. The helper `mcp_server` of that package has no `instructions` keyword, so the constructor sets `instructions` on a new `ServerConfig`. The `initialize` answer of the protocol gives that text to the client. Its default is `DEFAULT_MCP_INSTRUCTIONS`, a short prompt that names no domain, because this package does not depend on the assistant.
 
-`start_mcp!` registers the tools, makes `HttpTransport(host = "127.0.0.1", port = 9876, endpoint = "/mcp")`, connects it, and runs the server on an `@async` task. `stop_mcp!` stops the server and ignores only a `ServerError` of the library.
+`host` and `port` say where the server listens. Their defaults are `DEFAULT_MCP_HOST` and `DEFAULT_MCP_PORT`, `127.0.0.1` and `9876`. `start_mcp!` registers the tools, makes an `HttpTransport` at that host and port with the endpoint `/mcp`, connects it, and runs the server on an `@async` task. `stop_mcp!` stops the server and closes the transport. `stop!` of the library only marks the server as stopped, and the loop of the server ends and the port is free only when the transport closes. `stop_mcp!` ignores only a `ServerError` of the library.
 
 ### One tool set, rendered for the protocol
 
@@ -45,7 +45,7 @@ The tool `execute_julia_code` runs Julia in the process of the editor, with `edi
 
 `ProjecturedMcp` depends on `ModelContextProtocol` and on the kernel. From the kernel it takes the `agent` seam, `record_fault!`, `wake_editor!` and the `tool` layer, from which it uses `Tool`, `Resource`, `ToolSet`, `list_tools`, `list_resources` and `register_default_tools!`. [agent.md](../kernel/agent.md) describes those layers. The package has no `__init__`: its three methods are its registration.
 
-`run_editor!` and `run_window_editor` use it with `mcp = true`, and the application starts it with `--mcp`. The package binds no meaning model to the tool set. An MCP client runs no turn of the assistant, so the application binds the meaning model of its backend in `on_start`, and a search by description ranks by meaning for the client too.
+`run_editor!` and `run_window_editor` use it with `mcp = true`, and the application starts it with `--mcp`, or with `--mcp=PORT` or `--mcp=HOST:PORT` at another address. The package binds no meaning model to the tool set. An MCP client runs no turn of the assistant, so the application binds the meaning model of its backend in `on_start`, and a search by description ranks by meaning for the client too.
 
 ## Design decisions
 
@@ -62,14 +62,15 @@ run_window_editor(document, projection, "My data"; backend = SdlBackend(), mcp =
 mcp = McpServer(editor; instructions = "You operate a JSON editor.")
 start_mcp!(mcp)                  # http://127.0.0.1:9876/mcp
 stop_mcp!(mcp)
+
+mcp = McpServer(editor; port = 9900)   # http://127.0.0.1:9900/mcp
 ```
 
-- Tests: `test_mcp_tools()` and `test_mcp_resources()` in `test/projectured/editor/McpTest.jl` cover the tool set that the server renders: `execute_julia_code`, the searches and the documentation resources. No test makes an `McpServer`, calls `start_mcp!`, `stop_mcp!`, `render_mcp_tools` or `render_mcp_resources`, or connects a client.
+- Tests: `test_mcp_tools()` and `test_mcp_resources()` in `test/projectured/editor/McpTest.jl` cover the tool set that the server renders: `execute_julia_code`, the searches and the documentation resources. `test_mcp_server()` in the same file starts a server at a free port and stops it, and checks that the port is free again. No test calls `render_mcp_tools` or `render_mcp_resources`, or connects a client.
 
 ## Limits
 
 - **A tool writes the document from the server task.** The handler runs on the `@async` task of the server, and `execute_julia_code` changes `editor.document` there directly, and not through `post_operation!`, the inbox that orders such writes with the frame. A frame that runs between two writes can read a state that is half done. `plan/done/the-editor-survives-a-fault.md`, section 9, records this as open work. The assistant turn has the same fault.
 - **The server renders the tool set once, when it starts.** A tool that is registered after `start_mcp!` does not reach a client. `run_editor!` starts the server before it calls `on_start`, so the `undo` and `redo` tools that the application registers in `on_start` are not served over MCP.
 - The server listens on the loopback address with no authentication. Every program on the machine can reach it.
-- The port is 9876 in `start_mcp!`, and no keyword changes it. So only one server can listen on a machine.
 - One server serves one editor.

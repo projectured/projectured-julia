@@ -224,7 +224,7 @@ reactive and will refresh on the next read.
 ## Running an editor
 
 The entry point is the bootstrap overload
-`run_editor!(backend, projection, document; mcp=false, mcp_instructions=nothing, devices=…, on_start=nothing)`:
+`run_editor!(backend, projection, document; mcp=false, mcp_instructions=nothing, mcp_host=nothing, mcp_port=nothing, devices=…, on_start=nothing)`:
 
 ```julia
 using Projectured
@@ -260,8 +260,10 @@ pipeline is expected to end in one).
 `mcp=true` to start an MCP server alongside the loop, and `mcp_instructions` to
 override the text the MCP server's `initialize` response sends a connecting
 client (see [MCP server](#mcp-server)) — omitted, the server uses its own
-default. A backend that drives a different channel passes its own `devices`
-(the `ConsoleBackend` uses `devices = Device[Keyboard()]` — no `Display`/`Mouse`).
+default. `mcp_host` and `mcp_port` say where the server listens, and each one
+that is omitted keeps the server's default, `127.0.0.1` and `9876`. A backend
+that drives a different channel passes its own `devices` (the `ConsoleBackend`
+uses `devices = Device[Keyboard()]` — no `Display`/`Mouse`).
 
 `on_start(editor)`, when given, runs once — after the `Editor` is built, before
 the first frame — with the freshly built editor. It is how something that will
@@ -343,7 +345,7 @@ In the example packages this is wired up for you — see `play_live_example` and
 ## MCP server
 
 When `run_editor!` starts, it constructs an `McpServer` bound to the editor and
-launches it on `http://127.0.0.1:9876/mcp` via the `make_agent_server(:mcp, …)`
+launches it at `mcp_host` and `mcp_port`, `http://127.0.0.1:9876/mcp` by default, via the `make_agent_server(:mcp, …)`
 seam (see
 [source/kernel/agent/AgentModule.jl](../../../source/kernel/agent/AgentModule.jl)). The server
 speaks JSON-RPC 2.0 via HTTP+SSE using

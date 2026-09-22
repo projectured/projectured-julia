@@ -18,9 +18,18 @@ From your own code, the same editor takes a keyword:
 run_window_editor(document, projection, "My data"; backend = SdlBackend(), mcp = true)
 ```
 
-The server listens at `http://127.0.0.1:9876/mcp`, on the loopback address only. `ProjecturedMcp` must be loaded; the application holds it already.
+By default, the server listens at `http://127.0.0.1:9876/mcp`, on the loopback address only. `ProjecturedMcp` must be loaded; the application holds it already.
 
-**One server, one editor.** The server drives the editor it was started with. The port is fixed at 9876, so only one editor of a machine can run the server.
+To listen at another port, give it after `--mcp=`. To listen at another address too, give the host and the port:
+
+```sh
+bin/projectured --mcp=9900 notes.md            # http://127.0.0.1:9900/mcp
+bin/projectured --mcp=localhost:9900 notes.md  # the host by its name
+```
+
+From code, the keywords are `mcp_host` and `mcp_port`, and each one that you do not give keeps its default.
+
+**One server, one editor.** The server drives the editor it was started with. To serve two editors on one machine, give each one its own port.
 
 ## Connect a client
 

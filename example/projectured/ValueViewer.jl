@@ -60,7 +60,7 @@ _make_value_viewer_policy(depth::Integer, elements::Integer) =
 """
     run_value_viewer(value; tree = true, depth = 1, elements = 20, name = "value",
                      backend = nothing, width = nothing, height = nothing,
-                     mcp = false) -> Nothing
+                     mcp = false, mcp_host = nothing, mcp_port = nothing) -> Nothing
 
 Open a window on any Julia value, and return when the window closes.
 
@@ -72,12 +72,15 @@ run_value_viewer(editor; depth = 2)                  # two levels of a running o
 
 The keywords of [`make_value_viewer`](@ref) say how much of the value the first
 frame holds. `backend`, `width` and `height` are those of every other window of
-this package, and `mcp` starts the MCP server beside it.
+this package, and `mcp` starts the MCP server beside it, at `mcp_host` and
+`mcp_port` when they are given.
 """
 function run_value_viewer(value; tree::Bool = true, depth::Integer = 1,
                           elements::Integer = 20, name::AbstractString = "value",
                           backend = nothing, width = nothing, height = nothing,
-                          mcp::Bool = false)
+                          mcp::Bool = false,
+                          mcp_host::Union{AbstractString,Nothing} = nothing,
+                          mcp_port::Union{Integer,Nothing} = nothing)
     document, projection = make_value_viewer(value; tree = tree, depth = depth,
                                              elements = elements)
     backend === nothing && (backend = default_backend())
@@ -89,6 +92,7 @@ function run_value_viewer(value; tree::Bool = true, depth::Integer = 1,
     _run_window_scene(Any[document], Any[projection], String[String(name)];
                       width = width, height = height, backend = backend,
                       compose = (p, b) -> _multi_window_projection(p), mcp = mcp,
+                      mcp_host = mcp_host, mcp_port = mcp_port,
                       feeds = make_value_viewer_feeds(document, value; depth = depth,
                                                       elements = elements))
 end

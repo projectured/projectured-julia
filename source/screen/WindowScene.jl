@@ -87,8 +87,8 @@ end
 
 """
     run_window_editor(document, projection, title; backend, width, height, on_start,
-                      mcp, mcp_instructions, opened_window_projections, screen_wrap,
-                      fault_policy)
+                      mcp, mcp_instructions, mcp_host, mcp_port,
+                      opened_window_projections, screen_wrap, fault_policy)
 
 Open the window and run the loop until the person closes it.
 
@@ -107,7 +107,9 @@ an editor to hand it to.
 `mcp` starts an MCP server beside the loop, so an external client drives the
 same editor with the same tools; `mcp_instructions` is the prompt that server
 gives the client, and the server's own generic one answers when it is `nothing`.
-The server needs `ProjecturedMcp` loaded, which registers it.
+`mcp_host` and `mcp_port` say where the server listens; each one that is
+`nothing` takes the server's default, `127.0.0.1` and `9876`. The server needs
+`ProjecturedMcp` loaded, which registers it.
 
 `opened_window_projections` goes to [`make_window_scene_projection`](@ref).
 
@@ -118,6 +120,8 @@ function run_window_editor(document, projection, title::AbstractString;
                            backend, width = nothing, height = nothing,
                            on_start = nothing, mcp::Bool = false,
                            mcp_instructions::Union{AbstractString,Nothing} = nothing,
+                           mcp_host::Union{AbstractString,Nothing} = nothing,
+                           mcp_port::Union{Integer,Nothing} = nothing,
                            opened_window_projections = Pair{Type,Any}[],
                            feeds::Vector{Feed} = Feed[],
                            screen_wrap = identity,
@@ -137,6 +141,7 @@ function run_window_editor(document, projection, title::AbstractString;
                     screen_wrap = screen_wrap),
                 scene;
                              mcp = mcp, mcp_instructions = mcp_instructions,
+                             mcp_host = mcp_host, mcp_port = mcp_port,
                              feeds = feeds, on_start = on_start,
                              fault_policy = fault_policy)
 end

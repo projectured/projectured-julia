@@ -12,19 +12,30 @@ const DEFAULT_MCP_INSTRUCTIONS =
 # MCP server
 # ═══════════════════════════════════════════════════════════════════════
 
-"""
-    McpServer(editor; instructions = DEFAULT_MCP_INSTRUCTIONS)
+# The address a server listens at when the caller names none: the loopback
+# address, so only a program on this machine reaches it.
+const DEFAULT_MCP_HOST = "127.0.0.1"
+const DEFAULT_MCP_PORT = 9876
 
-An MCP server bound to an editor. Start/stop it through the `AgentModule`
-generics (`start_agent_server!` / `stop_agent_server!`).
+"""
+    McpServer(editor; instructions = DEFAULT_MCP_INSTRUCTIONS,
+              host = DEFAULT_MCP_HOST, port = DEFAULT_MCP_PORT)
+
+An MCP server bound to an editor. It listens at `http://<host>:<port>/mcp`,
+which is `http://127.0.0.1:9876/mcp` by default. Start/stop it through the
+`AgentModule` generics (`start_agent_server!` / `stop_agent_server!`).
 """
 mutable struct McpServer
     editor::Any
     server::Server
     task::Union{Task,Nothing}
+    host::String
+    port::Int
 end
 
-function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIONS)
+function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIONS,
+                   host::AbstractString = DEFAULT_MCP_HOST,
+                   port::Integer = DEFAULT_MCP_PORT)
     srv = mcp_server(
         name        = "projectured",
         version     = "0.1.0",
@@ -45,7 +56,7 @@ function McpServer(editor; instructions::AbstractString = DEFAULT_MCP_INSTRUCTIO
         title        = srv.config.title,
         icons        = srv.config.icons,
     )
-    McpServer(editor, srv, nothing)
+    McpServer(editor, srv, nothing, String(host), Int(port))
 end
 
 # Agent control-surface factory methods: the editor loop drives the MCP server
@@ -57,15 +68,16 @@ stop_agent_server!(mcp::McpServer) = stop_mcp!(mcp)
 """
     start_mcp!(mcp::McpServer) -> McpServer
 
-Launch the MCP server as an async task (HTTP transport on port 9876).
+Launch the MCP server as an async task, with an HTTP transport at the host and
+the port of `mcp`.
 """
 function start_mcp!(mcp::McpServer)
     for tool in _make_tools(mcp.editor)
         register!(mcp.server, tool)
     end
     transport = HttpTransport(
-        host     = "127.0.0.1",
-        port     = 9876,
+        host     = mcp.host,
+        port     = mcp.port,
         endpoint = "/mcp",
     )
     mcp.server.transport = transport
@@ -82,7 +94,8 @@ end
 """
     stop_mcp!(mcp::McpServer) -> McpServer
 
-Stop the MCP server.
+Stop the MCP server: close its transport, so the port is free and the task of
+the server ends.
 """
 function stop_mcp!(mcp::McpServer)
     try
@@ -90,6 +103,10 @@ function stop_mcp!(mcp::McpServer)
     catch e
         e isa ModelContextProtocol.ServerError || rethrow()
     end
+    # `stop!` of the library only marks the server as stopped. Its loop ends when
+    # the transport closes, and the port stays bound until then.
+    transport = mcp.server.transport
+    transport === nothing || ModelContextProtocol.close(transport)
     mcp
 end
 

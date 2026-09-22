@@ -323,7 +323,8 @@ const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
 
 """
     run_application(paths...; backend = nothing,
-                    assistant = :ollama, model = "", mcp = false, root = pwd(),
+                    assistant = :ollama, model = "", mcp = false,
+                    mcp_host = nothing, mcp_port = nothing, root = pwd(),
                     width = nothing, height = nothing, fault_policy = FaultPolicy())
 
 Open the ProjecturEd application with the files at `paths`, and run it until the
@@ -334,7 +335,8 @@ window closes.
 - `assistant` is `:ollama`, `:anthropic` or `:none`, and `model` names the model
   of that backend; empty means its default.
 - `mcp` starts an MCP server beside the window, so an external client drives the
-  same editor with the same tools.
+  same editor with the same tools. `mcp_host` and `mcp_port` say where it
+  listens; each one that is `nothing` takes the default, `127.0.0.1` and `9876`.
 - `root` is the directory the navigator lists.
 - `context` is how many tokens of the conversation the model may see; `0` leaves
   the backend's own answer. It matters for a local model, whose window costs
@@ -349,6 +351,8 @@ window closes.
 function run_application(paths::AbstractString...;
                          backend = nothing, assistant::Symbol = :ollama,
                          model::AbstractString = "", mcp::Bool = false,
+                         mcp_host::Union{AbstractString,Nothing} = nothing,
+                         mcp_port::Union{Integer,Nothing} = nothing,
                          root::AbstractString = pwd(), context::Integer = 0,
                          width = nothing, height = nothing,
                          fault_policy::FaultPolicy = FaultPolicy(),
@@ -365,6 +369,7 @@ function run_application(paths::AbstractString...;
     run_with_window_tools() do feeds, start
         run_window_editor(document, projection, "ProjecturEd";
                           backend = backend, width = width, height = height, mcp = mcp,
+                          mcp_host = mcp_host, mcp_port = mcp_port,
                           feeds = feeds,
                           # A tooltip holds a document of one of this
                           # application's own domains, so the window a wrapper
@@ -392,6 +397,11 @@ The files and the options of a `projectured` command line, as the keywords of
 backend name is `nothing` when the command line gives none. An unknown option
 or a wrong value raises an error that names it.
 
+`--mcp` starts the MCP server at its default address. `--mcp=PORT` and
+`--mcp=HOST:PORT` start it too, and say where it listens: `mcp_host` and
+`mcp_port` are then the values given, and `nothing` where the command line
+gives none.
+
 The `--help` text of a binary lists the same options: the builder writes it
 from `PROJECTURED_OPTIONS`, and a test compares the two.
 """
@@ -400,11 +410,15 @@ function parse_application_arguments(arguments::AbstractVector{<:AbstractString}
                                  "assistant" => "ollama", "model" => "",
                                  "root" => pwd(), "context" => "0")
     mcp = false
+    mcp_host, mcp_port = nothing, nothing
     strict_fault_policy = false
     files = String[]
     for argument in arguments
         if argument == "--mcp"
             mcp = true
+        elseif startswith(argument, "--mcp=")
+            mcp = true
+            mcp_host, mcp_port = _parse_mcp_address(argument[length("--mcp=")+1:end])
         elseif argument == "--strict-fault-policy"
             strict_fault_policy = true
         elseif startswith(argument, "--") && occursin('=', argument)
@@ -426,8 +440,17 @@ function parse_application_arguments(arguments::AbstractVector{<:AbstractString}
     (context === nothing || context < 0) &&
         error("--context is a count of tokens, not ", repr(values["context"]))
     (; files, backend, assistant,
-       model = values["model"], root = values["root"], mcp, context,
-       strict_fault_policy)
+       model = values["model"], root = values["root"], mcp, mcp_host, mcp_port,
+       context, strict_fault_policy)
+end
+
+# The value of `--mcp=`: `PORT`, or `HOST:PORT`. The port follows the last colon.
+function _parse_mcp_address(text::AbstractString)
+    host, port_text = occursin(':', text) ? rsplit(text, ':'; limit = 2) : (nothing, text)
+    port = tryparse(Int, port_text)
+    (port === nothing || !(1 <= port <= 65535) || host == "") &&
+        error("--mcp takes PORT or HOST:PORT, not ", repr(String(text)))
+    (host === nothing ? nothing : String(host), port)
 end
 
 """
@@ -459,7 +482,8 @@ function run_application_command(arguments; backends)
         run_application(command.files...;
                         backend = backends[backend](),
                         assistant = command.assistant, model = command.model,
-                        mcp = command.mcp, root = command.root,
+                        mcp = command.mcp, mcp_host = command.mcp_host,
+                        mcp_port = command.mcp_port, root = command.root,
                         context = command.context,
                         fault_policy = command.strict_fault_policy ?
                             make_strict_fault_policy() : FaultPolicy())

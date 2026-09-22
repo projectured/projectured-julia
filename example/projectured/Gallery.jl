@@ -424,18 +424,21 @@ end
 # of `run_example` and `run_file_editor`.
 function _run_window_scene(docs, projs, names; width, height, backend,
                            compose, profile::Bool=false, content_unwrap::Vector{Symbol}=Symbol[],
-                           mcp::Bool=false, feeds::Vector{Feed}=Feed[], on_start=nothing)
+                           mcp::Bool=false, mcp_host=nothing, mcp_port=nothing,
+                           feeds::Vector{Feed}=Feed[], on_start=nothing)
     screen = _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap)
     composed = compose(projs, backend)
     if profile
         Profile.clear()
         try
-            Profile.@profile run_editor!(backend, composed, screen; mcp=mcp, feeds=feeds, on_start=on_start)
+            Profile.@profile run_editor!(backend, composed, screen; mcp=mcp, mcp_host=mcp_host,
+                                         mcp_port=mcp_port, feeds=feeds, on_start=on_start)
         finally
             Profile.print(; mincount=10)
         end
     else
-        run_editor!(backend, composed, screen; mcp=mcp, feeds=feeds, on_start=on_start)
+        run_editor!(backend, composed, screen; mcp=mcp, mcp_host=mcp_host,
+                    mcp_port=mcp_port, feeds=feeds, on_start=on_start)
     end
 end
 

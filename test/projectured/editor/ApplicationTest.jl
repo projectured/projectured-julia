@@ -162,7 +162,19 @@ function test_application()
             @test command.backend === :web
             @test command.assistant === :none && command.model == "small"
             @test command.root == "/tmp" && command.mcp
+            @test command.mcp_host === nothing && command.mcp_port === nothing
             @test command.context == 8192 && command.strict_fault_policy
+            # `--mcp=PORT` and `--mcp=HOST:PORT` start the server as `--mcp`
+            # does, at the address they give.
+            command = parse_application_arguments(["--mcp=9000"])
+            @test command.mcp && command.mcp_host === nothing && command.mcp_port == 9000
+            command = parse_application_arguments(["--mcp=0.0.0.0:9001"])
+            @test command.mcp && command.mcp_host == "0.0.0.0" && command.mcp_port == 9001
+            @test !parse_application_arguments(String[]).mcp
+            for wrong in ("--mcp=", "--mcp=port", "--mcp=:9000", "--mcp=host:",
+                          "--mcp=70000", "--mcp=0")
+                @test_throws ErrorException parse_application_arguments([wrong])
+            end
             # The gesture log is read in a tab, which View opens, so no switch
             # turns it on.
             @test_throws ErrorException parse_application_arguments(["--gesture-log"])
@@ -197,6 +209,10 @@ function test_application()
             @test flags == Set(["--backend", "--assistant", "--model",
                                 "--root", "--mcp", "--context",
                                 "--strict-fault-policy"])
+            # The binary takes both forms of `--mcp`: the flag alone, and the
+            # flag with the address.
+            @test "--mcp" in collect_option_flags(usage)
+            @test "--mcp=" in collect_option_flags(usage)
             # A flag and the keyword it sets spell the same words, a flag with
             # a hyphen and a keyword with an underscore, so
             # `--strict-fault-policy` is `strict_fault_policy`.
