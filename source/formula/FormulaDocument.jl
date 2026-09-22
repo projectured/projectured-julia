@@ -5,8 +5,10 @@
 abstract type FormulaDocument <: Document end
 
 """
-The Formula domain's type-in entry point: text typed on Enter parses into a
-`FormulaFormula`.
+A static "insert formula" placeholder label. It renders as a plain
+`SyntaxLeaf` (`FormulaInsertionToSyntaxLeaf`) with no editable input; no
+reader parses `value` into a `FormulaFormula` yet
+(`plan/pending/excel-julia-formulas.md`, phase 5).
 """
 @document struct FormulaInsertion <: FormulaDocument
     value::String = ""
