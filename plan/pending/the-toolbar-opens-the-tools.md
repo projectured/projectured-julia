@@ -359,18 +359,29 @@ the other one.
 
 ### Step 2: `WidgetToolbarItem`
 
-- [ ] The document in `WidgetDocument.jl`, with the constructor sugar of
+- [x] The document in `WidgetDocument.jl`, with the constructor sugar of
       `WidgetMenuItem` (`content`, `icon` and `action` fold into one `Action`),
       the export, a Tab stop in `FocusableWidget`, and `compute_tooltip` that
-      falls back to the label.
-- [ ] The printer and the reader in `WidgetToGraphics.jl`, and the row in the
+      falls back to the label. An empty label gives no tooltip.
+- [x] The printer and the reader in `WidgetToGraphics.jl`, and the row in the
       dispatch table. A left press invokes the action, and a crossing sets
-      `hovered`. The shortcut walk of the shell collects its action too.
-- [ ] `test_widget_toolbar()`: an item with an icon draws no text and is as
+      `hovered`. The shortcut walk of the shell collects its action too. The
+      icon is as tall as the line of `"M"` in the font of the item, and the
+      canvas is as large as the icon and the padding.
+- [x] `test_widget_toolbar()`: an item with an icon draws no text and is as
       wide as its icon and padding; an item with no icon draws its label; a
-      crossing lands on the correct item; a `MousePress` gives the
-      `InvokeActionOperation` of its action (no test does this now); the
-      tooltip falls back to the label.
+      crossing and a press land on the item under the pointer inside a
+      toolbar (no test pressed a toolbar item before); a disabled item and an
+      item bound to a disabled action are inert; the tooltip falls back to the
+      label. **27** (8 + 19). `test_widget_icon()` stays **69**. The naming
+      guard passes.
+- [x] The widget guide names the new widget, and the icon list names the tool
+      pictures.
+- Open, not in this plan: `WidgetToolButton(icon)` is a helper that makes a
+  `WidgetButton` with an icon and an empty label. It is the design that R5
+  rejected, and its name is close to the new widget. The widget example uses
+  it for a row of large icon buttons. Retire it, or keep it for that row, in a
+  later change.
 
 ### Step 3: the shell reaches a tool
 

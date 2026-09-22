@@ -51,5 +51,81 @@ end
     end
 end
 
+# What a canvas would draw, forced the way a backend forces it.
+_drawn(canvas, ::Type{T}) where {T} = begin
+    found = T[]
+    walk(c) = for el in c.elements
+        el = _unwrap(el)
+        el isa T && push!(found, el)
+        el isa GraphicsCanvas && walk(el)
+    end
+    walk(canvas)
+    found
+end
+# The item canvases a toolbar laid out, left to right.
+_items(io) = sort!([c for c in map(_unwrap, io.output.elements) if c isa GraphicsCanvas],
+                   by = c -> Int(c.x))
+_centre(c) = (Int(c.x) + Int(c.w[]) ÷ 2, Int(c.y) + Int(c.h[]) ÷ 2)
+_press(io, (x, y); modifiers = _mods) = begin
+    answer = read_intent(proj, nothing, Intent(MousePress(:left, x, y, modifiers), nothing), io)
+    answer isa Intent ? answer.operation : answer
+end
+
+@testset "a toolbar item with an icon draws the icon alone" begin
+    short = print_document(proj, WidgetToolbarItem("Log"; icon = :list,
+                                                   padding = Inset(4, 4, 4, 4))).output
+    long = print_document(proj, WidgetToolbarItem("Every gesture of this session"; icon = :keyboard,
+                                                  padding = Inset(4, 4, 4, 4))).output
+    @test isempty(_drawn(short, GraphicsText))
+    @test !isempty(_drawn(short, GraphicsPolyline))
+    # As wide as the icon and its padding, whatever the label says: the icon is
+    # a square as tall as a line of the font, so the item is square too.
+    @test Int(short.w[]) == Int(long.w[])
+    @test Int(short.w[]) == Int(short.h[])
+    @test Int(short.w[]) == 16 + 8
+end
+
+@testset "a toolbar item with no icon draws its label" begin
+    canvas = print_document(proj, WidgetToolbarItem("Run")).output
+    @test [string(t.text) for t in _drawn(canvas, GraphicsText)] == ["Run"]
+    @test isempty(_drawn(canvas, GraphicsPolyline))
+end
+
+@testset "a crossing and a press land on the toolbar item under the pointer" begin
+    labels = ["Explorer", "Assistant", "Evaluator"]
+    icons = [:folder, :chat, :terminal]
+    tb = WidgetToolbar(Any[WidgetToolbarItem(l; icon = i) for (l, i) in zip(labels, icons)];
+                       padding = Inset(4, 4, 4, 4))
+    io = print_document(proj, tb)
+    items = _items(io)
+    @test length(items) == length(labels)
+    for (i, c) in enumerate(items)
+        x, y = _centre(c)
+        crossing = read_intent(proj, nothing, Intent(MouseEnter(x, y, :none, _mods), nothing), io)
+        op = crossing isa Intent ? crossing.operation : crossing
+        @test op isa ReplaceReferencedValueOperation && op.document.action.label == labels[i]
+        # A left press invokes the action of that item, and only reads it: the
+        # reader answers the operation and runs nothing.
+        op = _press(io, (x, y))
+        @test op isa InvokeActionOperation && op.action === tb.elements[i].action
+    end
+end
+
+@testset "a disabled toolbar item is inert" begin
+    item = WidgetToolbarItem("Log"; icon = :list, enabled = false)
+    io = print_document(proj, item)
+    @test _press(io, _centre(io.output)) === nothing
+    bound = WidgetToolbarItem(Action("Log"; icon = :list, enabled = false))
+    io = print_document(proj, bound)
+    @test _press(io, _centre(io.output)) === nothing
+end
+
+@testset "a toolbar item says its label when it has no tooltip" begin
+    @test compute_tooltip(WidgetToolbarItem("Gesture log"; icon = :keyboard)).value == "Gesture log"
+    @test compute_tooltip(WidgetToolbarItem("Gesture log"; icon = :keyboard,
+                                            tooltip = "Every gesture")).value == "Every gesture"
+    @test compute_tooltip(WidgetToolbarItem(""; icon = :keyboard)) === nothing
+end
+
 end # @testset
 end # function

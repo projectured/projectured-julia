@@ -378,6 +378,13 @@ end
     hover_color::StyleColor           # hover surface behind the item (Stage 6)
 end
 
+@projection struct WidgetToolbarItemToGraphicsCanvas
+    measure::Function
+    text::ImmutableCell{StyleText}    # font (the size of the icon) + foreground
+    disabled_foreground::StyleColor   # icon and label color when disabled (item or bound command)
+    hover_color::StyleColor           # the surface behind the item while the pointer is on it
+end
+
 struct WidgetCompositeToGraphicsCanvas <: Projection end
 
 @projection struct WidgetShellToGraphicsCanvas
@@ -1811,6 +1818,66 @@ function _open_submenu_popup(p::WidgetMenuItemToGraphicsCanvas, submenu,
                        auto_dismiss=true, content=submenu)
 end
 
+# ── WidgetToolbarItem ───────────────────────────────────────────────────────
+
+_toolbar_item_command(w::WidgetToolbarItem) = w.action::Action
+_toolbar_item_enabled(w::WidgetToolbarItem) =
+    !(w.enabled === false) && !(_toolbar_item_command(w).enabled === false)
+
+# The icon alone when the action has one, as tall as a line of the font; the
+# label only when there is no icon to show. The canvas is as large as what it
+# shows and its padding, so a crossing in a toolbar lands on the item under the
+# pointer and not on its left neighbour.
+function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::WidgetToolbarItem, ctx)
+    w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
+    SimpleIoMap(p, w, _reactive_canvas(0, 0, () -> begin
+        cox, coy = _content_offset(w)
+        command = _toolbar_item_command(w)
+        enabled = _toolbar_item_enabled(w)
+        color = enabled ? p.text.color : p.disabled_foreground
+        _, line = _text_size(p.measure, p.text.font, "M")
+        icon_size = icon_width(command.icon, line)
+        elements = Any[]
+        if icon_size > 0
+            _push_icon!(elements, command.icon, cox, coy, icon_size, color)
+            content_width, content_height = icon_size, line
+        else
+            text = string(command.label)
+            content_width, content_height = _text_size(p.measure, p.text.font, text)
+            _push_text!(elements, p.text.font, text, cox, coy, color)
+        end
+        width = _resolve_width(ctx, 0, content_width + 2cox)
+        height = _resolve_height(ctx, 0, content_height + 2coy)
+        drawn = Any[]
+        _push_hover_surface!(drawn, w, enabled, width, height, p.hover_color)
+        append!(drawn, elements)
+        (width = width, height = height, elements = drawn)
+    end))
+end
+
+map_reference_forward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) =
+    _self_point(reference)
+map_reference_backward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = nothing
+
+# A left press on an enabled item invokes its action; a crossing sets `hovered`,
+# which draws the surface. The item's own gestures come first, as on a button.
+function read_intent(::WidgetToolbarItemToGraphicsCanvas, iomap::SimpleIoMap, evt)
+    w = iomap.input
+    w.visible == false && return nothing
+    _outside_widget(iomap, evt) && return nothing
+    enabled = _toolbar_item_enabled(w)
+    if enabled
+        operation = read_bound_gesture(w, evt)
+        operation === nothing || return operation
+    end
+    if evt isa MousePress
+        (evt.button === :left && enabled) || return nothing
+        return InvokeActionOperation(_toolbar_item_command(w))
+    end
+    (evt isa MouseEnter || evt isa MouseLeave) && return _hover_state_op(w, evt)
+    nothing
+end
+
 # ── WidgetMenu ──────────────────────────────────────────────────────────────
 
 # A laid-out item's advance along the main axis. A `WidgetMenuItem` knows its own
@@ -2246,7 +2313,7 @@ function _collect_command_actions!(acc::Vector{Action}, w)
     if w isa WidgetMenuItem
         c = w.action; c.shortcut !== nothing && push!(acc, c)
         sm = w.submenu; sm isa WidgetMenu && _collect_command_actions!(acc, sm)
-    elseif w isa WidgetButton
+    elseif w isa WidgetButton || w isa WidgetToolbarItem
         c = w.action; c.shortcut !== nothing && push!(acc, c)
     elseif w isa WidgetMenu || w isa WidgetToolbar
         for e in w.elements
@@ -7055,6 +7122,7 @@ function WidgetToGraphics(font::StyleFont; measure::Function,
             Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x), theme.gap),
         WidgetMenu       => WidgetMenuToGraphicsCanvas(measurer, theme.font),
         WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(measurer, theme.body_text, theme.muted_foreground, theme.accent),
+        WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(measurer, theme.body_text, theme.muted_foreground, theme.accent),
         WidgetComposite  => WidgetCompositeToGraphicsCanvas(),
         # Widgets embed layouts (a composite/table holds a GridLayout); register
         # it so the recursion can render an embedded grid without an outer

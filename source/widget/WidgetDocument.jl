@@ -729,6 +729,63 @@ get_instance_gesture_bindings(w::WidgetMenuItem) = w.gestures
 # See the `WidgetButton` method: the label lives on the item's `Action`.
 set_cell_function!(w::WidgetMenuItem, f::Function) = (set_cell_function!(getfield(w.action, :label), f); w)
 
+# ── WidgetToolbarItem ──────────────────────────────────────────────────────
+
+"""
+    WidgetToolbarItem(content; action=nothing, icon=nothing, <base kwargs>)
+
+One button of a `WidgetToolbar`: a view of an [`Action`], like
+[`WidgetMenuItem`](@ref) and [`WidgetButton`](@ref), and made from `content`,
+`icon` and `action` the same way. A menu item and a toolbar item bound to one
+`Action` are two views of one command.
+
+**It shows the icon of its action alone** when the action has one, and the
+label when it has none. The label stays on the action, because it names the
+command: an item with no tooltip of its own says the label as its tooltip, so
+a button that shows only a picture still says what it does.
+
+It is flat: it draws a surface behind itself only while the pointer is on it.
+A left press on an enabled item invokes the action. A disabled item, or one
+bound to a disabled action, is inert.
+"""
+@document struct WidgetToolbarItem <: WidgetDocument
+    action::Any
+    gestures::Any
+    visible::Bool
+    enabled::Bool
+    margin::Inset
+    margin_color::StyleColor
+    border::Inset
+    border_color::StyleColor
+    padding::Inset
+    padding_color::StyleColor
+    hovered::Bool
+    tooltip::Any
+end
+
+function WidgetToolbarItem(content;
+                           action=nothing,
+                           gestures=GestureBinding[],
+                           icon=nothing,
+                           visible::Bool=true,
+                           enabled::Bool=true,
+                           margin::Inset=inset_default,
+                           margin_color=nothing,
+                           border::Inset=inset_default,
+                           border_color=nothing,
+                           padding::Inset=inset_default,
+                           padding_color=nothing, tooltip=nothing)
+    WidgetToolbarItem(Cell(resolve_action(content, icon, action)), Cell(gestures),
+                      Cell(visible), Cell(enabled), Cell(margin), Cell(margin_color),
+                      Cell(border), Cell(border_color),
+                      Cell(padding), Cell(padding_color),
+                      Cell(false), Cell(tooltip))
+end
+get_instance_gesture_bindings(w::WidgetToolbarItem) = w.gestures
+
+# See the `WidgetButton` method: the label lives on the item's `Action`.
+set_cell_function!(w::WidgetToolbarItem, f::Function) = (set_cell_function!(getfield(w.action, :label), f); w)
+
 # ── WidgetComposite ────────────────────────────────────────────────────────
 
 """
@@ -2762,7 +2819,7 @@ end
 # `enabled`-bearing leaves. A disabled instance is *not* a stop.
 const FocusableWidget = Union{WidgetButton, WidgetCheckbox, WidgetText,
     WidgetTextarea, WidgetSelect, WidgetSwitch, WidgetSlider, WidgetToggle,
-    WidgetToggleGroup, WidgetRadioGroup, WidgetMenuItem}
+    WidgetToggleGroup, WidgetRadioGroup, WidgetMenuItem, WidgetToolbarItem}
 
 # Every FocusableWidget carries the `enabled` cell, so the read is safe.
 FocusModule.is_focusable_document(w::FocusableWidget) = !(getfield(w, :enabled)[] === false)
@@ -2782,6 +2839,16 @@ compute_tooltip(widget::WidgetDocument) = _as_tooltip_document(widget.tooltip)
 _as_tooltip_document(::Nothing) = nothing
 _as_tooltip_document(text::AbstractString) = PrimitiveString(String(text))
 _as_tooltip_document(document) = document
+
+# A toolbar item that shows only a picture still says what it does: with no
+# tooltip of its own, it says the label of its action. An empty label says
+# nothing.
+function compute_tooltip(item::WidgetToolbarItem)
+    item.tooltip === nothing || return _as_tooltip_document(item.tooltip)
+    label = item.action.label
+    label isa AbstractString || return _as_tooltip_document(label)
+    isempty(label) ? nothing : _as_tooltip_document(label)
+end
 
 # The shell is the window's own frame, so the menu it holds is the window's: what
 # opens where no widget under the pointer offers one.

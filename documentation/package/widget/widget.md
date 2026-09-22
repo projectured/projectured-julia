@@ -28,6 +28,7 @@ All widgets subtype the abstract `WidgetDocument` (which subtypes `Document`).
 | `WidgetButton(position, size, content; action)` | Clickable button — reacts to hover/press and invokes `action` on click |
 | `WidgetTooltip(position, size, content)` | Tooltip popup |
 | `WidgetMenuItem(content)` | Menu entry |
+| `WidgetToolbarItem(content; icon)` | Toolbar button — shows the icon of its action alone, or its label when it has no icon |
 
 **Compound widgets:**
 
@@ -172,8 +173,8 @@ package it so a new widget opts in with two lines: `_hover_state_op(w, evt)` map
 a `MouseEnter`/`MouseLeave` to the `hovered` write (call it from the reader), and
 `_push_hover_surface!(elems, w, enabled, …)` paints a faint themed surface behind
 the control while `enabled && w.hovered === true` (call it from the printer,
-*before* the content so it sits underneath). `WidgetButton` and `WidgetMenuItem`
-are the reference adopters. The latter gives every menu, submenu, context menu,
+*before* the content so it sits underneath). `WidgetButton`, `WidgetMenuItem` and
+`WidgetToolbarItem` are the reference adopters. The latter gives every menu, submenu, context menu,
 menu bar, and toolbar a highlight on the row under the pointer.
 
 ## Form & data widgets
@@ -559,13 +560,13 @@ An `Action(label; icon, enabled, shortcut, callback)` is a shared command object
 reference the **same** `Action`, so one object drives all three and toggling its
 `enabled` disables all of them at once.
 
-- **Every control has one.** `WidgetMenuItem` and `WidgetButton` carry an
+- **Every control has one.** `WidgetMenuItem`, `WidgetToolbarItem` and `WidgetButton` carry an
   `action::Action` and nothing else about the command — there is no second
   behaviour or appearance field, so no precedence rule. Pass an `Action` to bind
   a shared command; pass a bare callable (or nothing) and the constructor folds
   the control's own `content` and `icon` into a **fresh** `Action`. A click
-  emits `InvokeActionOperation(action)`. Toolbar entries are `WidgetMenuItem`s,
-  so they inherit this.
+  emits `InvokeActionOperation(action)`. A toolbar button is a
+  `WidgetToolbarItem`, which inherits this.
 - **A bound control is a LIVE view.** It reads the action's cells rather than
   owning copies, so renaming a command or disabling it re-renders every control
   bound to it with no re-binding step. A control never writes to a shared
@@ -622,6 +623,11 @@ three backings coexist:
   icon lives on the control's `Action` (`action.icon`), which is how a menu item
   and a toolbar button bound to one command share it. `WidgetToolButton(:save; …)`
   is an icon-first button (Qt's `QToolButton`).
+- **On a toolbar:** a `WidgetToolbarItem` draws the icon of its action ALONE, as
+  tall as a line of the font, and the label only when the action has no icon.
+  The label stays on the action: an item with no tooltip of its own says the
+  label as its tooltip, so a button that shows only a picture still says what
+  it does.
 
 See `make_widget_document_example` (File menu / toolbar / tool-button row with
 icons) and `WidgetIconTest`.
@@ -684,6 +690,7 @@ RecursiveProjection(TypeDispatchingProjection(
     WidgetTooltip     => WidgetTooltipToGraphicsCanvas(...),
     WidgetMenu        => WidgetMenuToGraphicsCanvas(...),
     WidgetMenuItem    => WidgetMenuItemToGraphicsCanvas(...),
+    WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(...),
     WidgetComposite   => WidgetCompositeToGraphicsCanvas(...),
     WidgetShell       => WidgetShellToGraphicsCanvas(...),
     WidgetTitlePane   => WidgetTitlePaneToGraphicsCanvas(...),
