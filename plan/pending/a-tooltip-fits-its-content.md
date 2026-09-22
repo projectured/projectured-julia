@@ -67,6 +67,10 @@ Names, checked against `naming-rules.md`:
 
 - [ ] `test_sdl()` 97, `test_shell()` 178, `test_application()` 127,
       `test_substrate()` 63059 with 3 fail, 2 error, 1 broken, `test_screen()`.
+- [ ] The main window's own sizing, which this plan must not touch: what
+      `run_window_editor` asks for, what `open_native_windows!` writes back
+      after the window manager answers, and the size the document holds after
+      the first frame. Write the numbers here, and read them again at the end.
 - [ ] Measure, in the application window with the tooltip on: the `w` and `h`
       of the printed canvas of a tooltip that holds one line, and of one that
       holds a docstring, at the offer of today (420 × 120) and at an offer of
@@ -77,10 +81,20 @@ Names, checked against `naming-rules.md`:
 ### Step 1 — a window says its bounds
 
 - [ ] `minimum_size` and `maximum_size` on `WindowDocument`, both `(0, 0)` by
-      default, and on `OpenWindowOperation`; `_apply_open!` of
-      `WindowManaging.jl` copies them.
-- [ ] Tests in the screen suite: a window opened without them is sized as it is
-      today.
+      default, and on `OpenWindowOperation`; `_apply_open!` and
+      `_update_window!` of `WindowManaging.jl` copy them.
+- [ ] **The mirror builds its window by keyword.**
+      [ScreenToScreen.jl:81](../../source/screen/ScreenToScreen.jl#L81) builds
+      the output window with twelve positional arguments. Two more fields shift
+      them, and `x`, `y`, `width` and `height` are all `Int`, so a shifted
+      argument would mis-size the main window with no error. Every other place
+      that builds a window already uses keywords.
+- [ ] A `WindowDocument` is a saved type (`register_pred_type!`), so a user
+      interface saved before this change must still load, with the two new
+      fields at their default.
+- [ ] Tests in the screen suite: a window opened without the two fields is
+      sized as it is today; the mirrored window keeps the id, the title, the
+      position and the size of its input; an old saved interface loads.
 
 ### Step 2 — the screen offers the maximum
 
@@ -114,7 +128,16 @@ Names, checked against `naming-rules.md`:
 - [ ] `test_application()`: a tooltip of one line is smaller than a tooltip of
       a docstring, and neither is the old fixed size.
 
-### Step 6 — the guides, and close
+### Step 6 — the main window is unharmed
+
+- [ ] `test_native_window()`: the main window still asks for the work area,
+      takes what the window manager grants, and writes that size into its
+      document. The numbers of Step 0 hold.
+- [ ] `test_application()` and `test_shell()`: unchanged counts.
+- [ ] By hand, in the binary: the window opens at its size, a resize by the
+      person still resizes the content, and the tooltip fits.
+
+### Step 7 — the guides, and close
 
 - [ ] `screen.md`: a window says its bounds, and the content of a window that
       fits is printed at its maximum. `sdl.md`: the backend fits such a window
@@ -127,5 +150,7 @@ Names, checked against `naming-rules.md`:
 | --- | --- |
 | A content that fills the offer rather than shrinking to its own extent. Then every tooltip is the maximum. | Step 0 measures it before anything is built. If a content fills, the plan needs a layout that shrinks to its content, and that is a bigger change than this plan. |
 | The size that is written back changes the next offer, and the window oscillates. | The offer of a fitting window is always its maximum, never the size it settled on. |
+| Two new fields change the positional constructor of a `@document` struct, and the screen builds the mirrored window positionally. A shifted `Int` would mis-size the main window silently. | Step 1 turns that one call into a keyword call, and the screen suite asserts that the mirror keeps the size, the position and the title. |
+| A saved user interface holds windows, so a new field changes the schema. | Step 1 loads a file saved before the change and asserts the defaults fill in. |
 | A window that a person resizes and that also fits. | Only a window with a maximum fits, and no window a person resizes has one. A resize of such a window is a fault to report, not to handle. |
 | The help window and the command palette could fit too. | They keep their fixed size in this plan. They gain the bounds when someone asks for it. |
