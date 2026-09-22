@@ -1,54 +1,47 @@
 # Component
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** design · **Status:** current · **Stands on:** [widget.md](../widget/widget.md), [document.md](../kernel/document.md)
 
-A component composes widget primitives into a reusable, behavioral UI unit.
-It is a layer meant to sit between a document and a widget tree, the way a
-form or a master-detail view combines several widgets into one interactive
-pattern.
-Today the slice defines one such composite, `ComponentMasterDetail`, as a
-document; no projection renders it yet.
+`ProjecturedComponent` is meant to hold components: reusable units of a user interface, such as a master-detail view, that combine widgets and behave as one. It holds one document type and no projection yet. This document says what exists, what does not, and where the plan for the rest is.
 
-## What is in the slice
+## How it works
 
-| File | What it holds |
-| --- | --- |
-| `source/component/ComponentModule.jl` | the module, and what it exports |
-| `source/component/ComponentDocument.jl` | the abstract `ComponentDocument`, and `ComponentMasterDetail` |
-
-## The document
+`source/component/ComponentDocument.jl` holds the abstract root `ComponentDocument` and the one concrete `@document`, `ComponentMasterDetail`:
 
 ```julia
 ComponentMasterDetail(master, detail; selected_item = nothing,
-                       master_title = "Master", detail_title = "Detail",
-                       split_ratio = 0.3)
+                      master_title = "Master", detail_title = "Detail",
+                      split_ratio = 0.3)
 ```
 
-`ComponentMasterDetail` is a two-pane layout: `master` is the document shown
-in the left pane, typically a tree or a list; `detail` is the document shown
-in the right pane, typically an inspector or a form. `selected_item` holds
-the item the master pane last selected; a caller drives `detail` from it,
-for example by making `detail` a reactive cell that recomputes whenever
-`selected_item` changes. `master_title` and `detail_title` label the two
-panes, and `split_ratio` is the fraction of the width the master pane gets,
-from 0.0 to 1.0.
+`master` is the document of the left pane, such as a tree or a list. `detail` is the document of the right pane, such as a form. `selected_item` holds the item that the master pane selected last. A caller can make `detail` a computed cell that reads `selected_item`, so the detail follows the selection. `split_ratio` is the part of the width that the master pane gets, from 0.0 to 1.0.
 
-## What a reader must know before changing this
-
-`ComponentModule` exports only `ComponentDocument`; `ComponentMasterDetail`
-is reached through the `ProjecturedComponent` package, not re-exported at
-the top level. No `ComponentToWidget` projection exists, so a
-`ComponentMasterDetail` cannot yet be rendered or edited in the running
-editor — it is a document type with no view. There is no `test/component/`
-and no `example/component/`. `plan/pending/component-document.md` tracks the
-projection and the further components (a form, a tree inspector, a
-dashboard, a wizard, a searchable list) that this slice does not have yet.
+No projection draws a `ComponentMasterDetail`, and no reader edits it. The module docstring names a `ComponentToWidget` projection, which does not exist.
 
 ## How it fits
 
-`ProjecturedComponent` depends only on `ProjecturedKernel`; it imports no
-widget type. The intended position is between the document layer and the
-widget layer that [widget.md](../widget/widget.md) describes: a component
-would compose widgets the way `PaneSplitToWidgetSplitPane` composes a pane
-split's elements ([pane.md](../pane/pane.md)), without being a domain of its
-own.
+`ProjecturedComponent` depends only on the kernel and imports no widget type. `ComponentModule` exports only `ComponentDocument`; the concrete type is `ComponentModule.ComponentMasterDetail`. The umbrella package `Projectured` loads it, but no other package reads a component. The package registers nothing.
+
+The planned place of a component is between a domain document and the widgets: a `ComponentToWidget` projection would draw a `ComponentMasterDetail` as a `WidgetSplitPane` of two panes.
+
+## Design decisions
+
+- **A component is a document.** A component can then be embedded, saved and driven by cells as any other document, and a helper function that builds widgets can do none of these. See `plan/pending/component-document.md`.
+- **The master-detail view is one component, not a family of types.** Two larger designs with their own resolver and a cache of detail documents were not built. See `plan/obsolete/master-detail-document.md` and `plan/obsolete/master-detail-editable.md`.
+
+## Usage
+
+```julia
+using ProjecturedComponent: ComponentModule
+view = ComponentModule.ComponentMasterDetail(master_document, detail_document;
+                                             master_title = "Tables", split_ratio = 0.25)
+```
+
+`master_document` and `detail_document` stand for any two documents.
+
+- Examples and tests: none. `test/component/` and `example/component/` do not exist.
+
+## Limits
+
+- A `ComponentMasterDetail` can not be drawn or edited, because `ComponentToWidget` does not exist.
+- `plan/pending/component-document.md` holds the open work: `ComponentToWidget`, and a database catalog browser built on the master-detail view. It also names further components: a form, a tree inspector, a dashboard, a wizard and a searchable list.

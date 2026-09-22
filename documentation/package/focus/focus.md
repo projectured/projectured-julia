@@ -1,76 +1,81 @@
 # Focus
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [selection.md](../kernel/selection.md)
+> **Kind:** design · **Status:** current · **Stands on:** [selection.md](../kernel/selection.md), [reference.md](../kernel/reference.md)
 
-Focus is selection: the generic walk that finds the first or last focusable
-leaf of a document subtree for Tab traversal, the whole-element selection
-that an Alt+click makes, the four Alt+arrow keys that walk one, and the
-reference step that lets a selection name a widget a projection drew rather
-than a field of a document. The walk names no widget type; a domain opts a
-document type into focus by adding one trait method.
+`ProjecturedFocus` holds the functions that make the selection act as the focus. They are the walk that Tab follows, the Alt+press rule that selects a whole object, the Alt+arrow walk, and a step that names a drawn widget. It has no document type and names no widget type. This document says what each function computes, which package applies it, and where the traps are.
 
-## What is in the slice
+## How it works
 
-| File | What it holds |
-| --- | --- |
-| `source/focus/FocusModule.jl` | the module, and what it exports |
-| `source/focus/Focus.jl` | `is_focusable_document`, `get_first_focusable_path`, `get_last_focusable_path`, `get_next_focusable_index` — the Tab walk |
-| `source/focus/WholeSelection.jl` | `is_whole_selection_press`, `is_whole_selection`, `convert_to_whole_selection` — the Alt+click selection |
-| `source/focus/SelectionWalking.jl` | `SelectionWalkingProjection` — the four Alt+arrow keys |
-| `source/focus/OutputSelection.jl` | `OutputReferenceStep` — a selection that names a drawn widget, not a document field |
+**Focus is the selection.** No document has a `focused` field. A key goes to the document that the selection names, because each container gives a key only to the child that its own `selection` names; [widget.md](../widget/widget.md#a-key-goes-by-selection) and [layout.md](../layout/layout.md#events) describe the routing. So to move the focus is to write the selection, and this package computes where the selection goes.
 
-## The Tab walk
+### The Tab walk
 
-`is_focusable_document(node)` defaults to `false`; a domain adds a method for
-the document types a Tab press should be able to land on.
-`get_first_focusable_path(node)` and `get_last_focusable_path(node)` return
-the relative whole-element path to the first or last focusable document in
-`node`'s subtree, skipping a disabled widget, or `nothing` when the subtree
-holds none. The walk guards against a cycle in the document graph. An
-embedded linked list points forward and back, so the walk tracks visited
-object identities and visits each node once regardless of how the graph
-closes on itself. `get_next_focusable_index(children, after, reverse)` finds the next
-sibling slot whose subtree contains a focusable document, for a container
-stepping Tab across its own children. Both `LayoutToGraphics` and
-`WidgetToGraphics` share this walk.
+`is_focusable_document(node)` is `false` by default. A domain adds a method for the documents that Tab can land on. The widget package answers `true` for the enabled controls of its `FocusableWidget` union.
 
-## The whole-element selection
+`get_first_focusable_path(node)` and `get_last_focusable_path(node)` walk the subtree depth first and return the relative path to the first or last focusable document, or `nothing`. The path is a whole-element path, so it ends at the document. The walk visits the children in field order: each element of a `CellVector` field, and each field that holds a `Document`, except `selection`. `get_next_focusable_index(children, after, reverse)` returns the next slot whose subtree holds a focusable document, or `0`.
 
-`is_whole_selection_press(event)` is true for a left press with Alt held and
-no other modifier. A plain press keeps its own meaning, so a button still
-fires. `is_whole_selection(document, reference)` is true for a whole-element
-selection and false for a caret or a range: the reference must evaluate, inside
-`document`, to a `Document` rather than a scalar position. A container that
-gets an Alt+press answered by its child calls
-`convert_to_whole_selection(operation, child)`. It keeps an answer that
-already names a value inside `child`, such as a caret or a selection inside
-it. Any other answer, including a control's own click action, becomes the
-whole selection of `child`. `SelectionWalkingProjection(; inner)` wraps a
-projection and answers the four Alt+arrow keys — up to the enclosing object,
-down to the first object inside, left and right to a sibling — for whatever
-nothing inside `inner` answered first.
+The walk keeps a set of the `objectid` of each node that it visited. A `ListNode` has `prev` and `next`, and both hold documents, so a walk without the set goes from `next` to `prev` and back until the stack overflows. Text and syntax content embed a `ListNode`, so a Tab in a file tab or in the assistant needs the set. A tree without a cycle visits each node once in both cases.
 
-`OutputReferenceStep(owner, node, output_path)` is for a widget a projection
-drew that has no document of the domain behind it: a table's header, a
-parameter box, a heading. It reaches `node` only from `owner`, so copying,
-noting or Alt+clicking the drawn widget works the way it works for any other
-document.
+The containers apply the walk. A layout, a `WidgetComposite` and a `WidgetSplitPane` give Tab to the selected child first. When the child returns `nothing`, the container selects the first focusable document of the next sibling. `WidgetHoverTrackingProjection` wraps the selection to the first focusable document at the end of the tree.
+
+### The whole-element selection
+
+A whole-element selection is a path that ends at a document. A caret and a range of text end inside a document, so they are not whole. Any document can be selected whole, and no document declares that it can be.
+
+- `is_whole_selection_press(event)` is `true` for a left `MousePress` with Alt and no other modifier. A plain press keeps its meaning, so a button still fires and a caret still lands.
+- `is_whole_selection(document, reference)` is `true` when the reference evaluates, inside `document`, to a `Document`.
+- `convert_to_whole_selection(operation, child)` is the answer of a container for an Alt+press that hit `child`, where `operation` is the answer of `child`.
+
+`convert_to_whole_selection` keeps a `ReplaceSelectionOperation` whose path evaluates to a document inside `child`, so the innermost object under the pointer wins. It also keeps a path that does not evaluate in `child`, because a container can answer in its own terms, and the level above maps the path back. Every other answer becomes the whole selection of `child`: `nothing`, a caret, or the action of a control. So an Alt+press never acts. Before the test, the function cuts a path at its first `ProjectionReferenceStep`: a place that a projection introduced, such as a bracket, then selects the node that the bracket was printed for.
+
+The rule is applied in one place: `read_child_event` in `source/layout/LayoutToGraphics.jl`. Every layout and every widget container calls it to give a press to a child, so this package only gives the functions. The pane package adds one more rule for a page; see [pane.md](../pane/pane.md#selecting-inside-a-page).
+
+`find_whole_selected_index(selection, field)` and `is_whole_selected_field(selection, field)` read which child a selection names as a whole. A container uses them to draw its selection ring.
+
+### The Alt+arrow walk
+
+`SelectionWalkingProjection(; inner)` prints as `inner` and maps references as `inner`. Its reader gives each event to `inner` first. Only an Alt+arrow key that `inner` returns `nothing` for goes to `compute_selection_walk(document, selection, direction)`:
+
+- `:up` selects the nearest enclosing object, also from a caret.
+- `:down` selects the first object inside the selected one.
+- `:left` and `:right` select the previous or next object of the same parent. At the first and the last one, the selection stays.
+
+`:down`, `:left` and `:right` need a whole selection and return `nothing` for a caret, so a text reader can use the keys while a person edits. An object is a document that is not a collection and that can hold a selection, so a value such as a color is not one. `is_selection_walk_stop(document)` is `true` by default. A domain answers `false` for a document that only holds the objects that a person points at, and the walk goes through it. The form of the evaluator in the conversation package does this.
+
+### A widget that a projection drew
+
+A projection can draw a widget that no document of the domain stands behind, such as the table of a form. No field or index reaches such a widget. `OutputReferenceStep(owner, node, output_path)` is a step that holds the widget itself and its place in the output. It evaluates to `node`, but only from `owner`; from another document it throws. So a copy, a note and `is_whole_selection` reach the widget, and a paste never writes through it.
+
+`make_output_reference(owner, node, output_path)` makes the typed path. `find_output_path(reference, owner)` returns the place in the output. `follow_output_selection!(root, forward; is_followed)` installs a thunk on the `selection` cell of each document of the output tree, so each container holds its part of the path and rings the child that the path names. `is_followed` stops the walk at a document of the domain inside a widget, or at a table whose rows are built on demand.
 
 ## How it fits
 
-`FocusModule` depends on `ProjecturedKernel` and `ProjecturedCollection`
-alone; a domain adds a method to `is_focusable_document` to get Tab or
-Alt+click support, rather than this slice depending on the domain.
-[widget.md](../widget/widget.md) is the main caller: `WidgetModule` marks its
-enabled interactive leaves as Tab stops, and the whole-element machinery is
-what an Alt+click on any widget resolves through.
+The four files of `source/focus/` hold the four parts above: `Focus.jl`, `WholeSelection.jl`, `SelectionWalking.jl` and `OutputSelection.jl`. `ProjecturedFocus` depends only on the kernel and on `ProjecturedCollection`. `ProjecturedLayout` and `ProjecturedWidget` call the Tab walk and the whole-element functions. `ProjecturedShell` puts a `SelectionWalkingProjection` into the fold of a window when its `selection` keyword is set; see [shell.md](../shell/shell.md). The package registers nothing. A domain extends it through two open functions, `is_focusable_document` and `is_selection_walk_stop`.
 
-## What a reader must know before changing this
+## Design decisions
 
-There is no `test/focus/` folder; the walk and the whole-element selection
-are exercised through `test/substrate/projection/SelectionWalkingTest.jl`,
-`WidgetButtonTest.jl` and `WidgetSelectionTest.jl`. The cycle guard in
-`get_first_focusable_path` / `get_last_focusable_path` is what keeps Tab from
-stack-overflowing on a document that embeds a doubly-linked list, such as
-text or syntax content in the assistant; removing it reintroduces that crash
-rather than merely slowing the walk down.
+- **Focus is the selection.** A second focus field would have to agree with the selection after every edit, and a key would have two places to go. See `plan/done/widget-focus-traversal.md`.
+- **The walk names no widget type.** A domain opts in with one method, so a layout and a widget container share one walk.
+- **An Alt+press selects; a plain press acts.** A plain press already has a meaning in each widget. Alt+press is the whole-element gesture of the syntax domain, and it is free in every widget. See `plan/pending/select-a-widget-and-paste-it-into-a-tab.md`, whose steps for this are done.
+- **The walk guards cycles by identity, not by depth.** A depth limit stops early on a deep tree and still walks a long cycle many times. The set of visited nodes stops exactly at the cycle.
+- **A drawn widget is named by a step that holds it.** A field of the domain for each drawn widget would put view state into the data. The step reaches the widget only from its owner, so a paste can not write through it.
+
+## Usage
+
+```julia
+FocusModule.is_focusable_document(w::MyControl) = w.enabled   # a domain opts in
+path = get_first_focusable_path(document)                     # a Reference, or nothing
+is_whole_selection_press(MousePress(:left, 10, 20, 1, ModifierKeys(alt = true)))   # true
+projection = SelectionWalkingProjection(; inner = make_json_projection_example())
+```
+
+`MyControl` stands for a document type of your own.
+
+- Examples: `widget_focus_example` shows Tab across widgets.
+- Tests: `test_widget_selection()` and `test_selection_walking()` in `test/substrate/projection/`, with `WidgetButtonTest.jl`, and `ClipboardTest.jl` in the same folder for `OutputReferenceStep`. The package has no suite of its own.
+
+## Limits
+
+- `:down`, `:left` and `:right` return `nothing` for a caret. This is a rule and not a fault, but a caller that expects a walk from a caret gets nothing.
+- No projection of this repository makes an `OutputReferenceStep`. A downstream program uses it for the forms that its projection draws.
+- A pane tab needs its own Alt+arrow rules, because the generic walk steps from a tab content to its title; see [pane.md](../pane/pane.md).

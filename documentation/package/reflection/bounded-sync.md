@@ -125,7 +125,7 @@ per sync; that is the failure mode to watch for in any extension.
 
 ## Rendering it
 
-`ReflectionToWidget` (in the visual package) renders a `ReflectedNode` tree as a
+`ReflectionToWidget` (in the reflection package) renders a `ReflectedNode` tree as a
 `WidgetTree` whose chevrons drive the sync rather than merely hiding rows. The
 projection has no laziness of its own — it prints whatever the shadow holds,
 which is small because the sync was bounded.

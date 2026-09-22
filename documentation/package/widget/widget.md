@@ -1,813 +1,186 @@
-# Widget Domain
+# Widget
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
+> **Kind:** design · **Status:** current · **Stands on:** [graphics.md](../graphics/graphics.md), [layout.md](../layout/layout.md), [focus.md](../focus/focus.md)
 
-<img width="1024" alt="Widget example" src="../../../asset/image/example/widget.png">
+`ProjecturedWidget` holds the documents of a user interface, such as a button, a card, a table, a split pane and a tab, and the projection that draws them to a `GraphicsCanvas`. It also connects the objects of a domain to widgets, and opens a popup or a dialog as a window. This document says how a widget tree is drawn, how a press and a key reach the right widget, and where the traps are.
 
-The widget domain is the UI layer that sits between domain-specific projections
-and the graphics domain. Widgets describe what a user interface looks like —
-labels, buttons, panes, scrollbars — in a backend-agnostic way. The
-`WidgetToGraphics` projection (in
-[projection/primitive/WidgetToGraphics.jl](../../../source/widget/WidgetToGraphics.jl))
-turns a tree of widgets into a `GraphicsCanvas`.
+<img width="396" alt="Widget example" src="../../../asset/image/example/widget.png">
 
-The widget module is
-[widget/WidgetModule.jl](../../../source/widget/WidgetModule.jl).
+## How it works
 
-## The widget hierarchy
+### The documents
 
-All widgets subtype the abstract `WidgetDocument` (which subtypes `Document`).
+`WidgetDocument` is the abstract root, and 44 `@document` types subtype it:
 
-**Leaf widgets:**
+| Kind | Types |
+| --- | --- |
+| Text and values | `WidgetLabel`, `WidgetText`, `WidgetTextarea`, `WidgetBadge`, `WidgetAvatar`, `WidgetAlert`, `WidgetProgress`, `WidgetSkeleton`, `WidgetHighlight`, `WidgetSeparator`, `WidgetTooltip`, `WidgetStatusBar` |
+| Controls | `WidgetButton`, `WidgetCheckbox`, `WidgetSwitch`, `WidgetToggle`, `WidgetToggleGroup`, `WidgetRadioGroup`, `WidgetSlider`, `WidgetSpinBox`, `WidgetSelect`, `WidgetOption`, `WidgetScrollBar` |
+| Menus and bars | `WidgetMenu`, `WidgetMenuItem`, `WidgetContextMenu`, `WidgetToolbar`, `WidgetToolbarItem` |
+| Containers | `WidgetComposite`, `WidgetShell`, `WidgetTitlePane`, `WidgetCard`, `WidgetAccordion`, `WidgetAccordionItem`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetTabPage`, `WidgetScrollPane`, `WidgetTransformPane`, `WidgetDialog` |
+| Data | `WidgetTable`, `WidgetList`, `WidgetTree` |
+| Placeholder | `WidgetInsertion`, the type-replace buffer of the domain |
 
-| Widget | Purpose |
-|---|---|
-| `WidgetLabel(position, content)` | Static text label |
-| `WidgetText(position, content)` | Editable text |
-| `WidgetCheckbox(position, content)` | Boolean toggle (the `content` holds the checked state/label) |
-| `WidgetButton(position, size, content; action)` | Clickable button — reacts to hover/press and invokes `action` on click |
-| `WidgetTooltip(position, size, content)` | Tooltip popup |
-| `WidgetMenuItem(content)` | Menu entry |
-| `WidgetToolbarItem(content; icon)` | Toolbar button — shows the icon of its action alone, or its label when it has no icon |
+Two values of the package are not widgets. `Action` is a `@document` for a command, and `WidgetTreeNode` is a plain `struct` for a row of a tree. `WidgetToolButton`, `WidgetMessageBox`, `WidgetInputDialog` and `make_embed_card` are builders that return one of the types above.
 
-**Compound widgets:**
+Most widgets have `visible`, a `tooltip`, and the box fields `margin`, `border` and `padding` with a color for each. An interactive widget also has `enabled`: its reader returns `nothing` for every event while `enabled` is `false`, and its printer uses the muted colors of the theme. Some cells hold the state of the view and not content. Examples are `hovered` and `pressed` of a button, `scroll_position` of a scroll pane, `transform` of a transform pane, `collapsed` of a card, and the drag cells of a split pane. The reader writes them with ordinary operations, so the printer reads them as it reads any other cell.
 
-| Widget | Purpose |
-|---|---|
-| `WidgetComposite(position, elements)` | Generic container |
-| `WidgetShell(children)` | Top-level window contents |
-| `WidgetTitlePane(title, content)` | Pane with a title bar |
-| `WidgetSplitPane(orientation, elements; sizes)` | Split with drag-resizable splitters (fields `elements`/`sizes`) |
-| `WidgetTabbedPane(selector_element_pairs; closable, new_tab, draggable, duplicable)` | Tab switcher; a wheel over the strip scrolls it horizontally (`tab_scroll`) when the tabs overflow the pane width. The four flags add a close button per tab, a new-tab button after the last, a grab on a button down, and a `+` above the close button of a page that makes a duplicate — see [Strip reports](#strip-reports) |
-| `WidgetTabPage(selector, element[, icon[, duplicable]])` | One tab of a `WidgetTabbedPane`: the tab's own selector (label), content element, optional icon, and whether it has a duplicate button |
-| `WidgetScrollPane(content; position, size, scroll_position)` | Scrollable viewport (offset is `scroll_position`) |
-| `WidgetTransformPane(content; position, size, transform)` | Zoom/pan viewport — content under an affine `transform` (Ctrl+wheel zooms, plain wheel pans) |
-| `WidgetScrollBar(orientation; value, thumb_size)` | Scrollbar control (fields `value`/`thumb_size`) |
-| `WidgetToolbar(elements)` | Horizontal toolbar |
-| `WidgetMenu(elements)` | Dropdown/menu |
+`has_document_duplicate(::WidgetDocument)` is `true`, so the duplicate of a pane that holds widgets is a copy. The copy shares its `Action`, because an `Action` declares no duplicate.
 
-**Extension widgets** (printer-only for now — their readers are no-ops). Colors,
-radius and spacing come entirely from the theme (see below), so they carry only
-the fields they need plus `visible`/`selection`:
+### Drawing
 
-| Widget | Purpose |
-|---|---|
-| `WidgetBadge(position, content; variant)` | Pill label (`:default`/`:secondary`/`:destructive`/`:outline`) |
-| `WidgetSeparator(position; orientation, length)` | Hairline divider |
-| `WidgetCard(position; title, description, content, footer; variant, collapsible, padding)` | Surface with header/body/footer. `variant` says how loud the panel is (`:card`/`:tinted`/`:muted`/`:plain`). A `collapsible` card draws a chevron before its `Document` title, folds from a click on that chevron and from nothing else, draws only the header while `collapsed`, and lines its body up under the title's word, past the chevron. `padding` overrides the theme's padding, one number for every side or an `Inset`; `0` on a `:plain` card occupies nothing beyond its content |
-| `WidgetSwitch(position, checked)` | On/off switch (track + knob) |
-| `WidgetProgress(position, value)` | Progress bar (`value ∈ [0,1]`) |
-| `WidgetSlider(position, value)` | Slider (track + knob) |
-| `WidgetRadioGroup(position, options; selected)` | Vertical radio options |
-| `WidgetAvatar(position, initials; size)` | Circular initials avatar |
-| `WidgetAlert(position, title, description; variant)` | Callout (`:default`/`:destructive`) |
-| `WidgetSkeleton(position; width, height)` | Loading placeholder |
-| `WidgetHighlight(position; width, height)` | An area called out — a translucent accent fill under an accent outline. What a drop indicator is made of; the opposite of a skeleton, which is meant to disappear into its surface |
-| `WidgetToggle(position, content; pressed)` | Two-state toggle button |
-| `WidgetToggleGroup(position, options; selected)` | Segmented control |
-| `WidgetSelect(position, value; width)` | Closed select / combobox |
-| `WidgetOption(position, select, value; label, popup_id, width)` | One row of an open `WidgetSelect` dropdown; a click writes `value` onto `select` and dismisses the popup |
-| `WidgetTextarea(position, content; width, rows)` | Multi-line text surface |
-| `WidgetAccordion(position, items; expanded)` | Expandable sections |
-| `WidgetTable(position, headers, rows)` | Data table with hairline rows |
-| `WidgetTree(position, roots)` | Indented outline / tree view; nodes carry a `WidgetTreeNode(icon, label, children)` (icon + text), or a bare `String` / `(label, children)` for icon-less trees |
-
-Each has a minimal isolated example — e.g. `run_example(widget_table_example)`,
-`write_example_image(widget_tree_example, "tree.png")`.
-
-## Gallery
-
-Every widget has a minimal isolated example, rendered below.
-
-### Core widgets
-
-| | | |
-|---|---|---|
-| **Label**<br><img width="122" alt="" src="../../../asset/image/example/widget-label.png"> | **Text (input)**<br><img width="110" alt="" src="../../../asset/image/example/widget-text.png"> | **Checkbox**<br><img width="18" alt="" src="../../../asset/image/example/widget-checkbox.png"> |
-| **Button**<br><img width="180" alt="" src="../../../asset/image/example/widget-button.png"> | **Tooltip**<br><img width="214" alt="" src="../../../asset/image/example/widget-tooltip.png"> | **Menu item**<br><img width="47" alt="" src="../../../asset/image/example/widget-menu-item.png"> |
-| **Menu**<br><img width="54" alt="" src="../../../asset/image/example/widget-menu.png"> | **Toolbar**<br><img width="304" alt="" src="../../../asset/image/example/widget-toolbar.png"> | **Composite**<br><img width="79" alt="" src="../../../asset/image/example/widget-composite.png"> |
-| **Title pane**<br><img width="116" alt="" src="../../../asset/image/example/widget-title-pane.png"> | **Split pane**<br><img width="457" alt="" src="../../../asset/image/example/widget-split-pane.png"> | **Scroll bar**<br><img width="20" alt="" src="../../../asset/image/example/widget-scroll-bar.png"> |
-| **Scroll pane**<br><img width="401" alt="" src="../../../asset/image/example/widget-scroll-pane.png"> | **Shell**<br><img width="600" alt="" src="../../../asset/image/example/widget-shell.png"> | **Tabbed pane**<br><img width="600" alt="" src="../../../asset/image/example/widget-tabbed-pane.png"> |
-
-### Extension widgets
-
-| | | |
-|---|---|---|
-| **Badge**<br><img width="114" alt="" src="../../../asset/image/example/widget-badge.png"> | **Separator**<br><img width="261" alt="" src="../../../asset/image/example/widget-separator.png"> | **Card**<br><img width="362" alt="" src="../../../asset/image/example/widget-card.png"> |
-| **Switch**<br><img width="44" alt="" src="../../../asset/image/example/widget-switch.png"> | **Progress**<br><img width="260" alt="" src="../../../asset/image/example/widget-progress.png"> | **Slider**<br><img width="260" alt="" src="../../../asset/image/example/widget-slider.png"> |
-| **Radio group**<br><img width="166" alt="" src="../../../asset/image/example/widget-radio-group.png"> | **Avatar**<br><img width="64" alt="" src="../../../asset/image/example/widget-avatar.png"> | **Alert**<br><img width="442" alt="" src="../../../asset/image/example/widget-alert.png"> |
-| **Skeleton**<br><img width="260" alt="" src="../../../asset/image/example/widget-skeleton.png"> | **Toggle**<br><img width="80" alt="" src="../../../asset/image/example/widget-toggle.png"> | **Toggle group**<br><img width="260" alt="" src="../../../asset/image/example/widget-toggle-group.png"> |
-| **Select**<br><img width="220" alt="" src="../../../asset/image/example/widget-select.png"> | **Textarea**<br><img width="340" alt="" src="../../../asset/image/example/widget-textarea.png"> | **Accordion**<br><img width="411" alt="" src="../../../asset/image/example/widget-accordion.png"> |
-| **Table**<br><img width="505" alt="" src="../../../asset/image/example/widget-table.png"> | **Tree**<br><img width="174" alt="" src="../../../asset/image/example/widget-tree.png"> | |
-
-## Theme
-
-A single `WidgetTheme` token object (a neutral
-zinc palette: `background`, `foreground`, `card`, `muted`, `primary`,
-`destructive`, `border`, `input`, `ring`, `radius`, …) drives widget look and
-feel. It is the source of truth; individual widgets should not carry their
-own colors. Two presets ship:
-`make_light_theme()` (the default) and `make_dark_theme()`. Pass one to the
-projection factory:
+`WidgetToGraphics(font; measure, theme)` returns a `TypeDispatchingProjection` with one rule for each widget type and one for `GridLayout`. `WidgetTabPage` and `WidgetAccordionItem` have no rule, because the printer of the parent draws them, so the table has 42 widget rules. A caller wraps the result in `RecursiveProjection`, or puts its `.dispatch` pairs into a larger table:
 
 ```julia
-WidgetToGraphics(font; measure=measure_sdl_text, theme=make_dark_theme())
+widgets    = WidgetToGraphics(font_ubuntu_regular_20; measure = measure_truetype_text)
+projection = RecursiveProjection(TypeDispatchingProjection(vcat(
+    LayoutToGraphics().dispatch, widgets.dispatch)))
 ```
 
-The renderer leans on graphics primitives that anti-alias cleanly: `GraphicsRect`
-(per-corner radius + optional `border_width`/`border_color`), `GraphicsLine`, and
-`GraphicsCircle`. Offscreen `write_image` supersamples (2×) for smooth output.
+A printer returns a `GraphicsCanvas` whose elements, width and height are computed cells. A leaf pushes text, rectangles and lines. A container prints each child through `recursion`, keeps the IO map of each child with `reconcile_child_iomap`, and places the child canvases. So a change of one cell draws again only what reads that cell.
 
-## Shared visual fields
+The size of a widget follows the rules of the layout package: the policy of a child is on its container, and a container that bounds a child clips it. [layout.md](../layout/layout.md#the-size-that-a-parent-offers) describes the available size, and [layout-rules.md](../../rule/layout-rules.md) states the rules. `WidgetTable` places its cells with a `GridLayout` and draws its lines and header band over the geometry of the grid.
 
-The original widgets carry seven base styling fields:
+A `WidgetSplitPane` makes its per-slot cells and child IO maps for the number of slots that it has. So its printer runs the part that depends on the slots inside a cell that reads the slot list. A slot that is added or removed prints the children again, and the IO map of the pane keeps its identity.
 
-- `visible::Bool` — show/hide
-- `margin::Inset`, `margin_color::StyleColor` — outer margin
-- `border::Inset`, `border_color::StyleColor` — border
-- `padding::Inset`, `padding_color::StyleColor` — inner padding
+### The theme
 
-These map to nested CSS-style boxes. `Inset` (defined in
-[document/Geometry.jl](../../../source/style/Geometry.jl)) holds four
-sides; helpers `inset_size`, `inset_top_left`, etc. compute derived values.
-The default value is `inset_default`.
+`WidgetTheme` holds the tokens that many widgets read: the palette, the fonts, the radius, the paddings, `gap`, `border_width`, `stroke`, `chevron`, the default `inset`, and four text styles. The factory derives the style fields of each projection from the theme and gives the dimensions that only one widget uses, such as the size of a switch. So every palette color of a widget comes from the theme. Four presets exist: `make_light_theme` and `make_dark_theme` are neutral zinc, and `make_slate_light_theme` and `make_slate_dark_theme` are slate with an indigo accent. The default is `make_slate_light_theme(font = font)`.
 
-## Interaction state
+An icon is a `Symbol`, not an image. `register_icon!(:name, renderer)` stores a renderer `(elements, x, y, size, color) -> nothing`, so an icon takes the color of its label and scales with the font. A renderer can draw vectors, a glyph of an icon font with `make_glyph_icon`, or an image with `make_image_icon`. An image does not take the color. An unknown name draws nothing.
 
-Alongside `visible`, interactive widgets carry a shared **`enabled::Bool`**
-(default `true`) — the second cross-cutting interactivity flag. The convention
-for it is uniform:
+### A press goes by coordinate
 
-- **Reader gating.** A widget's `read_intent` returns `nothing` for every
-  event when `w.enabled === false` (guard at the top, before any operation is
-  produced). A disabled control emits no action, no edit, and no transient state
-  change.
-- **Muted appearance.** Its printer branches on `w.enabled === false` and renders
-  with the theme's `muted` / `muted_foreground` tokens instead of its normal
-  surface/foreground, and drops interaction affordances (the button's drop
-  shadow, any hover/press surface).
+A container keeps an entry `(x, y, child_iomap)` for each child. For a pointer event, `_route_to_children` translates the point into the frame of each child and tests it with `hit_element_at` on the canvas of the child. The first child that is hit gets the event. It calls `read_child_event` of the layout package, which applies the Alt+press rule below. The container then roots the answer under its own field, for example `elements[i]`.
 
-`WidgetButton` and `WidgetCheckbox` are the reference implementations; other
-interactive widgets adopt `enabled` the same way (struct field next to `visible`,
-threaded through the convenience constructor, gate + muted branch).
+Each widget also compares the point with its own canvas in `_outside_widget`. A container clips before it routes, but a widget can have no container above it. Without this test, a button at the root answers a press 800 pixels to its right.
 
-Note that **focus is not a separate flag** — the focused widget is the *selected*
-one (`selection::Reference`, see [Selection](#selection)); there is no `focused`
-field.
+**A drag is not hit-tested.** `WidgetComposite` and `WidgetSplitPane` give `MouseDown`, `MouseMove` and `MouseUp` to the hit child first, and to each child in order when no child is hit. `WidgetTabbedPane` gives them to the tab that it shows. Two cases need this. A slot is drawn only where its content draws, so a splitter dragged past the text loses its release. The divider of a nested split is in the gap between two panes, and a hit test of the parent finds no element there.
 
-### Transient hover / press state
+A container routes a `MouseMove` only to the child under the pointer, so a widget gets no event when the pointer leaves it. `WidgetHoverTrackingProjection` wraps a widget chain for this. On each `MouseMove`, it gives the move to the chain, then routes a synthetic `MouseEnter` at the pointer. When the widget that answers is a different one, it routes a `MouseLeave` to the last widget, and returns the operations together. The tracker makes no widget operation of its own: `WidgetButton` sets `hovered` on an enter and clears it on a leave.
 
-`hovered` and `pressed` (today on `WidgetButton`) are **transient UI state**, not
-document content — they are not serialised. The convention:
+### A key goes by selection
 
-- The **reader** writes them via `ReplaceReferencedValueOperation(self, "hovered"/"pressed",
-  bool)` in response to `MouseEnter`/`MouseLeave` (hover) and `MouseDown`/`MouseUp`
-  (press); see [Button behavior](#button-behavior).
-- The **printer** reads them to pick the surface fill (`pressed → active`, else
-  `hovered → hover`, else resting), and a disabled widget ignores them entirely.
+A key has no coordinate. `WidgetComposite`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetCard` and the layouts give a key only to the child that their own `selection` names. When the selection is not inside the container, the container returns `nothing`. No container gives a key to a default child, to the first child, or to every child. The selection is the focus, and no widget has a `focused` field. [focus.md](../focus/focus.md) describes the functions.
 
-A widget that needs interactive feedback copies this field-plus-cell pattern
-rather than inventing its own. Two shared helpers in
-[WidgetToGraphics.jl](../../../source/widget/WidgetToGraphics.jl)
-package it so a new widget opts in with two lines: `_hover_state_op(w, evt)` maps
-a `MouseEnter`/`MouseLeave` to the `hovered` write (call it from the reader), and
-`_push_hover_surface!(elems, w, enabled, …)` paints a faint themed surface behind
-the control while `enabled && w.hovered === true` (call it from the printer,
-*before* the content so it sits underneath). `WidgetButton`, `WidgetMenuItem` and
-`WidgetToolbarItem` are the reference adopters. The latter gives every menu, submenu, context menu,
-menu bar, and toolbar a highlight on the row under the pointer.
+`WidgetShell` is the one exception. It fires the `Action` of its menu bar or toolbar whose `shortcut` matches the key. Then it gives the key to each band and to the content in order, and takes the first operation.
 
-## Form & data widgets
+Tab moves the selection to the next focusable widget. A container gives Tab to its selected child first. When the child returns `nothing`, the container selects the first focusable document of the next sibling with `get_next_focusable_index`. At the end of the tree, `WidgetHoverTrackingProjection` wraps the selection to the first focusable document. The focusable types are the enabled controls of the `FocusableWidget` union in `WidgetDocument.jl`.
 
-The data-entry surface (Qt's `QFormLayout` / `QSpinBox` / `QListWidget` /
-`QStackedWidget`) is built from two new widgets, two layout features, and a
-validation hook. The gallery's **Forms** tab
-([example/substrate/WidgetDocumentExample.jl](../../../example/substrate/WidgetDocumentExample.jl))
-shows them together.
+A tabbed pane draws its first tab when its selection names no tab. `has_dormant_selection` is `true` for `WidgetTabbedPane`, `WidgetTabPage` and `WidgetSplitPane`, so a pane that loses the focus keeps the tab that it shows and the caret in that tab.
 
-- **`WidgetSpinBox(pos, value; min, max, step, width, validator)`** — a numeric
-  field with up/down steppers (the `:plus` / `:minus` icons). A click on a stepper
-  emits `ReplaceReferencedValueOperation(spin, "value", clamp(value ± step, min, max))`;
-  `Up`/`Down` do the same from the keyboard. The default `validator` is
-  `make_numeric_validator()`, so typing only commits numeric text. Disabled is inert.
-- **`WidgetList(pos, items; selected, width)`** — a single-column
-  selectable list (the sanctioned `QListWidget`). A left click selects the hit
-  row (drawing the accent selection band); `Up`/`Down` move the selection. An
-  empty list is inert.
-- **`FormLayout(rows; label_align=:right, …)`** — thin sugar over a two-column
-  `GridLayout`: each `row` is a `(label, field)` pair of **documents** (wrap text
-  labels in `WidgetLabel`). It builds `GridLayout(2; column_align=[label_align,
-  :left], column_stretch=[0, 1])` — the label column hugs (uniform width = widest
-  label), the field column fills. The per-column `column_align` / `column_stretch`
-  are a general `GridLayout` feature (Qt-grade grids); their defaults (empty)
-  reproduce the previous content-sized, single-`horizontal_align` behaviour, so
-  existing grids are unchanged. The field column only stretches when a parent
-  seeded an `available_width`. `FormLayout` lives in
-  [layout/LayoutModule.jl](../../../source/layout/LayoutModule.jl) (not Widget.jl)
-  because layouts load before widgets. It therefore takes pre-built label documents
-  rather than wrapping strings itself.
-- **`StackLayout(children; active=0)`** — `active = 0` keeps the original z-stack
-  (all children overlaid); `active = i` lays out **only** child `i`, sized to it —
-  the `QStackedWidget` page container. Out-of-range clamps to empty.
-- **Validators** — a `validator::Any` callable on `WidgetText` (and
-  `WidgetSpinBox`), consulted by the editable-text reader before a
-  `ReplaceStringRangeOperation` commits: an **acceptor** `(String) -> Bool` drops
-  the edit when it returns `false`. `nothing` (the default) imposes no constraint.
-  The built-in `make_numeric_validator(; integer=false, allow_negative=true)` accepts
-  digits with an optional sign / decimal point.
+### Selecting a whole widget
 
-## A form of object fields
+A left press with Alt and no other modifier selects the innermost document under the pointer as a whole. The rule is in `read_child_event`, which every widget container calls, and it uses `convert_to_whole_selection` of the focus package. A control never acts on an Alt+press, because the rule drops the action that the control returns. No widget declares that it can be selected.
 
-`ObjectToWidget` reflects **one** object into a fixed two-column grid of that
-object's own fields. A form usually needs less and more at once: three fields of
-this object, one of that one, in an order and a layout the author chose.
-`ObjectField` is the document for that, and `ObjectFieldToWidget` is its
-projection.
+A container whose selection names a child as a whole draws a ring over that child with `make_selection_ring`. The composite, the card, the tabbed pane and every layout keep one ring as the last element, with no size while nothing is selected. A focusable control gets no ring, because it draws its own focus ring. So a projection must not write a fixed routing path into the `selection` cell of a container, or the container draws a ring.
 
-`ObjectField(object, path)` names one field of one object. `object` is a stable
-root; `path` is a `Reference` from that root to the value. There is a
-`ObjectField(object, "name")` shorthand for the common one-step path, the same
-shorthand `ReplaceReferencedValueOperation` already offers.
+A projection can draw a widget that no document of the domain stands behind, such as the table of a form. An `OutputReferenceStep` of the focus package names such a widget from the document that it was drawn for.
 
-The projection emits the **bare control** and no label. A `GridLayout` takes a
-flat child list, so a label and its control must be two separate children; a
-projection that emitted both could never put them in different columns. The
-author writes the label, which is what makes `FormLayout` the natural container:
+### Operations
+
+Most widget edits are one write into the widget: `ReplaceReferencedValueOperation(widget, "field", value)`. The operation carries the widget itself, so it passes unchanged through every container above. A scroll, a zoom, a hover, a toggle and a spin box step are all such writes.
+
+The other operations are in `WidgetDocument.jl`:
+
+| Operation | Made by |
+| --- | --- |
+| `InvokeActionOperation(action)` | a click on a button, a menu item or a toolbar item, and a matching shortcut |
+| `CloseTabOperation`, `OpenTabOperation`, `DragTabOperation`, `DuplicateTabOperation` | a button of the tab strip, or a button down on a tab |
+| `StartSplitterDragOperation`, `ResizeSplitPaneOperation`, `EndSplitterDragOperation` | a drag of a divider of a split pane |
+
+These name their subject and not a place. `operation_travels_unchanged` is `true` for them, except `DuplicateTabOperation`, so the generic reader of every projection passes them up. So a button inside a card inside a domain projection reaches the editor. A tab click is a `ReplaceSelectionOperation` of `selector_element_pairs[i]`.
+
+The four tab-strip operations only report a press. A tabbed pane draws the buttons when its flags `closable`, `new_tab`, `draggable` and `duplicable` are set. The meaning of a close belongs to the projection that owns the tabs: [pane.md](../pane/pane.md) answers all four. A report that no projection answers does nothing in `evaluate_operation`. `_tab_strip_geometry` lays out the strip for the printer and the reader both, so a change of the strip goes into that function.
+
+`evaluate_operation` of `InvokeActionOperation` calls the `callback` of the action: with the editor when it takes one argument, else with none. A disabled action does nothing.
+
+### The drag of a splitter
+
+The drag state of a `WidgetSplitPane` is in cells of the pane, because the pipeline of events has no state:
+
+- `sizes` holds the extent of each slot. The start of a drag fills it from the measured extents when it is empty.
+- `active_splitter` is `0`, or `k` while the divider after slot `k` is held.
+- `drag_anchor` holds the grab point and the two sizes at the grab, so each move computes from the grab and not from the last move.
+- `pinned` marks each slot that a drag has set. The allocator then gives a pinned slot its `sizes` extent and no share of the weights, so a later print does not undo the drag.
+
+Each move adds a delta to slot `k` and takes it from slot `k+1`, clamped to the minimum and maximum of each slot.
+
+### Actions
+
+An `Action(label; icon, enabled, shortcut, callback)` is one command that a menu item, a toolbar item, a button and a shortcut can share. A control reads the cells of its action, so a change of the label or of `enabled` draws again every control that shows it. A control is enabled when its own `enabled` and the one of its action are both `true`. `Shortcut(:s; ctrl = true)` makes the key pattern.
+
+### Popups and dialogs
+
+A popup is a window of its own, as a tooltip is. A trigger, such as `WidgetSelect`, a `WidgetMenuItem` with a submenu, or `WidgetContextMenu`, returns an `OpenPopupOperation(anchor, dx, dy, content, auto_dismiss)` of the screen package. `anchor` is the reference of the trigger, and the trigger does not compute a screen position. `WidgetPopupResolverProjection` sits at the root of the window content. It maps `anchor` forward with `get_anchor_point` and returns an `OpenWindowOperation` with `style = :floating`. The forward image of a widget is a `PointReferenceStep`, and each container adds the offset of the child to it, so the point is correct in the frame of the window.
+
+A popup closes on a `WindowClose` of its window, and on a `WindowDefocus` when `auto_dismiss` is set. A click on an option or a menu item writes its value and closes the popup in one `CompoundOperation`.
+
+`ContextMenuProbeProjection` wraps a window content. On a right press that nothing inside answers, it finds the document under the pointer with an Alt+press, calls `compute_context_menu` on it, and opens the menu with an `OpenPopupOperation`.
+
+A `WidgetDialog` opens as a window with `modal = true`. `WindowManagingProjection` then drops the input of every other window. Escape, a click on the scrim, or a button closes the dialog. [screen.md](../screen/screen.md) describes the windows, and [shell.md](../shell/shell.md) says where the resolver and the probe go in a window.
+
+### From a domain to widgets
+
+Three projections turn objects of a domain into widgets:
+
+- **`ObjectToWidget(; fields)`** reflects one object into a form: a `WidgetComposite` with a two-column `GridLayout` of labels and controls. A `Bool` becomes a `WidgetCheckbox`, and a string or a number becomes a `WidgetText`, which a person can edit when the field is a cell. A nested struct with cell fields and a vector become a collapsible `WidgetCard`. Below depth 16 the walk shows a nested value read only. The IO map holds a `(control, path)` pair for each control, and the reader turns an edit into `ReplaceReferencedValueOperation(root, path, value)`.
+- **`ObjectFieldToWidget()`** projects one `ObjectField(object, path)` to a control without a label. So a `FormLayout` can put fields of different objects in rows that the author labels. The control writes through the path, so it can edit an element of a vector, which `ObjectToWidget` shows read only. It uses the classification and the coercion of `ObjectToWidget`.
+- **`CellTableToWidgetTable()`** wraps a `CellTable` in a `WidgetTable`. Row 1 holds the headers. Each value becomes a `PrimitiveString`, `PrimitiveNumber` or `PrimitiveBool`, so the table draws it through its content recursion and names no domain.
+
+`ProjectionConfiguringProjection` uses `ObjectToWidget` on a projection object. It shows the parameters of the projection above the document in a `WidgetSplitPane`, and Ctrl+F toggles them. A control writes the same cells that the projection reads, so the document prints again at once.
+
+`ReflectionToWidget` of the reflection package draws a reflected object as a `WidgetTree`; [reflection.md](../reflection/reflection.md) compares the two paths.
+
+### The table as a list
+
+The `rows` of a `WidgetTable` can be a `ListNode`. `WidgetTableList.jl` then walks the list from its `head` in both directions and builds only the rows that the viewport shows. Each column must have a `Fixed` width or a weight, because a column that is as wide as its content would read rows that were never built. The table reports a width and no height, so it goes inside a `WidgetScrollPane`.
+
+### The transform pane
+
+`WidgetTransformPane` holds one affine `transform`, where a scroll pane holds one offset. Ctrl and the wheel zoom about the pointer, with a total scale from 0.25 to 4.0. The wheel alone pans. Ctrl with `=`, `-` or `0` zooms about the center, but only after the content returns `nothing` for the key. Other events go to the content, with the point mapped through the inverse transform.
+
+## How it fits
+
+`ProjecturedWidget` depends on the kernel and on `ProjecturedCollection`, `ProjecturedFocus`, `ProjecturedGraphics`, `ProjecturedLayout`, `ProjecturedDomain`, `ProjecturedPrimitive`, `ProjecturedProjection`, `ProjecturedScreen`, `ProjecturedSerialization`, `ProjecturedStyle` and `ProjecturedText`. `ProjecturedPane`, `ProjecturedShell`, `ProjecturedReflection`, `ProjecturedNatural`, `ProjecturedConversation`, `ProjecturedAssistant` and `ProjecturedFileSystem` use it. A page of `markdown` or `rst` puts a block of another domain in the card that `make_embed_card` builds.
+
+The `__init__` registers `WidgetShell` as a `.pred` type. The widgets register no natural row: `NaturalToGraphics` adds the rules of `WidgetToGraphics` to its own table. A widget answers `compute_tooltip` with its `tooltip` field, and `WidgetShell` answers `compute_context_menu` with its `context_menu` field.
+
+## Design decisions
+
+- **A key goes only where the selection is.** A default child or a broadcast gives a key to a widget that the person did not choose. See `plan/done/widget-focus-traversal.md`.
+- **One theme for every widget.** A widget with its own colors can not follow a change of the palette. See `plan/done/widget-shadcn-styling.md`.
+- **A popup is a real window.** An overlay layer inside the window was rejected. The close of a popup is a focus event of its window, which the window manager already sends for the tooltip. See `plan/done/widget-popup-overlay.md`.
+- **A drag of a divider keeps its state in the document.** The size of a slot is data that must survive the next print. See `plan/done/split-pane-drag-resize.md`.
+- **An instance can have its own gestures.** `WidgetButton`, `WidgetCheckbox`, `WidgetSwitch`, `WidgetMenuItem`, `WidgetToolbarItem`, `WidgetTree` and `WidgetTreeNode` have a `gestures` field. `read_bound_gesture` reads it before the table of the type, so one instance can add, replace or remove a gesture with no new widget type. See `plan/done/widget-per-instance-gestures.md`.
+- **The tracker detects the crossing; the widget sets its state.** A new widget reacts to hover with no change of the tracker. See `plan/done/widget-button-hover-press-feedback.md`.
+- **One pane for scroll and zoom.** A zoom viewport inside a scroll viewport clips at a fixed box, and its clip conflicts with the pan of the outer one. See `plan/done/widget-transform-pane.md`.
+- **One table widget, eager or lazy.** A second, lazy table widget and a separate table domain would each repeat the placement of the grid. See `plan/done/one-table-widget.md` and `plan/done/converge-table-on-widgettable.md`.
+
+## Usage
 
 ```julia
-FormLayout([
-    (WidgetLabel(Point2D(0, 0), "Server name"), ObjectField(server, "name")),
-    (WidgetLabel(Point2D(0, 0), "Client name"), ObjectField(client, "name")),
-    (WidgetLabel(Point2D(0, 0), "Capacity"),    ObjectField(server, "capacity")),
-    (WidgetLabel(Point2D(0, 0), "Enabled"),     ObjectField(server, "enabled")),
-])
+save    = Action("Save"; icon = :save, shortcut = Shortcut(:s; ctrl = true),
+                 callback = editor -> save_all!(editor))
+toolbar = WidgetToolbar(Any[WidgetToolbarItem(save)])
+form    = FormLayout([(WidgetLabel(Point2D(0, 0), "Name"),     ObjectField(server, "name")),
+                      (WidgetLabel(Point2D(0, 0), "Capacity"), ObjectField(server, "capacity"))])
+open_pane!(editor, WidgetSpinBox(Point2D(0, 0), 10; min = 1, max = 100, width = 80); title = "Runs")
+run_example(widget_transform_pane_example)
+write_example_image(widget_tree_example, "tree.png")
 ```
 
-The value type picks the control, through the classification `ObjectToWidget`
-uses: a `Bool` becomes a `WidgetCheckbox`, a string or a number a `WidgetText`,
-anything else a read-only `WidgetLabel`. Pass `controls` to add a row for a
-domain type. The control is chosen once and its content is then bound reactively,
-so a write from anywhere repaints it and the caret survives an ordinary edit.
-
-Projecting the form is two stages. The first replaces every `ObjectField` with
-its control and copies the rest; the second draws the result.
-
-```julia
-ChainingProjection(
-    RecursiveProjection(TypeDispatchingProjection(
-        ObjectField => ObjectFieldToWidget(),
-        Any         => CopyingProjection())),
-    <the widget renderer>,
-)
-```
-
-`CopyingProjection` is what makes the walk work. It recurses a struct document
-field by field through `print_child`, so the dispatch meets each `ObjectField`
-wherever the author put it.
-
-### A vector element edits here
-
-`ObjectToWidget` renders a vector element read-only. Its printer registers a
-control only when it holds the field's backing `Cell`, and a `@document` field is
-a cell while a vector's *elements* live inside one. `ObjectField` needs no cell:
-it writes through the path, and `ElementReferenceStep(i)` is the
-`RangeReferenceStep(i-1, i)` the kernel already writes as `parent[i] = value`.
-
-One trap comes with that. The kernel overloads the same terminal step with an
-`AbstractVector` value as a **splice**. An `ObjectField` whose value is itself a
-vector can not be written by a plain replace; the write would delete and
-re-insert.
-
-## Widget operations
-
-Most widget edits are a **single-field write into a carried widget**, so the
-`WidgetToGraphics` reader emits a self-contained
-`ReplaceReferencedValueOperation(widget, "field", value)` (see
-[operation.md](../kernel/operation.md#the-generic-write-operation-replacereferencedvalueoperation))
-rather than a bespoke operation. Because the widget is carried by identity
-(`document !== nothing`), the write bubbles up through every container unchanged.
-
-| Gesture | Operation emitted |
-|---|---|
-| show / hide | `ReplaceReferencedValueOperation(w, "visible", true/false)` |
-| enable / disable | `ReplaceReferencedValueOperation(w, "enabled", true/false)` (disabled readers emit nothing) |
-| scroll wheel | `ReplaceReferencedValueOperation(scroll_pane, "scroll_position", old + Δ)` (reader reads `old`) |
-| wheel over a tab strip | `ReplaceReferencedValueOperation(tabbed_pane, "tab_scroll", clamped)` — scrolls overflow tabs into view |
-| Ctrl+wheel / wheel on a transform pane | `ReplaceReferencedValueOperation(transform_pane, "transform", M')` (zoom about cursor / pan) |
-| Ctrl+`=`/`-`/`0` on a transform pane | `ReplaceReferencedValueOperation(transform_pane, "transform", M')` (zoom in/out / reset, about centre) |
-| drag scroll-bar | `ReplaceReferencedValueOperation(bar, "value", clamped)` |
-| hover / press a button | `ReplaceReferencedValueOperation(widget, "hovered"/"pressed", bool)` |
-
-The operations that remain bespoke (genuinely not single-slot writes) are defined
-alongside the widget types in
-[widget/WidgetDocument.jl](../../../source/widget/WidgetDocument.jl):
-
-| Operation | Effect |
-|---|---|
-| `SelectTabOperation(tabbed_pane, index)` | event-like "tab clicked"; the pane package overloads it into a document-selection move |
-| `CloseTabOperation` / `OpenTabOperation` / `DragTabOperation` / `DuplicateTabOperation` | the other four event-like strip reports — see [Strip reports](#strip-reports) |
-| `StartSplitterDragOperation` / `ResizeSplitPaneOperation` / `EndSplitterDragOperation` | drag a split-pane splitter to resize the two adjacent slots |
-| `InvokeActionOperation(action)` | invoke a control's `Action` — its `callback` runs (with the editor if it takes one), guarded by the action's `enabled` |
-
-The `WidgetToGraphics` reader produces these in response to
-`MousePress`/`MouseScroll`, routing each through the appropriate container
-via hit-testing.
-
-### Splitter drag-to-resize
-
-A `WidgetSplitPane` splitter is draggable. The reader recognises a
-`MouseDown(:left)` inside a splitter's gap (`thickness` plus a few pixels of
-grab tolerance), then resizes the two adjacent slots on each `MouseMove` until
-`MouseUp`. The drag is **stateful but the event pipeline is not**, so the
-in-progress drag lives on transient cells of the pane itself:
-
-- `active_splitter::Int` — `0`, or `k` while the splitter after slot `k` is held.
-- `drag_anchor` — `nothing`, or `(coord, size_a, size_b)` recording the grab
-  origin so every motion resizes *relative to the grab* (no accumulated rounding
-  drift).
-- `pinned::CellVector` — per-slot `Bool`; a slot dragged at least once is laid
-  out at its `sizes` extent exactly.
-
-Each move grows slot `k` and shrinks slot `k+1` by the same delta (total
-conserved), clamped to each slot's `layout_min`/`layout_max`. In the
-*unconstrained* regime `sizes[k]`/`sizes[k+1]` are written directly; in the
-*constrained* regime (`allocate_axis`) the dragged slots are **pinned** — their
-`sizes` value becomes a hard preference and their layout weight is zeroed, so
-the drag sticks instead of being undone by weighted redistribution. `sizes` is
-materialised from the measured slot extents on the first drag if it was empty.
-These cells are transient UI state and are not meant to be serialised.
-
-## Strip reports
-
-A tab strip can offer four more things than a tab click, each opt-in on the
-pane, and each *reporting* rather than deciding:
-
-| Flag | Draws | Reports |
-|---|---|---|
-| `closable` | a close button on every tab | `CloseTabOperation(pane, index)` |
-| `new_tab` | a `+` button after the last tab | `OpenTabOperation(pane)` |
-| `draggable` | nothing | `DragTabOperation(pane, index)` on a left button down over a tab, except on its buttons |
-| `duplicable` | a `+` on every page whose own `duplicable` is set | `DuplicateTabOperation(pane, index)` |
-
-A tab's buttons share one column at its right edge, as wide as the label is
-tall. A page that is closable and duplicable splits the column across the height
-of the strip: the `+` in the top half, the `x` in the bottom half. A page with
-one button draws it across the whole column. `WidgetTabPage` carries the page's
-own `duplicable`, and a caller passes it as the fourth part of a tab tuple,
-`(label, element, icon, duplicable)`.
-
-The strip reports a button was pressed and **nothing about what it means** — what
-closing a tab does to the document behind it is the owning projection's business,
-exactly as `SelectTabOperation` already worked. A report that nobody claims is
-inert: `evaluate_operation` does nothing with it rather than failing.
-
-`_tab_strip_geometry` is the single place that lays out the strip, and both the
-printer and the reader read it — extend that function, never its callers, or the
-drawn tab and the hit-tested tab drift apart.
-
-The [pane domain](../pane/pane.md) is the reference consumer of all four.
-
-## A drag is not hit-tested
-
-A container routes a `MousePress` to the child under the pointer, and rightly
-drops it when the pointer is over nothing. The three events a **drag** is made of
-— `MouseDown`, `MouseMove`, `MouseUp` — are different: the widget that holds a
-drag must keep receiving them even when the cursor strays off anything drawn, or
-it never learns that the button came up and stays held forever.
-
-`WidgetComposite` and `WidgetSplitPane` therefore offer those three to the hit
-child first, exactly as a click, and then — only if nothing was hit — to their
-children in order. `WidgetTabbedPane` forwards them to its active tab ungated for
-the same reason.
-
-Two cases this covers, both of which look like "the drag does not work":
-
-- A slot is drawn only where its content draws, so a splitter dragged past the
-  text loses its own release and stays held.
-- **A nested split's divider lives in exactly that gap.** It is drawn inside the
-  child, but the parent hit-tests the child's canvas first, and a hairline
-  between two panes is not a hit. So without the ungated pass only the outermost
-  splitter can ever be grabbed.
-
-## A split pane follows its slots
-
-Every per-slot cell, child IoMap and canvas child a `WidgetSplitPane` builds is
-built for the slot count it saw, so a slot **added or removed** can not be
-threaded through the ones already standing. The printer therefore runs its
-slot-dependent body inside a cell that reads the slot list: adding a pane
-re-derives the layout, and everything downstream — the canvas, the child IoMaps
-the reader routes through — follows. The IoMap object itself survives, so a
-consumer that holds one (the editor does) keeps it.
-
-The cost is that a slot change **re-prints the children**. Reusing their IoMaps
-across it would mean building each child's context before the allocation that
-context depends on, which is the cycle the printer's forward-declared
-`alloc_cell` already threads once; a second pass would have to run inside the
-very cell it feeds.
-
-`WidgetTabbedPane` needs none of this — it reconciles its tab list already.
-
-## Button behavior
-
-`WidgetButton` is interactive. Its reader maps mouse events to operations, and
-its printer renders from transient state — the same input → operation → input →
-printer loop every other widget uses:
-
-- **Click → action.** A `MousePress(:left)` on the button yields an
-  `InvokeActionOperation(button.action)`. The editor evaluates it by calling the
-  action's `callback` — with the editor when it takes one argument (so it can
-  mutate `editor.document` / projection state), otherwise with none. An action
-  with no callback is inert on click, and its `dialog` (if any) opens instead.
-  A projection that renders controls inside its own output must pass the
-  operation on — see **Hosting controls** below.
-- **Hover / press feedback.** The button carries two transient cells,
-  `hovered` and `pressed` (like the split pane's drag state — not serialised).
-  `MouseDown` / `MouseUp` set `pressed`; a `MouseMove` over the button sets
-  `hovered`. The printer reads both and picks the surface fill
-  (`pressed → active_color`, else `hovered → hover_color`, else
-  `background_color`) and drops the drop-shadow while pressed, so the button
-  re-renders reactively as its state changes.
-
-### Hosting controls
-
-A projection that renders controls inside its own output owns one more
-responsibility: passing their activations on. A press answers with
-`InvokeActionOperation`, which names its own `Action` and needs no re-rooting —
-but the generic reader forwards only what it recognises and returns `nothing`
-for everything else, so a hosting projection with no reader for it swallows the
-press. The control renders, takes the click, answers, and the answer goes
-nowhere. One method fixes it:
-
-```julia
-read_intent(::MyProjection, iomap, op::InvokeActionOperation) = op
-```
-
-A projection whose catch-all reader (`read_intent(::MyProjection, iomap, op)`)
-already forwards every `Operation` needs nothing.
-
-**Naming the projection is load-bearing.** The seemingly simpler
-`read_intent(::Projection, iomap, op::InvokeActionOperation)` — one rule for
-every projection at once — cannot work: it ties with that catch-all, since each
-signature is more specific in one argument and less in another. The tie is
-invisible until the first activation reaches such a projection, and then it is a
-`MethodError`, not a dead button. This is a property of the 3-argument reader,
-which dispatches on the payload.
-
-### Enter / leave: `WidgetHoverTrackingProjection`
-
-Container hit-test routing delivers a `MouseMove` only to the child *under* the
-pointer, so a button learns when the pointer enters it but never when it leaves.
-
-The split of responsibility is deliberate: the **generic tracker determines
-*when* the pointer crosses a boundary; each widget determines *what that
-means* for its own state.** `WidgetHoverTrackingProjection`
-([projection/higherorder/WidgetHoverTracking.jl](../../../source/widget/WidgetHoverTracking.jl))
-is transparent on print; on each `MouseMove` it:
-
-1. routes a synthetic `MouseEnter` at the pointer into the inner pipeline — the
-   widget under the pointer answers with an operation identifying itself (an
-   opaque `widget` field; the tracker inspects nothing else);
-2. if that target is unchanged, emits nothing;
-3. if it changed, routes a synthetic `MouseLeave` to the previously-entered
-   widget (at the last position over it) so *it* undoes its own state, and
-   forwards both responses (bundled as a `CompoundOperation`).
-
-So the tracker constructs **no** widget-specific operation — it only delivers
-`MouseEnter` / `MouseLeave` and forwards whatever the widget returns. The
-`WidgetButton` reader is what maps `MouseEnter` → `hovered = true` and
-`MouseLeave` → clear `hovered`/`pressed`. A different widget can react to the
-same crossings differently. `MouseEnter` / `MouseLeave` are synthesised
-(not backend) pointer gestures in `EventModule`; the tracker
-mirrors `HoverProbeProjection` in shape.
-
-To make this work, the container readers route `MouseEnter` / `MouseLeave` /
-`MouseDown` / `MouseUp` to the hit child, alongside the `MousePress` /
-`MouseScroll` they already routed. `WidgetComposite` does it for free-positioned
-children; `WidgetMenu` and `WidgetToolbar` route the crossings to their items
-(`_route_crossing_to_children`) so the menu/toolbar hover surfaces light up, and
-the toolbar routes `MousePress` too, so its items are clickable. Wiring the
-remaining containers, such as the shell and the split pane, is follow-up work;
-these examples cover the menu, toolbar, and free-layout cases.
-
-## Popups (the window route)
-
-Dropdowns, click-menus, submenus, and context menus all open as **real
-`WindowDocument`s** through the same `WindowManager` route the tooltip uses —
-there is no separate in-window overlay layer. The flow:
-
-1. A **trigger** (`WidgetSelect`, a submenu-opener `WidgetMenuItem`, a
-   `WidgetContextMenu`) captures its own document path from `ctx.reference` at
-   print time and, on the opening gesture, emits an
-   **`OpenPopupOperation(anchor, dx, dy, content, auto_dismiss)`** — the *anchor*
-   names the widget to open under (or at, for a context menu) and `(dx, dy)` is a
-   trigger-baked offset (the trigger bakes its own size in, so "below the box" is
-   `(0, box_height + gap)` and a context menu uses the local click coordinates).
-   The trigger never computes its own absolute position.
-2. A **`WidgetPopupResolverProjection`** sits at the content root (for a windowed
-   app, *between* `WindowManagingProjection` and `ScreenToScreen`). It intercepts
-   the `OpenPopupOperation`, forward-maps the anchor to absolute coordinates via
-   `get_anchor_point` (which rides `map_reference_forward`), adds the offset, and
-   emits an **`OpenWindowOperation`**. That bubbles up to `WindowManager`, which
-   opens the popup window (`style = :floating`).
-3. **Dismissal** is a window-level event: the popup window's
-   `WindowClose` (Esc / close) or `WindowDefocus` (outside-click) becomes
-   a `CloseWindowOperation`. The `auto_dismiss` flag gates focus-lost so only
-   popups (never the default window) self-close. An option/menu-item click writes its
-   value **and** closes the popup in one `CompoundOperation`.
-
-**Anchor resolution across windows.** A widget's forward image is a
-`PointReferenceStep` (its top-left in the output canvas frame), not a structural
-path. Containers shift that point by where they placed the child (a layout by the
-child's offset, `WidgetShell` by its band offset, and `ScreenToScreen` by the
-window's screen origin), while structural paths pass through unchanged —
-*coordinates accumulate, paths stay paths*. This is what lets a menu-bar entry or
-a select buried inside `shell → layout → window` resolve to an absolute screen
-position so its popup opens in the right place. See `make_widget_popup_*_example`
-and `WidgetPopupExampleTest` for the end-to-end wiring.
-
-### Modal dialogs (`WidgetDialog`)
-
-A `WidgetDialog(title, content, buttons)` is a centered card over a translucent
-scrim, opened as a window with **`modal = true`**. Unlike the popups above it is
-**not anchored** (it is centered, so it needs none of the anchor-resolution
-machinery) but it **is modal**:
-
-- **Modality is a `WindowManager` concern.** While any window has `modal = true`,
-  the manager's reader **drops every `WindowInput` routed to a different
-  window** — the base content receives no input, with no per-widget swallowing.
-  This reuses the existing `window_id` routing rather than fighting it. A modal
-  window ignores focus-lost auto-dismiss (it is dismissed by an explicit choice).
-- **Dismissal**: `Esc`, a **backdrop click** (on the scrim, outside the card), or
-  a **button** — a button click runs its action *and* closes the window named by
-  the dialog's `popup_id`, in one `CompoundOperation` (the same pattern as a menu
-  item / dropdown option).
-- **Opening**: a `WidgetButton` with a `dialog` field emits
-  `OpenWindowOperation(modal = true, content = dialog)` on click;
-  `WidgetMessageBox` / `WidgetInputDialog` are convenience builders.
-- **`modal` flag**: carried on `WindowDocument` and `OpenWindowOperation` beside
-  `auto_dismiss`, copied through by `WindowManager`/`ScreenToScreen`.
-
-**Deferred (v1 limitation):** the scrim fills the dialog's own window, which opens
-at a generous fixed box. A true full-screen scrim and exact screen-centering need
-a screen-size source the document model does not yet carry (`ScreenDocument` holds
-only per-window `x/y/w/h`). The modal *input blocking* is complete regardless of
-window size.
-
-## Actions & shortcuts (`Action`)
-
-An `Action(label; icon, enabled, shortcut, callback)` is a shared command object
-(Qt's `QAction`): a menu item, a toolbar button, and a keyboard shortcut can all
-reference the **same** `Action`, so one object drives all three and toggling its
-`enabled` disables all of them at once.
-
-- **Every control has one.** `WidgetMenuItem`, `WidgetToolbarItem` and `WidgetButton` carry an
-  `action::Action` and nothing else about the command — there is no second
-  behaviour or appearance field, so no precedence rule. Pass an `Action` to bind
-  a shared command; pass a bare callable (or nothing) and the constructor folds
-  the control's own `content` and `icon` into a **fresh** `Action`. A click
-  emits `InvokeActionOperation(action)`. A toolbar button is a
-  `WidgetToolbarItem`, which inherits this.
-- **A bound control is a LIVE view.** It reads the action's cells rather than
-  owning copies, so renaming a command or disabling it re-renders every control
-  bound to it with no re-binding step. A control never writes to a shared
-  action: an own label or icon that differs from the bound action's is a
-  constructor error, not a silent loss — make a second `Action` sharing the
-  `callback` if two views need different faces.
-- **Enablement is a conjunction.** The effective state is the control's own
-  `enabled` **and** the action's, so one view can be inert while the shared
-  command stays live in its others.
-- **Shortcuts.** `Shortcut(:s; ctrl=true)` builds the chord (a `KeyDownPattern`
-  with exact-modifier matching). The `WidgetShell` reader collects the commands
-  carrying a shortcut from its `menu_bar`/`toolbar` — the menu *is* the registry —
-  and, on a `KeyDown`, fires a matching enabled action **before** forwarding the
-  key to the focused child. So `Ctrl+S` works regardless of which widget is
-  selected; a non-matching key still reaches the selection.
-- **Status bar.** `WidgetStatusBar(segments)` is a thin, non-interactive bottom
-  band of stringified segments (Qt's `QStatusBar`); place one on a `WidgetShell`
-  via its `status_bar` field and it renders along the bottom edge. v1 uses a
-  fixed print-time bottom position, like the other bands.
-
-See `make_widget_shell_document_example` (menu + toolbar sharing `Action`s,
-`Ctrl+S`, a status bar) and `WidgetActionTest`.
-
-## Icons (`icon = :name`)
-
-An **icon is a named, theme-aware value — not a `GraphicsImage`**. `GraphicsImage`
-is a baked raster blit (no color field); an icon must tint to the widget
-foreground (and mute when disabled) and scale with the font, like text. So an icon
-is a **name**, and a registry maps it to a *renderer* with the uniform signature
-`(elems, x, y, size, color) -> nothing`. The widget printers ask the registry to
-*draw `icon` at the label's color and size* — they never branch on the backing, so
-three backings coexist:
-
-| Backing | Emits | Tints / scales |
-|---|---|---|
-| **Vector** (built-in set) | `GraphicsPolyline` / `Circle` / `Polygon` | ✅ — generalises the chevron drawer |
-| **Glyph-font** (`make_glyph_icon(font, codepoint)`) | `GraphicsText` | ✅ — needs a bundled icon font |
-| **Raster** (`make_image_icon(image)`) | `GraphicsImage` | ❌ — for brand art |
-
-- **Built-in vector names** (v1): `:save :folder :file :check :x/:close :plus
-  :minus :chevron_down :chevron_right :menu :pencil/:edit :trash/:delete :search`.
-- **Media-transport names** (filled shapes, for playback/simulation control):
-  `:play :pause :stop :step_forward/:step :finish` — play triangle, pause bars,
-  stop square, step triangle + bar, checkered finish flag.
-- **Tool names** (the pictures of the window's tools): `:chat` a speech bubble,
-  `:terminal` a `>_` in a frame, `:list` lines with a dot each, `:keyboard` a
-  row of keys, `:warning` a triangle with `!`, `:chart` three bars, `:crosshair`
-  a circle with a cross. A name says what the picture shows, not which tool
-  uses it.
-- **Register your own:** `register_icon!(:name, renderer)` — pass a vector closure,
-  or `make_glyph_icon` / `make_image_icon`. An unknown name draws nothing (zero width).
-- **On widgets:** `WidgetButton` and `WidgetMenuItem` take an optional `icon`,
-  drawn left of the label, tinted to its foreground. It is constructor sugar: the
-  icon lives on the control's `Action` (`action.icon`), which is how a menu item
-  and a toolbar button bound to one command share it. `WidgetToolButton(:save; …)`
-  is an icon-first button (Qt's `QToolButton`).
-- **On a toolbar:** a `WidgetToolbarItem` draws the icon of its action ALONE, as
-  tall as a line of the font, and the label only when the action has no icon.
-  The label stays on the action: an item with no tooltip of its own says the
-  label as its tooltip, so a button that shows only a picture still says what
-  it does.
-
-See `make_widget_document_example` (File menu / toolbar / tool-button row with
-icons) and `WidgetIconTest`.
-
-## Transform pane (zoom & pan)
-
-`WidgetTransformPane` is the scroll pane's generalisation: where a scroll pane
-carries a transient *offset* (`scroll_position`) and translates its content, a
-transform pane carries a transient *affine `transform`* (an `AffineTransform`,
-default `affine_identity`) and magnifies/pans it. Both project to a clipping
-`GraphicsViewport`; the viewport now carries a `transform` field, so the two are
-the same machinery — a scroll is `translate(−offset)`, a zoom is `scale(z)`.
-
-- **Why one node, not two nested panes.** A viewport *clips* at a fixed box, so
-  nesting a zoom viewport inside a scroll viewport makes the inner clip fight the
-  outer pan. A single viewport carrying one matrix and one clip composes cleanly,
-  and makes **zoom-toward-cursor** a single-document matrix update rather than a
-  cross-widget `scroll`+`zoom` coordination.
-- **Gestures (reader).** `Ctrl`+wheel zooms about the cursor
-  (`M' = T(c)∘S(f)∘T(−c)∘M`, total scale clamped to `[0.25, 4.0]`); a plain wheel
-  pans (`M' = T(Δ)∘M`). **Keyboard:** `Ctrl`+`=`/`-` zoom in/out and `Ctrl`+`0`
-  resets, all about the viewport centre. The keyboard zoom is a *fallback*.
-  The key is forwarded to the content first, so a `Ctrl`+`=`/`-` bound inside the
-  content (e.g. collection add/remove) still wins. Every edit is a single
-  `ReplaceReferencedValueOperation(pane, "transform", M')`, like other widget edits; other
-  events are forwarded to the content with the pointer mapped through
-  `compute_affine_inverse(M)`, then re-rooted at `.content` exactly as the scroll pane.
-- **`transform` is transient view state** (like `scroll_position`) — not
-  serialised.
-- **Renderer scope.** The SDL, web (`ctx.transform`), and PDF (`cm`) backends
-  honour the **translate+scale** subset; rotation/shear is future work (it needs
-  `RenderGeometry`/rotated glyphs/stencil clipping on SDL — the document, reader,
-  and hit-test math are already general). The console backend is text-only and
-  unaffected.
-
-Try `run_example(widget_transform_pane_example)`.
-
-## Image content
-
-A leaf widget's `content` is polymorphic: besides a string (or, for some
-widgets, a child `Document`), `WidgetLabel` and `WidgetButton` accept an
-`ImageDocument` (`ImageFile` / `ImageMemory`). The printer detects it and emits a
-`GraphicsImage` sized to the image's natural size, centered like a text label
-(a muted placeholder rect until the image's `raw` cell is decoded). Decoding
-stays in the backend (`decode_image_file!`); the domain-layer printer only
-*reads* `content.raw`, the same seam inline text images use. See
-`widget_button_image_example`.
-
-## Projection to graphics
-
-`WidgetToGraphics(font; measure=measure_sdl_text, theme=make_light_theme())`
-is the convenience factory that returns
-
-```julia
-RecursiveProjection(TypeDispatchingProjection(
-    WidgetLabel       => WidgetLabelToGraphicsCanvas(...),
-    WidgetText        => WidgetTextToGraphicsCanvas(...),
-    WidgetCheckbox    => WidgetCheckboxToGraphicsCanvas(...),
-    WidgetButton      => WidgetButtonToGraphicsCanvas(...),
-    WidgetTooltip     => WidgetTooltipToGraphicsCanvas(...),
-    WidgetMenu        => WidgetMenuToGraphicsCanvas(...),
-    WidgetMenuItem    => WidgetMenuItemToGraphicsCanvas(...),
-    WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(...),
-    WidgetComposite   => WidgetCompositeToGraphicsCanvas(...),
-    WidgetShell       => WidgetShellToGraphicsCanvas(...),
-    WidgetTitlePane   => WidgetTitlePaneToGraphicsCanvas(...),
-    WidgetSplitPane   => WidgetSplitPaneToGraphicsCanvas(...),
-    WidgetTabbedPane  => WidgetTabbedPaneToGraphicsCanvas(...),
-    WidgetScrollPane  => WidgetScrollPaneToGraphicsCanvas(...),
-    WidgetToolbar     => WidgetToolbarToGraphicsCanvas(...),
-    WidgetScrollBar   => WidgetScrollBarToGraphicsCanvas(...),
-    # …plus the 19 extension widgets, each with its own ToGraphicsCanvas:
-    # WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress,
-    # WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton,
-    # WidgetHighlight, WidgetToggle, WidgetToggleGroup, WidgetSelect,
-    # WidgetOption, WidgetTextarea, WidgetAccordion, WidgetTable, WidgetTree.
-))
-```
-
-The real factory maps all 42 `WidgetDocument` subtypes: the widgets in the
-tables above, `WidgetInsertion` (the type-replace placeholder), and
-`WidgetContextMenu`, `WidgetDialog`, `WidgetStatusBar`, `WidgetSpinBox` and
-`WidgetList`, each covered in its own section above.
-
-Each per-widget projection takes a `font`, a backend `measure` function,
-and a `theme::WidgetTheme` (colours are read from the theme, not stored on
-individual widgets). Containers project their children recursively via the
-`recursion` argument and assemble the resulting canvases.
-
-`WidgetScrollPaneToGraphicsViewport` is a separate composable projection
-that emits a `GraphicsViewport` instead of a flat canvas — useful when the
-downstream backend can clip to a viewport efficiently.
-
-## Selection
-
-Widgets carry a `selection::Reference` field like every other Document.
-Selection paths typically descend into `content` for leaf widgets, into
-`elements`/`selector_element_pairs` (collections) for containers, or to specific
-fields like `scroll_position` of a scroll pane. The standard rules in
-[the reference guide](../kernel/reference.md) apply.
-
-### Keyboard routing follows the selection
-
-The selection is the focus: a container forwards a coordless (keyboard) event to
-the child its selection points at, and returns `nothing` when the selection is
-not inside it — **never** to a default child (no "active tab", no broadcast, no
-first-answer fallback). When the selection is elsewhere the container is
-untouched and its prior state simply stays. This holds for `WidgetComposite`,
-`WidgetSplitPane`, `WidgetTabbedPane`, and the `LayoutDocument` family. The
-tabbed pane still falls back to tab 1 to *render* a tab when nothing is selected;
-that is a printing concern, not routing. An unselected tree therefore delivers
-keystrokes nowhere — the first selection is established by a click or by Tab
-traversal, not by a routing guess.
-
-### Selecting a whole object
-
-Any widget can be selected as a whole, and no widget declares that it can be.
-The gesture is **Alt+click**: a left press with Alt and no other modifier. A
-plain click keeps its meaning, so a button still fires and a caret still lands.
-
-The rule lives in the containers, in `read_child_event` (the layout slice),
-which every container calls to hand a press to a child. For an Alt+press it
-keeps the child's answer only when that answer selects a whole document inside
-the child (`convert_to_whole_selection`, the focus slice), and otherwise
-selects the child as a whole. So the innermost object under the pointer wins,
-a table cell's own Alt+click keeps its cell, and a control never acts: the
-action a button answered is dropped, and a reader has no side effect.
-
-A place that a projection introduced, such as the bracket of a call, names the
-node that the projection printed it for. The rule cuts the answer there, so an
-Alt+click on a bracket selects the call.
-
-**A widget that a projection drew.** A form that a domain projection draws, such
-as a runner, holds widgets that no document of the domain stands behind: a text
-box, a table, a heading. A selection names such a widget with an
-`OutputReferenceStep` (the focus slice), which holds the widget and its place in
-the projection's output, and evaluates to the widget from the document it was
-drawn for. So a copy, a note and a whole-selection test reach it, and a paste
-never writes through it. The projection answers the step for an Alt+click, maps
-it forward to the place, and makes its output follow the place with
-`follow_output_selection!`, so the container that holds the widget rings it.
-
-A control that takes the focus draws its own ring when it is selected. A text
-box with the focus holds a caret, so a text box selected as a whole is selected
-as an object, and its ring takes the selection's colour.
-
-A whole-element selection is a path that ends at a document. A caret and a text
-range name no document (`is_whole_selection`).
-
-**The ring.** Every layout, the composite, the card and the tabbed pane keep
-one selection ring (`make_selection_ring`, the graphics slice) at the end of
-their element list. The ring covers the child that the container's own
-selection names as a whole — `children[i]`, `elements[i]`, a card's `content` or
-`title` — and the tabbed pane rings its page while the page's document is
-selected whole. At rest the ring has no size and no border, so it draws
-nothing. A control that takes the focus (`is_focusable_document`) gets no ring,
-because it draws its own focus ring when it is selected. A container's
-selection cell therefore must name a child whole only when that child is
-selected: a projection that writes a constant routing prefix there draws a
-ring that nobody asked for.
-
-**The walk.** `SelectionWalkingProjection` (the focus slice) wraps a chain and
-answers the four Alt + arrow keys that nothing inside answered: up to the
-enclosing object, down to the first object inside, and sideways to a sibling,
-where the first and the last keep the selection. An object is a document that
-is not a collection and that can hold a selection, so a value document such as a
-color is skipped. A domain answers `is_selection_walk_stop(document) = false`
-for a document that only holds objects, and the walk passes through it. Left,
-right and down act only on a whole selection.
-
-## When to use widgets vs. graphics
-
-- Build user interfaces (menus, dialogs, IDE layouts) at the
-  widget level — the layer is meant for layout abstractions, not pixels.
-- Custom drawing primitives (specialised visualisations, plot canvases)
-  can go straight to `GraphicsCanvas`.
-- A document being edited should generally not be a widget tree. Project
-  through widgets only as a presentation layer; keep the source-of-truth
-  document in its own semantic domain.
-
-The pane package (see [the pane guide](../pane/pane.md)) is the largest
-example of a widget consumer in ProjecturEd: it projects a tree of splits,
-tab groups and tabs onto a live `WidgetSplitPane` / `WidgetTabbedPane` tree.
+`save_all!` and `server` stand for your own function and object.
+
+- Examples: one for each widget in `example/substrate/SubstrateExamples.jl`, such as `widget_example`, `widget_table_example`, `widget_popup_example` and `object_to_widget_example`. The screenshots are `asset/image/example/widget-*.png`.
+- Tests: the `Widget*Test.jl`, `ObjectToWidgetTest.jl`, `ObjectFieldToWidgetTest.jl` and `CellTableToWidgetTableTest.jl` files in `test/substrate/projection/`, for example `test_widget_selection()`, `test_widget_split_pane()` and `test_widget_table_list()`. `test_substrate()` runs them all; the package has no suite of its own.
+
+## Limits
+
+- The readers of `WidgetBadge`, `WidgetSeparator`, `WidgetProgress`, `WidgetRadioGroup`, `WidgetAvatar`, `WidgetAlert`, `WidgetHighlight`, `WidgetSkeleton`, `WidgetToggle`, `WidgetTextarea` and `WidgetAccordion` return `nothing`, and they map no reference. Tab can select a `WidgetToggle`, a `WidgetRadioGroup` or a `WidgetTextarea`, but a key there does nothing.
+- `WidgetShell` gives `MouseDown` and `MouseUp` to its bands with window coordinates, and it keeps no drag. So a tab drag under a shell does not start, and a drag that crosses a band loses its moves. `plan/pending/hover-drag-and-tooltip-share-the-pointer.md` describes the fault and a fix.
+- `ObjectToWidget` maps no reference in either direction, so a caret can not move into the form from outside.
+- A path whose last step is a range writes a vector value as a splice. So an `ObjectField` whose value is a vector can not be replaced as one value.
+- The backends draw only the translation and the scale of a transform. Rotation and shear are dropped.
+- The scrim of a `WidgetDialog` fills the window of the dialog, not the screen. `ScreenDocument` has no size of the screen to center against.
+- `ProjectionConfiguringProjection` has a fixed Ctrl+F and a split pane. `plan/pending/configuration-overlay-widget.md` replaces them with an overlay and is not started. Its test has one `@test_broken`: a key does not reach the only control of the bar, because nothing selects it first.
