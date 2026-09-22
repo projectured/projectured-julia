@@ -236,14 +236,36 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 
 ### Step 0: the worktree and the baseline
 
-- [ ] Make the worktree.
-- [ ] Record `json_build_live` and the scripted `record_mm1k_demo` as they are today. Write down what fails since the renames.
+- [x] Make the worktree: `workspace/projectured-julia-feature-videos`, branch `feature-videos`, from `main` at 47790c4f.
+- [x] Record `json_build_live` as it is today. **It works.** `record_live_example("json_build", path)` in the environment `environment/all` made an MP4 of 760×1000, 1257 frames, 41.9 s, 73 KB. The renames broke nothing of the recording.
+
+      The run also showed this: `ProjecturedSdlExample` exports `LiveExample`, `live_examples`, `play_live_example`, `record_live_example`, `timed_event`, `timed_operation` and `timed_await`, but not the constant of one example. A caller names an example by its string, which the second method of `record_live_example` takes.
+- [ ] The baseline of the scripted `record_mm1k_demo` moves to Step 7, where the work on that video happens. It needs the omnet-julia environment and a built OMNeT++, and minutes of compilation that Step 0 does not need.
 
 ### Step 1: the recording tools (G1, G2, G3)
 
-- [ ] G1: a `LiveExample` over the application document, with the menu bar, the toolbar, the tabs, the navigator and the assistant pane. Test: a clip of 5 s of the window.
-- [ ] G2: an `await` entry that runs at real speed. The recording samples the window every `1/fps` of wall-clock time and emits one frame for each sample, so a wait of 40 s is 40 s of video. Where a frame takes longer than `1/fps` to render, the recording repeats the last frame, so the video keeps the time of the session. Test: the frame count of a wait of known length.
-- [ ] G3: a visible pointer, the name of each pressed key for about one second, and a caption bar. The pointer and the key names come from the gestures of the timeline. The caption bar is a document of ProjecturEd over the window.
+**The design.** `record_video` drives a document and a projection by hand: it has no `Editor`, so it has no tools for the assistant, no feeds, no tooltip and no menu. Every screenplay of tier 1 needs the real application. So the recording becomes a **backend**, and the editor loop runs as it runs in a window.
+
+`VideoBackend <: Backend` in the video slice (`source/video/`, package `ProjecturedVideo`) holds the frame size, the frame rate, the directory of the frames, the index of the next frame, the position of the pointer, the timeline with a fire time for each entry, and the offscreen renderer of `ProjecturedSdl`. It answers the interface of `source/kernel/backend/BackendInterface.jl`:
+
+| Function | What it does |
+| --- | --- |
+| `initialize_backend!` | opens the offscreen renderer of the video size |
+| `read_from_devices` | answers the next timeline entry whose fire time passed, as a `WindowInput`, and moves the pointer for a mouse event |
+| `write_to_devices` | renders the canvas of the screen, writes the PNG of the frame, and first repeats the last frame for each frame slot that passed with no repaint (G2) |
+| `wait_for_input` | sleeps at most `1/fps`, so the loop keeps a frame rate |
+| `get_pointer_position` | the pointer of the timeline (G3) |
+| `get_display_size`, `open_native_windows!`, `configure_devices!` | the video size, and no native window |
+| `measure_text`, `render_canvas`, `decode_image`, `quit_backend!`, `wake_backend!` | as `ProjecturedSdl` does |
+
+The number of the frames follows the wall clock, so one second of the session is one second of the video (D12), and the clock of the editor stays the wall clock, so an animation runs at its real speed. The overlay of G3 (the pointer, the name of the last key, the caption bar) is drawn over the canvas of the screen in `write_to_devices`, so nothing of it enters the document of the application.
+
+`record_application_video(paths, timeline, filename; …)` builds the document and the projection with `make_application_window`, runs `run_with_window_tools` and `run_editor!` with a `VideoBackend`, stops the loop after the last entry and the final hold, and encodes the frames with the `ffmpeg` call of `record_video`.
+
+- [ ] G1: `VideoBackend` and `record_application_video`. Test: a clip of 5 s of the application window, with the menu bar, the toolbar, the tabs, the navigator and the assistant pane.
+- [ ] G2: the frames follow the wall clock. Test: a recording of a wait of a known length has the frames of that length, and a slow render repeats a frame instead of making the video slower.
+- [ ] G3: the pointer, the name of each pressed key for about one second, and the caption bar of the timeline.
+- [ ] `record_video` stays as it is. It records a single document, and the tests of `ProjecturedVideoTest` keep it honest.
 
 ### Step 2: S1, the evaluator rebuilds the rotating vector
 
