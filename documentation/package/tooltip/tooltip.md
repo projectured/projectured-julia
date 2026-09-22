@@ -48,6 +48,8 @@ probe = TooltipProbeProjection(; inner = content_projection,
 run_window_editor(document, probe, "Title"; backend = backend, feeds = Feed[feed])
 ```
 
+**The window fits what it says.** The probe gives the window `minimum_size = (120, 32)` and `maximum_size = (560, 400)`, both keywords of the probe. The screen prints the window at the maximum, so a long text wraps there, and the backend gives the window the extent of what it printed. So a tooltip of one word is small and a docstring is tall, and neither is cut.
+
 `pointer` returns the pointer in screen coordinates; the host supplies it. `ProjecturedShell` builds the probe for you when the fold gets `tooltip`, `pointer` and `tooltip_feed`.
 
 - Tests: `test_tooltip()` for the wrapper; `test_tooltip_probe()`, `test_tooltip_feed()`, `test_widget_tooltip()` and `test_julia_tooltip()` for the probe and its feed.
