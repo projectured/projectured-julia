@@ -915,13 +915,13 @@ targeted tests run after each step.
       three local names of §3.4 with it. This step changes no image, so it can
       land before the other decisions. Done: the graphics, text, widget, math,
       chart and sequence chart suites pass.
-- [ ] 3. Theme: add the tokens that the decisions need, for example the shadow,
+- [x] 3. Theme: add the tokens that the decisions need, for example the shadow,
       the scrim, the selection band, the hover and pressed layers and the knob.
       No token for a meaning of a domain (D5). Keep `inset` as the default box
       insets (D8). Change
       `build_qtenv_widget_theme` in omnet-julia, which calls the positional
       constructor.
-- [ ] 4. Projections: give each widget projection a constructor that takes the
+- [x] 4. Projections: give each widget projection a constructor that takes the
       theme (D7), with the names of D1. Move the constants of §3.4 into style
       fields. Remove the two style fields that are never read. Make
       `_push_panel!` skip a transparent fill that has no outline (§4.3), and
@@ -930,9 +930,9 @@ targeted tests run after each step.
       Paint the four box parts with one painter, made from `_push_box_rects!`,
       with the corner radius and the skip of a transparent part. Add the page
       part of `WidgetTabbedPane`.
-- [ ] 5. States: give every interactive widget a disabled look, and use one
+- [x] 5. States: give every interactive widget a disabled look, and use one
       selection token and one hover token everywhere (D4).
-- [ ] 6. Documents: move `margin_color`, `border_color`, `padding_color`,
+- [x] 6. Documents: move `margin_color`, `border_color`, `padding_color`,
       `content_fill_color` and `title_fill_color` into the override of D2, with
       one color for every part (§4.4). No part loses its color. The insets stay
       separate fields (D12). Give the box insets to the 20 widget types and to
@@ -942,9 +942,10 @@ targeted tests run after each step.
       (§4.7). For each of the 16 call sites that have no effect today, check
       whether the color is still wanted. For example, `AssistantToWidget` asks
       for white panes but shows `theme.background`.
-- [ ] 7. Layouts: the selection ring takes its color from the theme (D9).
-- [ ] 8. Documentation: write the "Theme" and "Shared visual fields" sections
+- [x] 7. Layouts: the selection ring takes its color from the theme (D9).
+- [x] 8. Documentation: write the "Theme" and "Shared visual fields" sections
       of [widget.md](../../documentation/package/widget/widget.md) from §4.
+      Done: "Theme" and "Parts, insets and colors".
 
 ## 7. Verification
 
@@ -1428,6 +1429,17 @@ does not name is `color_transparent`, and an inset that it does not name is
       The hit targets keep their own tests: the whole-canvas targets of the
       table and the tree, and the fold column of the card, are transparent rects
       that the printers push directly, and `_push_panel!` does not touch them.
+
+- [x] The guides. [widget.md](../../documentation/package/widget/widget.md)
+      gets two sections in place of "Theme" and "Shared visual fields": "Theme"
+      says that only the factory reads a theme, and "Parts, insets and colors"
+      says what a part is, what a style overrides, and what `nothing` and
+      `color_transparent` mean. The passages on the disabled state, the
+      transient state, the button and the factory name the state layers and
+      `make_slate_light_theme`.
+      [macros.md](../../documentation/package/kernel/macros.md) takes
+      `ReferenceToHumanReadableText` as its example of an inline field default,
+      because the scroll pane projection declares none.
 
 ### 8.6 omnet-julia
 
