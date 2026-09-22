@@ -1,6 +1,7 @@
 # The gesture log opens in a tab
 
-**Status (2026-09-22): IN PROGRESS.**
+**Status (2026-09-22): DONE.** Landed on `main` in both repositories. Nothing is
+pushed.
 
 **Goal:** a person reads the gesture log in a tab of the window, which they open
 from the menu. The `--gesture-log` switch of both binaries goes, and so does the
@@ -72,16 +73,28 @@ stays on top. It does not:
 
 ### Step 3 — the interface loses `--gesture-log`
 
-- [ ] omnet-julia, after Steps 1 and 2 land: the switch in
-      `source/build/Program.jl`, the keyword of `make_ide_window_wrap` and
-      `run_omnet_ide`, the precompile workload, the test and the guide.
+- [x] omnet-julia: the switch in `source/build/Program.jl`, the keyword of
+      `make_ide_window_wrap` and `run_omnet_ide`, the precompile workload, the
+      test and the guide. **It did not need Steps 1 and 2 first**: it only stops
+      passing a keyword that still existed, so it was prepared beside them.
+- [x] **The builder's `switches` keyword went too.** `--gesture-log` was the only
+      flag a window binary took as a keyword of its own, so the mechanism had no
+      user left.
+- [x] `test_ide_window_wrap()` is **25** and `test_ide_file_navigator()` **8**, as
+      before; the closure guard passes. The builder test is **52 with 3 errors**,
+      and `main` is 53 with the same three: this Julia has no `juliac`, and the
+      reactive compiler checkout has no `collect_tracked_sources`. The one
+      assertion less is three assertions about the switch that became two.
 
 ### Step 4 — the fold loses `gesture_log`
 
-- [ ] projectured-julia, after Step 3 lands: the keyword of `make_window_wrap`,
-      its tests and the shell guide.
+- [x] projectured-julia, after Step 3 landed: the keyword of `make_window_wrap`,
+      its tests and the shell guide. **`test_shell()` is 109**, two less than
+      Step 1's 111 for one removed line: the line called `_under_recorder`, which
+      asserts on its own, so it counted twice. A count per testset against Step 2
+      shows no other difference. `test_application()` stays **67**.
 
 ### Step 5 — close
 
-- [ ] Update the memory of the interface's window, and move this plan to
+- [x] Update the memory of the interface's window, and move this plan to
       `plan/done/`.
