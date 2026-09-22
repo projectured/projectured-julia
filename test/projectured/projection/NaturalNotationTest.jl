@@ -10,29 +10,40 @@ struct NaturalNotationTestLeafProjection <: Projection end
     test_natural_notation()
 
 The lookup of a natural notation and of a natural format takes the most derived
-registered type, whatever the order of the registrations.
+registered type, whatever the order of the registrations. The test puts the
+tables back as it found them, so no test type stays in them.
 """
 function test_natural_notation()
-    # The root is registered first: a lookup that takes the first match fails.
-    register_natural_notation!(NaturalNotationTestRoot, :syntax, () -> NaturalNotationTestRootProjection())
-    register_natural_notation!(NaturalNotationTestLeaf, :syntax, () -> NaturalNotationTestLeafProjection())
-    register_natural_format!(NaturalNotationTestRoot, :natural_notation_test_root, ".nntroot")
-    register_natural_format!(NaturalNotationTestLeaf, :natural_notation_test_leaf, ".nntleaf")
+    tables = (NaturalModule._NOTATIONS, NaturalModule._FORMATS)
+    saved = map(copy, tables)
+    try
+        # The root is registered first: a lookup that takes the first match fails.
+        register_natural_notation!(NaturalNotationTestRoot, :syntax, () -> NaturalNotationTestRootProjection())
+        register_natural_notation!(NaturalNotationTestLeaf, :syntax, () -> NaturalNotationTestLeafProjection())
+        register_natural_format!(NaturalNotationTestRoot, :natural_notation_test_root, ".nntroot")
+        register_natural_format!(NaturalNotationTestLeaf, :natural_notation_test_leaf, ".nntleaf")
 
-    # The one stage of a chain that stops at the rung of the notation.
-    get_stage(chain) = only(chain.projections).child
+        # The one stage of a chain that stops at the rung of the notation.
+        get_stage(chain) = only(chain.projections).child
 
-    @testset "the most derived registered type gives the notation" begin
-        @test get_stage(make_natural_projection(NaturalNotationTestLeaf(), :syntax)) isa
-              NaturalNotationTestLeafProjection
-        @test get_stage(make_natural_projection(NaturalNotationTestOther(), :syntax)) isa
-              NaturalNotationTestRootProjection
+        @testset "the most derived registered type gives the notation" begin
+            @test get_stage(make_natural_projection(NaturalNotationTestLeaf(), :syntax)) isa
+                  NaturalNotationTestLeafProjection
+            @test get_stage(make_natural_projection(NaturalNotationTestOther(), :syntax)) isa
+                  NaturalNotationTestRootProjection
+        end
+
+        @testset "the most derived registered type gives the format" begin
+            @test get_natural_format(NaturalNotationTestLeaf) === :natural_notation_test_leaf
+            @test get_natural_format(NaturalNotationTestOther) === :natural_notation_test_root
+            @test get_natural_extension(NaturalNotationTestLeaf()) == ".nntleaf"
+            @test get_natural_extension(NaturalNotationTestOther()) == ".nntroot"
+        end
+    finally
+        foreach(copy!, tables, saved)
     end
 
-    @testset "the most derived registered type gives the format" begin
-        @test get_natural_format(NaturalNotationTestLeaf) === :natural_notation_test_leaf
-        @test get_natural_format(NaturalNotationTestOther) === :natural_notation_test_root
-        @test get_natural_extension(NaturalNotationTestLeaf()) == ".nntleaf"
-        @test get_natural_extension(NaturalNotationTestOther()) == ".nntroot"
+    @testset "the test leaves the natural tables as it found them" begin
+        @test all(map(==, tables, saved))
     end
 end

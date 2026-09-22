@@ -115,7 +115,7 @@ renderer = NaturalToGraphics(measure = measure_truetype_text)
 ```
 
 - Example: `natural_example` draws a `CellVector` of a JSON, a math, a Julia, a text and an XML document with `NaturalToGraphics` alone.
-- Tests: no `test/natural/` folder exists. `test_natural_renders_every_atom()` checks that every atomic example draws through `NaturalToGraphics`, and `test_natural_round_trips_every_atom()` checks that every atom with a format prints and parses back. Both are in `test/projectured/projection/CatalogCoverageTest.jl`. `test_natural_notation()` checks that the most derived registered type gives the notation and the format, and `test_natural_registry()` checks the order of the ready-made rows; both are in `test/projectured/projection/`.
+- Tests: no `test/natural/` folder exists. `test_natural_renders_every_atom()` checks that every atomic example draws through `NaturalToGraphics`, and `test_natural_round_trips_every_atom()` checks that every atom with a format prints and parses back. Both are in `test/projectured/projection/CatalogCoverageTest.jl`. `test_natural_notation()` checks that the most derived registered type gives the notation and the format, and `test_natural_registry()` checks the order of the ready-made rows; both are in `test/projectured/projection/`. The two tests register types of their own, and they put the tables back as they found them when they end.
 
 ## Limits
 
