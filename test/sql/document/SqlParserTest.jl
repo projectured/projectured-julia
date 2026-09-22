@@ -130,7 +130,7 @@ function test_sql_parser()
             j = stmt.from_clause.items[1].joins[1]
             @test j.condition isa SqlJoinUsingCondition
             @test length(j.condition.column_names) == 2
-            # round-trip skipped: SqlJoinUsingCondition not yet registered in SqlToSyntax
+            @test roundtrip(stmt) == "SELECT * FROM a INNER JOIN b USING (id, name)"
         end
 
         # ── Subquery in FROM ─────────────────────────────────────────
@@ -205,8 +205,38 @@ function test_sql_parser()
             stmt = parse("SELECT COUNT(*) FROM t")
             @test stmt isa SqlSelectStatement
             item = stmt.select_clause.items[1]
-            @test item.expression isa SqlScalarValue
-            @test occursin("COUNT", string(item.expression.value))
+            # The source text of an expression that the parser does not model
+            # prints back as it is written, not as a quoted string.
+            @test item.expression isa SqlRawExpression
+            @test item.expression.text == "COUNT(*)"
+            @test roundtrip(stmt) == "SELECT COUNT(*) FROM t"
+            @test roundtrip(parse("SELECT UPPER(name) AS n, COUNT(*) FROM t")) ==
+                  "SELECT UPPER(name) AS n, COUNT(*) FROM t"
+        end
+
+        # ── Several statements ───────────────────────────────────────
+        @testset "several statements" begin
+            list = parse("SELECT * FROM a; SELECT * FROM b;")
+            @test list isa SqlStatementList
+            @test length(list.statements) == 2
+            @test list.statements[2].from_clause.items[1].base_item.table_name.name == "b"
+            # One statement stays a bare statement, with or without a trailing `;`.
+            @test parse("SELECT * FROM a;") isa SqlSelectStatement
+            @test parse("SELECT * FROM a") isa SqlSelectStatement
+            ddl = parse("CREATE SCHEMA s; CREATE TABLE s.t (id integer)")
+            @test ddl isa SqlStatementList
+            @test ddl.statements[1] isa SqlCreateSchemaStatement
+            @test ddl.statements[2] isa SqlCreateTableStatement
+            # A printed list reads back as the same list.
+            for document in (list, ddl)
+                again = parse(print_document(sql_pipe, document).output)
+                @test again isa SqlStatementList
+                @test length(again.statements) == length(document.statements)
+                @test roundtrip(again) == roundtrip(document)
+            end
+            # One statement that does not parse fails the whole text.
+            @test_throws Exception parse("SELECT * FROM a; INSERT INTO t VALUES (1)")
+            @test_throws Exception parse(";")
         end
 
         # ── Non-SELECT raises ────────────────────────────────────────

@@ -525,6 +525,26 @@ end
 
 read_intent(::SqlJoinOnConditionToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 
+# ── SqlJoinUsingConditionToSyntaxNode ─────────────────────────────────────────
+#
+# `USING (a, b)`: the keyword, then the column names in parentheses, each through
+# its own rule. The keyword and the parentheses have no input field, so a caret on
+# them becomes a flat offset, through the two methods it shares with the leaves
+# (`_SqlTemplateRule`, below).
+
+@projection struct SqlJoinUsingConditionToSyntaxNode
+    keyword::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
+end
+
+@projection_template SqlJoinUsingConditionToSyntaxNode SqlJoinUsingCondition (p, doc) ->
+    SyntaxNode(SyntaxDocument[
+            _kw("USING", p.keyword),
+            SyntaxNode(collection(:column_names);
+                       open=TextString("(", p.keyword.font, color_default),
+                       close=TextString(")", p.keyword.font, color_default),
+                       sep=TextString(", ", p.keyword.font, color_default))];
+        sep=TextString(" ", p.keyword.font, color_default))
+
 # ── SqlFromItemToSyntaxNode ───────────────────────────────────────────────────
 
 @projection struct SqlFromItemToSyntaxNode
@@ -859,12 +879,24 @@ end
                    string(val)
                end, p.style))
 
-# All seven SQL leaf projections are opaque display leaves: their content is a
+# ── SqlRawExpressionToSyntaxLeaf ─────────────────────────────────────────────
+# The source text of an expression that the model does not have, as it is written.
+
+@projection struct SqlRawExpressionToSyntaxLeaf
+    style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_default)
+end
+
+@projection_template SqlRawExpressionToSyntaxLeaf SqlRawExpression (p, doc) ->
+    SyntaxLeaf(TextString(() -> doc.text, p.style))
+
+# All eight SQL leaf projections are opaque display leaves: their content is a
 # computed multi-field display with no editable interior. A caret on that introduced
 # text has no input pre-image, so — exactly like XmlElementToSyntaxNode — it is
 # collapsed to a bounded flat offset carried as a projection-introduced reference
 # (`proj(p, {flat})`). This keeps text-navigation bounded (the domain-neutral fallback
-# would grow the path without bound) while naming the whole node.
+# would grow the path without bound) while naming the whole node. The one template
+# node, `SqlJoinUsingConditionToSyntaxNode`, has introduced text of the same kind (its
+# keyword and parentheses), so it takes the same two methods.
 #
 # The reader must name the *operation* types, not carry an `op` catch-all: a catch-all
 # `read_intent(::Sql…Leaf, ::RuleIoMap, op)` is ambiguous with the template's typed
@@ -876,12 +908,14 @@ end
 const _SqlDisplayLeaf = Union{SqlAllColumnsToSyntaxLeaf, SqlColumnReferenceToSyntaxLeaf,
                               SqlColumnNameToSyntaxLeaf, SqlTableNameToSyntaxLeaf,
                               SqlTableExpressionToSyntaxLeaf, SqlJoinTypeToSyntaxLeaf,
-                              SqlScalarValueToSyntaxLeaf}
+                              SqlScalarValueToSyntaxLeaf, SqlRawExpressionToSyntaxLeaf}
 
-function read_intent(p::_SqlDisplayLeaf, iomap::RuleIoMap, op::ReplaceSelectionOperation)
+const _SqlTemplateRule = Union{_SqlDisplayLeaf, SqlJoinUsingConditionToSyntaxNode}
+
+function read_intent(p::_SqlTemplateRule, iomap::RuleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
-    flat = _syntax_to_flat(iomap.output::SyntaxLeaf, op.path, SyntaxCompoundToText(), 0)
+    flat = _syntax_to_flat(iomap.output::SyntaxDocument, op.path, SyntaxCompoundToText(), 0)
     flat < 0 && return nothing
     ReplaceSelectionOperation(
         make_introduced_reference(p, iomap.input, ConcreteReference(PositionReferenceStep(flat))))
@@ -889,7 +923,7 @@ end
 
 # A `proj(p, …)` selection is this projection's own introduced position — pass it through
 # unchanged; everything else defers to the generic template mapper.
-function map_reference_forward(p::_SqlDisplayLeaf, iomap::RuleIoMap, reference)
+function map_reference_forward(p::_SqlTemplateRule, iomap::RuleIoMap, reference)
     is_introduced_reference(reference) && return reference
     invoke(map_reference_forward, Tuple{Projection, RuleIoMap, Any}, p, iomap, reference)
 end
@@ -1881,11 +1915,28 @@ read_intent(::SqlCreateSchemaStatementToSyntaxNode, iomap::ChildrenIoMap, op) = 
 
 # ── SqlStatementListToSyntaxNode ──────────────────────────────────────────────
 #
-# Renders an ordered statement list, blank-line separated (each statement node
-# already ends with its own `;`). children[i] = statements[i].
+# Renders an ordered statement list, blank-line separated, with every statement
+# closed by `;` so that the printed list reads back as the same list. A DDL
+# statement prints its own `;`, and children[i] is statements[i]. Any other
+# statement is wrapped in a node whose `close` is the `;`, and children[i].children[1]
+# is statements[i].
 
 @projection struct SqlStatementListToSyntaxNode
     font::StyleFont = font_ubuntu_monospace_regular_20
+end
+
+_has_own_semicolon(statement) = statement isa Union{SqlCreateTableStatement, SqlCreateSchemaStatement}
+
+_close_statement(p::SqlStatementListToSyntaxNode, im) =
+    _has_own_semicolon(get_iomap_input(im)) ? im.output :
+        SyntaxNode(SyntaxDocument[im.output]; close=TextString(";", p.font, color_default))
+
+# The path inside a statement that the list closed, from the path inside the node
+# that closes it: the node is the whole statement, and its one child is the
+# statement. A caret on the `;` has no position in the statement.
+_get_closed_statement_path(path) = @reference_case path begin
+    ∅ => path
+    ::SyntaxNode.children[1].inner... => inner
 end
 
 function print_document(p::SqlStatementListToSyntaxNode, recursion, doc::SqlStatementList, ctx)
@@ -1904,7 +1955,7 @@ function print_document(p::SqlStatementListToSyntaxNode, recursion, doc::SqlStat
     end)
 
     node = SyntaxNode(
-        ComputedCellVector(() -> SyntaxDocument[im.output for im in stmt_ims[]]);
+        ComputedCellVector(() -> SyntaxDocument[_close_statement(p, im) for im in stmt_ims[]]);
         sep=TextString("\n\n", p.font, color_default),
         selection=sel)
 
@@ -1924,7 +1975,9 @@ function map_reference_forward(p::SqlStatementListToSyntaxNode, iomap::ChildrenI
             child = cims[child_i]
             inner = map_reference_forward(child.projection, child, rest)
             inner === nothing && return nothing
-            @reference ::SyntaxNode.children[child_i].^(inner)
+            _has_own_semicolon(get_iomap_input(child)) ?
+                @reference(::SyntaxNode.children::CellVector[child_i].^(inner)) :
+                @reference(::SyntaxNode.children::CellVector[child_i]::SyntaxNode.children::CellVector[1].^(inner))
         end
     end
 end
@@ -1937,7 +1990,9 @@ function map_reference_backward(p::SqlStatementListToSyntaxNode, iomap::Children
             cims = iomap.child_iomaps
             1 <= child_i <= length(cims) || return nothing
             child = cims[child_i]
-            inner = map_reference_backward(child.projection, child, rest)
+            path = _has_own_semicolon(get_iomap_input(child)) ? rest : _get_closed_statement_path(rest)
+            path === nothing && return nothing
+            inner = map_reference_backward(child.projection, child, path)
             inner === nothing && return nothing
             @reference ::SqlStatementList.statements::CellVector[child_i].^(inner)
         end
@@ -1976,6 +2031,7 @@ function SqlToSyntax()
         SqlFromItem             => SqlFromItemToSyntaxNode(),
         SqlJoinedFromItem       => SqlJoinedFromItemToSyntaxNode(),
         SqlJoinOnCondition      => SqlJoinOnConditionToSyntaxNode(),
+        SqlJoinUsingCondition   => SqlJoinUsingConditionToSyntaxNode(),
         SqlWhereFilterCondition => SqlWhereFilterConditionToSyntaxNode(),
         SqlInnerJoin            => jt,
         SqlLeftOuterJoin        => jt,
@@ -1983,6 +2039,7 @@ function SqlToSyntax()
         SqlFullOuterJoin        => jt,
         SqlCrossJoin            => jt,
         SqlScalarValue          => SqlScalarValueToSyntaxLeaf(),
+        SqlRawExpression        => SqlRawExpressionToSyntaxLeaf(),
         SqlComparison           => SqlComparisonToSyntaxNode(),
         SqlAnd                  => SqlBooleanBinaryToSyntaxNode("AND"),
         SqlOr                   => SqlBooleanBinaryToSyntaxNode("OR"),

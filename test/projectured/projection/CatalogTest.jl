@@ -63,7 +63,7 @@ _catalog_edit_broken(name) =
 # Entries whose position-navigation still fails — the seed can't produce a caret, or the walk
 # throws (an under-typed @reference / a TypeError in a node's backward map / selection maps).
 # @catalog-broken yaml/sequence: graphics Ctrl+Home seed returns nothing (0 states).
-# @catalog-broken filesystem/directory, sql/statement_list: under-typed @reference on the walk.
+# @catalog-broken filesystem/directory: under-typed @reference on the walk.
 # @catalog-broken sql/where_filter_condition: TypeError (SyntaxNavigation) on the walk.
 # @catalog-broken julia/empty: renders to nothing, so there is no caret to seed (0 states).
 #   Arguably not a bug — `JuliaEmpty` is the absent return type of a function that
@@ -76,7 +76,7 @@ _catalog_edit_broken(name) =
 #   no block for the wrapper to wrap, no selection field), which leave the walk
 #   with no caret to seed.
 const _CATALOG_NAV_BROKEN = ("yaml/sequence/", "filesystem/directory/",
-                             "sql/statement_list/", "sql/where_filter_condition/",
+                             "sql/where_filter_condition/",
                              "julia/empty/",
                              "layout/", "widget/composite/",
                              "widget/reference_inspector/", "graph/layout/",

@@ -7,54 +7,37 @@
 # - **DDL** `CREATE TABLE` / `CREATE SCHEMA` → `SqlCreateTableStatement` /
 #   `SqlCreateSchemaStatement`.
 #
-# Provides:
-# - `sqlparse(text)` — parse a SQL string into a `SqlStatement`
-# - `sqlparse_file(path)` — read and parse a `.sql` file from disk
-#
-# A lightweight tokeniser feeds a single-pass, one-token-lookahead recursive-descent
-# parser. Scope is the SELECT-related types defined in `Sql.jl`: SELECT/FROM/WHERE
-# clauses, joins, ON/USING conditions, subqueries, boolean expressions, column
-# references, aliases, DISTINCT, and scalar values; plus the DDL `CREATE TABLE`
-# (table name + column name/type list) and `CREATE SCHEMA` (schema name) forms.
-#
-# Unsupported fragments are handled gracefully: comments are stripped by the
-# tokeniser, trailing clauses (GROUP BY, ORDER BY, …) are consumed, and unsupported
-# expressions (function calls, arithmetic, CASE) are wrapped in `SqlScalarValue` via
-# a greedy token fallback. Input that is not a parseable SELECT statement raises an
-# error rather than guessing, matching the other parsers in this directory.
-#
-# Parser for SQL statements. Converts SQL source text into a `SqlStatement` tree
-# from `SqlModule`. Two statement families are recognised:
-#
-# - **SELECT** queries → `SqlSelectStatement`.
-# - **DDL** `CREATE TABLE` / `CREATE SCHEMA` → `SqlCreateTableStatement` /
-#   `SqlCreateSchemaStatement`.
+# A text of several statements separated by `;` parses into a `SqlStatementList`.
 #
 # Provides:
-# - `parse_sql_text(text)` — parse a SQL string into a `SqlStatement`
+# - `parse_sql_text(text)` — parse a SQL string into a `SqlStatement`, or into a
+#   `SqlStatementList` when it holds more than one statement
 # - `parse_sql_file(path)` — read and parse a `.sql` file from disk
 #
 # A lightweight tokeniser feeds a single-pass, one-token-lookahead recursive-descent
-# parser. Scope is the SELECT-related types defined in `Sql.jl`: SELECT/FROM/WHERE
-# clauses, joins, ON/USING conditions, subqueries, boolean expressions, column
-# references, aliases, DISTINCT, and scalar values; plus the DDL `CREATE TABLE`
-# (table name + column name/type list) and `CREATE SCHEMA` (schema name) forms.
+# parser. Scope is the SELECT-related types defined in `SqlDocument.jl`:
+# SELECT/FROM/WHERE clauses, joins, ON/USING conditions, subqueries, boolean
+# expressions, column references, aliases, DISTINCT, and scalar values; plus the DDL
+# `CREATE TABLE` (table name + column name/type list) and `CREATE SCHEMA` (schema
+# name) forms.
 #
 # Unsupported fragments are handled gracefully: comments are stripped by the
-# tokeniser, trailing clauses (GROUP BY, ORDER BY, …) are consumed, and unsupported
-# expressions (function calls, arithmetic, CASE) are wrapped in `SqlScalarValue` via
-# a greedy token fallback. Input that is not a parseable SELECT statement raises an
-# error rather than guessing, matching the other parsers in this directory.
+# tokeniser, trailing clauses (GROUP BY, ORDER BY, …) are consumed, and a select
+# expression that the model does not have, such as a function call, is kept as its
+# source text in a `SqlRawExpression` by a greedy token fallback. Input that is not a
+# parseable statement raises an error rather than guessing, matching the other
+# parsers in this directory.
 # ══════════════════════════════════════════════════════════════════════════════
 # §1  Entry points
 # ══════════════════════════════════════════════════════════════════════════════
 
 """
-    parse_sql_text(text::AbstractString) -> SqlStatement
+    parse_sql_text(text::AbstractString) -> SqlStatement | SqlStatementList
 
 Parse a SQL string into a `SqlStatement` (a `SqlSelectStatement` for queries, or a
-`SqlCreateTableStatement` / `SqlCreateSchemaStatement` for DDL). Raises an error if
-`text` is not a parseable statement.
+`SqlCreateTableStatement` / `SqlCreateSchemaStatement` for DDL). A text of several
+statements separated by `;` gives a `SqlStatementList`. Raises an error if a
+statement of `text` is not parseable.
 """
 function parse_sql_text(text::AbstractString)
     parsed = parse_sql(String(text))
@@ -63,7 +46,7 @@ function parse_sql_text(text::AbstractString)
 end
 
 """
-    parse_sql_file(path::AbstractString) -> SqlSelectStatement
+    parse_sql_file(path::AbstractString) -> SqlStatement | SqlStatementList
 
 Read and parse a `.sql` file from disk.
 """
@@ -320,14 +303,34 @@ end
 # ── top-level entry ───────────────────────────────────────────────────────────
 
 """
-    parse_sql(sql::String) → SqlStatement | nothing
+    parse_sql(sql::String) → SqlStatement | SqlStatementList | nothing
 
-Parse `sql` into the SQL document hierarchy.  Returns `nothing` if the input is
-neither a SELECT query nor a supported `CREATE` DDL statement, or cannot be
-parsed.
+Parse `sql` into the SQL document hierarchy. The statements are separated by `;`.
+An empty statement is skipped, so a trailing `;` is allowed. One statement is
+returned as it is, and more than one as a `SqlStatementList`. Returns `nothing`
+if the input holds no statement, or if a statement is neither a SELECT query nor a
+supported `CREATE` DDL statement, or cannot be parsed.
 """
 function parse_sql(sql::String)
     p = Parser(sql)
+    statements = SqlStatement[]
+    while true
+        while peek(p).kind == TK_SEMICOLON
+            advance!(p)
+        end
+        peek(p).kind == TK_EOF && break
+        statement = parse_statement!(p)
+        statement === nothing && return nothing
+        push!(statements, statement)
+        # A statement ends at a `;` or at the end of the text.
+        at_end(p) || return nothing
+    end
+    isempty(statements) && return nothing
+    length(statements) == 1 ? statements[1] : SqlStatementList(statements)
+end
+
+# One statement, dispatched on its first keyword.
+function parse_statement!(p::Parser)
     if match_keyword(p, "SELECT")
         try
             return parse_select_statement!(p)
@@ -529,9 +532,9 @@ function parse_select_item!(p::Parser)
         end
     end
 
-    # SqlSelectItem constructors require SqlSelectExpression, but fallback
-    # expressions produce SqlScalarValue (which is SqlDocument, not
-    # SqlSelectExpression).  Build via Cell-level constructor directly.
+    # SqlSelectItem constructors require SqlSelectExpression, but a literal
+    # produces SqlScalarValue (which is SqlDocument, not SqlSelectExpression).
+    # Build via Cell-level constructor directly.
     return SqlSelectItem(expr, alias, Cell(nothing))
 end
 
@@ -1013,7 +1016,7 @@ function parse_fallback_expression!(p::Parser)
     if last_end >= start_pos
         raw = strip(SubString(p.source, start_pos, last_end))
         if !isempty(raw)
-            return SqlScalarValue(String(raw))
+            return SqlRawExpression(String(raw))
         end
     end
     return nothing

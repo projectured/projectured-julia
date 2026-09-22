@@ -68,6 +68,17 @@ function test_sql_to_syntax()
             [SqlUpdateAssignment(SqlColumnName("name"), SqlScalarValue("Ada")),
              SqlUpdateAssignment(SqlColumnName("age"), SqlScalarValue(37))])
         @test sql_text(update_no_where) == "UPDATE persons SET name = 'Ada', age = 37"
+
+        # USING prints its column list in parentheses; a raw expression prints its
+        # text without quotes.
+        @test sql_text(SqlJoinUsingCondition(SqlColumnName("id"), SqlColumnName("name"))) ==
+              "USING (id, name)"
+        @test sql_text(SqlRawExpression("COUNT(*)")) == "COUNT(*)"
+
+        # A statement list ends each statement with `;`. A DDL statement prints
+        # its own, and the list adds one after any other statement.
+        list = SqlStatementList([SqlSelectStatement("a"), SqlCreateSchemaStatement("s")])
+        @test sql_text(list) == "SELECT \n  *\nFROM \n  a\n;\n\nCREATE SCHEMA s;"
     end
 end
 
@@ -149,6 +160,12 @@ function test_sql_to_syntax_selection()
         TextToGraphics(measure=measure))
 
     test_position_navigation("SqlToSyntax nested", doc, proj)
+
+    # A join with USING, an expression kept as raw text, and a list of statements.
+    test_position_navigation("SqlToSyntax USING and a raw expression",
+        parse_sql_text("SELECT COUNT(*) FROM a JOIN b USING (id, name)"), proj)
+    test_position_navigation("SqlToSyntax statement list",
+        parse_sql_text("SELECT * FROM a; CREATE SCHEMA s; SELECT * FROM b"), proj)
 end
 
 function test_sql_ddl()

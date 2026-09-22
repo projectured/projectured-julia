@@ -150,7 +150,8 @@ const _NO_ROUND_TRIP = Set{String}([
     "sql/all_columns", "sql/column_name", "sql/table_name", "sql/scalar_value",
     "sql/comparison", "sql/select_item", "sql/and", "sql/or", "sql/not",
     "sql/where_filter_condition", "sql/where_clause", "sql/from_item",
-    "sql/from_clause", "sql/join_on_condition", "sql/joined_from_item",
+    "sql/from_clause", "sql/join_on_condition", "sql/join_using_condition",
+    "sql/raw_expression", "sql/joined_from_item",
     "sql/subquery_from_item", "sql/column_definition", "sql/update_assignment",
     "sql/column_reference", "sql/table_expression",
     # These two are whole statements and still do not re-parse — the SQL parser

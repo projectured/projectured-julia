@@ -40,6 +40,10 @@ make_sql_join_on_condition_document_example() =
     SqlJoinOnCondition(SqlComparison(SqlColumnReference("a"), "=", SqlColumnReference("b")))
 make_sql_joined_from_item_document_example() =
     SqlJoinedFromItem(SqlInnerJoin(), SqlTableExpression("orders"), make_sql_join_on_condition_document_example())
+make_sql_join_using_condition_document_example() =
+    SqlJoinUsingCondition(SqlColumnName("id"), SqlColumnName("name"))
+make_sql_raw_expression_document_example() =
+    SqlRawExpression("COUNT(*)")
 make_sql_subquery_from_item_document_example() =
     SqlSubqueryFromItem(SqlSelectStatement("persons"))
 make_sql_column_definition_document_example() =

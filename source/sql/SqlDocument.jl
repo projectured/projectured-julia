@@ -66,6 +66,14 @@ end
 SqlColumnReference(col::AbstractString) =
     SqlColumnReference(nothing, SqlColumnName(col), Cell(nothing))
 
+"""
+The source text of a select expression that the document model does not have, such
+as a function call. The parser keeps it as it is written, and it prints unquoted.
+"""
+@document struct SqlRawExpression <: SqlSelectExpression
+    text::String
+end
+
 @document struct SqlSelectItem <: SqlDocument
     expression::SqlSelectExpression
     column_alias::Any             # SqlColumnAlias | nothing
