@@ -96,53 +96,66 @@ on branch `tooltip-fit`, cut from `main` at `1b8cb64d`.
 
 ### Step 1 — a window says its bounds
 
-- [ ] `minimum_size` and `maximum_size` on `WindowDocument`, both `(0, 0)` by
+**Done.** `WindowDocument` and `OpenWindowOperation` carry the two fields.
+
+- [x] `minimum_size` and `maximum_size` on `WindowDocument`, both `(0, 0)` by
       default, and on `OpenWindowOperation`; `_apply_open!` and
       `_update_window!` of `WindowManaging.jl` copy them.
-- [ ] **The mirror builds its window by keyword.**
+- [x] **The mirror builds its window by keyword.**
       [ScreenToScreen.jl:81](../../source/screen/ScreenToScreen.jl#L81) builds
       the output window with twelve positional arguments. Two more fields shift
       them, and `x`, `y`, `width` and `height` are all `Int`, so a shifted
       argument would mis-size the main window with no error. Every other place
       that builds a window already uses keywords.
-- [ ] A `WindowDocument` is a saved type (`register_pred_type!`), so a user
+- [x] A `WindowDocument` is a saved type (`register_pred_type!`), so a user
       interface saved before this change must still load, with the two new
       fields at their default.
-- [ ] Tests in the screen suite: a window opened without the two fields is
-      sized as it is today; the mirrored window keeps the id, the title, the
-      position and the size of its input; an old saved interface loads.
+- [x] The screen has no suite of its own, so the three cases went to the
+      substrate suite as `test_window_fit()`, in
+      `test/substrate/projection/WindowFitTest.jl`: the mirror keeps the id,
+      the title, the position, the size, the bounds, the style and the
+      dismissal of its input; a window opened without the bounds keeps its
+      size; a window saved before the change loads with the bounds at `(0, 0)`.
 
 ### Step 2 — the screen offers the maximum
 
-- [ ] `ScreenToScreen`: the content of a window that fits is printed with
+**Done.** The offer is two computed cells, so it stays reactive: the maximum
+when the window has one, and the window's own size otherwise.
+
+- [x] `ScreenToScreen`: the content of a window that fits is printed with
       `maximum_size` as the available extent.
-- [ ] Test: the offer of a fitting window is its maximum, and the offer of
-      every other window is its size.
+- [x] The offer is proven where it shows: in `test_application()`, the canvas
+      of a tooltip that holds one line is narrower and shorter than the
+      maximum, which it could not be if the offer were the window's size.
 
 ### Step 3 — the backend fits the window
 
-- [ ] `compute_fitted_window_size`, and the reconciler uses it when it opens a
-      window and when it updates one.
-- [ ] The fitted size is written back into the `WindowDocument`.
-- [ ] Tests in the SDL suite: a window with a small content gets the content's
-      size; one with a content larger than the maximum gets the maximum; one
-      with a tiny content gets the minimum; a window with no maximum keeps its
-      size.
+**Done**, as `_fit_window_size!(w, canvas)`, which the reconciler calls before
+it opens or updates a window. Only a size that changed is written, because an
+equal write would invalidate the cell the mirrored window shares on every frame.
+
+- [x] The fit, and the write-back into the `WindowDocument`.
+- [x] Tests in the SDL suite: the content's size, the maximum, the minimum, and
+      a window with no maximum keeping its size.
 
 ### Step 4 — the window stays on the screen
 
-- [ ] `_place_window_on_screen!`: inside the work area, and off the pointer.
-- [ ] Tests in the SDL suite, with the work area of the display: a window asked
-      for beyond the right edge ends inside it, and does not hold the pointer.
+**Done.** `_place_fitted_window!` reads the work area and the pointer from the
+backend, and `compute_window_place` is the rule itself, which takes both as
+arguments, so a test needs neither a display nor a pointer it can not move.
+
+- [x] The placement, and its five cases in the SDL suite.
 
 ### Step 5 — the tooltip asks to fit
 
-- [ ] `TooltipProbeProjection` takes `minimum_size` and `maximum_size` in place
-      of `size`, and passes them.
-- [ ] `test_tooltip_probe()` and `test_widget_tooltip()`: the operation carries
-      the bounds.
-- [ ] `test_application()`: a tooltip of one line is smaller than a tooltip of
-      a docstring, and neither is the old fixed size.
+**Done**, with `minimum_size = (120, 32)` and `maximum_size = (560, 400)`.
+
+- [x] `TooltipProbeProjection` takes the two in place of `size`.
+- [x] `test_tooltip_probe()`: the window carries the bounds.
+- [x] `test_application()`: the canvas of a tooltip of one line is inside the
+      bounds and smaller than the maximum. The size itself is given by a
+      backend, and the application suite runs without one, so the SDL suite
+      holds the sizes.
 
 ### Step 6 — the main window is unharmed
 
@@ -155,7 +168,7 @@ on branch `tooltip-fit`, cut from `main` at `1b8cb64d`.
 
 ### Step 7 — the guides, and close
 
-- [ ] `screen.md`: a window says its bounds, and the content of a window that
+- [x] `screen.md`: a window says its bounds, and the content of a window that
       fits is printed at its maximum. `sdl.md`: the backend fits such a window
       and keeps it on the screen. `tooltip.md`: the tooltip's bounds.
 - [ ] Move this plan to `plan/done/`.
