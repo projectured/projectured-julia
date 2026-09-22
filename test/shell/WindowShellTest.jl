@@ -57,6 +57,28 @@ end
     @test length(get_pane_groups(tree)) == groups + 1
 end
 
+@testset "View opens the session's gesture log, and only once" begin
+    tree = PaneTree(PaneGroup(PaneTab[PaneTab("a", PrimitiveString("x"))]))
+    first_tab() = apply_pane_operation!(tree,
+        make_pane_focus_operation(tree, first(get_pane_groups(tree)), 1))
+    first_tab()
+    editor = _ShellFakeEditor(tree)
+    log = get_session_gesture_log()
+    holding() = [(group, index) for group in get_pane_groups(tree)
+                 for (index, tab) in enumerate(group.tabs) if tab.content === log]
+    open_log = only(a for a in _menu_actions() if string(a.label) == "Gesture log")
+
+    evaluate_operation(editor, InvokeActionOperation(open_log))
+    @test length(holding()) == 1
+    # A second press gives the focus back to that tab and opens no other.
+    first_tab()
+    evaluate_operation(editor, InvokeActionOperation(open_log))
+    @test length(holding()) == 1
+    (group, index) = only(holding())
+    focus = get_pane_focus(tree)
+    @test focus[1] === group && focus[2] == index
+end
+
 @testset "the status bar says where the person is" begin
     tree = PaneTree(PaneGroup(PaneTab[PaneTab("a.json", PrimitiveString("x"))]))
     apply_pane_operation!(tree, make_pane_focus_operation(tree, first(get_pane_groups(tree)), 1))

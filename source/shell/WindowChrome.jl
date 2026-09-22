@@ -43,6 +43,10 @@ draw them, and the clipboard's five to the clipboard wrapper. Each needs a verb
 that reaches its owner through the editor. Until one has that, the key answers
 and the menu says nothing about it, which is the honest half of the two.
 
+**Gesture log** opens the session's log in a tab. The recorder is always on, so
+the tab holds what happened before it opened, and a person opens it after a
+fault rather than before one.
+
 A host adds its own menus with `extra`, and this package names none of them.
 They go after the shared ones, so the bar reads the same way in every binary
 until the host's own menus begin.
@@ -62,6 +66,8 @@ make_window_menu_bar(; extra = []) =
             make_window_command("Split horizontally",
                                 editor -> _split!(editor, :horizontal);
                                 shortcut = Shortcut(:backslash; ctrl = true, shift = true)),
+            make_window_command("Gesture log", _open_gesture_log!;
+                                tooltip = "Every gesture of this session, and what each one did"),
         ])),
         extra...,
     ]; orientation = :horizontal)
@@ -107,6 +113,25 @@ function _close_tab!(editor)
     group, index = focus
     index == 0 && return nothing
     apply_pane_operation!(tree, make_pane_close_tab_operation(tree, group, index))
+    nothing
+end
+
+# The session's gesture log, in a tab. A tab that already holds it takes the
+# focus instead, so the window never shows the one log twice. It is the log the
+# recorder has written since the window opened, so it holds what happened before
+# the tab existed.
+function _open_gesture_log!(editor)
+    tree = _window_tree(editor)
+    tree === nothing && return nothing
+    log = get_session_gesture_log()
+    for group in get_pane_groups(tree)
+        for (index, tab) in enumerate(group.tabs)
+            get_wrapped_document(tab.content) === log || continue
+            apply_pane_operation!(tree, make_pane_focus_operation(tree, group, index))
+            return nothing
+        end
+    end
+    open_pane!(editor, log)
     nothing
 end
 
