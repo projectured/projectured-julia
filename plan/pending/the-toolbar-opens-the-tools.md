@@ -146,7 +146,7 @@ omnet-julia package `OmnetIde` depend on the shell.
 
 ## 3. Decisions
 
-R1, R3 and the list of tools in §2 are decisions of the owner (§5). The other
+R1, R3, R5 and the list of tools in §2 are decisions of the owner (§5). The other
 decisions are my recommendations, and they follow from the code.
 
 ### R1. A button reaches the tool (decided by the owner)
@@ -234,19 +234,37 @@ A name says what the icon shows and not which tool uses it, as `:folder` and
 fallback, the glyphs do not take the color of the theme, and Noto Emoji draws
 in one color only.
 
-### R5. A toolbar button draws its icon alone, and keeps its label
+### R5. A toolbar holds `WidgetToolbarItem`s (decided by the owner)
 
-`WidgetMenuItem` gets a field that hides the label. The name follows
-[naming-rules.md](../../documentation/rule/naming-rules.md), and I choose it in
-Step 2. When the label is hidden, the printer draws the icon at the line height
-of the font, with no gap, and the item is as wide as the icon and its padding.
+A new widget, `WidgetToolbarItem`, is one button of a toolbar. Like
+`WidgetMenuItem` and `WidgetButton`, it is a view of an `Action`.
 
-The label stays in the `Action`. The command palette, the gesture help and the
-tests find a command by its label, and the tooltip can start with it.
+- It draws the icon of its action alone when the action has an icon. It draws
+  the label when the action has no icon. The icon is as tall as a line of the
+  font, and the item is as wide as the icon and its padding.
+- It is flat. It draws a surface behind itself only while the pointer is on it.
+- The label stays on the `Action`. It names the command, the tests find the
+  command by it, and it is the tooltip when the item has no tooltip of its own.
+- `WidgetMenuItem` keeps what only a menu needs: the submenu and the popup that
+  closes after a click. It gets no new field.
 
-**Rejected:** an empty label. The icon is as tall as the label text, so an
-empty label can give a zero size. Also, the command palette then lists a
-command with no name.
+This is what most widget libraries do. One command object has two views, and the
+toolbar view is a type of its own: `QToolButton` in Qt, `ToolStripButton` in
+WinForms, `GtkToolButton` in GTK 3 and `NSToolbarItem` in Cocoa. The command
+keeps its text when the toolbar hides it, and the text becomes the default
+tooltip. The rule "icon when there is one, else the text" is the rule of Swing.
+
+A later mark on the fault button (§5, answer 3) and a pressed look while a tool
+is open are toolbar concerns, so they go on this type and never on a menu item.
+
+**Rejected:** a field on `WidgetMenuItem` that hides the label. It puts a
+toolbar choice on a menu type.
+
+**Rejected:** an empty label, with no gap after the icon when the label is
+empty. It removes the name from the command.
+
+**Rejected:** a `WidgetButton`. It draws a raised panel with a border and a
+shadow, and eight of them in a band look heavy.
 
 ### R6. The tooltip names the tool first
 
@@ -330,21 +348,25 @@ the other one.
 - [ ] Look at them: render each one at the toolbar size in the SDL backend and
       the web backend, and put the screenshots in this plan.
 
-### Step 2: a menu item that draws its icon alone
+### Step 2: `WidgetToolbarItem`
 
-- [ ] The field on `WidgetMenuItem`, and the printer: icon at the line height,
-      no gap, the width of the icon and the padding. The hover surface and the
-      hit area follow that width.
-- [ ] `make_window_command` passes the field through.
-- [ ] `test_widget_toolbar()`: an item with a hidden label is as wide as its
-      icon and padding, and a crossing lands on the correct item.
-- [ ] `test_widget_toolbar()`: a `MousePress` on the item gives the
-      `InvokeActionOperation` of its action. No test does this now.
+- [ ] The document in `WidgetDocument.jl`, with the constructor sugar of
+      `WidgetMenuItem` (`content`, `icon` and `action` fold into one `Action`),
+      the export, a Tab stop in `FocusableWidget`, and `compute_tooltip` that
+      falls back to the label.
+- [ ] The printer and the reader in `WidgetToGraphics.jl`, and the row in the
+      dispatch table. A left press invokes the action, and a crossing sets
+      `hovered`. The shortcut walk of the shell collects its action too.
+- [ ] `test_widget_toolbar()`: an item with an icon draws no text and is as
+      wide as its icon and padding; an item with no icon draws its label; a
+      crossing lands on the correct item; a `MousePress` gives the
+      `InvokeActionOperation` of its action (no test does this now); the
+      tooltip falls back to the label.
 
 ### Step 3: the shell reaches a tool
 
 - [ ] `make_window_tool_command(label, type; icon, tooltip, make)` in
-      `WindowChrome.jl`, with R1 and R2. It hides the label.
+      `WindowChrome.jl`, with R1 and R2. It makes a `WidgetToolbarItem`.
 - [ ] `_open_gesture_log!` becomes a use of it. View → Gesture log keeps its
       behavior.
 - [ ] `test_window_shell()`: the first press opens a tab of the type and gives
@@ -448,6 +470,8 @@ The owner answered on 2026-09-22.
    Step 8 removes them.
 5. **The tool buttons in the IDE.** Answer: **the IDE has the same toolbar as
    the application.** R3 and Step 8.
+6. **A new widget for a toolbar button.** Answer: **yes, a
+   `WidgetToolbarItem`.** R5 and Step 2.
 
 ## 6. What this plan does not do
 
