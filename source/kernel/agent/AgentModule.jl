@@ -5,11 +5,16 @@ The **outbound** half of the agent layer, and the only thing in the kernel that 
 actually an *agent*: the glue between a language model, a set of tools, and
 something to act on.
 
-Two fragments share this namespace:
+Four fragments share this namespace:
 
 - [`Agent.jl`](Agent.jl) — the `Agent` itself, and the `AgentToolResult` event it
   reports a completed tool call with.
 - [`AgentLoop.jl`](AgentLoop.jl) — `run_turn!`, the loop.
+- [`AgentInterface.jl`](AgentInterface.jl) — the agent-server contract:
+  `make_agent_server`, `start_agent_server!`, `stop_agent_server!` and
+  `run_on_editor_task!`, each a body-less generic.
+- [`AgentDefaults.jl`](AgentDefaults.jl) — the fallback behaviours for that
+  contract, answered when no concrete server package is loaded.
 
 **What the loop owns, and what it does not.** It owns the *control flow* of an agent
 turn: stream a round, collect the tool calls the model made, dispatch them through
@@ -20,9 +25,10 @@ they are the caller's domain and not an agent's. The seam is two functions:
 `messages`, which the loop calls to get the prompt, and `on_event`, which the loop
 calls with everything that happens.
 
-The agent-server seam of [`AgentServer.jl`](AgentServer.jl) is the mirror
-image: the inbound direction, where an agent outside the process drives
-*this* editor.
+The agent-server contract of `AgentInterface.jl` is the mirror image: the
+inbound direction, where an agent outside the process drives *this* editor.
+A concrete server (e.g. `:mcp`) lives in its own optional package and answers
+`make_agent_server(::Val{kind}, editor; kwargs...)`.
 """
 module AgentModule
 
