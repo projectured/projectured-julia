@@ -120,6 +120,24 @@ end
     @test _press(io, _centre(io.output)) === nothing
 end
 
+@testset "Alt and a press select a toolbar item, and run nothing" begin
+    # The layers above turn a declined Alt press into a selection of the item,
+    # and the tooltip probe finds the item with the same press.
+    io = print_document(proj, WidgetToolbarItem("Log"; icon = :list))
+    @test _press(io, _centre(io.output)) isa InvokeActionOperation
+    @test !(_press(io, _centre(io.output); modifiers = ModifierKeys(alt = true)) isa
+            InvokeActionOperation)
+
+    # In a toolbar the selection names the item under the pointer, not the
+    # whole toolbar.
+    tb = WidgetToolbar(Any[WidgetToolbarItem("Explorer"; icon = :folder),
+                           WidgetToolbarItem("Log"; icon = :list)])
+    io = print_document(proj, tb)
+    op = _press(io, _centre(_items(io)[2]); modifiers = ModifierKeys(alt = true))
+    @test op isa ReplaceSelectionOperation
+    @test try_evaluate_reference(tb, op.path, missing) === tb.elements[2]
+end
+
 @testset "a toolbar item says its label when it has no tooltip" begin
     @test compute_tooltip(WidgetToolbarItem("Gesture log"; icon = :keyboard)).value == "Gesture log"
     @test compute_tooltip(WidgetToolbarItem("Gesture log"; icon = :keyboard,

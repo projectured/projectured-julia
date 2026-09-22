@@ -351,6 +351,50 @@ function test_application()
                 @test get_wrapped_document(group.tabs[index].content).folders[1].pathname == abspath(dir)
             end
 
+            @testset "a press on the picture opens the tool, and the pointer at rest names it" begin
+                document, projection = make_application_window(paths[1:1]; root = dir,
+                                                               assistant = nothing,
+                                                               pointer = () -> (300, 400))
+                scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
+                composed = make_window_scene_projection(projection;
+                    opened_window_projections = make_opened_window_projections(;
+                        content = make_application_content_projections()),
+                    screen_wrap = make_popup_screen_wrap())
+                iomap = print_document(composed, scene)
+                # The pixel of the button, found the way a hand finds it: by
+                # pressing. The toolbar is a band near the top of the window.
+                action_at(x, y) = begin
+                    operation = _app_plain(_app_fire(composed, iomap,
+                                                     MousePress(:left, x, y, ModifierKeys())))
+                    operation isa InvokeActionOperation ? string(operation.action.label) : nothing
+                end
+                row = findfirst(y -> action_at(12, y) == "Explorer", 0:2:120)
+                @test row !== nothing
+                y = (0:2:120)[row]
+                column = findfirst(x -> action_at(x, y) == "Message log", 0:3:600)
+                @test column !== nothing
+                x = (0:3:600)[column]
+
+                operation = _app_fire(composed, iomap, MousePress(:left, x, y, ModifierKeys()))
+                evaluate_operation(_AppFakeEditor(scene, iomap), operation)
+                tree = _app_window(document)
+                @test count(tab -> get_wrapped_document(tab.content) === get_session_message_log(),
+                            [tab for group in get_pane_groups(tree) for tab in group.tabs]) == 1
+
+                # The pointer at rest on the picture opens a window of its own
+                # that says the name of the tool and what it shows.
+                before = length(scene.windows)
+                read_intent(composed, nothing,
+                            Intent(WindowInput(:ProjecturEd, MouseMove(x, y))),
+                            print_document(composed, scene))
+                @test length(scene.windows) == before + 1
+                tip = last(scene.windows)
+                @test tip.style === :tooltip
+                output = print_document(composed, scene).output
+                @test any(text -> startswith(text, "Message log:"),
+                          _app_drawn_strings(output.windows[end].content))
+            end
+
             @testset "the navigator opens a file beside the files" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = _AppFakeEditor(scene, iomap)

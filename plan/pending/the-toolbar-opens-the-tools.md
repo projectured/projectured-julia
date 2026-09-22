@@ -476,9 +476,38 @@ the other one.
 
 ### Step 7: the real window
 
-- [ ] A test through the window scene: a `MousePress` at the pixel of a button
-      opens the tool, and the pointer at rest on a button opens a tooltip window
-      that holds the text of R6.
+- [x] A test through the window scene, in `test_application()`: a press at
+      the pixel of the "Message log" button, found by pressing along the band
+      as a hand would, opens the session message log; the pointer at rest on
+      it opens a window of style `:tooltip` that draws "Message log: …".
+      **94** (88 + 6).
+- [x] **The tooltip did not open at first, and the cause was in the shell,
+      not in the new widget.** The tooltip probe finds the document under the
+      pointer with a synthetic Alt+press. The shell answered every press
+      through its `content`, so an Alt+press on a toolbar button selected
+      `.windows[1].content.content.content` — the window content — and the
+      probe found no tooltip. The select-and-paste plan taught every container
+      to re-root an Alt+press answer into its child; the shell and the toolbar
+      were not in its list. Three changes, each the rule the other containers
+      already follow:
+      - the toolbar re-roots the answer of the item under the pointer into
+        `elements[i]`, as the composite does (`_route_toolbar_press`);
+      - the shell reads an Alt+press over a band with that band alone and
+        re-roots it into `menu_bar`, `toolbar` or `status_bar`
+        (`_select_in_band`). It hit-tests only the bands, because the probe
+        sends an Alt+press on every pointer move, and the content must not be
+        read twice;
+      - the toolbar item declines an Alt+press, so the press selects it and
+        runs nothing.
+      Now the press names `.windows[1].content.content.toolbar.elements[3]`.
+      An Alt+press on the menu bar names `menu_bar`, where it named the window
+      content before. The menu does not yet re-root into its items, so a menu
+      item's tooltip still does not show; that is outside this plan.
+- [x] `test_widget_toolbar()` **31**: an Alt+press on an item runs nothing,
+      and in a toolbar it names `elements[i]`. The other tests of a shell pass
+      unchanged: `test_widget_action()` 43, `test_widget_tree()` 31,
+      `test_anchor_point()` 17, the seven table and pane size tests,
+      `test_shell()` 154, `test_gallery_wrappers()` 13.
 - [ ] Run `bin/projectured` and press each button with the real pointer. Put a
       screenshot of the toolbar in this plan.
 - [ ] Land Steps 1 to 7 on `main` of projectured-julia.

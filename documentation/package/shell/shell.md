@@ -155,6 +155,13 @@ end
 The capture is removed when the window closes, also when it throws, so the
 logger the window replaced comes back.
 
+**An Alt+click on a band selects in that band.** The shell answers every other
+press through its `content`, but a band is not the content, so an Alt+press over
+the menu bar, the toolbar or the status bar names that band's own field, and the
+toolbar names the button under the pointer (`toolbar.elements[i]`). The tooltip
+probe finds the document under the pointer with the same press, so this is what
+lets a button say its name.
+
 ## The two probes
 
 A tooltip and a context menu are answered by the document, not by the widget

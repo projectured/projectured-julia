@@ -1861,10 +1861,16 @@ map_reference_backward(::WidgetToolbarItemToGraphicsCanvas, iomap, reference) = 
 
 # A left press on an enabled item invokes its action; a crossing sets `hovered`,
 # which draws the surface. The item's own gestures come first, as on a button.
+#
+# Alt and a left press select the item as a whole, as they select any widget, so
+# the item declines that press and the layers above select it. The tooltip probe
+# finds the document under the pointer with the same press, so an item that
+# answered it with its action would never say its name.
 function read_intent(::WidgetToolbarItemToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
     w.visible == false && return nothing
     _outside_widget(iomap, evt) && return nothing
+    is_whole_selection_press(evt) && return nothing
     enabled = _toolbar_item_enabled(w)
     if enabled
         operation = read_bound_gesture(w, evt)
@@ -2341,6 +2347,10 @@ function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
         end
     end
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
+    if is_whole_selection_press(evt)
+        selected = _select_in_band(iomap.input, child_iomaps, evt)
+        selected === nothing || return selected
+    end
     op = @event_case evt begin
         MouseScroll => _route_scroll_to_children(child_iomaps, evt)
         MousePress  => _route_click_to_children(child_iomaps, evt)
@@ -2356,6 +2366,38 @@ function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
         _           => _forward_to_children(child_iomaps, evt)
     end
     _retarget_op(p, iomap, op)
+end
+
+# An Alt+press over a band selects in that band, and the path names the band's
+# own field. Every other answer is re-rooted into `content`, and a band is not
+# the content: without this, an Alt+press on a toolbar button selected the whole
+# window, and the tooltip probe, which finds the document under the pointer with
+# the same press, never found the button. Only the bands are hit-tested here, so
+# a press over the content reads the content once, on the ordinary route.
+function _select_in_band(shell::WidgetShell, child_iomaps::Vector, evt::MousePress)
+    for entry in child_iomaps
+        entry === nothing && continue
+        (ox, oy, cim) = entry::Tuple{Int,Int,Any}
+        field = _find_band_field(shell, cim.input)
+        field === nothing && continue
+        canvas = cim.output
+        canvas isa GraphicsCanvas || continue
+        lx, ly = evt.x - ox - Int(canvas.x), evt.y - oy - Int(canvas.y)
+        hit_element_at(canvas, lx, ly) === nothing && continue
+        answer = read_child_event(cim, MousePress(evt.button, lx, ly, evt.count, evt.modifiers))
+        answer === nothing && return nothing
+        return reroot_operation(answer, (FieldReferenceStep(field),))
+    end
+    nothing
+end
+
+# The field of the shell that holds `band`, when it is one of the three bands.
+function _find_band_field(shell::WidgetShell, band)
+    band === nothing && return nothing
+    band === shell.menu_bar && return "menu_bar"
+    band === shell.toolbar && return "toolbar"
+    band === shell.status_bar && return "status_bar"
+    nothing
 end
 
 # Forward a coordless event to each child entry's reader, returning the
@@ -4093,10 +4135,25 @@ end
 function read_intent(::WidgetToolbarToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     entries = getfield(iomap, :child_iomaps)[]::Vector
-    evt isa MousePress && return _route_click_to_children(entries, evt)
+    evt isa MousePress && return _route_toolbar_press(iomap.input, entries, evt)
     (evt isa MouseEnter || evt isa MouseLeave) && return _route_crossing_to_children(entries, evt)
     evt isa MouseScroll || return nothing
     _route_scroll_to_children(entries, evt)
+end
+
+# A press goes to the item under the pointer, and its answer is re-rooted into
+# `elements[i]`, as a composite re-roots: an Alt+press then selects that item
+# rather than the whole toolbar, and an action travels unchanged. The toolbar
+# lays out only its widget elements, so a laid-out index is mapped back to the
+# element it came from.
+function _route_toolbar_press(toolbar::WidgetToolbar, entries::Vector, evt::MousePress)
+    found = _route_composite_event(entries, evt.x, evt.y,
+                (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers))
+    found === nothing && return nothing
+    operation, laid_out = found
+    widgets = findall(item -> item isa WidgetDocument, collect(toolbar.elements))
+    index = widgets[laid_out]
+    reroot_operation(operation, (FieldReferenceStep("elements"), RangeReferenceStep(index - 1, index)))
 end
 
 # ── WidgetStatusBar (Stage 4) ─────────────────────────────────────────────────
