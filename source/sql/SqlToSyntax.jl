@@ -1179,37 +1179,32 @@ read_intent(::SqlNotToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 # Output shape (no separator at top level; each clause node ends with \n from its
 # indented body, so clauses appear on separate lines without extra separators):
 #   SyntaxNode (no separator):
-#     children[1] = select_clause node  → "SELECT [DISTINCT]\n  item,\n  …\n"
-#     children[2] = from_clause node    → "FROM\n  item,\n  …\n"
-#     children[3] = where_clause node   → "WHERE\n  …\n"  (omitted if no condition)
+#     select_clause node  → "SELECT [DISTINCT]\n  item,\n  …\n"
+#     from_clause node    → "FROM\n  item,\n  …\n"  (omitted if it has no item)
+#     where_clause node   → "WHERE\n  …\n"            (omitted if no condition)
+# A clause that is omitted has no child, so the position of a clause is its index
+# in `_get_printed_select_clauses`.
 
 @projection struct SqlSelectStatementToSyntaxNode
     keyword::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_bold_20, color_solarized_blue)
 end
 
+# The fields of the clauses that a statement prints, in order. A `FROM` with no
+# item prints nothing, so `SELECT 1` reads back, and a `WHERE` with no condition
+# prints nothing.
+_get_printed_select_clauses(stmt::SqlSelectStatement) =
+    [name for (name, printed) in (("select_clause", true),
+                                  ("from_clause", !isempty(stmt.from_clause.items)),
+                                  ("where_clause", stmt.where_clause.condition !== nothing))
+     if printed]
+
 function print_document(p::SqlSelectStatementToSyntaxNode, recursion, stmt::SqlSelectStatement, ctx)
-    projected = ComputedCell(() -> begin
-        sc = print_document(recursion, recursion, stmt.select_clause,
-                              make_child_context(ctx, FieldReferenceStep("select_clause")))
-        fc = print_document(recursion, recursion, stmt.from_clause,
-                              make_child_context(ctx, FieldReferenceStep("from_clause")))
-        wc = stmt.where_clause.condition === nothing ? nothing :
-             print_document(recursion, recursion, stmt.where_clause,
-                              make_child_context(ctx, FieldReferenceStep("where_clause")))
-        (sc, fc, wc)
-    end)
+    child_iomaps_cell = ComputedCell(() -> Any[
+        print_document(recursion, recursion, getproperty(stmt, Symbol(name)),
+                       make_child_context(ctx, FieldReferenceStep(name)))
+        for name in _get_printed_select_clauses(stmt)])
 
-    child_iomaps_cell = ComputedCell(() -> begin
-        sc, fc, wc = projected[]
-        wc !== nothing ? Any[sc, fc, wc] : Any[sc, fc]
-    end)
-
-    children = ComputedCellVector(() -> begin
-        sc, fc, wc = projected[]
-        docs = SyntaxDocument[sc.output, fc.output]
-        wc !== nothing && push!(docs, wc.output)
-        docs
-    end)
+    children = ComputedCellVector(() -> SyntaxDocument[im.output for im in child_iomaps_cell[]])
 
     iomap_cell = Cell(nothing)
     sel = ComputedCell(() -> begin
@@ -1231,29 +1226,22 @@ function map_reference_forward(p::SqlSelectStatementToSyntaxNode, iomap::Childre
     @reference_case reference begin
         ∅ => @reference ::SyntaxNode
         proj(^(p), _) => reference
-        ::SqlSelectStatement.select_clause.rest... => begin
-            cims = iomap.child_iomaps
-            child = cims[1]
-            inner = map_reference_forward(child.projection, child, rest)
-            inner === nothing && return nothing
-            @reference ::SyntaxNode.children::CellVector[1].^(inner)
-        end
-        ::SqlSelectStatement.from_clause.rest... => begin
-            cims = iomap.child_iomaps
-            child = cims[2]
-            inner = map_reference_forward(child.projection, child, rest)
-            inner === nothing && return nothing
-            @reference ::SyntaxNode.children::CellVector[2].^(inner)
-        end
-        ::SqlSelectStatement.where_clause.rest... => begin
-            cims = iomap.child_iomaps
-            length(cims) < 3 && return nothing
-            child = cims[3]
-            inner = map_reference_forward(child.projection, child, rest)
-            inner === nothing && return nothing
-            @reference ::SyntaxNode.children::CellVector[3].^(inner)
-        end
+        ::SqlSelectStatement.select_clause.rest... => _map_select_clause_forward(iomap, "select_clause", rest)
+        ::SqlSelectStatement.from_clause.rest... => _map_select_clause_forward(iomap, "from_clause", rest)
+        ::SqlSelectStatement.where_clause.rest... => _map_select_clause_forward(iomap, "where_clause", rest)
     end
+end
+
+# A reference into the clause `name` as a reference into its child, or `nothing`
+# when the statement does not print that clause.
+function _map_select_clause_forward(iomap::ChildrenIoMap, name::String, rest)
+    child_i = findfirst(==(name), _get_printed_select_clauses(iomap.input))
+    cims = iomap.child_iomaps
+    (child_i === nothing || child_i > length(cims)) && return nothing
+    child = cims[child_i]
+    inner = map_reference_forward(child.projection, child, rest)
+    inner === nothing && return nothing
+    @reference ::SyntaxNode.children::CellVector[child_i].^(inner)
 end
 
 function map_reference_backward(p::SqlSelectStatementToSyntaxNode, iomap::ChildrenIoMap, reference)
@@ -1266,9 +1254,12 @@ function map_reference_backward(p::SqlSelectStatementToSyntaxNode, iomap::Childr
             child = cims[child_i]
             inner = map_reference_backward(child.projection, child, rest)
             inner === nothing && return nothing
-            if child_i == 1
+            names = _get_printed_select_clauses(iomap.input)
+            child_i <= length(names) || return nothing
+            name = names[child_i]
+            if name == "select_clause"
                 @reference ::SqlSelectStatement.select_clause.^(inner)
-            elseif child_i == 2
+            elseif name == "from_clause"
                 @reference ::SqlSelectStatement.from_clause.^(inner)
             else
                 @reference ::SqlSelectStatement.where_clause.^(inner)

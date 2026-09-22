@@ -24,7 +24,7 @@ A `SELECT` goes down through select items, from items, joins with `ON` or `USING
 
 ### A statement is a view with a selection
 
-`SqlToSyntax()` has one rule for each document type. The eight leaf rules, such as the column, table and scalar leaves, are `@projection_template` rules with no `bound` field: each prints a text computed from several fields. The `USING` condition is a `@projection_template` rule too, with the column names in a `collection`. The rules of the other clauses and statements are hand-written `print_document` methods. Each builds a `SyntaxNode` and maps the selection clause by clause through a `ChildrenIoMap`.
+`SqlToSyntax()` has one rule for each document type. The eight leaf rules, such as the column, table and scalar leaves, are `@projection_template` rules with no `bound` field: each prints a text computed from several fields. The `USING` condition is a `@projection_template` rule too, with the column names in a `collection`. The rules of the other clauses and statements are hand-written `print_document` methods. Each builds a `SyntaxNode` and maps the selection clause by clause through a `ChildrenIoMap`. A `SELECT` prints no `FROM` clause when it has no from item and no `WHERE` clause when it has no condition, so `SELECT 1` prints as `SELECT 1` and reads back.
 
 Every reader of the domain maps a `ReplaceSelectionOperation` and returns `nothing` for every other operation. So you can select and navigate every part of a statement, but no key edits a statement in place, and no `@gestures` table exists. A caret on the computed text of a leaf becomes a flat offset in an introduced reference, as a caret on the chrome of an XML element does; see [xml.md](../xml/xml.md). The flat offset keeps the navigation search bounded.
 
@@ -41,7 +41,7 @@ The Insert key replaces a `SqlNothing` with a `SqlInsertion`, whose `value` is S
 
 A statement that starts with any other keyword, such as `INSERT` or `UPDATE`, is not a statement for the parser, and `parse_sql_text` raises the error "SQL: not a parseable statement" for the whole text. A statement must end at a `;` or at the end of the text. `parse_sql` catches every error inside a statement and returns `nothing`, so each failure gives that same message.
 
-The parser does not raise an error for a part that it does not model. The tokenizer drops comments. The clauses after `WHERE`, such as `GROUP BY` and `ORDER BY`, are skipped to the end of the statement. A select expression that starts with a function call, a parenthesis or an operator becomes a `SqlRawExpression` whose `text` is the source text of the tokens. It prints as that text, without quotes, so `COUNT(*)` reads and prints back as `COUNT(*)`.
+The parser does not raise an error for a part that it does not model. The tokenizer drops comments. It steps over the text by string index, so a string, an identifier or a comment can hold text that is not ASCII, and a letter of any script can start an identifier. The clauses after `WHERE`, such as `GROUP BY` and `ORDER BY`, are skipped to the end of the statement. A select expression that starts with a function call, a parenthesis or an operator becomes a `SqlRawExpression` whose `text` is the source text of the tokens. So does an expression that goes on after a column or a literal, such as `a + 1`: the parser reads it again from its first token, so no part of it is lost. It prints as that text, without quotes, so `COUNT(*)` reads and prints back as `COUNT(*)`.
 
 ### The file
 
@@ -80,8 +80,6 @@ projection = SqlToSyntax()
 ## Limits
 
 - **The parser does not read `INSERT` or `UPDATE`.** The documents, the printer, the examples and the tests exist, but a typed `INSERT INTO …` stays red in the insertion and does not commit. This is the open step of `plan/pending/sql-insert-update-support.md`.
-- **An expression that starts with a column name reads as the column.** `SELECT a + 1 FROM t` reads as `SELECT a`, and the rest of the statement is lost.
-- **A `SELECT` with no `FROM` does not parse back.** `SELECT 1` prints an empty `FROM`, and the parser raises an error on that text.
 - **A skipped clause is lost.** `GROUP BY`, `HAVING`, `ORDER BY` and `LIMIT` do not survive a round trip. `plan/pending/sql-select-aggregation-support.md` plans `GROUP BY` and the aggregate functions.
 - **A table constraint reads as a column.** A `PRIMARY KEY (id)` entry in the column list becomes a column named `PRIMARY` with the type `KEY (id)`. It prints back as the same text.
 - **No `CREATE INDEX`.** `plan/pending/dbcatalog-index-support.md` plans the index statements.

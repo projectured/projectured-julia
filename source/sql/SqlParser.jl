@@ -92,11 +92,13 @@ const SQL_KEYWORDS = Set{String}([
     "NATURAL",
 ])
 
+# `i` is a string index: a character that is not ASCII takes more than one, so
+# the tokenizer steps with `nextind` over any text that can hold one, and a token
+# ends at `prevind` of the index after it.
 function tokenize(sql::String)::Vector{SqlToken}
     tokens = SqlToken[]
     i = 1
-    n = length(sql)
-    ss = SubString(sql)  # full view for cheap sub-slicing
+    n = ncodeunits(sql)
 
     while i <= n
         c = sql[i]
@@ -111,7 +113,7 @@ function tokenize(sql::String)::Vector{SqlToken}
         if c == '-' && i + 1 <= n && sql[i+1] == '-'
             i += 2
             while i <= n && sql[i] != '\n'
-                i += 1
+                i = nextind(sql, i)
             end
             continue
         end
@@ -126,7 +128,7 @@ function tokenize(sql::String)::Vector{SqlToken}
                 elseif sql[i] == '*' && i + 1 <= n && sql[i+1] == '/'
                     depth -= 1; i += 2
                 else
-                    i += 1
+                    i = nextind(sql, i)
                 end
             end
             continue
@@ -168,10 +170,10 @@ function tokenize(sql::String)::Vector{SqlToken}
                 elseif sql[i] == '\''
                     i += 1; break
                 else
-                    i += 1
+                    i = nextind(sql, i)
                 end
             end
-            push!(tokens, SqlToken(TK_STRING_LIT, SubString(sql, start, i - 1), start))
+            push!(tokens, SqlToken(TK_STRING_LIT, SubString(sql, start, prevind(sql, i)), start))
             continue
         end
 
@@ -180,10 +182,10 @@ function tokenize(sql::String)::Vector{SqlToken}
             start = i
             i += 1
             while i <= n && sql[i] != '"'
-                i += 1
+                i = nextind(sql, i)
             end
             if i <= n; i += 1; end  # consume closing "
-            push!(tokens, SqlToken(TK_QUOTED_IDENT, SubString(sql, start, i - 1), start))
+            push!(tokens, SqlToken(TK_QUOTED_IDENT, SubString(sql, start, prevind(sql, i)), start))
             continue
         end
 
@@ -199,14 +201,14 @@ function tokenize(sql::String)::Vector{SqlToken}
         end
 
         # ── identifier / keyword ──────────────────────────────────────
-        if c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c == '_'
+        # A letter of any script starts an identifier, as in PostgreSQL.
+        if isletter(c) || c == '_'
             start = i
-            i += 1
-            while i <= n && (sql[i] >= 'A' && sql[i] <= 'Z' || sql[i] >= 'a' && sql[i] <= 'z' ||
-                             sql[i] >= '0' && sql[i] <= '9' || sql[i] == '_')
-                i += 1
+            i = nextind(sql, i)
+            while i <= n && (isletter(sql[i]) || '0' <= sql[i] <= '9' || sql[i] == '_')
+                i = nextind(sql, i)
             end
-            val = SubString(sql, start, i - 1)
+            val = SubString(sql, start, prevind(sql, i))
             upper = uppercase(String(val))
             kind = upper in SQL_KEYWORDS ? TK_KEYWORD : TK_IDENT
             push!(tokens, SqlToken(kind, val, start))
@@ -214,7 +216,7 @@ function tokenize(sql::String)::Vector{SqlToken}
         end
 
         # ── skip unknown character ────────────────────────────────────
-        i += 1
+        i = nextind(sql, i)
     end
 
     push!(tokens, SqlToken(TK_EOF, SubString(sql, n + 1, n), n + 1))
@@ -269,12 +271,18 @@ at_end(p::Parser) = peek(p).kind == TK_EOF || peek(p).kind == TK_SEMICOLON
 
 # ── identifier helpers ────────────────────────────────────────────────────────
 
+# The text of a quoted token without its two quotes. A character that is not ASCII
+# takes more than one string index, so the quotes are cut by character.
+_strip_quotes(s::String) = String(chop(s; head = 1, tail = 1))
+
+# The string index of the last character of `tok` in the source.
+_get_token_last_index(tok::SqlToken) = tok.pos + lastindex(tok.value) - 1
+
 """Extract the bare identifier string from an IDENT or QUOTED_IDENT token."""
 function ident_string(tok::SqlToken)::String
     if tok.kind == TK_QUOTED_IDENT
         s = String(tok.value)
-        # strip surrounding quotes
-        return s[2:end-1]
+        return _strip_quotes(s)
     end
     return String(tok.value)
 end
@@ -475,7 +483,7 @@ function parse_data_type!(p::Parser)
         elseif tok.kind == TK_RPAREN
             depth -= 1
         end
-        last_end = tok.pos + length(tok.value) - 1
+        last_end = _get_token_last_index(tok)
         advance!(p)
     end
 
@@ -520,8 +528,16 @@ end
 # ── SELECT item ───────────────────────────────────────────────────────────────
 
 function parse_select_item!(p::Parser)
+    first_token = p.pos
     expr = parse_select_expression!(p)
     expr === nothing && return nothing
+    # An expression that goes on after a column or a literal, such as `a + 1`, is
+    # read again from its first token as raw text, so no part of it is lost.
+    if !_is_select_expression_end(p)
+        p.pos = first_token
+        expr = parse_fallback_expression!(p)
+        expr === nothing && return nothing
+    end
 
     alias = nothing
     if match_keyword(p, "AS")
@@ -567,8 +583,7 @@ function parse_select_expression!(p::Parser)
     # string literal
     if tok.kind == TK_STRING_LIT
         advance!(p)
-        s = String(tok.value)
-        return SqlScalarValue(s[2:end-1])  # strip quotes
+        return SqlScalarValue(_strip_quotes(String(tok.value)))
     end
 
     # fallback: collect tokens until delimiter
@@ -921,8 +936,7 @@ function parse_scalar_operand!(p::Parser)
     # string
     if tok.kind == TK_STRING_LIT
         advance!(p)
-        s = String(tok.value)
-        return SqlScalarValue(s[2:end-1])  # strip quotes
+        return SqlScalarValue(_strip_quotes(String(tok.value)))
     end
 
     # TRUE / FALSE
@@ -977,6 +991,17 @@ const FALLBACK_DELIMITERS = Set{String}([
     "GROUP", "ORDER", "HAVING", "LIMIT", "UNION", "OFFSET",
 ])
 
+# Whether the next token ends a select expression: the end of the statement, a
+# delimiter of the fallback, or the `AS` of an alias.
+function _is_select_expression_end(p::Parser)
+    at_end(p) && return true
+    tok = peek(p)
+    (tok.kind == TK_COMMA || tok.kind == TK_RPAREN) && return true
+    tok.kind == TK_KEYWORD || return false
+    word = uppercase(String(tok.value))
+    word == "AS" || word in FALLBACK_DELIMITERS
+end
+
 function parse_fallback_expression!(p::Parser)
     start_pos = peek(p).pos
     depth = 0
@@ -1009,7 +1034,7 @@ function parse_fallback_expression!(p::Parser)
             end
         end
 
-        last_end = tok.pos + length(tok.value) - 1
+        last_end = _get_token_last_index(tok)
         advance!(p)
     end
 

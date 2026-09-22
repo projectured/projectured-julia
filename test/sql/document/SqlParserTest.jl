@@ -214,6 +214,45 @@ function test_sql_parser()
                   "SELECT UPPER(name) AS n, COUNT(*) FROM t"
         end
 
+        # ── An expression that starts with a column keeps its text ────
+        @testset "an expression that starts with a column is kept whole" begin
+            stmt = parse("SELECT a + 1 FROM t")
+            item = stmt.select_clause.items[1]
+            @test item.expression isa SqlRawExpression
+            @test item.expression.text == "a + 1"
+            @test stmt.from_clause.items[1].base_item.table_name.name == "t"
+            @test roundtrip(stmt) == "SELECT a + 1 FROM t"
+            @test roundtrip(parse("SELECT 1 + a AS b, c FROM t")) == "SELECT 1 + a AS b, c FROM t"
+            @test roundtrip(parse("SELECT p.a * 2 FROM t AS p")) == "SELECT p.a * 2 FROM t AS p"
+            # A column that is the whole expression stays a column.
+            @test parse("SELECT a, b FROM t").select_clause.items[1].expression isa SqlColumnReference
+        end
+
+        # ── A SELECT with no FROM ────────────────────────────────────
+        @testset "a SELECT with no FROM prints no FROM and reads back" begin
+            stmt = parse("SELECT 1")
+            @test isempty(stmt.from_clause.items)
+            @test roundtrip(stmt) == "SELECT 1"
+            @test roundtrip(parse(print_document(sql_pipe, stmt).output)) == "SELECT 1"
+            @test roundtrip(parse("SELECT 1 WHERE a = 2")) == "SELECT 1 WHERE a = 2"
+        end
+
+        # ── Text that is not ASCII ───────────────────────────────────
+        @testset "a string literal and an identifier with text that is not ASCII" begin
+            stmt = parse("SELECT 'é' FROM t")
+            @test stmt.select_clause.items[1].expression.value == "é"
+            @test roundtrip(stmt) == "SELECT 'é' FROM t"
+            stmt = parse("SELECT café FROM tablé WHERE naïve = 'ü'")
+            @test stmt.select_clause.items[1].expression.column_name.name == "café"
+            @test stmt.from_clause.items[1].base_item.table_name.name == "tablé"
+            @test roundtrip(parse(print_document(sql_pipe, stmt).output)) == roundtrip(stmt)
+            stmt = parse("SELECT \"café\" FROM t -- é\n")
+            @test stmt.select_clause.items[1].expression.column_name.name == "café"
+            stmt = parse("SELECT upper('é') AS ü FROM t /* ö */")
+            @test stmt.select_clause.items[1].expression.text == "upper('é')"
+            @test stmt.select_clause.items[1].column_alias.name == "ü"
+        end
+
         # ── Several statements ───────────────────────────────────────
         @testset "several statements" begin
             list = parse("SELECT * FROM a; SELECT * FROM b;")
