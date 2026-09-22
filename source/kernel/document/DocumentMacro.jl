@@ -275,10 +275,19 @@ function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
         alias(d_name, [_default_cell_type(kinds[i], Tvals[i]) for i in 1:n]),
     ]
 
-    kind_ctor(kname, K) = :($(kname)($(arg_names...)) =
-        $(Expr(:call, plan.name,
+    # A kind constructor names the DECLARED field types, and those mention the
+    # programmer's parameters when the schema has any (`EventHeap{A}`). A
+    # parameter is not inferable from an untyped argument, so the head carries it
+    # and the body names it, exactly as the bare constructor above does:
+    # `ICFoo{A}(raw…)`. A schema with no parameter keeps the constructor it had.
+    kind_ctor(kname, K) = Expr(:(=),
+        isempty(plan.params) ? :($(kname)($(arg_names...))) :
+            Expr(:where, :($(Expr(:curly, kname, plan.params...))($(arg_names...))),
+                 plan.params...),
+        Expr(:call, isempty(plan.params) ? plan.name :
+                    Expr(:curly, plan.name, plan.params...),
             [:($a isa $(AbstractCell) ? $a : $(Expr(:curly, K, Tvals[i]))($a))
-             for (i, a) in enumerate(arg_names)]...)))
+             for (i, a) in enumerate(arg_names)]...))
 
     # The `_declared_value_types` method is added through the function object's
     # singleton type: a spliced object is not a valid method-definition *name*,

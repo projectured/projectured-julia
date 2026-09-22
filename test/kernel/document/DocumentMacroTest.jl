@@ -96,6 +96,14 @@ end
     selection::Nothing
 end
 
+# A schema with a parameter of the programmer's own. Its declared field type is
+# the parameter, so the kind constructors name it and take it at the call —
+# `ICDmParametric{Int}(…)`, the spelling the bare constructor of such a schema
+# takes too.
+@document struct DmParametric{A}
+    value::A
+end
+
 # How many methods of `T` take exactly `n` positional arguments, of which the one
 # in `slot` is an `AbstractVector`? Rule C's bracketed form for a struct whose
 # collection sits at field `slot` has exactly this shape, and the duplicate-method
@@ -177,6 +185,16 @@ end
     @test ICDmRuleY(1, 2, "z", true, nothing).a == 1
     # The kind aliases do get the keyword ctor, which does fill defaults in.
     @test ICDmRuleY(a = 1, b = 2).c == "c"
+end
+
+@testset "a schema with a parameter takes it in its kind ctors" begin
+    # Without the parameter on the head, the body's `ImmutableCell{A}` names a
+    # global no module has, and the call throws `UndefVarError: A`.
+    node = ICDmParametric{Int}(3, nothing)
+    @test node isa ICDmParametric{Int}
+    @test node.value == 3
+    @test getfield(node, :value) isa ImmutableCell{Int}
+    @test MCDmParametric{Int}(3, nothing) isa MCDmParametric{Int}
 end
 
 @testset "the layout registry answers for every variant" begin
