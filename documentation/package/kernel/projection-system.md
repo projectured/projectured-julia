@@ -100,7 +100,7 @@ The two extra arguments are essential:
   projection extends the reference before recursing into a child by calling
   `make_child_context(ctx, step…)` (or `make_child_context(ctx, full_path)`), so every
   projection's context carries where it sits in the original document. This is
-  what enables [ReferenceDispatchingProjection](higher-order-projections.md) to
+  what enables [ReferenceDispatchingProjection](../projection/higher-order-projections.md) to
   switch behaviour based on document-root-relative location. The top-level call
   passes a fresh `PrinterContext()` (whose reference is
   `EmptyReference()`).
@@ -430,8 +430,8 @@ rows are representative (every domain adds its own `*To*` projection).
 | **Higher-order** | `ChainingProjection`, `TypeDispatchingProjection`, `PredicateDispatchingProjection`, `ReferenceDispatchingProjection`, `RecursiveProjection`, `SwitchingProjection`, `NestingProjection`, `WindowInputUnwrappingProjection`, `WindowManagingProjection`, `TooltipDecoratorProjection`, `DraggingProjection`, `ProjectionConfiguringProjection` | Compose other projections (8 in `higherorder/`; the other 4 sit beside the domain each one touches) |
 | **Compound** | `ApplyAtProjection`, `SortingAtProjection` | Convenience combinators built from higher-order primitives |
 
-See [higher-order projections](higher-order-projections.md) and
-[generic projections](generic-projections.md) for details.
+See [higher-order projections](../projection/higher-order-projections.md) and
+[generic projections](../projection/generic-projections.md) for details.
 
 ## The forward and reverse paths
 

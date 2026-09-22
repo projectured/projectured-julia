@@ -696,7 +696,7 @@ printer and reader by hand — see [debugging-guide.md](../guide/debugging-guide
 | Set up and run something | [Getting started](../guide/setup-guide.md) |
 | Understand the incrementality | [Reactive cells](../package/kernel/cell.md) |
 | Understand the four functions in depth | [Projection system](../package/kernel/projection-system.md) |
-| Understand the combinators in depth | [Higher-order projections](../package/kernel/higher-order-projections.md) · [Generic projections](../package/kernel/generic-projections.md) |
+| Understand the combinators in depth | [Higher-order projections](../package/projection/higher-order-projections.md) · [Generic projections](../package/projection/generic-projections.md) |
 | Understand paths and the caret | [References](../package/kernel/reference.md) · [Selection](../package/kernel/selection.md) |
 | Understand the macros | [Macros](../package/kernel/macros.md) |
 | Find the code | [Architecture](system-anatomy.md) · [Terminology](../rule/division-terminology.md) · [Orientation](../guide/orientation.md) |

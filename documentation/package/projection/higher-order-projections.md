@@ -87,9 +87,9 @@ ReferenceDispatchingProjection(
     @reference(entries) => SortingProjection(by = e -> e.key),
 )
 
-# Function form — handles wildcards and prefixes via @reference_case
+# Function form — handles wildcards and ancestors via @reference_case
 ReferenceDispatchingProjection(ref -> @reference_case ref begin
-    prefix(entries) => CopyingProjection()
+    above(entries)  => CopyingProjection()
     entries         => SortingProjection(by = e -> e.key)
     _               => IdentityProjection()
 end)
@@ -122,9 +122,9 @@ projection is precisely to keep each projection **single-level and composable**:
 a projection renders one level and delegates children, so any subtree can be
 swapped for, or composed with, another projection. A projection that recurses
 over its own subtree instead would foreclose that. `recursion` is the printer's
-half of [the recursion contract](projection-system.md#the-recursion-contract):
+half of [the recursion contract](../kernel/projection-system.md#the-recursion-contract):
 descent rides the four core functions and never a fifth one (see also the recursion
-principle in [projection-system.md](projection-system.md#recursion-across-projections)).
+principle in [projection-system.md](../kernel/projection-system.md#recursion-across-projections)).
 
 ## SwitchingProjection
 
@@ -195,7 +195,7 @@ outside `Dragging.jl`** and works for any domain whose graphics reader already
 hit-tests `MousePress`.
 
 **The move.** A completed drag emits a `MoveRangeOperation` (see
-[operation.md](operation.md)). The reader resolves each reference to a
+[operation.md](../kernel/operation.md)). The reader resolves each reference to a
 `(CellVector, index)` pair (splitting the path at its last element
 `RangeReferenceStep`; the prefix resolves to the owning collection) and stores the
 `CellVector`s **directly** in the operation, the way the split-pane operations
@@ -219,9 +219,9 @@ everything below." Internally it expands to:
 
 ```julia
 RecursiveProjection(ReferenceDispatchingProjection(ref -> @reference_case ref begin
-    prefix(^(reference)) => CopyingProjection()
-    ^(reference)         => NestingProjection(projection; recursion = IdentityProjection())
-    _                    => IdentityProjection()
+    above(^(reference)) => CopyingProjection()
+    ^(reference)        => NestingProjection(projection; recursion = IdentityProjection())
+    __                  => IdentityProjection()
 end))
 ```
 
