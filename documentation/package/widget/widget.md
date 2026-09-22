@@ -79,18 +79,19 @@ A projection can draw a widget that no document of the domain stands behind, suc
 
 ### What a control reads
 
-Each control has a reader in `WidgetToGraphics.jl`. The keys in the table work while the control has the focus. A disabled control returns `nothing` for every event.
+Each control has a reader in `WidgetToGraphics.jl`. The keys in the table work while the control has the focus. A control takes Return, Space and an arrow only with no modifier, so Alt and an arrow still walk the selection and a chord still reaches a shortcut. A disabled control returns `nothing` for every event.
 
 | Widget | A press | A key |
 | --- | --- | --- |
 | `WidgetButton` | a left press invokes its action, or opens its dialog | Return, Space |
-| `WidgetCheckbox`, `WidgetSwitch` | flips the value | Return, Space |
-| `WidgetToggle` | a left press flips `pressed` | Return, Space with no modifier |
+| `WidgetCheckbox`, `WidgetSwitch` | a left press flips the value | Return, Space |
+| `WidgetToggle` | a left press flips `pressed` | Return, Space |
 | `WidgetToggleGroup` | a left press on a segment selects it | none |
-| `WidgetRadioGroup` | a left press on the row of an option, on its circle or its label, selects it | Down and Right select the next option, Up and Left the previous one, around the ends. Return and Space select the first option when no option is on. No modifier. |
+| `WidgetRadioGroup` | a left press on the row of an option, on its circle or its label, selects it | Down and Right select the next option, Up and Left the previous one, around the ends. Return and Space select the first option when no option is on. |
 | `WidgetSelect` | a left press opens the options in a popup | none |
 | `WidgetSlider` | a left press and a drag set the value | none |
 | `WidgetSpinBox` | a left press on a stepper steps the value | Up, Down |
+| `WidgetList` | a left press on a row selects it | Up and Down select the row before and after |
 | `WidgetText`, `WidgetTextarea` | a press puts the caret into the text | the keys of the text domain. In a textarea, Return types a line break. |
 | `WidgetCard` | a press on the chevron folds the card | none |
 | `WidgetAccordion` | a left press on the header of an item opens that item, or closes it when it is open | none |

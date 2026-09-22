@@ -201,6 +201,41 @@ end
     @test read_intent(proj, print_document(proj, _focus_second(off)), _key(:down)) === nothing
 end
 
+@testset "a control takes its keys with no modifier and its press from the left button" begin
+    # Alt and an arrow walk the selection, so a control that takes the arrows
+    # takes them bare. The spin box and the list step with the focus.
+    s = WidgetSpinBox(Point2D(0, 0), 5; min = 0, max = 10)
+    spin(key; modifiers...) = read_intent(proj, print_document(proj, _focus_second(s)), _key(key; modifiers...))
+    @test spin(:up).value == 6
+    @test spin(:down).value == 4
+    @test spin(:up; alt = true) === nothing
+    @test spin(:down; ctrl = true) === nothing
+    l = WidgetList(Point2D(0, 0), ["Alpha", "Beta", "Gamma"]; selected = 1)
+    io = print_document(proj, l)
+    @test read_intent(proj, io, _key(:down)).path == make_widget_list_selection(2)
+    @test read_intent(proj, io, _key(:down; alt = true)) === nothing
+    @test read_intent(proj, io, _key(:up; shift = true)) === nothing
+
+    # A check box and a switch flip from a left press, and from Return and
+    # Space with no modifier.
+    for control in (WidgetCheckbox(Point2D(0, 0), false), WidgetSwitch(Point2D(0, 0), false))
+        control_io = print_document(proj, control)
+        @test read_intent(proj, control_io, MousePress(:left, 2, 2, ModifierKeys())) !== nothing
+        @test read_intent(proj, control_io, MousePress(:right, 2, 2, ModifierKeys())) === nothing
+        @test read_intent(proj, control_io, MousePress(:middle, 2, 2, ModifierKeys())) === nothing
+        focused = print_document(proj, _focus_second(control))
+        @test read_intent(proj, focused, _key(:space)) !== nothing
+        @test read_intent(proj, focused, _key(:return)) !== nothing
+        @test read_intent(proj, focused, _key(:space; ctrl = true)) === nothing
+        @test read_intent(proj, focused, _key(:return; alt = true)) === nothing
+    end
+    # A button takes Return and Space with no modifier too.
+    button = print_document(proj, _focus_second(WidgetButton(Point2D(0, 0), Point2D(60, 24), "Go")))
+    @test read_intent(proj, button, _key(:return)) isa InvokeActionOperation
+    @test read_intent(proj, button, _key(:return; ctrl = true)) === nothing
+    @test read_intent(proj, button, _key(:space; shift = true)) === nothing
+end
+
 @testset "make_numeric_validator accepts digits, rejects letters" begin
     v = make_numeric_validator()
     @test v("123") === true

@@ -1244,18 +1244,19 @@ function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt::
     w = iomap.input
     w.enabled === false && return nothing   # a disabled checkbox swallows the click
     op = read_bound_gesture(w, evt); op === nothing || return op   # per-instance gestures win
+    evt.button === :left || return nothing
     _checkbox_toggle(w)
 end
 
-# Enter / Space toggle the focused checkbox (the keystroke reaches it via the
-# selection-driven routing). Tab is left to fall through (nothing) so focus
-# traversal can claim it.
+# Enter / Space with no modifier toggle the focused checkbox (the keystroke
+# reaches it via the selection-driven routing). Tab is left to fall through
+# (nothing) so focus traversal can claim it.
 function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing
     op = read_bound_gesture(w, evt); op === nothing || return op   # per-instance gestures win
-    (evt isa KeyDown && (evt.key === :return || evt.key === :space)) || return nothing
+    _is_plain_key(evt, :return, :space) || return nothing
     _checkbox_toggle(w)
 end
 
@@ -1378,10 +1379,10 @@ function read_intent(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
         # off the button when dragged away).
         MouseLeave               => CompoundOperation(Any[ReplaceReferencedValueOperation(w, "hovered", false),
                                                           ReplaceReferencedValueOperation(w, "pressed", false)])
-        # Enter / Space activate the focused button (key reaches it via selection
-        # routing). `:tab` is intentionally not matched, so it falls through to
-        # `nothing` and focus traversal can claim it.
-        when(KeyDown(k), k === :return || k === :space) => _button_primary_op(w)
+        # Enter / Space with no modifier activate the focused button (key reaches
+        # it via selection routing). `:tab` is intentionally not matched, so it
+        # falls through to `nothing` and focus traversal can claim it.
+        when(KeyDown(k), _is_plain_key(evt, :return, :space)) => _button_primary_op(w)
         _ => nothing
     end
 end
@@ -4858,6 +4859,7 @@ function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt::Mo
     w = iomap.input
     w.enabled === false && return nothing   # a disabled switch swallows the click
     op = read_bound_gesture(w, evt); op === nothing || return op   # per-instance gestures win
+    evt.button === :left || return nothing
     _switch_toggle(w)
 end
 
@@ -4866,7 +4868,7 @@ function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt)
     w = iomap.input
     w.enabled === false && return nothing
     op = read_bound_gesture(w, evt); op === nothing || return op   # per-instance gestures win
-    (evt isa KeyDown && (evt.key === :return || evt.key === :space)) || return nothing
+    _is_plain_key(evt, :return, :space) || return nothing
     _switch_toggle(w)
 end
 
@@ -5870,8 +5872,8 @@ function read_intent(p::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGra
         MousePress(button, x, y) =>
             (button === :left && x >= iomap.control_width - iomap.stepper_w) ?
                 (y < iomap.control_height ÷ 2 ? _step(w.step) : _step(-w.step)) : nothing
-        when(KeyDown(k), k === :up)   => _step(w.step)
-        when(KeyDown(k), k === :down) => _step(-w.step)
+        when(KeyDown(k), _is_plain_key(evt, :up))   => _step(w.step)
+        when(KeyDown(k), _is_plain_key(evt, :down)) => _step(-w.step)
         _ => nothing
     end
 end
@@ -5968,8 +5970,8 @@ function read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsC
         MousePress(button, x, y) => button === :left ? click_row(y) : nothing
         MouseMove(x, y)          => hover_row(row_at(y))
         MouseLeave()             => hover_row(0)
-        when(KeyDown(k), k === :down) => pick(sel == 0 ? 1 : min(sel + 1, n))
-        when(KeyDown(k), k === :up)   => pick(sel <= 1 ? 1 : sel - 1)
+        when(KeyDown(k), _is_plain_key(evt, :down)) => pick(sel == 0 ? 1 : min(sel + 1, n))
+        when(KeyDown(k), _is_plain_key(evt, :up))   => pick(sel <= 1 ? 1 : sel - 1)
         _ => nothing
     end
 end
