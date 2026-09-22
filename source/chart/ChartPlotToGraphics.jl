@@ -13,10 +13,10 @@
 # retained-mode toolkit needs does not arise — the margins are just a cell that
 # depends on the ticks.
 #
-# **Cost.** Series geometry goes through `ChartGeometry`'s decimation, so the
-# number of graphics elements is bounded by the size of the plot rectangle rather
-# than by the length of the columns. A million-sample series and a
-# thousand-sample one produce the same amount of output at the same zoom.
+# **Cost.** Series geometry goes through `PlotGeometry.jl`'s `decimate_minmax`,
+# so the number of graphics elements is bounded by the size of the plot
+# rectangle rather than by the length of the columns. A million-sample series
+# and a thousand-sample one produce the same amount of output at the same zoom.
 #
 # The plot area is a `GraphicsViewport` purely to clip; the data-to-pixel mapping
 # is computed from the view window rather than carried as an affine transform, so

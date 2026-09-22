@@ -13,7 +13,7 @@ chart's cost proportional to its pixels rather than to its event count.
 
 Everything here is a pure function over plain numbers and vectors — no cells, no
 document types, no dependency on the rest of the slice, the same split
-`ChartGeometry` makes.
+`PlotGeometry.jl` makes.
 
 **The three-stage coordinate pipeline** is the idea the whole slice rests on:
 

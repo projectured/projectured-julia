@@ -369,9 +369,9 @@ end
 """
     get_chart_series_family(series) -> :xy | :category | :unknown
 
-Which axis family a series needs on x. The projection refuses to draw a series
-whose family does not match the chart's x axis, and renders a diagnostic in its
-place rather than throwing.
+Which axis family a series needs on x. The projection leaves out a series
+whose family does not match the chart's x axis, and the frame still draws,
+rather than throwing.
 """
 get_chart_series_family(::Any) = :unknown
 get_chart_series_family(::ChartLineSeries) = :xy
