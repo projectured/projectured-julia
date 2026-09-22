@@ -557,8 +557,11 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
         for (li, line) in enumerate(lines)
             # Hard newline embedded in the span content.
             if li > 1
+                # A caret beside the '\n' can stand on a line with no glyph yet,
+                # so it is at least as tall as a line in the span's font.
+                row_h = max(line_h, p.measure(" ", sf)[2], 1)
                 # caret BEFORE the '\n' (char_offset still points at it)
-                at_caret(char_offset) && (cursor = (cx, cy, max(line_h, 1)))
+                at_caret(char_offset) && (cursor = (cx, cy, row_h))
                 max_cx = max(max_cx, cx)   # fold this sub-line's extent in before the reset
                 cx = p.start_x
                 # An empty sub-line still keeps one row of height.
@@ -566,10 +569,17 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
                 line_h = 0
                 char_offset += 1           # count the '\n'
                 # caret AFTER the '\n' — now at the start of the next sub-line
-                at_caret(char_offset) && (cursor = (cx, cy, max(line_h, 1)))
+                at_caret(char_offset) && (cursor = (cx, cy, max(p.measure(" ", sf)[2], 1)))
             end
 
-            isempty(line) && continue
+            # An empty first sub-line is an empty span, or one that starts with
+            # '\n'. A caret at its start has no glyph to stand against, so it
+            # takes the height of a line in the span's font.
+            if isempty(line)
+                li == 1 && at_caret(char_offset) &&
+                    (cursor = (cx, cy, max(line_h, p.measure(" ", sf)[2], 1)))
+                continue
+            end
 
             # No wrap: emit the whole sub-line as a single segment.
             seg_w, seg_h = p.measure(line, sf)
@@ -603,10 +613,11 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
 
     max_cx = max(max_cx, cx)
     height = cy + line_h - y0
-    if isempty(coord_map) && (group.newline !== nothing || group.is_line)
+    if isempty(coord_map) && (group.newline !== nothing || group.is_line || _has_text_span(group))
         # A blank line still occupies one row, sized by the font it has no glyph to
-        # take one from. The empty group left behind by a *trailing* newline is not
-        # a line at all, and keeps its zero height.
+        # take one from. A group that holds only an empty span is such a line,
+        # because a caret can stand in it. The empty group left behind by a
+        # *trailing* newline is not a line at all, and keeps its zero height.
         font = _line_height_font(group, block_font)
         height = font === nothing ? 0 : p.measure(" ", font)[2]
     end
@@ -678,6 +689,8 @@ end
 # the block's prevailing font.
 _line_height_font(group, block_font::Cell) =
     group.newline === nothing ? block_font[] : group.newline.font::StyleFont
+
+_has_text_span(group) = any(entry -> entry[2] isa TextString, group.spans)
 
 # The block's prevailing font — the first font any element offers, in document
 # order, or `nothing` for a block that has none. It sizes an empty `TextLine`,

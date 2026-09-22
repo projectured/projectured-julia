@@ -107,7 +107,13 @@ function _wrap_string!(result::Vector{TextDocument}, segs::Vector{WrapSegment},
                        original::TextString, in_span::Int,
                        cx::Int, wrap_w::Int, measure_fn::Function)
     content = original.content::AbstractString
-    isempty(content) && return cx
+    if isempty(content)
+        # An empty span stays one empty span, so a caret in it has a place to
+        # map to and to be drawn at.
+        push!(result, _make_span(original, ""))
+        push!(segs, WrapSegment(length(result), in_span, 0, 0))
+        return cx
+    end
     font = getfield(original, :font)[]
     # Split on embedded \n first so hard newlines reset the column without
     # leaving wrap math to chew through them as if they were horizontal.

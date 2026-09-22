@@ -424,4 +424,23 @@ rects = TextModule._compute_span_rows(coord_map, span_flat_offsets, 0, 14, p)
 
 end # @testset "TextSpanReferenceStep content-hugging per-row rects"
 
+@testset "TextToGraphics draws a caret in an empty span, one line high" begin
+
+m = _test_measure(10, 18)
+for projection in (TextToGraphics(measure=m),
+                   ChainingProjection(WordWrapping(max_width=200, measure=m), TextToGraphics(measure=m)))
+    block = TextBlock(TextString("", font_ubuntu_monospace_regular_20, color_red))
+    canvas = print_document(projection, with_selection(block, TextModule.make_flat_caret_reference(0))).output
+    @test [(r.x, r.y, r.w, r.h) for r in _rects(canvas)] == [(0, 0, 2, 18)]
+    @test Int(canvas.h) == 18
+end
+
+# A caret after a '\n' at the end of a span stands on a line with no glyph yet,
+# and it is as tall as a line all the same.
+block = TextBlock(TextString("ab\n", font_ubuntu_monospace_regular_20, color_red))
+canvas = print_document(TextToGraphics(measure=m), with_selection(block, TextModule.make_flat_caret_reference(3))).output
+@test [(r.x, r.y, r.w, r.h) for r in _rects(canvas)] == [(0, 18, 2, 18)]
+
+end # @testset "TextToGraphics empty span"
+
 end # test_text_to_graphics

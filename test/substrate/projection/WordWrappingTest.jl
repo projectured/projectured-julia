@@ -150,4 +150,18 @@ out_ref = map_reference_forward(proj, iomap, in_ref)
 
 end # @testset "WordWrapping image selection round-trips"
 
+@testset "WordWrapping keeps an empty span, and the caret in it" begin
+
+input = TextBlock(TextString("", font_ubuntu_monospace_regular_20, color_default))
+set_selection!(input, TextModule.make_flat_caret_reference(0))
+m = _test_measure(10, 18)
+proj = WordWrapping(max_width=80, measure=m)
+iomap = print_document(proj, input)
+@test [e.content for e in iomap.output.elements] == [""]
+caret = TextModule.make_flat_caret_reference(0)
+@test map_reference_forward(proj, iomap, input.selection) == caret
+@test map_reference_backward(proj, iomap, caret) == caret
+
+end # @testset "WordWrapping keeps an empty span"
+
 end # test_word_wrapping
