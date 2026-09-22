@@ -12,7 +12,7 @@ document is a tree instead, so a section owns the blocks below it and can be
 collapsed. `RstSection.adornment` keeps the character the file used, so emit
 reproduces the file's own convention rather than imposing one.
 
-**Directives are typed where it pays.** The twelve directives that carry
+**Directives are typed where it pays.** The eleven directives that carry
 meaning for the rendered notation — a figure has a picture, a code block has
 a language, an admonition has a kind — get their own struct with named
 fields. Everything else is an `RstDirective` with a name, an argument, and an

@@ -23,11 +23,12 @@
 # is one line: the parser joins a paragraph's source lines with a space.
 #
 # **Verbatim bodies emit through a closure, not through `bound`.** The body of a
-# code block, a literal include, a literal block, a math block, a raw block and
-# a comment is opaque multi-line text that must be indented under its marker.
-# A `bound` leaf maps a text splice back by offset, and pre-indenting the render
-# would shift every offset past the first line. So these six render through a
-# plain computed `TextString`: correct on the page and correct on save, but not
+# code block, a literal include, a literal block, a math block, a raw block, a
+# comment and a grid table is opaque multi-line text that must be indented
+# under its marker (or, for the table, ruled). A `bound` leaf maps a text
+# splice back by offset, and pre-indenting the render would shift every offset
+# past the first line. So these seven render through a plain computed
+# `TextString`: correct on the page and correct on save, but not
 # splice-editable in the source view. Every other field stays `bound`.
 # The module binding itself, not only its names: the two macros below expand to
 # `ProjectionModule.print_document(...)` definitions, and the unescaped name
@@ -1118,9 +1119,9 @@ end
 # which is the file's own spelling. The natural notation says the same thing in
 # one line: where the text comes from, in what language, between which marks.
 #
-# The arrow is drawn in DejaVu because SDL does not fall back between fonts —
-# a glyph the chrome font lacks arrives as an empty box, and Ubuntu Mono lacks
-# this one.
+# The arrow is set in DejaVu explicitly: Ubuntu Mono lacks this glyph, and
+# pinning the font here keeps the marker legible without depending on the
+# per-glyph fallback `source/sdl/Sdl.jl` otherwise applies.
 
 @projection struct RstLiteralIncludeToStyledLeaf
     marker_style::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_20, color_solarized_gray)

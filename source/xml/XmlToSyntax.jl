@@ -6,12 +6,12 @@
 # need special wiring; the template engine (`ProjectionTemplate.jl`) records the
 # wiring, strips the markers, and supplies reference mapping and the recursive reader
 # generically. The authoring command set lives on the XML document types as
-# `@gestures` (see `document/Xml.jl`); the template's reader delegates a raw gesture
+# `@gestures` (see `XmlDocument.jl`); the template's reader delegates a raw gesture
 # to `read_gesture`.
 #
-# The output node shape is unchanged:
+# The output node shape is:
 #
-#     SyntaxNode("", "", "", [                             ← element node
+#     SyntaxConcatenation([                                ← element node
 #       SyntaxLeaf(open="<", close=" "|"", bound(:tag)),   ← tag-name leaf
 #       SyntaxNode(close=">", sep=" ", collection(:attrs) do a  ← attributes node
 #         SyntaxNode(sep="=", [                            ← each attribute
@@ -46,7 +46,7 @@ end
 # (prefix-free: `element` → `XmlElement`, `text` → `XmlText`). The `<`/`"`
 # type-to-replace gestures on a whole-selected insertion keep working: the
 # leaf's char editing declines without a value cursor, so those keys fall
-# through to `@gestures XmlDocument` (declared in `document/Xml.jl`).
+# through to `@gestures XmlDocument` (declared in `XmlDocument.jl`).
 
 XmlInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(XmlDocument)
 
