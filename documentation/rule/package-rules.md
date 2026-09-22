@@ -211,7 +211,7 @@ the domains it embeds. [domain-inventory.md](../design/domain-inventory.md) has 
 | `ProjecturedOllama` | Kernel | HTTP, JSON3 |
 | `ProjecturedMcp` | Kernel | ModelContextProtocol |
 | `ProjecturedTulip` | Layout | MathOptInterface, Tulip |
-| `ProjecturedVideo` | Graphics, Kernel, Sdl | FFMPEG |
+| `ProjecturedVideo` | Graphics, Kernel, Screen, Sdl | FFMPEG |
 | `ProjecturedAdaptagrams` | Graph | Libdl |
 | `ProjecturedSdl` | Collection, Graphics, Kernel, Screen, Style | SDL2_jll, SimpleDirectMediaLayer |
 | `ProjecturedWeb` | Collection, Graphics, Kernel, Screen, Style | Base64, HTTP, JSON3 |

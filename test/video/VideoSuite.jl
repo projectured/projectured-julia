@@ -20,7 +20,8 @@ function test_video()
     @testset "ProjecturedVideo" begin
         test_video_layering()
         test_record_video()
+        test_application_video()
     end
 end
 
-export test_video, test_video_layering, test_record_video
+export test_video, test_video_layering, test_record_video, test_application_video

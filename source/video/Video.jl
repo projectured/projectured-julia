@@ -1,4 +1,4 @@
-export record_video
+export record_video, _encode_frames_to_video!
 
 # A minimal mutable editor stand-in for `evaluate_operation`, mirroring the test
 # harness's `_ReplEditor`: an operation such as `ReplaceDocumentOperation` may
@@ -187,17 +187,30 @@ function record_video(document, projection; gestures::AbstractVector,
         frame[] == 0 &&
             error("record_video: no frames produced (gestures empty and initial_hold/final_hold ≈ 0)")
 
-        pattern = joinpath(tmpdir, "frame_%06d.png")
-        # Build the command from a string vector: a backtick literal would reject
-        # the unquoted parentheses/asterisks in the `pad` filter expression.
-        FFMPEG.exe(Cmd(String[
-            "-y", "-hide_banner", "-loglevel", "error",
-            "-framerate", string(fps), "-i", pattern,
-            "-c:v", "libx264", "-pix_fmt", "yuv420p",
-            "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2", filename]))
+        _encode_frames_to_video!(tmpdir, filename, fps)
     finally
         _close_offscreen_renderer(off)
         rm(tmpdir; force=true, recursive=true)
     end
+    filename
+end
+
+# Exported (despite the underscore) the same way ProjecturedSdl exports
+# `_open_offscreen_renderer` / `_emit_frames!`: `VideoBackend` writes its own
+# frames one at a time rather than through `record_video`'s loop, but ends a
+# recording the same way — assembling `frames_dir`'s `frame_%06d.png` files
+# (as `_emit_frames!` names them) into `filename` at `fps` frames per second.
+# One ffmpeg call for every recorder in this package, so a codec or pixel-format
+# change is made once.
+function _encode_frames_to_video!(frames_dir::AbstractString, filename::AbstractString,
+                                  fps::Integer)
+    pattern = joinpath(frames_dir, "frame_%06d.png")
+    # Build the command from a string vector: a backtick literal would reject
+    # the unquoted parentheses/asterisks in the `pad` filter expression.
+    FFMPEG.exe(Cmd(String[
+        "-y", "-hide_banner", "-loglevel", "error",
+        "-framerate", string(fps), "-i", pattern,
+        "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-vf", "pad=ceil(iw/2)*2:ceil(ih/2)*2", filename]))
     filename
 end

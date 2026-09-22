@@ -7,9 +7,11 @@ authors = []
 FFMPEG = "c87230d0-a227-11e9-1b43-d7ebe4e7570a"
 ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
+ProjecturedScreen = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
 ProjecturedSdl = "f0002b97-94ba-416c-b93c-86cdc095626f"
 
 [sources]
 ProjecturedGraphics = {path = "../ProjecturedGraphics"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
+ProjecturedScreen = {path = "../ProjecturedScreen"}
 ProjecturedSdl = {path = "../ProjecturedSdl"}
