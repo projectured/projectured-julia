@@ -3,7 +3,7 @@
 # copying every cell in the matrix. Column access requires iterating rows.
 
 """
-    CellTable(rows)
+    CellTable(items::AbstractMatrix)
 
 Rows of values, each row a vector and each value in a cell.
 
@@ -13,8 +13,8 @@ not the values, and a column is read by walking the rows.
 
 # Example
 
-    table = CellTable([["name", "value"], ["delay", "1.5"]])
-    insert_row!(table, 2)
+    table = CellTable(["name" "value"; "delay" "1.5"])
+    insert_row!(table, 2, ["latency", "2.1"])
 
 See also `CellMatrix`, whose shape is fixed and whose columns are cheap, and
 `CellVector`.

@@ -16,7 +16,7 @@ cell a caller kept stays the same cell.
 
     grid = CellMatrix(3, 3)
     grid[2, 2] = "x"
-    insert_row!(grid, 1)
+    insert_row!(grid, 1, Cell[Cell(nothing) for _ in 1:3])
 
 See also `CellTable`, whose rows are vectors and which grows a row at a time,
 and `CellVector`.
