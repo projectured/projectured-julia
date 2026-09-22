@@ -58,8 +58,13 @@ was dropped.
    `EvaluatorToplevel`. On the rebased branch `test_document_insertion()` 119 of
    119, `test_insertion_in_tab()` 11 of 11, `test_application()` 100 of 100.
 
-## Found, and left for a decision
+## Found, and decided
 
 - Home and End put the caret on the prompt text ("Insert a new ", " here"), a
   caret that the projection introduces. From there, typing, Backspace and Delete
   do nothing, until an arrow key brings the caret back into the buffer.
+
+  Three options were offered: keep Home and End inside the buffer, let a key on
+  the prompt edit the nearest end of the buffer, or no change. **The owner chose
+  no change on 2026-09-22**: the prompt stays navigable, as the text that other
+  projections introduce is.
