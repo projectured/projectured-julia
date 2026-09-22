@@ -177,6 +177,53 @@ end
     @test copied.next.value.value == 2
 end
 
+@testset "a kinded copy of a list copies each node in the kind, and links it back" begin
+    # Three nodes, held at the middle one. The node after the middle one is built
+    # when `next` is read, and `reads` counts the reads.
+    reads = Ref(0)
+    function make_three_nodes()
+        middle = ListNode(PrimitiveNumber(2))
+        before = ListNode(PrimitiveNumber(1))
+        set_cell_value!(getfield(before, :next), middle)
+        set_cell_value!(getfield(middle, :prev), before)
+        set_cell_function!(getfield(middle, :next), () -> (reads[] += 1; ListNode(PrimitiveNumber(3))))
+        middle
+    end
+    function test_links(copied, middle)
+        @test copied.value.value == 2 && copied.value !== middle.value
+        @test copied.next.value.value == 3 && copied.next.prev === copied
+        @test copied.prev.value.value == 1 && copied.prev.next === copied
+        @test copied.next.next === nothing && copied.prev.prev === nothing
+    end
+
+    @testset "a reactive copy copies a neighbour when it is read" begin
+        middle = make_three_nodes()
+        reads[] = 0
+        copied = copy_document(ReactiveCell, middle)
+        @test reads[] == 0
+        @test getfield(copied, :next) isa ReactiveCell
+        @test getfield(copied.value, :value) isa ReactiveCell
+        test_links(copied, middle)
+        @test reads[] == 1
+    end
+
+    @testset "a mutable copy copies every node" begin
+        middle = make_three_nodes()
+        copied = copy_document(MutableCell, middle)
+        @test getfield(copied, :next) isa MutableCell
+        @test getfield(copied.value, :value) isa MutableCell
+        @test getfield(copied.next, :prev) isa MutableCell
+        test_links(copied, middle)
+    end
+
+    @testset "an immutable copy copies a node with no neighbour, and refuses a chain" begin
+        single = copy_document(ImmutableCell, ListNode(PrimitiveNumber(5)))
+        @test getfield(single, :value) isa ImmutableCell
+        @test single.value.value == 5 && single.next === nothing && single.prev === nothing
+        @test_throws DocumentCopyException copy_document(ImmutableCell, make_three_nodes())
+    end
+end
+
 end # @testset "ReactiveCollection"
 
 @testset "CellVector protocol" begin

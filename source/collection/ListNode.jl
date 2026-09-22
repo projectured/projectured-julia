@@ -36,13 +36,59 @@ ListNode(value) =
 # would follow `next` into `prev` and back without end.
 function copy_document(policy::CopyPolicy, held::ListNode)
     is_descendable_for_copy(policy, held) || return make_copy_placeholder(policy, held)
-    _copy_list_node(policy, held)
+    _copy_list_node_lazily(node -> ListNode(copy_document(policy, node.value)), held)
 end
 
-function _copy_list_node(policy::CopyPolicy, original::ListNode)
-    copied = ListNode(copy_document(policy, original.value))
-    set_cell_function!(getfield(copied, :next), () -> _copy_list_link(policy, original, copied, :next, :prev))
-    set_cell_function!(getfield(copied, :prev), () -> _copy_list_link(policy, original, copied, :prev, :next))
+# The kinded copy makes every cell of kind `K`. A reactive cell can compute its
+# value, so the reactive copy is lazy, as the copy above is. A cell of another
+# kind holds a value, so that copy copies and links every node at once, and it
+# does not end for a list without an end. An immutable cell can not take the link
+# back to a node that is made after it, so an immutable copy of a node with a
+# neighbour raises a `DocumentCopyException`.
+function copy_document(K::Type{<:AbstractCell}, held::ListNode, policy, depth::Int)
+    copy_node = node -> _copy_unlinked_list_node(K, node, policy, depth)
+    K === ReactiveCell && return _copy_list_node_lazily(copy_node, held)
+    K === ImmutableCell && !(held.prev === nothing && held.next === nothing) &&
+        throw(DocumentCopyException(held, "an immutable cell can not hold the link back to a node that is made after it"))
+    copied = copy_node(held)
+    last = copied
+    node = held.next
+    while node !== nothing
+        following = copy_node(node)
+        _link_list_nodes!(last, following)
+        last = following
+        node = node.next
+    end
+    first = copied
+    node = held.prev
+    while node !== nothing
+        preceding = copy_node(node)
+        _link_list_nodes!(preceding, first)
+        first = preceding
+        node = node.prev
+    end
+    copied
+end
+
+# One node of a kinded copy with no link: the generic walk copies its value and
+# its selection, and gives `prev` and `next` a cell of kind `K` that holds `nothing`.
+function _copy_unlinked_list_node(K::Type{<:AbstractCell}, original::ListNode, policy, depth::Int)
+    unlinked = ListNode(getfield(original, :value), Cell(nothing), Cell(nothing),
+                        getfield(original, :selection))
+    invoke(copy_document, Tuple{Type{<:AbstractCell}, Document, Any, Int}, K, unlinked, policy, depth)
+end
+
+function _link_list_nodes!(before::ListNode, after::ListNode)
+    getfield(before, :next)[] = after
+    getfield(after, :prev)[] = before
+end
+
+# `copy_node(original)` copies one node with no link. `prev` and `next` of the copy
+# are cells that copy the neighbour when they are read.
+function _copy_list_node_lazily(copy_node, original::ListNode)
+    copied = copy_node(original)
+    set_cell_function!(getfield(copied, :next), () -> _copy_list_link(copy_node, original, copied, :next, :prev))
+    set_cell_function!(getfield(copied, :prev), () -> _copy_list_link(copy_node, original, copied, :prev, :next))
     copied
 end
 
@@ -50,11 +96,11 @@ end
 # to `copied`, or `nothing` at the end of the list. The copy is made in a cell of
 # its own that is read with `peek`, so the link of the copy depends on no cell of
 # the original: once read, it keeps the node that it copied.
-_copy_list_link(policy::CopyPolicy, original::ListNode, copied::ListNode, link::Symbol, back::Symbol) =
+_copy_list_link(copy_node, original::ListNode, copied::ListNode, link::Symbol, back::Symbol) =
     peek(ComputedCell(() -> begin
         linked = unwrap_cell(getfield(original, link))
         linked === nothing && return nothing
-        linked_copy = _copy_list_node(policy, linked)
+        linked_copy = _copy_list_node_lazily(copy_node, linked)
         set_cell_value!(getfield(linked_copy, back), copied)
         linked_copy
     end))
