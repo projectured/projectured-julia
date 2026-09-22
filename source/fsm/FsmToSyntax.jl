@@ -10,10 +10,10 @@
 #   event UPPER_PACKET
 #   machine Mac initial IDLE
 #     state IDLE
-#       on UPPER_PACKET / set_current_tx!(m, payload) -> TRANSMITTING
+#       on UPPER_PACKET -> TRANSMITTING / set_current_tx!(m, payload)
 #     state TRANSMITTING
 #       entry / start_transmission!(ctx, m)
-#       on COLLISION_START / abort_tx!(ctx, m) -> JAMMING
+#       on COLLISION_START -> JAMMING / abort_tx!(ctx, m)
 # ```
 #
 # Transition line grammar, each part optional except the ending:

@@ -31,11 +31,11 @@
 #     num_retries::Int
 #     …
 # end
-# FooState(; …) = …             # keyword constructor with the declared defaults
+# FooState() = FooState(…)      # no-argument constructor with the declared defaults
 # function a_dispatch!(ctx, m::FooState, event::Int32, payload = nothing)
 #     …                         # the transition logic
 # end
-# function a_expire_tx_timer!(ctx, m::FooState)  # one per (machine, timer) pair
+# function expire_tx_timer!(ctx, m::FooState)    # one per timer
 #     …
 # end
 # <helpers verbatim>
@@ -174,9 +174,9 @@ end
 """
     host_constructor(component) -> JuliaDocument
 
-A keyword constructor filling in the declared defaults: the machines start in
-their initial states, the timers are fresh handles, and each variable takes its
-declared default (or `nothing` when it declares none).
+A no-argument constructor filling in the declared defaults: the machines start
+in their initial states, the timers are fresh handles, and each variable takes
+its declared default (or `nothing` when it declares none).
 """
 function host_constructor(component::FsmComponent)
     arguments = JuliaDocument[]
