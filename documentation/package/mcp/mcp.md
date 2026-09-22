@@ -31,9 +31,13 @@ run_editor!(backend, projection, document; mcp = true)
 
 The assistant in the window uses the same `ToolSet`, so a tool that a program registers before the server starts reaches both. The kernel `Tool` has no wire format: this package renders it for MCP, and each `Llm` adapter renders it for its provider; see [llm.md](../llm/llm.md).
 
+### On which task a tool runs
+
+The handler runs on the task of the server, and a frame of the editor reads and paints the document on the editor task. So the handler runs the tool through `run_on_editor_task!(editor)`: the call waits in the inbox of the editor, the drain of the next frame runs it on the editor task, and the frame then paints what the tool changed. The server task waits for the answer. When no loop runs, as in a test that calls a handler, the tool runs at once. The turn of the assistant runs its tool calls through the same door, so a tool runs on the editor task for both callers. [editor.md](../kernel/editor.md) describes the door.
+
 ### Where a fault stops
 
-The handler of each tool calls `tool.handler(editor, args)` inside a `try`. A tool that throws writes a fault record into `editor.faults` under the name of the tool, and the client gets the error text as the answer. So the client always gets an answer, the server task keeps running, and the fault log shows what the client ran into. After each call, the handler calls `wake_editor!`, so a change that the tool made, or its fault, draws on the next frame.
+Inside the call on the editor task, the handler calls `tool.handler(editor, args)` inside a `try`. A tool that throws writes a fault record into `editor.faults` under the name of the tool, and the client gets the error text as the answer. So the client always gets an answer, the server task keeps running, and the fault log shows what the client ran into. A new fault record wakes the editor, so the fault draws on the next frame.
 
 When `start_mcp!` can not connect the transport, it writes a fault record and a warning, and the editor runs with no server.
 
@@ -43,7 +47,7 @@ The tool `execute_julia_code` runs Julia in the process of the editor, with `edi
 
 ## How it fits
 
-`ProjecturedMcp` depends on `ModelContextProtocol` and on the kernel. From the kernel it takes the `agent` seam, `record_fault!`, `wake_editor!` and the `tool` layer, from which it uses `Tool`, `Resource`, `ToolSet`, `list_tools`, `list_resources` and `register_default_tools!`. [agent.md](../kernel/agent.md) describes those layers. The package has no `__init__`: its three methods are its registration.
+`ProjecturedMcp` depends on `ModelContextProtocol` and on the kernel. From the kernel it takes the `agent` seam with `run_on_editor_task!`, `record_fault!` and the `tool` layer, from which it uses `Tool`, `Resource`, `ToolSet`, `list_tools`, `list_resources` and `register_default_tools!`. [agent.md](../kernel/agent.md) describes those layers. The package has no `__init__`: its three methods are its registration.
 
 `run_editor!` and `run_window_editor` use it with `mcp = true`, and the application starts it with `--mcp`, or with `--mcp=PORT` or `--mcp=HOST:PORT` at another address. The package binds no meaning model to the tool set. An MCP client runs no turn of the assistant, so the application binds the meaning model of its backend in `on_start`, and a search by description ranks by meaning for the client too.
 
@@ -53,6 +57,7 @@ The tool `execute_julia_code` runs Julia in the process of the editor, with `edi
 - **One tool set serves the assistant and an external client.** Two sets would answer the same question in two ways, and a model would work in the window and fail over MCP. The cost is that each client gets the union of the tools that either one needs. See section 12 of [architecture-decisions.md](../../design/architecture-decisions.md).
 - **The fault barrier is in this package.** The handler is the one place that can both answer the client and write the fault, so the server does not depend on the library for its barrier. See `plan/done/the-editor-survives-a-fault.md`, phase 6.
 - **A change goes through `evaluate_operation`.** A client has no second way to change a document, so a change from a client is the same kind of change as a key press.
+- **The whole tool call runs on the editor task.** A tool is any code, `execute_julia_code` above all, so the server can not tell which call writes a document. The cost is that the editor draws no frame while a tool runs.
 
 ## Usage
 
@@ -66,11 +71,12 @@ stop_mcp!(mcp)
 mcp = McpServer(editor; port = 9900)   # http://127.0.0.1:9900/mcp
 ```
 
-- Tests: `test_mcp_tools()` and `test_mcp_resources()` in `test/projectured/editor/McpTest.jl` cover the tool set that the server renders: `execute_julia_code`, the searches and the documentation resources. `test_mcp_server()` in the same file starts a server at a free port and stops it, and checks that the port is free again. It also runs `run_editor!` with a server, and a client lists over HTTP the tools of the set, with a tool that `on_start` registered. No test calls `render_mcp_resources`, or reads a resource over HTTP.
+- Tests: `test_mcp_tools()` and `test_mcp_resources()` in `test/projectured/editor/McpTest.jl` cover the tool set that the server renders: `execute_julia_code`, the searches and the documentation resources. `test_mcp_tool_runs_on_editor_task()` in the same file checks that a handler called from another task runs its tool only when the editor drains its inbox. `test_mcp_server()` starts a server at a free port and stops it, and checks that the port is free again. It also runs `run_editor!` with a server, and a client lists over HTTP the tools of the set, with a tool that `on_start` registered, and calls that tool, which runs on the task of the loop. No test calls `render_mcp_resources`, or reads a resource over HTTP.
 
 ## Limits
 
-- **A tool writes the document from the server task.** The handler runs on the `@async` task of the server, and `execute_julia_code` changes `editor.document` there directly, and not through `post_operation!`, the inbox that orders such writes with the frame. A frame that runs between two writes can read a state that is half done. `plan/done/the-editor-survives-a-fault.md`, section 9, records this as open work. The assistant turn has the same fault.
+- **A tool call holds the frame.** The editor draws no frame while a tool runs on its task. The first search by description of a build can wait up to 30 seconds for the vectors of the meaning model, and the window does not draw in that time.
+- **A tool can not wait for a frame.** A tool runs between two frames on the editor task, and the next frame starts when the tool returns. So code in `execute_julia_code` that waits for a frame, or for a posted operation to be applied, does not see it before it returns.
 - **The server renders the tool set once, when it starts.** `run_editor!` starts it after `on_start`, so the `undo` and `redo` tools that the application registers there are served. A tool that is registered after `start_mcp!` does not reach a client: the library of the protocol lists its own vector of tools, and it calls no code of this package when a client lists them.
 - The server listens on the loopback address with no authentication. Every program on the machine can reach it.
 - One server serves one editor.

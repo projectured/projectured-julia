@@ -70,8 +70,11 @@ A guide name comes from its path: `documentation/guide/setup-guide.md` is `guide
 
 `execute_julia_code` runs in the process of the editor. A client can read the data, build an operation and apply it with `evaluate_operation(editor, operation)`, which is the one way to change the data. A change from a client is the same kind of change as a key press.
 
+A tool runs on the task of the editor, between two frames, and the client gets the answer when the tool returns. So a change from a client never meets a frame half way, and the frame after the call draws it.
+
 ## The limits
 
 - The server answers on the loopback address, with no authentication. Anything that runs on your machine can reach it. Do not start it on a machine you share.
 - The server publishes the tools that the tool set has when the server starts, and the application starts it after it registered `undo` and `redo`. A tool that a program registers later reaches the assistant in the window and not an MCP client.
+- The window draws nothing while a tool runs. A long evaluation holds the window for its whole time.
 - The server stops when the editor stops.

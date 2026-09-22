@@ -47,6 +47,10 @@ Holds the state for a read-eval-print loop:
                    frame into: always the frame time, plus the performance
                    counters when they are compiled in. A statistics feed
                    flushes it into a document on its own deadline.
+  - `loop_task`  — the task that runs [`run_editor!`](@ref), or `nothing` while
+                   no loop runs. [`run_on_editor_task!`](@ref) reads it to
+                   know whether a call from another task must wait for a frame
+                   (internal).
 """
 mutable struct Editor
     backend::Backend
@@ -65,6 +69,7 @@ mutable struct Editor
     feeds::Vector{Feed}
     wake_pending::Threads.Atomic{Bool}
     frame_samples::FrameSampleStore
+    loop_task::Union{Task, Nothing}
 end
 
 # The inbox is bounded: a producer that outruns the editor should wait for it,
@@ -83,7 +88,7 @@ function Editor(backend, document, projection, devices;
                     # first wait, so the editor paints once before anything
                     # has happened.
                     Feed[InboxFeed(); feeds], Threads.Atomic{Bool}(true),
-                    FrameSampleStore())
+                    FrameSampleStore(), nothing)
     # Registration is the one moment a feed meets its editor. The callback is
     # the only handle a producer-side store gets: a store lives below the
     # editor layer and must not name `Editor`.

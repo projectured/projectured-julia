@@ -36,7 +36,6 @@ using ..StyleModule
 using ..TextModule
 using ..ToolModule
 using ..WidgetModule
-import ..EditorModule: wake_editor!
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_function!

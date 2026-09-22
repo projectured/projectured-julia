@@ -30,16 +30,18 @@ Return in the composer makes `SubmitDraftTurnOperation(assistant)`. While a turn
 1. It builds the backend at this point: `llm` when it is set, else `make_llm(backend; api_key, model, context)`. The key is `api_key`, or the `ANTHROPIC_API_KEY` environment variable when `api_key` is empty. With `backend = :none` and no `llm`, it throws an error that lists `get_llm_backend_names()`.
 2. It calls `bind_meaning_model!(editor.tools, llm)`, so a search by description in this turn ranks by meaning when the backend has a meaning model.
 3. It pushes an empty assistant turn, and calls `run_turn!` of the kernel with `Agent(llm, editor.tools; system, thinking = true)`.
-4. `messages` is `() -> build_messages(assistant.conversation)`, called at the start of every round. The tool results of a round are parts of the conversation, so the next round sends them with no second list.
-5. `on_event` turns each event into a part and calls `wake_editor!`, so the reply draws while it streams. A text block becomes a text part, and `parse_markdown_blocks` reads it again when it ends. A fenced block becomes a document of its domain through the natural-format seam. Prose becomes a Markdown document when the Markdown parser is loaded. A thinking block becomes a thinking part. An `AgentToolResult` becomes an `EvaluatorForm` part that keeps the id, the name, the source and the input of the call.
+4. `messages` builds the messages with `build_messages(assistant.conversation)` at the start of every round. The tool results of a round are parts of the conversation, so the next round sends them with no second list.
+5. `on_event` turns each event into a part, so the reply draws while it streams. A text block becomes a text part, and `parse_markdown_blocks` reads it again when it ends. A fenced block becomes a document of its domain through the natural-format seam. Prose becomes a Markdown document when the Markdown parser is loaded. A thinking block becomes a thinking part. An `AgentToolResult` becomes an `EvaluatorForm` part that keeps the id, the name, the source and the input of the call.
 
-At the end, an assistant turn with no parts is removed. When the task throws, `status` becomes `:error`, `record_fault!` writes the fault into the store of the editor, and an assistant turn shows the text of the error. So a failure shows in the chat and in the fault log. The loop itself, with its round limit and its tool dispatch, is the kernel's; [agent.md](../kernel/agent.md) describes it.
+At the end, the turn gets its stop reason, and an assistant turn with no parts is removed. When the task throws, `status` becomes `:error`, `record_fault!` writes the fault into the store of the editor, and an assistant turn shows the text of the error. So a failure shows in the chat and in the fault log. The loop itself, with its round limit and its tool dispatch, is the kernel's; [agent.md](../kernel/agent.md) describes it.
+
+The task of the turn writes the assistant only through `run_on_editor_task!`, because a frame of the editor reads and paints the assistant on the editor task. The empty assistant turn, each part, the stop reason and each change of `status` are posted, and the drain of the next frame applies them in the order they were posted. Many parts of a stream are applied in one frame. `messages` waits for its answer, so it reads the conversation after every part that came before it. When no loop runs, as in a test that calls `_run_agent_loop!`, each write happens at once. [editor.md](../kernel/editor.md) describes the door.
 
 Alt+Return on a Julia part makes `EvaluateDraftTurnOperation`. It runs the evaluation of the composer in place, and then pushes the whole draft as one user turn. No model runs. The next submit sends the evaluation to the model as part of the history.
 
 ### The tools
 
-The model gets `list_tools(editor.tools)`, the tool set of the editor. The assistant keeps no registry of its own, and `run_turn!` registers the default tools. An MCP client gets the same set; see [mcp.md](../mcp/mcp.md). A tool changes the document with `evaluate_operation(editor, operation)`, the same call that a key press makes.
+The model gets `list_tools(editor.tools)`, the tool set of the editor. The assistant keeps no registry of its own, and `run_turn!` registers the default tools. An MCP client gets the same set; see [mcp.md](../mcp/mcp.md). A tool changes the document with `evaluate_operation(editor, operation)`, the same call that a key press makes. `run_turn!` runs each tool call on the editor task, as the MCP server does for a client, so a tool behaves the same for both.
 
 ### From the conversation to the messages
 
@@ -95,11 +97,12 @@ run_assistant_example(; backend = :ollama)                   # the example with 
 ```
 
 - Example: `assistant_example` shows a canned transcript with one part of every kind and answers from a `FakeLlm`, so it needs no server and no key. The factories are `make_assistant_document_example` and `make_assistant_projection_example` in `example/conversation/`.
-- Tests, in `test/projectured/editor/`: `test_assistant_mvp()` drives a whole turn with a scripted model, `test_assistant_duplicate()` covers the fork, and `test_assistant_composer_panel()` covers the composer in the pane. `test_assistant_editor_reference()` and `test_assistant_turn_binds_meaning_model()` are in `McpTest.jl`, and `test_conversation_serialization()` covers `build_messages`.
+- Tests, in `test/projectured/editor/`: `test_assistant_mvp()` drives a whole turn with a scripted model, checks that Return while a turn streams does nothing, and checks that the writes of a turn and its tool call wait for the drain of the editor. `test_assistant_duplicate()` covers the fork, and `test_assistant_composer_panel()` covers the composer in the pane. `test_assistant_editor_reference()` and `test_assistant_turn_binds_meaning_model()` are in `McpTest.jl`, and `test_conversation_serialization()` covers `build_messages`.
 
 ## Limits
 
-- **The turn task writes the document from outside the frame.** It pushes turns and parts and sets `status` on `editor.document` directly, and not through `post_operation!`, the inbox that orders such writes with the frame. A frame that runs between two writes can read a state that is half done. `plan/done/the-editor-survives-a-fault.md`, section 9, records this as open work. The MCP server has the same fault.
+- **A tool call holds the frame.** A tool call of the model runs on the editor task, and the editor draws no frame until it returns. The first search by description of a build can wait up to 30 seconds for the vectors of the meaning model.
+- **A part that fails to apply does not end the turn.** A streamed part is posted and not waited for, so an exception while the drain applies it goes to the fault log of the editor, and the turn goes on.
 - No view draws `status`. A person sees a running turn only by the parts that arrive.
 - `input`, `SubmitProseOperation`, `SubmitJuliaOperation`, `ClearInputOperation` and `ResetConversationOperation` are exported, but no printer shows `input` and no reader makes these operations. Only the tests call two of them.
 - The natural row gives a pane tab a widget and not graphics. A host that shows an assistant in a tab chains `AssistantToWidgetSplitPane` to `NaturalToGraphics` with the rows of the conversation, as `make_application_content_projections` in `example/projectured/Application.jl` does.

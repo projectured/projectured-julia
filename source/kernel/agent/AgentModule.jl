@@ -31,7 +31,7 @@ using ..ToolModule
 using ..LlmModule
 
 export Agent, run_turn!, AgentEvent, AgentToolResult
-export make_agent_server, start_agent_server!, stop_agent_server!
+export make_agent_server, start_agent_server!, stop_agent_server!, run_on_editor_task!
 
 include("AgentInterface.jl")
 include("AgentDefaults.jl")

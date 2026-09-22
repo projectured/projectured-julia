@@ -11,3 +11,7 @@ make_agent_server(kind::Symbol, editor; kwargs...) =
 make_agent_server(::Val{K}, editor; kwargs...) where {K} = error(
     "No agent server registered for :$(K). Is the package/extension that " *
     "provides it loaded?")
+
+# A target that nothing runs a loop for has no other task to wait for.
+run_on_editor_task!(function_, target; wait::Bool = true) =
+    wait ? function_() : (function_(); nothing)

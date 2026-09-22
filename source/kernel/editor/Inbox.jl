@@ -67,3 +67,70 @@ function drain_operations!(editor::Editor)
     end
     count
 end
+
+# ── A call on the editor task ────────────────────────────────────────
+#
+# A tool that a client calls from the server's task, and a turn that streams on a
+# task of its own, write the document too. They go through the inbox like every
+# other writer. A tool call needs its answer back, so what it posts is a function
+# and a channel: the editor runs the function in its drain and puts the answer
+# into the channel, and the caller waits on it.
+
+"""
+    RunFunctionOperation(function_, answer)
+
+Run `function_()` on the editor task, in the drain of the inbox. `answer` is the
+channel that takes `(true, value)` or `(false, exception)`, or `nothing` when no
+task waits for the call. [`run_on_editor_task!`](@ref) makes it.
+"""
+struct RunFunctionOperation <: Operation
+    function_::Function
+    answer::Union{Channel{Any}, Nothing}
+end
+
+# An exception goes to the task that waits for it, and a posted call that no task
+# waits for throws into the barrier of the drain, which records it. An exception
+# that means stop is thrown on here as well, so an interrupt still stops the loop.
+function OperationModule.evaluate_operation(::Editor, operation::RunFunctionOperation)
+    answer = operation.answer
+    answer === nothing && return (operation.function_(); nothing)
+    try
+        put!(answer, (true, operation.function_()))
+    catch exception
+        put!(answer, (false, exception))
+        is_passthrough_exception(exception) && rethrow()
+    end
+    nothing
+end
+
+function AgentModule.run_on_editor_task!(function_, editor::Editor; wait::Bool = true)
+    task = editor.loop_task
+    if task === nothing || task === current_task()
+        value = function_()
+        return wait ? value : nothing
+    end
+    answer = wait ? Channel{Any}(1) : nothing
+    post_operation!(editor, RunFunctionOperation(function_, answer))
+    answer === nothing && return nothing
+    succeeded, value = take!(answer)
+    succeeded ? value : throw(value)
+end
+
+# The calls still in the inbox when the loop ends run here, on the task that ran
+# the loop, where no frame runs any more. So a task that waits for one gets its
+# answer and does not wait forever. An operation of another kind that was posted
+# after the last frame is not applied.
+function _answer_waiting_calls!(editor::Editor)
+    while isready(editor.inbox)
+        operation = take!(editor.inbox)
+        operation isa RunFunctionOperation || continue
+        try
+            evaluate_operation(editor, operation)
+        catch exception
+            is_passthrough_exception(exception) && rethrow()
+            record_fault!(editor.faults, :evaluate, :RunFunctionOperation, nothing,
+                          exception, catch_backtrace())
+        end
+    end
+    nothing
+end

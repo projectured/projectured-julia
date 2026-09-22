@@ -225,13 +225,17 @@ end
 # Flip to streaming and launch the agent loop on a task. `FakeLlm` synthesises
 # events in-process (tests / offline); `AnthropicLlm` streams from Claude — the
 # same `_handle_llm_event!` consumes both, because both speak `LlmEvent`.
+#
+# The turn runs on a task of its own, and the frame of a running editor reads
+# and paints the assistant. So every write of the turn to the assistant goes
+# through `run_on_editor_task!`: a status change and a streamed part are posted
+# and applied in the drain of the next frame, which then paints them.
 function _launch_agent_turn!(editor, a::Assistant)
     a.status = :streaming
     @async begin
         try
             _run_agent_loop!(editor, a)
         catch e
-            a.status = :error
             traceback = catch_backtrace()
             err = sprint(showerror, e, traceback)
             # The turn is told to the person in the chat, and the fault is told
@@ -239,13 +243,15 @@ function _launch_agent_turn!(editor, a::Assistant)
             record_fault!(get_fault_store(editor), :tool, :Assistant, nothing,
                           e, traceback)
             @error "Assistant turn failed" exception = (e, traceback)
-            push!(a.conversation.turns,
-                  ConversationTurn(:assistant, [ConversationPart("Error: " * err)]))
+            run_on_editor_task!(editor; wait = false) do
+                a.status = :error
+                push!(a.conversation.turns,
+                      ConversationTurn(:assistant, [ConversationPart("Error: " * err)]))
+            end
         finally
-            a.status === :streaming && (a.status = :idle)
-            # The turn ran on its own task; ask the editor for a frame so the
-            # final state — the answer, or the error turn — paints now.
-            wake_editor!(editor)
+            run_on_editor_task!(editor; wait = false) do
+                a.status === :streaming && (a.status = :idle)
+            end
         end
     end
     nothing
@@ -666,7 +672,7 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # this single turn holding every part in order. `build_messages` re-expands it
     # into the tool_use/tool_result message shape.
     turn = ConversationTurn(:assistant)
-    push!(a.conversation.turns, turn)
+    run_on_editor_task!(() -> push!(a.conversation.turns, turn), editor; wait = false)
 
     # The blocks currently being streamed into (one text part, one thinking part).
     state = Dict{Symbol,Any}(:current_block => nothing, :current_thinking => nothing)
@@ -678,29 +684,37 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     # `messages` is re-derived from the conversation at the start of every round —
     # the tool results the previous round appended to it are exactly the continuation
     # prompt — so the conversation stays the single source of truth rather than a
-    # view of some message list held elsewhere.
+    # view of some message list held elsewhere. It is read on the editor's task,
+    # after every part this turn posted before it.
+    #
+    # An event changes the conversation, so its part is posted to the editor's
+    # task and not waited for: a stream of many small parts is applied in few
+    # frames. The posts of this task keep their order.
     agent = Agent(llm, set; system = a.system, thinking = true)
-    turn.stop_reason = run_turn!(agent, editor;
-        messages = () -> build_messages(a.conversation),
+    stop_reason = run_turn!(agent, editor;
+        messages = () -> run_on_editor_task!(() -> build_messages(a.conversation), editor),
         on_event = ev -> begin
             observe === nothing || observe(ev)
-            _handle_agent_event!(ev, a, turn, state, set)
-            # The event just changed the conversation from this task; ask the
-            # editor for a frame so the stream paints as it arrives.
-            wake_editor!(editor)
+            run_on_editor_task!(editor; wait = false) do
+                _handle_agent_event!(ev, a, turn, state, set)
+            end
         end)
 
-    @info "[assistant] turn done" elapsed_s=round(time() - turn_t0; digits=2) parts=length(turn.parts)
+    @info "[assistant] turn done" elapsed_s=round(time() - turn_t0; digits=2)
 
-    # If the whole turn produced nothing (e.g. an immediate stop, or an error before
-    # any content), drop the empty placeholder so it doesn't render as a bare
-    # "assistant:" line.
-    if isempty(turn.parts)
-        elems = getfield(a.conversation.turns, :elements)[]
-        if !isempty(elems) && elems[end][] === turn
-            deleteat!(a.conversation.turns, length(elems))
+    run_on_editor_task!(editor; wait = false) do
+        turn.stop_reason = stop_reason
+        # If the whole turn produced nothing (e.g. an immediate stop, or an
+        # error before any content), drop the empty placeholder so it doesn't
+        # render as a bare "assistant:" line.
+        if isempty(turn.parts)
+            elems = getfield(a.conversation.turns, :elements)[]
+            if !isempty(elems) && elems[end][] === turn
+                deleteat!(a.conversation.turns, length(elems))
+            end
         end
     end
+    nothing
 end
 
 # A tool the model asked for has run. Its code and result live together in one

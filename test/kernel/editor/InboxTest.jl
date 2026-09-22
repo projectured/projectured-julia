@@ -12,8 +12,9 @@ using ProjecturedKernel.IntentModule
 using ProjecturedKernel.IoMapModule
 using ProjecturedKernel.DocumentModule
 import ProjecturedKernel.EditorModule
-import ProjecturedKernel.EditorModule: Editor, post_operation!, drain_operations!
-import ProjecturedKernel.OperationModule: Operation, evaluate_operation
+import ProjecturedKernel.EditorModule: Editor, post_operation!, drain_operations!, run_editor!
+import ProjecturedKernel.OperationModule: Operation, evaluate_operation, QuitEditorOperation
+import ProjecturedKernel.AgentModule: run_on_editor_task!
 using ProjecturedKernelExample
 
 @document struct InboxProbe
@@ -77,6 +78,57 @@ function test_editor_inbox()
         post_operation!(editor, ProbeInboxOperation(Any[], :quiet))
         drain_operations!(editor)
         @test editor.operation === nothing
+    end
+
+    @testset "a call runs at once where no loop runs on another task" begin
+        editor = _inbox_editor()
+        @test run_on_editor_task!(() -> current_task(), editor) === current_task()
+        @test run_on_editor_task!(() -> 1, (document = nothing,)) == 1
+        editor.loop_task = current_task()
+        @test run_on_editor_task!(() -> current_task(), editor) === current_task()
+        @test run_on_editor_task!(() -> 1, editor; wait = false) === nothing
+        @test !isready(editor.inbox)
+    end
+
+    @testset "a call from another task runs in the drain, and the caller waits" begin
+        editor = _inbox_editor()
+        editor.loop_task = current_task()          # a loop runs on this task
+        log = Any[]
+        caller = @async begin
+            run_on_editor_task!(editor; wait = false) do
+                push!(log, (:posted, current_task()))
+            end
+            run_on_editor_task!(() -> (push!(log, (:called, current_task())); 42), editor)
+        end
+        @test timedwait(() -> Base.n_avail(editor.inbox) == 2, 5.0) === :ok
+        @test isempty(log) && !istaskdone(caller)
+        @test drain_operations!(editor) == 2
+        @test [tag for (tag, _) in log] == [:posted, :called]
+        @test all(((_, task),) -> task === current_task(), log)
+        @test fetch(caller) == 42
+        # What the call throws is thrown on the task that waits for it.
+        failing = @async run_on_editor_task!(() -> error("the call failed"), editor)
+        @test timedwait(() -> isready(editor.inbox), 5.0) === :ok
+        drain_operations!(editor)
+        @test_throws TaskFailedException fetch(failing)
+        @test occursin("the call failed", sprint(showerror, failing.exception))
+    end
+
+    @testset "a call that waits when the loop ends gets its answer" begin
+        editor = _inbox_editor()
+        answer = Ref{Any}(nothing)
+        run_editor!(editor; on_start = function (editor)
+            @async begin
+                answer[] = run_on_editor_task!(() -> current_task(), editor)
+            end
+            # The quit is applied before the call, which waits in the inbox
+            # behind it when the loop ends.
+            post_operation!(editor, QuitEditorOperation())
+            yield()
+        end)
+        @test timedwait(() -> answer[] !== nothing, 5.0) === :ok
+        @test answer[] === current_task()
+        @test editor.loop_task === nothing
     end
 
     @testset "a frame applies what was posted before it reads" begin

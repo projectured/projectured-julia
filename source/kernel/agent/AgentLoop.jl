@@ -26,6 +26,9 @@ again until it stops asking. Returns the stop reason of the final round
 - `on_event` — called with every `LlmEvent` as it streams, and with an
                `AgentToolResult` for each tool that runs.
 
+Each tool call runs through [`run_on_editor_task!`](@ref) with `target`: on the
+task of the editor's loop when one runs on another task, and at once otherwise.
+
 The loop is where a turn's *control flow* lives, and only that. It builds no
 messages and renders no answer; it streams, dispatches, and decides whether to go
 around again.
@@ -68,17 +71,23 @@ function run_turn!(agent::Agent, target; messages::Function, on_event::Function)
 
         for call in pending
             @info "[agent] tool call" call.name
-            output = try
-                call_tool(agent.tools, call.name, call.input, target)
-            catch e
-                # A tool that throws is not a broken turn: the model is told what went
-                # wrong and can try something else, which is the whole point of giving
-                # it tools it can misuse. The fault is recorded as well, so a person
-                # reading the editor's log sees what the model ran into.
-                traceback = catch_backtrace()
-                record_fault!(get_fault_store(target), :tool, Symbol(call.name),
-                              nothing, e, traceback)
-                sprint(showerror, e, traceback)
+            # The loop runs on a task of its own, and a tool may write what the
+            # editor shows, so the call runs on the editor's task, as the call of
+            # an MCP client does.
+            output = run_on_editor_task!(target) do
+                try
+                    call_tool(agent.tools, call.name, call.input, target)
+                catch e
+                    # A tool that throws is not a broken turn: the model is told
+                    # what went wrong and can try something else, which is the
+                    # whole point of giving it tools it can misuse. The fault is
+                    # recorded as well, so a person reading the editor's log sees
+                    # what the model ran into.
+                    traceback = catch_backtrace()
+                    record_fault!(get_fault_store(target), :tool, Symbol(call.name),
+                                  nothing, e, traceback)
+                    sprint(showerror, e, traceback)
+                end
             end
             on_event(AgentToolResult(call, output, _is_error_output(output)))
         end

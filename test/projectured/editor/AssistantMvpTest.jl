@@ -264,6 +264,52 @@ function _mvp_test_submit_while_streaming()
     end
 end
 
+# ── The writes of a turn wait for the editor ───────────────────────────
+#
+# A turn streams on a task of its own and a frame reads what it writes, so the
+# turn writes the assistant through the inbox: its parts, its status, and each
+# tool call, which runs on the editor's task. The test plays a running loop: it
+# marks its own task as the loop's and drains the inbox by hand, and between two
+# drains nothing that the turn wrote may change.
+
+function _mvp_test_turn_writes_on_editor_task()
+    @testset "a turn writes the assistant on the editor task" begin
+        ran_on = Task[]
+        tools = register_default_tools!(ToolSet())
+        register_tool!(tools, Tool("mark", "Records the task it runs on.", NamedTuple[],
+                                   (target, args) -> (push!(ran_on, current_task()); "marked")))
+        a = Assistant(; llm = ScriptedLlm([_tool_use_script("tu_1", "mark", Dict{String,Any}()),
+                                            _final_text_script("Done.")]))
+        editor = Editor(HeadlessBackend(), a, make_assistant_projection_example(), Device[];
+                        tools = tools)
+        editor.loop_task = current_task()
+        _mvp_type!(a, "Hello")
+        evaluate_operation(editor, SubmitDraftTurnOperation(a))
+        state() = (length(a.conversation.turns),
+                   length(a.conversation.turns[end].parts), a.status, length(ran_on))
+        @test timedwait(() -> isready(editor.inbox), 5.0) === :ok
+        @test [t.role for t in a.conversation.turns] == [:user]
+        changed_between_drains = false
+        drains = 0
+        deadline = time() + 10.0
+        while a.status === :streaming && time() < deadline
+            before = state()
+            sleep(0.02)                                   # the turn's task runs
+            state() == before || (changed_between_drains = true)
+            drains += drain_operations!(editor)
+        end
+        @test !changed_between_drains
+        @test drains > 0
+        @test a.status === :idle
+        @test ran_on == [current_task()]
+        reply = a.conversation.turns[end]
+        @test [t.role for t in a.conversation.turns] == [:user, :assistant]
+        @test reply.stop_reason === :end_turn
+        @test reply.parts[1].content isa EvaluatorForm
+        @test _text_to_string(reply.parts[end].content) == "Done."
+    end
+end
+
 """
     test_assistant_mvp()
 
@@ -333,6 +379,7 @@ function test_assistant_mvp()
         _mvp_test_collapse_containment()
         _mvp_test_backend_must_be_named()
         _mvp_test_submit_while_streaming()
+        _mvp_test_turn_writes_on_editor_task()
     end
 end
 

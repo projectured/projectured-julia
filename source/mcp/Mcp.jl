@@ -121,6 +121,9 @@ Render the given tools into the `MCPTool` shape the MCP server expects, binding
 each handler to `editor`. This is the MCP half of the same job `ProjecturedAnthropic`
 does for the Messages API: a `Tool` is provider-neutral, and each transport
 renders it into its own wire format.
+
+A handler runs its tool through `run_on_editor_task!`, so the tool runs on the
+task of the editor's loop and the server task waits for its answer.
 """
 function render_mcp_tools(editor, tools::AbstractVector{Tool})
     out = MCPTool[]
@@ -137,23 +140,25 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
         let tool = t
             handler = params_dict -> begin
                 args = Dict{String,Any}(string(k) => v for (k, v) in pairs(params_dict))
-                # The barrier is here and not only in the transport library. A
-                # tool that throws must answer the client an error text and must
-                # not take the server task with it, and this file is the only
-                # place that can promise both. The fault is recorded too, so a
-                # person reading the editor's log sees what a client ran into.
-                text = try
-                    tool.handler(editor, args)
-                catch exception
-                    traceback = catch_backtrace()
-                    record_fault!(editor.faults, :tool, Symbol(tool.name), nothing,
-                                  exception, traceback)
-                    sprint(showerror, exception, traceback)
+                # The handler runs on the server task, and a tool may write what
+                # the editor shows, so the call runs on the editor's task, in the
+                # drain of its next frame, which then paints the change.
+                text = run_on_editor_task!(editor) do
+                    # The barrier is here and not only in the transport library.
+                    # A tool that throws must answer the client an error text and
+                    # must not take the server task with it, and this file is
+                    # the only place that can promise both. The fault is recorded
+                    # too, so a person reading the editor's log sees what a
+                    # client ran into.
+                    try
+                        tool.handler(editor, args)
+                    catch exception
+                        traceback = catch_backtrace()
+                        record_fault!(editor.faults, :tool, Symbol(tool.name), nothing,
+                                      exception, traceback)
+                        sprint(showerror, exception, traceback)
+                    end
                 end
-                # The tool ran on the server task and may have changed what
-                # the editor shows; ask for a frame so the change — or the
-                # fault it recorded — paints without waiting for other input.
-                wake_editor!(editor)
                 TextContent(text = text)
             end
             push!(out, MCPTool(

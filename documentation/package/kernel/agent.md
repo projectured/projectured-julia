@@ -369,7 +369,7 @@ of names that mean nothing to its task.
 ## Layer 17 — `agent/`: the two directions
 
 ```
-AgentModule.jl  (AgentModule)  inbound  — make/start/stop_agent_server!
+AgentModule.jl  (AgentModule)  inbound  — make/start/stop_agent_server!, run_on_editor_task!
 Agent.jl        (AgentModule)        outbound — the Agent, and AgentToolResult
 AgentLoop.jl    (AgentModule)        outbound — run_turn!
 ```
@@ -402,10 +402,34 @@ transcript, free to drift from the real one.
 each tool that runs. The assistant turns those into live conversation
 parts; something else might simply print them.
 
+### Both directions call from another task
+
+An MCP server calls a tool on the task of the server, and a turn runs on a task
+of its own. A tool can write what the editor shows, and a frame of the editor
+reads it on the editor task. So both directions call through one door:
+
+```julia
+run_on_editor_task!(function_, target; wait = true) -> value
+```
+
+It runs `function_()` on the task that runs the loop of `target`, in the drain of
+the next frame, and the calling task waits for the value. `run_turn!` runs each
+tool call through it, with its fault barrier inside the call, and the MCP server
+runs the call of a client the same way. So a tool runs on the editor task for
+the assistant in the window and for an MCP client. With `wait = false` the call
+only posts, and the answer is `nothing`. The assistant posts each streamed part
+in this way.
+
+The agent layer declares the function, and its default runs `function_()` at
+once, because a target that is not an editor has no loop to wait for. The editor
+layer answers it for an `Editor` whose loop runs on another task;
+[editor.md](editor.md) says how.
+
 ## Who implements what
 
 | Seam | Declared in | Implemented by |
 | --- | --- | --- |
 | `make_agent_server(:mcp, …)` | `agent/AgentModule.jl` | `ProjecturedMcp` (`package/ProjecturedMcp`, source in `source/mcp/`) |
+| `run_on_editor_task!` | `agent/AgentInterface.jl` | the editor layer (`editor/Inbox.jl`) for an `Editor`; the default in `agent/AgentDefaults.jl` runs every other target at once |
 | `stream_turn`, `render_tool_schema`, `make_llm` | `llm/LlmInterface.jl` | `ProjecturedAnthropic`, `ProjecturedOllama`; `FakeLlm` / `ScriptedLlm` in `ProjecturedKernelExample` |
 | a `Tool`'s handler | `tool/Tool.jl` | `register_default_tools!`, and anyone else who registers one |

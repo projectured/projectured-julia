@@ -8,6 +8,8 @@
 # The *outbound* half — the agent loop of `Agent.jl` and `AgentLoop.jl`, this
 # editor driving a model — is the mirror image. Both spend the same currency,
 # the editor's `ToolSet`: an agent server publishes it, an agent loop calls it.
+# Both call it from a task that is not the editor's, so both go through one
+# door, `run_on_editor_task!`, which the editor layer answers.
 #
 # Concrete servers live in their own packages and register methods for these
 # generics. The editor loop drives a server only through them, so it never
@@ -38,3 +40,29 @@ function start_agent_server! end
 Stop the agent server and release its resources.
 """
 function stop_agent_server! end
+
+"""
+    run_on_editor_task!(function_, target; wait = true) -> value
+
+Run `function_()` on the task that owns `target`, and answer its value.
+
+A frame of a running editor reads, evaluates and paints the document, so a write
+from another task races the frame. A tool that a client calls from the task of a
+server, and a turn of a model that streams on a task of its own, therefore make
+their writes through this door: the editor applies the call at the top of its
+next frame, where it applies every posted operation, and the calling task waits
+for the answer. An exception that `function_` throws is thrown again on the
+calling task.
+
+With `wait = false` the call is only posted, and the answer is `nothing`. The
+posts of one task are applied in the order they were made, and before any call
+that the same task makes after them with `wait = true`.
+
+The call runs at once, on the calling task, when nothing runs a loop for
+`target`, or when the calling task is the one that runs it. So a call from the
+editor's own task, and a call in a test that drives no loop, never wait.
+
+The kernel answers every target by running at once. The editor layer answers an
+`Editor` whose loop runs on another task.
+"""
+function run_on_editor_task! end

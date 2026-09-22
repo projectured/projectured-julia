@@ -48,6 +48,8 @@ end
 - `recognizer` — the event → gesture recognizer that folds raw `MouseDown`/`MouseUp`
   into `MousePress` and `KeyDown` sequences into `KeyChord`, private to this
   editor so two editors do not share chord-in-progress state
+- `loop_task` — the task that runs `run_editor!`, or `nothing` while no loop
+  runs; see [A call on the editor task](#a-call-on-the-editor-task)
 
 ## The Read-Eval-Print loop
 
@@ -133,6 +135,36 @@ A `QuitEditorException` thrown out of `evaluate_operation` exits the loop
 cleanly. The MCP server is started after `on_start`, before the first frame,
 and stopped in the `finally` block — see below.
 
+#### A call on the editor task
+
+A tool that an MCP client calls runs on the task of the server, and a turn of
+the assistant streams on a task of its own. Both write what the frame shows, and
+a tool call needs its answer back. `run_on_editor_task!(function_, editor)` is
+their door:
+
+```julia
+text = run_on_editor_task!(() -> call_tool(editor.tools, name, args, editor), editor)
+run_on_editor_task!(() -> push!(turn.parts, part), editor; wait = false)
+```
+
+1. The call posts a `RunFunctionOperation`, which holds the function and a
+   channel for the answer.
+2. The drain of the next frame runs the function on the editor task, and puts
+   the value or the exception into the channel.
+3. The calling task waits on the channel, and gets the value, or the exception
+   thrown again. With `wait = false` the call only posts, and the posts of one
+   task keep their order.
+
+The function runs at once, on the calling task, when `editor.loop_task` is
+`nothing` or is the calling task. So a test that drives frames by hand, and an
+operation that the editor task evaluates, never wait for themselves. When the
+loop ends, the calls still in the inbox run on the task that ran the loop, so no
+caller waits forever. The kernel declares the function in the agent layer and
+runs every target that is not an `Editor` at once; see [agent.md](agent.md).
+
+The editor task runs no other frame while the function runs. So a tool that
+runs for a second keeps the window from drawing for a second.
+
 ### The feeds
 
 The inbox generalises to a **feed**: one registered inflow of the editor.
@@ -155,7 +187,7 @@ The concrete feeds so far:
 
 | feed | producer | store shape | target |
 | --- | --- | --- | --- |
-| `InboxFeed` (built-in, always first) | `post_operation!` callers | bounded queue, backpressure | the edited document |
+| `InboxFeed` (built-in, always first) | `post_operation!` and `run_on_editor_task!` callers | bounded queue, backpressure | the edited document |
 | `MessageLogFeed` (`ProjecturedLog`) | any task that logs | ring buffer | the `MessageLog` |
 | `FrameStatisticsFeed` (`ProjecturedStatistics`) | the loop itself | per-measurement fold | the `FrameStatistics` table |
 | `ReflectionFeed` (`ProjecturedReflection`) | the value, and a chevron that flags a marker | the value itself | the reflected tree of the value |

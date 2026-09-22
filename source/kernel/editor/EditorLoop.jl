@@ -125,19 +125,26 @@ function run_editor!(editor::Editor; mcp::Bool=false,
     # printed under another policy prints again.
     editor.fault_policy == fault_policy || invalidate_projection!(editor)
     editor.fault_policy = fault_policy
-    # The editor exists now, and this is the first moment anything outside can
-    # have it. What needs to reach a running editor — a driver that will post
-    # its work, a watcher, a client — is handed it here, once, before any frame.
-    on_start === nothing || on_start(editor)
-    # The server renders the tool set when it starts, so it starts after
-    # `on_start`: a tool that `on_start` registers reaches a client too.
-    server = mcp ? _make_mcp_server(editor, mcp_instructions, mcp_host, mcp_port) : nothing
-    server === nothing || start_agent_server!(server)
-    # Advance this editor's private animation clock once per frame; subscribers
-    # via `get_reactive_clock_time(editor.clock)` re-evaluate on the next pull.
-    # Logical time is wall-clock seconds since the loop started.
-    t_start = Base.time()
+    # From here on, a call that another task makes through
+    # `run_on_editor_task!` runs in a frame of this task.
+    editor.loop_task = current_task()
+    server = nothing
     try
+        # The editor exists now, and this is the first moment anything outside
+        # can have it. What needs to reach a running editor — a driver that
+        # will post its work, a watcher, a client — is handed it here, once,
+        # before any frame.
+        on_start === nothing || on_start(editor)
+        # The server renders the tool set when it starts, so it starts after
+        # `on_start`: a tool that `on_start` registers reaches a client too.
+        server = mcp ? _make_mcp_server(editor, mcp_instructions, mcp_host, mcp_port) :
+                       nothing
+        server === nothing || start_agent_server!(server)
+        # Advance this editor's private animation clock once per frame;
+        # subscribers via `get_reactive_clock_time(editor.clock)` re-evaluate
+        # on the next pull. Logical time is wall-clock seconds since the loop
+        # started.
+        t_start = Base.time()
         while true
             # A wake posted since the last frame took ownership skips the
             # wait: the flag is the truth, whatever became of the backend
@@ -171,6 +178,8 @@ function run_editor!(editor::Editor; mcp::Bool=false,
     catch e
         e isa QuitEditorException || rethrow()
     finally
+        editor.loop_task = nothing
+        _answer_waiting_calls!(editor)
         server === nothing || stop_agent_server!(server)
     end
 end

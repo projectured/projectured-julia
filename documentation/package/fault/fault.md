@@ -142,5 +142,4 @@ run_fault_tool_example()             # a tool throws; the same panel reports it
 ## Limits
 
 - A `CompoundOperation` is not atomic and gets no rollback. Only `evaluate_invertible_operation!` builds its way back member by member.
-- The race between a tool task and the frame stays. The assistant and the MCP server change the document from their own task, not through `post_operation!`.
 - A parse error is not a fault. A parser that returns a partial document is a separate concern.

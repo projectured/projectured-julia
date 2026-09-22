@@ -629,9 +629,10 @@ end
 
 _mcp_editor() = Editor(HeadlessBackend(), JsonString("x"), IdentityProjection(), Device[])
 
-# One request of the protocol, and the text of its answer.
-function _post_mcp_request(port, method)
-    body = "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"$method\"}"
+# One request of the protocol, and the text of its answer. `params` is the JSON
+# text of the parameters.
+function _post_mcp_request(port, method, params = "{}")
+    body = "{\"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"$method\", \"params\": $params}"
     response = HTTP.post("http://127.0.0.1:$port/mcp",
                          ["Content-Type" => "application/json",
                           "Accept" => "application/json, text/event-stream"],
@@ -678,33 +679,81 @@ function test_mcp_server()
                 @test timedwait(() -> istaskdone(server.task), 5.0) === :ok
             end
 
-            @testset "a client lists a tool that on_start registers" begin
+            @testset "a client lists a tool that on_start registers, and calls it" begin
                 port = _find_free_mcp_port()
                 editor = _mcp_editor()
-                listing = Ref("")
+                listing, answer = Ref(""), Ref("")
+                ran_on = Task[]
                 probe = Tool("probe_on_start", "A tool that on_start registers.",
-                             NamedTuple[], (target, args) -> "probed")
+                             NamedTuple[],
+                             (target, args) -> (push!(ran_on, current_task()); "probed"))
                 run_editor!(editor; mcp = true, mcp_host = "127.0.0.1", mcp_port = port,
                             on_start = function (editor)
                                 register_tool!(editor.tools, probe)
                                 # The server starts once `on_start` returns,
                                 # and the client asks when it listens.
                                 @async begin
-                                    listing[] = try
+                                    try
                                         timedwait(() -> _is_mcp_port_open(port), 10.0)
-                                        _post_mcp_request(port, "tools/list")
+                                        listing[] = _post_mcp_request(port, "tools/list")
+                                        answer[] = _post_mcp_request(port, "tools/call",
+                                            "{\"name\": \"probe_on_start\", \"arguments\": {}}")
                                     catch exception
-                                        sprint(showerror, exception)
+                                        listing[] = sprint(showerror, exception)
                                     end
                                     post_operation!(editor, QuitEditorOperation())
                                 end
                             end)
                 @test occursin("\"execute_julia_code\"", listing[])
                 @test occursin("\"probe_on_start\"", listing[])
+                # The call ran on the task of the loop, which is this one.
+                @test occursin("probed", answer[])
+                @test ran_on == [current_task()]
             end
         finally
             Base.CoreLogging.global_logger(logger)
         end
+    end
+end
+
+# A tool that a client calls runs on the task that runs the editor's loop, in
+# the drain of the inbox, and the server task waits for its answer. The test
+# plays the loop: it marks its own task as the loop's and drains by hand.
+function test_mcp_tool_runs_on_editor_task()
+    @testset "a tool that a client calls runs on the editor task" begin
+        editor = _mcp_editor()
+        ran_on = Task[]
+        probe = Tool("probe_task", "Writes the document and records its task.",
+                     NamedTuple[],
+                     (target, args) -> (push!(ran_on, current_task());
+                                        target.document.value = "written"; "done"))
+        broken = Tool("probe_throws", "Throws.", NamedTuple[],
+                      (target, args) -> error("probe failed"))
+        handlers = Dict(t.name => t.handler for t in render_mcp_tools(editor, [probe, broken]))
+        editor.loop_task = current_task()
+        call = @async handlers["probe_task"](Dict{String,Any}())
+        @test timedwait(() -> isready(editor.inbox), 5.0) === :ok
+        sleep(0.05)
+        # The call waits in the inbox: nothing ran, and nothing was written.
+        @test isempty(ran_on)
+        @test editor.document.value == "x"
+        @test !istaskdone(call)
+        @test drain_operations!(editor) == 1
+        @test ran_on == [current_task()]
+        @test editor.document.value == "written"
+        @test fetch(call).text == "done"
+        # A tool that throws answers its error, and the fault is recorded.
+        failing = @async handlers["probe_throws"](Dict{String,Any}())
+        @test timedwait(() -> isready(editor.inbox), 5.0) === :ok
+        drain_operations!(editor)
+        @test occursin("probe failed", fetch(failing).text)
+        @test any(record -> record.origin === :probe_throws &&
+                            occursin("probe failed", record.message),
+                  get_fault_records(editor.faults))
+        # With no loop, the call runs at once, on the task that calls.
+        editor.loop_task = nothing
+        @test handlers["probe_task"](Dict{String,Any}()).text == "done"
+        @test ran_on == [current_task(), current_task()]
     end
 end
 
@@ -735,6 +784,7 @@ function test_mcp_tools()
         test_print_object_options()
         test_search_object()
         test_mcp_server()
+        test_mcp_tool_runs_on_editor_task()
     end
 end
 
@@ -746,4 +796,4 @@ export test_execute_julia_code, test_function_availability, test_base_extensions
 export test_assistant_editor_reference, test_assistant_turn_binds_meaning_model
 export test_search_guides, test_search_api, test_search_tools_registered
 export test_pane_tab_b1, test_print_object_options, test_search_object
-export test_mcp_server
+export test_mcp_server, test_mcp_tool_runs_on_editor_task
