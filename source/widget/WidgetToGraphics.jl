@@ -865,7 +865,7 @@ _route_downup_to_children(child_entries::Vector, evt) =
 # child's input domain — what the bubbled-up reader returned) into this
 # projection's own input domain by running its reference through
 # `map_reference_backward`. Identity-rooted / non-path-bearing ops (an
-# identity-rooted `ReplaceReferencedValueOperation`, `SelectTabOperation`, …) pass through
+# identity-rooted `ReplaceReferencedValueOperation`, `CloseTabOperation`, …) pass through
 # unchanged; `nothing` passes through.
 # Returns `nothing` if the backward mapping rejects the reference.
 function _retarget_op(p, iomap, op)

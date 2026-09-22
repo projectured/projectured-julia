@@ -2440,33 +2440,14 @@ get_instance_gesture_bindings(w::WidgetTree) = w.gestures
 
 # ── Operations ─────────────────────────────────────────────────────────────
 
-# HideWidgetOperation / ShowWidgetOperation / ScrollWidgetOperation /
-# SetScrollBarValueOperation were folded into ReplaceReferencedValueOperation — a carried
-# widget + a single-field write (`visible` / `scroll_position` / `value`). The
-# producing readers (ProjectionConfiguring, WidgetScrollPane/ScrollBar readers in
-# WidgetToGraphics) now emit `ReplaceReferencedValueOperation(widget, "field", value)` and
-# do the clamp/old+delta arithmetic themselves. See
-# plan/done/consolidate-operations-replace.md (step 2).
-
-"""
-    SelectTabOperation(widget, tab_index)
-
-Signals that tab `tab_index` (1-based) of `widget` was clicked.
-Carries the widget identity so the pane tree can disambiguate
-between multiple tab panes on screen.
-"""
-struct SelectTabOperation <: Operation
-    widget::WidgetTabbedPane
-    tab_index::Int
-end
-
 """
     CloseTabOperation(widget, tab_index)
 
 Signals that the close button of tab `tab_index` (1-based) of `widget` was
-clicked. Like [`SelectTabOperation`](@ref) this only *reports* — the strip knows
-a button was pressed and nothing about what closing means, so the projection that
-owns the tabs answers it with an edit of its own document.
+clicked. It only *reports* — the strip knows a button was pressed and nothing
+about what closing means, so the projection that owns the tabs answers it with an
+edit of its own document. A click on a tab itself is a `ReplaceSelectionOperation`
+of `selector_element_pairs[tab_index]`.
 """
 struct CloseTabOperation <: Operation
     widget::WidgetTabbedPane
@@ -2726,25 +2707,6 @@ has_dormant_selection(::WidgetSplitPane) = true
 
 Apply a widget operation.
 """
-# A tab switch is a selection change, so it goes through the selection writer.
-#
-# Two reasons, both discovered by measuring. The writer canonicalizes the path
-# against the widget and syncs the shared selection chain in place, so a switch
-# now leaves the same stored shape a click inside a tab leaves —
-# `.selector_element_pairs::CellVector[i]::WidgetTabPage` — instead of the bare
-# `[i]` a direct field write left. And a direct write never reaches
-# `_sync_selection!`, so nothing that hangs off a selection change could ever fire
-# on a tab switch.
-#
-# The widget stays the root, exactly as before: this writes the widget's own
-# selection, not the editor document's.
-function evaluate_operation(editor, op::SelectTabOperation)
-    widget = op.widget
-    (1 <= op.tab_index <= length(widget.selector_element_pairs)) || return nothing
-    replace_selection!(widget, Reference(FieldReferenceStep("selector_element_pairs"),
-                                         ElementReferenceStep(op.tab_index)))
-end
-
 # The four strip reports are inert when nothing claimed them. A press on a close
 # button with no projection above to say what closing means must do nothing — the
 # report reached the editor because no one answered it, which is not an error.

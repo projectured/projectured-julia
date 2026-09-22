@@ -118,7 +118,9 @@ whole family** of single-purpose operations: a `ReplaceDocumentOperation`,
 `HideWidgetOperation`, `ShowWidgetOperation`, `ScrollWidgetOperation`,
 `SetScrollBarValueOperation`, `SetWidgetHoverOperation`, `SetWidgetPressedOperation`,
 `CollectionInsertOperation`, `CollectionDeleteOperation`, and a pane's own tab open
-and close all reduce to a single-slot write. **Reach for
+and close all reduce to a single-slot write. A click on a tab of a
+`WidgetTabbedPane` is a `ReplaceSelectionOperation` of `selector_element_pairs[i]`,
+so no operation of its own selects a tab. **Reach for
 `ReplaceReferencedValueOperation` (or a builder) before writing a new operation struct.** See
 [`plan/done/consolidate-operations-replace.md`](../../../plan/done/consolidate-operations-replace.md).
 
@@ -129,7 +131,6 @@ These do something other than a single-slot write, so they stay their own types:
 | Operation | Where it lives | Why it stays |
 |---|---|---|
 | `ReplaceStringRangeOperation` / `ReplaceNumberRangeOperation` | `document/Primitive.jl` | character-range edits on a string/number value; kept distinct because ~19 projection readers dispatch on the type to specialize char-edit handling (span↔flat mapping, control-edit parsing, …) |
-| `SelectTabOperation(tabbed_pane, index)` | `widget/WidgetDocument.jl` | defined and evaluated, but no reader makes it; a tab click reaches the tree as an ordinary reference-mapped selection |
 | `ReplaceFocusPartOperation(projection, part)` | `projection/generic/Focusing.jl` | retargets a `FocusingProjection` |
 | `MoveRangeOperation(src, a, b, dst, i)` | `dragging/Dragging.jl` | identity-preserving relocation of `CellVector` elements (carries the `CellVector`s directly) |
 | `ToggleCollapseOperation`, `ResizeWindowOperation`, `Open`/`CloseWindowOperation` | `operation/Operations.jl` | view/window state |

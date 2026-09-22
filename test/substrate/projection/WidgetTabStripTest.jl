@@ -22,7 +22,7 @@ function _sweep(proj, iomap, event_of)
     found = Tuple{Int,Any}[]
     for y in 0:2:40, x in 0:2:400
         op = read_intent(proj, iomap, event_of(x, y))
-        # A tab click is a ReplaceSelectionOperation now, so the sweep must keep one.
+        # A tab click is a ReplaceSelectionOperation, so the sweep keeps one.
         op isa Union{ReplaceSelectionOperation, CloseTabOperation,
                      OpenTabOperation, DragTabOperation} || continue
         push!(found, (x, op))
@@ -41,10 +41,9 @@ function _first_x(found, predicate)
     nothing
 end
 
-# A tab click is a plain selection replacement now: the strip names the tab it was
-# clicked on, in the pane's own coordinates, and the chain re-roots it. There is no
-# SelectTabOperation any more. Matched on the printed path so this file needs none
-# of the reference step types in scope.
+# A tab click is a plain selection replacement: the strip names the tab it was
+# clicked on, in the pane's own coordinates, and the chain re-roots it. Matched on
+# the printed path so this file needs none of the reference step types in scope.
 _select_tab(op, index) =
     op isa ReplaceSelectionOperation &&
     occursin("selector_element_pairs[$index]", string(op.path))

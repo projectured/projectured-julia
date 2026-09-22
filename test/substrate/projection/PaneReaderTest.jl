@@ -198,9 +198,19 @@ end
     stranger = WidgetTabbedPane(Any[("x", WidgetLabel(Point2D(0, 0), "x"))])
     pane_stage = RecursiveProjection(PaneToWidget())
     pane_iomap = print_document(pane_stage, tree)
-    @test read_intent(pane_stage, pane_iomap, SelectTabOperation(stranger, 1)) === nothing
     @test read_intent(pane_stage, pane_iomap, CloseTabOperation(stranger, 1)) === nothing
     @test read_intent(pane_stage, pane_iomap, OpenTabOperation(stranger)) === nothing
+
+    # A tab click names a place and not a pane. A press on the second tab of a
+    # strip that another tree printed names a tab this tree does not have.
+    other = PaneTree(PaneGroup(PaneTab[_tab("x"), _tab("y")]))
+    widget_stage = make_widget_projection_example(measure = _stub)
+    widget_iomap = print_document(widget_stage, print_document(pane_stage, other).output)
+    clicks = [op for (_, op) in _sweep(widget_stage, widget_iomap)
+              if op isa ReplaceSelectionOperation &&
+                 occursin("selector_element_pairs[2]", string(op.path))]
+    @test !isempty(clicks)
+    @test read_intent(pane_stage, pane_iomap, clicks[1]) === nothing
 end
 
 @testset "a report of the strip passes a projection that is not a widget" begin
