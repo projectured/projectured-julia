@@ -1240,7 +1240,7 @@ uuid = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
 version = "0.1.0"
 
 [[deps.ProjecturedNatural]]
-deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedText", "ProjecturedWidget"]
+deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedText", "ProjecturedWidget"]
 path = "../../package/ProjecturedNatural"
 uuid = "09daa789-626e-40de-aeba-3b7256e1b478"
 version = "0.1.0"

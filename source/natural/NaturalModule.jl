@@ -52,6 +52,7 @@ module NaturalModule
 using ..CollectionModule
 using ..DocumentModule
 using ..DomainModule
+using ..GraphicsModule
 using ..IoMapModule
 using ..LayoutModule
 using ..ProjectionAlgebraModule

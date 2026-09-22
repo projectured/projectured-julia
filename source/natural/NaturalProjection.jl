@@ -150,6 +150,8 @@ function NaturalToGraphics(; measure::Function,
             # it. Without that package there is no leaf, and one line of prose is
             # what an empty tab can say.
             DocumentNothing => PhraseToGraphics(_ -> "empty document", style, measure),
+            # A graphics document is graphics already, and it draws as itself.
+            GraphicsDocument => GraphicsToGraphics(),
             TextDocument    => prose_chain,
             # A collection renders as a stack of independent graphics blocks: each
             # element re-enters this renderer in its own domain (prose→prose,

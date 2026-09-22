@@ -49,6 +49,8 @@ A canvas with a `w` or `h` that is not zero first clips the point to its own box
 
 `GraphicsCaching(; render)` is a dispatching projection over canvases. A finite canvas that holds no canvas and no viewport goes to `GraphicsCanvasToGraphicsImage`. The other canvases, the viewports and the collections are copied, so the recursion reaches their children. **`GraphicsCanvasToGraphicsImage` does not rasterize, although its name says so.** It returns a canvas, not a `GraphicsImage`. It puts a pale checkerboard behind the elements, so each cached region shows in a different colour. Its reader resolves a click to a `GraphicsRect` that contains the point. If no box contains it, the reader takes the `GraphicsText` on the same line with the largest `x` at or left of the point. `run_example(...; caching = true)` adds it to a chain.
 
+`GraphicsToGraphics()` is the natural projection of a graphics document: its output is its input. `NaturalToGraphics` uses it, so a shape that a person makes, for example in the evaluator, draws as the shape and not as a tree of its fields. Its reader forwards an operation and declines a gesture, because a shape answers no key and no press.
+
 ### Measuring
 
 This package calls no font backend. A function that needs the width of a text takes `measure(text, font) -> (width, height)` as an argument. `get_canvas_content_bounds(canvas, measure)` returns the box of everything that a canvas draws. `get_graphics_size(document, measure)` returns the size of one primitive. `measure_truetype_text` of [style.md](../style/style.md) needs no display, and `measure_sdl_text` of the SDL backend gives the same widths as the screen.
