@@ -15,9 +15,10 @@ using Test
 const _PACKAGE_ROOT = normpath(joinpath(@__DIR__, "..", ".."))
 
 # domain package -> the other domain packages it may depend on.
-# An edge here is one domain embedding another domain's content: a state
-# machine guard is a Julia expression, a catalog query produces a SQL
-# statement, a conversation part parses to Json/Julia/Xml.
+# An edge here is one domain holding or making another domain's documents: a
+# state machine guard is a Julia expression, a catalog prints as SQL statements,
+# and the code of a formula is a Julia tree or a math tree. A conversation part
+# parses through the natural registry, so the conversation names no domain.
 const DOMAIN_EDGES = Dict(
     "ProjecturedJson"          => String[],
     "ProjecturedYaml"          => String[],
@@ -34,11 +35,10 @@ const DOMAIN_EDGES = Dict(
     "ProjecturedChart"         => String[],
     "ProjecturedSequenceChart" => String[],
     "ProjecturedDbCatalog"     => ["ProjecturedSql"],
-    "ProjecturedFormula"       => ["ProjecturedJulia"],
+    "ProjecturedFormula"       => ["ProjecturedJulia", "ProjecturedMath"],
     "ProjecturedFsm"           => ["ProjecturedGraph", "ProjecturedJulia"],
     "ProjecturedProcess"       => ["ProjecturedGraph", "ProjecturedJulia"],
-    "ProjecturedConversation"  => ["ProjecturedJson", "ProjecturedJulia",
-                                   "ProjecturedXml"],
+    "ProjecturedConversation"  => String[],
 )
 
 # The kernel is the one package every other package may reach. The substrate is
