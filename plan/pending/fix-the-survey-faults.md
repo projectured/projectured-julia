@@ -186,7 +186,18 @@ memory cap of 20 GB. No second Julia process runs at the same time.
 
 ### Step 6: close
 
-- [ ] The suites of the changed packages pass, against a baseline of `main`.
+- [x] `test_all()` on the branch: 878441 pass, 487 fail, 8 error, 1578 broken,
+      in 71 minutes. Every failure is on `main` as well. The same six suites on
+      `main` give the same counts: the kernel 3 fail and 3 error
+      (`DocumentMacro` Rule C, `ReferenceEval`), the substrate 3 fail and 2
+      error (`SplitPaneDrag`), the conversation layering guard 1, the complete
+      position navigation of the `text` example 449, the type-ins 6, the mouse
+      clicks 10, the catalog coverage 2, and the JSON content clicks 1 error.
+      The catalog coverage counts 17 types now instead of 28.
+      Six failures of the meaning search appeared only because the warm session
+      had run `test_kernel()` before: the store of a toy model lives in the
+      process. In a fresh session the meaning search passes 67 of 67.
+- [ ] The downstream IDE tests, against the worktree and against `main`.
 - [ ] Land on `main`, and move this plan to `plan/done/`.
 
 ## 5. Decisions
