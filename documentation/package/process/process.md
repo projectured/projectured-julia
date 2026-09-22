@@ -157,7 +157,7 @@ handle = start_process(model, [1, 2]; mode = :step, session = session)
 sync_process_debug!(session, handle.trace, model)      # from the refresh hook
 ```
 
-- Examples: `process`, the transmit procedure above with an unrefined step; `process_drain`; and `process_diagram`, the drain process as a flowchart, in `example/process/`.
+- Examples: `process`, the transmit procedure above with an unrefined step; `process_drain`; and `process_diagram`, the drain process as a flowchart, in `example/process/`. The atomic catalog has one document for each process type, from the `make_process_*_document_example` functions of `ProcessDocumentExample.jl`.
 - Test: `test_process()` runs the layering guard, `test_process_document()`, `test_process_debug()`, `test_process_diagram()`, `test_process_to_julia_code()` and `test_process_to_syntax()`.
 
 ## Limits
@@ -165,6 +165,5 @@ sync_process_debug!(session, handle.trace, model)      # from the refresh hook
 - No gesture writes `session.command` or toggles a breakpoint. `toggle_breakpoint!`, the command cell and the bridge work and have tests, but a caller must call them in code. `plan/done/process-domain.md` defers the gestures to the work on the editor surface.
 - A selection lights a box only when it names the node exactly. A caret inside the action of a step does not light its box. An edge is not clickable.
 - The flowchart does not always read from top to bottom. A layout computed from the tree, with a sequence as a column, a decision that opens two columns and the back edge of a loop in a margin lane, would give that. It is an idea, and no plan holds it yet.
-- The atomic catalog in `example/projectured/DomainExamples.jl` has no process entry. `ProcessDocumentExample.jl` defines the atom functions, such as `make_process_step_document_example`, but no `AtomicDocument` names them.
 - No screenshot of a process example exists.
 - Not modeled: a decision with more than two ways, which nests in `else_branch`; a loop that tests last; a `foreach` with more than one clause; conditional breakpoints, step over, and a step back in a recorded trace; and more than one run of one model in one session.

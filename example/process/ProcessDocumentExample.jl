@@ -22,6 +22,12 @@ make_process_foreach_document_example() =
                    body = ProcessSequence([ProcessStep(""; action = parse_julia("send!(item)"))]))
 make_process_return_document_example()   = ProcessReturn(parse_julia(":failed"))
 make_process_insertion_document_example() = ProcessInsertion()
+make_process_break_document_example()    = ProcessBreak()
+make_process_continue_document_example() = ProcessContinue()
+# The diagram stage synthesizes a terminal and an edge label, and the catalog
+# prints one of each on its own.
+make_process_terminal_document_example()   = ProcessTerminal(:start)
+make_process_edge_label_document_example() = ProcessEdgeLabel("yes")
 
 """
 A complete transmit procedure: every node type, an informal step, a decision

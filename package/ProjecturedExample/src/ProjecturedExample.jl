@@ -152,7 +152,9 @@ export make_process_document_example, make_process_projection_example,
        make_process_step_document_example, make_process_decision_document_example,
        make_process_while_document_example, make_process_foreach_document_example,
        make_process_return_document_example, make_process_insertion_document_example,
-       make_process_diagram_document_example, make_process_diagram_projection_example
+       make_process_diagram_document_example, make_process_diagram_projection_example,
+       make_process_break_document_example, make_process_continue_document_example,
+       make_process_terminal_document_example, make_process_edge_label_document_example
 export graph_example, graphics_image_example, json_example, json_insertion_example
 export json_sorted_example, julia_example
 export make_assistant_document_example, make_assistant_projection_example
