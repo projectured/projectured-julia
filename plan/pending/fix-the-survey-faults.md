@@ -104,10 +104,16 @@ memory cap of 20 GB. No second Julia process runs at the same time.
 
 ### Step 3: the widget readers
 
-- [ ] List every interactive widget whose reader does nothing.
-- [ ] `WidgetToggle`, `WidgetRadioGroup`, `WidgetTextarea`, and any other on the
-      list, get a reader.
-- [ ] `DuplicateTabOperation` travels unchanged.
+- [x] List every interactive widget whose reader does nothing: `WidgetToggle`,
+      `WidgetRadioGroup`, `WidgetTextarea`, `WidgetAccordion`. The other seven
+      printer-only widgets have no field that a person changes.
+- [x] The four get a reader: a press and Space or Return toggle a toggle; a
+      press and the arrows select a radio option; a text area edits a text
+      document as `WidgetText` does, with Return as a new line; a press on a
+      header opens or closes an accordion item. `d0adbfbd`.
+- [x] `DuplicateTabOperation` travels unchanged. `a0d59f09`.
+- [x] `SelectTabOperation` is removed; a tab click is a
+      `ReplaceSelectionOperation`. `dc8a432c`.
 
 ### Step 4: text, collection, versioning, natural, graph, web
 
@@ -173,5 +179,12 @@ memory cap of 20 GB. No second Julia process runs at the same time.
   the `AgentModule` docstring names a missing `AgentServer.jl`. Two failures
   of `test_assistant_mvp` (lines 677 and 721) expect the normalised source
   that `_eval_code` no longer returns; they were hidden behind errors before.
+- New faults from group A5: a press on a control does not move the focus to it;
+  `WidgetText` and `WidgetTextarea` with a plain string are read only but Tab
+  stops on them; the accordion draws its titles and bodies as strings;
+  `WidgetList` and `WidgetSpinBox` take the arrow keys with any modifier, so
+  Alt+arrow never reaches the selection walk; the checkbox and the switch
+  toggle on any mouse button; `plan/tentative/evaluate-operation-document-arg.md`
+  still names `SelectTabOperation`.
 - `test_catalog_coverage` fails on `main` for 28 types (Assistant, Process,
   Pane, FaultLog and others). It is not caused by this work.
