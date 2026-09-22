@@ -159,10 +159,13 @@ arguments, so a test needs neither a display nor a pointer it can not move.
 
 ### Step 6 — the main window is unharmed
 
-- [ ] `test_native_window()`: the main window still asks for the work area,
-      takes what the window manager grants, and writes that size into its
-      document. The numbers of Step 0 hold.
-- [ ] `test_application()` and `test_shell()`: unchanged counts.
+- [x] `test_native_window()`: the main window still asks for the work area,
+      takes what the window manager grants — 1853 × 1131 of a work area of
+      1853 × 1168, as in Step 0 — and writes that size into its document.
+- [x] The suites, with the change: `test_sdl()` **106** (97 and 9 new),
+      `test_shell()` **180** (178 and 2), `test_application()` **140** (136 on
+      `main` the same day and 4), `test_substrate()` **63087** with the known 3
+      fail, 2 error and 1 broken of the split-pane cases.
 - [ ] By hand, in the binary: the window opens at its size, a resize by the
       person still resizes the content, and the tooltip fits.
 
