@@ -9,9 +9,14 @@ so the full Unicode range the editor uses is covered.
 
 Entry points mirror `write_image` in `ProjecturedSdl`:
 
-- `write_pdf(canvas, filename; width, height)` — a canvas you already have.
+- `write_pdf(canvas, filename; width, height, paginate=false)` — a canvas you
+  already have. With `paginate = false` (default), the result is a single page
+  and taller content is clipped; with `paginate = true`, content taller than
+  `height` flows onto successive `width × height` pages.
 - `write_pdf(document, projection, filename; ...)` — runs the pipeline, sizes a
-  single page to the content (same two-pass fit as `write_image`), and writes.
+  single page to the content (same two-pass fit as `write_image`) when
+  `paginate = false`, or flows the content across multiple pages when
+  `paginate = true`, and writes.
 - `GraphicsCanvasToPdfFile` — printer-only projection for pipeline composition.
 
 The PDF writer and a minimal read-only TrueType parser are hand-rolled, so the
