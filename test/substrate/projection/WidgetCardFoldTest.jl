@@ -2,7 +2,7 @@
 # title, pointing down while the card is open and right while it is collapsed;
 # the chevron's column is the fold target, and nothing else is; and a collapsed
 # card draws its header and nothing else. A card that names its own padding
-# draws with it.
+# draws with it. A WidgetAccordion opens and closes an item from its header.
 
 _fold_font = font_ubuntu_monospace_regular_20
 _fold_stub(t, f) = (length(t) * 10, 24)
@@ -35,6 +35,19 @@ function _chevron_direction(lines)
     shared[1] == maximum(xs) && return :right
     shared[2] == maximum(ys) && return :down
     nothing
+end
+
+# Where each drawn text starts, in the frame the widget is placed in.
+function _fold_text_positions(canvas, ox = 0, oy = 0, found = Dict{String,Tuple{Int,Int}}())
+    x = ox + Int(canvas.x); y = oy + Int(canvas.y)
+    for elem in canvas.elements
+        if elem isa GraphicsText
+            found[String(elem.text)] = (x + Int(elem.x), y + Int(elem.y))
+        elseif elem isa GraphicsCanvas
+            _fold_text_positions(elem, x, y, found)
+        end
+    end
+    found
 end
 
 _fold_title() = WidgetLabel(Point2D(0, 0), "Details")
@@ -110,6 +123,44 @@ function test_widget_card_fold()
         @test on_column isa ToggleCollapseOperation && on_column.target === card
         on_title = read_intent(proj, iomap, MousePress(:left, title_x + 2, 28, ModifierKeys()))
         @test !(on_title isa ToggleCollapseOperation)
+    end
+
+    @testset "a press on the header of an accordion item opens or closes it" begin
+        accordion = WidgetAccordion(Point2D(20, 10), [("First", "the first body"),
+                                                      ("Second", "the second body")]; expanded = 1)
+        proj = _fold_proj()
+        iomap = print_document(proj, proj, accordion, PrinterContext())
+        _, texts = _fold_collect(iomap.output)
+        @test "the first body" in texts && !("the second body" in texts)
+        at = _fold_text_positions(iomap.output)
+        second = at["Second"]
+        press(x, y; button = :left) = read_intent(proj, iomap, MousePress(button, x, y, ModifierKeys()))
+
+        # A press on the title of a closed item opens it, and the other one closes.
+        opened = press(second[1] + 2, second[2] + 2)
+        @test opened isa ReplaceReferencedValueOperation
+        @test opened.document === accordion && opened.value == 2
+        evaluate_operation(nothing, opened)
+        _, texts = _fold_collect(iomap.output)
+        @test "the second body" in texts && !("the first body" in texts)
+
+        # The whole header row is the target, the chevron at its right end too, and
+        # a press on the open item closes it.
+        right = Int(iomap.output.x) + Int(iomap.output.w) - 3
+        second = _fold_text_positions(iomap.output)["Second"]
+        closed = press(right, second[2] + 2)
+        @test closed isa ReplaceReferencedValueOperation && closed.value == 0
+        evaluate_operation(nothing, closed)
+        _, texts = _fold_collect(iomap.output)
+        @test !("the first body" in texts) && !("the second body" in texts)
+
+        # A press on a body, a right press and a press outside answer nothing.
+        evaluate_operation(nothing, ReplaceReferencedValueOperation(accordion, "expanded", 1))
+        body = _fold_text_positions(iomap.output)["the first body"]
+        @test press(body[1] + 2, body[2] + 2) === nothing
+        first = _fold_text_positions(iomap.output)["First"]
+        @test press(first[1] + 2, first[2] + 2; button = :right) === nothing
+        @test press(first[1] + 2, 5) === nothing
     end
 
     @testset "a card with its own padding" begin

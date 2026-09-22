@@ -75,4 +75,68 @@ end
     @test arrow.path.head == FieldReferenceStep("content")
 end
 
+# Each drawn text and where it starts, in the frame the widget is placed in.
+function _drawn_texts(canvas, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
+    x = ox + Int(canvas.x); y = oy + Int(canvas.y)
+    for element in canvas.elements
+        if element isa GraphicsText
+            push!(found, (String(element.text), x + Int(element.x), y + Int(element.y)))
+        elseif element isa GraphicsCanvas
+            _drawn_texts(element, x, y, found)
+        end
+    end
+    found
+end
+
+@testset "a WidgetTextarea edits its text, and Return breaks the line" begin
+    content = TextBlock(TextString("one two", _font, color_default))
+    doc = WidgetTextarea(Point2D(40, 40), content; rows = 3)
+    set_selection!(doc, _cursor(3))            # cursor after "one"
+    iomap = print_document(_proj(), nothing, doc, PrinterContext())
+
+    typed = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys()))
+    @test typed isa ReplaceStringRangeOperation
+    @test typed.reference.head == FieldReferenceStep("content")
+    broken = read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys()))
+    @test broken isa ReplaceStringRangeOperation
+    @test broken.replacement == "\n"
+    @test broken.reference.head == FieldReferenceStep("content")
+    # Tab is not text, so it goes on to move the focus.
+    @test read_intent(_proj(), iomap, KeyDown(:tab, ModifierKeys())) === nothing
+
+    evaluate_operation(_WidgetTextMockEditor(doc), broken)
+    @test doc.content.elements[1].content == "one\n two"
+    # The two lines are drawn one below the other.
+    lines = [(text, y) for (text, _, y) in _drawn_texts(iomap.output) if !isempty(strip(text))]
+    @test any(line -> occursin("one", line[1]), lines)
+    @test any(line -> occursin("two", line[1]), lines)
+    one_y = first(y for (text, y) in lines if occursin("one", text))
+    two_y = first(y for (text, y) in lines if occursin("two", text))
+    @test two_y > one_y
+
+    # A press on the drawn second line puts the caret into that line.
+    _, x, y = first(t for t in _drawn_texts(iomap.output) if occursin("two", t[1]))
+    click = read_intent(_proj(), iomap, MousePress(:left, x + 25, y + 4, ModifierKeys()))
+    @test click isa ReplaceSelectionOperation
+    @test click.path.head == FieldReferenceStep("content")
+    @test click.path.tail.head isa TextRangeReferenceStep
+    @test click.path.tail.head.start > 4       # past "one" and the line break
+end
+
+@testset "a disabled WidgetTextarea, or one of a plain string, takes no edit" begin
+    content = TextBlock(TextString("one", _font, color_default))
+    off = WidgetTextarea(Point2D(0, 0), content; enabled = false)
+    set_selection!(off, _cursor(1))
+    iomap = print_document(_proj(), nothing, off, PrinterContext())
+    @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys())) === nothing
+    @test read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys())) === nothing
+    @test read_intent(_proj(), iomap, MousePress(:left, 10, 10, ModifierKeys())) === nothing
+    @test off.content.elements[1].content == "one"
+
+    plain = WidgetTextarea(Point2D(0, 0), "one\ntwo")
+    plain_iomap = print_document(_proj(), nothing, plain, PrinterContext())
+    @test read_intent(_proj(), plain_iomap, KeyPress('X', "X", ModifierKeys())) === nothing
+    @test [text for (text, _, _) in _drawn_texts(plain_iomap.output)] == ["one", "two"]
+end
+
 end # test_widget_text_editing

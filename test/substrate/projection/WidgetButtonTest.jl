@@ -251,9 +251,8 @@ end
     @test length(off_canvas.elements) < length(on_canvas.elements)
 end
 
-# Stage 1, Step 6: the reader-less controls (Switch / Toggle / Select) gained a
-# muted disabled appearance. They have no reader to gate, so we just exercise the
-# disabled print branch (it must not error and must still produce a canvas).
+# A disabled Switch, Toggle and Select draw with the muted colors. The disabled
+# print branch must not throw and must still produce a canvas.
 @testset "disabled Switch / Toggle / Select still render via the muted branch" begin
     proj = _proj()
     for w in (WidgetSwitch(Point2D(0, 0), true; enabled=false),

@@ -1,12 +1,37 @@
-# Form widgets (Qt-gap Parts C/D/E): WidgetSpinBox steppers, WidgetList selection,
-# and the numeric validator. Steppers emit ReplaceReferencedValueOperation(value);
-# the list reports selection as a ReplaceSelectionOperation like every other
-# widget; the validator is an acceptor the editable text reader consults.
+# Form widgets: WidgetSpinBox steppers, WidgetList selection, the toggle, the
+# toggle group and the radio group, and the numeric validator. A control writes
+# its own value with a ReplaceReferencedValueOperation; the list reports selection
+# as a ReplaceSelectionOperation like every other widget; the validator is an
+# acceptor the editable text reader consults.
 
 function test_widget_forms()
-@testset "WidgetSpinBox / WidgetList / validator" begin
+@testset "WidgetSpinBox / WidgetList / toggles / validator" begin
 
 proj = make_widget_projection_example()
+
+# Where each drawn text starts, in the frame the widget is placed in. A test
+# presses a control where it draws a word, and repeats none of its arithmetic.
+function _drawn_text_positions(canvas, ox = 0, oy = 0, found = Dict{String,Tuple{Int,Int}}())
+    x = ox + Int(canvas.x); y = oy + Int(canvas.y)
+    for element in canvas.elements
+        if element isa GraphicsText
+            found[String(element.text)] = (x + Int(element.x), y + Int(element.y))
+        elseif element isa GraphicsCanvas
+            _drawn_text_positions(element, x, y, found)
+        end
+    end
+    found
+end
+
+# A layout whose selection names its second child as a whole: the focus, so a key
+# reaches that child.
+function _focus_second(control)
+    layout = VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "Label"), control]; gap = 8)
+    getfield(layout, :selection)[] = ConcreteReference(FieldReferenceStep("children"),
+        ConcreteReference(RangeReferenceStep(1, 2), EmptyReference()))
+    layout
+end
+_key(k; modifiers...) = KeyDown(k, ModifierKeys(; modifiers...))
 
 @testset "spin box steps up/down and clamps to [min, max]" begin
     s = WidgetSpinBox(Point2D(0, 0), 5; min=0, max=10, step=2)
@@ -101,6 +126,79 @@ end
     inv = WidgetToggleGroup(Point2D(0, 0), ["Run", "Fast"]; visible=false)
     @test read_intent(proj, print_document(proj, inv),
                       MousePress(:left, 4, 4, ModifierKeys())) === nothing
+end
+
+@testset "a toggle flips from a press, and from Return and Space with the focus" begin
+    t  = WidgetToggle(Point2D(0, 0), "Bold")
+    io = print_document(proj, t)
+    x, y = _drawn_text_positions(io.output)["Bold"]
+    press = read_intent(proj, io, MousePress(:left, x + 2, y + 2, ModifierKeys()))
+    @test press isa ReplaceReferencedValueOperation
+    @test press.document === t && press.value === true
+    @test read_intent(proj, io, MousePress(:right, x + 2, y + 2, ModifierKeys())) === nothing
+    # A released toggle draws its outline, and a pressed one does not.
+    @test Int(io.output.elements[1].border_width) > 0
+    evaluate_operation(nothing, press)
+    @test t.pressed === true
+    @test Int(io.output.elements[1].border_width) == 0
+
+    # A key reaches the toggle only through the selection of its container.
+    layout = VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "Label"), t]; gap = 8)
+    @test read_intent(proj, print_document(proj, layout), _key(:space)) === nothing
+    focused = print_document(proj, _focus_second(t))
+    for key in (:space, :return)
+        op = read_intent(proj, focused, _key(key))
+        @test op isa ReplaceReferencedValueOperation && op.document === t && op.value === false
+    end
+    @test read_intent(proj, focused, _key(:space; ctrl = true)) === nothing
+
+    off = WidgetToggle(Point2D(0, 0), "Bold"; enabled = false)
+    off_io = print_document(proj, off)
+    @test read_intent(proj, off_io, MousePress(:left, x + 2, y + 2, ModifierKeys())) === nothing
+    @test read_intent(proj, print_document(proj, _focus_second(off)), _key(:space)) === nothing
+end
+
+@testset "a radio group selects the option under a press, and the arrows move it" begin
+    r  = WidgetRadioGroup(Point2D(0, 0), ["Default", "Comfortable", "Compact"]; selected = 1)
+    io = print_document(proj, r)
+    at = _drawn_text_positions(io.output)
+    compact = at["Compact"]; comfortable = at["Comfortable"]; default = at["Default"]
+    pick = read_intent(proj, io, MousePress(:left, compact[1] + 2, compact[2] + 2, ModifierKeys()))
+    @test pick isa ReplaceReferencedValueOperation
+    @test pick.document === r && pick.value == 3
+    # The circle of a row is part of its target, left of the word.
+    @test read_intent(proj, io, MousePress(:left, 2, comfortable[2] + 2, ModifierKeys())).value == 2
+    # The option that is on is not a change, and a right press is not a pick.
+    @test read_intent(proj, io, MousePress(:left, default[1] + 2, default[2] + 2, ModifierKeys())) === nothing
+    @test read_intent(proj, io, MousePress(:right, compact[1] + 2, compact[2] + 2, ModifierKeys())) === nothing
+
+    # The dot is drawn in the row of the option that is on.
+    evaluate_operation(nothing, pick)
+    @test r.selected == 3
+    circles = [e for e in io.output.elements if e isa GraphicsCircle]
+    dot = circles[argmin([Int(c.radius) for c in circles])]
+    @test abs(Int(dot.cy) - compact[2]) < abs(Int(dot.cy) - comfortable[2])
+
+    # The arrows move the selection around the ends while the group has the focus.
+    moved(key; modifiers...) = read_intent(proj, print_document(proj, _focus_second(r)), _key(key; modifiers...))
+    @test moved(:down).value == 1
+    @test moved(:right).value == 1
+    @test moved(:up).value == 2
+    @test moved(:left).value == 2
+    @test moved(:space) === nothing
+    @test moved(:down; alt = true) === nothing
+    @test read_intent(proj, print_document(proj, VerticalLayout(Any[r])), _key(:down)) === nothing
+    # With no option on, Return and Space select the first one.
+    none = WidgetRadioGroup(Point2D(0, 0), ["a", "b"]; selected = 0)
+    none_io = print_document(proj, _focus_second(none))
+    @test read_intent(proj, none_io, _key(:space)).value == 1
+    @test read_intent(proj, none_io, _key(:return)).value == 1
+
+    off = WidgetRadioGroup(Point2D(0, 0), ["Default", "Compact"]; selected = 1, enabled = false)
+    off_io = print_document(proj, off)
+    lx, ly = _drawn_text_positions(off_io.output)["Compact"]
+    @test read_intent(proj, off_io, MousePress(:left, lx + 2, ly + 2, ModifierKeys())) === nothing
+    @test read_intent(proj, print_document(proj, _focus_second(off)), _key(:down)) === nothing
 end
 
 @testset "make_numeric_validator accepts digits, rejects letters" begin

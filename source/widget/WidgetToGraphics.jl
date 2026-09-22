@@ -991,6 +991,21 @@ function _outside_widget(iomap, evt)
       canvas.y <= evt.y < canvas.y + canvas.h)
 end
 
+# A key pressed with no modifier. A control takes Return, Space and the arrows
+# only bare, so an Alt+arrow still walks the selection and a chord still reaches a
+# shortcut.
+_is_plain_key(evt, keys::Symbol...) =
+    evt isa KeyDown && evt.key in keys && evt.modifiers == ModifierKeys()
+
+# The row that holds `y`, from `(top, bottom)` bounds in the frame of the widget,
+# or `nothing` between and past the rows.
+function _find_row_index(bounds, y::Real)
+    for (index, (top, bottom)) in enumerate(bounds)
+        top <= y < bottom && return index
+    end
+    nothing
+end
+
 function read_intent(::WidgetLabelToGraphicsCanvas, iomap::SimpleIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     return nothing
@@ -1117,16 +1132,26 @@ function read_intent(::WidgetTextToGraphicsCanvas, iomap::SimpleIoMap, evt)
 end
 
 # Delegate every event to the recursed content (Text domain), then re-root the
-# returned path-bearing operation through `map_reference_backward`. MousePress is
-# translated into the content's coordinate frame first.
+# returned path-bearing operation through `map_reference_backward`.
 function read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     iomap.input.enabled === false && return nothing   # a disabled text widget accepts no edits
+    _validate_text_edit(iomap.input,
+                        _read_text_content_intent(p, iomap, evt, _content_offset(iomap.input)...))
+end
+
+# Give an event to the text document that a text widget holds, and re-root the
+# answer under `content`. The Text domain makes every caret move and every edit.
+# A press moves into the frame of the content first: `left` and `top` are where
+# the widget draws the content, from its own origin.
+function _read_text_content_intent(p, iomap, evt, left::Int, top::Int)
     content_iomap = iomap.content_iomap
     content_iomap === nothing && return nothing
     op = @event_case evt begin
         MousePress(button, x, y) => begin
-            cox, coy = _content_offset(iomap.input)
+            canvas = iomap.output
+            cox = Int(canvas.x) + left
+            coy = Int(canvas.y) + top
             # The box can be wider and taller than what it holds: it has a `width`
             # floor, and an empty document measures nothing at all. Clamp the
             # press into the content's own extent, so a click anywhere in the box
@@ -1149,7 +1174,7 @@ function read_intent(p::WidgetTextToGraphicsCanvas, iomap::WidgetTextToGraphicsC
         end
         _ => read_intent(content_iomap.projection, content_iomap, evt)
     end
-    _validate_text_edit(iomap.input, _retarget_op(p, iomap, op))
+    _retarget_op(p, iomap, op)
 end
 
 # Stage 6 validators: drop a string edit whose inserted text the widget's
@@ -4261,10 +4286,11 @@ function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt
 end
 
 # ════════════════════════════════════════════════════════════════════════════
-# Extension widgets — printer-only (no-op readers)
+# Extension widgets
 # ════════════════════════════════════════════════════════════════════════════
 
-# A no-op reader trio shared by every extension widget (printer-only for now).
+# The reader trio of a widget that takes no input: a badge, a separator, a
+# progress bar, an avatar, an alert, a highlight and a skeleton only show a value.
 macro _printer_only(P)
     quote
         map_reference_forward(::$(esc(P)), iomap, reference) = nothing
@@ -5003,10 +5029,20 @@ end
     ring_color::StyleColor         # focus ring when selected
 end
 
+# The rows of the options, so a press is answered by the row it landed in. The
+# printer derives them in the build that draws the rows, and the reader reads
+# them from here, so the two can not disagree. PAR-STABLE-IOMAP-IDENTITY.
+@iomap struct WidgetRadioGroupToGraphicsCanvasIoMap
+    projection::Any
+    input::Any
+    output::Any
+    row_bounds::Any
+end
+
 function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::WidgetRadioGroup, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
+    build = ComputedCell(() -> begin
         enabled = !(w.enabled === false)
         selected = Int(w.selected)
         diameter = _sc(p.button_size)
@@ -5017,6 +5053,7 @@ function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Widge
         dot_color  = enabled ? p.selected_color        : p.disabled_foreground
         label_col  = enabled ? p.label_text.color      : p.disabled_foreground
         elements = Any[]
+        row_bounds = Tuple{Int,Int}[]
         y = 0
         max_width = 0
         for (i, opt) in enumerate(w.options)
@@ -5033,16 +5070,59 @@ function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Widge
                                                border_width=max(1, _sc(p.unselected_ring.width)), border_color=unsel_ring))
             end
             _push_text!(elements, p.label_text.font, label, diameter + label_gap, y + (row_height - label_height) ÷ 2, label_col)
+            push!(row_bounds, (y, y + row_height))
             max_width = max(max_width, diameter + label_gap + label_width)
             y += row_height + row_gap
         end
         group_width  = _resolve_width(ctx, 0, max_width)
         group_height = _resolve_height(ctx, 0, max(0, y - row_gap))
         _push_focus_ring!(elements, w, group_width, group_height, p.ring_color, 0)
-        (width=group_width, height=group_height, elements=elements)
-    end))
+        (width=group_width, height=group_height, elements=elements, row_bounds=row_bounds)
+    end)
+    WidgetRadioGroupToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
+                                          ComputedCell(() -> build[].row_bounds))
 end
-@_printer_only WidgetRadioGroupToGraphicsCanvas
+
+map_reference_forward(::WidgetRadioGroupToGraphicsCanvas, iomap, reference) = nothing
+map_reference_backward(::WidgetRadioGroupToGraphicsCanvas, iomap, reference) = nothing
+
+# Invisible group (the printer returned a bare empty canvas): inert.
+read_intent(::WidgetRadioGroupToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+
+# The option an arrow key moves to: the next or the previous one, around the
+# ends, and the first or the last one when no option is on.
+function _step_radio_option(selected::Int, count::Int, step::Int)
+    (1 <= selected <= count) || return step > 0 ? 1 : count
+    mod1(selected + step, count)
+end
+
+# A left press on the row of an option selects it: its circle and its label are
+# one target. While the group has the focus, the arrow keys select the next or the
+# previous option, and Return and Space select the first one when no option is on.
+# The option that is already on is not a change, so it answers nothing.
+function read_intent(::WidgetRadioGroupToGraphicsCanvas,
+                     iomap::WidgetRadioGroupToGraphicsCanvasIoMap, evt)
+    _outside_widget(iomap, evt) && return nothing
+    w = iomap.input
+    w.enabled === false && return nothing
+    count = length(w.options)
+    count == 0 && return nothing
+    selected = Int(w.selected)
+    option = if evt isa MousePress
+        evt.button === :left || return nothing
+        _find_row_index(iomap.row_bounds, evt.y - Int(iomap.output.y))
+    elseif _is_plain_key(evt, :down, :right)
+        _step_radio_option(selected, count, 1)
+    elseif _is_plain_key(evt, :up, :left)
+        _step_radio_option(selected, count, -1)
+    elseif _is_plain_key(evt, :return, :space)
+        1 <= selected <= count ? nothing : 1
+    else
+        nothing
+    end
+    (option === nothing || option == selected) && return nothing
+    ReplaceReferencedValueOperation(w, "selected", option)
+end
 
 # ── WidgetAvatar ────────────────────────────────────────────────────────────
 
@@ -5402,7 +5482,20 @@ function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetTog
         (width=control_width, height=control_height, elements=elements)
     end))
 end
-@_printer_only WidgetToggleToGraphicsCanvas
+
+map_reference_forward(::WidgetToggleToGraphicsCanvas, iomap, reference) = nothing
+map_reference_backward(::WidgetToggleToGraphicsCanvas, iomap, reference) = nothing
+
+# A left press flips `pressed`, and so do Return and Space while the toggle has
+# the focus: a container gives a key only to the child that its selection names.
+function read_intent(::WidgetToggleToGraphicsCanvas, iomap::SimpleIoMap, evt)
+    _outside_widget(iomap, evt) && return nothing
+    w = iomap.input
+    (w.visible === false || w.enabled === false) && return nothing
+    activated = evt isa MousePress ? evt.button === :left : _is_plain_key(evt, :return, :space)
+    activated || return nothing
+    ReplaceReferencedValueOperation(w, "pressed", !(w.pressed === true))
+end
 
 # ── WidgetToggleGroup ───────────────────────────────────────────────────────
 
@@ -5895,13 +5988,56 @@ end
     ring_color::StyleColor      # focus ring when selected
 end
 
+# IoMap for an editable WidgetTextarea: its `content` is a Document, typically a
+# `TextBlock`, recursed through the Text domain, as the content of an editable
+# `WidgetText` is. PAR-STABLE-IOMAP-IDENTITY.
+@iomap struct WidgetTextareaToGraphicsCanvasIoMap
+    projection::Any
+    input::Any
+    output::Any
+    content_iomap::Any
+end
+
+# Where the text starts inside the box. The printer draws there, and the reader
+# moves a press there.
+_get_textarea_padding(p::WidgetTextareaToGraphicsCanvas) =
+    (_sc(Int(p.padding.left[])), _sc(Int(p.padding.top[])))
+
 function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetTextarea, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
+    # Editable form: a Document content is recursed through the outer projection
+    # chain, which gives it to TextToGraphics, and the box grows with the text.
+    if w.content isa Document
+        content_iomap = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, ctx))
+        build = ComputedCell(() -> begin
+            enabled = !(w.enabled === false)
+            padding_x, padding_y = _get_textarea_padding(p)
+            inner = content_iomap[].output::GraphicsCanvas
+            _, line_height = _text_size(p.measure, p.text.font, "M")
+            text_height = max(Int(inner.h[]), line_height)
+            authored_height = Int(w.rows) > 0 ?
+                max(Int(w.rows) * line_height, text_height) + 2padding_y : 0
+            area_height = _resolve_height(ctx, authored_height, text_height + 2padding_y)
+            area_width = _resolve_width(ctx, _sc(Int(w.width)), Int(inner.w[]) + 2padding_x)
+            radius = _sc(p.corner_radius)
+            elements = Any[]
+            _push_panel!(elements, 0, 0, area_width, area_height;
+                         fill=enabled ? p.background_color : p.disabled_color,
+                         border=p.border.color, border_w=max(1, _sc(p.border.width)), radius=radius)
+            push!(elements, _make_canvas(padding_x, padding_y, Any[inner]))
+            _push_focus_ring!(elements, w, area_width, area_height, p.ring_color, radius;
+                              whole_color = SELECTION_RING_COLOR)
+            (width=area_width, height=area_height, elements=elements)
+        end)
+        return WidgetTextareaToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
+                                                   content_iomap)
+    end
+
+    # Read-only form: a plain value is drawn as its string, one row for each line.
     SimpleIoMap(p, w, _reactive_canvas(_origin(position)..., () -> begin
         enabled = !(w.enabled === false)
-        padding_x = _sc(Int(p.padding.left[]))
-        padding_y = _sc(Int(p.padding.top[]))
+        padding_x, padding_y = _get_textarea_padding(p)
         lines = split(string(w.content), '\n')
         _, line_height = _text_size(p.measure, p.text.font, "M")
         row_count = max(Int(w.rows), length(lines))
@@ -5922,7 +6058,25 @@ function print_document(p::WidgetTextareaToGraphicsCanvas, recursion, w::WidgetT
         (width=area_width, height=area_height, elements=elements)
     end))
 end
-@_printer_only WidgetTextareaToGraphicsCanvas
+
+map_reference_forward(::WidgetTextareaToGraphicsCanvas, iomap, reference) = nothing
+map_reference_backward(::WidgetTextareaToGraphicsCanvas, iomap, reference) = nothing
+
+# Re-root a reference of the Text domain under `.content`, as `WidgetText` does.
+map_reference_backward(::WidgetTextareaToGraphicsCanvas, iomap::WidgetTextareaToGraphicsCanvasIoMap, reference) =
+    reference === nothing ? nothing : ConcreteReference(FieldReferenceStep("content"), reference)
+
+# A plain value is read only.
+read_intent(::WidgetTextareaToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+
+# The Text domain edits the content, as it edits the content of a `WidgetText`.
+# Return has no meaning there, so here it types a line break.
+function read_intent(p::WidgetTextareaToGraphicsCanvas, iomap::WidgetTextareaToGraphicsCanvasIoMap, evt)
+    _outside_widget(iomap, evt) && return nothing
+    iomap.input.enabled === false && return nothing
+    typed = _is_plain_key(evt, :return) ? KeyPress('\n', "\n", ModifierKeys()) : evt
+    _read_text_content_intent(p, iomap, typed, _get_textarea_padding(p)...)
+end
 
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
 
@@ -5938,47 +6092,81 @@ end
     chevron_size::Int
 end
 
+# The header row of each item, so a press is answered by the header it landed in.
+# The printer derives them in the build that draws the rows, and the reader reads
+# them from here. PAR-STABLE-IOMAP-IDENTITY.
+@iomap struct WidgetAccordionToGraphicsCanvasIoMap
+    projection::Any
+    input::Any
+    output::Any
+    header_bounds::Any
+end
+
 function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::WidgetAccordion, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
-    expanded = Int(w.expanded)
-    padding_x = _sc(Int(p.padding.left[]))
-    padding_y = _sc(Int(p.padding.top[]))
-    chevron_size = _sc(p.chevron_size)
-    # Size to content: widest title (leaving room for the trailing chevron) and
-    # the widest visible (expanded) body. The authored width is the minimum.
-    title_min = 0; body_min = 0
-    for (i, item) in enumerate(w.items)
-        title_min = max(title_min, _text_size(p.measure, p.title_text.font, string(item.title))[1])
-        if i == expanded && item.body !== nothing
-            body_min = max(body_min, _text_size(p.measure, p.body_text.font, string(item.body))[1])
+    build = ComputedCell(() -> begin
+        expanded = Int(w.expanded)
+        padding_x = _sc(Int(p.padding.left[]))
+        padding_y = _sc(Int(p.padding.top[]))
+        chevron_size = _sc(p.chevron_size)
+        # Size to content: widest title (leaving room for the trailing chevron) and
+        # the widest visible (expanded) body. The authored width is the minimum.
+        title_min = 0; body_min = 0
+        for (i, item) in enumerate(w.items)
+            title_min = max(title_min, _text_size(p.measure, p.title_text.font, string(item.title))[1])
+            if i == expanded && item.body !== nothing
+                body_min = max(body_min, _text_size(p.measure, p.body_text.font, string(item.body))[1])
+            end
         end
-    end
-    content_min = max(2padding_x + title_min + _sc(p.gap) + 2chevron_size, 2padding_x + body_min)
-    accordion_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
-    elements = Any[]
-    y = 0
-    rule_width = max(1, _sc(p.rule.width))
-    for (i, item) in enumerate(w.items)
-        title = string(item.title)
-        body  = item.body === nothing ? "" : string(item.body)
-        _, title_height = _text_size(p.measure, p.title_text.font, title)
-        row_height = title_height + 2padding_y
-        push!(elements, GraphicsText(title, padding_x, y + padding_y, p.title_text.font, p.title_text.color))
-        _push_chevron!(elements, accordion_width - padding_x - chevron_size, y + row_height ÷ 2, chevron_size,
-                       i == expanded ? :down : :right, p.chevron.color; stroke=max(1, _sc(p.chevron.width)))
-        y += row_height
-        if i == expanded && !isempty(body)
-            _, body_height = _text_size(p.measure, p.body_text.font, body)
-            push!(elements, GraphicsText(body, padding_x, y + _sc(p.body_gap), p.body_text.font, p.body_text.color))
-            y += body_height + padding_y
+        content_min = max(2padding_x + title_min + _sc(p.gap) + 2chevron_size, 2padding_x + body_min)
+        accordion_width = _resolve_width(ctx, _sc(Int(w.width)), content_min)
+        elements = Any[]
+        header_bounds = Tuple{Int,Int}[]
+        y = 0
+        rule_width = max(1, _sc(p.rule.width))
+        for (i, item) in enumerate(w.items)
+            title = string(item.title)
+            body  = item.body === nothing ? "" : string(item.body)
+            _, title_height = _text_size(p.measure, p.title_text.font, title)
+            row_height = title_height + 2padding_y
+            push!(elements, GraphicsText(title, padding_x, y + padding_y, p.title_text.font, p.title_text.color))
+            _push_chevron!(elements, accordion_width - padding_x - chevron_size, y + row_height ÷ 2, chevron_size,
+                           i == expanded ? :down : :right, p.chevron.color; stroke=max(1, _sc(p.chevron.width)))
+            push!(header_bounds, (y, y + row_height))
+            y += row_height
+            if i == expanded && !isempty(body)
+                _, body_height = _text_size(p.measure, p.body_text.font, body)
+                push!(elements, GraphicsText(body, padding_x, y + _sc(p.body_gap), p.body_text.font, p.body_text.color))
+                y += body_height + padding_y
+            end
+            push!(elements, GraphicsLine(0, y, accordion_width, y, p.rule.color; width=rule_width))
         end
-        push!(elements, GraphicsLine(0, y, accordion_width, y, p.rule.color; width=rule_width))
-    end
-    SimpleIoMap(p, w, _make_canvas(_origin(position)..., accordion_width,
-                                   _resolve_height(ctx, 0, y), elements))
+        (width=accordion_width, height=_resolve_height(ctx, 0, y), elements=elements,
+         header_bounds=header_bounds)
+    end)
+    WidgetAccordionToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
+                                         ComputedCell(() -> build[].header_bounds))
 end
-@_printer_only WidgetAccordionToGraphicsCanvas
+
+map_reference_forward(::WidgetAccordionToGraphicsCanvas, iomap, reference) = nothing
+map_reference_backward(::WidgetAccordionToGraphicsCanvas, iomap, reference) = nothing
+
+# Invisible accordion (the printer returned a bare empty canvas): inert.
+read_intent(::WidgetAccordionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
+
+# A left press on the header of an item opens that item, or closes it when it is
+# the open one. `expanded` holds one index, so the accordion shows one item at a
+# time, and opening one item closes the item that was open.
+function read_intent(::WidgetAccordionToGraphicsCanvas,
+                     iomap::WidgetAccordionToGraphicsCanvasIoMap, evt)
+    _outside_widget(iomap, evt) && return nothing
+    (evt isa MousePress && evt.button === :left) || return nothing
+    w = iomap.input
+    item = _find_row_index(iomap.header_bounds, evt.y - Int(iomap.output.y))
+    item === nothing && return nothing
+    ReplaceReferencedValueOperation(w, "expanded", item == Int(w.expanded) ? 0 : item)
+end
 
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 #

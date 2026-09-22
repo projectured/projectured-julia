@@ -1842,7 +1842,9 @@ A column of round options where one is selected.
 
 Use it to let a person pick one of a few named choices when every choice must
 stay visible: a kind of result, a configuration. `options` is a `Vector` of
-labels, and `selected` is the 1-based index of the chosen one.
+labels, and `selected` is the 1-based index of the chosen one, or `0` for none.
+A press on an option selects it. While the group has the focus, the arrow keys
+select the next or the previous option.
 
 # Example
 
@@ -1961,7 +1963,8 @@ WidgetHighlight(position::Point2D; width::Integer=120, height::Integer=80, visib
 """
     WidgetToggle(position, content; pressed=false)
 
-A two-state toggle button (pressed = accent surface).
+A two-state toggle button (pressed = accent surface). A press flips `pressed`,
+and so do Return and Space while the toggle has the focus.
 """
 @document struct WidgetToggle <: WidgetDocument
     position::Point2D
@@ -2108,7 +2111,9 @@ Several lines of text.
 
 Use it to show or take a paragraph: a note, a NED fragment, a finding.
 `content` is a string, and its newlines split the rows; `rows` is the height in
-lines and `width` a floor in pixels.
+lines and `width` a floor in pixels. A string is read only. A text document, such
+as a `TextBlock`, is edited as the content of a `WidgetText` is, and Return
+types a line break.
 
 # Example
 
@@ -2155,7 +2160,8 @@ only.
 Use it to put several sections in one column when a person reads one at a
 time: the runs, the results, the findings of a study. `items` is a `Vector` of
 `(title, body)` tuples, and `expanded` is the 1-based index of the open one, or
-`0` for none.
+`0` for none. A press on the header of an item opens it, or closes it when it is
+the open one.
 
 # Example
 

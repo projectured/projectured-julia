@@ -77,9 +77,33 @@ A container whose selection names a child as a whole draws a ring over that chil
 
 A projection can draw a widget that no document of the domain stands behind, such as the table of a form. An `OutputReferenceStep` of the focus package names such a widget from the document that it was drawn for.
 
+### What a control reads
+
+Each control has a reader in `WidgetToGraphics.jl`. The keys in the table work while the control has the focus. A disabled control returns `nothing` for every event.
+
+| Widget | A press | A key |
+| --- | --- | --- |
+| `WidgetButton` | a left press invokes its action, or opens its dialog | Return, Space |
+| `WidgetCheckbox`, `WidgetSwitch` | flips the value | Return, Space |
+| `WidgetToggle` | a left press flips `pressed` | Return, Space with no modifier |
+| `WidgetToggleGroup` | a left press on a segment selects it | none |
+| `WidgetRadioGroup` | a left press on the row of an option, on its circle or its label, selects it | Down and Right select the next option, Up and Left the previous one, around the ends. Return and Space select the first option when no option is on. No modifier. |
+| `WidgetSelect` | a left press opens the options in a popup | none |
+| `WidgetSlider` | a left press and a drag set the value | none |
+| `WidgetSpinBox` | a left press on a stepper steps the value | Up, Down |
+| `WidgetText`, `WidgetTextarea` | a press puts the caret into the text | the keys of the text domain. In a textarea, Return types a line break. |
+| `WidgetCard` | a press on the chevron folds the card | none |
+| `WidgetAccordion` | a left press on the header of an item opens that item, or closes it when it is open | none |
+
+`WidgetText` and `WidgetTextarea` are editable when their `content` is a document, usually a `TextBlock`. The printer recurses the content through the chain, so `TextToGraphics` draws it and makes every caret move and every edit. The reader moves a press into the frame of the content and puts the `content` step in front of the answer. The textarea gives Return to the content as a typed line break, because the text domain has no meaning for Return. A plain value is drawn as its string, and it is read only.
+
+`WidgetAccordion` holds the index of the open item in `expanded`, and `0` when no item is open. So one item is open at a time, and the press that opens an item closes the item that was open.
+
+`WidgetBadge`, `WidgetSeparator`, `WidgetProgress`, `WidgetAvatar`, `WidgetAlert`, `WidgetHighlight` and `WidgetSkeleton` only show a value, and their readers return `nothing`.
+
 ### Operations
 
-Most widget edits are one write into the widget: `ReplaceReferencedValueOperation(widget, "field", value)`. The operation carries the widget itself, so it passes unchanged through every container above. A scroll, a zoom, a hover, a toggle and a spin box step are all such writes.
+Most widget edits are one write into the widget: `ReplaceReferencedValueOperation(widget, "field", value)`. The operation carries the widget itself, so it passes unchanged through every container above. A scroll, a zoom, a hover, a toggle, a radio pick, an open accordion item and a spin box step are all such writes.
 
 The other operations are in `WidgetDocument.jl`:
 
@@ -177,7 +201,9 @@ write_example_image(widget_tree_example, "tree.png")
 
 ## Limits
 
-- The readers of `WidgetBadge`, `WidgetSeparator`, `WidgetProgress`, `WidgetRadioGroup`, `WidgetAvatar`, `WidgetAlert`, `WidgetHighlight`, `WidgetSkeleton`, `WidgetToggle`, `WidgetTextarea` and `WidgetAccordion` return `nothing`, and they map no reference. Tab can select a `WidgetToggle`, a `WidgetRadioGroup` or a `WidgetTextarea`, but a key there does nothing.
+- A `WidgetText` or a `WidgetTextarea` whose `content` is a plain value, and not a document, is read only. Tab can select it, but a key there does nothing.
+- A press on a control that writes its own value, such as a checkbox, a toggle or a radio group, does not move the selection to it. So a key after the press goes to the control that had the focus before. Tab or an Alt+press moves the focus to the control.
+- `WidgetAccordion` draws the title and the body of an item as their strings, so a document in an item is drawn as text. It has no `enabled` field.
 - `WidgetShell` gives `MouseDown` and `MouseUp` to its bands with window coordinates, and it keeps no drag. So a tab drag under a shell does not start, and a drag that crosses a band loses its moves. `plan/pending/hover-drag-and-tooltip-share-the-pointer.md` describes the fault and a fix.
 - `ObjectToWidget` maps no reference in either direction, so a caret can not move into the form from outside.
 - A path whose last step is a range writes a vector value as a splice. So an `ObjectField` whose value is a vector can not be replaced as one value.
