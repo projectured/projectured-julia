@@ -59,7 +59,8 @@ of a drag by type, and it assumed a wrapper would hide them from those readers.
 
 ### Step 2 — the guides, and close
 
-- [ ] `shell.md`: the limit about a divider drag goes. `undo.md` and
-      `widget.md`: the divider drag is view state.
+- [x] `shell.md`: the limit about a divider drag goes. `undo.md` and
+      `widget.md`: the divider drag is view state. `pane.md` also says that its
+      reader reads the operation inside the mark.
 - [ ] omnet-julia after the landing: `test_ide_window_wrap()` (32).
 - [ ] Move this plan to `plan/done/`.

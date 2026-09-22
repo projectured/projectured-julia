@@ -90,7 +90,7 @@ The capture is removed when the window closes, also when it throws, so the logge
 
 The shell hands a press, a down, an up, a move, a scroll and a crossing to the band under the pointer, in that band's frame. **A drag keeps the band it started in**: the band that takes a `MouseDown` gets every move with a button held and the next `MouseUp`, wherever the pointer is. So a divider dragged across the status line keeps moving, and its release is not lost. A split pane reads a drag in progress before it checks its own bounds for the same reason.
 
-A hover, a held button and a drag in flight are **view state**. The readers that write them mark the write with `ReplaceViewStateOperation`, and a history does not record it, so Ctrl+Z after a hover takes back the edit before it.
+A hover, a held button, a tab drag in flight and a divider drag are **view state**. The readers that write them mark the write with `ReplaceViewStateOperation`, and a history does not record it, so Ctrl+Z after a hover takes back the edit before it.
 
 ### The two probes
 
@@ -133,7 +133,6 @@ end
 
 ## Limits
 
-- **A divider drag is one undo step per move**, and a step each for the grab and the release. A hover, a held button and a tab drag in flight are view state and add none; a drag that becomes one step is not built.
 - The menu bar has no Save, Reload, Command palette, Gesture help or clipboard items. The keys work, but no verb reaches the owner of each command through the editor yet.
 - There is no Tools menu, and the fault button shows no mark for a fault that nobody read.
 - A press on the Assistant button after its tab closed opens a new, empty assistant, because the session keeps no assistant of its own.
