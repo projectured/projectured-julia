@@ -1121,6 +1121,12 @@ does not name is `color_transparent`, and an inset that it does not name is
 ### 8.5 Progress
 
 - [x] Step 2: `color_transparent`, `is_color_transparent`, and the 12 literals.
+- [x] The shared code: the theme tokens `shadow`, `scrim`, `selection`, `knob`,
+      `hover_layer` and `pressed_layer`, a keyword constructor for
+      `WidgetTheme`, no `inset` token, `WidgetStyle`, the helpers of §8.4, and
+      the color and width of `make_selection_ring` as keywords. `test_substrate()`
+      is at its baseline: 63119 pass, and the 3 failures and 2 errors of
+      `SplitPaneDragTest` that clean main has too.
 
 ### 8.6 omnet-julia
 

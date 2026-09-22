@@ -45,19 +45,22 @@ site. So this theme is the *palette + scale*; a different look is a different
 factory, not a bigger theme. The fields:
 
 - **Palette** — `background … ring` plus `track_off` (the switch's off-track).
+- **Decorations** — `shadow`, `scrim`, `selection` (the ring around an object
+  selected as a whole; a selected row takes it at 25%), `knob`, and the
+  translucent layers `hover_layer` and `pressed_layer` that a hovered or a
+  pressed widget draws over its surface.
 - **Type & base spacing** — `font*`, `radius`, `pad_x`, `pad_y`.
 - **Shared layout** — `gap`, `border_width`, `stroke`, `chevron` (each read by
   several widgets; the source of fan-out).
-- **Box model** — `inset`, the themed default margin/border/padding.
 - **Text styles** — `body_text` / `title_text` / `caption_text` / `label_text`
   (`StyleText`, bundling font + color).
 
 Spacing tokens are *logical* pixels scaled at render time via `_sc`. They are
 palette-independent, so both presets share them via [`_widget_theme`](@ref);
 only colors and fonts differ. See [`make_light_theme`](@ref) /
-[`make_dark_theme`](@ref).
+[`make_dark_theme`](@ref). The constructor takes keywords, one for each field.
 """
-struct WidgetTheme
+Base.@kwdef struct WidgetTheme
     # ── Palette ──
     background::StyleColor
     foreground::StyleColor
@@ -79,6 +82,13 @@ struct WidgetTheme
     input::StyleColor
     ring::StyleColor
     track_off::StyleColor   # switch off-track fill
+    # ── Decorations ──
+    shadow::StyleColor
+    scrim::StyleColor
+    selection::StyleColor
+    knob::StyleColor
+    hover_layer::StyleColor
+    pressed_layer::StyleColor
     # ── Type & base spacing ──
     radius::Int
     font::StyleFont
@@ -93,8 +103,6 @@ struct WidgetTheme
     border_width::Int   # hairline: border / splitter / separator / table rules
     stroke::Int         # icon stroke (checkmark, chevron, radio ring, knob ring)
     chevron::Int        # chevron half-size (select, accordion, tree)
-    # ── Box model ──
-    inset::Inset        # themed default margin/border/padding
     # ── Semantic text styles (font + color) ──
     body_text::StyleText      # regular foreground text
     title_text::StyleText     # bold foreground heading
@@ -106,9 +114,9 @@ end
     _widget_theme(; <palette colors>, font, font_bold, font_small) -> WidgetTheme
 
 Build a theme from a color palette and fonts, filling in the palette-independent
-spacing / sizing tokens with their shared defaults. Both presets funnel through
-here so the geometry is defined in exactly one place; preserve the values when
-editing — they match the original per-widget literals so rendering is stable.
+spacing / sizing tokens and the decorations with their shared defaults. The
+presets funnel through here so the geometry is defined in exactly one place.
+The hover and pressed layers are `primary` at 12% and 20%.
 """
 function _widget_theme(; background, foreground, card, card_foreground, popover,
                          popover_foreground, muted, muted_foreground, primary,
@@ -116,21 +124,22 @@ function _widget_theme(; background, foreground, card, card_foreground, popover,
                          accent, accent_foreground, destructive, destructive_foreground,
                          border, input, ring, track_off,
                          font, font_bold, font_small)
-    WidgetTheme(
+    WidgetTheme(;
         background, foreground, card, card_foreground, popover, popover_foreground,
         muted, muted_foreground, primary, primary_foreground, secondary, secondary_foreground,
         accent, accent_foreground, destructive, destructive_foreground, border, input, ring, track_off,
-        # type & base spacing: radius, fonts, pad_x, pad_y
-        8, font, font_bold, font_small, 14, 9,
-        # shared layout: gap border_width stroke chevron
-        4, 1, 2, 4,
-        # box model
-        inset_default,
-        # semantic text styles: body / title / caption / label
-        StyleText(font, foreground),
-        StyleText(font_bold, foreground),
-        StyleText(font_small, muted_foreground),
-        StyleText(font, foreground))
+        shadow = StyleColor(0.0, 0.0, 0.0, 0x14 / 255),
+        scrim = StyleColor(0.0, 0.0, 0.0, 0x66 / 255),
+        selection = SELECTION_RING_COLOR,
+        knob = color_white,
+        hover_layer = _with_alpha(primary, 0.12),
+        pressed_layer = _with_alpha(primary, 0.20),
+        radius = 8, font, font_bold, font_small, pad_x = 14, pad_y = 9,
+        gap = 4, border_width = 1, stroke = 2, chevron = 4,
+        body_text = StyleText(font, foreground),
+        title_text = StyleText(font_bold, foreground),
+        caption_text = StyleText(font_small, muted_foreground),
+        label_text = StyleText(font, foreground))
 end
 
 """
@@ -240,15 +249,125 @@ _sc(px::Integer) = Int(px)
 # A widget's authored `position` is in logical pixels, like insets.
 _origin(pos::Point2D) = (Int(pos.x[]), Int(pos.y[]))
 
-# Push a themed rounded box (fill + optional outline) of size cw×ch at (x,y).
+# Push a themed rounded box (fill + optional outline) of size cw×ch at (x,y). A
+# transparent fill with no visible outline draws nothing, so it adds no element.
 function _push_panel!(elems::Vector, x::Int, y::Int, cw::Int, ch::Int;
                       fill::StyleColor, border=nothing, border_w::Int=0, radius::Int=0)
-    if border !== nothing && border_w > 0
+    has_outline = border !== nothing && border_w > 0 && !is_color_transparent(border)
+    (has_outline || !is_color_transparent(fill)) || return
+    if has_outline
         push!(elems, GraphicsRect(x, y, cw, ch, fill, radius;
                                   border_width=border_w, border_color=border))
     else
         push!(elems, GraphicsRect(x, y, cw, ch, fill, radius))
     end
+end
+
+# ── Parts and their overrides ───────────────────────────────────────────────
+# A widget document can hold a style in its `style` field: a `WidgetStyle`, or
+# the style of its widget type. A field of that style that is not `nothing`
+# replaces the style field of the projection with the same name.
+
+function _get_part_color(w, name::Symbol, default)
+    style = hasproperty(w, :style) ? w.style : nothing
+    (style === nothing || !hasproperty(style, name)) && return default
+    color = getproperty(style, name)
+    color === nothing ? default : color
+end
+
+# The override of a text or a stroke holds only its color, under the name of the
+# style field with `_color` added. The font and the width stay the projection's.
+function _get_part_text(w, name::Symbol, default::StyleText)
+    color = _get_part_color(w, Symbol(name, :_color), nothing)
+    color === nothing ? default : StyleText(default.font, color)
+end
+
+function _get_part_stroke(w, name::Symbol, default::StyleStroke)
+    color = _get_part_color(w, Symbol(name, :_color), nothing)
+    color === nothing ? default : StyleStroke(color, default.width; dash = default.dash)
+end
+
+# ── The box ─────────────────────────────────────────────────────────────────
+# A widget with the box insets has four parts, from the outside in: the margin,
+# the border, the padding and the content. An inset of the document that is
+# `nothing` takes the inset of the projection with the same name.
+
+function _get_inset(w, p, name::Symbol)
+    inset = getproperty(w, name)
+    (inset === nothing ? getproperty(p, name) : inset)::Inset
+end
+
+_get_inset_sides(inset::Inset) =
+    (_sc(Int(inset.left[])), _sc(Int(inset.top[])), _sc(Int(inset.right[])), _sc(Int(inset.bottom[])))
+
+# The resolved insets of `w`, each as `(left, top, right, bottom)`.
+_get_box_insets(p, w) = (margin  = _get_inset_sides(_get_inset(w, p, :margin)),
+                         border  = _get_inset_sides(_get_inset(w, p, :border)),
+                         padding = _get_inset_sides(_get_inset(w, p, :padding)))
+
+function _content_offset(p, w::WidgetDocument)
+    box = _get_box_insets(p, w)
+    (box.margin[1] + box.border[1] + box.padding[1], box.margin[2] + box.border[2] + box.padding[2])
+end
+
+function _inset_total(p, w::WidgetDocument)
+    box = _get_box_insets(p, w)
+    (sum(sides -> sides[1] + sides[3], box), sum(sides -> sides[2] + sides[4], box))
+end
+
+# Push the band of `sides` inside the rectangle `(x, y, width, height)`: one rect
+# for each side with a width. A transparent band adds no element.
+function _push_band!(elements::Vector, x::Int, y::Int, width::Int, height::Int, sides, color::StyleColor)
+    is_color_transparent(color) && return
+    left, top, right, bottom = sides
+    top > 0 && push!(elements, GraphicsRect(x, y, width, top, color))
+    bottom > 0 && push!(elements, GraphicsRect(x, y + height - bottom, width, bottom, color))
+    left > 0 && push!(elements, GraphicsRect(x, y + top, left, height - top - bottom, color))
+    right > 0 && push!(elements, GraphicsRect(x + width - right, y + top, right, height - top - bottom, color))
+end
+
+# Push the four box parts of a widget whose content is `content_width` by
+# `content_height`, at the widget's own origin. `box` holds the insets that
+# `_get_box_insets` resolves, and `colors` a color for each part: `margin`,
+# `border`, `padding` and `content`. A transparent part adds no element. With a
+# uniform border and one color for the padding and the content, the border, the
+# padding and the content are one rounded rect; else each part is a band, so a
+# translucent part does not show the color of the part around it.
+function _push_box_parts!(elements::Vector, box, colors, content_width::Int, content_height::Int;
+                          radius::Int = 0)
+    margin_left, margin_top, margin_right, margin_bottom = box.margin
+    border_left, border_top, border_right, border_bottom = box.border
+    padding_left, padding_top, padding_right, padding_bottom = box.padding
+    border_box_width = border_left + padding_left + content_width + padding_right + border_right
+    border_box_height = border_top + padding_top + content_height + padding_bottom + border_bottom
+    _push_band!(elements, 0, 0, margin_left + border_box_width + margin_right,
+                margin_top + border_box_height + margin_bottom, box.margin, colors.margin)
+    uniform = border_left == border_top == border_right == border_bottom
+    if uniform && is_color_equal(colors.padding, colors.content)
+        _push_panel!(elements, margin_left, margin_top, border_box_width, border_box_height;
+                     fill = colors.padding, border = colors.border, border_w = border_left, radius = radius)
+        return
+    end
+    if uniform
+        _push_panel!(elements, margin_left, margin_top, border_box_width, border_box_height;
+                     fill = color_transparent, border = colors.border, border_w = border_left, radius = radius)
+    else
+        _push_band!(elements, margin_left, margin_top, border_box_width, border_box_height,
+                    box.border, colors.border)
+    end
+    _push_band!(elements, margin_left + border_left, margin_top + border_top,
+                padding_left + content_width + padding_right, padding_top + content_height + padding_bottom,
+                box.padding, colors.padding)
+    _push_panel!(elements, margin_left + border_left + padding_left, margin_top + border_top + padding_top,
+                 content_width, content_height; fill = colors.content)
+end
+
+# Push the translucent layer that a hovered or a pressed widget draws over its
+# surface, so the state shows over any surface color. `nothing` draws no layer.
+function _push_state_layer!(elements::Vector, color, x::Int, y::Int, width::Int, height::Int;
+                            radius::Int = 0)
+    color === nothing && return
+    _push_panel!(elements, x, y, width, height; fill = color, radius = radius)
 end
 
 # Draw a themed rounded surface (fill + optional outline) covering a widget's
@@ -274,20 +393,26 @@ end
 # (dimension A; see plan/pending/printer-locality.md). Transparent fill so only the
 # ring-coloured border shows.
 #
-# `whole_color`, when given, is the ring's colour while the widget is selected as
-# a whole. A text box with the focus holds a caret, so a whole selection of one is
-# a selection of the box as an object, and it shows as one.
+# `whole`, when given, is the ring's stroke while the widget is selected as a
+# whole. A text box with the focus holds a caret, so a whole selection of one is
+# a selection of the box as an object, and it shows as one. The ring keeps the
+# width of `ring`; only its color follows the kind of the selection.
 function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
-                           ring_color::StyleColor, radius::Int; whole_color = nothing)
-    ring = GraphicsRect(0, 0, 0, 0, color_transparent, radius;
-                        border_width=2, border_color=ring_color)
-    set_cell_function!(getfield(ring, :w), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(cw))
-    set_cell_function!(getfield(ring, :h), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(ch))
-    whole_color === nothing ||
-        set_cell_function!(getfield(ring, :border_color), () ->
-            get_stored_selection(w) isa EmptyReference ? whole_color : ring_color)
-    push!(elems, ring)
+                           ring::StyleStroke, radius::Int; whole = nothing)
+    rect = GraphicsRect(0, 0, 0, 0, color_transparent, radius;
+                        border_width=max(1, _sc(ring.width)), border_color=ring.color)
+    set_cell_function!(getfield(rect, :w), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(cw))
+    set_cell_function!(getfield(rect, :h), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(ch))
+    whole === nothing ||
+        set_cell_function!(getfield(rect, :border_color), () ->
+            get_stored_selection(w) isa EmptyReference ? whole.color : ring.color)
+    push!(elems, rect)
 end
+
+_push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int, ring_color::StyleColor, radius::Int;
+                  whole_color = nothing) =
+    _push_focus_ring!(elems, w, cw, ch, StyleStroke(ring_color, 2), radius;
+                      whole = whole_color === nothing ? nothing : StyleStroke(whole_color, 2))
 
 # ── Hover feedback (Stage 6) ─────────────────────────────────────────────────
 # The shared convention: an actionable widget carries a `hovered` cell, set by the
