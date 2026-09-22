@@ -45,6 +45,8 @@ function placed(node, ox = 0, oy = 0, found = Tuple{String,Int,Int}[], depth = 0
         for i in 1:length(node.elements)
             placed(node.elements[i], ox + Int(node.x), oy + Int(node.y), found, depth + 1)
         end
+    elseif node isa GraphicsViewport
+        placed(node.content, ox + Int(node.x), oy + Int(node.y), found, depth + 1)
     end
     found
 end
@@ -98,6 +100,37 @@ end
     # The code and the result start at one x, right of their prompts.
     result_x = only(x for (text, x, _) in others if text == "2")
     @test result_x == minimum(x for (_, x, y) in others if y < prompts[2][2])
+end
+
+@testset "the forms scroll in the offered height, and the view follows the end" begin
+    toplevel = make_insertion_document(EvaluatorToplevel)
+    ed = editor(toplevel)
+    for i in 1:8
+        toplevel.elements[length(toplevel.elements)].form.value = string(i)
+        evaluate_operation(ed, read_gesture(toplevel, enter()))
+    end
+    projection = NaturalToGraphics(measure = _stub)
+    iomap = print_document(projection, nothing, toplevel,
+                           PrinterContext(EmptyReference(), Cell(600), Cell(120), Dict{Symbol,Any}()))
+    canvas = get_iomap_output(iomap)
+    prompts_y() = [y for (text, _, y) in placed(canvas) if text == ">"]
+    # The pane is as tall as the offer, and it shows the end: the prompt of the
+    # fresh form is in view, and the prompt of the first form is above it.
+    @test Int(canvas.h) == 120
+    @test 0 <= last(prompts_y()) < 120
+    @test first(prompts_y()) < 0
+    # A wheel turn toward the start takes the view off the end, and moves the
+    # forms down by one line, which is 24 pixels with this measure.
+    at_end = last(prompts_y())
+    change = read_intent(projection, nothing, Intent(MouseScroll(0, 1, 50, 50)), iomap)
+    evaluate_operation(ed, change.operation)
+    @test toplevel.follow_end == false
+    @test last(prompts_y()) == at_end + 24
+    # An evaluation brings the end back into view, where the next key goes.
+    toplevel.elements[length(toplevel.elements)].form.value = "9"
+    evaluate_operation(ed, read_gesture(toplevel, enter()))
+    @test toplevel.follow_end == true
+    @test 0 <= last(prompts_y()) < 120
 end
 
 @testset "it draws in a pane tab" begin

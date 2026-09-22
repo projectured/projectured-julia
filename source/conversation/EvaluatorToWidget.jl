@@ -3,7 +3,8 @@
 # EvaluatorForm / EvaluatorToplevel → WidgetDocument projection, for the
 # standalone REPL a person opens by typing `repl` into an empty tab:
 #
-#     EvaluatorToplevelToWidgetComposite → VerticalLayout of the elements
+#     EvaluatorToplevelToWidgetComposite → WidgetScrollPane over a VerticalLayout
+#                                          of the elements, which follows the end
 #     EvaluatorFormToVerticalLayout      → VerticalLayout of a `>` row and a `=` row
 #
 # Neither prints a child. The toplevel's layout holds the forms, and a form's rows
@@ -93,25 +94,32 @@ function map_reference_backward(::EvaluatorFormToVerticalLayout, iomap, referenc
     EmptyReference()
 end
 
-# ── print_document: the toplevel → a stack of its forms ────────────────────
+# ── print_document: the toplevel → a scroll pane over a stack of its forms ──
 #
 # The layout holds the forms themselves, as `CellVectorToVerticalLayout` holds
 # the elements of a bare vector. A form printed here would reach the layout
 # stage as graphics, and that stage prints each child again: the renderer has no
 # row for graphics, so it would draw the canvas as a tree of its fields.
+#
+# The scroll pane takes the extent its parent offers, so in a tab the forms
+# scroll inside the page. It follows the end through the toplevel's own
+# `follow_end` cell: a scroll away from the end writes it, and an evaluation
+# writes it back, so the fresh form is in view where the next key goes.
 
 function print_document(projection::EvaluatorToplevelToWidgetComposite,
                           recursion, t::EvaluatorToplevel, ctx)
     layout = VerticalLayout(ComputedCellVector(() -> Any[element for element in t.elements]),
                             Cell(:left), Cell(_ELEMENT_GAP),
                             Cell(Fill), Cell(Content), Cell(nothing))
-    iomap = SimpleIoMap(projection, t, layout)
-    _follow_selection!(layout, t, projection, iomap, Any[])
+    pane = WidgetScrollPane(layout; follow_end = getfield(t, :follow_end))
+    iomap = SimpleIoMap(projection, t, pane)
+    _follow_selection!(pane, t, projection, iomap, Any[])
+    _follow_selection!(layout, t, projection, iomap, Any[FieldReferenceStep("content")])
     iomap
 end
 
-# `elements[i].<rest>` ↔ `children[i].<rest>`. The rest is a path in the form,
-# which the layout stage maps through the form's own row.
+# `elements[i].<rest>` ↔ `content.children[i].<rest>`. The rest is a path in
+# the form, which the layout stage maps through the form's own row.
 function map_reference_forward(::EvaluatorToplevelToWidgetComposite, iomap, reference)
     steps = _steps(reference)
     steps === nothing && return nothing
@@ -119,13 +127,15 @@ function map_reference_forward(::EvaluatorToplevelToWidgetComposite, iomap, refe
     found = _indexed(steps, "elements")
     found === nothing && return nothing
     (i, rest) = found
-    _from_steps(Any[FieldReferenceStep("children"), RangeReferenceStep(i - 1, i)], _from_steps(rest))
+    _from_steps(Any[FieldReferenceStep("content"), FieldReferenceStep("children"),
+                    RangeReferenceStep(i - 1, i)], _from_steps(rest))
 end
 
 function map_reference_backward(::EvaluatorToplevelToWidgetComposite, iomap, reference)
     steps = _steps(reference)
-    steps === nothing && return EmptyReference()
-    found = _indexed(steps, "children")
+    (steps !== nothing && !isempty(steps) && _is_field_step(steps[1], "content")) ||
+        return EmptyReference()
+    found = _indexed(steps[2:end], "children")
     found === nothing && return EmptyReference()
     (i, rest) = found
     _from_steps(Any[FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i)], _from_steps(rest))
@@ -140,12 +150,15 @@ end
 # Each row ends in graphics. A tab reads its content through `print_child`,
 # which does not print a layout again until it is graphics, and a layout draws
 # only the children whose output is graphics. The rows and the documents in
-# them re-enter the renderer through the recursion both stages share.
+# them re-enter the renderer through the recursion both stages share. The scroll
+# pane paints no background, so the forms stand on the page of the tab.
 
 function __init__()
     register_natural_graphics!(:evaluator, (; measure) -> Pair{Type,Any}[
         EvaluatorToplevel => ChainingProjection(EvaluatorToplevelToWidgetComposite(),
-                                                VerticalLayoutToGraphicsCanvas()),
+                                                WidgetScrollPaneToGraphicsCanvas(
+                                                    measure = measure, chrome = false,
+                                                    font = font_ubuntu_monospace_regular_20)),
         EvaluatorForm     => ChainingProjection(EvaluatorFormToVerticalLayout(),
                                                 VerticalLayoutToGraphicsCanvas()),
     ])

@@ -167,12 +167,17 @@ end
     EvaluatorToplevel(elements = [])
 
 An ordered sequence of `EvaluatorForm`s.
+
+`follow_end` is view state: whether the view of the toplevel keeps its last form
+in view. A person who scrolls away from the end turns it off, and scrolling back
+to the end or an evaluation turns it on again.
 """
 @document struct EvaluatorToplevel <: EvaluatorDocument
     elements::CellVector = CellVector()
+    follow_end::Bool = true
 end
 EvaluatorToplevel(elements::Vector) =
-    EvaluatorToplevel(CellVector(Cell[Cell(e) for e in elements]), Cell(nothing))
+    EvaluatorToplevel(CellVector(Cell[Cell(e) for e in elements]), Cell(true), Cell(nothing))
 
 set_cell_function!(t::EvaluatorToplevel, f::Function) =
     (set_cell_function!(getfield(t.elements, :elements), () -> Cell[Cell(x) for x in f()]); t)
@@ -255,6 +260,8 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     element.result = result
     element.is_error = is_err
     push!(t.elements, EvaluatorForm(PrimitiveString("")))
+    # The fresh form is where the next key goes, so the view goes to the end.
+    t.follow_end = true
     n = length(t.elements)
     caret = ConcreteReference(FieldReferenceStep("elements"),
         ConcreteReference(RangeReferenceStep(n - 1, n),
