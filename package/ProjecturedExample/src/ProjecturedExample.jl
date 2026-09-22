@@ -112,7 +112,7 @@ include(joinpath(_EXAMPLE_DIR, "FileEditor.jl"))
 include(joinpath(_EXAMPLE_DIR, "ValueViewer.jl"))
 include(joinpath(_EXAMPLE_DIR, "Application.jl"))
 include(joinpath(_EXAMPLE_DIR, "SearchScaleCorpus.jl"))
-export run_value_viewer, make_value_viewer
+export run_value_viewer, make_value_viewer, make_value_viewer_feeds
 export run_application, make_application_document, make_application_projection,
        make_application_window, make_application_api, APPLICATION_SYSTEM,
        make_application_assistant, make_application_content_projections,

@@ -158,6 +158,7 @@ The concrete feeds so far:
 | `InboxFeed` (built-in, always first) | `post_operation!` callers | bounded queue, backpressure | the edited document |
 | `MessageLogFeed` (`ProjecturedLog`) | any task that logs | ring buffer | the `MessageLog` |
 | `FrameStatisticsFeed` (`ProjecturedStatistics`) | the loop itself | per-measurement fold | the `FrameStatistics` table |
+| `ReflectionFeed` (`ProjecturedReflection`) | the value, and a chevron that flags a marker | the value itself | the reflected tree of the value |
 
 The fault store predates the feeds and stays what it is: `run_frame!` reports
 it at its top, so a hand-driven frame collects its faults too; it joined only

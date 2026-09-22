@@ -20,6 +20,8 @@ using ProjecturedWidget
 
 const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
+const FeedModule = ProjecturedKernel.FeedModule
+const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const OperationModule = ProjecturedKernel.OperationModule

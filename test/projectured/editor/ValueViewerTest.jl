@@ -53,5 +53,38 @@ function test_value_viewer()
             text(document) = sprint(show, print_document(projection, document).output)
             @test length(text(two)) > length(text(one))
         end
+
+        @testset "a chevron opens a node in the window" begin
+            # Every word the canvas draws, joined.
+            function drawn(node, depth = 0)
+                depth > 40 && return ""
+                node isa GraphicsText && return String(node.text) * " "
+                node isa GraphicsCanvas &&
+                    return join([drawn(node.elements[i], depth + 1)
+                                 for i in 1:length(node.elements)])
+                node isa GraphicsViewport && return drawn(node.content, depth + 1)
+                ""
+            end
+            value = Dict("inner" => _ViewerPoint(1, 2))
+            document, projection = make_value_viewer(value)
+            # The editor that `run_value_viewer` runs, with the feeds it passes.
+            editor = Editor(HeadlessBackend(), document, projection, Device[];
+                            feeds = make_value_viewer_feeds(document, value))
+            print!(editor)
+            node = document.children[1]
+            @test node.children isa AUnsyncedDocument
+            @test !occursin("x = 1", drawn(editor.iomap.output))
+            # What a click on the chevron of the node reads to.
+            editor.operation = SetReflectedDisclosureOperation(Pair{Any,Bool}[node => true])
+            evaluate!(editor)
+            # The request asks for a frame at once, and that frame opens the node.
+            @test EditorModule.compute_wait_timeout(editor) == 0
+            drain_feeds!(editor)
+            run_frame!(editor)
+            @test !(node.children isa AUnsyncedDocument)
+            @test occursin("x = 1", drawn(editor.iomap.output))
+            # Nothing waits any more, so the editor sleeps until the next input.
+            @test EditorModule.compute_wait_timeout(editor) == Inf
+        end
     end
 end

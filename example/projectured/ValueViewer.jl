@@ -30,13 +30,32 @@ The document and the projection of a window on `value`.
 function make_value_viewer(value; tree::Bool = true, depth::Integer = 1,
                            elements::Integer = 20, measure = measure_truetype_text)
     tree || return (value, NaturalToGraphics(measure = measure))
-    document = reflect_document(value, DepthPolicy(depth = Int(depth),
-                                                   elements = Int(elements)))
+    document = reflect_document(value, _make_value_viewer_policy(depth, elements))
     projection = ChainingProjection(ReflectionToWidget(),
                                     WidgetToGraphics(font_ubuntu_monospace_regular_20;
                                                      measure = measure))
     (document, projection)
 end
+
+"""
+    make_value_viewer_feeds(document, value; depth = 1, elements = 20) -> Vector{Feed}
+
+The feeds that the editor of a window on `value` needs, for the `document` that
+[`make_value_viewer`](@ref) made with the same keywords.
+
+The tree needs a [`ReflectionFeed`](@ref): a chevron only flags the node that it
+opens, and the feed syncs the tree against the value on the next frame. The flat
+view needs none.
+"""
+function make_value_viewer_feeds(document, value; depth::Integer = 1,
+                                 elements::Integer = 20)
+    document isa AReflectedNode || return Feed[]
+    Feed[ReflectionFeed(document, value;
+                        policy = _make_value_viewer_policy(depth, elements))]
+end
+
+_make_value_viewer_policy(depth::Integer, elements::Integer) =
+    DepthPolicy(depth = Int(depth), elements = Int(elements))
 
 """
     run_value_viewer(value; tree = true, depth = 1, elements = 20, name = "value",
@@ -69,5 +88,7 @@ function run_value_viewer(value; tree::Bool = true, depth::Integer = 1,
     end
     _run_window_scene(Any[document], Any[projection], String[String(name)];
                       width = width, height = height, backend = backend,
-                      compose = (p, b) -> _multi_window_projection(p), mcp = mcp)
+                      compose = (p, b) -> _multi_window_projection(p), mcp = mcp,
+                      feeds = make_value_viewer_feeds(document, value; depth = depth,
+                                                      elements = elements))
 end

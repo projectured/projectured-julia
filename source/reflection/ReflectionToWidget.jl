@@ -27,6 +27,10 @@
 # the paths that toggled and RETURNS a `SetReflectedDisclosureOperation` naming
 # them; evaluating that is what writes the shadow. The widget's own copy is never
 # written to — the shadow is the only place expansion is recorded.
+#
+# The walk of the shadow runs in a cell, so the sync that fills an opened node
+# prints the tree again. A walk done once, when `print_document` runs, would keep
+# the tree of the first frame.
 """
     ReflectionToWidget(; show_kind = true)
 
@@ -38,23 +42,30 @@ struct ReflectionToWidget <: Projection
 end
 ReflectionToWidget(; show_kind::Bool = true) = ReflectionToWidget(show_kind)
 
+# `tree` is a cell of the walk: `root`, the root row; `nodes`, tree path → the
+# ReflectedNode it came from; and `collapsed`, the paths standing on a marker.
 @iomap struct ReflectionToWidgetIoMap
     projection::Any
     input::Any
     output::Any
-    nodes::Dict{Vector{Int}, Any}      # tree path → the ReflectedNode it came from
-    collapsed::Set{Vector{Int}}        # paths standing on a marker, derived from the shadow
+    tree::Any
 end
 
 # ── print_document ────────────────────────────────────────────────────────────
 
 function print_document(p::ReflectionToWidget, recursion, node, ctx)
-    nodes = Dict{Vector{Int}, Any}()
-    collapsed = Set{Vector{Int}}()
-    root = _tree_node(p, node, Int[1], nodes, collapsed)
-    output = WidgetTree(Point2D(0, 0), Any[root])
-    output.collapsed = collapsed
-    ReflectionToWidgetIoMap(p, node, output, nodes, collapsed)
+    tree = ComputedCell() do
+        nodes = Dict{Vector{Int}, Any}()
+        collapsed = Set{Vector{Int}}()
+        root = _tree_node(p, node, Int[1], nodes, collapsed)
+        (root = root, nodes = nodes, collapsed = collapsed)
+    end
+    # Positional, so every declared field is named here in order: position,
+    # roots, visible, hovered, collapsed, gestures, tooltip.
+    output = WidgetTree(Cell(Point2D(0, 0)), ComputedCellVector(() -> Any[tree[].root]),
+                        Cell(true), Cell(nothing), ComputedCell(() -> tree[].collapsed),
+                        Cell(GestureBinding[]), Cell(nothing))
+    ReflectionToWidgetIoMap(p, node, output, tree)
 end
 
 print_document(p::ReflectionToWidget, node) = print_document(p, nothing, node, nothing)
@@ -127,9 +138,10 @@ function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
     # written by evaluating SetReflectedDisclosureOperation, never here. The
     # widget's own `collapsed` is still never written — the returned operation
     # targets the shadow, so expansion stays recorded there.
+    tree = iomap.tree
     changes = Pair{Any,Bool}[]
-    for path in symdiff(next, iomap.collapsed)
-        node = get(iomap.nodes, path, nothing)
+    for path in symdiff(next, tree.collapsed)
+        node = get(tree.nodes, path, nothing)
         node === nothing && continue
         push!(changes, node => !(path in next))
     end

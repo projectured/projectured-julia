@@ -97,6 +97,25 @@ end
     @test !("1" in labels)
 end
 
+# A live editor keeps the tree it printed and prints no second time, so the
+# printed tree must follow the sync by itself.
+@testset "the printed tree follows a sync" begin
+    shadow = reflect_document(obj, policy)
+    iomap = print_document(projection, nothing, shadow, nothing)
+    @test [1, 2] in iomap.output.collapsed
+
+    apply_chevron!(projection, iomap, [1, 2])
+    sync_reflection!(shadow, obj, policy)
+
+    @test !([1, 2] in iomap.output.collapsed)
+    @test "a = 1" in tree_labels(iomap.output.roots[1])
+    # The reader diffs against the tree as it is now, so the same chevron closes
+    # the node it opened.
+    @test apply_chevron!(projection, iomap, [1, 2]) isa SetReflectedDisclosureOperation
+    @test shadow.children[2].children isa AUnsyncedDocument
+    @test [1, 2] in iomap.output.collapsed
+end
+
 @testset "collapsing puts a marker back" begin
     shadow = reflect_document(obj, policy)
     iomap = print_document(projection, nothing, shadow, nothing)

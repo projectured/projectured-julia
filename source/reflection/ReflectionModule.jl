@@ -53,6 +53,8 @@ module ReflectionModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..FeedModule
+using ..GestureBindingModule
 using ..IoMapModule
 using ..OperationModule
 using ..ProjectionModule
@@ -61,6 +63,7 @@ using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: sync_document!, copy_document, is_descendable_for_sync, sync_element_limit, make_unsynced_placeholder
+import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent
 
@@ -72,10 +75,12 @@ export ReflectedNode, AReflectedNode, SetReflectedDisclosureOperation,
        reflect_child_count, reflect_child_pairs, reflect_children,
        is_reflection_leaf, get_reflection_value
 export ReflectionToWidget
+export ReflectionFeed
 
 
 include("BoundedSync.jl")
 include("DocumentReflection.jl")
 include("ReflectionToWidget.jl")
+include("ReflectionFeed.jl")
 
 end # module

@@ -26,7 +26,7 @@ run_value_viewer(my_object; tree = false)               # the flat view of the v
 
 `tree = false` draws the value itself instead of a reflected tree. It reads every field it reaches, so use it for a small value. It does not draw a dictionary.
 
-`make_value_viewer(value)` returns the document and the projection, for a caller that puts the view in a window of its own.
+`make_value_viewer(value)` returns the document and the projection, for a caller that puts the view in a window of its own. Give that editor the feeds of `make_value_viewer_feeds(document, value)` too: a chevron only asks for the next level, and the feed fetches it.
 
 ## A view of a running program
 
@@ -36,7 +36,7 @@ The same call takes an object that your program is using, for example the editor
 run_value_viewer(editor; depth = 2)
 ```
 
-The tree is a shadow of the object, not a copy of it: `sync_reflection!` brings the shadow up to date, and the nodes that are already open keep their place.
+The tree is a shadow of the object, not a copy of it: `sync_reflection!` brings the shadow up to date, and the nodes that are already open keep their place. The window runs that sync on each frame, so a change of the object shows at the next input.
 
 ## A view you design
 
