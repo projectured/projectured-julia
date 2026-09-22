@@ -57,7 +57,7 @@ The undo buffer reads in the opposite order, content first and its own keys last
 
 ## How it fits
 
-`ProjecturedVersioning` depends on the kernel, `ProjecturedCollection` for `versions`, `ProjecturedDomain` for `DocumentNothing` and `ProjecturedPrimitive` for the range edits that `_prefix_op` reroots. No other package depends on it. A program puts a `VersionedObject` into its document and a `VersionedObject => VersioningToAnyProjection()` row into its dispatch table.
+The code is in `source/versioning/`. `ProjecturedVersioning` depends on the kernel, `ProjecturedCollection` for `versions`, `ProjecturedDomain` for `DocumentNothing` and `ProjecturedPrimitive` for the range edits that `_prefix_op` reroots. No other package depends on it. A program puts a `VersionedObject` into its document and a `VersionedObject => VersioningToAnyProjection()` row into its dispatch table.
 
 It registers nothing at load time; the two keys belong to the projection.
 

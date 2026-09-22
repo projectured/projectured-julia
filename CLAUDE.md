@@ -22,7 +22,7 @@ The short path:
 3. [documentation/design/system-anatomy.md](documentation/design/system-anatomy.md) — the packages, the layers of the kernel, and what depends on what.
 4. [documentation/rule/](documentation/rule/) — the rules a change must keep: naming, packages, architecture, code quality, writing. **Read [naming-rules.md](documentation/rule/naming-rules.md) before you write a name.**
 
-Per-slice guides live in [documentation/package/](documentation/package/), one folder per slice. When you touch selection and reference handling, read [reference.md](documentation/package/kernel/reference.md) and [selection.md](documentation/package/kernel/selection.md); when you add a domain, read [domain-inventory.md](documentation/design/domain-inventory.md) and [new-domain-guide.md](documentation/guide/new-domain-guide.md).
+Each package has a design document in [documentation/package/](documentation/package/README.md), one folder per slice: how the package works, how it fits with the others, and why it is built so. Read the document of a package before you change it. When you touch selection and reference handling, read [reference.md](documentation/package/kernel/reference.md) and [selection.md](documentation/package/kernel/selection.md); when you add or change a domain, read [domain-anatomy.md](documentation/design/domain-anatomy.md), [domain-inventory.md](documentation/design/domain-inventory.md) and [new-domain-guide.md](documentation/guide/new-domain-guide.md).
 
 When you iterate in a session: [debugging-guide.md](documentation/guide/debugging-guide.md) and [testing-guide.md](documentation/guide/testing-guide.md).
 

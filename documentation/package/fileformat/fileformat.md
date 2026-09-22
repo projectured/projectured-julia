@@ -53,7 +53,7 @@ The save calls `save_file!`, which uses the `emit_text` of the file type, and no
 
 ## How it fits
 
-`ProjecturedFileFormat` depends on `ProjecturedNatural` for the formats and on `ProjecturedSerialization` for the binary format and the file types. It also depends on `ProjecturedDomain`, `ProjecturedLayout`, `ProjecturedWidget`, `ProjecturedSyntax` and `ProjecturedText`. The domains `json`, `xml`, `sql` and `julia` import it to add a `make_document_seed` method. `ProjecturedFileSystem` calls `make_file_tab` to open a file in a new tab, and the application of `example/projectured/Application.jl` adds `make_file_api()` to its tool set.
+The code is in `source/fileformat/`. `ProjecturedFileFormat` depends on `ProjecturedNatural` for the formats and on `ProjecturedSerialization` for the binary format and the file types. It also depends on `ProjecturedDomain`, `ProjecturedLayout`, `ProjecturedWidget`, `ProjecturedSyntax` and `ProjecturedText`. The domains `json`, `xml`, `sql` and `julia` import it to add a `make_document_seed` method. `ProjecturedFileSystem` calls `make_file_tab` to open a file in a new tab, and the application of `example/projectured/Application.jl` adds `make_file_api()` to its tool set.
 
 The package registers one natural row: `register_natural_graphics!(:fileformat, …)` with `FileDocument => FileToContent()`. Every file type then draws as its content in a tab. [natural.md](../natural/natural.md) describes the table.
 

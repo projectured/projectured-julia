@@ -74,7 +74,7 @@ write_pdf(document, proj, "book.pdf"; paginate = true, width = 612, height = 792
 
 ## How it fits
 
-`ProjecturedGraphics` depends on the kernel, `ProjecturedCollection`, `ProjecturedProjection` and `ProjecturedStyle`. `TextToGraphics` produces most canvases. Layouts, widgets, graphs, charts and sequence charts produce shapes directly. [screen.md](../screen/screen.md) holds the window documents whose content is a canvas. The SDL backend, the web backend and the PDF writer paint canvases.
+The code is in `source/graphics/`. `ProjecturedGraphics` depends on the kernel, `ProjecturedCollection`, `ProjecturedProjection` and `ProjecturedStyle`. `TextToGraphics` produces most canvases. Layouts, widgets, graphs, charts and sequence charts produce shapes directly. [screen.md](../screen/screen.md) holds the window documents whose content is a canvas. The SDL backend, the web backend and the PDF writer paint canvases.
 
 It registers nothing and has no `__init__`.
 
