@@ -6,10 +6,10 @@ const ASSISTANT_TITLE = "Assistant"
 """
     DEFAULT_ASSISTANT_SYSTEM
 
-Shared system / instruction prompt for any AI assistant working against the
-editor: the `system` field of an in-editor `Assistant`, and the
-`instructions` field of the MCP server's `initialize` response. Keep the
-two sites in sync by sourcing both from this constant.
+The system prompt an `Assistant` starts with: its `system` field, unless a
+caller names another. `McpServer` has its own, domain-free instructions
+(`DEFAULT_MCP_INSTRUCTIONS` in `source/mcp/Mcp.jl`), so the MCP module keeps
+no dependency on the assistant.
 """
 const DEFAULT_ASSISTANT_SYSTEM = "You are Claude working inside the ProjecturEd editor — a projectional editor built in Julia.\n\n" *
                                   "Use `execute_julia_code` to inspect and modify the editor's document and projection; " *
@@ -62,10 +62,11 @@ projections route `KeyPress`/backspace/delete to it directly), the
 symbol (`:idle`, `:streaming`, `:error`, ...), and a pluggable `llm::Llm` that
 overrides the backend entirely (a canned-reply fake, in a test).
 
-**A person says which backend they want.** `backend` defaults to `:none`, and an
-assistant that names none errors on submit with the list of backends whose
-packages are loaded. Nothing is guessed: a guess was only ever right while one
-backend existed.
+**A person can say which backend they want.** `backend` defaults to `:ollama`,
+the local model that runs with no key. A person who wants Claude sets it to
+`:anthropic` and exports a key. `backend` set to `:none` names no backend at
+all, and a submit then errors with the list of backends whose packages are
+loaded.
 
 `model` defaults to empty, which means "the backend's own default" — a model name
 belongs to a provider, and a Claude id means nothing to a local server.
