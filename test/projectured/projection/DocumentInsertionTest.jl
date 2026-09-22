@@ -105,6 +105,47 @@ function test_document_insertion()
                   InsertionReflectionProbe
         end
 
+        @testset "the type search walks the modules once and misses no type" begin
+            DS = DomainModule
+            named = DS._collect_named_types(Base.get_world_counter())
+            # The oracle shares no selection with the search: every concrete type
+            # bound under its own name in a loaded module or a submodule, kept
+            # when it is a subtype of the root at any depth.
+            function collect_concrete_named_subtypes(root)
+                found = Any[]
+                mods = Base.loaded_modules_array()
+                while !isempty(mods)
+                    m = pop!(mods)
+                    for s in names(m; all = true)
+                        (Base.isdeprecated(m, s) || !isdefined(m, s)) && continue
+                        t = getglobal(m, s)
+                        if t isa Type
+                            dt = Base.unwrap_unionall(t)
+                            dt isa DataType && dt.name.name === s && dt.name.module === m &&
+                                !isabstracttype(t) && t <: root && push!(found, t)
+                        elseif t isa Module && nameof(t) === s && parentmodule(t) === m &&
+                               t !== m && t !== Base
+                            push!(mods, t)
+                        end
+                    end
+                end
+                found
+            end
+            searched = DS._collect_concrete!(Type[], Document, named)
+            @test InsertionReflectionProbe in searched
+            @test issetequal(searched, collect_concrete_named_subtypes(Document))
+            # The order is depth first, each level in the order of `subtypes`,
+            # which walks the modules again for every abstract type.
+            function collect_concrete_by_subtypes!(out, root)
+                for T in DS.subtypes(root)
+                    isabstracttype(T) ? collect_concrete_by_subtypes!(out, T) : push!(out, T)
+                end
+                out
+            end
+            @test DS._collect_concrete!(Type[], JsonDocument, named) ==
+                  collect_concrete_by_subtypes!(Type[], JsonDocument)
+        end
+
         @testset "@domain kit: *Nothing + Insert/Escape" begin
             DS = DomainModule
             # Generated placeholders exist and are excluded from candidates.

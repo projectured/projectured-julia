@@ -26,34 +26,32 @@
 # `subtypes` WITHOUT InteractiveUtils.
 #
 # `InteractiveUtils` is the REPL's introspection stdlib — `@which`, `@edit`,
-# `@code_native`, `versioninfo` — and its only dependency is `Markdown`. This
-# package used one function from it, and that single import put `Markdown` in
-# the closure of every program that reads a NED or INI file, because
-# a downstream package that reads those files depends on this one. The file
-# below already warns that
-# "adding a sixth from a rendering package would put the editor back in the
-# closure of everything that reads a NED file"; the dependency arrived through
-# the back door instead.
+# `@code_native`, `versioninfo` — and its only dependency is `Markdown`. An
+# import of it here puts `Markdown` in the closure of every program that reads a
+# NED or INI file, because a downstream package that reads those files depends
+# on this one. So the one function this package needs is adapted from
+# `InteractiveUtils.subtypes` (Julia 1.13), and it uses nothing but Base.
 #
-# Copied from `InteractiveUtils.subtypes` (Julia 1.13). It uses nothing but
-# Base, so the copy costs 30 lines and removes two packages.
-function _subtypes_in!(mods::Array, @nospecialize(x::Type), world::UInt)
-    xt = Base.unwrap_unionall(x)
-    if !isabstracttype(x) || !isa(xt, DataType)
-        return Type[]
-    end
-    sts = Vector{Any}()
+# The walk over the modules is apart from the selection of one type's subtypes,
+# so that a search of a whole type tree, as `_collect_concrete!` makes, reads
+# every name of every loaded module once. A walk for each abstract type would
+# read every name 485 times under `Document`, and the first key in a name buffer
+# would wait seconds for it.
+
+# Every type bound under its own name in its own module, among the loaded
+# modules and their submodules, filed under the name of its direct supertype.
+function _collect_named_types(world::UInt)
+    named = Dict{Core.TypeName, Vector{Any}}()
+    mods = Base.loaded_modules_array()
     while !isempty(mods)
         m = pop!(mods)
-        xt = xt::DataType
         for s in Base.unsorted_names(m; all = true, world)
             if !Base.isdeprecated(m, s) && Base.invoke_in_world(world, isdefinedglobal, m, s)
                 t = Base.invoke_in_world(world, getglobal, m, s)
                 dt = isa(t, UnionAll) ? Base.unwrap_unionall(t) : t
                 if isa(dt, DataType)
-                    if dt.name.name === s && dt.name.module == m && supertype(dt).name == xt.name
-                        ti = typeintersect(t, x)
-                        ti != Union{} && push!(sts, ti)
+                    if dt.name.name === s && dt.name.module == m
+                        push!(get!(Vector{Any}, named, supertype(dt).name), t)
                     end
                 elseif isa(t, Module) && nameof(t) === s && parentmodule(t) === m && t !== m
                     t === Base || push!(mods, t)   # Base is parented by Main too
@@ -61,11 +59,25 @@ function _subtypes_in!(mods::Array, @nospecialize(x::Type), world::UInt)
             end
         end
     end
+    named
+end
+
+# The direct subtypes of `x` in a table of `_collect_named_types`, sorted by name.
+function _compute_subtypes(named::Dict{Core.TypeName, Vector{Any}}, @nospecialize(x::Type))
+    xt = Base.unwrap_unionall(x)
+    if !isabstracttype(x) || !isa(xt, DataType)
+        return Type[]
+    end
+    sts = Vector{Any}()
+    for t in get(named, xt.name, ())
+        ti = typeintersect(t, x)
+        ti != Union{} && push!(sts, ti)
+    end
     return permute!(sts, sortperm(map(string, sts)))
 end
 
 subtypes(x::Type; world::UInt = Base.get_world_counter()) =
-    _subtypes_in!(Base.loaded_modules_array(), x, world)
+    _compute_subtypes(_collect_named_types(world), x)
 
 
 # ── Traits ────────────────────────────────────────────────────────────────────
@@ -196,10 +208,14 @@ insertable(::Type{T}) where {T} =
 
 const _CANDIDATE_CACHE = Dict{Type, Tuple{UInt, Vector{Type}}}()
 
-function _collect_concrete!(out::Vector{Type}, root::Type)
-    for T in subtypes(root)
+# Every concrete type under `root`, depth first, each level in the order of
+# `subtypes`. `named` is the table of `_collect_named_types`, made once for the
+# whole tree.
+function _collect_concrete!(out::Vector{Type}, root::Type,
+                            named::Dict{Core.TypeName, Vector{Any}})
+    for T in _compute_subtypes(named, root)
         if isabstracttype(T)
-            _collect_concrete!(out, T)
+            _collect_concrete!(out, T, named)
         else
             push!(out, T)
         end
@@ -245,7 +261,7 @@ function get_insertion_candidates(root::Type)
     cached !== nothing && cached[1] == world && return cached[2]
     own = get_domain_insertion(root)
     result = filter!(T -> insertable(T) && T !== own && _is_domain_entry(T) && !_is_layout_variant(T),
-                     _collect_concrete!(Type[], root))
+                     _collect_concrete!(Type[], root, _collect_named_types(world)))
     _CANDIDATE_CACHE[root] = (world, result)
     result
 end
