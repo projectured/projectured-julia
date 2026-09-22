@@ -24,7 +24,7 @@
 # the workload.
 #
 # See plan/pending/package-convention-repl-leaves.md and
-# plan/pending/recorded-precompile-workload.md.
+# plan/done/recorded-precompile-workload.md.
 # ═══════════════════════════════════════════════════════════════════════════
 
 module ProjecturedRepl

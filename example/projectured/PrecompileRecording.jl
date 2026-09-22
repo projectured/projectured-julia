@@ -17,7 +17,7 @@
 # `ProjecturedRepl` here, and the repl leaf of each downstream repository.
 # One implementation, three products.
 #
-# See plan/pending/recorded-precompile-workload.md.
+# See plan/done/recorded-precompile-workload.md.
 # ═══════════════════════════════════════════════════════════════════════════
 
 """
