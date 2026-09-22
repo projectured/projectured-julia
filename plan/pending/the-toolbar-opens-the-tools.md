@@ -419,23 +419,38 @@ the other one.
 
 ### Step 5: the shared toolbar and its setup, in the shell
 
-- [ ] Add the six packages of R3 to `[deps]` and `[sources]` of
-      `package/ProjecturedShell/Project.toml`. Run `Pkg.resolve` in each
-      environment that holds the shell, because `instantiate` does not see a
-      new dependency inside a package that the manifest already lists.
-- [ ] `test_shell_layering()` and the naming guard pass with the new imports.
-- [ ] `make_window_toolbar(; assistant, explorer, extra)` with the eight tools,
-      R4, R6 and R10. "New tab" leaves the toolbar. Find out if a
-      `WidgetSeparator` fits in the toolbar (R10).
-- [ ] The setup of R11: the capture, the two feeds and the attach of the
-      session fault log.
-- [ ] Update the docstring of `make_window_toolbar` and the header of
-      `WindowChrome.jl`.
-- [ ] `test_window_shell()`: the toolbar holds the tools in the order of R10;
-      no button draws text; a press on each button opens a tab of its type, and
-      a second press does not; `assistant = nothing` gives no assistant button;
-      `explorer = nothing` opens a folder over `pwd()`; the setup attaches the
-      session fault log to `editor.faults`.
+- [x] Add the six packages of R3 to `[deps]` and `[sources]` of
+      `package/ProjecturedShell/Project.toml` (the lists are now sorted), with
+      a module alias each in `ProjecturedShell.jl` and a bare `using` in
+      `ShellModule.jl`. `Pkg.resolve` in `environment/all` updates the entry
+      of the shell in its manifest. `environment/build` does not hold the
+      shell.
+- [x] `test_shell_layering()` and the naming guard pass with the new imports.
+- [x] `make_window_toolbar(; assistant, explorer, extra)` with the eight tools,
+      R4, R6 and R10. "New tab" left the toolbar; it stays in File and on
+      `Ctrl+T`. **No separator (R10):** a vertical `WidgetSeparator` needs a
+      length of its own or an offered height, and the toolbar offers none, so
+      a separator would need a guessed number for the height of an item.
+- [x] The setup of R11 is `run_with_window_tools(run)`, with a do-block:
+      `run(feeds, start)` opens the window. It installs the capture before
+      `run` and removes it after, also when `run` throws, gives the two
+      feeds, and `start(editor)` attaches the session fault log to
+      `editor.faults`. `run_window_editor` has no hook for the moment when the
+      window closes, so the capture must be around the call; one function
+      keeps both binaries from drifting apart.
+- [x] The docstring of `make_window_toolbar`, the shell module docstring and
+      the shell guide (a new section, and a host example that no longer names
+      the IDE's "Run").
+- [x] `test_window_shell()`: the toolbar holds the tools in the order of R10,
+      with the icons of R4 and a tooltip that starts with the name; it draws
+      no text; `extra` comes last; a press on each button opens a tab of its
+      type, and a second press does not; `assistant = nothing` gives no
+      assistant button; `explorer = nothing` opens `pwd()`, and a named
+      explorer opens its folder; `run_with_window_tools` gives the feeds, the
+      capture and the fault log, and restores the logger after a throw. The
+      shell test package reaches the tool types through the aliases of
+      `ProjecturedShell`, which its loop binds, so it needs no new dependency.
+      `test_shell()` **154** (121 + 33).
 
 ### Step 6: the application uses the shared toolbar
 

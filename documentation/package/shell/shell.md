@@ -14,7 +14,7 @@ two lists.
 | `source/shell/ShellModule.jl` | the module, and what it exports |
 | `source/shell/WindowWrap.jl` | `make_window_wrap`, `make_opened_window_projections`, `make_popup_screen_wrap` |
 | `source/shell/WindowShell.jl` | `make_window_shell_document`, `make_window_shell_projection` |
-| `source/shell/WindowChrome.jl` | `make_window_menu_bar`, `make_window_toolbar`, `make_window_status_bar`, `make_window_command` |
+| `source/shell/WindowChrome.jl` | `make_window_menu_bar`, `make_window_toolbar`, `make_window_status_bar`, `make_window_command`, `make_window_tool_command`, `run_with_window_tools` |
 | `source/shell/FileDialog.jl` | `make_file_dialog`, `open_file_dialog!`, `save_file_dialog!` |
 
 ## The fold
@@ -95,9 +95,10 @@ Each band takes an `extra`, and `make_window_command(label, callback; icon,
 shortcut)` builds one item:
 
 ```julia
-_ide_shell(document) =
-    (make_window_menu_bar(),
-     make_window_toolbar(; extra = Any[make_window_command("Run", _run_selected_simulations!)]),
+_host_shell(document) =
+    (make_window_menu_bar(; extra = Any[WidgetMenuItem("Run"; submenu = WidgetMenu(Any[
+         make_window_command("Run all", _run_all!)]))]),
+     make_window_toolbar(),
      make_window_status_bar(document), nothing, nothing)
 ```
 
@@ -117,6 +118,42 @@ that slice's verb.
 **A status bar must be reactive.** Its segments are `ComputedCell`s over the
 window's document, so the band follows the focus. A band built from strings would
 say where the person was when the window opened and never again.
+
+## The toolbar opens the tools
+
+`make_window_toolbar(; assistant, explorer, extra)` holds one
+`WidgetToolbarItem` for each tool of the window: the explorer, the assistant,
+the evaluator, the message log, the gesture log, the fault log, the frame
+statistics and the selection. Each shows a picture, and its tooltip starts with
+the name of the tool. A new tab is not on it: the tab strip of every group has a
+button for that.
+
+`make_window_tool_command(label, type; icon, tooltip, make)` makes one of them.
+**A press reaches the tool, and makes one only when there is none**: it gives
+the focus to a tab that holds a `type`, the focused group first, and opens
+`make(editor)` in a new tab only when no tab holds one. `make` defaults to what
+`Ctrl+T` and the name of the tool make. View → Gesture log is the same verb.
+
+Two tools need what only the window knows. `assistant` makes the assistant of
+the window, with its backend and its greeting, and when it is `nothing` there is
+no assistant button. `explorer` makes the file explorer over the window's
+folder, and when it is `nothing` the button opens the working directory.
+
+**A button must not open a tool that stays empty.** Three tools are filled by
+the window and not by the tab: the message log by a logger capture and a feed,
+the frame statistics by a feed, and the fault log by the store of the editor.
+`run_with_window_tools` gives all three, and a binary opens its window through
+it:
+
+```julia
+run_with_window_tools() do feeds, start
+    run_window_editor(document, projection, "Title"; backend = backend,
+                      feeds = feeds, on_start = start)
+end
+```
+
+The capture is removed when the window closes, also when it throws, so the
+logger the window replaced comes back.
 
 ## The two probes
 

@@ -5,35 +5,51 @@ authors = []
 
 # The shell of a window: the fold that stacks its wrappers, and the projection
 # that draws its chrome.
+#
+# Its toolbar holds the tools of the window, so it names the slices of the six
+# tools it opens: the assistant, the evaluator (conversation), the fault log, the
+# selection (inspector), the message log and the frame statistics.
 
 [deps]
+ProjecturedAssistant = "3f5a9c21-7b48-4d6e-9a02-1c8d5e4b7f39"
 ProjecturedClipboard = "3164d48e-aed1-483b-872a-0591088ad343"
+ProjecturedConversation = "99f175d3-497d-4a02-8497-78e6e06c4369"
 ProjecturedDomain = "56e9f339-7147-459f-9ae1-7785cace5f24"
+ProjecturedFault = "3d8d2e46-3dcd-42af-87df-e4fd98837f5d"
+ProjecturedFileFormat = "44b08bd6-3ef1-426c-9816-1b2d08d0c221"
+ProjecturedFileSystem = "d20df666-2dae-4a0b-8892-08ed6c45272c"
 ProjecturedFocus = "14dfb0eb-5a11-4dd5-89b7-1137ba360c15"
 ProjecturedGestureHelp = "d8e6961d-7c29-43d8-bf9a-3394cc5f023b"
 ProjecturedGestureLog = "4fa8205f-3512-4016-add3-a8e2144efbf1"
+ProjecturedInspector = "5159cf42-a4ae-453b-9ac3-8695502aad43"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
-ProjecturedFileFormat = "44b08bd6-3ef1-426c-9816-1b2d08d0c221"
-ProjecturedFileSystem = "d20df666-2dae-4a0b-8892-08ed6c45272c"
+ProjecturedLog = "afbb0e85-b78b-48af-ad63-1ba46eea4377"
 ProjecturedPane = "6bac0b38-2033-4280-9d64-c7881579a7c3"
 ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
 ProjecturedScreen = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
+ProjecturedStatistics = "81408ee2-9581-4f43-8547-c7ccf1bed4ef"
 ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
 ProjecturedTooltip = "999c5553-b481-430d-b45f-24840119fc11"
 ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 
 [sources]
+ProjecturedAssistant = {path = "../ProjecturedAssistant"}
 ProjecturedClipboard = {path = "../ProjecturedClipboard"}
+ProjecturedConversation = {path = "../ProjecturedConversation"}
 ProjecturedDomain = {path = "../ProjecturedDomain"}
+ProjecturedFault = {path = "../ProjecturedFault"}
+ProjecturedFileFormat = {path = "../ProjecturedFileFormat"}
+ProjecturedFileSystem = {path = "../ProjecturedFileSystem"}
 ProjecturedFocus = {path = "../ProjecturedFocus"}
 ProjecturedGestureHelp = {path = "../ProjecturedGestureHelp"}
 ProjecturedGestureLog = {path = "../ProjecturedGestureLog"}
+ProjecturedInspector = {path = "../ProjecturedInspector"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
-ProjecturedFileFormat = {path = "../ProjecturedFileFormat"}
-ProjecturedFileSystem = {path = "../ProjecturedFileSystem"}
+ProjecturedLog = {path = "../ProjecturedLog"}
 ProjecturedPane = {path = "../ProjecturedPane"}
 ProjecturedProjection = {path = "../ProjecturedProjection"}
 ProjecturedScreen = {path = "../ProjecturedScreen"}
+ProjecturedStatistics = {path = "../ProjecturedStatistics"}
 ProjecturedStyle = {path = "../ProjecturedStyle"}
 ProjecturedTooltip = {path = "../ProjecturedTooltip"}
 ProjecturedWidget = {path = "../ProjecturedWidget"}

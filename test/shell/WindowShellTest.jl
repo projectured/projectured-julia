@@ -144,6 +144,90 @@ end
     @test _is_focused_at(tree, group, 2)
 end
 
+@testset "the toolbar holds the tools of the window, as pictures" begin
+    labels(bar) = [String(string(item.action.label)) for item in bar.elements]
+    tools = ["Explorer", "Evaluator", "Message log", "Gesture log", "Fault log",
+             "Statistics", "Selection"]
+    # With no assistant the window has none, and no button for one.
+    @test labels(make_window_toolbar()) == tools
+    bar = make_window_toolbar(; assistant = _ -> Assistant())
+    @test labels(bar) == insert!(copy(tools), 2, "Assistant")
+    @test all(item -> item isa WidgetToolbarItem, bar.elements)
+    @test [item.action.icon for item in bar.elements] ==
+          [:folder, :chat, :terminal, :list, :keyboard, :warning, :chart, :crosshair]
+    # The tooltip names the tool first, because the picture does not.
+    @test all(item -> startswith(item.tooltip, string(item.action.label, ":")), bar.elements)
+    # What the band draws is pictures and no word.
+    texts = Any[]
+    walk(canvas) = for element in canvas.elements
+        element = element isa Cell ? element[] : element
+        element isa GraphicsText && push!(texts, element)
+        element isa GraphicsCanvas && walk(element)
+    end
+    walk(print_document(make_widget_projection_example(), bar).output)
+    @test isempty(texts)
+    # A host's own buttons come after the tools.
+    extra = make_window_command("Run", _ -> nothing)
+    @test last(make_window_toolbar(; extra = [extra]).elements) === extra
+end
+
+@testset "each tool button opens its tool, and a second press opens no other" begin
+    tree = PaneTree(PaneGroup(PaneTab[PaneTab("a", PrimitiveString("x"))]))
+    group = first(get_pane_groups(tree))
+    first_tab() = apply_pane_operation!(tree, make_pane_focus_operation(tree, group, 1))
+    first_tab()
+    editor = _ShellFakeEditor(tree)
+    bar = make_window_toolbar(; assistant = _ -> Assistant())
+    types = [Workspace, Assistant, EvaluatorToplevel, MessageLog, GestureLog, FaultLog,
+             FrameStatistics, SelectionInspector]
+    holding(type) = count(tab -> get_wrapped_document(tab.content) isa type, group.tabs)
+    for (item, type) in zip(bar.elements, types)
+        evaluate_operation(editor, InvokeActionOperation(item.action))
+        @test holding(type) == 1
+        first_tab()
+        evaluate_operation(editor, InvokeActionOperation(item.action))
+        @test holding(type) == 1
+    end
+    @test length(group.tabs) == 1 + length(types)
+end
+
+@testset "the explorer opens the folder the window names, else the working directory" begin
+    folders(tree) = [get_wrapped_document(tab.content).folders[1].pathname
+                     for group in get_pane_groups(tree) for tab in group.tabs
+                     if get_wrapped_document(tab.content) isa Workspace]
+    press_explorer(bar) = begin
+        tree = PaneTree(PaneGroup(PaneTab[PaneTab("a", PrimitiveString("x"))]))
+        apply_pane_operation!(tree, make_pane_focus_operation(tree, first(get_pane_groups(tree)), 1))
+        evaluate_operation(_ShellFakeEditor(tree), InvokeActionOperation(first(bar.elements).action))
+        folders(tree)
+    end
+    @test press_explorer(make_window_toolbar()) == [pwd()]
+    folder = mktempdir()
+    named = make_window_toolbar(; explorer = _ -> Workspace([WorkspaceFolder("here", folder)]))
+    @test press_explorer(named) == [folder]
+end
+
+@testset "a window run with its tools gets the feeds, the capture and the fault log" begin
+    before = Base.CoreLogging.global_logger()
+    seen = Any[]
+    answer = run_with_window_tools() do feeds, start
+        push!(seen, map(typeof, feeds))
+        push!(seen, Base.CoreLogging.global_logger())
+        editor = (faults = FaultStore(),)
+        start(editor)
+        push!(seen, editor.faults)
+        :ran
+    end
+    @test answer === :ran
+    @test seen[1] == [MessageLogFeed, FrameStatisticsFeed]
+    @test seen[2] isa MessageLogLogger
+    @test any(target -> target === get_session_fault_log(), seen[3].targets)
+    # The logger the window replaced comes back, also when the window throws.
+    @test Base.CoreLogging.global_logger() === before
+    @test_throws ErrorException run_with_window_tools((feeds, start) -> error("the window failed"))
+    @test Base.CoreLogging.global_logger() === before
+end
+
 @testset "the status bar says where the person is" begin
     tree = PaneTree(PaneGroup(PaneTab[PaneTab("a.json", PrimitiveString("x"))]))
     apply_pane_operation!(tree, make_pane_focus_operation(tree, first(get_pane_groups(tree)), 1))

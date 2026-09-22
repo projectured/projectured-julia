@@ -75,19 +75,98 @@ make_window_menu_bar(; extra = []) =
     ]; orientation = :horizontal)
 
 """
-    make_window_toolbar(; extra = []) -> WidgetToolbar
+    make_window_toolbar(; assistant = nothing, explorer = nothing, extra = []) -> WidgetToolbar
 
-The few commands a hand reaches for without a menu. It is deliberately short: a
-toolbar that holds everything is a menu bar that draws twice.
+The tools of the window, one button each: the explorer, the assistant, the
+evaluator, the message log, the gesture log, the fault log, the frame
+statistics and the selection. Each button shows a picture and says its name as a
+tooltip, and a press reaches the tool or opens it — see
+[`make_window_tool_command`](@ref).
+
+The tools are what a person looks for and cannot type the name of. A new tab is
+not here: the tab strip of every group has a button for it, beside the group
+that gets the tab.
+
+Two tools need what only the window knows, and the window gives them as
+functions of the editor:
+
+- `assistant` makes the assistant of this window, with its backend, its model and
+  its greeting. When it is `nothing` the window has no assistant, and the
+  toolbar has no button for one: a blank assistant with no backend answers
+  nothing.
+- `explorer` makes the file explorer of this window, over its folder. When it is
+  `nothing` the button opens what `Ctrl+T` and `explorer` open: the working
+  directory.
 
 A host appends its own buttons with `extra`, which is where a command that only
 one binary has belongs.
 """
-make_window_toolbar(; extra = []) =
+make_window_toolbar(; assistant = nothing, explorer = nothing, extra = []) =
     WidgetToolbar(Any[
-        make_window_command("New tab", _open_tab!),
+        make_window_tool_command("Explorer", Workspace; icon = :folder,
+                                 tooltip = "Explorer: the files of this window's folder",
+                                 make = something(explorer, _make_default_tool(Workspace))),
+        (assistant === nothing ? () :
+            (make_window_tool_command("Assistant", Assistant; icon = :chat,
+                                      tooltip = "Assistant: ask a model about what this window shows",
+                                      make = assistant),))...,
+        make_window_tool_command("Evaluator", EvaluatorToplevel; icon = :terminal,
+                                 tooltip = "Evaluator: type Julia, and Alt+Enter evaluates it"),
+        make_window_tool_command("Message log", MessageLog; icon = :list,
+                                 tooltip = "Message log: what the program said in this session"),
+        make_window_tool_command("Gesture log", GestureLog; icon = :keyboard,
+                                 tooltip = "Gesture log: every gesture of this session, and what each one did"),
+        make_window_tool_command("Fault log", FaultLog; icon = :warning,
+                                 tooltip = "Fault log: what failed in this session, and how often"),
+        make_window_tool_command("Statistics", FrameStatistics; icon = :chart,
+                                 tooltip = "Statistics: how long the frames of this window take"),
+        make_window_tool_command("Selection", SelectionInspector; icon = :crosshair,
+                                 tooltip = "Selection: what the selection of this window names"),
         extra...,
     ]; padding = Inset(4, 4, 4, 4))
+
+"""
+    run_with_window_tools(run) -> the answer of `run`
+
+Open a window with what the tools of [`make_window_toolbar`](@ref) need, and
+answer what `run` answers.
+
+`run(feeds, start)` opens the window: it gives `feeds` to `run_window_editor`,
+and it calls `start(editor)` once the editor stands. Then:
+
+- the message log holds what the program logs while the window is open. The
+  capture is installed before `run` and removed after it, also when it throws,
+  so the logger the window replaced comes back.
+- the message log and the frame statistics follow the window, one feed each.
+- the fault log holds every fault the editor catches, because `start` attaches
+  the session's log to the store of the editor.
+
+Every binary with the toolbar opens its window through this, so a button on it
+never opens a tool that stays empty in one of them.
+
+# Example
+
+    run_with_window_tools() do feeds, start
+        run_window_editor(document, projection, "Title"; backend = backend,
+                          feeds = feeds, on_start = start)
+    end
+"""
+function run_with_window_tools(run)
+    previous = install_message_log_capture!()
+    try
+        run(Feed[MessageLogFeed(), FrameStatisticsFeed()], _start_window_tools!)
+    finally
+        remove_message_log_capture!(previous)
+    end
+end
+
+# A fault reaches a log only when the log is attached to the store of the
+# editor, and only the running editor has a store.
+function _start_window_tools!(editor)
+    hasproperty(editor, :faults) || return nothing
+    attach_fault_target!(editor.faults, get_session_fault_log())
+    nothing
+end
 
 """
     make_window_tool_command(label, type; icon = nothing, tooltip = nothing,

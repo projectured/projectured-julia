@@ -23,6 +23,12 @@ using ProjecturedScreen
 using ProjecturedStyle
 using ProjecturedTooltip
 using ProjecturedWidget
+using ProjecturedAssistant
+using ProjecturedConversation
+using ProjecturedFault
+using ProjecturedInspector
+using ProjecturedLog
+using ProjecturedStatistics
 
 const CellModule = ProjecturedKernel.CellModule
 const ClipboardModule = ProjecturedClipboard.ClipboardModule
@@ -44,6 +50,14 @@ const GestureLogModule = ProjecturedGestureLog.GestureLogModule
 const StyleModule = ProjecturedStyle.StyleModule
 const TooltipModule = ProjecturedTooltip.TooltipModule
 const WidgetModule = ProjecturedWidget.WidgetModule
+const AssistantModule = ProjecturedAssistant.AssistantModule
+const ConversationModule = ProjecturedConversation.ConversationModule
+const FaultModule = ProjecturedKernel.FaultModule
+const FaultViewModule = ProjecturedFault.FaultViewModule
+const FeedModule = ProjecturedKernel.FeedModule
+const FrameStatisticsModule = ProjecturedStatistics.FrameStatisticsModule
+const InspectorModule = ProjecturedInspector.InspectorModule
+const MessageLogModule = ProjecturedLog.MessageLogModule
 
 include("../../../source/shell/ShellModule.jl")
 
