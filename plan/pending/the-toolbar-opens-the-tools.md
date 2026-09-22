@@ -537,7 +537,17 @@ the other one.
       draws only "File" in the menu bar, and no "View". The branch point
       `b8f221f9` draws the same, and the window scene draws "View", so it is
       a fault of the offscreen write-out alone. It is not investigated here.
-- [ ] Land Steps 1 to 7 on `main` of projectured-julia.
+- [x] Land Steps 1 to 7 on `main` of projectured-julia. `main` moved by 12
+      commits during the work; the rebase onto `d539f35b` had one conflict, a
+      comment above the application shell, where `main` rewrote the sentence
+      about the size. After the rebase, all pass: `test_widget_icon()` 69,
+      `test_widget_toolbar()` 36, `test_widget_shell_layout()` 14,
+      `test_widget_menu()` 37, `test_shell()` 157, `test_fault()` 73,
+      `test_gallery_wrappers()` 13, `test_evaluator_toplevel()` 27,
+      `test_application()` 100 (`main` added 6), and the six widget table and
+      pane tests. `test_document_insertion()` is 118 with 1 failure ("rendered
+      completion feedback" compares a typed path with an untyped one); `main`
+      at `d539f35b` fails the same assertion, so it is not from this plan.
 
 ### Step 8: omnet-julia, the IDE gets the same toolbar
 
