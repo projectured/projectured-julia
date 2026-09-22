@@ -1883,9 +1883,12 @@ WidgetAvatar(position::Point2D, initials; size::Integer=64, visible::Bool=true, 
 # ── WidgetAlert ─────────────────────────────────────────────────────────────
 
 """
-    WidgetAlert(position, title, description; variant=:default, width=0)
+    WidgetAlert(position, title, description; icon=nothing, variant=:default, width=0)
 
 A bordered message with a bold title and a muted description.
+
+`icon` names an icon drawn before the title, as tall as the title and in its
+color, such as `:warning` for a fault.
 
 Use it to tell a person something that needs attention: a run failed, a file
 is missing, a check passed. `variant = :destructive` draws it in the color of a
@@ -1903,14 +1906,15 @@ line.
     position::Point2D
     title::Any
     description::Any
+    icon::Any
     variant::Symbol
     width::Int
     visible::Bool
     tooltip::Any
 end
-WidgetAlert(position::Point2D, title, description=nothing;
+WidgetAlert(position::Point2D, title, description=nothing; icon=nothing,
             variant::Symbol=:default, width::Integer=0, visible::Bool=true, tooltip=nothing) =
-    WidgetAlert(Cell(position), Cell(title), Cell(description), Cell(variant),
+    WidgetAlert(Cell(position), Cell(title), Cell(description), Cell(icon), Cell(variant),
                 Cell(Int(width)), Cell(visible), Cell(tooltip), Cell(nothing))
 
 # ── WidgetSkeleton ──────────────────────────────────────────────────────────

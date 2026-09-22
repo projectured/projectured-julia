@@ -198,8 +198,21 @@ the licence texts of the font folder with the fonts. That also brings
 
 ### Step 4: the characters that are icons, in projectured-julia
 
-- [ ] The file kinds, the conversation roles and the fault mark use registry
-      names.
+- [x] The file kinds of the navigator are icon names (`:folder`, `:lambda`,
+      `:braces`, `:pilcrow`, `:diamond`, `:hexagon`, `:file_sliders`, `:sigma`,
+      and `:file` for any other kind). `test_filesystem()` **28** (27 + 1: each
+      kind is an icon the widget layer draws).
+- [x] The role marks of the conversation are the glyphs of `:user`, `:bot` and
+      `:dot`, in `font_lucide_icons_20`, through `find_icon_character`. The old
+      comment said that a thin outline mark read as a smudge beside a bold word;
+      a Lucide stroke is about as heavy as the stem of a letter at this size,
+      and Step 6 looks at it. `test_conversation()` 166 with the 1 failure of
+      Step 0 (the same message).
+- [x] `WidgetAlert` has an `icon` keyword, drawn before the title, as tall as
+      it and in its color. The fault alert of `FaultToWidget` has `icon =
+      :warning` and loses the "⚠ " before its title. The "⚠" of
+      `FaultToSyntax` is text inside a syntax document (group 4) and stays.
+      `test_fault()` 73; `test_substrate()` 62988, with the failures of Step 0.
 
 ### Step 5: omnet-julia
 

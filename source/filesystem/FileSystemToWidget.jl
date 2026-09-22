@@ -37,19 +37,20 @@ FileSystemToWidgetTree(position::Point2D = Point2D(0, 0); open_file = OpenFileOp
 
 # ── Node construction (icon + text per item) ──────────────────────────────────
 
-# An extension-derived glyph in the icon slot (the v1 stand-in for a real icon
-# image), following the codebase's single-glyph convention (cf. ConversationToWidget).
-_fs_icon(::FileSystemDirectory) = "▣"
+# The icon of an item: a folder, or the kind of a file by its extension. Each is
+# an icon name of the widget layer, so the tree draws it as the glyph of the icon
+# font that the rest of the window uses.
+_fs_icon(::FileSystemDirectory) = :folder
 function _fs_icon(f::FileSystemFile)
     ext = lowercase(splitext(f.pathname)[2])
-    ext == ".jl"            ? "λ"  :
-    ext == ".json"          ? "{}" :
-    ext in (".md", ".txt")  ? "¶"  :
-    ext == ".pred"          ? "◆"  :   # a document written as its constructor
-    ext == ".ned"           ? "⬡"  :   # a network: nodes and the links between them
-    ext == ".ini"           ? "≡"  :   # a configuration: lines of keys and values
-    ext == ".math"          ? "∑"  :
-    "·"
+    ext == ".jl"            ? :lambda       :
+    ext == ".json"          ? :braces       :
+    ext in (".md", ".txt")  ? :pilcrow      :
+    ext == ".pred"          ? :diamond      :   # a document written as its constructor
+    ext == ".ned"           ? :hexagon      :   # a network: nodes and the links between them
+    ext == ".ini"           ? :file_sliders :   # a configuration: lines of keys and values
+    ext == ".math"          ? :sigma        :
+    :file
 end
 
 _fs_node(f::FileSystemFile, open_file) =

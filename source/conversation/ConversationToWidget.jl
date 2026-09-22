@@ -79,22 +79,17 @@ const _ERROR_STYLE   = StyleText(font_ubuntu_bold_16, color_destructive)
 # behind a letter that overflows it, and a letter is not an icon. The glyph
 # stands on its own, in the role's own color.
 #
-# Both glyphs come from DejaVu, which the chrome font does not cover. A glyph
-# that DejaVu draws as a thin OUTLINE disappears beside a bold word: `👤` and `✦`
-# are both in the font and both are outlines, and at 18 px they read as smudges.
-# The pair below is solid at this size.
-#
-# Bold, because the word beside it is bold and a regular mark reads as a mistake.
-const _ICON_FONT = font_dejavu_monospace_bold_20
+# The glyphs are icons of the Lucide font, the set every icon of the window comes
+# from, so the mark beside a turn looks like the pictures of the toolbar. A mark
+# must not read as a smudge beside the bold word: Lucide draws a stroke of a
+# twelfth of its size, which at this size is as heavy as the stem of a letter.
+const _ICON_FONT = font_lucide_icons_20
 _icon_style(role::Symbol) = StyleText(_ICON_FONT, _role_color(role))
 
-# A face and a spark. Neither is a letter, and neither needs a legend.
-#
-# The spark is ONE mark and not the three of `✨`: a cluster's ink runs wider than
-# the box the font advances by, so it ate the gap after it and sat against the
-# word. A mark that fits its own advance keeps the row spaced the way the layout
-# says.
-_role_glyph(role::Symbol) = role === :user ? "☻" : role === :assistant ? "✱" : "●"
+# A person, a bot, and a dot for any other role. None is a letter, and none needs
+# a legend.
+_role_glyph(role::Symbol) =
+    string(find_icon_character(role === :user ? :user : role === :assistant ? :bot : :dot))
 
 """
     FORMAT_LABELS, CODE_FORMATS

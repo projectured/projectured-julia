@@ -5177,8 +5177,12 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
         y = padding
         title = string(w.title)
         title_width, title_height = _text_size(p.measure, p.title_font, title)
-        _push_text!(elements, p.title_font, title, padding, y, title_color)
-        max_content_width = max(max_content_width, title_width); y += title_height
+        # The icon stands before the title, as tall as it and in its color.
+        icon_size = icon_width(w.icon, title_height)
+        icon_gap = icon_size > 0 ? _sc(8) : 0
+        icon_size > 0 && _push_icon!(elements, w.icon, padding, y, icon_size, title_color)
+        _push_text!(elements, p.title_font, title, padding + icon_size + icon_gap, y, title_color)
+        max_content_width = max(max_content_width, icon_size + icon_gap + title_width); y += title_height
         if w.description !== nothing
             y += _sc(p.title_gap)
             description = string(w.description)
