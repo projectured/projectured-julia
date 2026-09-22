@@ -16,9 +16,8 @@
 # - `a ? b : c` parses identically to an `if`, so it becomes `JuliaIf` (never `JuliaTernary`).
 # - `begin … end` parses to a block, so it becomes `JuliaBlock` (never `JuliaBegin`).
 #
-# Constructs with no node in the domain (short-circuit `&&`/`||`, `where`, keyword
-# args, splats, broadcast, string interpolation) raise a
-# clear error rather than being silently dropped.
+# A construct with no node in the domain raises a clear error rather than
+# being silently dropped.
 # ── Operator classification ───────────────────────────────────────────────────
 # Matches the operators the printer (`_julia_operator_string` / `JuliaToSyntax`)
 # knows how to render. Anything outside these sets falls through to `JuliaCall`,
