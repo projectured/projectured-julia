@@ -79,7 +79,7 @@ export ForceDirectedLayout
 export DeferredLayout, make_deferred_layout_engine, register_layout_engine!,
        resolve_layout_engine, make_pure_julia_layout_engine, ADVANCED_LAYOUT_LIMIT
 export GraphGraphToGraphLayout, GraphToGraphLayout, GraphGraphToGraphLayoutIoMap
-export GraphLayoutToGraphicsCanvas, GraphLayoutToGraphics, GraphToGraphics,
+export GraphLayoutToGraphicsCanvas, GraphToGraphics,
        GraphLayoutToGraphicsCanvasIoMap
 export GraphGraph, GraphVertex, GraphEdge, GraphConstraint, GraphLayout, VertexLayout, EdgeLayout
 

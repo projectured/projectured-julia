@@ -36,7 +36,7 @@ The size of the output canvas is a computed cell over the layout: the right and 
 
 **The content prints twice.** The first stage prints each content to measure it, and the second stage prints it again to draw it. Nothing caches the first print for the second. A large content in a vertex costs two prints.
 
-The two stages have no recursion of their own. `make_graph_projection_example` wraps them in a `NestingProjection` with a dispatcher for the content types. The natural renderer gives itself as the recursion, so a vertex content draws as it draws anywhere else.
+`GraphToGraphics(engine = GridEmbedding(); extent, border, constraints)` returns the chain of the two stages, a `ChainingProjection`. The two stages have no recursion of their own. `make_graph_projection_example` wraps them in a `NestingProjection` with a dispatcher for the content types. The natural renderer gives itself as the recursion, so a vertex content draws as it draws anywhere else.
 
 ### Selection and clicks
 
@@ -119,5 +119,4 @@ run_example(graph, projection; name = "graph")
 - With a pure-Julia engine, a self-loop edge gets a route of two equal points at the centre of its box, so it does not show.
 - The registered factory is not a cell, so the layout cell does not depend on it. A graph that is drawn before `ProjecturedAdaptagrams` loads keeps its layout until its vertices, edges, sizes or constraints change.
 - The constraint kinds `:align`, `:same_rank` and `:min_separation` have a name and no engine that implements them.
-- `GraphToGraphics` is a function with no method, and `GraphLayoutToGraphics` is exported but not defined. Compose the two stages instead.
 - The atom `graph/layout` is in the broken sets of `test/projectured/projection/CatalogTest.jl`. A `GraphLayout` printed alone has no recursion for the content of its vertices.

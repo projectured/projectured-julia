@@ -11,7 +11,7 @@
 # and routes.
 #
 # A `VertexLayout.vertex` field carries the **original `GraphVertex`** (by
-# identity), so the downstream `GraphLayoutToGraphics` projection recurses the same
+# identity), so the downstream `GraphLayoutToGraphicsCanvas` projection recurses the same
 # content again to draw it, and selection round-trips: `vertices[i]` ↔
 # `vertex_layouts[i].vertex` (tutorial School A — peel the one step this projection
 # owns and delegate the tail through the same field unchanged).

@@ -2,7 +2,7 @@
 #
 # ProcessDiagram → GraphGraph: the flowchart. The structured tree is walked once
 # into vertices and edges, so the stock `GraphToGraphLayout →
-# GraphLayoutToGraphics` stages draw the whole picture — boxes, arrows, the
+# GraphLayoutToGraphicsCanvas` stages draw the whole picture — boxes, arrows, the
 # current-node ring and the last-arrow re-stroke — with no process-specific
 # rendering code.
 #

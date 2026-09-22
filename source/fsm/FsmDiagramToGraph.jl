@@ -3,7 +3,7 @@
 # FsmDiagram → GraphGraph: the state diagram. One vertex per state, one directed
 # edge per transition that has a target, and the two graph highlights derived from
 # the diagram's live fields — so the stock `GraphToGraphLayout →
-# GraphLayoutToGraphics` stages draw the whole picture, including the current-state
+# GraphLayoutToGraphicsCanvas` stages draw the whole picture, including the current-state
 # ring and the last-transition re-stroke, with no fsm-specific rendering code.
 #
 # A vertex's content is the `FsmState` **itself**, held by identity, so clicking a

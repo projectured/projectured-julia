@@ -318,17 +318,21 @@ function _forward_to_selected(iomap::GraphLayoutToGraphicsCanvasIoMap, event)
 end
 
 """
-    GraphToGraphics(; engine=nothing)
+    GraphToGraphics(engine = GridEmbedding(); extent = nothing, border = 0,
+                    constraints = nothing) -> ChainingProjection
 
-Convenience pipeline straight to a `GraphicsCanvas` (no `TextToGraphics` step —
-like `TableToGraphics`). Composes the two graph stages; the content `recursion`
-is supplied by the enclosing `NestingProjection` in the example. Pass an engine
-to override the default `GridEmbedding`.
-
-This is provided as documentation of the intended composition; examples build the
-chain explicitly so they can thread the content projection as the recursion.
+The pipeline from a `GraphGraph` straight to a `GraphicsCanvas`, with no
+`TextToGraphics` step, like `TableToGraphics`: the chain of
+`GraphGraphToGraphLayout(engine; extent, border, constraints)` and
+`GraphLayoutToGraphicsCanvas()`. The stages have no recursion of their own, so
+the content of a vertex prints through the recursion that encloses the chain,
+for example a `NestingProjection`.
 """
-function GraphToGraphics end
+GraphToGraphics(engine::GraphLayoutEngine = GridEmbedding();
+                extent = nothing, border::Integer = 0, constraints = nothing) =
+    ChainingProjection(GraphGraphToGraphLayout(engine; extent = extent, border = border,
+                                               constraints = constraints),
+                       GraphLayoutToGraphicsCanvas())
 
 # ── Natural-projection registration ─────────────────────────────────────────
 # A graph is a diagram, not a syntax tree: it goes through its own two stages

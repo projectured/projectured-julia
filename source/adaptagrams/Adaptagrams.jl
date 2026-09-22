@@ -66,7 +66,7 @@ Native `GraphLayoutEngine`: libcola placement + libavoid routing.
 - `orthogonal`     libavoid orthogonal routes when `true`, else poly-line.
 - `node_margin`    the hard minimum gap kept on each side of every node during
   overlap removal (so the boxes still clear each other once
-  `GraphLayoutToGraphics` pads them, `_PAD` = 8 per side); also the inset of the
+  `GraphLayoutToGraphicsCanvas` pads them, `_PAD` = 8 per side); also the inset of the
   layout from the origin. Pass `nothing` (the default) to derive it from the
   vertex sizes — like `ideal_length`, a fixed margin leaves big card nodes nearly
   touching, so the auto value scales with the typical node size

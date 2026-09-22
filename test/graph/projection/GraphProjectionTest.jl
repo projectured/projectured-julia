@@ -631,6 +631,31 @@ end
     @test count(e -> e isa GraphicsCanvas, elems) >= 2
 end
 
+@testset "GraphToGraphics is the chain of the two stages" begin
+    @test :GraphLayoutToGraphics ∉ names(ProjecturedGraph.GraphModule)
+    v1 = GraphVertex(JsonString("a"))
+    v2 = GraphVertex(JsonString("b"))
+    g = GraphGraph([v1, v2], [GraphEdge(v1, v2; directed=true)])
+    content = make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20))
+
+    chain = GraphToGraphics()
+    @test chain isa ChainingProjection
+    @test chain.projections[1] isa GraphGraphToGraphLayout
+    @test chain.projections[1].engine isa GridEmbedding
+    @test chain.projections[2] isa GraphLayoutToGraphicsCanvas
+    canvas = print_document(NestingProjection(chain; recursion=content), g).output
+    @test canvas isa GraphicsCanvas
+    elems = collect(canvas.elements)
+    @test any(e -> e isa GraphicsPolyline && e.end_arrow, elems)
+    @test count(e -> e isa GraphicsRect, elems) >= 2
+
+    # The engine and the keywords of the first stage pass through.
+    chain = GraphToGraphics(SpringEmbedderLayout(); extent = (400, 300), border = 5)
+    @test chain.projections[1].engine isa SpringEmbedderLayout
+    @test chain.projections[1].extent == (400, 300)
+    @test chain.projections[1].border == 5
+end
+
 @testset "selection descends into vertex content" begin
     g = make_graph_document_example()
     proj = make_graph_projection_example(measure=(t, f) -> (length(t) * 10, 20))
