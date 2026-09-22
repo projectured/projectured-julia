@@ -25,15 +25,17 @@ end
 
 Write `document`'s natural text (see [`print_natural_text`](@ref)) to `path`. The
 projection is chosen by the document's type, so the content is always correct for
-the document; the guard only rejects writing it under a *different* registered
-format's extension (which would make a later `import_document` pick the wrong
-parser).
+the document. The guard rejects an extension whose registered parser is not the
+parser of the document's own format, because a later `import_document` would read
+the text with the wrong grammar. An extension with no parser passes, and so does a
+second name of the same format: a YAML document can go to `.yaml` or `.yml`.
 """
 function export_document(document::Document, path::AbstractString)
-    ext     = lowercase(splitext(path)[2])
-    natural = get_natural_extension(document)
-    (has_natural_parser(_ext_symbol(ext)) && ext != natural) &&
-        error("export_document: $(typeof(document)) exports as $natural, not $ext")
+    ext    = lowercase(splitext(path)[2])
+    parser = find_natural_parser(_ext_symbol(ext))
+    format = get_natural_format(typeof(document))
+    (parser === nothing || (format !== nothing && parser === find_natural_parser(format))) ||
+        error("export_document: $(typeof(document)) exports as $(get_natural_extension(document)), not $ext")
     write(path, print_natural_text(document))
     path
 end

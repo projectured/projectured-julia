@@ -95,6 +95,15 @@ function test_serialization()
             # Writing one format's text under another known format's extension is
             # rejected, so a later import_document can't pick the wrong parser.
             @test_throws Exception export_document(parse_json("1"), tempname() * ".sql")
+
+            # `.yml` is a second extension of the YAML format, read by the same
+            # parser, so a YAML document exports there and reads back. A `.json`
+            # path is still rejected for it.
+            yaml = parse_yaml("a: 1\n")
+            p = tempname() * ".yml"
+            @test export_document(yaml, p) == p
+            @test import_document(p) isa YamlMapping
+            @test_throws Exception export_document(yaml, tempname() * ".json")
         end
 
         @testset "operations" begin

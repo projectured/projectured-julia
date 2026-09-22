@@ -184,6 +184,15 @@ Whether a domain registered how to read `format` back.
 has_natural_parser(format::Symbol) = _lookup(_PARSERS, format) !== nothing
 
 """
+    find_natural_parser(format::Symbol) -> Function | Nothing
+
+The `parse(text) -> Document` registered for `format`, or `nothing` when no
+domain registered one. Two formats that return the same function are one grammar
+under two names, as `:yaml` and `:yml` are.
+"""
+find_natural_parser(format::Symbol) = _lookup(_PARSERS, format)
+
+"""
     parse_natural_text(format::Symbol, text) -> Document
 
 Read `text` of `format` into a document. Errors when no domain claimed the

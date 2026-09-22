@@ -44,7 +44,7 @@ end
 | --- | --- | --- | --- |
 | notations | a type | `register_natural_notation!(T, rung, make)` | `make_natural_projection`, `get_natural_entries` |
 | formats | a type | `register_natural_format!(T, format, extension)` | `get_natural_format`, `get_natural_extension` |
-| parsers | a format | `register_natural_parser!(format, parse)` | `parse_natural_text`, `has_natural_parser` |
+| parsers | a format | `register_natural_parser!(format, parse)` | `parse_natural_text`, `has_natural_parser`, `find_natural_parser` |
 | ladder | a pair of rungs | `register_natural_rung!(from, to, make)` | `make_natural_projection` |
 
 The parser is keyed by the format and not by a type, so a package can register a grammar without the projection that prints it. YAML uses this to read `.yml` with `register_natural_parser!(:yml, parse_yaml)`. The `make` of a `:graphics` notation takes `(; measure)`, the text measure of the backend, and the `make` of another notation takes no argument. The `make` of a ladder step always takes `(; measure)`. A row that is registered twice keeps the first, so a reload adds no copy.

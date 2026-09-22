@@ -22,7 +22,7 @@ A text file holds a `String`, and the editor edits a `PrimitiveString`. So `read
 
 ### Natural text
 
-`import_document(path)` reads the text and calls `parse_natural_text` with the format that the extension names. It raises an error for an extension that no domain registered. `export_document(document, path)` writes `print_natural_text(document)`. It raises an error when the extension names a registered format that is not the format of the document, so a later `import_document` of the same path can not select the wrong parser.
+`import_document(path)` reads the text and calls `parse_natural_text` with the format that the extension names. It raises an error for an extension that no domain registered. `export_document(document, path)` writes `print_natural_text(document)`. It raises an error when the parser registered for the extension is not the parser of the format of the document, so a later `import_document` of the same path can not select the wrong parser. `find_natural_parser` gives the two parsers. A second name of one format has the same parser, so a YAML document exports to `.yaml` and to `.yml`.
 
 Natural text holds no editor state. The selection and the collapse state are lost, and a document that holds an insertion placeholder has no valid text form, so its export does not parse again. A round trip holds for a data document, not for a document that you are still building.
 
@@ -82,5 +82,4 @@ tab  = make_file_tab("example.json", UndoBuffer)
 
 - Only `.json`, `.xml`, `.jl` and `.sql` define a seed. A missing `.md`, `.yaml`, `.rst` or `.math` file opens as `DocumentNothing()`.
 - `write_document_file` writes natural text for an extension that no domain registered, but `read_document_file` raises an error for the same path.
-- `export_document` raises an error for a YAML document and a `.yml` path. The guard compares the extension with the one extension of the format, `.yaml`, and `:yml` is a registered parser. Ctrl+S on a `YamlFile` saves through `save_file!` and is not affected.
 - A file document with no file name has no save and no reload: the two gestures return `nothing`. No "save as" exists.

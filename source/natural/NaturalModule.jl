@@ -66,7 +66,7 @@ import ..ProjectionModule: print_document
 export register_natural_domain!, register_natural_notation!, register_natural_format!,
        register_natural_parser!, register_natural_rung!,
        make_natural_projection, get_natural_extension, get_natural_format,
-       get_natural_entries, parse_natural_text, has_natural_parser,
+       get_natural_entries, parse_natural_text, has_natural_parser, find_natural_parser,
        print_natural_text
 export register_natural_syntax!, register_natural_graphics!, register_natural_fallback!,
        get_natural_syntax_entries, get_natural_graphics_entries, get_natural_fallback_entries
