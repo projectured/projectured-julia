@@ -169,15 +169,20 @@ memory cap of 20 GB. No second Julia process runs at the same time.
       values (`29fabbf5`); `test_video()` runs its layering guard (`7ef96815`);
       the twelve process atoms are in the catalog, and the gap of
       `test_catalog_coverage` went from 28 types to 17 (`fc771bb0`).
-- [ ] Group A11: the stale comments, the stale docstrings and the dead code.
+- [x] Group A11: a from item after a comma that the parser can not read is an
+      error (`2af1b01e`); about 31 stale comments and docstrings across 51
+      files; the dead fields and the dead function are removed; the two kernel
+      guides name a layer and no number (`5d0e23fa` to `94000602`).
 
 ### Step 5: tests, dead code, comments
 
 - [x] `test_video()` runs its layering guard; the process atoms are in the
       catalog. Group A10.
 - [x] `SelectTabOperation` is removed. Group A5.
-- [ ] The other dead code, and the stale comments and docstrings of section 7
-      of the survey plan. Group A11.
+- [x] The other dead code, and the stale comments and docstrings of section 7
+      of the survey plan. Group A11. `find_state`, `find_event` and
+      `find_timer` stay: the tests of the state machine call them, so the
+      survey was wrong about them.
 
 ### Step 6: close
 
@@ -257,5 +262,12 @@ memory cap of 20 GB. No second Julia process runs at the same time.
   `_build_select`, `insert_into_db!`, `update_db!` and `delete_from_db!` put an
   identifier between double quotes with no escape; the ODBC connection string
   is built with no escape, so a name with a `;` or a `}` changes it.
+- New fact from group A11: `documentation/package/kernel/architecture.md` has
+  the same layer drift, and worse: its table has 18 layers and leaves out
+  `performance`, `struct` and `intent`, against the 23 of `SEALING.md`.
+  `system-anatomy.md` links to it by the heading "the 18 kernel layers". This
+  is a rewrite of that guide, not a comment fix.
+- New fault from group A10, not fixed: `SELECT * FROM a, ` was still read as
+  `FROM a`; group A11 made it an error.
 - `test_catalog_coverage` fails on `main` for 28 types (Assistant, Process,
   Pane, FaultLog and others). It is not caused by this work.
