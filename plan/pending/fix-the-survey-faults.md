@@ -151,9 +151,14 @@ memory cap of 20 GB. No second Julia process runs at the same time.
       turn streams, and two old assistant tests follow the code (`210aa515`);
       the MCP start puts the previous logger back (`f49a036b`);
       `test_message_log` drains a feed (`6803710e`).
-- [ ] Group A8: the SQL sign and `''` escape, the kinded copy of a `ListNode`,
-      the key of `TextLineNumbering`, the natural test types, the coordinates
-      of `WidgetTransformPane`.
+- [x] Group A8: the SQL sign and the `''` escape (`075318c9`); the kinded copy
+      of a `ListNode` (`4f2e2cd4`); a key through `TextLineNumbering` goes to
+      the reader of its input (`a26de6dd`); the natural tests restore the
+      global tables (`765a8777`); `WidgetTransformPane` maps every pointer
+      event through the inverse transform (`e10b3bbf`); each database of a
+      catalog reads through its own connection, opened when a person opens it
+      (`7dd8f4f4`).
+- [ ] Group A9: the faults that group A8 found.
 
 ### Step 5: tests, dead code, comments
 
@@ -229,5 +234,10 @@ memory cap of 20 GB. No second Julia process runs at the same time.
   returns the raw gesture; the SQL tokenizer skips a sign, so `WHERE a = -1`
   reads as `a = 1`, and a `''` in a string literal is not unescaped; the natural
   tests register test types in the global tables.
+- New faults from group A8: `sync_document!` of a `ListNode` shadow overflows
+  the stack; the SQL parser drops a WHERE condition that it can not read, with
+  no error (`a - 1 = 0`, `a = -b`, `LIKE`, and everything after `AND` or `OR`
+  from there); `WHERE a IN (1, 2)` does not parse; `1e5` reads as `1`; the
+  ODBC catalog queries put a name into the SQL text without escaping a `'`.
 - `test_catalog_coverage` fails on `main` for 28 types (Assistant, Process,
   Pane, FaultLog and others). It is not caused by this work.
