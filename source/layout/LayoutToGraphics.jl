@@ -125,7 +125,9 @@ function _wrap_child(child::GraphicsDocument, x_cell::Cell, y_cell::Cell)
 end
 
 """
-    clip_child_to_slot(child, iomap, x, y, slot_x, slot_y, slot_w, slot_h, clip_x, clip_y)
+    clip_child_to_slot(child, iomap; x_cell, y_cell, slot_x, slot_y, slot_w, slot_h,
+                       clip_x,
+                       clip_y)
 
 A child drawn inside the slot it was allocated, on each axis the slot's extent
 was known independently of the child — §3b of the layout rules: the container
@@ -135,7 +137,8 @@ position the alignment gave it, expressed inside the viewport. Every cell is
 a `Cell`, so a slot that moves moves the viewport with it. A grid draws its
 cells through this, and so does a table whose rows are a list.
 """
-function clip_child_to_slot(child::GraphicsDocument, cim, x_cell::Cell, y_cell::Cell,
+function clip_child_to_slot(child::GraphicsDocument, cim;
+                            x_cell::Cell, y_cell::Cell,
                             slot_x::Cell, slot_y::Cell, slot_w::Cell, slot_h::Cell,
                             clip_x::Bool, clip_y::Bool)
     vx = clip_x ? slot_x : x_cell
@@ -441,7 +444,7 @@ function _alloc_cell(available_cell::Cell, child_iomaps::Vector, child_docs::Vec
             wts[i]    = layout_weight(doc, axis)
         end
         gap = Int(gap_cell[])
-        allocate_axis(avail, mins, maxs, prefs, wts, gap, n)
+        allocate_axis(avail; mins, maxs, prefs, weights = wts, gap, n)
     end)
 end
 
@@ -743,7 +746,7 @@ function _hl_build(recursion, doc, ctx)
                 prefs[i]  = layout_preferred(child, :x, intrinsic, default)
                 wts[i]    = layout_weight(child, :x, default)
             end
-            allocate_axis(Int(avail_w[]), mins, maxs, prefs, wts, gap_cell[], n)
+            allocate_axis(Int(avail_w[]); mins, maxs, prefs, weights = wts, gap = gap_cell[], n)
         end)
     end
 
@@ -908,7 +911,7 @@ function _vl_build(recursion, doc, ctx)
                 prefs[i]  = layout_preferred(child, :y, intrinsic, default)
                 wts[i]    = layout_weight(child, :y, default)
             end
-            allocate_axis(Int(avail_h[]), mins, maxs, prefs, wts, gap_cell[], n)
+            allocate_axis(Int(avail_h[]); mins, maxs, prefs, weights = wts, gap = gap_cell[], n)
         end)
     end
 
@@ -1093,7 +1096,7 @@ function _gl_extents_cell(count_cell, policy_of, content::Vector{Cell},
                 _gl_axis_inputs(policy, reads(k) ? content[k][] : 0)
         end
         (avail === nothing || !weighted) && return prefs
-        allocate_axis(Int(avail[]), mins, maxs, prefs, wts, gap[], c)
+        allocate_axis(Int(avail[]); mins, maxs, prefs, weights = wts, gap = gap[], n = c)
     end)
 end
 
@@ -1265,9 +1268,14 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         clip_x = _gl_offers(policy_of_column(col))
         clip_y = _gl_offers(policy_of_row(row))
         if clip_x || clip_y
-            push!(wrapped, clip_child_to_slot(c, child_iomaps[i], child_x[i], child_y[i],
-                                              col_x[col], row_y[row], col_w[col], row_h[row],
-                                              clip_x, clip_y))
+            push!(wrapped, clip_child_to_slot(c, child_iomaps[i]; x_cell = child_x[i],
+                                              y_cell = child_y[i],
+                                              slot_x = col_x[col],
+                                              slot_y = row_y[row],
+                                              slot_w = col_w[col],
+                                              slot_h = row_h[row],
+                                              clip_x,
+                                              clip_y))
         else
             push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
         end
@@ -1920,9 +1928,9 @@ function _al_build(recursion, doc::AnchoredLayout, ctx)
                             Int(entry.offset_x), Int(entry.offset_y)))
             push!(targets, _al_target_rect(entry, content_iomap))
         end
-        compute_anchored_positions(entries, targets,
-                                   Int(doc.bounding_width), Int(doc.bounding_height),
-                                   Int(doc.stacking_gap))
+        compute_anchored_positions(entries, targets; bounding_w = Int(doc.bounding_width),
+                                   bounding_h = Int(doc.bounding_height),
+                                   stacking_gap = Int(doc.stacking_gap))
     end)
 
     child_x = Cell[ComputedCell(() -> Int32(placed[][i][1])) for i in 1:n]

@@ -248,7 +248,7 @@ function _fit_and_pin!(positions, routes, nodes, widths, heights, constraints,
             x, y, w, h = positions[objectid(nodes[i])]
             cx[i] = x + w/2; cy[i] = y + h/2
         end
-        transform = get_extent_transform(cx, cy, widths, heights, 1:n, extent, border)
+        transform = get_extent_transform(cx, cy; widths, heights, indices=1:n, extent, border)
         if transform !== nothing
             fx, fy, x1, y1, ox, oy = transform
             map_x(x) = ox + (x - x1) * fx

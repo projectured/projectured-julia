@@ -225,6 +225,8 @@ place, reusing every other field's Cell object. No node is retargeted after
 anything else references it (prerequisite for the immutable kind-parameterized
 stem — plan/pending/cell-kind-documents.md, Phase 0).
 """
+# @positional: the arity of the printer of the projection protocol, with the
+# builder of the template beside it. The macro emits a method of that shape.
 print_template_rule(p, recursion, doc, ctx, builder) = _dispatch_print(p, recursion, doc, ctx, builder(p, doc))
 
 # Dispatch an *already-built* output on its shape. Factored out of `print_template_rule` so a
@@ -1317,6 +1319,8 @@ recursive and type-dispatching wrappers hand a leaf its own iomap
 and already carry 4-arg methods of their own, so a method keyed on the iomap would be
 ambiguous with every one of them.
 """
+# @positional: the arity of the reader of the projection protocol. The macro
+# emits a method of that shape.
 function read_template_intent(p, recursion, change::Intent, iomap)
     if iomap isa RuleIoMap && change.operation !== nothing &&
        change.gesture isa Union{KeyPress, KeyDown}

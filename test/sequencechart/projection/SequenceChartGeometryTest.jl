@@ -161,18 +161,18 @@ function test_sequencechart_geometry()
             # by endpoint membership would erase exactly those.
             sources = [1, 1, 5]
             targets = [2, 5, 5]
-            visible = SCG.get_visible_arrows(coordinates, sources, targets, 1.8, 2.2)
+            visible = SCG.get_visible_arrows(coordinates, sources, targets; lo=1.8, hi=2.2)
             @test 2 in visible          # spans the window, neither end inside
             @test !(1 in visible)       # entirely left of it
             @test !(3 in visible)       # entirely right of it
 
             # The horizon widens candidacy: an arrow just outside still counts,
             # because a split arrow's stub has to be drawn from somewhere.
-            @test 1 in SCG.get_visible_arrows(coordinates, sources, targets, 1.8, 2.2; horizon=1.0)
+            @test 1 in SCG.get_visible_arrows(coordinates, sources, targets; lo=1.8, hi=2.2, horizon=1.0)
 
             # Out-of-range endpoints are dropped rather than throwing: a
             # half-written table renders what it can.
-            @test isempty(SCG.get_visible_arrows(coordinates, [99], [1], 0.0, 4.0))
+            @test isempty(SCG.get_visible_arrows(coordinates, [99], [1]; lo=0.0, hi=4.0))
         end
 
         @testset "ticks" begin
@@ -311,7 +311,7 @@ function test_sequencechart_geometry()
             coordinates = collect(range(0.0, 100.0; length=n))
             axes = [1 + (i % 2) for i in 1:n]
             scale = SCG.AxisScale(0.0, 100.0, 0.0, 200.0)
-            kept = SCG.decimate_events(coordinates, axes, scale, 1, n)
+            kept = SCG.decimate_events(coordinates, axes; scale, i0=1, i1=n)
             @test length(kept) <= 2 * 201
             @test length(kept) < n
             @test issorted(kept)
@@ -320,24 +320,24 @@ function test_sequencechart_geometry()
             # wide, drawing every one of them paints the same ground twice.
             # Separating by the mark's radius keeps the run unbroken and cuts
             # the count by the width of a mark.
-            sparse = SCG.decimate_events(coordinates, axes, scale, 1, n; separation=3)
+            sparse = SCG.decimate_events(coordinates, axes; scale, i0=1, i1=n, separation=3)
             @test length(sparse) < length(kept)
             @test length(sparse) <= 2 * (201 ÷ 3 + 2)
 
             # But a different kind is never collapsed away: a crowded stretch
             # must still show that something unusual happened in it.
             kinds = [i == 500 ? 2 : 1 for i in 1:n]
-            with_kinds = SCG.decimate_events(coordinates, axes, scale, 1, n;
+            with_kinds = SCG.decimate_events(coordinates, axes; scale, i0=1, i1=n,
                                              kinds=kinds, separation=3)
             @test 500 in with_kinds
 
             # Zoomed in far enough that no two events share a pixel, everything
             # survives — decimation is exact, not sampling.
             fine = SCG.AxisScale(0.0, 1.0, 0.0, 4000.0)
-            all_kept = SCG.decimate_events(coordinates, axes, fine, 1, 10)
+            all_kept = SCG.decimate_events(coordinates, axes; scale=fine, i0=1, i1=10)
             @test length(all_kept) == 10
 
-            @test isempty(SCG.decimate_events(coordinates, axes, scale, 5, 4))
+            @test isempty(SCG.decimate_events(coordinates, axes; scale, i0=5, i1=4))
         end
 
         @testset "arrow coverage dedup" begin
@@ -365,8 +365,8 @@ function test_sequencechart_geometry()
             times = [0.0, 1.0, 2.0, 3.0, 4.0]
 
             # Sample-and-hold: a value paints from its own moment to the next.
-            intervals = SCG.get_band_intervals([0.0, 2.0], [1.0, 2.0], nothing,
-                                           times, coordinates, -10.0, 10.0)
+            intervals = SCG.get_band_intervals([0.0, 2.0], [1.0, 2.0]; events=nothing,
+                                           event_times=times, coordinates, lo=-10.0, hi=10.0)
             @test length(intervals) == 2
             @test intervals[1][1] ≈ 0.0 && intervals[1][2] ≈ 2.0
             @test intervals[1][3] == 1.0
@@ -375,22 +375,24 @@ function test_sequencechart_geometry()
             # A band time becomes a coordinate through the *event* timeline: the
             # band's own samples say nothing about where the axis is stretched.
             stretched = SCG.get_timeline_coordinates(times, nothing, :step)
-            through = SCG.get_band_intervals([2.0], [1.0], nothing, times,
-                                         stretched, -10.0, 10.0)
+            through = SCG.get_band_intervals([2.0], [1.0]; events=nothing, event_times=times,
+                                         coordinates=stretched, lo=-10.0, hi=10.0)
             @test through[1][1] ≈ stretched[3]
 
             # Anchoring to an event row places an edge exactly, which a bare
             # time cannot do when several events share one instant.
             burst_times = [0.0, 5.0, 5.0, 5.0, 9.0]
             burst = SCG.get_timeline_coordinates(burst_times, nothing, :nonlinear)
-            anchored = SCG.get_band_intervals([5.0], [1.0], [4], burst_times, burst, -10.0, 10.0)
+            anchored = SCG.get_band_intervals([5.0], [1.0]; events=[4], event_times=burst_times,
+                                          coordinates=burst, lo=-10.0, hi=10.0)
             @test anchored[1][1] ≈ burst[4]
-            loose = SCG.get_band_intervals([5.0], [1.0], nothing, burst_times, burst, -10.0, 10.0)
+            loose = SCG.get_band_intervals([5.0], [1.0]; events=nothing, event_times=burst_times,
+                                        coordinates=burst, lo=-10.0, hi=10.0)
             @test loose[1][1] ≈ burst[2]     # the region's near edge, not row 4
 
             # Clipped to the window it was asked about.
-            @test isempty(SCG.get_band_intervals([0.0], [1.0], nothing, times,
-                                             coordinates, 90.0, 100.0))
+            @test isempty(SCG.get_band_intervals([0.0], [1.0]; events=nothing, event_times=times,
+                                             coordinates, lo=90.0, hi=100.0))
         end
     end
 end

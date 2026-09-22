@@ -266,9 +266,9 @@ function _split!(editor, orientation::Symbol)
     tree === nothing && return nothing
     group = get_pane_focused_group(tree)
     group === nothing && return nothing
-    apply_pane_operation!(tree, make_pane_split_operation(tree, group, orientation,
-                                                          orientation === :vertical ? :right : :below,
-                                                          default_new_pane_tab()))
+    apply_pane_operation!(tree, make_pane_split_operation(tree, group; orientation,
+                                                          side = orientation === :vertical ? :right : :below,
+                                                          tab = default_new_pane_tab()))
     nothing
 end
 

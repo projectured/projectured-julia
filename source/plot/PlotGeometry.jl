@@ -250,7 +250,7 @@ function get_visible_range(x, lo::Real, hi::Real; sorted::Bool=true)
 end
 
 """
-    decimate_minmax(x, y, xs, ys, i0, i1) -> Vector{Tuple{Int,Int}}
+    decimate_minmax(x, y; xs, ys, i0, i1) -> Vector{Tuple{Int,Int}}
 
 Pixel points for a line through `x[i0:i1]`/`y[i0:i1]`, with every run of samples
 landing on the same pixel column reduced to at most four: the first, the
@@ -262,7 +262,7 @@ decimated polyline is pixel-identical to the full one at this scale, not an
 approximation. Output length is bounded by four times the plot width no matter
 how long the columns are.
 """
-function decimate_minmax(x, y, xs::AxisScale, ys::AxisScale, i0::Integer, i1::Integer)
+function decimate_minmax(x, y; xs::AxisScale, ys::AxisScale, i0::Integer, i1::Integer)
     out = Tuple{Int,Int}[]
     i1 >= i0 || return out
     n = min(length(x), length(y))
@@ -349,7 +349,7 @@ function build_pins_segments(points::AbstractVector, baseline::Integer)
 end
 
 """
-    find_nearest_sample(x, y, xs, ys, px, py, i0, i1; sorted=true, tolerance=8)
+    find_nearest_sample(x, y; xs, ys, px, py, i0, i1, sorted=true, tolerance=8)
       -> (index, distance) | nothing
 
 The sample nearest a pixel, or `nothing` when none is within `tolerance` pixels.
@@ -360,8 +360,8 @@ million-sample series costs the same as picking one out of a hundred. An
 unsorted column has no such shortcut and is scanned over the given index range,
 which the caller is expected to have bounded.
 """
-function find_nearest_sample(x, y, xs::AxisScale, ys::AxisScale, px::Real, py::Real,
-                        i0::Integer, i1::Integer; sorted::Bool=true, tolerance::Real=8)
+function find_nearest_sample(x, y; xs::AxisScale, ys::AxisScale, px::Real, py::Real,
+                        i0::Integer, i1::Integer, sorted::Bool=true, tolerance::Real=8)
     n = min(length(x), length(y))
     i0 = max(i0, 1); i1 = min(i1, n)
     i1 >= i0 || return nothing
@@ -394,7 +394,7 @@ end
 # ── Folding ──────────────────────────────────────────────────────────────
 
 """
-    fold_scatter(x, y, xs, ys, cell_px, i0, i1; levels=8) -> Vector{Tuple{Int,Int,Int,Int,Int}}
+    fold_scatter(x, y; xs, ys, cell_px, i0, i1, levels=8) -> Vector{Tuple{Int,Int,Int,Int,Int}}
 
 Fold an overplotted point cloud into a density map, returning
 `(x, y, width, height, level)` bands where `level` runs from 1 to `levels`.
@@ -410,8 +410,8 @@ quantized to `levels` before neighbouring cells in a row are merged into a
 single band, so a dense region costs a handful of wide bands instead of
 hundreds of little squares.
 """
-function fold_scatter(x, y, xs::AxisScale, ys::AxisScale, cell_px::Integer,
-                      i0::Integer, i1::Integer; levels::Integer=8)
+function fold_scatter(x, y; xs::AxisScale, ys::AxisScale, cell_px::Integer,
+                      i0::Integer, i1::Integer, levels::Integer=8)
     cell = max(Int(cell_px), 1)
     nlev = max(Int(levels), 1)
     counts = Dict{Tuple{Int,Int},Int}()
@@ -596,7 +596,7 @@ end
 # ── Legend ───────────────────────────────────────────────────────────────
 
 """
-    compute_legend_layout(sizes, horizontal, area_w, area_h; swatch, gap, line_gap, pad)
+    compute_legend_layout(sizes; horizontal, area_w, area_h, swatch, gap, line_gap, pad)
       -> (; cols, rows, col_w, row_h, box_w, box_h, shown, truncated)
 
 Pack legend entries of the given measured `(width, height)` text sizes into a
@@ -608,8 +608,8 @@ When the entries do not all fit, `shown` is how many are drawn and `truncated`
 says the caller should replace the last slot with an "and N more" line — which
 is why `shown` leaves room for it rather than filling the box.
 """
-function compute_legend_layout(sizes::AbstractVector, horizontal::Bool,
-                       area_w::Real, area_h::Real;
+function compute_legend_layout(sizes::AbstractVector;
+                       horizontal::Bool, area_w::Real, area_h::Real,
                        swatch::Integer=14, gap::Integer=6,
                        line_gap::Integer=4, pad::Integer=6)
     n = length(sizes)
@@ -688,7 +688,7 @@ function compute_bin_values(values, nbins::Integer)
 end
 
 """
-    compute_histogram_values(edges, values, cumulative, density, total) -> Vector{Float64}
+    compute_histogram_values(edges, values; cumulative, density, total) -> Vector{Float64}
 
 The four histogram value transforms, as the cross product of two flags: raw
 counts, a density (count per unit bin width per total weight), a running sum,
@@ -697,7 +697,7 @@ and a CDF (running sum over total weight).
 `total` is the weight the density and CDF forms normalize by — pass the sum of
 the bin values plus any under/overflow so the CDF really reaches 1.
 """
-function compute_histogram_values(edges::AbstractVector, values::AbstractVector,
+function compute_histogram_values(edges::AbstractVector, values::AbstractVector;
                           cumulative::Bool, density::Bool, total::Real=0.0)
     n = length(values)
     out = zeros(Float64, n)

@@ -222,7 +222,7 @@ function _sync_reflected_children!(kids, object, policy::SyncPolicy, depth::Int)
     nc = length(kids)
     tail = nc > 0 && kids[nc] isa AUnsyncedDocument ? kids[nc] : nothing
     shown = tail === nothing ? nc : nc - 1
-    limit = sync_element_limit(policy, ns, shown, tail !== nothing && tail.requested)
+    limit = sync_element_limit(policy, ns; shown, requested = tail !== nothing && tail.requested)
 
     # One pass over at most `limit + 1` children: the extra one names the tail.
     i, first_hidden = 0, nothing
