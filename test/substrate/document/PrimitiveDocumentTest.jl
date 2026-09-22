@@ -95,11 +95,56 @@ end
     @test doc.value === nothing
 end
 
-@testset "number non-parseable result becomes nothing" begin
+@testset "a character that can not be part of a number leaves the number" begin
+    # The value, its text and the caret stay where they were.
+    for replacement in ("x", ",", " ", "1x")
+        doc = PrimitiveNumber(1)
+        set_selection!(doc, _value_range_ref(1, 1))
+        op = ReplaceNumberRangeOperation(_value_range_ref(1, 1), replacement)
+        evaluate_operation((document=doc,), op)
+        @test doc.value === 1
+        range = _cursor_at(doc)
+        @test range.start == 1 && range.stop == 1
+    end
+end
+
+@testset "a string edit of a number leaves it for such a character too" begin
+    # A text layer edits the field of a number with a string edit.
+    doc = PrimitiveNumber(42)
+    set_selection!(doc, _value_range_ref(2, 2))
+    evaluate_operation((document=doc,), ReplaceStringRangeOperation(_value_range_ref(2, 2), "a"))
+    @test doc.value === 42
+    range = _cursor_at(doc)
+    @test range.start == 2 && range.stop == 2
+    evaluate_operation((document=doc,), ReplaceStringRangeOperation(_value_range_ref(2, 2), "5"))
+    @test doc.value === 425
+end
+
+@testset "a prefix of a number that does not parse yet stays an edit" begin
+    # `1e` and `-` are on the way to a number, so the key is not ignored. The
+    # value is `nothing` until the text parses again.
+    for (start, stop, replacement) in ((1, 1, "e"), (0, 1, "-"), (0, 1, "."), (1, 1, "+"))
+        doc = PrimitiveNumber(1)
+        op = ReplaceNumberRangeOperation(_value_range_ref(start, stop), replacement)
+        evaluate_operation((document=doc,), op)
+        @test doc.value === nothing
+    end
     doc = PrimitiveNumber(1)
-    op = ReplaceNumberRangeOperation(_value_range_ref(1, 1), "x")
+    evaluate_operation((document=doc,), ReplaceNumberRangeOperation(_value_range_ref(1, 1), "e3"))
+    @test doc.value == 1000.0
+end
+
+@testset "a letter typed into a number through the text chain is ignored" begin
+    chain = ChainingProjection(PrimitiveToText(), TextToGraphics(measure = measure_truetype_text))
+    doc = PrimitiveNumber(42)
+    set_selection!(doc, _value_range_ref(2, 2))
+    op = read_intent(chain, print_document(chain, doc), KeyPress('a'))
+    op === nothing || evaluate_operation((document=doc,), op)
+    @test doc.value === 42
+    @test _cursor_at(doc).start == 2
+    op = read_intent(chain, print_document(chain, doc), KeyPress('5'))
     evaluate_operation((document=doc,), op)
-    @test doc.value === nothing
+    @test doc.value === 425
 end
 
 # ── read_intent producer ────────────────────────────────────────────

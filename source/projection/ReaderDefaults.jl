@@ -53,6 +53,10 @@ function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceStringRangeOper
     # `.elements[i]` step for a nested one), which `_targets_introduced_output` detects.
     _targets_introduced_output(new_ref) && return nothing
     if w isa AtomicWiring && w.retype !== nothing
+        # A number declines a key that can not be part of a number, so the key
+        # makes no edit, and no undo step, that the number then ignores.
+        w.retype === ReplaceNumberRangeOperation &&
+            !has_only_number_characters(op.replacement) && return nothing
         return w.retype(new_ref, op.replacement)
     end
     return ReplaceStringRangeOperation(new_ref, op.replacement)

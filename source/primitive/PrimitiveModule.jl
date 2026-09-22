@@ -20,6 +20,7 @@ import ..OperationModule: evaluate_operation, reroot_operation, operation_refere
 import ..SerializationModule: make_pred_document
 
 export PrimitiveDocument, ReplaceRangeOperation, ReplaceNumberRangeOperation, ReplaceStringRangeOperation
+export has_only_number_characters
 export ObjectField, get_object_field_value, get_object_field_name
 
 

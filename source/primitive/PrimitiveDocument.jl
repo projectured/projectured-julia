@@ -100,12 +100,29 @@ step is `FieldReferenceStep("value")`. The path up to those two steps locates th
 target `PrimitiveNumber`. After evaluation the target's `selection` is updated
 to a zero-width cursor at `s + length(replacement)`.
 
-An empty result sets the value to `nothing`.
+An empty result sets the value to `nothing`, and so does a text that does not
+parse, such as `1e` or `-` on the way to a number. A `replacement` with a
+character that can not be part of a number changes nothing: the value, its text
+and the selection stay as they are. See [`has_only_number_characters`](@ref).
 """
 struct ReplaceNumberRangeOperation <: Operation
     reference::Reference
     replacement::String
 end
+
+"""
+    has_only_number_characters(text) -> Bool
+
+Whether every character of `text` can be part of the text of a number: a digit,
+a sign, a decimal point or an exponent mark. The empty text, which a deletion
+puts in, is one.
+
+A number edit whose replacement fails this test is ignored, so a letter typed
+into `42` leaves `42`. A text that passes it can still fail to parse, such as
+`1e`, and that edit is kept, because the next key can make it a number.
+"""
+has_only_number_characters(text::AbstractString) =
+    all(character -> isdigit(character) || character in ('+', '-', '.', 'e', 'E'), text)
 
 """
     ReplaceStringRangeOperation(reference, replacement)
@@ -165,6 +182,7 @@ end
 # value (an empty/cleared field reparses from ""), so it does not go through the
 # representation-dispatched `splice_value!` — it forces the number path here.
 function evaluate_operation(editor, op::ReplaceNumberRangeOperation)
+    has_only_number_characters(op.replacement) || return
     document = editor.document
     split = _split_replace_reference(op.reference)
     split === nothing && return            # no editable slot (e.g. projection-introduced span)
@@ -185,8 +203,13 @@ function evaluate_operation(editor, op::ReplaceStringRangeOperation)
     target_path, field_name, range_step = split
     target = evaluate_reference(document, target_path)
     field = Symbol(field_name)
-    splice_value!(target, field, getproperty(target, field),
-                  range_step.start, range_step.stop, op.replacement)
+    value = getproperty(target, field)
+    # A text layer edits a number with a string edit, and the number ignores it
+    # the way it ignores a number edit. A `Bool` is a `Number` to Julia and not
+    # to a person, so its edit is not filtered here.
+    value isa Number && !(value isa Bool) &&
+        !has_only_number_characters(op.replacement) && return
+    splice_value!(target, field, value, range_step.start, range_step.stop, op.replacement)
     _replace_selection_with_cursor!(document, op)
 end
 

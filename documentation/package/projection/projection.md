@@ -29,7 +29,7 @@ No projection here names a document type of a domain. A generic projection works
 - **`SwitchingProjection` records which branch printed.** The reader then goes to the same branch, also after the switch cell changes.
 - **`CopyingProjection` copies a `ListNode` lazily.** Only the head is copied at once; `prev` and `next` are cells that copy on the first read. So a copy of an infinite list costs one node.
 
-`ReaderDefaults.jl` holds the default reader for a text edit through a template rule. It is here and not in the kernel, because it names `ReplaceStringRangeOperation`, a type of `ProjecturedPrimitive`. It returns `nothing` for a text edit on a leaf with no bound field, such as `JsonNull`, and for a text edit of a delimiter that no field produces. The raw key then goes on to the structural gestures.
+`ReaderDefaults.jl` holds the default reader for a text edit through a template rule. It is here and not in the kernel, because it names `ReplaceStringRangeOperation`, a type of `ProjecturedPrimitive`. It returns `nothing` for a text edit on a leaf with no bound field, such as `JsonNull`, and for a text edit of a delimiter that no field produces. The raw key then goes on to the structural gestures. A leaf whose `retype` is `ReplaceNumberRangeOperation` also returns `nothing` for a text with a character that can not be part of a number, so a letter typed into a number makes no edit; see [primitive.md](../primitive/primitive.md#the-range-edits).
 
 ## How it fits
 

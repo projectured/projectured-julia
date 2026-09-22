@@ -121,6 +121,38 @@ end
     @test read_intent(chain, print_document(chain, n), KeyPress('5')) isa ReplaceNumberRangeOperation
 end
 
+@testset "a letter typed into a number is ignored" begin
+    chain = ChainingProjection(RecursiveProjection(JsonToSyntax()),
+                               RecursiveProjection(SyntaxToText()),
+                               TextToGraphics(measure = measure_truetype_text))
+    # Type `key` at the caret `caret`, and evaluate what the chain reads.
+    function type_key!(document, caret, key)
+        set_selection!(document, caret)
+        op = read_intent(chain, print_document(chain, document), KeyPress(key))
+        op === nothing || evaluate_operation(_JsonReaderEditor(document, nothing), op)
+        op
+    end
+    # The number is the document: the reader declines the key.
+    for key in ('a', ',', ' ', 'x')
+        n = JsonNumber(42)
+        @test type_key!(n, @reference(n, value{2}), key) === nothing
+        @test n.value === 42
+        @test render(print_document(RecursiveProjection(JsonToSyntax()), n).output) == "42"
+    end
+    # A key that can be part of a number stays an edit, also when the text does
+    # not parse yet.
+    n = JsonNumber(42)
+    @test type_key!(n, @reference(n, value{2}), 'e') isa ReplaceNumberRangeOperation
+    @test n.value === nothing
+    # The number is in an array: the edit keeps the value, and the array its length.
+    arr = JsonArray([JsonNumber(42)])
+    type_key!(arr, @reference(arr, elements[1].value{2}), 'a')
+    @test arr[1].value === 42
+    @test length(arr.elements) == 1
+    type_key!(arr, @reference(arr, elements[1].value{2}), '5')
+    @test arr[1].value === 425
+end
+
 @testset "array insert appends an insertion and selects it" begin
     arr = JsonArray([JsonNumber(1)])
     op = read_key(arr, whole, KeyPress(','))
