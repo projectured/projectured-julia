@@ -15,16 +15,16 @@ renders one into its own schema. Three consumers, three directions, and no
 knowledge of each other.
 
 ```
-layer 15  tool/    the capability surface     — no LLM, no MCP
-layer 16  llm/     the provider abstraction   — no MCP, no agent
-layer 17  agent/   the glue                   — llm + tools + a target
+tool/    the capability surface     — no LLM, no MCP
+llm/     the provider abstraction   — no MCP, no agent
+agent/   the glue                   — llm + tools + a target
 ```
 
 The order is a real one: an LLM request carries the tools the model may call, so
 `llm` sits on `tool`; the loop drives a model against a tool set, so `agent` sits
 on both.
 
-## Layer 15 — `tool/`: what the editor can be asked to do
+## `tool/`: what the editor can be asked to do
 
 ```
 Tool.jl           Tool (an action), Resource (a read-only datum), MeaningModel, ToolSet
@@ -184,7 +184,7 @@ of the answer says why. For a model
 that is not installed, the reason says how to install it: `Run ollama pull
 nomic-embed-text`.
 
-## Layer 16 — `llm/`: how the editor talks to a model
+## `llm/`: how the editor talks to a model
 
 ```
 Llm.jl         the Llm supertype; the stream_turn and render_tool_schema seams; the meaning model
@@ -366,7 +366,7 @@ it buys is that a name outside the list fails in the round that used it, with an
 error the model reads and corrects, instead of the model choosing among thousands
 of names that mean nothing to its task.
 
-## Layer 17 — `agent/`: the two directions
+## `agent/`: the two directions
 
 ```
 AgentModule.jl  (AgentModule)  inbound  — make/start/stop_agent_server!, run_on_editor_task!

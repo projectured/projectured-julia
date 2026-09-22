@@ -434,7 +434,7 @@ See [the operations guide](operation.md) for examples.
 The material above is *how* to run and script an editor. The rest of this guide
 is the layer's **structure** — where the code lives and what it depends on.
 
-Layer 18 of the kernel is the **read-eval-print loop** described under
+The editor layer of the kernel is the **read-eval-print loop** described under
 [The Read-Eval-Print loop](#the-read-eval-print-loop) above: it pulls together
 every lower layer into the frame-by-frame drive — read from the device, evaluate
 the gesture into an operation, apply the operation to the document, print the
