@@ -191,7 +191,13 @@ function test_application()
         end
 
         @testset "the warm-up of a build" begin
-            @test_logs min_level = Base.CoreLogging.Warn warm_application()
+            document = @test_logs min_level = Base.CoreLogging.Warn warm_application()
+            # The warm-up ends in the tab it made with the Insert key, and the tab
+            # holds the document that the typed name commits. A warm-up that
+            # stops short of it leaves the first key in the name buffer to compile.
+            @test document !== nothing
+            focus = get_pane_focus(_app_window(document))
+            @test focus !== nothing && focus[1].tabs[focus[2]].content isa EvaluatorToplevel
         end
 
         dir = mktempdir()

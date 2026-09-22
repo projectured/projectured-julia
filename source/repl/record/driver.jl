@@ -31,6 +31,11 @@ const WIDTH, HEIGHT = 1600, 1000
 # recording too. A recording is only allowed to replace it if it is a superset.
 ProjecturedExample.precompile_workload()
 
+# The warm-up a binary runs: the application window, and a tab made with the
+# Insert key. The examples below never type into a name buffer, and its first
+# key compiles a method for every document type that the buffer can make.
+ProjecturedExample.warm_application()
+
 backend = SdlBackend()
 initialize_backend!(backend)
 devices = Device[Display(), Keyboard(), Mouse()]

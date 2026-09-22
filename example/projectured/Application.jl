@@ -461,15 +461,21 @@ end
 # ── The warm-up of a build ───────────────────────────────────────────────────
 
 """
-    warm_application() -> Nothing
+    warm_application() -> document or nothing
 
 Run the application once without a window, so that a build compiles what a
 person does first: several file formats, a click in the navigator, Enter on a
-file, a key in a file, and a save. It works in a temporary directory. A failure
-is logged and does not stop the build.
+file, a key in a file, a save, and a new tab made with the Insert key. It works
+in a temporary directory. Answers the application document, or `nothing` when
+the warm-up failed. A failure is logged and does not stop the build.
+
+The new tab gets its name one key at a time, as a person types it. The first key
+lists every document type that the name buffer can make, and that list compiles
+a method for each type. Without the warm-up, the first key waits for all of them.
 """
 function warm_application()
     directory = mktempdir()
+    warmed = nothing
     try
         paths = String[]
         for (name, format, text) in [("a.json", :json, "{\"name\": \"Alice\"}"),
@@ -484,7 +490,14 @@ function warm_application()
                      KeyPress('x'),
                      MousePress(:left, 100, 84, 1, ModifierKeys()),
                      KeyDown(:return, ModifierKeys()),
-                     KeyDown(:s, ModifierKeys(ctrl = true))]
+                     KeyDown(:s, ModifierKeys(ctrl = true)),
+                     # Ctrl+T opens a tab on an empty placeholder, Insert turns
+                     # the placeholder into the name buffer, and Enter commits
+                     # the typed name.
+                     KeyDown(:t, ModifierKeys(ctrl = true)),
+                     KeyDown(:insert, ModifierKeys()),
+                     (KeyPress(c) for c in "evaluator")...,
+                     KeyDown(:return, ModifierKeys())]
         document, projection = make_application_window(paths; root = directory,
             assistant = make_application_assistant(:ollama))
         scene = make_window_scene(document, "ProjecturEd"; width = 1280, height = 800)
@@ -506,12 +519,13 @@ function warm_application()
             editor.iomap = print_document(composed, editor.document)
             _force_reactive!(editor.iomap)
         end
+        warmed = document
     catch err
         @warn "warm_application: the warm-up failed, and the build goes on" err
     finally
         rm(directory; recursive = true, force = true)
     end
-    nothing
+    warmed
 end
 
 # What the application does once the editor exists. The application keeps a
