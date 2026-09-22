@@ -224,6 +224,83 @@ end
     end
 end
 
+@testset "a sync of a list shadow walks each way from the node held, and ends" begin
+    # Three nodes, held at the middle one.
+    function make_linked_nodes()
+        before, middle, after = ListNode(PrimitiveNumber(1)), ListNode(PrimitiveNumber(2)), ListNode(PrimitiveNumber(3))
+        set_cell_value!(getfield(before, :next), middle)
+        set_cell_value!(getfield(middle, :prev), before)
+        set_cell_value!(getfield(middle, :next), after)
+        set_cell_value!(getfield(after, :prev), middle)
+        (before, middle, after)
+    end
+    # The sync runs in a task, so a walk that does not end fails in five seconds.
+    function sync_in_time(shadow, source)
+        task = Threads.@spawn sync_document!(shadow, source)
+        timedwait(() -> istaskdone(task), 5.0) === :ok || return nothing
+        fetch(task)
+    end
+
+    @testset "each node of the shadow follows its source, both ways" begin
+        for K in (ReactiveCell, MutableCell)
+            before, middle, after = make_linked_nodes()
+            shadow = copy_document(K, middle)
+            shadow_before, shadow_after = shadow.prev, shadow.next
+            before.value.value = 10; middle.value.value = 20; after.value.value = 30
+            @test sync_in_time(shadow, middle) === shadow
+            @test shadow.value.value == 20
+            @test shadow.prev === shadow_before && shadow.prev.value.value == 10
+            @test shadow.next === shadow_after && shadow.next.value.value == 30
+            @test shadow.next.prev === shadow && shadow.prev.next === shadow
+        end
+    end
+
+    @testset "a node that the source gained is copied, and one it lost is gone" begin
+        for K in (ReactiveCell, MutableCell)
+            before, middle, after = make_linked_nodes()
+            shadow = copy_document(K, middle)
+            shadow.prev; shadow.next
+            push!(after, PrimitiveNumber(4))
+            pushfirst!(before, PrimitiveNumber(0))
+            @test sync_in_time(shadow, middle) === shadow
+            @test shadow.next.next.value.value == 4 && shadow.next.next.prev === shadow.next
+            @test shadow.prev.prev.value.value == 0 && shadow.prev.prev.next === shadow.prev
+            middle.next = nothing
+            @test sync_in_time(shadow, middle) === shadow
+            @test shadow.next === nothing
+        end
+    end
+
+    @testset "a shadow of a list without an end syncs the nodes that it holds" begin
+        reads = Ref(0)
+        function make_endless_node(i)
+            node = ListNode(PrimitiveNumber(i))
+            set_cell_function!(getfield(node, :next), () -> (reads[] += 1; make_endless_node(i + 1)))
+            node
+        end
+        head = make_endless_node(1)
+        shadow = copy_document(ReactiveCell, head)
+        @test shadow.next.next.value.value == 3
+        @test reads[] == 2
+        head.next.value.value = 20
+        @test sync_in_time(shadow, head) === shadow
+        @test shadow.next.value.value == 20
+        @test reads[] == 2
+        # A link that was not read copies its node when it is read, and no sooner.
+        @test shadow.next.next.next.value.value == 4
+    end
+
+    @testset "a list in a document syncs through the walk of the document" begin
+        before, middle, after = make_linked_nodes()
+        source = CellVector([middle])
+        shadow = copy_document(ReactiveCell, source)
+        @test shadow[1].next.value.value == 3
+        middle.value.value = 20
+        @test sync_in_time(shadow, source) === shadow
+        @test shadow[1].value.value == 20
+    end
+end
+
 end # @testset "ReactiveCollection"
 
 @testset "CellVector protocol" begin

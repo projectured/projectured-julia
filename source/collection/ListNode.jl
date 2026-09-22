@@ -46,51 +46,68 @@ end
 # back to a node that is made after it, so an immutable copy of a node with a
 # neighbour raises a `DocumentCopyException`.
 function copy_document(K::Type{<:AbstractCell}, held::ListNode, policy, depth::Int)
-    copy_node = node -> _copy_unlinked_list_node(K, node, policy, depth)
+    copy_node = _make_list_node_copier(K, policy, depth)
     K === ReactiveCell && return _copy_list_node_lazily(copy_node, held)
     K === ImmutableCell && !(held.prev === nothing && held.next === nothing) &&
         throw(DocumentCopyException(held, "an immutable cell can not hold the link back to a node that is made after it"))
     copied = copy_node(held)
-    last = copied
-    node = held.next
-    while node !== nothing
-        following = copy_node(node)
-        _link_list_nodes!(last, following)
-        last = following
-        node = node.next
-    end
-    first = copied
-    node = held.prev
-    while node !== nothing
-        preceding = copy_node(node)
-        _link_list_nodes!(preceding, first)
-        first = preceding
-        node = node.prev
-    end
+    _copy_list_tail!(copy_node, copied, held, :next, :prev)
+    _copy_list_tail!(copy_node, copied, held, :prev, :next)
     copied
 end
+
+# A function that copies one node of a kinded copy, with no link.
+_make_list_node_copier(K::Type{<:AbstractCell}, policy, depth::Int) =
+    node -> _copy_unlinked_list_node(K, node, policy, depth)
 
 # One node of a kinded copy with no link: the generic walk copies its value and
 # its selection, and gives `prev` and `next` a cell of kind `K` that holds `nothing`.
 function _copy_unlinked_list_node(K::Type{<:AbstractCell}, original::ListNode, policy, depth::Int)
-    unlinked = ListNode(getfield(original, :value), Cell(nothing), Cell(nothing),
-                        getfield(original, :selection))
+    unlinked = _make_unlinked_list_node(original)
     invoke(copy_document, Tuple{Type{<:AbstractCell}, Document, Any, Int}, K, unlinked, policy, depth)
 end
 
-function _link_list_nodes!(before::ListNode, after::ListNode)
-    getfield(before, :next)[] = after
-    getfield(after, :prev)[] = before
+# A node that holds the `value` cell and the `selection` cell of `node`, and no
+# link. A walk over it reaches everything of the node but the two links, and a
+# write through it goes into the cells of the node.
+_make_unlinked_list_node(node::ListNode) =
+    ListNode(getfield(node, :value), Cell(nothing), Cell(nothing), getfield(node, :selection))
+
+# Copies each node that follows `original` in the direction `link`, and links each
+# copy after `copied`. A copy of a kind that holds a value reaches the end of the
+# list this way.
+function _copy_list_tail!(copy_node, copied::ListNode, original::ListNode, link::Symbol, back::Symbol)
+    last = copied
+    node = getproperty(original, link)
+    while node !== nothing
+        following = copy_node(node)
+        _link_list_nodes!(last, following, link, back)
+        last = following
+        node = getproperty(node, link)
+    end
+end
+
+# Links `after` behind `before` in the direction `link`, and `before` behind
+# `after` in the direction `back`.
+function _link_list_nodes!(before::ListNode, after::ListNode, link::Symbol, back::Symbol)
+    getfield(before, link)[] = after
+    getfield(after, back)[] = before
 end
 
 # `copy_node(original)` copies one node with no link. `prev` and `next` of the copy
 # are cells that copy the neighbour when they are read.
 function _copy_list_node_lazily(copy_node, original::ListNode)
     copied = copy_node(original)
-    set_cell_function!(getfield(copied, :next), () -> _copy_list_link(copy_node, original, copied, :next, :prev))
-    set_cell_function!(getfield(copied, :prev), () -> _copy_list_link(copy_node, original, copied, :prev, :next))
+    _set_list_link_lazily!(copy_node, original, copied, :next, :prev)
+    _set_list_link_lazily!(copy_node, original, copied, :prev, :next)
     copied
 end
+
+# Makes `link` of `copied` a cell that copies the node that `link` of `original`
+# holds, when it is read.
+_set_list_link_lazily!(copy_node, original::ListNode, copied::ListNode, link::Symbol, back::Symbol) =
+    set_cell_function!(getfield(copied, link),
+                       () -> _copy_list_link(copy_node, original, copied, link, back))
 
 # The copy of the node that `link` of `original` holds, with its `back` link set
 # to `copied`, or `nothing` at the end of the list. The copy is made in a cell of
@@ -104,6 +121,54 @@ _copy_list_link(copy_node, original::ListNode, copied::ListNode, link::Symbol, b
         set_cell_value!(getfield(linked_copy, back), copied)
         linked_copy
     end))
+
+# A list shadow is synced from the node that it holds outward, one direction at a
+# time, so the walk never follows `next` back through `prev`. The generic walk
+# syncs each node, without its links. A link of the shadow that nothing has read
+# stays one that copies the neighbour of its source node when it is read, so a
+# sync of a list without an end ends.
+function sync_document!(shadow::ListNode, source::ListNode, policy = nothing, depth::Int = 0)
+    _sync_unlinked_list_node!(shadow, source, policy, depth)
+    _sync_list_tail!(shadow, source, :next, :prev, policy, depth)
+    _sync_list_tail!(shadow, source, :prev, :next, policy, depth)
+    shadow
+end
+
+# The value and the selection of one node, through the generic walk.
+_sync_unlinked_list_node!(shadow::ListNode, source::ListNode, policy, depth::Int) =
+    invoke(sync_document!, Tuple{Document, Document, Any, Int},
+           _make_unlinked_list_node(shadow), _make_unlinked_list_node(source), policy, depth)
+
+# The nodes that follow `shadow` in the direction `link`, against the ones that
+# follow `source`. The walk pairs the node of each place, and it ends at a link of
+# the shadow that nothing has read, at the end of either list, or where the shadow
+# grows. A shadow of a kind that holds a value grows to the end of the source at
+# once; a reactive one grows when a reader reads the link.
+function _sync_list_tail!(shadow::ListNode, source::ListNode, link::Symbol, back::Symbol, policy, depth::Int)
+    K = get_cell_struct_kind(shadow)
+    copy_node = _make_list_node_copier(K, policy, depth)
+    shadow_node, source_node = shadow, source
+    while true
+        cell = getfield(shadow_node, link)
+        if is_computed_cell(cell) && !is_cell_up_to_date(cell)
+            _set_list_link_lazily!(copy_node, source_node, shadow_node, link, back)
+            return
+        end
+        linked_shadow, linked_source = peek(cell), getproperty(source_node, link)
+        if linked_source === nothing
+            linked_shadow === nothing || (cell[] = nothing)
+            return
+        end
+        if linked_shadow === nothing
+            K === ReactiveCell ?
+                _set_list_link_lazily!(copy_node, source_node, shadow_node, link, back) :
+                _copy_list_tail!(copy_node, shadow_node, source_node, link, back)
+            return
+        end
+        _sync_unlinked_list_node!(linked_shadow, linked_source, policy, depth)
+        shadow_node, source_node = linked_shadow, linked_source
+    end
+end
 
 Base.getindex(n::ListNode)      = n.value
 Base.setindex!(n::ListNode, v)  = (n.value = v; v)

@@ -18,6 +18,7 @@ module ProjecturedCollection
 using ProjecturedKernel
 
 const CellModule = ProjecturedKernel.CellModule
+const CellStructModule = ProjecturedKernel.CellStructModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const OperationModule = ProjecturedKernel.OperationModule

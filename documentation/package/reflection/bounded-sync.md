@@ -168,6 +168,13 @@ piece of vocabulary the contract needs — the elements a capped walk is not
 keeping, handed over without copying them, since a positional collection document
 is not `view`-able.
 
+A document whose children link back to it adds a method of its own, because the
+walk of a record would follow a link and come back through the one that answers
+it. The `ListNode` of the collection package is the one such document: its
+`sync_document!` syncs each node through this walk, without the two links, and
+follows the links itself, from the node held outward; see
+[collection.md](../collection/collection.md).
+
 A second, bounded walk kept beside the sealed one would mirror
 `_sync_fields!` / `_sync_elements!` / `copy_document` line for line: two
 traversals differing only by a policy check, kept in step by hand. It would

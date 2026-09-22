@@ -48,6 +48,8 @@ A `ListNode` is the middle of a chain. `prev` and `next` are two tails that grow
 
 The kinded copy `copy_document(K, node)` makes every cell of kind `K`. The reactive copy is lazy in the same way. A mutable copy copies and links every node at once, so it does not end for a list without an end. An immutable cell can not hold the link back to a node that is made after it, so an immutable copy of a node with a neighbour raises a `DocumentCopyException`.
 
+`sync_document!(shadow, source)` syncs a list shadow from the node that it holds outward, one direction at a time, so it never follows `next` back through `prev`. The generic walk of the kernel syncs each node without its links. The walk pairs the node of each place with the node of that place in the source, and it ends at a link of the shadow that nothing has read, at the end of either list, or where the source is longer: a reactive shadow then gets a link that copies the new node when it is read, and a shadow of a kind that holds a value copies every node to the end of the source. So a sync of a shadow of a list without an end ends, and it reads only the nodes that the shadow holds.
+
 ### Seams for the kernel
 
 The kernel names no collection type. This package adds methods to kernel generics instead:
@@ -61,6 +63,7 @@ The kernel names no collection type. This package adds methods to kernel generic
 | `get_slot_at(::CellVector, i)` | an inverse operation puts back the same cell |
 | `make_children_container`, `get_children_container_type` | `@projection_template` builds children as a `CellVector` |
 | `copy_document`, `has_document_duplicate` | a deep copy under a `CopyPolicy`; see [document.md](../kernel/document.md) |
+| `sync_document!(::ListNode, ::ListNode)` | a list shadow syncs from the node held outward, and never through a link back |
 
 A reference addresses an element as `[i]`, from 1, and the place between two elements as `{k}`, from 0. Both are readings of one `RangeReferenceStep`; see [reference.md](../kernel/reference.md).
 
