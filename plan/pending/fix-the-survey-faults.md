@@ -64,9 +64,12 @@ memory cap of 20 GB. No second Julia process runs at the same time.
 - [x] SQL: several statements parse into a `SqlStatementList`, a raw
       expression is a `SqlRawExpression` that prints unquoted, and
       `JOIN … USING` has a printer rule. `f9d8adfc`.
-- [ ] Console: Escape, an Alt chord, and a CSI key with modifiers.
+- [x] Console: Escape, an Alt chord, and a CSI key with modifiers. A lone ESC
+      waits at most 50 ms for more bytes. `a0541528`.
 - [ ] Assistant: Return while a turn streams does not start a second turn.
-- [ ] PDF: the text size follows the font zoom; glyph fallback.
+- [x] PDF: the text size follows the font zoom (`2944a74d`); a text is split
+      into runs by the font that draws each character, and each font is
+      embedded; a CFF font is skipped (`532a3120`).
 - [x] YAML: export to a `.yml` path. The guard compares the parsers, through
       the new `find_natural_parser(format)`. `f7a804bd`.
 - [x] JSON: a `\u` surrogate pair. `d07ae6d9`.
@@ -105,7 +108,10 @@ memory cap of 20 GB. No second Julia process runs at the same time.
 - [ ] A version made with Ctrl+Shift+S has its author and time.
 - [ ] The natural notation takes the most derived type; `_SYNTAX_PAIRS`.
 - [ ] `GraphToGraphics` and the `GraphLayoutToGraphics` export.
-- [ ] The web backend waits for input and can be woken; a test for it.
+- [x] The web backend waits for input and can be woken; `test_web_backend()`
+      is its first test. `cac149c8`.
+- [x] `test_package_graph()` passes: its table of domain edges follows the
+      `Project.toml` files. `7c3530bb`.
 - [ ] `OdbcAdapter` catalog calls honour their `database` argument.
 
 ### Step 5: tests, dead code, comments
