@@ -185,7 +185,18 @@ fixed there; the ones in code are for the owner.
   `odbc` depends on both.
 - `documentation/rule/package-rules.md:173` gives `ProjecturedDomain` the
   third-party dependency `InteractiveUtils`. `source/domain/Domain.jl:26`
-  avoids it on purpose.
+  avoids it on purpose. A comparison of the whole substrate table with the
+  `Project.toml` files found fourteen rows out of date and two edges reversed:
+  `ProjecturedReflection` depends on `ProjecturedWidget`, and
+  `ProjecturedFileFormat` on `ProjecturedNatural`. The table is built again from
+  the files, in dependency order.
+- `documentation/design/domain-inventory.md` gave `ProjecturedConversation`
+  the dependencies Json, Julia and Xml; it has none. It also named the old
+  `package/<name>/{main, test, example}` layout and the old natural
+  registration functions.
+- `documentation/rule/architecture-rules.md` still draws the chain
+  `kernel → base → visual → domain`. The base and visual packages are the
+  substrate packages now. Not changed: the rule documents are outside this plan.
 - `documentation/package/kernel/generic-projections.md` and
   `higher-order-projections.md` describe projections that live in
   `source/projection/` and `source/dragging/`, not in the kernel.
@@ -209,6 +220,20 @@ fixed there; the ones in code are for the owner.
   toolbar opens a statistics tab, and the general renderer then has no row for
   it; only `example/projectured/FeedExamples.jl` uses `FrameStatisticsToSyntax`.
   `ToolViewTest.jl` checks the rows of the other tools but not this one.
+- Code: `run_editor!` starts the MCP server before `on_start`
+  (`source/kernel/editor/EditorLoop.jl`), and `start_mcp!` renders the tool set
+  once. So the `undo` and `redo` tools that the application registers in
+  `on_start` never reach an MCP client. The MCP port is fixed at 9876.
+- Code: `evaluate_operation(::SubmitDraftTurnOperation)` does not check the
+  status of the assistant, so Return while a turn streams starts a second turn.
+- Code: stale docstrings of `Assistant` (the default backend is `:ollama`, not
+  `:none`), `build_messages`, `make_window_shell_document` and
+  `DEFAULT_ASSISTANT_SYSTEM`.
+- Documents outside the package guides: `guide/mcp-guide.md` says that a second
+  editor takes another port and that a client has the `undo` tool;
+  `kernel/agent.md` gives an old default model of the Anthropic backend;
+  `design/architecture-decisions.md` section 12 holds only for a tool that is
+  registered before the MCP server starts.
 - Code: `FormulaInsertion` has a docstring that says typed text commits to a
   formula. No reader does that (`plan/pending/excel-julia-formulas.md`, Phase 5).
 

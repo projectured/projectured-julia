@@ -20,7 +20,7 @@ run_window_editor(document, projection, "My data"; backend = SdlBackend(), mcp =
 
 The server listens at `http://127.0.0.1:9876/mcp`, on the loopback address only. `ProjecturedMcp` must be loaded; the application holds it already.
 
-**One server, one editor.** The server drives the editor it was started with. Two editors need two processes, and the second one needs another port.
+**One server, one editor.** The server drives the editor it was started with. The port is fixed at 9876, so only one editor of a machine can run the server.
 
 ## Connect a client
 
@@ -62,5 +62,5 @@ A guide name comes from its path: `documentation/guide/setup-guide.md` is `guide
 ## The limits
 
 - The server answers on the loopback address, with no authentication. Anything that runs on your machine can reach it. Do not start it on a machine you share.
-- A client can take a change back with the `undo` tool, and put it back with `redo`, in an editor that keeps a history. The application keeps one; an editor a program builds itself keeps one when it puts an `UndoBuffer` around its document.
+- The server publishes the tools that the tool set has when the server starts. The application registers `undo` and `redo` after that, in `on_start`, so an MCP client of the application does not get them. The assistant in the window has them.
 - The server stops when the editor stops.

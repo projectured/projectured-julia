@@ -247,7 +247,7 @@ Each backend reads its key and its default model from its own configuration:
 
 | backend | key | default endpoint | default model |
 | --- | --- | --- | --- |
-| `:anthropic` | the `ANTHROPIC_API_KEY` environment variable, read once at construction | `https://api.anthropic.com/v1/messages` | `claude-opus-4-5-20251101` |
+| `:anthropic` | the `ANTHROPIC_API_KEY` environment variable, read once at construction | `https://api.anthropic.com/v1/messages` | the newest model with adaptive thinking, from the Models API; `claude-opus-5` if the request fails |
 | `:ollama` | none — the server runs on this machine and needs no key | `http://localhost:11434` | `qwen3.8:27b` |
 
 The backend is built once per turn, not kept on the document. The key and the
