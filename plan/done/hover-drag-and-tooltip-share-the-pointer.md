@@ -1,8 +1,11 @@
 # Hover, drag and tooltip share the pointer
 
-**Status (2026-09-22): READY.** Nothing is implemented. The owner chose a
-deadline for the tooltip's delay, confirmed the other decisions of §3 on the same
-day, and ruled that a hover must not land in the undo history.
+**Status (2026-09-22): DONE.** Landed on `main` in both repositories:
+projectured-julia at `f698c294`, omnet-julia at `234d77e4`. Nothing is pushed.
+The owner chose a deadline for the tooltip's delay, confirmed the other
+decisions of §3 on the same day, and ruled that a hover must not land in the
+undo history. One thing is left as the owner asked: a divider drag is still one
+undo step for each move.
 
 **Goal:** in both binaries, a button or a row lights up under the pointer, a
 divider and a tab drag again, a tooltip opens only after the pointer rests on
@@ -246,8 +249,21 @@ too, but no gesture of this plan writes them.
       its io map live.
 - **`test_substrate()` is 63393** with the baseline's 3 fail, 2 error and 1 broken,
   and **`test_shell()` 177**.
-- [ ] omnet-julia: the same three in the interface's window, and the counts of
-      Step 0 hold.
+- [x] omnet-julia, after the projectured half landed: a new case in
+      `test_ide_window_wrap()`, with the tooltip on, lights the runner's Run
+      button and drags the divider between the runner and the conversation. A
+      tab drag has no case of its own there; the interface draws through the
+      same fold and shell as the application, whose case drags a tab.
+      `test_ide_window_wrap()` **32**: 29 on `main` after its toolbar commit,
+      and 3 new. `test_ide_file_navigator()` **8** and `test_ide_closure()`
+      **26**, as before. `test_select_and_paste()` **81 pass, 4 fail, 1 error**,
+      against 72, 7 and 3 before: every failure left was in the baseline, at
+      lines 304, 310, 314, 317 and 434, where the focus does not reach through
+      the shell. The ones that went away are the "two Run texts" cases, which
+      the toolbar commit removed.
+      `run_campaign_window` keeps its own tracker only without a `wrap`:
+      `build_campaign_projection(; hover = true)`. `run_omnet_ide` makes the
+      feed only when it has a backend, because only a backend has a pointer.
 
 ### Step 7 — close
 
@@ -257,7 +273,7 @@ too, but no gesture of this plan writes them.
       the pane, the inspector and the undo slice lose the fault as a limit and
       name the view state; the shell's one limit left is the divider drag, one
       undo step per move.
-- [ ] Move this plan to `plan/done/`.
+- [x] Move this plan to `plan/done/`.
 
 ## 5. Risks
 
