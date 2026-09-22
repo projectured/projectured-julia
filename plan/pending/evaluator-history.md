@@ -110,10 +110,14 @@ The owner decided all seven on 2026-09-22.
       the recall alike. Four new cases cover D1 to D7 at the level of the
       document; the key reaches the toplevel from the first or the last line only
       through the window, which Step 3 tests.
-- [ ] **Step 3. Through the window.** A case in `ApplicationTest.jl` on a standing
+- [x] **Step 3. Through the window.** A case in `ApplicationTest.jl` on a standing
       iomap: type and evaluate two forms, Up recalls the newest, Up again the
       older, Down comes back, Down again restores the draft, and code of two lines
       takes one Up to leave its second line.
+      **Done.** Through the application window on a standing iomap: a one-line
+      and a two-line form typed with Shift+Enter, then Up, Up, Up, Down, Down.
+      The keys reach the toplevel only where the text layer has no line to move
+      to, as §2 said. `test_application()` passes 136 of 136.
 - [ ] **Step 4. Documents and landing.** `conversation.md` and `text.md` say what
       the keys do. The plan moves to `plan/done/`, and `main` fast-forwards to the
       branch.

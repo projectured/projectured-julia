@@ -389,6 +389,53 @@ function test_application()
                 @test x_of("x + 1") == x_of("x = 1") == x_of("2") > only(prompts_x)
             end
 
+            @testset "Up and Down in the evaluator recall its history through the window" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                editor = Editor(ConsoleBackend(), scene, composed,
+                                Device[Display(), Keyboard(), Mouse()])
+                editor.iomap = iomap
+                press!(event) = begin
+                    operation = _app_fire(composed, editor.iomap, event)
+                    operation isa Operation && evaluate_operation(editor, operation)
+                    operation
+                end
+                key(name; modifiers...) = KeyDown(name, ModifierKeys(; modifiers...))
+                type!(text) = foreach(character -> press!(KeyPress(character)), text)
+                toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
+                button = only(item for item in toolbar.elements
+                              if string(item.action.label) == "Evaluator")
+                evaluate_operation(editor, InvokeActionOperation(button.action))
+                (group, index) = get_pane_focus(_app_window(document))
+                evaluator = get_wrapped_document(group.tabs[index].content)
+                shown() = evaluator.elements[length(evaluator.elements)].form.value
+                caret() = last(get_reference_steps(strip_reference_types(evaluator.selection)))
+                type!("a = 1")
+                press!(key(:return))
+                type!("b = 2")
+                press!(key(:return; shift = true))
+                type!("b + 1")
+                press!(key(:return))
+                @test length(evaluator.elements) == 3
+                # Up recalls the newest form, with the caret at the end of its
+                # second line.
+                press!(key(:up))
+                @test shown() == "b = 2\nb + 1"
+                @test caret() == RangeReferenceStep(11, 11)
+                # On the second line, Up moves the caret to the first line.
+                press!(key(:up))
+                @test shown() == "b = 2\nb + 1"
+                @test caret().start < 6
+                # On the first line, Up goes further back.
+                press!(key(:up))
+                @test shown() == "a = 1"
+                press!(key(:down))
+                @test shown() == "b = 2\nb + 1"
+                press!(key(:down))
+                @test shown() == ""
+                # The forms above keep their code.
+                @test [evaluator.elements[i].form.value for i in 1:2] == ["a = 1", "b = 2\nb + 1"]
+            end
+
             @testset "a closed assistant and a closed navigator come back as they were" begin
                 started = make_application_assistant(:ollama; model = "small", context = 4096)
                 document, _ = make_application_window(paths[1:1]; root = dir,
