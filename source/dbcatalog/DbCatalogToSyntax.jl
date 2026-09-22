@@ -3,24 +3,26 @@
 # DbCatalog → SyntaxDocument projection. Maps the catalog hierarchy to syntax
 # tree shapes with keyword grouping nodes:
 #
-#     DbCatalogRdbms    → entity " host:port" → keyword " Databases" → body
-#     DbCatalogDatabase → entity " dbname"    → keyword " Schemas"   → body
-#     DbCatalogSchema   → entity " schema"    → keyword " Tables"    → body
-#     DbCatalogTable    → entity " table"     → keyword " Columns"   → body
+#     DbCatalogRdbms    → entity " host:port" → keyword " Databases"
+#     DbCatalogDatabase → entity " dbname"    → keyword " Schemas"
+#     DbCatalogSchema   → entity " schema"    → keyword " Tables"
+#     DbCatalogTable    → entity " table"     → keyword " Columns"
 #     DbCatalogColumn   → SyntaxLeaf " column::type"
 #
-# Each non-leaf entity node is collapsible and contains a single keyword child:
-#   entity_node  (ind=-1, open=" name"):  collapsible, marker-eligible
-#     keyword_node (ind=0,  open=" Keyword"): collapsible, marker-eligible
-#       keyword_body (ind=-1, no label):    children = projected items
+# Each non-leaf entity node is collapsible and contains a single keyword child,
+# whose own children are the projected items:
+#   entity_node  (ind=-1, open=" name"):    collapsible, marker-eligible
+#     keyword_node (ind=-1, open=" Keyword"): collapsible, marker-eligible;
+#       children = projected items
 #
 # Using `indentation = -1` avoids trailing newlines that create blank lines,
 # while still rendering children with `\\n + indent`.
 #
 # Selection mapping (School A — delegate child tails through stored child IO maps):
 #   Input:  <field>[i].rest        (e.g. databases[2].child_path)
-#   Output: children[1].children[1].children[i].delegated(rest)
-# The three levels correspond to: keyword_node → keyword_body → actual child.
+#   Output: children[1].children[i].delegated(rest)
+# The two levels correspond to: entity_node → keyword_node, whose children
+# are the actual items.
 # ── DbCatalogColumnToSyntaxLeaf ───────────────────────────────────────────────
 
 @projection struct DbCatalogColumnToSyntaxLeaf
@@ -63,8 +65,8 @@ end
 
 # ── Shared reference mapping helpers ─────────────────────────────────────────
 #
-# All non-leaf catalog projections share the same 3-level output shape:
-#   entity_node → keyword_node → keyword_body → children
+# All non-leaf catalog projections share the same 2-level output shape:
+#   entity_node → keyword_node → children
 # so the reference mapping logic is factored into shared helpers parameterised
 # by the input-domain children field name ("databases", "schemas", etc.).
 
