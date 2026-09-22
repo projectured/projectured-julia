@@ -445,11 +445,17 @@ function _window_flags(style::Symbol)
     return _WINDOW_FLAGS_DEFAULT
 end
 
+# The same flags, with the window held back until it holds a frame. A window
+# that is shown before it is painted holds an undefined back buffer, and the
+# compositor draws that black, so a tooltip flashes black and fills in after.
+_hidden_window_flags(style::Symbol) =
+    (UInt32(_window_flags(style)) & ~UInt32(SDL_WINDOW_SHOWN)) | UInt32(SDL_WINDOW_HIDDEN)
+
 # Open one native SDL window for a WindowDocument and return the resource record.
-function _open_native_window!(w::WindowDocument)
+function _open_native_window!(w::WindowDocument; hidden::Bool = false)
     px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(w.x)
     py = w.y < 0 ? SDL_WINDOWPOS_CENTERED : Int32(w.y)
-    flags = _window_flags(w.style)
+    flags = hidden ? _hidden_window_flags(w.style) : UInt32(_window_flags(w.style))
     # WindowDocument sizes are logical; the native window is device pixels.
     win = SDL_CreateWindow(w.title, px, py,
         Int32(max(_to_device(w.width), 1)), Int32(max(_to_device(w.height), 1)), flags)
@@ -2996,9 +3002,10 @@ function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Dev
         w isa WindowDocument || continue
         res = get(backend.windows, w.id, nothing)
         if res === nothing
-            res = _open_native_window!(w)
+            res = _open_native_window!(w; hidden = true)
             backend.windows[w.id] = res
             backend.window_ids[res.sdl_id] = res.id
+            _show_painted_window!(res, w)
         else
             _update_window_geometry!(res, w)
         end
@@ -3007,6 +3014,26 @@ function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Dev
             error("write_to_devices: WindowDocument(id=:$(w.id)).content is $(typeof(canvas)), expected GraphicsCanvas")
         _render_window!(res, canvas)
     end
+end
+
+# Whether the native window is on screen. A window is made hidden and shown once
+# it holds its first frame, so this tells the two apart.
+_is_native_window_shown(res::SdlWindowResources) =
+    (SDL_GetWindowFlags(res.win) & UInt32(SDL_WINDOW_SHOWN)) != 0
+
+# Paint a window the reconciler has just opened, and only then show it, so that
+# the first pixels a person sees are the window's own. It is opened hidden, and
+# a window shown before it is painted holds an undefined back buffer that the
+# compositor draws black.
+#
+# The paint after the show is what the caller does next: a driver is free to
+# drop a present made while the window is hidden, so `first_paint` asks for the
+# whole window again instead of the rectangles that changed.
+function _show_painted_window!(res::SdlWindowResources, w::WindowDocument)
+    canvas = w.content
+    canvas isa GraphicsCanvas && _render_window!(res, canvas)
+    SDL_ShowWindow(res.win)
+    res.first_paint = true
 end
 
 # Apply title / size / position / bg changes from a WindowDocument to

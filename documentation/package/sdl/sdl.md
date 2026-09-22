@@ -10,6 +10,8 @@
 
 The backend has no call that opens or closes a window. `write_to_devices(backend, devices, screen::ScreenDocument)` compares the native windows with the `WindowDocument`s of the screen. It closes a window whose id is gone, opens one for a new id, and updates the title, the size and the position of the others. Then it paints the `content` of each, which must be a `GraphicsCanvas`. `windows` maps an id to its `SdlWindowResources`, and `window_ids` maps the SDL window number back to the id, so each event carries the id of its window. The resources keep the last values applied, so an unchanged title or size makes no SDL call. [screen.md](../screen/screen.md) describes the document side.
 
+**A window that the reconciler opens is painted before it is shown.** It is made with `SDL_WINDOW_HIDDEN`, painted, and then shown. A window shown before its first frame holds an undefined back buffer, which the compositor draws black, so a tooltip flashed black and filled in after. The paint that follows the show covers the whole window, because a driver is free to drop a present made while the window is hidden. `open_native_windows!` still opens the first window shown, because a hidden window gets no answer from the window manager about its size.
+
 The editor calls `open_native_windows!` before the first print. It opens every window, waits up to 250 ms until the size that the window manager grants holds still for 20 ms, and writes that size into the `WindowDocument`. So the document is laid out once, at the real size, and not again when the answer of the window manager arrives as a resize.
 
 ### Measure and draw text
