@@ -83,6 +83,12 @@ end
     @test Int(short.w[]) == Int(long.w[])
     @test Int(short.w[]) == Int(short.h[])
     @test Int(short.w[]) == 16 + 8
+    # A band can offer the size of the window. The item stays as large as what
+    # it shows, or it would take every press below it.
+    offered = PrinterContext(EmptyReference(), Cell(1600), Cell(1000), Dict{Symbol,Any}())
+    tall = print_document(proj, nothing, WidgetToolbarItem("Log"; icon = :list,
+                                                           padding = Inset(4, 4, 4, 4)), offered).output
+    @test (Int(tall.w[]), Int(tall.h[])) == (16 + 8, 16 + 8)
 end
 
 @testset "a toolbar item with no icon draws its label" begin
@@ -108,7 +114,18 @@ end
         # reader answers the operation and runs nothing.
         op = _press(io, (x, y))
         @test op isa InvokeActionOperation && op.action === tb.elements[i].action
+        # The whole button takes a press, also a corner where the picture draws
+        # nothing.
+        corner = (Int(c.x) + 1, Int(c.y) + 1)
+        op = _press(io, corner)
+        @test op isa InvokeActionOperation && op.action === tb.elements[i].action
     end
+    # A picture made of thin filled bars takes a press between the bars too.
+    chart = WidgetToolbar(Any[WidgetToolbarItem("Statistics"; icon = :chart)])
+    io = print_document(proj, chart)
+    c = only(_items(io))
+    @test all(_press(io, (x, Int(c.y) + Int(c.h[]) ÷ 2)) isa InvokeActionOperation
+              for x in Int(c.x):(Int(c.x) + Int(c.w[]) - 1))
 end
 
 @testset "a disabled toolbar item is inert" begin

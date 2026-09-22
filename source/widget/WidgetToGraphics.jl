@@ -1846,9 +1846,13 @@ function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::Widg
             content_width, content_height = _text_size(p.measure, p.text.font, text)
             _push_text!(elements, p.text.font, text, cox, coy, color)
         end
-        width = _resolve_width(ctx, 0, content_width + 2cox)
-        height = _resolve_height(ctx, 0, content_height + 2coy)
-        drawn = Any[]
+        # As large as what it shows, on both axes. A band can offer the height of
+        # the window, and an item that took it would take every press below it.
+        width = content_width + 2cox
+        height = content_height + 2coy
+        # A clear surface over the whole button: a press anywhere on it hits the
+        # item, and not only on the strokes of its picture.
+        drawn = Any[GraphicsRect(0, 0, width, height, StyleColor(0.0, 0.0, 0.0, 0.0), 0)]
         _push_hover_surface!(drawn, w, enabled, width, height, p.hover_color)
         append!(drawn, elements)
         (width = width, height = height, elements = drawn)
