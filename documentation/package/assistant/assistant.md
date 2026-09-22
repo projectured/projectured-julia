@@ -37,7 +37,7 @@ At the end, the turn gets its stop reason, and an assistant turn with no parts i
 
 The task of the turn writes the assistant only through `run_on_editor_task!`, because a frame of the editor reads and paints the assistant on the editor task. The empty assistant turn, each part, the stop reason and each change of `status` are posted, and the drain of the next frame applies them in the order they were posted. Many parts of a stream are applied in one frame. `messages` waits for its answer, so it reads the conversation after every part that came before it. When no loop runs, as in a test that calls `_run_agent_loop!`, each write happens at once. [editor.md](../kernel/editor.md) describes the door.
 
-Alt+Return on a Julia part makes `EvaluateDraftTurnOperation`. It runs the evaluation of the composer in place, and then pushes the whole draft as one user turn. No model runs. The next submit sends the evaluation to the model as part of the history.
+Alt+Return on a Julia part makes `EvaluateDraftTurnOperation`. While a turn streams, it does nothing and the draft keeps its text, because a user turn in the middle of a streamed turn can come between a tool call and its result. Otherwise it runs the evaluation of the composer in place, and then pushes the whole draft as one user turn. No model runs. The next submit sends the evaluation to the model as part of the history.
 
 ### The tools
 
@@ -97,14 +97,14 @@ run_assistant_example(; backend = :ollama)                   # the example with 
 ```
 
 - Example: `assistant_example` shows a canned transcript with one part of every kind and answers from a `FakeLlm`, so it needs no server and no key. The factories are `make_assistant_document_example` and `make_assistant_projection_example` in `example/conversation/`.
-- Tests, in `test/projectured/editor/`: `test_assistant_mvp()` drives a whole turn with a scripted model, checks that Return while a turn streams does nothing, and checks that the writes of a turn and its tool call wait for the drain of the editor. `test_assistant_duplicate()` covers the fork, and `test_assistant_composer_panel()` covers the composer in the pane. `test_assistant_editor_reference()` and `test_assistant_turn_binds_meaning_model()` are in `McpTest.jl`, and `test_conversation_serialization()` covers `build_messages`.
+- Tests, in `test/projectured/editor/`: `test_assistant_mvp()` drives a whole turn with a scripted model, checks that Return, Alt+Return and `SubmitProseOperation` while a turn streams do nothing, and checks that the writes of a turn and its tool call wait for the drain of the editor. `test_assistant_duplicate()` covers the fork, and `test_assistant_composer_panel()` covers the composer in the pane. `test_assistant_editor_reference()` and `test_assistant_turn_binds_meaning_model()` are in `McpTest.jl`, and `test_conversation_serialization()` covers `build_messages`.
 
 ## Limits
 
 - **A tool call holds the frame.** A tool call of the model runs on the editor task, and the editor draws no frame until it returns. The first search by description of a build can wait up to 30 seconds for the vectors of the meaning model.
 - **A part that fails to apply does not end the turn.** A streamed part is posted and not waited for, so an exception while the drain applies it goes to the fault log of the editor, and the turn goes on.
 - No view draws `status`. A person sees a running turn only by the parts that arrive.
-- `input`, `SubmitProseOperation`, `SubmitJuliaOperation`, `ClearInputOperation` and `ResetConversationOperation` are exported, but no printer shows `input` and no reader makes these operations. Only the tests call two of them.
+- `input`, `SubmitProseOperation`, `SubmitJuliaOperation`, `ClearInputOperation` and `ResetConversationOperation` are exported, but no printer shows `input` and no reader makes these operations. Only the tests call two of them. `SubmitProseOperation` does nothing while a turn streams, as Return does.
 - The natural row gives a pane tab a widget and not graphics. A host that shows an assistant in a tab chains `AssistantToWidgetSplitPane` to `NaturalToGraphics` with the rows of the conversation, as `make_application_content_projections` in `example/projectured/Application.jl` does.
 - The draft has no frame, no focus ring and no hint line. Stage 4 of `plan/pending/conversation-flat-transcript.md` puts them on this pane, and they are not done.
 - `DEFAULT_ASSISTANT_SYSTEM` is written for Claude and is long. A small local model can follow it less well, and `plan/done/ollama-backend.md` keeps this as an open question.

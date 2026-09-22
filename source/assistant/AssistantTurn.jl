@@ -39,7 +39,8 @@ using ..ConversationModule
     SubmitProseOperation(assistant)
 
 Snapshot `assistant.input` into a user message, clear the input,
-flip `status` to `:streaming`, and launch an async Claude turn.
+flip `status` to `:streaming`, and launch an async Claude turn. While a turn
+streams it does nothing, and the input keeps its text.
 """
 struct SubmitProseOperation <: Operation
     assistant::Assistant
@@ -259,6 +260,9 @@ end
 
 function evaluate_operation(editor, op::SubmitProseOperation)
     a = op.assistant
+    # A turn that streams owns the end of the conversation, so the submit waits
+    # for it to end and the input keeps its text.
+    a.status === :streaming && return nothing
     text = _text_to_string(a.input)
     isempty(strip(text)) && return nothing
 
@@ -312,6 +316,9 @@ in the transcript instead of a description of it.
 
 No Claude call now. The next prose turn synthesises the evaluation into the
 history, which is what `build_messages` already does with an `EvaluatorForm`.
+
+While a turn streams it does nothing, and the draft keeps its text: a user turn
+pushed into a streamed turn would come between a tool call and its result.
 """
 struct EvaluateDraftTurnOperation <: Operation
     assistant::Assistant
@@ -326,6 +333,8 @@ OperationModule.operation_travels_unchanged(
 
 function evaluate_operation(editor, op::EvaluateDraftTurnOperation)
     a = op.assistant
+    # As for Return: a turn that streams owns the end of the conversation.
+    a.status === :streaming && return nothing
     draft = a.draft
     # The composer evaluates the active insertion in place, leaving an
     # `EvaluatorForm` — the form and its result as one part.

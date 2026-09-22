@@ -264,6 +264,33 @@ function _mvp_test_submit_while_streaming()
     end
 end
 
+# Alt+Return and the prose submit have the same guard as Return: a user turn in
+# the middle of a streamed turn would come between a tool call and its result.
+function _mvp_test_evaluate_while_streaming()
+    @testset "Alt+Return and a prose submit while a turn streams do nothing" begin
+        a = make_assistant_mvp_setup()
+        editor = _mvp_editor(a)
+        _mvp_type!(a, "Hello")
+        evaluate_operation(editor, SubmitDraftTurnOperation(a))
+        @test a.status === :streaming
+        # The task of the turn has not run yet, so the turn still streams.
+        _mvp_type!(a, "What?")
+        evaluate_operation(editor, EvaluateDraftTurnOperation(a))
+        @test length(a.conversation.turns) == 1
+        @test _mvp_draft_text(a) == "What?"
+        a.input.value = "again"
+        evaluate_operation(editor, SubmitProseOperation(a))
+        @test length(a.conversation.turns) == 1
+        @test a.input.value == "again"
+        @test _mvp_wait_idle!(a) === :idle
+        @test [t.role for t in a.conversation.turns] == [:user, :assistant]
+        @test _mvp_draft_text(a) == "What?"
+        # Once the turn ended, Alt+Return puts the draft into the conversation.
+        evaluate_operation(editor, EvaluateDraftTurnOperation(a))
+        @test [t.role for t in a.conversation.turns] == [:user, :assistant, :user]
+    end
+end
+
 # ── The writes of a turn wait for the editor ───────────────────────────
 #
 # A turn streams on a task of its own and a frame reads what it writes, so the
@@ -379,6 +406,7 @@ function test_assistant_mvp()
         _mvp_test_collapse_containment()
         _mvp_test_backend_must_be_named()
         _mvp_test_submit_while_streaming()
+        _mvp_test_evaluate_while_streaming()
         _mvp_test_turn_writes_on_editor_task()
     end
 end
@@ -666,15 +694,11 @@ function _mvp_test_scripted_builders()
         @test reply.role === :assistant
         @test any(p -> p.content isa ConversationThinking, reply.parts)
         ef = first(p.content for p in reply.parts if p.content isa EvaluatorForm)
-        # The tool payload is `parse_julia`d into a JuliaDocument and re-rendered
-        # for display, which normalizes user whitespace/operator spacing (e.g.
-        # `1+1` -> `1 + 1`, multi-statement input becomes an indented block).
-        # Fidelity is up to the parse/render round-trip: the tool code that
-        # arrived matches what the *same* pipeline would produce for the same
-        # input string, i.e. no data was lost between the JSON payload and the
-        # EvaluatorForm's document (a genuine drop would produce a *different*
-        # normalized string, not the identity round-trip we see here).
-        @test _eval_code(ef) == _doc_source(_eval_form_doc(code))
+        # The form keeps the code as it arrived through the JSON `{"code": …}`
+        # payload, so the history replays exactly what the model sent. The form
+        # document shows the code as the parser and the printer render it.
+        @test _eval_code(ef) == code
+        @test _doc_source(ef.form) == _doc_source(_eval_form_doc(code))
         @test occursin("n=42", _eval_result(ef))           # the code actually ran
         @test _text_to_string(reply.parts[end].content) == "Done."
     end
@@ -716,9 +740,9 @@ function _mvp_test_tool_use_roundtrip()
         @test length(msgs[2].parts) == 2
         ef = msgs[2].parts[1].content
         @test ef isa EvaluatorForm
-        # Round-trip is stable modulo the parse/render normalizer; see the
-        # scripted-builders test above for the fuller explanation.
-        @test _eval_code(ef) == _doc_source(_eval_form_doc("1+1"))
+        # The code replays as it was sent, and the form shows it rendered.
+        @test _eval_code(ef) == "1+1"
+        @test _doc_source(ef.form) == _doc_source(_eval_form_doc("1+1"))
         @test ef.tool_use_id   == "tu_1"
         # An `execute_julia_code` result is primary content — expanded by default.
         @test msgs[2].parts[1].collapsed == false
