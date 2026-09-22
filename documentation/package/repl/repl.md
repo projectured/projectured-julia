@@ -66,11 +66,10 @@ record_precompile_statements()        # record the list again; needs a display
 ```
 
 - Examples: none of its own. The recording drives every registered example.
-- Test: `test_export_collisions()` in `test/projectured/ExportCollisionTest.jl`. No `test/repl/` exists, and no test runs the driver.
+- Test: `test_export_collisions()` in `test/projectured/ExportCollisionTest.jl`. No `test/repl/` exists, and no test runs the driver. `test_sdl_keysym()` in `test/sdl/backend/KeysymTest.jl` reads the driver and checks that SDL reports each key that it presses.
 
 ## Limits
 
 - Record at `:none` only. A `:recorded` image already holds the old list, so those methods never compile, never reach the trace and drop out of the new list. [package-rules.md](../../rule/package-rules.md#the-session) gives the steps and the check of a new list.
 - A recording replaces the list and does not merge with it.
-- The driver sends `KeyDown(:enter, …)`, but the backends report Enter as `:return`. So no binding of Enter fires during the recording, and its code is not in the list.
 - The driver needs a display, so no automatic run checks that it still works.

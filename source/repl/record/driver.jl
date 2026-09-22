@@ -54,7 +54,7 @@ const GESTURES = Any[
     KeyDown(:left, ModifierKeys()), KeyDown(:right, ModifierKeys()),
     KeyDown(:tab, ModifierKeys()), KeyDown(:home, ModifierKeys()),
     KeyDown(:end, ModifierKeys()), KeyDown(:backspace, ModifierKeys()),
-    KeyDown(:delete, ModifierKeys()), KeyDown(:enter, ModifierKeys()),
+    KeyDown(:delete, ModifierKeys()), KeyDown(:return, ModifierKeys()),
     KeyPress('x'), KeyPress('1'),
 ]
 

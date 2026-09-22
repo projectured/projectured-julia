@@ -28,6 +28,20 @@ function test_sdl_keysym()
         @test ProjecturedSdl.sdl_keysym_to_symbol(Int32(122)) === :char   # 'z'
     end
 
+    # The precompile recording presses keys by name. A name that no backend reports
+    # matches no binding, so the code behind that key is not in the recording.
+    @testset "every key the precompile recording presses is one SDL reports" begin
+        reported = Set(ProjecturedSdl.sdl_keysym_to_symbol(Int32(keysym))
+                       for keysym in Iterators.flatten((0:255, 1073741824:1073742106)))
+        driver = joinpath(@__DIR__, "..", "..", "..", "source", "repl", "record", "driver.jl")
+        pressed = [Symbol(m.captures[1])
+                   for m in eachmatch(r"KeyDown\(:(\w+)", read(driver, String))]
+        @test !isempty(pressed)
+        for key in pressed
+            @test key in reported
+        end
+    end
+
     # The whole point of naming a key: the reified pattern must match the event the
     # backend builds for that chord.
     @testset "the command palette pattern matches the event SDL builds" begin
