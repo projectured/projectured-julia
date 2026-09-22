@@ -1,6 +1,6 @@
 # One design document for each package
 
-**Status (2026-09-22): IN PROGRESS.** Step 1, the survey, runs.
+**Status (2026-09-22): IN PROGRESS.** Steps 1 and 2 are done. Step 3 runs.
 
 **Goal:** each package outside the kernel has one document that says how the
 package works, how it fits with the other packages, which large design decisions
@@ -97,10 +97,11 @@ checks the part that a program can check. It needs no environment.
 
 ### Step 1: the survey
 
-- [ ] Nine Sonnet subagents read the code, the guides and the plans of their
+- [x] Nine Sonnet subagents read the code, the guides and the plans of their
       slices. At most three run at the same time, and none starts a Julia
       process. Each writes one notes file for each slice into the session
       scratchpad. The notes are facts with a `file:line` or a plan name.
+      Done: 64 notes files, 60 to 320 lines each.
 
 | Group | Slices |
 | --- | --- |
@@ -116,13 +117,30 @@ checks the part that a program can check. It needs no environment.
 
 ### Step 2: the common parts
 
-- [ ] Collect the shared mechanisms from the notes. Write each one once, in the
+- [x] Collect the shared mechanisms from the notes. Write each one once, in the
       guide that owns it, or add a short section on how a domain works to
       [domain-inventory.md](../../documentation/design/domain-inventory.md).
+      Done as a new design document, `documentation/design/domain-anatomy.md`.
 
-### Step 3: the documents, one commit for each group
+### Step 3: the documents
 
-- [ ] G1 · [ ] G2 · [ ] G3 · [ ] G4 · [ ] G5 · [ ] G6 · [ ] G7 · [ ] G8 · [ ] G9
+- [x] The lead writes the documents of the slices with no guide: yaml,
+      markdown, book, julia, formula, style, screen, domain, projection,
+      filesystem, log, statistics, layout, dragging, clipboard, tooltip, tulip.
+- [ ] Six Opus writers revise the guides that exist and write the rest, three
+      at a time. Instructions: `writer-instructions.md` in the scratchpad.
+
+| Writer | Documents |
+| --- | --- |
+| W1 text and code | json, xml, rst, fileformat, natural, sql, math, database (with dbcatalog and odbc) |
+| W2 diagrams | graph (new, beside graph-layout), adaptagrams, chart, plot, sequencechart, fsm, process |
+| W3 AI and application | conversation (new, beside transcript), assistant, llm (anthropic and ollama), mcp, shell |
+| W4 widgets and panes | widget, component, focus, reflection, pane, inspector |
+| W5 rendering and vocabulary | text, syntax, graphics, collection, primitive, serialization, versioning, undo |
+| W6 features and backends | fault, gesturehelp, repl; new: gesturelog, console, pdf, sdl, web, video, builder |
+
+- [ ] The lead fixes the stale facts in the kernel, rule and design documents
+      (section 6).
 
 ### Step 4: the indexes and the check
 
@@ -136,9 +154,63 @@ checks the part that a program can check. It needs no environment.
 
 - **One document for each package, in the folder of its slice.** A second
   design file next to the reference guide would repeat it, and the two copies
-  would drift. (Proposed; waits for the owner.)
+  would drift. The owner did not answer the question by the end of the survey,
+  so the work goes on with this option; the owner can still change it.
+- **A family keeps one document.** `llm/llm.md` covers `anthropic` and
+  `ollama`, and `database/database.md` covers `database`, `dbcatalog` and
+  `odbc`. The packages of a family share one seam, and separate documents
+  would repeat it.
+- **A detail guide stays next to the design document.** `graph/graph.md` is
+  new and links to `graph-layout.md`; `conversation/conversation.md` is new and
+  links to `transcript.md`; `reflection.md` links to `bounded-sync.md`.
+- **The shared parts of a domain are one design document,**
+  `documentation/design/domain-anatomy.md`, not a section of the kernel
+  guides. Most of them are in substrate packages (syntax, natural, fileformat,
+  serialization, domain), not in the kernel.
+- **The two projection guides move to `documentation/package/projection/`.**
+  Their code is in `ProjecturedProjection`, not in the kernel. No source file
+  names them as a guide.
+- **The writers are Opus subagents, three at a time.** The survey agents were
+  Sonnet; the notes had errors that a writer must catch, so the writer checks
+  each claim against the code. The lead reviews each document and runs the
+  guard.
 
 ## 6. Facts found on the way
+
+Found by the survey and checked against the code. The ones in a document are
+fixed there; the ones in code are for the owner.
+
+- `documentation/package/database/database.md:87` says that `dbcatalog`
+  depends on `database`. `ProjecturedDbCatalog` has no such dependency;
+  `odbc` depends on both.
+- `documentation/rule/package-rules.md:173` gives `ProjecturedDomain` the
+  third-party dependency `InteractiveUtils`. `source/domain/Domain.jl:26`
+  avoids it on purpose.
+- `documentation/package/kernel/generic-projections.md` and
+  `higher-order-projections.md` describe projections that live in
+  `source/projection/` and `source/dragging/`, not in the kernel.
+- `documentation/package/kernel/macros.md` names `NothingToSyntaxLeaf()` for the
+  placeholder rule. Every domain uses `InsertionNothingToSyntaxLeaf()`;
+  `NothingToSyntaxLeaf` prints the Julia value `nothing`.
+- `documentation/package/json/json.md` says that `collapsed = true` renders a
+  value on one line. No JSON, YAML or XML projection reads `collapsed`;
+  `plan/pending/collapse-expand-syntax-nodes.md` tracks it.
+- `documentation/package/graphics/graphics.md` shows the eight-argument
+  `GraphicsText` and `GraphicsRect` constructors. They take a `StyleColor` now.
+- `documentation/design/domain-inventory.md` lists only Julia under the
+  dependencies of `ProjecturedFormula`. It also depends on `ProjecturedMath`.
+- `higher-order-projections.md` used `prefix(...)` in two `@reference_case`
+  examples. `prefix` raises an error now (`source/kernel/reference/ReferenceCase.jl`);
+  the examples use `above(...)`, as `HigherOrderCompound.jl` does.
+- Code comment: the header of `source/julia/JuliaParser.jl` says that `&&`,
+  `||`, `where` and keyword arguments raise an error. The parser has a
+  converter for each of them.
+- Code: no source file registers a natural row for `FrameStatistics`. The
+  toolbar opens a statistics tab, and the general renderer then has no row for
+  it; only `example/projectured/FeedExamples.jl` uses `FrameStatisticsToSyntax`.
+  `ToolViewTest.jl` checks the rows of the other tools but not this one.
+- Code: `FormulaInsertion` has a docstring that says typed text commits to a
+  formula. No reader does that (`plan/pending/excel-julia-formulas.md`, Phase 5).
 
 - `plan/pending/documentation-rewrite.md` says in Step 7 that every slice has a
   guide. 28 slices have no guide folder. The guard in
