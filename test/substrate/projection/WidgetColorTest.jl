@@ -110,10 +110,17 @@ function _style_colors(document)
     out
 end
 
+# A toolbar of `WidgetToolbarItem`s, which no example holds: the toolbar of the
+# gallery shows menu items, and the items of a window belong to the shell.
+_make_toolbar_item_probe() =
+    WidgetToolbar(Any[WidgetToolbarItem("Run"; icon = :play),
+                      WidgetToolbarItem("Stop"; icon = :stop, enabled = false),
+                      WidgetToolbarItem("Log")])
+
 # The widget examples that the probe theme renders. The editable text box and
 # the popup are left out: one needs the text domain and the other the screen
 # domain, and their colors are not the widget layer's.
-const _PROBED_WIDGET_DOCUMENTS = (make_widget_document_example,
+const _PROBED_WIDGET_DOCUMENTS = (make_widget_document_example, _make_toolbar_item_probe,
     make_widget_accordion_document_example, make_widget_alert_atom_document_example,
     make_widget_alert_document_example, make_widget_avatar_document_example,
     make_widget_badge_atom_document_example, make_widget_badge_document_example,
