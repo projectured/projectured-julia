@@ -1,0 +1,99 @@
+# Layout
+
+> **Kind:** design · **Status:** current · **Stands on:** [graphics.md](../graphics/graphics.md), [cell.md](../kernel/cell.md), [layout-rules.md](../../rule/layout-rules.md)
+
+`ProjecturedLayout` places documents of any kind next to each other: in a row, a column, a grid, a flow, a stack, relative to an anchor, or by constraints. This document says how a layout measures and places its children with reactive cells, how the available size from a parent reaches a child, and how a press reaches the right child.
+
+<img width="396" alt="Layout example" src="../../../asset/image/example/layout.png">
+
+## How it works
+
+| Document | What it places |
+| --- | --- |
+| `HorizontalLayout`, `VerticalLayout` | a row or a column, with `gap` and alignment |
+| `GridLayout`, `FormLayout` | cells in `columns`, with a size policy for each column and row; a form is a two-column grid |
+| `FlowLayout` | a row that wraps at `max_width` |
+| `StackLayout` | children on top of each other, the last on top |
+| `AnchoredLayout` | a `content`, and children placed next to parts of it |
+| `ConstraintLayout` | children placed by linear relations between their edges |
+
+A child is any document that has a projection to a `GraphicsCanvas`. The package names no widget and no domain.
+
+### Measure and place with cells
+
+Each layout projection works in two phases. It first prints each child through the outer `recursion` and gets a canvas. It then makes computed cells for the `x` and `y` of each child and for the size of the whole canvas, from the sizes that the children report. No layout cache exists apart from these cells: the reactive engine computes a cell once and again only when a cell it read changes.
+
+The whole placement is in one outer computed cell, which reads `doc.children`. So a structural change, a child added or removed, builds the layout again. A child that only changes its size changes only the position cells that read that size.
+
+### The size that a parent offers
+
+A layout sizes itself to its content by default. A parent can offer an available width or height through the printer context (`with_available_size`). If a layout has an offer and at least one child has a weight, the layout divides the offered size among the weighted children:
+
+- `SizePolicy(min, preferred, max, weight)` describes a child on one axis. The named forms are `Fixed(n)`, `Content` (the default), `Relative(w)` and `Fill`, which is `Relative(1.0)`.
+- `allocate_axis` is the one allocator for rows, columns, grids and flows. It gives each child its preferred size, then gives the rest to the weighted children in proportion to their weights, and repeats while a child reaches its minimum or maximum.
+- A child without a weight reads its own size, so no cell reads its own result.
+- On the cross axis, a weighted child gets the offer, and a `Content` child gets `withhold_offer` and keeps its own size.
+
+The policy is a property of the placement, not of the child: `child_width` and `child_height` on the layout, or a `LayoutConstraint` around one child. So the same card fills a column in one place and is as wide as its content in a toolbar.
+
+A grid column that is offered a size must not read its cells to find its own width, or the cell graph has a cycle. `column_offers` lets a caller keep the offer from a sized column; the column then clips its cells with `clip_child_to_slot` instead of making them flow again. A table uses this. `GridLayoutIoMap` also gives the column and row positions as cells, so a table can draw its lines over a grid that has no code for tables.
+
+### The constraint layout
+
+`ConstraintLayout` takes relations built with `make_layout_anchor(child, edge)` and `constrain(lhs, op, rhs; strength)`. Child `0` is the container. It solves in two passes:
+
+1. **Measure.** Each child prints with no offer, to get its own size. The solve cell reads these sizes, and it must never read a size that comes from its own result.
+2. **Arrange.** Only a child whose width or height a relation constrains prints again, with the solved size as its offer.
+
+`solve_constraint_layout(solver, …)` is the seam for the solver. The default, `FallbackConstraintSolver`, places every child at the origin. The real solver, `TulipConstraintSolver`, is in the opt-in package `ProjecturedTulip`; see [tulip.md](../tulip/tulip.md).
+
+### The anchored layout
+
+`AnchoredLayout` prints its `content` exactly as it prints alone, and then places each `AnchoredEntry` next to a target: a child document, or a reference into the content that the content's IO map maps to a graphics node. `compute_anchored_positions` tries the preferred side, then the opposite side, then the two other sides, and clamps into the region if no side fits. Children that still overlap stack downward.
+
+### Events
+
+Every layout reader goes through one router:
+
+- A mouse event goes to the child under the pointer. The router translates the point into the frame of the child, limits the hit to the box of the child, and confirms it with `hit_element_at`. The box matters: a `GraphicsText` has no width of its own, so without the box a text on the left of a row would take clicks meant for its right neighbour. Stack, constraint and anchored layouts try the topmost child first, because their children can overlap.
+- A key goes only to the child that the selection of the layout names. There is no broadcast.
+- Tab goes to the selected child first; if it returns nothing, the focus moves to the next focusable sibling with the functions of `ProjecturedFocus`.
+- An Alt+press selects the innermost document under the pointer as a whole (`read_child_event`).
+
+The router roots the operation of a child under `children[i]` and adds the type checkpoints of the path, so a container above can use the reference.
+
+`CellVectorToVerticalLayout` turns a plain `CellVector` into a `VerticalLayout` of the same cells. The general renderer uses it, so each element of a list of mixed domains draws in its own domain.
+
+## How it fits
+
+`ProjecturedLayout` depends on `ProjecturedGraphics`, `ProjecturedFocus`, `ProjecturedProjection` and `ProjecturedCollection`. `ProjecturedWidget`, `ProjecturedPane`, `ProjecturedNatural`, `ProjecturedFileFormat` and the page domains use it. It registers nothing; a caller composes `RecursiveProjection(LayoutToGraphics())` into its chain.
+
+## Design decisions
+
+- **The cells are the layout cache.** A layout adds no cache of its own on top of the reactive engine. See `plan/done/layout-documents.md`.
+- **The container sets the size of a child.** A `SizePolicy` states a relation between a container and a child, so it is on the layout. See `plan/done/widget-layout.md` and [layout-rules.md](../../rule/layout-rules.md).
+- **A container that bounds a child clips it.** On the axis of the offer the slot clips the child; on the other axis the child sets the size. `clip_child_to_slot` holds the rule. See `plan/done/widget-sizing-rules.md`.
+- **An annotation does not move what it annotates.** The anchored layout never feeds its children back into the layout of the content. See `plan/done/anchored-layout.md`.
+- **The solver is a separate package.** Tulip through MathOptInterface solves the relations as goal programming with a slack variable for each relation, weighted by its strength. No maintained Julia binding of Cassowary exists, and Tulip is pure Julia. The core layout package keeps no solver dependency. See `plan/done/constraint-layout.md`.
+
+## Usage
+
+```julia
+row  = HorizontalLayout([a, b, c]; gap = 8, child_width = Fill)
+form = FormLayout([(name_label, name_field), (age_label, age_field)])
+grid = GridLayout([a, b, c, d], 2)
+tied = ConstraintLayout([a, b], [
+    constrain(make_layout_anchor(2, :left), :(==), make_layout_anchor(1, :right) + 8),
+])
+projection = RecursiveProjection(LayoutToGraphics())
+```
+
+- Examples: `layout_example` and `constraint_layout_example` in `example/substrate/`; `example/tulip/LayoutProjectionExample.jl` uses the Tulip solver.
+- Tests: `test_graphics_layout()`, `test_layout_allocator()`, `test_layout_closeout()` and `test_anchored_layout()` in `test/substrate/`.
+
+## Limits
+
+- A `ConstraintLayout` with the default solver ignores its relations. Pass `ConstraintLayoutToGraphicsCanvas(solver = TulipConstraintSolver())` to solve them.
+- The anchored layout maps no reference back: its `map_reference_backward` returns `nothing`.
+- `StackLayout.active` is a field for the caller. The printer draws every child.
+- The widget and table projections still place their parts with their own arithmetic instead of these layouts. `plan/tentative/layout-extensions.md` lists this.
