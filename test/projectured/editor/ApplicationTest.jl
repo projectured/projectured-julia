@@ -77,6 +77,24 @@ function _app_make_scene(paths, dir)
     (document, scene, composed, iomap)
 end
 
+# Every string a printed window draws, at its position in the window. A cell is
+# read for its value, because a printed tree holds cells.
+_app_value(v) = v isa Cell ? _app_value(v[]) : v
+function _app_drawn_at(node, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
+    node = _app_value(node)
+    node === nothing && return found
+    x = hasproperty(node, :x) ? ox + Int(_app_value(node.x)) : ox
+    y = hasproperty(node, :y) ? oy + Int(_app_value(node.y)) : oy
+    if hasproperty(node, :text) && _app_value(node.text) isa AbstractString
+        push!(found, (String(_app_value(node.text)), x, y))
+    elseif hasproperty(node, :elements)
+        foreach(element -> _app_drawn_at(element, x, y, found), _app_value(node.elements))
+    elseif hasproperty(node, :content)
+        _app_drawn_at(node.content, x, y, found)
+    end
+    found
+end
+
 # The first height at which a double click on the navigator opens a file, and
 # the operation it makes. The navigator is the leftmost part of the window.
 function _app_find_file_row(composed, iomap)
@@ -228,6 +246,24 @@ function test_application()
                 evaluate_operation(editor, operation)
                 @test occursin("Bob", read(json, String))
                 write_document_file(parse_natural_text(:json, "{\"name\": \"Alice\", \"age\": 30}"), json)
+            end
+
+            @testset "the window is filled by its chrome and its panes" begin
+                # The shell has no size of its own and takes the window's, so the
+                # panes share the whole window, every menu of the menu bar is
+                # inside it, and the status line runs along the bottom edge.
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                drawn = _app_drawn_at(print_document(composed, scene).output.windows[1].content)
+                at(name) = [(x, y) for (text, x, y) in drawn if text == name]
+                (file_x, file_y), (view_x, view_y) = only(at("File")), only(at("View"))
+                @test view_y == file_y
+                @test file_x < view_x < 1600 - 40
+                # The files take four fifths of the width: their tab starts past
+                # the first fifth, where a pane tree that hugged its content
+                # ended.
+                @test maximum(x for (x, _) in at("a.json")) > 0.15 * 1600
+                # The status line: something drawn in the last band of the window.
+                @test any(((_, _, y),) -> 1000 - 40 <= y < 1000, drawn)
             end
 
             @testset "View opens the gesture log in a tab, and the window draws it" begin

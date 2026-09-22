@@ -230,8 +230,8 @@ end
 
 # The chrome of the application's window. The status bar is given the window's
 # own document, so it says which tab has the focus and where the selection is,
-# and it follows both. The size is left to the window: a shell with none hugs
-# its content, and the window scene gives the shell the size it was opened at.
+# and it follows both. The shell has no size of its own: it takes the space the
+# window offers, so it fills the window and follows it when it resizes.
 _application_shell(document) =
     (make_window_menu_bar(), make_window_toolbar(),
      make_window_status_bar(document), nothing, nothing)
