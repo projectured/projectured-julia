@@ -88,15 +88,16 @@ There are three backends: `SdlBackend` (native graphics), `ConsoleBackend`
 ### SdlBackend
 
 `SdlBackend` (in [package/ProjecturedSdl/src/ProjecturedSdl.jl](../../../package/ProjecturedSdl/src/ProjecturedSdl.jl)) implements
-all of the above with SDL2 + SDL_ttf. Highlights:
+all of the above with SDL2 + SDL_ttf; [sdl.md](../sdl/sdl.md) is its design document. Highlights:
 
 - A font measurement cache shared across all windows.
-- `sdl_to_keypress` maps SDL keysyms + modifier bits to `KeyPress`/`KeyDown`.
+- `sdl_to_keydown` maps an SDL keysym and the modifier bits to a `KeyDown`, and
+  `sdl_to_keypress` makes a `KeyPress` from an `SDL_TEXTINPUT` event.
 - Mouse events are mapped inline in `read_from_devices` (there is no
   `sdl_to_mouse` function) to the `Mouse*` structs.
-- `render_sdl_canvas` walks a `GraphicsCanvas` (and its nested
+- The painter walks a `GraphicsCanvas` (and its nested
   `GraphicsViewport`/`GraphicsImage`/`GraphicsFence` children) and issues
-  SDL draw calls.
+  SDL draw calls. `render_sdl_canvas` is a stub that returns an empty image.
 - `wait_for_input` blocks in `SDL_WaitEventTimeout` with a NULL event
   pointer — SDL's look-only form, so everything stays queued for `read!` —
   in GC-safe slices with a `yield` between them. `wake_backend!` pushes a
@@ -131,10 +132,11 @@ a `TextBlock` rather than a `ScreenDocument`. Highlights:
   ([projection/higherorder/WindowInputUnwrapping.jl](../../../source/projection/higherorder/WindowInputUnwrapping.jl))
   — that strips the `WindowInput` off the gesture before the readers run. (In
   the SDL pipeline `ScreenToScreen` does this.)
-- **Limitation:** character-level text editing (cursor left/right, insertion,
-  backspace/delete) lives in `TextToGraphics` and is therefore unavailable;
-  the console drives the geometry-free subset — structural tree navigation
-  (`Home` + arrows) and the `Ctrl+Space` mode toggle.
+- The console has no `TextToGraphics`, so it has only the geometry-free
+  gestures: the `@gestures` table of `TextBlock` (character insert,
+  Backspace, Delete, left and right), the tree navigation and the
+  `Ctrl+Space` mode toggle. Visual up and down, and a mouse click, need the
+  geometry and do not work. [console.md](../console/console.md) is its design document.
 
 Run it with `run_console_example()` (one-shot) or
 `run_console_example(interactive=true)` (read-eval-print loop).
@@ -193,7 +195,9 @@ arguments; `WebBackend`'s constructor defaults `host`/`port`.
 - **`read_from_devices`** is non-blocking: a receive task decodes the client's
   JSON events into the backend-agnostic vocabulary (`MouseDown`, `KeyPress`, …)
   wrapped in `WindowInput`s on a `Channel`; the editor drains it each frame.
-  MousePress synthesis and motion-while-held filtering mirror the SDL backend.
+  The backend makes no `MousePress`: the gesture recognizer of the editor makes
+  it from a `MouseDown` and a `MouseUp`, as for SDL. [web.md](../web/web.md) is
+  its design document.
 
 #### Wire protocol (JSON, both directions)
 
@@ -283,7 +287,7 @@ and `WidgetToGraphics` both word-wrap based on glyph widths). They accept a
 `measure::Function` argument so they stay backend-agnostic:
 
 ```julia
-TextToGraphics(measure = (text, font) -> measure_sdl_text(backend, text, font))
+TextToGraphics(measure = measure_sdl_text)   # or measure_truetype_text, with no SDL
 ```
 
 Inject the backend's measurer when building the pipeline; the projection

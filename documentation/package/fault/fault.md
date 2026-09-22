@@ -1,186 +1,148 @@
-# Fault slice
+# Fault
 
-> **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md), [projection-system.md](../kernel/projection-system.md), [editor.md](../kernel/editor.md)
+> **Kind:** design · **Status:** current · **Stands on:** [editor.md](../kernel/editor.md), [projection-system.md](../kernel/projection-system.md), [gesturelog.md](../gesturelog/gesturelog.md)
 
-How ProjecturEd survives a failure. A fault in a printer, in a reader, in an
-operation, in a backend or in a tool does not stop the editor: it is contained
-where it happened, reported where a person can read it, and repaired where it
-can be.
+A fault in a printer, a reader, an operation, a backend or a tool does not stop the editor, which contains, reports and repairs it. The kernel layer `fault` holds what a fault is, and `ProjecturedFault` holds what a fault looks like. This document says how the two catch, report and repair, and why a printer needs two catches.
 
-The work is split in two. The **kernel's `fault` layer** holds what a fault *is*
-— the record, the store, the barrier and the report — and names no document and
-no projection. The **`ProjecturedFault` package** holds what a fault *looks
-like*. That is the same split the projection layer already uses between the
-kernel's `ProjectionModule` and the substrate's `ProjectionAlgebraModule`.
+## How it works
 
-## What it is made of
+### Two halves
+
+The kernel's `FaultModule` holds the record, the store, the policy, the barrier and the report. It names no document and no projection. `FaultViewModule` in this package holds the documents, the projections that catch and draw, and the safe mode, and it answers the seams of the kernel. The split is the same as the split between the kernel's `ProjectionModule` and the substrate's `ProjectionAlgebraModule`.
 
 | Where | What |
 | --- | --- |
-| [`source/kernel/fault/FaultRecord.jl`](../../../source/kernel/fault/FaultRecord.jl) | `FaultRecord`, `make_fault_record`, `compute_fault_key` |
-| [`source/kernel/fault/FaultStore.jl`](../../../source/kernel/fault/FaultStore.jl) | `FaultStore`, `record_fault!`, `drain_faults!`, `attach_fault_target!` |
-| [`source/kernel/fault/FaultPolicy.jl`](../../../source/kernel/fault/FaultPolicy.jl) | `FaultPolicy`, `make_strict_fault_policy` |
-| [`source/kernel/fault/FaultBarrier.jl`](../../../source/kernel/fault/FaultBarrier.jl) | `run_fault_barrier`, the one catch |
-| [`source/kernel/fault/FaultCascade.jl`](../../../source/kernel/fault/FaultCascade.jl) | `report_fault!` and the five tiers |
-| [`source/kernel/fault/FaultInterface.jl`](../../../source/kernel/fault/FaultInterface.jl) | the seams: `append_fault!`, `play_fault_sound!`, `get_fault_store`, `make_safe_mode_projection`, `is_passthrough_exception` |
-| [`source/fault/FaultDocument.jl`](../../../source/fault/FaultDocument.jl) | `FaultReport`, `FaultLog`, `FaultLogEntry` |
-| [`source/fault/Catching.jl`](../../../source/fault/Catching.jl) | `FaultCatchingProjection`, the barrier inside a pipeline |
-| [`source/fault/FaultToSyntax.jl`](../../../source/fault/FaultToSyntax.jl) and its three neighbours | one renderer per output domain |
-| [`source/fault/FaultLogOverlay.jl`](../../../source/fault/FaultLogOverlay.jl) | the log as a panel over a window |
-| [`source/fault/FaultSafeMode.jl`](../../../source/fault/FaultSafeMode.jl) | what the editor shows when nothing else can be shown |
+| `source/kernel/fault/FaultRecord.jl` | `FaultRecord`, `make_fault_record`, `compute_fault_key` |
+| `source/kernel/fault/FaultStore.jl` | `FaultStore`, `record_fault!`, `drain_faults!`, `attach_fault_target!` |
+| `source/kernel/fault/FaultPolicy.jl` | `FaultPolicy`, `make_strict_fault_policy` |
+| `source/kernel/fault/FaultBarrier.jl` | `run_fault_barrier`, the catch of the editor loop |
+| `source/kernel/fault/FaultCascade.jl` | `report_fault!` and its tiers |
+| `source/kernel/fault/FaultInterface.jl` | the seams: `append_fault!`, `play_fault_sound!`, `get_fault_store`, `make_safe_mode_projection`, `is_passthrough_exception` |
+| `source/fault/FaultDocument.jl` | `FaultReport`, `FaultLog`, `FaultLogEntry` |
+| `source/fault/Catching.jl` | `FaultCatchingProjection`, the barrier inside a chain |
+| `source/fault/FaultToSyntax.jl` and its three neighbours | one mark for each output domain |
+| `source/fault/FaultLogOverlay.jl` | the log as a panel over a window |
+| `source/fault/FaultSafeMode.jl` | what the editor shows when nothing else prints |
 
-## Turn it on
+The package has [the shared shape](../gesturelog/gesturelog.md#the-shared-shape) of the tool decorators: `FaultLog` is the document, `FaultCatchingProjection` is the decorator that catches, and `FaultLogOverlayProjection` is the panel. Unlike the gesture log panel, this panel is not there while the log is empty, so a program that works shows no extra pixel. Its default corner is the bottom left, which the gesture log panel does not use.
 
-An `Editor` starts **strict**: no barrier catches anything, so a broken
-projection fails its test exactly as it did before this slice existed.
-`run_editor!` is what turns the barriers on, because a loop a person is sitting
-in front of is the thing that must survive.
+### Turn it on
+
+`Editor(…)` starts with `make_strict_fault_policy()`: no editor barrier catches, so a broken projection fails its test. `run_editor!` defaults to `FaultPolicy()`, because a loop that a person sits in front of must survive.
 
 ```julia
-run_editor!(editor)                                        # barriers on
-run_editor!(editor; fault_policy = make_strict_fault_policy())   # barriers off
+run_editor!(editor)                                             # barriers on
+run_editor!(editor; fault_policy = make_strict_fault_policy())  # barriers off
 ```
 
-The barriers inside a pipeline are opt-in, one line per step. Give every one of
-them a `substitute`; the next section says why.
+A barrier inside a chain is opt-in, one for each step. Give each one a `substitute`; a section below says why.
 
 ```julia
 ChainingProjection(
-    RecursiveProjection(FaultCatchingProjection(inner = JsonToSyntax(),
-                                                substitute = FaultToSyntax())),
-    RecursiveProjection(FaultCatchingProjection(inner = SyntaxToText(),
-                                                substitute = FaultToText())),
-    FaultCatchingProjection(inner = TextToGraphics(measure = measure),
-                            substitute = FaultToGraphics()))
+    RecursiveProjection(FaultCatchingProjection(inner = JsonToSyntax(), substitute = FaultToSyntax())),
+    RecursiveProjection(FaultCatchingProjection(inner = SyntaxToText(), substitute = FaultToText())),
+    FaultCatchingProjection(inner = TextToGraphics(measure = measure), substitute = FaultToGraphics()))
 ```
 
-Two more lines put the message log on the screen:
+`make_fault_tolerant_projection(inner)` puts one barrier around a whole root projection and the panel over it, and returns the projection and its log. The barrier is inside the panel, so a fault in the chain can not take the panel with it. Attach the log to the store of the editor, and the frame fills it:
 
 ```julia
-log = FaultLog()
-attach_fault_target!(editor.faults, log)
-projection = FaultLogOverlayProjection(inner = root, log = log)
+projection, log = make_fault_tolerant_projection(composed)
+run_editor!(backend, projection, document;
+            on_start = editor -> attach_fault_target!(editor.faults, log))
 ```
 
-A window with tabs reads the log in a tab instead. `get_session_fault_log()`
-is the one log of the session, and `Ctrl+T` with `faults` opens it. The toolbar
-of the shell has a button for it, and the shell attaches it to the store of the
-editor when the window starts. A saved window keeps the capacity of the log and
-none of its faults.
+### The report ladder
 
-## The report ladder
+The editor reports a fault at the first tier that works. A tier that fails falls to the next.
 
-A fault is reported at the first tier that works, and a tier that fails falls to
-the next.
-
-| tier | where | who does it |
+| Tier | Where | What does it |
 | --- | --- | --- |
-| 1 | in the output, at the place that failed | `FaultCatchingProjection` substitutes a mark |
-| 2 | in the message log on the screen | `FaultLogOverlayProjection` reads the `FaultLog` |
+| 1 | in the output, at the place that failed | `FaultCatchingProjection` puts a mark there |
+| 2 | in the log on the screen | `FaultLogOverlayProjection` or a tab reads the `FaultLog` |
 | 3 | on the console | `report_fault!` calls `@error` |
 | 4 | a sound | `report_fault!` calls `play_fault_sound!` |
 | 5 | nothing | `report_fault!` returns |
 
-`report_fault!` never throws. It is the one function in the system with that
-contract, because it runs when everything else has already failed — see
-`PAR-REPORT-NEVER-THROWS`.
+`report_fault!` must never throw, because it runs when everything else already failed. `PAR-REPORT-NEVER-THROWS` holds the rule. `run_fault_barrier` lets `InterruptException`, `StackOverflowError` and `OutOfMemoryError` through, by `is_passthrough_exception`.
 
-## Why a printer needs two catches
+### Why a printer needs two catches
 
-**This is the point the whole design turns on.**
+A printer does not throw when `print_document` runs. It builds a graph of thunks and returns. It throws later, inside a thunk, while the renderer pulls the output, one frame later or a hundred. So a `try` around `print_document` catches almost nothing.
 
-A printer does not throw when `print_document` runs. It builds a graph of thunks
-and returns. It throws later, inside one of those thunks, while the renderer
-pulls the output — one frame later, or a hundred. A `try` around the call to
-`print_document` therefore catches almost nothing.
+`FaultCatchingProjection` catches in both places: around `print_document` of the inner projection, and inside the `ComputedCell` that reads the inner output. Its catch returns a value, the mark, and not an exception. The reactive engine then does three things with no more code:
 
-So `FaultCatchingProjection` catches in both places, and what its catch *answers*
-is a value rather than an exception. That single move makes three things fall
-out of the reactive engine for nothing:
+- **The repeat stops.** The engine caches the mark, so the thunk does not run and throw again on every frame.
+- **The node heals.** The mark has the dependencies that the real value had. When the input that caused the fault changes, the thunk runs again and the real output comes back.
+- **The fault stays local.** The exception never leaves the cell, so no other read stops and the rest of the graph stays valid.
 
-- **The spin stops.** The engine caches the mark, so the thunk does not run
-  again and does not throw again. Without this the read repeats every frame and
-  the editor faults a hundred times a second.
-- **It heals by itself.** The mark is cached under the same dependencies the
-  real value had, so when the input that caused the fault changes, the thunk
-  runs again and the real output comes back. Nobody writes code for that.
-- **It stays local.** The exception never escapes the cell, so no other read is
-  aborted and the rest of the cached graph is untouched.
+The reader and the two reference mappers catch too. A reader that throws returns `Intent(gesture, nothing)`, so the layer above gets its turn. A mapper that throws returns `nothing`, the normal answer for a node with no image, so the selection does not walk into a mark.
 
-## Why the store is not made of cells
+### Why the store is not made of cells
 
-A thunk may not write a cell (`PAR-NO-WRITE-IN-THUNK`): a write in the middle of
-a computation invalidates consumers half way through. But the message log is a
-document made of cells.
+`PAR-NO-WRITE-IN-THUNK` forbids a thunk to write a cell: a write in the middle of a computation invalidates its consumers half way through. The log is a document made of cells. So the catch writes a `FaultStore`, a plain object outside the reactive graph. The store is safe to write from a thunk: it has no dependents, and a write keyed by the fault leaves one entry for a thunk that runs ten times. The editor frame then calls `report_frame_faults!` once, on its own task and outside every thunk, and that call writes the log through `append_fault!`.
 
-So the catch writes a `FaultStore` instead — a plain object outside the reactive
-graph, with no dependents to invalidate. The editor's frame then calls
-`report_frame_faults!` once, on its own task, outside every thunk, and *that*
-call writes the log. Two properties make the store safe to write from a thunk,
-and both invariants carry the carve-out:
+### Why a substitute is not optional
 
-- it is **outside the graph**, so nothing can be invalidated half way;
-- its write is **idempotent**, keyed by identity, so a thunk that runs ten times
-  for one logical fault leaves one entry.
+With no substitute the mark is a bare `FaultReport`, and the fault spreads two ways:
 
-## Why a substitute is not optional
+- **Down the chain.** The next step has no method for `FaultReport`, throws, and its own barrier fires. Four steps make four records for one cause.
+- **Out to the siblings.** A parent printer often reads the output of a child: it measures a width or counts a length. A parent that gets a `FaultReport` throws in its own thunk, so one mark then replaces the whole parent subtree.
 
-Without one, a fault spreads two ways.
+A substitute prints the report as a document of the right domain: a red `SyntaxLeaf`, a red `TextBlock`, a destructive `WidgetAlert` or a `GraphicsCanvas` with one red line. The parent can measure it, so the fault stays at the one node. A step whose type dispatch ends in an `Any` entry does not throw on a `FaultReport`; it prints something wrong, with no report.
 
-*Down the chain.* The output is a bare `FaultReport`, the next step does not
-know that type, throws, and its own barrier fires. Four steps make four records
-for one cause.
+### Why the key holds no reference
 
-*Out to the siblings, which is worse.* A parent printer often reads its child's
-output — it measures a width, it counts a length. A parent handed a
-`FaultReport` throws in its **own** thunk, so one mark then replaces the whole
-parent subtree. A substitute keeps the child's output a real document of the
-right domain, so containment stays at the one node that failed.
+A chain limits how far a fault spreads downward. Nothing limits how far it spreads sideways: one bug in one projection fails at every leaf of one kind, which in a large document is thousands of nodes. So `compute_fault_key` holds the site, the origin and the exception type, and not the reference or the message. Three thousand failures become one record with `count = 3000`, and one place kept as an example. The document still shows one mark for each node, because each mark is a value in the cell of its node. The drain gives a record to the log once for each power of ten of its count. So a fault that repeats on every frame does not write the log on every frame.
 
-Do not lean on the throw downstream either: a step whose type dispatcher ends in
-an `Any` entry will not throw on a `FaultReport`. It prints something wrong, and
-quietly.
+### Repair
 
-## Why the key holds no reference
-
-A chain bounds how far a fault spreads downward — four steps at most. Nothing
-bounds how far it spreads sideways: one bug in one projection fails at every
-leaf of one kind, which in a large document is thousands of nodes.
-
-So `compute_fault_key` holds the site, the origin and the exception type, and
-holds neither the reference nor the message. Three thousand failures become one
-record with `count = 3000` and one place kept as an example. The document still
-shows one mark per node, because each mark is a value in that node's own cell.
-The document says **where**; the log says **what** and **how many**.
-
-The drain hands a record over once per power of ten, so a fault that repeats
-every frame does not rewrite the log every frame.
-
-## What the editor does to repair itself
-
-| after | what happens |
+| After | What the editor does |
 | --- | --- |
-| an operation fault | the inverse taken **before** the change is applied is applied back |
-| an operation fault | the projection is dropped, so the next frame prints from scratch |
-| an operation fault | a selection that no longer resolves is cleared |
-| eight device faults in a row | that half of the backend seam is left alone |
-| four print faults in a row | the safe mode shows the fault list; Escape leaves it |
+| an operation fault | applies the inverse that it took before the change |
+| an operation fault | drops the projection, so the next frame prints from the start |
+| an operation fault | clears a selection that no longer resolves |
+| eight device faults in a row | stops calling that half of the backend |
+| four print faults in a row | enters the safe mode |
 
-A `CompoundOperation` gets no rollback: its way back is built member by member,
-and only `evaluate_invertible_operation!` does that interleave.
+`FaultPolicy` holds the two limits. In the safe mode the editor puts its projection aside and prints `make_safe_mode_projection(store)`, which this package answers with a `FaultSafeModeProjection`. It ignores its input, draws a new log filled from the store, and returns no operation for any gesture. Escape leaves the safe mode and puts the projection back. A substitute that itself throws is not caught a second time. Its exception reaches the frame barrier of the editor, and the print-failure count climbs until the safe mode starts.
 
-## What it does not do
+## How it fits
 
-- It does not make a `CompoundOperation` atomic.
-- It does not fix the race between a tool task and the frame. The assistant and
-  the MCP server write `editor.document` directly rather than through
-  `post_operation!`, and the inbox exists to stop exactly that.
-- It does not change how a parse error is reported. A parser that answers a
-  partial document is a different concern from a projection that throws.
+The kernel layer `fault` is the lowest layer of the kernel and imports nothing. `ProjecturedFault` depends on `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedGraphics`, `ProjecturedNatural`, `ProjecturedProjection`, `ProjecturedSerialization`, `ProjecturedStyle`, `ProjecturedSyntax`, `ProjecturedText`, `ProjecturedWidget` and the kernel. It needs the four output domains for the four marks.
 
-## Test it
+`ProjecturedShell` attaches `get_session_fault_log()` to the store of the editor when a window starts, and its toolbar has a Fault log button; see [shell.md](../shell/shell.md). The gallery wraps each window with `make_fault_tolerant_projection` unless `fault_tolerant = false`. A built binary takes `--strict-fault-policy`.
 
-`test_fault()` in `ProjecturedFaultTest`. The three suites are the store, the
-report cascade and the barrier, plus the safe mode driven against a real editor.
-The test that matters most raises the failure from inside the output cell rather
-than from `print_document`, because that is where a real printer fails.
+The package registers the natural row `:fault` for `FaultLog`, the title `Faults` and the insertion alias `faults`. `make_insertion_document` returns the session log, because a new log would never fill: only the drain of a store fills a log. `pred_arguments` of a `FaultLog` holds only `capacity`, and the package registers no `.pred` type for it.
+
+## Design decisions
+
+- **The name is fault, not error.** `Error` and `Exception` are words of Julia itself, and `Fault` composes into `FaultRecord` and `FaultStore` with no collision. See `plan/done/the-editor-survives-a-fault.md`.
+- **The kernel records and the package shows.** The kernel names no document or projection, so the view of a fault must live above it.
+- **The catch returns a value.** The reactive engine then caches, heals and contains the fault; a catch that only logs would throw again on every frame.
+- **The store is outside the reactive graph.** A thunk may write it, and the frame drains it into the log.
+- **The key holds no reference.** One bug is one record, whatever the size of the document.
+- **A barrier in a chain is opt-in.** A pipeline without one behaves as before. The strict policy keeps the editor barriers off under test.
+- **The fault log is not saved.** The faults of one session say nothing about the next one.
+
+## Usage
+
+```julia
+run_example(fault_print_example)     # one mark; the siblings draw; one line in the panel
+run_example(fault_read_example)      # F8: the reader throws, the editor lives
+run_example(fault_evaluate_example)  # F9: the operation throws, the editor repairs
+run_example(fault_map_example)       # select the broken value: the mappers return nothing
+run_fault_device_example()           # the backend breaks while it runs; the editor stops calling it
+run_fault_tool_example()             # a tool throws; the same panel reports it
+```
+
+- Examples: `example/fault/FaultExamples.jl`. The four `Example` constants are not in the example registry, because each one throws on purpose and a sweep over every example would stop there.
+- Test: `test_fault()` in `ProjecturedFaultTest` runs the layering guard, the store, the report ladder, the barrier in a chain, the safe mode against a real editor, and `make_fault_tolerant_projection`. The most important test raises the fault inside the output cell and not in `print_document`, because a real printer fails there.
+
+## Limits
+
+- `FaultCatchingProjection` reads no `FaultPolicy`. It catches also under the strict policy. It does not call `is_passthrough_exception`, so it catches an `InterruptException` too.
+- A `CompoundOperation` is not atomic and gets no rollback. Only `evaluate_invertible_operation!` builds its way back member by member.
+- The race between a tool task and the frame stays. The assistant and the MCP server change the document from their own task, not through `post_operation!`.
+- A parse error is not a fault. A parser that returns a partial document is a separate concern.
+- The log keeps one line for each site and origin. Two exception types from one origin share one line, and the later message replaces the earlier one.

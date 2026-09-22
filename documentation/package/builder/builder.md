@@ -1,0 +1,82 @@
+# Builder
+
+> **Kind:** design · **Status:** current · **Stands on:** [package-rules.md](../../rule/package-rules.md), [build-guide.md](../../guide/build-guide.md)
+
+`ProjecturedBuilder` makes a native binary of a program: it writes a package for the binary, compiles it with PackageCompiler, and can test a copy and pack it as a distribution. This document describes the architecture: the app package under `build/app/`, the preferences, the distribution, and the workload that runs `warm_application()`. [build-guide.md](../../guide/build-guide.md) holds the steps and the options.
+
+## How it works
+
+### Two halves
+
+The core names no program and no repository: `BuildContext`, `Preference`, `Usage`, `write_app_package`, `build_executable` and `build_distribution`. A `BuildContext` gives the root that a build writes into and the folders where `get_package_directory` finds a package by its name, in order. `ProjecturedProgram.jl` is the half of this repository. It describes the binary `projectured`: its backends, its options, its assets, its licences and the test of a copy. It names the packages as strings and loads none of them, so a downstream program can use the same core with a context of its own.
+
+The package depends on `Dates`, `Pkg`, `Preferences`, `SHA` and `TOML`, and on no package of ProjecturEd. It loads PackageCompiler only in the step that compiles, through `Base.PkgId` and `Base.require`. So a build that only writes the package, and the tests, need no compiler, and no `import` at run time makes a binding in a later world age.
+
+### The app package
+
+`write_app_package` writes the package that the build compiles, under `build/app/<name>/`. It is a build artefact like an object file: every build writes it again, and nobody commits it.
+
+- **`Project.toml`** gets `[deps]` and `[sources]` from one list of packages, so the two can not disagree. Its UUID comes from the SHA-256 of the module name, so a rebuild keeps the identity of the package and the caches of PackageCompiler stay valid.
+- **The module**, `ProjecturedApp` for `projectured`, loads every package and holds the constant `BUILD_INFO` that `--build-info` prints. It takes `--log-level=` out of `ARGS` before the program sees it, and reads `PROJECTURED_LOG_LEVEL` behind the flag. With a `Usage` it answers `--help` and `--version` and stops on an unknown flag; without one, the program owns the command line.
+- **`julia_main()`** has the expression `main` as its body. `main` and `workload` are `Expr` values, so the parser checks them while the build function runs and not minutes later inside PackageCompiler.
+
+`write_if_changed` writes a file only when its content differs, apart from the line with the build time. Julia takes a changed source file as a stale cache, and this module compiles from nothing at each build. `bin/projectured` writes the same package with `compile = false` and runs its `julia_main` in a Julia session, so a person tries a change with no build.
+
+### The workload
+
+Nothing depends on the app package, so it is a leaf in the sense of [package-rules.md](../../rule/package-rules.md#why-the-leaf-matters). Its `@compile_workload` runs the expression `workload`, and the compiled code stays in the image. It is the second leaf beside `ProjecturedRepl`; see [repl.md](../repl/repl.md).
+
+For `projectured` the workload is `ProjecturedExample.warm_application()`. It builds the application window over a temporary folder with files of several formats, on a `ConsoleBackend` with no display. Then it sends a key, a click in the navigator, Enter on a file and a save. Last, it makes a new tab with Ctrl+T and Insert, and types its name key by key. The first key in the name buffer compiles a method for every document type that the buffer can make. A failure of the warm-up is logged, and the build goes on.
+
+### Preferences
+
+A `Preference` is a value that the build writes into `LocalPreferences.toml` of the app package, for one package to read with `@load_preference`. It names that package, because a preference is keyed by the UUID of the package that reads it. `make_baked_preference` makes a value that no flag changes. `make_exposed_preferences` makes the value and a second key, which the program reads to find whether a flag may change the value.
+
+A build value travels as a preference and not as generated code. Julia records a preference read at module scope as a dependency of the precompile cache, so a new value compiles again. A generated file that a module includes only when it exists is not noticed, and the old image keeps the old value. `write_preferences` writes every key at every build, so no value stays from the build before. The `projectured` build passes no preference.
+
+### Compile
+
+`build_executable(context; name, packages, main, workload, …)` checks first that every local dependency has a path in the `[sources]` of the package that uses it, because Pkg can not resolve it otherwise. It then writes the build record, the package and the preferences, and resolves the package. A `Manifest.toml` that names a path with no package, or another path than the project, is deleted first. `compile_app!` calls `create_app` with one executable, `name => "julia_main"`. A caller that links its own launcher, prelinks or trims passes its own `compile_app`. Last, the build copies the fonts and the assets into `share/projectured/` of the bundle.
+
+A build is incremental by default: it compiles on top of the image of the running Julia, which already holds the standard libraries. It compiles for `native`, or for `PROJECTURED_CPU_TARGET`. A distribution passes `incremental = false` and `PORTABLE_CPU_TARGET`, the empty string, with which `create_app` compiles several variants of the architecture.
+
+### Distribution
+
+`build_distribution` proves that a copy of the bundle runs on a machine that did not build it:
+
+1. It checks that each path the build declared in `expect` exists and is not empty.
+2. It copies the bundle outside the root: to `TMPDIR`, else `/var/tmp`, because `/tmp` is often a RAM disk.
+3. `check_relocation` starts the copy with `--build-info`, an empty `JULIA_DEPOT_PATH` and an empty `JULIA_LOAD_PATH`, under `bwrap`, which puts an empty folder over the checkout, the package folders and the depot. It stops when the build record says `INCREMENTAL BUILD`.
+4. The `check` of the program runs. For `projectured`, `check_projectured_copy` starts the copy with `--backend=web --mcp --assistant=none` and reads the web client, a font and the list of guides over HTTP.
+5. It copies the licence files, writes a README with the requirements, and packs `<name>-<version>-<system>-<architecture>.tar.gz`.
+
+## How it fits
+
+`ProjecturedBuilder` is a tool: it loads in the environment `environment/build`, and no package of the editor depends on it. `source/builder/build_binary.jl` and the scripts `bin/build_projectured` and `bin/projectured` call it. The binary it builds holds `ProjecturedExample`, `ProjecturedMcp` and the backend packages that `PROJECTURED_BACKENDS` names, `ProjecturedSdl` for `sdl` and `ProjecturedWeb` for `web`. `main` calls `run_application_command(ARGS; backends)`, and the first backend is the default of `--backend`. `juliac --trim` is a separate experiment that this package does not call; see [static-compilation-guide.md](../../guide/static-compilation-guide.md).
+
+## Design decisions
+
+- **The core names no program.** A downstream program reuses it with a `BuildContext` and a build function of its own. See `plan/done/application-and-build.md`.
+- **The app package is written, not committed.** What a binary holds is a choice of the build, and a `Project.toml` written once can not hold a choice.
+- **`main` is an expression.** A syntax error stops the build function at once, not a compile of several minutes.
+- **A build value is a preference.** A change then compiles again, and a stale image can not keep an old value.
+- **The copy is tested out of sight of the checkout.** A copy tested where it was built proves nothing: an absolute path into the checkout or the depot works there and nowhere else.
+- **An incremental image is never distributed.** One constant, `INCREMENTAL_MARK`, is written by `build_info` and read by `check_relocation`, so the two ends can not disagree.
+- **The smoke test passes `--build-info`.** The builder writes that flag into every binary. `--version` reaches the `main` of a binary with no usage. A window program can take it for a folder to open, and the measure of the start then does not end.
+
+## Usage
+
+```julia
+using ProjecturedBuilder                     # julia --project=environment/build
+build_projectured_executable()               # build/projectured/bin/projectured
+build_projectured_executable(; compile = false, backends = (:sdl,))
+build_projectured_distribution()             # build/projectured-<version>-linux-x86_64.tar.gz
+```
+
+- Test: `test_builder()` in `test/builder/BuilderTest.jl`. The tests compile nothing: they check what a build writes, which inputs stop it, the manifest repair, the staging folder, the licences and the hidden folders.
+
+## Limits
+
+- A distribution needs `bwrap`, and the test of `projectured` also needs `curl` and the ports 8080 and 9876.
+- A file that the program reads at run time needs two changes: a name in `assets`, and a reader that looks in the bundle first. Nothing checks the second.
+- A build takes minutes and much memory; [build-guide.md](../../guide/build-guide.md) gives the numbers.

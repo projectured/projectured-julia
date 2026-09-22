@@ -1,80 +1,76 @@
 # REPL
 
-> **Kind:** reference · **Status:** current · **Stands on:** [package-rules.md](../../rule/package-rules.md)
+> **Kind:** design · **Status:** current · **Stands on:** [package-rules.md](../../rule/package-rules.md)
 
-The workload a session compiles ahead of time, and the recording that drives
-it: `WORKLOAD`, `set_workload!` / `get_workload`, and
-`replay_precompile_statements`. This is the file-level detail behind
-`ProjecturedRepl`, the leaf a person loads to work; what a leaf is and why
-compiled code survives only there is in
-[package-rules.md](../../rule/package-rules.md#why-the-leaf-matters).
+`ProjecturedRepl` is the leaf that a person loads to work: one `using` gives the editor, the examples, the SDL backend and the tests, with their code compiled ahead of time. It holds the one `@compile_workload` of the source tree. This document says how the workload level is chosen, how the recording is made and replayed, and where the traps are.
 
-## What is in the slice
+## How it works
 
-| File | What it holds |
+### The leaf
+
+A package image keeps its compiled code only when nothing depends on the package and nothing loads after it. [package-rules.md](../../rule/package-rules.md#why-the-leaf-matters) explains why, with the measurement. So the workload is here, and in no package below.
+
+`ProjecturedRepl` depends on `Projectured`, `ProjecturedExample`, `ProjecturedSdl` and `ProjecturedTest`, and on `PrecompileTools` and `Preferences` for the workload. A loop over `names(module)` exports again every name that the four export, so no list of names needs care. `test_export_collisions()` checks that two of the four do not export one name with two bindings, which would make the name ambiguous. `Revise` is not a dependency: it must load before the packages that it tracks, so the session alias loads it first.
+
+### The workload level
+
+`WORKLOAD` is read with `@load_preference("workload", "recorded")` at module scope. Julia records a preference read at module scope as a dependency of the precompile cache, so a change of the level builds the image again. An environment variable does not do that, and the old image would keep the old level with no sign.
+
+| Level | What the build compiles |
 | --- | --- |
-| `source/repl/Repl.jl` | `WORKLOAD`, `set_workload!`, `get_workload`, `replay_precompile_statements`, `record_precompile_statements`, and the `@compile_workload` block |
-| `source/repl/record/driver.jl` | the script `record_precompile_statements` runs under `--trace-compile` to produce the recording |
+| `:none` | nothing, for a day of work on the kernel |
+| `:recorded` | the checked-in list `PRECOMPILE_STATEMENTS`, the default |
+| `:live` | what `ProjecturedExample.precompile_workload()` runs |
 
-## The workload
+`set_workload!(level)` writes the preference; the next start of Julia builds with it. `get_workload()` returns the level of the running image, and it warns when the stored preference differs, because then the session was not started again.
 
-`WORKLOAD` is a `Preferences.jl` preference, read once at module scope so
-that changing it invalidates the precompile cache. An environment variable
-would not; a stale image would keep the old setting silently. It takes
-one of three levels:
+`:recorded` is the default because it is the only level that compiles the reader. The workload prints the atomic documents and parses their text, but it sends no gesture, so no reader runs. A recording holds what a driven editor had to compile, the reader included. `@setup_workload` builds the atoms outside `@compile_workload`, so the compiled region holds the chain and not the construction of the documents.
 
-| level | what the build does |
-| --- | --- |
-| `:none` | nothing; for a day spent editing the kernel |
-| `:recorded` | replays `PRECOMPILE_STATEMENTS`, a checked-in list — the default |
-| `:live` | runs `ProjecturedExample.precompile_workload()` |
+### The recording
 
-`:recorded` is the default because it is the only level that compiles the
-*reader*: a recording covers what a person actually did, while `:live`
-compiles only what `precompile_workload()` thought to call. Measured
-downstream, the read half of a first click is 4.4 ms under `:recorded` and
-528 ms under `:live`, the same cost as no workload at all.
-`set_workload!(level)` writes the preference and takes effect on the next
-build; `get_workload()` reads the level this session was built with, and
-warns when it differs from the stored preference, since a preference change
-needs a restart to take effect.
+`record_precompile_statements()` runs `source/repl/record/driver.jl` in a new Julia process under `--trace-compile`, because that is a flag of the command line. `ProjecturedExample` then drops every statement that names `Main` or does not parse, sorts the rest, and writes `asset/precompile/PrecompileStatements.jl`. That file is generated; do not edit it.
 
-## The recording
+The driver runs three things:
 
-`source/repl/record/driver.jl` is not run by a build. A person runs
-`record_precompile_statements()`. It opens a real SDL window, since the shim
-needs a display and SDL requires an accelerated renderer that the dummy
-video driver does not offer. It first runs the `:live` workload and
-`warm_application()`, the warm-up of the binary. The warm-up opens a tab with
-`Ctrl+T`, presses Insert on the placeholder, and types a name into the buffer.
-It then drives every example the
-way a reader drives it (the mouse, the arrow keys, Tab, Home, End, Backspace,
-Delete, Enter, and two character keys), and writes down every method instance
-Julia had to compile under `--trace-compile`. The list this produces is checked in at
-`asset/precompile/PrecompileStatements.jl` and replayed by
-`replay_precompile_statements()`, either inside `@compile_workload` during a
-build or at the prompt to see what the list is worth without a rebuild. The
-list goes stale gracefully as the code moves: a statement that no longer
-names anything is skipped. This is why it must be re-recorded once the
-example set changes enough to be worth it.
+1. `precompile_workload()`, so the recording holds everything that `:live` compiles.
+2. `warm_application()`, the warm-up of the binary. It types a name into the name buffer of a new tab, and the first key compiles a method for every document type that the buffer can make.
+3. Every registered example, in one SDL window. The driver sends each one a fixed list of events: pointer motion, a left and a right press, a scroll each way, the arrow keys, Tab, Home, End, Backspace, Delete and two characters. One event of each kind is enough, because the value of a key is a run-time value. An example that throws is counted and skipped.
+
+The recording needs a display. The SDL backend needs an accelerated renderer, and the dummy video driver has none.
+
+### The replay
+
+`replay_precompile_statements()` binds every loaded module into `StatementScope`, an empty module of this package, and resolves each statement there before it calls `precompile`. A statement that names nothing any more is skipped, so the list can be older than the code. The build warns when more than a tenth of the list was skipped, which is the sign to record again. The same call at the prompt shows what the list is worth with no rebuild.
 
 ## How it fits
 
-`ProjecturedRepl` is the leaf: it depends on `Projectured`, `ProjecturedExample`,
-`ProjecturedSdl` and `ProjecturedTest`, and re-exports everything the four
-name, so `using Revise, ProjecturedRepl` gives a session `run_example`,
-`test_all`, `SdlBackend` and every document and projection constructor in
-one line — the `jp` alias in `~/.bashrc` runs exactly that. `@compile_workload`
-appears here and nowhere else in the tree, because a package image keeps its
-compiled code only when nothing loads after it.
+Nothing depends on `ProjecturedRepl`, and nothing may load after it. The session alias runs `julia --project=environment/all -i -e 'using Revise, ProjecturedRepl'`; the alias is outside this repository. The shared machinery of the recording and the replay is in `ProjecturedExample`, so a downstream leaf calls the same code with its own driver and its own list. A built binary is the other leaf: its generated app package holds its own `@compile_workload`, which runs `warm_application()`; see [builder.md](../builder/builder.md).
 
-## What a reader must know before changing this
+## Design decisions
 
-There is no `test/repl/` folder and no `example/repl/`; `record/driver.jl`
-is the one script that exercises this slice, and it needs a display to run.
-`test_export_collisions()` (`test/projectured/ExportCollisionTest.jl`) is
-the guard that keeps the four re-exported packages from naming the same
-symbol with two different bindings. A change to which example set the
-workload compiles must be checked against `PRECOMPILE_STATEMENTS`: a
-`:live` build is only allowed to replace the checked-in recording when its
-own compiled set is a superset of it.
+- **The level is a preference.** A change then builds the image again. See `plan/done/recorded-precompile-workload.md`.
+- **The default replays a recording.** A workload compiles only what somebody wrote down to run, and nobody wrote a read. A recording compiles what an editor that is driven had to compile.
+- **A statement resolves in a module of this package.** `StatementScope` holds the bindings. A binding in the module of a dependency would be one build that writes into the image of another package.
+- **A stale statement is skipped, not an error.** The list stays usable while the code moves, and the skip count is the signal to record again.
+- **The recording is a step that a person runs, not a build step.** Nobody waits for it, so it can open a real window and take its time.
+- **The machinery is shared.** The driver and the list belong to the leaf. The code that records and replays is written once, in `ProjecturedExample`.
+
+## Usage
+
+```julia
+using Revise, ProjecturedRepl         # what the session alias runs
+get_workload()                        # the level of this image
+set_workload!(:none)                  # then start Julia again
+replay_precompile_statements()        # what the list is worth, with no rebuild
+record_precompile_statements()        # record the list again; needs a display
+```
+
+- Examples: none of its own. The recording drives every registered example.
+- Test: `test_export_collisions()` in `test/projectured/ExportCollisionTest.jl`. No `test/repl/` exists, and no test runs the driver.
+
+## Limits
+
+- Record at `:none` only. A `:recorded` image already holds the old list, so those methods never compile, never reach the trace and drop out of the new list. [package-rules.md](../../rule/package-rules.md#the-session) gives the steps and the check of a new list.
+- A recording replaces the list and does not merge with it.
+- The driver sends `KeyDown(:enter, …)`, but the backends report Enter as `:return`. So no binding of Enter fires during the recording, and its code is not in the list.
+- The driver needs a display, so no automatic run checks that it still works.
