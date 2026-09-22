@@ -120,14 +120,24 @@ work runs.
 
 ## 4. The guard
 
-`tool/survey-arguments.jl` reports today; a guard must fail a build. The guard
-lands at the end of wave 3, when the public list is empty, and it fails on a
-public definition over the line with no marker. Before that it would fail on
-every one of the 137.
+**Done, 2026-09-22.** The owner chose the ledger, so the guard landed before the
+waves rather than after them: the count can not grow while the work runs.
 
-**A ledger is the alternative**, and it is what lets the guard land now: a file
-of the names that are allowed for today, and the guard fails on any name that is
-not in it. The list only shrinks. The owner decides which of the two.
+`test/suite/arguments.jl` holds the parser, the protocol list and the ledger of
+the 119 public names that were over the line on the day the rule landed.
+`test_arguments()` in `ProjecturedSuite.jl` runs it, and `test_all()` runs that.
+It fails on two things: a public definition over the line that neither the
+ledger nor a `# @positional:` marker excuses, and a ledger name that no
+definition needs any more. So the ledger only shrinks.
+
+The guard reads 508 files and loads nothing, so it runs in about a second, and
+it runs on its own as well:
+
+    julia test/suite/arguments.jl
+    julia tool/survey-arguments.jl          # the whole picture, private helpers included
+
+The ledger holds 119 names and the survey counts 137 public definitions: a name
+with two methods over the line, such as `record_fault!`, stands once.
 
 ## 5. How one change is made
 
@@ -135,7 +145,9 @@ not in it. The list only shrinks. The owner decides which of the two.
 2. Update every call site: `grep -rn "<name>(" source example test`.
 3. Run the narrowest test of the slice, then the suite of its package. See [testing-guide.md](../../documentation/guide/testing-guide.md).
 4. One commit for one function, or for one family that changes together.
-5. Re-run `julia tool/survey-arguments.jl` and watch the public count fall.
+5. Take the name out of the ledger of `test/suite/arguments.jl`. The guard
+   fails while a name stands there that no definition needs.
+6. Re-run `julia tool/survey-arguments.jl` and watch the public count fall.
 
 ## 6. What is not in this plan
 

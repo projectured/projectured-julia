@@ -129,6 +129,7 @@ include("PackageGraphTest.jl")
 # it describes exist. See `plan/done/repository-tree.md` §3.
 include("../suite/tree.jl")
 include("../suite/naming.jl")
+include("../suite/arguments.jl")
 include("../suite/documentation.jl")
 # Suites that rose from the domain test package when it dissolved: each
 # fixture names several domains, so none of them belongs to one.
@@ -277,6 +278,29 @@ function test_naming()
 end
 
 """
+    test_arguments()
+
+The argument guard: the rule of three positional arguments of
+`documentation/rule/code-quality-rules.md` §4. A public definition over the line
+fails, unless a `# @positional:` marker says why it stands, or unless the ledger
+of `test/suite/arguments.jl` holds its name — the rule arrived after the code,
+and `plan/pending/keyword-arguments.md` empties that list wave by wave. A ledger
+name that no definition needs any more fails too, so the list only shrinks.
+
+A private helper is out of scope for now. It loads nothing and runs in about a
+second.
+"""
+function test_arguments()
+    @testset "arguments" begin
+        root = normpath(joinpath(@__DIR__, "..", ".."))
+        for violation in argument_violations(root)
+            @test violation == ""
+        end
+        @test isempty(argument_violations(root))
+    end
+end
+
+"""
     test_documentation()
 
 The writing guard: the part of
@@ -318,6 +342,7 @@ function test_all()
     # projections, every domain, and the layering guard of each package.
     test_tree()
     test_naming()
+    test_arguments()
     test_documentation()
     test_package_graph()
     test_kernel()
@@ -428,7 +453,7 @@ function test_table()
 end
 
 export test_all, test_domain_examples, test_package_graph, test_tree, test_naming,
-       test_documentation
+       test_arguments, test_documentation
 export test_kernel, test_substrate, test_domain
 export test_export_collisions, test_export_collision_checker, export_collisions
 export test_search_scale

@@ -250,8 +250,13 @@ function print_document(projection::JsonToSyntax, recursion, document, ctx)
 | A port | A file that mirrors the API of another program keeps the signature of the original, so a reader can hold the two side by side. `source/graph/cpp/` is the whole of this case today. |
 | The painters of a backend | One family of functions of one shape, called from one dispatch table, in `source/sdl/` and `source/pdf/`. The family is read as a whole. |
 
-`tool/survey-arguments.jl` counts the definitions over the line and reads the
-marker. A definition over the line with no marker and no protocol is a defect.
+`test/suite/arguments.jl` is the guard, and `test_arguments()` runs it: a public
+definition over the line fails unless a marker says why it stands. The rule
+arrived after the code, so the guard holds a ledger of the 119 public names that
+were over the line on the day it landed, and the ledger only shrinks — a name
+leaves it with the change that fixes the signature.
+`julia tool/survey-arguments.jl` prints the whole picture, the private helpers
+included.
 
 **The public functions come first.** A private helper inside one file costs one
 reader one file. A public function costs every call site and every caller that
