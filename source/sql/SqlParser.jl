@@ -26,7 +26,9 @@
 # expression that the model does not have, such as a function call, is kept as its
 # source text in a `SqlRawExpression` by a greedy token fallback. A condition of a
 # `WHERE` or an `ON` that the model does not have, such as `a LIKE 'x%'`, is kept
-# in a `SqlRawCondition` by the same fallback. Input that is not a
+# in a `SqlRawCondition` by the same fallback. A join of a form that the model
+# does not have, such as a `NATURAL JOIN`, has no raw form to be kept in, so it
+# raises an error rather than being dropped. Input that is not a
 # parseable statement raises an error rather than guessing, matching the other
 # parsers in this directory.
 # ══════════════════════════════════════════════════════════════════════════════
@@ -690,10 +692,15 @@ function parse_from_item!(p::Parser)
     base = parse_from_base_item!(p)
     base === nothing && return nothing
 
+    # A join of a form that the document model does not have, such as a
+    # `NATURAL JOIN` or a join of a list of tables, is an error for the whole
+    # statement. The from items have no raw form to keep the text in, and the
+    # skip of the trailing clauses would otherwise take the join and every
+    # clause after it, so the error is what keeps the text.
     joins = SqlJoinedFromItem[]
     while is_join_start(p)
         j = parse_joined_from_item!(p)
-        j === nothing && break
+        j === nothing && error("SQL: a join that the parser does not read")
         push!(joins, j)
     end
 
@@ -776,11 +783,14 @@ end
 
 # ── JOIN parsing ──────────────────────────────────────────────────────────────
 
+# `NATURAL` starts a join that `parse_join_type!` does not read. It is here so
+# that the join is seen and raises the error, and not left to the skip of the
+# trailing clauses.
 function is_join_start(p::Parser)
     tok = peek(p)
     tok.kind != TK_KEYWORD && return false
     upper = uppercase(String(tok.value))
-    return upper in ("JOIN", "INNER", "LEFT", "RIGHT", "FULL", "CROSS")
+    return upper in ("JOIN", "INNER", "LEFT", "RIGHT", "FULL", "CROSS", "NATURAL")
 end
 
 function parse_join_type!(p::Parser)
@@ -832,29 +842,32 @@ function parse_joined_from_item!(p::Parser)
     end
 end
 
+# A join names a condition with `ON` or with `USING`, or names none at all. A
+# condition that the documents can not hold keeps its text, so `nothing` from
+# the condition parser means the `ON` stands before no condition, and an `ON` or
+# a `USING` with no condition after it is an error for the whole statement.
 function parse_join_condition!(p::Parser)
     if match_keyword(p, "ON")
         advance!(p)
         expr = parse_boolean_expression!(p)
-        expr === nothing && return nothing
+        expr === nothing && error("SQL: the ON of a join has no condition")
         return SqlJoinOnCondition(expr)
     elseif match_keyword(p, "USING")
         advance!(p)
-        if peek(p).kind == TK_LPAREN
-            advance!(p)  # consume (
-            cols = SqlColumnName[]
+        peek(p).kind == TK_LPAREN || error("SQL: the USING of a join has no column list")
+        advance!(p)  # consume (
+        cols = SqlColumnName[]
+        tok = consume_ident!(p)
+        tok !== nothing && push!(cols, SqlColumnName(ident_string(tok)))
+        while peek(p).kind == TK_COMMA
+            advance!(p)
             tok = consume_ident!(p)
             tok !== nothing && push!(cols, SqlColumnName(ident_string(tok)))
-            while peek(p).kind == TK_COMMA
-                advance!(p)
-                tok = consume_ident!(p)
-                tok !== nothing && push!(cols, SqlColumnName(ident_string(tok)))
-            end
-            if peek(p).kind == TK_RPAREN
-                advance!(p)  # consume )
-            end
-            return SqlJoinUsingCondition(cols...)
         end
+        if peek(p).kind == TK_RPAREN
+            advance!(p)  # consume )
+        end
+        return SqlJoinUsingCondition(cols...)
     end
     return nothing
 end

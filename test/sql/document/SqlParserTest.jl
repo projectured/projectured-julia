@@ -133,6 +133,42 @@ function test_sql_parser()
             @test roundtrip(stmt) == "SELECT * FROM a INNER JOIN b USING (id, name)"
         end
 
+        # ── A join that the parser does not read ─────────────────────
+        @testset "a join that the parser does not read is an error" begin
+            # The joins of the model are INNER, LEFT, RIGHT, FULL and CROSS, and
+            # a base item is one table or one subquery. A join of another form is
+            # an error for the whole statement, so its text is never dropped.
+            @test_throws ErrorException parse("SELECT * FROM a NATURAL JOIN b")
+            @test_throws ErrorException parse("SELECT * FROM a NATURAL LEFT JOIN b")
+            @test_throws ErrorException parse("SELECT * FROM a NATURAL JOIN b WHERE a.x = 1")
+            @test_throws ErrorException parse("SELECT * FROM a, b NATURAL JOIN c")
+            @test_throws ErrorException parse("SELECT * FROM a JOIN (x, y) ON a.id = x.id")
+            # An ON or a USING with no condition after it is an error too.
+            @test_throws ErrorException parse("SELECT * FROM a JOIN b ON")
+            @test_throws ErrorException parse("SELECT * FROM a JOIN b ON WHERE a.x = 1")
+            @test_throws ErrorException parse("SELECT * FROM a JOIN b USING")
+            # A join that names no condition at all is a join of the model.
+            stmt = parse("SELECT * FROM a JOIN b")
+            @test stmt.from_clause.items[1].joins[1].condition === nothing
+            @test roundtrip(stmt) == "SELECT * FROM a INNER JOIN b"
+        end
+
+        # ── The printed text of a join ───────────────────────────────
+        @testset "the printed text of a join parses back to the same document" begin
+            for sql in ("SELECT * FROM a INNER JOIN b ON a.id = b.id",
+                        "SELECT * FROM a LEFT OUTER JOIN b ON a.id = b.id",
+                        "SELECT * FROM a RIGHT OUTER JOIN b ON a.id = b.id",
+                        "SELECT * FROM a FULL OUTER JOIN b ON a.id = b.id",
+                        "SELECT * FROM a CROSS JOIN b",
+                        "SELECT * FROM a INNER JOIN b USING (id, name)",
+                        "SELECT * FROM a INNER JOIN b",
+                        "SELECT * FROM a INNER JOIN b ON a.id = b.id + 1",
+                        "SELECT * FROM a INNER JOIN b ON a.id = b.id CROSS JOIN c")
+                @test roundtrip(parse(sql)) == sql
+                @test roundtrip(parse(roundtrip(parse(sql)))) == sql
+            end
+        end
+
         # ── Subquery in FROM ─────────────────────────────────────────
         @testset "subquery FROM" begin
             sql = "SELECT * FROM (SELECT * FROM t) AS sub"
