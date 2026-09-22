@@ -63,6 +63,21 @@ end
     @test !occursin("no natural rendering", text)
 end
 
+@testset "it draws in a pane tab" begin
+    # A tab reads its content through `print_child`, which does not print an
+    # output again until it is graphics, so the row itself must end in graphics.
+    toplevel = make_insertion_document(EvaluatorToplevel)
+    tree = PaneTree(PaneSplit(:vertical, Any[PaneGroup(PaneTab[PaneTab("Evaluator", toplevel)])];
+                              weights = [1.0]))
+    host = ChainingProjection(RecursiveProjection(PaneToWidget()), NaturalToGraphics(measure = _stub))
+    text = drawn(get_iomap_output(print_document(host, nothing, tree,
+                 PrinterContext(EmptyReference(), Cell(600), Cell(400), Dict{Symbol,Any}()))))
+    alone = split(render(toplevel))
+    @test !isempty(alone)
+    # The page draws what a print of the evaluator alone draws.
+    @test all(word -> occursin(word, text), alone)
+end
+
 @testset "ALT+ENTER evaluates the form the caret is in" begin
     toplevel = make_insertion_document(EvaluatorToplevel)
     toplevel.elements[1].form.value = "1 + 1"

@@ -99,10 +99,17 @@ map_reference_forward(::EvaluatorToplevelToWidgetComposite, iomap, reference) =
 # The row that lets a tab draw an evaluator toplevel or a bare form. Without it
 # a person who types `repl` sees field names, because the render-anything
 # projection falls through to the reflection tail for a document no row claims.
+#
+# Each row ends in graphics. A tab reads its content through `print_child`,
+# which does not print a layout again until it is graphics, and a layout draws
+# only the children whose output is graphics. The cards and the documents in
+# them re-enter the renderer through the recursion both stages share.
 
 function __init__()
     register_natural_graphics!(:evaluator, (; measure) -> Pair{Type,Any}[
-        EvaluatorToplevel => EvaluatorToplevelToWidgetComposite(),
-        EvaluatorForm     => EvaluatorFormToWidgetCard(),
+        EvaluatorToplevel => ChainingProjection(EvaluatorToplevelToWidgetComposite(),
+                                                VerticalLayoutToGraphicsCanvas()),
+        EvaluatorForm     => ChainingProjection(EvaluatorFormToWidgetCard(),
+                                                VerticalLayoutToGraphicsCanvas()),
     ])
 end
