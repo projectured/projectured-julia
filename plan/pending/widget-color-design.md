@@ -1403,6 +1403,32 @@ does not name is `color_transparent`, and an inset that it does not name is
       extends", so the layout module takes `using ..StyleModule`. Both suites
       keep their baseline.
 
+- [x] The tests of §7, in `test/substrate/projection/WidgetColorTest.jl`
+      (`test_widget_colors`), called by `test_substrate()`:
+      - **A probe theme.** Every color token of the theme is a color that no
+        constant of the code uses. The test prints 55 widget example documents
+        with it, and every color they draw is a token, a color derived from a
+        token, or a color that a style of the document names. The editable text
+        box and the popup are left out: their colors come from the text and the
+        screen domain. This test found the one printer that still made a color
+        of its own: the search icon filled its hollow middle with the ink color
+        at alpha 0, and now uses `color_transparent`.
+      - **The order of §4.2.** An override wins over the style field, a hovered
+        button draws its layer over the override, a disabled button ignores the
+        override, and the override of the normal state does not reach the
+        checked state while the override of the checked state does.
+      - **The parts at their size.** A label with a margin of 3, a border of 2
+        and a padding of 5, each in its own color, draws four margin bands, one
+        border outline at the border box, four padding bands and one content
+        rect, each at its size.
+      - **A transparent part adds no element.** The page of a tabbed pane is
+        transparent and adds no rect; a page color adds one. A label draws no
+        box at all. A text box with a transparent surface keeps the rect that
+        carries its outline.
+      The hit targets keep their own tests: the whole-canvas targets of the
+      table and the tree, and the fold column of the card, are transparent rects
+      that the printers push directly, and `_push_panel!` does not touch them.
+
 ### 8.6 omnet-julia
 
 omnet-julia reaches projectured-julia through the main checkout, so it can not
