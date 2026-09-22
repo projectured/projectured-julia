@@ -1,9 +1,8 @@
 # The toolbar opens the tools
 
-**Status (2026-09-22): IN PROGRESS.** The owner answered the
-questions of §5 on 2026-09-22. The plan is on the branch
-`toolbar-opens-the-tools`, in the worktree
-`workspace/projectured-julia-toolbar-opens-the-tools`.
+**Status (2026-09-22): DONE.** Landed on `main` in both repositories:
+projectured-julia Steps 1 to 7, omnet-julia Step 8 (`8de099db`). Nothing is
+pushed. The owner answered the questions of §5 on 2026-09-22.
 
 **Goal:** the toolbar of the application window holds one button for each tool:
 the assistant, the file explorer, the evaluator, the message log, the gesture
@@ -551,37 +550,62 @@ the other one.
 
 ### Step 8: omnet-julia, the IDE gets the same toolbar
 
-- [ ] In `source/ide/IdeWindow.jl`: `_ide_shell` gives `make_window_toolbar`
-      the assistant of R8 and the explorer of R9, and no `extra`.
-      `make_ide_window_wrap` gets the values that it needs for the assistant
-      from `run_omnet_ide`.
-- [ ] Remove `_ide_toolbar_commands`, `_run_selected_simulations!`,
-      `_stop_focused_simulations!` and `_find_focused_batch`. No other code
-      calls them. `CampaignVerbs.run_simulations!` and `stop_simulations!` stay,
-      because a model calls them. Remove the sentence "the toolbar carries Run
-      and Stop" from the docstring of `make_ide_window_wrap`.
-- [ ] `_open_file_navigator!` makes its `Workspace` with the explorer function
-      of R9.
-- [ ] `run_omnet_ide` uses the setup of R11. The feeds go through
-      `run_campaign_window` as keywords.
-- [ ] Resolve the environments of omnet-julia: the six new dependencies of the
-      shell reach the closure of `OmnetIde`. The count of its closure guard
-      changes. Record the new count and the reason.
-- [ ] Tests: `test_ide_window_wrap()` against Step 0. The test "a widget of the
-      runner is selected, and nothing runs" in `IdeSelectAndPasteTest.jl`: it
-      clicks the first "Run" text on the screen and expects the `WidgetButton`
-      of the Runner, which is now the only "Run" text. A new test: the IDE
-      toolbar holds the same buttons as the toolbar of the application, and the
-      assistant button opens a tab with the title "Assistant", which
-      `StudyVerbs.jl` looks for.
-- [ ] Update the guide of the IDE window if it names the toolbar, and the
-      memory about the layers of the IDE window.
+Done in the worktree `omnet-julia-toolbar-opens-the-tools`, landed on omnet-julia
+`main` as `8de099db`.
+
+- [x] `_make_ide_shell(document, assistant)` gives `make_window_toolbar` the
+      assistant of R8 and the explorer of R9, and no `extra`.
+      `make_ide_window_wrap` takes an `assistant` keyword; `run_omnet_ide`
+      makes it from the `assistant`, `llm`, `model` and `context` keywords it
+      passes on, with `campaign_assistant` and the IDE greeting. A window
+      opened with an assistant document of its own reopens that document, and
+      one opened with `assistant = nothing` has no button.
+- [x] `_ide_toolbar_commands`, `_run_selected_simulations!`,
+      `_stop_focused_simulations!` and `_find_focused_batch` are gone, with the
+      imports only they used. `CampaignVerbs` stays for the model. The
+      docstring of `make_ide_window_wrap` no longer names Run and Stop.
+- [x] `_open_file_navigator!` and the explorer button share
+      `_find_project_folder` and `_make_workspace`. With no project folder the
+      button opens the working directory.
+- [x] `run_omnet_ide` opens its window through `run_with_window_tools`; the
+      feeds go through `run_campaign_window` as keywords, and `start` runs in
+      `on_open`.
+- [x] The environments: `environment/all` and `package/OmnetIdeTest` of the
+      worktree resolved (their manifests are untracked). The closure of
+      `OmnetIde` grows from 46 to 50: `ProjecturedLog`, `ProjecturedFault`,
+      `ProjecturedStatistics` and `ProjecturedInspector`. `IdeClosureTest`
+      allows 50 with a paragraph that names the four, and requires them.
+      **26** pass. `CampaignUiClosureTest` fails 2 (25 > 22, it reaches
+      `ProjecturedSerialization`); a walk with projectured-julia at `d539f35b`
+      counts 25 as well, so this plan adds nothing to it.
+      `test_runner_closure()` 30.
+- [x] Tests, from `--project=package/OmnetIdeTest`: `test_ide_window_wrap()`
+      **29** (25 + 4: the IDE toolbar is the shell's, it holds the eight tools
+      and no Run or Stop, and the assistant button reopens a closed assistant
+      with the title "Assistant"). `test_ide_file_navigator()` 8.
+      `test_select_and_paste()` goes from 72 pass, 7 fail, 3 errors to 81
+      pass, 4 fail, 1 error: "a widget of the runner is selected" passes now,
+      because the first "Run" on the screen is the runner's button. The rest
+      fail the same with projectured-julia at `d539f35b` (a scratch
+      environment with every projectured path at that commit): the note of a
+      tool (lines 304-317) and an `evaluate_reference(::ClipboardSlice, …)`
+      MethodError (line 434). `test_result_verbs()` 63, `test_result_views()`
+      45, `test_study_verbs()` 54, `test_study_runs()` 10,
+      `test_prompt_names()` 3, `test_ide_text_clipboard()` 9.
+- [x] The runner guide names the toolbar of tools. The memory about the layers
+      of the IDE window is updated.
+- **Four untracked manifests of the omnet-julia main checkout are stale**:
+  `environment/all`, `package/OmnetCampaignUiTest`, `package/OmnetIde` and
+  `package/OmnetIdeTest` list the old dependencies of `ProjecturedShell`.
+  Each needs `Pkg.resolve()` before it loads `OmnetIde`. They are generated
+  files of the main checkout, which other sessions use, so this plan leaves
+  them to the owner.
 
 ### Step 9: close
 
-- [ ] Update [shell.md](../../documentation/package/shell/shell.md), the guide
-      of the fault slice, and the README line about the toolbar if one exists.
-- [ ] Update the memory, and move this plan to `plan/done/`.
+- [x] The shell guide, the widget guide, the fault guide, the README, the
+      delivery roadmap and the system anatomy are updated in their steps.
+- [x] The memory is updated, and this plan moves to `plan/done/`.
 
 ## 5. Questions to the owner
 
