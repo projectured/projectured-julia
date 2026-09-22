@@ -36,12 +36,13 @@ level 3  PaneTree         the focused PaneTab
 
 Two faults make this:
 
-1. **Some writers set the selection of an inner document.**
+1. **The pane verbs never enter the projection chain.**
    `apply_pane_operation!(tree, operation)` evaluates against a `PaneHost` whose
-   document is the tree, so a pane verb moves the focus in the tree alone. The
-   fold's wrappers (`ClipboardSlice`, `WidgetShell`) and the window scene do not
-   carry the selection of what they wrap, so the focus that the application
-   sets when it builds its tree stays inside.
+   document is the tree, so a verb moves the focus in the tree alone. The chain
+   already reroots every answer on its way out: the undo buffer, the shell and
+   the clipboard prefix `content`, and the screen prefixes `windows[i]`. A focus
+   that a key or a click makes goes through them and works. The focus that the
+   application builds its tree with never goes through them either.
 2. **The clipboard searches.** `_get_clipboard_selection` reads its own
    selection, else the selection one level in. With the shell at level 1, the
    focus is two levels below where it stops.
@@ -73,37 +74,42 @@ The examples that seat a selection on a bare document and then on the screen
 
 ## 3. Decisions
 
-- **A write of the live selection starts at the root.** A verb that has the
-  editor reroots its operation to the editor's document and evaluates it there.
-  A reader answers a `ReplaceSelectionOperation`, which the projection chain
-  already reroots. No code sets the live selection of an inner document.
-- **A wrapper carries the selection of what it wraps when it is made.** When a
-  wrapper is made around a document that holds a selection, the new wrapper is
-  the root, so the selection is written there, one step longer. This is what
-  `Application.jl:93` does by hand for the `UndoBuffer`.
+- **A selection write is an answer of the chain.** A reader answers a
+  `ReplaceSelectionOperation` at its own level, and every wrapper projection on
+  the way out reroots it by its step. So the operation arrives at the editor
+  rooted, and each document on the path gets its suffix. No code sets the live
+  selection of an inner document.
+- **A verb goes through the chain as a reader does.** A pane verb that has the
+  editor reads its tree-level operation through `editor.projection` with the
+  editor's io map, as a reader payload that the pane tree's reader answers with
+  the operation. The wrappers reroot it, and the verb evaluates the rooted
+  answer through the editor. The kernel's precedents for a payload are
+  `ClaimedGesture`, `CollectIntents` and the tooltip's `PointerRest`: every
+  reader that does not know a payload declines it.
+- **The window's first focus goes through the chain too.** The tree is built
+  with its focus, before a window exists. After the first print, the start of
+  the window sends that focus through the chain with the same verb. omnet's
+  `focus_runner_group!(editor)` already runs at that point.
 - **The clipboard reads its own selection only.** `_get_clipboard_selection`
   goes; `_selected` and the two other callers read `input.selection`.
-- **A wrapper names the step to what it wraps.** A new generic of the kernel's
-  document layer, `get_wrapped_document_step(node)`, answers the one
-  `ReferenceStep` from `node` to the document it wraps, or `nothing` for a
-  document that wraps none. `get_wrapped_document` jumps to the innermost
-  document and gives no path, so it can not serve. `UndoBuffer`,
-  `ClipboardSlice` and `WidgetShell` answer `FieldReferenceStep("content")`.
-- **A dormant selection stays where it is kept.** A group that is off the live
-  path keeps the tab it shows as a dormant selection. That is not the live
+- **A dormant selection stays where it is kept.** A group off the live path
+  keeps the tab it shows as a dormant selection. That is not the live
   selection, and the rule does not move it.
 - **A headless caller that holds the tree is its own root.** `focus_pane!(tree,
   …)` and the other verbs still take a bare `PaneTree`; there the tree is the
-  root, and the write is at the root.
+  root, and `apply_pane_operation!(tree, …)` writes at the root.
+
+**What changes as a result.** A verb's edit now passes the window's undo buffer.
+An open, a close or a duplicate by a verb becomes one undo step, as the same
+key's already is; a focus move alone is a bare selection move and is not a step.
+The gesture log records the payload.
 
 Names, checked against `naming-rules.md`:
 
 | Name | What it is |
 | --- | --- |
-| `get_wrapped_document_step(node)` | the step from a wrapper to what it wraps, or `nothing` |
-| `lift_wrapped_selection!(wrapper)` | writes the selection of what `wrapper` wraps into `wrapper`, one step longer |
-| `get_window_tree_reference(editor)` | the reference from the editor's root to its pane tree; empty for a bare tree |
-| `apply_pane_operation!(editor, operation)` | a new method: reroots `operation` by that reference and evaluates it at the root |
+| `ApplyPaneEdit(operation)` | the payload: a tree-level operation that the pane tree's reader answers; a verb phrase, as `CollectIntents` is |
+| `apply_pane_operation!(editor, operation)` | a new method beside the one for a tree: reads the payload through the chain and evaluates the rooted answer; prints once first when the editor has no io map |
 
 ## 4. Steps
 
@@ -120,52 +126,37 @@ Names, checked against `naming-rules.md`:
       Ctrl+T and a paste.
 - [ ] A test helper, `find_stray_live_selections(root)`: every document under
       `root` whose live selection is not on the root's live path. The tests of
-      Steps 2–6 assert it answers none.
+      the later steps assert that it answers none.
 
-### Step 1 — a wrapper names its step
+### Step 1 — the pane verbs go through the chain
 
-- [ ] `get_wrapped_document_step` in `DocumentInterface.jl`, `nothing` in
-      `DocumentDefaults.jl`, and a method each for `UndoBuffer`,
-      `ClipboardSlice` and `WidgetShell`.
-- [ ] `lift_wrapped_selection!(wrapper)` beside it.
-- [ ] Tests in the kernel suite and in each wrapper's suite.
-
-### Step 2 — the window is made with its selection at the root
-
-- [ ] `make_clipboard_document`, `make_window_shell_document` and the
-      `UndoBuffer` of `make_application_document` lift the selection of what
-      they wrap. `Application.jl:93` goes.
-- [ ] `make_window_scene` writes `.windows[1].content` and the content's
-      selection into the screen.
-- [ ] Test: as the application window opens, `get_selection(editor.document)`
-      names the focused tab, and no selection is stray.
-
-### Step 3 — the pane verbs write at the root
-
-- [ ] `get_window_tree_reference(editor)`, walked as `get_window_tree` walks,
-      with `get_wrapped_document_step` for each wrapper.
-- [ ] `apply_pane_operation!(editor, operation)`: `reroot_operation` by that
-      reference, then `evaluate_operation(editor, …)`. Every operation type the
-      surgery makes reroots already: a write and a selection move get the
-      prefix, and `MoveRangeOperation` carries its own collections.
+- [ ] `ApplyPaneEdit`, and the method of `PaneTreeToWidget`'s reader that
+      answers it with its operation.
+- [ ] `apply_pane_operation!(editor, operation)`.
 - [ ] `open_pane!`, `focus_pane!`, `duplicate_pane!` and `_restore_focus!` use
-      it.
+      it when they have an editor.
 - [ ] `_restore_shown!`: check whether `replace_selection!(group, …)` on a group
       off the live path makes a second live branch. If it does, write the kept
       tab as a dormant selection.
-- [ ] Tests in `test_pane()`: after each verb, the root's selection names the
-      focused tab, and no selection is stray.
+- [ ] Tests in `test_pane()` and `test_application()`: after each verb, the
+      root's selection names the focused tab, and no selection is stray; an
+      open by a verb is one undo step, and a focus move is none.
 
-### Step 4 — the clipboard reads its own selection
+### Step 2 — the window's first focus
+
+- [ ] The application's start sends the tree's focus through the chain.
+- [ ] Test: as the window opens, `get_selection(editor.document)` names the
+      focused tab.
+
+### Step 3 — the clipboard reads its own selection
 
 - [ ] `_get_clipboard_selection` goes; its three callers read `input.selection`.
 - [ ] The test of Step 0 passes. `test_clipboard()` and `test_shell()` hold.
 
-### Step 5 — the other writers below the root
+### Step 4 — the other writers below the root
 
-Each is its own small design; the approach is the same: the reader answers a
-`ReplaceSelectionOperation` that the chain reroots, or the operation carries
-the root path.
+Each answers a `ReplaceSelectionOperation` from its reader, which the chain
+reroots, instead of writing a selection in its `evaluate_operation`.
 
 - [ ] `SelectTabOperation` (`WidgetDocument.jl:2759`).
 - [ ] `ReloadFileOperation` (`DocumentFile.jl:181`).
@@ -176,28 +167,29 @@ the root path.
       decorator holds for itself is not under the root, and the rule does not
       reach it.
 
-### Step 6 — omnet-julia
+### Step 5 — omnet-julia
 
 - [ ] `focus_runner_group!` and `_open_file_navigator!` use
       `apply_pane_operation!(editor, …)`.
 - [ ] `open_simulation_pane!(tree, …)`: take the editor where a caller has
       one.
-- [ ] `EmbedPanes.jl:510`: the embedded tree is its own root when it is built;
-      check that the page that holds it lifts the selection.
+- [ ] `EmbedPanes.jl:510`: the embedded tree is built with its focus; check
+      that the focus reaches the root the same way.
 - [ ] `test_select_and_paste()`: lines 304–317 and 434 pass.
 
-### Step 7 — the guides, and close
+### Step 6 — the guides, and close
 
-- [ ] `selection.md`: the live selection is written at the root; a wrapper
-      lifts the selection of what it wraps. `clipboard.md`: the clipboard reads
-      its own selection. `pane.md`: a verb writes at the root.
+- [ ] `selection.md`: a selection write is an answer of the chain, and a verb
+      goes through it. `clipboard.md`: the clipboard reads its own selection.
+      `pane.md`: a verb goes through the chain, and its edit is an undo step.
 - [ ] Move this plan to `plan/done/`.
 
 ## 5. Risks
 
 | Risk | What is done about it |
 | --- | --- |
-| A verb now writes through the editor, so a write that was local to the tree reaches every level of the path. | That is the point of the rule. Each level already accepts the suffix, because a click writes the same path. |
-| An operation type of a verb that does not reroot. | Step 3 lists the types; the catch-all of `reroot_operation` leaves an unknown type unchanged, so a new type gets a test with the verb that makes it. |
+| A verb now writes through the chain, so a write that was local to the tree reaches every level of the path. | That is the point of the rule. Each level already takes the suffix, because a click writes the same path. |
+| An operation type of a verb that does not reroot. | The surgery makes a write, a selection move and `MoveRangeOperation`; the first two reroot, and the third carries its own collections. A new type gets a test with the verb that makes it. |
+| A reader that does not decline an unknown payload. | Every reader must decline one already, for `PointerRest` and `CollectIntents`. Step 1's tests run the payload through the whole window. |
 | A test that drives a bare tree now tests a different path from the window. | The bare tree stays a root of its own, and each verb gets a case with an editor too. |
 | Another session edits the same files. | Rebase before each landing, and run the suites of the files that moved. |
