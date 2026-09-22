@@ -30,6 +30,7 @@ const PROJECTURED_OPTIONS = [
     "--root=DIRECTORY" => "the directory that the navigator lists (default:\nthe current directory)",
     "--mcp" => "start an MCP server at http://127.0.0.1:9876/mcp",
     "--context=TOKENS" => "how many tokens of the conversation the model may\nsee (default: the default of the backend)",
+    "--strict-fault-policy" => "stop at the first fault and print its stack,\ninstead of surviving it",
 ]
 
 """

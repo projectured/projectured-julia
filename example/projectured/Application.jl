@@ -307,7 +307,7 @@ const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
 """
     run_application(paths...; backend = nothing,
                     assistant = :ollama, model = "", mcp = false, root = pwd(),
-                    width = nothing, height = nothing)
+                    width = nothing, height = nothing, fault_policy = FaultPolicy())
 
 Open the ProjecturEd application with the files at `paths`, and run it until the
 window closes.
@@ -322,6 +322,8 @@ window closes.
 - `context` is how many tokens of the conversation the model may see; `0` leaves
   the backend's own answer. It matters for a local model, whose window costs
   memory on this machine.
+- `fault_policy` is what the editor does with a fault. The default survives it
+  and shows it; `make_strict_fault_policy()` stops at the first one.
 
 # Example
 
@@ -332,6 +334,7 @@ function run_application(paths::AbstractString...;
                          model::AbstractString = "", mcp::Bool = false,
                          root::AbstractString = pwd(), context::Integer = 0,
                          width = nothing, height = nothing,
+                         fault_policy::FaultPolicy = FaultPolicy(),
                          measure = measure_truetype_text)
     chat = make_application_assistant(assistant; model = model, context = context)
     backend === nothing && (backend = default_backend())
@@ -357,6 +360,7 @@ function run_application(paths::AbstractString...;
                                   content = make_application_content_projections(measure = measure),
                                   measure = measure),
                           screen_wrap = make_popup_screen_wrap(),
+                          fault_policy = fault_policy,
                           on_start = editor -> _start_application!(editor, mcp, assistant, model))
     finally
         remove_message_log_capture!(previous_logger)
@@ -381,10 +385,13 @@ function parse_application_arguments(arguments::AbstractVector{<:AbstractString}
                                  "assistant" => "ollama", "model" => "",
                                  "root" => pwd(), "context" => "0")
     mcp = false
+    strict_fault_policy = false
     files = String[]
     for argument in arguments
         if argument == "--mcp"
             mcp = true
+        elseif argument == "--strict-fault-policy"
+            strict_fault_policy = true
         elseif startswith(argument, "--") && occursin('=', argument)
             key, value = split(argument[3:end], '='; limit = 2)
             haskey(values, key) || error("unknown option $(repr(argument))")
@@ -404,7 +411,8 @@ function parse_application_arguments(arguments::AbstractVector{<:AbstractString}
     (context === nothing || context < 0) &&
         error("--context is a count of tokens, not ", repr(values["context"]))
     (; files, backend, assistant,
-       model = values["model"], root = values["root"], mcp, context)
+       model = values["model"], root = values["root"], mcp, context,
+       strict_fault_policy)
 end
 
 """
@@ -412,7 +420,7 @@ end
 
 What the `projectured` binary runs: read the command line, open the window, and
 answer the exit code: 0 when the window closes, 1 for a wrong command line, and
-2 when the program fails.
+2 when the program fails. A failure prints its stack.
 
 `backends` maps a backend name to the function that makes it, for example
 `(sdl = SdlBackend, web = WebBackend)`. It names the backends that the build put
@@ -437,11 +445,15 @@ function run_application_command(arguments; backends)
                         backend = backends[backend](),
                         assistant = command.assistant, model = command.model,
                         mcp = command.mcp, root = command.root,
-                        context = command.context)
+                        context = command.context,
+                        fault_policy = command.strict_fault_policy ?
+                            make_strict_fault_policy() : FaultPolicy())
         Cint(0)
     catch err
         err isa InterruptException && return Cint(0)
-        println(stderr, "projectured: ", sprint(showerror, err))
+        print(stderr, "projectured: ")
+        showerror(stderr, err, catch_backtrace())
+        println(stderr)
         Cint(2)
     end
 end

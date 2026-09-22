@@ -59,6 +59,29 @@ julia> run_example("json"; backend=WebBackend())            # serve on http://12
 julia> run_example("json"; backend=WebBackend(port=9000))   # then open the URL; the editor appears in the tab
 ```
 
+## Stop at the first fault
+
+A running editor survives a fault. The frame barriers catch the exception,
+record it, and log it with a traceback that the console logger cuts short. To
+see the whole stack, make the editor stop at the first fault:
+
+```sh
+bin/projectured --strict-fault-policy
+```
+
+The flag gives the editor `make_strict_fault_policy()`, so every barrier raises
+the exception again. The program ends with exit code 2 and prints the stack. From
+Julia, pass the policy to the loop:
+
+```julia
+julia> run_application(; fault_policy = make_strict_fault_policy())
+julia> run_window_editor(document, projection, "Title";
+                         backend = SdlBackend(), fault_policy = make_strict_fault_policy())
+```
+
+A `FaultCatchingProjection` in the pipeline does not read the policy. It still
+catches inside a printer and draws its mark.
+
 ## The gesture log overlay
 
 `gesture_log=true` puts a panel over the content of each window. The panel shows

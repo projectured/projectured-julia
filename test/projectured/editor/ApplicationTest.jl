@@ -135,16 +135,16 @@ function test_application()
             @test command.files == String[]
             @test command.backend === nothing && command.assistant === :ollama
             @test command.model == "" && !command.mcp
-            @test command.context == 0
+            @test command.context == 0 && !command.strict_fault_policy
             command = parse_application_arguments(
                 ["a.json", "--backend=web", "--assistant=none",
                  "--model=small", "--root=/tmp", "--mcp", "--context=8192",
-                 "b.md"])
+                 "--strict-fault-policy", "b.md"])
             @test command.files == ["a.json", "b.md"]
             @test command.backend === :web
             @test command.assistant === :none && command.model == "small"
             @test command.root == "/tmp" && command.mcp
-            @test command.context == 8192
+            @test command.context == 8192 && command.strict_fault_policy
             # The gesture log is read in a tab, which View opens, so no switch
             # turns it on.
             @test_throws ErrorException parse_application_arguments(["--gesture-log"])
@@ -161,14 +161,27 @@ function test_application()
             @test redirect_stderr(() -> run_application_command(["--backend=web"];
                                                                 backends = (sdl = () -> nothing,)),
                                   quiet) == 1
+            # A program that fails answers 2, and it prints the stack as well
+            # as the message.
+            report = mktemp() do path, io
+                code = redirect_stderr(() -> run_application_command(String[];
+                                           backends = (sdl = () -> error("no display"),)),
+                                       io)
+                close(io)
+                (code, read(path, String))
+            end
+            @test first(report) == 2
+            @test occursin("no display", last(report)) && occursin("Stacktrace", last(report))
             # The `--help` text of a binary names exactly the options the
             # parser takes.
             usage = make_projectured_usage([:sdl, :web])
             flags = Set(first(split(label, '=')) for (label, _) in usage.options)
             @test flags == Set(["--backend", "--assistant", "--model",
-                                "--root", "--mcp", "--context"])
-            # A flag and the keyword it sets spell the same word, so
-            # `--context` is `context`.
+                                "--root", "--mcp", "--context",
+                                "--strict-fault-policy"])
+            # A flag and the keyword it sets spell the same words, a flag with
+            # a hyphen and a keyword with an underscore, so
+            # `--strict-fault-policy` is `strict_fault_policy`.
             for flag in flags
                 @test haskey(pairs(parse_application_arguments(String[])),
                              Symbol(replace(flag[3:end], '-' => '_')))
