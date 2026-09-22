@@ -66,7 +66,8 @@ memory cap of 20 GB. No second Julia process runs at the same time.
       `JOIN … USING` has a printer rule. `f9d8adfc`.
 - [x] Console: Escape, an Alt chord, and a CSI key with modifiers. A lone ESC
       waits at most 50 ms for more bytes. `a0541528`.
-- [ ] Assistant: Return while a turn streams does not start a second turn.
+- [x] Assistant: Return while a turn streams does not start a second turn.
+      `7517bfee`.
 - [x] PDF: the text size follows the font zoom (`2944a74d`); a text is split
       into runs by the font that draws each character, and each font is
       embedded; a CFF font is skipped (`532a3120`).
@@ -88,10 +89,18 @@ memory cap of 20 GB. No second Julia process runs at the same time.
 
 ### Step 2: the MCP server and the direct writes
 
-- [ ] The address of the MCP server is a keyword and a command-line option.
-- [ ] The MCP server publishes the tools that `on_start` registers.
-- [ ] The assistant task and the MCP task post their operations through the
-      inbox (confirm the design against `plan/done/the-editor-survives-a-fault.md`).
+- [x] The address of the MCP server is a keyword (`mcp_host`, `mcp_port`) and
+      a command-line option (`--mcp`, `--mcp=PORT`, `--mcp=HOST:PORT`).
+      `stop_mcp!` now closes the transport, so the port is free after a quit.
+      `158ff8ca`.
+- [x] The MCP server publishes the tools that `on_start` registers: the server
+      starts after `on_start`. A tool registered later is still not listed;
+      the MCP library reads its own tool vector. `e95e9e5d`.
+- [x] The assistant task and the MCP task write through the inbox:
+      `run_on_editor_task!` runs a function on the editor task and waits for
+      its answer, or runs it at once when no loop runs. `04f4d9a8`. This fixes
+      the race that section 9 of `plan/done/the-editor-survives-a-fault.md`
+      records.
 
 ### Step 3: the widget readers
 
@@ -133,6 +142,15 @@ memory cap of 20 GB. No second Julia process runs at the same time.
   `PAR-REPORT-NEVER-THROWS` asks that a barrier that a test can reach catches
   nothing by default. The editor loop puts its own policy into the context, and
   it drops the printed projection when the policy changes.
+- **A tool call runs on the editor task, and the frame waits for it.** The
+  in-window assistant and an MCP client then see the same tool. The first
+  description search of a build can hold the frame for up to 30 s; a read-only
+  flag for each tool would lift that. A fault in a streamed part goes to the
+  fault log, and the turn goes on. An operation that is posted after the last
+  frame is dropped when the loop ends; a pending call runs then, so no caller
+  waits forever.
+- **The MCP server starts after `on_start`.** A listing at request time needs a
+  hook that the MCP library does not have.
 - **A SQL statement ends at `;` or at the end of the text.** Extra text after a
   statement raises an error now; before, it was ignored. A SELECT in a
   `SqlStatementList` prints its `;`.
@@ -148,5 +166,12 @@ memory cap of 20 GB. No second Julia process runs at the same time.
   `JsonNumber` inside a container gets a `ReplaceStringRangeOperation`, not the
   retype. `test_message_log` fails 4 of 8 on `main`: it checks the log before
   a feed drains it. All three go into step 4.
+- New faults from group A4: the MCP library replaces the global logger when it
+  starts, so with `--mcp` the message log gets no more records;
+  `EvaluateDraftTurnOperation` (Alt+Return) has no guard while a turn streams;
+  the layer numbers of `agent.md`, `editor.md` and `SEALING.md` disagree, and
+  the `AgentModule` docstring names a missing `AgentServer.jl`. Two failures
+  of `test_assistant_mvp` (lines 677 and 721) expect the normalised source
+  that `_eval_code` no longer returns; they were hidden behind errors before.
 - `test_catalog_coverage` fails on `main` for 28 types (Assistant, Process,
   Pane, FaultLog and others). It is not caused by this work.
