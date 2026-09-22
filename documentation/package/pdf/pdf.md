@@ -18,7 +18,7 @@ A `Backend` drives devices and reads events; this package has neither. It has th
 
 ### Measure
 
-The export measures text with `measure_truetype_text` of `ProjecturedStyle`, which reads the advance widths from the font file and needs no display; see [style.md](../style/style.md#measurement-without-a-display). The writer uses its `measure` keyword only to find the bounds of the content. The projection that makes the canvas takes its own `measure`, and `measure_truetype_text` there keeps the whole export free of SDL. The same font files are embedded in the PDF, so a PDF reader places each glyph with the advance that the layout measured.
+The export measures text with `measure_truetype_text` of `ProjecturedStyle`, which reads the advance widths from the font file and needs no display; see [style.md](../style/style.md#measurement-without-a-display). The writer uses its `measure` keyword only to find the bounds of the content. The projection that makes the canvas takes its own `measure`, and `measure_truetype_text` there keeps the whole export free of SDL. The same font files are embedded in the PDF, so a PDF reader places each glyph with the advance that the layout measured. The painter writes a text at `font_logical_size(font)`, the size that `measure_truetype_text` measures at, so a font zoom changes the text and its layout together.
 
 ### The page
 
@@ -75,7 +75,6 @@ write_example_pdf("json", "json.pdf")
 ## Limits
 
 - A character that the font does not have is written as glyph 0 of that font. `measure_truetype_text` measures such a character in a fallback font, but the writer embeds no fallback font.
-- The painter writes a text at `font.size`, and `measure_truetype_text` measures it at `font_logical_size(font)`, which includes the font zoom. With a font zoom other than 1, the text and its layout differ in size.
 - Every font is embedded as `/FontFile2`, the TrueType form. An `.otf` font with CFF outlines, such as `Inconsolata.otf`, needs `/FontFile3`, which the writer does not write.
 - An image in the form of an SDL texture pointer paints nothing; only an RGBA buffer paints.
 - The streams are not compressed, and the fonts are not subset, so a file is larger than it must be.

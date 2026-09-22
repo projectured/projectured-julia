@@ -338,11 +338,14 @@ function paint_spline!(ctx, sp, ox, oy)
                             sp.start_arrow, sp.end_arrow, Int(sp.arrow_size), sp.dash)
 end
 
+# The text is written at the size that the layout measured it at, which
+# follows the font zoom.
 function paint_text!(ctx, t, ox, oy)
     (isempty(t.text) || t.color.alpha == 0) && return
     tr, tg, tb, ta = _rgba8(t.color)
     gy = oy + Int(t.y)
-    _on_page(ctx, gy, gy + t.font.size) || return
+    size = font_logical_size(t.font)
+    _on_page(ctx, gy, gy + size) || return
     reg = register_font!(ctx, t.font)
     ttf = reg.ttf
     io = IOBuffer()
@@ -354,7 +357,6 @@ function paint_text!(ctx, t, ox, oy)
         print(io, string(gid, base = 16, pad = 4))
     end
     hex = String(take!(io))
-    size = t.font.size
     baseline = _flip(ctx, gy + get_ascent_pixels(ttf, size))
     print(ctx.buf, "/", gs_for!(ctx, ta), " gs ",
           c01(tr), " ", c01(tg), " ", c01(tb), " rg BT /", reg.resname, " ",

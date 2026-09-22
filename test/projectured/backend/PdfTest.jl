@@ -145,4 +145,35 @@ end
     rm(filename)
 end
 
+# The content stream of the first page. The writer numbers the page contents
+# first, so the first stream of the file is that of page 1.
+function _first_content_stream(filename)
+    bytes = read(filename)
+    text = String(copy(bytes))
+    start = last(findfirst("stream\n", text)) + 1
+    stop = first(findnext("\nendstream", text, start)) - 1
+    String(bytes[start:stop])
+end
+
+@testset "a text is written at the size that the layout measured" begin
+    font = StyleModule.font_ubuntu_monospace_regular_20
+    canvas = GraphicsCanvas([GraphicsText("zoom", 10, 10, font, color_black)])
+    filename = tempname() * ".pdf"
+    try
+        adjust_font_zoom!(1)
+        size = font_logical_size(font)
+        @test size != font.size
+        write_pdf(canvas, filename; width=200, height=80)
+        content = _first_content_stream(filename)
+        @test [parse(Int, m.captures[1]) for m in eachmatch(r"/F\d+ (\d+) Tf", content)] == [size]
+        # The baseline sits the ascent at that size below the top of the text.
+        m = match(r"1 0 0 1 ([\d.]+) ([\d.]+) Tm", content)
+        ascent = get_ascent_pixels(load_truetype_font(font.filename), size)
+        @test parse(Float64, m.captures[2]) ≈ 80 - (10 + ascent) atol=0.01
+    finally
+        adjust_font_zoom!(0)
+        rm(filename; force=true)
+    end
+end
+
 end # test_write_pdf
