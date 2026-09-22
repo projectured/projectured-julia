@@ -8,6 +8,7 @@ authors = []
 
 [deps]
 ProjecturedClipboard = "3164d48e-aed1-483b-872a-0591088ad343"
+ProjecturedDomain = "56e9f339-7147-459f-9ae1-7785cace5f24"
 ProjecturedFocus = "14dfb0eb-5a11-4dd5-89b7-1137ba360c15"
 ProjecturedGestureHelp = "d8e6961d-7c29-43d8-bf9a-3394cc5f023b"
 ProjecturedGestureLog = "4fa8205f-3512-4016-add3-a8e2144efbf1"
@@ -23,6 +24,7 @@ ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 
 [sources]
 ProjecturedClipboard = {path = "../ProjecturedClipboard"}
+ProjecturedDomain = {path = "../ProjecturedDomain"}
 ProjecturedFocus = {path = "../ProjecturedFocus"}
 ProjecturedGestureHelp = {path = "../ProjecturedGestureHelp"}
 ProjecturedGestureLog = {path = "../ProjecturedGestureLog"}

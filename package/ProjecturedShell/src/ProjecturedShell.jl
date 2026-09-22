@@ -10,6 +10,7 @@ relative `..XxxModule` references.
 module ProjecturedShell
 
 using ProjecturedClipboard
+using ProjecturedDomain
 using ProjecturedFocus
 using ProjecturedGestureHelp
 using ProjecturedGestureLog
@@ -25,6 +26,7 @@ using ProjecturedWidget
 
 const CellModule = ProjecturedKernel.CellModule
 const ClipboardModule = ProjecturedClipboard.ClipboardModule
+const DomainModule = ProjecturedDomain.DomainModule
 const FileFormatModule = ProjecturedFileFormat.FileFormatModule
 const FileSystemModule = ProjecturedFileSystem.FileSystemModule
 const PaneModule = ProjecturedPane.PaneModule

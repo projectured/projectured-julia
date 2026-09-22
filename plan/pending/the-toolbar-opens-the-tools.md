@@ -385,14 +385,24 @@ the other one.
 
 ### Step 3: the shell reaches a tool
 
-- [ ] `make_window_tool_command(label, type; icon, tooltip, make)` in
-      `WindowChrome.jl`, with R1 and R2. It makes a `WidgetToolbarItem`.
-- [ ] `_open_gesture_log!` becomes a use of it. View → Gesture log keeps its
-      behavior.
-- [ ] `test_window_shell()`: the first press opens a tab of the type and gives
-      it the focus; the second press opens no second tab; a tab in another
-      group gets the focus; a tab that holds the tool in an `UndoBuffer`
-      counts.
+- [x] `make_window_tool_command(label, type; icon, tooltip, make)` in
+      `WindowChrome.jl`, with R1 and R2. It makes a `WidgetToolbarItem`. The
+      default `make` is `make_insertion_document(type)`, so the shell now
+      depends on `ProjecturedDomain` (Step 5 adds the other six). The layering
+      guard wants a bare `using ..DomainModule` for a name that the shell only
+      calls; a `using` with a list of names fails it.
+- [x] `_open_gesture_log!` became `_reach_tool!(editor, GestureLog, make)`,
+      the one implementation of both. View → Gesture log keeps its behavior,
+      and its test passes unchanged. A tab now counts when it wraps any
+      `GestureLog`, not only the session log.
+- [x] `test_window_shell()`: the first press makes one tool with the editor
+      and gives it the focus; the second press makes none and reaches the same
+      tab; with a tool in each group, the press reaches the one in the focused
+      group; a tool inside a `ClipboardSlice` counts (the shell test package
+      has no `UndoBuffer`, and both wrappers answer `get_wrapped_document`).
+      **42** (30 + 12). `test_shell()` **121** (109 + 12).
+- [ ] `make_window_toolbar` loses "New tab" in Step 5, with the table, so the
+      toolbar is never empty in between.
 
 ### Step 4: the session fault log
 

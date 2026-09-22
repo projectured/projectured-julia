@@ -66,7 +66,9 @@ make_window_menu_bar(; extra = []) =
             make_window_command("Split horizontally",
                                 editor -> _split!(editor, :horizontal);
                                 shortcut = Shortcut(:backslash; ctrl = true, shift = true)),
-            make_window_command("Gesture log", _open_gesture_log!;
+            make_window_command("Gesture log",
+                                editor -> _reach_tool!(editor, GestureLog,
+                                                       _make_default_tool(GestureLog));
                                 tooltip = "Every gesture of this session, and what each one did"),
         ])),
         extra...,
@@ -86,6 +88,35 @@ make_window_toolbar(; extra = []) =
         make_window_command("New tab", _open_tab!),
         extra...,
     ]; padding = Inset(4, 4, 4, 4))
+
+"""
+    make_window_tool_command(label, type; icon = nothing, tooltip = nothing,
+                             make = editor -> make_insertion_document(type))
+        -> WidgetToolbarItem
+
+A toolbar button for one tool of the window: a tab that holds a document of
+`type`.
+
+**A press reaches the tool, and makes one only when there is none.** It gives
+the focus to a tab that holds a `type`: the first one in the focused group, else
+the first one in the window. When no tab holds one, it opens `make(editor)` in a
+new tab. So a second press never shows the same tool twice, and a person who
+wants a second one opens it with `Ctrl+T` and the name of the tool.
+
+A tab counts when the document it wraps is a `type`, so a tool kept inside a
+history counts too. `make` takes the editor, because a window can know the
+folder of its explorer only through the editor. By default it makes what
+`Ctrl+T` and the name of the tool make.
+
+The button shows `icon` alone and says `tooltip`; see [`WidgetToolbarItem`](@ref).
+"""
+make_window_tool_command(label, type::Type; icon = nothing, tooltip = nothing,
+                         make = _make_default_tool(type)) =
+    WidgetToolbarItem(label; action = Action(label; icon = icon,
+                                             callback = editor -> _reach_tool!(editor, type, make)),
+                             tooltip = tooltip)
+
+_make_default_tool(type::Type) = _ -> make_insertion_document(type)
 
 # The pane slice's own verbs, reached through the tree the editor shows. A menu
 # command is a second way to the one implementation.
@@ -116,22 +147,35 @@ function _close_tab!(editor)
     nothing
 end
 
-# The session's gesture log, in a tab. A tab that already holds it takes the
-# focus instead, so the window never shows the one log twice. It is the log the
-# recorder has written since the window opened, so it holds what happened before
-# the tab existed.
-function _open_gesture_log!(editor)
+# A tool of the window, in a tab. A tab that already holds a `type` takes the
+# focus instead, so a press never shows one tool twice. A session log is the log
+# its recorder has written since the window opened, so it holds what happened
+# before the tab existed.
+function _reach_tool!(editor, type::Type, make)
     tree = _window_tree(editor)
     tree === nothing && return nothing
-    log = get_session_gesture_log()
-    for group in get_pane_groups(tree)
+    found = _find_tool_tab(tree, type)
+    if found === nothing
+        open_pane!(editor, make(editor))
+    else
+        group, index = found
+        apply_pane_operation!(tree, make_pane_focus_operation(tree, group, index))
+    end
+    nothing
+end
+
+# The tab that holds a `type`: the first one in the focused group, which is the
+# one nearest to the person, else the first one in the window.
+function _find_tool_tab(tree, type::Type)
+    focused = get_pane_focused_group(tree)
+    groups = get_pane_groups(tree)
+    ordered = focused === nothing ? groups :
+              Any[focused, (group for group in groups if group !== focused)...]
+    for group in ordered
         for (index, tab) in enumerate(group.tabs)
-            get_wrapped_document(tab.content) === log || continue
-            apply_pane_operation!(tree, make_pane_focus_operation(tree, group, index))
-            return nothing
+            get_wrapped_document(tab.content) isa type && return (group, index)
         end
     end
-    open_pane!(editor, log)
     nothing
 end
 

@@ -2,6 +2,13 @@
 
 mutable struct _ShellFakeEditor; document::Any; end
 
+# Whether the tab at `index` of `group` has the focus. The group is compared by
+# identity, because two groups can hold equal tabs.
+_is_focused_at(tree, group, index) = begin
+    focus = get_pane_focus(tree)
+    focus !== nothing && focus[1] === group && focus[2] == index
+end
+
 # Every action the menu bar carries, at any depth.
 function _menu_actions()
     found = Action[]
@@ -77,6 +84,64 @@ end
     (group, index) = only(holding())
     focus = get_pane_focus(tree)
     @test focus[1] === group && focus[2] == index
+end
+
+@testset "a tool button reaches its tool, and opens one only when there is none" begin
+    # Two groups, and the focus in the first one.
+    left = PaneGroup(PaneTab[PaneTab("a", PrimitiveString("x"))])
+    right = PaneGroup(PaneTab[PaneTab("b", PrimitiveString("y"))])
+    tree = PaneTree(PaneSplit(:vertical, Any[left, right]))
+    focus(group, index) = apply_pane_operation!(tree, make_pane_focus_operation(tree, group, index))
+    focus(left, 1)
+    editor = _ShellFakeEditor(tree)
+    given = Any[]
+    make = editor_seen -> (push!(given, editor_seen); GestureLog())
+    button = make_window_tool_command("Gesture log", GestureLog; icon = :keyboard, make = make)
+    @test button isa WidgetToolbarItem
+    press() = evaluate_operation(editor, InvokeActionOperation(button.action))
+    holding() = [(group, index) for group in get_pane_groups(tree)
+                 for (index, tab) in enumerate(group.tabs)
+                 if get_wrapped_document(tab.content) isa GestureLog]
+    tabs() = sum(length(group.tabs) for group in get_pane_groups(tree))
+
+    # The first press makes one, with the editor, and gives it the focus.
+    before = tabs()
+    press()
+    @test tabs() == before + 1
+    @test length(holding()) == 1
+    @test only(given) === editor
+    (group, index) = only(holding())
+    @test _is_focused_at(tree, group, index)
+
+    # A second press, from elsewhere, makes none and reaches the same tab.
+    focus(left, 1)
+    press()
+    @test tabs() == before + 1
+    @test length(given) == 1
+    @test _is_focused_at(tree, group, index)
+
+    # The focused group is searched first: with a log in each group, the press
+    # reaches the one beside the person.
+    other = group === left ? right : left
+    apply_pane_operation!(tree, make_pane_open_tab_operation(tree, other,
+                                                             PaneTab("log", GestureLog())))
+    focus(other, 1)
+    press()
+    @test get_pane_focus(tree)[1] === other
+    @test get_wrapped_document(other.tabs[get_pane_focus(tree)[2]].content) isa GestureLog
+end
+
+@testset "a tool inside a wrapper counts as the tool" begin
+    wrapped = ClipboardSlice(GestureLog(), EmptyReference())
+    tree = PaneTree(PaneGroup(PaneTab[PaneTab("a", PrimitiveString("x")),
+                                      PaneTab("log", wrapped)]))
+    group = first(get_pane_groups(tree))
+    apply_pane_operation!(tree, make_pane_focus_operation(tree, group, 1))
+    editor = _ShellFakeEditor(tree)
+    button = make_window_tool_command("Gesture log", GestureLog)
+    evaluate_operation(editor, InvokeActionOperation(button.action))
+    @test length(group.tabs) == 2
+    @test _is_focused_at(tree, group, 2)
 end
 
 @testset "the status bar says where the person is" begin

@@ -22,6 +22,7 @@ module ShellModule
 
 using ..CellModule
 using ..ClipboardModule
+using ..DomainModule
 using ..FileFormatModule
 using ..FileSystemModule
 using ..PaneModule
@@ -45,7 +46,8 @@ using ..WidgetModule
 
 export make_window_wrap, make_opened_window_projections, make_popup_screen_wrap
 export make_window_shell_document, make_window_shell_projection
-export make_window_menu_bar, make_window_toolbar, make_window_status_bar, make_window_command
+export make_window_menu_bar, make_window_toolbar, make_window_status_bar, make_window_command,
+       make_window_tool_command
 export make_file_dialog, open_file_dialog!, save_file_dialog!
 
 include("WindowWrap.jl")
