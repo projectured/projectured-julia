@@ -228,8 +228,9 @@ function test_document_insertion()
             back = map_reference_backward(proj, iom, fwd)
             @test ReferenceModule.strip_reference_types(back) ==
                   ReferenceModule.strip_reference_types(_ins_vpath(2))
-            # The node selection follows the insertion's own cursor.
-            @test string(node.selection) == ".content.value{0}"
+            # The node selection is the forward image of the insertion's own cursor.
+            @test string(ReferenceModule.strip_reference_types(node.selection)) ==
+                  ".content.value{0}"
         end
 
         @testset "type domain name -> domain insertion" begin

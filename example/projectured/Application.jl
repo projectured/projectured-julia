@@ -484,9 +484,10 @@ file, a key in a file, a save, and a new tab made with the Insert key. It works
 in a temporary directory. Answers the application document, or `nothing` when
 the warm-up failed. A failure is logged and does not stop the build.
 
-The new tab gets its name one key at a time, as a person types it. The first key
-lists every document type that the name buffer can make, and that list compiles
-a method for each type. Without the warm-up, the first key waits for all of them.
+The new tab gets its name one key at a time, as a person types it, with a
+Backspace and a Delete on the way. The first key lists every document type that
+the name buffer can make, and that list compiles a method for each type. Without
+the warm-up, the first key waits for all of them.
 """
 function warm_application()
     directory = mktempdir()
@@ -508,10 +509,14 @@ function warm_application()
                      KeyDown(:s, ModifierKeys(ctrl = true)),
                      # Ctrl+T opens a tab on an empty placeholder, Insert turns
                      # the placeholder into the name buffer, and Enter commits
-                     # the typed name.
+                     # the typed name. Backspace takes the "y" back, and Left
+                     # and Delete the "x", so "evaluator" is what commits.
                      KeyDown(:t, ModifierKeys(ctrl = true)),
                      KeyDown(:insert, ModifierKeys()),
-                     (KeyPress(c) for c in "evaluator")...,
+                     (KeyPress(c) for c in "evaluatorxy")...,
+                     KeyDown(:backspace, ModifierKeys()),
+                     KeyDown(:left, ModifierKeys()),
+                     KeyDown(:delete, ModifierKeys()),
                      KeyDown(:return, ModifierKeys())]
         document, projection = make_application_window(paths; root = directory,
             assistant = make_application_assistant(:ollama))

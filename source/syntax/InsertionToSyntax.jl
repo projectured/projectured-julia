@@ -85,8 +85,10 @@ _typed_color(p, state::Symbol) =
 # ── Selection mapping ─────────────────────────────────────────────────────────
 #
 # The output is a SyntaxDelimitation (the label's prefix/suffix) around one SyntaxLeaf
-# (typed value + hint), so the `value{k}` char cursor maps through `.content` — a wrapper
-# addresses its single child there, not at `.children[1]`.
+# (typed value + hint), so a `value{s:e}` range maps through `.content` — a wrapper
+# addresses its single child there, not at `.children[1]`. The pattern is the range and
+# not the caret `value{k}`: a caret is the range `{k:k}`, and Backspace or Delete reaches
+# this leaf as an edit of the one-character range it removes.
 
 function map_reference_forward(::InsertionToSyntaxLeaf, iomap, reference)
     @reference_case reference begin
@@ -94,8 +96,8 @@ function map_reference_forward(::InsertionToSyntaxLeaf, iomap, reference)
         # generic `Projection` fallback does) so a parent that splices it — e.g.
         # `YamlSequence`'s `.content.^(inner)` — keeps a fully-typed reference.
         ∅        => EmptyReference(get_reference_node_type(iomap.output))
-        value{k} => begin
-            inner = @reference ::SyntaxLeaf.value::TextString{k}::Position
+        value{s:e} => begin
+            inner = @reference ::SyntaxLeaf.value::TextString{s:e}::Position
             @reference ::SyntaxDelimitation.content.^(inner)
         end
     end
@@ -114,7 +116,7 @@ function map_reference_backward(::InsertionToSyntaxLeaf, iomap, reference)
         ∅ => whole                                     # whole delimitation → whole insertion
         ::SyntaxDelimitation.content.leaf_path... => @reference_case leaf_path begin
             ∅ => whole                                 # whole content leaf → whole insertion
-            ::SyntaxLeaf.value{k} => @reference ::DocumentInsertion.value::String{k}::Position
+            ::SyntaxLeaf.value{s:e} => @reference ::DocumentInsertion.value::String{s:e}::Position
         end
         ::SyntaxDelimitation.closing_delimiter{k} => (k == 0 ?
             ConcreteReference(DocumentInsertion, FieldReferenceStep("value"),

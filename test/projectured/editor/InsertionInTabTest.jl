@@ -90,6 +90,27 @@ end
     @test occursin("Insert a new", drawn())
 end
 
+@testset "Backspace and Delete edit the name buffer" begin
+    # Each key reaches the buffer as an edit of the one character it removes, a
+    # range and not a caret, through every stage of the standing iomap.
+    type!("jsonx")
+    press!(KeyDown(:backspace, ModifierKeys()))
+    @test content().value == "json"
+    press!(KeyDown(:left, ModifierKeys()))
+    press!(KeyDown(:left, ModifierKeys()))
+    type!("x")
+    @test content().value == "jsxon"
+    press!(KeyDown(:left, ModifierKeys()))
+    press!(KeyDown(:delete, ModifierKeys()))
+    @test content().value == "json"
+    # The caret is between "js" and "on", so two keys each way empty the buffer.
+    press!(KeyDown(:backspace, ModifierKeys()))
+    press!(KeyDown(:backspace, ModifierKeys()))
+    press!(KeyDown(:delete, ModifierKeys()))
+    press!(KeyDown(:delete, ModifierKeys()))
+    @test content().value == ""
+end
+
 @testset "A typed name narrows and commits" begin
     type!("json")
     @test occursin("json", drawn())

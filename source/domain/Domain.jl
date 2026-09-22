@@ -260,7 +260,9 @@ function get_insertion_candidates(root::Type)
     cached = get(_CANDIDATE_CACHE, root, nothing)
     cached !== nothing && cached[1] == world && return cached[2]
     own = get_domain_insertion(root)
-    result = filter!(T -> insertable(T) && T !== own && _is_domain_entry(T) && !_is_layout_variant(T),
+    # `insertable` goes last: it probes the constructor and compiles a method for
+    # each type, and a layout variant or a stray insertion cursor needs neither.
+    result = filter!(T -> T !== own && !_is_layout_variant(T) && _is_domain_entry(T) && insertable(T),
                      _collect_concrete!(Type[], root, _collect_named_types(world)))
     _CANDIDATE_CACHE[root] = (world, result)
     result
