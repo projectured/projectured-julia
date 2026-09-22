@@ -228,6 +228,48 @@ function test_sql_parser()
             @test parse("SELECT a, b FROM t").select_clause.items[1].expression isa SqlColumnReference
         end
 
+        # ── A sign in front of a number ──────────────────────────────
+        @testset "a sign in front of a number is part of the number" begin
+            stmt = parse("SELECT * FROM t WHERE a = -1")
+            @test stmt.where_clause.condition.expression.right.value === -1
+            @test roundtrip(stmt) == "SELECT * FROM t WHERE a = -1"
+            stmt = parse("SELECT * FROM t WHERE a > -2.5")
+            @test stmt.where_clause.condition.expression.right.value === -2.5
+            @test roundtrip(stmt) == "SELECT * FROM t WHERE a > -2.5"
+            @test parse("SELECT * FROM t WHERE a = +3").where_clause.condition.expression.right.value === 3
+            items = parse("SELECT -1, - 2 FROM t").select_clause.items
+            @test items[1].expression.value === -1 && items[2].expression.value === -2
+            # Between two operands, a sign is an operator, and the expression keeps its text.
+            item = parse("SELECT a - 1 FROM t").select_clause.items[1]
+            @test item.expression isa SqlRawExpression
+            @test item.expression.text == "a - 1"
+            @test parse("SELECT a + 1 FROM t").select_clause.items[1].expression.text == "a + 1"
+            @test parse("SELECT -a FROM t").select_clause.items[1].expression.text == "-a"
+            # The printed text reads as the same document.
+            again = parse(print_document(sql_pipe, parse("SELECT * FROM t WHERE a = -1")).output)
+            @test again.where_clause.condition.expression.right.value === -1
+            again = parse(print_document(sql_pipe, parse("SELECT * FROM t WHERE a > -2.5")).output)
+            @test again.where_clause.condition.expression.right.value === -2.5
+            again = parse(print_document(sql_pipe, parse("SELECT a - 1 FROM t")).output)
+            @test again.select_clause.items[1].expression.text == "a - 1"
+            @test again.from_clause.items[1].base_item.table_name.name == "t"
+        end
+
+        # ── A quote in a string literal ──────────────────────────────
+        @testset "two quotes in a string literal read as one, and a quote prints as two" begin
+            stmt = parse("SELECT * FROM t WHERE name = 'it''s'")
+            @test stmt.where_clause.condition.expression.right.value == "it's"
+            @test roundtrip(stmt) == "SELECT * FROM t WHERE name = 'it''s'"
+            stmt = parse("SELECT '''a''', '' FROM t")
+            @test stmt.select_clause.items[1].expression.value == "'a'"
+            @test stmt.select_clause.items[2].expression.value == ""
+            # A value with a quote prints as text that reads back as that value.
+            stmt.select_clause.items[2].expression.value = "o'clock"
+            again = parse(print_document(sql_pipe, stmt).output)
+            @test again.select_clause.items[1].expression.value == "'a'"
+            @test again.select_clause.items[2].expression.value == "o'clock"
+        end
+
         # ── A SELECT with no FROM ────────────────────────────────────
         @testset "a SELECT with no FROM prints no FROM and reads back" begin
             stmt = parse("SELECT 1")

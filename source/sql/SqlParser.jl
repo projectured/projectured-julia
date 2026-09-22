@@ -63,6 +63,7 @@ parse_sql_file(path::AbstractString) = parse_sql_text(read(path, String))
     TK_STRING_LIT
     TK_NUMBER_LIT
     TK_OP
+    TK_SIGN
     TK_STAR
     TK_DOT
     TK_COMMA
@@ -158,6 +159,13 @@ function tokenize(sql::String)::Vector{SqlToken}
             end
             push!(tokens, SqlToken(TK_OP, SubString(sql, start, i - 1), start))
             continue
+        end
+
+        # ── + and - ───────────────────────────────────────────────────
+        # The parser reads one as the sign of a number where the grammar reads a
+        # value, and keeps it as an operator between two operands.
+        if c == '+' || c == '-'
+            push!(tokens, SqlToken(TK_SIGN, SubString(sql, i, i), i)); i += 1; continue
         end
 
         # ── single-quoted string literal ──────────────────────────────
@@ -274,6 +282,10 @@ at_end(p::Parser) = peek(p).kind == TK_EOF || peek(p).kind == TK_SEMICOLON
 # The text of a quoted token without its two quotes. A character that is not ASCII
 # takes more than one string index, so the quotes are cut by character.
 _strip_quotes(s::String) = String(chop(s; head = 1, tail = 1))
+
+# The value of a string literal token: the text between its quotes, with each
+# doubled quote `''` read as one quote.
+_unquote_string_literal(tok::SqlToken) = replace(_strip_quotes(String(tok.value)), "''" => "'")
 
 # The string index of the last character of `tok` in the source.
 _get_token_last_index(tok::SqlToken) = tok.pos + lastindex(tok.value) - 1
@@ -574,16 +586,14 @@ function parse_select_expression!(p::Parser)
         end
     end
 
-    # number literal
-    if tok.kind == TK_NUMBER_LIT
-        advance!(p)
-        return SqlScalarValue(parse_number(String(tok.value)))
-    end
+    # number literal, with the sign in front of it
+    number = parse_number_literal!(p)
+    number === nothing || return SqlScalarValue(number)
 
     # string literal
     if tok.kind == TK_STRING_LIT
         advance!(p)
-        return SqlScalarValue(_strip_quotes(String(tok.value)))
+        return SqlScalarValue(_unquote_string_literal(tok))
     end
 
     # fallback: collect tokens until delimiter
@@ -927,16 +937,14 @@ end
 function parse_scalar_operand!(p::Parser)
     tok = peek(p)
 
-    # number
-    if tok.kind == TK_NUMBER_LIT
-        advance!(p)
-        return SqlScalarValue(parse_number(String(tok.value)))
-    end
+    # number, with the sign in front of it
+    number = parse_number_literal!(p)
+    number === nothing || return SqlScalarValue(number)
 
     # string
     if tok.kind == TK_STRING_LIT
         advance!(p)
-        return SqlScalarValue(_strip_quotes(String(tok.value)))
+        return SqlScalarValue(_unquote_string_literal(tok))
     end
 
     # TRUE / FALSE
@@ -1056,6 +1064,25 @@ function skip_trailing!(p::Parser)
 end
 
 # ── Numeric parsing helper ───────────────────────────────────────────────────
+
+# The value of the number literal at the position of `p`, with the `+` or `-` in
+# front of it, or `nothing` when no number starts there. A sign that no number
+# follows is an operator, and `p` does not move.
+function parse_number_literal!(p::Parser)
+    tok = peek(p)
+    if tok.kind == TK_NUMBER_LIT
+        advance!(p)
+        return parse_number(String(tok.value))
+    end
+    tok.kind == TK_SIGN || return nothing
+    # The token list ends with `TK_EOF`, so a sign always has a next token.
+    number = p.tokens[p.pos + 1]
+    number.kind == TK_NUMBER_LIT || return nothing
+    advance!(p)
+    advance!(p)
+    value = parse_number(String(number.value))
+    tok.value == "-" ? -value : value
+end
 
 function parse_number(s::String)
     if occursin('.', s)

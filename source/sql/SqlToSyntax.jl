@@ -875,9 +875,13 @@ end
     SyntaxLeaf(TextString(() -> begin
                    val = doc.value
                    val isa Bool           ? (val ? "TRUE" : "FALSE") :
-                   val isa AbstractString ? "'$val'" :
+                   val isa AbstractString ? _quote_string_literal(val) :
                    string(val)
                end, p.style))
+
+# The text of a string literal: the value between two quotes, with each quote in
+# it written twice.
+_quote_string_literal(value::AbstractString) = "'" * replace(value, "'" => "''") * "'"
 
 # ── SqlRawExpressionToSyntaxLeaf ─────────────────────────────────────────────
 # The source text of an expression that the model does not have, as it is written.

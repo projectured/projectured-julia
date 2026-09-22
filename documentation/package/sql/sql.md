@@ -43,6 +43,8 @@ A statement that starts with any other keyword, such as `INSERT` or `UPDATE`, is
 
 The parser does not raise an error for a part that it does not model. The tokenizer drops comments. It steps over the text by string index, so a string, an identifier or a comment can hold text that is not ASCII, and a letter of any script can start an identifier. The clauses after `WHERE`, such as `GROUP BY` and `ORDER BY`, are skipped to the end of the statement. A select expression that starts with a function call, a parenthesis or an operator becomes a `SqlRawExpression` whose `text` is the source text of the tokens. So does an expression that goes on after a column or a literal, such as `a + 1`: the parser reads it again from its first token, so no part of it is lost. It prints as that text, without quotes, so `COUNT(*)` reads and prints back as `COUNT(*)`.
 
+A `+` or a `-` in front of a number is the sign of that number where the grammar reads a value, so `WHERE a = -1` compares with -1 and `SELECT -1` selects -1. Between two operands it is an operator, so `a - 1` is a `SqlRawExpression`. A string literal reads `''` as one quote, and the printer writes each quote of a string value as `''`. So `'it''s'` holds `it's` and prints back as `'it''s'`.
+
 ### The file
 
 `SqlFile` is the file type for `.sql`. A reference to a node in another file is a `SqlScalarValue` whose value is a string that holds only the marker, as in JSON and YAML. A number or a boolean value is never a marker. A `.sql` path that does not exist opens as a `SqlInsertion`.
@@ -80,6 +82,7 @@ projection = SqlToSyntax()
 ## Limits
 
 - **The parser does not read `INSERT` or `UPDATE`.** The documents, the printer, the examples and the tests exist, but a typed `INSERT INTO …` stays red in the insertion and does not commit. This is the open step of `plan/pending/sql-insert-update-support.md`.
+- **A `WHERE` condition that the model does not have is lost.** A comparison holds a column or a value on each side. A condition with an expression, such as `a - 1 = 0` or `a = -b`, or with `LIKE`, is not read. When it comes first, the statement has no `WHERE`. When it comes after `AND` or `OR`, the parser keeps the conditions before it and drops the rest. A number with an exponent, such as `1e5`, reads as `1`.
 - **A skipped clause is lost.** `GROUP BY`, `HAVING`, `ORDER BY` and `LIMIT` do not survive a round trip. `plan/pending/sql-select-aggregation-support.md` plans `GROUP BY` and the aggregate functions.
 - **A table constraint reads as a column.** A `PRIMARY KEY (id)` entry in the column list becomes a column named `PRIMARY` with the type `KEY (id)`. It prints back as the same text.
 - **No `CREATE INDEX`.** `plan/pending/dbcatalog-index-support.md` plans the index statements.
