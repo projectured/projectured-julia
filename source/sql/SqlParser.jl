@@ -681,7 +681,7 @@ function parse_from_clause!(p::Parser)
     while peek(p).kind == TK_COMMA
         advance!(p)  # consume comma
         item = parse_from_item!(p)
-        item === nothing && break
+        item === nothing && error("SQL: a from item after a comma that the parser does not read")
         push!(items, item)
     end
 

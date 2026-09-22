@@ -153,6 +153,15 @@ function test_sql_parser()
             @test roundtrip(stmt) == "SELECT * FROM a INNER JOIN b"
         end
 
+        # ── A from item after a comma that the parser does not read ──
+        @testset "a from item after a comma that the parser does not read is an error" begin
+            # A comma with no item that the parser can build after it is an
+            # error for the whole statement, so its text is never dropped.
+            @test_throws ErrorException parse("SELECT * FROM a, ")
+            @test_throws ErrorException parse("SELECT * FROM a, WHERE x = 1")
+            @test_throws ErrorException parse("SELECT * FROM a, b, ")
+        end
+
         # ── The printed text of a join ───────────────────────────────
         @testset "the printed text of a join parses back to the same document" begin
             for sql in ("SELECT * FROM a INNER JOIN b ON a.id = b.id",
