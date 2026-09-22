@@ -34,9 +34,7 @@ end
 
 # ── GraphicsCanvasToGraphicsImage ────────────────────────────────────────────
 
-struct GraphicsCanvasToGraphicsImage <: Projection
-    render::Any
-end
+struct GraphicsCanvasToGraphicsImage <: Projection end
 
 function map_reference_forward(::GraphicsCanvasToGraphicsImage, iomap, reference)
     return nothing
@@ -162,12 +160,14 @@ end
 A composite projection that processes graphics documents recursively using
 type and predicate dispatch. Finite leaf canvases (no nested canvases, no
 `ListNode`-backed elements) are routed to `GraphicsCanvasToGraphicsImage`;
-non-leaf canvases and viewports recurse via `CopyingProjection`.
+non-leaf canvases and viewports recurse via `CopyingProjection`. `render` is
+accepted for the rasterizer this file's header describes as future work;
+nothing reads it yet.
 """
 function GraphicsCaching(; render)
     TypeDispatchingProjection(
         GraphicsCanvas => PredicateDispatchingProjection(
-            (c -> !is_infinite_canvas(c) && is_leaf_canvas(c)) => GraphicsCanvasToGraphicsImage(render),
+            (c -> !is_infinite_canvas(c) && is_leaf_canvas(c)) => GraphicsCanvasToGraphicsImage(),
             ((_) -> true)                                      => CopyingProjection(),
         ),
         GraphicsViewport => CopyingProjection(),
