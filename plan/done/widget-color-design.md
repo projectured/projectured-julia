@@ -1469,6 +1469,32 @@ a branch of its own, `widget-color-design`, in a sibling worktree, and a
 throwaway environment in the scratchpad tests it against this branch. The
 branch lands after the projectured-julia branch.
 
+**Done on 2026-09-22**, after this branch landed. Six call sites and two tests:
+
+- `WorkbenchRender.jl` builds `WidgetTheme` by keyword and gives the three
+  hand-built scroll panes a theme with `content_color = color_transparent`.
+- The progress bar of the sequential engine and of the execution, and the four
+  status badges, take their keyword constructor. A thunk on the cell of the
+  value or the content gives what a positional `ComputedCell` gave before.
+- The list of the navigator takes the theme, with the caption text and its own
+  row padding.
+- Two tests read the geometry that they assert: the inset from the edge of a
+  card to its body comes from the projection that draws the card, and the press
+  that opens a node goes to the glyph of the chevron where it is drawn.
+
+**How the baseline was measured.** A throwaway environment in the scratchpad
+held omnet-julia at its main and projectured-julia at `b6428c1a`, the commit
+before this work. The 84 test functions of `OmnetPresentationTest` answer 14
+failure lines and 18 failures there, and the same 14 lines and 18 failures with
+both halves of the change. The lines that move do so by one, because the branch
+edits a test file above them. `OmnetIdeTest.test_ide()` answers 449 passes with
+the 5 failures and 15 errors that main has.
+
+Two failures that a single run named as new are not: the button of the parallel
+dashboard and its badge read one sampled flag, and which of the two assertions
+loses the race changes between runs. Five runs in each environment answer 13
+passes and 2 failures on both sides.
+
 ### 8.7 The rebase onto main
 
 The branch starts at `91cb3348` (2026-09-22 11:22). main took 83 commits on the
