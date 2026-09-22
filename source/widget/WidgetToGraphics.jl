@@ -5175,6 +5175,48 @@ _icon_finish(e, x, y, s, c) = begin
     _icon_fill!(e, x, y, s, c, [(0.52, 0.33), (0.80, 0.33), (0.80, 0.51), (0.52, 0.51)])
 end
 
+# The tool set. Each name says what the picture shows, never which tool it
+# stands for, so a second use of a picture needs no second name.
+_icon_chat(e, x, y, s, c) = begin
+    _icon_path!(e, x, y, s, c, [(0.14, 0.22), (0.86, 0.22), (0.86, 0.66), (0.46, 0.66),
+                                (0.28, 0.84), (0.30, 0.66), (0.14, 0.66)]; closed=true)       # bubble
+    _icon_path!(e, x, y, s, c, [(0.30, 0.44), (0.70, 0.44)])                                 # a line of text
+end
+_icon_terminal(e, x, y, s, c) = begin
+    _icon_path!(e, x, y, s, c, [(0.12, 0.20), (0.88, 0.20), (0.88, 0.80), (0.12, 0.80)]; closed=true)
+    _icon_path!(e, x, y, s, c, [(0.26, 0.38), (0.40, 0.50), (0.26, 0.62)])                  # >
+    _icon_path!(e, x, y, s, c, [(0.46, 0.64), (0.68, 0.64)])                                 # _
+end
+_icon_list(e, x, y, s, c) = for row in (0.28, 0.50, 0.72)
+    _icon_fill!(e, x, y, s, c, [(0.16, row - 0.06), (0.28, row - 0.06), (0.28, row + 0.06), (0.16, row + 0.06)])
+    _icon_path!(e, x, y, s, c, [(0.38, row), (0.84, row)])
+end
+_icon_keyboard(e, x, y, s, c) = begin
+    _icon_path!(e, x, y, s, c, [(0.08, 0.26), (0.92, 0.26), (0.92, 0.76), (0.08, 0.76)]; closed=true)
+    for left in (0.20, 0.37, 0.54, 0.71)                                                    # a row of keys
+        _icon_fill!(e, x, y, s, c, [(left, 0.38), (left + 0.10, 0.38), (left + 0.10, 0.48), (left, 0.48)])
+    end
+    _icon_path!(e, x, y, s, c, [(0.30, 0.62), (0.70, 0.62)])                                 # the space bar
+end
+_icon_warning(e, x, y, s, c) = begin
+    _icon_path!(e, x, y, s, c, [(0.50, 0.12), (0.90, 0.84), (0.10, 0.84)]; closed=true)
+    _icon_path!(e, x, y, s, c, [(0.50, 0.38), (0.50, 0.60)])                                 # !
+    _icon_fill!(e, x, y, s, c, [(0.45, 0.67), (0.55, 0.67), (0.55, 0.76), (0.45, 0.76)])
+end
+_icon_chart(e, x, y, s, c) = begin
+    _icon_fill!(e, x, y, s, c, [(0.16, 0.56), (0.32, 0.56), (0.32, 0.84), (0.16, 0.84)])
+    _icon_fill!(e, x, y, s, c, [(0.42, 0.36), (0.58, 0.36), (0.58, 0.84), (0.42, 0.84)])
+    _icon_fill!(e, x, y, s, c, [(0.68, 0.16), (0.84, 0.16), (0.84, 0.84), (0.68, 0.84)])
+end
+_icon_crosshair(e, x, y, s, c) = begin
+    cx = x + round(Int, 0.5s); cy = y + round(Int, 0.5s); rad = max(2, round(Int, 0.26s))
+    push!(e, GraphicsCircle(cx, cy, rad, StyleColor(c.red, c.green, c.blue, 0.0); border_width=max(1, s ÷ 9), border_color=c))
+    _icon_path!(e, x, y, s, c, [(0.50, 0.08), (0.50, 0.36)])
+    _icon_path!(e, x, y, s, c, [(0.50, 0.64), (0.50, 0.92)])
+    _icon_path!(e, x, y, s, c, [(0.08, 0.50), (0.36, 0.50)])
+    _icon_path!(e, x, y, s, c, [(0.64, 0.50), (0.92, 0.50)])
+end
+
 for (name, fn) in (:chevron_down => _icon_chevron_down, :chevron_right => _icon_chevron_right,
                    :check => _icon_check, :x => _icon_x, :close => _icon_x,
                    :plus => _icon_plus, :minus => _icon_minus, :menu => _icon_menu,
@@ -5183,7 +5225,10 @@ for (name, fn) in (:chevron_down => _icon_chevron_down, :chevron_right => _icon_
                    :delete => _icon_trash, :search => _icon_search,
                    :play => _icon_play, :pause => _icon_pause, :stop => _icon_stop,
                    :step_forward => _icon_step_forward, :step => _icon_step_forward,
-                   :finish => _icon_finish)
+                   :finish => _icon_finish,
+                   :chat => _icon_chat, :terminal => _icon_terminal, :list => _icon_list,
+                   :keyboard => _icon_keyboard, :warning => _icon_warning,
+                   :chart => _icon_chart, :crosshair => _icon_crosshair)
     register_icon!(name, fn)
 end
 

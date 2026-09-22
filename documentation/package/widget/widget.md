@@ -610,6 +610,11 @@ three backings coexist:
 - **Media-transport names** (filled shapes, for playback/simulation control):
   `:play :pause :stop :step_forward/:step :finish` — play triangle, pause bars,
   stop square, step triangle + bar, checkered finish flag.
+- **Tool names** (the pictures of the window's tools): `:chat` a speech bubble,
+  `:terminal` a `>_` in a frame, `:list` lines with a dot each, `:keyboard` a
+  row of keys, `:warning` a triangle with `!`, `:chart` three bars, `:crosshair`
+  a circle with a cross. A name says what the picture shows, not which tool
+  uses it.
 - **Register your own:** `register_icon!(:name, renderer)` — pass a vector closure,
   or `make_glyph_icon` / `make_image_icon`. An unknown name draws nothing (zero width).
 - **On widgets:** `WidgetButton` and `WidgetMenuItem` take an optional `icon`,

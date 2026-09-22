@@ -1,6 +1,6 @@
 # The toolbar opens the tools
 
-**Status (2026-09-22): APPROVED, not started.** The owner answered the
+**Status (2026-09-22): IN PROGRESS.** The owner answered the
 questions of §5 on 2026-09-22. The plan is on the branch
 `toolbar-opens-the-tools`, in the worktree
 `workspace/projectured-julia-toolbar-opens-the-tools`.
@@ -332,21 +332,30 @@ the other one.
 
 ### Step 0: baselines
 
-- [ ] projectured-julia, clean `main`: `test_widget_icon()`,
-      `test_widget_toolbar()`, `test_tooltip_probe()`, `test_window_shell()`,
-      `test_shell()`, `test_fault()`, `test_application()`.
+- [x] projectured-julia, at `b8f221f9` (the branch point), all pass:
+      `test_widget_icon()` **26**, `test_widget_toolbar()` **8**,
+      `test_tooltip_probe()` **16**, `test_window_shell()` **30**,
+      `test_shell()` **109**, `test_fault()` **68**, `test_application()`
+      **70**.
 - [ ] omnet-julia, clean `main`: `test_ide_window_wrap()`, the test file
       `test/ide/IdeSelectAndPasteTest.jl`, and the count of the closure guard
-      of `OmnetIde`.
+      of `OmnetIde`. Taken at the start of Step 8, because `main` of
+      omnet-julia moves until then.
 
 ### Step 1: seven icons
 
-- [ ] Register `:chat`, `:terminal`, `:list`, `:keyboard`, `:warning`, `:chart`
-      and `:crosshair` next to the others in `WidgetToGraphics.jl`.
-- [ ] `test_widget_icon()`: each name is registered, and each draws only inside
-      its box.
-- [ ] Look at them: render each one at the toolbar size in the SDL backend and
-      the web backend, and put the screenshots in this plan.
+- [x] Register `:chat`, `:terminal`, `:list`, `:keyboard`, `:warning`, `:chart`
+      and `:crosshair` next to the others in `WidgetToGraphics.jl`, and name
+      them in the icon list of `widget.md`.
+- [x] `test_widget_icon()`: each name is registered, and each draws only inside
+      its box. **69** (26 + 43).
+- [x] Look at them. A toolbar of menu items with the eight icons, written with
+      `write_image` of the SDL backend at the real size, shows each picture
+      clearly: the folder, the bubble, the `>_`, the list, the keys, the
+      triangle with `!`, the bars and the crosshair. The picture is not in the
+      repository, because no plan keeps pictures. The web backend needs no
+      font for them: `Web.jl` sends `GraphicsCircle`, `GraphicsPolyline` and
+      `GraphicsPolygon` as shapes.
 
 ### Step 2: `WidgetToolbarItem`
 

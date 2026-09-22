@@ -93,6 +93,29 @@ end
     @test (ec.red, ec.green, ec.blue) != (dc.red, dc.green, dc.blue)
 end
 
+@testset "the tool icons are registered and draw only inside their box" begin
+    size = 20
+    color = StyleColor(0.1, 0.2, 0.3, 1.0)
+    inside((px, py)) = 0 <= px <= size && 0 <= py <= size
+    registry = ProjecturedWidget.WidgetModule.ICON_REGISTRY
+    for name in (:chat, :terminal, :list, :keyboard, :warning, :chart, :crosshair)
+        @test haskey(registry, name)
+        elements = Any[]
+        registry[name](elements, 0, 0, size, color)
+        @test !isempty(elements)
+        for element in elements
+            if element isa GraphicsPolyline || element isa GraphicsPolygon
+                @test all(inside, element.points)
+            elseif element isa GraphicsCircle
+                @test inside((element.cx - element.radius, element.cy - element.radius))
+                @test inside((element.cx + element.radius, element.cy + element.radius))
+            else
+                @test false
+            end
+        end
+    end
+end
+
 @testset "a tree node draws its registered icon (chevrons are lines, not polylines)" begin
     tr = WidgetTree(Point2D(0, 0), Any[
         WidgetTreeNode(:folder, "src", Any[WidgetTreeNode(:file, "a.jl")]),
