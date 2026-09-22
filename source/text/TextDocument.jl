@@ -913,6 +913,71 @@ function get_flat_base(text::TextBlock, path::SpanPath)
     base
 end
 
+# A decorator that adds or drops whole elements moves the flat offsets after the
+# change. Its table is then a list of runs `(from, to, length)`, in the order of
+# both blocks: the offsets `from … from + length` of one block are the offsets
+# `to … to + length` of the other. An added element lies between two runs, and a
+# dropped one is in no run.
+
+# The runs that carry the offsets of `from_block` to `to_block`, one for each
+# entry `(from_element, from_char, to_element, length)`: the run starts at
+# `from_char` of the one element and at the start of the other. An element that
+# the flat stream counts as zero, such as an image, is a run of length zero.
+function _make_flat_runs(from_block::TextBlock, to_block::TextBlock, entries)
+    from_offsets = get_flat_offsets(from_block)
+    to_offsets = get_flat_offsets(to_block)
+    [(from = from_offsets[i] + char, to = to_offsets[j], length = len)
+     for (i, char, j, len) in entries]
+end
+
+# The same runs, read the other way.
+_reverse_flat_runs(runs) = [(from = r.to, to = r.from, length = r.length) for r in runs]
+
+# The flat offset `flat` carried over `runs`. Where one run stops and the next
+# starts, the offset goes to the start of the next when `opens`, and to the stop
+# of the one before otherwise. An offset in no run goes to the start of the next
+# run when `opens`, and to the stop of the run before otherwise; `nothing` when no
+# run is on that side.
+function _map_flat_over_runs(runs, flat::Int, opens::Bool)
+    touching = nothing    # a run that starts or stops at `flat`
+    before = nothing      # the last run that stops before `flat`
+    for r in runs
+        stop = r.from + r.length
+        inside = opens ? r.from <= flat < stop : r.from < flat <= stop
+        inside && return r.to + flat - r.from
+        if r.from > flat
+            touching === nothing || return touching.to + flat - touching.from
+            opens && return r.to
+            return before === nothing ? nothing : before.to + before.length
+        end
+        (flat == r.from || flat == stop) && (opens || touching === nothing) && (touching = r)
+        stop < flat && (before = r)
+    end
+    touching === nothing || return touching.to + flat - touching.from
+    (opens || before === nothing) && return nothing
+    before.to + before.length
+end
+
+# The whole-element box of `reference`, or `nothing` when it is not one.
+function _get_text_box(reference)
+    r = strip_reference_types(reference)
+    r isa ConcreteReference && r.head isa TextSpanReferenceStep && r.tail isa EmptyReference ||
+        return nothing
+    r.head
+end
+
+# A whole-element box carried over `runs`. Its start opens a run and its stop
+# closes one, so a box that ends at a soft break stays on its line. `nothing`
+# when no part of the box has an image.
+function _map_text_box(runs, box::TextSpanReferenceStep)
+    start = _map_flat_over_runs(runs, box.start, true)
+    start === nothing && return nothing
+    box.stop == box.start && return ConcreteReference(TextSpanReferenceStep(start, start), EmptyReference())
+    stop = _map_flat_over_runs(runs, box.stop, false)
+    (stop === nothing || stop <= start) && return nothing
+    ConcreteReference(TextSpanReferenceStep(start, stop), EmptyReference())
+end
+
 # ── ReplaceTextRangeOperation — the flat text edit ─────────────────────────
 #
 # The text-domain edit expressed in the canonical flat coordinate (the

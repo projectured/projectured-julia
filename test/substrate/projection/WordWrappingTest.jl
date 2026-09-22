@@ -75,6 +75,40 @@ caret = map_reference_backward(proj, iomap, TextModule.make_flat_caret_reference
 
 end # @testset "WordWrapping maps a range across a soft break"
 
+@testset "WordWrapping maps a whole-element box past a soft break" begin
+
+# "Lorem " ⏎ "ipsum " ⏎ "dolor": each soft break adds one flat offset.
+box(s, e) = ConcreteReference(TextSpanReferenceStep(s, e), EmptyReference())
+font = font_ubuntu_monospace_regular_20
+input = TextBlock(TextString("Lorem ipsum dolor", font, color_default))
+proj = WordWrapping(max_width=80, measure=_test_measure(10, 18))
+iomap = print_document(proj, input)
+@test count(e -> e isa TextNewline, iomap.output.elements) == 2
+
+# "dolor" is 12:17 in the input and 14:19 in the output, after two breaks.
+@test map_reference_forward(proj, iomap, box(12, 17)) == box(14, 19)
+@test map_reference_backward(proj, iomap, box(14, 19)) == box(12, 17)
+# A box before the first break does not move.
+@test map_reference_forward(proj, iomap, box(0, 5)) == box(0, 5)
+# A box over "ipsum dolor" starts after the first break and ends after the second.
+@test map_reference_forward(proj, iomap, box(6, 17)) == box(7, 19)
+# A box that ends at a soft break stays on its line.
+@test map_reference_forward(proj, iomap, box(0, 6)) == box(0, 6)
+# The output selection is the mapped box.
+set_selection!(input, box(12, 17))
+@test strip_reference_types(iomap.output.selection) == box(14, 19)
+
+# A box that starts at a hard break keeps it: "ab" ⏎ "cd ef", a wrap in "cd ef".
+nl = TextNewline(font = font)
+input2 = TextBlock(TextString("ab", font, color_default), nl, TextString("cd ef", font, color_default))
+proj2 = WordWrapping(max_width=40, measure=_test_measure(10, 18))
+iomap2 = print_document(proj2, input2)
+@test count(e -> e isa TextNewline, iomap2.output.elements) == 2
+@test map_reference_forward(proj2, iomap2, box(2, 8)) == box(2, 9)
+@test map_reference_backward(proj2, iomap2, box(2, 9)) == box(2, 8)
+
+end # @testset "WordWrapping maps a whole-element box past a soft break"
+
 @testset "WordWrapping reads available_width from context" begin
 
 src = "alpha beta gamma delta"

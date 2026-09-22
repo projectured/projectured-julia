@@ -79,6 +79,29 @@ end # @testset
 
 end # @testset
 
+@testset "TextFiltering maps a whole-element box past a dropped line" begin
+
+    box(s, e) = ConcreteReference(TextSpanReferenceStep(s, e), EmptyReference())
+    proj = TextFiltering(r"dolor")
+    input = _fixture()
+    iomap = print_document(proj, input)
+
+    # "delta dolor" is 23:34 in the input and 12:23 in the output, because the
+    # dropped line "beta gamma" ⏎ is 11 characters long.
+    @test map_reference_forward(proj, iomap, box(23, 34)) == box(12, 23)
+    @test map_reference_backward(proj, iomap, box(12, 23)) == box(23, 34)
+    # A box on a kept line before the dropped one does not move.
+    @test map_reference_forward(proj, iomap, box(6, 11)) == box(6, 11)
+    # A box on the dropped line has no image.
+    @test map_reference_forward(proj, iomap, box(12, 22)) === nothing
+    # A box over all three lines keeps the part that is shown.
+    @test map_reference_forward(proj, iomap, box(0, 34)) == box(0, 23)
+    # The output selection is the mapped box.
+    set_selection!(input, box(23, 34))
+    @test strip_reference_types(iomap.output.selection) == box(12, 23)
+
+end # @testset
+
 @testset "TextFiltering reader remaps element index" begin
 
     proj = TextFiltering(r"dolor")

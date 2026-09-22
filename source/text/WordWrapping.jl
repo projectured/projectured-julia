@@ -34,10 +34,12 @@ WordWrapping(; max_width::Int = 800, measure::Function) =
 """
     WrapSegment(out_index, in_span, in_char_start, length)
 
-One entry per emitted output `TextString` sub-span. `out_index` is the 1-based
-position of the sub-span in `output.elements`. `in_span` is the 1-based index
-of the originating input span. `in_char_start` is the 0-based character offset
-of this sub-span within the input span; `length` is its character count.
+One entry per output element that comes from an input element: a `TextString`
+sub-span, an image, or an element that the wrap passes through, such as a hard
+`TextNewline`. `out_index` is the 1-based position of the element in
+`output.elements`. `in_span` is the 1-based index of the originating input
+element. `in_char_start` is the 0-based character offset of a sub-span within
+the input span, and 0 for any other element; `length` is its character count.
 Inserted soft `TextNewline`s have no `WrapSegment`.
 """
 struct WrapSegment
@@ -62,8 +64,8 @@ function print_document(p::WordWrapping, recursion, text::TextBlock, ctx)
     both = ComputedCell(() -> _wrap(text, Int(wrap_w_cell[]), measure_fn))
     elements_cv = ComputedCellVector(() -> both[][1])
     segs_cell = ComputedCell(() -> both[][2])
-    out_selection = ComputedCell(() -> _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection;
-                                     unmapped_maps_to_itself = true))
+    out_selection = ComputedCell(() -> _forward_wrapped(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)),
+                                                        text.selection))
     output = TextBlock(elements_cv, out_selection)
     WordWrappingIoMap(p, text, output, segs_cell)
 end
@@ -89,15 +91,21 @@ function _wrap(text::TextBlock, wrap_w::Int, measure_fn::Function)
         if elem isa TextString
             cx = _wrap_string!(result, segs, elem, in_span, cx, wrap_w, measure_fn)
         elseif elem isa TextNewline
-            push!(result, elem)
+            _pass_through!(result, segs, elem, in_span)
             cx = 0
         elseif elem isa TextGraphics
             cx = _wrap_graphics!(result, segs, elem, in_span, cx, wrap_w)
         else
-            push!(result, elem)
+            _pass_through!(result, segs, elem, in_span)
         end
     end
     (result, segs)
+end
+
+function _pass_through!(result::Vector{TextDocument}, segs::Vector{WrapSegment},
+                        element::TextDocument, in_span::Int)
+    push!(result, element)
+    push!(segs, WrapSegment(length(result), in_span, 0, get_flat_length(element)))
 end
 
 # Wraps one input TextString span, appending output sub-spans (and soft
@@ -212,16 +220,31 @@ end
 # ── Selection / reference mapping ───────────────────────────────────────────
 _flat_caret(f::Int) = ConcreteReference(TextRangeReferenceStep(f, f), EmptyReference())
 
-# input flat caret → output flat caret, over the seg table. Takes the blocks
+# The runs of flat offsets that the wrap carries from `input` to `output`, one for
+# each segment. A soft `TextNewline` counts one flat offset, so each one moves the
+# offsets after it by one; it lies between two runs.
+_make_wrap_runs(segs, input::TextBlock, output::TextBlock) =
+    _make_flat_runs(input, output,
+                    [(s.in_span, s.in_char_start, s.out_index, get_flat_length(output.elements[s.out_index]))
+                     for s in segs])
+
+# An input selection as an output selection, over the seg table. Takes the blocks
 # explicitly so `print_document` can compute the output selection before the
-# `IoMap` exists (structural ∅ / `TextSpanReferenceStep` pass through: the flat
-# character space is wrap-invariant since soft `TextNewline`s are not counted).
+# `IoMap` exists. A whole-element box moves with the soft breaks before it; `∅`
+# passes through.
+function _forward_wrapped(segs, input::TextBlock, output::TextBlock, selection)
+    box = _get_text_box(selection)
+    box === nothing || return _map_text_box(_make_wrap_runs(segs, input, output), box)
+    _forward_map(segs, input, output, selection; unmapped_maps_to_itself = true)
+end
 
 map_reference_forward(p::WordWrapping, iomap::WordWrappingIoMap, reference) =
-    _forward_map(iomap.segs, iomap.input, iomap.output, reference;
-                 unmapped_maps_to_itself = true)
+    _forward_wrapped(iomap.segs, iomap.input, iomap.output, reference)
 
 function map_reference_backward(p::WordWrapping, iomap::WordWrappingIoMap, reference)
+    box = _get_text_box(reference)
+    box === nothing ||
+        return _map_text_box(_reverse_flat_runs(_make_wrap_runs(iomap.segs, iomap.input, iomap.output)), box)
     _is_structural_ref(reference) && return reference
     pair = _text_range_pair(reference)
     pair === nothing && return nothing

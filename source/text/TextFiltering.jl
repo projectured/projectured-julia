@@ -130,20 +130,26 @@ end
 
 # A whole-element selection at this layer is either `∅` (the whole text) or a
 # `TextSpanReferenceStep(s,e)…∅` box over a flat character range — the same
-# two shapes `SyntaxToText` emits and `TextToGraphics` highlights. Both index the
-# flat character space, which filtering leaves unchanged within a kept line, so
-# they map identically in either direction.
+# two shapes `SyntaxToText` emits and `TextToGraphics` highlights. A decorator
+# that only splits or restyles spans keeps every flat offset, so both pass through
+# it unchanged. A decorator that drops or adds elements moves a box with its
+# table of runs, and passes only `∅` through.
 _is_structural_ref(ref) =
     ref isa EmptyReference ||
     (ref isa ConcreteReference && ref.head isa TextSpanReferenceStep)
 
+# The runs of flat offsets that the filter keeps: one for each kept element. A
+# dropped line is in no run, so the offsets after it move back by its length.
+_make_filter_runs(kept::Vector{Int}, input::TextBlock, output::TextBlock) =
+    _make_flat_runs(input, output, [(i, 0, j, get_flat_length(input.elements[i])) for (j, i) in enumerate(kept)])
+
 # Forward: input flat caret → output position by finding in_span in the kept
 # table. Returns nothing when the line was filtered out (the selection has no
-# image in the output).
-# input flat caret → output flat caret via the kept table. Takes the blocks
-# explicitly so `print_document` can compute the output selection before the
-# `IoMap` exists.
+# image in the output). Takes the blocks explicitly so `print_document` can
+# compute the output selection before the `IoMap` exists.
 function _forward_map(kept::Vector{Int}, in_block, out_block, sel)
+    box = _get_text_box(sel)
+    box === nothing || return _map_text_box(_make_filter_runs(kept, in_block, out_block), box)
     _is_structural_ref(sel) && return sel
     # Resolve either caret form (flat `TextRangeReferenceStep{k}` or structural
     # `.elements[i].content{k}`); a flat-only read drops the cursor after an edit.
@@ -162,6 +168,9 @@ map_reference_forward(p::TextFiltering, iomap::TextFilteringIoMap, reference) =
     _forward_map(iomap.kept, iomap.input, iomap.output, reference)
 
 function map_reference_backward(p::TextFiltering, iomap::TextFilteringIoMap, reference)
+    box = _get_text_box(reference)
+    box === nothing ||
+        return _map_text_box(_reverse_flat_runs(_make_filter_runs(iomap.kept, iomap.input, iomap.output)), box)
     _is_structural_ref(reference) && return reference
     flat = _text_range_caret(reference)
     flat === nothing && return nothing
