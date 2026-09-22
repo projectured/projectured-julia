@@ -117,17 +117,28 @@ memory cap of 20 GB. No second Julia process runs at the same time.
 
 ### Step 4: text, collection, versioning, natural, graph, web
 
-- [ ] `WordWrapping` and `TextFiltering` map a whole-element box (confirm).
-- [ ] `TextFirstLine` maps the flat caret; `TextLineNumbering` maps a selection.
-- [ ] `copy_document` of an endless `ListNode` ends.
-- [ ] A version made with Ctrl+Shift+S has its author and time.
-- [ ] The natural notation takes the most derived type; `_SYNTAX_PAIRS`.
-- [ ] `GraphToGraphics` and the `GraphLayoutToGraphics` export.
+- [x] `WordWrapping` and `TextFiltering` map a whole-element box. `58d20b9d`.
+- [x] `TextFirstLine` and `TextLineNumbering` map the caret in both forms.
+      `d7f33e43`.
+- [x] `copy_document` of an endless `ListNode` ends: the copy is lazy.
+      `73d7b68b`.
+- [x] A version made with Ctrl+Shift+S has its author (`Sys.username()` unless
+      the projection names one) and its time. `8102d1e2`.
+- [x] The natural notation, the format and the extension take the most derived
+      type; the pairs form of `register_natural_syntax!` fills `_SYNTAX_PAIRS`.
+      `25c92049`.
+- [x] `GraphToGraphics` returns the two stages; the export of the missing name
+      is gone. `3dc76b8e`.
+- [x] SQL: the tokenizer reads non-ASCII text; `a + 1` stays whole as a raw
+      expression; a SELECT with no FROM prints none. `bb74c1e7`. JSON: a `\u`
+      with non-hex digits raises the parser error. `e12877dc`. A number field
+      keeps a number after a string edit, also inside a container. `ce641378`.
 - [x] The web backend waits for input and can be woken; `test_web_backend()`
       is its first test. `cac149c8`.
 - [x] `test_package_graph()` passes: its table of domain edges follows the
       `Project.toml` files. `7c3530bb`.
-- [ ] `OdbcAdapter` catalog calls honour their `database` argument.
+- [x] `OdbcAdapter` catalog calls honour their `database` argument; the query
+      text is a function that a test checks with no database. `bbe37a8c`.
 
 ### Step 5: tests, dead code, comments
 
@@ -186,5 +197,12 @@ memory cap of 20 GB. No second Julia process runs at the same time.
   Alt+arrow never reaches the selection walk; the checkbox and the switch
   toggle on any mouse button; `plan/tentative/evaluate-operation-document-arg.md`
   still names `SelectTabOperation`.
+- New faults from group A6: the kinded copy `copy_document(K, list)` of a
+  `ListNode` overflows the stack even for two nodes; `DatabaseInstanceToDbCatalog`
+  reads every database through the connection of one database, so the others
+  show no schemas; `read_intent(::TextLineNumbering, ::SimpleIoMap, ::KeyDown)`
+  returns the raw gesture; the SQL tokenizer skips a sign, so `WHERE a = -1`
+  reads as `a = 1`, and a `''` in a string literal is not unescaped; the natural
+  tests register test types in the global tables.
 - `test_catalog_coverage` fails on `main` for 28 types (Assistant, Process,
   Pane, FaultLog and others). It is not caused by this work.
