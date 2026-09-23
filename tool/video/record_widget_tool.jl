@@ -18,7 +18,7 @@ const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "widget_tool.mp4") : ARGS[1]
 
 # Read off the window at 1280×720 with no assistant pane.
 const EVALUATOR_BUTTON = (50, 38)
-const BUTTON_IN_ROW = (332, 321)      # the button in the result row of the tool
+const BUTTON_IN_ROW = (332, 345)      # the button in the result row of the tool
 const BUTTON_IN_PANE = (827, 105)     # the same button in the tool's own pane
 
 _key(key; hold = 0.4, kwargs...) = (event = KeyDown(key, ModifierKeys(; kwargs...)), hold = hold)

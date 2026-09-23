@@ -16,7 +16,7 @@ const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "rotating_vector.mp4") : ARGS[1]
 
 # Read off the window at 1280×720 with no assistant pane.
 const EVALUATOR_BUTTON = (50, 38)
-const CANVAS_CENTRE = (432, 338)      # the canvas row after the first two forms
+const CANVAS_CENTRE = (432, 362)      # the canvas row after the first two forms
 
 # A directory with one small file, so the window opens with a wide pane of files
 # and the Evaluator button opens its tab there.
@@ -34,14 +34,14 @@ _press(x, y; hold = 0.6, kwargs...) = [(event = MouseMove(x, y, :none, ModifierK
 # The forms before the canvas has a pane of its own.
 const FIRST_FORMS = [
     "clock = get_wall_clock()",
-    "canvas = GraphicsCanvas([GraphicsRect(0, 0, 300, 300, color_solarized_background_lighter)]; w = 300, h = 300)",
+    "canvas = GraphicsCanvas([GraphicsRect(0, 0, 300, 300; color = color_solarized_background_lighter)]; w = 300, h = 300)",
 ]
 
 # The forms after it. Each `push!` returns nothing, so its result row stays
 # small, and the picture changes only where it is: in its pane, and in the one
 # row that made it.
 const LATER_FORMS = [
-    "ring = GraphicsCircle(90, 90, 60, StyleColor(0.0, 0.0, 0.0, 0.0); border_width = 2, border_color = color_solarized_content_darker)",
+    "ring = GraphicsCircle(90, 90, 60; color = StyleColor(0.0, 0.0, 0.0, 0.0), border_width = 2, border_color = color_solarized_content_darker)",
     "push!(canvas.elements, ring); nothing",
     "phase() = -0.5 * get_reactive_clock_time(clock)",
     "dot = GraphicsCircle(ComputedCell(() -> round(Int32, 90 + 60cos(phase()))), ComputedCell(() -> round(Int32, 90 - 60sin(phase()))), 5, color_solarized_magenta, 0, StyleColor(0.0, 0.0, 0.0, 0.0), nothing)",
