@@ -22,9 +22,10 @@ encode the session to `filename` (`.mp4`).
 
 [`make_application_window`](@ref) builds the document and the projection,
 [`run_with_window_tools`](@ref) fills in the toolbar's tools (the message log,
-the frame statistics, the fault log), and [`run_window_editor`](@ref) runs the
-real `run_editor!` loop against a [`VideoBackend`](@ref) standing in for the
-native window. `timeline` is that backend's scripted input. An `(event = …, hold = …)` entry
+the frame statistics, the fault log), `make_editor` builds the editor over a
+[`VideoBackend`](@ref) standing in for the native window,
+[`start_application!`](@ref) gives it the assistant of the application, and the
+real `run_editor!` loop runs. `timeline` is that backend's scripted input. An `(event = …, hold = …)` entry
 is a key or a pointer event, and an `(await = editor -> Bool, hold = …)` entry
 holds the schedule until its predicate answers true or its `hold` of seconds
 runs out — that is how a take waits for a turn of a real model, whose length
@@ -58,17 +59,17 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                            supersample = supersample, scale = scale)
     try
         run_with_window_tools() do feeds, start
-            run_window_editor(document, projection, title; backend = backend,
-                              width = width, height = height, feeds = feeds,
-                              opened_window_projections =
-                                  make_opened_window_projections(;
-                                      content = make_application_content_projections(measure = measure),
-                                      measure = measure),
-                              on_start = editor -> begin
-                                  backend.editor = editor
-                                  start(editor)
-                                  start_application!(editor, false, assistant, model)
-                              end)
+            editor = make_editor(document, projection, title; backend = backend,
+                                 width = width, height = height, feeds = feeds,
+                                 opened_window_projections =
+                                     make_opened_window_projections(;
+                                         content = make_application_content_projections(measure = measure),
+                                         measure = measure),
+                                 screen_wrap = make_popup_screen_wrap())
+            backend.editor = editor
+            start(editor)
+            start_application!(editor, false, assistant, model)
+            run_editor!(editor)
         end
         _encode_frames_to_video!(backend.frames_dir, filename, fps)
     finally

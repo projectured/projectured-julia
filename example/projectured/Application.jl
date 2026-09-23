@@ -327,14 +327,11 @@ const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
     "FileFormatModule opens a path as a tab with make_file_tab, writes one " *
     "back with write_document_file, and answers what a file tab holds with " *
     "get_file_content. FileSystemModule names the workspace the navigator " *
-    "lists. To read what a tab holds, in one round: show_layout prints a " *
-    "program whose lines name every tab. Run that program whole, its first " *
-    "line `window = get_window_tree(editor)` included, because every later " *
-    "line of it reads `window`. Then " *
-    "`print_natural_text(get_wrapped_document(get_file_content(tab)))` answers " *
-    "the text of the file in one of them, which parse_natural_text reads back. " *
-    "search_documents finds a document in the window when no line of the " *
-    "layout names it. " *
+    "lists. To read what a tab holds, in one round: " *
+    "`tab = get_referenced_value(editor, find_pane_reference(editor, \"people.json\"))` " *
+    "answers the tab of that title, and `print_natural_text(tab.content)` answers " *
+    "the text of the file it holds, which parse_natural_text reads back. " *
+    "search_documents finds a document in the window when no tab names it. " *
     "Call one tool per round, and put the whole Julia source " *
     "in the code argument of execute_julia_code: a call with no code does " *
     "nothing and costs the round."

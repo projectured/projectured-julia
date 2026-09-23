@@ -65,7 +65,7 @@ mutable struct VideoBackend <: Backend
     schedule_offset::Float64
     await_started::Float64
     # The editor of this recording, which an `await` predicate reads. The driver
-    # puts it here in `on_start`, before the first frame.
+    # puts it here after `make_editor` and before `run_editor!`.
     editor::Any
     frame::Base.RefValue{Int}
     last_frame_file::Union{String,Nothing}
