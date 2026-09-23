@@ -98,7 +98,7 @@ end
 
 function record_example_video(example::Example, gestures, filename;
                               width=1200, height=800, fps=30, kwargs...)
-    record_video(example.document, example.projection, gestures, filename;
+    record_video(example.document, example.projection; gestures, filename,
                  width=width, height=height, fps=fps, kwargs...)
 end
 

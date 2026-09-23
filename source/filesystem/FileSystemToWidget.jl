@@ -70,13 +70,11 @@ function _make_open_file_bindings(pathname, open_file)
     is_applicable = (node, selection) -> true
     GestureBinding[
         GestureBinding(KeyDownPattern(:return, nothing, nothing), make_operation;
-                       applicable = is_applicable,
-                       description = "Open the file",
+                       applicable = is_applicable, description = "Open the file",
                        domain = "file system"),
-        GestureBinding(MousePressPattern(:left, nothing, event -> event.count == 2, "double click"), make_operation;
-                       applicable = is_applicable,
-                       description = "Open the file",
-                       domain = "file system"),
+        GestureBinding(MousePressPattern(:left, nothing, event -> event.count == 2, "double click"),
+                       make_operation; applicable = is_applicable,
+                       description = "Open the file", domain = "file system"),
     ]
 end
 

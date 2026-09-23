@@ -44,7 +44,7 @@ function write_object!(w::PdfWriter, num::Int, body::AbstractString)
     write(w.io, string(num), " 0 obj\n", body, "\nendobj\n")
 end
 
-function write_stream!(w::PdfWriter, num::Int, dict::AbstractString, data::Vector{UInt8})
+function write_stream!(w::PdfWriter, num::Int; dict::AbstractString, data::Vector{UInt8})
     w.offsets[num] = position(w.io)
     write(w.io, string(num), " 0 obj\n<< ", dict, " /Length ", string(length(data)), " >>\nstream\n")
     write(w.io, data)
@@ -190,6 +190,7 @@ function _stroke_rrect!(ctx, L, B, w, h, rtl, rtr, rbr, rbl, bw, r, g, b, a)
     print(ctx.buf, " S\n")
 end
 
+# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_rect!(ctx, rect, ox, oy)
     x = ox + Int(rect.x); y = oy + Int(rect.y); w = Int(rect.w); h = Int(rect.h)
     (w <= 0 || h <= 0) && return
@@ -252,6 +253,7 @@ function _stroke_ring!(ctx, cx, cy, rad, bw, r, g, b, a)
     p(cx + k, cy - rm); p(cx + rm, cy - k); p(cx + rm, cy); print(ctx.buf, "c h S\n")
 end
 
+# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_circle!(ctx, circ, ox, oy)
     cyG = oy + Int(circ.cy); rad = Int(circ.radius); bw = Int(circ.border_width)
     _on_page(ctx, cyG - rad - bw, cyG + rad + bw) || return
@@ -269,6 +271,7 @@ function paint_circle!(ctx, circ, ox, oy)
     end
 end
 
+# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_line!(ctx, line, ox, oy)
     line.color.alpha == 0 && return
     lr, lg, lb, la = _rgba8(line.color)
@@ -325,6 +328,7 @@ function _paint_polyline_points!(ctx, gpts, wdt::Int, r, g, b, a,
     start_arrow && fill_tri(build_polyline_arrowhead(gpts, arrow_size; at_end=false))
 end
 
+# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_polyline!(ctx, pl, ox, oy)
     gpts = [(ox + Int(p[1]), oy + Int(p[2])) for p in pl.points]
     _paint_polyline_points!(ctx, gpts, max(1, Int(pl.width)), _rgba8(pl.color)...,
@@ -334,6 +338,7 @@ end
 # Fill a closed polygon, then stroke its outline when a border is asked for.
 # The nonzero winding rule of the `f` operator fills a concave outline (a star
 # marker) directly, so no triangulation is needed in vector output.
+# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_polygon!(ctx, pg, ox, oy)
     gpts = [(ox + Int(p[1]), oy + Int(p[2])) for p in pg.points]
     length(gpts) < 3 && return
@@ -368,6 +373,7 @@ function paint_polygon!(ctx, pg, ox, oy)
     end
 end
 
+# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_spline!(ctx, sp, ox, oy)
     tess = tessellate_spline(sp.points, sp.kind, sp.segments)
     gpts = [(ox + p[1], oy + p[2]) for p in tess]
@@ -379,6 +385,7 @@ end
 # follows the font zoom. Each run of one font is a `Tf` and a `Tj` in one text
 # object. A `Tj` moves the text position by the advances of its glyphs, so a
 # run starts where the run before it ends, on the baseline of the text's font.
+# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_text!(ctx, t, ox, oy)
     (isempty(t.text) || t.color.alpha == 0) && return
     tr, tg, tb, ta = _rgba8(t.color)
@@ -398,6 +405,7 @@ function paint_text!(ctx, t, ox, oy)
     print(ctx.buf, " ET\n")
 end
 
+# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_image!(ctx, img, ox, oy)
     data = img.data
     data === nothing && return
@@ -424,6 +432,7 @@ function paint_image!(ctx, img, ox, oy)
     print(ctx.buf, "q ", n2(w), " 0 0 ", n2(h), " ", n2(x), " ", n2(yb), " cm /", resname, " Do Q\n")
 end
 
+# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_viewport!(ctx, vp, ox, oy)
     vx = ox + Int(vp.x); vy = oy + Int(vp.y); vw = Int(vp.w); vh = Int(vp.h)
     _on_page(ctx, vy, vy + vh) || return
@@ -446,6 +455,7 @@ function paint_viewport!(ctx, vp, ox, oy)
     print(ctx.buf, "Q\n")
 end
 
+# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_elem!(ctx, elem, ox, oy)
     if elem isa GraphicsText
         paint_text!(ctx, elem, ox, oy)
@@ -471,6 +481,7 @@ function paint_elem!(ctx, elem, ox, oy)
     # GraphicsFence and unknown types paint nothing.
 end
 
+# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_canvas!(ctx, canvas::GraphicsCanvas, ox::Int, oy::Int)
     for elem in canvas.elements
         elem isa GraphicsFence && continue
@@ -515,7 +526,7 @@ end
 
 function _write_font!(w::PdfWriter, info)
     reg = info.reg; ttf = reg.ttf; bn = reg.basefont
-    write_stream!(w, info.ff, "/Length1 $(length(ttf.bytes))", ttf.bytes)
+    write_stream!(w, info.ff; dict = "/Length1 $(length(ttf.bytes))", data = ttf.bytes)
 
     scale = 1000 / ttf.units_per_em
     x0, y0, x1, y1 = ttf.bbox
@@ -538,7 +549,7 @@ function _write_font!(w::PdfWriter, info)
     warr = String(take!(wio))
     dw = get_glyph_advance_1000(ttf, UInt16(0))
 
-    write_stream!(w, info.tu, "", _tounicode_cmap(reg))
+    write_stream!(w, info.tu; dict = "", data = _tounicode_cmap(reg))
     write_object!(w, info.cid,
         "<< /Type /Font /Subtype /CIDFontType2 /BaseFont /$bn " *
         "/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> " *
@@ -607,7 +618,7 @@ function _write_pdf_document(filename::AbstractString, contents::Vector{Vector{U
     pages_num = new_object!(w); catalog_num = new_object!(w)
 
     for (cn, c) in zip(content_nums, contents)
-        write_stream!(w, cn, "", c)
+        write_stream!(w, cn; dict = "", data = c)
     end
     for (_, info) in fontnums
         _write_font!(w, info)
@@ -618,12 +629,12 @@ function _write_pdf_document(filename::AbstractString, contents::Vector{Vector{U
     end
     for ni in imgnums
         im = ni.img
-        write_stream!(w, ni.smask,
-            "/Type /XObject /Subtype /Image /Width $(im.nw) /Height $(im.nh) /ColorSpace /DeviceGray /BitsPerComponent 8",
-            im.alpha)
-        write_stream!(w, ni.base,
-            "/Type /XObject /Subtype /Image /Width $(im.nw) /Height $(im.nh) /ColorSpace /DeviceRGB /BitsPerComponent 8 /SMask $(ni.smask) 0 R",
-            im.rgb)
+        write_stream!(w, ni.smask;
+                      dict = "/Type /XObject /Subtype /Image /Width $(im.nw) /Height $(im.nh) /ColorSpace /DeviceGray /BitsPerComponent 8",
+                      data = im.alpha)
+        write_stream!(w, ni.base;
+                      dict = "/Type /XObject /Subtype /Image /Width $(im.nw) /Height $(im.nh) /ColorSpace /DeviceRGB /BitsPerComponent 8 /SMask $(ni.smask) 0 R",
+                      data = im.rgb)
     end
 
     res = IOBuffer(); print(res, "<< ")

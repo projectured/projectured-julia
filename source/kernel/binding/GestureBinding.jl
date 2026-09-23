@@ -13,8 +13,7 @@ struct GestureBinding
 end
 
 """
-    GestureBinding(pattern, operation; applicable, description, domain,
-                   override = false, name = nothing)
+    GestureBinding(pattern, operation; applicable, description, domain, name = nothing)
 
 One rule: `pattern` is the gesture it answers and `operation` is what it makes of
 it. The rest says when the rule stands and how it is shown.

@@ -139,8 +139,7 @@ end
     editor = _PaneMockEditor(tree)
     fresh = _tab("new")
     _apply!(editor, make_pane_split_operation(tree, group; orientation = :vertical,
-                                              side = :right,
-                                              tab = fresh))
+                                              side = :right, tab = fresh))
 
     @test tree.root isa PaneSplit
     @test tree.root.orientation === :vertical
@@ -159,8 +158,7 @@ end
     editor = _PaneMockEditor(tree)
     fresh = _tab("new")
     _apply!(editor, make_pane_split_operation(tree, group; orientation = :vertical,
-                                              side = :left,
-                                              tab = fresh))
+                                              side = :left, tab = fresh))
     @test tree.root.elements[2] === group
     @test tree.root.elements[1].tabs[1] === fresh
 end
@@ -169,12 +167,10 @@ end
     tree, group, _ = _flat(1)
     editor = _PaneMockEditor(tree)
     _apply!(editor, make_pane_split_operation(tree, group; orientation = :vertical,
-                                              side = :right,
-                                              tab = _tab("b")))
+                                              side = :right, tab = _tab("b")))
     second = tree.root.elements[2]
     _apply!(editor, make_pane_split_operation(tree, second; orientation = :vertical,
-                                              side = :right,
-                                              tab = _tab("c")))
+                                              side = :right, tab = _tab("c")))
 
     @test length(tree.root.elements) == 3              # three siblings, not a nested split
     @test all(e -> e isa PaneGroup, tree.root.elements)
@@ -187,11 +183,9 @@ end
     tree, group, _ = _flat(1)
     editor = _PaneMockEditor(tree)
     _apply!(editor, make_pane_split_operation(tree, group; orientation = :vertical,
-                                              side = :right,
-                                              tab = _tab("b")))
+                                              side = :right, tab = _tab("b")))
     _apply!(editor, make_pane_split_operation(tree, group; orientation = :horizontal,
-                                              side = :below,
-                                              tab = _tab("c")))
+                                              side = :below, tab = _tab("c")))
     @test length(tree.root.elements) == 2
     inner = tree.root.elements[1]
     @test inner isa PaneSplit
@@ -203,11 +197,9 @@ end
     tree, group, _ = _flat(1)
     editor = _PaneMockEditor(tree)
     _apply!(editor, make_pane_split_operation(tree, group; orientation = :vertical,
-                                              side = :right,
-                                              tab = _tab("b")))
+                                              side = :right, tab = _tab("b")))
     _apply!(editor, make_pane_split_operation(tree, tree.root.elements[2];
-                                              orientation = :vertical,
-                                              side = :right,
+                                              orientation = :vertical, side = :right,
                                               tab = _tab("c")))
     middle = tree.root.elements[2]
 
@@ -224,8 +216,7 @@ end
     editor = _PaneMockEditor(tree)
     fresh = _tab("new")
     _apply!(editor, make_pane_split_operation(tree, group; orientation = :vertical,
-                                              side = :right,
-                                              tab = fresh))
+                                              side = :right, tab = fresh))
     new_group = tree.root.elements[2]
 
     _apply!(editor, make_pane_close_tab_operation(tree, new_group, 1))
@@ -240,8 +231,8 @@ end
     # move to slot 3 lands at 2 — the tab left its own slot first.
     tree, group, tabs = _flat(3)
     editor = _PaneMockEditor(tree)
-    _apply!(editor, make_pane_move_tab_operation(tree, group; source_index = 1, target = group,
-                                                 target_index = 3))
+    _apply!(editor, make_pane_move_tab_operation(tree, group; source_index = 1,
+                                                 target = group, target_index = 3))
     @test group.tabs[1] === tabs[2]
     @test group.tabs[2] === tabs[1]                    # the same object moved
     @test group.tabs[3] === tabs[3]
@@ -250,16 +241,16 @@ end
     # A drop past the last slot lands last.
     tree, group, tabs = _flat(3)
     editor = _PaneMockEditor(tree)
-    _apply!(editor, make_pane_move_tab_operation(tree, group; source_index = 1, target = group,
-                                                 target_index = 4))
+    _apply!(editor, make_pane_move_tab_operation(tree, group; source_index = 1,
+                                                 target = group, target_index = 4))
     @test group.tabs[3] === tabs[1]
     @test get_pane_focus(tree) == (group, 3)
 
     # A backward move lands exactly on the named slot.
     tree, group, tabs = _flat(3)
     editor = _PaneMockEditor(tree)
-    _apply!(editor, make_pane_move_tab_operation(tree, group; source_index = 3, target = group,
-                                                 target_index = 1))
+    _apply!(editor, make_pane_move_tab_operation(tree, group; source_index = 3,
+                                                 target = group, target_index = 1))
     @test group.tabs[1] === tabs[3]
     @test get_pane_focus(tree) == (group, 1)
 end
@@ -268,13 +259,12 @@ end
     tree, group, tabs = _flat(3)
     editor = _PaneMockEditor(tree)
     _apply!(editor, make_pane_split_operation(tree, group; orientation = :vertical,
-                                              side = :right,
-                                              tab = _tab("x")))
+                                              side = :right, tab = _tab("x")))
     other = tree.root.elements[2]
 
     moved = tabs[2]
-    _apply!(editor, make_pane_move_tab_operation(tree, group; source_index = 2, target = other,
-                                                 target_index = 1))
+    _apply!(editor, make_pane_move_tab_operation(tree, group; source_index = 2,
+                                                 target = other, target_index = 1))
     @test length(group.tabs) == 2
     @test length(other.tabs) == 2
     @test other.tabs[1] === moved                      # identity is preserved
@@ -286,13 +276,12 @@ end
     tree, group, tabs = _flat(1)
     editor = _PaneMockEditor(tree)
     _apply!(editor, make_pane_split_operation(tree, group; orientation = :vertical,
-                                              side = :right,
-                                              tab = _tab("x")))
+                                              side = :right, tab = _tab("x")))
     other = tree.root.elements[2]
 
     moved = tabs[1]
-    _apply!(editor, make_pane_move_tab_operation(tree, group; source_index = 1, target = other,
-                                                 target_index = 1))
+    _apply!(editor, make_pane_move_tab_operation(tree, group; source_index = 1,
+                                                 target = other, target_index = 1))
     @test tree.root === other                          # the emptied group went away with its split
     @test length(other.tabs) == 2
     @test other.tabs[1] === moved
@@ -304,8 +293,7 @@ end
     tree, group, _ = _flat(1)
     editor = _PaneMockEditor(tree)
     _apply!(editor, make_pane_split_operation(tree, group; orientation = :vertical,
-                                              side = :right,
-                                              tab = _tab("b")))
+                                              side = :right, tab = _tab("b")))
     # Raw extents are accepted and normalized.
     _apply!(editor, make_pane_resize_operation(tree, tree.root, [300.0, 100.0]))
     @test get_pane_weights(tree.root) == [0.75, 0.25]
@@ -316,12 +304,10 @@ end
     tree, group, _ = _flat(1)
     editor = _PaneMockEditor(tree)
     _apply!(editor, make_pane_split_operation(tree, group; orientation = :vertical,
-                                              side = :right,
-                                              tab = _tab("b")))
+                                              side = :right, tab = _tab("b")))
     right = tree.root.elements[2]
     _apply!(editor, make_pane_split_operation(tree, right; orientation = :horizontal,
-                                              side = :below,
-                                              tab = _tab("c")))
+                                              side = :below, tab = _tab("c")))
     groups = get_pane_groups(tree)
     @test length(groups) == 3
     @test groups[1] === group

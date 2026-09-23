@@ -24,6 +24,7 @@ invalidate_projection!(editor) = nothing
 
 # ── Text-splice helpers ─────────────────────────────────────────────────────
 
+# @positional: a range of a text, in the order a range is written: the text, the start, the stop, the replacement.
 """
     splice_string(old, s, e, replacement) -> String
 
@@ -40,6 +41,7 @@ function splice_string(old::AbstractString, s::Int, e::Int, replacement::Abstrac
     String(left) * replacement * String(right)
 end
 
+# @positional: a range of a text, in the order a range is written: the text, the start, the stop, the replacement.
 """
     splice_number(old_str, s, e, replacement) -> Union{Int, Float64, Nothing}
 
@@ -293,7 +295,7 @@ into the new element (re-rooting prepends the same steps to both members).
 `root` defaults to `nothing` (rooted at `editor.document`); pass a carried object
 for an identity-rooted splice against a document that is not in the tree.
 """
-function insert_elements(path::Reference, index::Integer, items, selection=nothing; root=nothing)
+function insert_elements(path::Reference, index::Integer, items; selection=nothing, root=nothing)
     write = ReplaceReferencedValueOperation(root, extend_reference(path, RangeReferenceStep(index, index)),
                                    Vector{Any}(items))
     selection === nothing ? write :

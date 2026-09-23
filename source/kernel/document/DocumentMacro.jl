@@ -633,8 +633,9 @@ function _document_expr(args)
         # `SelectionDocument` is spliced as a type **object**, not as a name: it is
         # declared in this module, so no caller needs it in scope. `Reference` is
         # still a name, for the reason above.
-        add_cell_struct_field!(plan, :selection,
-                               :(Union{Nothing, Reference, $(SelectionDocument)}), :nothing)
+        add_cell_struct_field!(plan, :selection;
+                               type = :(Union{Nothing, Reference, $(SelectionDocument)}),
+                               default = :nothing)
     end
 
     # The cell layout now subtypes `family` (which subtypes the real supertype), not

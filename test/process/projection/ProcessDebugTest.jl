@@ -262,7 +262,7 @@ end
     # *text*: the highlight is a style swap, so no caret offset moves.
     @test plain == live
 
-    set_process_position!(session, model, get_node_index(model, hand), 0)
+    set_process_position!(session, model; node = get_node_index(model, hand), previous = 0)
     @test _text(ProcessToSyntax(session = session)) == plain
 
     # A node's whole keyword chrome takes the live colour: one leaf for a bare
@@ -270,7 +270,8 @@ end
     @test _colored(_syntax(ProcessToSyntax()), color_solarized_orange) == 0
     @test _colored(_syntax(ProcessToSyntax(session = session)), color_solarized_orange) == 2
 
-    set_process_position!(session, model, get_node_index(model, model.body.steps[2]), 0)
+    set_process_position!(session, model; node = get_node_index(model, model.body.steps[2]),
+                          previous = 0)
     @test _colored(_syntax(ProcessToSyntax(session = session)), color_solarized_orange) == 1
 
     # A breakpoint colours its own keyword, in its own colour.

@@ -104,5 +104,5 @@ end
 
 @gestures YamlMapping begin
     KeyPress(',') => "Insert a new entry" => append_insertion_operation(doc, :entries, YamlMappingEntry)
-    KeyDown(:tab) => "Move from key to value" => move_to_field(doc, :key, :value)
+    KeyDown(:tab) => "Move from key to value" => move_to_field(doc; from = :key, to = :value)
 end

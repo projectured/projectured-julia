@@ -35,6 +35,7 @@ struct ChartView
     y_max::Float64
 end
 
+# @positional: the four of a view rectangle: x, y, width and height.
 ChartView(x_min::Real, x_max::Real, y_min::Real, y_max::Real) =
     ChartView(Float64(x_min), Float64(x_max), Float64(y_min), Float64(y_max))
 

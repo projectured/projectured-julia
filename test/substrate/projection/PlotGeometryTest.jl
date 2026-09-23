@@ -184,12 +184,12 @@ function test_plot_geometry()
             @test length(unique(b[5] for b in bands)) > 1
 
             # Bars already wide enough pass through untouched.
-            wide = PlotModule.fold_bins([0, 10, 20], [10, 20, 30], [1.0, 2.0, 3.0], 2)
+            wide = PlotModule.fold_bins([0, 10, 20], [10, 20, 30], [1.0, 2.0, 3.0]; min_px = 2)
             @test length(wide) == 3
             @test all(b -> b[3] == b[4], wide)
             # Sub-pixel bars merge into envelopes carrying the local min and max.
             narrow = PlotModule.fold_bins(collect(0:99), collect(1:100),
-                                                   Float64.(1:100), 10)
+                                          Float64.(1:100); min_px = 10)
             @test length(narrow) < 100
             @test all(b -> b[3] <= b[4], narrow)
             @test minimum(b[3] for b in narrow) == 1.0
@@ -213,13 +213,13 @@ function test_plot_geometry()
                   [(1, 3), (4, 5), (6, 6), (7, 7)]
 
             # Segments already wide enough pass through with their own code.
-            wide = PlotModule.fold_strips([0, 10, 20], [10, 20, 30], [1, 2, 3], 2)
+            wide = PlotModule.fold_strips([0, 10, 20], [10, 20, 30], [1, 2, 3]; min_px = 2)
             @test wide == [(0, 10, 1), (10, 20, 2), (20, 30, 3)]
 
             # Sub-pixel segments fold, and the fold takes the state that holds
             # it longest rather than the first or last one in the run.
             folded = PlotModule.fold_strips([0.0, 0.1, 0.8], [0.1, 0.8, 1.0],
-                                                     [1, 2, 1], 1)
+                                            [1, 2, 1]; min_px = 1)
             @test length(folded) == 1
             @test folded[1][3] == 2
 
@@ -227,7 +227,7 @@ function test_plot_geometry()
             # accumulating group closes before it, so it keeps its own left
             # edge and its own code (where fold_bins would have absorbed it).
             mixed = PlotModule.fold_strips([0.0, 0.4, 50.0], [0.4, 50.0, 90.0],
-                                                    [1, 2, 3], 1)
+                                           [1, 2, 3]; min_px = 1)
             @test length(mixed) == 3
             @test mixed[2] == (0, 50, 2)
             @test mixed[3] == (50, 90, 3)
@@ -238,7 +238,7 @@ function test_plot_geometry()
             lefts = collect(range(0.0; step = 800 / n, length = n))
             rights = lefts .+ (800 / n)
             dither = PlotModule.fold_strips(lefts, rights,
-                                                     [isodd(i) ? 1 : 2 for i in 1:n], 1)
+                                            [isodd(i) ? 1 : 2 for i in 1:n]; min_px = 1)
             @test length(dither) <= 801
             @test length(unique(s[3] for s in dither)) == 2
             # Every span is at least one pixel wide and they tile in order.
@@ -246,8 +246,8 @@ function test_plot_geometry()
             @test issorted([s[1] for s in dither])
 
             # A zero-width segment still yields a drawable span.
-            @test PlotModule.fold_strips([5.0], [5.0], [4], 1) == [(5, 6, 4)]
-            @test PlotModule.fold_strips(Float64[], Float64[], Int[], 1) ==
+            @test PlotModule.fold_strips([5.0], [5.0], [4]; min_px = 1) == [(5, 6, 4)]
+            @test PlotModule.fold_strips(Float64[], Float64[], Int[]; min_px = 1) ==
                   Tuple{Int,Int,Int}[]
         end
 

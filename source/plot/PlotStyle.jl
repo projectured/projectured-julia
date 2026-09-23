@@ -78,6 +78,7 @@ function _star_polygon(x::Int, y::Int, r::Int)
       round(Int, y + (isodd(k) ? inner : r) * sin(-pi/2 + pi * k / 5))) for k in 0:9]
 end
 
+# @positional: a marker at a point: its kind, x, y and its size.
 """
     build_marker_polygon(shape, x, y, r) -> Vector{Tuple{Int,Int}} | nothing
 

@@ -126,8 +126,7 @@ end
 
 """
     clip_child_to_slot(child, iomap; x_cell, y_cell, slot_x, slot_y, slot_w, slot_h,
-                       clip_x,
-                       clip_y)
+                       clip_x, clip_y)
 
 A child drawn inside the slot it was allocated, on each axis the slot's extent
 was known independently of the child — §3b of the layout rules: the container
@@ -137,8 +136,7 @@ position the alignment gave it, expressed inside the viewport. Every cell is
 a `Cell`, so a slot that moves moves the viewport with it. A grid draws its
 cells through this, and so does a table whose rows are a list.
 """
-function clip_child_to_slot(child::GraphicsDocument, cim;
-                            x_cell::Cell, y_cell::Cell,
+function clip_child_to_slot(child::GraphicsDocument, cim; x_cell::Cell, y_cell::Cell,
                             slot_x::Cell, slot_y::Cell, slot_w::Cell, slot_h::Cell,
                             clip_x::Bool, clip_y::Bool)
     vx = clip_x ? slot_x : x_cell
@@ -515,7 +513,7 @@ _off(v) = Int(v isa Cell ? v[] : v)
 # image passes through unchanged. (coordinates accumulate, paths stay paths — see
 # `map_reference_forward`'s docstring.) The child canvas sits at the entry offset
 # `(off_x, off_y)` the container wrapped it at PLUS the child canvas's own origin.
-function shift_child_image(child, off_x, off_y, cim)
+function shift_child_image(child, cim; off_x, off_y)
     child isa PointReferenceStep || return child
     out = cim.output
     out isa GraphicsCanvas || return child
@@ -539,7 +537,7 @@ function descend_reference_forward(entries::Vector, field::String, reference)
     1 <= idx <= length(entries) || return nothing
     (off_x, off_y, cim) = entries[idx]
     child = map_reference_forward(cim.projection, cim, rest.tail)
-    shift_child_image(child, off_x, off_y, cim)
+    shift_child_image(child, cim; off_x, off_y)
 end
 
 """
@@ -716,7 +714,7 @@ function _hl_build(recursion, doc, ctx)
     # is safe to read while computing it.
     avail_w  = ctx.available_width
     default  = getfield(doc, :child_width)[]
-    weighted = [layout_weight(doc.children[i], :x, default) > 0 for i in 1:n]
+    weighted = [layout_weight(doc.children[i], :x; default) > 0 for i in 1:n]
     filling  = avail_w !== nothing && any(weighted)
 
     alloc_cell = Cell(nothing)
@@ -756,10 +754,10 @@ function _hl_build(recursion, doc, ctx)
             for i in 1:n
                 child     = doc.children[i]
                 intrinsic = weighted[i] ? 0 : _child_w(child_iomaps[i])
-                mins[i]   = layout_min(child, :x, intrinsic, default)
-                maxs[i]   = layout_max(child, :x, intrinsic, default)
-                prefs[i]  = layout_preferred(child, :x, intrinsic, default)
-                wts[i]    = layout_weight(child, :x, default)
+                mins[i]   = layout_min(child, :x, intrinsic; default)
+                maxs[i]   = layout_max(child, :x, intrinsic; default)
+                prefs[i]  = layout_preferred(child, :x, intrinsic; default)
+                wts[i]    = layout_weight(child, :x; default)
             end
             allocate_axis(Int(avail_w[]); mins, maxs, prefs, weights = wts, gap = gap_cell[], n)
         end)
@@ -844,8 +842,8 @@ end
 # sizes to what it draws. `axis` is the cross axis, and `default` is the layout's
 # own `child_width`/`child_height` for that axis.
 function _cross_context(cctx, child, axis::Symbol, default)
-    layout_weight(child, axis, default) > 0 && return cctx
-    pref = layout_preferred(child, axis, 0, default)
+    layout_weight(child, axis; default) > 0 && return cctx
+    pref = layout_preferred(child, axis, 0; default)
     pref > 0 && return with_available_size(cctx;
         (axis === :x ? (; width = Cell(Int32(pref))) : (; height = Cell(Int32(pref))))...)
     withhold_offer(cctx, axis)
@@ -871,7 +869,7 @@ function _vl_build(recursion, doc, ctx)
     # has to be declared on the layout.
     avail_h  = ctx.available_height
     default  = getfield(doc, :child_height)[]
-    weighted = [layout_weight(doc.children[i], :y, default) > 0 for i in 1:n]
+    weighted = [layout_weight(doc.children[i], :y; default) > 0 for i in 1:n]
     filling  = avail_h !== nothing && any(weighted)
 
     # The allocation is forward-declared: a weighted child is offered its slot
@@ -921,10 +919,10 @@ function _vl_build(recursion, doc, ctx)
                 # A weighted child's preference comes from its constraint, never
                 # from what it drew: what it drew came from the slot.
                 intrinsic = weighted[i] ? 0 : _child_h(child_iomaps[i])
-                mins[i]   = layout_min(child, :y, intrinsic, default)
-                maxs[i]   = layout_max(child, :y, intrinsic, default)
-                prefs[i]  = layout_preferred(child, :y, intrinsic, default)
-                wts[i]    = layout_weight(child, :y, default)
+                mins[i]   = layout_min(child, :y, intrinsic; default)
+                maxs[i]   = layout_max(child, :y, intrinsic; default)
+                prefs[i]  = layout_preferred(child, :y, intrinsic; default)
+                wts[i]    = layout_weight(child, :y; default)
             end
             allocate_axis(Int(avail_h[]); mins, maxs, prefs, weights = wts, gap = gap_cell[], n)
         end)
@@ -1284,13 +1282,9 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         clip_y = _gl_offers(policy_of_row(row))
         if clip_x || clip_y
             push!(wrapped, clip_child_to_slot(c, child_iomaps[i]; x_cell = child_x[i],
-                                              y_cell = child_y[i],
-                                              slot_x = col_x[col],
-                                              slot_y = row_y[row],
-                                              slot_w = col_w[col],
-                                              slot_h = row_h[row],
-                                              clip_x,
-                                              clip_y))
+                                              y_cell = child_y[i], slot_x = col_x[col],
+                                              slot_y = row_y[row], slot_w = col_w[col],
+                                              slot_h = row_h[row], clip_x, clip_y))
         else
             push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
         end

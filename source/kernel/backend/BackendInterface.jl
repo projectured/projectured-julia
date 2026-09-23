@@ -131,7 +131,7 @@ offscreen software rendering; forward-declared here so callers need not name it.
 function write_image end
 
 """
-    record_video(document, projection, gestures, filename; kwargs...)
+    record_video(document, projection; gestures, filename, kwargs...)
 
 Render a timeline of gestures to a video file (offscreen frames assembled into a
 movie). Implemented by a rendering backend package that also has a video encoder

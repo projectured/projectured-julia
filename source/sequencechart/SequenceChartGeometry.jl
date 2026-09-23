@@ -10,6 +10,7 @@ struct FlowFrame
     h::Float64
 end
 
+# @positional: the frame of a flow: its side, then x, y, width and height.
 FlowFrame(orientation::Symbol, x::Real, y::Real, w::Real, h::Real) =
     FlowFrame(orientation, Float64(x), Float64(y), Float64(w), Float64(h))
 
@@ -39,6 +40,7 @@ flow_point(f::FlowFrame, flow::Real, cross::Real) =
     f.orientation === :vertical ? (Float64(cross), Float64(flow)) :
                                   (Float64(flow), Float64(cross))
 
+# @positional: a rectangle in a frame: x, y, width and height, in that order.
 """
     flow_rect(frame, flow, cross, flow_length, cross_length) -> (x, y, w, h)
 
@@ -244,7 +246,7 @@ The scan is linear in the arrow count, which suits this slice's bounded-document
 posture — a chart is windowed upstream before it is printed.
 """
 function get_visible_arrows(coordinates, sources, targets; lo::Real, hi::Real,
-                        horizon::Real=0.0)
+                            horizon::Real=0.0)
     out = Int[]
     n = min(length(sources), length(targets))
     n == 0 && return out
@@ -319,7 +321,7 @@ function tick_common_prefix(labels)
 end
 
 """
-    flow_ticks(times, coordinates, scale, mode; target_px=100) -> Vector{(coordinate, time)}
+    flow_ticks(times, coordinates; scale, mode, target_px=100) -> Vector{(coordinate, time)}
 
 Where the gutter's ticks go and what time each one stands for.
 
@@ -329,7 +331,7 @@ time has no fixed width, so the ticks are placed at even *pixel* intervals
 instead and each one is labelled with the time that happens to be there — which
 is why [`get_honest_tick_label`](@ref) exists.
 """
-function flow_ticks(times, coordinates, scale::AxisScale, mode::Symbol;
+function flow_ticks(times, coordinates; scale::AxisScale, mode::Symbol,
                     target_px::Real=100)
     out = Tuple{Float64,Float64}[]
     n = min(length(times), length(coordinates))
@@ -358,6 +360,7 @@ function flow_ticks(times, coordinates, scale::AxisScale, mode::Symbol;
     out
 end
 
+# @positional: a span of the time axis: the chart, its coordinates, the low and the high end.
 """
     get_zero_time_spans(times, coordinates, lo, hi) -> Vector{(c0, c1)}
 
@@ -392,6 +395,7 @@ end
 
 # ── Lane placement ───────────────────────────────────────────────────────
 
+# @positional: a span of the time axis: the axis, its coordinates, the low and the high end.
 """
     get_axis_cross_positions(count, band_heights, cross_lo, cross_hi; spacing=nothing,
                          minimum_spacing=14.0, offset=20.0) -> Vector{Float64}
@@ -451,6 +455,7 @@ function get_arrow_route(route::Symbol, same_lane::Bool)
     same_lane ? :arc : :direct
 end
 
+# @positional: the two ends of an arc: x, y and x, y.
 """
     get_arc_geometry(flow0, flow1, cross, height) -> Vector{Tuple{Float64,Float64}}
 
@@ -483,6 +488,7 @@ function arc_height(row_delta::Integer, spacing::Real; minimum::Real=15.0, bucke
     Float64(minimum) + step * (mod(abs(Int(row_delta)), b))
 end
 
+# @positional: the two ends of an arrow: x, y and x, y.
 """
     split_arrow(flow0, flow1, horizon, stub) -> nothing | (near, far)
 
@@ -639,7 +645,7 @@ that is the accurate way wherever several events share a time: the raw time
 names the whole zero-time region, while the state changed at one point inside it.
 """
 function get_band_intervals(band_times, values; events, event_times, coordinates,
-                        lo::Real, hi::Real)
+                            lo::Real, hi::Real)
     out = Tuple{Float64,Float64,Float64,Int}[]
     n = min(length(band_times), length(values))
     n == 0 && return out

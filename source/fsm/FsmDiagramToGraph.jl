@@ -35,8 +35,9 @@ end
 
 @projection_template FsmStateToSyntaxLabel FsmState (p, doc) ->
     SyntaxLeaf(bound(:name, String,
-                     make_hinted_text(() -> doc.name, () -> isempty(doc.name),
-                                 "state", p.name)))
+                     make_hinted_text(() -> doc.name; empty_thunk = () -> isempty(doc.name),
+                                      placeholder = "state",
+                                      style = p.name)))
 
 @projection struct FsmTransitionToSyntaxLabel
     keyword::ImmutableCell{StyleText} =

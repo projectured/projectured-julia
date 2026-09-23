@@ -138,8 +138,8 @@ is new.
 
 See also [`FaultStore`](@ref) and [`drain_faults!`](@ref).
 """
-function record_fault!(store::FaultStore, site::Symbol;
-                       origin, reference = nothing, exception, traceback = nothing)
+function record_fault!(store::FaultStore, site::Symbol; origin, reference = nothing,
+                       exception, traceback = nothing)
     key = compute_fault_key(site, get_fault_origin_name(origin),
                             get_fault_exception_name(exception))
     known = get(store.records, key, nothing)

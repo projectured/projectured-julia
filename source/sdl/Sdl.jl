@@ -3063,8 +3063,10 @@ function _place_fitted_window!(backend::SdlBackend, w::WindowDocument)
     (maximum_size[1] <= 0 && maximum_size[2] <= 0) && return w
     (w.x < 0 || w.y < 0) && return w
     area = get_display_size(backend)
-    (x, y) = compute_window_place(Int(w.x), Int(w.y), Int(w.width), Int(w.height),
-                                  Int(area[1]), Int(area[2]), get_pointer_position(backend))
+    (x, y) = compute_window_place(Int(w.x), Int(w.y), Int(w.width), Int(w.height);
+                                  area_width = Int(area[1]),
+                                  area_height = Int(area[2]),
+                                  pointer = get_pointer_position(backend))
     (w.x == x && w.y == y) && return w
     w.x = x
     w.y = y
@@ -3075,13 +3077,13 @@ end
 const _POINTER_GAP = 8
 
 """
-    compute_window_place(x, y, width, height, area_width, area_height, pointer) -> (x, y)
+    compute_window_place(x, y, width, height; area_width, area_height, pointer) -> (x, y)
 
 Where a window of that size goes: inside the work area, and beside `pointer`
 rather than under it. `pointer` is the pointer in screen coordinates, or
 `nothing` when nobody says where it is.
 """
-function compute_window_place(x::Int, y::Int, width::Int, height::Int,
+function compute_window_place(x::Int, y::Int, width::Int, height::Int;
                               area_width::Int, area_height::Int, pointer)
     x + width  > area_width  && (x = area_width  - width)
     y + height > area_height && (y = area_height - height)

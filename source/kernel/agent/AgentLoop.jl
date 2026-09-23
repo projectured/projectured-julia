@@ -76,7 +76,7 @@ function run_turn!(agent::Agent, target; messages::Function, on_event::Function)
             # an MCP client does.
             output = run_on_editor_task!(target) do
                 try
-                    call_tool(agent.tools, call.name, call.input, target)
+                    call_tool(agent.tools, call.name; args = call.input, target)
                 catch e
                     # A tool that throws is not a broken turn: the model is told
                     # what went wrong and can try something else, which is the

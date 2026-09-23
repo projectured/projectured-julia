@@ -29,6 +29,7 @@ end
 
 # ── Construction ──────────────────────────────────────────────────────────────
 
+# @positional: the four components of a colour, in the order every one writes them.
 make_style_color(red, green, blue, alpha) = StyleColor(red, green, blue, alpha)
 
 # Internal helper: construct from 0-255 integer components with alpha = 1.0

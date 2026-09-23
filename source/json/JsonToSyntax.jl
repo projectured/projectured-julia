@@ -28,8 +28,10 @@ end
 # same guard `JsonNumberToSyntaxLeaf` relies on for its `nothing` state.
 @projection_template JsonBoolToSyntaxLeaf JsonBool (prj, doc) ->
     SyntaxLeaf(bound(:value, Bool,
-                     make_hinted_text(() -> doc.value ? "true" : "false",
-                                 () -> !(doc.value isa Bool), "enter json bool", prj.style)))
+                     make_hinted_text(() -> doc.value ? "true" : "false";
+                                      empty_thunk = () -> !(doc.value isa Bool),
+                                      placeholder = "enter json bool",
+                                      style = prj.style)))
 
 @projection struct JsonNumberToSyntaxLeaf
     style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_magenta)
@@ -37,7 +39,10 @@ end
 
 @projection_template JsonNumberToSyntaxLeaf JsonNumber (prj, doc) ->
     SyntaxLeaf(bound(:value, Real,
-                     make_hinted_text(() -> string(doc.value), () -> doc.value === nothing, "enter json number", prj.style);
+                     make_hinted_text(() -> string(doc.value);
+                                      empty_thunk = () -> doc.value === nothing,
+                                      placeholder = "enter json number",
+                                      style = prj.style);
                      retype = ReplaceNumberRangeOperation))
 
 @projection struct JsonStringToSyntaxLeaf
@@ -47,7 +52,10 @@ end
 
 @projection_template JsonStringToSyntaxLeaf JsonString (prj, doc) ->
     SyntaxLeaf(bound(:value, String,
-                     make_hinted_text(() -> json_escape(doc.value), () -> isempty(doc.value), "enter json string", prj.value_style));
+                     make_hinted_text(() -> json_escape(doc.value);
+                                      empty_thunk = () -> isempty(doc.value),
+                                      placeholder = "enter json string",
+                                      style = prj.value_style));
                open=TextString("\"", prj.quote_style),
                close=TextString("\"", prj.quote_style))
 
@@ -75,7 +83,10 @@ end
     SyntaxNode(TextString("", prj.colon_style),
                TextString("", prj.colon_style),
                TextString(": ", prj.colon_style),
-               [ SyntaxLeaf(bound(:key, String, make_hinted_text(() -> json_escape(e.key), () -> isempty(e.key), "enter key", prj.key_style));
+               [ SyntaxLeaf(bound(:key, String, make_hinted_text(() -> json_escape(e.key);
+                                                                 empty_thunk = () -> isempty(e.key),
+                                                                 placeholder = "enter key",
+                                                                 style = prj.key_style));
                             open=TextString("\"", prj.key_style),
                             close=TextString("\"", prj.key_style)),
                  project(:value) ],

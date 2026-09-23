@@ -43,6 +43,21 @@ The one line a mark shows: what failed, and what it said.
 """
 format_fault_label(report::FaultReport) = "⚠ $(report.origin): $(report.message)"
 
+"""
+    format_fault_message(report) -> String
+
+The whole fault, over three lines: what failed, where it was caught, and what it
+said. A mark shows one line, which a long message does not fit in; this is what a
+window shows.
+"""
+format_fault_message(report::FaultReport) =
+    "⚠ $(report.origin)\ncaught in the $(report.site)\n\n$(report.message)"
+
+# What a mark says about itself when the pointer rests on it: the whole fault,
+# as text, which is a document every host draws. The one line a mark draws is cut
+# where the mark ends, and a message is the part worth reading.
+compute_tooltip(report::FaultReport) = TextString(format_fault_message(report))
+
 # ── The log ──────────────────────────────────────────────────────────────────
 
 """

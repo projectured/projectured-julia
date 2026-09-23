@@ -22,6 +22,7 @@ struct AxisScale
     log::Bool
 end
 
+# @positional: the four of an axis scale, in one order everywhere.
 AxisScale(lo::Real, hi::Real, p0::Real, p1::Real; log::Bool=false) =
     AxisScale(Float64(lo), Float64(hi), Float64(p0), Float64(p1), log)
 
@@ -361,7 +362,8 @@ unsorted column has no such shortcut and is scanned over the given index range,
 which the caller is expected to have bounded.
 """
 function find_nearest_sample(x, y; xs::AxisScale, ys::AxisScale, px::Real, py::Real,
-                        i0::Integer, i1::Integer, sorted::Bool=true, tolerance::Real=8)
+                             i0::Integer, i1::Integer, sorted::Bool=true,
+                             tolerance::Real=8)
     n = min(length(x), length(y))
     i0 = max(i0, 1); i1 = min(i1, n)
     i1 >= i0 || return nothing
@@ -410,8 +412,8 @@ quantized to `levels` before neighbouring cells in a row are merged into a
 single band, so a dense region costs a handful of wide bands instead of
 hundreds of little squares.
 """
-function fold_scatter(x, y; xs::AxisScale, ys::AxisScale, cell_px::Integer,
-                      i0::Integer, i1::Integer, levels::Integer=8)
+function fold_scatter(x, y; xs::AxisScale, ys::AxisScale, cell_px::Integer, i0::Integer,
+                      i1::Integer, levels::Integer=8)
     cell = max(Int(cell_px), 1)
     nlev = max(Int(levels), 1)
     counts = Dict{Tuple{Int,Int},Int}()
@@ -452,7 +454,7 @@ function fold_scatter(x, y; xs::AxisScale, ys::AxisScale, cell_px::Integer,
 end
 
 """
-    fold_bins(lefts, rights, values, min_px) -> Vector{Tuple{Int,Int,Float64,Float64}}
+    fold_bins(lefts, rights, values; min_px) -> Vector{Tuple{Int,Int,Float64,Float64}}
 
 Merge adjacent bins narrower than `min_px` pixels into envelope bars, returning
 `(left, right, min_value, max_value)` per surviving bar.
@@ -462,7 +464,7 @@ can draw every result the same way and only sees a difference where the folding
 actually happened.
 """
 function fold_bins(lefts::AbstractVector, rights::AbstractVector,
-                   values::AbstractVector, min_px::Integer)
+                   values::AbstractVector; min_px::Integer)
     out = Tuple{Int,Int,Float64,Float64}[]
     n = min(length(lefts), length(rights), length(values))
     n == 0 && return out
@@ -512,7 +514,7 @@ function strip_runs(values, i0::Integer, i1::Integer)
 end
 
 """
-    fold_strips(lefts, rights, codes, min_px) -> Vector{Tuple{Int,Int,Int}}
+    fold_strips(lefts, rights, codes; min_px) -> Vector{Tuple{Int,Int,Int}}
 
 Merge adjacent strip segments narrower than `min_px` pixels into single spans,
 returning `(left, right, code)` per surviving span.
@@ -527,7 +529,7 @@ is itself at least `min_px` wide: a wide segment always draws at its own left
 edge with its own code, and never inherits the sliver in front of it.
 """
 function fold_strips(lefts::AbstractVector, rights::AbstractVector,
-                     codes::AbstractVector, min_px::Real)
+                     codes::AbstractVector; min_px::Real)
     out = Tuple{Int,Int,Int}[]
     n = min(length(lefts), length(rights), length(codes))
     n == 0 && return out
@@ -608,10 +610,9 @@ When the entries do not all fit, `shown` is how many are drawn and `truncated`
 says the caller should replace the last slot with an "and N more" line — which
 is why `shown` leaves room for it rather than filling the box.
 """
-function compute_legend_layout(sizes::AbstractVector;
-                       horizontal::Bool, area_w::Real, area_h::Real,
-                       swatch::Integer=14, gap::Integer=6,
-                       line_gap::Integer=4, pad::Integer=6)
+function compute_legend_layout(sizes::AbstractVector; horizontal::Bool, area_w::Real,
+                               area_h::Real, swatch::Integer=14, gap::Integer=6,
+                               line_gap::Integer=4, pad::Integer=6)
     n = length(sizes)
     n == 0 && return (; cols=0, rows=0, col_w=0, row_h=0, box_w=0, box_h=0,
                         shown=0, truncated=false)
@@ -641,6 +642,7 @@ function compute_legend_layout(sizes::AbstractVector;
        shown, truncated)
 end
 
+# @positional: an anchor and the rectangle it sits on: x, y, width and height.
 """
     get_anchor_offset(anchor, outer_w, outer_h, box_w, box_h) -> (dx, dy)
 
@@ -698,7 +700,7 @@ and a CDF (running sum over total weight).
 the bin values plus any under/overflow so the CDF really reaches 1.
 """
 function compute_histogram_values(edges::AbstractVector, values::AbstractVector;
-                          cumulative::Bool, density::Bool, total::Real=0.0)
+                                  cumulative::Bool, density::Bool, total::Real=0.0)
     n = length(values)
     out = zeros(Float64, n)
     tw = Float64(total)

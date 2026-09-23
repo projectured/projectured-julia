@@ -97,6 +97,7 @@ requirement; the rule is its own lead sentence.
 | [PAR-BIDIRECTIONAL-PROJECTION](#par-bidirectional-projection) | Every projection is bidirectional: a printer needs its inverse |
 | [PAR-MAPPERS-ARE-INVERSES](#par-mappers-are-inverses) | `print_document` uses `map_reference_forward`; `read_intent` uses `map_reference_backward`, and the two mappers are mutual inverses |
 | [PAR-PREFER-REFERENCE-RETARGET](#par-prefer-reference-retarget) | Write a `read_intent` method only when re-targeting a reference is not enough |
+| [PAR-NO-NEW-SYNTHETIC-EVENT](#par-no-new-synthetic-event) | Add no new `SyntheticEvent` type and no `read_intent` method for a new payload type; the reader chain is not a channel |
 | [PAR-GEOMETRY-FREE-IN-DOCUMENT](#par-geometry-free-in-document) | Geometry-free gesture handling belongs to the document, not the projection |
 | [PAR-DELEGATE-AND-LIFT](#par-delegate-and-lift) | A structural projection's reader delegates a raw gesture to the selected child and lifts the result |
 | [PAR-SHARED-CHILDREN-IOMAP](#par-shared-children-iomap) | A compound (node-shaped) projection stores its child IoMaps in one shared reactive cell and returns a `ChildrenIoMap` |
@@ -494,6 +495,21 @@ Add the 4-arg `read_intent(p, recursion, change::Intent, iomap)` method
 (returning an `Intent`) only to do more — retype an operation, recurse then
 lift, probe a child, or route by selection. Do not write the obsolete 3-arg
 shim in new code.
+
+### PAR-NO-NEW-SYNTHETIC-EVENT
+
+**Do not add a new `SyntheticEvent` type, and do not add a `read_intent` method
+for a new payload type.** The reader chain reads what a person does. It is not a
+channel to carry an operation, a request or a question through the projection
+hierarchy. So do not wrap an operation in an event that a reader answers with
+the same operation, only to have the wrappers reroot it on its way out. That is
+a new mechanism that goes through every projection, and it breaks the recursion
+contract (PAR-RECURSION-CONTRACT) in spirit even when no fifth function is
+declared. A synthetic event or a reader payload that exists now is not a
+precedent for a new one.
+
+When a change seems to need a new event type or a new payload for the reader,
+stop and ask the owner. Do not add it first and report it after.
 
 ### PAR-GEOMETRY-FREE-IN-DOCUMENT
 

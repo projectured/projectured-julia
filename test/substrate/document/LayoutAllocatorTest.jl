@@ -32,10 +32,7 @@ end # @testset
 # A pinned navigator column: fixed at 200, the right column flexes.
 # available = 1280, gap = 0, two slots.
 actual = allocate_axis(1280; mins = Int[200, 0], maxs = Int[200, typemax(Int)],
-                       prefs = Int[200, 0],
-                       weights = Float64[0.0, 1.0],
-                       gap = 0,
-                       n = 2)
+                       prefs = Int[200, 0], weights = Float64[0.0, 1.0], gap = 0, n = 2)
 @test actual[1] == 200
 @test actual[1] + actual[2] == 1280
 
@@ -45,10 +42,7 @@ end # @testset
 
 # 30/70 split via weights.
 actual = allocate_axis(1000; mins = Int[0, 0], maxs = Int[typemax(Int), typemax(Int)],
-                       prefs = Int[0, 0],
-                       weights = Float64[3.0, 7.0],
-                       gap = 0,
-                       n = 2)
+                       prefs = Int[0, 0], weights = Float64[3.0, 7.0], gap = 0, n = 2)
 @test sum(actual) == 1000
 @test actual[1] >= 290 && actual[1] <= 310
 @test actual[2] >= 690 && actual[2] <= 710
@@ -60,10 +54,8 @@ end # @testset
 # 3 slots, 10 px gap → 20 px total gap consumed before the seed allocation.
 actual = allocate_axis(320; mins = Int[0, 0, 0],
                        maxs = Int[typemax(Int), typemax(Int), typemax(Int)],
-                       prefs = Int[100, 100, 100],
-                       weights = Float64[0.0, 0.0, 0.0],
-                       gap = 10,
-                       n = 3)
+                       prefs = Int[100, 100, 100], weights = Float64[0.0, 0.0, 0.0],
+                       gap = 10, n = 3)
 @test actual == [100, 100, 100]   # seed already fills 300 + 20 gaps = 320
 
 end # @testset
@@ -72,9 +64,7 @@ end # @testset
 
 # Available = 100 but mins sum to 200 → overflow allowed, each pinned at min.
 actual = allocate_axis(100; mins = Int[80, 80, 80], maxs = Int[200, 200, 200],
-                       prefs = Int[80, 80, 80],
-                       weights = Float64[1.0, 1.0, 1.0],
-                       gap = 0,
+                       prefs = Int[80, 80, 80], weights = Float64[1.0, 1.0, 1.0], gap = 0,
                        n = 3)
 @test actual == [80, 80, 80]
 
@@ -97,10 +87,8 @@ end # @testset
 @testset "allocate_axis — max caps growth" begin
 
 # 1000 avail; first child capped at 250, second flex absorbs the rest.
-actual = allocate_axis(1000; mins = Int[0, 0], maxs = Int[250, typemax(Int)], prefs = Int[0, 0],
-                       weights = Float64[1.0, 1.0],
-                       gap = 0,
-                       n = 2)
+actual = allocate_axis(1000; mins = Int[0, 0], maxs = Int[250, typemax(Int)],
+                       prefs = Int[0, 0], weights = Float64[1.0, 1.0], gap = 0, n = 2)
 @test actual[1] == 250
 @test actual[2] == 750
 

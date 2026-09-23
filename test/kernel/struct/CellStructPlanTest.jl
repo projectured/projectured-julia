@@ -73,7 +73,8 @@ end
 
 @testset "add_cell_struct_field! appends, and does not count as a programmer default" begin
     plan = make_cell_struct_plan(:(struct T; a::Int; end))
-    add_cell_struct_field!(plan, :selection, :(Union{Nothing, Reference}), :nothing)
+    add_cell_struct_field!(plan, :selection; type = :(Union{Nothing, Reference}),
+                           default = :nothing)
 
     @test plan.field_names == [:a, :selection]
     @test plan.defaults[:selection] === :nothing

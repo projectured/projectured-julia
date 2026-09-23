@@ -132,6 +132,7 @@ SpringEmbedderState(engine::SpringEmbedderLayout) =
 
 _rand01(state::SpringEmbedderState) = draw_uniform01!(state.random)
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 function set_size!(state::SpringEmbedderState, width::Real, height::Real, border::Real)
     if (width != 0 && width < 2*border) || (height != 0 && height < 2*border)
         throw(ArgumentError(
@@ -146,6 +147,7 @@ end
 
 find_node(state::SpringEmbedderState, node_id::Int) = get(state.node_map, node_id, nothing)
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 function add_movable_node!(state::SpringEmbedderState, node_id::Int,
                            width::Real, height::Real)
     state.all_nodes_are_fixed = false
@@ -158,6 +160,7 @@ function add_movable_node!(state::SpringEmbedderState, node_id::Int,
 end
 
 # (x, y) is the centre of the node, which is what getNodePosition answers too.
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 function add_fixed_node!(state::SpringEmbedderState, node_id::Int, x::Real, y::Real,
                          width::Real, height::Real)
     state.have_fixed_node = true
@@ -172,6 +175,7 @@ function add_fixed_node!(state::SpringEmbedderState, node_id::Int, x::Real, y::R
     node
 end
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 function add_anchored_node!(state::SpringEmbedderState, node_id::Int, anchor_name,
                             offx::Real, offy::Real, width::Real, height::Real)
     state.have_anchored_node = true
@@ -201,6 +205,7 @@ function add_anchored_node!(state::SpringEmbedderState, node_id::Int, anchor_nam
     node
 end
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 function add_edge!(state::SpringEmbedderState, source_id::Int, target_id::Int,
                    len::Real = 0)
     source = find_node(state, source_id)
@@ -570,6 +575,7 @@ end
 
 # ── The engine interface ─────────────────────────────────────────────────────
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 function layout_graph(engine::SpringEmbedderLayout, graph::GraphGraph, sizes::Dict,
                       constraints::Vector; extent = nothing, border::Real = 0)
     check_constraints(engine, constraints)

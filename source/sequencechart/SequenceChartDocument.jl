@@ -445,13 +445,13 @@ _field_reference(document, field::AbstractString) =
 _remap(column, f) = column === nothing ? nothing : [f(Int(v)) for v in column]
 
 """
-    insert_events(chart, at, times, axes; kinds, labels, ordinals) -> Operation
+    insert_events(chart, at; times, axes, kinds, labels, ordinals) -> Operation
 
 Insert rows into the event table before row `at`, shifting everything after it
 along — and with it every arrow endpoint and band anchor that named a shifted
 row, so the chart stays consistent.
 """
-function insert_events(chart::SequenceChart, at::Integer, times, axes;
+function insert_events(chart::SequenceChart, at::Integer; times, axes,
                        kinds=nothing, labels=nothing, ordinals=nothing)
     events = chart.events
     n = get_event_count(events)
@@ -740,11 +740,11 @@ get_axis_reference(chart::SequenceChart, index::Integer) =
             ConcreteReference(ElementReferenceStep(Int(index)), EmptyReference())))
 
 """
-    get_band_reference(chart, axis, band, row) -> Reference
+    get_band_reference(chart; axis, band, row) -> Reference
 
 The reference naming one sample of one lane's state band.
 """
-get_band_reference(chart::SequenceChart, axis::Integer, band::Integer, row::Integer) =
+get_band_reference(chart::SequenceChart; axis::Integer, band::Integer, row::Integer) =
     annotate_reference_types(chart,
         ConcreteReference(FieldReferenceStep("axes"),
             ConcreteReference(ElementReferenceStep(Int(axis)),

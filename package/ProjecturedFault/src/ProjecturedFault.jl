@@ -11,6 +11,7 @@ module ProjecturedFault
 
 using ProjecturedCollection
 using ProjecturedDomain
+using ProjecturedFocus
 using ProjecturedGraphics
 using ProjecturedKernel
 using ProjecturedNatural
@@ -38,6 +39,7 @@ const TextModule = ProjecturedText.TextModule
 const StyleModule = ProjecturedStyle.StyleModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const WidgetModule = ProjecturedWidget.WidgetModule
+const FocusModule = ProjecturedFocus.FocusModule
 const NaturalModule = ProjecturedNatural.NaturalModule
 
 include("../../../source/fault/FaultViewModule.jl")

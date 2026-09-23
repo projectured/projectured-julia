@@ -141,6 +141,7 @@ vertex_for(state::ForceDirectedState, variable) =
 _rand01(state::ForceDirectedState) = draw_uniform01!(state.random)
 _uniform(state::ForceDirectedState, a::Real, b::Real) = draw_uniform!(state.random, a, b)
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 function set_size!(state::ForceDirectedState, width::Real, height::Real, border::Real)
     if (width != 0 && width < 2*border) || (height != 0 && height < 2*border)
         throw(ArgumentError(
@@ -161,6 +162,7 @@ find_node_body(state::ForceDirectedState, node_id::Int) = get(state.node_bodies,
 ensure_anchor_variable!(state::ForceDirectedState, name) =
     get!(() -> Variable(pt_nil()), state.anchor_variables, name)
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 function add_movable_node!(state::ForceDirectedState, node_id::Int, width::Real, height::Real)
     state.has_movable_node = true
     variable = Variable(pt_nil())
@@ -172,6 +174,7 @@ end
 # A pinned node is a variable constrained to a point: it cannot move in the
 # plane, and it may still travel through the third dimension so the rest of the
 # graph can untangle around it.
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 function add_fixed_node!(state::ForceDirectedState, node_id::Int, x::Real, y::Real,
                          width::Real, height::Real)
     state.has_fixed_node = true
@@ -183,6 +186,7 @@ function add_fixed_node!(state::ForceDirectedState, node_id::Int, x::Real, y::Re
     nothing
 end
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 function add_anchored_node!(state::ForceDirectedState, node_id::Int, anchor_name,
                             offx::Real, offy::Real, width::Real, height::Real)
     state.has_anchored_node = true
@@ -203,6 +207,7 @@ function add_anchored_node!(state::ForceDirectedState, node_id::Int, anchor_name
     nothing
 end
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 function add_edge_between!(state::ForceDirectedState, source_id::Int, target_id::Int,
                            len::Real = 0)
     source = find_node_body(state, source_id)
@@ -547,6 +552,7 @@ node_position(state::ForceDirectedState, node_id::Int) =
 
 # ── The engine interface ─────────────────────────────────────────────────────
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 function layout_graph(engine::ForceDirectedLayout, graph::GraphGraph, sizes::Dict,
                       constraints::Vector; extent = nothing, border::Real = 0)
     check_constraints(engine, constraints)

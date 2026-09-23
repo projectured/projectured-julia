@@ -124,8 +124,10 @@ end
 @projection_template ProcessModelToSyntaxNode ProcessModel (p, doc) ->
     SyntaxConcatenation(() -> begin
         children = Any[ SyntaxLeaf(bound(:name, String,
-                                         make_hinted_text(() -> doc.name, () -> isempty(doc.name),
-                                                     "enter process name", p.name));
+                                         make_hinted_text(() -> doc.name;
+                                                          empty_thunk = () -> isempty(doc.name),
+                                                          placeholder = "enter process name",
+                                                          style = p.name));
                                    open=TextString("process ", p.keyword)),
                         SyntaxNode(collection(:parameters);
                                    open=TextString("(", p.chrome),
@@ -155,9 +157,10 @@ end
         children = Any[]
         if !isempty(doc.description) || doc.action === nothing
             push!(children, SyntaxLeaf(bound(:description, String,
-                                             make_hinted_text(() -> doc.description,
-                                                         () -> isempty(doc.description),
-                                                         "describe this step", p.text));
+                                             make_hinted_text(() -> doc.description;
+                                                              empty_thunk = () -> isempty(doc.description),
+                                                              placeholder = "describe this step",
+                                                              style = p.text));
                                        open=TextString("step \"", _keyword_style(p, doc)),
                                        close=TextString("\"", _keyword_style(p, doc))))
         else

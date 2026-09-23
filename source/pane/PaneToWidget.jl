@@ -653,8 +653,8 @@ function _drop_operation(tree::PaneTree, state)
                                             target_index = length(target.tabs) + 1)
     end
     # The zone names the side the new pane lands on.
-    make_pane_drop_split_operation(tree, source; source_index = index, target, orientation,
-                                   side = zone)
+    make_pane_drop_split_operation(tree, source; source_index = index, target,
+                                   orientation, side = zone)
 end
 
 # The group and zone under a pointer, or `nothing` when the layout has no

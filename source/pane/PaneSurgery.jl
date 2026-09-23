@@ -274,8 +274,8 @@ There is no rename mode and no rename operation: the title is a text document, s
 the caret being in it *is* the editing state. `position` defaults to the end of
 the name.
 """
-function make_pane_title_caret_operation(tree::PaneTree, group::PaneGroup, index::Integer,
-                                    position = nothing)
+function make_pane_title_caret_operation(tree::PaneTree, group::PaneGroup, index::Integer;
+                                         position = nothing)
     path = get_pane_title_path(tree, group, index)
     path === nothing && return nothing
     title = group.tabs[index].title
@@ -288,14 +288,14 @@ _title_text(title::PrimitiveString) = title.value
 _title_text(::Any) = nothing
 
 """
-    make_pane_retarget_title_operation(tree, group, index, operation) -> Operation | Nothing
+    make_pane_retarget_title_operation(tree, group, index; operation) -> Operation | Nothing
 
 Re-root a title edit — an operation the title document built against its own
 vocabulary — onto the tree. This is what lets the tab name be edited by the very
 gestures that edit any other string, with no editing code of its own.
 """
-function make_pane_retarget_title_operation(tree::PaneTree, group::PaneGroup, index::Integer,
-                                       operation)
+function make_pane_retarget_title_operation(tree::PaneTree, group::PaneGroup, index::Integer;
+                                            operation)
     operation isa ReplaceStringRangeOperation || return nothing
     path = get_pane_title_path(tree, group, index)
     path === nothing && return nothing
@@ -376,7 +376,7 @@ function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::Pan
     pairs === nothing && return nothing
     push!(pairs, (group, FieldReferenceStep("tabs")))
     push!(pairs, (group.tabs, ElementReferenceStep(Int(at))))
-    insert_elements(tabs_path, at - 1, Any[tab], _make_new_tab_cursor(pairs, tab))
+    insert_elements(tabs_path, at - 1, Any[tab]; selection = _make_new_tab_cursor(pairs, tab))
 end
 
 # Where the selection goes in a tab that is about to exist, given the pairs that
@@ -540,8 +540,8 @@ this orientation the group is not wrapped — the new group joins the parent as 
 sibling, splitting the group's weight — which is what keeps a split from ever
 holding a child split of its own orientation.
 """
-function make_pane_split_operation(tree::PaneTree, group::PaneGroup;
-                                   orientation::Symbol, side::Symbol, tab::PaneTab)
+function make_pane_split_operation(tree::PaneTree, group::PaneGroup; orientation::Symbol,
+                                   side::Symbol, tab::PaneTab)
     new_group = PaneGroup(PaneTab[tab])
     before = side === :left || side === :above
     parent = get_pane_parent(tree, group)

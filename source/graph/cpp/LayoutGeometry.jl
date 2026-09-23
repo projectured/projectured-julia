@@ -131,6 +131,7 @@ struct Rc
     rs::Rs
 end
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 Rc(x::Real, y::Real, z::Real, width::Real, height::Real) = Rc(Pt(x, y, z), Rs(width, height))
 
 rc_nil() = Rc(pt_nil(), rs_nil())
@@ -195,6 +196,7 @@ struct Cc
     radius::Float64
 end
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 Cc(x::Real, y::Real, z::Real, radius::Real) = Cc(Pt(x, y, z), Float64(radius))
 
 cc_center_top(cc::Cc) = Pt(cc.origin.x, cc.origin.y - cc.radius, cc.origin.z)
@@ -280,6 +282,7 @@ struct Ln
     end_pt::Pt
 end
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 Ln(x1::Real, y1::Real, z1::Real, x2::Real, y2::Real, z2::Real) =
     Ln(Pt(x1, y1, z1), Pt(x2, y2, z2))
 

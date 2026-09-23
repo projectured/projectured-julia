@@ -228,11 +228,11 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
     horizon = abs(flow_hi - flow_lo) * max(style.split_horizon_viewports, 1)
     horizon_coordinates = horizon / max(abs(scale.p1 - scale.p0), 1) * (hi - lo)
     candidates = get_visible_arrows(coordinates, arrows.sources, arrows.targets; lo, hi,
-                                horizon=horizon_coordinates)
+                                    horizon=horizon_coordinates)
     shapes = _arrow_shapes(chart, events, arrows, coordinates, scale, lane_of,
                            candidates, horizon, style)
 
-    ticks = flow_ticks(times, coordinates, scale, chart.timeline.mode;
+    ticks = flow_ticks(times, coordinates; scale, mode = chart.timeline.mode,
                        target_px=_TICK_TARGET_PX)
     neighbourhood = _tick_neighbourhood(times, coordinates, scale, ticks)
     raw_labels = String[get_honest_tick_label(t, neighbourhood) for (_, t) in ticks]
@@ -327,7 +327,7 @@ function _band_shapes(chart, order, lane_of, times, coordinates, lo, hi)
         for j in 1:length(axis.bands)
             band = axis.bands[j]
             intervals = get_band_intervals(band.times, band.values; events=band.events,
-                                       event_times=times, coordinates, lo, hi)
+                                           event_times=times, coordinates, lo, hi)
             isempty(intervals) && continue
             push!(out, (; axis=identity, band=j, cross, intervals, document=band))
         end
@@ -951,6 +951,7 @@ end
 
 _in_body(g, x::Real, y::Real) = _in_rect(x, y, g.body_x, g.body_y, g.body_w, g.body_h)
 
+# @positional: a point of the chart: the chart, its coordinates, x and y.
 """
     find_event_hit(geometry, plot, x, y) -> row | nothing
 
@@ -976,6 +977,7 @@ function find_event_hit(g, plot, x::Real, y::Real)
     best
 end
 
+# @positional: a point of the chart: the chart, its coordinates, x and y.
 """
     find_arrow_hit(geometry, plot, x, y) -> row | nothing
 
@@ -1011,8 +1013,9 @@ function _segment_distance(px, py, x0, y0, x1, y1)
     hypot(px - (x0 + t * dx), py - (y0 + t * dy))
 end
 
+# @positional: a point of the chart: the chart, its coordinates, x and y.
 """
-    find_band_hit(geometry, plot, x, y) -> (axis, band, row) | nothing
+    find_band_hit(geometry, plot, x, y) -> (axis = …, band = …, row = …) | nothing
 
 Which state-band sample is under a canvas point.
 """
@@ -1024,12 +1027,13 @@ function find_band_hit(g, plot, x::Real, y::Real)
         for (c0, c1, _, index) in band.intervals
             f0 = to_pixel(g.scale, c0); f1 = to_pixel(g.scale, c1)
             (f0 <= flow <= f1) || continue
-            return (band.axis, band.band, index)
+            return (axis = band.axis, band = band.band, row = index)
         end
     end
     nothing
 end
 
+# @positional: a point of the chart: the chart, its coordinates, x and y.
 """
     find_lane_hit(geometry, plot, x, y) -> identity | nothing
 
@@ -1112,7 +1116,8 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
         arrow = find_arrow_hit(g, plot, x, y)
         arrow === nothing || return _make_selection_operation(plot, get_arrow_reference(chart, arrow))
         band = find_band_hit(g, plot, x, y)
-        band === nothing || return _make_selection_operation(plot, get_band_reference(chart, band...))
+        band === nothing || return _make_selection_operation(plot,
+                                 get_band_reference(chart; band...))
         lane = find_lane_hit(g, plot, x, y)
         lane === nothing || return _make_selection_operation(plot, get_axis_reference(chart, lane))
         return nothing

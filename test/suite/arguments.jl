@@ -44,36 +44,8 @@ const ARGUMENT_PROTOCOL = Set(String[
 # Every public name over the line on 2026-09-22, the day the rule landed. The
 # list only shrinks.
 const LEDGER = Set(String[
-    "AxisScale", "Body", "Cc", "ChartView",
-    "Editor", "ElectricRepulsion", "FlowFrame", 
-    "GraphicsCanvas", "GraphicsCircle", "GraphicsImage", "GraphicsLine",
-    "GraphicsRect", "GraphicsText", "GraphicsViewport", "HorizontalSpring",
-    "Inset", "KeyDownPattern", "KeyUpPattern", "Ln",
-    "MouseDownPattern", "MousePress", "MousePressPattern", "MouseScroll",
-    "MouseUpPattern", "PrinterContext", "Rc", "Resource",
-    "SpliceBuffer", "Spring", "SyntaxLeaf", "SyntaxNode",
-    "VerticalSpring", "WidgetTable", "accelerations!", "add_anchored_node!",
-    "add_cell_struct_field!", "add_edge!", "add_edge_between!", "add_fixed_node!",
-    "add_movable_node!", "add_multiplied!", "average_relative_error",
-    "build_marker_polygon", "call_tool", 
-    "compute_window_place", 
-    "find_arrow_hit", "find_band_hit", "find_event_hit",
-    "find_lane_hit", 
-    "flow_rect", "flow_ticks", "fold_bins",
-    "fold_strips", "get_anchor_offset", "get_arc_geometry",
-    "get_axis_cross_positions", "get_band_reference", 
-    "get_zero_time_spans", "insert_elements", "insert_events",
-    "is_point_near_polyline", "layout_graph", "layout_max", "layout_min",
-    "layout_preferred", "make_child_context", "make_hinted_text",
-    "make_pane_retarget_title_operation", 
-    "make_pane_title_caret_operation", "make_style_color", "move_to_field", "paint_canvas!",
-    "paint_circle!", "paint_elem!", "paint_image!", "paint_line!",
-    "paint_polygon!", "paint_polyline!", "paint_rect!", "paint_spline!",
-    "paint_text!", "paint_viewport!", "play_live!", 
-    "record_video", 
-    "set_process_position!", "set_size!", "shift_child_image",
-    "soft_equal!", "splice_number", "splice_string", "split_arrow",
-    "sync_document!", "write_stream!",
+    "GraphicsCanvas", "SyntaxLeaf", "SyntaxNode", "WidgetTable",
+    "compute_window_place", "layout_graph", "sync_document!",
 ])
 
 "One definition of a file: where it stands, what it is called, and what it takes."

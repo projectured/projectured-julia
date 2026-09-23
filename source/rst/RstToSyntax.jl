@@ -152,7 +152,10 @@ end
 
 @projection_template RstTextToSyntaxLeaf RstText (prj, doc) ->
     SyntaxLeaf(bound(:content, String,
-                     make_hinted_text(() -> doc.content, () -> isempty(doc.content), "text", prj.style)))
+                     make_hinted_text(() -> doc.content;
+                                      empty_thunk = () -> isempty(doc.content),
+                                      placeholder = "text",
+                                      style = prj.style)))
 
 @projection struct RstLiteralToSyntaxLeaf
     value_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_green)
@@ -162,7 +165,10 @@ end
 
 @projection_template RstLiteralToSyntaxLeaf RstLiteral (prj, doc) ->
     SyntaxLeaf(bound(:content, String,
-                     make_hinted_text(() -> doc.content, () -> isempty(doc.content), "literal", prj.value_style));
+                     make_hinted_text(() -> doc.content;
+                                      empty_thunk = () -> isempty(doc.content),
+                                      placeholder = "literal",
+                                      style = prj.value_style));
                open=TextString(prj.tick, prj.tick_style),
                close=TextString(prj.tick, prj.tick_style))
 
@@ -199,11 +205,17 @@ end
 
 @projection_template RstRoleToSyntaxNode RstRole (prj, doc) ->
     SyntaxConcatenation([ SyntaxLeaf(bound(:name, String,
-                                           make_hinted_text(() -> doc.name, () -> isempty(doc.name), "role", prj.name_style));
+                                           make_hinted_text(() -> doc.name;
+                                                            empty_thunk = () -> isempty(doc.name),
+                                                            placeholder = "role",
+                                                            style = prj.name_style));
                                      open=TextString(prj.open_marker, prj.marker_style),
                                      close=TextString(prj.mid_marker, prj.marker_style)),
                           SyntaxLeaf(bound(:content, String,
-                                           make_hinted_text(() -> doc.content, () -> isempty(doc.content), "value", prj.value_style));
+                                           make_hinted_text(() -> doc.content;
+                                                            empty_thunk = () -> isempty(doc.content),
+                                                            placeholder = "value",
+                                                            style = prj.value_style));
                                      close=TextString(prj.close_marker, prj.marker_style)) ])
 
 # `` `text <target>`_ `` — the angled part disappears when the target is empty,
@@ -217,7 +229,10 @@ end
 
 @projection_template RstReferenceToSyntaxNode RstReference (prj, doc) ->
     SyntaxConcatenation([ SyntaxLeaf(bound(:text, String,
-                                           make_hinted_text(() -> doc.text, () -> isempty(doc.text), "link", prj.text_style));
+                                           make_hinted_text(() -> doc.text;
+                                                            empty_thunk = () -> isempty(doc.text),
+                                                            placeholder = "link",
+                                                            style = prj.text_style));
                                      open=TextString(prj.show_markers ? "`" : "", prj.marker_style)),
                           # With the markers off the target is not shown at all:
                           # the natural notation says where a link points by
@@ -237,7 +252,9 @@ end
 
 @projection_template RstSubstitutionReferenceToSyntaxLeaf RstSubstitutionReference (prj, doc) ->
     SyntaxLeaf(bound(:name, String,
-                     make_hinted_text(() -> doc.name, () -> isempty(doc.name), "name", prj.style));
+                     make_hinted_text(() -> doc.name; empty_thunk = () -> isempty(doc.name),
+                                      placeholder = "name",
+                                      style = prj.style));
                open=TextString(prj.marker, prj.marker_style),
                close=TextString(prj.marker, prj.marker_style))
 
@@ -250,7 +267,9 @@ end
 
 @projection_template RstFootnoteReferenceToSyntaxLeaf RstFootnoteReference (prj, doc) ->
     SyntaxLeaf(bound(:label, String,
-                     make_hinted_text(() -> doc.label, () -> isempty(doc.label), "n", prj.style));
+                     make_hinted_text(() -> doc.label; empty_thunk = () -> isempty(doc.label),
+                                      placeholder = "n",
+                                      style = prj.style));
                open=TextString(prj.open_marker, prj.marker_style),
                close=TextString(prj.close_marker, prj.marker_style))
 
@@ -358,7 +377,10 @@ end
 
 @rst_indented RstFieldToSyntaxNode RstField (prj, doc, outer, inner) ->
     SyntaxConcatenation([ SyntaxLeaf(bound(:name, String,
-                                           make_hinted_text(() -> doc.name, () -> isempty(doc.name), "field", prj.name_style));
+                                           make_hinted_text(() -> doc.name;
+                                                            empty_thunk = () -> isempty(doc.name),
+                                                            placeholder = "field",
+                                                            style = prj.name_style));
                                      open=TextString(":", prj.marker_style),
                                      close=TextString(": ", prj.marker_style)),
                           SyntaxNode(collection(:elements); sep=TextString("\n" * inner, prj.marker_style), indentation=0) ])
@@ -415,7 +437,9 @@ end
 
 @projection_template RstTargetToSyntaxLeaf RstTarget (prj, doc) ->
     SyntaxLeaf(bound(:name, String,
-                     make_hinted_text(() -> doc.name, () -> isempty(doc.name), "name", prj.style));
+                     make_hinted_text(() -> doc.name; empty_thunk = () -> isempty(doc.name),
+                                      placeholder = "name",
+                                      style = prj.style));
                open=TextString(prj.open_marker, prj.marker_style),
                close=TextString(prj.close_marker, prj.marker_style))
 
@@ -426,7 +450,10 @@ end
 
 @rst_indented RstSubstitutionDefinitionToSyntaxNode RstSubstitutionDefinition (prj, doc, outer, inner) ->
     SyntaxConcatenation([ SyntaxLeaf(bound(:name, String,
-                                           make_hinted_text(() -> doc.name, () -> isempty(doc.name), "name", prj.name_style));
+                                           make_hinted_text(() -> doc.name;
+                                                            empty_thunk = () -> isempty(doc.name),
+                                                            placeholder = "name",
+                                                            style = prj.name_style));
                                      open=TextString(".. |", prj.marker_style),
                                      close=TextString("| ", prj.marker_style)),
                           project(:body) ])
@@ -438,7 +465,10 @@ end
 
 @rst_indented RstFootnoteToSyntaxNode RstFootnote (prj, doc, outer, inner) ->
     SyntaxConcatenation([ SyntaxLeaf(bound(:label, String,
-                                           make_hinted_text(() -> doc.label, () -> isempty(doc.label), "n", prj.label_style));
+                                           make_hinted_text(() -> doc.label;
+                                                            empty_thunk = () -> isempty(doc.label),
+                                                            placeholder = "n",
+                                                            style = prj.label_style));
                                      open=TextString(".. [", prj.marker_style),
                                      close=TextString("] ", prj.marker_style)),
                           SyntaxNode(collection(:elements); sep=TextString("\n\n" * inner, prj.marker_style), indentation=0) ])
@@ -512,7 +542,10 @@ end
 
 @projection_template RstDirectiveOptionToSyntaxNode RstDirectiveOption (prj, doc) ->
     SyntaxConcatenation([ SyntaxLeaf(bound(:name, String,
-                                           make_hinted_text(() -> doc.name, () -> isempty(doc.name), "option", prj.name_style));
+                                           make_hinted_text(() -> doc.name;
+                                                            empty_thunk = () -> isempty(doc.name),
+                                                            placeholder = "option",
+                                                            style = prj.name_style));
                                      open=TextString(":", prj.marker_style),
                                      close=TextString(":", prj.marker_style)),
                           SyntaxLeaf(bound(:value, String, TextString(() -> doc.value, prj.value_style));
@@ -535,7 +568,9 @@ end
 @rst_indented RstLiteralIncludeToSyntaxNode RstLiteralInclude (prj, doc, outer, inner) ->
     SyntaxConcatenation([
         SyntaxLeaf(bound(:path, String,
-                         make_hinted_text(() -> doc.path, () -> isempty(doc.path), "path", prj.path_style));
+                         make_hinted_text(() -> doc.path; empty_thunk = () -> isempty(doc.path),
+                                          placeholder = "path",
+                                          style = prj.path_style));
                    open=TextString(prj.header, prj.marker_style)),
         SyntaxLeaf(bound(:language, String, TextString(() -> doc.language, prj.value_style));
                    open=_option_open(prj, () -> doc.language, "language", inner)),
@@ -561,7 +596,9 @@ end
 @rst_indented RstFigureToSyntaxNode RstFigure (prj, doc, outer, inner) ->
     SyntaxConcatenation([
         SyntaxLeaf(bound(:path, String,
-                         make_hinted_text(() -> doc.path, () -> isempty(doc.path), "path", prj.path_style));
+                         make_hinted_text(() -> doc.path; empty_thunk = () -> isempty(doc.path),
+                                          placeholder = "path",
+                                          style = prj.path_style));
                    open=TextString(prj.header, prj.marker_style)),
         SyntaxLeaf(bound(:align, String, TextString(() -> doc.align, prj.value_style));
                    open=_option_open(prj, () -> doc.align, "align", inner)),
@@ -606,7 +643,9 @@ end
 @rst_indented RstImageToSyntaxNode RstImage (prj, doc, outer, inner) ->
     SyntaxConcatenation([
         SyntaxLeaf(bound(:path, String,
-                         make_hinted_text(() -> doc.path, () -> isempty(doc.path), "path", prj.path_style));
+                         make_hinted_text(() -> doc.path; empty_thunk = () -> isempty(doc.path),
+                                          placeholder = "path",
+                                          style = prj.path_style));
                    open=TextString(prj.header, prj.marker_style)),
         SyntaxLeaf(bound(:width, String, TextString(() -> doc.width, prj.value_style));
                    open=_option_open(prj, () -> doc.width, "width", inner)),
@@ -627,7 +666,9 @@ end
 @rst_indented RstVideoToSyntaxNode RstVideo (prj, doc, outer, inner) ->
     SyntaxConcatenation([
         SyntaxLeaf(bound(:path, String,
-                         make_hinted_text(() -> doc.path, () -> isempty(doc.path), "path", prj.path_style));
+                         make_hinted_text(() -> doc.path; empty_thunk = () -> isempty(doc.path),
+                                          placeholder = "path",
+                                          style = prj.path_style));
                    open=TextString(() -> ".. " * (doc.loop ? "video" : "video_noloop") * ":: ",
                                    prj.marker_style)),
         SyntaxLeaf(bound(:width, String, TextString(() -> doc.width, prj.value_style));
@@ -647,7 +688,9 @@ end
 @rst_indented RstAudioToSyntaxNode RstAudio (prj, doc, outer, inner) ->
     SyntaxConcatenation([
         SyntaxLeaf(bound(:path, String,
-                         make_hinted_text(() -> doc.path, () -> isempty(doc.path), "path", prj.path_style));
+                         make_hinted_text(() -> doc.path; empty_thunk = () -> isempty(doc.path),
+                                          placeholder = "path",
+                                          style = prj.path_style));
                    open=TextString(prj.header, prj.marker_style)),
         SyntaxNode(collection(:extra);
                    open=TextString(() -> isempty(doc.extra) ? "" : "\n" * inner, prj.marker_style),
@@ -721,7 +764,9 @@ end
 @rst_indented RstRoleDefinitionToSyntaxNode RstRoleDefinition (prj, doc, outer, inner) ->
     SyntaxConcatenation([
         SyntaxLeaf(bound(:name, String,
-                         make_hinted_text(() -> doc.name, () -> isempty(doc.name), "role", prj.name_style));
+                         make_hinted_text(() -> doc.name; empty_thunk = () -> isempty(doc.name),
+                                          placeholder = "role",
+                                          style = prj.name_style));
                    open=TextString(".. role:: ", prj.marker_style),
                    close=TextString(() -> isempty(doc.base) ? "" : "(" * doc.base * ")", prj.marker_style)),
         SyntaxNode(collection(:extra);
@@ -737,7 +782,9 @@ end
 @rst_indented RstDirectiveToSyntaxNode RstDirective (prj, doc, outer, inner) ->
     SyntaxConcatenation([
         SyntaxLeaf(bound(:name, String,
-                         make_hinted_text(() -> doc.name, () -> isempty(doc.name), "directive", prj.name_style));
+                         make_hinted_text(() -> doc.name; empty_thunk = () -> isempty(doc.name),
+                                          placeholder = "directive",
+                                          style = prj.name_style));
                    open=TextString(".. ", prj.marker_style),
                    close=TextString(":: ", prj.marker_style)),
         SyntaxLeaf(bound(:argument, String, TextString(() -> doc.argument, prj.arg_style))),
@@ -1144,7 +1191,9 @@ end
 @rst_flat RstLiteralIncludeToStyledLeaf RstLiteralInclude (prj, doc, indent) ->
     SyntaxConcatenation([
         SyntaxLeaf(bound(:path, String,
-                         make_hinted_text(() -> doc.path, () -> isempty(doc.path), "path", prj.path_style));
+                         make_hinted_text(() -> doc.path; empty_thunk = () -> isempty(doc.path),
+                                          placeholder = "path",
+                                          style = prj.path_style));
                    open=TextString(prj.marker, prj.marker_style)),
         SyntaxLeaf(TextString(() -> _include_detail(doc), prj.detail_style)) ])
 

@@ -456,11 +456,11 @@ function append_insertion_operation(document, field::Symbol, ::Type{T}) where {T
                               EmptyReference(get_reference_node_type(inserted))))
     inner = get_selection(inserted)
     cursor = inner === nothing ? element_path : concat_references(element_path, inner)
-    insert_elements(field_path, n, Any[inserted], cursor)
+    insert_elements(field_path, n, Any[inserted]; selection = cursor)
 end
 
 """
-    move_to_field(document, selection, from::Symbol, to::Symbol) -> Operation | Nothing
+    move_to_field(document, selection; from, to) -> Operation | Nothing
 
 Move the cursor from inside `document`'s `from` field to its sibling `to` field —
 JSON/YAML's Tab (key → value) and XML's `=` (attribute name → value). `nothing` when
@@ -472,10 +472,10 @@ field takes a caret at its start. That is exactly the difference the three hand-
 versions encoded by hand — JSON and YAML landed on `.value` whole because it is a
 `Document`, XML on `value{0}` because it is a `String`.
 """
-move_to_field(document, from::Symbol, to::Symbol) =
-    move_to_field(document, get_selection(document), from, to)
+move_to_field(document; from::Symbol, to::Symbol) =
+    move_to_field(document, get_selection(document); from, to)
 
-function move_to_field(document, selection, from::Symbol, to::Symbol)
+function move_to_field(document, selection; from::Symbol, to::Symbol)
     prefix = _prefix_before_field(selection, String(from))
     prefix === nothing && return nothing
     target = annotate_reference_types(document,
@@ -501,10 +501,11 @@ function _prefix_before_field(path::ConcreteReference, field)
     ConcreteReference(path.type, h, rest)
 end
 
-_insert_gesture_binding(::Type{I}, tag::String) where {I} = GestureBinding(KeyDownPattern(:insert, nothing, nothing), (doc, event) -> insert_document_operation(I);
-                                                                           applicable = (doc, sel) -> true,
-                                                                           description = "Insert a new " * (isempty(tag) ? "" : tag * " ") * "document",
-                                                                           domain = isempty(tag) ? "document" : tag)
+_insert_gesture_binding(::Type{I}, tag::String) where {I} =
+    GestureBinding(KeyDownPattern(:insert, nothing, nothing),
+                   (doc, event) -> insert_document_operation(I);
+                   description = "Insert a new " * (isempty(tag) ? "" : tag * " ") * "document",
+                   domain = isempty(tag) ? "document" : tag)
 
 # ── The universal domain: DocumentNothing / DocumentInsertion ─────────────────
 #

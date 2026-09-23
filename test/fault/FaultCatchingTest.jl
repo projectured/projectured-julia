@@ -139,17 +139,60 @@ function test_fault_catching()
         @test records[1].count == 3
     end
 
-    @testset "a mark is inert" begin
+    @testset "a mark can be selected, and nothing else about it can be edited" begin
         store = FaultStore()
         barrier = FaultCatchingProjection(inner = _probe_dispatch(),
                                           substitute = FaultToSyntax())
         context = _make_tolerant_context(store)
-        iomap = print_document(barrier, barrier, FaultProbeLeaf(value = 1), context)
+        leaf = FaultProbeLeaf(value = 1)
+        iomap = print_document(barrier, barrier, leaf, context)
         _force = iomap.output isa Cell ? iomap.output[] : iomap.output
-        # The reader declines and the mappers answer no image, which is what
-        # keeps the selection out of a node that failed.
+
+        # An Alt+press names the mark, as it names anything else on the screen.
+        # The report is no child of the node that failed, so the path is a
+        # drawn-object step from it.
+        press = MousePress(:left, 0, 0, 1, ModifierKeys(alt = true))
+        operation = read_intent(barrier, iomap, press)
+        @test operation isa ReplaceSelectionOperation
+        report = evaluate_reference(leaf, operation.path)
+        @test report isa FaultReport
+        @test occursin("leaf 1 is odd", compute_tooltip(report).content)
+
+        # The same path, twice: a selection that named a new report on every
+        # frame would be lost on the next one.
+        again = read_intent(barrier, iomap, press)
+        @test evaluate_reference(leaf, again.path) === report
+
+        # The mark is the whole image of the node, so the container rings it.
+        @test map_reference_forward(barrier, iomap, operation.path) == EmptyReference()
+
+        # Everything else about a node that failed stays inert: a plain gesture
+        # is declined, and a path into the node has no image, so no edit can
+        # address one.
         @test read_intent(barrier, iomap, nothing) === nothing
+        @test read_intent(barrier, iomap, MousePress(:left, 0, 0, 1, ModifierKeys())) === nothing
         @test map_reference_forward(barrier, iomap, EmptyReference()) === nothing
+    end
+
+    @testset "a mark says the whole fault when the pointer rests on it" begin
+        report = FaultReport(site = "print", origin = "OddLeafBreaker",
+                             message = "BoundsError: index 4 of a vector of 3")
+        # The one line a mark draws is cut where the mark ends; the window says
+        # what failed, where it was caught, and the whole message.
+        said = compute_tooltip(report)
+        @test said isa TextString
+        text = string(said.content)
+        @test occursin("OddLeafBreaker", text)
+        @test occursin("print", text)
+        @test occursin("BoundsError: index 4 of a vector of 3", text)
+
+        # A mark is inert, so the selection never names the report: what a person
+        # points at is the widget the mark is drawn as, and a widget says what its
+        # own `tooltip` holds.
+        alert = print_document(FaultToWidget(), FaultToWidget(), report,
+                               PrinterContext()).output
+        @test alert isa WidgetAlert
+        @test String(compute_tooltip(alert).value) == text
     end
 
     @testset "the barrier needs no store to work" begin

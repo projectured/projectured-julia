@@ -66,9 +66,10 @@ end
     SyntaxConcatenation(() -> begin
         if !isempty(doc.description)
             Any[ SyntaxLeaf(bound(:description, String,
-                                  make_hinted_text(() -> doc.description,
-                                              () -> isempty(doc.description),
-                                              "step", p.text))) ]
+                                  make_hinted_text(() -> doc.description;
+                                                   empty_thunk = () -> isempty(doc.description),
+                                                   placeholder = "step",
+                                                   style = p.text))) ]
         elseif doc.action !== nothing
             Any[ project(:action) ]
         else

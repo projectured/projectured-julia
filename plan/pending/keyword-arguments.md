@@ -98,19 +98,55 @@ call sites in all. The fault family (`record_fault!`,
 `make_fault_record`, `run_fault_barrier`, `report_fault!`) changes together, and
 so does the gesture-binding family.
 
-### Wave 2: the four-argument public functions that are not a tuple
+### Wave 2: the four-argument public functions that are not a tuple — DONE
 
-`layout_min`, `layout_max`, `layout_preferred`, `call_tool`, `make_hinted_text`,
-`insert_elements`, `insert_events`, `set_process_position!`, `Resource`,
-`add_cell_struct_field!`, `SpliceBuffer`, `write_stream!`, `flow_ticks`,
-`record_video`, `sync_document!`, `move_to_field`,
-`make_pane_title_caret_operation`, `make_pane_retarget_title_operation`,
-`layout_graph`, `play_live!`, `soft_equal!`, `shift_child_image`,
-`make_style_color`, `Editor`. About 25 functions, most with under 20 call sites.
+**Done, 2026-09-23.**
 
-`Editor(backend, document, projection, devices; …)` may stay as it is with a
-marker: the four are what an editor is made of, and the keyword arguments are
-already there for the rest. The wave decides each one.
+These took the keyword form:
+
+| Function | Was | Is | File |
+| --- | --- | --- | --- |
+| `layout_min` / `layout_max` / `layout_preferred` | `(doc, axis, intrinsic, default)` | `(doc, axis, intrinsic; default)` | source/layout/LayoutDocument.jl |
+| `layout_weight` | `(doc, axis, default)` | `(doc, axis; default)` | source/layout/LayoutDocument.jl |
+| `call_tool` | `(set, name, args, target)` | `(set, name; args, target)` | source/kernel/tool/ToolSet.jl |
+| `Resource` | `(uri, name, description, provider)` | `(uri, name; description, provider)` | source/kernel/tool/Tool.jl |
+| `make_hinted_text` | `(content, empty, placeholder, style)` | `(content; empty_thunk, placeholder, style)` | source/text/TextDocument.jl |
+| `insert_elements` | `(path, index, items, selection)` | `(path, index, items; selection)` | source/kernel/operation/Operations.jl |
+| `insert_events` | `(chart, at, times, axes; …)` | `(chart, at; times, axes, …)` | source/sequencechart/SequenceChartDocument.jl |
+| `set_process_position!` | `(session, model, node, previous)` | `(session, model; node, previous)` | source/process/ProcessDebugSession.jl |
+| `add_cell_struct_field!` | `(plan, name, type, default)` | `(plan, name; type, default)` | source/kernel/struct/CellStructPlan.jl |
+| `write_stream!` | `(w, num, dict, data)` | `(w, num; dict, data)` | source/pdf/Pdf.jl |
+| `flow_ticks` | `(times, coordinates, scale, mode; …)` | `(times, coordinates; scale, mode, …)` | source/sequencechart/SequenceChartGeometry.jl |
+| `fold_bins` / `fold_strips` | `(lefts, rights, values, min_px)` | `(lefts, rights, values; min_px)` | source/plot/PlotGeometry.jl |
+| `move_to_field` | `(document, selection, from, to)` | `(document, selection; from, to)` | source/domain/Domain.jl |
+| `make_pane_title_caret_operation` | `(tree, group, index, position)` | `(tree, group, index; position)` | source/pane/PaneSurgery.jl |
+| `make_pane_retarget_title_operation` | `(tree, group, index, operation)` | `(tree, group, index; operation)` | source/pane/PaneSurgery.jl |
+| `play_live!` | `(backend, projection, document, timeline; …)` | `(backend, timeline; projection, document, …)` | source/kernel/playback/Playback.jl |
+| `shift_child_image` | `(child, off_x, off_y, cim)` | `(child, cim; off_x, off_y)` | source/layout/LayoutToGraphics.jl |
+| `get_band_reference` | `(chart, axis, band, row)` | `(chart; axis, band, row)` | source/sequencechart/SequenceChartDocument.jl |
+| `compute_window_place` | `(x, y, w, h, area_w, area_h, pointer)` | `(x, y, w, h; area_width, area_height, pointer)` | source/sdl/Sdl.jl |
+| `SpliceBuffer`, `soft_equal!`, `record_video` | four positional | the tail is named | their files |
+| `WidgetTable` (document cells) | `(position, column_headers, row_headers, rows, column_count)` | `(position; column_headers, row_headers, rows, column_count)` | source/widget/WidgetDocument.jl |
+
+Two took a `# @positional:` marker instead of a change:
+
+- `Editor(backend, document, projection, devices; …)` — the four are what an
+  editor is made of, in the order of the layers.
+- `make_style_color(red, green, blue, alpha)` — the four components of a colour,
+  in the order every one writes them.
+
+`get_band_reference` was called as `get_band_reference(chart, band...)` with the
+tuple that `find_band_hit` answers. A splat can not name a keyword, so
+`find_band_hit` now answers a `NamedTuple`, and the call is
+`get_band_reference(chart; band...)`.
+
+`layout_weight` was not on the list: it takes three positional arguments, which
+the rule allows. It changed with its three siblings, because the four make one
+family and a family that reads two ways costs the reader more than the rule
+saves.
+
+`layout_graph` and `sync_document!` stay on the ledger for wave 3: both are
+wide constructors of a tuple, not a list of options.
 
 ### Wave 3: the constructors and the wide tuples
 

@@ -46,8 +46,8 @@ See also [`FaultPolicy`](@ref), [`record_fault!`](@ref) and
 [`report_fault!`](@ref).
 """
 function run_fault_barrier(body, store; policy::FaultPolicy, backend, site::Symbol,
-                           counter::Symbol = site, origin = :editor,
-                           reference = nothing, fallback = nothing)
+                           counter::Symbol = site, origin = :editor, reference = nothing,
+                           fallback = nothing)
     policy.is_barrier_enabled || return body()
     try
         value = body()

@@ -1,8 +1,8 @@
 # A tooltip fits its content
 
-**Status (2026-09-22): READY.** Nothing is implemented. The owner asked on
-2026-09-22 for a tooltip that fits what it holds, between a minimum and a
-maximum.
+**Status (2026-09-23): DONE.** Landed on `main` at `4624140f`, and the owner
+checked it in the binary. Nothing is pushed. The owner asked on 2026-09-22 for a
+tooltip that fits what it holds, between a minimum and a maximum.
 
 **Goal:** a window that asks to fit takes the size of its printed content,
 between its minimum and its maximum, and it stays on the screen. A tooltip asks
@@ -166,15 +166,15 @@ arguments, so a test needs neither a display nor a pointer it can not move.
       `test_shell()` **180** (178 and 2), `test_application()` **140** (136 on
       `main` the same day and 4), `test_substrate()` **63087** with the known 3
       fail, 2 error and 1 broken of the split-pane cases.
-- [ ] By hand, in the binary: the window opens at its size, a resize by the
-      person still resizes the content, and the tooltip fits.
+- [x] By hand, in the binary, 2026-09-23: the owner checked the window and the
+      tooltip, and both are right.
 
 ### Step 7 — the guides, and close
 
 - [x] `screen.md`: a window says its bounds, and the content of a window that
       fits is printed at its maximum. `sdl.md`: the backend fits such a window
       and keeps it on the screen. `tooltip.md`: the tooltip's bounds.
-- [ ] Move this plan to `plan/done/`.
+- [x] Move this plan to `plan/done/`.
 
 ## 4. Risks
 
