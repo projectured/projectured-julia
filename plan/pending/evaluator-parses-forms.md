@@ -66,9 +66,16 @@ them and are recorded here so that the review can see them.
 - **Up and Down into a form above.** `_make_up_operation` and
   `_make_down_operation` put the caret at `elements[i].form.value{k}`
   (`_make_form_caret_reference`). A Julia document has no `value` field, so that
-  reference names nothing. The caret must go to the last position of the parsed
-  form (Up) or its first position (Down), taken from the same enumeration of
-  positions that navigation uses.
+  reference names nothing. *As built:* a parsed neighbor is selected whole,
+  `elements[i].form` ending in `EmptyReference()`. The plan first said the caret
+  goes to the first or last position of the parsed form. That position is known
+  only through the projection of the form, which a gesture of the toplevel does
+  not see; the enumeration of positions exists only as a test helper
+  (`test/substrate/document/SelectionEnumeration.jl`). A caret on a Julia
+  identifier also draws nothing today. Measured before the choice: the whole
+  selection draws a highlight exactly over the code of the form, Up and Down
+  from it reach the neighbors, Enter on it evaluates the form again, and a
+  typed key on it answers nothing.
 - **Shift+Enter in a swapped form.** `_make_form_newline_operation` declines a
   form that is not a `PrimitiveString`. That stays: a line break in a Julia
   document is an edit of the Julia domain, not of the evaluator.
@@ -88,8 +95,7 @@ owner's word.
   failure there keeps the string. An error result carries a stack trace that
   names the line of its caller, so the test compares an error by its first
   line. `test_evaluator_toplevel()` passes; `test_conversation()` keeps its one
-  known failure.
-  **The field and the swap.** Add `parse_evaluated_forms` to
+  known failure. Add `parse_evaluated_forms` to
   `EvaluatorToplevel` and to its positional constructor. In
   `evaluate_operation(editor, ::EvaluateSelectedFormOperation)`, after the
   result is set, swap the form by D1, D5 and D7, and set `source` by D4.
@@ -98,8 +104,11 @@ owner's word.
   comment; a form that does not parse stays a string; with the field `false`
   every form stays a string; `source` holds the typed text; the result of the
   evaluation is the same in all four cases.
-- [ ] **Step 2. Up and Down reach a swapped form.** The caret goes to the last
-  or first position of a parsed form. Test the coordinate of the caret, not
+- [x] **Step 2. Up and Down reach a swapped form.** *Done:* a parsed neighbor
+  is selected whole (see §3). The test checks that the selection ends at the
+  form, that the highlight lies over its code, the walk both ways, the caret in
+  the bottom form, and Enter on a selected form. 124 of 124 pass.
+  Originally: the caret goes to the last or first position of a parsed form. Test the coordinate of the caret, not
   only that a selection exists. Change the test at line 290 to cover a string
   form above and a parsed form above.
 - [ ] **Step 3. The history over swapped forms.** Test that Up in the bottom form

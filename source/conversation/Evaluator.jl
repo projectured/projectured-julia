@@ -278,6 +278,26 @@ _make_form_caret_reference(i::Int, k::Int) =
         ConcreteReference(RangeReferenceStep(i - 1, i),
             ConcreteReference(FieldReferenceStep("form"), _valpath(k))))
 
+# The code of form `i` selected whole, `elements[i].form`, rooted at the toplevel.
+_make_whole_form_reference(i::Int) =
+    ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(i - 1, i),
+            ConcreteReference(FieldReferenceStep("form"), EmptyReference())))
+
+# Where Up and Down put the selection in form `i`: the caret at the start or the
+# end of its text while the form is a string. A form that is a Julia document is
+# selected whole, because a place in its code is a place in its projection, which
+# a gesture of the toplevel does not see.
+_make_form_start_reference(t::EvaluatorToplevel, i::Int) =
+    t.elements[i].form isa PrimitiveString ? _make_form_caret_reference(i, 0) :
+                                             _make_whole_form_reference(i)
+
+function _make_form_end_reference(t::EvaluatorToplevel, i::Int)
+    form = t.elements[i].form
+    form isa PrimitiveString || return _make_whole_form_reference(i)
+    _make_form_caret_reference(i, length(_get_form_source_text(form)))
+end
+
 # A key goes where the complete selection points, so a caret that an operation of
 # the toplevel sets moves from the root. A toplevel that the complete selection
 # does not pass through moves its own.
@@ -443,25 +463,24 @@ end
 
 # UP, which reaches the toplevel only from the first line of the code, because the
 # text layer moves the caret up a line where there is one. In the bottom form it
-# recalls an older form. In a form above, the caret goes to the end of the form
-# above that one, so a recall never overwrites code that was evaluated.
+# recalls an older form. In a form above, the selection goes to the end of the
+# form above that one, so a recall never overwrites code that was evaluated.
 function _make_up_operation(t::EvaluatorToplevel)
     i = _find_selected_form_index(t)
     i === nothing && return nothing
     i == length(t.elements) && return RecallEvaluatorFormOperation(t, :older)
     i == 1 && return nothing
-    above = _get_form_source_text(t.elements[i - 1].form)
-    ReplaceSelectionOperation(_make_form_caret_reference(i - 1, length(above)))
+    ReplaceSelectionOperation(_make_form_end_reference(t, i - 1))
 end
 
 # DOWN, which reaches the toplevel only from the last line of the code. In the
-# bottom form it recalls a newer form, or the draft. In a form above, the caret
-# goes to the start of the form below.
+# bottom form it recalls a newer form, or the draft. In a form above, the
+# selection goes to the start of the form below.
 function _make_down_operation(t::EvaluatorToplevel)
     i = _find_selected_form_index(t)
     i === nothing && return nothing
     i == length(t.elements) && return RecallEvaluatorFormOperation(t, :newer)
-    ReplaceSelectionOperation(_make_form_caret_reference(i + 1, 0))
+    ReplaceSelectionOperation(_make_form_start_reference(t, i + 1))
 end
 
 @gestures EvaluatorToplevel begin

@@ -360,6 +360,67 @@ end
     @test [s.toplevel.elements[i].form.value for i in 1:3] == ["1", "22", "333"]
 end
 
+# Every rectangle the canvas draws, at its place in the canvas.
+function boxes(node, ox = 0, oy = 0, found = Tuple{Int,Int,Int,Int}[], depth = 0)
+    depth > 40 && return found
+    if node isa GraphicsRect
+        push!(found, (ox + Int(node.x), oy + Int(node.y), Int(node.w), Int(node.h)))
+    elseif node isa GraphicsCanvas
+        for i in 1:length(node.elements)
+            boxes(node.elements[i], ox + Int(node.x), oy + Int(node.y), found, depth + 1)
+        end
+    elseif node isa GraphicsViewport
+        boxes(node.content, ox + Int(node.x), oy + Int(node.y), found, depth + 1)
+    end
+    found
+end
+
+@testset "UP and DOWN select a form above whole when it is a Julia document" begin
+    s = history_session("1", "x = 2", "333")
+    @test [nameof(typeof(s.toplevel.elements[i].form)) for i in 1:4] ==
+          [:JuliaInteger, :JuliaAssignment, :JuliaInteger, :PrimitiveString]
+    whole(i) = ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(i - 1, i),
+            ConcreteReference(FieldReferenceStep("form"), EmptyReference())))
+    form_caret(i, k) = ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(i - 1, i), ConcreteReference(FieldReferenceStep("form"),
+            ConcreteReference(FieldReferenceStep("value"), ConcreteReference(RangeReferenceStep(k, k), EmptyReference())))))
+    steps(reference) = get_reference_steps(strip_reference_types(reference))
+    clear_selection!(s.toplevel)
+    set_selection!(s.toplevel, whole(3))
+
+    # Up selects the form above whole: the selection ends at that form.
+    s.press!(:up)
+    @test steps(s.toplevel.selection) == steps(whole(2))
+    @test evaluate_reference(s.toplevel, strip_reference_types(s.toplevel.selection)) ===
+          s.toplevel.elements[2].form
+    # The highlight lies over the code of that form, and over nothing else of it.
+    canvas = print_natural(s.toplevel)
+    texts = placed(canvas)
+    prompt_y = [y for (text, _, y) in texts if text == ">"][2]
+    code = [(x, y) for (text, x, y) in texts if y == prompt_y && text != ">"]
+    code_x = minimum(x for (x, _) in code)
+    @test any(b -> b[1] == code_x && b[3] == 10 * length("x = 2") &&
+                   b[2] <= prompt_y < b[2] + b[4], boxes(canvas))
+    s.press!(:up)
+    @test steps(s.toplevel.selection) == steps(whole(1))
+    @test s.press!(:up) === nothing
+
+    # Down walks back, and into the bottom form, which is a string, as a caret.
+    s.press!(:down); @test steps(s.toplevel.selection) == steps(whole(2))
+    s.press!(:down); @test steps(s.toplevel.selection) == steps(whole(3))
+    s.press!(:down); @test steps(s.toplevel.selection) == steps(form_caret(4, 0))
+
+    # Enter on a form selected whole evaluates it again, and the form keeps its
+    # Julia document.
+    clear_selection!(s.toplevel)
+    set_selection!(s.toplevel, whole(2))
+    @test s.press!(:return) isa EvaluateSelectedFormOperation
+    @test length(s.toplevel.elements) == 5
+    @test s.toplevel.elements[2].form isa JuliaAssignment
+    @test s.toplevel.elements[2].source == "x = 2"
+end
+
 @testset "state persists across forms, like a real REPL and not a sandbox" begin
     toplevel = make_insertion_document(EvaluatorToplevel)
     ed = editor(toplevel)
