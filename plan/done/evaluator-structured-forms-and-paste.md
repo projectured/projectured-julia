@@ -391,3 +391,51 @@ Each run is capped at 8 GB with two threads, after a look at the free memory.
   holds objects between its characters would be a new mechanism of its own.
 - **Not in this plan:** the caret inside a parsed Julia identifier, a comment in
   the Julia domain, and a drag of an object into a form.
+
+## 7. Follow-up, 2026-09-23: the circle example
+
+The owner found that a click on the "Structured forms" box moved the selection
+to the whole toplevel, so typing stopped, and asked that this example work in
+the application: switch to structured edit, type `GraphicsCircle(10, 10, 10)`,
+Enter, note the circle, type code that changes its radius with the circle pasted
+into it, Enter, and see the circle change. Built in the worktree
+`../projectured-julia-evaluator-circle-example`, branch
+`evaluator-circle-example`. Three faults stood in the way:
+
+- **A press on an option took the caret.** The application gets a click as a
+  `MouseDown`, a `MouseUp` and the `MousePress` that the gesture recognizer
+  makes of them; the tests of step 2 sent only the press. The down asks for the
+  focus of the control it hits, a `ReplaceSelectionOperation`, and the backward
+  map of the toplevel turned a path into the row of options into the whole
+  toplevel. Now such a path maps to nothing, so the focus move dies and the
+  caret stays in the code.
+- **A circle drawn as a result could not be clicked.** `_route_to_children`
+  skipped every child whose output was not a `GraphicsCanvas`, though the layout
+  sizes a bare graphics document by `get_graphics_size`. So an Alt+click on the
+  circle reached no child, and the row selected itself, which the form maps to
+  the whole form. Now a bare graphics child is hit anywhere in the box of its
+  size, in the forward and the reverse routing (`_find_child_point`).
+- **After the note, no click brought the caret back.** An empty hole draws no
+  element, and a prompt label answers no press. Now a plain left press that
+  nothing inside a form answers puts the caret at the end of that form's code,
+  or selects the code whole when it is a document (a reader of
+  `EvaluatorFormToVerticalLayout` for `MousePress`), and one that nothing in the
+  evaluator answers, on its empty space, puts the caret at the end of the bottom
+  form (in the toplevel's reader for an `Intent`).
+
+The example, as a person does it in the window: press the box; type
+`GraphicsCircle(10, 10, 10)`; Enter, and the circle draws; Alt+click the circle
+and Ctrl+N; click below the forms; type `x.radius = 30`; Tab; Alt+click `x` and
+Ctrl+V, and the code draws `⟨GraphicsCircle⟩.radius = 30`; Enter, and the circle
+of the first form draws with radius 30. `test_application()` runs exactly this
+with three-event clicks. `test_widget_selection()` has an Alt+click on a bare
+circle in a layout; the check box test of `test_evaluator_toplevel()` clicks
+with three events and checks the caret. `test_substrate()` keeps its known 3
+failures and 2 errors; `test_conversation()` its one; the evaluator, the
+application, the widget selection, the shell, the graph, the chart, the
+sequence chart and the clipboard suites pass.
+
+Not done: the circle is pasted into the code after a Tab commits the hole and an
+Alt+click selects `x`. A paste of an object at a caret, inside the text of a
+hole, needs a hole that holds objects between its characters, which is a new
+mechanism of its own.
