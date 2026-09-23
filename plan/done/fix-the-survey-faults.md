@@ -241,8 +241,9 @@ memory cap of 20 GB. No second Julia process runs at the same time.
       inner selection. A dormant selection reads as `nothing`, so the answer
       is the same as a test of the container's own path. The letter of the
       rule wants the container's own selection, and that change goes through
-      the 15 routers that call `read_child_event`.
-- [ ] Land on `main`, and move this plan to `plan/done/`.
+      the 15 routers that call `read_child_event`. The owner left this change
+      to another agent, and it is not part of this plan.
+- [x] Land on `main`, and move this plan to `plan/done/`.
 
 ## 5. Decisions
 
