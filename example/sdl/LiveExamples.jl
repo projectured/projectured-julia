@@ -188,28 +188,32 @@ const json_insert_live = LiveExample("json_insert", json_example,
 # and cursor navigation. Each value is built by type-to-replace (`"` string, digit
 # number, `t`/`f` bool, `{` object, `[` array); `Tab` steps an entry key→value.
 #
-# `,` is **contextual**: from a non-string value caret it inserts a sibling in the
-# enclosing object/array directly (no need to first select the value), while inside
-# a string it is a literal comma. So a sibling after a number/bool needs no step-out
-# at all; after a *string* a single `Right` leaves the string before `,`. Stepping up
-# to an *outer* container for a root-level sibling still needs `Alt+Up`
-# tree-navigation (that is a genuine level change, not a same-container step). This
-# exercises the recursive gesture reader: nested `,`/`Tab` reach the *focused*
-# object/array. The result equals `make_json_document_example()` modulo number
-# representation (multi-digit numbers reparse to Float) and the trailing
-# `"placeholder"` insertion left under the caret.
+# The caret alone builds the document; there is no structural selection. `,` is
+# **contextual**: from a non-string value caret it inserts a sibling in the enclosing
+# object/array directly, while inside a string it is a literal comma. So a sibling
+# after a number/bool needs no step-out at all; after a *string* a single `Right`
+# leaves the string before `,`. A root-level sibling after a nested container moves
+# the caret with `Right` past the end of the last value and past the container's
+# closing `}` or `]`, where the `,` belongs to the outer container. This exercises
+# the recursive gesture reader: nested `,`/`Tab` reach the *focused* object/array.
+# The result equals `make_json_document_example()` modulo number representation
+# (multi-digit numbers reparse to Float), the trailing `"placeholder"` insertion
+# left under the caret, and the order of `"meta"`, whose bool comes before the
+# number.
 #
 # Empty-document example: a bare `JsonInsertion` (the typed-name insertion buffer) under the full
 # JSON projection, whole-selected so the first `{` replaces it with an object.
 const json_build_example = Example("json_build", () -> JsonInsertion(), make_json_projection_example)
 
-# `_jb_up(n)`: step up `n` container levels with Alt+Up tree-navigation, to insert a
-# sibling at an outer (root) level (3/4 to escape a nested array/object). `_jb_right`:
-# a single plain Right to leave a finished *string* value (where `,` is literal) for
-# the structural caret just past it. A same-container sibling after a number/bool
-# needs neither — `,` inserts there directly.
-_jb_up(n) = [timed_event(KeyDown(:up, ModifierKeys(alt=true)); hold=0.22) for _ in 1:n]
+# `_jb_right`: a single plain Right to leave a finished *string* value (where `,` is
+# literal) for the caret just past it. `_jb_leave(n)`: `n` presses of Right that
+# carry the caret from the last value of a nested container past the indentation of
+# the next line and past the container's closing `}` or `]`. A same-container
+# sibling after a number/bool needs neither — `,` inserts there directly. A bool is
+# whole-selected, where a plain arrow navigates the tree and `End` does nothing, so
+# the caret can not leave a container whose last value is a bool.
 _jb_right() = timed_event(KeyDown(:right, ModifierKeys()); hold=0.25)
+_jb_leave(n) = [timed_event(KeyDown(:right, ModifierKeys()); hold=0.22) for _ in 1:n]
 _jb_tab()   = timed_event(KeyDown(:tab, ModifierKeys()); hold=0.32)
 _jb_comma() = timed_event(KeyPress(','); hold=0.40)
 _jb_open(c) = timed_event(KeyPress(c); hold=0.40)            # '{' or '['
@@ -229,22 +233,22 @@ const json_build_live = LiveExample("json_build", json_build_example,
             _jb_estr("street", "123 Main St"), [_jb_right(), _jb_comma()],
             _jb_estr("city", "Wonderland"),    [_jb_right(), _jb_comma()],
             _jb_estr("zip", "12345"),
-        _jb_up(4), [_jb_comma()],                                    # escape nested object → root sibling
+        _jb_leave(5), [_jb_comma()],                                 # past the string, the indentation and `}`
         _jb_key("scores"), [_jb_tab(), _jb_open('[')],
             make_typein_gestures("95"),  [_jb_comma()],
             make_typein_gestures("87"),  [_jb_comma()],
             make_typein_gestures("100"),
-        _jb_up(3), [_jb_comma()],                                    # escape nested array → root sibling
+        _jb_leave(4), [_jb_comma()],                                 # past the indentation and `]`
         _jb_key("tags"), [_jb_tab(), _jb_open('[')],
             _jb_str("admin"),    [_jb_right(), _jb_comma()],
             _jb_str("editor"),   [_jb_right(), _jb_comma()],
             _jb_str("reviewer"),
-        _jb_up(3), [_jb_comma()],
+        _jb_leave(5), [_jb_comma()],
         _jb_key("meta"), [_jb_tab(), _jb_open('{')],
             _jb_estr("created", "2025-01-15"), [_jb_right(), _jb_comma()],
-            _jb_enum("version", "2"),          [_jb_comma()],
-            _jb_ebool("draft", false),
-        _jb_up(3), [_jb_comma()],                                    # escape nested object (bool last) → root sibling
+            _jb_ebool("draft", false),         [_jb_comma()],               # a bool can not be left by the caret,
+            _jb_enum("version", "2"),                                       # so a number ends the object
+        _jb_leave(4), [_jb_comma()],                                 # past the indentation and `}`
         _jb_key("placeholder"), [_jb_tab()],                         # leave value as the insertion
     );
     initial_selection = Projectured.EmptyReference(),

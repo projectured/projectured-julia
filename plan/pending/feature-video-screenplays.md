@@ -83,6 +83,8 @@ Module 'PaneModule' not found.        # from list_functions("PaneModule"), a mod
 
 `list_functions` and `list_types` call `_find_module(name)` with no API argument (`source/kernel/tool/Documentation.jl:497` and `:514`), so a declared module is invisible to them. `list_modules` takes the API, and the tool set passes it. A round spent this way is a round the model does not spend on the task, and the agent stops at 8 rounds.
 
+**F7. The caret can not leave a container whose last value is a bool.** A bool is typed with `t` or `f` and is whole-selected, because it has no text. On a structural selection the text layer declines a plain arrow, and the syntax layer navigates the tree, so `Right` on the last entry stays where it is. `End` answers nothing. In `{"meta": {…, "draft": false}}` no caret key reaches the closing `}`, and only `Alt+Up` leaves the object. The `json_build` live example types the bool before the number of `"meta"` for this reason. Found 2026-09-23 in Step 4 of `structural-keys-from-the-caret.md`; recorded, not fixed.
+
 **F5. Not proven: a drag of a slider and a character in a text field.** In the harness neither changed the document, but the coordinates there are computed and not read from a frame, so this is not evidence. It waits for the overlay of G3, which draws the pointer and makes a miss visible.
 
 The `json_build` recording of Step 0 produced a file of the right length, which is why the baseline called it good. The file shows a document that stops after one entry. §7 Step 0 says so now.
@@ -455,6 +457,7 @@ Everything the three recorded videos still lack, and everything the work on them
 | F3 | `Alt+Up` never leaves a nested container | S3, the `json_build` example | A | M |
 | F1 | A file tab of the application takes no character | S3 in the window, S5 to S8, and the post's claim that the application edits files | A | L |
 | F5 | Not proven: a drag of a slider and a character in a text field | S4 | B | S once G3 exists |
+| F7 | The caret can not leave a container whose last value is a bool (§2.4) | S3, the `json_build` example | B | M |
 | A1 | A moving `GraphicsCircle`, `GraphicsPolyline` or `GraphicsLine` needs every positional field, so the forms are long | S1 | B | M |
 | A2 | A thunk given to `WidgetLabel` draws as the function, so the video types a `live(...)` helper | S4 | B | M |
 | A3 | `open_pane!` takes the focus and has no keyword to keep it, so the tool gets its tab only at the end | S4 | B | M |

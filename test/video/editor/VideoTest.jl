@@ -135,3 +135,43 @@ function test_record_video()
     end
 end
 end # test_record_video
+
+"""
+    test_json_build_live()
+
+Replay the timeline of `json_build_live` headless, as the recorder feeds it, and
+check that every key answers an operation and that the result is the example
+document. The build moves the caret alone: no key of it selects structure.
+"""
+function test_json_build_live()
+@testset "json_build_live builds its document from the caret" begin
+    live = only(example for example in live_examples if example.name == "json_build")
+    document = live.example.make_document()
+    projection = live.example.make_projection()
+    set_selection!(document, EmptyReference())
+    editor = Editor(ConsoleBackend(), document, projection, Device[Display(), Keyboard(), Mouse()])
+    reprint!() = editor.iomap = print_document(projection, nothing, editor.document,
+        PrinterContext(EmptyReference(), Cell(live.width), Cell(live.height), Dict{Symbol,Any}(), Clock()))
+    reprint!()
+    @test !any(entry -> entry.event isa KeyDown && entry.event.modifiers.alt, live.timeline)
+    dead = Int[]
+    for (i, entry) in enumerate(live.timeline)
+        change = read_intent(projection, nothing, Intent(entry.event, nothing), editor.iomap)
+        operation = change isa Intent ? change.operation : change
+        if operation isa Operation
+            evaluate_operation(editor, operation)
+            reprint!()
+        else
+            push!(dead, i)
+        end
+    end
+    @test isempty(dead)
+    # The example document, with the bool of "meta" before its number: the caret
+    # can not leave a container whose last value is a bool.
+    meta = JsonObject("created" => JsonString("2025-01-15"), "draft" => JsonBool(false),
+                      "version" => JsonNumber(2))
+    expected = JsonObject((entry.key => (entry.key == "meta" ? meta : entry.value)
+                           for entry in make_json_document_example().entries)...)
+    @test isempty(compare_content(editor.document, expected))
+end
+end # test_json_build_live

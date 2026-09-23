@@ -153,8 +153,19 @@ parent entry and the parent container, whose `,` rule answers.
       `json/caret-only` also builds `{"a": {"b": "x"}, "c": 1}` with four presses
       of `Right` from `"x"│`, and `[[1], 2]` with one `Right` after the `1`;
       `test_json_construct()` passes 27 with 2 broken, `test_json` 194.
-- [ ] Step 4: the `json_build` live example builds its document with `Right` and no
+- [x] Step 4: the `json_build` live example builds its document with `Right` and no
       `Alt+Up`, and its test replays it.
+      `_jb_up(n)` is gone; `_jb_leave(n)` presses `Right` `n` times, from the last
+      value past the indentation of the next line and past the closing `}` or `]`:
+      5 after a string (the first press leaves the string), 4 after a number. The
+      caret then stands after the brace, at the root, and the `,` is the root's.
+      A bool can not be left this way (F7 of `feature-video-screenplays.md`): it is
+      whole-selected, a plain arrow navigates the tree, and `End` answers nothing.
+      So `"meta"` is typed with its bool before its number, and the built document
+      differs from `make_json_document_example()` in that order only. The new
+      `test_json_build_live()` of `ProjecturedVideoTest` replays the timeline
+      headless: no key uses `Alt`, all 215 keys answer an operation, and the
+      content is the example document with that order; 3 pass.
 - [ ] Step 5: the same suites after the change, compared with the baseline.
 - [ ] Step 6: the documents: the chain reader, the `override` note of `@gestures`,
       and the JSON package guide say what holds now.
