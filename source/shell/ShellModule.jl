@@ -33,6 +33,7 @@ using ..FileSystemModule
 using ..PaneModule
 using ..ScreenModule
 using ..DocumentModule
+using ..EditorModule
 using ..IntentModule
 using ..IoMapModule
 using ..ProjectionAlgebraModule

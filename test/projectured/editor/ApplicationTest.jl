@@ -67,14 +67,58 @@ function _app_write_files(dir)
 end
 
 # The window scene and its reader state, as `run_application` builds them.
-function _app_make_scene(paths, dir)
-    document, projection = make_application_window(paths; root = dir, assistant = nothing)
+function _app_make_scene(paths, dir; assistant = nothing)
+    document, projection = make_application_window(paths; root = dir, assistant = assistant)
     scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
     composed = make_window_scene_projection(projection;
         opened_window_projections = make_opened_window_projections(),
         screen_wrap = make_popup_screen_wrap())
     iomap = print_document(composed, scene)
     (document, scene, composed, iomap)
+end
+
+# An editor over that scene, for a case that presses a button of the window or
+# opens a file: those post their edit, and only an editor has the inbox.
+function _app_make_editor(scene, composed, iomap)
+    editor = Editor(ConsoleBackend(), scene, composed, Device[Display(), Keyboard(), Mouse()])
+    editor.iomap = iomap
+    editor
+end
+
+# Evaluate `operation`, then what it posted, as one frame of the loop does.
+_app_apply!(editor, operation) = (evaluate_operation(editor, operation); drain_operations!(editor))
+
+# Every document of `root` that holds a live selection off the root's live path:
+# a write that did not start at the root leaves one. A selection a document keeps
+# for itself off that path, such as the tab a group shows, is not live.
+function _app_find_stray_live_selections(root)
+    on_path = IdDict{Any,Bool}(root => true)
+    selection = get_selection(root)
+    if selection !== nothing
+        steps = collect(get_reference_steps(strip_reference_types(selection)))
+        for n in 1:length(steps)
+            prefix = foldr(ConcreteReference, steps[1:n]; init = EmptyReference())
+            node = try_evaluate_reference(root, prefix, nothing)
+            node === nothing || (on_path[node] = true)
+        end
+    end
+    [document for document in search_documents(root, node -> node isa Document)
+     if get_selection(document) !== nothing && !haskey(on_path, document) &&
+        !has_dormant_selection(document)]
+end
+
+# Whether each level of the window, from the screen down to the pane tree, holds
+# the part of the root's selection that starts at it.
+function _app_is_one_path(scene)
+    root = strip_reference_types(get_selection(scene))
+    steps = collect(get_reference_steps(root))
+    content = scene.windows[1].content
+    levels = [(scene.windows[1], 2), (content, 3), (content.content, 4),
+              (content.content.content, 5), (_app_window(content), 6)]
+    all(levels) do (node, skip)
+        tail = foldr(ConcreteReference, steps[(skip + 1):end]; init = EmptyReference())
+        repr(strip_reference_types(get_selection(node))) == repr(tail)
+    end
 end
 
 # Every string a printed window draws, at its position in the window. A cell is
@@ -308,6 +352,60 @@ function test_application()
                 @test document.slice isa Workspace
             end
 
+            @testset "the pane verbs take and answer complete references, and write at the root" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:2], dir)
+                editor = _app_make_editor(scene, composed, iomap)
+                tree = _app_window(document)
+                history = document.content.content.undo_entries
+                title(reference) = get_pane_tab_title_string(evaluate_reference(scene, reference))
+                @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
+
+                focus_pane!(editor, find_pane_reference(editor, "Files"))
+                @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
+
+                steps = length(history)
+                opened = open_pane!(editor, PrimitiveString("hello"); title = "Hello")
+                @test startswith(repr(strip_reference_types(opened)), ".windows[1].")
+                @test title(opened) == "Hello"
+                @test let (group, index) = get_pane_focus(tree)
+                    get_pane_tab_title_string(group.tabs[index]) == "Hello"
+                end
+                @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
+                @test length(history) == steps + 1          # an open is one undo step
+
+                second = duplicate_pane!(editor, opened)
+                @test startswith(repr(strip_reference_types(second)), ".windows[1].")
+                name = title(second)
+                @test name != "Hello" && startswith(name, "Hello")
+                close_pane!(editor, second)
+                @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
+                @test_throws ArgumentError close_pane!(editor, nothing)
+                # The history holds the closed tab, and the finder does not find it.
+                @test find_pane_reference(editor, name) === nothing
+
+                # Ctrl+C copies what the focus names, and a copy of a tab that the
+                # clipboard holds is not a pane the finder finds.
+                focus_pane!(editor, find_pane_reference(editor, "Hello"))
+                copy = _app_fire(composed, editor.iomap, KeyDown(:c, ModifierKeys(ctrl = true)))
+                _app_apply!(editor, copy)
+                @test document.slice isa PrimitiveString && document.slice.value == "hello"
+                stored = document.slice
+                document.slice = copy_document(evaluate_reference(scene, find_pane_reference(editor, "Hello")))
+                @test find_pane_reference(editor, "Hello") isa Reference
+                document.slice = stored
+
+                # Ctrl+T opens a tab through the menu, which posts its edit, and a
+                # paste fills it.
+                tabs = _app_count_tabs(tree)
+                _app_apply!(editor, _app_fire(composed, editor.iomap, KeyDown(:t, ModifierKeys(ctrl = true))))
+                @test _app_count_tabs(tree) == tabs + 1
+                @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
+                _app_apply!(editor, _app_fire(composed, editor.iomap, KeyDown(:v, ModifierKeys(ctrl = true))))
+                (group, index) = get_pane_focus(tree)
+                @test get_wrapped_document(group.tabs[index].content) isa PrimitiveString
+                @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
+            end
+
             @testset "every format draws" begin
                 # `.pdoc` is the binary snapshot format, registered under no
                 # `FileDocument` type — `make_file_tab` cannot open it as a
@@ -355,7 +453,7 @@ function test_application()
 
             @testset "View opens the gesture log in a tab, and the window draws it" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
-                editor = _AppFakeEditor(scene, iomap)
+                editor = _app_make_editor(scene, composed, iomap)
                 drawn() = _app_drawn_strings(print_document(composed, scene).output.windows[1].content)
                 @test !any(text -> occursin("Gestures", text), drawn())
                 function walk(node)
@@ -372,7 +470,7 @@ function test_application()
                 end
                 action = walk(make_window_menu_bar())
                 @test action !== nothing
-                evaluate_operation(editor, InvokeActionOperation(action))
+                _app_apply!(editor, InvokeActionOperation(action))
                 tabs = [tab for group in get_pane_groups(_app_window(document)) for tab in group.tabs]
                 @test count(tab -> tab.content === get_session_gesture_log(), tabs) == 1
                 @test any(text -> occursin("Gestures", text), drawn())
@@ -411,7 +509,7 @@ function test_application()
                 toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
                 button = only(item for item in toolbar.elements
                               if string(item.action.label) == "Evaluator")
-                evaluate_operation(editor, InvokeActionOperation(button.action))
+                _app_apply!(editor, InvokeActionOperation(button.action))
                 (group, index) = get_pane_focus(_app_window(document))
                 evaluator = get_wrapped_document(group.tabs[index].content)
                 @test evaluator isa EvaluatorToplevel
@@ -472,7 +570,7 @@ function test_application()
                 toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
                 button = only(item for item in toolbar.elements
                               if string(item.action.label) == "Evaluator")
-                evaluate_operation(editor, InvokeActionOperation(button.action))
+                _app_apply!(editor, InvokeActionOperation(button.action))
                 (group, index) = get_pane_focus(_app_window(document))
                 evaluator = get_wrapped_document(group.tabs[index].content)
                 shown() = evaluator.elements[length(evaluator.elements)].form.value
@@ -668,7 +766,7 @@ function test_application()
                 toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
                 button = only(item for item in toolbar.elements
                               if string(item.action.label) == "Evaluator")
-                evaluate_operation(editor, InvokeActionOperation(button.action))
+                _app_apply!(editor, InvokeActionOperation(button.action))
                 (group, index) = get_pane_focus(_app_window(document))
                 evaluator = get_wrapped_document(group.tabs[index].content)
                 for code in ("GraphicsCircle(10, 10, 10)", "x = 1  # why")
@@ -713,24 +811,24 @@ function test_application()
 
             @testset "a closed assistant and a closed navigator come back as they were" begin
                 started = make_application_assistant(:ollama; model = "small", context = 4096)
-                document, _ = make_application_window(paths[1:1]; root = dir,
-                                                      assistant = started)
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir;
+                                                                   assistant = started)
                 tree = _app_window(document)
-                editor = _AppFakeEditor(document, nothing)
+                editor = _app_make_editor(scene, composed, iomap)
                 toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
                 button(label) = only(item for item in toolbar.elements
                                      if string(item.action.label) == label)
                 holding(type) = [(group, index) for group in get_pane_groups(tree)
                                  for (index, tab) in enumerate(group.tabs)
                                  if get_wrapped_document(tab.content) isa type]
-                close!(type) = begin
-                    (group, index) = only(holding(type))
-                    apply_pane_operation!(tree, make_pane_close_tab_operation(tree, group, index))
-                end
+                # A pane is closed as the assistant closes one, by its complete reference.
+                close!(type) = close_pane!(editor, only(search_references(scene,
+                    node -> node isa PaneTab && get_wrapped_document(node.content) isa type;
+                    descend = is_pane_search_step)))
                 @test [string(item.action.label) for item in toolbar.elements][2] == "Assistant"
 
                 # While the assistant is open, the button reaches it and makes none.
-                evaluate_operation(editor, InvokeActionOperation(button("Assistant").action))
+                _app_apply!(editor, InvokeActionOperation(button("Assistant").action))
                 @test length(holding(Assistant)) == 1
                 (group, index) = only(holding(Assistant))
                 @test get_wrapped_document(group.tabs[index].content) === started
@@ -739,7 +837,7 @@ function test_application()
                 # of tokens and the greeting of the one the window opened with.
                 close!(Assistant)
                 @test isempty(holding(Assistant))
-                evaluate_operation(editor, InvokeActionOperation(button("Assistant").action))
+                _app_apply!(editor, InvokeActionOperation(button("Assistant").action))
                 (group, index) = only(holding(Assistant))
                 again = get_wrapped_document(group.tabs[index].content)
                 @test again !== started
@@ -753,7 +851,7 @@ function test_application()
 
                 # The navigator comes back over the folder the window lists.
                 close!(Workspace)
-                evaluate_operation(editor, InvokeActionOperation(button("Explorer").action))
+                _app_apply!(editor, InvokeActionOperation(button("Explorer").action))
                 (group, index) = only(holding(Workspace))
                 @test get_wrapped_document(group.tabs[index].content).folders[1].pathname == abspath(dir)
             end
@@ -784,7 +882,7 @@ function test_application()
                 x = (0:3:600)[column]
 
                 operation = _app_fire(composed, iomap, MousePress(:left, x, y, ModifierKeys()))
-                evaluate_operation(_AppFakeEditor(scene, iomap), operation)
+                _app_apply!(_app_make_editor(scene, composed, iomap), operation)
                 tree = _app_window(document)
                 @test count(tab -> get_wrapped_document(tab.content) === get_session_message_log(),
                             [tab for group in get_pane_groups(tree) for tab in group.tabs]) == 1
@@ -889,12 +987,12 @@ function test_application()
 
             @testset "the navigator opens a file beside the files" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
-                editor = _AppFakeEditor(scene, iomap)
+                editor = _app_make_editor(scene, composed, iomap)
                 y, operation = _app_find_file_row(composed, iomap)
                 @test _app_plain(operation) isa OpenFileOperation
                 @test basename(_app_plain(operation).path) == "a.jl"    # the first file row
                 before = _app_count_tabs(_app_window(document))
-                evaluate_operation(editor, operation)
+                _app_apply!(editor, operation)
                 @test _app_count_tabs(_app_window(document)) == before + 1
                 groups = get_pane_groups(_app_window(document))
                 @test length(groups[1].tabs) == 1       # the navigator stays alone

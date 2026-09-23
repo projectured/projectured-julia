@@ -557,19 +557,75 @@ What Step 2 found and decided:
 
 ### Step 3 — the other verbs, the clipboard, omnet-julia, the guides
 
-- [ ] The other pane verbs and the menu actions as `make_…_operation` and
+- [x] The other pane verbs and the menu actions as `make_…_operation` and
       `…!` pairs on complete references: open, close, duplicate, split, the
-      tool tabs, `replace_referenced_value!`. `show_layout` and `open_pane!`
-      give references from the root. `OpenFileOperation` posts.
-- [ ] The other readers that route by selection or by coordinate follow the
-      route.
-- [ ] The clipboard reads only its own selection; `_get_clipboard_selection`
+      tool tabs, `replace_referenced_value!`. `open_pane!` gives references
+      from the root. `OpenFileOperation` posts.
+- [ ] `show_layout` gives references from the root: waits for the owner's
+      choice of the form of the printed program (see below).
+- [x] ~~The other readers that route by selection or by coordinate follow the
+      route.~~ Not needed for this plan: every pane verb has its place at a
+      pane tree, and the eighteen readers of Step 1b reach every tree of the
+      window. A verb whose place is inside the content of a tab needs the
+      readers below the tree; that comes with such a verb.
+- [x] The clipboard reads only its own selection; `_get_clipboard_selection`
       goes.
-- [ ] Tests: in the window as the binary opens it, Ctrl+C copies the focused
+- [x] Tests: in the window as the binary opens it, Ctrl+C copies the focused
       tab after `focus_pane!`, after a file opens from the navigator, and after
       Ctrl+T and a paste. A test helper finds every document whose live
       selection is not on the root's live path, with `search_documents`
       (PAR-SEARCH-DONT-WALK). The two cases of §5, question 8.
+
+**What this part of Step 3 found and decided (2026-09-23):**
+
+- **Verbs:** `open_pane!` / `make_open_pane_operation`, `close_pane!` /
+  `make_close_pane_operation` (new), `duplicate_pane!` /
+  `make_duplicate_pane_operation`, `focus_pane!` / `make_focus_pane_operation`,
+  and `replace_referenced_value!` and `get_referenced_value` take complete
+  references; `open_pane!` and `duplicate_pane!` answer them. A verb finds its
+  tree from its argument; `replace_referenced_value!` takes the tree that holds
+  the written node (`below`), so a write at a tree goes to the tree above it.
+  The docstrings that said that closing a pane has no verb of its own now point
+  to `close_pane!`.
+- **Two new public functions, named here:** `find_pane_tree_reference(editor)`,
+  the complete reference of the pane tree that holds the focus (the nearest
+  tree on the root's selection, else the one tree of the window, else
+  `nothing`), which a path written by hand and the menu actions start from; and
+  `post_pane_operation!(editor, operation)`, which posts to an editor's loop
+  and applies at once for a caller with no loop, such as a test that holds the
+  tree. Both are in the assistant's API list except `post_pane_operation!`.
+- **The menu and toolbar actions post.** They run inside the evaluation of an
+  `InvokeActionOperation`, so they make their edit through the readers and post
+  it. `OpenFileOperation` does the same. `get_pane_file_group` looks in the
+  tree that holds the focus; the helper that took the first window's content
+  went, because in the application that content is the clipboard and the
+  helper found no tree there.
+- **An open, a duplicate and a close are undo steps; a focus move is not.**
+  Measured: after focus, open, duplicate and close, the window's history holds
+  three entries.
+- **§5 question 8 is answered.** A closed tab that the history holds is not
+  found. A copy of a tab that the clipboard's slice holds is not found either.
+- **Tests that changed:** the application tests that pressed a button or opened
+  a file with a fake editor use a real `Editor` and apply what was posted; the
+  test of the closed assistant closes with `close_pane!`. The clipboard test
+  "the clipboard reads the selection from its content" asserted the removed
+  search, and now asserts the opposite: the clipboard acts on its own
+  selection.
+- **Suites, in the worktree:** `test_application` 198/198, `test_shell` 180,
+  `test_clipboard` 197, the eight pane suites, `test_undo` 91, the gesture log
+  and help, the command palette, the context menu, the document walk and
+  search, the window shell 83 and wrap 22, the tooltip feed and probe, the text
+  clipboard and range selection, `test_pane_tab_b1` 8, `test_filesystem` 28,
+  all with no failure; `test_kernel` with only the six known failures.
+
+**Waiting for the owner: the form of the program `show_layout` prints.** It
+prints `window = get_window_tree(editor)` and `@reference(window, …)` for each
+tab, which is a path from the first window's tree. With complete references it
+can print either (a) one self-contained line for each tab, with the path from
+the root written out, or (b) one name for each tree, then short lines with
+`concat_references(tree_reference, @reference(tree, …))`. The docstring
+examples that show that program (`PaneDocument.jl`, the header of
+`PaneProgram.jl`) follow the choice.
 - [ ] omnet-julia: `focus_runner_group!`, `_open_file_navigator!`,
       `open_simulation_pane!`, and the first focus of an embedded tree.
 - [ ] The guides: `selection.md`, `clipboard.md`, `pane.md`, and a guide for

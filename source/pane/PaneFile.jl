@@ -11,31 +11,24 @@
 """
     get_pane_file_group(editor) -> PaneGroup or nothing
 
-The group a newly opened file belongs in: a group that already holds a file —
-any tab whose content [`is_file_document`](@ref) answers `true` for — else a
-group every one of whose tabs [`accepts_opened_file`](@ref), focused first.
-`nothing` leaves the choice to [`open_pane!`](@ref). A file must not cover the
-explorer it was opened from, nor a running conversation.
+The group a newly opened file belongs in, in the pane tree that holds the focus
+([`find_pane_tree_reference`](@ref)): a group that already holds a file — any
+tab whose content [`is_file_document`](@ref) answers `true` for — else a group
+every one of whose tabs [`accepts_opened_file`](@ref), focused first. `nothing`
+leaves the choice to [`open_pane!`](@ref). A file must not cover the explorer it
+was opened from, nor a running conversation.
 """
 function get_pane_file_group(editor)
-    window = _get_window_content(editor)
-    window isa PaneTree || return nothing
-    groups = get_pane_groups(window)
+    found = _find_focused_tree_route(editor)
+    found === nothing && return nothing
+    tree = last(found)
+    groups = get_pane_groups(tree)
     for group in groups
         any(tab -> is_file_document(tab.content), group.tabs) && return group
     end
     free = [group for group in groups
             if all(tab -> accepts_opened_file(tab.content), group.tabs)]
     isempty(free) && return nothing
-    focused = get_pane_focused_group(window)
+    focused = get_pane_focused_group(tree)
     focused in free ? focused : first(free)
-end
-
-# What the first window of the editor shows. A caller without a screen, a test
-# for example, holds the window's document itself.
-function _get_window_content(editor)
-    document = getfield(editor, :document)
-    hasproperty(document, :windows) || return document
-    windows = document.windows
-    isempty(windows) ? document : first(windows).content
 end

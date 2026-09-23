@@ -120,27 +120,12 @@ make_inverse_operation(document, ::WriteOsClipboardOperation) = DoNothingOperati
 _field_path(name::AbstractString) =
     ConcreteReference(FieldReferenceStep(name), EmptyReference())
 
-# The selection the clipboard acts on, as a path from the clipboard document.
-#
-# A pane verb writes the selection of the content directly, below the clipboard,
-# so the clipboard's own cell can hold an old path. The content's selection is
-# the current one; the clipboard's own cell decides only when it names a field
-# other than `content`, such as the stored slice on display.
-function _get_clipboard_selection(input)
-    own = input.selection
-    if own isa ConcreteReference
-        head = get_reference_head(own)
-        (head isa FieldReferenceStep && head.name != "content") && return own
-    end
-    content = input.content
-    inner = (content isa Document && hasproperty(content, :selection)) ? content.selection : nothing
-    inner === nothing ? own : ConcreteReference(FieldReferenceStep("content"), inner)
-end
-
 # The selected sub-document and its path, or (nothing, nothing) when there is no
-# usable (non-empty) selection.
+# usable (non-empty) selection. The clipboard reads its own selection: every
+# write of the live selection starts at the root, so its own suffix is current
+# (PAR-SELECTION-WRITTEN-AT-ROOT).
 function _selected(input)
-    sel = _get_clipboard_selection(input)
+    sel = input.selection
     (sel === nothing || sel isa EmptyReference) && return nothing, nothing
     obj = try_evaluate_reference(input, sel, missing)
     obj === missing && return nothing, nothing
@@ -202,7 +187,7 @@ end
 #    immutable one, refuses, and so does the document in the slot when it does
 #    not accept `value` as its replacement (`accepts_pasted_replacement`).
 function _find_paste_target(input, value)
-    sel = _get_clipboard_selection(input)
+    sel = input.selection
     (sel === nothing || sel isa EmptyReference) && return nothing
     try_evaluate_reference(input, sel, missing) isa Document || return nothing
     steps = get_reference_steps(strip_reference_types(sel))
@@ -266,7 +251,7 @@ end
 # (`writes`), every document from the content down to the target must accept
 # pasted text; a copy reads, and asks none.
 function _find_text_target(input; writes::Bool)
-    sel = _get_clipboard_selection(input)
+    sel = input.selection
     sel isa ConcreteReference || return nothing
     steps = get_reference_steps(strip_reference_types(sel))
     length(steps) >= 3 || return nothing

@@ -200,33 +200,43 @@ make_window_tool_command(label, type::Type; icon = nothing, tooltip = nothing,
 
 _make_default_tool(type::Type) = _ -> make_insertion_document(type)
 
-# The pane slice's own verbs, reached through the tree the editor shows. A menu
-# command is a second way to the one implementation.
-_window_tree(editor) = try
-    get_window_tree(editor)
-catch
+# The pane slice's own edits, in the pane tree that holds the focus. A menu
+# command is a second way to the one implementation. It runs while the editor
+# evaluates the command, so it posts its edit, made through the readers, and the
+# loop evaluates it at the top of the next frame.
+function _find_focused_tree(editor)
+    reference = find_pane_tree_reference(editor)
+    reference === nothing ? nothing : (reference, evaluate_reference(editor.document, reference))
+end
+
+function _post_tree_operation!(editor, tree_reference, operation, description)
+    operation === nothing && return nothing
+    rooted = read_rooted_operation(editor, tree_reference, operation; description)
+    rooted === nothing || post_pane_operation!(editor, rooted)
     nothing
 end
 
 function _open_tab!(editor)
-    tree = _window_tree(editor)
-    tree === nothing && return nothing
+    found = _find_focused_tree(editor)
+    found === nothing && return nothing
+    tree_reference, tree = found
     group = get_pane_focused_group(tree)
     group === nothing && return nothing
-    apply_pane_operation!(tree, make_pane_open_tab_operation(tree, group,
-                                                             default_new_pane_tab()))
-    nothing
+    _post_tree_operation!(editor, tree_reference,
+                          make_pane_open_tab_operation(tree, group, default_new_pane_tab()),
+                          "Open a new tab")
 end
 
 function _close_tab!(editor)
-    tree = _window_tree(editor)
-    tree === nothing && return nothing
+    found = _find_focused_tree(editor)
+    found === nothing && return nothing
+    tree_reference, tree = found
     focus = get_pane_focus(tree)
     focus === nothing && return nothing
     group, index = focus
     index == 0 && return nothing
-    apply_pane_operation!(tree, make_pane_close_tab_operation(tree, group, index))
-    nothing
+    _post_tree_operation!(editor, tree_reference, make_pane_close_tab_operation(tree, group, index),
+                          "Close the pane " * get_pane_tab_title_string(group.tabs[index]))
 end
 
 # A tool of the window, in a tab. A tab that already holds a `type` takes the
@@ -234,14 +244,16 @@ end
 # its recorder has written since the window opened, so it holds what happened
 # before the tab existed.
 function _reach_tool!(editor, type::Type, make)
-    tree = _window_tree(editor)
-    tree === nothing && return nothing
-    found = _find_tool_tab(tree, type)
-    if found === nothing
-        open_pane!(editor, make(editor))
+    found = _find_focused_tree(editor)
+    found === nothing && return nothing
+    tree_reference, tree = found
+    tool = _find_tool_tab(tree, type)
+    if tool === nothing
+        post_pane_operation!(editor, make_open_pane_operation(editor, make(editor)))
     else
-        group, index = found
-        apply_pane_operation!(tree, make_pane_focus_operation(tree, group, index))
+        group, index = tool
+        _post_tree_operation!(editor, tree_reference, make_pane_focus_operation(tree, group, index),
+                              "Focus the pane " * get_pane_tab_title_string(group.tabs[index]))
     end
     nothing
 end
@@ -262,14 +274,16 @@ function _find_tool_tab(tree, type::Type)
 end
 
 function _split!(editor, orientation::Symbol)
-    tree = _window_tree(editor)
-    tree === nothing && return nothing
+    found = _find_focused_tree(editor)
+    found === nothing && return nothing
+    tree_reference, tree = found
     group = get_pane_focused_group(tree)
     group === nothing && return nothing
-    apply_pane_operation!(tree, make_pane_split_operation(tree, group; orientation,
-                                                          side = orientation === :vertical ? :right : :below,
-                                                          tab = default_new_pane_tab()))
-    nothing
+    _post_tree_operation!(editor, tree_reference,
+                          make_pane_split_operation(tree, group; orientation,
+                                                    side = orientation === :vertical ? :right : :below,
+                                                    tab = default_new_pane_tab()),
+                          "Split the pane")
 end
 
 """

@@ -39,6 +39,7 @@ const PaneModule = ProjecturedPane.PaneModule
 const ScreenModule = ProjecturedScreen.ScreenModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const IntentModule = ProjecturedKernel.IntentModule
+const EditorModule = ProjecturedKernel.EditorModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule

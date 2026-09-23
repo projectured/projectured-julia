@@ -92,10 +92,12 @@ OperationModule.operation_travels_unchanged(::OpenFileOperation) = true
 
 # The destination is a pane tree, in a new tab: `make_file_tab` reads the file
 # into the document type its extension owns, and `get_pane_file_group` asks the
-# pane tree where a file belongs.
+# pane tree where a file belongs. This runs while the editor evaluates the open,
+# so the new tab is posted, and the loop evaluates it at the top of the next
+# frame.
 function evaluate_operation(editor, op::OpenFileOperation)
     tab = make_file_tab(op.path, op.wrap)
-    open_pane!(editor, tab; group = get_pane_file_group(editor))
+    post_pane_operation!(editor, make_open_pane_operation(editor, tab; group = get_pane_file_group(editor)))
     nothing
 end
 

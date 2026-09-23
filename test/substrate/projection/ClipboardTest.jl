@@ -728,19 +728,21 @@ end
     @test read_intent(p, iomap, own) === own
 end
 
-@testset "the clipboard reads the selection from its content" begin
+@testset "the clipboard reads its own selection, and not the content's" begin
     left, right = PrimitiveString("a"), PrimitiveString("b")
     pair = _ClipboardPair(left, right)
     slice = ClipboardSlice(pair)
     # The clipboard's own cell names the whole content, and then the content's
-    # selection is written directly, as a pane verb does.
+    # selection is written directly, below the clipboard. Every write of the live
+    # selection starts at the root, so the clipboard does not look below itself:
+    # it acts on what its own selection names.
     slice.selection = cpath(FieldReferenceStep("content"))
     set_selection!(pair, cpath(FieldReferenceStep("right")))
     p = ClipboardSliceToAnyProjection()
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
     op = read_intent(p, iomap, KeyDown(:n, ctrl))
     @test op isa CompoundOperation
-    @test _rd_val(op.operations[1]) === right
+    @test _rd_val(op.operations[1]) === pair
 end
 
 @testset "a noted object that lost the focus still pastes" begin
