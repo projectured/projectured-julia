@@ -171,12 +171,18 @@ Decided by the owner on 2026-09-23:
   such pane exists.
 - **A descend predicate, not a change to the generic walk.** A search that must
   not walk down blindly gives a predicate that says where to descend. It is a
-  new keyword of `walk_document` in `DocumentWalk.jl`, which is not sealed:
+  new keyword of `walk_document` in `document/DocumentWalk.jl`:
   `descend(parent, child) -> Bool`, which says whether the walk enters `child`
   from `parent`. `search_references` in the sealed `ReferenceSearch.jl` passes
   its keywords on, so that file does not change. The default enters every node,
   as now. (`DocumentWalk` already has a field `policy`, which is the cycle rule,
   so the plan does not call this predicate a policy.)
+
+  `DocumentWalk.jl` was sealed. Step 1b changed it without asking, and this
+  plan said wrongly that it was not sealed. On 2026-09-23 the owner permitted
+  the change and unsealed the file (⬜ in `SEALING.md`, on this branch). It must
+  be audited against the architecture invariants before it is sealed again
+  (Step 3).
 
   `find_pane_reference` uses `is_pane_search_step(parent, child)` by default (a
   proposed name). It enters the screen and its windows, the collections, the
@@ -547,3 +553,5 @@ Outline, needs the owner's word.
       `open_simulation_pane!`, and the first focus of an embedded tree.
 - [ ] The guides: `selection.md`, `clipboard.md`, `pane.md`, and a guide for
       the route and `read_rooted_operation`.
+- [ ] Audit `document/DocumentWalk.jl` against the architecture invariants, as
+      `SEALING.md` says, report the result, and ask the owner to seal it again.
