@@ -1,8 +1,11 @@
 # An evaluated form becomes a Julia document
 
-**Status (2026-09-23): DONE on the branch, not landed.** Worktree
+**Status (2026-09-23): DONE and landed on `main`.** Built in the worktree
 `../projectured-julia-evaluator-parses-forms`, branch `evaluator-parses-forms`,
-from `main` at `232c9c35`. It waits for the owner's word to land.
+from `main` at `232c9c35`, and rebased onto `main` at `6d0c864d` before it
+landed. After the rebase `test_evaluator_toplevel()` 133 of 133,
+`test_application()` 162 of 162, `test_documentation()` passed, and
+`test_conversation()` kept its one known failure.
 
 **Goal:** when a person presses Enter in an Evaluator tab, the code of the form
 changes from a string to a Julia document, so the form keeps its syntax
