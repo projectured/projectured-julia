@@ -769,7 +769,7 @@ _persistent_graphic!(cache, layout, pl) =
 
 function _make_persistent_text(layout, pl0)
     key = pl0.key
-    gt = GraphicsText(pl0.text, Int(pl0.x), Int(pl0.y), pl0.font, pl0.color)
+    gt = GraphicsText(pl0.text, Int(pl0.x), Int(pl0.y); font = pl0.font, color = pl0.color)
     set_cell_function!(getfield(gt, :text),  () -> (q = _plget(layout, key); q === nothing ? "" : q.text))
     set_cell_function!(getfield(gt, :x),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.x)))
     set_cell_function!(getfield(gt, :y),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))

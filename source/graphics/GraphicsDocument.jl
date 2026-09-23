@@ -24,7 +24,7 @@ end
 # ── GraphicsText ───────────────────────────────────────────────────────
 
 """
-    GraphicsText(text, x, y, font, color::StyleColor=color_white)
+    GraphicsText(text, x, y; font, color::StyleColor=color_white)
 
 Words drawn at a place, in a font and a colour.
 
@@ -34,7 +34,7 @@ and a backend paints them.
 
 # Example
 
-    GraphicsText("delay", Int32(10), Int32(20), font_default, color_black)
+    GraphicsText("delay", 10, 20; font = font_ubuntu_monospace_regular_20, color = color_black)
 
 See also `GraphicsCanvas`, which holds what is drawn, and `GraphicsRect`.
 
@@ -51,8 +51,7 @@ backend converts it to its own device encoding at draw time.
     color::StyleColor
 end
 
-# @positional: the text, then where it stands: x and y.
-function GraphicsText(text::AbstractString, x::Integer, y::Integer,
+function GraphicsText(text::AbstractString, x::Integer, y::Integer;
                       font::StyleFont, color::StyleColor=color_white)
     GraphicsText(Cell(text), Cell(Int32(x)), Cell(Int32(y)),
                  Cell(font), Cell(color),
@@ -406,8 +405,8 @@ elements are drawn in order, and a canvas may hold other canvases.
 
 # Example
 
-    canvas = GraphicsCanvas([GraphicsText("hello", 4, 4, font_ubuntu_monospace_regular_20,
-                                          color_black)];
+    canvas = GraphicsCanvas([GraphicsText("hello", 4, 4; font = font_ubuntu_monospace_regular_20,
+                                          color = color_black)];
                             w = 200, h = 50)
 
 See also `GraphicsViewport`, which shows a part of one, and `GraphicsText`.

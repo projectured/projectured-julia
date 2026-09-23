@@ -61,7 +61,7 @@ end
                      border_width=2, border_color=color_black),
         GraphicsCircle(180, 30, 20, StyleColor(60 / 255, 120 / 255, 220 / 255, 200 / 255)),
         GraphicsLine(10, 70, 200, 70, color_black; width=2),
-        GraphicsText("Hello PDF — café", 12, 80, fnt, StyleColor(20 / 255, 20 / 255, 20 / 255, 1.0)),
+        GraphicsText("Hello PDF — café", 12, 80; font = fnt, color = StyleColor(20 / 255, 20 / 255, 20 / 255, 1.0)),
     ])
     filename = tempname() * ".pdf"
     write_pdf(canvas, filename; width=240, height=120)
@@ -94,7 +94,7 @@ end
 # A tall stack of text lines used by the pagination tests.
 function _tall_canvas(nlines)
     fnt = StyleModule.font_dejavu_sans_regular_18
-    GraphicsCanvas(Any[GraphicsText("paginated line $(i+1)", 10, 10 + 20i, fnt, StyleColor(20 / 255, 20 / 255, 20 / 255, 1.0))
+    GraphicsCanvas(Any[GraphicsText("paginated line $(i+1)", 10, 10 + 20i; font = fnt, color = StyleColor(20 / 255, 20 / 255, 20 / 255, 1.0))
                        for i in 0:(nlines - 1)])
 end
 
@@ -157,7 +157,7 @@ end
 
 @testset "a text is written at the size that the layout measured" begin
     font = StyleModule.font_ubuntu_monospace_regular_20
-    canvas = GraphicsCanvas([GraphicsText("zoom", 10, 10, font, color_black)])
+    canvas = GraphicsCanvas([GraphicsText("zoom", 10, 10; font, color = color_black)])
     filename = tempname() * ".pdf"
     try
         adjust_font_zoom!(1)
@@ -185,7 +185,7 @@ end
     @test fallback_file isa String && fallback_file != font.filename
     fallback = load_truetype_font(fallback_file)
     # U+FE0F asks for emoji presentation; it has no width, and the writer drops it.
-    canvas = GraphicsCanvas([GraphicsText("ok $(check)️", 10, 10, font, color_black)])
+    canvas = GraphicsCanvas([GraphicsText("ok $(check)️", 10, 10; font, color = color_black)])
     filename = tempname() * ".pdf"
     write_pdf(canvas, filename; width=200, height=80)
     # The file with each byte outside ASCII replaced, so a regular expression can read it.

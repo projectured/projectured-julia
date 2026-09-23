@@ -984,7 +984,7 @@ end
 
 function _push_text!(elems::Vector, font::StyleFont, text::AbstractString,
                      x::Int, y::Int, fg::StyleColor)
-    push!(elems, GraphicsText(text, x, y, font, fg))
+    push!(elems, GraphicsText(text, x, y; font, color = fg))
 end
 
 # ── Text that must fit a width ──────────────────────────────────────────────
@@ -5169,7 +5169,7 @@ function print_document(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBadg
         radius = border_box_height ÷ 2
         elements = Any[]
         _push_box_parts!(elements, box, colors, badge_width - inset_width, badge_height - inset_height; radius)
-        push!(elements, GraphicsText(text, content_x, content_y, label.font, label.color))
+        push!(elements, GraphicsText(text, content_x, content_y; font = label.font, color = label.color))
         (width=badge_width, height=badge_height, elements=elements)
     end))
 end
@@ -6230,7 +6230,7 @@ function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAva
         push!(elements, GraphicsCircle(content_x + radius, content_y + radius, radius, colors.content))
         initials_width, initials_height = _text_size(p.measure, label.font, initials)
         push!(elements, GraphicsText(initials, content_x + radius - initials_width ÷ 2,
-                                     content_y + radius - initials_height ÷ 2, label.font, label.color))
+                                     content_y + radius - initials_height ÷ 2; font = label.font, color = label.color))
         (width=size + inset_width, height=size + inset_height, elements=elements)
     end))
 end
@@ -6450,7 +6450,7 @@ font whose ascent is its em, as Lucide's is, fills the box.
 """
 make_glyph_icon(font::StyleFont, codepoint) =
     (elems, x, y, size, color) -> begin
-        push!(elems, GraphicsText(string(Char(codepoint)), x, y, StyleFont(font.filename, size), color))
+        push!(elems, GraphicsText(string(Char(codepoint)), x, y; font = StyleFont(font.filename, size), color))
     end
 
 # A raster icon: blit an `ImageDocument`'s decoded pixels (NOT tinted — for art).
@@ -6604,7 +6604,7 @@ function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetTog
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height; radius)
         push!(elements, GraphicsText(text, content_x + (content_width - text_width) ÷ 2,
-                                     content_y + (content_height - text_height) ÷ 2, label.font, label.color))
+                                     content_y + (content_height - text_height) ÷ 2; font = label.font, color = label.color))
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, radius)
         (width=outer_width, height=outer_height, elements=elements)
     end))
@@ -6735,7 +6735,7 @@ function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Widg
             label = _get_state_text(p, w, :label; state = label_state)
             text_width, segment_text_height = _text_size(p.measure, label.font, labels[i])
             push!(elements, GraphicsText(labels[i], x + (segment_width - text_width) ÷ 2,
-                                         content_y + (content_height - segment_text_height) ÷ 2, label.font, label.color))
+                                         content_y + (content_height - segment_text_height) ÷ 2; font = label.font, color = label.color))
             x += segment_width
         end
         outer_width, outer_height = content_width + inset_width, content_height + inset_height
@@ -6882,7 +6882,7 @@ function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSel
         chevron_color = _get_state_color(p, w, :chevron; state)
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height; radius)
-        push!(elements, GraphicsText(text, content_x, content_y + (content_height - text_height) ÷ 2, label.font, label.color))
+        push!(elements, GraphicsText(text, content_x, content_y + (content_height - text_height) ÷ 2; font = label.font, color = label.color))
         _push_chevron!(elements, content_x + content_width - chevron_size, content_y + content_height ÷ 2, chevron_size,
                        :down, chevron_color)
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, radius)
@@ -6976,7 +6976,7 @@ function print_document(p::WidgetOptionToGraphicsCanvas, recursion, w::WidgetOpt
         content_width, content_height = outer_width - inset_width, outer_height - inset_height
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height)
-        push!(elements, GraphicsText(label_str, content_x, content_y + (content_height - text_height) ÷ 2, label.font, label.color))
+        push!(elements, GraphicsText(label_str, content_x, content_y + (content_height - text_height) ÷ 2; font = label.font, color = label.color))
         (width=outer_width, height=outer_height, elements=elements)
     end))
 end
@@ -7484,8 +7484,8 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
             row_height = title_height + 2item_padding_y
             if titles[i] === nothing
                 push!(row_elements, GraphicsText(string(item.title), content_x + item_padding_x,
-                                                 content_y + y + item_padding_y,
-                                                 title_style.font, title_style.color))
+                                                 content_y + y + item_padding_y;
+                                                 font = title_style.font, color = title_style.color))
             else
                 push!(row_elements, _make_canvas(content_x + item_padding_x, content_y + y + item_padding_y,
                                                  Any[titles[i].output]))
@@ -7505,8 +7505,8 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
                 body = string(item.body)
                 _, body_height = _text_size(p.measure, body_style.font, body)
                 push!(row_elements, GraphicsText(body, content_x + item_padding_x,
-                                                 content_y + y + _sc(p.body_gap),
-                                                 body_style.font, body_style.color))
+                                                 content_y + y + _sc(p.body_gap);
+                                                 font = body_style.font, color = body_style.color))
                 y += body_height + item_padding_y
             end
             push!(row_elements, GraphicsLine(content_x, content_y + y, content_x + content_width,
@@ -8687,11 +8687,11 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                 _push_icon!(result, icon, x + chevron_column, y0 + pad, line_height, icon_style.color)
             elseif icon isa AbstractString && !isempty(icon)
                 # A literal glyph string (e.g. an emoji), drawn as text.
-                push!(result, GraphicsText(icon, x + chevron_column, y0 + pad,
-                                           icon_style.font, icon_style.color))
+                push!(result, GraphicsText(icon, x + chevron_column, y0 + pad;
+                                           font = icon_style.font, color = icon_style.color))
             end
-            push!(result, GraphicsText(row.label, x + chevron_column + geom.icon_column, y0 + pad,
-                                       label_style.font, label_style.color))
+            push!(result, GraphicsText(row.label, x + chevron_column + geom.icon_column, y0 + pad;
+                                       font = label_style.font, color = label_style.color))
         end
         result
     end)

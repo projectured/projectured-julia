@@ -7,17 +7,17 @@ canvas = GraphicsCanvas()
 @test canvas.elements isa CellVector
 
 # Vector constructor uses layout_none
-canvas2 = GraphicsCanvas([GraphicsText("a", 0, 0, font_ubuntu_monospace_regular_20)])
+canvas2 = GraphicsCanvas([GraphicsText("a", 0, 0; font = font_ubuntu_monospace_regular_20)])
 @test canvas2.layout == layout_none
 
 # Explicit layout constructor
-cv = CellVector(Cell[Cell(GraphicsText("a", 0, 0, font_ubuntu_monospace_regular_20))])
+cv = CellVector(Cell[Cell(GraphicsText("a", 0, 0; font = font_ubuntu_monospace_regular_20))])
 canvas3 = GraphicsCanvas(cv, layout_vertical)
 @test canvas3.layout == layout_vertical
 
 # ListNode-backed canvas
-node = ListNode(GraphicsText("line1", 0, 0, font_ubuntu_monospace_regular_20))
-push!(node, GraphicsText("line2", 0, 20, font_ubuntu_monospace_regular_20))
+node = ListNode(GraphicsText("line1", 0, 0; font = font_ubuntu_monospace_regular_20))
+push!(node, GraphicsText("line2", 0, 20; font = font_ubuntu_monospace_regular_20))
 canvas4 = GraphicsCanvas(node, layout_vertical)
 @test canvas4.layout == layout_vertical
 @test canvas4.elements isa ListNode
@@ -38,9 +38,9 @@ fence = GraphicsFence()
 
 # Fence is skipped in hit_element_at
 canvas = GraphicsCanvas([
-    GraphicsText("before", 0, 0, font_ubuntu_monospace_regular_20),
+    GraphicsText("before", 0, 0; font = font_ubuntu_monospace_regular_20),
     GraphicsFence(),
-    GraphicsText("after", 0, 60, font_ubuntu_monospace_regular_20),
+    GraphicsText("after", 0, 60; font = font_ubuntu_monospace_regular_20),
 ])
 # Hit on first text
 result = hit_element_at(canvas, 5, 10)
@@ -57,9 +57,9 @@ end # @testset
 @testset "hit_element_at with ListNode" begin
 
 # ListNode-backed canvas with vertical layout — early termination
-node = ListNode(GraphicsText("line1", 0, 0, font_ubuntu_monospace_regular_20))
-push!(node, GraphicsText("line2", 0, 50, font_ubuntu_monospace_regular_20))
-push!(node, GraphicsText("line3", 0, 100, font_ubuntu_monospace_regular_20))
+node = ListNode(GraphicsText("line1", 0, 0; font = font_ubuntu_monospace_regular_20))
+push!(node, GraphicsText("line2", 0, 50; font = font_ubuntu_monospace_regular_20))
+push!(node, GraphicsText("line3", 0, 100; font = font_ubuntu_monospace_regular_20))
 canvas = GraphicsCanvas(node; layout = layout_vertical, overlapping = false)
 
 # Hit first element
@@ -72,9 +72,9 @@ canvas = GraphicsCanvas(node; layout = layout_vertical, overlapping = false)
 @test hit_element_at(canvas, 5, 200) === nothing
 
 # ListNode with fence — fence is skipped
-node2 = ListNode(GraphicsText("a", 0, 0, font_ubuntu_monospace_regular_20))
+node2 = ListNode(GraphicsText("a", 0, 0; font = font_ubuntu_monospace_regular_20))
 push!(node2, GraphicsFence())
-push!(node2, GraphicsText("b", 0, 60, font_ubuntu_monospace_regular_20))
+push!(node2, GraphicsText("b", 0, 60; font = font_ubuntu_monospace_regular_20))
 canvas2 = GraphicsCanvas(node2; layout = layout_vertical, overlapping = false)
 @test hit_element_at(canvas2, 5, 10) == 0
 @test hit_element_at(canvas2, 5, 70) == 2

@@ -373,7 +373,7 @@ function _frame_elements!(out, g)
 
     text_color = _or(style.tick_color, _TEXT)
     isempty(g.title) ||
-        push!(out, GraphicsText(g.title, _PAD, _PAD, g.title_font, text_color))
+        push!(out, GraphicsText(g.title, _PAD, _PAD; font = g.title_font, color = text_color))
 
     _gutter_elements!(out, g)
     _lane_label_elements!(out, g)
@@ -398,8 +398,8 @@ function _gutter_elements!(out, g)
     end
 
     isempty(g.prefix) ||
-        push!(out, GraphicsText(g.prefix, round(Int, g.body_x), _PAD + g.title_h,
-                                g.axis_font, text_color))
+        push!(out, GraphicsText(g.prefix, round(Int, g.body_x), _PAD + g.title_h;
+                                font = g.axis_font, color = text_color))
 
     # Both strips carry the labels: a reader following an arrow across the chart
     # should not have to travel back to one edge to find out when it happened.
@@ -413,17 +413,17 @@ function _gutter_elements!(out, g)
         if g.vertical
             y = round(Int, flow + g.body_y - size[2] / 2)
             push!(out, GraphicsText(text, round(Int, g.body_x - size[1] - _LABEL_GAP),
-                                    y, g.axis_font, text_color))
+                                    y; font = g.axis_font, color = text_color))
             push!(out, GraphicsText(text, round(Int, g.body_x + g.body_w + _LABEL_GAP),
-                                    y, g.axis_font, text_color))
+                                    y; font = g.axis_font, color = text_color))
         else
             x = round(Int, flow + g.body_x - size[1] / 2)
             push!(out, GraphicsText(text, x,
-                                    round(Int, g.body_y - height + _GUTTER_PAD),
-                                    g.axis_font, text_color))
+                                    round(Int, g.body_y - height + _GUTTER_PAD);
+                                    font = g.axis_font, color = text_color))
             push!(out, GraphicsText(text, x,
-                                    round(Int, g.body_y + g.body_h + _GUTTER_PAD),
-                                    g.axis_font, text_color))
+                                    round(Int, g.body_y + g.body_h + _GUTTER_PAD);
+                                    font = g.axis_font, color = text_color))
         end
     end
     out
@@ -453,12 +453,12 @@ function _lane_label_elements!(out, g)
         cross = g.lanes[position]
         if g.vertical
             push!(out, GraphicsText(label, round(Int, cross + g.body_x - size[1] / 2),
-                                    round(Int, g.body_y - g.label_h - _LABEL_GAP),
-                                    g.axis_font, text_color))
+                                    round(Int, g.body_y - g.label_h - _LABEL_GAP);
+                                    font = g.axis_font, color = text_color))
         else
             push!(out, GraphicsText(label, round(Int, g.body_x - size[1] - _LABEL_GAP),
-                                    round(Int, cross + g.body_y - size[2] / 2),
-                                    g.axis_font, text_color))
+                                    round(Int, cross + g.body_y - size[2] / 2);
+                                    font = g.axis_font, color = text_color))
         end
     end
     out
@@ -544,8 +544,8 @@ function _band_elements!(out, g)
             size = g.measure(name, g.axis_font)
             size[1] + 6 <= w || continue
             push!(out, GraphicsText(name, round(Int, x + (w - size[1]) / 2),
-                                    round(Int, y + (h - size[2]) / 2),
-                                    g.axis_font, _TEXT))
+                                    round(Int, y + (h - size[2]) / 2);
+                                    font = g.axis_font, color = _TEXT))
         end
     end
     out
@@ -646,7 +646,7 @@ function _arrow_label!(out, g, shape, color)
     # letting the viewport cut it in half.
     x = clamp(x - size[1] / 2, 0, max(g.body_w - size[1], 0))
     y = clamp(y - size[2] - 3, 0, max(g.body_h - size[2], 0))
-    push!(out, GraphicsText(label, round(Int, x), round(Int, y), g.axis_font, _TEXT))
+    push!(out, GraphicsText(label, round(Int, x), round(Int, y); font = g.axis_font, color = _TEXT))
     out
 end
 
@@ -673,7 +673,7 @@ function _event_elements!(out, g)
         (label === nothing || isempty(label)) && continue
         size = g.measure(label, g.axis_font)
         push!(out, GraphicsText(label, round(Int, x + radius + 2),
-                                round(Int, y + radius), g.axis_font, _TEXT))
+                                round(Int, y + radius); font = g.axis_font, color = _TEXT))
     end
     out
 end
@@ -813,12 +813,12 @@ function _readout_elements!(out, g, plot)
             push!(out, GraphicsRect(round(Int, g.body_x - size[1] - _LABEL_GAP - 2), y - 1,
                                     size[1] + 4, size[2] + 2, _SELECTION))
             push!(out, GraphicsText(text, round(Int, g.body_x - size[1] - _LABEL_GAP),
-                                    y, g.axis_font, _BODY_BACKGROUND))
+                                    y; font = g.axis_font, color = _BODY_BACKGROUND))
         else
             x = round(Int, flow + g.body_x - size[1] / 2)
             y = round(Int, g.body_y - g.gutter_h + _GUTTER_PAD)
             push!(out, GraphicsRect(x - 2, y - 1, size[1] + 4, size[2] + 2, _SELECTION))
-            push!(out, GraphicsText(text, x, y, g.axis_font, _BODY_BACKGROUND))
+            push!(out, GraphicsText(text, x, y; font = g.axis_font, color = _BODY_BACKGROUND))
         end
     end
 
@@ -830,7 +830,7 @@ function _readout_elements!(out, g, plot)
                       " … Δ", get_honest_tick_label(span, _cursor_neighbourhood(g)))
         size = g.measure(text, g.axis_font)
         push!(out, GraphicsText(text, round(Int, g.w - size[1] - _PAD),
-                                _PAD, g.axis_font, text_color))
+                                _PAD; font = g.axis_font, color = text_color))
     end
     out
 end
@@ -913,8 +913,8 @@ function _empty_elements(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceCha
     Any[GraphicsRect(0, 0, w, h, _BACKGROUND),
         GraphicsRect(_PAD, _PAD, w - 2 * _PAD, h - 2 * _PAD, _BODY_BACKGROUND, 4;
                      border_width=1, border_color=_AXIS),
-        GraphicsText("empty sequence chart", _PAD * 2, h ÷ 2,
-                     font_ubuntu_regular_14, _TEXT)]
+        GraphicsText("empty sequence chart", _PAD * 2, h ÷ 2;
+                     font = font_ubuntu_regular_14, color = _TEXT)]
 end
 
 """

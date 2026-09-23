@@ -439,8 +439,8 @@ function _legend_elements!(out, g)
         end
         push!(out, GraphicsRect(x, cy - 4, _SWATCH, 8, color, 2))
         th = plan.sizes[k][2]
-        push!(out, GraphicsText(label, x + _SWATCH + _LEGEND_GAP, cy - th ÷ 2,
-                                plan.font, text_color))
+        push!(out, GraphicsText(label, x + _SWATCH + _LEGEND_GAP, cy - th ÷ 2;
+                                font = plan.font, color = text_color))
     end
 
     # Whatever did not fit is accounted for rather than silently dropped.
@@ -450,7 +450,7 @@ function _legend_elements!(out, g)
         row = box.shown % box.rows
         x = plan.x + 6 + col * (box.col_w + _LEGEND_GAP)
         y = plan.y + 6 + row * box.row_h
-        push!(out, GraphicsText("… and $hidden more", x, y, plan.font, text_color))
+        push!(out, GraphicsText("… and $hidden more", x, y; font = plan.font, color = text_color))
     end
     out
 end
@@ -599,30 +599,30 @@ function _frame_elements!(out, g)
         (py - 1 <= y <= py + ph + 1) || continue
         push!(out, GraphicsLine(px - _TICK, y, px, y, _AXIS))
         tw, th = g.ysizes[i]
-        push!(out, GraphicsText(g.ylabels[i], px - _TICK - _LABEL_GAP - tw, y - th ÷ 2,
-                                g.axis_font, text_color))
+        push!(out, GraphicsText(g.ylabels[i], px - _TICK - _LABEL_GAP - tw, y - th ÷ 2;
+                                font = g.axis_font, color = text_color))
     end
     for i in eachindex(g.xlabels)
         x = round(Int, to_pixel(g.xs, g.xticks[i]))
         (px - 1 <= x <= px + pw + 1) || continue
         push!(out, GraphicsLine(x, py + ph, x, py + ph + _TICK, _AXIS))
         tw, _ = g.xsizes[i]
-        push!(out, GraphicsText(g.xlabels[i], x - tw ÷ 2, py + ph + _TICK + _LABEL_GAP,
-                                g.axis_font, text_color))
+        push!(out, GraphicsText(g.xlabels[i], x - tw ÷ 2, py + ph + _TICK + _LABEL_GAP;
+                                font = g.axis_font, color = text_color))
     end
 
     _selection_elements!(out, g)
 
     isempty(g.title) ||
-        push!(out, GraphicsText(g.title, px, _PAD, g.title_font, text_color))
+        push!(out, GraphicsText(g.title, px, _PAD; font = g.title_font, color = text_color))
     # No rotated text: the backends only honour the translate+scale subset of an
     # affine transform, so the y-axis title sits above the axis rather than
     # running up its side.
     isempty(g.y_title) ||
-        push!(out, GraphicsText(g.y_title, px, _PAD + g.title_h, g.axis_font, text_color))
+        push!(out, GraphicsText(g.y_title, px, _PAD + g.title_h; font = g.axis_font, color = text_color))
     isempty(g.x_title) ||
-        push!(out, GraphicsText(g.x_title, px + pw ÷ 2, g.h - _PAD - g.x_title_h + 2,
-                                g.axis_font, text_color))
+        push!(out, GraphicsText(g.x_title, px + pw ÷ 2, g.h - _PAD - g.x_title_h + 2;
+                                font = g.axis_font, color = text_color))
     out
 end
 
@@ -1032,8 +1032,8 @@ function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
             (tw + 6 <= r - l && th + 2 <= height) || continue
             color = strip_state_color(s, code, cycle)
             push!(out, GraphicsText(name, l - ox + (r - l - tw) ÷ 2,
-                                    top - oy + (height - th) ÷ 2,
-                                    g.axis_font, _strip_label_color(color)))
+                                    top - oy + (height - th) ÷ 2;
+                                    font = g.axis_font, color = _strip_label_color(color)))
         end
     end
     out
@@ -1109,7 +1109,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
         strip = _strip_readout(g, cursor[1], cy + g.plot_y)
         label = strip === nothing ?
             string(format_tick(cursor[1]), ", ", format_tick(cursor[2])) : strip
-        push!(out, GraphicsText(label, cx + 6, cy - 18, g.axis_font, text_color))
+        push!(out, GraphicsText(label, cx + 6, cy - 18; font = g.axis_font, color = text_color))
         return out
     end
 
@@ -1125,7 +1125,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     lx = px + tw + 12 > g.plot_w ? px - tw - 8 : px + 8
     push!(out, GraphicsRect(lx - 4, py - th - 8, tw + 8, th + 6,
                             _PLOT_BACKGROUND, 3; border_width=1, border_color=_AXIS))
-    push!(out, GraphicsText(label, lx, py - th - 5, g.axis_font, text_color))
+    push!(out, GraphicsText(label, lx, py - th - 5; font = g.axis_font, color = text_color))
     out
 end
 
@@ -1240,7 +1240,7 @@ function _empty_elements(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, ctx)
     Any[GraphicsRect(0, 0, w, h, _BACKGROUND),
         GraphicsRect(_PAD, _PAD, w - 2 * _PAD, h - 2 * _PAD, _PLOT_BACKGROUND, 4;
                      border_width=1, border_color=_AXIS),
-        GraphicsText("empty chart", _PAD * 2, h ÷ 2, font_ubuntu_regular_14, _TEXT)]
+        GraphicsText("empty chart", _PAD * 2, h ÷ 2; font = font_ubuntu_regular_14, color = _TEXT)]
 end
 
 # A chart part is not a cursor position: there is nowhere in the canvas for a
