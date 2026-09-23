@@ -720,6 +720,9 @@ the six known failures; the naming, argument and tree guards pass.
       Deferred by the owner on 2026-09-23. Also for that step: omnet-julia's
       tests call `focus_pane!` with paths from the tree, and its window
       instructions describe the printed program of `show_layout`.
+      **Waits for plan `an-editor-is-made-before-its-loop-runs`:** the campaign
+      window and the IDE do their start-up work in `on_start`, before the first
+      print, where a verb that reads through the readers can not run.
 - [x] The guides: `selection.md`, `clipboard.md`, `pane.md`, and a guide for
       the route and `read_rooted_operation` (a section in `editor.md`, with a
       pointer from `projection-system.md`). The seal audit also named
