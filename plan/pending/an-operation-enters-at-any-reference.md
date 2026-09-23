@@ -75,11 +75,12 @@ PAR-NO-NEW-SYNTHETIC-EVENT because of it.
 
 ## 2. The idea
 
-**An interaction is a gesture at a place in the projection state, and the reader
-pipeline is its only interpreter.** The editor loop is one source of such pairs:
-it takes the place from the backend (a window and a coordinate) or from the
-selection. Every other source gives a place and a gesture, and the pipeline does
-the rest in the same way.
+**An interaction enters at a place in the projection state, and the reader
+pipeline is the only way from there to the root.** The editor loop gives a
+gesture, and takes the place from the backend (a window and a coordinate) or
+from the selection. Code that already knows what it wants gives an operation
+and the place (§3). In both cases the readers on the way out do the rest in the
+same way.
 
 The readers route in two ways now:
 
@@ -90,9 +91,9 @@ The readers route in two ways now:
 
 This plan makes the path of the routing by selection an input. By default it is
 the selection, so the editor loop does what it does now. A caller can give
-another path. So a gesture reaches a place that the selection does not name,
-such as a pane that is not in focus, and it is still read by the readers of the
-whole pipeline.
+another path. So an operation reaches a place that the selection does not
+name, such as a pane that is not in focus, and the readers of the whole
+pipeline still lift it.
 
 The call direction is why a route is needed. A reader runs only when the reader
 that encloses it calls it, and the operation comes back out through each
