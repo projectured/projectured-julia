@@ -94,13 +94,13 @@ function make_cell_struct_plan(structdef)
 end
 
 """
-    add_cell_struct_field!(plan, name, type, default) -> CellStructPlan
+    add_cell_struct_field!(plan, name; type, default) -> CellStructPlan
 
 Append a field the caller supplies rather than one written in the source `struct`
 — it lands last, in the body and in the plan alike. The body slot is a
 placeholder; `retype_cell_struct_fields!` writes the field's real cell type into it.
 """
-function add_cell_struct_field!(plan::CellStructPlan, name::Symbol, type, default)
+function add_cell_struct_field!(plan::CellStructPlan, name::Symbol; type, default)
     body = plan.structdef.args[3]
     push!(body.args, :($(name)::Any))
     push!(plan.field_names, name)
