@@ -578,26 +578,26 @@ function _frame_elements!(out, g)
         for t in g.yticks
             y = round(Int, to_pixel(g.ys, t))
             (py <= y <= py + ph) || continue
-            push!(out, GraphicsLine(px, y, px + pw, y, grid_color; dash=(2, 3)))
+            push!(out, GraphicsLine(px, y, px + pw, y; color = grid_color, dash=(2, 3)))
         end
     end
     if grid_x !== :none
         for t in g.xticks
             x = round(Int, to_pixel(g.xs, t))
             (px <= x <= px + pw) || continue
-            push!(out, GraphicsLine(x, py, x, py + ph, grid_color; dash=(2, 3)))
+            push!(out, GraphicsLine(x, py, x, py + ph; color = grid_color, dash=(2, 3)))
         end
     end
 
     # The two axis lines, drawn over the grid.
-    push!(out, GraphicsLine(px, py + ph, px + pw, py + ph, _AXIS))
-    push!(out, GraphicsLine(px, py, px, py + ph, _AXIS))
+    push!(out, GraphicsLine(px, py + ph, px + pw, py + ph; color = _AXIS))
+    push!(out, GraphicsLine(px, py, px, py + ph; color = _AXIS))
 
     # Tick marks and their labels.
     for i in eachindex(g.ylabels)
         y = round(Int, to_pixel(g.ys, g.yticks[i]))
         (py - 1 <= y <= py + ph + 1) || continue
-        push!(out, GraphicsLine(px - _TICK, y, px, y, _AXIS))
+        push!(out, GraphicsLine(px - _TICK, y, px, y; color = _AXIS))
         tw, th = g.ysizes[i]
         push!(out, GraphicsText(g.ylabels[i], px - _TICK - _LABEL_GAP - tw, y - th ÷ 2;
                                 font = g.axis_font, color = text_color))
@@ -605,7 +605,7 @@ function _frame_elements!(out, g)
     for i in eachindex(g.xlabels)
         x = round(Int, to_pixel(g.xs, g.xticks[i]))
         (px - 1 <= x <= px + pw + 1) || continue
-        push!(out, GraphicsLine(x, py + ph, x, py + ph + _TICK, _AXIS))
+        push!(out, GraphicsLine(x, py + ph, x, py + ph + _TICK; color = _AXIS))
         tw, _ = g.xsizes[i]
         push!(out, GraphicsText(g.xlabels[i], x - tw ÷ 2, py + ph + _TICK + _LABEL_GAP;
                                 font = g.axis_font, color = text_color))
@@ -656,10 +656,10 @@ end
 # colour across the whole shape and insets the fill on top, so it cannot express
 # "outline only" over content that has to stay visible.
 function _outline!(out, x::Integer, y::Integer, w::Integer, h::Integer)
-    push!(out, GraphicsLine(x, y, x + w, y, _SELECTION_EDGE; width=2))
-    push!(out, GraphicsLine(x, y + h, x + w, y + h, _SELECTION_EDGE; width=2))
-    push!(out, GraphicsLine(x, y, x, y + h, _SELECTION_EDGE; width=2))
-    push!(out, GraphicsLine(x + w, y, x + w, y + h, _SELECTION_EDGE; width=2))
+    push!(out, GraphicsLine(x, y, x + w, y; color = _SELECTION_EDGE, width=2))
+    push!(out, GraphicsLine(x, y + h, x + w, y + h; color = _SELECTION_EDGE, width=2))
+    push!(out, GraphicsLine(x, y, x, y + h; color = _SELECTION_EDGE, width=2))
+    push!(out, GraphicsLine(x + w, y, x + w, y + h; color = _SELECTION_EDGE, width=2))
     out
 end
 
@@ -686,15 +686,15 @@ function _marker!(out, shape::Symbol, x::Int, y::Int, size::Int, color::StyleCol
     elseif shape === :square
         push!(out, GraphicsRect(x - r, y - r, 2r, 2r, color))
     elseif shape === :plus
-        push!(out, GraphicsLine(x - r, y, x + r, y, color))
-        push!(out, GraphicsLine(x, y - r, x, y + r, color))
+        push!(out, GraphicsLine(x - r, y, x + r, y; color))
+        push!(out, GraphicsLine(x, y - r, x, y + r; color))
     elseif shape === :cross
-        push!(out, GraphicsLine(x - r, y - r, x + r, y + r, color))
-        push!(out, GraphicsLine(x - r, y + r, x + r, y - r, color))
+        push!(out, GraphicsLine(x - r, y - r, x + r, y + r; color))
+        push!(out, GraphicsLine(x - r, y + r, x + r, y - r; color))
     elseif shape === :hline
-        push!(out, GraphicsLine(x - r, y, x + r, y, color))
+        push!(out, GraphicsLine(x - r, y, x + r, y; color))
     elseif shape === :vline
-        push!(out, GraphicsLine(x, y - r, x, y + r, color))
+        push!(out, GraphicsLine(x, y - r, x, y + r; color))
     end
     out
 end
@@ -719,7 +719,7 @@ function _line_elements!(out, g, index::Int, s::ChartLineSeries)
     if s.draw_style === :pins
         baseline = round(Int, to_pixel(g.ys, 0.0)) - g.plot_y
         for (x, ytop, ybot) in build_pins_segments(pts, baseline)
-            push!(out, GraphicsLine(x, ytop, x, ybot, color; width=max(s.line_width, 1),
+            push!(out, GraphicsLine(x, ytop, x, ybot; color, width=max(s.line_width, 1),
                                     dash=_dash_pattern(s.line_style)))
         end
     elseif s.draw_style !== :none
@@ -860,8 +860,8 @@ function _bar_elements!(out, g, bar_series)
     # The reference line bars grow from, drawn over them so it stays readable.
     bl = round(Int, baseline)
     if 0 <= bl <= g.plot_h
-        push!(out, GraphicsLine(0, bl, g.plot_w, bl,
-                                _or(chart.bar_baseline_color, _AXIS)))
+        push!(out, GraphicsLine(0, bl, g.plot_w, bl;
+                                color = _or(chart.bar_baseline_color, _AXIS)))
     end
     out
 end
@@ -1098,8 +1098,8 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     cursor === nothing && return out
     cx = round(Int, to_pixel(g.xs, cursor[1])) - g.plot_x
     cy = round(Int, to_pixel(g.ys, cursor[2])) - g.plot_y
-    push!(out, GraphicsLine(cx, 0, cx, g.plot_h, _CROSSHAIR; dash=(3, 3)))
-    push!(out, GraphicsLine(0, cy, g.plot_w, cy, _CROSSHAIR; dash=(3, 3)))
+    push!(out, GraphicsLine(cx, 0, cx, g.plot_h; color = _CROSSHAIR, dash=(3, 3)))
+    push!(out, GraphicsLine(0, cy, g.plot_w, cy; color = _CROSSHAIR, dash=(3, 3)))
 
     snapped = _snap_point(g, cx, cy)
     text_color = _or(g.style.title_color, _TEXT)

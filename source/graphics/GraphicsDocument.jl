@@ -124,7 +124,7 @@ end
 # ── GraphicsLine ───────────────────────────────────────────────────────────
 
 """
-    GraphicsLine(x1, y1, x2, y2, color::StyleColor=color_black; width=1, dash=nothing)
+    GraphicsLine(x1, y1, x2, y2; color::StyleColor=color_black, width=1, dash=nothing)
 
 A reactive straight line from `(x1,y1)` to `(x2,y2)` in `color` (a
 [`StyleColor`](@ref)) with the given stroke `width`. Axis-aligned lines
@@ -152,8 +152,8 @@ _norm_dash(n::Integer) = (Int(n), Int(n))
 _norm_dash(d) = (Int(d[1]), Int(d[2]))
 
 # @positional: the two ends of a line: x, y and x, y.
-function GraphicsLine(x1::Integer, y1::Integer, x2::Integer, y2::Integer,
-                      color::StyleColor=color_black;
+function GraphicsLine(x1::Integer, y1::Integer, x2::Integer, y2::Integer;
+                      color::StyleColor=color_black,
                       width::Integer=1, dash=nothing)
     GraphicsLine(Cell(Int32(x1)), Cell(Int32(y1)), Cell(Int32(x2)), Cell(Int32(y2)),
                  Cell(color),

@@ -500,7 +500,8 @@ function _hairline_elements!(out, g)
         x0, y0 = flow_point(g.frame, flow, cross_lo)
         x1, y1 = flow_point(g.frame, flow, cross_hi)
         push!(out, GraphicsLine(round(Int, x0), round(Int, y0),
-                                round(Int, x1), round(Int, y1), _HAIRLINE, 1, (2, 3)))
+                                round(Int, x1), round(Int, y1);
+                                color = _HAIRLINE, width = 1, dash = (2, 3)))
     end
     out
 end
@@ -516,8 +517,8 @@ function _lane_elements!(out, g)
         x0, y0 = flow_point(g.frame, flow_lo, cross)
         x1, y1 = flow_point(g.frame, flow_hi, cross)
         push!(out, GraphicsLine(round(Int, x0), round(Int, y0),
-                                round(Int, x1), round(Int, y1),
-                                _or(axis.color, default), 1, nothing))
+                                round(Int, x1), round(Int, y1);
+                                color = _or(axis.color, default), width = 1))
     end
     out
 end
@@ -792,7 +793,8 @@ function _cursor_elements!(out, g, plot)
     x0, y0 = flow_point(g.frame, flow, cross_lo)
     x1, y1 = flow_point(g.frame, flow, cross_hi)
     push!(out, GraphicsLine(round(Int, x0), round(Int, y0),
-                            round(Int, x1), round(Int, y1), _SELECTION, 1, (3, 3)))
+                            round(Int, x1), round(Int, y1);
+                            color = _SELECTION, width = 1, dash = (3, 3)))
     out
 end
 

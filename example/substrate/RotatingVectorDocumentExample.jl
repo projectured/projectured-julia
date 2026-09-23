@@ -52,10 +52,10 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
     # chart axes — static, base01 grey. Each wave gets a zero baseline (the time
     # axis) and an amplitude axis spanning ±R, so the oscillation is read against
     # a frame.
-    sin_baseline = GraphicsLine(x_left, cy, x_left + n, cy, color_solarized_content_darker; width = 1)
-    sin_axis     = GraphicsLine(x_left, cy - r, x_left, cy + r, color_solarized_content_darker; width = 1)
-    cos_baseline = GraphicsLine(cx, y_top, cx, y_top + n, color_solarized_content_darker; width = 1)
-    cos_axis     = GraphicsLine(cx - r, y_top, cx + r, y_top, color_solarized_content_darker; width = 1)
+    sin_baseline = GraphicsLine(x_left, cy, x_left + n, cy; color = color_solarized_content_darker, width = 1)
+    sin_axis     = GraphicsLine(x_left, cy - r, x_left, cy + r; color = color_solarized_content_darker, width = 1)
+    cos_baseline = GraphicsLine(cx, y_top, cx, y_top + n; color = color_solarized_content_darker, width = 1)
+    cos_axis     = GraphicsLine(cx - r, y_top, cx + r, y_top; color = color_solarized_content_darker, width = 1)
 
     # The animated elements use the cell-level positional constructor, which wraps
     # each argument in a `Cell`: a `ComputedCell` stays one, a plain value becomes a

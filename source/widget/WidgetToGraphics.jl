@@ -5214,8 +5214,8 @@ function print_document(p::WidgetSeparatorToGraphicsCanvas, recursion, w::Widget
             line_length = outer_height - inset_height
             outer_width = thickness + inset_width
             _push_box_parts!(elements, box, colors, thickness, line_length)
-            push!(elements, GraphicsLine(content_x, content_y, content_x, content_y + line_length,
-                                         divider_stroke.color; width=thickness))
+            push!(elements, GraphicsLine(content_x, content_y, content_x, content_y + line_length;
+                                         color = divider_stroke.color, width=thickness))
             (width=outer_width, height=outer_height, elements=elements)
         else
             outer_width = _resolve_width(ctx, rule_length > 0 ? rule_length + inset_width : 0,
@@ -5223,8 +5223,8 @@ function print_document(p::WidgetSeparatorToGraphicsCanvas, recursion, w::Widget
             line_length = outer_width - inset_width
             outer_height = thickness + inset_height
             _push_box_parts!(elements, box, colors, line_length, thickness)
-            push!(elements, GraphicsLine(content_x, content_y, content_x + line_length, content_y,
-                                         divider_stroke.color; width=thickness))
+            push!(elements, GraphicsLine(content_x, content_y, content_x + line_length, content_y;
+                                         color = divider_stroke.color, width=thickness))
             (width=outer_width, height=outer_height, elements=elements)
         end
     end))
@@ -7087,7 +7087,7 @@ function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSp
         sx = content_x + content_width - stepper_w
         sy = content_y - padding_top
         dw = max(1, _sc(divider_stroke.width))
-        push!(elements, GraphicsLine(sx, sy, sx, sy + stepper_w, divider_stroke.color; width=dw))
+        push!(elements, GraphicsLine(sx, sy, sx, sy + stepper_w; color = divider_stroke.color, width=dw))
         isz = max(8, stepper_w ÷ 2 - _sc(3))
         ix = sx + (stepper_w - isz) ÷ 2
         _push_icon!(elements, :plus,  ix, sy + (stepper_w ÷ 2 - isz) ÷ 2, isz, step_color)
@@ -7510,7 +7510,7 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
                 y += body_height + item_padding_y
             end
             push!(row_elements, GraphicsLine(content_x, content_y + y, content_x + content_width,
-                                             content_y + y, divider_stroke.color; width=divider_width))
+                                             content_y + y; color = divider_stroke.color, width=divider_width))
         end
         outer_height = _resolve_height(ctx, 0, y + inset_height)
         elements = Any[]
