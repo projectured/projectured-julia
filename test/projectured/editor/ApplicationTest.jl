@@ -669,7 +669,7 @@ function test_application()
                 toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
                 button = only(item for item in toolbar.elements
                               if string(item.action.label) == "Evaluator")
-                evaluate_operation(editor, InvokeActionOperation(button.action))
+                _app_apply!(editor, InvokeActionOperation(button.action))
                 (group, index) = get_pane_focus(_app_window(document))
                 evaluator = get_wrapped_document(group.tabs[index].content)
                 # A press on the box before "Structured forms" turns the option on,
@@ -724,7 +724,7 @@ function test_application()
                 toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
                 button = only(item for item in toolbar.elements
                               if string(item.action.label) == "Evaluator")
-                evaluate_operation(editor, InvokeActionOperation(button.action))
+                _app_apply!(editor, InvokeActionOperation(button.action))
                 (group, index) = get_pane_focus(_app_window(document))
                 evaluator = get_wrapped_document(group.tabs[index].content)
                 (sx, sy) = only(at("Structured forms"))
@@ -783,7 +783,7 @@ function test_application()
                     toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
                     button = only(item for item in toolbar.elements
                                   if string(item.action.label) == "Evaluator")
-                    evaluate_operation(editor, InvokeActionOperation(button.action))
+                    _app_apply!(editor, InvokeActionOperation(button.action))
                     (group, index) = get_pane_focus(_app_window(document))
                     evaluator = get_wrapped_document(group.tabs[index].content)
                     # A tool that the toolbar opens leaves the complete selection
