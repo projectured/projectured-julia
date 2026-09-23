@@ -39,18 +39,22 @@ const _PROMPT_ERROR_STYLE = StyleText(font_ubuntu_monospace_regular_20, color_de
 # character of one monospace font, so the column has one width.
 #
 # A fresh form holds an empty result, and it shows no `=` row until it has one.
+#
+# The rows fill the width of the form, and in a row the prompt keeps the width of
+# its one character while the document fills the rest. So a document that breaks
+# its lines, as prose does, breaks them at the edge of the pane that shows it.
 
 function print_document(projection::EvaluatorFormToVerticalLayout,
                           recursion, form::EvaluatorForm, ctx)
-    code_prompt   = WidgetLabel(Point2D(0, 0), ">"; text_style = _PROMPT_STYLE)
-    result_prompt = WidgetLabel(Point2D(0, 0), "="; text_style = _PROMPT_STYLE)
-    error_prompt  = WidgetLabel(Point2D(0, 0), "="; text_style = _PROMPT_ERROR_STYLE)
+    code_prompt   = _make_prompt(">", _PROMPT_STYLE)
+    result_prompt = _make_prompt("=", _PROMPT_STYLE)
+    error_prompt  = _make_prompt("=", _PROMPT_ERROR_STYLE)
     code_row = _make_prompt_row(() -> Any[code_prompt, form.form])
     result_row = _make_prompt_row(() -> Any[form.is_error === true ? error_prompt : result_prompt,
                                             form.result])
     rows = (code_row, result_row)
     output = VerticalLayout(ComputedCellVector(() -> _has_result(form) ? Any[rows...] : Any[code_row]),
-                            Cell(:left), Cell(_ROW_GAP), Cell(nothing), Cell(nothing), Cell(nothing))
+                            Cell(:left), Cell(_ROW_GAP), Cell(Fill), Cell(nothing), Cell(nothing))
     iomap = SimpleIoMap(projection, form, output)
     _follow_selection!(output, form, projection, iomap, Any[])
     for (_, index) in _FORM_ROWS
@@ -63,9 +67,12 @@ end
 _is_plain_left_press(event) =
     event isa MousePress && event.button === :left && event.modifiers == ModifierKeys()
 
+_make_prompt(text, style) =
+    LayoutConstraint(WidgetLabel(Point2D(0, 0), text; text_style = style); width = Content)
+
 _make_prompt_row(children::Function) =
     HorizontalLayout(ComputedCellVector(children), Cell(:top), Cell(_PROMPT_GAP),
-                     Cell(nothing), Cell(nothing), Cell(nothing))
+                     Cell(Fill), Cell(nothing), Cell(nothing))
 
 _has_result(form::EvaluatorForm) = !(form.result isa TextBlock && isempty(form.result.elements))
 

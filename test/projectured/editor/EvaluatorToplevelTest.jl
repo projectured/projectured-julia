@@ -255,6 +255,30 @@ end
     @test form.source == "x = 1 + 2"
 end
 
+@testset "a string form and a result wrap in the width that the tab offers" begin
+    # Forty numbers are wider than the offer, as in a tab that a split made narrow.
+    # A Julia form keeps the layout of its code and never wraps, so with the parse
+    # on, only its result is checked.
+    code = "y = (" * join(1:40, ", ") * ")"
+    for parse in (true, false)
+        toplevel = make_insertion_document(EvaluatorToplevel)
+        toplevel.parse_evaluated_forms = parse
+        toplevel.elements[1].form.value = code
+        evaluate_operation(editor(toplevel), read_gesture(toplevel, enter()))
+        # The application draws a string form and a Julia form as it draws a tab.
+        renderer = NaturalToGraphics(measure = _stub,
+                                     extra = make_application_content_projections(measure = _stub))
+        canvas = get_iomap_output(print_document(renderer, nothing, toplevel,
+                     PrinterContext(EmptyReference(), Cell(500), Cell(400), Dict{Symbol,Any}())))
+        everything = placed(canvas)
+        prompt_x = minimum(x for (text, x, _) in everything if text == ">")
+        first_y = minimum(y for (text, x, y) in everything if text == (parse ? "=" : ">") && x == prompt_x)
+        # `_stub` measures 10 pixels for each character.
+        right_edges = [x + 10 * length(text) for (text, x, y) in everything if y >= first_y]
+        @test maximum(right_edges) <= 500
+    end
+end
+
 @testset "a form whose parse would change more than spacing keeps its string" begin
     # A comment has no place in the Julia document, and the print gives a lambda
     # parentheses that were not typed: both forms keep what was typed.
