@@ -473,12 +473,18 @@ Important before less important, and within the same importance, easy before har
 
 **Stage 1: important and small (A, S).** Each item is one function or one script.
 
-- [ ] F4: call the action's callback with `Base.invokelatest`, for the `applicable` check and for the call, in `evaluate_operation(::InvokeActionOperation)` (`source/widget/WidgetDocument.jl`, not sealed). A test builds a button in a newer world than the editor and presses it.
-- [ ] F6 and X1: `list_functions` and `list_types` answer from the declared API, as `list_modules` does. Then test the wider API with qwen, only when 47 GB is available (§6).
-- [ ] V1: a form that changes the picture returns nothing, so one row holds the live object. Or the object gets a tab of its own beside the evaluator, which A3 decides.
-- [ ] V2: the forms type with the rhythm of D13.
-- [ ] V3: the timeline presses the Evaluator button of the toolbar.
-- [ ] Record S1 and S4 again.
+- [x] F4: call the action's callback with `Base.invokelatest`, for the `applicable` check and for the call, in `evaluate_operation(::InvokeActionOperation)` (`source/widget/WidgetDocument.jl`, not sealed). A test builds a button in a newer world than the editor and presses it. Commit 93241b99. The test failed 2 of 2 before the change; `test_widget_action()` passes 45 of 45 after it, and the button tests pass.
+- [x] F6: `list_functions` and `list_types` take the API, as `list_modules` does, list only the declared names, and are bound in a declared scratch namespace with the declaration applied. Commit e563e9d6. `test_declared_api()` passes 117 of 117, and the listing tests of the MCP suite pass.
+- [x] X1, the code: the application declares `search_documents`, `get_wrapped_document`, `get_file_content`, `print_natural_text` and `parse_natural_text`, its system prompt names the path to a tab's text, and `print_natural_text(::FileDocument)` answers the text of what a file holds. Commit 90f63b5c. `test_application()` passes 139 of 139. One of its checks used `print_document` as a name the declared surface refuses; `print_natural_text` names it in its docstring, so the check now uses `read_intent`.
+- [ ] X1, the test with qwen: only when 47 GB is available (§6). The machine had 43 GB on 2026-09-23.
+- [x] The recorder starts the application as the application does. `record_application_video` ran the start of the window tools and not the start of the application, so a recorded assistant had no declared API and no undo tools; the take of S2 on 2026-09-22 ran that way. The start is public as `start_application!`, and the recorder calls it. Commits 90f63b5c and ef3a45b8.
+- [x] V3: the timeline presses the Evaluator button of the toolbar, at (50, 38) of a window with no assistant pane. With no file open, the evaluator lands in the narrow column of the navigator, so the takes still open `notes.json` (A7).
+- [x] V1: the object gets a pane of its own with existing keys, and every later form returns nothing. `Alt+click` selects the object in its result row (for the tool, `Alt+Up` then selects the layout around the button), `Ctrl+N` notes it, `Ctrl+\` splits the window, `Ctrl+V` pastes the same object into the new pane, `F2` names the pane, `Ctrl+Alt+Left` brings the focus back, and `Down` moves the caret from the selected object into the fresh prompt. A plain click on the prompt does nothing, because a click selects only where a projection wires it, and without the `Down` the next Enter evaluates the selected form again. A form that returns `nothing` shows `= Done.`.
+- [x] V2: the forms type with the rhythm of D13. S1 then lasts about 4 min 15 s, which is over D5. Only a shorter constructor (A1) or fewer parts bring it under 3 min.
+- [x] S4 gets its pointer beats back: with F4 fixed, three presses of the button in the tool's own pane count, and the label and the table follow. The slider and the name are still written from the evaluator, because F5 is not proven.
+- [x] Record S1 and S4 again, and give them to the owner (2026-09-23). S1: 254.9 s, 3.9 MB, thirteen forms, each run once, and the picture grows in a pane named "Picture". S4: 166.9 s, 1.6 MB, eleven forms, then three presses of the button in the pane "My tool"; the label says "Pressed 3 times" and the table follows. The files are `build/video/rotating_vector.mp4` and `build/video/widget_tool.mp4`.
+
+  A new small finding (C): in S4 the tab strip draws the `+` of the group above the `×` of the tab "My tool", in a narrow group. In S1 the strip of the pane "Picture" draws them side by side.
 
 **Stage 2: important, one slice each (A, M).**
 
