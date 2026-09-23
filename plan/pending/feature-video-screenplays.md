@@ -223,7 +223,7 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 - **Setup:** the single-document recorder (`record_live_example`), 900×720. The application window is not possible while F1 stands, so this video has no menu bar, no toolbar and no tabs.
 - **The take of 2026-09-22.** Recorded: 900×720, 767 frames, 25.6 s, 92 KB, with the human rhythm of D13. The build is `{"name": "Alice", "age": 30, "city": "Wonderland", "address": {"street": "12 Rabbit Lane", "zip": "12345"}}`, and every one of its 84 keys answers an operation, which the script checks headless before it records.
 
-  **What the build must obey, while F2 and F3 stand:** a value is left with `Alt+Up` and never with `Right`; a nested object comes last, because the build can not come out of it again. A number value works when the entry before it was left that way.
+  **The take of 2026-09-23, caret only.** With F2 and F3 fixed (`structural-keys-from-the-caret.md`), on the branch rebased on `main` at cc041a4f: 900×720, 1014 frames, 33.8 s, 134 KB, `build/video/json_from_nothing_caret.mp4`. The build is `{"name": "Alice", "age": 30, "city": "Wonderland", "address": {"street": "12 Rabbit Lane", "zip": "12345"}, "tags": ["admin", "editor"], "active": true}`, and all 123 keys answer an operation. No key selects structure: `Right` leaves a string, a `,` after a number adds the next entry at once, and five presses of `Right` carry the caret from the last string of `"address"` and of `"tags"` past the closing `}` or `]`, where the `,` adds the next root entry. A bool comes last, because the caret can not leave a bool (F7).
 
 - **Beats that wait for F1:** the three below need the window of the application, so they are not in this take.
 
@@ -386,6 +386,7 @@ The number of the frames follows the wall clock, so one second of the session is
 
 - [x] Find a build that works today, and check it headless before recording. F2 and F3 rule the shape: `Alt+Up` leaves a value, and a nested object comes last.
 - [x] Record it: 25.6 s, 900×720, 84 keys, none of them dead (2026-09-22).
+- [x] Record it again with the caret only, after F2 and F3: 33.8 s, 900×720, 123 keys, none of them dead (2026-09-23).
 - [ ] When F1 is fixed, move the video into the application window and add the beats of F1, the command palette and Ctrl+Z.
 
 ### Step 4: S4, a tool window from widgets
@@ -493,7 +494,7 @@ Important before less important, and within the same importance, easy before har
 
 - [ ] G3: the overlay of the recording: the pointer, a ring at each press, the name of each key for about one second, and the caption bar of the timeline. It is drawn over the frame in `write_to_devices`, so nothing of it enters the document of the application.
 - [ ] F5: with the pointer visible, check the drag of a slider and a character in a text field. The item becomes a fault or goes away.
-- [ ] F2 and F3: the structural navigation of JSON. The `json_build` live example is the test, and it builds its whole document again.
+- [x] F2 and F3: the structural navigation of JSON. The `json_build` live example is the test, and it builds its whole document again. Done in `structural-keys-from-the-caret.md` (2026-09-23): a claim that no stage can carry is no claim, an introduced position stands at the innermost node, and a container leaves a `,` on its closing delimiter to its parent. `json_build_live` builds with `Right` and no `Alt+Up`; F7 came out of it.
 - [ ] Record S1 and S4 again with the overlay, and S4 with its pointer beats back.
 
 **Stage 3: important, the cause not known (A, L).**
