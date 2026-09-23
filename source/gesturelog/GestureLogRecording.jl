@@ -59,7 +59,9 @@ function read_intent(p::GestureLogRecordingProjection, recursion, change::Intent
     child = read_intent(p.inner, recursion, change, iomap.inner_iomap)
     operation = child isa Intent ? child.operation : child
     if operation isa Operation && p.filter(change.gesture, operation)
-        record_gesture!(p.log, change.gesture, operation)
+        # Code that acts with no gesture says in the description what it did.
+        record_gesture!(p.log, change.gesture === nothing ? change.description : change.gesture,
+                        operation)
     end
     child
 end

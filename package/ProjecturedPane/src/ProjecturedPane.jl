@@ -33,6 +33,7 @@ const OperationModule = ProjecturedKernel.OperationModule
 const DraggingModule = ProjecturedDragging.DraggingModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const EventModule = ProjecturedKernel.EventModule
+const EditorModule = ProjecturedKernel.EditorModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IntentModule = ProjecturedKernel.IntentModule
 const WidgetModule = ProjecturedWidget.WidgetModule

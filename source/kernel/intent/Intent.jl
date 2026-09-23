@@ -21,11 +21,18 @@ in two coordinate frames:
   document's own rule, the slice or projection name for a projection's own.
   Empty groups under one fallback heading, which is how an unlabelled reader makes
   itself visible.
+- `route` — `nothing` for a change that a gesture starts. For an operation that
+  code already made, the path from the current reader's input to the place the
+  operation is relative to; the gesture is then `nothing`. A reader that passes
+  the change to a child gives it the route that remains below that child
+  ([`follow_intent_route`](@ref)); where the route is empty, the child is the
+  place, and its parent takes the operation as the child's answer. On the way
+  up, an answer carries no route.
 
 A reader returns an `Intent`: it either keeps `operation === nothing` (it had
 nothing to say) or returns a fresh `Intent` with the gesture preserved and a real
 operation swapped in (cf. Lisp's `clone-command`; the original names this
-type `command`, and carries exactly these four fields).
+type `command`).
 
 **A reader that reroots an operation must preserve the labels.** Rerooting changes
 where an operation points, never what it is called.
@@ -35,10 +42,31 @@ struct Intent
     operation::Any
     description::String
     domain::String
+    route::Union{Nothing,Reference}
 end
 
-Intent(gesture) = Intent(gesture, nothing, "", "")
-Intent(gesture, operation) = Intent(gesture, operation, "", "")
+Intent(gesture) = Intent(gesture, nothing, "", "", nothing)
+Intent(gesture, operation) = Intent(gesture, operation, "", "", nothing)
+# @positional: the fields of the carrier in their order, as its own constructor
+# takes them, for a change that has no route.
+Intent(gesture, operation, description::AbstractString, domain::AbstractString) =
+    Intent(gesture, operation, String(description), String(domain), nothing)
+
+"""
+    follow_intent_route(change, steps...) -> Intent | Nothing
+
+`change` with the route that remains after `steps`: what a reader gives the child
+that `steps` reach from its input. `nothing` when the route of `change` does not
+start with `steps`, so that child is not on the way to the place.
+"""
+function follow_intent_route(change::Intent, steps::ReferenceStep...)
+    route = change.route
+    for step in steps
+        route isa ConcreteReference && get_reference_head(route) == step || return nothing
+        route = get_reference_tail(route)
+    end
+    Intent(change.gesture, change.operation, change.description, change.domain, route)
+end
 
 """
     with_intent_labels(intent, description, domain) -> Intent
@@ -47,7 +75,7 @@ Intent(gesture, operation) = Intent(gesture, operation, "", "")
 that builds an operation does not have to remember the field order.
 """
 with_intent_labels(intent::Intent, description::AbstractString, domain::AbstractString) =
-    Intent(intent.gesture, intent.operation, String(description), String(domain))
+    Intent(intent.gesture, intent.operation, String(description), String(domain), intent.route)
 
 """
     ClaimedGesture(gesture, operation)

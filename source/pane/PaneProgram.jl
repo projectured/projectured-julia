@@ -106,7 +106,7 @@ make_pane_api() = Any[
     # that set is in a pane or in a hand.
     PaneModule => (:show_layout, :get_window_tree, :get_referenced_value,
                           :replace_referenced_value!, :open_pane!, :focus_pane!,
-                          :duplicate_pane!, :describe_document),
+                          :find_pane_reference, :duplicate_pane!, :describe_document),
     PaneModule      => (:PaneTree, :PaneSplit, :PaneGroup, :PaneTab),
     LayoutModule    => (:GridLayout, :HorizontalLayout, :VerticalLayout,
                         :FlowLayout, :StackLayout),
@@ -576,9 +576,9 @@ that is open behind another.
 
 # Example
 
-    focus_pane!(editor, @reference(window, root.elements[1].tabs[2]))
+    focus_pane!(editor, find_pane_reference(editor, "Files"))
 
-See also `open_pane!`, `show_layout`.
+See also `find_pane_reference`, `open_pane!`, `show_layout`.
 
 **Focus is a thing a replace cannot say.** A change to a layout is a value
 written at a reference — a pane moved, a split resized, a tab closed, what a
@@ -586,25 +586,78 @@ pane holds — and [`replace_referenced_value!`](@ref) is that verb. Focus is no
 a value in the tree; it is the selection, which is why it keeps a word of its
 own. [`duplicate_pane!`](@ref) is the other word.
 
-The reference is what [`open_pane!`](@ref) answered, or one the program
-[`show_layout`](@ref) printed.
+The reference is complete: it starts at the root of the editor's document, and
+[`find_pane_reference`](@ref) answers one. The focus is made through the readers
+of the editor and evaluated at once, so every document from the root down holds
+its part of the new selection. A caller that holds a tree and no editor passes
+the tree, and a reference from the tree.
 """
 function focus_pane!(editor, reference::Reference)
-    tree = get_window_tree(editor)
     _refuse_stale(reference)
-    group, index = _pane_referenced(tree, reference)
-    operation = make_pane_focus_operation(tree, group, index)
+    operation = make_focus_pane_operation(editor, reference)
     operation === nothing &&
         throw(ArgumentError("The window can not focus that pane."))
-    apply_pane_operation!(tree, operation)
+    _evaluate_pane_operation!(editor, operation)
     show_layout(editor)
 end
+
+focus_pane!(_, ::Nothing) =
+    throw(ArgumentError("No pane has that name, so there is no pane to focus."))
+
+"""
+    make_focus_pane_operation(editor, reference::Reference) -> Operation | Nothing
+
+The operation that gives the focus to the pane `reference` names, from the root
+of the editor's document: made at the pane tree, and carried to the root by the
+readers of the editor ([`read_rooted_operation`](@ref)). It evaluates nothing.
+`nothing` when the window can not focus that pane.
+
+See also `focus_pane!`, which makes it and evaluates it at once.
+"""
+function make_focus_pane_operation(editor, reference::Reference)
+    root = _get_root_document(editor)
+    found = _find_pane_tree_route(root, reference)
+    found === nothing &&
+        throw(ArgumentError("That reference names nothing inside a pane tree."))
+    route, tree = found
+    group, index = _find_pane_position(tree, try_evaluate_reference(root, reference, nothing))
+    operation = make_pane_focus_operation(tree, group, index)
+    (operation === nothing || tree === root) && return operation
+    read_rooted_operation(editor, route, operation;
+                          description = "Focus the pane " * get_pane_tab_title_string(group.tabs[index]))
+end
+
+# The document that a complete reference starts at: the editor's document, or
+# the tree itself for a caller that holds a tree.
+_get_root_document(tree::PaneTree) = tree
+_get_root_document(editor) = getfield(editor, :document)
+
+# The route to the pane tree that holds what `reference` names, and that tree:
+# the longest prefix of `reference` that ends at a `PaneTree`, so the nearest
+# tree when one tree holds another in a tab. `nothing` when no tree is on the
+# path. It follows only the path it is given.
+function _find_pane_tree_route(root, reference::Reference)
+    steps = collect(get_reference_steps(strip_reference_types(reference)))
+    for n in length(steps):-1:0
+        prefix = foldr(ConcreteReference, steps[1:n]; init = EmptyReference())
+        node = try_evaluate_reference(root, prefix, nothing)
+        node isa PaneTree && return (annotate_reference_types(root, prefix), node)
+    end
+    nothing
+end
+
+# A pane edit, evaluated where its path starts: on the tree for a caller that
+# holds the tree, else by the editor at the root.
+_evaluate_pane_operation!(tree::PaneTree, operation) = apply_pane_operation!(tree, operation)
+_evaluate_pane_operation!(editor, operation) = evaluate_operation(editor, operation)
 
 # Which group holds the tab a reference names, and where in it. By identity: a
 # reference resolves to the tab object, and the tab object is in exactly one
 # group however the tree was rearranged since.
-function _pane_referenced(tree::PaneTree, reference::Reference)
-    tab = evaluate_reference(tree, reference)
+_pane_referenced(tree::PaneTree, reference::Reference) =
+    _find_pane_position(tree, evaluate_reference(tree, reference))
+
+function _find_pane_position(tree::PaneTree, tab)
     tab isa PaneTab ||
         throw(ArgumentError("That reference names " *
                             (tab === nothing ? "nothing" :
@@ -615,6 +668,65 @@ function _pane_referenced(tree::PaneTree, reference::Reference)
     end
     throw(ArgumentError("That pane is no longer in the window."))
 end
+
+# ── Finding a pane ──────────────────────────────────────────────────────────
+
+"""
+    find_pane_reference(editor, title; descend = is_pane_search_step) -> Reference | Nothing
+
+The complete reference, from the root of the editor's document, of the pane
+whose title is `title`, in any window. `nothing` when no pane has that title.
+When two panes have it, an `ArgumentError` names both, so the caller can choose.
+
+Use it to name a pane for a verb.
+
+# Example
+
+    files = find_pane_reference(editor, "Files")
+    focus_pane!(editor, files)
+
+The search goes down only into the documents that can hold a pane
+([`is_pane_search_step`](@ref)); `descend` names another rule.
+"""
+function find_pane_reference(editor, title::AbstractString; descend = is_pane_search_step)
+    found = search_references(_get_root_document(editor),
+                              node -> node isa PaneTab && get_pane_tab_title_string(node) == title;
+                              descend)
+    isempty(found) && return nothing
+    length(found) == 1 && return only(found)
+    throw(ArgumentError(string(length(found), " panes are called \"", title, "\": ",
+                               join(string.(found), ", "), ". Name one of them by its reference.")))
+end
+
+"""
+    is_pane_search_step(parent, child) -> Bool
+
+Whether a search for a pane goes from `parent` into `child`. It goes into a
+document that can hold a pane, and into nothing else:
+
+- from a wrapper (a history, a clipboard, a shell), only towards the document it
+  wraps, and never into its history, its stored copy or its bars;
+- from a pane tab or a widget, only into a pane, a widget, a collection or a
+  wrapper;
+- from any other document, into a document.
+
+So it does not walk the content of a file, or the actions and the types that a
+widget holds.
+"""
+function is_pane_search_step(parent, child)
+    child isa Document || return false
+    wrapped = get_wrapped_document(parent)
+    if wrapped !== parent
+        get_wrapped_document(child) === wrapped || return false
+        return child !== wrapped || _can_hold_pane(child)
+    end
+    parent isa Union{PaneTab,WidgetDocument} && return _can_hold_pane(child)
+    true
+end
+
+_can_hold_pane(document) =
+    document isa Union{PaneDocument,WidgetDocument,CellVector} ||
+    get_wrapped_document(document) !== document
 
 # ── The duplicate ───────────────────────────────────────────────────────────
 

@@ -84,7 +84,7 @@ using ..ReferenceModule
 using ..SelectionModule
 
 export Projection, print_document, print_child, print_document_pure, print_child_pure,
-       read_intent, map_reference_forward, map_reference_backward
+       read_intent, map_reference_forward, map_reference_backward, read_routed_intent
 export @projection, print_pure
 export ProjectionReferenceStep, make_introduced_reference, is_introduced_reference,
        normalize_named_node_reference

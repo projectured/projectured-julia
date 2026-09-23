@@ -70,6 +70,35 @@ function read!(editor::Editor)
 end
 
 """
+    read_rooted_operation(editor, place, operation; description = "") -> Operation | Nothing
+
+`operation`, which is relative to the document that `place` names, as an
+operation from the root of `editor`'s document. The readers of
+`editor.projection` from the root to `place` lift it on the way out, as they lift
+the answer to a gesture, so every reader between the place and the root has its
+turn: a wrapper reroots it, and a sorted view maps an index back. `place` is a
+reference from the root.
+
+It evaluates nothing. A caller evaluates the answer with `evaluate_operation`,
+or posts it with `post_operation!`. `nothing` when the readers do not carry it
+to the root.
+
+`description` says in words what the operation does, for the gesture log. It
+reads `editor.iomap`, which the frame prints, so it runs on the editor's task.
+"""
+function read_rooted_operation(editor, place::Reference, operation::Operation;
+                               description::AbstractString = "")
+    place isa EmptyReference && return operation
+    editor.iomap === nothing &&
+        throw(ArgumentError("read_rooted_operation: the editor has printed nothing, " *
+                            "so no reader can carry the operation."))
+    change = Intent(nothing, operation, String(description), "", place)
+    answer = read_intent(editor.projection, nothing, change, editor.iomap)
+    rooted = answer isa Intent ? answer.operation : answer
+    rooted isa Operation ? rooted : nothing
+end
+
+"""
     _is_quit_gesture(window_input) -> Bool
 
 Is this the bare Escape that closes the editor? Modified Escape is left alone, so

@@ -116,6 +116,16 @@ function read_intent(p::UndoBufferToAnyProjection, recursion, change::Intent,
         return Intent(change.gesture,
                       merge_collected_intents(_collected_intents(inner), _collected_intents(own)))
     end
+    # An operation with a route goes to the content, and comes back recorded as
+    # the content's answer to a gesture does.
+    if change.route !== nothing
+        routed = follow_intent_route(change, _CONTENT_STEPS...)
+        routed === nothing && return Intent(change.gesture, nothing)
+        answer = reroot_operation(read_routed_intent(child.projection, recursion, routed, child).operation,
+                                  _CONTENT_STEPS)
+        answer isa Operation || return Intent(change.gesture, nothing)
+        return Intent(change.gesture, _record_operation(p, iomap, change.gesture, answer))
+    end
     inner = read_intent(child.projection, recursion, change, child)
     answer = reroot_operation(inner.operation, _CONTENT_STEPS)
     # Only a real operation is a change to record. A reader that declines answers

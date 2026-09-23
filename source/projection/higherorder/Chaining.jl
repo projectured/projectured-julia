@@ -127,6 +127,7 @@ already did it.
 function read_intent(seq::ChainingProjection, recursion, change::Intent, iomap::ChainingIoMap)
     change.gesture isa CollectIntents &&
         return Intent(change.gesture, _collect_intents(seq, recursion, iomap))
+    change.route === nothing || return _read_routed_chain(seq, recursion, change, iomap)
     n = length(seq.projections)
     start_i = n
     out = read_intent(seq.projections[n], recursion, change, iomap.step_iomaps[n][])
@@ -140,6 +141,34 @@ function read_intent(seq::ChainingProjection, recursion, change::Intent, iomap::
         out = read_intent(seq.projections[i], recursion, out, iomap.step_iomaps[i][])
     end
     return out
+end
+
+# An operation with a route to a place in the chain's input. The route is mapped
+# forward through each stage that prints the place as the same document, as the
+# printer maps a reference; the first stage that does not, or the last stage, is
+# the one whose readers hold the place. From that stage the operation comes back
+# up through the earlier stages, as an answer does.
+function _read_routed_chain(seq::ChainingProjection, recursion, change::Intent,
+                            iomap::ChainingIoMap)
+    n = length(seq.projections)
+    place = try_evaluate_reference(iomap.input, change.route, nothing)
+    place === nothing && return Intent(change.gesture, nothing)
+    stage, route = 1, change.route
+    while stage < n
+        stage_iomap = iomap.step_iomaps[stage][]
+        next_iomap = iomap.step_iomaps[stage + 1][]
+        forward = map_reference_forward(stage_iomap.projection, stage_iomap, route)
+        forward === nothing && break
+        try_evaluate_reference(next_iomap.input, forward, nothing) === place || break
+        stage, route = stage + 1, forward
+    end
+    routed = Intent(change.gesture, change.operation, change.description, change.domain, route)
+    out = read_routed_intent(seq.projections[stage], recursion, routed, iomap.step_iomaps[stage][])
+    for i in (stage - 1):-1:1
+        out.operation === nothing && return out
+        out = read_intent(seq.projections[i], recursion, out, iomap.step_iomaps[i][])
+    end
+    out
 end
 
 # 3-arg payload form: callers (tests, hit-test recursion) that pass a

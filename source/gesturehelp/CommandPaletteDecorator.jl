@@ -153,9 +153,10 @@ end
 
 function read_intent(p::CommandPaletteDecoratorProjection, recursion, change::Intent,
                      iomap::CommandPaletteDecoratorIoMap)
-    if p.state.open[]
+    if p.state.open[] && change.route === nothing
         # The palette owns every event while it is open. Nothing reaches the content,
-        # so its selection stays where the user left it.
+        # so its selection stays where the user left it. An operation with a route
+        # is not an event, and goes to the content.
         return Intent(change.gesture, _read_open(p, iomap, change.gesture))
     end
     child = read_intent(p.inner, recursion, change, iomap.inner_iomap)

@@ -97,6 +97,8 @@ names serves both the gesture help and this log.
 """
 describe_gesture(input::WindowInput) = describe_gesture(input.event)
 describe_gesture(gesture) = _describe_event(gesture)
+# The words of code that acted with no gesture, such as "Focus the pane Files".
+describe_gesture(text::AbstractString) = String(text)
 
 describe_gesture(event::MouseMove) = string(_describe_event(event), " (", event.x, ",", event.y, ")")
 describe_gesture(event::MouseScroll) = string(_describe_event(event), " (", event.dx, ",", event.dy, ")")

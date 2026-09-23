@@ -374,23 +374,78 @@ iomap. The clipboard is stage 1 of chain 12, so the route is mapped forward
 through it before stage 2 gets it, and on the way up the clipboard reroots
 `content` as it does now.
 
-- [ ] Make the `Intent` struct change first, before a warm session loads it:
+- [x] Make the `Intent` struct change first, before a warm session loads it:
       the `route` field, and the constructors and `with_intent_labels` keep it.
-- [ ] The readers 1 to 18 follow the route on the way down and do not take the
+- [x] The readers 1 to 18 follow the route on the way down and do not take the
       operation until it comes back up.
-- [ ] `read_rooted_operation(editor, place, operation)`.
-- [ ] `make_focus_pane_operation(editor, tab)` and `focus_pane!(editor, tab)`,
+- [x] `read_rooted_operation(editor, place, operation)`.
+- [x] `make_focus_pane_operation(editor, tab)` and `focus_pane!(editor, tab)`,
       with `tab` a complete reference from the root. The route is the longest
       prefix of `tab` that ends at a `PaneTree`. The `Intent` carries a
       `description` that names the verb.
-- [ ] The `descend` keyword of `walk_document`, `is_pane_search_step`, and
+- [x] The `descend` keyword of `walk_document`, `is_pane_search_step`, and
       `find_pane_reference(editor, title)`.
-- [ ] Test, in the window as the binary opens it:
+- [x] Test, in the window as the binary opens it:
       `focus_pane!(editor, find_pane_reference(editor, "Files"))`, and then
       every level holds its suffix of one path, and Ctrl+C copies the
       navigator. The rooted operation is the same one that a press on the same
       tab makes.
 - [ ] Test the two open cases of `find_pane_reference` (§5, question 8).
+      Moved to Step 3: the history case needs a close through the readers,
+      which `close_pane!` brings.
+
+**What Step 1b found and decided (2026-09-23):**
+
+- **Two small functions carry the route; neither is recursive, and no
+  projection implements either.** `follow_intent_route(change, steps...)` in
+  the intent layer gives the `Intent` for the child that `steps` reach, with
+  the rest of the route, or `nothing` off the route. `read_routed_intent(p,
+  recursion, change, iomap)` in the projection layer reads that child with
+  `read_intent`, or, when no route remains, does not read it and answers the
+  operation, with no route. A parent calls both, so the place is found at the
+  parent, and every reader with the same input as its parent passes the
+  `Intent` on unchanged.
+- **Eleven of the fifteen reader types needed no change.** They pass the
+  `Intent` to one child with the same input. Changed: the two `ScreenToScreen`
+  readers (by `windows[i]` and by `content`), the chain, and the undo buffer,
+  which records a routed answer as it records the answer to a gesture. The
+  shell got a four-argument reader for the route; every other change goes to
+  the generic bridge with `@invoke`. The command palette lets a routed
+  `Intent` through while it is open, because it owns events and a routed
+  operation is not one. The gesture log writes the `description` when the
+  gesture is `nothing`, through `describe_gesture(::AbstractString)`.
+- **The chain maps the route with the projection that each stage iomap
+  records** (`stage_iomap.projection`), as its own forward mapper does. A
+  stage's projection in `seq.projections` can be a `RecursiveProjection` whose
+  iomap is the one of the projection it dispatched to, and that pair maps
+  nothing. The chain goes past a stage only while the mapped route still
+  reaches the same object (identity), so a stage that turns the place into
+  another document keeps the operation.
+- **`is_pane_search_step` names no screen type.** The pane package does not
+  depend on the screen package, and a new dependency is not needed: the rules
+  for wrappers, tabs and widgets keep the domain documents out, and any other
+  document (the screen, a window) is entered.
+- **The pane package aliases `EditorModule`** for `read_rooted_operation`, as it
+  aliases the other kernel modules.
+- **Measured:** the verb's rooted operation is the same, by `repr`, as the
+  operation of a press on the title of the tab; after `focus_pane!` every level
+  holds its suffix; Ctrl+C copies the navigator (`Workspace`).
+- **Suites, in the worktree:** `test_application` 172/172; `test_shell` 180,
+  `test_clipboard` 197, the eight pane suites (surgery 92, to_widget 44, reader
+  83, gestures 73, drag 251, rename 19, construct 50, geometry 35), `test_undo`
+  91, `test_gesture_log` 46, `test_gesture_log_in_tab` 5, `test_gesture_help`
+  42, `test_command_palette` 39, `test_command_palette_decorator` 63,
+  `test_document_walk` 14, `test_searching` 9, all with no failure;
+  `test_kernel` 2043 pass with the six known failures (five Rule C, one
+  `MEvalBranch`), the same as on `main`.
+- **Not yet consistent, until Step 3:** `show_layout`, `open_pane!` and
+  `duplicate_pane!` still give references from the tree, and their docstring
+  examples pass those to `focus_pane!`, which now takes a complete reference.
+  The tests of omnet-julia do the same.
+- **A name for the owner to check:** the new `make_focus_pane_operation(editor,
+  tab)` is close to the surgery builder `make_pane_focus_operation(tree, group,
+  index)`. They take different arguments, but the two names differ only in word
+  order.
 
 ### Step 0 — facts
 

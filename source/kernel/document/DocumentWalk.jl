@@ -97,17 +97,26 @@ walk. `maxdepth` bounds recursion for structures that are never the *same* objec
 — an infinite lazy list whose nodes are generated fresh on demand — which the
 visited set alone cannot stop.
 
+`descend(parent, child) -> Bool` says whether the walk enters `child` from
+`parent`; a child it does not enter is neither matched nor walked. The default
+enters every child. A search whose matches can be only in some places gives
+one, so it does not walk what can hold none, such as the types and the
+functions that an action holds.
+
 `obj` need not be a document: the walk descends structs, arrays, and dicts alike.
 """
 function walk_document(walk::DocumentWalk, obj, predicate;
-                       include_selection::Bool=false, maxdepth::Int=64, raw::Bool=false)
+                       include_selection::Bool=false, maxdepth::Int=64, raw::Bool=false,
+                       descend = _enter_every_child)
     results = Any[]
     root = unwrap_cell(obj)
     _walk_document!(walk, results, IdDict{Any,Bool}(), root, predicate,
                     walk.initial(root), nothing, IdDict{Any,Bool}(),
-                    include_selection, maxdepth, raw)
+                    include_selection, maxdepth, raw, descend)
     results
 end
+
+_enter_every_child(_, _) = true
 
 # Enter `obj` under the walk's cycle rule. Returns the visited set the children
 # should be walked with, or `nothing` to prune this node entirely.
@@ -137,7 +146,7 @@ end
 # the same enclosing location object, so that document is reported once, while
 # distinct locations are all kept.
 function _walk_document!(walk, results, reported, obj, predicate, location, enclosing,
-                         seen, include_selection, depth, raw)
+                         seen, include_selection, depth, raw, descend)
     # Nothing dispatches on `enclosing`: it is pushed into `results::Vector{Any}`,
     # used as an `IdDict{Any, Bool}` key, and handed down. Every use is an `Any`
     # slot already, so specialising on it buys no speed — and costs a great deal
@@ -146,8 +155,8 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
     # produced 67 instantiations across 38 distinct children, `CellVector` alone
     # appearing under twelve different parents.
     #
-    # The recursion is written out at each branch rather than through a `descend`
-    # closure for the same reason, and it is the half that actually works: a
+    # The recursion is written out at each branch rather than through one closure
+    # that recurses, for the same reason, and it is the half that actually works: a
     # closure captures `here` and so carries the enclosing type in its own type,
     # which no declaration on the variable removes. Measured on a five-type tree,
     # the closure form compiled 16 instances, the closure with `here::Any` 14, and
@@ -168,9 +177,10 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
     if is_element_collection(obj)
         for i in 1:length(obj)
             child = unwrap_cell(obj[i])
+            descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_element(location, i, child),
-                            here, seen, include_selection, depth - 1, raw)
+                            here, seen, include_selection, depth - 1, raw, descend)
         end
     elseif obj isa AbstractDict
         # Walk a dict by its entries, not its `fieldnames` — the latter descends
@@ -178,17 +188,19 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
         # slots. The key is the field name, which is how a dict entry is addressed.
         for (k, v) in obj
             child = unwrap_cell(v)
+            descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_field(location, k, child),
-                            here, seen, include_selection, depth - 1, raw)
+                            here, seen, include_selection, depth - 1, raw, descend)
         end
     elseif obj isa AbstractArray
         for i in 1:length(obj)
             isassigned(obj, i) || continue
             child = unwrap_cell(obj[i])
+            descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_element(location, i, child),
-                            here, seen, include_selection, depth - 1, raw)
+                            here, seen, include_selection, depth - 1, raw, descend)
         end
     else
         fnames = try fieldnames(typeof(obj)) catch; () end
@@ -196,9 +208,10 @@ function _walk_document!(walk, results, reported, obj, predicate, location, encl
             (fn == :ref || (fn == :selection && !include_selection)) && continue
             isdefined(obj, fn) || continue
             child = unwrap_cell(getfield(obj, fn))
+            descend(obj, child) || continue
             _walk_document!(walk, results, reported, child, predicate,
                             walk.locate_field(location, fn, child),
-                            here, seen, include_selection, depth - 1, raw)
+                            here, seen, include_selection, depth - 1, raw, descend)
         end
     end
 end

@@ -164,6 +164,17 @@ map_reference_backward(::ScreenToScreen, iomap::ScreenWindowIoMap, reference) =
 # is rooted at the ScreenDocument.
 
 function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::ScreenToScreenIoMap)
+    # An operation with a route goes to the window its route names.
+    if change.route !== nothing
+        for (i, wim) in enumerate(iomap.window_iomaps)
+            steps = (FieldReferenceStep("windows"), ElementReferenceStep(i))
+            routed = follow_intent_route(change, steps...)
+            routed === nothing && continue
+            inner = read_routed_intent(wim.projection, recursion, routed, wim)
+            return Intent(change.gesture, _prefix_op(inner.operation, steps))
+        end
+        return Intent(change.gesture, nothing)
+    end
     window_input = change.gesture
     if window_input isa WindowInput
         ims = iomap.window_iomaps
@@ -184,6 +195,14 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
 end
 
 function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::ScreenWindowIoMap)
+    if change.route !== nothing
+        steps = (FieldReferenceStep("content"),)
+        routed = follow_intent_route(change, steps...)
+        routed === nothing && return Intent(change.gesture, nothing)
+        cim = iomap.content_iomap
+        inner = read_routed_intent(cim.projection, recursion, routed, cim)
+        return Intent(change.gesture, _prefix_op(inner.operation, steps))
+    end
     window_input = change.gesture
     if window_input isa WindowInput
         cim = iomap.content_iomap

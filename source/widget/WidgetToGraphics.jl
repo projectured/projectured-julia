@@ -2925,6 +2925,26 @@ end
 
 map_reference_forward(::WidgetShellToGraphicsCanvas, iomap, reference) = nothing
 
+# An operation with a route goes to the part of the shell its route names, found
+# as the forward mapper finds it; every other change is read as any projection
+# reads it.
+function read_intent(p::WidgetShellToGraphicsCanvas, recursion, change::Intent,
+                     iomap::ChildrenIoMap)
+    change.route === nothing && return @invoke read_intent(p::Projection, recursion, change::Intent, iomap)
+    head = change.route isa ConcreteReference ? get_reference_head(change.route) : nothing
+    head isa FieldReferenceStep || return Intent(change.gesture, nothing)
+    target = _shell_field(iomap.input, head.name)
+    target === nothing && return Intent(change.gesture, nothing)
+    for entry in getfield(iomap, :child_iomaps)[]::Vector
+        entry === nothing && continue
+        (_, _, cim) = entry
+        cim.input === target || continue
+        inner = read_routed_intent(cim.projection, recursion, follow_intent_route(change, head), cim)
+        return Intent(change.gesture, reroot_operation(inner.operation, (head,)))
+    end
+    Intent(change.gesture, nothing)
+end
+
 # The shell wraps a single child widget as its `.content` field. A path
 # coming up from the child's reader lives at `.content.<rest>` in the
 # shell's input domain.

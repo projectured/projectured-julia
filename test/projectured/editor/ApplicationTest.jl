@@ -256,6 +256,35 @@ function test_application()
         dir = mktempdir()
         paths = _app_write_files(dir)
         @testset "the application window" begin
+            @testset "a verb focuses a pane through the readers, and every level holds its part" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:2], dir)
+                editor = Editor(ConsoleBackend(), scene, composed,
+                                Device[Display(), Keyboard(), Mouse()])
+                editor.iomap = iomap
+                files = find_pane_reference(editor, "Files")
+                @test evaluate_reference(scene, files) isa PaneTab
+                @test get_pane_tab_title_string(evaluate_reference(scene, files)) == "Files"
+                @test find_pane_reference(editor, "no such pane") === nothing
+                @test_throws ArgumentError focus_pane!(editor, nothing)
+                # The verb's operation is the one a press on the title of the tab makes.
+                (_, x, y) = only(item for item in _app_drawn_at(get_iomap_output(iomap).windows[1].content)
+                                 if item[1] == "Files")
+                pressed = _app_fire(composed, iomap, MousePress(:left, x + 4, y + 4, 1, ModifierKeys()))
+                @test repr(_app_plain(make_focus_pane_operation(editor, files))) == repr(_app_plain(pressed))
+                focus_pane!(editor, files)
+                # Each level from the root down holds its suffix of one path.
+                tab = "root.elements[1].tabs[1]"
+                level(node) = repr(strip_reference_types(get_selection(node)))
+                @test level(document) == ".content.content.content." * tab
+                @test level(document.content) == ".content.content." * tab
+                @test level(document.content.content) == ".content." * tab
+                @test level(_app_window(document)) == "." * tab
+                # So Ctrl+C copies the pane that has the focus.
+                copy = _app_fire(composed, editor.iomap, KeyDown(:c, ModifierKeys(ctrl = true)))
+                copy isa Operation && evaluate_operation(editor, copy)
+                @test document.slice isa Workspace
+            end
+
             @testset "every format draws" begin
                 # `.pdoc` is the binary snapshot format, registered under no
                 # `FileDocument` type — `make_file_tab` cannot open it as a
