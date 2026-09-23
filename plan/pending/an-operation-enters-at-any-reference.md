@@ -1,8 +1,8 @@
 # An operation enters at any reference
 
-**Status (2026-09-23): DESIGN.** Not approved for implementation. Nothing is
-implemented. The shape of the entry is decided (§3); how the route travels is
-open (§5).
+**Status (2026-09-23): DESIGN DECIDED.** Nothing is implemented. The owner
+answered the open questions on 2026-09-23 (§3, §5). Step 1b, the first slice,
+is approved to start; the later steps need the owner's word.
 
 **Goal:** code that is not the editor loop — a verb, the assistant, an MCP tool,
 a test, a replay, the start of an application — can do anything a person can
@@ -158,8 +158,8 @@ Decided by the owner on 2026-09-23:
 - **A pane is found with one call: `find_pane_reference(editor, title)`.** It
   answers the complete reference of the tab with that title, `nothing` when no
   tab has it, and an error that names every reference when two tabs have it. It
-  uses `search_references(editor.document, predicate; <walk policy>)`. The
-  assistant's code for "close the Files pane":
+  uses `search_references(editor.document, predicate; descend =
+  is_pane_search_step)`. The assistant's code for "close the Files pane":
 
   ```julia
   files = find_pane_reference(editor, "Files")
@@ -168,24 +168,37 @@ Decided by the owner on 2026-09-23:
 
   `close_pane!(editor, nothing)` throws an error that says in words that no
   such pane exists.
-- **A walk policy, not a change to the generic walk.** A search that must not
-  walk down blindly gives a policy that says where to descend. It is a new
-  keyword of `walk_document` in `DocumentWalk.jl`, which is not sealed;
-  `search_references` in the sealed `ReferenceSearch.jl` passes its keywords
-  on, so that file does not change. The default of `walk_document` enters every
-  node, as now. `find_pane_reference` has its own default policy, which enters
-  the screen and its windows, the collections, the wrappers (a document for
-  which `get_wrapped_document(node) !== node`), the widgets (`WidgetDocument`)
-  and the panes (`PaneDocument`), and not most other nodes: not the content of
-  a tab that is none of these, and not the actions and the types that a widget
-  holds. A caller can give another policy.
+- **A descend predicate, not a change to the generic walk.** A search that must
+  not walk down blindly gives a predicate that says where to descend. It is a
+  new keyword of `walk_document` in `DocumentWalk.jl`, which is not sealed:
+  `descend(parent, child) -> Bool`, which says whether the walk enters `child`
+  from `parent`. `search_references` in the sealed `ReferenceSearch.jl` passes
+  its keywords on, so that file does not change. The default enters every node,
+  as now. (`DocumentWalk` already has a field `policy`, which is the cycle rule,
+  so the plan does not call this predicate a policy.)
+
+  `find_pane_reference` uses `is_pane_search_step(parent, child)` by default (a
+  proposed name). It enters the screen and its windows, the collections, the
+  widgets (`WidgetDocument`) and the panes (`PaneDocument`). Into a wrapper (a
+  document for which `get_wrapped_document(node) !== node`), it enters only the
+  child that wraps the same document (`get_wrapped_document(child) ===
+  get_wrapped_document(parent)`), so not the undo history and not the stored
+  slice of the clipboard. It enters no other node: not the content of a tab that
+  is none of these, and not the actions and the types that a widget holds. A
+  caller can give another predicate. The predicate sees the parent and the
+  child, because a node alone can not tell the live content of a wrapper from
+  its history or its stored copy.
 
 - **Three separate pieces, which a caller combines** (2026-09-23):
-  1. **Make an operation through the readers.** Route an `Intent` (no gesture,
-     the operation filled in at the place, the route) through
-     `editor.projection` with `editor.iomap`, and return the rooted answer. It
-     evaluates nothing. This is the new piece. It runs on the editor's task,
-     because it reads `editor.iomap`, which the frame prints.
+  1. **Make an operation through the readers:
+     `read_rooted_operation(editor, place, operation)`.** It builds one
+     `Intent` (no gesture, the operation filled in at the place, the route to
+     the place), calls `read_intent(editor.projection, nothing, intent,
+     editor.iomap)` once, and returns the operation of the answer. It evaluates
+     nothing. It is not recursive: the recursion is the existing recursion of
+     `read_intent` through the readers, so the recursion contract stays as it
+     is. It runs on the editor's task, because it reads `editor.iomap`, which
+     the frame prints.
   2. **Evaluate an operation immediately:** `evaluate_operation(editor,
      operation)`, which exists.
   3. **Post an operation for evaluation later:** `post_operation!(editor,
@@ -201,6 +214,31 @@ Decided by the owner on 2026-09-23:
 - **A verb evaluates immediately by default**, so it can return its real
   result. Code that runs inside another evaluation, such as `OpenFileOperation`,
   posts, so that one evaluation does not run inside another.
+- **What a verb returns** (the rule that exists). A verb that makes something
+  returns the reference of what it made: `open_pane!`, `duplicate_pane!`. A
+  verb that changes or removes something returns the new layout:
+  `close_pane!`, `focus_pane!`, `replace_referenced_value!`.
+- **Undo records a verb as it records the same action of a person.** An open, a
+  close or a move by a verb is an undo step, as the same key or click is now. A
+  focus move alone does what a person's click on a tab does now. No special
+  case for verbs.
+- **The gesture log names the verb with the `description` of the `Intent`.**
+  The verb fills it, for example "Close the pane Files", so the log shows what
+  happened and who asked. The gesture stays `nothing`. This uses a field that
+  exists.
+- **The first focus is brought to the root when the window is built.** The code
+  that puts a wrapper around a document that has a selection gives the wrapper
+  that selection, rooted at the wrapper. At that moment no projection and no
+  editor exist, and the wrapper is the root, so the write is at the root, as
+  PAR-SELECTION-WRITTEN-AT-ROOT allows. It works in tests and headless runs
+  that call no start hook, and in the windows of omnet-julia.
+  `make_application_document` does this by hand for the undo buffer now; the
+  same step goes where the other wrappers are built. A start hook with
+  `focus_pane!` would not do: it focuses a tab, and the built focus goes deeper,
+  into the content of the file.
+- **Evaluations that write a selection (part 2) get a plan of their own.** They
+  do not block the Ctrl+C test. The rows of part 2 in §4 are the input for that
+  plan.
 
 Kept from the first version of this plan:
 
@@ -212,6 +250,8 @@ Kept from the first version of this plan:
 ## 4. Where the code writes below the root
 
 Found on 2026-09-22 and 2026-09-23 by a read-only search of both repositories.
+The rows of part 2 go to a plan of their own (§3); this plan fixes part 1 and
+part 3.
 Each row must become a gesture at a place, or an operation from the root.
 
 | Where | What it writes | Part |
@@ -256,14 +296,12 @@ while the editor evaluates another operation.
      chain, the later stages are not called: the chain starts at the stage
      whose output is the place.
    - ~~Where the route lives.~~ Decided: a separate field of `Intent` (§3).
-   - **What the gesture log records.** It keeps every operation that is not a
-     selection move, so a verb's operation appears with an empty gesture.
-4. **Part 2 is separate.** An evaluation that writes a selection below the root
-   is not a verb. It must say its selection change in the operation it answers
-   from the root. The routing does not fix it.
-5. **Undo.** When a verb's gesture goes through the pipeline, the undo reader
-   records the answer as it does for a person. So an open or a close by a verb
-   becomes an undo step. Check that this is wanted, and what a focus move does.
+   - ~~What the gesture log records.~~ Decided: the verb names itself in the
+     `description` of the `Intent` (§3).
+4. ~~Part 2.~~ Decided: a plan of its own (§3). An evaluation that writes a
+   selection below the root is not a verb; it must say its selection change in
+   the operation it answers from the root, and the routing does not fix it.
+5. ~~Undo.~~ Decided: a verb is recorded as the same action of a person (§3).
 6. ~~The family of verbs for one action.~~ Decided (2026-09-23): two names for
    each action, `make_close_pane_operation(editor, tab)` (through the readers)
    and `close_pane!(editor, tab)` (made and evaluated now), and the generic
@@ -278,16 +316,14 @@ while the editor evaluates another operation.
    is the editor's document, and a verb has the editor, so it carried nothing
    more than the reference. A plain reference also holds no document, so it
    makes no cycle back to the root and a copy of it does not copy the window.
-8. **Two cases of `find_pane_reference` are not tested.**
-   - A closed tab that the undo history holds. A recorded operation is not a
-     document, so the policy should not reach it.
-   - A tab that the clipboard holds as a copy. It is a `PaneDocument` inside a
-     wrapper, so the policy reaches it, and the finder gives two results. A
-     policy that sees the field it enters can fix it: for a wrapper, enter only
-     the child that wraps the same document
-     (`get_wrapped_document(child) === get_wrapped_document(parent)`), not its
-     history and not its stored slice. Then the policy takes the parent and the
-     child, not only the node.
+8. **Two cases of `find_pane_reference` are not tested.** The descend
+   predicate sees the parent and the child, and into a wrapper it enters only
+   the child that wraps the same document (§3). That is meant to keep out:
+   - a closed tab that the undo history holds;
+   - a tab that the clipboard holds as a copy.
+
+   Both must be tested with a close that goes through the readers and with a
+   real copy.
 
 Skipped (2026-09-23): **operations that carry no document.** The owner asked
 whether every operation can be relative to the document where it was made,
@@ -341,13 +377,13 @@ through it before stage 2 gets it, and on the way up the clipboard reroots
       the `route` field, and the constructors and `with_intent_labels` keep it.
 - [ ] The readers 1 to 18 follow the route on the way down and do not take the
       operation until it comes back up.
-- [ ] Piece 1, the function that makes an operation through the readers (its
-      name is open).
+- [ ] `read_rooted_operation(editor, place, operation)`.
 - [ ] `make_focus_pane_operation(editor, tab)` and `focus_pane!(editor, tab)`,
       with `tab` a complete reference from the root. The route is the longest
-      prefix of `tab` that ends at a `PaneTree`.
-- [ ] The walk policy keyword of `walk_document`, and
-      `find_pane_reference(editor, title)` with its default policy.
+      prefix of `tab` that ends at a `PaneTree`. The `Intent` carries a
+      `description` that names the verb.
+- [ ] The `descend` keyword of `walk_document`, `is_pane_search_step`, and
+      `find_pane_reference(editor, title)`.
 - [ ] Test, in the window as the binary opens it:
       `focus_pane!(editor, find_pane_reference(editor, "Files"))`, and then
       every level holds its suffix of one path, and Ctrl+C copies the
@@ -408,7 +444,7 @@ Found on 2026-09-23, read-only:
       the types and functions that the toolbar's actions hold. So stopping the
       walk at the pane tree saves almost nothing. The owner's ruling: do not
       change the generic walk; a search that must not walk down blindly gives a
-      walk policy that says where to descend.
+      descend predicate that says where to go down.
 - [x] **The search finds live tabs with complete paths.** As the window opens,
       `search_references(editor.document, node -> node isa PaneTab)` finds the
       three tabs, each as `windows[1].content.content.content.content.root…`.
@@ -419,32 +455,39 @@ Found on 2026-09-23, read-only:
 
 ### Step 1 — examples for question 3
 
-Collect examples, each with the place, the gesture a person makes, the reader
-that answers it, and what each reader on the way out does with the answer:
+- [x] Worked through with the owner on 2026-09-23 (a press on a tab, a close
+      button, the navigator row, the sorted view, the first focus). They led to
+      the decision that a verb gives an operation, not a gesture (§3), so no
+      more examples are needed.
 
-- [ ] Focus a pane that is not in focus (`focus_pane!`): a press on its tab.
-- [ ] Close a tab: a press on its close button.
-- [ ] Open a file from the navigator: a selection of a row, then Enter.
-- [ ] Delete the third element of a sorted view: the element is found in the
-      source by the reader of the sorting projection.
-- [ ] Type text at a position in a field of a pane that is not in focus.
-- [ ] The first focus of the window at start (part 3).
-- [ ] An assistant that pastes into a pane.
+### Step 2 — the first focus (part 3)
 
-### Step 2 — the design
+Outline, needs the owner's word.
 
-- [ ] Answer question 3 from the examples.
-- [ ] Where the route lives, and how a structural reader uses it.
-- [ ] Rewrite the verbs of §4 part 1 as gestures at a place.
-- [ ] Part 2 and part 3, each by its own means.
+- [ ] Each place that puts a wrapper around a document that has a selection
+      gives the wrapper that selection, rooted at the wrapper. The hand-written
+      seat in `make_application_document` becomes that step.
+- [ ] Test: as the window opens, every level holds its suffix of one path, and
+      Ctrl+C copies the focused tab.
+
+### Step 3 — the other verbs, the clipboard, omnet-julia, the guides
+
+Outline, needs the owner's word.
+
+- [ ] The other pane verbs and the menu actions as `make_…_operation` and
+      `…!` pairs on complete references: open, close, duplicate, split, the
+      tool tabs, `replace_referenced_value!`. `show_layout` and `open_pane!`
+      give references from the root. `OpenFileOperation` posts.
+- [ ] The other readers that route by selection or by coordinate follow the
+      route.
+- [ ] The clipboard reads only its own selection; `_get_clipboard_selection`
+      goes.
 - [ ] Tests: in the window as the binary opens it, Ctrl+C copies the focused
-      tab as the window opens, after `focus_pane!`, after a file opens from the
-      navigator, and after Ctrl+T and a paste. A test helper finds every
-      document whose live selection is not on the root's live path, with
-      `search_documents` (PAR-SEARCH-DONT-WALK).
-
-### Step 3 — implementation, omnet-julia, the guides
-
-Outline only: the route, the verbs, the clipboard without its search, the
-writers of part 2, omnet-julia, and the guides (`selection.md`, `clipboard.md`,
-`pane.md`, and a guide for the routing).
+      tab after `focus_pane!`, after a file opens from the navigator, and after
+      Ctrl+T and a paste. A test helper finds every document whose live
+      selection is not on the root's live path, with `search_documents`
+      (PAR-SEARCH-DONT-WALK). The two cases of §5, question 8.
+- [ ] omnet-julia: `focus_runner_group!`, `_open_file_navigator!`,
+      `open_simulation_pane!`, and the first focus of an embedded tree.
+- [ ] The guides: `selection.md`, `clipboard.md`, `pane.md`, and a guide for
+      the route and `read_rooted_operation`.
