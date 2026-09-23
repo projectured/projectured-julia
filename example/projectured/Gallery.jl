@@ -364,6 +364,17 @@ function make_example_editor(documents::Vector, projections::Vector, names::Vect
     editor
 end
 
+"""
+    make_example_editor(document, projection; name="document", kwargs...) -> Editor
+
+The editor of one window on a raw `(document, projection)` pair, made and printed
+once, before its loop: what `run_example(document, projection; name)` runs.
+`name` becomes the window's id and title, and the other keywords are those of
+the `make_example_editor(documents, projections, names)` method above.
+"""
+make_example_editor(document, projection; name::AbstractString="document", kwargs...) =
+    make_example_editor(Any[document], Any[projection], String[name]; kwargs...)
+
 # Lay out `docs` as side-by-side WindowDocuments into a ScreenDocument and lift the
 # first window-content's selection to a screen-rooted path. Each `names[i]` becomes
 # window i's id/title (ids must be unique within the screen). `content_unwrap` names

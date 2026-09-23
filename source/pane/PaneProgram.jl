@@ -257,12 +257,12 @@ open. It answers the reference of the new tab, which the other pane verbs take.
 See also `focus_pane!`, `replace_referenced_value!` to close or change a pane,
 `show_layout`.
 
-**This is the placement verb of a new document.** Everything else a layout can
-be asked for — move a pane, resize a split, close a tab, change what a pane
-holds — is [`replace_referenced_value!`](@ref) at a reference, and the program
-[`show_layout`](@ref) prints is the text to edit. What a replace cannot say
-without naming a group by hand is *where a new pane goes*, and that policy is
-this verb: the focused group, and never the one
+**This is the placement verb of a new document.** The other verbs change a
+layout that exists: [`focus_pane!`](@ref), [`move_pane!`](@ref) and
+[`close_pane!`](@ref), and [`replace_referenced_value!`](@ref) at a reference for
+what no verb says, such as the weights of a split. What they cannot say without
+naming a group by hand is *where a new pane goes*, and that policy is this verb:
+the focused group, and never the one
 [`pane_group_to_avoid`](@ref) names. [`duplicate_pane!`](@ref) places a
 duplicate beside its original, by the same policy when the original is in that
 group.
@@ -430,7 +430,8 @@ end
 """
     replace_referenced_value!(editor, reference, value) -> Text
 
-Put `value` where `reference` points, and answer the window's new program.
+Put `value` where `reference` points, and answer the new layout, as
+[`show_layout`](@ref) prints it.
 
 Use it to change the layout: move a pane beside another in a split, resize a
 split by its weights, or replace what a pane holds, by writing a value at a
@@ -595,17 +596,14 @@ end
 
 # ── The focus ───────────────────────────────────────────────────────────────
 #
-# Focus is one of the two acts that are not a value written at a reference; the
-# duplicate below is the other. Moving a pane, resizing a split and closing a tab
-# all are, and `replace_referenced_value!` says them from the program
-# `show_layout` prints — one verb for every level, which is what keeps a new kind
-# of change from needing a new word.
+# Focus is the selection and not a value in the tree, so it is a verb of its
+# own and not a write at a reference.
 
 """
     focus_pane!(editor, reference::Reference) -> Text
 
-Show the pane `reference` names and give it the focus, and answer the window's
-new program.
+Show the pane `reference` names and give it the focus, and answer the new
+layout, as [`show_layout`](@ref) prints it.
 
 Use it to bring a pane to the front, select its tab, or show the person a pane
 that is open behind another.
@@ -768,7 +766,8 @@ end
 """
     close_pane!(editor, reference::Reference) -> Text
 
-Close the pane `reference` names, and answer the window's new program.
+Close the pane `reference` names, and answer the new layout, as
+[`show_layout`](@ref) prints it.
 
 Use it to close, remove or dismiss a pane, a tab or a document that is open.
 
