@@ -128,8 +128,8 @@ function _answer_waiting_calls!(editor::Editor)
             evaluate_operation(editor, operation)
         catch exception
             is_passthrough_exception(exception) && rethrow()
-            record_fault!(editor.faults, :evaluate, :RunFunctionOperation, nothing,
-                          exception, catch_backtrace())
+            record_fault!(editor.faults, :evaluate; origin = :RunFunctionOperation,
+                          exception, traceback = catch_backtrace())
         end
     end
     nothing
