@@ -109,27 +109,27 @@ When `mcp=true`, an MCP server is started alongside the loop so external
 clients can drive the editor; off by default. `mcp_instructions`, `mcp_host` and
 `mcp_port` go to the server, and each one that is `nothing` takes the server's
 own default.
+
+When the loop ends, it quits the backend it ran on, also when it throws.
+`fault_policy` defaults to the editor's own: an editor that [`make_editor`](@ref)
+made already prints under the policy of its loop, and an editor a test builds
+with `Editor(…)` stays strict.
 """
 function run_editor!(editor::Editor; mcp::Bool=false,
               mcp_instructions::Union{AbstractString,Nothing}=nothing,
               mcp_host::Union{AbstractString,Nothing}=nothing,
               mcp_port::Union{Integer,Nothing}=nothing,
               on_start=nothing,
-              fault_policy::FaultPolicy=FaultPolicy())
-    # This is the moment the barriers go on. An `Editor` starts strict, so every
-    # editor a test builds behaves as it does without this feature and a broken
-    # projection fails its test. A loop a person sits in front of is the thing
-    # that must survive instead, and this is that loop. Pass
-    # `make_strict_fault_policy()` to run it without barriers. A barrier in the
-    # projection reads the policy from the printer context, so a projection
-    # printed under another policy prints again.
-    editor.fault_policy == fault_policy || invalidate_projection!(editor)
-    editor.fault_policy = fault_policy
-    # From here on, a call that another task makes through
-    # `run_on_editor_task!` runs in a frame of this task.
-    editor.loop_task = current_task()
+              fault_policy::FaultPolicy=editor.fault_policy)
     server = nothing
     try
+        # A barrier in the projection reads the policy from the printer context,
+        # so a projection printed under another policy prints again.
+        editor.fault_policy == fault_policy || invalidate_projection!(editor)
+        editor.fault_policy = fault_policy
+        # From here on, a call that another task makes through
+        # `run_on_editor_task!` runs in a frame of this task.
+        editor.loop_task = current_task()
         # The editor exists now, and this is the first moment anything outside
         # can have it. What needs to reach a running editor — a driver that
         # will post its work, a watcher, a client — is handed it here, once,
@@ -181,6 +181,7 @@ function run_editor!(editor::Editor; mcp::Bool=false,
         editor.loop_task = nothing
         _answer_waiting_calls!(editor)
         server === nothing || stop_agent_server!(server)
+        quit_backend!(editor.backend)
     end
 end
 
@@ -194,38 +195,74 @@ function _make_mcp_server(editor::Editor, instructions, host, port)
 end
 
 """
+    make_editor(backend::Backend, projection, document::Document;
+                devices = Device[Display(), Keyboard(), Mouse()], feeds = Feed[],
+                fault_policy = FaultPolicy()) -> Editor
+
+Start `backend`, open the native windows of `document`, build the `Editor`, and
+print it once, so the editor has its iomap and the window shows the document.
+It runs no frame, so it reads no input.
+
+Use it when there is work to do before the loop runs: attach a log, declare an
+API, start a driver, or work on the document with a verb that reads through the
+readers of the editor. Then run the loop with [`run_editor!`](@ref), which quits
+the backend when the loop ends.
+
+# Example
+
+    editor = make_editor(backend, projection, document)
+    attach_fault_target!(editor.faults, log)
+    run_editor!(editor)
+
+The native windows are opened before the print, by `open_native_windows!`,
+which also corrects `document` to the geometry the window system granted. A
+window system may grant less than it was asked for, and it answers only once the
+window exists; a document printed before that answer is printed at a size the
+window never has, and the answer then arrives as a resize that computes the
+whole document again. `devices` defaults to the full SDL hardware set; a backend
+that drives another channel, such as the `ConsoleBackend`, passes its own set
+(e.g. `Device[Keyboard()]`).
+
+`fault_policy` is the policy of a loop a person sits in front of, which survives
+a fault; the one print runs under it already. Pass `make_strict_fault_policy()`
+to stop at the first fault. When the build or the print fails, the backend is
+quit before the error goes on.
+"""
+function make_editor(backend::Backend, projection, document::Document;
+                     devices::Vector{Device}=Device[Display(), Keyboard(), Mouse()],
+                     feeds::Vector{Feed}=Feed[],
+                     fault_policy::FaultPolicy=FaultPolicy())
+    initialize_backend!(backend)
+    try
+        configure_devices!(backend, devices)
+        open_native_windows!(backend, document)
+        editor = Editor(backend, document, projection, devices;
+                        feeds = feeds, fault_policy = fault_policy)
+        _run_barrier(editor, :print; origin = typeof(editor.projection)) do
+            print!(editor)
+        end
+        return editor
+    catch
+        quit_backend!(backend)
+        rethrow()
+    end
+end
+
+"""
     run_editor!(backend::Backend, projection, document; mcp::Bool=false,
                 mcp_instructions=nothing, mcp_host=nothing, mcp_port=nothing)
 
-Bootstrap overload: initialise the backend, wire up an `Editor` with
-the given projection and document, and run the read-eval-print loop
-above. The pipeline is expected to produce a `ScreenDocument` so the
-backend can reconcile native windows against it; pipelines whose
-output is a bare `GraphicsCanvas` go unrendered (use `write_image`
-for offscreen).
-
-The native windows are opened before the first frame, by
-`open_native_windows!`, which also corrects `document` to the geometry the
-window system granted. A window system may grant less than it was asked for, and
-it answers only once the window exists; a document projected before that answer
-is projected at a size the window never has, and the answer then arrives as a
-resize that computes the whole document again. `Editor.devices` only carries the
-hardware kinds the editor needs: `Display`, `Keyboard`, `Mouse`.
+The one call for a caller with no work before the loop: [`make_editor`](@ref),
+then the loop above. The pipeline is expected to produce a `ScreenDocument` so
+the backend can reconcile native windows against it; pipelines whose output is
+a bare `GraphicsCanvas` go unrendered (use `write_image` for offscreen).
 
 Pass `mcp=true` to start an MCP server alongside the loop, and `mcp_host` and
-`mcp_port` to say where it listens.
+`mcp_port` to say where it listens. `devices`, `feeds` and `fault_policy` go to
+`make_editor`.
 
-`devices` defaults to the full SDL hardware set (`Display`, `Keyboard`,
-`Mouse`); backends that drive a different channel — e.g. the `ConsoleBackend`,
-which has no native window or pointer — pass their own set (e.g.
-`Device[Keyboard()]`).
-
-`on_start(editor)` runs once, after the editor is built and before the first
-frame. It is how something that will post operations gets hold of the editor to
-post them to, since this overload is what constructs it.
-
-`fault_policy` goes to the loop above. Pass `make_strict_fault_policy()` to stop
-at the first fault instead of surviving it.
+`on_start(editor)` runs once, after the editor is made and printed, and before
+the first frame.
 """
 function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
               mcp_instructions::Union{AbstractString,Nothing}=nothing,
@@ -235,19 +272,8 @@ function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
               feeds::Vector{Feed}=Feed[],
               on_start=nothing,
               fault_policy::FaultPolicy=FaultPolicy())
-    initialize_backend!(backend)
-    try
-        configure_devices!(backend, devices)
-        # Before the first projection, so the document is laid out once, at the
-        # size the window system granted rather than at the size it was asked
-        # for. Nothing has read a cell yet, so the correction invalidates
-        # nothing.
-        open_native_windows!(backend, document)
-        editor = Editor(backend, document, projection, devices; feeds = feeds)
-        run_editor!(editor; mcp=mcp, mcp_instructions=mcp_instructions,
-                    mcp_host=mcp_host, mcp_port=mcp_port, on_start=on_start,
-                    fault_policy=fault_policy)
-    finally
-        quit_backend!(backend)
-    end
+    editor = make_editor(backend, projection, document;
+                         devices = devices, feeds = feeds, fault_policy = fault_policy)
+    run_editor!(editor; mcp=mcp, mcp_instructions=mcp_instructions,
+                mcp_host=mcp_host, mcp_port=mcp_port, on_start=on_start)
 end

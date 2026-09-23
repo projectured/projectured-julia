@@ -29,7 +29,7 @@ using ..CellModule
 using ..FeedModule
 import ..FeedModule: drain_changes!
 
-export Editor, run_editor!, read!, read_rooted_operation, evaluate!, print!, run_frame!,
+export Editor, make_editor, run_editor!, read!, read_rooted_operation, evaluate!, print!, run_frame!,
        post_operation!, drain_operations!, is_editor_degraded,
        is_editor_in_safe_mode, enter_safe_mode!, leave_safe_mode!,
        report_frame_faults!,

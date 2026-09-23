@@ -1,8 +1,7 @@
 # An editor is made before its loop runs
 
-**Status (2026-09-23): READY.** Nothing is implemented. The owner asked for this
-plan, named the new function `make_editor`, and took the lead's answers to the
-open questions (§5). Step 1 waits for the owner's word.
+**Status (2026-09-23): IMPLEMENTING.** The owner approved the whole plan
+("implement it"). Step 1 is done.
 
 **Goal:** a caller that must do work before the loop starts holds the editor,
 does that work, and then runs the loop. The `on_start` hook goes. Start-up work
@@ -110,18 +109,32 @@ Not taken: a do-block form, `make_editor(…) do editor … end`. It would be
 
 ## 6. Steps
 
-No step is approved to start.
+The owner approved every step on 2026-09-23.
 
 ### Step 0 — facts
 - [x] Found on 2026-09-23 and folded into §5 (decisions 2, 3 and 4).
 
 ### Step 1 — `make_editor`, and `run_editor!(editor)` quits the backend
-- [ ] The two methods of `make_editor` (§5, decision 1).
-- [ ] `run_editor!(editor)` quits the backend in a `finally`.
-- [ ] The one-call forms are `make_editor` and `run_editor!(editor)`.
-- [ ] Tests: an editor that `make_editor` answers has an iomap; a verb that
-      reads through the readers works on it before the loop; the backend quits
-      when the loop ends, also when it throws.
+- [x] The two methods of `make_editor` (§5, decision 1): the kernel's in
+      `kernel/editor/EditorLoop.jl`, the screen's in `screen/WindowScene.jl`,
+      which extends the kernel's generic and exports the name too.
+- [x] `run_editor!(editor)` quits the backend in a `finally`; its whole body,
+      the setting of the fault policy too, is inside the `try`. Its
+      `fault_policy` defaults to the editor's own.
+- [x] The one-call forms are `make_editor` and `run_editor!(editor)`. Until
+      Step 2 they still pass `on_start`, which now runs after the one print.
+- [x] Tests: `WaitTest.jl` — an editor that `make_editor` answers has an iomap
+      and was drawn once; the loop quits the backend, also when it throws (a
+      probe backend that counts its starts, draws and quits; the probe wait
+      backend got a `quit_backend!` method). `ApplicationTest.jl` — an editor
+      from the screen's `make_editor` takes `focus_pane!` before any loop, and
+      every level holds its part of one path. `make_editor` prints inside the
+      print barrier, as a frame does, and quits the backend when the build or
+      the print throws.
+
+  Suites: `test_editor_wait` 20/20, `test_editor_inbox` 28/28,
+  `test_application` 235/235, `test_kernel` with the six known failures; the
+  naming, argument and tree guards pass.
 
 ### Step 2 — the callers of `on_start` in projectured-julia
 - [ ] The fault overlay, `run_with_window_tools`, the application, the gallery

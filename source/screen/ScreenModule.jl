@@ -40,6 +40,7 @@ using ..SerializationModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: get_document_title
+import ..EditorModule: make_editor
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
@@ -47,7 +48,7 @@ export OpenWindowOperation, OpenPopupOperation, CloseWindowOperation,
        ResizeWindowOperation
 export WindowManagingProjection, WindowManagingIoMap
 export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
-export make_window_scene, make_window_scene_projection, run_window_editor
+export make_window_scene, make_window_scene_projection, make_editor, run_window_editor
 export ScreenDocument, WindowDocument
 
 

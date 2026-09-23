@@ -18,7 +18,8 @@ import ProjecturedKernel.BackendModule: Backend, wait_for_input, wake_backend!
 import ProjecturedKernel.FeedModule: compute_wake_deadline
 import ProjecturedKernel.EditorModule: Editor, post_operation!, wake_editor!,
                                        compute_wait_timeout, FRAME_INTERVAL,
-                                       run_editor!
+                                       run_editor!, make_editor
+import ProjecturedKernel.FaultModule: make_strict_fault_policy
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation,
                                           QuitEditorOperation
 using ProjecturedKernelExample
@@ -50,6 +51,25 @@ BackendModule.wake_backend!(backend::ProbeWaitBackend) =
 BackendModule.read_from_devices(::ProbeWaitBackend, devices) = nothing
 BackendModule.write_to_devices(backend::ProbeWaitBackend, devices, output) =
     (Threads.atomic_add!(backend.writes, 1); nothing)
+# The loop quits the backend it ran on, and this one has nothing to close.
+BackendModule.quit_backend!(::ProbeWaitBackend) = nothing
+
+# A backend that counts how often it starts, draws and quits, and never waits.
+mutable struct ProbeLifeBackend <: Backend
+    starts::Int
+    writes::Int
+    quits::Int
+end
+ProbeLifeBackend() = ProbeLifeBackend(0, 0, 0)
+BackendModule.initialize_backend!(backend::ProbeLifeBackend) = (backend.starts += 1; nothing)
+BackendModule.quit_backend!(backend::ProbeLifeBackend) = (backend.quits += 1; nothing)
+BackendModule.read_from_devices(::ProbeLifeBackend, devices) = nothing
+BackendModule.write_to_devices(backend::ProbeLifeBackend, devices, output) =
+    (backend.writes += 1; nothing)
+BackendModule.wait_for_input(::ProbeLifeBackend, devices, timeout_seconds) = nothing
+
+struct ProbeFailOperation <: Operation end
+evaluate_operation(::Editor, ::ProbeFailOperation) = error("the operation failed")
 
 # A feed with nothing to drain and a fixed deadline.
 struct DeadlineFeed <: Feed
@@ -120,6 +140,27 @@ function test_editor_wait()
         # Every wait this loop entered was unbounded: no feed asked for a
         # deadline and nothing subscribed to the clock.
         @test all(timeout -> timeout == Inf, backend.waits)
+    end
+
+    @testset "make_editor prints once and reads nothing, and the loop quits the backend" begin
+        backend = ProbeLifeBackend()
+        editor = make_editor(backend, WaitProbeProjection(), WaitProbe(); devices = Device[])
+        @test backend.starts == 1 && backend.quits == 0
+        # Printed once, so a verb that reads through the readers has an iomap.
+        @test editor.iomap !== nothing
+        @test backend.writes == 1
+        post_operation!(editor, QuitEditorOperation())
+        run_editor!(editor)
+        @test backend.quits == 1
+    end
+
+    @testset "the loop quits the backend also when it throws" begin
+        backend = ProbeLifeBackend()
+        editor = make_editor(backend, WaitProbeProjection(), WaitProbe(); devices = Device[],
+                             fault_policy = make_strict_fault_policy())
+        post_operation!(editor, ProbeFailOperation())
+        @test_throws Exception run_editor!(editor)
+        @test backend.quits == 1
     end
 
     @testset "the default wait is one poll slice" begin

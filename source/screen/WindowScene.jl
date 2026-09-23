@@ -95,11 +95,21 @@ function make_window_scene_projection(projection;
 end
 
 """
-    run_window_editor(document, projection, title; backend, width, height, on_start,
-                      mcp, mcp_instructions, mcp_host, mcp_port,
-                      opened_window_projections, screen_wrap, fault_policy)
+    make_editor(document, projection, title; backend, width, height,
+                opened_window_projections, screen_wrap, feeds, fault_policy) -> Editor
 
-Open the window and run the loop until the person closes it.
+Open a window that holds `document`, drawn through `projection`, and answer its
+editor, printed once, before its loop runs.
+
+Use it when there is work to do before the loop: attach a log, declare an API,
+start a driver, or open or focus a pane with a verb. Then run the loop with
+`run_editor!(editor)`, which quits the backend when the loop ends.
+
+# Example
+
+    editor = make_editor(document, projection, "Campaign"; backend = SdlBackend())
+    declare_api!(editor.tools, api)
+    run_editor!(editor; mcp = true)
 
 `width` and `height` default to the display the backend reports, which is what a
 window opened with no size wants.
@@ -109,9 +119,43 @@ caller loads the one it draws on. There is no reflection over the loaded backend
 here — that is `ProjecturedExample`'s, and naming it would bring the example
 umbrella back.
 
-`on_start` runs once the editor exists. A document that drives itself needs it:
-the thing that hands its progress to the editor cannot be built before there is
-an editor to hand it to.
+`opened_window_projections` and `screen_wrap` go to
+[`make_window_scene_projection`](@ref). `feeds` and `fault_policy` go to the
+kernel's `make_editor`; pass `make_strict_fault_policy()` to stop at the first
+fault instead of surviving it.
+"""
+function make_editor(document, projection, title::AbstractString;
+                     backend, width = nothing, height = nothing,
+                     opened_window_projections = Pair{Type,Any}[],
+                     feeds::Vector{Feed} = Feed[],
+                     screen_wrap = identity,
+                     fault_policy::FaultPolicy = FaultPolicy())
+    backend === nothing &&
+        error("make_editor: name the backend to draw on, " *
+              "for example `backend = SdlBackend()`")
+    if width === nothing || height === nothing
+        display_width, display_height = get_display_size(backend)
+        width = something(width, display_width)
+        height = something(height, display_height)
+    end
+    scene = make_window_scene(document, title; width = width, height = height)
+    make_editor(backend,
+                make_window_scene_projection(projection;
+                    opened_window_projections = opened_window_projections,
+                    screen_wrap = screen_wrap),
+                scene;
+                feeds = feeds, fault_policy = fault_policy)
+end
+
+"""
+    run_window_editor(document, projection, title; backend, width, height, on_start,
+                      mcp, mcp_instructions, mcp_host, mcp_port,
+                      opened_window_projections, screen_wrap, fault_policy)
+
+Open the window and run the loop until the person closes it: [`make_editor`](@ref)
+with the same arguments, then `run_editor!`.
+
+`on_start` runs once the editor is made and printed, before the first frame.
 
 `mcp` starts an MCP server beside the loop, so an external client drives the
 same editor with the same tools; `mcp_instructions` is the prompt that server
@@ -119,11 +163,6 @@ gives the client, and the server's own generic one answers when it is `nothing`.
 `mcp_host` and `mcp_port` say where the server listens; each one that is
 `nothing` takes the server's default, `127.0.0.1` and `9876`. The server needs
 `ProjecturedMcp` loaded, which registers it.
-
-`opened_window_projections` goes to [`make_window_scene_projection`](@ref).
-
-`fault_policy` goes to the loop. Pass `make_strict_fault_policy()` to stop at the
-first fault instead of surviving it.
 """
 function run_window_editor(document, projection, title::AbstractString;
                            backend, width = nothing, height = nothing,
@@ -135,22 +174,11 @@ function run_window_editor(document, projection, title::AbstractString;
                            feeds::Vector{Feed} = Feed[],
                            screen_wrap = identity,
                            fault_policy::FaultPolicy = FaultPolicy())
-    backend === nothing &&
-        error("run_window_editor: name the backend to draw on, " *
-              "for example `backend = SdlBackend()`")
-    if width === nothing || height === nothing
-        display_width, display_height = get_display_size(backend)
-        width = something(width, display_width)
-        height = something(height, display_height)
-    end
-    scene = make_window_scene(document, title; width = width, height = height)
-    run_editor!(backend,
-                make_window_scene_projection(projection;
-                    opened_window_projections = opened_window_projections,
-                    screen_wrap = screen_wrap),
-                scene;
-                             mcp = mcp, mcp_instructions = mcp_instructions,
-                             mcp_host = mcp_host, mcp_port = mcp_port,
-                             feeds = feeds, on_start = on_start,
-                             fault_policy = fault_policy)
+    editor = make_editor(document, projection, title;
+                         backend = backend, width = width, height = height,
+                         opened_window_projections = opened_window_projections,
+                         feeds = feeds, screen_wrap = screen_wrap,
+                         fault_policy = fault_policy)
+    run_editor!(editor; mcp = mcp, mcp_instructions = mcp_instructions,
+                mcp_host = mcp_host, mcp_port = mcp_port, on_start = on_start)
 end

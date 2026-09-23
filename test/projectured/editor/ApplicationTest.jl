@@ -360,6 +360,19 @@ function test_application()
                 @test document.slice isa Workspace
             end
 
+            @testset "an editor made before its loop takes a verb through the readers" begin
+                document, projection = make_application_window(paths[1:2]; root = dir,
+                                                               assistant = nothing)
+                editor = make_editor(document, projection, "ProjecturEd";
+                                     backend = HeadlessBackend(), width = 1600, height = 1000,
+                                     opened_window_projections = make_opened_window_projections(),
+                                     screen_wrap = make_popup_screen_wrap())
+                @test editor.iomap !== nothing
+                focus_pane!(editor, find_pane_reference(editor, "Files"))
+                @test _app_is_one_path(editor.document)
+                @test isempty(_app_find_stray_live_selections(editor.document))
+            end
+
             @testset "the pane verbs take and answer complete references, and write at the root" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:2], dir)
                 editor = _app_make_editor(scene, composed, iomap)
