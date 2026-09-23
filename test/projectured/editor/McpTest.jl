@@ -184,21 +184,25 @@ function test_search_tools_registered()
         @test any(u -> startswith(u, "resource://module/"), resource_uris)
 
         # The search tools are callable through the registry like any tool.
-        out = call_tool(tools, "search_api", Dict("query" => "replace_selection"), nothing)
+        out = call_tool(tools, "search_api"; args = Dict("query" => "replace_selection"),
+                        target = nothing)
         @test occursin("replace_selection", out)
 
         # mode "regex" makes the tool treat the query as a regular expression
-        rout = call_tool(tools, "search_api",
-                         Dict("query" => "^OperationModule\\.Replace", "mode" => "regex"), nothing)
+        rout = call_tool(tools, "search_api";
+                         args = Dict("query" => "^OperationModule\\.Replace", "mode" => "regex"),
+                         target = nothing)
         @test occursin("ReplaceSelectionOperation", rout)
 
         # an invalid regex is reported, not thrown
-        bad = call_tool(tools, "search_guides",
-                        Dict("query" => "(unclosed", "mode" => "regex"), nothing)
+        bad = call_tool(tools, "search_guides";
+                        args = Dict("query" => "(unclosed", "mode" => "regex"),
+                        target = nothing)
         @test occursin("Invalid regex", bad)
 
         # in the default mode the same string is read as harmless keywords
-        kout = call_tool(tools, "search_guides", Dict("query" => "(unclosed"), nothing)
+        kout = call_tool(tools, "search_guides"; args = Dict("query" => "(unclosed"),
+                         target = nothing)
         @test isa(kout, String) && !occursin("Invalid regex", kout)
     end
 end

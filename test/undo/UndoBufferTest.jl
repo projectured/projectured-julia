@@ -337,7 +337,8 @@ function test_undo_buffer()
         register_undo_tools!(tools)
         arguments = Dict{String,Any}()
 
-        @test occursin("nothing to take back", call_tool(tools, "undo", arguments, editor))
+        @test occursin("nothing to take back", call_tool(tools, "undo"; args = arguments,
+                                                         target = editor))
         evaluate_operation(editor, RecordUndoOperation(buffer,
             ReplaceReferencedValueOperation(nothing,
                 Reference(FieldReferenceStep("content"), FieldReferenceStep("items"),
@@ -345,14 +346,14 @@ function test_undo_buffer()
                 "changed")))
         @test _texts(list) == ["changed"]
 
-        @test occursin("take back", call_tool(tools, "undo", arguments, editor))
+        @test occursin("take back", call_tool(tools, "undo"; args = arguments, target = editor))
         @test _texts(list) == ["a"]
-        @test occursin("put back", call_tool(tools, "redo", arguments, editor))
+        @test occursin("put back", call_tool(tools, "redo"; args = arguments, target = editor))
         @test _texts(list) == ["changed"]
 
         # An editor that keeps no history says so rather than failing.
         @test occursin("keeps no history",
-                       call_tool(tools, "undo", arguments, _UndoEditor(list)))
+                       call_tool(tools, "undo"; args = arguments, target = _UndoEditor(list)))
     end
 
     @testset "make_undoable_operation records a change from outside the reader" begin

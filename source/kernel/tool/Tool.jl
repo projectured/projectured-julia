@@ -23,7 +23,7 @@ struct Tool
 end
 
 """
-    Resource(uri, name, description, provider; mime_type = "text/markdown")
+    Resource(uri, name; description, provider, mime_type = "text/markdown")
 
 A read-only piece of data identified by `uri`. `provider()` returns the resource
 body as a `String`, lazily — so registering a resource costs nothing until it is
@@ -37,7 +37,7 @@ struct Resource
     provider::Function
 end
 
-Resource(uri, name, description, provider; mime_type::AbstractString = "text/markdown") =
+Resource(uri, name; description, provider, mime_type::AbstractString = "text/markdown") =
     Resource(String(uri), String(name), String(description), String(mime_type), provider)
 
 """

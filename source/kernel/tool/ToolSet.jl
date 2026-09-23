@@ -129,12 +129,12 @@ function find_tool(set::ToolSet, name::AbstractString)
 end
 
 """
-    call_tool(set, name, args, target) -> String
+    call_tool(set, name; args, target) -> String
 
 Invoke a registered tool against `target`. Throws `KeyError` if `set` has no tool
 of that name.
 """
-function call_tool(set::ToolSet, name::AbstractString, args, target)
+function call_tool(set::ToolSet, name::AbstractString; args, target)
     t = find_tool(set, name)
     t === nothing && throw(KeyError(name))
     t.handler(target, args)

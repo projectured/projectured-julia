@@ -234,51 +234,36 @@ function register_default_tools!(set::ToolSet)
     # `search_guides` went on printing `resource://guide/…` for every hit,
     # and `read_resource` could not resolve one, so a model told to read a guide
     # spent a round on "Resource not found". Measured 2026-09-13.
-    register_resource!(set, Resource(
-        "resource://guides",
-        "Documentation Guides",
-        "List all available documentation with a one-paragraph description for each guide. " *
-        "Documentation files are markdown files containing tips and tricks.",
-        list_guides,
-    ))
+    register_resource!(set, Resource("resource://guides", "Documentation Guides";
+                                     description = "List all available documentation with a one-paragraph description for each guide. " *
+                                                   "Documentation files are markdown files containing tips and tricks.",
+                                     provider = list_guides))
     for (guide_name, _) in _all_guides()
         let gd_name = guide_name
-            register_resource!(set, Resource(
-                "resource://guide/$gd_name",
-                "Guide: $gd_name",
-                "Full content of the $gd_name documentation guide.",
-                () -> _add_guide_footer(gd_name, read_guide(gd_name)),
-            ))
+            register_resource!(set, Resource("resource://guide/$gd_name", "Guide: $gd_name";
+                                             description = "Full content of the $gd_name documentation guide.",
+                                             provider = () -> _add_guide_footer(gd_name, read_guide(gd_name))))
         end
     end
 
     let declared = set.api
-        register_resource!(set, Resource(
-            "resource://modules",
-            "Modules",
-            "List the modules you may call, with one-paragraph documentation for each " *
-            "and a list of its types.",
-            () -> list_modules(; api = declared),
-        ))
+        register_resource!(set, Resource("resource://modules", "Modules";
+                                         description = "List the modules you may call, with one-paragraph documentation for each " *
+                                                       "and a list of its types.",
+                                         provider = () -> list_modules(; api = declared)))
     end
 
     for (mod_sym, mod) in _api_modules(set)
         let mn = String(mod_sym)
-            register_resource!(set, Resource(
-                "resource://module/$mn",
-                "Module: $mn",
-                "Full documentation for the $mn module.",
-                () -> read_module_documentation(mn; api = set.api),
-            ))
+            register_resource!(set, Resource("resource://module/$mn", "Module: $mn";
+                                             description = "Full documentation for the $mn module.",
+                                             provider = () -> read_module_documentation(mn; api = set.api)))
         end
         for (cls_sym, _) in _api_types(set, mod)
             let mn = String(mod_sym), cn = String(cls_sym)
-                register_resource!(set, Resource(
-                    "resource://type/$mn/$cn",
-                    "Type: $mn.$cn",
-                    "Full documentation for the $cn type in module $mn.",
-                    () -> read_type_documentation(mn, cn; api = set.api),
-                ))
+                register_resource!(set, Resource("resource://type/$mn/$cn", "Type: $mn.$cn";
+                                                 description = "Full documentation for the $cn type in module $mn.",
+                                                 provider = () -> read_type_documentation(mn, cn; api = set.api)))
             end
         end
         # Per-function resources are intentionally NOT registered: that fans out to
