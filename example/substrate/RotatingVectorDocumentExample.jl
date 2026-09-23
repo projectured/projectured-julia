@@ -46,7 +46,7 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
 
     # static circle outline marking the path: an *unfilled* ring (transparent
     # fill + base01 grey outline). Only the dot below is a filled disc.
-    ring = GraphicsCircle(cx, cy, r, StyleColor(0.0, 0.0, 0.0, 0.0);
+    ring = GraphicsCircle(cx, cy, r; color = StyleColor(0.0, 0.0, 0.0, 0.0),
                           border_width = 2, border_color = color_solarized_content_darker)
 
     # chart axes — static, base01 grey. Each wave gets a zero baseline (the time

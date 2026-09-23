@@ -682,13 +682,13 @@ end
 # the two domains stay recognisably one family.
 function _mark!(out, symbol::Symbol, x::Int, y::Int, radius::Int, color)
     if symbol === :circle || symbol === :dot
-        push!(out, GraphicsCircle(x, y, radius, color))
+        push!(out, GraphicsCircle(x, y, radius; color))
     elseif symbol === :square
         push!(out, GraphicsRect(x - radius, y - radius, 2 * radius, 2 * radius, color))
     else
         points = build_marker_polygon(symbol, x, y, radius)
         if points === nothing
-            push!(out, GraphicsCircle(x, y, radius, color))
+            push!(out, GraphicsCircle(x, y, radius; color))
         else
             push!(out, GraphicsPolygon(points, color))
         end
@@ -753,8 +753,8 @@ function _event_ring!(out, g, row::Integer, color)
     x, y = flow_point(g.frame, flow, position)
     radius = g.style.event_radius + 4
     # Transparent fill, so the mark underneath still shows through the ring.
-    push!(out, GraphicsCircle(round(Int, x), round(Int, y), radius,
-                              color_transparent;
+    push!(out, GraphicsCircle(round(Int, x), round(Int, y), radius;
+                              color = color_transparent,
                               border_width=2, border_color=color))
     out
 end

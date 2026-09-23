@@ -59,7 +59,7 @@ end
     canvas = GraphicsCanvas([
         GraphicsRect(10, 10, 120, 40, StyleColor(220 / 255, 60 / 255, 60 / 255, 1.0), 8;
                      border_width=2, border_color=color_black),
-        GraphicsCircle(180, 30, 20, StyleColor(60 / 255, 120 / 255, 220 / 255, 200 / 255)),
+        GraphicsCircle(180, 30, 20; color = StyleColor(60 / 255, 120 / 255, 220 / 255, 200 / 255)),
         GraphicsLine(10, 70, 200, 70, color_black; width=2),
         GraphicsText("Hello PDF — café", 12, 80; font = fnt, color = StyleColor(20 / 255, 20 / 255, 20 / 255, 1.0)),
     ])

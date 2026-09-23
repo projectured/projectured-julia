@@ -163,7 +163,7 @@ end
 # ── GraphicsCircle ─────────────────────────────────────────────────────────
 
 """
-    GraphicsCircle(cx, cy, radius, color::StyleColor=color_black; border_width=0, border_color=nothing)
+    GraphicsCircle(cx, cy, radius; color::StyleColor=color_black, border_width=0, border_color=nothing)
 
 A reactive filled circle centered at `(cx,cy)` in `color` (a [`StyleColor`](@ref)).
 Optional anti-aliased outline via `border_width` + `border_color` (a
@@ -179,9 +179,8 @@ switch knobs and slider thumbs.
     border_color::StyleColor
 end
 
-# @positional: the geometry of a circle: the centre, then the radius.
-function GraphicsCircle(cx::Integer, cy::Integer, radius::Integer,
-                        color::StyleColor=color_black;
+function GraphicsCircle(cx::Integer, cy::Integer, radius::Integer;
+                        color::StyleColor=color_black,
                         border_width::Integer=0, border_color=nothing)
     GraphicsCircle(Cell(Int32(cx)), Cell(Int32(cy)), Cell(Int32(radius)),
                    Cell(color),

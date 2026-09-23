@@ -5759,7 +5759,7 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
         right_x = content_x + track_width - knob_padding - knob_radius
         knob_color = _get_state_color(p, w, :knob; state)
         knob_stroke = _get_state_stroke(p, w, :knob; state)
-        knob = GraphicsCircle(on ? right_x : left_x, content_y + track_height ÷ 2, knob_radius, knob_color;
+        knob = GraphicsCircle(on ? right_x : left_x, content_y + track_height ÷ 2, knob_radius; color = knob_color,
                               border_width=max(1, _sc(knob_stroke.width)), border_color=knob_stroke.color)
         # The knob's x is a computed cell. It reads `checked` (so it tracks the
         # logical state and snaps when there is no animation) and, while a slide is
@@ -5958,7 +5958,7 @@ function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSli
         knob_stroke = _get_state_stroke(p, w, :knob; state)
         push!(elements, GraphicsRect(content_x, center_y - track_thickness ÷ 2, slider_width, track_thickness, track_c, track_thickness ÷ 2))
         filled_width > 0 && push!(elements, GraphicsRect(content_x, center_y - track_thickness ÷ 2, filled_width, track_thickness, indicator_c, track_thickness ÷ 2))
-        push!(elements, GraphicsCircle(content_x + filled_width, center_y, _sc(p.knob_radius), knob_c;
+        push!(elements, GraphicsCircle(content_x + filled_width, center_y, _sc(p.knob_radius); color = knob_c,
                                        border_width=max(1, _sc(knob_stroke.width)), border_color=knob_stroke.color))
         outer_width, outer_height = slider_width + inset_width, slider_height + inset_height
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, slider_height ÷ 2)
@@ -6130,11 +6130,11 @@ function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Widge
             cx = content_x + diameter ÷ 2
             indicator_color = _get_state_color(p, w, :indicator; state)
             indicator_stroke = _get_state_stroke(p, w, :indicator; state)
-            push!(elements, GraphicsCircle(cx, center_y, diameter ÷ 2, indicator_color;
+            push!(elements, GraphicsCircle(cx, center_y, diameter ÷ 2; color = indicator_color,
                                            border_width=max(1, _sc(indicator_stroke.width)), border_color=indicator_stroke.color))
             if i == selected
                 dot_color = _get_state_color(p, w, :dot; state)
-                push!(elements, GraphicsCircle(cx, center_y, _sc(p.dot_radius), dot_color))
+                push!(elements, GraphicsCircle(cx, center_y, _sc(p.dot_radius); color = dot_color))
             end
             _push_text!(elements, label.font, label_str, content_x + diameter + label_gap,
                        content_y + row_y + (row_height - label_height) ÷ 2, label.color)
@@ -6227,7 +6227,7 @@ function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAva
         label = _get_state_text(p, w, :label)
         elements = Any[]
         _push_box_parts!(elements, box, merge(colors, (content = color_transparent,)), size, size; radius)
-        push!(elements, GraphicsCircle(content_x + radius, content_y + radius, radius, colors.content))
+        push!(elements, GraphicsCircle(content_x + radius, content_y + radius, radius; color = colors.content))
         initials_width, initials_height = _text_size(p.measure, label.font, initials)
         push!(elements, GraphicsText(initials, content_x + radius - initials_width ÷ 2,
                                      content_y + radius - initials_height ÷ 2; font = label.font, color = label.color))

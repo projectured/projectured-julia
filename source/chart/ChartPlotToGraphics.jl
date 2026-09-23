@@ -680,9 +680,9 @@ function _marker!(out, shape::Symbol, x::Int, y::Int, size::Int, color::StyleCol
     if polygon !== nothing
         push!(out, GraphicsPolygon(polygon, color))
     elseif shape === :circle
-        push!(out, GraphicsCircle(x, y, r, color))
+        push!(out, GraphicsCircle(x, y, r; color))
     elseif shape === :dot
-        push!(out, GraphicsCircle(x, y, max(r ÷ 2, 1), color))
+        push!(out, GraphicsCircle(x, y, max(r ÷ 2, 1); color))
     elseif shape === :square
         push!(out, GraphicsRect(x - r, y - r, 2r, 2r, color))
     elseif shape === :plus
@@ -1087,9 +1087,9 @@ function _overlay_elements!(out, g, plot::ChartPlot)
                 sx = round(Int, to_pixel(g.xs, point[1])) - g.plot_x
                 sy = round(Int, to_pixel(g.ys, point[2])) - g.plot_y
                 color = get_series_color(series.color, sample[1], g.style.color_cycle)
-                push!(out, GraphicsCircle(sx, sy, 6, color_transparent;
+                push!(out, GraphicsCircle(sx, sy, 6; color = color_transparent,
                                           border_width=2, border_color=_SELECTION_EDGE))
-                push!(out, GraphicsCircle(sx, sy, 3, color))
+                push!(out, GraphicsCircle(sx, sy, 3; color))
             end
         end
     end
@@ -1115,7 +1115,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
 
     index, px, py = snapped
     color = get_series_color(g.chart.series[index].color, index, g.style.color_cycle)
-    push!(out, GraphicsCircle(px, py, 4, color; border_width=1, border_color=_PLOT_BACKGROUND))
+    push!(out, GraphicsCircle(px, py, 4; color, border_width=1, border_color=_PLOT_BACKGROUND))
     label = string(_series_label(g.chart.series[index]), "  ",
                    format_tick(to_data(g.xs, px + g.plot_x)), ", ",
                    format_tick(to_data(g.ys, py + g.plot_y)))
