@@ -1,8 +1,11 @@
 # An operation enters at any reference
 
-**Status (2026-09-23): DESIGN DECIDED.** Nothing is implemented. The owner
-answered the open questions on 2026-09-23 (§3, §5). Step 1b, the first slice,
-is approved to start; the later steps need the owner's word.
+**Status (2026-09-23): IMPLEMENTED IN projectured-julia, on the branch
+`selection-root`.** Steps 1b, 2 and 3 are done there, with the guides and the
+audit of `DocumentWalk.jl`. Open: omnet-julia (it needs the projectured-julia
+part visible to it), sealing `DocumentWalk.jl` again, and the docstring of
+`search_references` in the sealed `ReferenceSearch.jl`; each waits for the
+owner's word.
 
 **Goal:** code that is not the editor loop — a verb, the assistant, an MCP tool,
 a test, a replay, the start of an application — can do anything a person can
