@@ -233,6 +233,15 @@ memory cap of 20 GB. No second Julia process runs at the same time.
       sequence chart, process, video, text, the console, PDF and web
       backends, the message log, the documentation and the naming suites
       pass. No downstream file uses a name that the branch removes.
+- [x] During the checks, `main` added the rule `PAR-SELECTION-WRITTEN-AT-ROOT`,
+      and the branch took it with a third merge. The code that the branch adds
+      writes no selection below the root. One read is open for the owner:
+      `convert_to_focus_selection` reads the live selection of the child under
+      the pointer, so that a click on a control that has the focus keeps its
+      inner selection. A dormant selection reads as `nothing`, so the answer
+      is the same as a test of the container's own path. The letter of the
+      rule wants the container's own selection, and that change goes through
+      the 15 routers that call `read_child_event`.
 - [ ] Land on `main`, and move this plan to `plan/done/`.
 
 ## 5. Decisions
