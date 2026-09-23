@@ -239,7 +239,23 @@ Steps:
   Each holds a type that is missing — a geometry, a style, a pass. They are a
   refactor of their own, and a later plan.
 
-### Wave 5: the markers that excuse too much — IN PROGRESS
+### Wave 5: the markers that excuse too much — DONE
+
+**Done, 2026-09-23.** No marked definition breaks the optional clause any more,
+except the four ports, which keep the defaults of the C++ original. Markers
+74 → 67; public definitions that break the optional clause, marked or not,
+44 → 36. The guard now holds the clause for every marked definition.
+
+The suites keep their known results on the rebased branch: `test_kernel()` the
+six failures of Rule C and the reference schema, `test_substrate()` the five of
+the split-pane drag, `test_conversation()` its one import check; `test_undo()`,
+`test_filesystem()`, `test_gesture_help()`, `test_versioning_to_any()`,
+`test_clipboard()`, `test_json()`, `test_xml()`, `test_chart()`,
+`test_sequencechart()`, `test_graph()`, `test_sdl()`, `test_gesture_log()`,
+`test_write_pdf()`, `test_application()`, `test_arguments()` and the fault
+suite (102 of 102) pass. The runs used an 8 GB cap, two threads and two
+precompile tasks.
+
 
 **Found 2026-09-23.** A `# @positional:` marker excuses the whole signature, not
 only the tuple its reason names. Twelve marked public definitions break the
