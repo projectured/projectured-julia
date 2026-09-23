@@ -295,7 +295,7 @@ into the new element (re-rooting prepends the same steps to both members).
 `root` defaults to `nothing` (rooted at `editor.document`); pass a carried object
 for an identity-rooted splice against a document that is not in the tree.
 """
-function insert_elements(path::Reference, index::Integer, items, selection=nothing; root=nothing)
+function insert_elements(path::Reference, index::Integer, items; selection=nothing, root=nothing)
     write = ReplaceReferencedValueOperation(root, extend_reference(path, RangeReferenceStep(index, index)),
                                    Vector{Any}(items))
     selection === nothing ? write :

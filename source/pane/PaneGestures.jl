@@ -105,7 +105,7 @@ function _title_edit(tree::PaneTree, event)
     group, index = found
     answer = read_gesture(group.tabs[index].title, event)
     answer === nothing && return nothing
-    make_pane_retarget_title_operation(tree, group, index, answer)
+    make_pane_retarget_title_operation(tree, group, index; operation = answer)
 end
 
 # ── The walk at a tab ──────────────────────────────────────────────────────

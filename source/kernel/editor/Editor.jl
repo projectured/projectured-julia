@@ -71,6 +71,8 @@ end
 # not build a queue of syncs that are stale by the time they are applied.
 const INBOX_CAPACITY = 64
 
+# @positional: what an editor is made of, in the order of the layers: the backend,
+# the document, the projection it draws through, and the devices it reads.
 function Editor(backend, document, projection, devices;
                 clock::Clock = Clock(), tools::ToolSet = ToolSet(),
                 faults::FaultStore = FaultStore(),
