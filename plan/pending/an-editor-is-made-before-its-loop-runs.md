@@ -1,8 +1,8 @@
 # An editor is made before its loop runs
 
-**Status (2026-09-23): DESIGN.** Nothing is implemented, and no step is approved
-to start. The owner asked for this plan, and named the new function
-`make_editor`. The rest is the lead's proposal, to confirm.
+**Status (2026-09-23): READY.** Nothing is implemented. The owner asked for this
+plan, named the new function `make_editor`, and took the lead's answers to the
+open questions (§5). Step 1 waits for the owner's word.
 
 **Goal:** a caller that must do work before the loop starts holds the editor,
 does that work, and then runs the loop. The `on_start` hook goes. Start-up work
@@ -75,31 +75,48 @@ build and the run.
 - **`on_start` goes,** from `run_editor!`, `run_window_editor`, the gallery and
   every caller.
 
-## 5. Open questions
+## 5. Decisions (2026-09-23, the lead's answers, taken by the owner)
 
-1. **`make_editor` at which level?** The kernel's form takes a backend, a
-   projection and a document. `run_window_editor` also builds the scene and its
-   projection from a document and a title. One name with two methods (the
-   kernel's and the screen's), or the screen's callers compose
-   `make_window_scene`, `make_window_scene_projection` and the kernel's
-   `make_editor`?
-2. **Does the first frame reuse the iomap that `make_editor` printed?** To check
-   in `print!`: a loop that prints again at once throws the work away, which is
-   harmless but slow.
-3. **The fault policy.** `run_editor!(editor)` sets it now, and prints again when
-   it differs. `make_editor` must take it and set it before the one print.
-4. **Editors that tests build** with `Editor(…)` and run with `run_editor!(editor)`:
-   check that quitting the backend at the end of the loop suits them.
+1. **Two methods of one name, which mirror the two one-call forms.** The kernel's
+   `make_editor(backend::Backend, projection, document::Document; devices,
+   feeds, fault_policy)`, and the screen's `make_editor(document, projection,
+   title::AbstractString; backend, width, height, opened_window_projections,
+   screen_wrap, feeds, fault_policy)`. The kernel's form is needed too, because
+   the fault overlay and the gallery use the kernel's one-call form. With
+   `document::Document` in the kernel's method, the two can not overlap: no
+   document is a string. The one-call forms become
+   `run_editor!(make_editor(…); mcp, …)`.
+2. **`make_editor` calls `print!(editor)`.** Fact: `print!`
+   (`kernel/editor/FaultBarriers.jl`) prints only when `editor.iomap` is
+   `nothing`, and it prints in the context that carries the clock, the root, the
+   fault store and the fault policy; a bare `print_document` would lose that
+   context. So the loop's first frame reuses the print, and the window shows its
+   content once before the loop.
+3. **`make_editor` passes the fault policy to `Editor(…)`,** which takes it now
+   (`fault_policy = make_strict_fault_policy()` by default). The keyword of
+   `run_editor!(editor)` defaults to the editor's own policy, so an editor from
+   `make_editor` is not printed a second time. The three tests that build a
+   strict `Editor` and run its loop (`McpTest.jl:716`, `WaitTest.jl:110`,
+   `InboxTest.jl:120`) then run strict.
+4. **The loop quits the backend it ran on, always.** Fact: `quit_backend!` has no
+   default in the kernel (`kernel/backend/BackendInterface.jl`), and the console
+   backend's quit is harmless for a stream that is not a terminal. A custom test
+   backend gets a method, such as the one in `WaitTest.jl`. A flag in `Editor`
+   that remembers who started the backend was considered and not taken: it adds
+   state.
+
+Not taken: a do-block form, `make_editor(…) do editor … end`. It would be
+`on_start` under another name.
 
 ## 6. Steps
 
 No step is approved to start.
 
 ### Step 0 — facts
-- [ ] The answers to questions 2 and 4, read-only.
+- [x] Found on 2026-09-23 and folded into §5 (decisions 2, 3 and 4).
 
 ### Step 1 — `make_editor`, and `run_editor!(editor)` quits the backend
-- [ ] `make_editor`, at the level question 1 decides.
+- [ ] The two methods of `make_editor` (§5, decision 1).
 - [ ] `run_editor!(editor)` quits the backend in a `finally`.
 - [ ] The one-call forms are `make_editor` and `run_editor!(editor)`.
 - [ ] Tests: an editor that `make_editor` answers has an iomap; a verb that
