@@ -48,8 +48,9 @@ ChainingProjection(
 
 ```julia
 projection, log = make_fault_tolerant_projection(composed)
-run_editor!(backend, projection, document;
-            on_start = editor -> attach_fault_target!(editor.faults, log))
+editor = make_editor(backend, projection, document)
+attach_fault_target!(editor.faults, log)
+run_editor!(editor)
 ```
 
 ### The report ladder

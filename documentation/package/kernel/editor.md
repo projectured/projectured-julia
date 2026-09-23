@@ -132,8 +132,8 @@ this frame's input", which is what `perf!` uses to tell a frame the user acted
 in from an idle one, and what `evaluate!` writes to the operation log.
 
 A `QuitEditorException` thrown out of `evaluate_operation` exits the loop
-cleanly. The MCP server is started after `on_start`, before the first frame,
-and stopped in the `finally` block — see below.
+cleanly. The MCP server is started when the loop starts, before the first
+frame, and stopped in the `finally` block — see below.
 
 #### A call on the editor task
 
@@ -287,7 +287,7 @@ edit from a pane tree to the root; see
 ## Running an editor
 
 The entry point is the bootstrap overload
-`run_editor!(backend, projection, document; mcp=false, mcp_instructions=nothing, mcp_host=nothing, mcp_port=nothing, devices=…, on_start=nothing)`:
+`run_editor!(backend, projection, document; mcp=false, mcp_instructions=nothing, mcp_host=nothing, mcp_port=nothing, devices=…, feeds=…, fault_policy=…)`:
 
 ```julia
 using Projectured
@@ -308,10 +308,12 @@ editor in a browser instead of a native window (see the
 [devices and backends guide](devices-and-backends.md#webbackend)), or
 `ConsoleBackend()` for the terminal. Nothing else changes.
 
-This overload calls `initialize_backend!(backend)`, builds a `Vector{Device}` (default
-`Display()`, `Keyboard()`, `Mouse()`), populates their physical properties from the
-backend with `configure_devices!`, opens the native windows with
-`open_native_windows!`, constructs the `Editor`, and runs the loop. The windows
+This overload is `make_editor(backend, projection, document; devices, feeds,
+fault_policy)` and then `run_editor!(editor)`. `make_editor` calls
+`initialize_backend!(backend)`, takes a `Vector{Device}` (default `Display()`,
+`Keyboard()`, `Mouse()`), populates their physical properties from the backend
+with `configure_devices!`, opens the native windows with `open_native_windows!`,
+constructs the `Editor`, and prints it once. The windows
 are opened before the first frame, and the document is corrected to the geometry
 the window system granted: a manager may grant less than it is asked for, and it
 answers only once the window exists, so a document projected first is projected
@@ -319,7 +321,9 @@ at a size the window never has and computes a second time when the answer
 arrives. A window a projection opens later — a tooltip, a popup — is still
 opened on demand, by `write_to_devices` against the `ScreenDocument` output (the
 pipeline is expected to end in one).
-`quit_backend!(backend)` cleanup is in a `finally` block. Pass
+`run_editor!(editor)` runs the loop, and calls `quit_backend!(editor.backend)` in
+a `finally` block when the loop ends. `make_editor` quits the backend too when the
+build or the print throws. Pass
 `mcp=true` to start an MCP server alongside the loop, and `mcp_instructions` to
 override the text the MCP server's `initialize` response sends a connecting
 client (see [MCP server](#mcp-server)) — omitted, the server uses its own
@@ -328,12 +332,22 @@ that is omitted keeps the server's default, `127.0.0.1` and `9876`. A backend
 that drives a different channel passes its own `devices` (the `ConsoleBackend`
 uses `devices = Device[Keyboard()]` — no `Display`/`Mouse`).
 
-`on_start(editor)`, when given, runs once — after the `Editor` is built, before
-the first frame — with the freshly built editor. It is how something that will
-later call `post_operation!` gets hold of the editor to post to: a driver
-advancing a simulation, a file watcher, an external client's own setup code.
-This overload is what constructs the `Editor`, so nothing outside can reach it
-any earlier.
+A caller with work to do before the loop calls the two halves itself. It gets the
+editor from `make_editor`, does its work, and then runs the loop:
+
+```julia
+editor = make_editor(backend, proj, document)
+attach_fault_target!(editor.faults, log)   # hand the editor on
+@async drive(editor)                       # a driver that posts its work
+focus_pane!(editor, reference)             # an edit through the readers
+run_editor!(editor)
+```
+
+The editor from `make_editor` has printed once, so `editor.iomap` exists, and an
+edit that reads through the readers (`read_rooted_operation`, the pane verbs)
+works before the loop. `make_editor` reads no input: only the loop reads the
+backend. The screen package has the same pair for a window:
+`make_editor(document, projection, title; backend, …)` and `run_window_editor`.
 
 ## Scripted live playback
 
@@ -408,8 +422,8 @@ In the example packages this is wired up for you — see `play_live_example` and
 ## MCP server
 
 When `run_editor!` starts with `mcp=true`, it constructs an `McpServer` bound to
-the editor after `on_start` has run, so the server serves the tools that
-`on_start` registers. It launches the server at `mcp_host` and `mcp_port`,
+the editor when the loop starts, so the server serves the tools that a caller
+registers between `make_editor` and `run_editor!`. It launches the server at `mcp_host` and `mcp_port`,
 `http://127.0.0.1:9876/mcp` by default, via the `make_agent_server(:mcp, …)`
 seam (see
 [source/kernel/agent/AgentModule.jl](../../../source/kernel/agent/AgentModule.jl)). The server

@@ -77,8 +77,9 @@ Two tools need what only the window has. `assistant` makes the assistant of the 
 
 ```julia
 run_with_window_tools() do feeds, start
-    run_window_editor(document, projection, "Title"; backend = backend,
-                      feeds = feeds, on_start = start)
+    editor = make_editor(document, projection, "Title"; backend = backend, feeds = feeds)
+    start(editor)
+    run_editor!(editor)
 end
 ```
 
@@ -123,8 +124,10 @@ wrap = make_window_wrap(; shell = document -> (make_window_menu_bar(),
                                                make_window_status_bar(document), nothing, nothing))
 document, projection = wrap(document, projection)
 run_with_window_tools() do feeds, start
-    run_window_editor(document, projection, "Title"; backend = SdlBackend(), feeds = feeds,
-                      on_start = start, screen_wrap = make_popup_screen_wrap())
+    editor = make_editor(document, projection, "Title"; backend = SdlBackend(), feeds = feeds,
+                         screen_wrap = make_popup_screen_wrap())
+    start(editor)
+    run_editor!(editor)
 end
 ```
 

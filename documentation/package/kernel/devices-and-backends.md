@@ -304,8 +304,8 @@ itself never sees the backend type.
 1. Subtype `Device` in `source/kernel/device/`.
 2. Add backend methods: `read_from_device(::SdlBackend, ::YourDevice)` and
    if relevant `write_to_device(::SdlBackend, ::YourDevice, document)`.
-3. Add the device to the `Vector{Device}` built by the `run_editor!(backend, projection,
-   document)` bootstrap in `editor/EditorModule.jl` (`Device[Display(), Keyboard(), Mouse()]`).
+3. Add the device to the default `devices` of `make_editor(backend, projection,
+   document)` in `editor/EditorLoop.jl` (`Device[Display(), Keyboard(), Mouse()]`).
 4. If it emits novel events, declare backend-agnostic event structs in
    `source/kernel/event/` so projection readers can match on them.
 

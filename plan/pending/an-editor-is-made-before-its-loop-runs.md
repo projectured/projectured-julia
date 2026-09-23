@@ -1,7 +1,8 @@
 # An editor is made before its loop runs
 
 **Status (2026-09-23): IMPLEMENTING.** The owner approved the whole plan
-("implement it"). Step 1 is done.
+("implement it"). Steps 1, 2 and 4 are done in projectured-julia; Step 3,
+omnet-julia, is next.
 
 **Goal:** a caller that must do work before the loop starts holds the editor,
 does that work, and then runs the loop. The `on_start` hook goes. Start-up work
@@ -167,4 +168,9 @@ The owner approved every step on 2026-09-23.
       readers.
 
 ### Step 4 — the guides
-- [ ] `editor.md` and the guides that describe `on_start` or the one-call forms.
+- [x] `editor.md` and the guides that describe `on_start` or the one-call forms:
+      `kernel/editor.md` (the two halves, an example with work before the
+      loop, and when the MCP server starts), `fault/fault.md`, `mcp/mcp.md`,
+      `shell/shell.md`, `screen/screen.md` and
+      `kernel/devices-and-backends.md`. The one-call forms with no work before
+      the loop stay as they are in the other guides.

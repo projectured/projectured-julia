@@ -77,6 +77,6 @@ mcp = McpServer(editor; port = 9900)   # http://127.0.0.1:9900/mcp
 
 - **A tool call holds the frame.** The editor draws no frame while a tool runs on its task. The first search by description of a build can wait up to 30 seconds for the vectors of the meaning model, and the window does not draw in that time.
 - **A tool can not wait for a frame.** A tool runs between two frames on the editor task, and the next frame starts when the tool returns. So code in `execute_julia_code` that waits for a frame, or for a posted operation to be applied, does not see it before it returns.
-- **The server renders the tool set once, when it starts.** `run_editor!` starts it after `on_start`, so the `undo` and `redo` tools that the application registers there are served. A tool that is registered after `start_mcp!` does not reach a client: the library of the protocol lists its own vector of tools, and it calls no code of this package when a client lists them.
+- **The server renders the tool set once, when it starts.** `run_editor!` starts it when the loop starts, so the `undo` and `redo` tools that the application registers between `make_editor` and `run_editor!` are served. A tool that is registered after `start_mcp!` does not reach a client: the library of the protocol lists its own vector of tools, and it calls no code of this package when a client lists them.
 - The server listens on the loopback address with no authentication. Every program on the machine can reach it.
 - One server serves one editor.

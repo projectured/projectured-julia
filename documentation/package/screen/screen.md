@@ -42,7 +42,7 @@ The projection changes only the input screen. `ScreenToScreen` then updates the 
 
 ### One window on one document
 
-`make_window_scene(document, title)` makes a screen with one window. `make_window_scene_projection(projection)` makes the matching projection: the first window goes through your projection, and a window opened later goes through the projection of its content type, from `opened_window_projections`. `run_window_editor(document, projection, title; backend)` builds both and starts the editor loop.
+`make_window_scene(document, title)` makes a screen with one window. `make_window_scene_projection(projection)` makes the matching projection: the first window goes through your projection, and a window opened later goes through the projection of its content type, from `opened_window_projections`. `make_editor(document, projection, title; backend)` builds both, makes the editor and prints it once. `run_window_editor(document, projection, title; backend)` is `make_editor` and then `run_editor!(editor)`. A caller with work to do before the loop, such as a driver to start or a pane to focus, calls the two itself and does its work between them.
 
 ## How it fits
 
