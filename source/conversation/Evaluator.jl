@@ -179,9 +179,10 @@ the bottom form held when the navigation started, and `history_prefix` is the te
 before the caret then. See [`RecallEvaluatorFormOperation`](@ref).
 
 `parse_evaluated_forms` says whether an evaluation turns the code of its form into
-a Julia document. It does so only when the document prints back as the code was
-typed, less the blank space around it, so a comment or a person's own spacing is
-never rewritten. See [`EvaluateSelectedFormOperation`](@ref).
+a Julia document. It does so only when the document prints back as the same
+tokens on the same lines as the code that was typed, so only the spaces between
+them can change, and a comment is never lost. See
+[`EvaluateSelectedFormOperation`](@ref).
 """
 @document struct EvaluatorToplevel <: EvaluatorDocument
     elements::CellVector = CellVector()
@@ -224,8 +225,9 @@ that was evaluated shows no caret.
 
 The form that was evaluated keeps its code as typed in `source`. When the
 toplevel's `parse_evaluated_forms` is on, its code becomes a Julia document if
-the document prints back as that code, less the blank space around it. The
-evaluation runs the code as typed either way.
+the document prints back as the same tokens on the same lines as that code,
+whatever the spaces between them. The evaluation runs the code as typed either
+way.
 
 Declines — leaves the toplevel untouched — when the caret names no element, or
 that element's source is blank. Both are checked here, at evaluation time, not
@@ -374,22 +376,50 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
 end
 
 # The code of an evaluated form becomes a Julia document when the document prints
-# back as the code, less the blank space around it. Otherwise the form keeps its
-# string: code with a comment, with a spacing of its own, that does not parse, or
-# that no loaded domain reads as Julia. A parser throws for a construct it does
-# not support, and that is an answer here, not a fault.
+# back as the same tokens on the same lines as the code; the spaces between them
+# may change.
+# Otherwise the form keeps its string: code with a comment, code that the print
+# would change in another way, code that does not parse, or code that no loaded
+# domain reads as Julia. A parser throws for a construct it does not support,
+# and that is an answer here, not a fault.
 function _parse_evaluated_form!(element::EvaluatorForm)
     element.form isa PrimitiveString || return nothing
     has_natural_parser(:jl) || return nothing
     code = strip(something(element.form.value, ""))
     parsed = try
         document = parse_natural_text(:jl, code)
-        print_natural_text(document) == code ? document : nothing
+        _has_same_tokens(print_natural_text(document), code) ? document : nothing
     catch
         nothing
     end
     parsed === nothing || (element.form = parsed)
     nothing
+end
+
+# Whether two pieces of Julia code are the same tokens on the same lines, apart
+# from the spaces between the tokens. A space inside a string is part of the
+# string's token, and a comment is a token of its own. A line break counts, so
+# code of several statements, which the Julia notation prints as an indented
+# block with an empty first and last line, keeps its string.
+_has_same_tokens(code, other) = _collect_code_tokens(code) == _collect_code_tokens(other)
+
+const _JuliaSyntax = Base.JuliaSyntax
+
+# The tokens of Julia code with the spaces left out, and one "\n" for each line
+# break.
+function _collect_code_tokens(code::AbstractString)
+    text = String(code)
+    tokens = String[]
+    for token in _JuliaSyntax.tokenize(text)
+        kind = _JuliaSyntax.kind(token)
+        piece = _JuliaSyntax.untokenize(token, text)
+        if kind == _JuliaSyntax.K"NewlineWs"
+            append!(tokens, fill("\n", count(==('\n'), piece)))
+        elseif kind != _JuliaSyntax.K"Whitespace"
+            push!(tokens, piece)
+        end
+    end
+    tokens
 end
 
 # ── RecallEvaluatorFormOperation ────────────────────────────────────────────

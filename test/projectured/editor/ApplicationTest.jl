@@ -453,7 +453,7 @@ function test_application()
                        evaluator.elements[2].form.value] == ["a = 1", "b = 2\nb + 1"]
             end
 
-            @testset "an evaluated form draws as Julia when it prints back as typed" begin
+            @testset "an evaluated form draws as Julia, and a form with a comment as typed" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = Editor(ConsoleBackend(), scene, composed,
                                 Device[Display(), Keyboard(), Mouse()])

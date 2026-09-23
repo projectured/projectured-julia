@@ -221,7 +221,7 @@ function evaluated_form(code; parse = true)
     toplevel.elements[1]
 end
 
-@testset "an evaluated form becomes Julia when it prints back as typed" begin
+@testset "an evaluated form becomes Julia when it prints back as the same tokens" begin
     form = evaluated_form("x = 1 + 2")
     @test form.form isa JuliaAssignment
     @test print_natural_text(form.form) == "x = 1 + 2"
@@ -230,6 +230,14 @@ end
     form = evaluated_form("\nx = 1 + 2\n")
     @test form.form isa JuliaAssignment
     @test form.source == "\nx = 1 + 2\n"
+    # Nor does the spacing between the tokens: the form shows the spacing of the
+    # Julia notation, and `source` keeps the code as typed.
+    form = evaluated_form("1+1")
+    @test form.form isa JuliaBinaryOperation
+    @test print_natural_text(form.form) == "1 + 1"
+    @test form.source == "1+1"
+    @test evaluated_form("max(1,2)").form isa JuliaCall
+    @test evaluated_form("for i in 1:2\n    i\nend").form isa JuliaFor
     # With the parse off, the form keeps the string it was typed as.
     form = evaluated_form("x = 1 + 2"; parse = false)
     @test form.form isa PrimitiveString
@@ -237,14 +245,28 @@ end
     @test form.source == "x = 1 + 2"
 end
 
-@testset "a form whose parse would rewrite it keeps its string" begin
-    # A comment has no place in the Julia document, and a person's own spacing
-    # would be normalized: both forms keep what was typed.
-    for code in ("x = 1 + 2  # three", "max(1,2)")
+@testset "a form whose parse would change more than spacing keeps its string" begin
+    # A comment has no place in the Julia document, and the print gives a lambda
+    # parentheses that were not typed: both forms keep what was typed.
+    for code in ("x = 1 + 2  # three", "map(x -> x^2, [1, 2])")
         form = evaluated_form(code)
         @test form.form isa PrimitiveString
         @test form.form.value == code
     end
+    # Code of several statements prints as an indented block with an empty first
+    # and last line, so it keeps the lines it was typed on.
+    form = evaluated_form("x = 1\nx + 1")
+    @test form.form isa PrimitiveString
+    @test form.form.value == "x = 1\nx + 1"
+    # A space inside a string is part of the string, not spacing between tokens,
+    # and a line break counts where a space does not.
+    same_tokens = parentmodule(EvaluatorToplevel)._has_same_tokens
+    @test same_tokens("1+1", "1 + 1")
+    @test same_tokens("for i in 1:2\n    i\nend", "for i in 1:2\n  i\nend")
+    @test !same_tokens("s = \"a  b\"", "s = \"a b\"")
+    @test !same_tokens("x = 1  # one", "x = 1")
+    @test !same_tokens("x = 1\nx + 1", "\n  x = 1\n  x + 1\n")
+    @test !same_tokens("struct P\n    x::Int\nend", "struct P\n\n  x::Int\nend")
     # Code that does not parse keeps its string, and its error.
     form = evaluated_form("x = (")
     @test form.form isa PrimitiveString
