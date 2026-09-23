@@ -300,8 +300,14 @@ Steps:
   constructor that `@document` generates; they name the tail as well.
   `GraphicsText` shares its five-argument arity with that generated
   constructor, so a call the scan misses would not fail. The scan found none.
-- [ ] 2. omnet-julia: the 33 graphics calls, on a branch. It lands right after
-  step 1, because every call there fails once step 1 lands.
+- [x] 2. omnet-julia: the graphics calls, on its branch `keyword-wave5`, in one
+  commit. It lands right after step 1, because every call there fails once step
+  1 lands. The count was 19 calls and three Hanoi rectangles that passed all
+  eleven fields by position. The marker frame of a marked module passed
+  `nothing` as its colour, which no method takes: marking a module raised a
+  MethodError. Its colour is `color_transparent` now. The timeline, module-view,
+  canvas-animation and focus-history tests pass against this branch, a vector
+  plot prints, and the Hanoi keyword sets build.
 - [ ] 3. The five gesture patterns and their 52 calls — after the owner's
   permission for `EventPattern.jl`.
 - [ ] 4. The guard: a marked definition keeps the optional clause, and §4 of the
