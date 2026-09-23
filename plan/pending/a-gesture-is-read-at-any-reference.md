@@ -1,15 +1,16 @@
 # A gesture is read at any reference
 
-**Status (2026-09-23): DESIGN.** Not approved for implementation. One question
-(§5, question 3) is open and needs more examples. Nothing is implemented.
+**Status (2026-09-23): DESIGN.** Not approved for implementation. Nothing is
+implemented. The shape of the entry is decided (§3); how the route travels is
+open (§5).
 
 **Goal:** code that is not the editor loop — a verb, the assistant, an MCP tool,
 a test, a replay, the start of an application — can do anything a person can
-do, and it does it the way a person does: it gives a gesture at a place, and the
-reader pipeline of the whole editor reads it. The place is a reference, and the
-readers route the gesture along it. So the reader of the place makes the
-operation, and every reader on the way out transforms it, as for a gesture of a
-person.
+do, and the reader pipeline of the whole editor treats it as it treats a person.
+The caller already knows what it wants, so it gives an operation at a place.
+The place is a reference, and the readers route along it. At the place the
+operation stands where the reader of the place would put its answer, and every
+reader on the way out transforms it, as for a gesture of a person.
 
 **Repositories:** projectured-julia, then omnet-julia.
 
@@ -113,6 +114,16 @@ Decided by the owner on 2026-09-23:
 - **This does not break the rules.** Routing along a given path uses the four
   functions and adds no event and no payload for the reader. It is the one
   channel, which code other than the editor loop can now reach.
+- **A verb carries its meaning, so nothing is interpreted.** A gesture gets its
+  meaning where a reader maps it to an operation. A verb that the assistant or a
+  person calls already has that meaning, so the pipeline only transforms its
+  operation on the way out: it maps an index back, reroots, or changes a type.
+- **The entry is an `Intent`, as the editor sends it.** The gesture is
+  `nothing`, the operation is already filled in, in the coordinates of the
+  place, and the routing follows a given path. To the reader that encloses the
+  place, the operation is the answer from below, which is what
+  `Intent.operation` means now. From there up, every reader does what it does
+  now.
 
 Kept from the first version of this plan:
 
@@ -152,10 +163,24 @@ while the editor evaluates another operation.
 2. ~~Where does the route come from?~~ Decided: an input, by default the
    selection (§3). Still to find: where the input lives (most likely the
    `Intent`), and which readers route by selection now.
-3. **What does the reader of the place get, and what does it do with it?** It
-   must act as if a person did the gesture there, and it must stay pure. The
-   owner's view: the answer is probably specific to the reader, the gesture and
-   the operation. More examples are needed before a design. See §6.
+3. ~~What does the reader of the place get?~~ Decided: nothing to interpret.
+   The caller gives the operation, and the readers above the place transform it
+   (§3). What is still open is how the operation travels down to the place:
+   - **The readers above the place must not take the operation on the way
+     down.** The generic bridge (`ProjectionDefaults.jl:210`) and the template
+     reader read `change.operation` whenever it is present, and map it back.
+     On the way down, the operation is not yet in the coordinates of any reader
+     it passes, so each of them must only follow the route, and act on the
+     operation only when it comes back up.
+   - **The route decides which readers are not called.** In a nested
+     structure, the reader of the place and the readers below it are not
+     called: the parent takes the operation as the answer of that child. In a
+     chain, the later stages are not called: the chain starts at the stage
+     whose output is the place.
+   - **Where the route lives.** Most likely a field of `Intent`, or the
+     gesture slot, which is free when the gesture is `nothing`.
+   - **What the gesture log records.** It keeps every operation that is not a
+     selection move, so a verb's operation appears with an empty gesture.
 4. **Part 2 is separate.** An evaluation that writes a selection below the root
    is not a verb. It must say its selection change in the operation it answers
    from the root. The routing does not fix it.
@@ -170,15 +195,39 @@ and Step 3 are an outline.
 
 ### Step 0 — facts
 
-- [ ] How the readers route by selection now: which readers take the selection
-      to pick a child, and where they read it (the document, the iomap, or the
-      output selection).
-- [ ] Whether the files of `kernel/intent/` and the other files the route would
-      touch are sealed (`SEALING.md`).
-- [ ] How `ProjectionReferenceStep` names an intermediate node, with one
-      example that goes through two stages.
-- [ ] Whether a gesture exists that a reader knows with no coordinate, such as
-      a press on the whole of an element.
+Found on 2026-09-23, read-only:
+
+- [x] **The routing is in each reader, not in shared code.** There are at
+      least 31 readers with the four-argument form. Each compound reader calls
+      its children itself: the undo buffer, the clipboard and the shell call
+      `read_intent(child.projection, recursion, change, child)` and then
+      `reroot_operation`. The widget readers route by coordinate, each with a
+      helper of its own (`_route_click_to_children`, `_route_active_tab`, …).
+- [x] **The routing by selection reads the selection that a document stores.**
+      A key in a tabbed pane goes to `_route_selected_tab`
+      (`WidgetToGraphics.jl:4210`), which reads `get_stored_selection(w)` of the
+      widget. A document's `@gestures` rule reads its own selection: Ctrl+W
+      calls `_close_tab(doc)`, which closes the focused tab. PAR-DELEGATE-AND-LIFT
+      says that the template engine's `RuleIoMap` reader delegates to the
+      selected child. So a route as an input must reach each of these places.
+- [x] **The chain reads the last stage first** (`Chaining.jl:127`). It walks
+      back until a stage answers, then gives that answer to each earlier stage.
+      To start at a place between two stages, it must start at the stage whose
+      output is the place.
+- [x] **A reference can name a stage.** `ProjectionReferenceStep(projection,
+      output_path)` steps from an input node into the output of `projection`.
+      So a place such as "the output of the sorting stage, at index 3" is a
+      reference. Not yet checked: an example that goes through two stages.
+- [x] **A `nothing` gesture is safe in the readers that look at it.** Eight
+      readers give `change.gesture` to a function
+      (`get_selection_walk_direction`, `is_help_gesture`,
+      `is_command_palette_gesture`, `is_whole_selection_press`,
+      `_toggle_operation`, the gesture log filter, `ClaimedGesture`). Each
+      checks the type first and answers `false` or `nothing`.
+- [x] **Nothing on the route is sealed.** `kernel/intent/` (layer 14) and
+      `kernel/projection/` (layer 17) are marked ⬜ in `SEALING.md`.
+- [x] ~~A coordinate-free gesture~~: not needed, because a verb gives an
+      operation (§3).
 
 ### Step 1 — examples for question 3
 
