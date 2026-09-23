@@ -4,8 +4,8 @@
 #
 #     julia tool/survey-arguments.jl
 #
-# The guard itself is `test/suite/arguments.jl`, and it holds the parser, the
-# protocol list and the ledger. It answers what fails:
+# The guard itself is `test/suite/arguments.jl`, and it holds the parser and the
+# protocol list. It answers what fails:
 #
 #     julia test/suite/arguments.jl
 

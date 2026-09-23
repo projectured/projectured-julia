@@ -291,10 +291,8 @@ end
 
 The argument guard: the rule of three positional arguments of
 `documentation/rule/code-quality-rules.md` §4. A public definition over the line
-fails, unless a `# @positional:` marker says why it stands, or unless the ledger
-of `test/suite/arguments.jl` holds its name — the rule arrived after the code,
-and `plan/pending/keyword-arguments.md` empties that list wave by wave. A ledger
-name that no definition needs any more fails too, so the list only shrinks.
+fails, unless a `# @positional:` marker says why it stands, or unless it is a
+method of a protocol on the protocol list of `test/suite/arguments.jl`.
 
 A private helper is out of scope for now. It loads nothing and runs in about a
 second.

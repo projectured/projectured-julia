@@ -207,7 +207,8 @@ Steps:
 - [x] 4. `GraphicsCanvas`: the keyword form takes a `CollectionDocument`; move the
   seventeen calls; delete the three forms.
 - [x] 5. `WidgetTable`: one keyword constructor; move the three tests.
-- [ ] 6. The ledger is empty: the guard and §4 of the rule say so.
+- [x] 6. The ledger is empty, and the guard loses it: §4 of the rule, the guard,
+  `test_arguments()` and the survey tool say so.
 - [ ] 7. omnet-julia: the five calls, on a branch.
 
 ### Wave 4: the private helpers, deferred
@@ -242,14 +243,25 @@ it runs on its own as well:
 The ledger holds 119 names and the survey counts 137 public definitions: a name
 with two methods over the line, such as `record_fault!`, stands once.
 
+**The ledger is gone, 2026-09-23.** Wave 3 emptied it, and the guard lost the
+ledger with it. An empty list that only shrinks can hold nothing again, and a list
+that exists invites a name to go on it instead of being fixed. A new public
+definition over the line takes the keyword form, or a marker that says why not.
+
 ## 5. How one change is made
 
 1. Change the signature. The name does not change, so `workspace/bin/julia-rename.jl` has no part in this.
-2. Update every call site: `grep -rn "<name>(" source example test`.
+2. Update every call site, in this repository, in omnet-julia and in inet-julia.
+   A load does not find a call with the old arity inside a function body: that
+   is a `MethodError` when the call runs. Wave 2 landed without the scan of the
+   two other repositories and broke three calls in omnet-julia. A name search
+   misses a module-qualified call (`PlotModule.fold_bins(…)`) when its pattern
+   refuses a leading dot, and it can not see a call through a local alias
+   (`place = ProjecturedSdl.compute_window_place`); only a run of the suite of
+   every slice that holds a call finds that one.
 3. Run the narrowest test of the slice, then the suite of its package. See [testing-guide.md](../../documentation/guide/testing-guide.md).
 4. One commit for one function, or for one family that changes together.
-5. Take the name out of the ledger of `test/suite/arguments.jl`. The guard
-   fails while a name stands there that no definition needs.
+5. Run the guard, `julia test/suite/arguments.jl`, and let a commit wait for it.
 6. Re-run `julia tool/survey-arguments.jl` and watch the public count fall.
 
 **A script that rewrites call sites pays for itself**, and wave 1 used one that

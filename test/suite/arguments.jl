@@ -8,11 +8,8 @@
 # conventional tuple, a port, and the painter family of a backend — and each one
 # says so with a `# @positional: <reason>` marker above the definition.
 #
-# **The ledger is the ratchet.** The rule arrived after the code, so 119 public
-# names were already over the line. They stand in `LEDGER` below, and the guard
-# passes them. It fails on any other public definition over the line, so the
-# count can only fall. `plan/pending/keyword-arguments.md` holds the waves that
-# empty it; take a name out of the ledger with the change that fixes it.
+# **It fails on every public definition over the line** that neither a marker
+# nor the protocol list below excuses.
 #
 # **A private helper is out of scope for now**, by the owner's decision of
 # 2026-09-22: a helper inside one file costs one reader one file, and a public
@@ -41,10 +38,6 @@ const ARGUMENT_PROTOCOL = Set(String[
     "show", "hash", "isequal", "print", "size", "handle_message", "shouldlog",
     "sync_document!", "layout_graph",
 ])
-
-# Every public name over the line on 2026-09-22, the day the rule landed. The
-# list only shrinks.
-const LEDGER = Set(String[])
 
 "One definition of a file: where it stands, what it is called, and what it takes."
 struct ArgumentDefinition
@@ -172,25 +165,17 @@ end
 """
     argument_violations(root) -> Vector{String}
 
-A public definition over the line that neither the ledger nor a marker excuses,
-and a ledger entry that no definition needs any more.
+A public definition over the line that neither a marker nor the protocol list
+excuses.
 """
 function argument_violations(root::AbstractString)
     found = find_argument_definitions(root)
     over = [d for d in found if is_over_positional_limit(d) && !is_private_name(d.name)]
     out = String[]
     for d in over
-        d.name in LEDGER && continue
         push!(out, "$(d.file):$(d.line) $(d.name) takes $(get_positional_count(d)) " *
                    "positional arguments — name the fourth and the rest, or write " *
                    "`# @positional: <reason>` above it; see code-quality-rules.md §4")
-    end
-    standing = Set(d.name for d in over)
-    for name in sort(collect(LEDGER))
-        name in standing && continue
-        push!(out, "the ledger of test/suite/arguments.jl names $name, which no " *
-                   "longer takes more than $POSITIONAL_LIMIT positional arguments — " *
-                   "take it out of the ledger")
     end
     out
 end
