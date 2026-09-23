@@ -316,6 +316,27 @@ end
     s.press!(:down); @test s.shown() == ""
     # Evaluated forms keep their code: a recall writes only the bottom form.
     @test [print_natural_text(s.toplevel.elements[i].form) for i in 1:3] == ["x = 1", "y = 2", "x + y"]
+    # The walk above went over Julia documents, not strings.
+    @test all(s.toplevel.elements[i].form isa JuliaDocument for i in 1:3)
+end
+
+@testset "the history holds string forms and Julia forms alike" begin
+    # The comment keeps the first form a string, and the second becomes Julia.
+    s = history_session("x = 1  # one", "y = 2")
+    @test s.toplevel.elements[1].form isa PrimitiveString
+    @test s.toplevel.elements[2].form isa JuliaAssignment
+    s.press!(:up); @test s.shown() == "y = 2"
+    # The string form comes back with its comment.
+    s.press!(:up); @test s.shown() == "x = 1  # one"
+    s.press!(:down); s.press!(:down); @test s.shown() == ""
+    # The prefix finds both kinds.
+    s.type!("x")
+    s.press!(:up); @test s.shown() == "x = 1  # one"
+    # A Julia form comes back as it prints, which is the code without the blank
+    # space around it.
+    s = history_session("\nz = 3\n")
+    @test s.toplevel.elements[1].form isa JuliaAssignment
+    s.press!(:up); @test s.shown() == "z = 3"
 end
 
 @testset "the text before the caret is a prefix, and the draft comes back" begin

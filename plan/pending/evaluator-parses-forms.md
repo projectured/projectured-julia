@@ -111,7 +111,12 @@ owner's word.
   Originally: the caret goes to the last or first position of a parsed form. Test the coordinate of the caret, not
   only that a selection exists. Change the test at line 290 to cover a string
   form above and a parsed form above.
-- [ ] **Step 3. The history over swapped forms.** Test that Up in the bottom form
+- [x] **Step 3. The history over swapped forms.** *Done.* No code change was
+  needed: the history reads a form through `_get_form_source_text`, which prints
+  a parsed form, and by D1 that print is the code as typed. The tests now state
+  that the walk goes over Julia documents, that a string form and a Julia form
+  share one history and one prefix search, and that a Julia form recalls without
+  the blank space around it (D5). 133 of 133 pass. Test that Up in the bottom form
   recalls the typed text of a swapped form, and that the prefix search finds it.
 - [ ] **Step 4. It renders.** Open an Evaluator tab in the application, type
   `GraphicsCircle(10, 10, 10)` and `x = 1  # why`, and press Enter on each. The
