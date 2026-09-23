@@ -1198,11 +1198,9 @@ function test_application()
             end
         end
 
-        # An evaluation that moves a caret writes it below the root in some places
-        # (plan `an-evaluation-moves-the-selection-from-the-root`). Each case does
-        # what a person or a script does, and then asks whether the live selection
-        # is one path from the root, with no live selection off it. A broken case
-        # is a measured finding, kept as it is until the owner decides.
+        # Each case does what a person or a script does, and then asks whether the
+        # live selection is one path from the root, with no live selection off it,
+        # and how many carets the window draws.
         @testset "after each gesture, the live selection is one path from the root" begin
             window() = begin
                 assistant = Assistant(; llm = FakeLlm("ok"))
@@ -1248,9 +1246,8 @@ function test_application()
                 @test w.press!(KeyDown(:return, ModifierKeys())) isa SubmitDraftTurnOperation
                 @test waited(w)
                 @test carets(w) == 1
-                # @broken: the submitted part keeps its caret, `.content.value{5}`,
-                # when it moves into the transcript. It is not drawn.
-                @test_broken holds_one_path(w)
+                # The submitted part leaves its caret behind in the draft.
+                @test holds_one_path(w)
             end
 
             @testset "the composer, while the focus is on a file" begin
@@ -1260,22 +1257,26 @@ function test_application()
                 focus_pane!(w.editor, find_pane_reference(w.editor, "a.json"))
                 @test holds_one_path(w)
                 @test carets(w) == 0
-                # A script or a client submits the draft.
+                # A script or a client submits the draft. The draft keeps its new
+                # caret dormant, and it is not drawn while the focus is on a.json.
                 _app_apply!(w.editor, SubmitDraftTurnOperation(w.assistant))
                 @test waited(w)
-                # @broken: `reset_draft!` writes the draft's caret below the root,
-                # and the root's path does not pass through the draft. The caret
-                # stays off the path, and it is drawn while the focus is on a.json.
-                @test_broken holds_one_path(w)
-                @test_broken carets(w) == 0
+                @test holds_one_path(w)
+                @test carets(w) == 0
+                draft = w.assistant.draft
+                @test get_selection(draft) === nothing
+                @test get_stored_selection(draft) !== nothing
+                # The focus comes back to the assistant, and the caret with it.
+                focus_pane!(w.editor, find_pane_reference(w.editor, "Assistant"))
+                @test holds_one_path(w)
+                @test get_selection(draft) !== nothing
+                @test carets(w) == 1
 
                 w = window()
                 focus_draft!(w)
                 focus_pane!(w.editor, find_pane_reference(w.editor, "a.json"))
                 _app_apply!(w.editor, ComposerInsertPartOperation(w.assistant.draft))
-                # @broken: the new insertion keeps its own caret off the root's
-                # path. It is not drawn.
-                @test_broken holds_one_path(w)
+                @test holds_one_path(w)
                 @test carets(w) == 0
             end
 
@@ -1286,11 +1287,12 @@ function test_application()
                       if occursin("Alice", text)]
                 w.press!(MousePress(:left, first(at)[1] + 3, first(at)[2] + 3, 1, ModifierKeys()))
                 @test holds_one_path(w)
-                @test w.press!(KeyDown(:o, ModifierKeys(ctrl = true))) isa ReloadFileOperation
-                # @broken: the reload sets the file's own selection to `nothing`,
-                # and the root's path still passes through the file into its
-                # content. Ctrl+S still reaches the file.
-                @test_broken holds_one_path(w)
+                # Ctrl+O answers the reload and a selection of the whole file.
+                reload = w.press!(KeyDown(:o, ModifierKeys(ctrl = true)))
+                @test reload isa CompoundOperation
+                @test any(operation -> operation isa ReloadFileOperation, reload.operations)
+                @test holds_one_path(w)
+                @test evaluate_reference(w.scene, get_selection(w.scene)) isa JsonFile
                 @test _app_plain(_app_fire(w.composed, w.editor.iomap,
                                            KeyDown(:s, ModifierKeys(ctrl = true)))) isa SaveFileOperation
             end
@@ -1301,11 +1303,10 @@ function test_application()
                 button = only(item for item in toolbar.elements
                               if string(item.action.label) == "Evaluator")
                 _app_apply!(w.editor, InvokeActionOperation(button.action))
+                # The new tab takes the focus along the caret of the evaluator's
+                # first form.
                 @test carets(w) == 1
-                # @broken: the new evaluator is opened with the caret of its
-                # first form as its own selection, and the root's path ends at
-                # its tab. The caret is drawn, and a key reaches the form.
-                @test_broken holds_one_path(w)
+                @test holds_one_path(w)
                 type!(w, "1 + 41")
                 w.press!(KeyDown(:return, ModifierKeys()))
                 @test holds_one_path(w)
