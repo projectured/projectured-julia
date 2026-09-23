@@ -11,6 +11,11 @@
 # **It fails on every public definition over the line** that neither a marker
 # nor the protocol list below excuses.
 #
+# **A marker excuses the count, and nothing else.** A marked definition still
+# takes at most one optional positional argument, and never one beside a keyword
+# argument. A port keeps its whole signature, the default arguments of the
+# original included.
+#
 # **A private helper is out of scope for now**, by the owner's decision of
 # 2026-09-22: a helper inside one file costs one reader one file, and a public
 # function costs every call site.
@@ -51,7 +56,14 @@ struct ArgumentDefinition
     excused::Bool          # a `# @positional:` marker stands above it
 end
 
+# The folders of a port: code that keeps the signature of the program it mirrors.
+const PORT_FOLDERS = ["source/graph/cpp/"]
+
 get_positional_count(d::ArgumentDefinition) = d.required + d.optional
+is_port_definition(d::ArgumentDefinition) = any(folder -> startswith(d.file, folder), PORT_FOLDERS)
+"At most one optional positional argument, and never one beside a keyword argument."
+keeps_optional_clause(d::ArgumentDefinition) =
+    d.optional <= 1 && !(d.optional == 1 && d.keywords > 0)
 is_protocol_name(name::AbstractString) = name in ARGUMENT_PROTOCOL
 is_private_name(name::AbstractString) = startswith(name, "_")
 is_over_positional_limit(d::ArgumentDefinition) =
@@ -166,7 +178,8 @@ end
     argument_violations(root) -> Vector{String}
 
 A public definition over the line that neither a marker nor the protocol list
-excuses.
+excuses, and a marked public definition that breaks the clause on optional
+positional arguments, outside a port.
 """
 function argument_violations(root::AbstractString)
     found = find_argument_definitions(root)
@@ -176,6 +189,14 @@ function argument_violations(root::AbstractString)
         push!(out, "$(d.file):$(d.line) $(d.name) takes $(get_positional_count(d)) " *
                    "positional arguments — name the fourth and the rest, or write " *
                    "`# @positional: <reason>` above it; see code-quality-rules.md §4")
+    end
+    for d in found
+        (d.excused && !is_private_name(d.name) && !is_port_definition(d)) || continue
+        keeps_optional_clause(d) && continue
+        push!(out, "$(d.file):$(d.line) $(d.name) has a `# @positional:` marker, which " *
+                   "excuses the count only, and takes $(d.optional) optional positional " *
+                   "argument(s)$(d.keywords > 0 ? " beside keyword arguments" : "") — " *
+                   "name them; see code-quality-rules.md §4")
     end
     out
 end

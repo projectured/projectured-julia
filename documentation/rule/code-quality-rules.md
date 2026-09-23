@@ -250,6 +250,13 @@ function print_document(projection::JsonToSyntax, recursion, document, ctx)
 | A port | A file that mirrors the API of another program keeps the signature of the original, so a reader can hold the two side by side. `source/graph/cpp/` is the whole of this case today. |
 | The painters of a backend | One family of functions of one shape, called from one dispatch table, in `source/sdl/` and `source/pdf/`. The family is read as a whole. |
 
+**A marker excuses the count, and nothing else.** The definition under it keeps
+every other clause of this section: its chrome takes names, a `Bool` is never
+positional, and it takes at most one optional positional argument, never beside
+a keyword argument. `GraphicsRect(x, y, w, h; color, radius)` keeps the four of
+a box positional and names the rest. A port is the one kind that keeps its whole
+signature, default arguments included, because the original has them.
+
 `test/suite/arguments.jl` is the guard, and `test_arguments()` runs it: a public
 definition over the line fails unless a marker says why it stands. A method of a
 protocol on the guard's protocol list needs no marker, because the list says it

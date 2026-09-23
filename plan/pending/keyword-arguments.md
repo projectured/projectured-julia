@@ -313,8 +313,10 @@ Steps:
   definitions only. `KeyPressPattern(char, guard, label)` and the move, enter
   and scroll patterns in the same file keep optional positionals too; they carry
   no marker, so they are among the 32 left out of this wave.
-- [ ] 4. The guard: a marked definition keeps the optional clause, and §4 of the
-  rule says that a marker excuses the count only.
+- [x] 4. The guard: a marked definition keeps the optional clause, outside the
+  port folders, and §4 of the rule says that a marker excuses the count only.
+  Run against main before this wave, the new check names exactly the eight
+  marked definitions that broke the clause, and none of the four ports.
 
 ## 4. The guard
 
