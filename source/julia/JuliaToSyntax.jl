@@ -285,8 +285,9 @@ end
     SyntaxConcatenation([
         SyntaxLeaf(TextString(() -> m.bare ? "baremodule " : "module ", p.keyword_style)),
         SyntaxLeaf(bound(:name, String,
-                         make_hinted_text(() -> m.name, () -> isempty(m.name),
-                                     "enter module name", p.name_style))),
+                         make_hinted_text(() -> m.name; empty_thunk = () -> isempty(m.name),
+                                          placeholder = "enter module name",
+                                          style = p.name_style))),
         project(:body),
         SyntaxLeaf(TextString(() -> "end # module " * m.name, p.keyword_style)),
     ])

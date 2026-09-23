@@ -73,7 +73,9 @@ end
 
 @projection_template FsmTimerToSyntaxLeaf FsmTimer (p, doc) ->
     SyntaxLeaf(bound(:name, String,
-                     make_hinted_text(() -> doc.name, () -> isempty(doc.name), "enter timer name", p.name));
+                     make_hinted_text(() -> doc.name; empty_thunk = () -> isempty(doc.name),
+                                      placeholder = "enter timer name",
+                                      style = p.name));
                open=TextString("timer ", p.keyword))
 
 # ── FsmEventToSyntaxLeaf ─────────────────────────────────────────────────────
@@ -85,7 +87,9 @@ end
 
 @projection_template FsmEventToSyntaxLeaf FsmEvent (p, doc) ->
     SyntaxLeaf(bound(:name, String,
-                     make_hinted_text(() -> doc.name, () -> isempty(doc.name), "enter event name", p.name));
+                     make_hinted_text(() -> doc.name; empty_thunk = () -> isempty(doc.name),
+                                      placeholder = "enter event name",
+                                      style = p.name));
                open=TextString("event ", p.keyword))
 
 # ── FsmVariableToSyntaxNode ──────────────────────────────────────────────────
@@ -103,8 +107,10 @@ end
 @projection_template FsmVariableToSyntaxNode FsmVariable (p, doc) ->
     SyntaxConcatenation(() -> begin
         children = Any[ SyntaxLeaf(bound(:name, String,
-                                         make_hinted_text(() -> doc.name, () -> isempty(doc.name),
-                                                     "enter variable name", p.name));
+                                         make_hinted_text(() -> doc.name;
+                                                          empty_thunk = () -> isempty(doc.name),
+                                                          placeholder = "enter variable name",
+                                                          style = p.name));
                                    open=TextString("variable ", p.keyword),
                                    close=TextString(doc.type === nothing ? "" : "::", p.chrome)) ]
         doc.type === nothing || push!(children, project(:type))
@@ -173,8 +179,10 @@ end
 @projection_template FsmStateToSyntaxNode FsmState (p, doc) ->
     SyntaxConcatenation(() -> begin
         children = Any[ SyntaxLeaf(bound(:name, String,
-                                         make_hinted_text(() -> doc.name, () -> isempty(doc.name),
-                                                     "enter state name", p.name));
+                                         make_hinted_text(() -> doc.name;
+                                                          empty_thunk = () -> isempty(doc.name),
+                                                          placeholder = "enter state name",
+                                                          style = p.name));
                                    open=TextString("state ", p.keyword)) ]
         # One indented line: the wrapper indents its single child, and that
         # child concatenates the keyword with the projected entry code, so a
@@ -210,8 +218,10 @@ end
             doc.on_unhandled === :ignore ? text * " ignoring unhandled" : text
         end
         children = Any[ SyntaxLeaf(bound(:name, String,
-                                         make_hinted_text(() -> doc.name, () -> isempty(doc.name),
-                                                     "enter machine name", p.name));
+                                         make_hinted_text(() -> doc.name;
+                                                          empty_thunk = () -> isempty(doc.name),
+                                                          placeholder = "enter machine name",
+                                                          style = p.name));
                                    open=TextString("machine ", p.keyword)),
                         SyntaxLeaf(TextString(initial_text, p.ref)) ]
         isempty(doc.states) ||
@@ -233,8 +243,10 @@ end
 @projection_template FsmComponentToSyntaxNode FsmComponent (p, doc) ->
     SyntaxConcatenation(() -> begin
         children = Any[ SyntaxLeaf(bound(:name, String,
-                                         make_hinted_text(() -> doc.name, () -> isempty(doc.name),
-                                                     "enter component name", p.name));
+                                         make_hinted_text(() -> doc.name;
+                                                          empty_thunk = () -> isempty(doc.name),
+                                                          placeholder = "enter component name",
+                                                          style = p.name));
                                    open=TextString("component ", p.keyword)) ]
         # An empty section contributes no node at all: an empty indented node
         # still prints its line break, which would leave a blank line for every

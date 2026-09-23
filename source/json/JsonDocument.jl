@@ -107,10 +107,10 @@ _json_entry_sort_key(entry) = entry isa JsonObjectEntry ? (0, entry.key) : (1, "
 
 @gestures JsonObject begin
     KeyPress(',') => "Insert a new entry" => append_insertion_operation(doc, :entries, JsonObjectEntry)
-    KeyDown(:tab) => "Move from key to value" => move_to_field(doc, :key, :value)
+    KeyDown(:tab) => "Move from key to value" => move_to_field(doc; from = :key, to = :value)
     # The way back has no key of its own. A rule with no gesture reaches the user by
     # name instead, through the command palette. The sort rule spends no key either.
-    nothing       => "Move from value to key" => move_to_field(doc, :value, :key)
+    nothing       => "Move from value to key" => move_to_field(doc; from = :value, to = :key)
     nothing       => "Sort the entries by key" =>
         ReplaceReferencedValueOperation(doc, "entries", sort(doc.entries; by = _json_entry_sort_key))
 end

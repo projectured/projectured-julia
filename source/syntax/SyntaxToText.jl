@@ -614,7 +614,7 @@ mutable struct SpliceBuffer
     indent_size::Int
 end
 
-SpliceBuffer(deco, nid::UInt, deco_font::StyleFont, indent_size::Int) =
+SpliceBuffer(deco; nid::UInt, deco_font::StyleFont, indent_size::Int) =
     SpliceBuffer(TextDocument[], UnitRange{Int}[], Int[], Pair{Int,Symbol}[], Int[],
                  deco, nid, deco_font, indent_size)
 
@@ -708,7 +708,8 @@ _splice_result(buf::SpliceBuffer) =
 # answers all five; a `SyntaxConcatenation` answers only "children", and so renders
 # as its children, end to end, with no chrome and no caret that is not a child's.
 function _splice_compound(doc::SyntaxCompound, p::SyntaxCompoundToText, deco, cims)
-    buf = SpliceBuffer(deco, objectid(doc), _deco_font(doc), p.indent_size)
+    buf = SpliceBuffer(deco; nid = objectid(doc), deco_font = _deco_font(doc),
+                       indent_size = p.indent_size)
     indent = get_indentation(doc)
     separator = get_separator(doc)
 

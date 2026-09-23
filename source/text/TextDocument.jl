@@ -150,7 +150,8 @@ TextString(content::Function,      style::StyleText) = TextString(content, style
 
 # A text span that shows a muted placeholder while the value is empty. Both text
 # and colour are reactive, so the hint disappears the moment the user types.
-function make_hinted_text(content_thunk, empty_thunk, placeholder::AbstractString, style::StyleText)
+function make_hinted_text(content_thunk; empty_thunk, placeholder::AbstractString,
+                          style::StyleText)
     TextString(
         ComputedCell(() -> empty_thunk() ? placeholder : content_thunk()),
         style.font,                                                        # immutable (authored font)

@@ -44,8 +44,10 @@ end
 # transient non-`Bool` value produced by mid-edit `bound` reads.
 @projection_template YamlBoolToSyntaxLeaf YamlBool (prj, doc) ->
     SyntaxLeaf(bound(:value, Bool,
-                     make_hinted_text(() -> doc.value ? "true" : "false",
-                                 () -> !(doc.value isa Bool), "enter yaml bool", prj.style)))
+                     make_hinted_text(() -> doc.value ? "true" : "false";
+                                      empty_thunk = () -> !(doc.value isa Bool),
+                                      placeholder = "enter yaml bool",
+                                      style = prj.style)))
 
 # ── YamlNumberToSyntaxLeaf ───────────────────────────────────────────────────
 
@@ -55,7 +57,10 @@ end
 
 @projection_template YamlNumberToSyntaxLeaf YamlNumber (prj, doc) ->
     SyntaxLeaf(bound(:value, Real,
-                     make_hinted_text(() -> string(doc.value), () -> doc.value === nothing, "enter yaml number", prj.style);
+                     make_hinted_text(() -> string(doc.value);
+                                      empty_thunk = () -> doc.value === nothing,
+                                      placeholder = "enter yaml number",
+                                      style = prj.style);
                      retype = ReplaceNumberRangeOperation))
 
 # ── YamlStringToSyntaxLeaf ───────────────────────────────────────────────────
@@ -69,7 +74,9 @@ end
 
 @projection_template YamlStringToSyntaxLeaf YamlString (prj, doc) ->
     SyntaxLeaf(bound(:value, String,
-                     make_hinted_text(() -> doc.value, () -> isempty(doc.value), "enter yaml string", prj.style)))
+                     make_hinted_text(() -> doc.value; empty_thunk = () -> isempty(doc.value),
+                                      placeholder = "enter yaml string",
+                                      style = prj.style)))
 
 # ── YamlMappingToSyntaxNode (template; flow or block via delimiter fields) ────
 #
@@ -97,7 +104,10 @@ end
                    SyntaxNode(TextString("", prj.delimiter_style),
                               TextString("", prj.delimiter_style),
                               TextString(": ", prj.colon_style),
-                              [ SyntaxLeaf(bound(:key, String, make_hinted_text(() -> e.key, () -> isempty(e.key), "enter key", prj.key_style))),
+                              [ SyntaxLeaf(bound(:key, String, make_hinted_text(() -> e.key;
+                                                                                empty_thunk = () -> isempty(e.key),
+                                                                                placeholder = "enter key",
+                                                                                style = prj.key_style))),
                                 project(:value) ],
                               0, false, getfield(e, :selection))
                end;

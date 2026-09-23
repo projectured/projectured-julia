@@ -120,8 +120,9 @@ end
     session = ProcessDebugSession()
     diagram.session = session
 
-    at(node, from = 0) = set_process_position!(session, model, get_node_index(model, node),
-                                               from == 0 ? 0 : get_node_index(model, from))
+    at(node, from = 0) = set_process_position!(session, model;
+                                               node = get_node_index(model, node),
+                                               previous = from == 0 ? 0 : get_node_index(model, from))
 
     loop = model.body.steps[2]
     at(loop)
@@ -131,9 +132,9 @@ end
     # range, both mean no ring rather than a wrong one.
     at(model.body)
     @test _count(canvas, GraphicsRect) == boxes
-    set_process_position!(session, model, 9999, 0)
+    set_process_position!(session, model; node = 9999, previous = 0)
     @test _count(canvas, GraphicsRect) == boxes
-    set_process_position!(session, model, 0, 0)
+    set_process_position!(session, model; node = 0, previous = 0)
     @test _count(canvas, GraphicsRect) == boxes
 
     # The arrow just taken is derived from the (previous, current) pair.
@@ -146,7 +147,7 @@ end
 
     # The layout is untouched by any of it: the boxes stay where they were.
     # Captured with nothing highlighted, so the ring is not part of `before`.
-    set_process_position!(session, model, 0, 0)
+    set_process_position!(session, model; node = 0, previous = 0)
     before = Set((r.x, r.y) for r in canvas.elements if r isa GraphicsRect)
     at(guard)
     session.step_count = 17

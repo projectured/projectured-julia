@@ -114,8 +114,8 @@ _xml_insert_attr(e) = _xml_in_attr_context(getfield(e, :selection)[]) ?
     override(KeyPress('"')) => "Insert text"             => _xml_insert_text(doc)
     KeyDown(:insert)        => "Insert a node"           => _xml_insert_node(doc)
     KeyDown(:space)         => "Insert an attribute"     => _xml_insert_attr(doc)
-    KeyPress('=')           => "Move to attribute value" => move_to_field(doc, :name, :value)
+    KeyPress('=')           => "Move to attribute value" => move_to_field(doc; from = :name, to = :value)
     # The way back has no key of its own. A rule with no gesture reaches the user by
     # name instead, through the command palette.
-    nothing                 => "Move to attribute name"  => move_to_field(doc, :value, :name)
+    nothing                 => "Move to attribute name"  => move_to_field(doc; from = :value, to = :name)
 end
