@@ -118,7 +118,18 @@ owner's word.
   share one history and one prefix search, and that a Julia form recalls without
   the blank space around it (D5). 133 of 133 pass. Test that Up in the bottom form
   recalls the typed text of a swapped form, and that the prefix search finds it.
-- [ ] **Step 4. It renders.** Open an Evaluator tab in the application, type
+- [x] **Step 4. It renders.** *Done,* through the whole window projection with
+  a real `Editor` and key events, as `test_application()` drives it, not in the
+  SDL window by eye. Measured: the Julia form draws its call as separate words in
+  the colors of their kinds (`GraphicsCircle` blue, the numbers green, the
+  punctuation grey); the form with the comment draws as one text in the single
+  green of a string; every prompt stands at one x; both codes and the result
+  start at one x right of it; the one caret is in the fresh form. Side effect to
+  know: a form that stays a string draws all in one green, so beside a parsed
+  form it looks unhighlighted. The test "Up and Down in the evaluator recall its
+  history through the window" read `form.value` of a form that is now Julia; it
+  reads the print of that form. `test_application()` 150 of 150.
+  Originally: Open an Evaluator tab in the application, type
   `GraphicsCircle(10, 10, 10)` and `x = 1  # why`, and press Enter on each. The
   first form draws as Julia, the second as the typed string, and the `>` and
   `=` column stays aligned in both. A test of what renders, not of what the
