@@ -2,10 +2,11 @@
 
 **Status (2026-09-23): IMPLEMENTED IN projectured-julia, on the branch
 `selection-root`.** Steps 1b, 2 and 3 are done there, with the guides and the
-audit of `DocumentWalk.jl`. Open: omnet-julia (it needs the projectured-julia
-part visible to it), sealing `DocumentWalk.jl` again, and the docstring of
-`search_references` in the sealed `ReferenceSearch.jl`; each waits for the
-owner's word.
+audit of `DocumentWalk.jl`. On 2026-09-23 the owner deferred omnet-julia
+(it needs the projectured-julia part visible to it), keeps the sealing of
+`DocumentWalk.jl` for a review of the owner's own, and permitted one sentence
+about `descend` in the docstring of `search_references` in the sealed
+`ReferenceSearch.jl`, which is added.
 
 **Goal:** code that is not the editor loop — a verb, the assistant, an MCP tool,
 a test, a replay, the start of an application — can do anything a person can
@@ -713,6 +714,9 @@ above with no failure, the six search suites (`test_search_api` 10,
 the six known failures; the naming, argument and tree guards pass.
 - [ ] omnet-julia: `focus_runner_group!`, `_open_file_navigator!`,
       `open_simulation_pane!`, and the first focus of an embedded tree.
+      Deferred by the owner on 2026-09-23. Also for that step: omnet-julia's
+      tests call `focus_pane!` with paths from the tree, and its window
+      instructions describe the printed program of `show_layout`.
 - [x] The guides: `selection.md`, `clipboard.md`, `pane.md`, and a guide for
       the route and `read_rooted_operation` (a section in `editor.md`, with a
       pointer from `projection-system.md`). The seal audit also named
