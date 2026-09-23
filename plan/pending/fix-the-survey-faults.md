@@ -211,6 +211,28 @@ memory cap of 20 GB. No second Julia process runs at the same time.
       failures are not from this work. A downstream repository must run
       `Pkg.resolve()` after this lands, because `ProjecturedStatistics` has a
       new dependency.
+- [x] The machine stopped during the check after the merge. The caps were
+      20 GB and 16 GB for two Julia processes, and only 15 GB was free. The
+      checks after it run one process at a time, with an 8 GB cap, two
+      threads and a 30 minute limit.
+- [x] The first merge kept four calls of `record_fault!` in the positional
+      form, because no line of them was in a conflict. They take the keyword
+      form of `main` now, in `Inbox.jl` and in the fault catching test.
+- [x] A second merge of `main` brought 16 commits, among them wave 2 of the
+      keyword arguments and the fault mark that an Alt+press selects. Seven
+      conflicts in seven files. The fault barrier holds both new fields,
+      `policy` of the branch and `report` of `main`. No call that the branch
+      adds uses the old form of a wave 2 function: `Editor` keeps its
+      positional form with a marker, and `sync_document!` stays on the ledger
+      for wave 3. The argument guard passes.
+- [x] The suites of the areas that both sides changed, after the second
+      merge: the substrate 80413 pass with the 3 fail and 2 error of
+      `SplitPaneDrag`, the kernel 2043 pass with its known 3 fail and 3 error,
+      and the assistant 113 pass with the 4 card assertions that fail on
+      `main` too. The fault, MCP, application, versioning, XML, chart,
+      sequence chart, process, video, text, the console, PDF and web
+      backends, the message log, the documentation and the naming suites
+      pass. No downstream file uses a name that the branch removes.
 - [ ] Land on `main`, and move this plan to `plan/done/`.
 
 ## 5. Decisions
