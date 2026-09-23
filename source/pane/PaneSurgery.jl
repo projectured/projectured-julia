@@ -364,7 +364,9 @@ end
 Insert `tab` into `group` at the 1-based `index` (the end by default) and focus
 it. One `insert_elements` splice with its cursor move. A tab whose content is
 the empty placeholder takes the selection on that content, as a whole, so a
-paste fills it.
+paste fills it. A tab whose content holds a selection of its own, such as the
+caret of a new evaluator, takes the focus along that selection, so the root
+holds the selection the document had.
 """
 function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::PaneTab;
                                  index = nothing)
@@ -381,10 +383,15 @@ end
 
 # Where the selection goes in a tab that is about to exist, given the pairs that
 # lead to it: its content, when the content is the empty placeholder a paste
-# fills, and the tab itself otherwise.
+# fills; on along the content's own selection, when the content holds one; and
+# the tab itself otherwise.
 function _make_new_tab_cursor(pairs, tab::PaneTab)
-    tab.content isa DocumentNothing || return _reference_from(pairs, tab)
-    _reference_from(vcat(pairs, Any[(tab, FieldReferenceStep("content"))]), tab.content)
+    content = tab.content
+    to_content = vcat(pairs, Any[(tab, FieldReferenceStep("content"))])
+    content isa DocumentNothing && return _reference_from(to_content, content)
+    own = content isa Document ? get_selection(content) : nothing
+    own isa Reference || return _reference_from(pairs, tab)
+    concat_references(_reference_from(to_content, content), copy_reference(own))
 end
 
 # A title no other tab carries. A person reads a title, so two panes reading the
