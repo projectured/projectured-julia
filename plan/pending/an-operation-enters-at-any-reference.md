@@ -198,6 +198,7 @@ Each row must become a gesture at a place, or an operation from the root.
 | `shell/WindowChrome.jl` `_open_tab!`, `_close_tab!`, `_reach_tool!`, `_split!` | through `apply_pane_operation!(tree, …)` | 1 |
 | `filesystem/FileSystemDocument.jl` `OpenFileOperation` | `open_pane!` inside an evaluation | 1, 2 |
 | `widget/WidgetDocument.jl` `SelectTabOperation` | the tabbed pane's own selection | 2 |
+| `filesystem/WorkspaceToFileSystem.jl:82` | the `selection` field of a directory, by an operation that carries the directory | 2 |
 | `fileformat/DocumentFile.jl` `ReloadFileOperation` | `file.selection = nothing` | 2 |
 | `assistant/AssistantTurn.jl` `_set_input!` | the caret in the assistant's input | 2 |
 | `conversation/ConversationEditor.jl` (4 places) | carets on conversation nodes | 2 |
@@ -239,16 +240,33 @@ while the editor evaluates another operation.
 5. **Undo.** When a verb's gesture goes through the pipeline, the undo reader
    records the answer as it does for a person. So an open or a close by a verb
    becomes an undo step. Check that this is wanted, and what a focus move does.
-6. **The family of verbs for one action.** The owner's proposal:
-   `make_close_pane_operation`, `close_pane!` and `post_close_pane_operation!`,
-   or `close_pane!` with an argument that says now or later. Under discussion.
-7. **A value that names a place from the root.** The owner's proposal: a type
-   named `DocumentLocator` or `DocumentDesignator`, which is a `Document`
-   itself, with two fields, `start` and `reference`. The target is derived by
-   evaluating the reference from the start, so it is not stored. A new macro
-   (not `@reference`, which stays as it is) makes one locator from another and a
-   path. Under discussion: the name, the macro's name, and what it means that
-   the start is a child of a document.
+6. ~~The family of verbs for one action.~~ Decided (2026-09-23): two names for
+   each action, `make_close_pane_operation(editor, tab)` (through the readers)
+   and `close_pane!(editor, tab)` (made and evaluated now), and the generic
+   `post_operation!` for later. No `post_…_operation!` for each action, and no
+   argument for now or later, because such an argument changes what the verb
+   returns. The verb stays for the assistant: a `make_` call without an
+   evaluation does nothing and says nothing, and a verb returns a useful
+   result, such as the place of a new tab.
+7. **A value that names a place from the root: `DocumentLocator`** (decided
+   2026-09-23). It is a `Document` itself, with two fields, `start` and
+   `reference`. The target is derived by evaluating the reference from the
+   start, so it is not stored, and the stale check is the check of the types on
+   the path, as `_refuse_stale` makes now. A new macro (not `@reference`, which
+   stays as it is) makes one locator from another and a path. Most locators
+   are temporaries in the caller's code, and a document does not hold one: a
+   generic walk follows the fields of a document, so a locator held in the
+   window would make a cycle back to the root. Its docstring says so. Still
+   open: the macro's name.
+
+Skipped (2026-09-23): **operations that carry no document.** The owner asked
+whether every operation can be relative to the document where it was made,
+with no `document` field. It does not change how the assistant controls the
+panes, because the assistant holds a locator and calls a verb, and the pane
+operations already carry no document. It touches 85 places that make an
+operation with a document, and view state on a printed document (hover,
+scroll, drag) would still need a way to reach that document. Worth a plan of its
+own later, for the simpler readers.
 
 ## 6. Steps
 
