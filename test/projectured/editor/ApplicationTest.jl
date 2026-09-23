@@ -453,6 +453,47 @@ function test_application()
                        evaluator.elements[2].form.value] == ["a = 1", "b = 2\nb + 1"]
             end
 
+            @testset "a structured form takes keys through the window, and Enter evaluates it" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                editor = Editor(ConsoleBackend(), scene, composed,
+                                Device[Display(), Keyboard(), Mouse()])
+                editor.iomap = iomap
+                press!(event) = begin
+                    operation = _app_fire(composed, editor.iomap, event)
+                    operation isa Operation && evaluate_operation(editor, operation)
+                    operation
+                end
+                type!(text) = foreach(character -> press!(KeyPress(character)), text)
+                toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
+                button = only(item for item in toolbar.elements
+                              if string(item.action.label) == "Evaluator")
+                evaluate_operation(editor, InvokeActionOperation(button.action))
+                (group, index) = get_pane_focus(_app_window(document))
+                evaluator = get_wrapped_document(group.tabs[index].content)
+                evaluator.type_structured_forms = true
+                # The first form was opened as a string; the fresh one is a hole.
+                type!("0")
+                press!(KeyDown(:return, ModifierKeys()))
+                @test evaluator.elements[2].form isa JuliaInsertion
+                type!("1+1")
+                @test evaluator.elements[2].form.value == "1+1"
+                # Enter evaluates the form. The hole's own Enter, which commits in
+                # place, does not win.
+                @test _app_plain(press!(KeyDown(:return, ModifierKeys()))) isa
+                      EvaluateSelectedFormOperation
+                @test length(evaluator.elements) == 3
+                @test evaluator.elements[2].form isa JuliaBinaryOperation
+                @test evaluator.elements[3].form isa JuliaInsertion
+                content = get_iomap_output(editor.iomap).windows[1].content
+                drawn_at = _app_drawn_at(content)
+                twos = [y for (text, _, y) in drawn_at if text == "2"]
+                @test !isempty(twos)
+                # One caret, in the fresh hole, below the result.
+                carets = _app_drawn_carets(content)
+                @test length(carets) == 1
+                @test only(carets)[2] > maximum(twos)
+            end
+
             @testset "an evaluated form draws as Julia, and a form with a comment as typed" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = Editor(ConsoleBackend(), scene, composed,

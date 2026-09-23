@@ -183,6 +183,11 @@ a Julia document. It does so only when the document prints back as the same
 tokens on the same lines as the code that was typed, so only the spaces between
 them can change, and a comment is never lost. See
 [`EvaluateSelectedFormOperation`](@ref).
+
+`type_structured_forms` says whether a fresh form is a hole of the Julia domain,
+typed into as the Julia domain types, instead of a string. A structured form can
+hold a pasted object. Enter still evaluates the whole form, and commits the hole
+as part of that.
 """
 @document struct EvaluatorToplevel <: EvaluatorDocument
     elements::CellVector = CellVector()
@@ -191,10 +196,11 @@ them can change, and a comment is never lost. See
     history_draft::String = ""
     history_prefix::String = ""
     parse_evaluated_forms::Bool = true
+    type_structured_forms::Bool = false
 end
 EvaluatorToplevel(elements::Vector) =
     EvaluatorToplevel(CellVector(Cell[Cell(e) for e in elements]), Cell(true),
-                      Cell(0), Cell(""), Cell(""), Cell(true), Cell(nothing))
+                      Cell(0), Cell(""), Cell(""), Cell(true), Cell(false), Cell(nothing))
 
 set_cell_function!(t::EvaluatorToplevel, f::Function) =
     (set_cell_function!(getfield(t.elements, :elements), () -> Cell[Cell(x) for x in f()]); t)
@@ -256,11 +262,31 @@ function _find_selected_form_index(t::EvaluatorToplevel)
     i
 end
 
-# The source text a form carries: what was typed, while it is still the plain
-# `PrimitiveString` an untouched form starts as; the printer's rendering of it
-# otherwise — a form already committed to a parsed document, evaluated again.
+# The source text a form carries: what was typed, while the form is still text,
+# a `PrimitiveString` or a Julia hole; the printer's rendering of it otherwise, a
+# form already committed to a parsed document, evaluated again. The print of a
+# hole would add its completion hint, so a hole gives its own text.
 _get_form_source_text(form::PrimitiveString) = something(form.value, "")
-_get_form_source_text(form::Document) = print_natural_text(form)
+_get_form_source_text(form::Document) =
+    _is_julia_hole(form) ? something(form.value, "") : print_natural_text(form)
+
+# A form whose code is still typed text: the `PrimitiveString` of a string form,
+# or the hole a structured form starts as. Both keep their text in `value`.
+_is_text_form(form) = form isa PrimitiveString || _is_julia_hole(form)
+
+# The insertion of the Julia domain, known by what it is and not by its name,
+# because this package does not depend on that domain.
+_is_julia_hole(form) = _is_julia_hole_type(typeof(form))
+_is_julia_hole_type(T) = get_insertion_root(T) !== Document && get_natural_format(T) === :jl
+
+# The code of a fresh form: a hole of the Julia domain when the toplevel types
+# structured forms and that domain is loaded, and an empty string otherwise.
+function _make_fresh_form(t::EvaluatorToplevel)
+    t.type_structured_forms || return EvaluatorForm(PrimitiveString(""))
+    T = resolve_insertion(Document, "julia")
+    (T === nothing || !_is_julia_hole_type(T)) && return EvaluatorForm(PrimitiveString(""))
+    EvaluatorForm(make_insertion_document(T))
+end
 
 # The range the selection names in the code of the form it is in, `elements[i].
 # form.value{s:e}`, or `nothing` when it names no range there.
@@ -291,12 +317,12 @@ _make_whole_form_reference(i::Int) =
 # selected whole, because a place in its code is a place in its projection, which
 # a gesture of the toplevel does not see.
 _make_form_start_reference(t::EvaluatorToplevel, i::Int) =
-    t.elements[i].form isa PrimitiveString ? _make_form_caret_reference(i, 0) :
-                                             _make_whole_form_reference(i)
+    _is_text_form(t.elements[i].form) ? _make_form_caret_reference(i, 0) :
+                                        _make_whole_form_reference(i)
 
 function _make_form_end_reference(t::EvaluatorToplevel, i::Int)
     form = t.elements[i].form
-    form isa PrimitiveString || return _make_whole_form_reference(i)
+    _is_text_form(form) || return _make_whole_form_reference(i)
     _make_form_caret_reference(i, length(_get_form_source_text(form)))
 end
 
@@ -360,7 +386,7 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     result = val isa Document ? val : make_evaluator_result_text(rstrip(output))
     element.result = result
     element.is_error = is_err
-    push!(t.elements, EvaluatorForm(PrimitiveString("")))
+    push!(t.elements, _make_fresh_form(t))
     # The fresh form is where the next key goes, so the view goes to the end, and
     # its history starts from its own empty draft.
     t.follow_end = true
@@ -371,7 +397,9 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     # The caret has left the evaluated form, so no selection names a place in the
     # string that the parse replaces.
     element.source = text
-    t.parse_evaluated_forms && _parse_evaluated_form!(element)
+    # A hole of a structured form commits as part of its evaluation, whatever the
+    # toplevel says of parsing a string form.
+    (t.parse_evaluated_forms || _is_julia_hole(element.form)) && _parse_evaluated_form!(element)
     nothing
 end
 
@@ -383,7 +411,7 @@ end
 # domain reads as Julia. A parser throws for a construct it does not support,
 # and that is an answer here, not a fault.
 function _parse_evaluated_form!(element::EvaluatorForm)
-    element.form isa PrimitiveString || return nothing
+    _is_text_form(element.form) || return nothing
     has_natural_parser(:jl) || return nothing
     code = strip(something(element.form.value, ""))
     parsed = try
@@ -455,7 +483,7 @@ function evaluate_operation(editor, op::RecallEvaluatorFormOperation)
     t = op.toplevel
     n = length(t.elements)
     form = t.elements[n].form
-    form isa PrimitiveString || return nothing
+    _is_text_form(form) || return nothing
     range = _find_selected_value_range(t)
     (range === nothing || _find_selected_form_index(t) != n) && return nothing
     shown = something(form.value, "")
@@ -486,9 +514,20 @@ end
 function _make_form_newline_operation(t::EvaluatorToplevel)
     i = _find_selected_form_index(t)
     i === nothing && return nothing
-    t.elements[i].form isa PrimitiveString || return nothing
+    _is_text_form(t.elements[i].form) || return nothing
     _find_selected_value_range(t) === nothing && return nothing
     ReplaceStringRangeOperation(t.selection, "\n")
+end
+
+# ENTER, when the selection is in the code of a form, `elements[i].form…`. The rule
+# claims the key over what an inner layer made of it, because the hole of a
+# structured form commits on Enter; so it answers nothing anywhere else, and a
+# result that reads Enter keeps it.
+function _make_evaluate_operation(t::EvaluatorToplevel)
+    _find_selected_form_index(t) === nothing && return nothing
+    steps = get_reference_steps(strip_reference_types(t.selection))
+    (length(steps) >= 3 && _is_field_step(steps[3], "form")) || return nothing
+    EvaluateSelectedFormOperation(t)
 end
 
 # UP, which reaches the toplevel only from the first line of the code, because the
@@ -514,7 +553,7 @@ function _make_down_operation(t::EvaluatorToplevel)
 end
 
 @gestures EvaluatorToplevel begin
-    KeyDown(:return;) => "Evaluate" => EvaluateSelectedFormOperation(doc)
+    override(KeyDown(:return;)) => "Evaluate" => _make_evaluate_operation(doc)
     KeyDown(:return; shift) => "Insert a line break" => _make_form_newline_operation(doc)
     KeyDown(:up;) => "Recall an older form, or go to the form above" => _make_up_operation(doc)
     KeyDown(:down;) => "Recall a newer form, or go to the form below" => _make_down_operation(doc)

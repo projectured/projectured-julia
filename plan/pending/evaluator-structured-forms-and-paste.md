@@ -184,7 +184,35 @@ After the answers, in a worktree, one commit for each step. Every step tests
 what renders, through the window with a real `Editor`, as
 `test_application()` does.
 
-- [ ] **Step 1. The field and a structured form.** A fresh form is a
+- [x] **Step 1. The field and a structured form.** *Done.* As built:
+  - The field is `type_structured_forms`, off by default. A fresh form holds the
+    insertion that `resolve_insertion(Document, "julia")` names, so the
+    conversation package still does not depend on the Julia domain;
+    `_is_julia_hole` knows the hole by its insertion root and its format `:jl`.
+  - A hole and a string form are both *text forms*: they keep their text in
+    `value`, so the caret references, Shift+Enter and the history treat them
+    alike. The history reads a hole's `value`, because its print adds the pale
+    completion hint.
+  - Enter commits the hole by the same token rule as a string form, even with
+    `parse_evaluated_forms` off, so a hole with a comment stays a hole with its
+    text.
+  - **The Enter rule is `override`, and the evaluator's projection reads a
+    claimed key.** Measured: with the rule alone, the hole's own Enter won in
+    the window (a document replace, and no evaluation). An `override` rule
+    fires only where a reader offers the claimed key to the document's table,
+    which the reader of `@projection_template` does and the generic bridge does
+    not. So `EvaluatorToplevelToWidgetComposite` gained that reader, a
+    `read_intent` for an `Intent`: a key already answered goes to
+    `read_gesture(toplevel, key; claimed)`, and anything else to the generic
+    bridge. It is the existing `claimed` path, not a new payload type.
+  - **Behaviour change:** Enter evaluates only from the code of a form
+    (`_make_evaluate_operation`). Before, Enter with the selection in a result
+    evaluated that result's form. Now it answers nothing there, so a result that
+    reads Enter keeps it.
+  - Tests: `test_evaluator_toplevel()` 164 of 164, `test_application()` 171 of
+    171 with a window test of typing, Enter and the one caret in the fresh
+    hole; `test_conversation()` keeps its one known failure.
+  Originally: **The field and a structured form.** A fresh form is a
   `JuliaInsertion` when the field is on. The keys of Q2. Evaluation of a form
   without an object through its print. Tests: typing, committing, evaluating,
   the history, the field off.

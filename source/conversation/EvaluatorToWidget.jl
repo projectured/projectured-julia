@@ -118,6 +118,20 @@ function print_document(projection::EvaluatorToplevelToWidgetComposite,
     iomap
 end
 
+# A key that a layer inside the toplevel already answered, as the hole of a
+# structured form answers Enter, is offered to the table of the toplevel as a
+# claimed key, so only an `override` rule can take it over. The reader that
+# `@projection_template` emits does the same for a template node. Anything else
+# goes to the generic bridge.
+function read_intent(projection::EvaluatorToplevelToWidgetComposite, recursion,
+                     change::Intent, iomap)
+    if change.operation !== nothing && change.gesture isa Union{KeyPress, KeyDown}
+        own = read_gesture(iomap.input, change.gesture; claimed = change.operation)
+        own === nothing || return Intent(change.gesture, own)
+    end
+    invoke(read_intent, Tuple{Projection, Any, Intent, Any}, projection, recursion, change, iomap)
+end
+
 # `elements[i].<rest>` ↔ `content.children[i].<rest>`. The rest is a path in
 # the form, which the layout stage maps through the form's own row.
 function map_reference_forward(::EvaluatorToplevelToWidgetComposite, iomap, reference)

@@ -304,12 +304,13 @@ end
 
 # A toplevel with the forms `codes` evaluated, as a person types and evaluates them,
 # and the functions a test of the history needs.
-function history_session(codes...; parse = true)
+function history_session(codes...; parse = true, structured = false)
     toplevel = make_insertion_document(EvaluatorToplevel)
     toplevel.parse_evaluated_forms = parse
+    toplevel.type_structured_forms = structured
     ed = editor(toplevel)
     type!(text) = evaluate_operation(ed, ReplaceStringRangeOperation(toplevel.selection, text))
-    press!(key) = (op = read_gesture(toplevel, KeyDown(key, ModifierKeys()));
+    press!(key; modifiers...) = (op = read_gesture(toplevel, KeyDown(key, ModifierKeys(; modifiers...)));
                    op === nothing || evaluate_operation(ed, op); op)
     shown() = toplevel.elements[length(toplevel.elements)].form.value
     caret() = last(get_reference_steps(strip_reference_types(toplevel.selection)))
@@ -462,6 +463,51 @@ end
     @test length(s.toplevel.elements) == 5
     @test s.toplevel.elements[2].form isa JuliaAssignment
     @test s.toplevel.elements[2].source == "x = 2"
+end
+
+@testset "a structured toplevel opens each fresh form as a Julia hole" begin
+    s = history_session("1"; structured = true)
+    # The first form was made before the switch; the fresh one is a hole.
+    @test s.toplevel.elements[1].form isa JuliaInteger
+    @test s.toplevel.elements[2].form isa JuliaInsertion
+    @test s.shown() == ""
+    # The keys that edit a string form edit the hole the same way.
+    s.type!("x = 1 + 2")
+    @test s.shown() == "x = 1 + 2"
+    @test s.press!(:return; shift = true) isa ReplaceStringRangeOperation
+    @test s.shown() == "x = 1 + 2\n"
+    @test s.caret() == RangeReferenceStep(10, 10)
+end
+
+@testset "Enter commits the hole of a structured form as part of its evaluation" begin
+    # The hole commits even with the parse of string forms off.
+    s = history_session("1"; structured = true, parse = false)
+    s.type!("x = 1 + 2")
+    @test s.press!(:return) isa EvaluateSelectedFormOperation
+    form = s.toplevel.elements[2]
+    @test form.form isa JuliaAssignment
+    @test form.source == "x = 1 + 2"
+    @test occursin("3", _et_flatten(form.result))
+    @test s.toplevel.elements[3].form isa JuliaInsertion
+    # A hole whose parse would lose a comment keeps its text, and still ran.
+    s.type!("y = 2  # two")
+    s.press!(:return)
+    @test s.toplevel.elements[3].form isa JuliaInsertion
+    @test s.toplevel.elements[3].form.value == "y = 2  # two"
+    @test occursin("2", _et_flatten(s.toplevel.elements[3].result))
+    # Up recalls both, the hole's text as it was typed.
+    s.press!(:up); @test s.shown() == "y = 2  # two"
+    s.press!(:up); @test s.shown() == "x = 1 + 2"
+end
+
+@testset "Enter evaluates only from the code of a form" begin
+    s = history_session("1")
+    result(i) = ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(i - 1, i),
+            ConcreteReference(FieldReferenceStep("result"), EmptyReference())))
+    clear_selection!(s.toplevel)
+    set_selection!(s.toplevel, result(1))
+    @test read_gesture(s.toplevel, enter()) === nothing
 end
 
 @testset "state persists across forms, like a real REPL and not a sandbox" begin
