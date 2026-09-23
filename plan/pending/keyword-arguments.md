@@ -148,21 +148,67 @@ saves.
 `layout_graph` and `sync_document!` stay on the ledger for wave 3: both are
 wide constructors of a tuple, not a list of options.
 
-### Wave 3: the constructors and the wide tuples
+### Wave 3: the constructors and the wide tuples — IN PROGRESS
 
-`GraphicsCanvas` (191 calls), `GraphicsRect` (116), `GraphicsText` (64),
-`GraphicsLine` (37), `GraphicsViewport` (18), `GraphicsCircle` (25),
-`SyntaxLeaf` (566), `SyntaxNode` (415), `MousePress` (216), `Inset` (75),
-`PrinterContext` (263), `make_child_context` (145), `WidgetTable` (35).
+**Measured 2026-09-23, after wave 2.** Seven names were left on the ledger,
+thirteen definitions. The first estimate of this section counted every call of
+each name; the work is only the calls that are still positional, and that is 25
+call sites, not hundreds. Eight of the names this section first listed
+(`GraphicsRect`, `GraphicsText`, `GraphicsLine`, `GraphicsCircle`,
+`GraphicsViewport`, `MousePress`, `Inset`, `PrinterContext`) left the wave on the
+day the guard landed: they are conventional tuples and carry a marker.
 
-Most of these are conventional tuples, so the work is to **write the marker**,
-not to change the signature. Two are not: `GraphicsCanvas` ends in a `Bool`
-(`overlapping`), and `WidgetTable` takes three `Vector`s in a row.
+| Name | Definitions over the line | Calls to move | What the wave does |
+| --- | --- | --- | --- |
+| `layout_graph` | 3 | 0 | protocol list |
+| `sync_document!` | 1 | 0 | protocol list |
+| `compute_window_place` | 1 | 0 | marker |
+| `SyntaxLeaf` | 4 legacy forms | 0 | delete |
+| `SyntaxNode` | 6 legacy forms | 9, and 1 in omnet-julia | keyword form |
+| `GraphicsCanvas` | 2, and a third with a positional `Bool` | 17 | keyword form |
+| `WidgetTable`, list form | 1 | 3 tests, and 1 in omnet-julia | one constructor |
 
-**A constructor with hundreds of call sites gets the keyword form beside the
-positional one first.** The call sites move slice by slice, and the positional
-form goes when the last one is gone. Nothing else keeps the tree green while the
-work runs.
+Decisions:
+
+- **`layout_graph` and `sync_document!` are protocols.** Each is a bare
+  declaration (`function layout_graph end`, `function sync_document! end`) that
+  other code implements; omnet-julia adds a fourth `layout_graph` method. They
+  join `ARGUMENT_PROTOCOL` beside `copy_document`.
+- **`compute_window_place(x, y, width, height; …)` is a conventional tuple**: the
+  box, in the order every one writes it.
+- **The three-argument `GraphicsCanvas(elements, layout, overlapping)` goes too.**
+  The guard does not count it, but the rule says a `Bool` is never positional.
+  Six callers. The two-argument `GraphicsCanvas(elements, layout)` keeps the rule
+  and stays.
+- **A `SyntaxNode` inside `@projection_template` with a raw vector of children
+  stays as it is.** The template engine finds those children by looking for a raw
+  `Vector`, and the keyword path would turn it into a `CellVector`. Those calls
+  go to the generated field constructor, not to the legacy forms.
+- **`WidgetTable` gets one keyword constructor for both kinds of rows.** A keyword
+  argument takes no part in dispatch, so a second `WidgetTable(position; …)`
+  would replace the first. The one constructor branches on the type of `rows`,
+  and `row_headers` defaults to none.
+- **Not in the wave: 54 calls of the generated `GraphicsCanvas` constructor** that
+  pass all eight fields, most of them cells. The rule counts definitions, and the
+  macro writes that one. Moving them to the generated keyword constructor needs a
+  test first, that it keeps a cell it is given as a live cell.
+- **omnet-julia moves with the wave.** Wave 2 broke three of its calls (two
+  `WidgetTable`, one `record_video`), and this wave changes two more
+  (`NedToSyntax.jl`, `SimulationFilterToWidget.jl`). A branch there carries all
+  five.
+
+Steps:
+
+- [x] 1. The protocol list and the marker: `layout_graph`, `sync_document!`,
+  `compute_window_place` leave the ledger.
+- [ ] 2. `SyntaxLeaf`: delete the four legacy forms.
+- [ ] 3. `SyntaxNode`: move the nine calls, delete the six legacy forms, and
+  update the comment diagrams that draw the legacy form.
+- [ ] 4. `GraphicsCanvas`: the keyword form takes a `CollectionDocument`; move the
+  seventeen calls; delete the three forms.
+- [ ] 5. `WidgetTable`: one keyword constructor; move the three tests.
+- [ ] 6. The ledger is empty: the guard and §4 of the rule say so.
+- [ ] 7. omnet-julia: the five calls, on a branch.
 
 ### Wave 4: the private helpers, deferred
 

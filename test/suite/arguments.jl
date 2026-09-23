@@ -39,13 +39,13 @@ const ARGUMENT_PROTOCOL = Set(String[
     "splice_value!", "copy_document", "copy_shadow_element", "get_frozen_extent",
     "getproperty", "setproperty!", "getindex", "setindex!", "iterate", "length",
     "show", "hash", "isequal", "print", "size", "handle_message", "shouldlog",
+    "sync_document!", "layout_graph",
 ])
 
 # Every public name over the line on 2026-09-22, the day the rule landed. The
 # list only shrinks.
 const LEDGER = Set(String[
     "GraphicsCanvas", "SyntaxLeaf", "SyntaxNode", "WidgetTable",
-    "compute_window_place", "layout_graph", "sync_document!",
 ])
 
 "One definition of a file: where it stands, what it is called, and what it takes."
