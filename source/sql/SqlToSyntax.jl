@@ -108,7 +108,8 @@ function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlS
                                           make_child_context(ctx, FieldReferenceStep("subquery"))))
     child_iomaps_cell = ComputedCell(() -> Any[subq_im[]])
 
-    paren_node = SyntaxNode("(", ")", " ", () -> SyntaxDocument[subq_im[].output])
+    paren_node = SyntaxNode(() -> SyntaxDocument[subq_im[].output]; open = "(", close = ")",
+                            sep = " ")
 
     iomap_cell = Cell(nothing)
     sel = ComputedCell(() -> begin
@@ -1321,14 +1322,14 @@ function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlI
         Any[table_im; col_ims; val_ims]
     end)
 
-    columns_paren = SyntaxNode("(", ")", ", ", () -> begin
+    columns_paren = SyntaxNode(() -> begin
         _, col_ims, _ = projected[]
         SyntaxDocument[c.output for c in col_ims]
-    end)
-    values_paren = SyntaxNode("(", ")", ", ", () -> begin
+    end; open = "(", close = ")", sep = ", ")
+    values_paren = SyntaxNode(() -> begin
         _, _, val_ims = projected[]
         SyntaxDocument[v.output for v in val_ims]
-    end)
+    end; open = "(", close = ")", sep = ", ")
 
     iomap_cell = Cell(nothing)
     sel = ComputedCell(() -> begin
@@ -1771,10 +1772,10 @@ function print_document(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt:
         Any[table_im; col_ims]
     end)
 
-    columns_body = SyntaxNode("(", ")", ",", () -> begin
+    columns_body = SyntaxNode(() -> begin
         _, col_ims = projected[]
         SyntaxDocument[c.output for c in col_ims]
-    end; indentation=1)
+    end; open = "(", close = ")", sep = ",", indentation = 1)
 
     iomap_cell = Cell(nothing)
     sel = ComputedCell(() -> begin

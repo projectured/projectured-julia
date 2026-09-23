@@ -202,7 +202,7 @@ Steps:
 - [x] 1. The protocol list and the marker: `layout_graph`, `sync_document!`,
   `compute_window_place` leave the ledger.
 - [x] 2. `SyntaxLeaf`: delete the four legacy forms.
-- [ ] 3. `SyntaxNode`: move the nine calls, delete the six legacy forms, and
+- [x] 3. `SyntaxNode`: move the nine calls, delete the six legacy forms, and
   update the comment diagrams that draw the legacy form.
 - [ ] 4. `GraphicsCanvas`: the keyword form takes a `CollectionDocument`; move the
   seventeen calls; delete the three forms.

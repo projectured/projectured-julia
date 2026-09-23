@@ -509,32 +509,6 @@ SyntaxNode(children; open=nothing, close=nothing, sep=nothing, kwargs...) =
     SyntaxNode(; open=_text(open), close=_text(close), sep=_text(sep),
                  children=_children(children), kwargs...)
 
-# Positional delimiter forms, kept for callers that use them instead of keywords.
-SyntaxNode(open::TextString, close::TextString, sep::TextString,
-      children::Vector{<:SyntaxDocument}; indentation::Int = 0) =
-    SyntaxNode(open, close, sep, CellVector(Cell[Cell(c) for c in children]), indentation, false, nothing)
-
-SyntaxNode(open::TextString, close::TextString, sep::TextString;
-      indentation::Int = 0) =
-    SyntaxNode(open, close, sep, CellVector(), indentation, false, nothing)
-
-SyntaxNode(open::TextString, close::TextString, sep::TextString,
-      f::Function; indentation::Int = 0) =
-    SyntaxNode(open, close, sep, ComputedCellVector(f), indentation, false, nothing)
-
-SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString,
-      children::Vector{<:SyntaxDocument}; indentation::Int = 0) =
-    SyntaxNode(_text(open), _text(close), _text(sep),
-               CellVector(Cell[Cell(c) for c in children]), indentation, false, nothing)
-
-SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString;
-      indentation::Int = 0) =
-    SyntaxNode(_text(open), _text(close), _text(sep), CellVector(), indentation, false, nothing)
-
-SyntaxNode(open::AbstractString, close::AbstractString, sep::AbstractString,
-      f::Function; indentation::Int = 0) =
-    SyntaxNode(_text(open), _text(close), _text(sep), ComputedCellVector(f), indentation, false, nothing)
-
 # Text-replace edits on a SyntaxLeaf (`open`/`value`/`close`) or SyntaxNode
 # (`open`/`close`/`sep`) are handled generically by `splice_value!`: each of
 # those fields holds a TextString, so the TextString representation (defined in

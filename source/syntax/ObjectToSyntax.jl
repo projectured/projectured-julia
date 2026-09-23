@@ -115,14 +115,14 @@ end
 #
 # Maps any Julia value to a nested SyntaxNode:
 #
-#   SyntaxNode("", "", " ", indentation=1, [
+#   SyntaxNode([
 #     SyntaxLeaf(TypeName),                        ← type-name leaf
-#     SyntaxNode("", "", " ", indentation=1, [     ← one per field
+#     SyntaxNode([                                 ← one per field
 #       SyntaxLeaf(field_name),
 #       <projected field value>,
-#     ]),
+#     ]; sep = " ", indentation = 1),
 #     ...
-#   ])
+#   ]; sep = " ", indentation = 1)
 #
 # Objects with no fields collapse to the type-name leaf alone.
 # Undefined mutable-struct fields render as an "<undefined>" leaf.
@@ -210,8 +210,8 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
         elem_ims = reconcile_child_iomaps(
             () -> _visible_elements(p, obj),
             (i, x) -> print_child(recursion, x, make_child_context(ctx, ElementReferenceStep(i))))
-        output = ComputedCell(() -> SyntaxNode(p.open_delimiter, p.close_delimiter, " ",
-            SyntaxDocument[im.output for im in elem_ims[]]; indentation = ind))
+        output = ComputedCell(() -> SyntaxNode(SyntaxDocument[im.output for im in elem_ims[]];
+            open = p.open_delimiter, close = p.close_delimiter, sep = " ", indentation = ind))
         return SimpleIoMap(p, obj, output)
     end
 
@@ -230,11 +230,11 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     entries = [_field_entry(p, recursion, obj, ctx, fn) for fn in fnames]
     output = ComputedCell(() -> begin
         field_nodes = SyntaxDocument[
-            SyntaxNode("", "", " ", SyntaxDocument[nl, _field_value(p, fim)]; indentation = 0)
+            SyntaxNode(SyntaxDocument[nl, _field_value(p, fim)]; sep = " ")
             for (nl, fim) in entries]
-        fields_block = SyntaxNode(p.open_delimiter, p.close_delimiter, " ",
-            field_nodes; indentation = ind)
-        SyntaxNode("", "", " ", SyntaxDocument[type_leaf, fields_block]; indentation = 0)
+        fields_block = SyntaxNode(field_nodes; open = p.open_delimiter,
+            close = p.close_delimiter, sep = " ", indentation = ind)
+        SyntaxNode(SyntaxDocument[type_leaf, fields_block]; sep = " ")
     end)
     SimpleIoMap(p, obj, output)
 end

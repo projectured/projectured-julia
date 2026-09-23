@@ -421,8 +421,8 @@ end
 # Maps BookList → SyntaxNode.  Each element i is wrapped in a bullet
 # SyntaxNode whose sole child is the recursively projected element:
 #
-#   SyntaxNode("", "", "", [
-#     SyntaxNode("• ", "", "", [element_output]),  ← child i
+#   SyntaxNode([
+#     SyntaxNode([element_output]; open = "• "),  ← child i
 #     ...
 #   ])
 #

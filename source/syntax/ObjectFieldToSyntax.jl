@@ -3,10 +3,10 @@
 # Projects an [`ObjectField`](@ref) — one field of one object — to the field node
 # `ObjectNodeToSyntaxNode` builds inline for each field of a struct:
 #
-#     SyntaxNode("", "", " ", [
+#     SyntaxNode([
 #       SyntaxLeaf(field_name),
 #       <the projected value>,
-#     ])
+#     ]; sep = " ")
 #
 # The name comes from the last `FieldReferenceStep` of the field's path. When the
 # last step names no field — an element step, for example — the value is emitted
@@ -51,9 +51,8 @@ function print_document(p::ObjectFieldToSyntax, recursion, field::ObjectField, c
     output = ComputedCell(() -> begin
         value_node = inner[].output
         name === nothing ? value_node :
-            SyntaxNode("", "", " ",
-                       SyntaxDocument[SyntaxLeaf(TextString(name, p.field_name)), value_node];
-                       indentation = ind)
+            SyntaxNode(SyntaxDocument[SyntaxLeaf(TextString(name, p.field_name)), value_node];
+                       sep = " ", indentation = ind)
     end)
     SimpleIoMap(p, field, output)
 end
