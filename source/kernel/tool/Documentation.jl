@@ -485,16 +485,33 @@ function list_modules(; api = ApiEntry[])
     "Available Modules\n\n" * join(modules_info, "\n\n---\n\n")
 end
 
-"""
-    list_types(module_name) -> String
+# The names of `mod` that a declaration gives, or `nothing` when no declaration
+# narrows the module: an empty API is the whole surface. A module that two
+# entries name gives the names of both.
+function _find_declared_names(mod::Module, api)
+    isempty(api) && return nothing
+    given = Set{Symbol}()
+    for entry in api
+        entry.module_ === mod || continue
+        union!(given, get_api_entry_names(entry))
+    end
+    given
+end
 
-List all types within a module with their one-paragraph documentation.
 """
-function list_types(module_name)
-    mod = _find_module(module_name)
+    list_types(module_name; api = ApiEntry[]) -> String
+
+List the types within a module with their one-paragraph documentation. With a
+declared `api`, the module is looked up among the declared ones, and only the
+types the declaration gives are listed, which are the ones a model can write.
+"""
+function list_types(module_name; api = ApiEntry[])
+    mod = _find_module(String(module_name), api)
     isnothing(mod) && return "Module '$module_name' not found."
+    declared = _find_declared_names(mod, api)
     types_info = String[]
     for (name, T) in _struct_types(mod)
+        declared === nothing || name in declared || continue
         summary = _get_catalogue_summary(_doc_string(T), String(name))
         mutable_str = ismutabletype(T) ? "mutable " : ""
         push!(types_info, "**$mutable_str$name**: $summary")
@@ -504,16 +521,20 @@ function list_types(module_name)
 end
 
 """
-    list_functions(module_name, type_name = nothing) -> String
+    list_functions(module_name, type_name = nothing; api = ApiEntry[]) -> String
 
-List all functions within a module (optionally only those mentioning `type_name`
-in a signature) with their one-paragraph documentation.
+List the functions within a module (optionally only those mentioning
+`type_name` in a signature) with their one-paragraph documentation. With a
+declared `api`, the module is looked up among the declared ones, and only the
+functions the declaration gives are listed, which are the ones a model can call.
 """
-function list_functions(module_name, type_name = nothing)
-    mod = _find_module(module_name)
+function list_functions(module_name, type_name = nothing; api = ApiEntry[])
+    mod = _find_module(String(module_name), api)
     isnothing(mod) && return "Module '$module_name' not found."
+    declared = _find_declared_names(mod, api)
     functions_info = String[]
     for (name, fn) in _module_functions(mod)
+        declared === nothing || name in declared || continue
         if type_name !== nothing && !any(occursin(type_name, string(m.sig)) for m in methods(fn))
             continue
         end

@@ -92,9 +92,10 @@ function _scratch_module(set::ToolSet)
         end
         # **How to look is always in scope.** The declaration says what a model may
         # DO; finding out what that is, is not one of the things it does. Without
-        # these two the locator `search_api` prints for every function — a
+        # these the locator `search_api` prints for every function — a
         # `read_function_documentation(…)` call — names something the model cannot
-        # reach, and it spends a round learning that.
+        # reach, and a model that lists a module it was told about learns only that
+        # the name is not defined. Each such answer costs it a round.
         #
         # They arrive with the declaration already applied, so what they answer and
         # what the code can call are the same set, and a model cannot widen its own
@@ -109,6 +110,12 @@ function _scratch_module(set::ToolSet)
         Core.eval(m, :(const search_api =
             (query; kwargs...) -> $(search_api)(query; meaning_model = $(set).meaning_model,
                                                 kwargs..., api = $declared)))
+        Core.eval(m, :(const list_modules = () -> $(list_modules)(; api = $declared)))
+        Core.eval(m, :(const list_types =
+            module_name -> $(list_types)(module_name; api = $declared)))
+        Core.eval(m, :(const list_functions =
+            (module_name, type_name = nothing) ->
+                $(list_functions)(module_name, type_name; api = $declared)))
     end
     set.scratch = m
 end

@@ -237,6 +237,21 @@ function test_declared_api()
         @test occursin("toy_count", answer)
     end
 
+    # A model told which modules it has lists one of them before it writes. The
+    # listing verbs are in scope with the declaration applied, so the module is
+    # found, and what they list is what the code can call.
+    @testset "a declared module can be listed, and lists what it gives" begin
+        set = ToolSet(; api = [ToyApi => (:toy_verb,)])
+        functions = execute_julia_code(set, nothing, "list_functions(\"ToyApi\")")
+        @test !occursin("not found", functions)
+        @test occursin("toy_verb", functions)
+        @test !occursin("toy_count", functions)
+        @test !occursin("not found", execute_julia_code(set, nothing, "list_types(\"ToyApi\")"))
+        @test occursin("ToyApi", execute_julia_code(set, nothing, "list_modules()"))
+        # A module the declaration does not name is not found, as its names do not resolve.
+        @test occursin("not found", execute_julia_code(set, nothing, "list_functions(\"ToolModule\")"))
+    end
+
     # The module's own name stays bound, and that is deliberate. The harm a wide
     # declaration does is to DISCOVERY — a search that answers thirty generated
     # schema variants instead of the verb — and narrowing the index is what fixes
