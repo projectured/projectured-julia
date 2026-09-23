@@ -522,19 +522,40 @@ Found on 2026-09-23, read-only:
       the decision that a verb gives an operation, not a gesture (§3), so no
       more examples are needed.
 
-### Step 2 — the first focus (part 3)
+### Step 2 — the first focus (part 3) — done 2026-09-23
 
-Outline, needs the owner's word.
+The owner approved the whole plan on 2026-09-23 ("implement plan in worktree").
 
-- [ ] Each place that puts a wrapper around a document that has a selection
-      gives the wrapper that selection, rooted at the wrapper. The hand-written
-      seat in `make_application_document` becomes that step.
-- [ ] Test: as the window opens, every level holds its suffix of one path, and
-      Ctrl+C copies the focused tab.
+- [x] Each place that puts a wrapper around a document that has a selection
+      gives the wrapper that selection, rooted at the wrapper:
+      `make_clipboard_document`, `make_window_shell_document` (a new shell only;
+      a shell that is passed in keeps its own selection) and `make_window_scene`,
+      which gives the screen the path `windows[1].content…`, so the window
+      holds its part too. The hand-written seat in `make_application_document`
+      is the same step for the undo buffer, and stays.
+- [x] Test: as the window opens, every level holds its suffix of one path, and
+      Ctrl+C copies what the focus names.
+
+What Step 2 found and decided:
+
+- **No shared function.** The selection layer is sealed, so a helper can not
+  go beside `replace_selection!`, and no other kernel layer fits it. Each
+  builder writes the same three lines with `get_selection`,
+  `concat_references` and `replace_selection!`, as `make_application_document`
+  already did.
+- **The screen package aliases `SelectionModule`**, as it aliases the other
+  kernel modules.
+- **As the window opens, the focus names the file's own history buffer**, so
+  Ctrl+C copies an `UndoBuffer` that holds the file. The test asserts the kind
+  of the wrapped document, not the buffer.
+- **Suites, in the worktree:** `test_application` 180/180, `test_clipboard`
+  197, `test_command_palette` 39, `test_command_palette_decorator` 63,
+  `test_context_menu_probe` 5, `test_gesture_help` 42, `test_text_clipboard` 8,
+  `test_text_range_selection` 17, `test_tooltip_feed` 12, `test_tooltip_probe`
+  21, `test_window_shell` 83, `test_window_wrap` 22, `test_shell` 180, all
+  with no failure.
 
 ### Step 3 — the other verbs, the clipboard, omnet-julia, the guides
-
-Outline, needs the owner's word.
 
 - [ ] The other pane verbs and the menu actions as `make_…_operation` and
       `…!` pairs on complete references: open, close, duplicate, split, the

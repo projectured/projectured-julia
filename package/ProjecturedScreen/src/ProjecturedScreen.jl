@@ -23,6 +23,7 @@ const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
+const SelectionModule = ProjecturedKernel.SelectionModule
 const OperationModule = ProjecturedKernel.OperationModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IntentModule = ProjecturedKernel.IntentModule

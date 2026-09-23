@@ -26,15 +26,22 @@ window unless a caller that knows the window's size says it.
 Wrapping is idempotent: a document that is already a shell — one read back from a
 saved user interface — keeps its identity and takes the bands it is given, so a
 window opened from a file is not wrapped twice.
+
+A new shell is the new root, so it holds the selection that `document` holds,
+rooted at the shell.
 """
 function make_window_shell_document(document; menu_bar = nothing, toolbar = nothing,
                                     status_bar = nothing, context_menu = nothing,
                                     size = nothing)
-    document isa WidgetShell || return WidgetShell(document; menu_bar = menu_bar,
-                                                             toolbar = toolbar,
-                                                             status_bar = status_bar,
-                                                             context_menu = context_menu,
-                                                             size = size)
+    if !(document isa WidgetShell)
+        shell = WidgetShell(document; menu_bar = menu_bar, toolbar = toolbar,
+                            status_bar = status_bar, context_menu = context_menu, size = size)
+        inner = get_selection(document)
+        inner === nothing || replace_selection!(shell,
+            concat_references(ConcreteReference(FieldReferenceStep("content"), EmptyReference()),
+                              strip_reference_types(inner)))
+        return shell
+    end
     menu_bar === nothing || (document.menu_bar = menu_bar)
     toolbar === nothing || (document.toolbar = toolbar)
     status_bar === nothing || (document.status_bar = status_bar)

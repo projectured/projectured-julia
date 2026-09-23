@@ -9,10 +9,17 @@ using ProjecturedProjection.ProjectionAlgebraModule: ChainingProjection, Identit
     make_clipboard_document(document; collection = false) -> ClipboardDocument
 
 Wrap `document` in a clipboard: a `ClipboardSlice`, or a `ClipboardCollection`
-when `collection` is set.
+when `collection` is set. The clipboard is the new root, so it holds the
+selection that `document` holds, rooted at the clipboard.
 """
-make_clipboard_document(document; collection::Bool = false) =
-    collection ? ClipboardCollection(document) : ClipboardSlice(document)
+function make_clipboard_document(document; collection::Bool = false)
+    clipboard = collection ? ClipboardCollection(document) : ClipboardSlice(document)
+    inner = get_selection(document)
+    inner === nothing || replace_selection!(clipboard,
+        concat_references(ConcreteReference(FieldReferenceStep("content"), EmptyReference()),
+                          strip_reference_types(inner)))
+    clipboard
+end
 
 """
     make_clipboard_projection(projection; collection = false, to_text = nothing,

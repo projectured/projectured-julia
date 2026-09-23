@@ -33,13 +33,22 @@ using ProjecturedProjection.ProjectionAlgebraModule: TypeDispatchingProjection
 """
     make_window_scene(document, title; width, height) -> ScreenDocument
 
-The screen a program is drawn on: one window, holding `document`.
+The screen a program is drawn on: one window, holding `document`. The screen is
+the new root, so it holds the selection that `document` holds, rooted at the
+screen, and the window holds its part of that path.
 """
 function make_window_scene(document, title::AbstractString; width::Integer, height::Integer)
     window = WindowDocument(; id = Symbol(title), title = String(title),
                             x = 100, y = 100, width = Int(width), height = Int(height),
                             content = document)
-    ScreenDocument([window])
+    screen = ScreenDocument([window])
+    inner = get_selection(document)
+    inner === nothing || replace_selection!(screen,
+        concat_references(ConcreteReference(FieldReferenceStep("windows"),
+                              ConcreteReference(ElementReferenceStep(1),
+                                  ConcreteReference(FieldReferenceStep("content"), EmptyReference()))),
+                          strip_reference_types(inner)))
+    screen
 end
 
 """

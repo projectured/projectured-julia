@@ -256,6 +256,29 @@ function test_application()
         dir = mktempdir()
         paths = _app_write_files(dir)
         @testset "the application window" begin
+            @testset "as the window opens, every level holds its part of the first focus" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:2], dir)
+                tree = _app_window(document)
+                path = repr(strip_reference_types(get_selection(tree)))
+                @test startswith(path, ".root.")
+                level(node) = repr(strip_reference_types(get_selection(node)))
+                @test level(scene) == ".windows[1].content.content.content.content" * path
+                @test level(scene.windows[1]) == ".content.content.content.content" * path
+                @test level(document) == ".content.content.content" * path
+                @test level(document.content) == ".content.content" * path
+                @test level(document.content.content) == ".content" * path
+                # So Ctrl+C copies what the focus names, with no verb called first.
+                editor = Editor(ConsoleBackend(), scene, composed,
+                                Device[Display(), Keyboard(), Mouse()])
+                editor.iomap = iomap
+                copy = _app_fire(composed, iomap, KeyDown(:c, ModifierKeys(ctrl = true)))
+                copy isa Operation && evaluate_operation(editor, copy)
+                focused = evaluate_reference(tree, get_selection(tree))
+                @test document.slice isa Document
+                @test typeof(get_wrapped_document(document.slice)) ==
+                      typeof(get_wrapped_document(focused))
+            end
+
             @testset "a verb focuses a pane through the readers, and every level holds its part" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:2], dir)
                 editor = Editor(ConsoleBackend(), scene, composed,
