@@ -156,6 +156,35 @@ isempty(refs) || replace_selection!(editor.document, first(refs))
 See the [finding-and-selecting guide](finding-and-selecting.md) for the full
 search → resolve → select workflow.
 
+### Writing from outside a gesture
+
+`PAR-SELECTION-WRITTEN-AT-ROOT` in
+[architecture-invariants.md](../../rule/architecture-invariants.md#par-selection-written-at-root)
+says that every write of the live selection starts at the root document, and
+that a reader reads only its own `selection`, never searching the documents
+below it for one. A gesture already reaches the root this way: each reader on
+the way out lifts the operation, rerooting it or mapping an index back, as it
+carries an answer up the chain.
+
+Code that changes the selection without a gesture reaches the root in one of
+two ways:
+
+- **A verb** makes its edit where it already stands, at the document it
+  holds — a pane tree, say — and carries the edit to the root through the
+  readers of the editor with `read_rooted_operation`, which returns the
+  operation rooted at the editor's document without evaluating it; see
+  [editor.md](editor.md#an-operation-from-a-place-not-a-gesture).
+- **A builder that wraps a document in a new root** lifts the selection the
+  inner document already holds onto the wrapper, so the new root holds the
+  same path the old one did: it reads the inner selection with
+  `get_selection`, prepends the wrapper's own field step to it with
+  `concat_references`, and writes the result with `replace_selection!` on the
+  wrapper. `make_clipboard_document`, `make_window_shell_document` and
+  `make_window_scene` each do this for the document they wrap.
+
+A dormant selection is not the live selection, so this rule does not apply to
+it: the document that keeps one off the live path keeps it where it is.
+
 ## Dormant selections
 
 A document normally holds either a live selection or none. Some documents —

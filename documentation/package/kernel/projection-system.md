@@ -177,6 +177,12 @@ A reader returns a `Intent`: either it keeps `operation === nothing`, meaning it
 found no operation to return, or it returns a fresh `Intent` with the gesture
 preserved and a real operation swapped in.
 
+A fifth field, `route`, carries a path when the change comes from code that
+already has the place its operation belongs to, rather than from a gesture;
+a reader follows it down to that place and lifts the answer back up exactly as
+it lifts the answer to a gesture — see
+[editor.md](editor.md#an-operation-from-a-place-not-a-gesture).
+
 ### `read_intent` — the reader
 
 ```julia

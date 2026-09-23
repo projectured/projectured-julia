@@ -179,9 +179,11 @@ There is exactly one traversal of an object graph
 ([DocumentWalk.jl](../../../source/kernel/document/DocumentWalk.jl)): `walk_document` descends
 positional collections, dicts, arrays, and structs uniformly, stops at scalar
 leaves / `is_walk_opaque` nodes / `maxdepth`, and folds a scalar match up to its
-enclosing `Document`. What it deliberately leaves open is how to *name* the node
-it stands on. Those are the location functions of a `DocumentWalk`, a parameter
-object the caller supplies (`locate_field` / `locate_element` / `initial` /
+enclosing `Document`. A `descend(parent, child)` keyword, given by the caller,
+returns whether the walk enters `child` from `parent` at all; a child that it
+does not enter is neither matched nor walked, and the default enters every child. What it
+deliberately leaves open is how to *name* the node it stands on. Those are the
+location functions of a `DocumentWalk`, a parameter object the caller supplies (`locate_field` / `locate_element` / `initial` /
 `policy`). Its two callers differ only there: `search_documents`
 ([DocumentSearch.jl](../../../source/kernel/document/DocumentSearch.jl)) uses the defaults, so a
 node's location is the node itself, while `search_references` (one layer up)

@@ -93,6 +93,9 @@ internal string field. Pass `raw=true` to return the path to the exact matched n
 - `maxdepth` bounds recursion for structures whose nodes are never the *same*
   object — e.g. an infinite lazy list, which the cycle guard alone cannot stop.
 - `include_selection=true` also walks `selection` fields (off by default).
+- `descend(parent, child)` returns whether the walk enters `child` from `parent`;
+  a child that it does not enter is neither matched nor walked. The default
+  enters every child.
 
 Because the returned paths are document-rooted, they resolve with
 `evaluate_reference` and can be handed straight to `set_selection!` /
@@ -109,6 +112,10 @@ Same walk (and the same string/regex shorthand), but returns the matching
 **nodes themselves, each one once** even when a node is shared / reachable by
 several paths. Use it when you want the values, not where they live
 (`search_references` is the one to use when you intend to select).
+
+`descend(parent, child)` returns whether the walk enters `child` from `parent`; a
+child that it does not enter is neither matched nor walked. The default enters
+every child.
 
 By default, a string/regex match on a raw scalar leaf **folds up to the nearest enclosing
 `Document`** — so `search_documents(doc, "Alice")` returns the `JsonString` node (whose

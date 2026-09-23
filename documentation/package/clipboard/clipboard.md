@@ -27,6 +27,8 @@ The reader has seven gestures, in a gesture table of the projection:
 
 A key that is not in the table goes to the content, and the reader roots the operation that comes back under `content`. `ClipboardCollectionToAnyProjection` has the same shape for a list: Ctrl+= adds the selected document to the list, Ctrl+- removes the selected element, and Ctrl+* shows the list.
 
+The clipboard reads its own `selection` field only, never its content's. Every write of the live selection starts at the root, so by the time a key reaches the clipboard, its own suffix already names what was selected (`PAR-SELECTION-WRITTEN-AT-ROOT`; see [selection.md](../kernel/selection.md#writing-from-outside-a-gesture)).
+
 ### Where a paste can go
 
 A paste replaces a whole document. Three checks decide whether the selection can take it:

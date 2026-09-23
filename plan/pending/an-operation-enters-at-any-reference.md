@@ -710,8 +710,13 @@ above with no failure, the six search suites (`test_search_api` 10,
 the six known failures; the naming, argument and tree guards pass.
 - [ ] omnet-julia: `focus_runner_group!`, `_open_file_navigator!`,
       `open_simulation_pane!`, and the first focus of an embedded tree.
-- [ ] The guides: `selection.md`, `clipboard.md`, `pane.md`, and a guide for
-      the route and `read_rooted_operation`.
+- [x] The guides: `selection.md`, `clipboard.md`, `pane.md`, and a guide for
+      the route and `read_rooted_operation` (a section in `editor.md`, with a
+      pointer from `projection-system.md`). The seal audit also named
+      `document.md` and `finding-and-selecting.md`, which now describe
+      `descend`. Written by the documentation agent and reviewed; the one false
+      statement it found (that the file system package calls `open_pane!`) is
+      corrected. The documentation guard lists the same 20 sentences as `main`.
 - [x] Audit `document/DocumentWalk.jl` against the architecture invariants, as
       `SEALING.md` says, report the result, and ask the owner to seal it again.
       Audited 2026-09-23 by the seal auditor. The code complies (a data walk,

@@ -253,6 +253,37 @@ the operation — the rest is served from the cache.
 The `iomap` is *not* invalidated at the end of a frame — its contents are
 reactive and will refresh on the next read.
 
+### An operation from a place, not a gesture
+
+Code that is not the editor loop — a verb, a tool the assistant calls, a test —
+can act at any place in the document, not only where the selection or the
+pointer already is. `read_rooted_operation(editor, place, operation;
+description = "")` reads `operation`, which is relative to the document that
+`place` names, as an operation from the root of `editor`'s document: the
+readers of `editor.projection` from the root to `place` lift it on the way out,
+exactly as they lift the answer to a gesture, so a wrapper reroots it and a
+sorted view maps an index back. `place` is a complete reference, from the
+root. It evaluates nothing; a caller evaluates the answer with
+`evaluate_operation` or posts it with `post_operation!`.
+
+The route travels down in a fifth field of `Intent`, `route`: `nothing` for a
+change that a gesture starts, and, for an operation that code already made,
+the path from the current reader's input to `place`. A reader that passes the
+`Intent` to a child gives it the route that remains below that child
+(`follow_intent_route`) — it drops its own step, or, in a chain, maps the
+route forward through the earlier stages, as the printer maps a reference.
+Where the route that remains for a child is empty, that child is the place:
+the parent does not call it, and takes `change.operation` as the child's
+answer instead (`read_routed_intent` in
+[ProjectionDefaults.jl](../../../source/kernel/projection/ProjectionDefaults.jl)).
+On the way up, an answer carries no route, so the rest of the pipeline treats
+it exactly as it treats the answer to a gesture.
+
+The pane package's verbs (`focus_pane!`, `open_pane!`, `close_pane!`,
+`duplicate_pane!`, `move_pane!`) use `read_rooted_operation` to carry their
+edit from a pane tree to the root; see
+[pane.md](../pane/pane.md#the-verbs-of-a-program).
+
 ## Running an editor
 
 The entry point is the bootstrap overload

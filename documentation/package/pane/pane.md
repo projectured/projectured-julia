@@ -141,38 +141,51 @@ A duplicate is not a mirror. Each node stores its own `selection`, so two panes 
 
 ### The verbs of a program
 
-`PaneProgram.jl` gives a program the layout as references into the tree. These verbs take an `editor`, and `get_window_tree(editor)` finds the tree: the document itself, the content of the first window of a `ScreenDocument`, or the tree inside a wrapper such as a clipboard.
+`PaneProgram.jl` gives a program the layout as references into the tree, and a verb for each common change to it. Every reference a verb takes or answers is complete: it starts at the root of the editor's document, not at a tree object. A verb finds its own tree from the reference it is given — the longest prefix that ends at a `PaneTree` — so no verb assumes one window or one tree. `get_window_tree(editor)` stays for code that already holds one window and needs the tree object itself; a verb does not use it.
 
 | Verb | What it does | Returns |
 | --- | --- | --- |
-| `show_layout(editor)` | prints the layout as a Julia program | a `Text` |
+| `show_layout(editor)` | prints the layout as a tree of reference steps | a `Text` |
 | `get_referenced_value(editor, reference)` | reads the node at a reference | the node, or an `ArgumentError` that names the path |
-| `replace_referenced_value!(editor, reference, value)` | writes a value at a reference, as one undo step | the new program |
-| `focus_pane!(editor, reference)` | shows a tab and gives it the focus | the new program |
+| `replace_referenced_value!(editor, reference, value)` | writes a value at a reference, as one undo step | the new layout |
+| `focus_pane!(editor, reference)` | shows a tab and gives it the focus | the new layout |
 | `open_pane!(editor, document; title, group)` | puts a document in a new tab | the reference of the tab |
 | `duplicate_pane!(editor, reference)` | duplicates a tab | the reference of the duplicate |
+| `close_pane!(editor, reference)` | closes a tab | the new layout |
+| `move_pane!(editor, reference, target; side)` | moves a tab to a group, before a tab, or beside a group in a new split | the new layout |
 
-**The level is the reference, not the verb.** One write reaches every change. A value at `root` rearranges the window, and a value at `root.elements[1]` moves one side of a split. A value at `root.weights` resizes a split, and a value at `tabs[i].content` changes what a pane holds. A range splices: `[]` at `tabs[2, 3]` closes two tabs. So a move, a resize and a close have no verb of their own. Focus is the selection and not a value. A correct duplicate can share a live action with its original, so a caller can not make it as a value. So each of the two has a verb.
+Each verb makes its edit at the pane tree and carries it to the root through the readers of the editor (`read_rooted_operation`; see [editor.md](../kernel/editor.md#an-operation-from-a-place-not-a-gesture)), then evaluates it at once, so every document on the path of the selection holds its part of the new state. Each verb but `replace_referenced_value!` has a `make_…_operation` companion — `make_open_pane_operation`, `make_focus_pane_operation`, `make_close_pane_operation`, `make_duplicate_pane_operation`, `make_move_pane_operation` — that reads the same edit and evaluates nothing, for a caller that already runs inside another evaluation and posts the result with `post_pane_operation!(editor, operation)`. The menu and toolbar actions, and `OpenFileOperation`, post this way. `post_pane_operation!` applies the operation at once instead when `editor` is not a running `Editor`, such as a test that holds the tree.
 
-`show_layout` prints a program that builds the window as it is:
+`find_pane_reference(editor, title)` answers the complete reference of the pane whose title is `title`, in any window, and `nothing` when no pane has it; when two panes have it, an `ArgumentError` names both. It descends only into the documents that can hold a pane (`is_pane_search_step`, the default of its `descend` keyword). `find_pane_tree_reference(editor)` answers the complete reference of the pane tree that holds the focus — the nearest tree on the path of the root's selection, else the one tree of the window, else `nothing`.
 
-```julia
-window = get_window_tree(editor)
+**The level is the reference, not the verb.** A change with no verb of its own is one write: a value at `root` rearranges the window, a value at `root.elements[1]` moves one side of a split, a value at `root.weights` resizes a split, and a value at `tabs[i].content` changes what a pane holds. A range splices, so `[]` at `tabs[2, 3]` closes two tabs at once. A move and a close have their own verbs too, `move_pane!` and `close_pane!`. Focus is the selection and not a value, and a correct duplicate can share a live action with its original, so a caller can not make either as a value: each has its own verb, `focus_pane!` and `duplicate_pane!`.
 
-data  = get_referenced_value(editor, @reference(window, root.elements[1].tabs[1]))  # Data — JsonObject · 30% × 100%
-table = get_referenced_value(editor, @reference(window, root.elements[2].tabs[1]))  # Table — WidgetTable · 70% × 100% (focused)
+`show_layout` prints the layout as a tree of reference steps, one line for each window, pane tree, split, group and tab it descends into:
 
-replace_referenced_value!(editor, @reference(window, root),
-    PaneSplit(:vertical, [
-        PaneGroup([data]),
-        PaneGroup([table])], weights = [0.3, 0.7]))
+```
+(root)                                        ::ScreenDocument  # the editor's document
+  .windows[1]                                 ::WindowDocument  # ProjecturEd
+    .content.content.content.content          ::PaneTree        # inside ClipboardSlice › WidgetShell › UndoBuffer
+      .root                                   ::PaneSplit       # side by side: 20% | 80%
+        .elements[1]                          ::PaneGroup       # 1 tab
+          .tabs[1]                            ::PaneTab         # Files — Workspace (focused)
+        .elements[2]                          ::PaneGroup       # 1 tab
+          .tabs[1]                            ::PaneTab         # a.json — JsonFile
 ```
 
-A caller changes the window by an edit of this text, and gives it back. Each name binds the `PaneTab` that is in the tree, so the written tree holds the same tabs, and no pane prints again. The comment comes from `describe_document(content)`; an application adds a method for its own documents. The result is a `Text` and not a `String`, so it reaches a model as lines and not as one line of `\n` escapes.
+A line's steps are those after the nearest printed line whose path is a prefix of its own, so the path of a part is the steps of the lines on its branch, joined in order: `@reference(editor.document, windows[1].content.content.content.content.root.elements[2].tabs[1])`. To name a pane there is a shorter way: `find_pane_reference` answers the reference of a pane by its title. The type on each line is `nameof(typeof(node))`; the note names the node (`get_document_title`), what it is (`describe_document`) when that says more than the type, the wrappers a line's steps pass through, and the deepest focused tab. `include(node)` says which nodes get a line and `descend(parent, child)` where the walk goes; the defaults show the windows, the pane trees, the splits, the groups and the tabs, and a pane tree inside a tab below that tab. It answers a `Text` and not a `String`, so the tree arrives as the lines it is and not as one line of `\n` escapes.
 
-`@reference(window, path)` takes the type of each node from the tree. A path to a node that the tree does not hold is not fully typed, and every verb throws an `ArgumentError` for it. `replace_referenced_value!` also throws for an empty reference, for a range outside its collection, and for a value that its slot can not hold. `tabs` holds `PaneTab`, and `elements` and `root` hold `PaneGroup` and `PaneSplit`. After the write, it finds the focused tab and the shown tab of each group again by object identity, wherever they are now.
+A path written by hand is typed against the tree it names a part of, then set after the path to that tree: resolve `find_pane_tree_reference(editor)` to the tree object with `evaluate_reference`, type the rest with `@reference(tree, …)`, and join the two with `concat_references`:
 
-`open_pane!` puts the tab in the focused group. When that is the group that `pane_group_to_avoid(tree)` names and another group exists, it takes the first other group. The default is `nothing`, and an application adds a method, so that a new pane does not cover a conversation. A title that another tab has gets a number. `duplicate_pane!` puts the duplicate after the original, or where `open_pane!` would put it when the original is in the group to avoid.
+```julia
+tree_reference = find_pane_tree_reference(editor)
+tree = evaluate_reference(editor.document, tree_reference)
+reference = concat_references(tree_reference, @reference(tree, root.elements[1].tabs[1]))
+```
+
+A path to a node that the tree does not hold is not fully typed, and every verb throws an `ArgumentError` for it. `replace_referenced_value!` also throws for an empty reference, for a range outside its collection, and for a value that its slot can not hold. `tabs` holds `PaneTab`, and `elements` and `root` hold `PaneGroup` and `PaneSplit`. After the write, it finds the focused tab and the shown tab of each group again by object identity, wherever they are now.
+
+`open_pane!` puts the tab in the focused group. When that is the group that `pane_group_to_avoid(tree)` names and another group exists, it takes the first other group. The default is `nothing`, and an application adds a method, so that a new pane does not cover a conversation. A title that another tab has gets a number. `duplicate_pane!` puts the duplicate after the original, or where `open_pane!` would put it when the original is in the group to avoid. `move_pane!` takes a reference and a `target`: a target that names a group puts the pane at its end, a target that names a tab puts it before that tab, and `side` (`:left`, `:right`, `:above` or `:below`) puts it beside the target's group in a new split.
 
 `make_pane_api()` and `make_interface_api()` return the names that a model may write, by module: the verbs, the pane types, the layouts, `@reference`, and the widgets that a person names in a request. A declaration of a whole module adds about thirty generated schema variants for each document type. Declared whole, `PaneModule` and `ReferenceModule` take the surface from 10 names to 122, and a search for "what panes are open" then finds those variants before `show_layout`.
 
@@ -188,7 +201,7 @@ A caller changes the window by an edit of this text, and gives it back. Each nam
 
 `ProjecturedPane` depends on the kernel and on `ProjecturedWidget`, `ProjecturedLayout`, `ProjecturedClipboard`, `ProjecturedDomain`, `ProjecturedDragging`, `ProjecturedFocus`, `ProjecturedPrimitive`, `ProjecturedCollection`, `ProjecturedProjection` and `ProjecturedSerialization`. It adds methods to `find_clipboard_document`, `accepts_pasted_replacement`, `has_dormant_selection`, `pred_arguments` and `make_pred_document`.
 
-`ProjecturedShell` puts a pane tree in the content of a window; see [shell.md](../shell/shell.md). The file-system package calls `open_pane!` with `get_pane_file_group`. An application adds methods to `describe_document` and `pane_group_to_avoid`, and declares `make_pane_api()` and `make_interface_api()` for its assistant.
+`ProjecturedShell` puts a pane tree in the content of a window; see [shell.md](../shell/shell.md). The file-system package opens a newly read file with `make_open_pane_operation` and `get_pane_file_group`, posted with `post_pane_operation!`, because it runs inside the evaluation of `OpenFileOperation`. An application adds methods to `describe_document` and `pane_group_to_avoid`, and declares `make_pane_api()` and `make_interface_api()` for its assistant.
 
 ## Design decisions
 
@@ -209,9 +222,11 @@ run_example(empty_pane_example)   # one empty group
 reference = open_pane!(editor, WidgetLabel(Point2D(0, 0), "The delay of every run"); title = "Note")
 focus_pane!(editor, reference)
 show_layout(editor)
-window = get_window_tree(editor)
-replace_referenced_value!(editor, @reference(window, root.elements[1].tabs[2, 2]), [])
+tree_reference = find_pane_tree_reference(editor)
+tree = evaluate_reference(editor.document, tree_reference)
+replace_referenced_value!(editor, concat_references(tree_reference, @reference(tree, root.elements[1].tabs[2, 2])), [])
 duplicate_pane!(editor, reference)
+close_pane!(editor, find_pane_reference(editor, "Note"))
 save_user_interface(editor, "session.pred")
 ```
 
