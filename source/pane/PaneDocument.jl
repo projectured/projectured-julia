@@ -162,11 +162,14 @@ end
 The whole layout. `root` is a [`PaneGroup`](@ref) or a [`PaneSplit`](@ref).
 
 Use it to read the whole layout: its `root` is the group or the split that holds
-everything, and `@reference(window, root)` names it for a replace.
+everything. For a replace, its complete reference is the path to the tree
+followed by `root`:
+`concat_references(tree_reference, @reference(tree, root))`.
 
 # Example
 
-    tree = get_window_tree(editor)
+    tree_reference = find_pane_tree_reference(editor)
+    tree = evaluate_reference(editor.document, tree_reference)
     println(typeof(tree.root))
 
 See also `PaneSplit`, `PaneGroup`, `show_layout`.
