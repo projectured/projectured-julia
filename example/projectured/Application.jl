@@ -297,6 +297,13 @@ make_application_api() = Any[
     # the umbrella, because an example package binds a slice's names and not its
     # module.
     Projectured.FileSystemModule => (:OpenFileOperation, :Workspace, :WorkspaceFolder),
+    # How a model reads what a tab holds, which is what a window of files is
+    # asked about: find a document in the window, see through the history a file
+    # carries, take the content of a file document, and read or write a document
+    # of any domain as its own text.
+    Projectured.DocumentModule => (:search_documents, :get_wrapped_document),
+    Projectured.FileFormatModule => (:get_file_content,),
+    Projectured.NaturalModule => (:print_natural_text, :parse_natural_text),
 ]
 
 """
@@ -317,9 +324,18 @@ const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
     "move it and close it, and show_layout prints what is where. " *
     "WidgetModule and LayoutModule build what a " *
     "pane shows — a card, a button, a table, a row or a column of them. " *
-    "FileFormatModule opens a path as a tab with make_file_tab, and writes one " *
-    "back with write_document_file. FileSystemModule names the workspace the " *
-    "navigator lists. Call one tool per round, and put the whole Julia source " *
+    "FileFormatModule opens a path as a tab with make_file_tab, writes one " *
+    "back with write_document_file, and answers what a file tab holds with " *
+    "get_file_content. FileSystemModule names the workspace the navigator " *
+    "lists. To read what a tab holds, in one round: show_layout prints a " *
+    "program whose lines name every tab. Run that program whole, its first " *
+    "line `window = get_window_tree(editor)` included, because every later " *
+    "line of it reads `window`. Then " *
+    "`print_natural_text(get_wrapped_document(get_file_content(tab)))` answers " *
+    "the text of the file in one of them, which parse_natural_text reads back. " *
+    "search_documents finds a document in the window when no line of the " *
+    "layout names it. " *
+    "Call one tool per round, and put the whole Julia source " *
     "in the code argument of execute_julia_code: a call with no code does " *
     "nothing and costs the round."
 
@@ -386,7 +402,7 @@ function run_application(paths::AbstractString...;
                              screen_wrap = make_popup_screen_wrap(),
                              fault_policy = fault_policy)
         start(editor)
-        _start_application!(editor, mcp, assistant, model)
+        start_application!(editor, mcp, assistant, model)
         run_editor!(editor; mcp = mcp, mcp_host = mcp_host, mcp_port = mcp_port)
     end
 end
@@ -576,11 +592,20 @@ function warm_application()
     warmed
 end
 
-# What the application does once the editor exists. The application keeps a
-# history, so a model can take a change back the way a person does. An MCP client
-# runs no turn of the assistant, so the tools get the meaning model of the backend
-# here as well, and a search by description ranks by meaning for the client too.
-function _start_application!(editor, mcp::Bool, assistant::Symbol, model::AbstractString)
+"""
+    start_application!(editor, mcp::Bool, assistant::Symbol, model::AbstractString)
+
+What the application does once the editor exists: it declares the API of
+[`make_application_api`](@ref) on the tools of the editor, and adds the `undo`
+and `redo` tools. With `mcp`, the tools also get the meaning model of the
+backend, because an MCP client runs no turn of the assistant and its searches by
+description rank by meaning too.
+
+[`run_application`](@ref) calls it between `make_editor` and `run_editor!`. A
+host that opens the same window another way calls it too, so its assistant is
+the one of the application.
+"""
+function start_application!(editor, mcp::Bool, assistant::Symbol, model::AbstractString)
     if hasproperty(editor, :tools)
         # What the assistant may write, and the whole of it. The verbs are
         # functions a model finds with `search_api` and calls through

@@ -82,7 +82,7 @@ A tool, a driver or a script that must record its change wraps it with `make_und
 
 ### A model takes a change back
 
-`register_undo_tools!(set)` adds an `undo` and a `redo` tool. Each one finds the buffer with `find_undo_buffer` on the document of the editor, runs the step and returns a sentence about what it did. `find_undo_buffer` returns the **outermost** buffer: an outer buffer records every step of the buffers below it, so one step back there takes back the last change anywhere below. The kernel tool set does not hold these tools; the application adds them in `_start_application!`.
+`register_undo_tools!(set)` adds an `undo` and a `redo` tool. Each one finds the buffer with `find_undo_buffer` on the document of the editor, runs the step and returns a sentence about what it did. `find_undo_buffer` returns the **outermost** buffer: an outer buffer records every step of the buffers below it, so one step back there takes back the last change anywhere below. The kernel tool set does not hold these tools; the application adds them in `start_application!`.
 
 ## How it fits
 

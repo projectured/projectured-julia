@@ -160,6 +160,14 @@ function evaluate_operation(editor, op::SaveFileOperation)
     save_file!(plain, dirname(abspath(get_filename(file))))
 end
 
+# The text of a file is the text of what it holds, so a caller with a tab in
+# hand asks the file itself. The history a file carries stays out of the answer,
+# as it does for a save, and a content that is already a string is its own text.
+NaturalModule.print_natural_text(file::FileDocument) =
+    let content = get_wrapped_document(get_file_content(file))
+        content isa AbstractString ? String(content) : print_natural_text(content)
+    end
+
 """
     ReloadFileOperation(file)
 

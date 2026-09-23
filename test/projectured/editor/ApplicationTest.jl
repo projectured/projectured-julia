@@ -256,14 +256,29 @@ function test_application()
             # does not offer is refused, and the refusal lists what may be
             # written instead. Undeclared, the same search answers the kernel's
             # own modules, and a person asking how to open a file is told about
-            # printers and cells.
-            refusal = search_api(set, "print_document")
+            # readers and cells. The probe is a name no declared docstring
+            # mentions: `print_natural_text` is declared, and its docstring names
+            # `print_document`, so a search for that one finds it.
+            refusal = search_api(set, "read_intent")
             @test occursin("No API matches", refusal)
             @test occursin("FileFormatModule: make_file_tab", refusal)
-            @test !occursin("No API matches", search_api(ToolSet(), "print_document"))
+            @test !occursin("No API matches", search_api(ToolSet(), "read_intent"))
 
             @test occursin("FileFormatModule", APPLICATION_SYSTEM)
             @test startswith(APPLICATION_SYSTEM, DEFAULT_ASSISTANT_SYSTEM)
+
+            # The text of what a tab holds, by the path the prompt names. A file
+            # tab carries a history, and the file answers the text of what the
+            # history holds, so a model that asks the file directly is answered.
+            @test :print_natural_text in names && :get_file_content in names
+            mktempdir() do directory
+                path = joinpath(directory, "people.json")
+                write(path, "{\"name\": \"Ada\"}")
+                tab = make_file_tab(path, UndoBuffer)
+                @test occursin("\"name\": \"Ada\"", print_natural_text(tab))
+                @test print_natural_text(tab) ==
+                      print_natural_text(get_wrapped_document(get_file_content(tab)))
+            end
         end
 
         @testset "the command line" begin
