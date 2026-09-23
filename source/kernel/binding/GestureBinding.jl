@@ -107,8 +107,10 @@ it with [`fire_named_gesture_binding`](@ref).
 `nothing` when the event is unclaimed. A claimed event only fires bindings marked
 `override`: the reader runs last-to-first, so anything the output layers understood
 they have already done, and a document gesture that is not an explicit override has
-nothing to add. This is why a structural gesture needs no guard against firing
-mid-text — a key that could be text never arrives unclaimed.
+nothing to add. A claim that no stage can carry, such as a character insert on a
+delimiter, is dropped by the chain reader, and the event arrives unclaimed at the
+stage where the claim died. This is why a structural gesture needs no guard against
+firing mid-text: a key that is text where it is typed never arrives unclaimed.
 
 This is the one place a table of bindings becomes an operation. Anything holding
 bindings — a document, an instance, a projection — fires them through here rather

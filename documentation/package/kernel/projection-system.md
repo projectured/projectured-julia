@@ -335,6 +335,13 @@ the selection down the document tree, so every focused node already holds its ow
 subtree-relative path (the root the full path, a nested object its relative one).
 No selection threading is needed. The lift is purely prepending the input steps.
 
+A caret on a part that a node printed, such as its closing `}`, is that node's
+own selection, because the introduced step stands at the node (see the next
+section). So a rule can ask where the caret is in its own output. The `,` rules
+of a JSON container decline on their own closing delimiter
+(`is_on_closing_delimiter` of the syntax slice), and the parent container
+answers the key.
+
 ### `map_reference_forward` / `map_reference_backward` — the reference maps
 
 These translate a `Reference` from input-domain coordinates to
@@ -379,6 +386,13 @@ Two principles keep these methods correct across the whole pipeline:
   you are, and `ProjectionReferenceStep(projection, …)` marks the exact point where
   you cross into something that exists only in `projection`'s output. Because
   `map_reference_forward` strips that same step, the path round-trips cleanly.
+
+  In a template, the step stands at the innermost node whose projection printed
+  the position. When a child can not map a position of its own output back, the
+  child makes its own introduced step, and each parent prepends the steps that
+  reach the child (`_map_child_backward` in `ProjectionTemplate.jl`). A caret in
+  the indentation of a line follows the same rule: the level that widens the
+  indentation prints those spaces, so the step stands at that level.
 
   When a projection's introduced positions are not separately addressable, such
   as the brackets and commas of a node, it is fine to collapse the whole group to a

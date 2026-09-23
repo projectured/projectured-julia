@@ -22,9 +22,10 @@
 # `override(…)` wraps a pattern (composing with `when(PATTERN, guard)` inside it) and
 # sets `GestureBinding.override`: the binding fires even when an output layer already
 # turned the key into an operation. Reserve it for a key that cannot be text in its
-# own context — XML's `<` inside a tag name. Without it a key the text layer absorbed
-# never reaches the document at all, which is what lets an ordinary structural gesture
-# skip the "am I inside a string?" guard entirely.
+# own context — XML's `<` inside a tag name. Without it, a key that the text layer
+# turned into a text edit reaches the document only where no stage can carry that edit,
+# such as a `,` on a delimiter or in a number. Inside a string the edit is carried, so
+# an ordinary structural gesture skips the "am I inside a string?" guard entirely.
 
 # Is this pattern slot the absence of a gesture? The parser hands `nothing` over as
 # the symbol it was written as; a spliced value arrives as `nothing` itself.
@@ -158,8 +159,10 @@ of:
   - `when(PATTERN, cond) => …` — a rule with a per-rule event guard.
   - `override(PATTERN) => …` — a rule that claims its key even when an output layer
     already turned it into an operation (see [`GestureBinding`](@ref)). Without it, a
-    printable key the text layer absorbed never reaches the document — so an ordinary
-    structural rule needs no guard against firing mid-text.
+    printable key that the text layer turned into a text edit reaches the document only
+    where no stage can carry that edit, such as a `,` on a delimiter or in a number.
+    Inside a string the edit is carried, so an ordinary structural rule needs no guard
+    against firing mid-text.
   - `when(<expr over doc, sel>)` — an optional block-level `applicable` precondition
     (event-independent).
   - `splice(set)` — splice a reusable `Vector{GestureBinding}` (typically a

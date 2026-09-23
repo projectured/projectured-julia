@@ -19,7 +19,7 @@ No projection here names a document type of a domain. A generic projection works
 ### The three combinations that every domain uses
 
 - **`RecursiveProjection(TypeDispatchingProjection(...))`** is the printer of a domain. The dispatcher picks the rule for the type of a node. The recursive wrapper gives itself as the `recursion` argument, so a rule prints its children with `print_child` and does not name the next rule.
-- **`ChainingProjection(a, b, c)`** is the chain from a domain to the screen. It prints from left to right and reads from right to left. Its reader starts at the last step and gives the event to the earlier steps until one of them returns an operation.
+- **`ChainingProjection(a, b, c)`** is the chain from a domain to the screen. It prints from left to right and reads from right to left. Its reader starts at the last step and gives the event to the earlier steps until one of them returns an operation. When an earlier step can not carry that operation, that step and the steps before it read the event again, as if no step had answered it.
 - **`ApplyAtProjection(reference, projection)`** applies a projection at one place of a document and copies the rest. It is built from the others: a `ReferenceDispatchingProjection` copies the path from the root to the place with `CopyingProjection`, applies a `NestingProjection` at the place, and keeps everything else with `IdentityProjection`. `SortingAtProjection(reference, by)` is the common case.
 
 ### Rules that the combinations depend on

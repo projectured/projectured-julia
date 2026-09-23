@@ -167,5 +167,12 @@ parent entry and the parent container, whose `,` rule answers.
       headless: no key uses `Alt`, all 215 keys answer an operation, and the
       content is the example document with that order; 3 pass.
 - [ ] Step 5: the same suites after the change, compared with the baseline.
-- [ ] Step 6: the documents: the chain reader, the `override` note of `@gestures`,
+- [x] Step 6: the documents: the chain reader, the `override` note of `@gestures`,
       and the JSON package guide say what holds now.
+      `higher-order-projections.md` and `projection.md` (the chain reader drops a
+      claim that no step can carry), `projection-system.md` (the introduced step
+      stands at the innermost node; a caret on a node's own delimiter is that
+      node's selection), `domain-anatomy.md` (the second path of an edit),
+      `json.md` (the key table and two design decisions), and the comments of
+      `Gestures.jl` and `GestureBinding.jl`, which said that a claimed key never
+      reaches the document.

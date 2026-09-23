@@ -50,6 +50,14 @@ lets a `:left`/`:right` key be consumed by `TextToGraphics` and translated
 back through `SyntaxToText` and `JsonToSyntax` into a JSON-domain
 `ReplaceSelectionOperation`.
 
+A claim that no earlier step can carry is no claim. If a step can not
+translate the result of a later step, that step and the steps before it read
+the raw event, as if no later step had answered it. `TextToGraphics` makes a
+character insert of a `,` on the closing quote of a JSON string. `JsonToSyntax`
+can not carry an edit of a delimiter, so it reads the `,` itself and inserts the
+next entry. A key that some step carries, such as a `,` inside the string, is
+not changed.
+
 ## TypeDispatchingProjection
 
 ```julia

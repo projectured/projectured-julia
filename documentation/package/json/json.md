@@ -37,6 +37,7 @@ The `@gestures` tables of `source/json/JsonDocument.jl` hold every structural ed
 | a digit | a whole-element selection | replace it with that number |
 | `,` | in an array | append a `JsonInsertion` at the end of `elements` |
 | `,` | in an object | append an empty entry at the end of `entries`, with the caret in its key |
+| `,` | on the closing `]` or `}` of a container | nothing here; the parent container takes the key |
 | Tab | in the key of an entry | move the caret to the value |
 | no key | in the value of an entry | move the caret to the key |
 | no key | in an object | sort the entries by key |
@@ -60,7 +61,8 @@ Its `__init__` in `source/json/JsonModule.jl` registers the natural row with the
 ## Design decisions
 
 - **An object entry is a document of its own.** It has a projection rule, so it can be selected, printed and replaced as one unit. See `plan/pending/catalog-all-documents.md`.
-- **A structural key reaches JSON through the chain.** When the text and syntax stages return no operation for a key, the chain gives the raw gesture to the JSON stage. So `,` with the caret on a delimiter inserts a sibling, and a retype key works on a placeholder, with no switch to a structural selection first. See `plan/done/json-contextual-gestures.md`.
+- **A structural key reaches JSON through the chain.** When the text and syntax stages return no operation for a key, the chain gives the raw gesture to the JSON stage. The same happens when the JSON stage can not carry the text edit that the text stage made of the key: a `,` after the closing quote of a string or inside a number is no text edit of the document. So `,` with the caret on a delimiter or in a number inserts a sibling, and a retype key works on a placeholder, with no switch to a structural selection first. See `plan/done/json-contextual-gestures.md` and `plan/pending/structural-keys-from-the-caret.md`.
+- **A caret on a delimiter belongs to the node that printed the delimiter.** The caret after `"x"` in `{"a": {"b": "x"}}` is a projection step of the nested object, so a `,` there adds an entry to the nested object. On the closing `}` or `]` of a container, the `,` rules decline (`is_on_closing_delimiter` of the syntax slice), and the parent container adds the entry. The caret thus leaves a nested container with `Right`, past its closing delimiter.
 - **An entry is retyped through its value.** A retype of the pair would lose the key. `_json_replaceable` holds the rule.
 - **The sort and the move back to the key have no key.** Tab and the printable keys already have a meaning in an entry. The command palette reaches the two rules by name.
 - **A sorted view and a sorted document are two things.** `json_sorted_example` sorts the entries in the view with a `SortingAtProjection` and does not change the document. The sort rule changes the order in the document.
