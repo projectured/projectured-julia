@@ -1,10 +1,11 @@
 # The public functions name their arguments
 
-**Status (2026-09-22): WAVE 1 DONE.** The rules landed in
+**Status (2026-09-23): DONE, wave 4 deferred.** The rules are in
 [code-quality-rules.md](../../documentation/rule/code-quality-rules.md) §4,
 `tool/survey-arguments.jl` measures them, and `test/suite/arguments.jl` guards
-them. Wave 1 changed 26 public functions in a worktree and landed on `main`.
-Waves 2 to 4 are open.
+them. Waves 1, 2, 3 and 5 landed on `main`: no public definition is over the
+line, the ledger is gone, and a marker excuses the count only. Wave 4, the
+private helpers, is deferred by the owner's decision of 2026-09-23.
 
 **Goal:** every public function of `source/` and `example/` takes at most three
 positional arguments, or carries a `# @positional:` marker that says why it does
@@ -228,9 +229,26 @@ Steps:
   worktree, in two commits: four calls that work with projectured-julia's main,
   and the list table, which needs this wave and lands after it.
 
-### Wave 4: the private helpers, deferred
+### Wave 4: the private helpers — DEFERRED
 
-357 of them. Two groups stand out, and neither wants keyword arguments:
+**Deferred, 2026-09-23, by the owner's decision.** Measured that day on `main`:
+373 private helpers over the line, 184 of them with four positional arguments.
+They fall into four groups, and each wants a different kind of work:
+
+| Group | Count | The work |
+| --- | --- | --- |
+| The painters of the backends | 32 | a marker each; the rule's exception covers them |
+| Seven or more positional arguments | 30 | a missing type per family, not keywords |
+| In a sealed file | 1 | `_walk_document!` in `DocumentWalk.jl`; needs the owner's word |
+| The rest | 310 | keywords or markers, file by file |
+
+Eighteen of the rest pass a `Bool` by position, which the rule never allows; they
+are the first to fix when the wave is picked up. Then the painters' markers, then
+the missing types one family at a time, and the rest file by file when a change
+touches the file anyway. The guard does not cover private names, and it should
+not until the first three groups are done.
+
+The first count of this wave, 357 on 2026-09-22, named two groups:
 
 - **The painters of the backends** (`source/sdl/`, `source/pdf/`): one family of
   one shape, called from one dispatch table. They take the marker as a family.

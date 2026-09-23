@@ -265,7 +265,7 @@ picture, the private helpers included.
 
 **The public functions come first.** A private helper inside one file costs one
 reader one file. A public function costs every call site and every caller that
-comes later. [plan/pending/keyword-arguments.md](../../plan/pending/keyword-arguments.md)
+comes later. [plan/done/keyword-arguments.md](../../plan/done/keyword-arguments.md)
 holds the list, the waves and what is deferred.
 
 ## 5. Size budgets
