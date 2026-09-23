@@ -71,7 +71,7 @@ MethodError: no method matching (::Main.ToolScratch.var"#2#3")()
   (method too new to be called from this world context.)
 ```
 
-The closure belongs to the world of the evaluator, and the editor calls it from code compiled before that world. The fault barrier catches it, so the window shows nothing at all. The same closure works in a plain session: the label follows the cell, and `callback()` counts. So a widget that a person builds in the evaluator, or that the assistant builds with `execute_julia_code`, can draw and can not act.
+The closure belongs to the world of the evaluator, and `evaluate_operation(::InvokeActionOperation)` (`source/widget/WidgetDocument.jl:2811`) runs in a world compiled before it. It first asks `applicable(callback, editor)` and `applicable(callback)`, and from that older world both answer false, so the callback is skipped with no error at all. The error above comes only from a direct call. The same closure works in a plain session: the label follows the cell, and `callback()` counts. So a widget that a person builds in the evaluator, or that the assistant builds with `execute_julia_code`, can draw and can not act.
 
 **F6. The assistant is told about functions it can not call.** The application declares a narrow API (`make_application_api`), and `execute_julia_code` runs in a scratch namespace that binds only what that declaration names. The guides and `search_api` answer with names outside it, and the model spends its rounds on them:
 
@@ -81,7 +81,7 @@ UndefVarError: `search_documents` not defined in `Main.ToolScratch`
 Module 'PaneModule' not found.        # from list_functions("PaneModule"), a module the system prompt names
 ```
 
-`list_functions`, `list_types` and `list_modules` call `_find_module(name)` with no API argument (`source/kernel/tool/Documentation.jl:514`), so a declared module is invisible to them. A round spent this way is a round the model does not spend on the task, and the cap is five.
+`list_functions` and `list_types` call `_find_module(name)` with no API argument (`source/kernel/tool/Documentation.jl:497` and `:514`), so a declared module is invisible to them. `list_modules` takes the API, and the tool set passes it. A round spent this way is a round the model does not spend on the task, and the agent stops at 8 rounds.
 
 **F5. Not proven: a drag of a slider and a character in a text field.** In the harness neither changed the document, but the coordinates there are computed and not read from a frame, so this is not evidence. It waits for the overlay of G3, which draws the pointer and makes a miss visible.
 
@@ -330,8 +330,9 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 
 ## 6. Constraints
 
-- Run every Julia process of a recording with a memory cap: `systemd-run --user --scope -p MemoryMax=20G`. Give every long run a timeout, and write its output to a file.
-- The model needs 17 GB and runs in the Ollama server. Run one Julia process at a time during a take. Check the free memory before a take. Do not unload a model that another session uses.
+- Run every Julia process of a recording with a memory cap and a timeout, and write its output to a file. The cap is 8 GB by default (`systemd-run --user --scope -p MemoryMax=8G`) with `-t 2`. A larger cap is only for a run that needs it, and the caps of everything that runs at once stay below half of the memory `free -g` shows as available. The takes of 2026-09-22 ran with 20 GB caps, before this rule.
+- The model needs 17 GB and runs in the Ollama server, outside the cap of Julia. Before EACH run that loads it, `free -g` must show at least 47 GB available. Count the VS Code language server and the Julia runs of other sessions. Run one Julia process at a time. Do not unload a model that another session uses. The whole computer crashed on 2026-09-23 when this was not checked.
+- A video and every other output of a take goes to `build/video/` of the worktree, never to `/tmp`: `/tmp` is a RAM disk, and the crash of 2026-09-23 took the first takes with it.
 - A take with the real model is not a measurement of time, so it needs no idle machine. But the video shows every wait at its real length (D12), so another heavy process on the machine makes the video longer.
 - Do the work in a worktree beside the main checkout, in `workspace/`. Commit each step.
 
@@ -422,3 +423,91 @@ The number of the frames follows the wall clock, so one second of the session is
 - [ ] Put the videos in place of the placeholder of the post, and link them from the README and the web site.
 - [ ] Mark the video item of Step 9 of `documentation-rewrite.md` as moved to this plan.
 - [ ] Move this plan to `plan/done/`.
+
+## 8. The open issues, in stages
+
+Everything the three recorded videos still lack, and everything the work on them found, rated two ways and put in stages. The owner asked for this list on 2026-09-23.
+
+**Importance.**
+
+- **A:** the owner named it, a video can not be made without it, or a claim of the post is false while it stands.
+- **B:** a video is visibly weaker.
+- **C:** polish.
+
+**Difficulty.** These are estimates from what the code shows, not measurements.
+
+- **S:** one function or one script, and the cause is known.
+- **M:** one slice, or a design choice for the owner.
+- **L:** the cause is not known, so a diagnosis comes first.
+
+### 8.1 The issues
+
+| Id | Issue | Where it shows | Importance | Difficulty |
+| --- | --- | --- | --- | --- |
+| G3 | No pointer, no mark for a click, no key names, no caption bar | all videos | A | M |
+| V1 | A form changes every earlier result row, because each row holds the same live object | S1, S4 | A | S |
+| V2 | The typing is faster than a person (`hold = 0.045`), against D13 | S1 | A | S |
+| V3 | The evaluator opens by typing `repl` into a new tab, not from the toolbar button | S1, S4 | A | S |
+| F4 | A callback made in the evaluator is skipped, because `applicable` answers false from the older world (§2.4) | S4, and every widget the assistant builds | A | S |
+| F6 | The assistant is told about names it can not call, and `list_functions` does not see the declared API (§2.4) | S2 | A | S |
+| X1 | The wider application API for qwen is written and not tested (§5, S2) | S2 | A | S |
+| F2 | After a string value, `Right` then `,` inserts nothing | S3, the `json_build` example | A | M |
+| F3 | `Alt+Up` never leaves a nested container | S3, the `json_build` example | A | M |
+| F1 | A file tab of the application takes no character | S3 in the window, S5 to S8, and the post's claim that the application edits files | A | L |
+| F5 | Not proven: a drag of a slider and a character in a text field | S4 | B | S once G3 exists |
+| A1 | A moving `GraphicsCircle`, `GraphicsPolyline` or `GraphicsLine` needs every positional field, so the forms are long | S1 | B | M |
+| A2 | A thunk given to `WidgetLabel` draws as the function, so the video types a `live(...)` helper | S4 | B | M |
+| A3 | `open_pane!` takes the focus and has no keyword to keep it, so the tool gets its tab only at the end | S4 | B | M |
+| A4 | The agent ends a turn at 8 rounds, and every S2 rehearsal ended there | S2 | B | S |
+| A5 | `WidgetProgress` takes a number and no function | S4 | C | S |
+| A6 | `WidgetComposite` puts every child at one place | S4 | C | S |
+| A7 | A new tab in a window with no file lands in the narrow column of the navigator, so S1 and S4 open `notes.json` for no reason the viewer sees | S1, S4 | C | M |
+| A8 | `ProjecturedSdlExample` does not export the constant of one live example | the scripts | C | S |
+| V4 | The assistant pane is off, so the window is narrower than the real one | S1, S3, S4 | C | S |
+| V5 | S4 lasts 163 s, near the limit of 3 min (D5) | S4 | C | S |
+| P1 | The post names a Julia function with an XML body, and no example makes that document now (G5) | the post | B | M |
+
+### 8.2 The stages
+
+Important before less important, and within the same importance, easy before hard. A video is recorded again at the end of the stage that changes it, so the owner sees each improvement.
+
+**Stage 1: important and small (A, S).** Each item is one function or one script.
+
+- [ ] F4: call the action's callback with `Base.invokelatest`, for the `applicable` check and for the call, in `evaluate_operation(::InvokeActionOperation)` (`source/widget/WidgetDocument.jl`, not sealed). A test builds a button in a newer world than the editor and presses it.
+- [ ] F6 and X1: `list_functions` and `list_types` answer from the declared API, as `list_modules` does. Then test the wider API with qwen, only when 47 GB is available (§6).
+- [ ] V1: a form that changes the picture returns nothing, so one row holds the live object. Or the object gets a tab of its own beside the evaluator, which A3 decides.
+- [ ] V2: the forms type with the rhythm of D13.
+- [ ] V3: the timeline presses the Evaluator button of the toolbar.
+- [ ] Record S1 and S4 again.
+
+**Stage 2: important, one slice each (A, M).**
+
+- [ ] G3: the overlay of the recording: the pointer, a ring at each press, the name of each key for about one second, and the caption bar of the timeline. It is drawn over the frame in `write_to_devices`, so nothing of it enters the document of the application.
+- [ ] F5: with the pointer visible, check the drag of a slider and a character in a text field. The item becomes a fault or goes away.
+- [ ] F2 and F3: the structural navigation of JSON. The `json_build` live example is the test, and it builds its whole document again.
+- [ ] Record S1 and S4 again with the overlay, and S4 with its pointer beats back.
+
+**Stage 3: important, the cause not known (A, L).**
+
+- [ ] F1: a diagnosis first. Where does the selection of a file tab stop, and why does no key reach the document? The probes of §2.4 are the starting point.
+- [ ] F1: the fix, in the size the diagnosis shows.
+- [ ] Record S3 in the application window, with the beats of F1, the command palette and `Ctrl+Z`.
+- [ ] The post: its claim about editing files holds, or the post states the limit.
+
+**Stage 4: less important, and each one an API choice for the owner (B and C).** Each item changes a public API or a default, so the owner approves each one before it is made.
+
+- [ ] A1: a shorter constructor for a moving graphics element, one that takes a function or a cell by keyword.
+- [ ] A2: a function given as the content of a `WidgetLabel` is computed, not drawn.
+- [ ] A3: a keyword of `open_pane!` that keeps the focus where it is.
+- [ ] A4: the round cap of the agent, as a default or as a setting of the application.
+- [ ] A5, A6, A7, A8: the small ones.
+- [ ] P1: the example of the web page, a Julia function with an XML body, made again.
+- [ ] V4, V5: the assistant pane in the takes, and a shorter S4.
+
+**Stage 5: the videos that wait for the stages before.**
+
+- [ ] S2, the assistant arranges the window, with qwen: after F6, X1 and maybe A4.
+- [ ] S0, the M/M/1/K study with qwen, in omnet-julia.
+- [ ] Tier 2, S5 to S8: after F1.
+- [ ] S10, a new screenplay the owner proposed on 2026-09-23: an edit reaches every earlier result that shows the same object, and copy and paste shows the same thing, for example a widget pasted into the evaluator as the argument of a function call that changes it. A check comes first: whether a widget noted with `Ctrl+N` pastes into a form of the evaluator. The select-and-paste work pastes into a tab.
+- [ ] S9, the editor from a plain Julia REPL: needs a capture of the screen in the owner's session.
