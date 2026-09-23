@@ -281,12 +281,14 @@ _is_julia_hole_type(T) = get_insertion_root(T) !== Document && get_natural_forma
 
 # The code of a fresh form: a hole of the Julia domain when the toplevel types
 # structured forms and that domain is loaded, and an empty string otherwise.
-function _make_fresh_form(t::EvaluatorToplevel)
-    t.type_structured_forms || return EvaluatorForm(PrimitiveString(""))
+function _make_fresh_code(t::EvaluatorToplevel)
+    t.type_structured_forms || return PrimitiveString("")
     T = resolve_insertion(Document, "julia")
-    (T === nothing || !_is_julia_hole_type(T)) && return EvaluatorForm(PrimitiveString(""))
-    EvaluatorForm(make_insertion_document(T))
+    (T === nothing || !_is_julia_hole_type(T)) && return PrimitiveString("")
+    make_insertion_document(T)
 end
+
+_make_fresh_form(t::EvaluatorToplevel) = EvaluatorForm(_make_fresh_code(t))
 
 # The range the selection names in the code of the form it is in, `elements[i].
 # form.value{s:e}`, or `nothing` when it names no range there.
@@ -450,6 +452,63 @@ function _collect_code_tokens(code::AbstractString)
     tokens
 end
 
+# ── ToggleEvaluatorOptionOperation ──────────────────────────────────────────
+
+"""
+    ToggleEvaluatorOptionOperation(toplevel, option)
+
+Turn one option of an [`EvaluatorToplevel`](@ref) on or off: `option` is
+`:parse_evaluated_forms` or `:type_structured_forms`. A check box above the
+forms and a rule of the command palette both make it.
+
+`:type_structured_forms` also changes the bottom form, where the next key goes,
+and keeps its text: a string becomes a Julia hole, and a hole or a parsed form
+becomes a string. The evaluated forms keep their shape.
+`:parse_evaluated_forms` changes only the evaluations that come after it.
+"""
+struct ToggleEvaluatorOptionOperation <: Operation
+    toplevel::EvaluatorToplevel
+    option::Symbol
+end
+
+# It names the toplevel it changes, not a path into one, so it travels up the
+# chain as it is.
+OperationModule.operation_travels_unchanged(::ToggleEvaluatorOptionOperation) = true
+
+function evaluate_operation(editor, op::ToggleEvaluatorOptionOperation)
+    t = op.toplevel
+    if op.option === :parse_evaluated_forms
+        t.parse_evaluated_forms = !(t.parse_evaluated_forms === true)
+    elseif op.option === :type_structured_forms
+        t.type_structured_forms = !(t.type_structured_forms === true)
+        _change_bottom_form_kind!(editor, t)
+    else
+        error("ToggleEvaluatorOptionOperation: unknown option $(op.option)")
+    end
+    nothing
+end
+
+# The bottom form becomes the kind a fresh form has now, with the text it had. A
+# caret in it keeps its place; a selection anywhere else stays where it is.
+function _change_bottom_form_kind!(editor, t::EvaluatorToplevel)
+    n = length(t.elements)
+    element = t.elements[n]
+    fresh = _make_fresh_code(t)
+    typeof(fresh) === typeof(element.form) && return nothing
+    text = _get_form_source_text(element.form)
+    in_form = _find_selected_form_index(t) == n
+    range = in_form ? _find_selected_value_range(t) : nothing
+    # The selection leaves the old form before it goes, so no selection names a
+    # place in a document that is no longer there.
+    in_form && _select_in_toplevel!(editor, t, _make_whole_form_reference(n))
+    fresh.value = text
+    element.form = fresh
+    in_form || return nothing
+    k = range === nothing ? length(text) : min(range.stop, length(text))
+    _select_in_toplevel!(editor, t, _make_form_caret_reference(n, k))
+    nothing
+end
+
 # ── RecallEvaluatorFormOperation ────────────────────────────────────────────
 
 """
@@ -557,4 +616,8 @@ end
     KeyDown(:return; shift) => "Insert a line break" => _make_form_newline_operation(doc)
     KeyDown(:up;) => "Recall an older form, or go to the form above" => _make_up_operation(doc)
     KeyDown(:down;) => "Recall a newer form, or go to the form below" => _make_down_operation(doc)
+    nothing => "Parse evaluated forms" =>
+        ToggleEvaluatorOptionOperation(doc, :parse_evaluated_forms)
+    nothing => "Type structured forms" =>
+        ToggleEvaluatorOptionOperation(doc, :type_structured_forms)
 end

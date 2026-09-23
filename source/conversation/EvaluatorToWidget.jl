@@ -94,28 +94,67 @@ function map_reference_backward(::EvaluatorFormToVerticalLayout, iomap, referenc
     EmptyReference()
 end
 
-# ── print_document: the toplevel → a scroll pane over a stack of its forms ──
+# ── print_document: the toplevel → its options over a scroll pane of its forms ──
 #
 # The layout holds the forms themselves, as `CellVectorToVerticalLayout` holds
 # the elements of a bare vector. A form printed here would reach the layout
 # stage as graphics, and that stage prints each child again: the renderer has no
 # row for graphics, so it would draw the canvas as a tree of its fields.
 #
-# The scroll pane takes the extent its parent offers, so in a tab the forms
-# scroll inside the page. It follows the end through the toplevel's own
-# `follow_end` cell: a scroll away from the end writes it, and an evaluation
-# writes it back, so the fresh form is in view where the next key goes.
+# The scroll pane takes the height the row of options leaves, so in a tab the
+# forms scroll inside the page and the options stay in place. It follows the end
+# through the toplevel's own `follow_end` cell: a scroll away from the end
+# writes it, and an evaluation writes it back, so the fresh form is in view where
+# the next key goes.
+#
+# A grid of one column holds the two, because each of its rows takes a size
+# policy of its own: the options their content, the pane the rest.
+#
+#     children[1]                      the row of options
+#     children[2]                      the scroll pane
+#     children[2].content.children[i]  form i
+
+const _FORMS_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2),
+                      FieldReferenceStep("content"))
 
 function print_document(projection::EvaluatorToplevelToWidgetComposite,
                           recursion, t::EvaluatorToplevel, ctx)
     layout = VerticalLayout(ComputedCellVector(() -> Any[element for element in t.elements]),
                             Cell(:left), Cell(_ELEMENT_GAP),
                             Cell(Fill), Cell(Content), Cell(nothing))
-    pane = WidgetScrollPane(layout; follow_end = getfield(t, :follow_end))
-    iomap = SimpleIoMap(projection, t, pane)
-    _follow_selection!(pane, t, projection, iomap, Any[])
-    _follow_selection!(layout, t, projection, iomap, Any[FieldReferenceStep("content")])
+    # The pane paints no background, so the forms stand on the page of the tab.
+    pane = WidgetScrollPane(layout; follow_end = getfield(t, :follow_end),
+                            style = WidgetStyle(content_color = color_transparent))
+    output = GridLayout(Any[_make_option_row(t), pane], 1; vertical_gap = _ROW_GAP,
+                        column_policy = Fill, row_policies = Any[Content, Fill])
+    iomap = SimpleIoMap(projection, t, output)
+    for (widget, depth) in ((output, 0), (pane, 2), (layout, 3))
+        _follow_selection!(widget, t, projection, iomap, Any[_FORMS_STEPS[1:depth]...])
+    end
     iomap
+end
+
+# The two options of the toplevel, each a check box before its name. A press on
+# a box, or Space or Enter on a box that has the selection, answers
+# `ToggleEvaluatorOptionOperation`, which the per-instance bindings of the box
+# give ahead of its own toggle.
+function _make_option_row(t::EvaluatorToplevel)
+    HorizontalLayout(Any[_make_option_checkbox(t, :parse_evaluated_forms),
+                         WidgetLabel(Point2D(0, 0), "Parse evaluated forms"; text_style = _PROMPT_STYLE),
+                         _make_option_checkbox(t, :type_structured_forms),
+                         WidgetLabel(Point2D(0, 0), "Structured forms"; text_style = _PROMPT_STYLE)];
+                     vertical_align = :center, gap = _PROMPT_GAP)
+end
+
+function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol)
+    toggle = (document, event) -> ToggleEvaluatorOptionOperation(t, option)
+    bind(pattern) = GestureBinding(pattern, toggle; description = "Turn the option on or off",
+                                   domain = "evaluator")
+    gestures = GestureBinding[bind(MousePressPattern(:left; modifiers = Symbol[])),
+                              bind(KeyDownPattern(:space; modifiers = Symbol[])),
+                              bind(KeyDownPattern(:return; modifiers = Symbol[]))]
+    box = WidgetCheckbox(Point2D(0, 0), getproperty(t, option) === true; gestures)
+    set_cell_function!(box, () -> getproperty(t, option) === true)
 end
 
 # A key that a layer inside the toplevel already answered, as the hole of a
@@ -132,8 +171,9 @@ function read_intent(projection::EvaluatorToplevelToWidgetComposite, recursion,
     invoke(read_intent, Tuple{Projection, Any, Intent, Any}, projection, recursion, change, iomap)
 end
 
-# `elements[i].<rest>` ↔ `content.children[i].<rest>`. The rest is a path in
-# the form, which the layout stage maps through the form's own row.
+# `elements[i].<rest>` ↔ `children[2].content.children[i].<rest>`. The rest
+# is a path in the form, which the layout stage maps through the form's own row.
+# A path into the row of options names the whole toplevel.
 function map_reference_forward(::EvaluatorToplevelToWidgetComposite, iomap, reference)
     steps = _steps(reference)
     steps === nothing && return nothing
@@ -141,15 +181,16 @@ function map_reference_forward(::EvaluatorToplevelToWidgetComposite, iomap, refe
     found = _indexed(steps, "elements")
     found === nothing && return nothing
     (i, rest) = found
-    _from_steps(Any[FieldReferenceStep("content"), FieldReferenceStep("children"),
-                    RangeReferenceStep(i - 1, i)], _from_steps(rest))
+    _from_steps(Any[_FORMS_STEPS..., FieldReferenceStep("children"), RangeReferenceStep(i - 1, i)],
+                _from_steps(rest))
 end
 
 function map_reference_backward(::EvaluatorToplevelToWidgetComposite, iomap, reference)
     steps = _steps(reference)
-    (steps !== nothing && !isempty(steps) && _is_field_step(steps[1], "content")) ||
+    n = length(_FORMS_STEPS)
+    (steps !== nothing && length(steps) > n && all(k -> steps[k] == _FORMS_STEPS[k], 1:n)) ||
         return EmptyReference()
-    found = _indexed(steps[2:end], "children")
+    found = _indexed(steps[(n + 1):end], "children")
     found === nothing && return EmptyReference()
     (i, rest) = found
     _from_steps(Any[FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i)], _from_steps(rest))
@@ -164,17 +205,12 @@ end
 # Each row ends in graphics. A tab reads its content through `print_child`,
 # which does not print a layout again until it is graphics, and a layout draws
 # only the children whose output is graphics. The rows and the documents in
-# them re-enter the renderer through the recursion both stages share. The scroll
-# pane paints no background, so the forms stand on the page of the tab.
+# them re-enter the renderer through the recursion both stages share.
 
 function __init__()
     register_natural_graphics!(:evaluator, (; measure) -> Pair{Type,Any}[
-        EvaluatorToplevel => ChainingProjection(
-            EvaluatorToplevelToWidgetComposite(),
-            WidgetScrollPaneToGraphicsCanvas(
-                make_slate_light_theme(font = font_ubuntu_monospace_regular_20);
-                measure = measure, font = font_ubuntu_monospace_regular_20,
-                content_color = color_transparent)),
+        EvaluatorToplevel => ChainingProjection(EvaluatorToplevelToWidgetComposite(),
+                                                GridLayoutToGraphicsCanvas()),
         EvaluatorForm     => ChainingProjection(EvaluatorFormToVerticalLayout(),
                                                 VerticalLayoutToGraphicsCanvas()),
     ])

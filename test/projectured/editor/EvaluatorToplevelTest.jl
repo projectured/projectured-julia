@@ -74,14 +74,19 @@ shift_enter() = KeyDown(:return, ModifierKeys(shift = true))
     @test steps[1] == FieldReferenceStep("elements")
 end
 
+# The words of a drawn text, less the icons of the private use area.
+is_icon(word) = all(c -> '\ue000' <= c <= '\uf8ff', word)
+words(text) = [word for word in split(text) if !is_icon(word)]
+OPTION_WORDS = ["Parse", "evaluated", "forms", "Structured", "forms"]
+
 @testset "it draws through NaturalToGraphics" begin
     toplevel = make_insertion_document(EvaluatorToplevel)
     text = render(toplevel)
     @test !occursin("no natural rendering", text)
-    # The toplevel draws its one form and nothing more, and not a canvas drawn as
+    # The toplevel draws its options and its one form, and not a canvas drawn as
     # a tree of its fields. A fresh form draws its prompt, and no result.
-    @test text == render(toplevel.elements[1])
-    @test first(split(text)) == ">"
+    @test words(text) == [OPTION_WORDS; words(render(toplevel.elements[1]))]
+    @test first(split(render(toplevel.elements[1]))) == ">"
     @test !occursin("=", text)
 end
 
@@ -89,7 +94,10 @@ end
     toplevel = make_insertion_document(EvaluatorToplevel)
     toplevel.elements[1].form.value = "1 + 1"
     evaluate_operation(editor(toplevel), read_gesture(toplevel, enter()))
-    texts = placed(print_natural(toplevel))
+    everything = placed(print_natural(toplevel))
+    # The rows of the forms, below the row of options.
+    texts = [(text, x, y) for (text, x, y) in everything
+             if y >= minimum(y for (text, _, y) in everything if text == ">")]
     prompts = [(x, y) for (text, x, y) in texts if text in (">", "=")]
     others = [(text, x, y) for (text, x, y) in texts if !(text in (">", "="))]
     # The code of the first form, its result, and the code of the fresh form.
@@ -114,6 +122,8 @@ end
                            PrinterContext(EmptyReference(), Cell(600), Cell(120), Dict{Symbol,Any}()))
     canvas = get_iomap_output(iomap)
     prompts_y() = [y for (text, _, y) in placed(canvas) if text == ">"]
+    options_y() = [y for (text, _, y) in placed(canvas) if text == "Structured forms"]
+    @test options_y() == [0]
     # The pane is as tall as the offer, and it shows the end: the prompt of the
     # fresh form is in view, and the prompt of the first form is above it.
     @test Int(canvas.h) == 120
@@ -126,6 +136,8 @@ end
     evaluate_operation(ed, change.operation)
     @test toplevel.follow_end == false
     @test last(prompts_y()) == at_end + 24
+    # The options stay where they are, and the forms move under them.
+    @test options_y() == [0]
     # An evaluation brings the end back into view, where the next key goes.
     toplevel.elements[length(toplevel.elements)].form.value = "9"
     evaluate_operation(ed, read_gesture(toplevel, enter()))
@@ -181,9 +193,7 @@ end
     # The page draws the title of the tab, then the one form of the evaluator,
     # word for word. The icons of the tab strip are glyphs of the private use
     # area, and they are not words.
-    is_icon(word) = all(c -> '\ue000' <= c <= '\uf8ff', word)
-    @test [word for word in split(text) if !is_icon(word)] ==
-          ["Evaluator"; split(render(toplevel.elements[1]))]
+    @test words(text) == ["Evaluator"; OPTION_WORDS; words(render(toplevel.elements[1]))]
 end
 
 @testset "ENTER evaluates the form the caret is in" begin
@@ -508,6 +518,87 @@ end
     clear_selection!(s.toplevel)
     set_selection!(s.toplevel, result(1))
     @test read_gesture(s.toplevel, enter()) === nothing
+end
+
+@testset "Structured forms changes the bottom form, and keeps its text and caret" begin
+    s = history_session("1")
+    s.type!("x = 1")
+    toggle!() = evaluate_operation(s.ed, ToggleEvaluatorOptionOperation(s.toplevel, :type_structured_forms))
+    toggle!()
+    @test s.toplevel.type_structured_forms
+    @test s.toplevel.elements[2].form isa JuliaInsertion
+    @test s.shown() == "x = 1"
+    @test s.caret() == RangeReferenceStep(5, 5)
+    # The evaluated form keeps its shape.
+    @test s.toplevel.elements[1].form isa JuliaInteger
+    toggle!()
+    @test !s.toplevel.type_structured_forms
+    @test s.toplevel.elements[2].form isa PrimitiveString
+    @test s.shown() == "x = 1"
+    @test s.caret() == RangeReferenceStep(5, 5)
+    # A bottom form that is already a parsed tree becomes the string of its print,
+    # with the caret at its end.
+    whole(i) = ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(i - 1, i),
+            ConcreteReference(FieldReferenceStep("form"), EmptyReference())))
+    s.toplevel.type_structured_forms = true
+    clear_selection!(s.toplevel)
+    set_selection!(s.toplevel, whole(2))
+    s.toplevel.elements[2].form = parse_natural_text(:jl, "f(a, b)")
+    toggle!()
+    @test s.toplevel.elements[2].form isa PrimitiveString
+    @test s.shown() == "f(a, b)"
+    @test s.caret() == RangeReferenceStep(7, 7)
+end
+
+@testset "Parse evaluated forms changes only the evaluations after it" begin
+    s = history_session("1 + 1")
+    @test s.toplevel.elements[1].form isa JuliaBinaryOperation
+    evaluate_operation(s.ed, ToggleEvaluatorOptionOperation(s.toplevel, :parse_evaluated_forms))
+    @test !s.toplevel.parse_evaluated_forms
+    @test s.toplevel.elements[1].form isa JuliaBinaryOperation
+    s.type!("2 + 2")
+    s.press!(:return)
+    @test s.toplevel.elements[2].form isa PrimitiveString
+end
+
+@testset "the command palette runs both options by name" begin
+    t = make_insertion_document(EvaluatorToplevel)
+    bindings = get_document_gesture_bindings(EvaluatorToplevel)
+    for (name, option) in (("Parse evaluated forms", :parse_evaluated_forms),
+                           ("Type structured forms", :type_structured_forms))
+        operation = fire_named_gesture_binding(bindings, t, name; selection = t.selection)
+        @test operation isa ToggleEvaluatorOptionOperation
+        @test operation.option === option
+    end
+end
+
+@testset "a press on a check box turns its option on and off" begin
+    toplevel = make_insertion_document(EvaluatorToplevel)
+    ed = editor(toplevel)
+    projection = NaturalToGraphics(measure = _stub)
+    iomap = print_document(projection, nothing, toplevel,
+                           PrinterContext(EmptyReference(), Cell(600), Cell(400), Dict{Symbol,Any}()))
+    canvas = get_iomap_output(iomap)
+    label(text) = only((x, y) for (t, x, y) in placed(canvas) if t == text)
+    checks() = [x for (t, x, _) in placed(canvas) if t == "\ue06c"]
+    function press!(x, y)
+        change = read_intent(projection, nothing, Intent(MousePress(:left, x, y, 1, ModifierKeys())), iomap)
+        operation = change isa Intent ? change.operation : change
+        operation isa Operation && evaluate_operation(ed, operation)
+        operation
+    end
+    # Each box stands 26 pixels left of its name, and only the parse box is checked.
+    (px, py) = label("Parse evaluated forms")
+    (sx, sy) = label("Structured forms")
+    @test checks() == [px - 26]
+    @test press!(px - 17, py + 12) isa ToggleEvaluatorOptionOperation
+    @test !toplevel.parse_evaluated_forms
+    @test press!(sx - 17, sy + 12) isa ToggleEvaluatorOptionOperation
+    @test toplevel.type_structured_forms
+    @test toplevel.elements[1].form isa JuliaInsertion
+    # The boxes draw the new state.
+    @test checks() == [sx - 26]
 end
 
 @testset "state persists across forms, like a real REPL and not a sandbox" begin

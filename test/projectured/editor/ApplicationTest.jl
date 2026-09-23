@@ -470,20 +470,24 @@ function test_application()
                 evaluate_operation(editor, InvokeActionOperation(button.action))
                 (group, index) = get_pane_focus(_app_window(document))
                 evaluator = get_wrapped_document(group.tabs[index].content)
-                evaluator.type_structured_forms = true
-                # The first form was opened as a string; the fresh one is a hole.
-                type!("0")
-                press!(KeyDown(:return, ModifierKeys()))
-                @test evaluator.elements[2].form isa JuliaInsertion
+                # A press on the box before "Structured forms" turns the option on,
+                # and the form the caret is in becomes a hole.
+                (x, y) = only((x, y) for (text, x, y) in
+                              _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
+                              if text == "Structured forms")
+                @test _app_plain(press!(MousePress(:left, x - 17, y + 12, 1, ModifierKeys()))) isa
+                      ToggleEvaluatorOptionOperation
+                @test evaluator.type_structured_forms
+                @test evaluator.elements[1].form isa JuliaInsertion
                 type!("1+1")
-                @test evaluator.elements[2].form.value == "1+1"
+                @test evaluator.elements[1].form.value == "1+1"
                 # Enter evaluates the form. The hole's own Enter, which commits in
                 # place, does not win.
                 @test _app_plain(press!(KeyDown(:return, ModifierKeys()))) isa
                       EvaluateSelectedFormOperation
-                @test length(evaluator.elements) == 3
-                @test evaluator.elements[2].form isa JuliaBinaryOperation
-                @test evaluator.elements[3].form isa JuliaInsertion
+                @test length(evaluator.elements) == 2
+                @test evaluator.elements[1].form isa JuliaBinaryOperation
+                @test evaluator.elements[2].form isa JuliaInsertion
                 content = get_iomap_output(editor.iomap).windows[1].content
                 drawn_at = _app_drawn_at(content)
                 twos = [y for (text, _, y) in drawn_at if text == "2"]

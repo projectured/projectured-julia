@@ -216,7 +216,45 @@ what renders, through the window with a real `Editor`, as
   `JuliaInsertion` when the field is on. The keys of Q2. Evaluation of a form
   without an object through its print. Tests: typing, committing, evaluating,
   the history, the field off.
-- [ ] **Step 2. The switch (section 2D).** Read first how `ObjectFieldToWidget`
+- [x] **Step 2. The switch (section 2D).** *Done.* As built, with three changes
+  from section 2D:
+  - **No `ObjectField`.** It has no row in the natural projection, and a plain
+    write of the field could not convert the bottom form. The evaluator builds
+    its own two `WidgetCheckbox`es instead, bound to the fields by a cell
+    function, each with per-instance bindings (a plain left press, Space, Enter)
+    that answer `ToggleEvaluatorOptionOperation(toplevel, option)`. The check
+    box reader reads per-instance bindings before its own toggle
+    (`source/widget/WidgetToGraphics.jl`, "per-instance gestures win"), so this
+    is an existing mechanism. The operation holds the toplevel and travels up
+    unchanged; it carries no path, so the path enumerations need no entry.
+  - **A grid of one column, not a `LayoutConstraint`.** The first build put the
+    pane in `LayoutConstraint(pane; height = Fill)` under a `VerticalLayout`;
+    typing then stopped reaching the form, because
+    `LayoutConstraintToGraphicsCanvas` forwards a key to its child with the
+    three-argument reader and does not add its `child` step to the answer. A
+    `GridLayout` of one column gives each row a policy (`Content`, `Fill`) with
+    no wrapper, and routes keys with the same routine as a vertical layout.
+    The natural row of the toplevel ends in `GridLayoutToGraphicsCanvas`.
+  - **The pane stays transparent through its style.** Drawn through the widget
+    row, the pane painted the theme background under the forms (measured: a
+    600 × 372 rectangle). `WidgetStyle(content_color = color_transparent)` on
+    the pane document overrides it, as `_get_part_color` reads the widget's
+    style.
+  - The names of the rules are "Parse evaluated forms" and "Type structured
+    forms"; the labels of the boxes are "Parse evaluated forms" and "Structured
+    forms".
+  - **Found on the way, not from this branch:** a `PrimitiveString` now draws as
+    a quoted literal, so an empty form draws `""` after its prompt, and a lone
+    `PrimitiveString` does too. The evaluator probe of 2026-09-23 before the
+    survey-faults work landed drew the same form without quotes. Reported to
+    the owner, not changed here.
+  - Tests: `test_evaluator_toplevel()` 193 of 193, with the drawn words of the
+    toplevel, the options in place while the forms scroll, a press on each box,
+    the conversion of the bottom form with its text and caret, and the palette;
+    `test_application()` 173 of 173, whose structured-form test now presses the
+    box in the window; `test_shell()` passes; `test_conversation()` keeps its
+    known failure.
+  Originally: Read first how `ObjectFieldToWidget`
   writes a value back. Then the row of two check boxes above the scroll pane,
   the two rules with no key, and the change of the bottom form. Tests, through
   the window: a press on each check box flips its field and draws the new state;
