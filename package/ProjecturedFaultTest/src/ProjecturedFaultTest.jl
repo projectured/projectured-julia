@@ -35,6 +35,8 @@ using ProjecturedText.TextModule
 # a fault report answers, and the widget a mark is drawn as.
 using ProjecturedFault.DomainModule
 using ProjecturedFault.WidgetModule
+using ProjecturedFault.FocusModule
+using ProjecturedFault.OperationModule
 
 import ProjecturedKernel.EditorModule: read!
 

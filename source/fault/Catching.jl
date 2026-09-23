@@ -81,6 +81,11 @@ FaultCatchingProjection(; inner, substitute = nothing) =
 # ask without walking the output looking for a mark. `inner_iomap` is `nothing`
 # when the child could not even build its own, which is the other thing a
 # consumer has to be able to tell apart.
+#
+# `report` is the mark as a document, and `nothing` while the node draws. It is
+# kept rather than made again on demand, because a selection names it by
+# identity: a report made for each press would name a different object every
+# time, and the selection would be lost on the next frame.
 @iomap struct FaultCatchingIoMap
     projection::Any
     input::Any
@@ -88,6 +93,7 @@ FaultCatchingProjection(; inner, substitute = nothing) =
     inner_iomap::Any
     store::Any
     fault::Any
+    report::Any
 end
 
 # ── Printer ──────────────────────────────────────────────────────────────────
@@ -103,19 +109,23 @@ function print_document(p::FaultCatchingProjection, recursion, input, ctx)
         early = _take_fault(store, p.inner, reference, exception, catch_backtrace())
     end
     guarded = ComputedCell() do
-        early === nothing ||
-            return (output = _print_fault_mark(p, early, ctx), fault = early)
+        if early !== nothing
+            report = FaultReport(early)
+            return (output = _print_fault_mark(p, report, ctx), fault = early, report = report)
+        end
         try
-            (output = inner.output, fault = nothing)
+            (output = inner.output, fault = nothing, report = nothing)
         catch exception
             late = _take_fault(store, p.inner, reference, exception, catch_backtrace())
-            (output = _print_fault_mark(p, late, ctx), fault = late)
+            report = FaultReport(late)
+            (output = _print_fault_mark(p, report, ctx), fault = late, report = report)
         end
     end
     FaultCatchingIoMap(p, input,
                        ComputedCell(() -> guarded[].output),
                        inner, store,
-                       ComputedCell(() -> guarded[].fault))
+                       ComputedCell(() -> guarded[].fault),
+                       ComputedCell(() -> guarded[].report))
 end
 
 # Record the fault and answer it. The store answers `nothing` when it is full or
@@ -134,8 +144,7 @@ end
 # the console; the screen keeps the frame before it, the print-failure counter
 # grows, and the safe mode is what bounds the repeat. A barrier that can not
 # fail is a barrier that can lie.
-function _print_fault_mark(p::FaultCatchingProjection, record, ctx)
-    report = FaultReport(record)
+function _print_fault_mark(p::FaultCatchingProjection, report::FaultReport, ctx)
     p.substitute === nothing && return report
     print_document(p.substitute, p.substitute, report, ctx).output
 end
@@ -147,6 +156,15 @@ end
 # understand, so the layer above still gets its turn.
 function read_intent(p::FaultCatchingProjection, recursion, change::Intent,
                      iomap::FaultCatchingIoMap)
+    # A mark is a thing on the screen like any other, so an Alt+press names it.
+    # The report is not a child of the node that failed, and no field or index
+    # reaches it, so the path is a drawn-object step from that node.
+    report = _mark_report(iomap)
+    if report !== nothing && is_whole_selection_press(change.gesture)
+        return Intent(change.gesture,
+                      ReplaceSelectionOperation(make_output_reference(iomap.input, report,
+                                                                      EmptyReference())))
+    end
     inner_iomap = iomap.inner_iomap
     inner_iomap === nothing && return Intent(change.gesture, nothing)
     try
@@ -164,10 +182,13 @@ read_intent(p::FaultCatchingProjection, iomap::FaultCatchingIoMap, payload) =
 # ── Reference mapping ────────────────────────────────────────────────────────
 
 # `nothing` is the existing answer for "this reference has no image", which is
-# exactly true of a node that failed. So a mark is inert: the selection does not
-# walk into one and no edit can address one.
+# exactly true of a node that failed: no edit can address a node whose value
+# nobody could draw. The mark itself is the one thing that can be named, and it
+# is named by the drawn-object step below, whose image is the whole output of
+# this node.
 function map_reference_forward(p::FaultCatchingProjection,
                                iomap::FaultCatchingIoMap, reference)
+    _names_fault_mark(iomap, reference) && return EmptyReference()
     iomap.inner_iomap === nothing && return nothing
     try
         map_reference_forward(p.inner, iomap.inner_iomap, reference)
@@ -176,6 +197,23 @@ function map_reference_forward(p::FaultCatchingProjection,
                       traceback = catch_backtrace())
         nothing
     end
+end
+
+# The mark of this node as a document, or `nothing` while the node draws. The
+# field holds a cell, as every field of an io map does.
+function _mark_report(iomap::FaultCatchingIoMap)
+    report = getfield(iomap, :report)
+    report isa Cell ? report[] : report
+end
+
+# Whether `reference` names the mark of this node: one drawn-object step, whose
+# object is the report this io map holds.
+function _names_fault_mark(iomap::FaultCatchingIoMap, reference)
+    report = _mark_report(iomap)
+    report === nothing && return false
+    reference isa ConcreteReference || return false
+    step = strip_reference_types(reference).head
+    step isa OutputReferenceStep && step.node === report
 end
 
 function map_reference_backward(p::FaultCatchingProjection,

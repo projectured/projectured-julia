@@ -76,9 +76,11 @@ A printer does not throw when `print_document` runs. It builds a graph of thunks
 - **The node heals.** The mark has the dependencies that the real value had. When the input that caused the fault changes, the thunk runs again and the real output comes back.
 - **The fault stays local.** The exception never leaves the cell, so no other read stops and the rest of the graph stays valid.
 
-The reader and the two reference mappers catch too. A reader that throws returns `Intent(gesture, nothing)`, so the layer above gets its turn. A mapper that throws returns `nothing`, the normal answer for a node with no image, so the selection does not walk into a mark.
+The reader and the two reference mappers catch too. A reader that throws returns `Intent(gesture, nothing)`, so the layer above gets its turn. A mapper that throws returns `nothing`, the normal answer for a node with no image, so no edit can address a node whose value nobody could draw.
 
-**A mark says the whole fault when the pointer rests on it.** A mark draws one line, which a long message does not fit in. `compute_tooltip` of a `FaultReport` answers what failed, where it was caught and the whole message, as a `TextString`. A mark is inert, so the selection never names the report itself; `FaultToWidget` therefore gives its alert the same text as its own `tooltip`, and a widget is what a person points at. A mark in the text, the syntax or the graphics domain says nothing yet, because nothing there can be selected.
+**A mark is a thing on the screen like any other, so an Alt+press names it.** The report is no child of the node that failed, and no field or index reaches it, so the path is a drawn-object step (`OutputReferenceStep`) from that node to the report. The barrier keeps the report it printed, because a selection names an object by identity: a report made again for each press would name a different object every frame, and the selection would be lost. The barrier maps that path forward to the whole image of the node, so the container that holds the mark rings it.
+
+**A mark says the whole fault when the pointer rests on it.** A mark draws one line, which a long message does not fit in. `compute_tooltip` of a `FaultReport` answers what failed, where it was caught and the whole message, as a `TextString`, and the selection above is what brings the pointer to the report. `FaultToWidget` gives its alert the same text as its own `tooltip` as well, so the widget answers whether the press names the alert or the report.
 
 ### Why the store is not made of cells
 

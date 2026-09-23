@@ -49,10 +49,12 @@ using ..NaturalModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..OperationModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
 using ..WidgetModule
+using ..FocusModule
 
 # The names this module EXTENDS are imported, never merely used: a bare
 # `using` binds the name for reading and a definition beside it makes a NEW
