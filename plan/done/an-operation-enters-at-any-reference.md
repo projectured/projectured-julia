@@ -1,11 +1,14 @@
 # An operation enters at any reference
 
-**Status (2026-09-23): IMPLEMENTED IN projectured-julia, and landed on `main`
+**Status (2026-09-23): IMPLEMENTED.** The omnet-julia step is done on the
+`selection-root` branches of both repositories, which wait for the owner's
+approval to land. Part 2 (evaluations that write a selection) still needs a
+plan of its own. The projectured-julia part was **landed on `main`
 with the owner's approval** (rebased onto `d7a440f9`; after the rebase the
 related suites pass, `test_application` 232/232, and three evaluator tests that
 `main` brought press a toolbar button and now apply what it posts).
-**omnet-julia is next.** Steps 1b, 2 and 3 are done there, with the guides and the
-audit of `DocumentWalk.jl`. On 2026-09-23 the owner deferred omnet-julia
+Steps 1b, 2 and 3 are done in projectured-julia, with the guides and the
+audit of `DocumentWalk.jl`. On 2026-09-23 the owner first deferred omnet-julia
 (it needs the projectured-julia part visible to it), keeps the sealing of
 `DocumentWalk.jl` for a review of the owner's own, and permitted one sentence
 about `descend` in the docstring of `search_references` in the sealed
@@ -403,9 +406,10 @@ through it before stage 2 gets it, and on the way up the clipboard reroots
       every level holds its suffix of one path, and Ctrl+C copies the
       navigator. The rooted operation is the same one that a press on the same
       tab makes.
-- [ ] Test the two open cases of `find_pane_reference` (§5, question 8).
+- [x] Test the two open cases of `find_pane_reference` (§5, question 8).
       Moved to Step 3: the history case needs a close through the readers,
-      which `close_pane!` brings.
+      which `close_pane!` brings. Done there: see "§5 question 8 is answered"
+      in Step 3.
 
 **What Step 1b found and decided (2026-09-23):**
 
@@ -568,8 +572,10 @@ What Step 2 found and decided:
       `…!` pairs on complete references: open, close, duplicate, split, the
       tool tabs, `replace_referenced_value!`. `open_pane!` gives references
       from the root. `OpenFileOperation` posts.
-- [ ] `show_layout` gives references from the root: waits for the owner's
-      choice of the form of the printed program (see below).
+- [x] `show_layout` gives references from the root: waits for the owner's
+      choice of the form of the printed program (see below). Done with the
+      tree of reference steps: the first line is the root, and the path of a
+      part is the steps of the lines on its branch.
 - [x] ~~The other readers that route by selection or by coordinate follow the
       route.~~ Not needed for this plan: every pane verb has its place at a
       pane tree, and the eighteen readers of Step 1b reach every tree of the
@@ -674,7 +680,10 @@ may live side by side:
       docstrings (`PaneProgram.jl` and its header, `PaneDocument.jl`,
       `ReferenceBuilder.jl`), two comments in `kernel/tool/`, the application's
       system prompt, and the sentence of the search corpus for `show_layout`.
-- [ ] omnet-julia's window instructions (with the omnet-julia step).
+- [x] omnet-julia's window instructions (with the omnet-julia step): the
+      campaign window's prompt, the docstrings of the campaign and result
+      verbs, and the assistant guide name panes with `find_pane_reference` and
+      describe the tree that `show_layout` prints.
 
 **How it is built (2026-09-23):**
 
@@ -715,7 +724,7 @@ above with no failure, the six search suites (`test_search_api` 10,
 `test_search_query` 61, `test_search_answer` 68, `test_search_guides` 6,
 `test_search_object` 35, `test_search_tools_registered` 8), `test_kernel` with
 the six known failures; the naming, argument and tree guards pass.
-- [ ] omnet-julia: `focus_runner_group!`, `_open_file_navigator!`,
+- [x] omnet-julia: `focus_runner_group!`, `_open_file_navigator!`,
       `open_simulation_pane!`, and the first focus of an embedded tree.
       Deferred by the owner on 2026-09-23. Also for that step: omnet-julia's
       tests call `focus_pane!` with paths from the tree, and its window
@@ -723,6 +732,45 @@ the six known failures; the naming, argument and tree guards pass.
       **Waits for plan `an-editor-is-made-before-its-loop-runs`:** the campaign
       window and the IDE do their start-up work in `on_start`, before the first
       print, where a verb that reads through the readers can not run.
+
+  Done on 2026-09-23 in the omnet-julia worktree `omnet-julia-selection-root`,
+  branch `selection-root` (commits `798145dc` and `d687b684`), after the
+  make_editor plan. What was done and decided:
+  - `focus_runner_group!(tree::PaneTree)` takes the tree, and
+    `run_campaign_window` calls it before the wrap, while the tree is the root:
+    the wrappers and the window scene lift the focus (§3, the first focus).
+  - `_open_file_navigator!` runs after `make_editor`, opens the Files tab with
+    `open_pane!` and gives the focus back to the Runner with `focus_pane!`, at a
+    reference that a search by identity finds from the root.
+  - **The Run button** (`run_filter_in_new_pane!`): with the editor that shows
+    the window, it posts `make_open_pane_operation` from the root, as the file
+    open does; with the tree alone, for a test or a workload, it applies at
+    once. The session closes over itself, so the button reaches the editor once
+    `run_campaign_window` sets it. The group is still omnet's own choice
+    (`_find_open_group`: the focused group, never `avoid`).
+    `open_simulation_pane!(tree, …)` stays for callers that hold only the tree.
+  - The study verb writes the whole layout at a reference from the root: the
+    path to the window's tree, found by identity, then `root`.
+  - **An embedded tree** (`EmbedPanes.jl`) gives only its group the selection
+    of the first tab, which is dormant, and the tree takes no live selection.
+  - The tests: the helpers drain what a menu command or a button posts; a test
+    focuses with a reference from the root; the program tests of
+    `PaneProgramTest.jl` test the tree that `show_layout` prints, and a script
+    names a part from `editor.document`, because `get_window_tree` is not in
+    the declared API. A new test presses Run in a window that an editor shows,
+    and the root's path then ends at the new pane.
+
+  Suites, in a scratch environment that loads the projectured-julia worktree:
+  `test_campaign_ui` 184/184 (and `test_campaign_loop` 16/16 with the new test),
+  `test_campaign_session` 18/18, `test_qtenv` 35/35, `test_select_and_paste`
+  86/86 (its baseline was 81/4/1; the old failures pass now), every other test
+  of `test_ide` except the two that drive a local model (not run: a model needs
+  more free memory than the machine had), five presentation suites that build
+  embedded panes, and the names, qualification and tree guards.
+  `test_ide_search_scale` has one error: two modules export `start_batch!`, and
+  the check in `ToolSet.jl` (commit `5283bcac`, in the base of this branch)
+  refuses the corpus. Neither name is touched by this work; it was not run on
+  `main` to prove it.
 - [x] The guides: `selection.md`, `clipboard.md`, `pane.md`, and a guide for
       the route and `read_rooted_operation` (a section in `editor.md`, with a
       pointer from `projection-system.md`). The seal audit also named

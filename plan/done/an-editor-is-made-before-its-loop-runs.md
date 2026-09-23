@@ -1,8 +1,8 @@
 # An editor is made before its loop runs
 
-**Status (2026-09-23): IMPLEMENTING.** The owner approved the whole plan
-("implement it"). Steps 1, 2 and 4 are done in projectured-julia; Step 3,
-omnet-julia, is next.
+**Status (2026-09-23): IMPLEMENTED** on the `selection-root` branches of
+projectured-julia and omnet-julia. The owner approved the whole plan
+("implement it"). Landing on `main` waits for the owner's approval.
 
 **Goal:** a caller that must do work before the loop starts holds the editor,
 does that work, and then runs the loop. The `on_start` hook goes. Start-up work
@@ -162,10 +162,32 @@ The owner approved every step on 2026-09-23.
     applies it on its own task as its first work.
 
 ### Step 3 — omnet-julia
-- [ ] Qtenv starts its driver between `make_editor` and `run_editor!`.
-- [ ] The campaign window and the IDE do their start-up work there: the focus,
+- [x] Qtenv starts its driver between `make_editor` and `run_editor!`.
+- [x] The campaign window and the IDE do their start-up work there: the focus,
       the file navigator and the study, with the verbs that read through the
       readers.
+
+  Done on 2026-09-23 (omnet-julia commit `798145dc`). Facts and decisions:
+  - **§2 missed four callers**, found in this step: `run_mm1k_project` and
+    `run_demo` of the presentation examples, `run_watch_example`, and
+    `run_session_example`. All of them now make the editor, do their work, and
+    run the loop.
+  - **The gallery also got `make_example_editor(document, projection; name)`**
+    (projectured-julia commit `5b35fe6b`), which mirrors the one-document
+    `run_example`, because Qtenv and the demos open one window.
+  - **The watch demo keeps its own field `on_start`**, `(document, editor) ->
+    nothing`. It is data of a demo, the work that starts with the editor, and it
+    is now called between `make_example_editor` and `run_editor!`. Its name is
+    the owner's to change.
+  - **The campaign window** declares its API, binds the meaning model, and runs
+    `on_open` between `make_editor` and `run_editor!`; the MCP keywords go to
+    `run_editor!`, the others to `make_editor`. The runner's group takes the
+    first focus on the tree before the wrap (plan
+    `an-operation-enters-at-any-reference`, §3, the first focus), because that
+    write is at the root.
+  - omnet-julia is tested in a scratch environment whose `[sources]` point at
+    both worktrees; the suites are listed in the omnet-julia step of plan
+    `an-operation-enters-at-any-reference`.
 
 ### Step 4 — the guides
 - [x] `editor.md` and the guides that describe `on_start` or the one-call forms:
