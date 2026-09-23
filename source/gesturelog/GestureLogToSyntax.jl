@@ -8,6 +8,10 @@
 # operation. A line that records a selection operation is muted, because a
 # selection is context and not a change.
 #
+# The default colors suit the light background of a tab. The overlay panel has a
+# dark background, so [`make_gesture_log_panel_syntax_projection`](GestureLogOverlay.jl)
+# gives it light colors.
+#
 # The panel uses the DejaVu monospace font, which has a glyph for the arrow keys
 # and for the empty reference. The Ubuntu font has neither, and a glyph drawn by
 # a fallback font has a width of its own, so the columns would not line up.
@@ -15,11 +19,11 @@
 # Read-only. There is nothing to author here, so this is a plain leaf printer with
 # no reader and no reference mappers.
 @projection struct GestureLogToSyntax
-    index::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_gray159)
+    index::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
     gesture::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
-    operation::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_gray223)
-    muted::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray)
-    empty::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray)
+    operation::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
+    muted::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    empty::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
 end
 
 # The width of the gesture column, in characters. The font is monospaced, so a

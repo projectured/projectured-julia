@@ -3,14 +3,15 @@
 # Projects a [`FrameStatistics`](FrameStatisticsDocument.jl) onto a
 # `SyntaxNode` for display: a head line with the frame count, a header line,
 # and one line per measurement. The DejaVu monospace font keeps the columns
-# aligned, for the same reason the message log panel uses it.
+# aligned, for the same reason the message log panel uses it. The colors suit
+# the light background of a tab.
 #
 # Read-only. There is nothing to author here, so this is a plain leaf
 # printer with no reader and no reference mappers.
 @projection struct FrameStatisticsToSyntax
     header::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
-    row::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_gray223)
-    empty::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray)
+    row::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
+    empty::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
 end
 
 # Column widths in characters: the name, then six number columns.

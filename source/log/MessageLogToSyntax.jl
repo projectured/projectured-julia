@@ -6,6 +6,7 @@
 # user.
 #
 # Each line holds two parts with their own style: the level and the message.
+# The colors suit the light background of a tab.
 #
 # The panel uses the DejaVu monospace font, which has a glyph for every
 # character a log message needs. The Ubuntu font falls back for some of them,
@@ -16,8 +17,8 @@
 # with no reader and no reference mappers.
 @projection struct MessageLogToSyntax
     level::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
-    message::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_gray223)
-    empty::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray)
+    message::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
+    empty::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
 end
 
 # The width of the level column, in characters. The font is monospaced, so a

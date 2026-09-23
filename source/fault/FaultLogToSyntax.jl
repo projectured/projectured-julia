@@ -8,6 +8,11 @@
 # The count is the column that matters: one bug across a large document is one
 # line saying three thousand, not three thousand lines.
 #
+# The default colors suit a light background: a tab and the safe mode. The
+# overlay panel has a dark background, so
+# [`make_fault_log_panel_syntax_projection`](FaultLogOverlay.jl) gives it light
+# colors.
+#
 # The panel uses the DejaVu monospace font, which has a glyph for the warning
 # sign. A glyph drawn by a fallback font has a width of its own, so the columns
 # would not line up.
@@ -24,15 +29,15 @@ See also `FaultLogOverlayProjection`, which puts it on the screen.
 """
 @projection struct FaultLogToSyntax
     count::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_regular_16, color_gray159)
+        StyleText(font_dejavu_monospace_regular_16, color_slate_500)
     site::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_regular_16, color_solarized_gray)
+        StyleText(font_dejavu_monospace_regular_16, color_slate_500)
     origin::ImmutableCell{StyleText} =
         StyleText(font_dejavu_monospace_bold_16, color_solarized_red)
     message::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_regular_16, color_gray223)
+        StyleText(font_dejavu_monospace_regular_16, color_slate_700)
     empty::ImmutableCell{StyleText} =
-        StyleText(font_dejavu_monospace_regular_16, color_solarized_gray)
+        StyleText(font_dejavu_monospace_regular_16, color_slate_500)
 end
 
 # The width of the two fixed columns, in characters. The font is monospaced, so

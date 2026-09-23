@@ -3,7 +3,8 @@
 # Projects the history of an [`UndoBuffer`](UndoDocument.jl) onto a `SyntaxNode`
 # for a person to read. One line per step, newest at the top, with a marker line
 # for where the document stands now: what is above the marker can be put back,
-# what is below it can be taken back.
+# what is below it can be taken back. The colors suit the light background of
+# a tab.
 #
 # This is the projection of the buffer's OWN state, not of what it holds.
 # [`UndoBufferToAnyProjection`](UndoBufferToAny.jl) is the transparent one that
@@ -16,12 +17,12 @@
 # Read-only. There is nothing to author here, so this is a plain leaf printer
 # with no reader and no reference mappers.
 @projection struct UndoBufferToSyntax
-    index::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_gray159)
-    step::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_gray223)
-    ahead::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray)
+    index::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    step::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
+    ahead::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
     marker::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
     barrier::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_16, color_solarized_orange)
-    empty::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray)
+    empty::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
 end
 
 # The width of the column that says what a line is, in characters. The font is

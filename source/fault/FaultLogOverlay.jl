@@ -36,12 +36,26 @@ const FAULT_LOG_BACKGROUND = StyleColor(0.18, 0.02, 0.02, 0.80)
 const _FAULT_WIDTH_SLACK = 8
 
 """
-    make_fault_log_content_projection(; measure = measure_truetype_text)
+    make_fault_log_panel_syntax_projection() -> FaultLogToSyntax
 
-The chain that renders a `FaultLog` down to graphics.
+A `FaultLogToSyntax` with light text, for the dark background of the panel.
 """
-make_fault_log_content_projection(; measure = measure_truetype_text) =
-    ChainingProjection(FaultLogToSyntax(),
+make_fault_log_panel_syntax_projection() =
+    FaultLogToSyntax(count = StyleText(font_dejavu_monospace_regular_16, color_gray159),
+                     site = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray),
+                     message = StyleText(font_dejavu_monospace_regular_16, color_gray223),
+                     empty = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray))
+
+"""
+    make_fault_log_content_projection(; syntax = FaultLogToSyntax(),
+                                        measure = measure_truetype_text)
+
+The chain that renders a `FaultLog` down to graphics. `syntax` is its first
+step. The default has the colors for a light background.
+"""
+make_fault_log_content_projection(; syntax = FaultLogToSyntax(),
+                                    measure = measure_truetype_text) =
+    ChainingProjection(syntax,
                        RecursiveProjection(SyntaxToText()),
                        TextToGraphics(measure = measure))
 
@@ -77,7 +91,8 @@ struct FaultLogOverlayProjection <: Projection
 end
 
 function FaultLogOverlayProjection(; inner, log::FaultLog,
-                                     content = make_fault_log_content_projection(),
+                                     content = make_fault_log_content_projection(
+                                         syntax = make_fault_log_panel_syntax_projection()),
                                      anchor::Symbol = :bottom_left,
                                      margin::Integer = 12, padding::Integer = 8,
                                      background::StyleColor = FAULT_LOG_BACKGROUND)
@@ -227,7 +242,8 @@ function make_fault_tolerant_projection(inner;
     guarded = FaultCatchingProjection(inner = inner, substitute = FaultToGraphics())
     projection = FaultLogOverlayProjection(
         inner = guarded, log = log,
-        content = make_fault_log_content_projection(measure = measure),
+        content = make_fault_log_content_projection(
+            syntax = make_fault_log_panel_syntax_projection(), measure = measure),
         anchor = anchor)
     (projection, log)
 end
