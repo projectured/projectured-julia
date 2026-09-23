@@ -129,6 +129,53 @@ function _app_is_one_path(scene)
     end
 end
 
+# Whether a search for a selection goes from `parent` into `child`: into every
+# child, the content of a tab too, but not into what a history records.
+_app_is_content_search_step(parent, child) = !(parent isa UndoBuffer && child isa CellVector)
+
+# The documents on the root's live path whose selection is not the rest of that
+# path, each as its type, the rest of the path, and what it holds.
+function _app_find_path_mismatches(root)
+    found = Tuple{String,String,String}[]
+    path = get_selection(root)
+    path === nothing && return found
+    steps = collect(get_reference_steps(strip_reference_types(path)))
+    for n in 1:length(steps)
+        prefix = foldr(ConcreteReference, steps[1:n]; init = EmptyReference())
+        node = try_evaluate_reference(root, prefix, nothing)
+        (node isa Document && hasproperty(node, :selection)) || continue
+        rest = repr(foldr(ConcreteReference, steps[(n + 1):end]; init = EmptyReference()))
+        held = get_selection(node)
+        held = held === nothing ? "nothing" : repr(strip_reference_types(held))
+        held == rest || push!(found, (String(nameof(typeof(node))), rest, held))
+    end
+    found
+end
+
+# Every document, in the contents of the tabs too, that holds a live selection
+# off the root's live path and off every dormant path.
+function _app_find_stray_selections_in_contents(root)
+    exempt = IdDict{Any,Bool}()
+    mark_path!(from, selection) = begin
+        exempt[from] = true
+        selection === nothing && return
+        steps = collect(get_reference_steps(strip_reference_types(selection)))
+        for n in 1:length(steps)
+            prefix = foldr(ConcreteReference, steps[1:n]; init = EmptyReference())
+            node = try_evaluate_reference(from, prefix, nothing)
+            node === nothing || (exempt[node] = true)
+        end
+    end
+    mark_path!(root, get_selection(root))
+    documents = search_documents(root, node -> node isa Document;
+                                 descend = _app_is_content_search_step)
+    for document in documents
+        has_dormant_selection(document) && mark_path!(document, get_selection(document))
+    end
+    [document for document in documents
+     if get_selection(document) !== nothing && !haskey(exempt, document)]
+end
+
 # Every string a printed window draws, at its position in the window. A cell is
 # read for its value, because a printed tree holds cells.
 _app_value(v) = v isa Cell ? _app_value(v[]) : v
@@ -1148,6 +1195,134 @@ function test_application()
                 opened = _app_fire(composed, iomap, KeyDown(:return, ModifierKeys()))
                 @test _app_plain(opened) isa OpenFileOperation
                 @test _app_plain(opened).path == _app_plain(operation).path
+            end
+        end
+
+        # An evaluation that moves a caret writes it below the root in some places
+        # (plan `an-evaluation-moves-the-selection-from-the-root`). Each case does
+        # what a person or a script does, and then asks whether the live selection
+        # is one path from the root, with no live selection off it. A broken case
+        # is a measured finding, kept as it is until the owner decides.
+        @testset "after each gesture, the live selection is one path from the root" begin
+            window() = begin
+                assistant = Assistant(; llm = FakeLlm("ok"))
+                document, scene, composed, iomap =
+                    _app_make_scene(paths[1:1], dir; assistant = assistant)
+                editor = _app_make_editor(scene, composed, iomap)
+                press!(event) = begin
+                    operation = _app_fire(composed, editor.iomap, event)
+                    operation isa Operation && _app_apply!(editor, operation)
+                    _app_plain(operation)
+                end
+                (; document, scene, composed, editor, press!, assistant)
+            end
+            holds_one_path(w) = isempty(_app_find_path_mismatches(w.scene)) &&
+                                isempty(_app_find_stray_selections_in_contents(w.scene))
+            carets(w) = length(_app_drawn_carets(get_iomap_output(w.editor.iomap).windows[1].content))
+            type!(w, text) = foreach(character -> w.press!(KeyPress(character)), text)
+            waited(w) = timedwait(() -> w.assistant.status !== :streaming, 10.0) === :ok
+            # The caret at the end of the draft, written from the root, as a click
+            # there writes it.
+            focus_draft!(w) = begin
+                draft = w.assistant.draft
+                where = first(search_references(w.scene, node -> node === draft;
+                                                descend = _app_is_content_search_step))
+                _app_apply!(w.editor, ReplaceSelectionOperation(
+                    concat_references(where, make_draft_caret_reference(draft))))
+            end
+
+            @testset "the composer, with the focus in the draft" begin
+                w = window()
+                @test holds_one_path(w)
+                focus_draft!(w)
+                type!(w, "hi")
+                @test holds_one_path(w)
+                @test w.press!(KeyDown(:tab, ModifierKeys())) isa ComposerInsertPartOperation
+                @test holds_one_path(w)
+                @test w.press!(KeyDown(:escape, ModifierKeys())) isa ComposerRevertOperation
+                @test holds_one_path(w)
+
+                w = window()
+                focus_draft!(w)
+                type!(w, "hello")
+                @test w.press!(KeyDown(:return, ModifierKeys())) isa SubmitDraftTurnOperation
+                @test waited(w)
+                @test carets(w) == 1
+                # @broken: the submitted part keeps its caret, `.content.value{5}`,
+                # when it moves into the transcript. It is not drawn.
+                @test_broken holds_one_path(w)
+            end
+
+            @testset "the composer, while the focus is on a file" begin
+                w = window()
+                focus_draft!(w)
+                type!(w, "hello")
+                focus_pane!(w.editor, find_pane_reference(w.editor, "a.json"))
+                @test holds_one_path(w)
+                @test carets(w) == 0
+                # A script or a client submits the draft.
+                _app_apply!(w.editor, SubmitDraftTurnOperation(w.assistant))
+                @test waited(w)
+                # @broken: `reset_draft!` writes the draft's caret below the root,
+                # and the root's path does not pass through the draft. The caret
+                # stays off the path, and it is drawn while the focus is on a.json.
+                @test_broken holds_one_path(w)
+                @test_broken carets(w) == 0
+
+                w = window()
+                focus_draft!(w)
+                focus_pane!(w.editor, find_pane_reference(w.editor, "a.json"))
+                _app_apply!(w.editor, ComposerInsertPartOperation(w.assistant.draft))
+                # @broken: the new insertion keeps its own caret off the root's
+                # path. It is not drawn.
+                @test_broken holds_one_path(w)
+                @test carets(w) == 0
+            end
+
+            @testset "a file" begin
+                w = window()
+                at = [(x, y) for (text, x, y) in
+                      _app_drawn_at(get_iomap_output(w.editor.iomap).windows[1].content)
+                      if occursin("Alice", text)]
+                w.press!(MousePress(:left, first(at)[1] + 3, first(at)[2] + 3, 1, ModifierKeys()))
+                @test holds_one_path(w)
+                @test w.press!(KeyDown(:o, ModifierKeys(ctrl = true))) isa ReloadFileOperation
+                # @broken: the reload sets the file's own selection to `nothing`,
+                # and the root's path still passes through the file into its
+                # content. Ctrl+S still reaches the file.
+                @test_broken holds_one_path(w)
+                @test _app_plain(_app_fire(w.composed, w.editor.iomap,
+                                           KeyDown(:s, ModifierKeys(ctrl = true)))) isa SaveFileOperation
+            end
+
+            @testset "the evaluator" begin
+                w = window()
+                toolbar = only(search_documents(w.document, node -> node isa WidgetToolbar))
+                button = only(item for item in toolbar.elements
+                              if string(item.action.label) == "Evaluator")
+                _app_apply!(w.editor, InvokeActionOperation(button.action))
+                @test carets(w) == 1
+                # @broken: the new evaluator is opened with the caret of its
+                # first form as its own selection, and the root's path ends at
+                # its tab. The caret is drawn, and a key reaches the form.
+                @test_broken holds_one_path(w)
+                type!(w, "1 + 41")
+                w.press!(KeyDown(:return, ModifierKeys()))
+                @test holds_one_path(w)
+                @test w.press!(KeyDown(:up, ModifierKeys())) isa RecallEvaluatorFormOperation
+                @test holds_one_path(w)
+                @test w.press!(KeyDown(:down, ModifierKeys())) isa RecallEvaluatorFormOperation
+                @test holds_one_path(w)
+            end
+
+            @testset "the navigator" begin
+                w = window()
+                at = [(x, y) for (text, x, y) in
+                      _app_drawn_at(get_iomap_output(w.editor.iomap).windows[1].content)
+                      if text == "a.json"]
+                @test w.press!(MousePress(:left, first(at)[1] + 3, first(at)[2] + 3, 1,
+                                          ModifierKeys())) isa CompoundOperation
+                @test holds_one_path(w)
             end
         end
         rm(dir; recursive = true)
