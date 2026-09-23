@@ -64,7 +64,11 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   make_opened_window_projections(;
                                       content = make_application_content_projections(measure = measure),
                                       measure = measure),
-                              on_start = editor -> (backend.editor = editor; start(editor)))
+                              on_start = editor -> begin
+                                  backend.editor = editor
+                                  start(editor)
+                                  start_application!(editor, false, assistant, model)
+                              end)
         end
         _encode_frames_to_video!(backend.frames_dir, filename, fps)
     finally
