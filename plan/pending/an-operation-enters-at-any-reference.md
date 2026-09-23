@@ -355,6 +355,32 @@ Found on 2026-09-23, read-only:
       `kernel/projection/` (layer 17) are marked ⬜ in `SEALING.md`.
 - [x] ~~A coordinate-free gesture~~: not needed, because a verb gives an
       operation (§3).
+- [x] **What `search_references` from the root costs, and where.** Counted on
+      2026-09-23 as the nodes that the walk visits, in the window as the binary
+      opens it, with two files:
+
+      | Part | Nodes |
+      | --- | --- |
+      | the whole window | 49,365 |
+      | the toolbar | 49,092 |
+      | the menu bar | 169 |
+      | the pane tree, with all tabs and their content | 51 |
+      | documents in the whole window | 76 |
+
+      In the toolbar the walk visits 16 documents. The rest is the type system
+      of Julia (`SimpleVector` 10,976, `Type` 4,866, `Module` 1,568,
+      `TypeName` 1,568, and their raw fields), which the walk enters through
+      the types and functions that the toolbar's actions hold. So stopping the
+      walk at the pane tree saves almost nothing. The owner's ruling: do not
+      change the generic walk; a search that must not walk down blindly gives a
+      walk policy that says where to descend.
+- [x] **The search finds live tabs with complete paths.** As the window opens,
+      `search_references(editor.document, node -> node isa PaneTab)` finds the
+      three tabs, each as `windows[1].content.content.content.content.root…`.
+      Not yet tested: a closed tab that the undo history holds, and a tab that
+      the clipboard holds as a copy. The Ctrl+W of the probe ran the menu
+      action, which writes on the tree and so records nothing, and Ctrl+C gave
+      no operation, because the selection chain is broken as the window opens.
 
 ### Step 1 — examples for question 3
 
