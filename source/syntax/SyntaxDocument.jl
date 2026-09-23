@@ -451,19 +451,6 @@ SyntaxLeaf(value::AbstractString; kwargs...) = SyntaxLeaf(TextString(value); kwa
 SyntaxLeaf(f::Function; kwargs...) =
     SyntaxLeaf(TextString(f, font_ubuntu_monospace_regular_20, color_default); kwargs...)
 
-# Positional delimiter forms, kept for callers that use them instead of keywords.
-SyntaxLeaf(open::TextString, close::TextString, value::TextString) =
-    SyntaxLeaf(open, close, value, 0, false, nothing)
-
-SyntaxLeaf(open::TextString, close::TextString, value::TextString, selection) =
-    SyntaxLeaf(open, close, value, 0, false, selection)
-
-SyntaxLeaf(open::AbstractString, close::AbstractString, value::AbstractString) =
-    SyntaxLeaf(_text(open), _text(close), TextString(value), 0, false, nothing)
-
-SyntaxLeaf(open::AbstractString, close::AbstractString, f::Function) =
-    SyntaxLeaf(_text(open), _text(close), TextString(f, font_ubuntu_monospace_regular_20, color_default), 0, false, nothing)
-
 # ── Node ─────────────────────────────────────────────────────────────────
 
 """
