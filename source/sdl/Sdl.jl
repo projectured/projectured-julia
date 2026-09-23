@@ -2416,7 +2416,8 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
     ox = -min(minx, 0)
     oy = -min(miny, 0)
     if ox > 0 || oy > 0
-        shifted = GraphicsCanvas(ox, oy, canvas.elements, canvas.layout, canvas.overlapping_elements)
+        shifted = GraphicsCanvas(canvas.elements; x = ox, y = oy, layout = canvas.layout,
+                                 overlapping = canvas.overlapping_elements)
         canvas = GraphicsCanvas(CellVector(Cell[Cell(shifted)]), layout_none)
     end
 

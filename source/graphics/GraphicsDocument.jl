@@ -392,9 +392,13 @@ end
 # ── Canvas ───────────────────────────────────────────────────────────────
 
 """
-    GraphicsCanvas(elements[, layout[, overlapping_elements]])
+    GraphicsCanvas(elements; x = 0, y = 0, w = 0, h = 0, layout = layout_none, overlapping = true)
+    GraphicsCanvas(elements, layout)
 
 A sheet that holds what is drawn, at a place and of a size.
+
+`elements` is a `Vector` of graphics documents, which the canvas holds one cell
+each, or a `CollectionDocument` it holds as it is.
 
 Use it as the result of anything that draws: a projection answers one, a
 backend paints one, and a test reads one to see what reached the screen. Its
@@ -402,9 +406,9 @@ elements are drawn in order, and a canvas may hold other canvases.
 
 # Example
 
-    canvas = GraphicsCanvas(Int32(0), Int32(0), Int32(200), Int32(50),
-                            CellVector([GraphicsText("hello", Int32(4), Int32(4),
-                                                     font_default, color_black)]))
+    canvas = GraphicsCanvas([GraphicsText("hello", 4, 4, font_ubuntu_monospace_regular_20,
+                                          color_black)];
+                            w = 200, h = 50)
 
 See also `GraphicsViewport`, which shows a part of one, and `GraphicsText`.
 
@@ -431,14 +435,14 @@ end
 # `GraphicsCanvas()` is the macro's keyword constructor — an empty canvas at the
 # origin. Every field defaults, so Rule Y emits no positional constructor and the
 # typed constructors below stay in sole charge of positional construction.
-GraphicsCanvas(elems::Vector; x::Integer=0, y::Integer=0, w::Integer=0, h::Integer=0,
-               layout::LayoutDirection=layout_none, overlapping::Bool=true) =
-    GraphicsCanvas(Int32(x), Int32(y), Int32(w), Int32(h),
-                   CellVector(Cell[Cell(e) for e in elems]), layout, overlapping, Cell(nothing))
-GraphicsCanvas(elems::CollectionDocument, layout::LayoutDirection) = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), elems, layout, true, Cell(nothing))
-GraphicsCanvas(elems::CollectionDocument, layout::LayoutDirection, overlapping::Bool) = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), elems, layout, overlapping, Cell(nothing))
-GraphicsCanvas(x::Integer, y::Integer, elems::CollectionDocument, layout::LayoutDirection, overlapping::Bool) = GraphicsCanvas(Int32(x), Int32(y), Int32(0), Int32(0), elems, layout, overlapping, Cell(nothing))
-GraphicsCanvas(x::Integer, y::Integer, w::Integer, h::Integer, elems::CollectionDocument, layout::LayoutDirection, overlapping::Bool) = GraphicsCanvas(Int32(x), Int32(y), Int32(w), Int32(h), elems, layout, overlapping, Cell(nothing))
+GraphicsCanvas(elements::CollectionDocument; x::Integer=0, y::Integer=0, w::Integer=0,
+               h::Integer=0, layout::LayoutDirection=layout_none, overlapping::Bool=true) =
+    GraphicsCanvas(Int32(x), Int32(y), Int32(w), Int32(h), elements, layout, overlapping,
+                   Cell(nothing))
+GraphicsCanvas(elements::Vector; kwargs...) =
+    GraphicsCanvas(CellVector(Cell[Cell(e) for e in elements]); kwargs...)
+GraphicsCanvas(elements::CollectionDocument, layout::LayoutDirection) =
+    GraphicsCanvas(elements; layout)
 
 # ── Viewport ─────────────────────────────────────────────────────────────
 

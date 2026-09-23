@@ -58,7 +58,7 @@ end
     n3 = ListNode(GraphicsRect(0, 40, 50, 10))
     n1.next = n2; n2.prev = n1; n2.next = n3; n3.prev = n2
     set_cell_function!(getfield(n2, :value), () -> GraphicsRect(0, 20, Int(src[]), 10))
-    canvas = GraphicsCanvas(n1, layout_vertical, false)
+    canvas = GraphicsCanvas(n1; layout = layout_vertical, overlapping = false)
     res = make_res()
 
     # Only the middle line is stale → its box, padded. (0,20)-(100,30).

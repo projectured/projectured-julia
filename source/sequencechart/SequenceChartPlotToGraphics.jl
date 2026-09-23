@@ -887,10 +887,9 @@ function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
         # lanes are in view changes nothing about the flow axis, the decimation
         # or the shapes.
         offset = plot.cross_offset
-        content = GraphicsCanvas(g.vertical ? -offset : 0, g.vertical ? 0 : -offset,
-                                 round(Int, g.body_w), round(Int, g.body_h),
-                                 CellVector(Cell[Cell(e) for e in body]),
-                                 layout_none, true)
+        content = GraphicsCanvas(body; x = g.vertical ? -offset : 0,
+                                 y = g.vertical ? 0 : -offset,
+                                 w = round(Int, g.body_w), h = round(Int, g.body_h))
         push!(out, GraphicsViewport(round(Int, g.body_x), round(Int, g.body_y),
                                     round(Int, g.body_w), round(Int, g.body_h), content))
         out

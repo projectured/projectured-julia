@@ -111,8 +111,7 @@ function print_document(p::FaultLogOverlayProjection, recursion, input, ctx)
     panel_width() = body_width() + 2 * p.padding + _FAULT_WIDTH_SLACK
     panel_height() = body_height() + 2 * p.padding
 
-    body = GraphicsCanvas(p.padding, p.padding, 0, 0,
-                          CellVector(Cell[log_output]), layout_none, true)
+    body = GraphicsCanvas(CellVector(Cell[log_output]); x = p.padding, y = p.padding)
     set_cell_function!(getfield(body, :w), () -> Int32(body_width()))
     set_cell_function!(getfield(body, :h), () -> Int32(body_height()))
 
@@ -120,8 +119,7 @@ function print_document(p::FaultLogOverlayProjection, recursion, input, ctx)
     set_cell_function!(getfield(background, :w), () -> Int32(panel_width()))
     set_cell_function!(getfield(background, :h), () -> Int32(panel_height()))
 
-    panel = GraphicsCanvas(0, 0, 0, 0,
-                           CellVector(Cell[Cell(background), Cell(body)]), layout_none, true)
+    panel = GraphicsCanvas(CellVector(Cell[Cell(background), Cell(body)]))
     set_cell_function!(getfield(panel, :x), () -> Int32(_fault_panel_x(p, ctx, panel_width())))
     set_cell_function!(getfield(panel, :y), () -> Int32(_fault_panel_y(p, ctx, panel_height())))
     set_cell_function!(getfield(panel, :w), () -> Int32(panel_width()))
@@ -135,7 +133,7 @@ function print_document(p::FaultLogOverlayProjection, recursion, input, ctx)
 
     # The inner output keeps the origin, so the coordinates the reader sees are
     # the coordinates the inner pipeline printed.
-    output = GraphicsCanvas(0, 0, 0, 0, children, layout_none, true)
+    output = GraphicsCanvas(children)
     set_cell_function!(getfield(output, :w), function ()
         length(p.log.entries) == 0 && return Int32(_fault_width(inner_output[]))
         Int32(max(_fault_width(inner_output[]), panel.x + panel_width()))

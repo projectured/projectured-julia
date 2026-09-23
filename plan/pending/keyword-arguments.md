@@ -204,7 +204,7 @@ Steps:
 - [x] 2. `SyntaxLeaf`: delete the four legacy forms.
 - [x] 3. `SyntaxNode`: move the nine calls, delete the six legacy forms, and
   update the comment diagrams that draw the legacy form.
-- [ ] 4. `GraphicsCanvas`: the keyword form takes a `CollectionDocument`; move the
+- [x] 4. `GraphicsCanvas`: the keyword form takes a `CollectionDocument`; move the
   seventeen calls; delete the three forms.
 - [ ] 5. `WidgetTable`: one keyword constructor; move the three tests.
 - [ ] 6. The ledger is empty: the guard and §4 of the rule say so.

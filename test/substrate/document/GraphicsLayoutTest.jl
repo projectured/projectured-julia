@@ -25,7 +25,7 @@ canvas4 = GraphicsCanvas(node, layout_vertical)
 # overlapping_elements defaults to true
 @test canvas4.overlapping_elements == true
 # Explicit non-overlapping
-canvas5 = GraphicsCanvas(node, layout_vertical, false)
+canvas5 = GraphicsCanvas(node; layout = layout_vertical, overlapping = false)
 @test canvas5.overlapping_elements == false
 
 end # @testset
@@ -60,7 +60,7 @@ end # @testset
 node = ListNode(GraphicsText("line1", 0, 0, font_ubuntu_monospace_regular_20))
 push!(node, GraphicsText("line2", 0, 50, font_ubuntu_monospace_regular_20))
 push!(node, GraphicsText("line3", 0, 100, font_ubuntu_monospace_regular_20))
-canvas = GraphicsCanvas(node, layout_vertical, false)
+canvas = GraphicsCanvas(node; layout = layout_vertical, overlapping = false)
 
 # Hit first element
 @test hit_element_at(canvas, 5, 10) == 0
@@ -75,7 +75,7 @@ canvas = GraphicsCanvas(node, layout_vertical, false)
 node2 = ListNode(GraphicsText("a", 0, 0, font_ubuntu_monospace_regular_20))
 push!(node2, GraphicsFence())
 push!(node2, GraphicsText("b", 0, 60, font_ubuntu_monospace_regular_20))
-canvas2 = GraphicsCanvas(node2, layout_vertical, false)
+canvas2 = GraphicsCanvas(node2; layout = layout_vertical, overlapping = false)
 @test hit_element_at(canvas2, 5, 10) == 0
 @test hit_element_at(canvas2, 5, 70) == 2
 

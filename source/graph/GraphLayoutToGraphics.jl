@@ -141,8 +141,8 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
                 lw = lo isa GraphicsCanvas ? Int(lo.w) : 0
                 lh = lo isa GraphicsCanvas ? Int(lo.h) : 0
                 mx, my = _route_midpoint(route)
-                push!(result, GraphicsCanvas(mx - lw ÷ 2, my - lh ÷ 2,
-                    CellVector(Cell[Cell(lo)]), layout_none, true))
+                push!(result, GraphicsCanvas(CellVector(Cell[Cell(lo)]);
+                                             x = mx - lw ÷ 2, y = my - lh ÷ 2))
             end
         end
         # Node boxes + content on top.
@@ -168,8 +168,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             entry = i <= length(entries) ? entries[i] : nothing
             if entry !== nothing && entry[3] !== nothing
                 cim = entry[3]
-                push!(result, GraphicsCanvas(x, y,
-                    CellVector(Cell[Cell(cim.output)]), layout_none, true))
+                push!(result, GraphicsCanvas(CellVector(Cell[Cell(cim.output)]); x, y))
             end
         end
         (result, node_at)

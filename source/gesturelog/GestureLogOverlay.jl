@@ -100,8 +100,7 @@ function print_document(p::GestureLogOverlayProjection, recursion, input, ctx)
     panel_height() = body_height() + 2 * p.padding
 
     # The body sits inside the panel, one padding from the corner of the panel.
-    body = GraphicsCanvas(p.padding, p.padding, 0, 0,
-                          CellVector(Cell[log_output]), layout_none, true)
+    body = GraphicsCanvas(CellVector(Cell[log_output]); x = p.padding, y = p.padding)
     set_cell_function!(getfield(body, :w), () -> Int32(body_width()))
     set_cell_function!(getfield(body, :h), () -> Int32(body_height()))
 
@@ -109,8 +108,7 @@ function print_document(p::GestureLogOverlayProjection, recursion, input, ctx)
     set_cell_function!(getfield(background, :w), () -> Int32(panel_width()))
     set_cell_function!(getfield(background, :h), () -> Int32(panel_height()))
 
-    panel = GraphicsCanvas(0, 0, 0, 0,
-                           CellVector(Cell[Cell(background), Cell(body)]), layout_none, true)
+    panel = GraphicsCanvas(CellVector(Cell[Cell(background), Cell(body)]))
     set_cell_function!(getfield(panel, :x), () -> Int32(_panel_x(p, ctx, panel_width())))
     set_cell_function!(getfield(panel, :y), () -> Int32(_panel_y(p, ctx, panel_height())))
     set_cell_function!(getfield(panel, :w), () -> Int32(panel_width()))
@@ -118,8 +116,7 @@ function print_document(p::GestureLogOverlayProjection, recursion, input, ctx)
 
     # The inner output keeps the origin, so the coordinates the reader sees are
     # the coordinates the inner pipeline printed.
-    output = GraphicsCanvas(0, 0, 0, 0,
-                            CellVector(Cell[inner_output, Cell(panel)]), layout_none, true)
+    output = GraphicsCanvas(CellVector(Cell[inner_output, Cell(panel)]))
     set_cell_function!(getfield(output, :w),
                        () -> Int32(max(_width(inner_output[]), panel.x + panel_width())))
     set_cell_function!(getfield(output, :h),

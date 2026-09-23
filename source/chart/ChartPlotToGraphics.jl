@@ -1214,9 +1214,7 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
             end
         end
         _overlay_elements!(series_out, g, plot)
-        content = GraphicsCanvas(0, 0, g.plot_w, g.plot_h,
-                                 CellVector(Cell[Cell(e) for e in series_out]),
-                                 layout_none, true)
+        content = GraphicsCanvas(series_out; w = g.plot_w, h = g.plot_h)
         push!(out, GraphicsViewport(g.plot_x, g.plot_y, g.plot_w, g.plot_h, content))
         # Last, so an inside legend sits over the series rather than under them.
         _legend_elements!(out, g)

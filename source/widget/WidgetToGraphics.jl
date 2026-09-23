@@ -4045,9 +4045,9 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # A tabbed pane offered an extent reports that extent, not what its strip and
     # its page happen to reach: it bounded them, so its box is its own (§3b).
     inner = _make_canvas(0, 0, Any[
-        GraphicsCanvas(box_cv, layout_none, true),
+        GraphicsCanvas(box_cv),
         selector_viewport,
-        GraphicsCanvas(content_cv,  layout_none, true),
+        GraphicsCanvas(content_cv),
         ring,
     ])
     canvas = (avail_w === nothing && avail_h === nothing) ? inner :
