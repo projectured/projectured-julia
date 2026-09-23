@@ -239,6 +239,69 @@ Steps:
   Each holds a type that is missing — a geometry, a style, a pass. They are a
   refactor of their own, and a later plan.
 
+### Wave 5: the markers that excuse too much — IN PROGRESS
+
+**Found 2026-09-23.** A `# @positional:` marker excuses the whole signature, not
+only the tuple its reason names. Twelve marked public definitions break the
+clause "a definition takes at most one optional positional argument, and never
+one beside a keyword argument", and one more passes its chrome by position:
+
+| Definition | The reason names | It also has |
+| --- | --- | --- |
+| `GraphicsRect(x, y, w, h, color = color_white, radius = 0; …)` | x, y, width, height | two optional positionals beside keywords |
+| `GraphicsLine(x1, y1, x2, y2, color = color_black; width, dash)` | the two ends | an optional positional beside keywords |
+| `GraphicsCircle(cx, cy, radius, color = color_black; …)` | the centre, the radius | an optional positional beside keywords |
+| `GraphicsText(text, x, y, font, color = color_white)` | the text, x, y | the font and the colour, which are chrome |
+| `KeyDownPattern(key, modifiers = nothing, guard = nothing, label = nothing)` and the four other patterns | key, modifiers, predicate | three optional positionals; `label` is not named |
+| `Spring`, `ElectricRepulsion`, `VerticalSpring`, `HorizontalSpring` | a port | two optional positionals, as the C++ original has them |
+
+Decisions:
+
+- **Each constructor keeps its geometry positional and names the rest.**
+  `GraphicsRect(x, y, w, h; color, radius, …)`, `GraphicsLine(x1, y1, x2, y2;
+  color, width, dash)`, `GraphicsCircle(cx, cy, radius; color, …)`,
+  `GraphicsText(text, x, y; font, color)`. The markers of `GraphicsRect` and
+  `GraphicsLine` stay, and now they tell the whole truth. `GraphicsCircle` and
+  `GraphicsText` keep three positional arguments, so they need no marker.
+- **A pattern takes its key or button and names the rest**:
+  `KeyDownPattern(key; modifiers = nothing, guard = nothing, label = nothing)`.
+  A call drops a trailing `nothing`, because it is the default:
+  `KeyDownPattern(:z, [:ctrl], nothing)` becomes `KeyDownPattern(:z; modifiers =
+  [:ctrl])`. The five definitions are in `source/kernel/event/EventPattern.jl`,
+  which is sealed; that step waits for the owner's permission for the file.
+- **The port keeps its signature.** The port exception is there to keep the
+  shape of the C++ original, default arguments included.
+- **The guard learns that a marker excuses the count and nothing else.** A marked
+  definition must keep the optional clause, except in a port folder.
+- **Out of the wave: 32 public definitions without a marker** break the optional
+  clause too. They are not a marker that excuses too much, and the rule of three
+  does not catch them either.
+
+The call sites to move, counted by the arity each call passes:
+
+| Name | projectured-julia | omnet-julia | inet-julia |
+| --- | --- | --- | --- |
+| `GraphicsRect` | 98 in 23 files | 10 in 5 files | 0 |
+| `GraphicsText` | 62 in 11 files | 11 in 6 files | 0 |
+| `GraphicsLine` | 35 in 8 files | 9 in 3 files | 0 |
+| `GraphicsCircle` | 20 in 9 files | 3 in 2 files | 0 |
+| the patterns | 52 in 15 files | 0 | 0 |
+
+**A call moves by the smallest edit.** The comma before the first argument that
+takes a name becomes a semicolon, and each such argument gets its name in front.
+The line breaks and the comments of a call stay where the author put them.
+
+Steps:
+
+- [ ] 1. `GraphicsText`, `GraphicsCircle`, `GraphicsLine`, `GraphicsRect`: the
+  signatures and the calls of this repository, one commit each.
+- [ ] 2. omnet-julia: the 33 graphics calls, on a branch. It lands right after
+  step 1, because every call there fails once step 1 lands.
+- [ ] 3. The five gesture patterns and their 52 calls — after the owner's
+  permission for `EventPattern.jl`.
+- [ ] 4. The guard: a marked definition keeps the optional clause, and §4 of the
+  rule says that a marker excuses the count only.
+
 ## 4. The guard
 
 **Done, 2026-09-22.** The owner chose the ledger, so the guard landed before the
