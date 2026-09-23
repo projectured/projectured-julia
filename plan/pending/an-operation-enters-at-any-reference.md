@@ -156,6 +156,28 @@ Decided by the owner on 2026-09-23:
   the index of the window, and the field of the wrapper that holds the next
   node. It looks at one level at a time and walks no content of a tab.
 
+- **Three separate pieces, which a caller combines** (2026-09-23):
+  1. **Make an operation through the readers.** Route an `Intent` (no gesture,
+     the operation filled in at the place, the route) through
+     `editor.projection` with `editor.iomap`, and return the rooted answer. It
+     evaluates nothing. This is the new piece. It runs on the editor's task,
+     because it reads `editor.iomap`, which the frame prints.
+  2. **Evaluate an operation immediately:** `evaluate_operation(editor,
+     operation)`, which exists.
+  3. **Post an operation for evaluation later:** `post_operation!(editor,
+     operation)`, which exists. The loop evaluates it in the drain at the top
+     of its next frame. A posted operation is made against the document of now,
+     so its typed path can be refused later; it does not become
+     `editor.operation` and stays out of the operation log, as the inbox works
+     now.
+
+  The first piece gives an operation from the root, so both the second and the
+  third write at the root. The undo reader wraps the answer on its way out, so
+  the operation carries its record in both cases.
+- **A verb evaluates immediately by default**, so it can return its real
+  result. Code that runs inside another evaluation, such as `OpenFileOperation`,
+  posts, so that one evaluation does not run inside another.
+
 Kept from the first version of this plan:
 
 - **The clipboard reads its own selection only.** `_get_clipboard_selection`
@@ -217,6 +239,16 @@ while the editor evaluates another operation.
 5. **Undo.** When a verb's gesture goes through the pipeline, the undo reader
    records the answer as it does for a person. So an open or a close by a verb
    becomes an undo step. Check that this is wanted, and what a focus move does.
+6. **The family of verbs for one action.** The owner's proposal:
+   `make_close_pane_operation`, `close_pane!` and `post_close_pane_operation!`,
+   or `close_pane!` with an argument that says now or later. Under discussion.
+7. **A value that names a place from the root.** The owner's proposal: a type
+   named `DocumentLocator` or `DocumentDesignator`, which is a `Document`
+   itself, with two fields, `start` and `reference`. The target is derived by
+   evaluating the reference from the start, so it is not stored. A new macro
+   (not `@reference`, which stays as it is) makes one locator from another and a
+   path. Under discussion: the name, the macro's name, and what it means that
+   the start is a child of a document.
 
 ## 6. Steps
 
