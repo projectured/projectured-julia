@@ -28,6 +28,11 @@ projected.
 - `title::String` — window title.
 - `x::Int`, `y::Int` — screen position; -1 = backend chooses.
 - `width::Int`, `height::Int` — initial size in pixels; 0 = auto-size.
+- `minimum_size::NTuple{2,Int}`, `maximum_size::NTuple{2,Int}` — the bounds of a
+  window that fits its content. A `maximum_size` of `(0, 0)`, the default, is a
+  window of a fixed size: it keeps `width` and `height`. A window with a maximum
+  is printed at that maximum, and the backend gives it the extent of what it
+  printed, clamped between the two.
 - `bg::NTuple{4,UInt8}` — background RGBA.
 - `style::Symbol` — `:normal`, `:tooltip`, `:floating`, … Backend
   applies per-style behaviour (default `:normal`).
@@ -50,6 +55,8 @@ projected.
     y::Int = -1
     width::Int = 2400
     height::Int = 1600
+    minimum_size::NTuple{2,Int} = (0, 0)
+    maximum_size::NTuple{2,Int} = (0, 0)
     bg::NTuple{4,UInt8} = DEFAULT_BG
     style::Symbol = :normal
     auto_dismiss::Bool = false
@@ -64,7 +71,8 @@ end
 # `ScreenDocument`, while `ResizeWindowOperation` writes straight to its target.
 
 """
-    OpenWindowOperation(; id, title, x, y, width, height, bg, style, auto_dismiss, modal, content)
+    OpenWindowOperation(; id, title, x, y, width, height, minimum_size, maximum_size,
+                          bg, style, auto_dismiss, modal, content)
 
 Request that a new `WindowDocument` (with the given fields) be added to the
 screen. The fields mirror `WindowDocument`'s schema 1:1. A window-manager
@@ -78,6 +86,8 @@ struct OpenWindowOperation <: Operation
     y::Int
     width::Int
     height::Int
+    minimum_size::NTuple{2,Int}
+    maximum_size::NTuple{2,Int}
     bg::NTuple{4,UInt8}
     style::Symbol
     auto_dismiss::Bool
@@ -91,12 +101,16 @@ OpenWindowOperation(; id::Symbol,
                       y::Integer = -1,
                       width::Integer = 0,
                       height::Integer = 0,
+                      minimum_size = (0, 0),
+                      maximum_size = (0, 0),
                       bg::NTuple{4,Integer} = (UInt8(253), UInt8(246), UInt8(227), UInt8(255)),
                       style::Symbol = :tooltip,
                       auto_dismiss::Bool = false,
                       modal::Bool = false,
                       content::Document) =
     OpenWindowOperation(id, String(title), Int(x), Int(y), Int(width), Int(height),
+                        (Int(minimum_size[1]), Int(minimum_size[2])),
+                        (Int(maximum_size[1]), Int(maximum_size[2])),
                         (UInt8(bg[1]), UInt8(bg[2]), UInt8(bg[3]), UInt8(bg[4])),
                         style, auto_dismiss, modal, content)
 

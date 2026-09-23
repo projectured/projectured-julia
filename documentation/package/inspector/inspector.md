@@ -78,6 +78,6 @@ run_example("json"; inspector = true)
 
 ## Limits
 
-- The probe takes every `MouseMove` and does not pass it on. So a hover highlight or a drag of a divider below the probe gets no move. The tooltip probe has the same fault, and `plan/pending/hover-drag-and-tooltip-share-the-pointer.md` describes it and a fix.
+- The probe takes every `MouseMove` and does not pass it on. So a hover highlight or a drag of a divider below the probe gets no move. The tooltip probe gives every event to its content first; [tooltip.md](../tooltip/tooltip.md) describes how.
 - The probe and the tooltip probe do not compose: `run_example` raises an error for `inspector = true` with `tooltip = true`, and for either one with `clipboard = true`.
 - The probe reads the whole chain again on each move, with no delay.

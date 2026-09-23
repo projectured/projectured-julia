@@ -403,7 +403,8 @@ function test_command_palette_decorator()
         forward = read_gesture(obj, KeyDown(:tab, none))
         @test forward isa ReplaceSelectionOperation
         set_selection!(obj, forward.path)
-        back = fire_named_gesture_binding(bindings, obj, obj.selection, "Move from value to key")
+        back = fire_named_gesture_binding(bindings, obj, "Move from value to key";
+                                          selection = obj.selection)
         @test back isa ReplaceSelectionOperation
         @test occursin("key", string(back.path))
 

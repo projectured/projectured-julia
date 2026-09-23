@@ -275,15 +275,39 @@ function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
         alias(d_name, [_default_cell_type(kinds[i], Tvals[i]) for i in 1:n]),
     ]
 
-    kind_ctor(kname, K) = :($(kname)($(arg_names...)) =
-        $(Expr(:call, plan.name,
+    # A kind constructor names the DECLARED field types, and those mention the
+    # programmer's parameters when the schema has any (`EventHeap{A}`). A
+    # parameter is not inferable from an untyped argument, so the head carries it
+    # and the body names it, exactly as the bare constructor above does:
+    # `ICFoo{A}(raw…)`. A schema with no parameter keeps the constructor it had.
+    kind_ctor(kname, K) = Expr(:(=),
+        isempty(plan.params) ? :($(kname)($(arg_names...))) :
+            Expr(:where, :($(Expr(:curly, kname, plan.params...))($(arg_names...))),
+                 plan.params...),
+        Expr(:call, isempty(plan.params) ? plan.name :
+                    Expr(:curly, plan.name, plan.params...),
             [:($a isa $(AbstractCell) ? $a : $(Expr(:curly, K, Tvals[i]))($a))
-             for (i, a) in enumerate(arg_names)]...)))
+             for (i, a) in enumerate(arg_names)]...))
 
     # The `_declared_value_types` method is added through the function object's
     # singleton type: a spliced object is not a valid method-definition *name*,
     # but `(::typeof(f))(…)` is.
-    dvt = :((::typeof($(_declared_value_types)))(::Type{<:$(plan.name)}) = ($(Tvals...),))
+    #
+    # The types it answers with mention the programmer's parameters when the
+    # schema has any, so the method takes them from the type it is asked about:
+    # `Type{<:Foo{A}} where {A}`. A caller that asks about the bare name — which
+    # is what a copy does — names no parameter, matches no method here, and gets
+    # the default `nothing`, so the copy reads the source's own field types
+    # instead. The types are not knowable without the parameters, and saying so
+    # is what the default means.
+    dvt = isempty(plan.params) ?
+        :((::typeof($(_declared_value_types)))(::Type{<:$(plan.name)}) = ($(Tvals...),)) :
+        Expr(:(=),
+             Expr(:where,
+                  :((::typeof($(_declared_value_types)))(
+                        ::Type{<:$(Expr(:curly, plan.name, plan.params...))})),
+                  plan.params...),
+             Expr(:tuple, Tvals...))
 
     # The cell layout and its spelling aliases are all generated API, so the macro
     # exports them itself. A module re-exporting any of these names explicitly (e.g.
@@ -356,7 +380,16 @@ function _emit_collection_ctor_at(plan, k)
     filled   = Any[defaults[fields[j]] for j in (k + 1):n]
     params   = Any[j == p ? :($(fields[p])::AbstractVector)         : fields[j] for j in 1:k]
     callargs = Any[j == p ? :($(plan.field_types[p])($(fields[p]))) : fields[j] for j in 1:k]
-    (:($(plan.name)($(params...)) = $(Expr(:call, plan.name, callargs..., filled...))),)
+    # Named the way Rule Y names it: a parameter that no field's declared type
+    # is takes its place at the call, and one that a field's type is comes from
+    # the argument.
+    needs_parameters = !isempty(plan.params) &&
+                       !all(P -> P in plan.field_types, plan.params)
+    named    = needs_parameters ? Expr(:curly, plan.name, plan.params...) : plan.name
+    head     = needs_parameters ?
+               Expr(:where, :($(named)($(params...))), plan.params...) :
+               :($(plan.name)($(params...)))
+    (Expr(:(=), head, Expr(:block, Expr(:call, named, callargs..., filled...))),)
 end
 
 """

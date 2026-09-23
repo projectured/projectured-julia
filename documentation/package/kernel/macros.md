@@ -403,11 +403,9 @@ defaults on fields, so you no longer need an outer convenience constructor whose
 only job is to fill in defaults:
 
 ```julia
-@projection struct WidgetScrollPaneToGraphicsCanvas      # <: Projection is defaulted in
-    measure::Function
-    font::StyleFont
-    background_color::StyleColor = color_white    # default
-    chrome::Bool = true                            # default
+@projection struct ReferenceToHumanReadableText          # <: Projection is defaulted in
+    document::Any
+    font::StyleFont = font_ubuntu_monospace_regular_20   # default
 end
 ```
 
@@ -415,8 +413,8 @@ When **at least one** field carries a default, the macro additionally emits a
 **keyword** constructor:
 
 ```julia
-WidgetScrollPaneToGraphicsCanvas(; measure, font)        # background_color=color_white, chrome=true
-WidgetScrollPaneToGraphicsCanvas(; measure, font, chrome = false)
+ReferenceToHumanReadableText(; document)                 # font=font_ubuntu_monospace_regular_20
+ReferenceToHumanReadableText(; document, font = font_ubuntu_regular_20)
 ```
 
 Semantics deliberately match `Base.@kwdef`:

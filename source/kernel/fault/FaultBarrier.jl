@@ -2,7 +2,8 @@
 # survives it here.
 
 """
-    run_fault_barrier(body, store, policy, backend, site; counter, origin, reference, fallback)
+    run_fault_barrier(body, store; policy, backend, site, counter, origin, reference,
+                      fallback)
 
 Run `body`, and answer `fallback` rather than the exception when it throws.
 
@@ -36,14 +37,15 @@ That switch is the reason this whole feature can not make the suite lie.
 
 # Example
 
-    run_fault_barrier(editor.faults, editor.fault_policy, editor.backend, :print) do
+    run_fault_barrier(editor.faults; policy = editor.fault_policy,
+                      backend = editor.backend, site = :print) do
         print!(editor)
     end
 
 See also [`FaultPolicy`](@ref), [`record_fault!`](@ref) and
 [`report_fault!`](@ref).
 """
-function run_fault_barrier(body, store, policy::FaultPolicy, backend, site::Symbol;
+function run_fault_barrier(body, store; policy::FaultPolicy, backend, site::Symbol,
                            counter::Symbol = site, origin = :editor,
                            reference = nothing, fallback = nothing)
     policy.is_barrier_enabled || return body()
@@ -55,12 +57,12 @@ function run_fault_barrier(body, store, policy::FaultPolicy, backend, site::Symb
         is_passthrough_exception(exception) && rethrow()
         traceback = catch_backtrace()
         _count_fault!(store, counter)
-        record_fault!(store, site, origin, reference, exception, traceback)
+        record_fault!(store, site; origin, reference, exception, traceback)
         # No store means no drain will ever see this, so the report is made here
         # and now, from the exception itself.
         if store === nothing
-            report_fault!(store, policy, backend,
-                          make_fault_record(site, origin, reference, exception, traceback))
+            record = make_fault_record(site; origin, reference, exception, traceback)
+            report_fault!(store, record; policy, backend)
         end
         fallback
     end

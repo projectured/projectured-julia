@@ -3,92 +3,123 @@
 # EvaluatorForm / EvaluatorToplevel → WidgetDocument projection, for the
 # standalone REPL a person opens by typing `repl` into an empty tab:
 #
-#     EvaluatorToplevelToWidgetComposite → VerticalLayout of the elements
-#     EvaluatorFormToWidgetCard          → the same code/result section pair the
-#                                          composer draws for a draft in
-#                                          progress (`_eval_sections`), with no
-#                                          part-level panel around it — a bare
-#                                          form has no turn or part to sit in.
+#     EvaluatorToplevelToWidgetComposite → WidgetScrollPane over a VerticalLayout
+#                                          of the elements, which follows the end
+#     EvaluatorFormToVerticalLayout      → VerticalLayout of a `>` row and a `=` row
 #
-# Neither prints a child. The toplevel's layout holds the forms, and a form's
-# cards hold its code and its result, so the layout stage that follows prints
-# each of them once, through the recursion. `_follow_selection!` makes a caret
-# set on the domain node show up on the widget it produced.
+# Neither prints a child. The toplevel's layout holds the forms, and a form's rows
+# hold its code and its result, so the layout stage that follows prints each of
+# them once, through the recursion. `_follow_selection!` makes a caret set on the
+# domain node show up on the widget it produced.
 #
-# Unlike the read-only transcript, a bare form is EDITED: `EvaluatorFormToWidgetCard`'s
-# reference maps pass the tail of a `form`/`result` reference through unchanged,
-# rather than stopping at the whole section the way `ConversationPartToWidget`
-# does — a caret inside the section's own document has to reach it.
+# A bare form is EDITED: `EvaluatorFormToVerticalLayout`'s reference maps pass the
+# tail of a `form`/`result` reference through unchanged, so a caret inside the
+# code reaches it.
 
-struct EvaluatorFormToWidgetCard          <: Projection end
+struct EvaluatorFormToVerticalLayout      <: Projection end
 struct EvaluatorToplevelToWidgetComposite <: Projection end
 
-# `("form", 1)` / `("result", 2)`: which child of the `_eval_sections` layout
-# each field prints as.
-const _FORM_SECTIONS = (("form", 1), ("result", 2))
+# `("form", 1)` / `("result", 2)`: which row of a form each field prints as.
+const _FORM_ROWS = (("form", 1), ("result", 2))
 
 const _ELEMENT_GAP = 8    # between the forms of a toplevel
+const _ROW_GAP     = 4    # between the code of a form and its result
+const _PROMPT_GAP  = 8    # between a prompt and what follows it
 
-# ── print_document: a bare form → its code/result section pair ─────────────
+const _PROMPT_STYLE       = StyleText(font_ubuntu_monospace_regular_20, color_slate_500)
+const _PROMPT_ERROR_STYLE = StyleText(font_ubuntu_monospace_regular_20, color_destructive)
 
-function print_document(projection::EvaluatorFormToWidgetCard,
+# ── print_document: a bare form → a prompt column beside its code and result ──
+#
+# `>` stands before the code and `=` before the result. Each row is the prompt,
+# then the document, so the prompts of every form stand in one column, and a
+# second line of code or of a result stays right of it. The prompts are one
+# character of one monospace font, so the column has one width.
+#
+# A fresh form holds an empty result, and it shows no `=` row until it has one.
+
+function print_document(projection::EvaluatorFormToVerticalLayout,
                           recursion, form::EvaluatorForm, ctx)
-    output = _eval_sections(form, nothing)
+    code_prompt   = WidgetLabel(Point2D(0, 0), ">"; text_style = _PROMPT_STYLE)
+    result_prompt = WidgetLabel(Point2D(0, 0), "="; text_style = _PROMPT_STYLE)
+    error_prompt  = WidgetLabel(Point2D(0, 0), "="; text_style = _PROMPT_ERROR_STYLE)
+    code_row = _make_prompt_row(() -> Any[code_prompt, form.form])
+    result_row = _make_prompt_row(() -> Any[form.is_error === true ? error_prompt : result_prompt,
+                                            form.result])
+    rows = (code_row, result_row)
+    output = VerticalLayout(ComputedCellVector(() -> _has_result(form) ? Any[rows...] : Any[code_row]),
+                            Cell(:left), Cell(_ROW_GAP), Cell(nothing), Cell(nothing), Cell(nothing))
     iomap = SimpleIoMap(projection, form, output)
     _follow_selection!(output, form, projection, iomap, Any[])
-    for (_, index) in _FORM_SECTIONS
-        section = output.children[index]
-        _follow_selection!(section, form, projection, iomap,
+    for (_, index) in _FORM_ROWS
+        _follow_selection!(rows[index], form, projection, iomap,
                            Any[FieldReferenceStep("children"), RangeReferenceStep(index - 1, index)])
     end
     iomap
 end
 
-# `form.<rest>` / `result.<rest>` ↔ `children[i].content.<rest>` — a full
-# passthrough of whatever lies below the section, because a bare form is edited
-# and not merely read.
-function map_reference_forward(::EvaluatorFormToWidgetCard, iomap, reference)
+_make_prompt_row(children::Function) =
+    HorizontalLayout(ComputedCellVector(children), Cell(:top), Cell(_PROMPT_GAP),
+                     Cell(nothing), Cell(nothing), Cell(nothing))
+
+_has_result(form::EvaluatorForm) = !(form.result isa TextBlock && isempty(form.result.elements))
+
+# `form.<rest>` / `result.<rest>` ↔ `children[i].children[2].<rest>` — a full
+# passthrough of whatever lies below the row, because a bare form is edited and
+# not merely read. A form with no result yet has no row for one.
+function map_reference_forward(::EvaluatorFormToVerticalLayout, iomap, reference)
     steps = _steps(reference)
     steps === nothing && return nothing
     isempty(steps) && return EmptyReference()
-    for (name, index) in _FORM_SECTIONS
-        _is_field_step(steps[1], name) &&
-            return _from_steps(Any[FieldReferenceStep("children"), RangeReferenceStep(index - 1, index),
-                                   FieldReferenceStep("content")], _from_steps(steps[2:end]))
+    for (name, index) in _FORM_ROWS
+        _is_field_step(steps[1], name) || continue
+        index == 2 && !_has_result(iomap.input) && return nothing
+        return _from_steps(Any[FieldReferenceStep("children"), RangeReferenceStep(index - 1, index),
+                               FieldReferenceStep("children"), RangeReferenceStep(1, 2)],
+                           _from_steps(steps[2:end]))
     end
     nothing
 end
 
-function map_reference_backward(::EvaluatorFormToWidgetCard, iomap, reference)
+# A path into a prompt, or into the rows themselves, names the whole form.
+function map_reference_backward(::EvaluatorFormToVerticalLayout, iomap, reference)
     steps = _steps(reference)
-    (steps !== nothing && length(steps) >= 3 && _is_field_step(steps[1], "children") &&
-     steps[2] isa RangeReferenceStep && _is_field_step(steps[3], "content")) || return EmptyReference()
-    for (name, index) in _FORM_SECTIONS
+    (steps !== nothing && length(steps) >= 4 && _is_field_step(steps[1], "children") &&
+     steps[2] isa RangeReferenceStep && _is_field_step(steps[3], "children") &&
+     steps[4] isa RangeReferenceStep && steps[4].stop == 2) || return EmptyReference()
+    for (name, index) in _FORM_ROWS
         steps[2].stop == index &&
-            return _from_steps(Any[FieldReferenceStep(name)], _from_steps(steps[4:end]))
+            return _from_steps(Any[FieldReferenceStep(name)], _from_steps(steps[5:end]))
     end
     EmptyReference()
 end
 
-# ── print_document: the toplevel → a stack of its forms ────────────────────
+# ── print_document: the toplevel → a scroll pane over a stack of its forms ──
 #
 # The layout holds the forms themselves, as `CellVectorToVerticalLayout` holds
 # the elements of a bare vector. A form printed here would reach the layout
 # stage as graphics, and that stage prints each child again: the renderer has no
 # row for graphics, so it would draw the canvas as a tree of its fields.
+#
+# The scroll pane takes the extent its parent offers, so in a tab the forms
+# scroll inside the page. It follows the end through the toplevel's own
+# `follow_end` cell: a scroll away from the end writes it, and an evaluation
+# writes it back, so the fresh form is in view where the next key goes.
 
 function print_document(projection::EvaluatorToplevelToWidgetComposite,
                           recursion, t::EvaluatorToplevel, ctx)
     layout = VerticalLayout(ComputedCellVector(() -> Any[element for element in t.elements]),
                             Cell(:left), Cell(_ELEMENT_GAP),
                             Cell(Fill), Cell(Content), Cell(nothing))
-    iomap = SimpleIoMap(projection, t, layout)
-    _follow_selection!(layout, t, projection, iomap, Any[])
+    pane = WidgetScrollPane(layout; follow_end = getfield(t, :follow_end))
+    iomap = SimpleIoMap(projection, t, pane)
+    _follow_selection!(pane, t, projection, iomap, Any[])
+    _follow_selection!(layout, t, projection, iomap, Any[FieldReferenceStep("content")])
     iomap
 end
 
-# `elements[i].<rest>` ↔ `children[i].<rest>`. The rest is a path in the form,
-# which the layout stage maps through the form's own row.
+# `elements[i].<rest>` ↔ `content.children[i].<rest>`. The rest is a path in
+# the form, which the layout stage maps through the form's own row.
 function map_reference_forward(::EvaluatorToplevelToWidgetComposite, iomap, reference)
     steps = _steps(reference)
     steps === nothing && return nothing
@@ -96,13 +127,15 @@ function map_reference_forward(::EvaluatorToplevelToWidgetComposite, iomap, refe
     found = _indexed(steps, "elements")
     found === nothing && return nothing
     (i, rest) = found
-    _from_steps(Any[FieldReferenceStep("children"), RangeReferenceStep(i - 1, i)], _from_steps(rest))
+    _from_steps(Any[FieldReferenceStep("content"), FieldReferenceStep("children"),
+                    RangeReferenceStep(i - 1, i)], _from_steps(rest))
 end
 
 function map_reference_backward(::EvaluatorToplevelToWidgetComposite, iomap, reference)
     steps = _steps(reference)
-    steps === nothing && return EmptyReference()
-    found = _indexed(steps, "children")
+    (steps !== nothing && !isempty(steps) && _is_field_step(steps[1], "content")) ||
+        return EmptyReference()
+    found = _indexed(steps[2:end], "children")
     found === nothing && return EmptyReference()
     (i, rest) = found
     _from_steps(Any[FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i)], _from_steps(rest))
@@ -116,14 +149,19 @@ end
 #
 # Each row ends in graphics. A tab reads its content through `print_child`,
 # which does not print a layout again until it is graphics, and a layout draws
-# only the children whose output is graphics. The cards and the documents in
-# them re-enter the renderer through the recursion both stages share.
+# only the children whose output is graphics. The rows and the documents in
+# them re-enter the renderer through the recursion both stages share. The scroll
+# pane paints no background, so the forms stand on the page of the tab.
 
 function __init__()
     register_natural_graphics!(:evaluator, (; measure) -> Pair{Type,Any}[
-        EvaluatorToplevel => ChainingProjection(EvaluatorToplevelToWidgetComposite(),
-                                                VerticalLayoutToGraphicsCanvas()),
-        EvaluatorForm     => ChainingProjection(EvaluatorFormToWidgetCard(),
+        EvaluatorToplevel => ChainingProjection(
+            EvaluatorToplevelToWidgetComposite(),
+            WidgetScrollPaneToGraphicsCanvas(
+                make_slate_light_theme(font = font_ubuntu_monospace_regular_20);
+                measure = measure, font = font_ubuntu_monospace_regular_20,
+                content_color = color_transparent)),
+        EvaluatorForm     => ChainingProjection(EvaluatorFormToVerticalLayout(),
                                                 VerticalLayoutToGraphicsCanvas()),
     ])
 end

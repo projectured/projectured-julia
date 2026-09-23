@@ -14,10 +14,10 @@ using ..ReferenceModule
 import ..CellModule: set_cell_function!
 
 export StyleColor, make_style_color,
-       is_color_equal, color_interpolate, color_lighten, color_darken,
+       is_color_equal, is_color_transparent, color_interpolate, color_lighten, color_darken,
        color_lighten_selection, color_darken_selection,
        color_default,
-       color_black, color_white, color_red, color_green, color_blue,
+       color_black, color_white, color_transparent, color_red, color_green, color_blue,
        color_yellow, color_purple, color_cyan,
        color_gray0, color_gray15, color_gray31, color_gray47, color_gray63,
        color_gray79, color_gray95, color_gray111, color_gray127,
@@ -101,7 +101,8 @@ export StyleFont, make_style_font, font_scaled_size, font_logical_size, font_dev
        font_dejavu_sans_regular_20, font_dejavu_sans_italic_20, font_dejavu_sans_bold_20,
        font_dejavu_sans_regular_22, font_dejavu_sans_italic_22, font_dejavu_sans_bold_22,
        font_dejavu_sans_regular_24, font_dejavu_sans_italic_24, font_dejavu_sans_bold_24,
-       font_dejavu_sans_regular_36, font_dejavu_sans_italic_36, font_dejavu_sans_bold_36
+       font_dejavu_sans_regular_36, font_dejavu_sans_italic_36, font_dejavu_sans_bold_36,
+       font_lucide_icons_20
 export measure_truetype_text, font_ascent, font_descent, font_line_height,
        font_x_height, font_cap_height, font_glyph_bounds, font_file,
        get_fallback_font_files, find_glyph_font_file, has_font_glyph,

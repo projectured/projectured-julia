@@ -557,8 +557,11 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
         for (li, line) in enumerate(lines)
             # Hard newline embedded in the span content.
             if li > 1
+                # A caret beside the '\n' can stand on a line with no glyph yet,
+                # so it is at least as tall as a line in the span's font.
+                row_h = max(line_h, p.measure(" ", sf)[2], 1)
                 # caret BEFORE the '\n' (char_offset still points at it)
-                at_caret(char_offset) && (cursor = (cx, cy, max(line_h, 1)))
+                at_caret(char_offset) && (cursor = (cx, cy, row_h))
                 max_cx = max(max_cx, cx)   # fold this sub-line's extent in before the reset
                 cx = p.start_x
                 # An empty sub-line still keeps one row of height.
@@ -566,10 +569,23 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
                 line_h = 0
                 char_offset += 1           # count the '\n'
                 # caret AFTER the '\n' — now at the start of the next sub-line
-                at_caret(char_offset) && (cursor = (cx, cy, max(line_h, 1)))
+                at_caret(char_offset) && (cursor = (cx, cy, max(p.measure(" ", sf)[2], 1)))
             end
 
-            isempty(line) && continue
+            # An empty first sub-line is an empty span, or one that starts with
+            # '\n'. A caret at its start has no glyph to stand against, so it
+            # takes the height of a line in the span's font.
+            if isempty(line)
+                li == 1 && at_caret(char_offset) &&
+                    (cursor = (cx, cy, max(line_h, p.measure(" ", sf)[2], 1)))
+                # An empty line draws no glyph, but it has a place: a zero-width
+                # coordinate where a caret on it stands, so a key moves the caret
+                # onto the line and off it. One on a line that draws a glyph is
+                # dropped below.
+                push!(coord_map, SegmentCoordinate(path, char_offset, char_offset, cx, cy,
+                                                   sf, "", 0, p.measure(" ", sf)[2]))
+                continue
+            end
 
             # No wrap: emit the whole sub-line as a single segment.
             seg_w, seg_h = p.measure(line, sf)
@@ -601,12 +617,18 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
         end
     end
 
+    # On a line that draws a glyph, the glyphs give every caret of the line its
+    # place, so a zero-width coordinate stays only on a line that draws none.
+    glyph_rows = Set(sc.y for sc in coord_map if _draws_glyph(sc))
+    filter!(sc -> _draws_glyph(sc) || !(sc.y in glyph_rows), coord_map)
+
     max_cx = max(max_cx, cx)
     height = cy + line_h - y0
-    if isempty(coord_map) && (group.newline !== nothing || group.is_line)
+    if !any(_draws_glyph, coord_map) && (group.newline !== nothing || group.is_line || _has_text_span(group))
         # A blank line still occupies one row, sized by the font it has no glyph to
-        # take one from. The empty group left behind by a *trailing* newline is not
-        # a line at all, and keeps its zero height.
+        # take one from. A group that holds only an empty span is such a line,
+        # because a caret can stand in it. The empty group left behind by a
+        # *trailing* newline is not a line at all, and keeps its zero height.
         font = _line_height_font(group, block_font)
         height = font === nothing ? 0 : p.measure(" ", font)[2]
     end
@@ -679,6 +701,12 @@ end
 _line_height_font(group, block_font::Cell) =
     group.newline === nothing ? block_font[] : group.newline.font::StyleFont
 
+_has_text_span(group) = any(entry -> entry[2] isa TextString, group.spans)
+
+# Whether a coordinate stands for something drawn: text, or an embedded image.
+# The zero-width coordinate of an empty line draws nothing.
+_draws_glyph(sc::SegmentCoordinate) = sc.width > 0 || !isempty(sc.text)
+
 # The block's prevailing font — the first font any element offers, in document
 # order, or `nothing` for a block that has none. It sizes an empty `TextLine`,
 # which has neither a glyph nor a terminating newline to read one from.
@@ -737,8 +765,7 @@ _persistent_graphic!(cache, layout, pl) =
          cache, pl.key)
 
 # When a placement disappears (segment removed in a re-layout), the cell falls
-# back to a fully transparent color so the persistent graphic paints nothing.
-const _transparent = StyleColor(0.0, 0.0, 0.0, 0.0)
+# back to `color_transparent`, so the persistent graphic paints nothing.
 
 function _make_persistent_text(layout, pl0)
     key = pl0.key
@@ -747,7 +774,7 @@ function _make_persistent_text(layout, pl0)
     set_cell_function!(getfield(gt, :x),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.x)))
     set_cell_function!(getfield(gt, :y),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
     set_cell_function!(getfield(gt, :font),  () -> (q = _plget(layout, key); q === nothing ? pl0.font : q.font))
-    set_cell_function!(getfield(gt, :color), () -> (q = _plget(layout, key); q === nothing ? _transparent : q.color))
+    set_cell_function!(getfield(gt, :color), () -> (q = _plget(layout, key); q === nothing ? color_transparent : q.color))
     gt
 end
 
@@ -758,7 +785,7 @@ function _make_persistent_rect(layout, pl0)
     set_cell_function!(getfield(rect, :y),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
     set_cell_function!(getfield(rect, :w),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.w)))
     set_cell_function!(getfield(rect, :h),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.h)))
-    set_cell_function!(getfield(rect, :color), () -> (q = _plget(layout, key); q === nothing ? _transparent : q.color))
+    set_cell_function!(getfield(rect, :color), () -> (q = _plget(layout, key); q === nothing ? color_transparent : q.color))
     rect
 end
 
@@ -1006,7 +1033,8 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     # Adjust for highlight rects prepended before text segments
     hl_off = iomap.highlight_offset
     i -= hl_off
-    coord_map = iomap.char_to_coord
+    # The drawn elements, and not the places of empty lines, which draw nothing.
+    coord_map = filter(_draws_glyph, iomap.char_to_coord)
     (i < 1 || i > length(coord_map)) && return nothing
     seg = coord_map[i]
 

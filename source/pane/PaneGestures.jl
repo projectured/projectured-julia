@@ -43,7 +43,7 @@ end
 function _split(tree::PaneTree, orientation::Symbol, side::Symbol)
     group = get_pane_focused_group(tree)
     group === nothing && return nothing
-    make_pane_split_operation(tree, group, orientation, side, default_new_pane_tab())
+    make_pane_split_operation(tree, group; orientation, side, tab = default_new_pane_tab())
 end
 
 function _move_focus(tree::PaneTree, direction::Symbol)

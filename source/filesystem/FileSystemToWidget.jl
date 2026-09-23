@@ -37,19 +37,20 @@ FileSystemToWidgetTree(position::Point2D = Point2D(0, 0); open_file = OpenFileOp
 
 # ── Node construction (icon + text per item) ──────────────────────────────────
 
-# An extension-derived glyph in the icon slot (the v1 stand-in for a real icon
-# image), following the codebase's single-glyph convention (cf. ConversationToWidget).
-_fs_icon(::FileSystemDirectory) = "▣"
+# The icon of an item: a folder, or the kind of a file by its extension. Each is
+# an icon name of the widget layer, so the tree draws it as the glyph of the icon
+# font that the rest of the window uses.
+_fs_icon(::FileSystemDirectory) = :folder
 function _fs_icon(f::FileSystemFile)
     ext = lowercase(splitext(f.pathname)[2])
-    ext == ".jl"            ? "λ"  :
-    ext == ".json"          ? "{}" :
-    ext in (".md", ".txt")  ? "¶"  :
-    ext == ".pred"          ? "◆"  :   # a document written as its constructor
-    ext == ".ned"           ? "⬡"  :   # a network: nodes and the links between them
-    ext == ".ini"           ? "≡"  :   # a configuration: lines of keys and values
-    ext == ".math"          ? "∑"  :
-    "·"
+    ext == ".jl"            ? :lambda       :
+    ext == ".json"          ? :braces       :
+    ext in (".md", ".txt")  ? :pilcrow      :
+    ext == ".pred"          ? :diamond      :   # a document written as its constructor
+    ext == ".ned"           ? :hexagon      :   # a network: nodes and the links between them
+    ext == ".ini"           ? :file_sliders :   # a configuration: lines of keys and values
+    ext == ".math"          ? :sigma        :
+    :file
 end
 
 _fs_node(f::FileSystemFile, open_file) =
@@ -68,11 +69,14 @@ function _make_open_file_bindings(pathname, open_file)
     make_operation = (node, event) -> open_file(pathname)
     is_applicable = (node, selection) -> true
     GestureBinding[
-        GestureBinding(KeyDownPattern(:return, nothing, nothing),
-                       make_operation, is_applicable, "Open the file", "file system"),
-        GestureBinding(MousePressPattern(:left, nothing, event -> event.count == 2,
-                                         "double click"),
-                       make_operation, is_applicable, "Open the file", "file system"),
+        GestureBinding(KeyDownPattern(:return, nothing, nothing), make_operation;
+                       applicable = is_applicable,
+                       description = "Open the file",
+                       domain = "file system"),
+        GestureBinding(MousePressPattern(:left, nothing, event -> event.count == 2, "double click"), make_operation;
+                       applicable = is_applicable,
+                       description = "Open the file",
+                       domain = "file system"),
     ]
 end
 
@@ -94,9 +98,11 @@ function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDoc
     # node tree without re-running `print_document`.
     roots = ComputedCellVector(() -> Any[_fs_node(doc, p.open_file)])
     # Positional, so every declared field is named here in order and the
-    # selection comes last: position, roots, visible, hovered, collapsed,
-    # gestures, tooltip, selection.
-    tree = WidgetTree(Cell(p.position), roots, Cell(true), Cell(nothing), Cell(Set{Vector{Int}}()),
+    # selection comes last: position, roots, visible, margin, border, padding,
+    # style, hovered, collapsed, gestures, tooltip, selection.
+    tree = WidgetTree(Cell(p.position), roots, Cell(true),
+                      Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
+                      Cell(nothing), Cell(Set{Vector{Int}}()),
                       Cell(GestureBinding[]), Cell(nothing), sel)
     iomap = SimpleIoMap(p, doc, tree)
     iomap_cell[] = iomap

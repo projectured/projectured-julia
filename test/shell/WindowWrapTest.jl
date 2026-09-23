@@ -19,13 +19,16 @@ _under_recorder(projection) = begin
     projection.inner
 end
 
-@testset "every wrapper is off, so only the recorder is added" begin
+@testset "every wrapper is off, so only the recorder and the hover tracker are added" begin
     document, base = _document(), IdentityProjection()
     answer_document, answer_projection =
         make_window_wrap(; gesture_help = false, command_palette = false,
                            selection = false)(document, base)
     @test answer_document === document
-    @test _under_recorder(answer_projection) === base
+    # A window that shows a button must light it, so the tracker takes no keyword.
+    tracker = _under_recorder(answer_projection)
+    @test tracker isa WidgetHoverTrackingProjection
+    @test tracker.inner === base
 end
 
 @testset "a keyword adds the wrapper it names" begin
@@ -39,7 +42,7 @@ end
     # The history is a wrapper the host gives, and the default changes nothing.
     marked = wrap(; history = projection -> GestureHelpDecoratorProjection(
                       inner = projection, state = GestureHelpState()))[2]
-    @test _under_recorder(marked) isa GestureHelpDecoratorProjection
+    @test _under_recorder(marked).inner isa GestureHelpDecoratorProjection
     # The clipboard is the one wrapper that wraps the document as well.
     @test wrap(; selection = true)[1] isa ClipboardSlice
 end

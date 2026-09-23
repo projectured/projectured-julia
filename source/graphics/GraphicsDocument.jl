@@ -102,7 +102,7 @@ end
 
 # Normalize a `border_color` argument: `nothing` → fully transparent (no border
 # drawn; `border_width` still gates whether an outline is painted).
-_norm_border(::Nothing) = StyleColor(0.0, 0.0, 0.0, 0.0)
+_norm_border(::Nothing) = color_transparent
 _norm_border(c::StyleColor) = c
 
 function GraphicsRect(x::Integer, y::Integer, w::Integer, h::Integer,

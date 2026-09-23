@@ -528,7 +528,7 @@ end
 # ── Split a group ──────────────────────────────────────────────────────────
 
 """
-    make_pane_split_operation(tree, group, orientation, side, tab) -> Operation | Nothing
+    make_pane_split_operation(tree, group; orientation, side, tab) -> Operation | Nothing
 
 Split `group` and put `tab` in the new pane. `orientation` is `:vertical` (the
 new pane sits beside) or `:horizontal` (it sits above or below); `side` is
@@ -540,8 +540,8 @@ this orientation the group is not wrapped — the new group joins the parent as 
 sibling, splitting the group's weight — which is what keeps a split from ever
 holding a child split of its own orientation.
 """
-function make_pane_split_operation(tree::PaneTree, group::PaneGroup, orientation::Symbol,
-                              side::Symbol, tab::PaneTab)
+function make_pane_split_operation(tree::PaneTree, group::PaneGroup;
+                                   orientation::Symbol, side::Symbol, tab::PaneTab)
     new_group = PaneGroup(PaneTab[tab])
     before = side === :left || side === :above
     parent = get_pane_parent(tree, group)
@@ -585,7 +585,7 @@ end
 # ── Move a tab ─────────────────────────────────────────────────────────────
 
 """
-    make_pane_move_tab_operation(tree, source, source_index, target, target_index) -> Operation | Nothing
+    make_pane_move_tab_operation(tree, source; source_index, target, target_index) -> Operation | Nothing
 
 Move one tab from `source` to `target`. `target_index` names the slot the tab is
 inserted **before**, in the target's numbering as it stands now — which is what a
@@ -599,8 +599,9 @@ keeps its iomap.
 When the move empties the source group, the group is closed the same way
 [`make_pane_close_tab_operation`](@ref) closes it.
 """
-function make_pane_move_tab_operation(tree::PaneTree, source::PaneGroup, source_index::Integer,
-                                 target::PaneGroup, target_index::Integer)
+function make_pane_move_tab_operation(tree::PaneTree, source::PaneGroup;
+                                      source_index::Integer, target::PaneGroup,
+                                      target_index::Integer)
     n = length(source.tabs)
     (1 <= source_index <= n) || return nothing
     tab = source.tabs[source_index]
@@ -682,7 +683,7 @@ end
 # ── Drop a tab on a group's edge ───────────────────────────────────────────
 
 """
-    make_pane_drop_split_operation(tree, source, source_index, target, orientation, side) -> Operation | Nothing
+    make_pane_drop_split_operation(tree, source; source_index, target, orientation, side) -> Operation | Nothing
 
 Split `target` and put `source`'s `source_index`-th tab in the new pane — what a
 drop on a group's edge band means. The tab keeps its identity: it is moved, not
@@ -706,8 +707,9 @@ other leaves behind. Four shapes, and each names its paths accordingly:
 its own pane. That is the first shape above, because a group that splits itself
 must keep a tab behind; the drop answers `nothing` when the tab is its last.
 """
-function make_pane_drop_split_operation(tree::PaneTree, source::PaneGroup, source_index::Integer,
-                                   target::PaneGroup, orientation::Symbol, side::Symbol)
+function make_pane_drop_split_operation(tree::PaneTree, source::PaneGroup;
+                                        source_index::Integer, target::PaneGroup,
+                                        orientation::Symbol, side::Symbol)
     (1 <= source_index <= length(source.tabs)) || return nothing
     # A group that drops its only tab on its own edge changes nothing: the tab
     # would take the new pane and leave the old half empty. With another tab

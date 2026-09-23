@@ -136,7 +136,7 @@ folded into the normalizing total so a CDF really reaches 1.
 function _histogram_shown_values(s::ChartHistogramSeries)
     values = s.binvalues
     total = sum(Float64(v) for v in values; init=0.0) + s.underflows + s.overflows
-    compute_histogram_values(s.binedges, values, s.cumulative, s.density, total)
+    compute_histogram_values(s.binedges, values; cumulative=s.cumulative, density=s.density, total)
 end
 
 # Which row each visible strip occupies, as the y coordinate of its centre. The
@@ -355,7 +355,7 @@ function _legend_plan(p::ChartPlotToGraphicsCanvas, chart::Chart, series,
                  (legend.position === :inside && legend.anchor in (:north, :south))
     area_w = horizontal ? w - 2 * _PAD : w ÷ 3
     area_h = horizontal ? h ÷ 3 : h - 2 * _PAD
-    box = compute_legend_layout(sizes, horizontal, area_w, area_h;
+    box = compute_legend_layout(sizes; horizontal, area_w, area_h,
                         swatch=_SWATCH, gap=_LEGEND_GAP)
     (; position = legend.position, anchor = legend.anchor, border = legend.border,
        font, items, sizes, box, box_w = box.box_w, box_h = box.box_h,
@@ -705,7 +705,7 @@ function _line_points(g, s::ChartLineSeries)
     x, y = s.x, s.y
     (length(x) == 0 || length(y) == 0) && return Tuple{Int,Int}[]
     i0, i1 = get_visible_range(x, g.view.x_min, g.view.x_max; sorted=s.sorted)
-    pts = decimate_minmax(x, y, g.xs, g.ys, i0, i1)
+    pts = decimate_minmax(x, y; xs=g.xs, ys=g.ys, i0, i1)
     ox, oy = g.plot_x, g.plot_y
     [(px - ox, py - oy) for (px, py) in pts]
 end
@@ -756,7 +756,7 @@ function _scatter_elements!(out, g, index::Int, s::ChartScatterSeries)
 
     if n > style.scatter_fold_threshold
         cell = max(style.bin_fold_px + 1, 3)
-        bands = fold_scatter(s.x, s.y, g.xs, g.ys, cell, 1, n; levels=_DENSITY_LEVELS)
+        bands = fold_scatter(s.x, s.y; xs=g.xs, ys=g.ys, cell_px=cell, i0=1, i1=n, levels=_DENSITY_LEVELS)
         for (px, py, bw, bh, level) in bands
             a = 0.15 + 0.85 * level / _DENSITY_LEVELS
             shade = StyleColor(color.red, color.green, color.blue, color.alpha * a)
@@ -1087,7 +1087,7 @@ function _overlay_elements!(out, g, plot::ChartPlot)
                 sx = round(Int, to_pixel(g.xs, point[1])) - g.plot_x
                 sy = round(Int, to_pixel(g.ys, point[2])) - g.plot_y
                 color = get_series_color(series.color, sample[1], g.style.color_cycle)
-                push!(out, GraphicsCircle(sx, sy, 6, StyleColor(0.0, 0.0, 0.0, 0.0);
+                push!(out, GraphicsCircle(sx, sy, 6, color_transparent;
                                           border_width=2, border_color=_SELECTION_EDGE))
                 push!(out, GraphicsCircle(sx, sy, 3, color))
             end
@@ -1577,7 +1577,7 @@ function _sample_hit(g, x::Integer, y::Integer)
         n = min(length(s.x), length(s.y))
         s isa ChartScatterSeries && n > g.style.scatter_fold_threshold && continue
         i0, i1 = sorted ? get_visible_range(s.x, g.view.x_min, g.view.x_max) : (1, n)
-        found = find_nearest_sample(s.x, s.y, g.xs, g.ys, x, y, i0, i1;
+        found = find_nearest_sample(s.x, s.y; xs=g.xs, ys=g.ys, px=x, py=y, i0, i1,
                                sorted=sorted, tolerance=_HIT_TOLERANCE)
         found === nothing && continue
         found[2] < best_d && (best_d = found[2]; best = (index, found[1]))

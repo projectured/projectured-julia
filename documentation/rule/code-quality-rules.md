@@ -196,7 +196,74 @@ ever hand-rolled.
 reason to change a sealed file, and a wide sweep is exactly where one gets
 changed by accident. List the sealed files before a sweep and exclude them.
 
-## 4. Size budgets
+## 4. Arguments: three positional, then names
+
+**A function takes at most three positional arguments.** The fourth and every
+one after it takes a name. A name at a call site says what a value is. An order
+says nothing, and a reader can not check it without opening the definition.
+
+**A positional argument is one that the name of the function already names.**
+The subject comes first — the document, the store, the editor — and then at most
+two more that the verb implies. `open_pane!(editor, document)` needs no names. If
+a reader can not say what an argument is from the name of the function, that
+argument takes a name of its own.
+
+**A `Bool` is never positional.** `clip_child_to_slot(…, true, false)` says
+nothing; `clip_x = true, clip_y = false` says everything. A `Symbol` that picks a
+mode takes a name as soon as a second `Symbol` stands beside it, as in
+`orientation = :vertical, side = :right`.
+
+**Two arguments of one type that a caller could swap take a name**, at least one
+of the two: two `PaneGroup`s, three `Vector{Int}`s, a lower and an upper bound.
+
+**Anything that a caller may leave out is a keyword.** A definition takes at most
+one optional positional argument, and never one beside a keyword argument.
+
+**A parameter that arrives later is a keyword.** Every call that exists stays
+valid, and every new call says what the new value is. This half of the rule is
+about change rather than about reading.
+
+**More than five keyword arguments is a type that is missing.** Make the
+geometry, the style or the policy a struct of its own and pass that. A function
+with eight parameters holds a type; a long keyword list spells that type out at
+every call instead.
+
+**A constructor takes what the document is, and names its chrome.** The content,
+the centre and the radius stand positionally; a style, a view state and an option
+take names. `WidgetLabel(position, content; text_style, padding, tooltip)` is the
+shape.
+
+### An exception is written down
+
+Four kinds of signature keep more than three positional arguments. Each one is an
+exception, and an exception says so on the line above the definition:
+
+```julia
+# @positional: the arity of the projection protocol.
+function print_document(projection::JsonToSyntax, recursion, document, ctx)
+```
+
+| Exception | Why |
+| --- | --- |
+| A method of a protocol | The arity is the contract: `print_document`, `read_intent`, `match_reference_step`, `splice_value!`, a method of Base. New information goes into the context that the protocol already carries, and never into a new argument. |
+| A conventional tuple | `x, y, w, h` of a rectangle, `MousePress(button, x, y, modifiers)`, `Inset(top, right, bottom, left)`. One order, everywhere in the repository, and a wrong order fails at once. |
+| A port | A file that mirrors the API of another program keeps the signature of the original, so a reader can hold the two side by side. `source/graph/cpp/` is the whole of this case today. |
+| The painters of a backend | One family of functions of one shape, called from one dispatch table, in `source/sdl/` and `source/pdf/`. The family is read as a whole. |
+
+`test/suite/arguments.jl` is the guard, and `test_arguments()` runs it: a public
+definition over the line fails unless a marker says why it stands. The rule
+arrived after the code, so the guard holds a ledger of the 119 public names that
+were over the line on the day it landed, and the ledger only shrinks — a name
+leaves it with the change that fixes the signature.
+`julia tool/survey-arguments.jl` prints the whole picture, the private helpers
+included.
+
+**The public functions come first.** A private helper inside one file costs one
+reader one file. A public function costs every call site and every caller that
+comes later. [plan/pending/keyword-arguments.md](../../plan/pending/keyword-arguments.md)
+holds the list, the waves and what is deferred.
+
+## 5. Size budgets
 
 | Thing | Today | Budget |
 | --- | --- | --- |
@@ -214,7 +281,7 @@ better as one list.
 
 `asset/precompile/PrecompileStatements.jl` is generated. No rule applies to it.
 
-## 5. The measured baseline
+## 6. The measured baseline
 
 Each number below comes from the command beside it. A number that grows
 without a reason is the signal to look at the file that grew.
@@ -235,6 +302,12 @@ without a reason is the signal to look at the file that grew.
 | Inline field comments | 362 |
 | Files over 500 lines, generated file excluded | 61 |
 | File names that carry a schedule instead of a subject | 0 |
+| Definitions over three positional arguments | 835 of 7158 |
+| Of those: a protocol method, a public function, a private helper | 341, 137, 357 |
+
+The two rows about arguments were measured on 2026-09-22 with `julia
+tool/survey-arguments.jl`, over `source/` and `example/`. Every other row is of
+2026-08-14.
 
 **The 51 was an undercount.** The command behind it looks for eight words. It
 did not see `# Folded in from …`, which is a banner and not a sentence, and
@@ -243,7 +316,7 @@ not 51. The banners are gone, and so are the nineteen word-list
 lines that really were history. 27 still match, 26 of them legitimately. The
 size of the four largest files is the other weak point.
 
-## 6. Where this repository differs from the other two
+## 7. Where this repository differs from the other two
 
 An agent that crosses repositories must not carry a habit over.
 
@@ -253,7 +326,7 @@ An agent that crosses repositories must not carry a habit over.
 | Section banner | heavy, 1451 | 523 and 51 |
 | Requirement prefix | `PAR-`, `PR-` | `OR-`/`OAR-` and `IR-`/`IAR-` |
 
-## 7. How this document is used
+## 8. How this document is used
 
 The code quality steward audits a slice when its plan moves to `plan/done/`. It
 measures first, then reads the files that the plan touched, then writes a reader

@@ -46,4 +46,85 @@ function test_native_window()
     quit_backend!(backend)
 
 end
+
+@testset "a window the reconciler opens is painted before it is shown" begin
+    SDL = ProjecturedSdl
+
+    backend = SdlBackend()
+    initialize_backend!(backend)
+
+    # A window the reconciler opens is made hidden. A window shown before it is
+    # painted holds an undefined back buffer, and the compositor draws that
+    # black.
+    for style in (:default, :tooltip, :floating)
+        held = WindowDocument(; id = :held_window_test, title = "held_window_test",
+                                x = 100, y = 100, width = 200, height = 100,
+                                style = style, content = "content")
+        resource = SDL._open_native_window!(held; hidden = true)
+        @test !SDL._is_native_window_shown(resource)
+        # Painted, then shown. The paint that follows asks for the whole window,
+        # because a driver is free to drop a present made while it is hidden.
+        SDL._show_painted_window!(resource, held)
+        @test SDL._is_native_window_shown(resource)
+        @test resource.first_paint
+        SDL._close_native_window!(resource)
+    end
+
+    canvas = GraphicsCanvas(CellVector(Any[GraphicsRect(10, 10, 60, 20)]), layout_none)
+    window = WindowDocument(; id = :painted_window_test, title = "painted_window_test",
+                              x = 100, y = 100, width = 200, height = 100,
+                              style = :tooltip, content = canvas)
+    screen = ScreenDocument([window])
+
+    # One pass of the reconciler opens the window, paints it and shows it.
+    write_to_devices(backend, Device[Display()], screen)
+    resource = backend.windows[:painted_window_test]
+    @test SDL._is_native_window_shown(resource)
+
+    quit_backend!(backend)
+
+end
+
+@testset "a window with a maximum fits what it printed" begin
+    SDL = ProjecturedSdl
+    fit(canvas_width, canvas_height; minimum_size, maximum_size) = begin
+        window = WindowDocument(; id = :fit_test, title = "fit_test", x = 0, y = 0,
+                                  width = maximum_size[1], height = maximum_size[2],
+                                  minimum_size = minimum_size, maximum_size = maximum_size,
+                                  content = "content")
+        canvas = GraphicsCanvas(CellVector(Any[]), layout_none)
+        canvas.w = Int32(canvas_width)
+        canvas.h = Int32(canvas_height)
+        SDL._fit_window_size!(window, canvas)
+        (window.width, window.height)
+    end
+
+    # What the content needed, between the two bounds.
+    @test fit(150, 40; minimum_size = (120, 32), maximum_size = (560, 400)) == (150, 40)
+    # A content larger than the maximum is cut to it; a smaller one takes the minimum.
+    @test fit(900, 900; minimum_size = (120, 32), maximum_size = (560, 400)) == (560, 400)
+    @test fit(10, 5; minimum_size = (120, 32), maximum_size = (560, 400)) == (120, 32)
+    # A window with no maximum keeps the size it was asked for.
+    fixed = WindowDocument(; id = :fixed_test, title = "fixed_test", x = 0, y = 0,
+                             width = 420, height = 120, content = "content")
+    canvas = GraphicsCanvas(CellVector(Any[]), layout_none)
+    canvas.w = Int32(150)
+    canvas.h = Int32(40)
+    SDL._fit_window_size!(fixed, canvas)
+    @test (fixed.width, fixed.height) == (420, 120)
+end
+
+@testset "such a window stays on the screen, and beside the pointer" begin
+    place = ProjecturedSdl.compute_window_place
+
+    # Inside the work area, wherever it was asked for.
+    @test place(100, 100, 200, 80, 1000, 800, nothing) == (100, 100)
+    # Over the right or the bottom edge: moved in.
+    @test place(900, 100, 200, 80, 1000, 800, nothing) == (800, 100)
+    @test place(100, 780, 200, 80, 1000, 800, nothing) == (100, 720)
+    # A window that would hold the pointer goes to the left of it, and to the
+    # right when there is no room on the left.
+    @test place(900, 100, 200, 80, 1000, 800, (850, 120)) == (642, 100)
+    @test place(0, 100, 200, 80, 1000, 800, (40, 120)) == (48, 100)
+end
 end # test_native_window

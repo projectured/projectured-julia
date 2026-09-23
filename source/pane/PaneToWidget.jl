@@ -617,7 +617,10 @@ end
 
 const _PANE_STRIP_PIXELS = 32
 
-_drag_write(tree, state) = ReplaceReferencedValueOperation(tree, "drag", state)
+# A drag in progress is the pointer's state and not the layout's, so the write is
+# marked and no history records it; the drop is the edit.
+_drag_write(tree, state) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(tree, "drag", state))
 
 function _drag_step(p::PaneTreeToWidget, iomap::PaneTreeToWidgetIoMap, gesture)
     tree = iomap.input
@@ -646,11 +649,12 @@ function _drop_operation(tree::PaneTree, state)
     if orientation === nothing
         # The strip or the middle: the tab moves into the group, at its end.
         source === target && return nothing
-        return make_pane_move_tab_operation(tree, source, index, target,
-                                       length(target.tabs) + 1)
+        return make_pane_move_tab_operation(tree, source; source_index = index, target,
+                                            target_index = length(target.tabs) + 1)
     end
     # The zone names the side the new pane lands on.
-    make_pane_drop_split_operation(tree, source, index, target, orientation, zone)
+    make_pane_drop_split_operation(tree, source; source_index = index, target, orientation,
+                                   side = zone)
 end
 
 # The group and zone under a pointer, or `nothing` when the layout has no

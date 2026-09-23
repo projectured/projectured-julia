@@ -406,6 +406,10 @@ repository it builds in, because that is where `ProjecturedStyle` lives.
 `share/projectured/font` is where `ProjecturedStyle.font_file` looks when the
 compiled-in path is not there, relative to the executable. The two have to agree
 about the name, and this comment and that function are where they say so.
+
+**A font's licence travels with it.** The licence texts beside the fonts (the
+`.txt` files) are copied too: the licences of Lucide and of Noto Emoji ask for
+their notice in every copy, and neither font carries it in its own tables.
 """
 function bundle_fonts!(output::AbstractString)
     source = normpath(joinpath(@__DIR__, "..", "..", "asset", "font"))
@@ -417,7 +421,7 @@ function bundle_fonts!(output::AbstractString)
     target = joinpath(output, "share", "projectured", "font")
     mkpath(target)
     for file in readdir(source)
-        (endswith(file, ".ttf") || endswith(file, ".otf")) || continue
+        any(extension -> endswith(file, extension), (".ttf", ".otf", ".txt")) || continue
         cp(joinpath(source, file), joinpath(target, file); force = true)
     end
     @info "Bundled the fonts" target count = length(readdir(target))

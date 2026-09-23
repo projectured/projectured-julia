@@ -231,7 +231,7 @@ function get_visible_event_range(coordinates, lo::Real, hi::Real)
 end
 
 """
-    get_visible_arrows(coordinates, sources, targets, lo, hi; horizon=0.0) -> Vector{Int}
+    get_visible_arrows(coordinates, sources, targets; lo, hi, horizon=0.0) -> Vector{Int}
 
 Which arrows can affect the window `[lo, hi]`, widened by `horizon`.
 
@@ -243,7 +243,7 @@ would erase the very connection the chart exists to show.
 The scan is linear in the arrow count, which suits this slice's bounded-document
 posture — a chart is windowed upstream before it is printed.
 """
-function get_visible_arrows(coordinates, sources, targets, lo::Real, hi::Real;
+function get_visible_arrows(coordinates, sources, targets; lo::Real, hi::Real,
                         horizon::Real=0.0)
     out = Int[]
     n = min(length(sources), length(targets))
@@ -507,7 +507,7 @@ end
 # ── Decimation ───────────────────────────────────────────────────────────
 
 """
-    decimate_events(coordinates, axes, scale, i0, i1; kinds=nothing, separation=1) -> Vector{Int}
+    decimate_events(coordinates, axes; scale, i0, i1, kinds=nothing, separation=1) -> Vector{Int}
 
 The rows worth drawing in the window: at most one per lane, per kind, per
 `separation` pixels.
@@ -524,7 +524,7 @@ must still show that a timeout happened among the ordinary receives.
 
 Zoomed in far enough that marks no longer touch, nothing is dropped at all.
 """
-function decimate_events(coordinates, axes, scale::AxisScale, i0::Integer, i1::Integer;
+function decimate_events(coordinates, axes; scale::AxisScale, i0::Integer, i1::Integer,
                          kinds=nothing, separation::Integer=1)
     out = Int[]
     i1 >= i0 || return out
@@ -623,7 +623,7 @@ function _span_insert!(spans, lo::Int, hi::Int)
 end
 
 """
-    get_band_intervals(band_times, values, events, event_times, coordinates, lo, hi)
+    get_band_intervals(band_times, values; events, event_times, coordinates, lo, hi)
         -> Vector{(c0, c1, value, index)}
 
 The visible run of a lane's state band, as coordinate intervals.
@@ -638,7 +638,7 @@ stretched. Anchoring a sample to an event row instead skips that conversion, and
 that is the accurate way wherever several events share a time: the raw time
 names the whole zero-time region, while the state changed at one point inside it.
 """
-function get_band_intervals(band_times, values, events, event_times, coordinates,
+function get_band_intervals(band_times, values; events, event_times, coordinates,
                         lo::Real, hi::Real)
     out = Tuple{Float64,Float64,Float64,Int}[]
     n = min(length(band_times), length(values))

@@ -96,6 +96,21 @@ end
     selection::Nothing
 end
 
+# A schema with a parameter of the programmer's own, which IS a field's declared
+# type. The kind constructors name that type, so they take the parameter at the
+# call — `ICDmParametric{Int}(…)`. The bare name stays callable, because the
+# schema's own inferring constructor binds the parameter from the argument.
+@document struct DmParametric{A}
+    value::A
+end
+
+# A schema whose parameter appears only INSIDE a field's type, the way
+# `SequentialEngine{A}` holds an `EventHeap{A}`. Nothing binds it from an
+# argument, so every generated constructor takes it at the call.
+@document struct DmNested{A}
+    box::Tuple{A}
+end
+
 # How many methods of `T` take exactly `n` positional arguments, of which the one
 # in `slot` is an `AbstractVector`? Rule C's bracketed form for a struct whose
 # collection sits at field `slot` has exactly this shape, and the duplicate-method
@@ -177,6 +192,36 @@ end
     @test ICDmRuleY(1, 2, "z", true, nothing).a == 1
     # The kind aliases do get the keyword ctor, which does fill defaults in.
     @test ICDmRuleY(a = 1, b = 2).c == "c"
+end
+
+@testset "a schema with a parameter takes it in its kind ctors" begin
+    # Without the parameter on the head, the body's `ImmutableCell{A}` names a
+    # global no module has, and the call throws `UndefVarError: A`.
+    node = ICDmParametric{Int}(3, nothing)
+    @test node isa ICDmParametric{Int}
+    @test node.value == 3
+    @test getfield(node, :value) isa ImmutableCell{Int}
+    @test MCDmParametric{Int}(3, nothing) isa MCDmParametric{Int}
+    # The declared value types mention the parameter too, so that method takes
+    # it from the type. Asked about the bare name, which is what a copy does,
+    # it answers `nothing` and the copy reads the source's own field types.
+    types = DocumentModule._declared_value_types(DmParametric{Int})
+    @test types isa Tuple && first(types) === Int
+    @test DocumentModule._declared_value_types(DmParametric) === nothing
+    # Rule Y fills the trailing defaults — here the injected `selection` — and
+    # the bare name reaches it, because `value` binds the parameter.
+    short = DmParametric(3)
+    @test short.value == 3 && short.selection === nothing
+end
+
+@testset "a parameter no field's type is, is taken at every call" begin
+    # Nothing binds `A` from an argument here, so the bare name is not callable
+    # and each generated constructor carries the parameter: the kind ctors, and
+    # Rule Y, which fills the injected `selection`.
+    node = ICDmNested{Int}((3,), nothing)
+    @test node isa ICDmNested{Int} && node.box === (3,)
+    short = DmNested{Int}((3,))
+    @test short.box === (3,) && short.selection === nothing
 end
 
 @testset "the layout registry answers for every variant" begin

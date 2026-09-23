@@ -8,11 +8,15 @@ _stub(t, f) = (max(1, length(t)) * 10, 24)
 _proj() = make_widget_projection_example(measure=_stub)
 _szs(doc) = isempty(doc.sizes) ? Int[] : [Int(doc.sizes[i]) for i in 1:length(doc.sizes)]
 
-# Feed an event through the pipeline and evaluate any resulting operation.
+# The operation a drag answers, without the view-state mark it carries.
+_unmark(op) = op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op
+
+# Feed an event through the pipeline, evaluate any resulting operation, and
+# answer it without its mark.
 function _feed(proj, iomap, evt)
     op = read_intent(proj, iomap, evt)
     op isa Operation && evaluate_operation(nothing, op)
-    op
+    _unmark(op)
 end
 
 @testset "unconstrained: down/move/up resizes adjacent slots, total conserved" begin
@@ -21,6 +25,9 @@ end
     iomap = print_document(proj, doc)
 
     # The lone splitter sits in the ~1px gap before the second child (x≈300).
+    # A drag is view state: a history records none of its three operations.
+    @test read_intent(proj, iomap, MouseDown(:left, 300, 50, ModifierKeys())) isa
+          ReplaceViewStateOperation
     down = _feed(proj, iomap, MouseDown(:left, 300, 50, ModifierKeys()))
     @test down isa StartSplitterDragOperation
     @test down.split === doc
@@ -50,7 +57,7 @@ end
     proj  = _proj()
     iomap = print_document(proj, doc)
     # Well inside the left slot, far from the x≈300 splitter band.
-    op = read_intent(proj, iomap, MouseDown(:left, 100, 50, ModifierKeys()))
+    op = _unmark(read_intent(proj, iomap, MouseDown(:left, 100, 50, ModifierKeys())))
     @test !(op isa StartSplitterDragOperation)
     @test doc.active_splitter == 0
 end
@@ -59,7 +66,7 @@ end
     doc   = make_widget_split_pane_document_example()
     proj  = _proj()
     iomap = print_document(proj, doc)
-    op = read_intent(proj, iomap, MouseMove(350, 50, :left, ModifierKeys()))
+    op = _unmark(read_intent(proj, iomap, MouseMove(350, 50, :left, ModifierKeys())))
     @test !(op isa ResizeSplitPaneOperation)
     @test _szs(doc) == [300, 300]
 end
@@ -124,7 +131,8 @@ end
     # The splitter is drawn at slot1 (150px) plus the tab strip offset, i.e.
     # well below screen-y 150. Find where a MouseDown actually starts the drag.
     starts = [y for y in 0:400
-              if read_intent(proj, iomap, MouseDown(:left, 40, y, ModifierKeys())) isa StartSplitterDragOperation]
+              if _unmark(read_intent(proj, iomap, MouseDown(:left, 40, y, ModifierKeys()))) isa
+                 StartSplitterDragOperation]
     @test !isempty(starts)
     @test first(starts) > 150   # grab region sits at the drawn splitter, not at column-local 150
 

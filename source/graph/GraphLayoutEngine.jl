@@ -255,7 +255,7 @@ function get_straight_routes(graph::GraphGraph, positions::Dict)
 end
 
 """
-    get_extent_transform(cx, cy, widths, heights, indices, extent, border)
+    get_extent_transform(cx, cy; widths, heights, indices, extent, border)
         -> (fx, fy, x1, y1, ox, oy) or nothing
 
 The affine that maps the placement of `indices` onto `extent` inset by `border`:
@@ -270,7 +270,7 @@ here without any engine doing anything about it.
 The two axes scale apart, so a graph asked to fill a wide box becomes wide. That
 is also the behaviour of the original: it computes `xfact` and `yfact` separately.
 """
-function get_extent_transform(cx, cy, widths, heights, indices, extent, border::Real)
+function get_extent_transform(cx, cy; widths, heights, indices, extent, border::Real)
     isempty(indices) && return nothing
     available_w = Float64(extent[1]) - 2*border
     available_h = Float64(extent[2]) - 2*border
@@ -289,14 +289,14 @@ function get_extent_transform(cx, cy, widths, heights, indices, extent, border::
 end
 
 """
-    fit_into_extent!(cx, cy, widths, heights, indices, extent, border) -> transform
+    fit_into_extent!(cx, cy; widths, heights, indices, extent, border) -> transform
 
 Apply [`get_extent_transform`](@ref) to the centres in place, and return it so a
 caller can apply the same map to whatever else lives in those coordinates — a
 routed edge, for one.
 """
-function fit_into_extent!(cx, cy, widths, heights, indices, extent, border::Real)
-    transform = get_extent_transform(cx, cy, widths, heights, indices, extent, border)
+function fit_into_extent!(cx, cy; widths, heights, indices, extent, border::Real)
+    transform = get_extent_transform(cx, cy; widths, heights, indices, extent, border)
     transform === nothing && return nothing
     fx, fy, x1, y1, ox, oy = transform
     for i in indices
@@ -447,7 +447,7 @@ function layout_graph(engine::GridEmbedding, graph::GraphGraph, sizes::Dict,
         _place_on_grid!(cx, cy, free, widths, heights, engine, extent, border)
     end
     extent === nothing ||
-        fit_into_extent!(cx, cy, widths, heights, free, extent, border)
+        fit_into_extent!(cx, cy; widths, heights, indices=free, extent, border)
 
     # A pin is placed last and verbatim, so no scaling or centring can move it.
     for i in 1:n

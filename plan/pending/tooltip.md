@@ -115,6 +115,17 @@ isn't:
 
 Plus tests covering both cases in [TooltipTest.jl](../../test/substrate/projection/TooltipTest.jl).
 
+**The probe's delay is a deadline, 2026-09-22.** A resting pointer sends no event,
+so a delay that checks `time()` when an event arrives can not open a tooltip
+after a rest. `TooltipFeed` names the last move plus the delay as a deadline, the
+editor's loop sleeps until it, and at the deadline the feed reads a `PointerRest`
+through the projection. `test_tooltip_feed()` tests it with an injected clock: no
+deadline before a move, the delay after one, a new move moves it, the opening at
+it, a move away closes, and no deadline while a tooltip is shown. See
+[hover-drag-and-tooltip-share-the-pointer.md](../done/hover-drag-and-tooltip-share-the-pointer.md).
+The decorator's `delay_ms` still checks the time on an event, and the two
+triggers above are still not tested.
+
 ## Step 7 (cont.) — Additional example tooltips
 
 **⏳ OPEN (verified):** grep for type/error/documentation tooltip content in

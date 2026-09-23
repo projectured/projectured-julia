@@ -94,7 +94,7 @@ is_descendable_for_sync(p::DepthPolicy, depth::Int, slot) =
                                         depth <= p.depth
 
 """
-    sync_element_limit(policy, total, shown, requested) -> Int
+    sync_element_limit(policy, total; shown, requested) -> Int
 
 How many of a collection's `total` elements to materialise, given how many are
 `shown` there now and whether the tail marker has been `requested`. Returning
@@ -104,9 +104,9 @@ Same shape as [`is_descendable_for_sync`](@ref) and for the same reason: what is
 already shown stays shown, and a request buys one more page rather than the whole
 tail.
 """
-sync_element_limit(::SyncPolicy, total::Int, shown::Int, requested::Bool) = total
+sync_element_limit(::SyncPolicy, total::Int; shown::Int, requested::Bool) = total
 
-function sync_element_limit(p::DepthPolicy, total::Int, shown::Int, requested::Bool)
+function sync_element_limit(p::DepthPolicy, total::Int; shown::Int, requested::Bool)
     limit = max(p.elements, shown)
     requested && (limit += p.elements)
     min(limit, total)

@@ -118,7 +118,7 @@ function test_plot_geometry()
             xs = PlotModule.AxisScale(0.0, 1.0, 0.0, width)
             ys = PlotModule.AxisScale(-1.0, 1.0, 200.0, 0.0)
 
-            pts = PlotModule.decimate_minmax(x, y, xs, ys, 1, n)
+            pts = PlotModule.decimate_minmax(x, y; xs, ys, i0=1, i1=n)
             # Bounded by pixels, not by data: at most four points per column.
             @test length(pts) <= 4 * (width + 2)
             @test length(pts) < n ÷ 10
@@ -145,8 +145,8 @@ function test_plot_geometry()
 
             # Non-finite samples are skipped, not mapped to garbage pixels.
             y2 = copy(y); y2[10] = NaN; y2[20] = Inf
-            @test !isempty(PlotModule.decimate_minmax(x, y2, xs, ys, 1, n))
-            @test isempty(PlotModule.decimate_minmax(x, y, xs, ys, 5, 4))
+            @test !isempty(PlotModule.decimate_minmax(x, y2; xs, ys, i0=1, i1=n))
+            @test isempty(PlotModule.decimate_minmax(x, y; xs, ys, i0=5, i1=4))
         end
 
         @testset "step and pins" begin
@@ -170,7 +170,7 @@ function test_plot_geometry()
             x = rand(n); y = rand(n)
             xs = PlotModule.AxisScale(0.0, 1.0, 0.0, 200.0)
             ys = PlotModule.AxisScale(0.0, 1.0, 200.0, 0.0)
-            bands = PlotModule.fold_scatter(x, y, xs, ys, 4, 1, n)
+            bands = PlotModule.fold_scatter(x, y; xs, ys, cell_px=4, i0=1, i1=n)
             # Bounded by the plot area, and merging equally-dense neighbours
             # brings it well under one band per grid cell.
             @test !isempty(bands)
@@ -262,12 +262,12 @@ function test_plot_geometry()
 
             vals = [1.0, 2.0, 3.0, 4.0]
             edges = [0.0, 1.0, 2.0, 3.0, 4.0]
-            @test PlotModule.compute_histogram_values(edges, vals, false, false) == vals
-            cum = PlotModule.compute_histogram_values(edges, vals, true, false)
+            @test PlotModule.compute_histogram_values(edges, vals; cumulative=false, density=false) == vals
+            cum = PlotModule.compute_histogram_values(edges, vals; cumulative=true, density=false)
             @test cum == [1.0, 3.0, 6.0, 10.0]
-            cdf = PlotModule.compute_histogram_values(edges, vals, true, true)
+            cdf = PlotModule.compute_histogram_values(edges, vals; cumulative=true, density=true)
             @test cdf[end] ≈ 1.0 && issorted(cdf)
-            pdf = PlotModule.compute_histogram_values(edges, vals, false, true)
+            pdf = PlotModule.compute_histogram_values(edges, vals; cumulative=false, density=true)
             @test sum(pdf) ≈ 1.0    # unit bin widths, so the density sums to 1
         end
     end

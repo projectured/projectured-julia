@@ -87,3 +87,59 @@ function test_widget_shell_layout()
     end
 end
 end
+
+# The pointer inside a shell: a down and an up reach the band under the pointer in
+# that band's frame, and a drag keeps the band it started in until the release.
+function test_widget_shell_pointer()
+@testset "a shell hands the pointer to its bands" begin
+    line = font_logical_size(font_ubuntu_regular_20)
+    det = (t, f) -> (length(t) * 8, line)
+    rec = RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
+    offer(w, h) = with_available_size(PrinterContext();
+                                      width = Cell(Int32(w)), height = Cell(Int32(h)))
+    # A menu bar and a toolbar above the content, so the content's frame starts
+    # well below the window's: a down that kept window coordinates would miss.
+    framed(content) = WidgetShell(content;
+        menu_bar = WidgetMenu(Any[WidgetMenuItem("File")]; orientation = :horizontal),
+        toolbar = WidgetToolbar(Any[WidgetMenuItem("New tab")]),
+        status_bar = WidgetStatusBar(Any["ready"]))
+    # A drag is view state, so its operations come marked.
+    _unmark(op) = op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op
+
+    @testset "a down on a tab starts a drag of that tab" begin
+        tabs = WidgetTabbedPane(Any[("One", WidgetLabel(Point2D(0, 0), "first")),
+                                    ("Two", WidgetLabel(Point2D(0, 0), "second"))];
+                                draggable = true)
+        iomap = print_document(rec, nothing, framed(tabs), offer(800, 600))
+        texts, _ = _shell_layout_walk(iomap.output)
+        (_, x, y) = only(t for t in texts if t[1] == "Two")
+        operation = read_intent(rec, iomap, MouseDown(:left, x + 2, y + 2))
+        @test operation isa DragTabOperation
+        @test operation.tab_index == 2
+    end
+
+    @testset "a divider drag keeps its band over the status line" begin
+        split = WidgetSplitPane(:horizontal, Any[WidgetLabel(Point2D(0, 0), "left"),
+                                                 WidgetLabel(Point2D(0, 0), "right")];
+                                sizes = [300, 300])
+        iomap = print_document(rec, nothing, framed(split), offer(800, 600))
+        # The divider: the first point at mid-height where a down grabs it.
+        grab = nothing
+        for x in 0:799
+            operation = read_intent(rec, iomap, MouseDown(:left, x, 300))
+            _unmark(operation) isa StartSplitterDragOperation && (grab = (x, operation); break)
+        end
+        @test grab !== nothing
+        (x, operation) = grab
+        evaluate_operation(nothing, operation)
+        # The pointer moves on over the status line with the button held: the
+        # divider still follows, and the release still ends the drag.
+        moved = read_intent(rec, iomap, MouseMove(x + 40, 600 - line ÷ 2, :left, ModifierKeys()))
+        @test _unmark(moved) isa ResizeSplitPaneOperation
+        released = read_intent(rec, iomap, MouseUp(:left, x + 40, 600 - line ÷ 2))
+        @test _unmark(released) isa EndSplitterDragOperation
+    end
+end
+end

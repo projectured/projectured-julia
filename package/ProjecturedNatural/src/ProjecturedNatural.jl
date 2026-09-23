@@ -18,6 +18,7 @@ module ProjecturedNatural
 using ProjecturedCollection
 using ProjecturedKernel
 using ProjecturedDomain
+using ProjecturedGraphics
 using ProjecturedLayout
 using ProjecturedPrimitive
 using ProjecturedProjection
@@ -26,6 +27,7 @@ using ProjecturedText
 using ProjecturedWidget
 
 const StyleModule = ProjecturedStyle.StyleModule
+const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule

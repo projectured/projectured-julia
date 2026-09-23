@@ -111,7 +111,7 @@ make_window_toolbar(; assistant = nothing, explorer = nothing, extra = []) =
                                       tooltip = "Assistant: ask a model about what this window shows",
                                       make = assistant),))...,
         make_window_tool_command("Evaluator", EvaluatorToplevel; icon = :terminal,
-                                 tooltip = "Evaluator: type Julia, and Alt+Enter evaluates it"),
+                                 tooltip = "Evaluator: type Julia, and Enter evaluates it"),
         make_window_tool_command("Message log", MessageLog; icon = :list,
                                  tooltip = "Message log: what the program said in this session"),
         make_window_tool_command("Gesture log", GestureLog; icon = :keyboard,
@@ -193,7 +193,10 @@ make_window_tool_command(label, type::Type; icon = nothing, tooltip = nothing,
                          make = _make_default_tool(type)) =
     WidgetToolbarItem(label; action = Action(label; icon = icon,
                                              callback = editor -> _reach_tool!(editor, type, make)),
-                             tooltip = tooltip)
+                             tooltip = tooltip,
+                             # Room around the picture: the buttons stand apart,
+                             # and the hover surface is larger than the glyph.
+                             padding = Inset(4, 4, 4, 4))
 
 _make_default_tool(type::Type) = _ -> make_insertion_document(type)
 
@@ -263,9 +266,9 @@ function _split!(editor, orientation::Symbol)
     tree === nothing && return nothing
     group = get_pane_focused_group(tree)
     group === nothing && return nothing
-    apply_pane_operation!(tree, make_pane_split_operation(tree, group, orientation,
-                                                          orientation === :vertical ? :right : :below,
-                                                          default_new_pane_tab()))
+    apply_pane_operation!(tree, make_pane_split_operation(tree, group; orientation,
+                                                          side = orientation === :vertical ? :right : :below,
+                                                          tab = default_new_pane_tab()))
     nothing
 end
 

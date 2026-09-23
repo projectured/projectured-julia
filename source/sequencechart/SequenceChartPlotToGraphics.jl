@@ -218,7 +218,7 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
     events = chart.events
     arrows = chart.arrows
     i0, i1 = get_visible_event_range(coordinates, lo, hi)
-    visible_events = decimate_events(coordinates, events.axes, scale, i0, i1;
+    visible_events = decimate_events(coordinates, events.axes; scale, i0, i1,
                                      kinds=events.kinds,
                                      separation=max(style.event_radius, 1))
     # Only events whose kind is switched on, and whose lane exists.
@@ -227,7 +227,7 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
 
     horizon = abs(flow_hi - flow_lo) * max(style.split_horizon_viewports, 1)
     horizon_coordinates = horizon / max(abs(scale.p1 - scale.p0), 1) * (hi - lo)
-    candidates = get_visible_arrows(coordinates, arrows.sources, arrows.targets, lo, hi;
+    candidates = get_visible_arrows(coordinates, arrows.sources, arrows.targets; lo, hi,
                                 horizon=horizon_coordinates)
     shapes = _arrow_shapes(chart, events, arrows, coordinates, scale, lane_of,
                            candidates, horizon, style)
@@ -326,8 +326,8 @@ function _band_shapes(chart, order, lane_of, times, coordinates, lo, hi)
         cross = lane_of[identity]
         for j in 1:length(axis.bands)
             band = axis.bands[j]
-            intervals = get_band_intervals(band.times, band.values, band.events,
-                                       times, coordinates, lo, hi)
+            intervals = get_band_intervals(band.times, band.values; events=band.events,
+                                       event_times=times, coordinates, lo, hi)
             isempty(intervals) && continue
             push!(out, (; axis=identity, band=j, cross, intervals, document=band))
         end
@@ -754,7 +754,7 @@ function _event_ring!(out, g, row::Integer, color)
     radius = g.style.event_radius + 4
     # Transparent fill, so the mark underneath still shows through the ring.
     push!(out, GraphicsCircle(round(Int, x), round(Int, y), radius,
-                              StyleColor(0.0, 0.0, 0.0, 0.0);
+                              color_transparent;
                               border_width=2, border_color=color))
     out
 end

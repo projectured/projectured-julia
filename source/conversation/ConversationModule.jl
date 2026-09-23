@@ -52,13 +52,14 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 
 export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label,
        get_evaluation_title, get_evaluation_section_labels, make_evaluator_arguments_text,
-       ToggleEvaluatorSectionOperation, EvaluateSelectedFormOperation
+       ToggleEvaluatorSectionOperation, EvaluateSelectedFormOperation,
+       RecallEvaluatorFormOperation
 export ConversationDocument, make_conversation_thinking_part
 export ConversationConversationToWidgetComposite,
        ConversationTurnToWidgetComposite,
        ConversationPartToWidget,
        ConversationToWidget, compute_transcript_walk
-export EvaluatorFormToWidgetCard, EvaluatorToplevelToWidgetComposite
+export EvaluatorFormToVerticalLayout, EvaluatorToplevelToWidgetComposite
 export ConversationComposerToWidget, read_composer_gesture, resolve_composer_host_operation,
        finalize_draft!, make_conversation_draft, reset_draft!, sync_draft_selection!,
        make_draft_caret_reference,

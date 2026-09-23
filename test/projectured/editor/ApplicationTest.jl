@@ -95,6 +95,25 @@ function _app_drawn_at(node, ox = 0, oy = 0, found = Tuple{String,Int,Int}[])
     found
 end
 
+# Every live caret a printed window draws, at its position in the window. A text
+# layer draws its caret as a black rectangle two pixels wide, and a caret the
+# keyboard is not on in a muted color.
+function _app_drawn_carets(node, ox = 0, oy = 0, found = Tuple{Int,Int}[])
+    node = _app_value(node)
+    node === nothing && return found
+    x = hasproperty(node, :x) ? ox + Int(_app_value(node.x)) : ox
+    y = hasproperty(node, :y) ? oy + Int(_app_value(node.y)) : oy
+    if node isa GraphicsRect
+        _app_value(node.w) == 2 && _app_value(node.h) > 0 &&
+            _app_value(node.color) == color_black && push!(found, (x, y))
+    elseif hasproperty(node, :elements)
+        foreach(element -> _app_drawn_carets(element, x, y, found), _app_value(node.elements))
+    elseif hasproperty(node, :content)
+        _app_drawn_carets(node.content, x, y, found)
+    end
+    found
+end
+
 # The first height at which a double click on the navigator opens a file, and
 # the operation it makes. The navigator is the leftmost part of the window.
 function _app_find_file_row(composed, iomap)
@@ -320,42 +339,117 @@ function test_application()
                 end
             end
 
-            @testset "the Evaluator button opens an evaluator, and Alt+Enter evaluates what is typed" begin
+            @testset "the Evaluator button opens an evaluator, and Enter evaluates what is typed" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 # A real editor, because an evaluation reads the tools of the editor.
+                # The iomap stands, as it does in a live editor, so what is drawn
+                # is what the cells follow and not what a fresh print shows.
                 editor = Editor(ConsoleBackend(), scene, composed,
                                 Device[Display(), Keyboard(), Mouse()])
                 editor.iomap = iomap
                 press!(event) = begin
                     operation = _app_fire(composed, editor.iomap, event)
                     operation isa Operation && evaluate_operation(editor, operation)
-                    editor.iomap = print_document(composed, scene)
                     operation
                 end
                 drawn() = _app_drawn_strings(get_iomap_output(editor.iomap).windows[1].content)
+                drawn_at() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
+                carets() = _app_drawn_carets(get_iomap_output(editor.iomap).windows[1].content)
+                y_of(word) = only(y for (text, _, y) in drawn_at() if text == word)
                 toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
                 button = only(item for item in toolbar.elements
                               if string(item.action.label) == "Evaluator")
                 evaluate_operation(editor, InvokeActionOperation(button.action))
-                editor.iomap = print_document(composed, scene)
                 (group, index) = get_pane_focus(_app_window(document))
                 evaluator = get_wrapped_document(group.tabs[index].content)
                 @test evaluator isa EvaluatorToplevel
-                # The tab draws the two sections of the form, and not the canvas
-                # of the form as a tree of its fields.
-                form_label, result_label = get_evaluation_section_labels(evaluator.elements[1])
-                @test form_label in drawn() && result_label in drawn()
+                # The tab draws the prompt of the form, and not the canvas of the
+                # form as a tree of its fields.
+                @test ">" in drawn() && !("=" in drawn())
                 @test !any(text -> occursin("GraphicsCanvas", text), drawn())
-                # The keys reach the form, and Alt+Enter reaches the editor.
+                # The keys reach the form, and Enter reaches the editor.
                 for character in "1 + 41"
                     press!(KeyPress(character))
                 end
                 @test evaluator.elements[1].form.value == "1 + 41"
                 @test !any(text -> occursin("42", text), drawn())
-                @test _app_plain(press!(KeyDown(:return, ModifierKeys(alt = true)))) isa
+                @test _app_plain(press!(KeyDown(:return, ModifierKeys()))) isa
                       EvaluateSelectedFormOperation
                 @test length(evaluator.elements) == 2
-                @test any(text -> occursin("42", text), drawn())
+                # One caret, and it is in the fresh form below the result: the
+                # form that was evaluated shows none.
+                @test "42" in drawn()
+                @test length(carets()) == 1
+                @test only(carets())[2] > y_of("42")
+                # Shift+Enter breaks the line, and Enter evaluates both lines.
+                for character in "x = 1"
+                    press!(KeyPress(character))
+                end
+                press!(KeyDown(:return, ModifierKeys(shift = true)))
+                for character in "x + 1"
+                    press!(KeyPress(character))
+                end
+                @test evaluator.elements[2].form.value == "x = 1\nx + 1"
+                @test length(evaluator.elements) == 2
+                @test y_of("x + 1") > y_of("x = 1")
+                press!(KeyDown(:return, ModifierKeys()))
+                @test length(evaluator.elements) == 3
+                @test "2" in drawn()
+                @test length(carets()) == 1
+                @test only(carets())[2] > y_of("2")
+                # The prompts stand in one column. The second line of the code and
+                # the result stand right of it, where the code starts.
+                x_of(word) = only(x for (text, x, _) in drawn_at() if text == word)
+                prompts_x = unique(x for (text, x, _) in drawn_at() if text in (">", "="))
+                @test length(prompts_x) == 1
+                @test x_of("x + 1") == x_of("x = 1") == x_of("2") > only(prompts_x)
+            end
+
+            @testset "Up and Down in the evaluator recall its history through the window" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                editor = Editor(ConsoleBackend(), scene, composed,
+                                Device[Display(), Keyboard(), Mouse()])
+                editor.iomap = iomap
+                press!(event) = begin
+                    operation = _app_fire(composed, editor.iomap, event)
+                    operation isa Operation && evaluate_operation(editor, operation)
+                    operation
+                end
+                key(name; modifiers...) = KeyDown(name, ModifierKeys(; modifiers...))
+                type!(text) = foreach(character -> press!(KeyPress(character)), text)
+                toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
+                button = only(item for item in toolbar.elements
+                              if string(item.action.label) == "Evaluator")
+                evaluate_operation(editor, InvokeActionOperation(button.action))
+                (group, index) = get_pane_focus(_app_window(document))
+                evaluator = get_wrapped_document(group.tabs[index].content)
+                shown() = evaluator.elements[length(evaluator.elements)].form.value
+                caret() = last(get_reference_steps(strip_reference_types(evaluator.selection)))
+                type!("a = 1")
+                press!(key(:return))
+                type!("b = 2")
+                press!(key(:return; shift = true))
+                type!("b + 1")
+                press!(key(:return))
+                @test length(evaluator.elements) == 3
+                # Up recalls the newest form, with the caret at the end of its
+                # second line.
+                press!(key(:up))
+                @test shown() == "b = 2\nb + 1"
+                @test caret() == RangeReferenceStep(11, 11)
+                # On the second line, Up moves the caret to the first line.
+                press!(key(:up))
+                @test shown() == "b = 2\nb + 1"
+                @test caret().start < 6
+                # On the first line, Up goes further back.
+                press!(key(:up))
+                @test shown() == "a = 1"
+                press!(key(:down))
+                @test shown() == "b = 2\nb + 1"
+                press!(key(:down))
+                @test shown() == ""
+                # The forms above keep their code.
+                @test [evaluator.elements[i].form.value for i in 1:2] == ["a = 1", "b = 2\nb + 1"]
             end
 
             @testset "a closed assistant and a closed navigator come back as they were" begin
@@ -408,7 +502,8 @@ function test_application()
             @testset "a press on the picture opens the tool, and the pointer at rest names it" begin
                 document, projection = make_application_window(paths[1:1]; root = dir,
                                                                assistant = nothing,
-                                                               pointer = () -> (300, 400))
+                                                               pointer = () -> (300, 400),
+                                                               tooltip_feed = make_tooltip_feed())
                 scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
                 composed = make_window_scene_projection(projection;
                     opened_window_projections = make_opened_window_projections(;
@@ -436,10 +531,16 @@ function test_application()
                             [tab for group in get_pane_groups(tree) for tab in group.tabs]) == 1
 
                 # The pointer at rest on the picture opens a window of its own
-                # that says the name of the tool and what it shows.
+                # that says the name of the tool and what it shows. A move only
+                # says where the pointer is; the rest is what the window's feed
+                # reads once the delay has passed.
                 before = length(scene.windows)
                 read_intent(composed, nothing,
                             Intent(WindowInput(:ProjecturEd, MouseMove(x, y))),
+                            print_document(composed, scene))
+                @test length(scene.windows) == before
+                read_intent(composed, nothing,
+                            Intent(WindowInput(:ProjecturEd, PointerRest(x, y))),
                             print_document(composed, scene))
                 @test length(scene.windows) == before + 1
                 tip = last(scene.windows)
@@ -447,6 +548,84 @@ function test_application()
                 output = print_document(composed, scene).output
                 @test any(text -> startswith(text, "Message log:"),
                           _app_drawn_strings(output.windows[end].content))
+                # The window says its bounds and is printed at its maximum, so
+                # what it holds fits: a name of one line needs neither the whole
+                # width nor the whole height a tooltip may take.
+                @test tip.maximum_size == (560, 400)
+                @test tip.minimum_size == (120, 32)
+                canvas = output.windows[end].content
+                canvas = canvas isa Cell ? canvas[] : canvas
+                @test 0 < Int(canvas.w[]) < tip.maximum_size[1]
+                @test 0 < Int(canvas.h[]) < tip.maximum_size[2]
+            end
+
+            @testset "with the tooltip on, the pointer drags, lights, and leaves no history" begin
+                # The window as the binary opens it: a pointer and a feed, so the
+                # tooltip's probe sits over everything and must pass the pointer on.
+                document, projection = make_application_window(paths[1:1]; root = dir,
+                    assistant = nothing, pointer = () -> (0, 0),
+                    tooltip_feed = make_tooltip_feed())
+                scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
+                composed = make_window_scene_projection(projection;
+                    opened_window_projections = make_opened_window_projections(),
+                    screen_wrap = make_popup_screen_wrap())
+                # One print, kept, as the editor keeps it: a divider holds its drag
+                # on the widget the print made, and a second print makes another.
+                io = print_document(composed, scene)
+                editor = _AppFakeEditor(scene, io)
+                fire(event) = _app_fire(composed, io, event)
+                apply(operation) = operation isa Operation && evaluate_operation(editor, operation)
+                holds(operation, T) = operation isa T ||
+                    (operation isa CompoundOperation && any(o -> holds(o, T), operation.operations)) ||
+                    (operation isa WrappingOperation && holds(get_wrapped_operation(operation), T))
+                history = document
+                while !(history isa UndoBuffer) && hasproperty(history, :content)
+                    history = history.content
+                end
+                steps() = length(history.undo_entries)
+                tree = _app_window(document)
+                held(x, y) = MouseMove(x, y, :left, ModifierKeys())
+
+                # A row of the navigator lights up, and the history does not grow.
+                y, _ = _app_find_file_row(composed, io)
+                before = steps()
+                lit = fire(MouseMove(100, y))
+                @test holds(lit, ReplaceViewStateOperation)
+                apply(lit)
+                apply(fire(MouseMove(100, y + 40)))
+                @test steps() == before
+
+                # The divider between the navigator and the files follows the
+                # pointer, and the history does not grow: a drag is view state.
+                weights() = [Float64(w) for w in tree.root.weights]
+                grab = findfirst(x -> holds(fire(MouseDown(:left, x, 500)),
+                                            StartSplitterDragOperation), 280:360)
+                @test grab !== nothing
+                x = (280:360)[grab]
+                recorded = steps()
+                apply(fire(MouseDown(:left, x, 500)))
+                before = weights()
+                apply(fire(held(x + 80, 500)))
+                apply(fire(held(x + 40, 500)))
+                apply(fire(MouseUp(:left, x + 40, 500)))
+                @test weights() != before
+                @test steps() == recorded
+
+                # The file's tab — the one the window opened on — drags into the
+                # navigator's group.
+                groups = get_pane_groups(tree)
+                files = groups[end]
+                (tx, ty) = last(sort([(x, y) for (text, x, y) in
+                                      _app_drawn_at(io.output.windows[1].content)
+                                      if text == "a.json"]))
+                apply(fire(MouseDown(:left, tx + 4, ty + 4)))
+                for (mx, my) in ((tx - 100, 500), (400, 500), (160, 500))
+                    apply(fire(held(mx, my)))
+                end
+                apply(fire(MouseUp(:left, 160, 500)))
+                title(tab) = get_pane_tab_title_string(tab)
+                @test !any(tab -> title(tab) == "a.json", files.tabs)
+                @test any(tab -> title(tab) == "a.json", groups[1].tabs)
             end
 
             @testset "the navigator opens a file beside the files" begin

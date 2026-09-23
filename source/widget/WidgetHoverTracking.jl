@@ -143,6 +143,9 @@ end
 # write) carries its target widget as the root `.document`.
 function _target_of(op)
     op === nothing && return nothing
+    # A history around the widget records its answer, and a hover write is marked
+    # as view state: the widget is inside either wrapper.
+    op isa WrappingOperation && return _target_of(get_wrapped_operation(op))
     op isa ReplaceReferencedValueOperation && return op.document
     hasproperty(op, :widget) ? op.widget : nothing
 end

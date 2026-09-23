@@ -127,7 +127,7 @@ function test_editor_feeds()
     @testset "a recorded fault wakes the editor" begin
         editor = _feed_editor()
         Threads.atomic_xchg!(editor.wake_pending, false)
-        record_fault!(editor.faults, :print, :Probe, nothing, ErrorException("e"))
+        record_fault!(editor.faults, :print; origin = :Probe, exception = ErrorException("e"))
         @test editor.wake_pending[]
     end
 end

@@ -29,7 +29,8 @@ function test_fault_store()
     @testset "one bug at three thousand nodes is one record" begin
         store = FaultStore()
         for index in 1:3000
-            record_fault!(store, :print, :SyntaxToText, nothing, BoundsError([1], index))
+            record_fault!(store, :print; origin = :SyntaxToText,
+                          exception = BoundsError([1], index))
         end
         records = get_fault_records(store)
         @test length(records) == 1
@@ -41,22 +42,23 @@ function test_fault_store()
 
     @testset "a different exception in the same place is a different fault" begin
         store = FaultStore()
-        record_fault!(store, :print, :SyntaxToText, nothing, BoundsError([1], 1))
-        record_fault!(store, :print, :SyntaxToText, nothing, ErrorException("other"))
+        record_fault!(store, :print; origin = :SyntaxToText, exception = BoundsError([1], 1))
+        record_fault!(store, :print; origin = :SyntaxToText, exception = ErrorException("other"))
         @test length(get_fault_records(store)) == 2
     end
 
     @testset "the same exception in a different place is a different fault" begin
         store = FaultStore()
-        record_fault!(store, :print, :SyntaxToText, nothing, ErrorException("x"))
-        record_fault!(store, :read, :SyntaxToText, nothing, ErrorException("x"))
+        record_fault!(store, :print; origin = :SyntaxToText, exception = ErrorException("x"))
+        record_fault!(store, :read; origin = :SyntaxToText, exception = ErrorException("x"))
         @test length(get_fault_records(store)) == 2
     end
 
     @testset "the store is bounded and says what it dropped" begin
         store = FaultStore(capacity = 3)
         for index in 1:10
-            record_fault!(store, :print, Symbol("P", index), nothing, ErrorException("e"))
+            record_fault!(store, :print; origin = Symbol("P", index),
+                          exception = ErrorException("e"))
         end
         @test length(get_fault_records(store)) == 3
         @test store.dropped == 7
@@ -67,7 +69,7 @@ function test_fault_store()
         target = QuietTarget(Any[])
         attach_fault_target!(store, target)
         for _ in 1:3000
-            record_fault!(store, :print, :SyntaxToText, nothing, ErrorException("e"))
+            record_fault!(store, :print; origin = :SyntaxToText, exception = ErrorException("e"))
         end
         # Counts 1, 10, 100 and 1000 each open a new bucket; 3000 does not.
         @test length(drain_faults!(store)) == 4
@@ -79,7 +81,7 @@ function test_fault_store()
         store = FaultStore()
         target = QuietTarget(Any[])
         attach_fault_target!(store, target)
-        record_fault!(store, :print, :P, nothing, ErrorException("e"))
+        record_fault!(store, :print; origin = :P, exception = ErrorException("e"))
         drain_faults!(store)
         before = length(target.seen)
         @test isempty(drain_faults!(store))
@@ -91,13 +93,13 @@ function test_fault_store()
         good = QuietTarget(Any[])
         attach_fault_target!(store, AngryTarget())
         attach_fault_target!(store, good)
-        record_fault!(store, :print, :P, nothing, ErrorException("e"))
+        record_fault!(store, :print; origin = :P, exception = ErrorException("e"))
         @test length(drain_faults!(store)) == 1
         @test length(good.seen) == 1
     end
 
     @testset "no store is a working store" begin
-        @test record_fault!(nothing, :print, :P, nothing, ErrorException("e")) === nothing
+        @test record_fault!(nothing, :print; origin = :P, exception = ErrorException("e")) === nothing
         @test isempty(drain_faults!(nothing))
         @test isempty(get_fault_records(nothing))
         @test get_consecutive_fault_count(nothing, :print) == 0
@@ -108,12 +110,12 @@ function test_fault_store()
         store = FaultStore()
         wakes = Ref(0)
         attach_fault_wake!(store, () -> wakes[] += 1)
-        record_fault!(store, :print, :P, nothing, ErrorException("e"))
+        record_fault!(store, :print; origin = :P, exception = ErrorException("e"))
         @test wakes[] == 1                     # the new key woke
-        record_fault!(store, :print, :P, nothing, ErrorException("e"))
+        record_fault!(store, :print; origin = :P, exception = ErrorException("e"))
         @test wakes[] == 1                     # count 2, same bucket: no wake
         for _ in 3:10
-            record_fault!(store, :print, :P, nothing, ErrorException("e"))
+            record_fault!(store, :print; origin = :P, exception = ErrorException("e"))
         end
         @test wakes[] == 2                     # count 10, new bucket: one wake
     end
@@ -121,7 +123,7 @@ function test_fault_store()
     @testset "a wake that throws is swallowed" begin
         store = FaultStore()
         attach_fault_wake!(store, () -> error("the wake is broken"))
-        @test record_fault!(store, :print, :P, nothing, ErrorException("e")) !== nothing
+        @test record_fault!(store, :print; origin = :P, exception = ErrorException("e")) !== nothing
     end
 end
 end
@@ -132,13 +134,16 @@ function test_fault_report()
     @testset "report_fault! never throws, whatever is broken" begin
         store = FaultStore()
         attach_fault_target!(store, AngryTarget())
-        record = record_fault!(store, :device, :AngryBackend, nothing,
-                               ErrorException("the screen is gone"))
+        record = record_fault!(store, :device; origin = :AngryBackend,
+                               exception = ErrorException("the screen is gone"))
         # Every tier above tier 5 is broken at once: the target throws and the
         # backend throws. The cascade must still answer a tier.
-        @test report_fault!(store, FaultPolicy(), AngryBackend(), record) isa Symbol
-        @test report_fault!(store, _quiet_policy(), AngryBackend(), record) === :swallowed
-        @test report_fault!(store, FaultPolicy(), AngryBackend(), nothing) === :swallowed
+        @test report_fault!(store, record; policy = FaultPolicy(),
+                            backend = AngryBackend()) isa Symbol
+        @test report_fault!(store, record; policy = _quiet_policy(),
+                            backend = AngryBackend()) === :swallowed
+        @test report_fault!(store, nothing; policy = FaultPolicy(),
+                            backend = AngryBackend()) === :swallowed
         @test store.depth == 0
     end
 end

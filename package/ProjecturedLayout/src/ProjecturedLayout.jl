@@ -15,6 +15,7 @@ using ProjecturedFocus
 using ProjecturedGraphics
 using ProjecturedKernel
 using ProjecturedProjection
+using ProjecturedStyle
 
 const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
@@ -29,6 +30,7 @@ const OperationModule = ProjecturedKernel.OperationModule
 const FocusModule = ProjecturedFocus.FocusModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
+const StyleModule = ProjecturedStyle.StyleModule
 
 include("../../../source/layout/LayoutModule.jl")
 

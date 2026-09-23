@@ -1,25 +1,24 @@
 # Fragment of `TooltipModule` — the probe that shows what the thing under the
-# pointer says about itself.
+# pointer says about itself, once the pointer has rested on it.
 #
 # **Printer** — transparent: it projects the wrapped document through `inner` and
 # answers that output, so wrapping a window in the probe changes nothing drawn.
 #
-# **Reader** — on a `MouseMove` it reverse-projects the pointer by feeding the
-# inner reader a synthetic **Alt+left press**, which is the gesture that selects
-# whatever is under the pointer as a whole. It reads the path back without
-# committing it, resolves it, and asks `compute_tooltip` what that document says.
-# What comes back opens a window of its own, beside the pointer.
+# **Reader** — every event goes to the inner reader first, exactly as it would
+# without the probe: a hover, a drag and a click need the pointer, and the probe
+# only watches it. A move notes where the pointer is and when, in the
+# `TooltipRest` it shares with the window's `TooltipFeed`; a move away from an
+# open tooltip, a press, a key and a scroll close it. When the feed's deadline
+# passes it reads a `PointerRest`, and only then does the probe look: it feeds the
+# inner reader a synthetic **Alt+left press**, which selects whatever is under the
+# pointer as a whole, reads the path back without committing it, and asks
+# `compute_tooltip` what that document says. What comes back opens a window of
+# its own, beside the pointer.
 #
 # **Alt, and not a plain press.** A plain press is a widget's own gesture: a
 # button answers its action. An Alt press answers a selection and never an
 # action, so a probe that never commits what it reads still cannot be the thing
 # that makes an action fire.
-#
-# **What plays the part of a dwell.** The probe opens when the ANSWER changes,
-# not on every move, so a pointer crossing a wide label re-opens nothing. The
-# delay before the first one is the backend's own idle-motion interval — SDL
-# already throttles motion it considers idle — so this projection keeps no clock
-# and stays a pure reader.
 
 struct TooltipProbeProjection <: Projection
     inner::Projection
@@ -27,17 +26,19 @@ struct TooltipProbeProjection <: Projection
     compute_tooltip::Function  # (document) -> Document | Nothing
     pointer::Function          # () -> (x, y), the pointer in screen coordinates
     offset::Tuple{Int,Int}     # pointer -> window offset, in screen pixels
-    size::Tuple{Int,Int}       # the window's (width, height)
+    minimum_size::Tuple{Int,Int}   # the window never gets smaller than this
+    maximum_size::Tuple{Int,Int}   # it is printed at this, and never grows past it
     title::String
-    # transient state (Refs, so the immutable projection can update them):
-    open::Base.RefValue{Bool}
-    last::Base.RefValue{Any}   # the document the open tooltip speaks about
+    rest::TooltipRest          # shared with the window's `TooltipFeed`
+    now::Function              # () -> seconds, the feed's own clock
+    slop::Int                  # how far the pointer may move before it closes
 end
 
 """
-    TooltipProbeProjection(; inner, compute_tooltip, pointer, id = :tooltip,
-                             offset = (16, 20), size = (420, 120),
-                             title = "tooltip")
+    TooltipProbeProjection(; inner, compute_tooltip, pointer, feed,
+                             id = :tooltip, offset = (16, 20),
+                             minimum_size = (120, 32), maximum_size = (560, 400),
+                             title = "tooltip", slop = 4)
 
 Wrap `inner`, the content projection of the window whose documents should answer
 for themselves.
@@ -50,18 +51,30 @@ that answer it.
 `pointer` is a 0-argument callable answering the pointer in **screen**
 coordinates, which is where a window is placed. `get_pointer_position` of the SDL
 backend answers exactly that.
+
+`feed` is the window's [`TooltipFeed`](@ref): the probe tells it where the pointer
+is and when it moved, and the feed says when the pointer has rested. A move of
+more than `slop` pixels from where a tooltip opened closes it.
+
+**The window fits what it holds.** It is printed at `maximum_size`, so a text
+wraps at that width, and it ends with the extent of what it printed, never
+smaller than `minimum_size`. The backend keeps it on the screen.
 """
 TooltipProbeProjection(; inner::Projection,
                          compute_tooltip::Function,
                          pointer::Function,
+                         feed::TooltipFeed,
                          id::Symbol = :tooltip,
                          offset = (16, 20),
-                         size = (420, 120),
-                         title::AbstractString = "tooltip") =
+                         minimum_size = (120, 32),
+                         maximum_size = (560, 400),
+                         title::AbstractString = "tooltip",
+                         slop::Integer = 4) =
     TooltipProbeProjection(inner, id, compute_tooltip, pointer,
                            (Int(offset[1]), Int(offset[2])),
-                           (Int(size[1]), Int(size[2])), String(title),
-                           Ref(false), Ref{Any}(nothing))
+                           (Int(minimum_size[1]), Int(minimum_size[2])),
+                           (Int(maximum_size[1]), Int(maximum_size[2])), String(title),
+                           feed.rest, feed.now, Int(slop))
 
 @iomap struct TooltipProbeIoMap
     projection::Any
@@ -82,39 +95,67 @@ end
 function read_intent(p::TooltipProbeProjection, recursion, change::Intent,
                      iomap::TooltipProbeIoMap)
     event = change.gesture
-    event isa MouseMove ||
-        return read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
-    press = MousePress(:left, event.x, event.y, ModifierKeys(alt = true))
-    probe = read_intent(iomap.child_iomap.projection, recursion,
-                        Intent(press, nothing), iomap.child_iomap)
-    operation = probe isa Intent ? probe.operation : probe
-    path = operation isa ReplaceSelectionOperation ? operation.path : nothing
-    Intent(change.gesture, _tooltip_operation(p, iomap, path))
+    event isa PointerRest && return Intent(event, _open_at_rest(p, recursion, iomap, event))
+    answer = read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
+    own = _follow_pointer!(p, event)
+    own === nothing && return answer
+    inner = answer isa Intent ? answer.operation : answer
+    Intent(event, inner isa Operation ? CompoundOperation(Any[inner, own]) : own)
 end
 
 read_intent(p::TooltipProbeProjection, iomap::TooltipProbeIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
-# What the probe found, and what to do about it. A path that resolves to a
-# document whose answer is a document opens a window; anything else closes one.
-function _tooltip_operation(p::TooltipProbeProjection, iomap::TooltipProbeIoMap, path)
-    node = path === nothing ? nothing :
-           try_evaluate_reference(iomap.input, path, nothing)
-    content = node === nothing ? nothing : p.compute_tooltip(node)
-    if content === nothing
-        p.open[] || return nothing
-        p.open[] = false
-        p.last[] = nothing
-        return CloseWindowOperation(p.id)
+# Note where the pointer is. A move without a button starts the wait again; a move
+# with one is a drag and no rest. A move away from an open tooltip, a press, a
+# down, a key and a scroll close it.
+function _follow_pointer!(p::TooltipProbeProjection, event)
+    rest = p.rest
+    if event isa MouseMove
+        if event.buttons === :none
+            rest.x = event.x
+            rest.y = event.y
+            rest.moved_at = p.now()
+        else
+            rest.moved_at = nothing
+        end
+        away = abs(event.x - rest.shown_x) + abs(event.y - rest.shown_y) > p.slop
+        return rest.shown && away ? _close_tooltip!(p) : nothing
+    elseif event isa Union{MousePress,MouseDown,KeyDown,KeyPress,MouseScroll}
+        rest.moved_at = nothing
+        return rest.shown ? _close_tooltip!(p) : nothing
     end
-    # The same document under the pointer says the same thing, so say it once.
-    p.open[] && p.last[] === node && return nothing
+    nothing
+end
+
+function _close_tooltip!(p::TooltipProbeProjection)
+    p.rest.shown = false
+    CloseWindowOperation(p.id)
+end
+
+# The pointer has rested: look once at what is under it, and open a window with
+# what it says. A document that says nothing opens none.
+function _open_at_rest(p::TooltipProbeProjection, recursion, iomap::TooltipProbeIoMap,
+                       event::PointerRest)
+    rest = p.rest
+    rest.moved_at = nothing
+    rest.shown && return nothing
+    press = MousePress(:left, event.x, event.y, ModifierKeys(alt = true))
+    probe = read_intent(iomap.child_iomap.projection, recursion,
+                        Intent(press, nothing), iomap.child_iomap)
+    operation = probe isa Intent ? probe.operation : probe
+    path = operation isa ReplaceSelectionOperation ? operation.path : nothing
+    node = path === nothing ? nothing : try_evaluate_reference(iomap.input, path, nothing)
+    content = node === nothing ? nothing : p.compute_tooltip(node)
+    content === nothing && return nothing
     (x, y) = p.pointer()
-    p.open[] = true
-    p.last[] = node
+    rest.shown = true
+    rest.shown_x = event.x
+    rest.shown_y = event.y
     OpenWindowOperation(id = p.id, title = p.title,
                         x = Int(x) + p.offset[1], y = Int(y) + p.offset[2],
-                        width = p.size[1], height = p.size[2],
+                        width = p.maximum_size[1], height = p.maximum_size[2],
+                        minimum_size = p.minimum_size, maximum_size = p.maximum_size,
                         style = :tooltip, content = content)
 end
 

@@ -230,11 +230,21 @@ function build_cell_struct_positional_ctors(plan::CellStructPlan, target_name; e
     req = get_cell_struct_required_count(plan)
     ctors = Any[]
     req ≥ 1 || return ctors
+    # A parameter of the programmer's own that IS some field's declared type is
+    # bound from that argument by the schema's own inferring constructor, so the
+    # bare name stays callable and these keep the form they had. One that only
+    # appears inside a larger type (`EventHeap{A}`) is not, so there the head
+    # carries the parameters and the call names them: `Foo{A}(kept…) where {A}`.
+    needs_parameters = !isempty(plan.params) &&
+                       !all(P -> P in plan.field_types, plan.params)
+    named    = needs_parameters ? Expr(:curly, target_name, plan.params...) : target_name
     for k in req:(n - 1)
         kept   = plan.field_names[1:k]
         filled = Any[plan.defaults[plan.field_names[j]] for j in (k + 1):n]
-        push!(ctors, :($(target_name)($(kept...)) =
-            $(Expr(:call, target_name, kept..., filled...))))
+        head   = needs_parameters ?
+                 Expr(:where, :($(named)($(kept...))), plan.params...) :
+                 :($(target_name)($(kept...)))
+        push!(ctors, Expr(:(=), head, Expr(:block, Expr(:call, named, kept..., filled...))))
         append!(ctors, each_arity(k))
     end
     ctors

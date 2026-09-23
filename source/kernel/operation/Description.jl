@@ -19,6 +19,7 @@ needs no change here.
 """
 describe_operation(::Nothing) = "no operation"
 describe_operation(::DoNothingOperation) = "do nothing"
+describe_operation(operation::ReplaceViewStateOperation) = describe_operation(operation.operation)
 describe_operation(::QuitEditorOperation) = "quit"
 describe_operation(::SelectNextInsertionOperation) = "select next insertion"
 describe_operation(::ToggleCollapseOperation) = "toggle collapse"

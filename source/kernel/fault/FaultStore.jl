@@ -31,7 +31,8 @@ the cause, so the store keeps those and refuses the rest.
 
     store = FaultStore()
     attach_fault_target!(store, log)
-    record_fault!(store, :print, JsonToSyntax, reference, exception, backtrace)
+    record_fault!(store, :print; origin = JsonToSyntax, reference, exception,
+                  traceback = backtrace)
     drain_faults!(store)
 
 See also [`record_fault!`](@ref), [`drain_faults!`](@ref) and
@@ -113,7 +114,8 @@ end
 _get_fault_count_bucket(count::Integer) = count <= 0 ? 0 : floor(Int, log10(count))
 
 """
-    record_fault!(store, site, origin, reference, exception, traceback = nothing) -> FaultRecord or nothing
+    record_fault!(store, site; origin, reference = nothing, exception,
+                  traceback = nothing) -> FaultRecord or nothing
 
 Put one fault in the store and answer the record it belongs to.
 
@@ -131,12 +133,13 @@ is new.
 
 # Example
 
-    record_fault!(store, :print, p.inner, ctx.reference, exception, catch_backtrace())
+    record_fault!(store, :print; origin = p.inner, reference = ctx.reference, exception,
+                  traceback = catch_backtrace())
 
 See also [`FaultStore`](@ref) and [`drain_faults!`](@ref).
 """
-function record_fault!(store::FaultStore, site::Symbol, origin, reference,
-                       exception, traceback = nothing)
+function record_fault!(store::FaultStore, site::Symbol;
+                       origin, reference = nothing, exception, traceback = nothing)
     key = compute_fault_key(site, get_fault_origin_name(origin),
                             get_fault_exception_name(exception))
     known = get(store.records, key, nothing)
@@ -161,7 +164,7 @@ function record_fault!(store::FaultStore, site::Symbol, origin, reference,
         store.dropped += 1
         return nothing
     end
-    record = make_fault_record(site, origin, reference, exception, traceback)
+    record = make_fault_record(site; origin, reference, exception, traceback)
     store.records[record.key] = record
     store.queued_counts[record.key] = record.count
     push!(store.order, record.key)
@@ -170,7 +173,7 @@ function record_fault!(store::FaultStore, site::Symbol, origin, reference,
     record
 end
 
-record_fault!(::Nothing, site::Symbol, origin, reference, exception,
+record_fault!(::Nothing, site::Symbol; origin, reference = nothing, exception,
               traceback = nothing) = nothing
 
 """

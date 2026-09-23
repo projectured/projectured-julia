@@ -76,7 +76,7 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetListToGraphicsCanvas, WidgetListToGraphicsCanvasIoMap,
        WidgetOptionToGraphicsCanvas,
        get_anchor_point,
-       register_icon!, make_glyph_icon, make_image_icon
+       register_icon!, make_glyph_icon, make_image_icon, find_icon_character
 export ObjectToWidget, ObjectToWidgetIoMap
 export ObjectFieldToWidget, ObjectFieldToWidgetIoMap
 export CellTableToWidgetTable
@@ -87,9 +87,15 @@ export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
 export WidgetPopupResolverProjection, WidgetPopupResolverIoMap
 export ContextMenuProbeProjection, ContextMenuProbeIoMap
 export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem, WidgetToolbarItem, WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar, WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress, WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton, WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetSpinBox, WidgetList, WidgetTable, WidgetTree, Action
+export WidgetStyle, WidgetCheckboxStyle, WidgetDialogStyle, WidgetTitlePaneStyle, WidgetSplitPaneStyle,
+       WidgetTabbedPaneStyle, WidgetScrollBarStyle, WidgetBadgeStyle, WidgetSeparatorStyle, WidgetCardStyle,
+       WidgetAlertStyle, WidgetHighlightStyle, WidgetSwitchStyle, WidgetProgressStyle, WidgetSliderStyle,
+       WidgetRadioGroupStyle, WidgetToggleStyle, WidgetToggleGroupStyle, WidgetSelectStyle, WidgetSpinBoxStyle,
+       WidgetListStyle, WidgetAccordionStyle, WidgetTableStyle, WidgetTreeStyle
 
 
 include("WidgetDocument.jl")
+include("WidgetStyle.jl")
 include("WidgetToGraphics.jl")
 include("WidgetTableList.jl")
 include("WidgetEmbedCard.jl")

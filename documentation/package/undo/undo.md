@@ -34,7 +34,7 @@ Three questions have three separate mechanisms:
 | Can this step be taken back? | `make_inverse_operation`, when the operation is evaluated |
 | What happens when it can not? | a **barrier** entry, whose `inverse` is `nothing`; undo stops at it |
 
-`is_undo_step`, the default filter, drops `nothing`, `DoNothingOperation` and a bare `ReplaceSelectionOperation`. A caret move follows almost every key, and a history full of them is not usable. A compound that holds a write stays. An operation that changes no document, such as a file write or a zoom, has the inverse `DoNothingOperation()`, and no entry is added for it. Undo does not step over a barrier, because that would make a document that matches no state the user saw.
+`is_undo_step`, the default filter, drops `nothing`, `DoNothingOperation`, a bare `ReplaceSelectionOperation` and a write marked `ReplaceViewStateOperation`. A caret move follows almost every key, and a hover follows almost every move of the pointer, so a history full of them is not usable. A widget marks its `hovered`, `pressed` and `dragging`, a split pane marks the grab, each move and the release of a divider, and a pane tree marks its `drag`. So Ctrl+Z after a divider drag takes back the edit before it. A compound that holds a write stays. An operation that changes no document, such as a file write or a zoom, has the inverse `DoNothingOperation()`, and no entry is added for it. Undo does not step over a barrier, because that would make a document that matches no state the user saw.
 
 ### The reader wraps and never records
 

@@ -207,11 +207,12 @@ The application window, wrappers and all: the document of
 warm-up of a build and the suite all come here, so none of them can hold a list
 of its own that drifts from the others.
 
-`pointer` answers where the pointer is, in screen coordinates, and it is what
-turns the tooltip on: a tooltip is shown in a window of its own beside the
-pointer, so a caller that cannot say where the pointer is gets no tooltip. A
-window scene built without a backend — the warm-up of a build, the suite — passes
-none.
+`pointer` answers where the pointer is, in screen coordinates, and
+`tooltip_feed` is the `TooltipFeed` that says when the pointer has rested. The two
+together turn the tooltip on: a tooltip is shown in a window of its own beside the
+pointer once it rests, so a caller that cannot say where the pointer is, or that
+runs no loop to wait in, gets no tooltip. A window scene built without a backend
+— the warm-up of a build, the suite — passes neither.
 
 **The clipboard offers all six of its gestures here**, cut and the view toggle
 included. A person who edits a file expects `Ctrl+X` to cut, and the toggle shows
@@ -220,15 +221,16 @@ a cut would write into the record.
 """
 function make_application_window(paths::AbstractVector;
                                  root::AbstractString = pwd(), assistant = nothing,
-                                 pointer = nothing,
+                                 pointer = nothing, tooltip_feed = nothing,
                                  measure = measure_truetype_text)
     document = make_application_document(paths; root = root, assistant = assistant)
     projection = make_application_projection(; measure = measure)
     make_window_wrap(; gesture_help = true, command_palette = true,
                        selection = true,
                        history = _with_window_history,
-                       tooltip = pointer === nothing ? nothing : compute_tooltip,
-                       pointer = pointer,
+                       tooltip = pointer === nothing || tooltip_feed === nothing ?
+                                 nothing : compute_tooltip,
+                       pointer = pointer, tooltip_feed = tooltip_feed,
                        context_menu = compute_context_menu,
                        shell = document -> _make_application_shell(document, assistant, root),
                        measure = measure)(document, projection)
@@ -270,9 +272,7 @@ _with_window_history(base) = RecursiveProjection(TypeDispatchingProjection(
 # row, so the renderer draws them without this application naming them.
 function _make_application_pane_projection(content, measure)
     renderer = NaturalToGraphics(measure = measure, extra = content)
-    WidgetHoverTrackingProjection(inner = ChainingProjection(
-        RecursiveProjection(PaneToWidget()),
-        renderer))
+    ChainingProjection(RecursiveProjection(PaneToWidget()), renderer)
 end
 
 """
@@ -359,9 +359,13 @@ function run_application(paths::AbstractString...;
                          measure = measure_truetype_text)
     chat = make_application_assistant(assistant; model = model, context = context)
     backend === nothing && (backend = default_backend())
+    # The tooltip waits for the pointer to rest, and the loop is what keeps time,
+    # so the feed goes to the fold and to the window both.
+    tooltip_feed = make_tooltip_feed()
     document, projection = make_application_window(collect(String, paths);
                                                    root = root, assistant = chat,
                                                    pointer = () -> get_pointer_position(backend),
+                                                   tooltip_feed = tooltip_feed,
                                                    measure = measure)
     # The tools of the toolbar are filled by the window: the message log by a
     # capture of the Julia logger and a feed, the statistics by a feed, and the
@@ -370,7 +374,7 @@ function run_application(paths::AbstractString...;
         run_window_editor(document, projection, "ProjecturEd";
                           backend = backend, width = width, height = height, mcp = mcp,
                           mcp_host = mcp_host, mcp_port = mcp_port,
-                          feeds = feeds,
+                          feeds = push!(copy(feeds), tooltip_feed),
                           # A tooltip holds a document of one of this
                           # application's own domains, so the window a wrapper
                           # opens draws with the rows a pane draws with.

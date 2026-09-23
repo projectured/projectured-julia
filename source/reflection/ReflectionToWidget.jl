@@ -61,9 +61,11 @@ function print_document(p::ReflectionToWidget, recursion, node, ctx)
         (root = root, nodes = nodes, collapsed = collapsed)
     end
     # Positional, so every declared field is named here in order: position,
-    # roots, visible, hovered, collapsed, gestures, tooltip.
+    # roots, visible, margin, border, padding, style, hovered, collapsed,
+    # gestures, tooltip.
     output = WidgetTree(Cell(Point2D(0, 0)), ComputedCellVector(() -> Any[tree[].root]),
-                        Cell(true), Cell(nothing), ComputedCell(() -> tree[].collapsed),
+                        Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
+                        Cell(nothing), ComputedCell(() -> tree[].collapsed),
                         Cell(GestureBinding[]), Cell(nothing))
     ReflectionToWidgetIoMap(p, node, output, tree)
 end

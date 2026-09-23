@@ -72,7 +72,7 @@ A list of ready-made rows and three keyed factory lists fill the table. The key 
 2. the layouts, then the widgets;
 3. `get_natural_graphics_entries`: the domains that draw themselves;
 4. the fallback rows for exact types;
-5. `DocumentNothing` as the phrase "empty document", `TextDocument` as prose with optional word wrap, and a `CellVector` as a stack of blocks, one for each element;
+5. `DocumentNothing` as the phrase "empty document", a `GraphicsDocument` as itself through `GraphicsToGraphics`, `TextDocument` as prose with optional word wrap, and a `CellVector` as a stack of blocks, one for each element;
 6. the fallback rows for `Any`;
 7. `Any` as the phrase "no natural rendering for T".
 
@@ -82,7 +82,7 @@ A `ListNode` stays in the syntax fabric and does not become a stack of blocks, b
 
 ## How it fits
 
-`ProjecturedNatural` depends on `ProjecturedText`, `ProjecturedLayout`, `ProjecturedWidget` and `ProjecturedDomain`, with the kernel packages. It does not depend on `ProjecturedSyntax` or on a domain. `ProjecturedFileFormat` depends on it.
+`ProjecturedNatural` depends on `ProjecturedText`, `ProjecturedLayout`, `ProjecturedWidget`, `ProjecturedGraphics` and `ProjecturedDomain`, with the kernel packages. It does not depend on `ProjecturedSyntax` or on a domain. `ProjecturedFileFormat` depends on it.
 
 | Registers | With |
 | --- | --- |

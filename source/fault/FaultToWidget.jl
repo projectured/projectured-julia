@@ -19,8 +19,8 @@ end
 function print_document(p::FaultToWidget, recursion, report::FaultReport,
                         ctx::PrinterContext)
     alert = WidgetAlert(Point2D(0, 0),
-                        ComputedCell(() -> "⚠ " * report.origin),
+                        ComputedCell(() -> String(report.origin)),
                         ComputedCell(() -> report.message);
-                        variant = :destructive, width = p.width)
+                        icon = :warning, variant = :destructive, width = p.width)
     SimpleIoMap(p, report, alert)
 end

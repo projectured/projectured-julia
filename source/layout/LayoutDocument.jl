@@ -553,13 +553,13 @@ function compute_axis_extents(policies::AbstractVector, gap::Integer, available)
         weights[k] > 0 && (weighted = true)
     end
     (available === nothing || !weighted) && return prefs
-    allocate_axis(Int(available), mins, maxs, prefs, weights, Int(gap), n)
+    allocate_axis(Int(available); mins, maxs, prefs, weights, gap = Int(gap), n)
 end
 
 # ── Allocation algorithm (per axis, one pass) ───────────────────────────────
 
 """
-    allocate_axis(available, mins, maxs, prefs, weights, gap, n) -> Vector{Int}
+    allocate_axis(available; mins, maxs, prefs, weights, gap, n) -> Vector{Int}
 
 Pure allocator: distributes `available` extent across `n` children whose
 seed sizes are `prefs` clamped to `[mins, maxs]`. Inter-child `gap` is
@@ -570,7 +570,7 @@ each share capped at `maxs[i]`; slack < 0 is taken in proportion to
 Pixel rounding may leave ±1 px residual; the residual is absorbed by the
 last weighted child if any.
 """
-function allocate_axis(available::Int, mins::Vector{Int}, maxs::Vector{Int},
+function allocate_axis(available::Int; mins::Vector{Int}, maxs::Vector{Int},
                        prefs::Vector{Int}, weights::Vector{Float64},
                        gap::Int, n::Int)
     actual = Vector{Int}(undef, n)
@@ -732,7 +732,7 @@ function AnchoredLayout(content::Document, children::Vector;
 end
 
 """
-    compute_anchored_positions(entries, targets, bounding_w, bounding_h, stacking_gap)
+    compute_anchored_positions(entries, targets; bounding_w, bounding_h, stacking_gap)
         -> Vector{Tuple{Int,Int}}
 
 Where each anchored child goes. Pure — no cells, no documents — so it can be
@@ -749,7 +749,7 @@ drawn, inside the region, rather than off the edge where nobody would see it.
 Entries that still overlap are stacked downward in `stacking_gap` steps, first
 one placed first.
 """
-function compute_anchored_positions(entries, targets,
+function compute_anchored_positions(entries, targets;
                                     bounding_w::Int, bounding_h::Int,
                                     stacking_gap::Int)
     n = length(entries)

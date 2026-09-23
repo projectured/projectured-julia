@@ -115,17 +115,27 @@ A composer operation calls it after it edits the draft, and so does a host that
 replaces the draft's parts, such as the assistant after a submit.
 """
 function sync_draft_selection!(editor, draft::ConversationDraft)
-    root = (editor !== nothing && hasproperty(editor, :document)) ? editor.document : nothing
-    root === nothing && return nothing
-    path = root.selection
-    path isa Reference || return nothing
-    prefix = _find_draft_prefix(root, path, draft)
-    prefix === nothing && return nothing
     tail = make_draft_caret_reference(draft)
     tail === nothing && return nothing
+    _select_under!(editor, draft, tail)
+    nothing
+end
+
+# Put the editor's complete selection on `tail` inside `node`: the steps of the
+# complete selection that lead to `node`, then `tail`. The old selection is
+# cleared first, so no node on its path still shows it. Answers whether the
+# selection moved, which it does not with no editor, or with a complete selection
+# that does not pass through `node`.
+function _select_under!(editor, node, tail)
+    root = (editor !== nothing && hasproperty(editor, :document)) ? editor.document : nothing
+    root === nothing && return false
+    path = root.selection
+    path isa Reference || return false
+    prefix = _find_selection_prefix(root, path, node)
+    prefix === nothing && return false
     clear_selection!(root)
     set_selection!(root, _from_steps(prefix, tail))
-    nothing
+    true
 end
 
 """
@@ -145,14 +155,14 @@ function make_draft_caret_reference(draft::ConversationDraft)
                 _is_editable(content) ? _valpath(_cursor(content)) : EmptyReference())))
 end
 
-# The steps of `path` that lead from `root` to `draft`, or `nothing` when the
+# The steps of `path` that lead from `root` to `target`, or `nothing` when the
 # path does not pass through it.
-function _find_draft_prefix(root, path, draft)
+function _find_selection_prefix(root, path, target)
     steps = get_reference_steps(strip_reference_types(path))
-    root === draft && return Any[]
+    root === target && return Any[]
     for k in 1:length(steps)
         node = try_evaluate_reference(root, _from_steps(steps[1:k]), nothing)
-        node === draft && return steps[1:k]
+        node === target && return steps[1:k]
     end
     nothing
 end
@@ -764,44 +774,52 @@ answers them.
 # are exact, a bare key (`mods=nothing`) matches any modifiers, and the exact-modifier
 # rows precede the bare one so Shift/Alt+Return win over plain Return (first match).
 function _composer_bindings(draft::ConversationDraft)
-    newline = GestureBinding(KeyDownPattern(:return, [:shift], nothing),
-        (d, e) -> _make_newline_operation(d),
-        (d, sel) -> true, "New line", "composer")
-    revert = GestureBinding(KeyDownPattern(:escape, nothing, nothing),
-        (d, e) -> ComposerRevertOperation(d),
-        (d, sel) -> true, "Cancel", "composer")
+    newline = GestureBinding(KeyDownPattern(:return, [:shift], nothing), (d, e) -> _make_newline_operation(d);
+                             applicable = (d, sel) -> true,
+                             description = "New line",
+                             domain = "composer")
+    revert = GestureBinding(KeyDownPattern(:escape, nothing, nothing), (d, e) -> ComposerRevertOperation(d);
+                            applicable = (d, sel) -> true,
+                            description = "Cancel",
+                            domain = "composer")
     c = _active_content(draft)
     if c isa PrimitiveString
         GestureBinding[
             newline,
-            GestureBinding(KeyDownPattern(:return, nothing, nothing),
-                (d, e) -> ComposerSubmitOperation(d),
-                (d, sel) -> true, "Submit", "composer"),
-            GestureBinding(KeyDownPattern(:tab, nothing, nothing),
-                (d, e) -> ComposerInsertPartOperation(d),
-                (d, sel) -> true, "Add a structured part", "composer"),
-            GestureBinding(KeyDownPattern(:insert, nothing, nothing),
-                (d, e) -> ComposerInsertPartOperation(d),
-                (d, sel) -> true, "Add a structured part", "composer"),
+            GestureBinding(KeyDownPattern(:return, nothing, nothing), (d, e) -> ComposerSubmitOperation(d);
+                           applicable = (d, sel) -> true,
+                           description = "Submit",
+                           domain = "composer"),
+            GestureBinding(KeyDownPattern(:tab, nothing, nothing), (d, e) -> ComposerInsertPartOperation(d);
+                           applicable = (d, sel) -> true,
+                           description = "Add a structured part",
+                           domain = "composer"),
+            GestureBinding(KeyDownPattern(:insert, nothing, nothing), (d, e) -> ComposerInsertPartOperation(d);
+                           applicable = (d, sel) -> true,
+                           description = "Add a structured part",
+                           domain = "composer"),
         ]
     elseif c isa DocumentInsertion
         GestureBinding[
-            GestureBinding(KeyDownPattern(:return, nothing, nothing),
-                (d, e) -> ComposerCommitChooserOperation(d),
-                (d, sel) -> true, "Choose insertion kind", "composer"),
+            GestureBinding(KeyDownPattern(:return, nothing, nothing), (d, e) -> ComposerCommitChooserOperation(d);
+                           applicable = (d, sel) -> true,
+                           description = "Choose insertion kind",
+                           domain = "composer"),
             revert,
         ]
     elseif get_natural_format(typeof(c)) === :jl
         # Julia source: ENTER commits it, and ALT+ENTER runs it. Running is
         # Julia's alone, which is why this arm names the format.
         GestureBinding[
-            GestureBinding(KeyDownPattern(:return, [:alt], nothing),
-                (d, e) -> ComposerEvaluateOperation(d),
-                (d, sel) -> true, "Evaluate", "composer"),
+            GestureBinding(KeyDownPattern(:return, [:alt], nothing), (d, e) -> ComposerEvaluateOperation(d);
+                           applicable = (d, sel) -> true,
+                           description = "Evaluate",
+                           domain = "composer"),
             newline,
-            GestureBinding(KeyDownPattern(:return, nothing, nothing),
-                (d, e) -> ComposerCommitSourceOperation(d),
-                (d, sel) -> true, "Commit source", "composer"),
+            GestureBinding(KeyDownPattern(:return, nothing, nothing), (d, e) -> ComposerCommitSourceOperation(d);
+                           applicable = (d, sel) -> true,
+                           description = "Commit source",
+                           domain = "composer"),
             revert,
         ]
     elseif get_insertion_root(typeof(c)) !== Document
@@ -810,9 +828,10 @@ function _composer_bindings(draft::ConversationDraft)
         # key-driven insertion (`[` → JsonArray, …) is still future work.
         GestureBinding[
             newline,
-            GestureBinding(KeyDownPattern(:return, nothing, nothing),
-                (d, e) -> ComposerCommitSourceOperation(d),
-                (d, sel) -> true, "Commit source", "composer"),
+            GestureBinding(KeyDownPattern(:return, nothing, nothing), (d, e) -> ComposerCommitSourceOperation(d);
+                           applicable = (d, sel) -> true,
+                           description = "Commit source",
+                           domain = "composer"),
             revert,
         ]
     else
@@ -843,7 +862,7 @@ end
 # a non-`ConversationDraft` first argument has no composer gestures. The draft carries
 # no selection of its own, so the precondition gets `nothing` for one.
 read_composer_gesture(draft::ConversationDraft, evt) =
-    fire_gesture_bindings(_composer_bindings(draft), draft, nothing, evt)
+    fire_gesture_bindings(_composer_bindings(draft), draft, evt; selection = nothing)
 
 read_composer_gesture(::Any, ::Any) = nothing
 

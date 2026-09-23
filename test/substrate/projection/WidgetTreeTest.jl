@@ -22,10 +22,13 @@ end
 @test _treeproj !== nothing
 
 _mods = ModifierKeys()
-_readop(io, g) = begin
+_readop_marked(io, g) = begin
     ch = read_intent(_treeproj, nothing, Intent(g, nothing), io)
     ch isa Intent ? ch.operation : ch
 end
+# The answer, looking through the mark a hover carries as view state.
+_readop(io, g) = (op = _readop_marked(io, g);
+                  op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op)
 _fresh() = begin
     w = WidgetTree(Point2D(0, 0), Any[("src", Any["a.jl", "b.jl"]), "README"])
     (w, print_document(_treeproj, w))
@@ -55,6 +58,8 @@ end
 @testset "MouseEnter sets the hovered row; a leave clears it" begin
     w, io = _fresh()
     r1 = io.geometry.rows[1]
+    # A hover is view state, and marked so that no history records it.
+    @test _readop_marked(io, MouseEnter(r1.chevron_x1 + 2, r1.y0 + 2, :none, _mods)) isa ReplaceViewStateOperation
     op = _readop(io, MouseEnter(r1.chevron_x1 + 2, r1.y0 + 2, :none, _mods))
     @test op isa ReplaceReferencedValueOperation && op.value !== nothing
     getfield(w, :hovered)[] = op.value
@@ -143,7 +148,7 @@ end
         enters = clicks = 0
         for x in xs, y in ys
             ce = read_intent(_full, nothing, Intent(MouseEnter(x, y, :none, _mods), nothing), io)
-            oe = ce isa Intent ? ce.operation : ce
+            oe = _view_state_write(ce isa Intent ? ce.operation : ce)
             oe isa ReplaceReferencedValueOperation && oe.document isa WidgetTree && (enters += 1)
             cp = read_intent(_full, nothing, Intent(MousePress(:left, x, y, _mods), nothing), io)
             op = cp isa Intent ? cp.operation : cp

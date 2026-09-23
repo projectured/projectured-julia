@@ -59,6 +59,13 @@ function test_undo_buffer()
         @test !is_undo_step(nothing, DoNothingOperation())
         @test !is_undo_step(nothing, ReplaceSelectionOperation(EmptyReference()))
         @test is_undo_step(nothing, _write_first("x"))
+        # A hover, a held button, a drag in flight: view state, and no edit.
+        @test !is_undo_step(nothing, ReplaceViewStateOperation(_write_first("x")))
+        @test !is_undo_step(nothing, CompoundOperation(Any[
+            ReplaceViewStateOperation(_write_first("x")),
+            ReplaceViewStateOperation(_write_first("y"))]))
+        @test is_undo_step(nothing, CompoundOperation(Any[
+            ReplaceViewStateOperation(_write_first("x")), _write_first("y")]))
         # A compound that carries a write is kept: only a bare caret move matches.
         @test is_undo_step(nothing, CompoundOperation(Any[_write_first("x"),
                                                           ReplaceSelectionOperation(EmptyReference())]))

@@ -167,12 +167,27 @@ end
     EvaluatorToplevel(elements = [])
 
 An ordered sequence of `EvaluatorForm`s.
+
+`follow_end` is view state: whether the view of the toplevel keeps its last form
+in view. A person who scrolls away from the end turns it off, and scrolling back
+to the end or an evaluation turns it on again.
+
+The three `history_` fields are view state too: where Up and Down stand in the
+history of the bottom form. `history_position` is 0 for the draft, and `k` for the
+`k`-th form above the bottom one, counted from the newest. `history_draft` is what
+the bottom form held when the navigation started, and `history_prefix` is the text
+before the caret then. See [`RecallEvaluatorFormOperation`](@ref).
 """
 @document struct EvaluatorToplevel <: EvaluatorDocument
     elements::CellVector = CellVector()
+    follow_end::Bool = true
+    history_position::Int = 0
+    history_draft::String = ""
+    history_prefix::String = ""
 end
 EvaluatorToplevel(elements::Vector) =
-    EvaluatorToplevel(CellVector(Cell[Cell(e) for e in elements]), Cell(nothing))
+    EvaluatorToplevel(CellVector(Cell[Cell(e) for e in elements]), Cell(true),
+                      Cell(0), Cell(""), Cell(""), Cell(nothing))
 
 set_cell_function!(t::EvaluatorToplevel, f::Function) =
     (set_cell_function!(getfield(t.elements, :elements), () -> Cell[Cell(x) for x in f()]); t)
@@ -195,10 +210,11 @@ get_insertion_aliases(::Type{EvaluatorToplevel}) = ["repl", "evaluator"]
 """
     EvaluateSelectedFormOperation(toplevel)
 
-ALT+ENTER on an [`EvaluatorToplevel`](@ref): evaluate the [`EvaluatorForm`](@ref)
+ENTER on an [`EvaluatorToplevel`](@ref): evaluate the [`EvaluatorForm`](@ref)
 the caret sits in, the same evaluation [`ComposerEvaluateOperation`](@ref) runs
 for the composer's draft, and open a fresh empty form after it so a person can
-keep typing at once.
+keep typing at once. The complete selection moves to the fresh form, so the form
+that was evaluated shows no caret.
 
 Declines — leaves the toplevel untouched — when the caret names no element, or
 that element's source is blank. Both are checked here, at evaluation time, not
@@ -233,6 +249,62 @@ end
 _get_form_source_text(form::PrimitiveString) = something(form.value, "")
 _get_form_source_text(form::Document) = print_natural_text(form)
 
+# The range the selection names in the code of the form it is in, `elements[i].
+# form.value{s:e}`, or `nothing` when it names no range there.
+function _find_selected_value_range(t::EvaluatorToplevel)
+    path = t.selection
+    path isa Reference || return nothing
+    steps = get_reference_steps(strip_reference_types(path))
+    (length(steps) == 5 && _is_field_step(steps[1], "elements") && _is_field_step(steps[3], "form") &&
+     _is_field_step(steps[4], "value") && steps[5] isa RangeReferenceStep) || return nothing
+    steps[5]
+end
+
+# The caret at `k` in the code of form `i`, `elements[i].form.value{k}`, rooted at
+# the toplevel.
+_make_form_caret_reference(i::Int, k::Int) =
+    ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(i - 1, i),
+            ConcreteReference(FieldReferenceStep("form"), _valpath(k))))
+
+# A key goes where the complete selection points, so a caret that an operation of
+# the toplevel sets moves from the root. A toplevel that the complete selection
+# does not pass through moves its own.
+function _select_in_toplevel!(editor, t::EvaluatorToplevel, caret)
+    _select_under!(editor, t, caret) && return nothing
+    clear_selection!(t)
+    set_selection!(t, caret)
+    nothing
+end
+
+# ── The namespace of the evaluator ───────────────────────────────────────────
+#
+# A person types into the evaluator, and the assistant does not, so it evaluates
+# as a Julia REPL does: in a namespace that no API limits. Every name that
+# `Projectured` exports is in scope, and `using` loads what the environment
+# declares. The assistant's `execute_julia_code` keeps the API its host declares
+# on `editor.tools`.
+#
+# The namespace belongs to the tools of the editor, so the evaluators of one
+# window are one session, as the windows of one Julia process share `Main`, and
+# a name one form binds is defined in the next. It shares the observers of those
+# tools, so a host still hears what an evaluation made. The table is weak, and
+# the namespace lets go of `editor` after each evaluation, so an editor that is
+# gone takes its namespace with it.
+const _EVALUATOR_TOOL_SETS = Ref{Any}(nothing)
+
+function _get_evaluator_tool_set(editor)
+    tools = hasproperty(editor, :tools) ? editor.tools : nothing
+    tools isa ToolSet || return ToolSet()
+    sets = _EVALUATOR_TOOL_SETS[]
+    sets === nothing && (sets = _EVALUATOR_TOOL_SETS[] = WeakKeyDict{ToolSet,ToolSet}())
+    get!(sets, tools) do
+        set = ToolSet()
+        set.observers = tools.observers
+        set
+    end
+end
+
 function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     t = op.toplevel
     i = _find_selected_form_index(t)
@@ -240,12 +312,14 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     element = t.elements[i]
     text = _get_form_source_text(element.form)
     isempty(strip(text)) && return nothing
-    set = editor.tools
+    set = _get_evaluator_tool_set(editor)
     output = try
         execute_julia_code(set, editor, text)
     catch e
         sprint(showerror, e, catch_backtrace())
     end
+    # The next evaluation binds `editor` again, so the namespace holds none.
+    set.scratch === nothing || Core.eval(set.scratch, :(editor = nothing))
     is_err = occursin("ERROR", output) || occursin("Error", output)
     # A `Document` return value is kept as the result so it renders live;
     # otherwise the printed output, exactly as the composer's own evaluate does.
@@ -254,13 +328,111 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     element.result = result
     element.is_error = is_err
     push!(t.elements, EvaluatorForm(PrimitiveString("")))
-    n = length(t.elements)
-    set_selection!(t, ConcreteReference(FieldReferenceStep("elements"),
-        ConcreteReference(RangeReferenceStep(n - 1, n),
-            ConcreteReference(FieldReferenceStep("form"), _valpath(0)))))
+    # The fresh form is where the next key goes, so the view goes to the end, and
+    # its history starts from its own empty draft.
+    t.follow_end = true
+    t.history_position = 0
+    t.history_draft = ""
+    t.history_prefix = ""
+    _select_in_toplevel!(editor, t, _make_form_caret_reference(length(t.elements), 0))
     nothing
 end
 
+# ── RecallEvaluatorFormOperation ────────────────────────────────────────────
+
+"""
+    RecallEvaluatorFormOperation(toplevel, direction)
+
+UP or DOWN in the bottom form of an [`EvaluatorToplevel`](@ref): show the code of
+an older form (`direction = :older`) or of a newer one (`:newer`) in the bottom
+form, as the history of a Julia REPL does, with the caret at its end.
+
+The history is the forms above the bottom one, newest first, each with the code
+it holds, also one whose evaluation failed. Only an entry that starts with the
+prefix is shown, and never one that is the text shown now, so a key always
+changes something. The prefix is the text before the caret when the navigation
+starts, and what the bottom form held then is the draft: Down past the newest
+entry shows the draft again. A person who edits a recalled code starts a new
+navigation from that text.
+
+Declines when the caret is not in the text of the bottom form, or when the
+direction has no entry left.
+"""
+struct RecallEvaluatorFormOperation <: Operation
+    toplevel::EvaluatorToplevel
+    direction::Symbol
+end
+
+# It names the toplevel it acts on, not a path into one, so it travels up the
+# chain as it is.
+OperationModule.operation_travels_unchanged(::RecallEvaluatorFormOperation) = true
+
+function evaluate_operation(editor, op::RecallEvaluatorFormOperation)
+    t = op.toplevel
+    n = length(t.elements)
+    form = t.elements[n].form
+    form isa PrimitiveString || return nothing
+    range = _find_selected_value_range(t)
+    (range === nothing || _find_selected_form_index(t) != n) && return nothing
+    shown = something(form.value, "")
+    entries = String[_get_form_source_text(t.elements[k].form) for k in (n - 1):-1:1]
+    position = t.history_position
+    # A navigation starts from the draft, and again when a person edited what a
+    # recall showed.
+    if position == 0 || position > length(entries) || entries[position] != shown
+        t.history_draft = shown
+        t.history_prefix = first(shown, range.start)
+        position = 0
+    end
+    is_match(k) = startswith(entries[k], t.history_prefix) && entries[k] != shown
+    target = op.direction === :older ?
+        findfirst(k -> k > position && is_match(k), eachindex(entries)) :
+        findlast(k -> k < position && is_match(k), eachindex(entries))
+    target === nothing && (op.direction === :older || position == 0) && return nothing
+    text = target === nothing ? t.history_draft : entries[target]
+    t.history_position = something(target, 0)
+    form.value = text
+    _select_in_toplevel!(editor, t, _make_form_caret_reference(n, length(text)))
+    nothing
+end
+
+# SHIFT+ENTER: a line break at the caret of the form the caret is in, the same
+# edit a typed character makes. `nothing` when the selection is not in the text
+# of a form.
+function _make_form_newline_operation(t::EvaluatorToplevel)
+    i = _find_selected_form_index(t)
+    i === nothing && return nothing
+    t.elements[i].form isa PrimitiveString || return nothing
+    _find_selected_value_range(t) === nothing && return nothing
+    ReplaceStringRangeOperation(t.selection, "\n")
+end
+
+# UP, which reaches the toplevel only from the first line of the code, because the
+# text layer moves the caret up a line where there is one. In the bottom form it
+# recalls an older form. In a form above, the caret goes to the end of the form
+# above that one, so a recall never overwrites code that was evaluated.
+function _make_up_operation(t::EvaluatorToplevel)
+    i = _find_selected_form_index(t)
+    i === nothing && return nothing
+    i == length(t.elements) && return RecallEvaluatorFormOperation(t, :older)
+    i == 1 && return nothing
+    above = _get_form_source_text(t.elements[i - 1].form)
+    ReplaceSelectionOperation(_make_form_caret_reference(i - 1, length(above)))
+end
+
+# DOWN, which reaches the toplevel only from the last line of the code. In the
+# bottom form it recalls a newer form, or the draft. In a form above, the caret
+# goes to the start of the form below.
+function _make_down_operation(t::EvaluatorToplevel)
+    i = _find_selected_form_index(t)
+    i === nothing && return nothing
+    i == length(t.elements) && return RecallEvaluatorFormOperation(t, :newer)
+    ReplaceSelectionOperation(_make_form_caret_reference(i + 1, 0))
+end
+
 @gestures EvaluatorToplevel begin
-    KeyDown(:return; alt) => "Evaluate" => EvaluateSelectedFormOperation(doc)
+    KeyDown(:return;) => "Evaluate" => EvaluateSelectedFormOperation(doc)
+    KeyDown(:return; shift) => "Insert a line break" => _make_form_newline_operation(doc)
+    KeyDown(:up;) => "Recall an older form, or go to the form above" => _make_up_operation(doc)
+    KeyDown(:down;) => "Recall a newer form, or go to the form below" => _make_down_operation(doc)
 end

@@ -196,13 +196,11 @@ end
 # WidgetCheckbox — a checkbox; content is the boolean checked state.
 make_widget_checkbox_document_example() =
     WidgetCheckbox(Point2D(40, 40), true;
-                   border=Inset(1, 1, 1, 1), border_color=color_default,
                    padding=Inset(4, 4, 4, 4))
 
 # WidgetButton — a clickable button.
 make_widget_button_document_example() =
     WidgetButton(Point2D(40, 40), Point2D(180, 56), "Click me";
-                 border=Inset(1, 1, 1, 1), border_color=color_default,
                  padding=Inset(4, 4, 8, 8))
 
 # WidgetButton (behaviour) — a button whose `action` increments a counter shown
@@ -219,7 +217,6 @@ function make_widget_button_action_document_example()
                               count[] += 1
                               label.content = "count: $(count[])"
                           end,
-                          border=Inset(1, 1, 1, 1), border_color=color_default,
                           padding=Inset(4, 4, 8, 8))
     WidgetComposite(Point2D(0, 0), Any[label, button])
 end
@@ -234,16 +231,13 @@ function make_widget_button_image_document_example()
     picture_label = WidgetLabel(Point2D(40, 40), logo)
     icon_button = WidgetButton(Point2D(40, 200), Point2D(72, 72), icon;
                                action = (_editor) -> nothing,
-                               border=Inset(1, 1, 1, 1), border_color=color_default,
                                padding=Inset(8, 8, 8, 8))
     WidgetComposite(Point2D(0, 0), Any[picture_label, icon_button])
 end
 
 # WidgetTooltip — a floating tooltip overlay (visible so it renders standalone).
 make_widget_tooltip_document_example() =
-    WidgetTooltip(Point2D(40, 40), Point2D(360, 56), "A floating tooltip";
-                  border=Inset(1, 1, 1, 1), border_color=color_default,
-                  padding=Inset(4, 4, 4, 4))
+    WidgetTooltip(Point2D(40, 40), Point2D(360, 56), "A floating tooltip")
 
 # WidgetMenuItem — a single item, normally found inside a menu or toolbar.
 make_widget_menu_item_document_example() =
@@ -312,12 +306,12 @@ function make_widget_offered_document_example(; width=760, height=420)
     holding = VerticalLayout(Any[
         WidgetScrollPane(WidgetLabel(Point2D(4, 4), "authored 200x90");
                          size=Point2D(200, 90),
-                         content_fill_color=StyleColor(0.86, 0.92, 0.98, 1.0)),
+                         style=WidgetStyle(content_color=StyleColor(0.86, 0.92, 0.98, 1.0))),
         # No size of its own, and a weight instead: it asks the column for the
         # height the sized pane leaves. That is how a viewport gets an extent
         # without one being written on it.
         LayoutConstraint(WidgetScrollPane(WidgetLabel(Point2D(4, 4), "asks for the rest");
-                                          content_fill_color=StyleColor(0.98, 0.92, 0.86, 1.0));
+                                          style=WidgetStyle(content_color=StyleColor(0.98, 0.92, 0.86, 1.0)));
                          height=Fill),
     ]; gap=12, child_width=Fill)
     split = WidgetSplitPane(:horizontal, Any[filling, holding];
@@ -570,7 +564,7 @@ make_widget_table_offered_document_example() =
                      ["INV002", "Pending", "\$150.00"],
                      ["INV003", "Unpaid",  "\$350.00"]]);
         size = Point2D(300, 140),
-        content_fill_color = StyleColor(0.98, 0.96, 0.90, 1.0))
+        style = WidgetStyle(content_color = StyleColor(0.98, 0.96, 0.90, 1.0)))
 
 # A table whose header strips stay put while its body scrolls.
 #
@@ -586,7 +580,7 @@ make_widget_table_frozen_document_example() =
                     4);
         size = Point2D(320, 150),
         scroll_position = Point2D(40, 60),
-        content_fill_color = StyleColor(0.98, 0.96, 0.90, 1.0))
+        style = WidgetStyle(content_color = StyleColor(0.98, 0.96, 0.90, 1.0)))
 
 # WidgetTree — a nested outline with expand chevrons.
 make_widget_tree_document_example() =

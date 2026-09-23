@@ -136,10 +136,12 @@ end
 Whether this operation belongs in a history: the filter a buffer uses when
 nobody names another one.
 
-It drops the operations that change nothing and the bare selection moves. A
-caret move follows almost every key and almost every click, and a history full
-of caret moves is one a person can not use. A compound that carries a write is
-kept, because only a bare selection move matches.
+It drops the operations that change nothing, the bare selection moves and the
+writes of view state. A caret move follows almost every key and almost every
+click, and a history full of caret moves is one a person can not use. A hover or
+a held button is marked as view state by the reader that writes it, and is no
+edit at all. A compound that carries a write is kept; a compound of nothing but
+view state is dropped.
 
 Pass `(gesture, operation) -> operation !== nothing` to a buffer to record the
 caret moves as well.
@@ -147,7 +149,13 @@ caret moves as well.
 is_undo_step(gesture, operation) =
     !(operation === nothing ||
       operation isa DoNothingOperation ||
-      operation isa ReplaceSelectionOperation)
+      operation isa ReplaceSelectionOperation ||
+      _is_view_state(operation))
+
+_is_view_state(operation) =
+    operation isa ReplaceViewStateOperation ||
+    (operation isa CompoundOperation && !isempty(operation.operations) &&
+     all(_is_view_state, operation.operations))
 
 # ── The three operations ─────────────────────────────────────────────────────
 

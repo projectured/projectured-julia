@@ -8,14 +8,16 @@
 
 ### The probe
 
-`TooltipProbeProjection` wraps the content projection of a window. It has no document of its own and it prints the content unchanged. On each `MouseMove`, its reader:
+`TooltipProbeProjection` wraps the content projection of a window. It has no document of its own and it prints the content unchanged. **It gives every event to the content first**, so a hover, a drag and a click work under it as they do without it. It only watches the pointer: a move notes where the pointer is and when, and a move away from an open tooltip, a press, a key and a scroll close it.
 
-1. makes a left press with the Alt key at the pointer and reads it through the content chain, without applying it;
-2. takes the path of the `ReplaceSelectionOperation` that comes back, which names the innermost document under the pointer;
-3. calls `compute_tooltip(document)` on that document;
-4. opens a window with the answer next to the pointer, moves it, or closes it when the answer is `nothing`.
+**A tooltip opens only after the pointer rests.** A resting pointer sends no event, so the time comes from the editor's loop. A `TooltipFeed`, made with `make_tooltip_feed(; delay = 0.5)`, names a deadline: the last move plus the delay, while no tooltip is shown. The loop sleeps until that deadline and no longer, and an idle window names none. At the deadline the feed reads a `PointerRest(x, y)` through the editor's projection and posts the operation that comes back. The probe answers the rest:
 
-The press has the Alt key because a plain press is the action gesture of a widget: it would press a button. An Alt+press only selects. The probe opens a new window only when the document under the pointer changes, so a pointer that crosses a wide label does not open the tooltip again. The probe has no delay of its own; the backend sends no move while the pointer rests.
+1. it makes a left press with the Alt key at the resting point and reads it through the content chain, without applying it;
+2. it takes the path of the `ReplaceSelectionOperation` that comes back, which names the innermost document under the pointer;
+3. it calls `compute_tooltip(document)` on that document;
+4. it opens a window with the answer next to the pointer, or nothing when the answer is `nothing`.
+
+The press has the Alt key because a plain press is the action gesture of a widget: it would press a button. An Alt+press only selects. The probe and the feed share one `TooltipRest`, so the host hands the same feed to the probe and to `run_window_editor(feeds = …)`.
 
 `compute_tooltip` is a generic function of `ProjecturedDomain`, and a document gives its own tooltip: a widget returns the text in its `tooltip` field, and a `JuliaFunction` returns its signature. The host gives the generic to the probe as a function value, so this package needs no dependency on the domains that answer it. [shell.md](../shell/shell.md) describes how the shell puts the probe and its twin, the context menu probe, into the window.
 
@@ -38,17 +40,21 @@ Both mechanisms make ordinary window operations. `WindowManagingProjection` adds
 ## Usage
 
 ```julia
+feed = make_tooltip_feed()
 probe = TooltipProbeProjection(; inner = content_projection,
                                compute_tooltip = compute_tooltip,
-                               pointer = () -> get_pointer_position(backend))
+                               pointer = () -> get_pointer_position(backend),
+                               feed = feed)
+run_window_editor(document, probe, "Title"; backend = backend, feeds = Feed[feed])
 ```
 
-`pointer` returns the pointer in screen coordinates; the host supplies it. `ProjecturedShell` builds the probe for you.
+**The window fits what it says.** The probe gives the window `minimum_size = (120, 32)` and `maximum_size = (560, 400)`, both keywords of the probe. The screen prints the window at the maximum, so a long text wraps there, and the backend gives the window the extent of what it printed. So a tooltip of one word is small and a docstring is tall, and neither is cut.
 
-- Tests: `test_tooltip()` for the wrapper, `test_tooltip_probe()`, `test_widget_tooltip()` and `test_julia_tooltip()` for the probe.
+`pointer` returns the pointer in screen coordinates; the host supplies it. `ProjecturedShell` builds the probe for you when the fold gets `tooltip`, `pointer` and `tooltip_feed`.
+
+- Tests: `test_tooltip()` for the wrapper; `test_tooltip_probe()`, `test_tooltip_feed()`, `test_widget_tooltip()` and `test_julia_tooltip()` for the probe and its feed.
 
 ## Limits
 
-- The probe takes every `MouseMove` and does not pass it on. So a hover highlight or a drag of a divider below the probe gets no move. `plan/pending/hover-drag-and-tooltip-share-the-pointer.md` describes the fault and a fix.
 - The default `position` of the wrapper is a fixed rectangle at the corner. A caller must give a position function.
 - `plan/pending/tooltip.md` lists the open steps of the wrapper: the window flags of the `:tooltip` style in the SDL backend, and more examples and tests.

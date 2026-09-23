@@ -32,7 +32,7 @@ export PointReferenceStep
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
        set_cell_function!, hit_element_at, get_graphics_size, tessellate_spline, build_polyline_arrowhead,
        is_point_near_polyline, is_point_in_polygon
-export GraphicsCanvasToGraphicsImage, GraphicsCaching
+export GraphicsCanvasToGraphicsImage, GraphicsCaching, GraphicsToGraphics
 export is_infinite_canvas
 export GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsViewport
 export get_canvas_content_bounds
@@ -42,6 +42,7 @@ export make_selection_ring, SELECTION_RING_COLOR
 include("PointReferenceStep.jl")
 include("GraphicsDocument.jl")
 include("GraphicsCaching.jl")
+include("GraphicsToGraphics.jl")
 include("SelectionRing.jl")
 
 end # module

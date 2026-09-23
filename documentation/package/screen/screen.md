@@ -10,6 +10,7 @@
 
 - `id`, a `Symbol`. The backend keeps one native window for each id, from frame to frame.
 - `title`, `x`, `y`, `width`, `height`. A position of `-1` lets the backend choose, and a size of `0` sizes the window to its content.
+- `minimum_size` and `maximum_size`, the bounds of a window that fits what it holds. A maximum of `(0, 0)`, the default, is a window of a fixed size, and that is every window but a tooltip today.
 - `style`: `:normal`, `:tooltip` or `:floating`. The backend applies the behaviour of each style.
 - `auto_dismiss`: the window closes when it loses the focus, as a menu does.
 - `modal`: while the window is open, no other window gets input.
@@ -19,7 +20,7 @@ The screen is data like any other document. To open a window, a program adds a `
 
 ### ScreenToScreen
 
-`ScreenToScreen` maps the input screen to the output screen. It copies the metadata of each window and sends `content` through the projection of the caller. It sets the `width` and `height` of the window as the size available to the content, so a split pane or a scroll pane fills the window.
+`ScreenToScreen` maps the input screen to the output screen. It copies the metadata of each window and sends `content` through the projection of the caller. It sets the `width` and `height` of the window as the size available to the content, so a split pane or a scroll pane fills the window. **A window that fits is offered its `maximum_size` instead, always.** The backend gives such a window the extent of the canvas it printed, so an offer that followed that size would chase it: a text wraps at the maximum width, and the window ends as wide as the text needed. [sdl.md](../sdl/sdl.md) describes the backend half.
 
 It keeps the IO map of each window by identity (`reconcile_child_iomaps`). So a window that opens or closes does not rebuild the other windows, and a new content in a window with the same id replaces the old content in place.
 

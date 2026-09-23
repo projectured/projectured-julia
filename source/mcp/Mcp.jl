@@ -91,7 +91,8 @@ function start_mcp!(mcp::McpServer)
         mcp.task = @async start!(mcp.server)
         timedwait(() -> mcp.server.active || istaskdone(mcp.task), 10.0; pollint = 0.001)
     catch e
-        record_fault!(mcp.editor.faults, :tool, :McpServer, nothing, e, catch_backtrace())
+        record_fault!(mcp.editor.faults, :tool; origin = :McpServer, exception = e,
+                      traceback = catch_backtrace())
         @warn "MCP server failed to start" exception = e
     finally
         Base.CoreLogging.global_logger(previous)
@@ -162,7 +163,7 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                         tool.handler(editor, args)
                     catch exception
                         traceback = catch_backtrace()
-                        record_fault!(editor.faults, :tool, Symbol(tool.name), nothing,
+                        record_fault!(editor.faults, :tool; origin = Symbol(tool.name),
                                       exception, traceback)
                         sprint(showerror, exception, traceback)
                     end

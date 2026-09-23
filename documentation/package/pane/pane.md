@@ -86,7 +86,7 @@ Every edit reaches the screen through the IO maps that stand, with no new print 
 
 **The drop indicator** is one `WidgetHighlight` in slot 2 of the composite. Its position, size and `visible` are cells that read `drag` and the geometry, so the widget tree has the same shape during a drag. A `WidgetComposite` gives each child the extent that it has itself, so the panes still divide the whole window. A `StackLayout` withholds the available size from its children, so the split panes shrink to their own size.
 
-**A splitter drag, twice.** `WidgetSplitPane` anchors a drag on its `sizes` and fills them only when they are empty. The pane answers each `ResizeSplitPaneOperation` with a write of the weights and never writes `sizes`. So `sizes` still holds the extents of the first grab. The reader answers `StartSplitterDragOperation` of a split of the tree with a `CompoundOperation` that clears `sizes` first, and the widget measures again. A split that a tab content made is not a split of the tree, and it keeps its own `sizes`.
+**A splitter drag, twice.** `WidgetSplitPane` anchors a drag on its `sizes` and fills them only when they are empty. The pane answers each `ResizeSplitPaneOperation` with a write of the weights and never writes `sizes`. So `sizes` still holds the extents of the first grab. The reader answers `StartSplitterDragOperation` of a split of the tree with a `CompoundOperation` that clears `sizes` first, and the widget measures again. A split that a tab content made is not a split of the tree, and it keeps its own `sizes`. The widget marks the three operations of a drag as view state. The reader reads the operation inside the mark, and its answer keeps the mark, so a history records no part of a drag.
 
 ### Keyboard and mouse
 
@@ -224,5 +224,4 @@ save_user_interface(editor, "session.pred")
 
 - The strip prints a title as a label, so the name changes as a person types it, but the strip draws no caret.
 - An Alt+click on the tab title of a group without the focus brings back the selection that the tab kept. The kernel revives a dormant selection on a write that ends at its keeper. The fix needs a change of a sealed kernel file. `plan/pending/select-a-widget-and-paste-it-into-a-tab.md` holds the item.
-- Under a `WidgetShell`, a tab drag does not start, because the shell gives `MouseDown` to the content with window coordinates. `plan/pending/hover-drag-and-tooltip-share-the-pointer.md` describes the fault.
 - The geometry is proportional. It is not a model of the pixels of the drawing.
