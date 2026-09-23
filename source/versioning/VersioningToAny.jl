@@ -186,11 +186,11 @@ end
 # value-child delegation. ModifierKeys are matched exactly.
 function get_projection_gesture_bindings(p::VersioningToAnyProjection, iomap)
     GestureBinding[
-        GestureBinding(KeyDownPattern(:s, [:ctrl, :shift], nothing),
+        GestureBinding(KeyDownPattern(:s; modifiers = [:ctrl, :shift]),
                        (doc, event) -> _create_version(p, iomap);
                        description = "Create version", domain = "versioning",
                        name = "Create version"),
-        GestureBinding(KeyDownPattern(:delete, [:ctrl], nothing),
+        GestureBinding(KeyDownPattern(:delete; modifiers = [:ctrl]),
                        (doc, event) -> _delete_version(iomap);
                        description = "Delete version", domain = "versioning",
                        name = "Delete version"),

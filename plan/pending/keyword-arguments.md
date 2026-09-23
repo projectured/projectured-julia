@@ -308,8 +308,11 @@ Steps:
   MethodError. Its colour is `color_transparent` now. The timeline, module-view,
   canvas-animation and focus-history tests pass against this branch, a vector
   plot prints, and the Hanoi keyword sets build.
-- [ ] 3. The five gesture patterns and their 52 calls — after the owner's
-  permission for `EventPattern.jl`.
+- [x] 3. The five gesture patterns and their 50 calls, with the owner's
+  permission for `EventPattern.jl` (2026-09-23), which covered the five
+  definitions only. `KeyPressPattern(char, guard, label)` and the move, enter
+  and scroll patterns in the same file keep optional positionals too; they carry
+  no marker, so they are among the 32 left out of this wave.
 - [ ] 4. The guard: a marked definition keeps the optional clause, and §4 of the
   rule says that a marker excuses the count only.
 

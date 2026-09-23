@@ -89,7 +89,7 @@ function test_gesture_binding()
     end
 
     @testset "matches: KeyDown honours key + exact modifiers" begin
-        p = KeyDownPattern(:period, [:ctrl], nothing)
+        p = KeyDownPattern(:period; modifiers = [:ctrl])
         @test matches_event_pattern(p, KeyDown(:period, ModifierKeys(ctrl=true)))
         @test !matches_event_pattern(p, KeyDown(:period, ModifierKeys()))                    # ctrl required
         @test !matches_event_pattern(p, KeyDown(:period, ModifierKeys(ctrl=true, alt=true))) # exact: alt absent
@@ -97,7 +97,7 @@ function test_gesture_binding()
     end
 
     @testset "matches: MousePress honours button, ignores position" begin
-        p = MousePressPattern(:left, nothing, nothing)
+        p = MousePressPattern(:left)
         @test matches_event_pattern(p, MousePress(:left, 10, 20))
         @test matches_event_pattern(p, MousePress(:left, 99, 5))
         @test !matches_event_pattern(p, MousePress(:right, 10, 20))
@@ -105,10 +105,10 @@ function test_gesture_binding()
 
     @testset "describe renders readable gesture strings" begin
         @test describe_event_pattern(KeyPressPattern('n')) == "n"
-        @test describe_event_pattern(KeyDownPattern(:period, [:ctrl], nothing)) == "Ctrl+."
-        @test describe_event_pattern(KeyDownPattern(:tab, nothing, nothing)) == "Tab"
-        @test describe_event_pattern(KeyDownPattern(:home, [:ctrl, :alt], nothing)) == "Ctrl+Alt+Home"
-        @test describe_event_pattern(MousePressPattern(:left, nothing, nothing)) == "Left click"
+        @test describe_event_pattern(KeyDownPattern(:period; modifiers = [:ctrl])) == "Ctrl+."
+        @test describe_event_pattern(KeyDownPattern(:tab)) == "Tab"
+        @test describe_event_pattern(KeyDownPattern(:home; modifiers = [:ctrl, :alt])) == "Ctrl+Alt+Home"
+        @test describe_event_pattern(MousePressPattern(:left)) == "Left click"
     end
 
     @testset "@gestures registers an own table; descriptions captured" begin

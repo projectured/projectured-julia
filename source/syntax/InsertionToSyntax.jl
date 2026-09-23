@@ -229,25 +229,25 @@ end
 function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
     ins = iomap.input
     GestureBinding[
-        GestureBinding(KeyDownPattern(:return, nothing, nothing),
+        GestureBinding(KeyDownPattern(:return),
                        (doc, event) -> _insertion_commit(p, ins);
                        description = "Commit insertion", domain = "insertion"),
         # Escape aborts to the domain's own placeholder (`get_nothing_document`, a
         # `@domain` trait) — `JsonInsertion` → `JsonNothing`, … — closing the
         # Insert ⇄ Escape loop within each domain.
-        GestureBinding(KeyDownPattern(:escape, nothing, nothing),
+        GestureBinding(KeyDownPattern(:escape),
                        (doc, event) -> replace_document(EmptyReference(), get_nothing_document(typeof(ins))());
                        description = "Cancel insertion", domain = "insertion"),
         # Tab accepts the completion: the full remainder when unambiguous, the
         # longest-common-prefix *partial* completion when ambiguous; declines
         # (keeps propagating) when there is nothing to extend.
-        GestureBinding(KeyDownPattern(:tab, nothing, nothing),
+        GestureBinding(KeyDownPattern(:tab),
                        (doc, event) -> _insertion_tab(p, ins);
                        description = "Accept completion", domain = "insertion"),
-        GestureBinding(KeyDownPattern(:backspace, nothing, nothing),
+        GestureBinding(KeyDownPattern(:backspace),
                        (doc, event) -> delete_insertion_text_operation(ins, :backspace);
                        description = "Delete backward", domain = "insertion"),
-        GestureBinding(KeyDownPattern(:delete, nothing, nothing),
+        GestureBinding(KeyDownPattern(:delete),
                        (doc, event) -> delete_insertion_text_operation(ins, :delete);
                        description = "Delete forward", domain = "insertion"),
         GestureBinding(KeyPressPattern(nothing),

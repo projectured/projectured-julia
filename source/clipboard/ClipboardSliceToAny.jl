@@ -396,24 +396,24 @@ end
 
 function _make_clipboard_bindings(p::ClipboardSliceToAnyProjection)
     GestureBinding[
-        GestureBinding(KeyDownPattern(:slash, [:ctrl], nothing),
+        GestureBinding(KeyDownPattern(:slash; modifiers = [:ctrl]),
                        (doc, event) -> ToggleClipboardSliceOperation(p);
                        description = "Toggle stored slice", domain = "clipboard",
                        name = "Toggle stored slice"),
-        GestureBinding(KeyDownPattern(:c, [:ctrl], nothing),
+        GestureBinding(KeyDownPattern(:c; modifiers = [:ctrl]),
                        (doc, event) -> _clipboard_copy(p, doc); description = "Copy",
                        domain = "clipboard", name = "Copy"),
-        GestureBinding(KeyDownPattern(:x, [:ctrl], nothing),
+        GestureBinding(KeyDownPattern(:x; modifiers = [:ctrl]),
                        (doc, event) -> _clipboard_cut(p, doc); description = "Cut",
                        domain = "clipboard", name = "Cut"),
-        GestureBinding(KeyDownPattern(:n, [:ctrl], nothing),
+        GestureBinding(KeyDownPattern(:n; modifiers = [:ctrl]),
                        (doc, event) -> _clipboard_note(p, doc); description = "Note",
                        domain = "clipboard", name = "Note"),
-        GestureBinding(KeyDownPattern(:v, [:ctrl, :shift], nothing),
+        GestureBinding(KeyDownPattern(:v; modifiers = [:ctrl, :shift]),
                        (doc, event) -> _clipboard_paste_copy(p, doc);
                        description = "Paste copy", domain = "clipboard",
                        name = "Paste copy"),
-        GestureBinding(KeyDownPattern(:v, [:ctrl], nothing),
+        GestureBinding(KeyDownPattern(:v; modifiers = [:ctrl]),
                        (doc, event) -> _clipboard_paste(p, doc); description = "Paste",
                        domain = "clipboard", name = "Paste"),
     ]

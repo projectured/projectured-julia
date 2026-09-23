@@ -22,7 +22,7 @@ The open flag is in a `GestureHelpState` that the caller makes and shares, becau
 
 ### Ctrl+Shift+P: the command palette
 
-`CommandPaletteDecoratorProjection(; inner, measure, state, x = 60, y = 60)` opens on `COMMAND_PALETTE_GESTURE`, which is `KeyDownPattern(:p, [:ctrl, :shift])`. While the palette is closed, the inner reader comes first, as in the help. The gesture then fills the one `CommandPalette` of the state with the collected rows, empties the query, and opens the palette.
+`CommandPaletteDecoratorProjection(; inner, measure, state, x = 60, y = 60)` opens on `COMMAND_PALETTE_GESTURE`, which is `KeyDownPattern(:p; modifiers = [:ctrl, :shift])`. While the palette is closed, the inner reader comes first, as in the help. The gesture then fills the one `CommandPalette` of the state with the collected rows, empties the query, and opens the palette.
 
 While the palette is open, the decorator reads first and takes every event, also a key that it has no use for. So the selection of the content does not move while a person types.
 

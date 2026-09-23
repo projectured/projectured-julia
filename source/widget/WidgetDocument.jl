@@ -2615,7 +2615,7 @@ function Shortcut(key::Symbol; ctrl::Bool=false, alt::Bool=false, shift::Bool=fa
     shift && push!(mods, :shift)
     alt   && push!(mods, :alt)
     meta  && push!(mods, :meta)
-    KeyDownPattern(key, mods, nothing)
+    KeyDownPattern(key; modifiers = mods)
 end
 
 # True when `evt` fires `action`'s shortcut and the action is enabled. Reuses the

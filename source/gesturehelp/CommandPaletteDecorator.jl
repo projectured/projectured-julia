@@ -34,7 +34,7 @@
 The gesture that summons the palette: Ctrl+Shift+P. F1 already opens the help
 window, which is the palette's read-only twin.
 """
-const COMMAND_PALETTE_GESTURE = KeyDownPattern(:p, [:ctrl, :shift])
+const COMMAND_PALETTE_GESTURE = KeyDownPattern(:p; modifiers = [:ctrl, :shift])
 
 """
     PALETTE_PADDING
