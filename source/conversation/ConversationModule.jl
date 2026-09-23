@@ -46,6 +46,7 @@ import ..DocumentModule: copy_document, get_document_title, has_document_duplica
 import ..DomainModule: accepts_pasted_document, accepts_pasted_text,
                        get_insertion_aliases, make_insertion_document
 import ..FocusModule: is_selection_walk_stop
+import ..SelectionModule: has_dormant_selection
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward

@@ -108,8 +108,9 @@ end
 
 Put the editor's complete selection on the caret of `draft`'s active part, or on
 the active part's content when it takes no text. The path to the draft is the
-one the complete selection already passes through. With no editor, or with a
-selection that does not pass through `draft`, nothing changes.
+one the complete selection already passes through. When the complete selection
+does not pass through `draft`, the draft keeps the caret as a dormant selection,
+and the complete selection stays where it is. With no editor, nothing changes.
 
 A composer operation calls it after it edits the draft, and so does a host that
 replaces the draft's parts, such as the assistant after a submit.
@@ -117,9 +118,32 @@ replaces the draft's parts, such as the assistant after a submit.
 function sync_draft_selection!(editor, draft::ConversationDraft)
     tail = make_draft_caret_reference(draft)
     tail === nothing && return nothing
-    _select_under!(editor, draft, tail)
+    _select_under!(editor, draft, tail) || _keep_dormant_caret!(editor, draft, tail)
     nothing
 end
+
+# Off the live path the draft keeps its caret dormant. The caret is written live
+# from the root, and the live selection is written back at once. At that second
+# write the kernel keeps the branch it leaves, because the draft keeps a dormant
+# selection, so the draft and every keeper above it name the new caret. An editor
+# with no live selection, or a draft that its document does not hold, keeps what
+# it has.
+function _keep_dormant_caret!(editor, draft, tail)
+    root = (editor !== nothing && hasproperty(editor, :document)) ? editor.document : nothing
+    root === nothing && return nothing
+    live = get_selection(root)
+    live isa Reference || return nothing
+    live = copy_reference(live)
+    found = search_references(root, node -> node === draft; descend = _is_draft_search_step)
+    isempty(found) && return nothing
+    replace_selection!(root, concat_references(first(found), tail))
+    replace_selection!(root, live)
+    nothing
+end
+
+# A search for a draft enters documents and collections only, so it does not find
+# the draft through an operation that a history records.
+_is_draft_search_step(parent, child) = child isa Document || is_element_collection(child)
 
 # Put the editor's complete selection on `tail` inside `node`: the steps of the
 # complete selection that lead to `node`, then `tail`. The old selection is
@@ -432,9 +456,12 @@ make_conversation_draft() = ConversationDraft([_new_typein()])
 
 Reset a draft **in place** to a single empty text typein — used after its content
 has been submitted. Mutating in place (rather than replacing the draft) keeps a
-cached projection of the draft valid and reactive.
+cached projection of the draft valid and reactive. The parts it takes out hold no
+selection afterwards, because they go to the transcript.
 """
 function reset_draft!(d::ConversationDraft)
+    # The parts leave the draft for the transcript, where no caret belongs.
+    foreach(clear_selection!, collect(d.parts))
     getfield(d.parts, :elements)[] = Cell[Cell(_new_typein())]
     # The caret goes with it. A draft that was just submitted is the one the
     # reader is about to write in, and a caret left on the parts that are gone

@@ -123,6 +123,11 @@ end
 ConversationDraft(parts::Vector, assistant = nothing) =
     ConversationDraft(CellVector(Cell[Cell(p) for p in parts]), Cell(assistant), Cell(nothing))
 
+# A draft keeps its caret when the focus leaves it, dormant: still stored, not
+# drawn and not acted on, and live again when the focus comes back. A person who
+# leaves the draft finds the caret where it was.
+has_dormant_selection(::ConversationDraft) = true
+
 # ── The duplicate ─────────────────────────────────────────────────────────────
 
 # A conversation is what a person said and read, so its duplicate is a copy of it.
