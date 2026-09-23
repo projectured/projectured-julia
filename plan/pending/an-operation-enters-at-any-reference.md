@@ -1,4 +1,4 @@
-# A gesture is read at any reference
+# An operation enters at any reference
 
 **Status (2026-09-23): DESIGN.** Not approved for implementation. Nothing is
 implemented. The shape of the entry is decided (§3); how the route travels is
