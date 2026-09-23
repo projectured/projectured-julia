@@ -167,13 +167,15 @@ rootless chain of steps, left = outermost:
 
 Use it to name a place in the window — a tab, what a pane holds, a split, the
 root — for `get_referenced_value`, `replace_referenced_value!` and
-`focus_pane!`. `show_layout` prints the path of every part, so copy a path from
-there: `@reference(window, root.elements[1].tabs[2].content)`.
+`focus_pane!`. `show_layout` prints the path of every part as a tree of steps, so
+join the steps of a branch there: the first argument is the root, and the path
+starts after it.
 
 # Example
 
     show_layout(editor)
-    plot = get_referenced_value(editor, @reference(window, root.elements[2].tabs[1].content))
+    plot = get_referenced_value(editor, @reference(editor.document,
+        windows[1].content.content.content.content.root.elements[2].tabs[1].content))
 
 See also `show_layout`, `get_referenced_value`, `replace_referenced_value!`.
 

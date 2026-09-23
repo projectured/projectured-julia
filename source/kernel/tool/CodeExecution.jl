@@ -236,7 +236,7 @@ const _SHOWN_VALUE_CHARACTERS = 200
 # is, a long one by its `summary` and how to read a part of it, and `nothing` as
 # nothing at all. Prose a verb answers on purpose is shown whole, however long:
 # a `Text` as it is, and a long `String` without its quotes. A verb that answers
-# `show_layout`'s program or a search's hits answers it to be read.
+# `show_layout`'s layout or a search's hits answers it to be read.
 function _describe_last_value(value)
     value === nothing && return ""
     value isa Base.Text && return string(value) * "\n"

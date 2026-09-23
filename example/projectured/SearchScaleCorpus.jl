@@ -65,7 +65,7 @@ const SCALE_SEARCH_QUESTIONS = ScaleQuestion[
     # The window.
     (sentence = "show a document in a new tab of the window",
      expected = "open_pane!", kind = :api),
-    (sentence = "print the window as a program that rebuilds it",
+    (sentence = "show what is where in the windows",
      expected = "show_layout", kind = :api),
     (sentence = "write a new value where a reference points",
      expected = "replace_referenced_value!", kind = :api),

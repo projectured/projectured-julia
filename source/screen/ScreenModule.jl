@@ -39,6 +39,7 @@ using ..SelectionModule
 using ..SerializationModule
 
 # Imported to extend: this module adds a method to each of these.
+import ..DocumentModule: get_document_title
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 

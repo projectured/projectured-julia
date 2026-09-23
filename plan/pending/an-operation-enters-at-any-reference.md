@@ -661,11 +661,53 @@ may live side by side:
   more language, and the tree with `replace_referenced_value!` covers a large
   rewrite.
 
-- [ ] `show_layout` prints the tree; the program printer goes.
-- [ ] `move_pane!` and `make_move_pane_operation`.
-- [ ] The texts that describe the program follow: the docstrings
-      (`PaneProgram.jl`, `PaneDocument.jl`, `ReferenceBuilder.jl`), the
-      application's system prompt, and omnet-julia's window instructions.
+- [x] `show_layout` prints the tree; the program printer goes.
+- [x] `move_pane!` and `make_move_pane_operation`.
+- [x] The texts that describe the program follow in projectured-julia: the
+      docstrings (`PaneProgram.jl` and its header, `PaneDocument.jl`,
+      `ReferenceBuilder.jl`), two comments in `kernel/tool/`, the application's
+      system prompt, and the sentence of the search corpus for `show_layout`.
+- [ ] omnet-julia's window instructions (with the omnet-julia step).
+
+**How it is built (2026-09-23):**
+
+- `show_layout(editor; include = is_layout_line, descend = is_pane_search_step)`
+  runs `search_references` from the root and prints one line for each node that
+  `include` takes, in the order of the walk. A line's steps are those after the
+  nearest printed line whose path is a prefix of its own; the type is
+  `nameof(typeof(node))`. `is_layout_line` takes a document that is not a
+  collection, a widget or a wrapper.
+- The note is: the root says "the editor's document"; any other node says its
+  name through `get_document_title`, what it is through `describe_document`
+  when that says more than the type, the wrappers its steps pass through, and
+  "(focused)" on the deepest tab of the root's selection. New methods of the two
+  seams: `get_document_title` of a `PaneTab` (its title) and of a
+  `WindowDocument` (its title, in the screen slice); `describe_document` of a
+  `PaneTab` (its content's), a `PaneGroup` ("2 tabs") and a `PaneSplit` ("side
+  by side: 20% | 80%").
+- `move_pane!(editor, reference, target; side = nothing)`: a target group takes
+  the pane at its end, a target tab takes it before itself, and `side` (`:left`,
+  `:right`, `:above`, `:below`) puts it beside the target's group in a new
+  split. Both references name parts of one tree. It uses the surgery builders
+  that the tab drag uses.
+- `get_window_tree` stays for code that holds one window, and leaves the
+  assistant's API list; `move_pane!` joins it.
+
+**Found on the way:**
+
+- **A group's dormant selection can name a tab it no longer has.** After a move
+  beside a group, the source group keeps `tabs[2]` although it holds one tab.
+  The same drop by the mouse runs the same surgery operation, so this is not
+  new with the verbs. A group's dormant selection runs through its `tabs`
+  collection, so the test helper for stray selections exempts every document on
+  a dormant path, and it walks as a pane search walks, so it does not count the
+  documents that the undo history records.
+
+**Suites, in the worktree:** `test_application` 207/207 and every suite listed
+above with no failure, the six search suites (`test_search_api` 10,
+`test_search_query` 61, `test_search_answer` 68, `test_search_guides` 6,
+`test_search_object` 35, `test_search_tools_registered` 8), `test_kernel` with
+the six known failures; the naming, argument and tree guards pass.
 - [ ] omnet-julia: `focus_runner_group!`, `_open_file_navigator!`,
       `open_simulation_pane!`, and the first focus of an embedded tree.
 - [ ] The guides: `selection.md`, `clipboard.md`, `pane.md`, and a guide for

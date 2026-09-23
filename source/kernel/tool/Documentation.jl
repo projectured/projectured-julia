@@ -274,8 +274,6 @@ docstring's common indentation before it is stored, so the indented signature
 block arrives flush left. A hit shows it, and `_read_doc_heading` reads the
 sentence under it; but scored on the signature alone, no word of the
 description is searchable, and a verb is reachable only through its name.
-`show_layout`'s docstring says "Which panes are open"; a search for "panes"
-answered nothing.
 
 Two paragraphs, not the whole text: the sentence under the signature is where a
 docstring says what the thing does, and the rest is detail that would only blur

@@ -312,8 +312,10 @@ const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
     "THIS WINDOW SHOWS FILES. Its verbs are the functions of the modules " *
     "PaneModule, WidgetModule, LayoutModule, FileFormatModule and " *
     "FileSystemModule. PaneModule arranges the window and places a document in " *
-    "it: open_pane! puts a document in a tab, focus_pane! brings one forward, " *
-    "show_layout prints the tree. WidgetModule and LayoutModule build what a " *
+    "it: open_pane! puts a document in a tab, find_pane_reference names a pane " *
+    "by its title, focus_pane!, move_pane! and close_pane! bring one forward, " *
+    "move it and close it, and show_layout prints what is where. " *
+    "WidgetModule and LayoutModule build what a " *
     "pane shows — a card, a button, a table, a row or a column of them. " *
     "FileFormatModule opens a path as a tab with make_file_tab, and writes one " *
     "back with write_document_file. FileSystemModule names the workspace the " *

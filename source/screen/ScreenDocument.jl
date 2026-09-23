@@ -64,6 +64,9 @@ projected.
     content::Document
 end
 
+# A window calls itself by the title it shows.
+get_document_title(window::WindowDocument) = window.title
+
 # ── Window operations ───────────────────────────────────────────────────────
 # The screen domain's own operation vocabulary: requests to open/close/resize a
 # window. They live here beside `WindowDocument` (whose schema they mirror); a

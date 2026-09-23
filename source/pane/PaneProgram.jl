@@ -2,50 +2,30 @@
 #
 # **The window's layout, as something a language model can read and change.**
 #
-# Three verbs read and write it. [`show_layout`](@ref) prints the pane tree as a
-# Julia program, [`get_referenced_value`](@ref) answers the node a reference names,
-# and [`replace_referenced_value!`](@ref) writes a new value at a reference. Two
-# more do what a write cannot say: [`open_pane!`](@ref) puts a document in a new
-# tab and answers a reference to it, and [`focus_pane!`](@ref) moves the focus,
-# which is the selection and not a value in the tree.
+# [`show_layout`](@ref) prints the layout as a tree of reference steps: one line
+# for each window, pane tree, split, group and tab, with the type of the node it
+# reaches and a note on what it is. The path of a part is the steps of the lines
+# on its branch, from the root of the editor's document.
 #
-# **The level is the reference, not the verb.** A replace at `root` rearranges the
-# whole window; a replace at `root.elements[1]` moves one side of a split; a
-# replace at `root.elements[1].tabs[1].content` changes what one pane holds; a
-# replace at `root.weights` resizes a split. One verb reaches all of them, because
-# a layout is a document and a reference names any part of one — which is why
-# moving, resizing and closing a pane have no words of their own.
+# **A verb for each common change.** [`focus_pane!`](@ref), [`open_pane!`](@ref),
+# [`duplicate_pane!`](@ref), [`close_pane!`](@ref) and [`move_pane!`](@ref) each
+# do what a person does with a pane, and [`find_pane_reference`](@ref) names the
+# pane by its title, so a model writes no path for them. A change that has no
+# verb — the weights of a split, what a pane holds, a new arrangement of the
+# whole window — is [`replace_referenced_value!`](@ref) at a path read off the
+# tree, and [`get_referenced_value`](@ref) reads the node at one.
 #
-# **A pane is named by reference, never by title.** A reference names any part of
-# any document; a title names a tab, and two tabs can carry one title. So every
-# verb here takes a reference, and the verbs that place something answer one.
+# **Every reference is complete.** It starts at the root of the editor's
+# document. A verb finds its pane tree from the reference it gets, so no verb
+# assumes one window or one tree. A verb reads its edit through the readers of the
+# editor (`read_rooted_operation`) and evaluates it at once, so every document on
+# the path of the selection holds its part of one path. Each verb has a
+# `make_…_operation` that reads the edit and evaluates nothing, for a caller that
+# posts it with [`post_pane_operation!`](@ref).
 #
-# # What the model reads
-#
-# `show_layout` answers the program that rebuilds the window as it stands:
-#
-# ```julia
-# window = get_window_tree(editor)
-#
-# runner    = get_referenced_value(editor, @reference(window, root.elements[1].tabs[1]))   # Runner — the run form
-# assistant = get_referenced_value(editor, @reference(window, root.elements[2].tabs[1]))   # Assistant — this conversation
-#
-# replace_referenced_value!(editor, @reference(window, root),
-#     PaneSplit(:vertical, [
-#         PaneGroup([runner]),
-#         PaneGroup([assistant])], weights = [0.3, 0.7]))
-# ```
-#
-# **A reference is written against the window**, which is what the first line binds.
-# `@reference(window, path)` fills in the type of every node from the tree itself,
-# so a path needs no `::T` spelled by hand and is wrong at once rather than later
-# when it names a node that is not there.
-#
-# Paste it back unchanged and the window does not move. A model that wants a change
-# therefore edits the text it was given — it swaps two names, changes a weight, or
-# puts two names in one `PaneGroup` — rather than composing a program out of a
-# docstring. And each name binds the `PaneTab` object that is already there, so the
-# tree that is written holds the same tabs and no pane re-prints.
+# **A pane has two names.** Its reference names any part of any document; its
+# title is what a person says. `find_pane_reference` turns a title into a
+# reference, and when two tabs have one title it says so rather than choose.
 #
 # # The numbering
 #
@@ -60,8 +40,7 @@
 # `@reference` belong to `LayoutModule` and `ReferenceModule` — and
 # [`make_pane_api`](@ref) declares all four **by name** to the model rather than
 # declaring any of their modules whole. A declaration is not an export, so each
-# of those names still has exactly one owning module, and the program says them
-# plainly.
+# of those names still has exactly one owning module.
 #
 # Their modules are not declared, and that is the point. `@document` exports about
 # thirty generated schema variants per document type — `APaneSplit`, `ACPaneSplit`,
@@ -76,9 +55,9 @@
 #
 # # Adding a description
 #
-# [`describe_document`](@ref) is the one line the program's comment carries
-# for a pane. Write a method for each document this window can show, beside the
-# ones below.
+# [`describe_document`](@ref) is the note that a line of the layout carries for
+# what a pane holds. Write a method for each document this window can show,
+# beside the ones below.
 # The pane package binds it, so a layout costs this package no dependency of its
 # own and the window's closure is what it was.
 
@@ -86,8 +65,9 @@
 """
     make_pane_api() -> Vector
 
-What a model needs declared to write the program [`show_layout`](@ref) prints:
-this module's verbs, and the borrowed names the program says.
+What a model needs declared to read the layout that [`show_layout`](@ref) prints
+and to change it: this module's verbs, and the borrowed names a write at a path
+of the layout uses.
 
 The borrowed ones are listed **by name**. Their modules export far more than a
 layout needs, and a declared module puts every one of its exported names in the
@@ -101,13 +81,16 @@ make_pane_api() = Any[
     # business, not something to be asked separately.
     #
     # `describe_document` is here because it is two things at once — the
-    # extension point `show_layout` writes its comments with, and the sentence a
+    # extension point `show_layout` writes its notes with, and the sentence a
     # caller asks about a value it holds: how far a set of runs has got, whether
     # that set is in a pane or in a hand.
-    PaneModule => (:show_layout, :get_window_tree, :get_referenced_value,
-                          :replace_referenced_value!, :open_pane!, :focus_pane!,
-                          :close_pane!, :find_pane_reference, :find_pane_tree_reference,
-                          :duplicate_pane!, :describe_document),
+    #
+    # `get_window_tree` is not declared: it answers the first window's tree, and
+    # a model names a part by a complete reference from the root.
+    PaneModule => (:show_layout, :get_referenced_value, :replace_referenced_value!,
+                          :open_pane!, :focus_pane!, :close_pane!, :move_pane!,
+                          :duplicate_pane!, :find_pane_reference, :find_pane_tree_reference,
+                          :describe_document),
     PaneModule      => (:PaneTree, :PaneSplit, :PaneGroup, :PaneTab),
     LayoutModule    => (:GridLayout, :HorizontalLayout, :VerticalLayout,
                         :FlowLayout, :StackLayout),
@@ -119,8 +102,8 @@ make_pane_api() = Any[
 
 What a model needs declared to build what a pane shows: the widgets a person
 asks for by name, the policies a layout sizes a child with, and the two geometry
-values a widget takes. The layouts are in [`make_pane_api`](@ref), because the
-layout program says them.
+values a widget takes. The layouts are in [`make_pane_api`](@ref), because a
+write at a path of the layout uses them.
 
 Every name is listed, as `make_pane_api` lists its borrowed ones. `WidgetModule`
 exports about a hundred names, and most of them are projections, operations and
@@ -149,17 +132,17 @@ make_interface_api() = Any[
 """
     get_window_tree(editor) -> PaneTree
 
-The pane tree the editor shows.
+The pane tree of the editor's first window.
 
-Use it to read the whole pane tree when no verb answers the part you need, and
-to write a reference against it with `@reference`.
+Use it where code holds one window and needs its tree object. A reference that a
+verb takes starts at the root of the editor's document, not at this tree:
+[`find_pane_tree_reference`](@ref) answers the reference of the tree that holds
+the focus, and [`show_layout`](@ref) prints the path of every part.
 
 # Example
 
     tree = get_window_tree(editor)
     println(length(get_pane_groups(tree)), " groups")
-
-See also `show_layout`, which prints the tree with its references.
 
 A running editor draws a screen of windows, and a headless caller — a test, a
 workload — holds the tree itself. Both arrive at a verb, so both are read. A
@@ -969,185 +952,205 @@ function _make_duplicate_pane(editor, reference::Reference)
 end
 
 
-# ── The program ─────────────────────────────────────────────────────────────
+# ── Moving a pane ───────────────────────────────────────────────────────────
 
 """
-    show_layout(editor) -> Text
+    move_pane!(editor, reference::Reference, target::Reference; side = nothing) -> Text
 
-Which panes are open, where each one sits and what it holds, as the Julia
-program that rebuilds the window.
+Move the pane `reference` names to `target`, and answer the window's new layout.
 
-Use it to see the layout of the window — its splits, its groups, the tabs of
-each group and what each holds — with the reference of every part, before you
-move, close, replace, focus or duplicate a pane. It answers the layout as a program, so a
-`replace_referenced_value!` at one of its references edits it.
+Use it to move a tab to another group, to put it before another tab, or to put
+it beside a group in a split of its own.
+
+# Example
+
+    move_pane!(editor, find_pane_reference(editor, "notes.txt"),
+               find_pane_reference(editor, "Files"))
+
+See also `show_layout`, `find_pane_reference`, `close_pane!`.
+
+`target` names a group, and the pane goes to its end; or it names a tab, and the
+pane goes before that tab. With `side` — `:left`, `:right`, `:above` or `:below`
+— the pane goes beside the target's group, in a new split. Both references are
+complete, and both name parts of one pane tree. The move is made through the
+readers of the editor and evaluated at once, so the person undoes it with one
+press.
+"""
+function move_pane!(editor, reference::Reference, target::Reference; side = nothing)
+    _refuse_stale(reference)
+    _refuse_stale(target)
+    operation = make_move_pane_operation(editor, reference, target; side)
+    operation === nothing && throw(ArgumentError("The window can not move that pane there."))
+    _evaluate_pane_operation!(editor, operation)
+    show_layout(editor)
+end
+
+"""
+    make_move_pane_operation(editor, reference, target; side = nothing) -> Operation | Nothing
+
+The operation that moves the pane `reference` names, as [`move_pane!`](@ref)
+moves it, from the root of the editor's document. It evaluates nothing.
+`nothing` when the window can not make that move.
+"""
+function make_move_pane_operation(editor, reference::Reference, target::Reference; side = nothing)
+    root = _get_root_document(editor)
+    found = _find_pane_tree_route(root, reference)
+    found === nothing &&
+        throw(ArgumentError("That reference names nothing inside a pane tree."))
+    route, tree = found
+    source, source_index = _find_pane_position(tree, try_evaluate_reference(root, reference, nothing))
+    destination = try_evaluate_reference(root, target, nothing)
+    if destination isa PaneTab
+        group, index = _find_pane_position(tree, destination)
+    elseif destination isa PaneGroup && any(g -> g === destination, get_pane_groups(tree))
+        group, index = destination, length(destination.tabs) + 1
+    else
+        throw(ArgumentError("The target names no group or tab of the pane's tree."))
+    end
+    operation = if side === nothing
+        make_pane_move_tab_operation(tree, source; source_index, target = group, target_index = index)
+    else
+        side in (:left, :right, :above, :below) ||
+            throw(ArgumentError("`side` is :left, :right, :above or :below."))
+        make_pane_drop_split_operation(tree, source; source_index, target = group,
+                                       orientation = side in (:left, :right) ? :vertical : :horizontal,
+                                       side)
+    end
+    _make_rooted_pane_operation(editor, route, tree, operation,
+                                "Move the pane " * get_pane_tab_title_string(source.tabs[source_index]))
+end
+
+# ── The layout ──────────────────────────────────────────────────────────────
+
+"""
+    show_layout(editor; include = is_layout_line, descend = is_pane_search_step) -> Text
+
+What is where in the windows of the editor: a tree of reference steps, one line
+for each window, pane tree, split, group and tab, with the type of the node it
+reaches and a note on what it is.
+
+Use it to see the layout — which panes are open, where each one sits, what it
+holds and which one has the focus — and to read the path of a part before you
+change it.
 
 # Example
 
     show_layout(editor)
 
-See also `get_referenced_value`, `replace_referenced_value!`, `focus_pane!`.
+```
+(root)                                        ::ScreenDocument  # the editor's document
+  .windows[1]                                 ::WindowDocument  # ProjecturEd
+    .content.content.content.content          ::PaneTree        # inside ClipboardSlice › WidgetShell › UndoBuffer
+      .root                                   ::PaneSplit       # side by side: 20% | 80%
+        .elements[1]                          ::PaneGroup       # 1 tab
+          .tabs[1]                            ::PaneTab         # Files — Workspace (focused)
+        .elements[2]                          ::PaneGroup       # 1 tab
+          .tabs[1]                            ::PaneTab         # a.json — JsonFile
+```
 
-It answers a `Text`, not a `String`, so the program arrives as the lines it is.
-A `String` would reach a model through `repr` and arrive as one line of `\n`
-escapes, which is a program a reader has to decode before it can edit it.
+See also `find_pane_reference`, `focus_pane!`, `close_pane!`, `move_pane!`,
+`replace_referenced_value!`.
 
-Every pane gets a name bound to the tab that is there, and the comment says what
-that pane holds. The last statement is the [`replace_referenced_value!`](@ref) call that makes
-this very layout, so the way to change the window is to edit the program and give
-it back.
+**A line is the steps from its parent line.** The path of a part is the steps of
+the lines on its branch, joined in order. Write it as
+`@reference(editor.document, windows[1].content.content.content.content.root.elements[2].tabs[1])`:
+the first argument is the root, and the path starts after it. To name a pane
+there is a shorter way: [`find_pane_reference`](@ref) answers the reference of
+a pane by its title.
+
+The type is the type of the node the line reaches. The note says the node's name
+(`get_document_title`), what it is (`describe_document`), and which tab has the
+focus. A line whose steps go through wrappers, such as a history, names them.
+
+`include(node)` says which nodes get a line, and `descend(parent, child)` where
+the walk goes. The defaults show the windows, the pane trees, the splits, the
+groups and the tabs, and a pane tree inside a tab below that tab.
+
+It answers a `Text`, not a `String`, so the tree arrives as the lines it is. A
+`String` would reach a model through `repr`, as one line of `\\n` escapes.
 """
-function show_layout(editor)
-    tree = get_window_tree(editor)
-    panes = _Pane[]
-    _collect_panes!(panes, tree.root, "root", _pane_shares(tree))
-    isempty(panes) && return Text("The window holds no pane.")
-
-    _name_panes!(panes)
-    names = Dict(p.path => p.name for p in panes)
-    focused = _focused_tab(tree)
-
-    calls = [p.name * _pad(p.name, maximum(length(q.name) for q in panes)) *
-             " = get_referenced_value(editor, @reference(window, " *
-             p.path * "))" for p in panes]
-    width = maximum(length, calls)
-    lines = String[]
-    for (call, pane) in zip(calls, panes)
-        note = pane.title * " — " * pane.description *
-               (isempty(pane.share) ? "" : " · " * pane.share) *
-               (pane.tab !== nothing && pane.tab === focused ? " (focused)" : "")
-        push!(lines, call * _pad(call, width) * "  # " * note)
+function show_layout(editor; include = is_layout_line, descend = is_pane_search_step)
+    root = _get_root_document(editor)
+    paths = search_references(root, node -> node === root || include(node); descend)
+    focused = _find_focused_pane_tab(root)
+    lines = Tuple{String,String,String}[]
+    printed = Tuple{Vector{Any},Int}[]           # the steps of each line, and its depth
+    for path in paths
+        steps = collect(get_reference_steps(strip_reference_types(path)))
+        node = try_evaluate_reference(root, path, nothing)
+        node === nothing && continue
+        parent = findlast(entry -> _is_proper_prefix(entry[1], steps), printed)
+        from, depth = parent === nothing ? (0, 0) : (length(printed[parent][1]), printed[parent][2] + 1)
+        push!(printed, (steps, depth))
+        text = isempty(steps) ? "(root)" :
+               repr(foldr(ConcreteReference, steps[(from + 1):end]; init = EmptyReference()))
+        push!(lines, ("  " ^ depth * text, "::" * String(nameof(typeof(node))),
+                      _format_layout_note(root, node, steps, from, focused)))
     end
-
-    Text("window = get_window_tree(editor)\n\n" * join(lines, "\n") *
-         "\n\nreplace_referenced_value!(editor, @reference(window, root),\n    " *
-         _build_node(tree.root, "root", names, 4) * ")\n")
+    width = maximum(line -> length(line[1]), lines; init = 0)
+    kind = maximum(line -> length(line[2]), lines; init = 0)
+    Text(join((rpad(step, width + 2) * rpad(type, kind + 2) *
+               (isempty(note) ? "" : "# " * note) for (step, type, note) in lines), "\n") * "\n")
 end
 
-struct _Pane
-    path::String
-    title::String
-    description::String
-    share::String     # how much of the window this pane has, or "" for the whole of it
-    tab::Any
-    name::String
-end
+"""
+    is_layout_line(node) -> Bool
 
-_pad(s::AbstractString, width::Integer) = " " ^ max(0, width - length(s))
+Whether [`show_layout`](@ref) gives `node` a line by default: a document that is
+not a collection, not a widget and not a wrapper — so the screen, a window, a
+pane tree, a split, a group and a tab.
+"""
+is_layout_line(node) =
+    node isa Document && !(node isa CellVector) && !(node isa WidgetDocument) &&
+    get_wrapped_document(node) === node
 
-# How much of the window each group has, as a percentage of each axis. It comes
-# from the weights alone — `get_pane_rectangles` walks the tree and divides the unit
-# square — so it needs no printed window and no measurement. A group that has all
-# of both axes says nothing, because "100% × 100%" on every line of a one-pane
-# window is noise.
-function _pane_shares(tree::PaneTree)
-    shares = Dict{PaneGroup,String}()
-    for (group, rectangle) in get_pane_rectangles(tree)
-        percent(value) = string(round(Int, 100 * value)) * "%"
-        shares[group] = (rectangle.w >= 0.999 && rectangle.h >= 0.999) ? "" :
-                        percent(rectangle.w) * " × " * percent(rectangle.h)
+_is_proper_prefix(prefix, steps) =
+    length(prefix) < length(steps) && all(i -> prefix[i] == steps[i], eachindex(prefix))
+
+# The tab that has the focus: the deepest tab on the path of the root's selection.
+function _find_focused_pane_tab(root)
+    selection = get_selection(root)
+    selection === nothing && return nothing
+    steps = collect(get_reference_steps(strip_reference_types(selection)))
+    focused = nothing
+    for n in eachindex(steps)
+        node = try_evaluate_reference(root, foldr(ConcreteReference, steps[1:n]; init = EmptyReference()), nothing)
+        node isa PaneTab && (focused = node)
     end
-    shares
+    focused
 end
 
-function _collect_panes!(panes::Vector{_Pane}, node, path::String, shares)
-    if node isa PaneGroup
-        share = get(shares, node, "")
-        for i in 1:length(node.tabs)
-            tab = node.tabs[i]
-            tab_path = path * ".tabs[" * string(i) * "]"
-            title = get_pane_tab_title_string(tab)
-            push!(panes, _Pane(tab_path, title,
-                               describe_document(tab.content), share, tab, ""))
-            _collect_cells!(panes, tab.content, tab_path, title)
-        end
-    elseif node isa PaneSplit
-        for i in 1:length(node.elements)
-            _collect_panes!(panes, node.elements[i],
-                            path * ".elements[" * string(i) * "]", shares)
-        end
+# The note of a line: the root says what it is; any other node says its name,
+# what it is when that says more than its type, the wrappers its steps go
+# through, and whether it is the tab with the focus.
+function _format_layout_note(root, node, steps, from, focused)
+    node === root && return "the editor's document"
+    parts = String[]
+    name = get_document_title(node)
+    what = describe_document(node)
+    what == String(nameof(typeof(node))) && (what = "")
+    (name === nothing || isempty(String(name))) || push!(parts, String(name))
+    isempty(what) || push!(parts, what)
+    note = join(parts, " — ")
+    wrappers = String[]
+    for n in (from + 1):(length(steps) - 1)
+        passed = try_evaluate_reference(root, foldr(ConcreteReference, steps[1:n]; init = EmptyReference()), nothing)
+        (passed isa Document && get_wrapped_document(passed) !== passed) &&
+            push!(wrappers, String(nameof(typeof(passed))))
     end
-    panes
+    isempty(wrappers) || (note = strip(note * " inside " * join(wrappers, " › ")))
+    node === focused && (note = strip(note * " (focused)"))
+    String(note)
 end
 
-# A pane that holds a layout holds several documents, and each of them gets a
-# name too, one level down. That is what lets a model move a cell: it has the
-# reference, and the comment says what is in it.
-#
-# The layout itself is not printed as a construction. Its knobs — the columns,
-# the gaps, the alignments, a policy per column and per row — would have to be
-# printed exactly or the program would not rebuild the window it describes, and a
-# model that wants a different arrangement writes
-# `GridLayout(cells, 2)` at the pane's `.content` from the names
-# below.
-function _collect_cells!(panes::Vector{_Pane}, content, tab_path::String, title::AbstractString)
-    content isa LayoutDocument || return panes
-    for k in 1:length(content.children)
-        push!(panes, _Pane(tab_path * ".content.children[" * string(k) * "]",
-                           title * " cell " * string(k),
-                           describe_document(content.children[k]), "", nothing, ""))
-    end
-    panes
-end
-
-# A name says which pane a reader means, so it comes from the title — the
-# person's own word for it. It carries no meaning to a verb: the reference does.
-function _name_panes!(panes::Vector{_Pane})
-    taken = Set{String}()
-    for (i, pane) in enumerate(panes)
-        base = _identifier(pane.title)
-        isempty(base) && (base = "pane")
-        name = base
-        k = 1
-        while name in taken || name in ("editor", "window")
-            k += 1
-            name = base * string(k)
-        end
-        push!(taken, name)
-        panes[i] = _Pane(pane.path, pane.title, pane.description, pane.share,
-                         pane.tab, name)
-    end
-    panes
-end
-
-function _identifier(title::AbstractString)
-    out = IOBuffer()
-    break_pending = false
-    for c in lowercase(title)
-        if isletter(c) || isdigit(c)
-            (break_pending && position(out) > 0) && print(out, '_')
-            break_pending = false
-            print(out, c)
-        else
-            break_pending = true
-        end
-    end
-    text = String(take!(out))
-    (isempty(text) || !isletter(first(text))) ? "pane" * text : text
-end
-
-function _build_node(node, path::String, names, indent::Int)
-    if node isa PaneGroup
-        items = [names[path * ".tabs[" * string(i) * "]"] for i in 1:length(node.tabs)]
-        return "PaneGroup([" * join(items, ", ") * "])"
-    end
-    node isa PaneSplit || return "nothing"
-    pad = " " ^ (indent + 4)
-    children = [pad * _build_node(node.elements[i],
-                                  path * ".elements[" * string(i) * "]", names, indent + 4)
-                for i in 1:length(node.elements)]
-    "PaneSplit(" * repr(node.orientation) * ", [\n" * join(children, ",\n") * "]" *
-        _weights_text(node) * ")"
-end
-
-# The weights are printed only when the split carries them. An empty `weights`
-# field means equal shares, and printing the numbers it would compute would write
-# a document the person never made.
-function _weights_text(split::PaneSplit)
-    stored = split.weights
-    length(stored) == 0 && return ""
-    ", weights = [" * join((string(Float64(stored[i])) for i in 1:length(stored)), ", ") * "]"
-end
+# What a tab, a group and a split are, for the note of a line.
+get_document_title(tab::PaneTab) = get_pane_tab_title_string(tab)
+describe_document(tab::PaneTab) = describe_document(tab.content)
+describe_document(group::PaneGroup) =
+    length(group.tabs) == 1 ? "1 tab" : string(length(group.tabs), " tabs")
+describe_document(split::PaneSplit) =
+    (split.orientation === :vertical ? "side by side: " : "stacked: ") *
+    join((string(round(Int, 100 * weight), "%") for weight in get_pane_normalized_weights(get_pane_weights(split))), " | ")
 
 # ── Saying a path back ──────────────────────────────────────────────────────
 

@@ -88,23 +88,31 @@ end
 # Evaluate `operation`, then what it posted, as one frame of the loop does.
 _app_apply!(editor, operation) = (evaluate_operation(editor, operation); drain_operations!(editor))
 
-# Every document of `root` that holds a live selection off the root's live path:
-# a write that did not start at the root leaves one. A selection a document keeps
-# for itself off that path, such as the tab a group shows, is not live.
+# Every document of the window that holds a live selection off the root's live
+# path: a write that did not start at the root leaves one. A selection a
+# document keeps for itself off that path, such as the tab a group shows, is not
+# live, and neither is any document on the path of that dormant selection. The
+# walk goes where a pane search goes, so it does not count what the history
+# records.
 function _app_find_stray_live_selections(root)
-    on_path = IdDict{Any,Bool}(root => true)
-    selection = get_selection(root)
-    if selection !== nothing
+    exempt = IdDict{Any,Bool}()
+    mark_path!(from, selection) = begin
+        exempt[from] = true
+        selection === nothing && return
         steps = collect(get_reference_steps(strip_reference_types(selection)))
         for n in 1:length(steps)
             prefix = foldr(ConcreteReference, steps[1:n]; init = EmptyReference())
-            node = try_evaluate_reference(root, prefix, nothing)
-            node === nothing || (on_path[node] = true)
+            node = try_evaluate_reference(from, prefix, nothing)
+            node === nothing || (exempt[node] = true)
         end
     end
-    [document for document in search_documents(root, node -> node isa Document)
-     if get_selection(document) !== nothing && !haskey(on_path, document) &&
-        !has_dormant_selection(document)]
+    mark_path!(root, get_selection(root))
+    documents = search_documents(root, node -> node isa Document; descend = is_pane_search_step)
+    for document in documents
+        has_dormant_selection(document) && mark_path!(document, get_selection(document))
+    end
+    [document for document in documents
+     if get_selection(document) !== nothing && !haskey(exempt, document)]
 end
 
 # Whether each level of the window, from the screen down to the pane tree, holds
@@ -404,6 +412,50 @@ function test_application()
                 (group, index) = get_pane_focus(tree)
                 @test get_wrapped_document(group.tabs[index].content) isa PrimitiveString
                 @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
+            end
+
+            @testset "the layout is a tree of reference steps, and a pane moves by its references" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:2], dir)
+                editor = _app_make_editor(scene, composed, iomap)
+                tree = _app_window(document)
+                layout = String(show_layout(editor).content)
+                lines = split(chomp(layout), "\n")
+                @test startswith(lines[1], "(root)") && occursin("::ScreenDocument", lines[1])
+                @test any(line -> occursin("::PaneTree", line) &&
+                                  occursin("inside ClipboardSlice › WidgetShell › UndoBuffer", line), lines)
+                @test count(line -> occursin("(focused)", line), lines) == 1
+                # The path of a tab is the steps of the lines on its branch, joined.
+                indent(line) = length(line) - length(lstrip(line))
+                step(line) = first(split(strip(line)))
+                function joined_path(title)
+                    at = findfirst(line -> occursin("::PaneTab", line) && occursin("# " * title * " —", line), lines)
+                    steps, depth = String[step(lines[at])], indent(lines[at])
+                    for line in reverse(lines[1:(at - 1)])
+                        indent(line) < depth || continue
+                        step(line) == "(root)" || pushfirst!(steps, step(line))
+                        depth = indent(line)
+                    end
+                    join(steps)
+                end
+                title_b = basename(paths[2])
+                @test joined_path(title_b) ==
+                      repr(strip_reference_types(find_pane_reference(editor, title_b)))
+
+                # Into a group: the pane goes to its end.
+                files_group = get_pane_groups(tree)[1]
+                group_reference = concat_references(find_pane_tree_reference(editor),
+                                                    @reference(tree, root.elements[1]))
+                move_pane!(editor, find_pane_reference(editor, title_b), group_reference)
+                @test get_pane_tab_title_string(last(files_group.tabs)) == title_b
+                @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
+                # Beside a group: the pane gets a group of its own.
+                groups = length(get_pane_groups(tree))
+                move_pane!(editor, find_pane_reference(editor, title_b),
+                           find_pane_reference(editor, "Files"); side = :below)
+                @test length(get_pane_groups(tree)) == groups + 1
+                @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
+                @test_throws ArgumentError move_pane!(editor, find_pane_reference(editor, title_b),
+                                                      find_pane_reference(editor, "Files"); side = :middle)
             end
 
             @testset "every format draws" begin
