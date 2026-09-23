@@ -194,7 +194,8 @@ pane a document is *not* currently showing would otherwise forget what was
 selected in it every time the focus moves away. `has_dormant_selection(document)`
 answers `true` for such a document (`false` by default), and asks the writers to
 **keep** the losing branch's selection instead of clearing it, marked
-**dormant**: still stored, still drawable, but not acted on.
+**dormant**: still stored, still drawable, but not acted on. A `ConversationDraft`
+answers `true` too, so a person who leaves the draft finds its caret where it was.
 
 The kept path is wrapped in a `SelectionDocument(primary; live)`, the value a
 `selection` field holds when it is dormant. Reading the field the ordinary way

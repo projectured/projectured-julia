@@ -25,6 +25,8 @@ No node has a focus field or an active-tab field. The selection of the tree name
 
 `has_dormant_selection` is `true` for `PaneGroup`, `PaneTab` and `PaneSplit`. When the focus leaves a node, the node keeps its selection as a dormant one: stored and drawn, but not used for routing. So a group that loses the focus still shows its tab, a tab keeps its caret, and a nested split keeps the side that had the focus.
 
+A new tab takes the focus. The focus goes on the content as a whole when the content is the empty placeholder, so a paste fills it. It goes along the content's own selection when the content holds one, such as the caret in the first form of a new evaluator, so the root holds the selection that the document had and a key or a paste reaches that place with no click. Otherwise it goes on the tab.
+
 ### The edits are generic operations
 
 `PaneSurgery.jl` declares no operation type. Each builder returns a generic operation with `document` at `nothing`, so the reference re-roots as the operation goes up the chain. That is what lets a pane tree sit inside another document.

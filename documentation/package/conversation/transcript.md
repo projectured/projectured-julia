@@ -132,6 +132,14 @@ draft's value. Its own table holds only `Return`, `Shift+Return`, `Alt+Return`,
 selection to the caret of the active part (`sync_draft_selection!`). A key with
 no selection in the draft does not reach it.
 
+When the complete selection does not pass through the draft, as when a script
+submits the draft while the focus is on another pane, the draft keeps the new
+caret as a dormant selection. `sync_draft_selection!` writes the caret from the
+root and at once writes the live selection back, and the kernel keeps the draft's
+branch, because a draft answers `has_dormant_selection`. A dormant caret is not
+drawn, and it is live again when the focus comes back to the assistant. The parts
+that a submit moves into the transcript hold no selection.
+
 ## A paste is refused
 
 The history of a conversation is a record, so

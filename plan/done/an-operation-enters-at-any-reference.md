@@ -2,8 +2,9 @@
 
 **Status (2026-09-23): IMPLEMENTED.** The omnet-julia step is done on the
 `selection-root` branches of both repositories, which wait for the owner's
-approval to land. Part 2 (evaluations that write a selection) still needs a
-plan of its own. The projectured-julia part was **landed on `main`
+approval to land. Part 2 (evaluations that write a selection) was dropped by the
+owner on 2026-09-23 after a measurement; the five findings it found are fixed
+one by one in plan `an-evaluation-moves-the-selection-from-the-root`. The projectured-julia part was **landed on `main`
 with the owner's approval** (rebased onto `d7a440f9`; after the rebase the
 related suites pass, `test_application` 232/232, and three evaluator tests that
 `main` brought press a toolbar button and now apply what it posts).

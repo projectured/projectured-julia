@@ -51,7 +51,7 @@ After a code part or an evaluation, the composer appends a new line of text, so 
 
 The text keys belong to the text layer of the active part: typing, Backspace, Delete, the arrows and their Shift variants. Their edits come back through the reference maps of the composer as edits of `parts[n].content.value{s:e}`. The table of the composer holds only Return, Shift+Return, Alt+Return, Tab, Insert and Escape. It is a list of `GestureBinding`s, and `get_projection_gesture_bindings` returns the same list, so the gesture help shows the keys that the reader fires.
 
-After each operation, `sync_draft_selection!` puts the complete selection of the editor on the caret of the active part, because a key goes where the complete selection points. [transcript.md](transcript.md#the-draft-has-one-selection) describes the one selection of the draft.
+After each operation, `sync_draft_selection!` puts the complete selection of the editor on the caret of the active part, because a key goes where the complete selection points. When the focus is on another pane, the draft keeps the caret as a dormant selection instead. [transcript.md](transcript.md#the-draft-has-one-selection) describes the one selection of the draft.
 
 ### The operations hold the document
 
@@ -132,7 +132,6 @@ The paths of a transcript name its objects, and the path of a draft names a plac
 - The chooser makes an insertion that takes the whole source as text. A structural key, such as `[` for a JSON array, does not start a document.
 - The arguments of a tool call print one `key: value` line each. A nested value prints as its Julia `string`.
 - A noted object in a form is live only while the session lives: a saved evaluator writes it by value, and it comes back as a copy.
-- A tool that the toolbar opens leaves the complete selection unwritten from the root, so Ctrl+V of text into a fresh form does nothing until a click places the caret. Typing works, because keys follow the focus of the pane.
 - An evaluated form with a comment stays a string, because the Julia domain has no comment. Code of several statements stays a string too, because the Julia notation prints a top-level block indented, with an empty first and last line. A form that stays a string draws in one color, so beside a parsed form it looks unhighlighted.
 - The composer and the evaluator set `is_error` from the text of the output: an output that contains `ERROR` or `Error` marks the result as an error.
 - A tab that holds a bare `ConversationConversation` shows its reflected fields unless the host adds the conversation rows.

@@ -1304,11 +1304,20 @@ function test_application()
                               if string(item.action.label) == "Evaluator")
                 _app_apply!(w.editor, InvokeActionOperation(button.action))
                 # The new tab takes the focus along the caret of the evaluator's
-                # first form.
+                # first form, so a text paste reaches the form with no click.
                 @test carets(w) == 1
                 @test holds_one_path(w)
-                type!(w, "1 + 41")
+                evaluator = only(search_documents(w.document, node -> node isa EvaluatorToplevel;
+                                                  descend = _app_is_content_search_step))
+                set_os_clipboard_backend!(read = () -> "1 + 41", write = text -> true)
+                try
+                    w.press!(KeyDown(:v, ModifierKeys(ctrl = true)))
+                finally
+                    reset_os_clipboard_backend!()
+                end
+                @test evaluator.elements[1].form.value == "1 + 41"
                 w.press!(KeyDown(:return, ModifierKeys()))
+                @test length(evaluator.elements) == 2
                 @test holds_one_path(w)
                 @test w.press!(KeyDown(:up, ModifierKeys())) isa RecallEvaluatorFormOperation
                 @test holds_one_path(w)

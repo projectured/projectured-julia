@@ -1,6 +1,7 @@
 # An evaluation moves the selection from the root
 
-**Status (2026-09-23): IMPLEMENTING.** The owner asked for the measurement first
+**Status (2026-09-23): IMPLEMENTED** on branch `evaluation-selection`; landing on
+`main` waits for the owner's approval. The owner asked for the measurement first
 ("first measure and collect, don't fix automatically anything yet"); Step 0 is
 done. Then the owner decided (§4): "fix them — a draft can keep a dormant caret —
 the rest as recommended by you — drop the 2nd part of the plan". The general
@@ -122,24 +123,49 @@ finding. None of them needs a new mechanism.
 - [x] Decided on 2026-09-23 (§4).
 
 ### Step 2 — a draft keeps a dormant caret (#3, #4)
-- [ ] `has_dormant_selection(::ConversationDraft)`; `sync_draft_selection!` keeps
-      the caret dormant when the root's path does not pass through the draft.
+- [x] `has_dormant_selection(::ConversationDraft)`; `sync_draft_selection!` keeps
+      the caret dormant when the root's path does not pass through the draft
+      (`_keep_dormant_caret!`). It copies the live path before the first write,
+      because a write changes the cells of the stored path in place. With no
+      live selection, or when the document does not hold the draft, it writes
+      nothing.
 
 ### Step 3 — a part that leaves the draft holds no caret (#2)
-- [ ] `reset_draft!` clears the selection of the parts it takes out.
+- [x] `reset_draft!` clears the selection of the parts it takes out. Steps 2
+      and 3 are one commit, because both change `ConversationEditor.jl`.
 
 ### Step 4 — a reload selects the file as a whole (#5)
-- [ ] The reload's binding answers the reload and the selection together.
+- [x] Ctrl+O answers `CompoundOperation([ReloadFileOperation(file),
+      ReplaceSelectionOperation(EmptyReference())])`, and the reload no longer
+      writes a selection. A script that evaluates `ReloadFileOperation` alone
+      moves no selection.
 
 ### Step 5 — a new tab brings its content's own selection (#6)
-- [ ] `make_pane_open_tab_operation` focuses along the content's own selection.
+- [x] `_make_new_tab_cursor` focuses along the content's live selection when the
+      content holds one. This also removes a limit that the conversation guide
+      recorded: Ctrl+V of text into a fresh evaluator did nothing until a click
+      placed the caret. It now reaches the form (tested).
 
 ### Step 6 — tests, suites and guides
-- [ ] The broken cases of the test set pass, and become `@test`.
-- [ ] Suites: `test_application`, the conversation, assistant, evaluator, pane,
-      clipboard and file-format suites, `test_kernel` with its known failures,
-      and in omnet-julia `test_ide` without the two model tests and
-      `test_campaign_ui`. The static guards.
-- [ ] Guides: `kernel/selection.md` names the draft among the keepers; the
-      conversation guide describes the dormant caret; `pane.md` describes where
-      a new tab's focus goes.
+- [x] The six broken cases pass and are `@test`; a new check: the dormant caret
+      is live again when the focus comes back to the assistant, and a text paste
+      reaches a new evaluator. `test_application` 285/285.
+- [x] Suites: `test_conversation_editor` 40/40, `test_conversation_transcript`
+      120/120, `test_assistant_composer_panel` 67/67, `test_evaluator_toplevel`
+      205/205, `test_pane_surgery` 92/92, `test_pane_gestures` 73/73,
+      `test_pane_to_widget` 44/44, `test_pane_construct` 50/50, `test_clipboard`
+      201/201, `test_widget_selection` 91/91, `test_window_shell` 83/83,
+      `test_mcp_server` 13/13, `test_kernel` with its six known failures.
+      `test_conversation` (1 failure, the layering check on an import of
+      `make_insertion_document`) and `test_assistant_mvp` (4 failures, the boxes
+      of "the assistant card fills its page") fail the same way on `main`
+      (`6d4fda3f`), measured in the same worktree. omnet-julia, in the scratch
+      environment: `test_campaign_ui` 188/188, `test_select_and_paste` 86/86 and
+      the other IDE, session, Qtenv and presentation suites pass. The naming,
+      argument and tree guards pass; the documentation guard flags no sentence
+      that this work wrote.
+- [x] Guides: `kernel/selection.md` names the draft among the keepers;
+      `conversation/transcript.md` and `conversation/conversation.md` describe
+      the dormant caret, and the limit on a paste into a fresh evaluator is
+      gone; `pane/pane.md` says where a new tab's focus goes;
+      `fileformat/fileformat.md` says what Ctrl+O selects.
