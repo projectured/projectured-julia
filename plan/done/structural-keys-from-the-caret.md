@@ -1,6 +1,6 @@
 # Structural keys from the caret
 
-> **Status:** in progress. Written 2026-09-23.
+> **Status:** done. Written and implemented 2026-09-23, on the branch `feature-videos`.
 
 A structural key typed from the text caret reaches the domain that owns its
 meaning again. In JSON: a `,` after a string value, inside or after a number, or
@@ -166,7 +166,13 @@ parent entry and the parent container, whose `,` rule answers.
       `test_json_build_live()` of `ProjecturedVideoTest` replays the timeline
       headless: no key uses `Alt`, all 215 keys answer an operation, and the
       content is the example document with that order; 3 pass.
-- [ ] Step 5: the same suites after the change, compared with the baseline.
+- [x] Step 5: the same suites after the change, compared with the baseline.
+      `build/suites/run_suites.sh after`, on the branch rebased on `main` at
+      cc041a4f: every suite has the counts of the baseline (kernel 2059/3/3,
+      substrate 80438/3/2/1, json 194, xml 73, yaml 47 + 2 broken, sql 649, julia
+      133, markdown 39, rst 76, math 173), and the failures of the kernel and the
+      substrate are at the same six and five places. The navigation of Step 2 and
+      the construct and replay tests of Steps 3 and 4 also pass after the rebase.
 - [x] Step 6: the documents: the chain reader, the `override` note of `@gestures`,
       and the JSON package guide say what holds now.
       `higher-order-projections.md` and `projection.md` (the chain reader drops a
