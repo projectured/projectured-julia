@@ -134,27 +134,51 @@ Decided by the owner on 2026-09-23:
   the place: the parent does not call it, and takes the operation as its answer.
 - **The first slice is small.** Only the readers from the root to the pane tree,
   for `focus_pane!` alone, to see how it goes before the other readers.
-- **The verbs take and return references from the root (option B).** The code
-  that makes a reference for a caller makes it from the root, so a verb does not
-  need to find the path itself.
-- **A program concatenates the two paths itself (option 3).** `window` is the
-  path from the root to the tree, and the path in the tree is typed against the
-  tree object, as now:
+- **The verbs are generic and take complete references from the root.** A
+  plain `Reference`, no new type. Every reference that the assistant sees
+  starts at the editor's document, and a verb takes the editor, so the verb has
+  the root. The code that gives a caller a reference gives it from the root.
+- **A verb finds its tree from its argument.** The longest prefix of the
+  reference that ends at a `PaneTree` is the route, and the rest is the path in
+  that tree. The verb follows only the path it gets, one prefix at a time. So
+  no API assumes one window or one tree (the owner rejected
+  `get_window_tree(editor)` and `get_window_tree_reference(editor)` for that
+  reason), and a tree inside a tab, the nearest one, works too.
+- **A path written by hand is typed with `evaluate_reference`.** No new macro,
+  and `@reference` stays as it is:
 
   ```julia
-  window = get_window_tree_reference(editor)
-  tree   = get_window_tree(editor)
-  where  = concat_references(window, @reference(tree, root.elements[1].tabs[1]))
+  tree = evaluate_reference(editor.document, tree_reference)
+  tab  = concat_references(tree_reference, @reference(tree, root.elements[1].tabs[1]))
   ```
 
-  A caller that already has a typed reference concatenates it with no tree
-  object. A caller that writes a path by hand needs the tree object to type it.
-  The typing keeps the stale check of `_refuse_stale`.
-- **`get_window_tree_reference(editor)` is a new function in the pane slice**
-  beside `get_window_tree`. It follows the same descent (the first window, then
-  each wrapper through `get_wrapped_document`) and names each step by identity:
-  the index of the window, and the field of the wrapper that holds the next
-  node. It looks at one level at a time and walks no content of a tab.
+  `concat_references` keeps the types of both paths, and `evaluate_reference`
+  throws `ReferenceTypeMismatchException` on a stale path, which is the stale
+  check.
+- **A pane is found with one call: `find_pane_reference(editor, title)`.** It
+  answers the complete reference of the tab with that title, `nothing` when no
+  tab has it, and an error that names every reference when two tabs have it. It
+  uses `search_references(editor.document, predicate; <walk policy>)`. The
+  assistant's code for "close the Files pane":
+
+  ```julia
+  files = find_pane_reference(editor, "Files")
+  close_pane!(editor, files)                     # returns the new layout
+  ```
+
+  `close_pane!(editor, nothing)` throws an error that says in words that no
+  such pane exists.
+- **A walk policy, not a change to the generic walk.** A search that must not
+  walk down blindly gives a policy that says where to descend. It is a new
+  keyword of `walk_document` in `DocumentWalk.jl`, which is not sealed;
+  `search_references` in the sealed `ReferenceSearch.jl` passes its keywords
+  on, so that file does not change. The default of `walk_document` enters every
+  node, as now. `find_pane_reference` has its own default policy, which enters
+  the screen and its windows, the collections, the wrappers (a document for
+  which `get_wrapped_document(node) !== node`), the widgets (`WidgetDocument`)
+  and the panes (`PaneDocument`), and not most other nodes: not the content of
+  a tab that is none of these, and not the actions and the types that a widget
+  holds. A caller can give another policy.
 
 - **Three separate pieces, which a caller combines** (2026-09-23):
   1. **Make an operation through the readers.** Route an `Intent` (no gesture,
@@ -248,16 +272,22 @@ while the editor evaluates another operation.
    returns. The verb stays for the assistant: a `make_` call without an
    evaluation does nothing and says nothing, and a verb returns a useful
    result, such as the place of a new tab.
-7. **A value that names a place from the root: `DocumentLocator`** (decided
-   2026-09-23). It is a `Document` itself, with two fields, `start` and
-   `reference`. The target is derived by evaluating the reference from the
-   start, so it is not stored, and the stale check is the check of the types on
-   the path, as `_refuse_stale` makes now. A new macro (not `@reference`, which
-   stays as it is) makes one locator from another and a path. Most locators
-   are temporaries in the caller's code, and a document does not hold one: a
-   generic walk follows the fields of a document, so a locator held in the
-   window would make a cycle back to the root. Its docstring says so. Still
-   open: the macro's name.
+7. ~~A value that names a place from the root.~~ Decided (2026-09-23): a plain
+   `Reference` from the root (§3). A `DocumentLocator` (a `Document` with
+   `start` and `reference`) was considered and dropped: in every case its start
+   is the editor's document, and a verb has the editor, so it carried nothing
+   more than the reference. A plain reference also holds no document, so it
+   makes no cycle back to the root and a copy of it does not copy the window.
+8. **Two cases of `find_pane_reference` are not tested.**
+   - A closed tab that the undo history holds. A recorded operation is not a
+     document, so the policy should not reach it.
+   - A tab that the clipboard holds as a copy. It is a `PaneDocument` inside a
+     wrapper, so the policy reaches it, and the finder gives two results. A
+     policy that sees the field it enters can fix it: for a wrapper, enter only
+     the child that wraps the same document
+     (`get_wrapped_document(child) === get_wrapped_document(parent)`), not its
+     history and not its stored slice. Then the policy takes the parent and the
+     child, not only the node.
 
 Skipped (2026-09-23): **operations that carry no document.** The owner asked
 whether every operation can be relative to the document where it was made,
@@ -309,16 +339,21 @@ through it before stage 2 gets it, and on the way up the clipboard reroots
 
 - [ ] Make the `Intent` struct change first, before a warm session loads it:
       the `route` field, and the constructors and `with_intent_labels` keep it.
-- [ ] `get_window_tree_reference(editor)`.
 - [ ] The readers 1 to 18 follow the route on the way down and do not take the
       operation until it comes back up.
-- [ ] `focus_pane!` takes a reference from the root, sends
-      `Intent(nothing, operation; route)` through `editor.projection`, and
-      evaluates the answer against the editor.
-- [ ] Test, in the window as the binary opens it: after `focus_pane!` on the
-      navigator, every level holds its suffix of one path, and Ctrl+C copies
-      the navigator. The rooted operation is the same one that a press on the
-      same tab makes.
+- [ ] Piece 1, the function that makes an operation through the readers (its
+      name is open).
+- [ ] `make_focus_pane_operation(editor, tab)` and `focus_pane!(editor, tab)`,
+      with `tab` a complete reference from the root. The route is the longest
+      prefix of `tab` that ends at a `PaneTree`.
+- [ ] The walk policy keyword of `walk_document`, and
+      `find_pane_reference(editor, title)` with its default policy.
+- [ ] Test, in the window as the binary opens it:
+      `focus_pane!(editor, find_pane_reference(editor, "Files"))`, and then
+      every level holds its suffix of one path, and Ctrl+C copies the
+      navigator. The rooted operation is the same one that a press on the same
+      tab makes.
+- [ ] Test the two open cases of `find_pane_reference` (§5, question 8).
 
 ### Step 0 — facts
 
