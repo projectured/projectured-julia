@@ -44,36 +44,8 @@ const ARGUMENT_PROTOCOL = Set(String[
 # Every public name over the line on 2026-09-22, the day the rule landed. The
 # list only shrinks.
 const LEDGER = Set(String[
-    
-    "Editor", 
-    "GraphicsCanvas", 
-    
-    
-    
-    "Resource",
-    "SpliceBuffer", "SyntaxLeaf", "SyntaxNode",
-    "WidgetTable", 
-    "add_cell_struct_field!", 
-    
-    "call_tool", 
-    "compute_window_place", 
-    
-    
-    "flow_ticks", "fold_bins",
-    "fold_strips", 
-    "get_band_reference", 
-    "insert_elements", "insert_events",
-    "layout_graph", "layout_max", "layout_min",
-    "layout_preferred", "make_hinted_text",
-    "make_pane_retarget_title_operation", 
-    "make_pane_title_caret_operation", "make_style_color", "move_to_field", 
-    
-    
-    "play_live!", 
-    "record_video", 
-    "set_process_position!", "shift_child_image",
-    "soft_equal!", 
-    "sync_document!", 
+    "GraphicsCanvas", "SyntaxLeaf", "SyntaxNode", "WidgetTable",
+    "compute_window_place", "layout_graph", "sync_document!",
 ])
 
 "One definition of a file: where it stands, what it is called, and what it takes."
