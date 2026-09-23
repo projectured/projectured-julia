@@ -373,23 +373,21 @@ function run_application(paths::AbstractString...;
     # capture of the Julia logger and a feed, the statistics by a feed, and the
     # fault log by the store of the editor. The shell gives all of them.
     run_with_window_tools() do feeds, start
-        run_window_editor(document, projection, "ProjecturEd";
-                          backend = backend, width = width, height = height, mcp = mcp,
-                          mcp_host = mcp_host, mcp_port = mcp_port,
-                          feeds = push!(copy(feeds), tooltip_feed),
-                          # A tooltip holds a document of one of this
-                          # application's own domains, so the window a wrapper
-                          # opens draws with the rows a pane draws with.
-                          opened_window_projections =
-                              make_opened_window_projections(;
-                                  content = make_application_content_projections(measure = measure),
-                                  measure = measure),
-                          screen_wrap = make_popup_screen_wrap(),
-                          fault_policy = fault_policy,
-                          on_start = editor -> begin
-                              start(editor)
-                              _start_application!(editor, mcp, assistant, model)
-                          end)
+        editor = make_editor(document, projection, "ProjecturEd";
+                             backend = backend, width = width, height = height,
+                             feeds = push!(copy(feeds), tooltip_feed),
+                             # A tooltip holds a document of one of this
+                             # application's own domains, so the window a wrapper
+                             # opens draws with the rows a pane draws with.
+                             opened_window_projections =
+                                 make_opened_window_projections(;
+                                     content = make_application_content_projections(measure = measure),
+                                     measure = measure),
+                             screen_wrap = make_popup_screen_wrap(),
+                             fault_policy = fault_policy)
+        start(editor)
+        _start_application!(editor, mcp, assistant, model)
+        run_editor!(editor; mcp = mcp, mcp_host = mcp_host, mcp_port = mcp_port)
     end
 end
 

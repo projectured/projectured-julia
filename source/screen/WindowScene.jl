@@ -148,14 +148,13 @@ function make_editor(document, projection, title::AbstractString;
 end
 
 """
-    run_window_editor(document, projection, title; backend, width, height, on_start,
+    run_window_editor(document, projection, title; backend, width, height,
                       mcp, mcp_instructions, mcp_host, mcp_port,
                       opened_window_projections, screen_wrap, fault_policy)
 
 Open the window and run the loop until the person closes it: [`make_editor`](@ref)
-with the same arguments, then `run_editor!`.
-
-`on_start` runs once the editor is made and printed, before the first frame.
+with the same arguments, then `run_editor!`. A caller with work to do before the
+loop calls `make_editor`, does that work, and then calls `run_editor!(editor)`.
 
 `mcp` starts an MCP server beside the loop, so an external client drives the
 same editor with the same tools; `mcp_instructions` is the prompt that server
@@ -166,7 +165,7 @@ gives the client, and the server's own generic one answers when it is `nothing`.
 """
 function run_window_editor(document, projection, title::AbstractString;
                            backend, width = nothing, height = nothing,
-                           on_start = nothing, mcp::Bool = false,
+                           mcp::Bool = false,
                            mcp_instructions::Union{AbstractString,Nothing} = nothing,
                            mcp_host::Union{AbstractString,Nothing} = nothing,
                            mcp_port::Union{Integer,Nothing} = nothing,
@@ -180,5 +179,5 @@ function run_window_editor(document, projection, title::AbstractString;
                          feeds = feeds, screen_wrap = screen_wrap,
                          fault_policy = fault_policy)
     run_editor!(editor; mcp = mcp, mcp_instructions = mcp_instructions,
-                mcp_host = mcp_host, mcp_port = mcp_port, on_start = on_start)
+                mcp_host = mcp_host, mcp_port = mcp_port)
 end

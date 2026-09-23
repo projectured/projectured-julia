@@ -12,7 +12,7 @@ using ProjecturedFault
 # The module aliases the umbrella binds are constants, not exports; the
 # extensions below name their generics through them.
 import Projectured: ProjectionModule, OperationModule, BackendModule
-import ProjecturedExample: Example, run_example, default_backend
+import ProjecturedExample: Example, run_example, make_example_editor, default_backend
 import ProjecturedKernelExample: ScriptedLlm, make_scripted_turn, make_scripted_run,
                                  make_scripted_say
 

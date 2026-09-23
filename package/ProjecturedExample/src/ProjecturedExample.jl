@@ -366,7 +366,7 @@ export make_introspection_document, make_introspection_projection, EditorIntrosp
 export make_dragging_document, make_dragging_projection
 export make_shell_document, make_shell_projection, make_command_palette_decorator_projection
 export make_text_configuring_projection
-export Example, examples, run_example, run_assistant_example, run_console_example, print_example, write_example_image, write_example_pdf, record_example_video, make_typein_gestures
+export Example, examples, run_example, make_example_editor, run_assistant_example, run_console_example, print_example, write_example_image, write_example_pdf, record_example_video, make_typein_gestures
 export run_message_log_feed_example, run_frame_statistics_feed_example,
        make_message_log_feed_projection_example, make_frame_statistics_feed_projection_example
 export make_json_console_projection_example

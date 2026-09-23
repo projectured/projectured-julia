@@ -35,16 +35,15 @@ example.
 function run_message_log_feed_example(; backend = nothing)
     log = MessageLog()
     store = MessageLogStore()
-    run_example([log], [make_message_log_feed_projection_example()],
-                ["message_log_feed"];
-                backend = something(backend, default_backend()),
-                feeds = Feed[MessageLogFeed(store = store, log = log)],
-                on_start = function (editor)
-                    @async for tick in 1:600
-                        record_message!(store, "Info", "tick $(tick), from another task")
-                        sleep(1.0)
-                    end
-                end)
+    editor = make_example_editor([log], [make_message_log_feed_projection_example()],
+                                 ["message_log_feed"];
+                                 backend = something(backend, default_backend()),
+                                 feeds = Feed[MessageLogFeed(store = store, log = log)])
+    @async for tick in 1:600
+        record_message!(store, "Info", "tick $(tick), from another task")
+        sleep(1.0)
+    end
+    run_editor!(editor)
 end
 
 """

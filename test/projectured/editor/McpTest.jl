@@ -705,33 +705,31 @@ function test_mcp_server()
                 @test timedwait(() -> istaskdone(server.task), 5.0) === :ok
             end
 
-            @testset "a client lists a tool that on_start registers, and calls it" begin
+            @testset "a client lists a tool declared before the loop, and calls it" begin
                 port = _find_free_mcp_port()
                 editor = _mcp_editor()
                 listing, answer = Ref(""), Ref("")
                 ran_on = Task[]
-                probe = Tool("probe_on_start", "A tool that on_start registers.",
+                probe = Tool("probe_declared", "A tool declared before the loop.",
                              NamedTuple[],
                              (target, args) -> (push!(ran_on, current_task()); "probed"))
-                run_editor!(editor; mcp = true, mcp_host = "127.0.0.1", mcp_port = port,
-                            on_start = function (editor)
-                                register_tool!(editor.tools, probe)
-                                # The server starts once `on_start` returns,
-                                # and the client asks when it listens.
-                                @async begin
-                                    try
-                                        timedwait(() -> _is_mcp_port_open(port), 10.0)
-                                        listing[] = _post_mcp_request(port, "tools/list")
-                                        answer[] = _post_mcp_request(port, "tools/call",
-                                            "{\"name\": \"probe_on_start\", \"arguments\": {}}")
-                                    catch exception
-                                        listing[] = sprint(showerror, exception)
-                                    end
-                                    post_operation!(editor, QuitEditorOperation())
-                                end
-                            end)
+                register_tool!(editor.tools, probe)
+                # The server starts when the loop starts, and the client asks
+                # when it listens.
+                @async begin
+                    try
+                        timedwait(() -> _is_mcp_port_open(port), 10.0)
+                        listing[] = _post_mcp_request(port, "tools/list")
+                        answer[] = _post_mcp_request(port, "tools/call",
+                            "{\"name\": \"probe_declared\", \"arguments\": {}}")
+                    catch exception
+                        listing[] = sprint(showerror, exception)
+                    end
+                    post_operation!(editor, QuitEditorOperation())
+                end
+                run_editor!(editor; mcp = true, mcp_host = "127.0.0.1", mcp_port = port)
                 @test occursin("\"execute_julia_code\"", listing[])
-                @test occursin("\"probe_on_start\"", listing[])
+                @test occursin("\"probe_declared\"", listing[])
                 # The call ran on the task of the loop, which is this one.
                 @test occursin("probed", answer[])
                 @test ran_on == [current_task()]

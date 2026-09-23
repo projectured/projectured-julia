@@ -12,7 +12,8 @@ using ProjecturedKernel.IntentModule
 using ProjecturedKernel.IoMapModule
 using ProjecturedKernel.DocumentModule
 import ProjecturedKernel.EditorModule
-import ProjecturedKernel.EditorModule: Editor, post_operation!, drain_operations!, run_editor!
+import ProjecturedKernel.EditorModule: Editor, post_operation!, drain_operations!, run_editor!,
+                                       RunFunctionOperation
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation, QuitEditorOperation
 import ProjecturedKernel.AgentModule: run_on_editor_task!
 using ProjecturedKernelExample
@@ -117,7 +118,9 @@ function test_editor_inbox()
     @testset "a call that waits when the loop ends gets its answer" begin
         editor = _inbox_editor()
         answer = Ref{Any}(nothing)
-        run_editor!(editor; on_start = function (editor)
+        # The loop applies this first, on its own task, so the call below is
+        # posted by a task that waits for a running loop.
+        post_operation!(editor, RunFunctionOperation(function ()
             @async begin
                 answer[] = run_on_editor_task!(() -> current_task(), editor)
             end
@@ -125,7 +128,8 @@ function test_editor_inbox()
             # behind it when the loop ends.
             post_operation!(editor, QuitEditorOperation())
             yield()
-        end)
+        end, nothing))
+        run_editor!(editor)
         @test timedwait(() -> answer[] !== nothing, 5.0) === :ok
         @test answer[] === current_task()
         @test editor.loop_task === nothing

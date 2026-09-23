@@ -131,8 +131,9 @@ make_window_toolbar(; assistant = nothing, explorer = nothing, extra = []) =
 Open a window with what the tools of [`make_window_toolbar`](@ref) need, and
 answer what `run` answers.
 
-`run(feeds, start)` opens the window: it gives `feeds` to `run_window_editor`,
-and it calls `start(editor)` once the editor stands. Then:
+`run(feeds, start)` opens the window: it gives `feeds` to `make_editor`, it
+calls `start(editor)` with the editor that `make_editor` answers, and then it
+runs the loop with `run_editor!(editor)`. Then:
 
 - the message log holds what the program logs while the window is open. The
   capture is installed before `run` and removed after it, also when it throws,
@@ -147,8 +148,10 @@ never opens a tool that stays empty in one of them.
 # Example
 
     run_with_window_tools() do feeds, start
-        run_window_editor(document, projection, "Title"; backend = backend,
-                          feeds = feeds, on_start = start)
+        editor = make_editor(document, projection, "Title"; backend = backend,
+                             feeds = feeds)
+        start(editor)
+        run_editor!(editor)
     end
 """
 function run_with_window_tools(run)
@@ -161,7 +164,7 @@ function run_with_window_tools(run)
 end
 
 # A fault reaches a log only when the log is attached to the store of the
-# editor, and only the running editor has a store.
+# editor, and only an editor has a store.
 function _start_window_tools!(editor)
     hasproperty(editor, :faults) || return nothing
     attach_fault_target!(editor.faults, get_session_fault_log())

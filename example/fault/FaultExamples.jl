@@ -164,11 +164,12 @@ fault, and Escape still quits.
 """
 function run_fault_device_example(; backend = nothing, break_after::Real = 3.0)
     broken_backend = BrokenWriteBackend(something(backend, default_backend()))
-    run_example([make_fault_demo_document_example()],
-                [make_fault_demo_projection_example(:none)],
-                ["fault_device"];
-                backend = broken_backend,
-                on_start = editor -> Timer(_ -> (broken_backend.broken = true), break_after))
+    editor = make_example_editor([make_fault_demo_document_example()],
+                                 [make_fault_demo_projection_example(:none)],
+                                 ["fault_device"];
+                                 backend = broken_backend)
+    Timer(_ -> (broken_backend.broken = true), break_after)
+    run_editor!(editor)
 end
 
 # ── The tool category ────────────────────────────────────────────────────────
@@ -182,27 +183,28 @@ catches it, answers the model an error text, and the fault reaches the same
 log panel as every other category.
 """
 function run_fault_tool_example(; backend = nothing)
-    run_example([make_fault_demo_document_example()],
-                [make_fault_demo_projection_example(:none)],
-                ["fault_tool"];
-                backend = something(backend, default_backend()),
-                on_start = editor -> @async begin
-                    sleep(2.0)
-                    register_tool!(editor.tools,
-                        Tool("break_on_purpose", "throws, on purpose", NamedTuple[],
-                             (target, arguments) -> error("broken on purpose (tool)")))
-                    # Two rounds: the call, then the round that reads the
-                    # error text back and ends the turn.
-                    llm = ScriptedLlm([
-                        make_scripted_turn(
-                            make_scripted_run(""; tool_name = "break_on_purpose");
-                            stop_reason = "tool_use"),
-                        make_scripted_turn(
-                            make_scripted_say("the tool broke, on purpose");
-                            stop_reason = "end_turn"),
-                    ])
-                    agent = Agent(llm, editor.tools)
-                    run_turn!(agent, editor; messages = () -> LlmMessage[],
-                              on_event = _ -> nothing)
-                end)
+    editor = make_example_editor([make_fault_demo_document_example()],
+                                 [make_fault_demo_projection_example(:none)],
+                                 ["fault_tool"];
+                                 backend = something(backend, default_backend()))
+    @async begin
+        sleep(2.0)
+        register_tool!(editor.tools,
+            Tool("break_on_purpose", "throws, on purpose", NamedTuple[],
+                 (target, arguments) -> error("broken on purpose (tool)")))
+        # Two rounds: the call, then the round that reads the
+        # error text back and ends the turn.
+        llm = ScriptedLlm([
+            make_scripted_turn(
+                make_scripted_run(""; tool_name = "break_on_purpose");
+                stop_reason = "tool_use"),
+            make_scripted_turn(
+                make_scripted_say("the tool broke, on purpose");
+                stop_reason = "end_turn"),
+        ])
+        agent = Agent(llm, editor.tools)
+        run_turn!(agent, editor; messages = () -> LlmMessage[],
+                  on_event = _ -> nothing)
+    end
+    run_editor!(editor)
 end

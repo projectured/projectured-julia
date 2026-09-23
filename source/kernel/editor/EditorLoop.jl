@@ -119,7 +119,6 @@ function run_editor!(editor::Editor; mcp::Bool=false,
               mcp_instructions::Union{AbstractString,Nothing}=nothing,
               mcp_host::Union{AbstractString,Nothing}=nothing,
               mcp_port::Union{Integer,Nothing}=nothing,
-              on_start=nothing,
               fault_policy::FaultPolicy=editor.fault_policy)
     server = nothing
     try
@@ -130,13 +129,9 @@ function run_editor!(editor::Editor; mcp::Bool=false,
         # From here on, a call that another task makes through
         # `run_on_editor_task!` runs in a frame of this task.
         editor.loop_task = current_task()
-        # The editor exists now, and this is the first moment anything outside
-        # can have it. What needs to reach a running editor — a driver that
-        # will post its work, a watcher, a client — is handed it here, once,
-        # before any frame.
-        on_start === nothing || on_start(editor)
-        # The server renders the tool set when it starts, so it starts after
-        # `on_start`: a tool that `on_start` registers reaches a client too.
+        # The server renders the tool set when it starts, so it starts here:
+        # a tool that the caller declares between `make_editor` and this call
+        # reaches a client too.
         server = mcp ? _make_mcp_server(editor, mcp_instructions, mcp_host, mcp_port) :
                        nothing
         server === nothing || start_agent_server!(server)
@@ -261,8 +256,9 @@ Pass `mcp=true` to start an MCP server alongside the loop, and `mcp_host` and
 `mcp_port` to say where it listens. `devices`, `feeds` and `fault_policy` go to
 `make_editor`.
 
-`on_start(editor)` runs once, after the editor is made and printed, and before
-the first frame.
+A caller with work to do before the loop — a driver that posts its work, a
+watcher, a tool it declares — calls `make_editor`, does that work with the
+editor, and then calls `run_editor!(editor)`.
 """
 function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
               mcp_instructions::Union{AbstractString,Nothing}=nothing,
@@ -270,10 +266,9 @@ function run_editor!(backend::Backend, projection, document; mcp::Bool=false,
               mcp_port::Union{Integer,Nothing}=nothing,
               devices::Vector{Device}=Device[Display(), Keyboard(), Mouse()],
               feeds::Vector{Feed}=Feed[],
-              on_start=nothing,
               fault_policy::FaultPolicy=FaultPolicy())
     editor = make_editor(backend, projection, document;
                          devices = devices, feeds = feeds, fault_policy = fault_policy)
     run_editor!(editor; mcp=mcp, mcp_instructions=mcp_instructions,
-                mcp_host=mcp_host, mcp_port=mcp_port, on_start=on_start)
+                mcp_host=mcp_host, mcp_port=mcp_port)
 end

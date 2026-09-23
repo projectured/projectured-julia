@@ -166,21 +166,43 @@ identical to the `Example` overloads *except* `reset` — there are no factories
 re-run here, so pass freshly built documents/projections when you need a clean
 state. This is the overload the `Example`-based `run_example` methods delegate to.
 
-`on_start(editor)` runs once, before the first frame. It is how something that
-will post operations to this editor gets hold of it — a driver keeping a derived
-document in sync, a watcher, a client. Passed straight through to `run_editor!`.
+A caller with work to do before the loop — a driver keeping a derived document in
+sync, a watcher, a client — makes the editor with [`make_example_editor`](@ref),
+does that work with it, and runs the loop with `run_editor!(editor)`.
 """
-function run_example(documents::Vector, projections::Vector, names::Vector;
-                     width=nothing, height=nothing,
-                     caching=false, scrolling=false,
-                     tooltip=false, inspector=false, introspection=false,
-                     clipboard=false, clipboard_collection=false,
-                     text_filtering=false, text_highlighting=false, selection=nothing,
-                     shell=false, hover=false, dragging=false,
-                     gesture_help=false, command_palette=false,
-                     gesture_log=false, gesture_log_filter=nothing, gesture_log_capacity=20,
-                     fault_tolerant=true,
-                     profile=false, backend=nothing, feeds::Vector{Feed}=Feed[], on_start=nothing)
+run_example(documents::Vector, projections::Vector, names::Vector;
+            profile::Bool = false, kwargs...) =
+    _run_editor_profiled(make_example_editor(documents, projections, names; kwargs...);
+                         profile = profile)
+
+"""
+    make_example_editor(documents::Vector, projections::Vector, names::Vector; kwargs...) -> Editor
+
+The editor that [`run_example`](@ref) runs, made and printed once, before its
+loop: the same windows side by side, with the same wrappers and keywords, except
+`profile`. The editor's fault store reports into the fault log that every window
+shows.
+
+Use it to do work with the editor before the loop — start a driver, a timer or a
+client — and then run the loop with `run_editor!(editor)`.
+
+# Example
+
+    editor = make_example_editor([log], [projection], ["log"]; feeds = feeds)
+    @async produce(store)
+    run_editor!(editor)
+"""
+function make_example_editor(documents::Vector, projections::Vector, names::Vector;
+                             width=nothing, height=nothing,
+                             caching=false, scrolling=false,
+                             tooltip=false, inspector=false, introspection=false,
+                             clipboard=false, clipboard_collection=false,
+                             text_filtering=false, text_highlighting=false, selection=nothing,
+                             shell=false, hover=false, dragging=false,
+                             gesture_help=false, command_palette=false,
+                             gesture_log=false, gesture_log_filter=nothing, gesture_log_capacity=20,
+                             fault_tolerant=true,
+                             backend=nothing, feeds::Vector{Feed}=Feed[])
     isempty(documents) && error("run_example: empty documents vector")
     length(documents) == length(projections) == length(names) ||
         error("run_example: documents, projections and names must have equal length")
@@ -210,7 +232,7 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
     log_document = gesture_log ? GestureLog(; capacity = gesture_log_capacity) : nothing
 
     # One fault log for the whole screen, on the same shape: the editor's
-    # store fills it (attached in `on_start` below), and every window's panel
+    # store fills it (attached below, once the editor is made), and every window's panel
     # shows it. The panel and its barrier wrap each window's content, where
     # the output is a `GraphicsCanvas` the panel can compose over — the
     # multi-window projection above produces a `ScreenDocument`, which is no
@@ -334,17 +356,12 @@ function run_example(documents::Vector, projections::Vector, names::Vector;
     # The editor's own fault store — what the frame barriers catch — reports
     # into the same log the per-window panels show, so one panel carries
     # every tier.
-    if fault_tolerant
-        previous_on_start = on_start
-        on_start = function (editor)
-            attach_fault_target!(editor.faults, fault_log)
-            previous_on_start === nothing || previous_on_start(editor)
-        end
-    end
-    _run_window_scene(docs, projs, names;
-                      width=width, height=height, backend=backend,
-                      compose=compose, profile=profile, content_unwrap=content_unwrap,
-                      feeds=feeds, on_start=on_start)
+    editor = _make_window_scene_editor(docs, projs, names;
+                                       width=width, height=height, backend=backend,
+                                       compose=compose, content_unwrap=content_unwrap,
+                                       feeds=feeds)
+    fault_tolerant && attach_fault_target!(editor.faults, fault_log)
+    editor
 end
 
 # Lay out `docs` as side-by-side WindowDocuments into a ScreenDocument and lift the
@@ -420,26 +437,39 @@ function _prefix_content_fields(document, fields, selection)
 end
 
 # Build the scene (above), compose the screen projection via `compose(projs, backend)`,
-# and run the editor loop on `backend` (optionally under the profiler). The shared tail
-# of `run_example` and `run_file_editor`.
-function _run_window_scene(docs, projs, names; width, height, backend,
-                           compose, profile::Bool=false, content_unwrap::Vector{Symbol}=Symbol[],
-                           mcp::Bool=false, mcp_host=nothing, mcp_port=nothing,
-                           feeds::Vector{Feed}=Feed[], on_start=nothing)
+# and make the editor on `backend`, printed once. The shared start of
+# `make_example_editor` and `run_file_editor`.
+function _make_window_scene_editor(docs, projs, names; width, height, backend, compose,
+                                   content_unwrap::Vector{Symbol}=Symbol[],
+                                   feeds::Vector{Feed}=Feed[])
     screen = _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap)
-    composed = compose(projs, backend)
+    make_editor(backend, compose(projs, backend), screen; feeds=feeds)
+end
+
+# Run the loop of `editor`, under the profiler when `profile` is set.
+function _run_editor_profiled(editor; profile::Bool=false, mcp::Bool=false,
+                              mcp_host=nothing, mcp_port=nothing)
     if profile
         Profile.clear()
         try
-            Profile.@profile run_editor!(backend, composed, screen; mcp=mcp, mcp_host=mcp_host,
-                                         mcp_port=mcp_port, feeds=feeds, on_start=on_start)
+            Profile.@profile run_editor!(editor; mcp=mcp, mcp_host=mcp_host, mcp_port=mcp_port)
         finally
             Profile.print(; mincount=10)
         end
     else
-        run_editor!(backend, composed, screen; mcp=mcp, mcp_host=mcp_host,
-                    mcp_port=mcp_port, feeds=feeds, on_start=on_start)
+        run_editor!(editor; mcp=mcp, mcp_host=mcp_host, mcp_port=mcp_port)
     end
+end
+
+# Make the editor of a window scene and run its loop. The tail of `run_file_editor`.
+function _run_window_scene(docs, projs, names; width, height, backend,
+                           compose, profile::Bool=false, content_unwrap::Vector{Symbol}=Symbol[],
+                           mcp::Bool=false, mcp_host=nothing, mcp_port=nothing,
+                           feeds::Vector{Feed}=Feed[])
+    editor = _make_window_scene_editor(docs, projs, names; width=width, height=height,
+                                       backend=backend, compose=compose,
+                                       content_unwrap=content_unwrap, feeds=feeds)
+    _run_editor_profiled(editor; profile=profile, mcp=mcp, mcp_host=mcp_host, mcp_port=mcp_port)
 end
 
 # Build a projection that projects the screen down to each

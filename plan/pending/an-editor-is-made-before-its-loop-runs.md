@@ -137,10 +137,28 @@ The owner approved every step on 2026-09-23.
   naming, argument and tree guards pass.
 
 ### Step 2 — the callers of `on_start` in projectured-julia
-- [ ] The fault overlay, `run_with_window_tools`, the application, the gallery
+- [x] The fault overlay, `run_with_window_tools`, the application, the gallery
       and the examples of §2 do their set-up between `make_editor` and
       `run_editor!`.
-- [ ] `on_start` goes from `run_editor!` and `run_window_editor`.
+- [x] `on_start` goes from `run_editor!` and `run_window_editor`.
+
+  Decisions and facts found on 2026-09-23:
+  - **The gallery gets `make_example_editor`, not a third method of
+    `make_editor`.** It mirrors `run_example`, as the two `make_editor`
+    methods mirror the two one-call forms. It takes the keywords of
+    `run_example` except `profile`, and it attaches the fault log that every
+    window shows. `run_example` is `make_example_editor` and then the loop,
+    under the profiler when `profile` is set. `ProjecturedExample` exports it,
+    and `ProjecturedFaultExample` imports it.
+  - `run_with_window_tools` keeps its protocol `run(feeds, start)`. The caller
+    calls `start(editor)` between `make_editor` and `run_editor!`.
+  - The fault overlay has no caller of its own: only its docstring used
+    `on_start`.
+  - Two tests used the hook. `McpTest.jl` declares its tool before
+    `run_editor!`, and the server still lists it, because the server starts
+    when the loop starts. `InboxTest.jl` needs a call that is posted while the
+    loop runs. It posts a `RunFunctionOperation` before the loop, and the loop
+    applies it on its own task as its first work.
 
 ### Step 3 — omnet-julia
 - [ ] Qtenv starts its driver between `make_editor` and `run_editor!`.

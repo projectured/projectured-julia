@@ -207,8 +207,9 @@ the two-line form of what the guide spells out: a barrier around the whole
 pipeline, and the panel over it.
 
     projection, log = make_fault_tolerant_projection(composed)
-    run_editor!(backend, projection, document;
-                on_start = editor -> attach_fault_target!(editor.faults, log))
+    editor = make_editor(backend, projection, document)
+    attach_fault_target!(editor.faults, log)
+    run_editor!(editor)
 
 The barrier goes **inside** the panel, not outside it. A fault in the pipeline
 must not take the panel that would have reported it, and a fault in the panel
