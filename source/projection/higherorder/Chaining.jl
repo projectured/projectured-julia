@@ -123,22 +123,38 @@ translate it: that is the `override` flag on a `GestureBinding`, not a privilege
 the chain hands out. A structural gesture therefore never has to reconstruct what
 the output layers would have done in order to decline — if they did anything, they
 already did it.
+
+**A claim that no step can carry is no claim.** When a step can not translate the
+operation a later step made of the gesture, nothing of that operation reaches the
+input, so the gesture is unclaimed again: that step and the ones before it read the
+raw gesture, as if no later step had answered. A text insert on a delimiter, or a
+comma in a number, dies at the step that owns the delimiter or the number, and that
+step then answers the key with its own meaning.
 """
 function read_intent(seq::ChainingProjection, recursion, change::Intent, iomap::ChainingIoMap)
     change.gesture isa CollectIntents &&
         return Intent(change.gesture, _collect_intents(seq, recursion, iomap))
     change.route === nothing || return _read_routed_chain(seq, recursion, change, iomap)
-    n = length(seq.projections)
-    start_i = n
-    out = read_intent(seq.projections[n], recursion, change, iomap.step_iomaps[n][])
+    return _read_chain_from(seq, recursion, change, iomap, length(seq.projections))
+end
+
+# Read `change` from step `last_i` back to the first: search from `last_i` for a
+# step that answers, then carry its answer back through the steps before it. A
+# step that can not carry the answer reads the raw gesture itself, together with
+# the steps before it.
+function _read_chain_from(seq::ChainingProjection, recursion, change::Intent,
+                          iomap::ChainingIoMap, last_i::Int)
+    start_i = last_i
+    out = read_intent(seq.projections[start_i], recursion, change, iomap.step_iomaps[start_i][])
     while out.operation === nothing && start_i > 1
         start_i -= 1
         out = read_intent(seq.projections[start_i], recursion, change, iomap.step_iomaps[start_i][])
     end
     out.operation === nothing && return out
     for i in (start_i-1):-1:1
-        out.operation === nothing && return out
-        out = read_intent(seq.projections[i], recursion, out, iomap.step_iomaps[i][])
+        carried = read_intent(seq.projections[i], recursion, out, iomap.step_iomaps[i][])
+        carried.operation === nothing && return _read_chain_from(seq, recursion, change, iomap, i)
+        out = carried
     end
     return out
 end

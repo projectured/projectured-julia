@@ -102,7 +102,15 @@ parent entry and the parent container, whose `,` rule answers.
       `json_example` 546 pass; `xml_example` 1450 pass, 37 fail; `julia_example`
       84 pass, 28 fail. There is no `sql_example`; the SQL suite runs its own
       navigation test.
-- [ ] Step 1: D1 in the chain reader, with a test of a key whose claim dies.
+- [x] Step 1: D1 in the chain reader, with a test of a key whose claim dies.
+      `_read_chain_from` in `Chaining.jl`: when a step can not carry the answer
+      of a later step, reading starts again at that step with the raw gesture. The
+      testset `json/caret-only` of `test_json_construct()` builds
+      `{"name": "Alice", "age": 30, "city": "W"}` with `Right` after a string and
+      `,` after a number; `test_json_construct()` passes 21 with 2 broken, the two
+      known empty containers. The docstring of the chain reader already promised
+      this ("a `,` on a delimiter where the text edit would die becomes a JSON
+      sibling insert"), and it gained the paragraph that states the rule.
 - [ ] Step 2: D2 in the fallbacks, with a test that the caret after a nested value
       and on a nested closing brace is recorded at the nested node.
 - [ ] Step 3: D3 in the JSON rules, with a test for `,` after a nested `}`.

@@ -476,6 +476,30 @@ function test_json_construct()
         test_construct("json/doc-insertion", make_json_insertion_document_example(), proj)
         test_construct("json/doc-main",      make_json_document_example(),           proj)
 
+        # From the text caret alone, with no structural selection: Right leaves a
+        # string, and a `,` after a value adds the next entry. The text layer claims
+        # every `,` as a character; where no step can carry that claim — on the
+        # delimiter after a string, in a number — the JSON step reads the key itself.
+        @testset "json/caret-only" begin
+            chars(text) = [KeyPress(c) for c in text]
+            tab, right = KeyDown(:tab, ModifierKeys()), KeyDown(:right, ModifierKeys())
+            function build(events)
+                seed = JsonInsertion()
+                set_selection!(seed, EmptyReference())
+                ed = _ConstructEditor(seed, print_document(proj, seed))
+                answered = [_feed_event!(ed, proj, event) for event in events]
+                (ed.document, answered)
+            end
+            (doc, answered) = build(vcat(
+                [KeyPress('{')], chars("name"), [tab, KeyPress('"')], chars("Alice"),
+                [right, KeyPress(',')], chars("age"), [tab], chars("30"),
+                [KeyPress(',')], chars("city"), [tab, KeyPress('"')], chars("W")))
+            @test all(answered)
+            @test isempty(compare_content(doc, JsonObject("name" => JsonString("Alice"),
+                                                          "age" => JsonNumber(30),
+                                                          "city" => JsonString("W"))))
+        end
+
         # @broken: authoring gap — an empty [] / {} is unreachable by typing (creation
         # leaves one placeholder child and JSON has no element-delete gesture).
         test_construct("json/array-empty", JsonArray(), proj; broken=true)
