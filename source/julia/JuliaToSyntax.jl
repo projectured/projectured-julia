@@ -834,6 +834,42 @@ end
 # plan/pending/consistency-report.md, §D — the source of the 28 unreached
 # `…name{k}` carets in `test_position_navigation(julia_example; check_reaches_all=true)`).
 
+# ── JuliaObjectToSyntaxLeaf ─────────────────────────────────────────────────
+
+"""
+    JuliaObjectToSyntaxLeaf()
+
+An object that stands in Julia code, a document that is not Julia, such as a
+widget a person pasted into a form, as one leaf: its title in angle marks,
+`⟨Table⟩`, or its type name when it has no title. A line of syntax holds only
+text, so the object can not draw as itself here.
+
+The leaf takes no key, so a key never reaches the object's own table: the
+object is selected, copied and replaced whole. It shows a selection only when
+the object is selected whole.
+"""
+@projection struct JuliaObjectToSyntaxLeaf
+    label::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_violet)
+end
+
+function print_document(p::JuliaObjectToSyntaxLeaf, recursion, object, ctx)
+    selection = ComputedCell(() -> getfield(object, :selection)[] isa EmptyReference ?
+                                   EmptyReference() : nothing)
+    SimpleIoMap(p, object, SyntaxLeaf(TextString(_get_julia_object_label(object), p.label);
+                                      selection))
+end
+
+_get_julia_object_label(object) =
+    "⟨" * string(something(get_document_title(object), nameof(typeof(object)))) * "⟩"
+
+map_reference_forward(::JuliaObjectToSyntaxLeaf, iomap, reference) =
+    reference isa EmptyReference ? EmptyReference() : nothing
+
+# Any place in the label names the object whole.
+map_reference_backward(::JuliaObjectToSyntaxLeaf, iomap, reference) = EmptyReference()
+
+read_intent(::JuliaObjectToSyntaxLeaf, iomap, ::Union{KeyPress, KeyDown}) = nothing
+
 # ── JuliaToSyntax (composite) ───────────────────────────────────────────────
 
 function JuliaToSyntax()
@@ -893,6 +929,9 @@ function JuliaToSyntax()
         JuliaUsing           => JuliaUsingToSyntaxNode(),
         JuliaModuleDefinition       => JuliaModuleDefinitionToSyntaxNode(),
         JuliaLambda          => JuliaLambdaToSyntaxNode(),
+        # Last, because the first entry that matches is the one used: a node that
+        # is not Julia is an object that stands in the code.
+        Document             => JuliaObjectToSyntaxLeaf(),
     )
 end
 

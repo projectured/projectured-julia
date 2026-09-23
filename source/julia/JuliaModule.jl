@@ -38,6 +38,7 @@ export parse_julia, parse_julia_file
 export make_julia_expression
 export compute_julia_signature
 export JuliaInsertionToSyntaxLeaf, get_julia_completion, make_julia_scaffold
+export JuliaObjectToSyntaxLeaf
 export JuliaFile, PRED_REF_FUNCTION_NAME, find_julia_definition, get_julia_definition_name
 export JuliaIdentifierToSyntaxLeaf, JuliaIntegerToSyntaxLeaf,
        JuliaFloatToSyntaxLeaf, JuliaStringToSyntaxLeaf, JuliaBoolToSyntaxLeaf,
@@ -86,7 +87,8 @@ function __init__()
                              make      = () -> JuliaToSyntax(),
                              format    = :jl,
                              extension = ".jl",
-                             parse     = parse_julia)
+                             parse     = parse_julia,
+                             expression = make_julia_expression)
 end
 
 end # module

@@ -11,6 +11,8 @@ const _NOTATIONS = Pair{Type,Vector{Tuple{Symbol,Any}}}[]
 const _FORMATS = Pair{Type,Tuple{Symbol,String}}[]
 # `format => parse(text) -> Document`.
 const _PARSERS = Pair{Symbol,Any}[]
+# `format => make(document) -> Expr`.
+const _EXPRESSIONS = Pair{Symbol,Any}[]
 # `(from, to) => make(; measure) -> Projection`.
 const _LADDER = Pair{Tuple{Symbol,Symbol},Any}[]
 
@@ -75,6 +77,22 @@ function register_natural_parser!(format::Symbol, parse)
 end
 
 """
+    register_natural_expression!(format::Symbol, make) -> nothing
+
+Teach the machinery how to turn a document of `format` into the `Expr` that runs
+it. `make(document) -> Expr`. Only a format that is code has one.
+
+It is keyed by the format, as the parser is, so a package that runs code, such
+as an evaluator, reaches the domain that owns the grammar without depending on
+it.
+"""
+function register_natural_expression!(format::Symbol, make)
+    _lookup(_EXPRESSIONS, format) === nothing || return nothing
+    push!(_EXPRESSIONS, format => make)
+    nothing
+end
+
+"""
     register_natural_rung!(from::Symbol, to::Symbol, make) -> nothing
 
 Teach the machinery one step of the ladder: `make(; measure) -> Projection` turns
@@ -89,15 +107,15 @@ function register_natural_rung!(from::Symbol, to::Symbol, make)
 end
 
 """
-    register_natural_domain!(T::Type; rung, make, format, extension, parse) -> nothing
+    register_natural_domain!(T::Type; rung, make, format, extension, parse, expression) -> nothing
 
 Everything a domain declares about its natural notation, in one call. Every
 keyword is optional, so a domain that only parses, or only draws, still says so
-once. It is the three registrations above; use those directly for a second rung.
+once. It is the registrations above; use those directly for a second rung.
 """
 function register_natural_domain!(T::Type; rung = nothing, make = nothing,
                                   format = nothing, extension = nothing,
-                                  parse = nothing)
+                                  parse = nothing, expression = nothing)
     (rung === nothing) == (make === nothing) ||
         error("register_natural_domain!: name `rung` and `make` together")
     (format === nothing) == (extension === nothing) ||
@@ -108,6 +126,11 @@ function register_natural_domain!(T::Type; rung = nothing, make = nothing,
         format === nothing &&
             error("register_natural_domain!: a parser needs the `format` it reads")
         register_natural_parser!(format, parse)
+    end
+    if expression !== nothing
+        format === nothing &&
+            error("register_natural_domain!: an expression needs the `format` it runs")
+        register_natural_expression!(format, expression)
     end
     nothing
 end
@@ -209,6 +232,27 @@ function parse_natural_text(format::Symbol, text::AbstractString)
     parse === nothing &&
         error("parse_natural_text: no parser registered for $(repr(format))")
     parse(text)
+end
+
+"""
+    has_natural_expression(format::Symbol) -> Bool
+
+Whether a domain registered how to turn a document of `format` into an `Expr`.
+"""
+has_natural_expression(format::Symbol) = _lookup(_EXPRESSIONS, format) !== nothing
+
+"""
+    make_natural_expression(format::Symbol, document) -> Expr
+
+The `Expr` that runs `document`, a document of `format`. Errors when no domain
+registered one; ask [`has_natural_expression`](@ref) first when that is a normal
+answer.
+"""
+function make_natural_expression(format::Symbol, document)
+    make = _lookup(_EXPRESSIONS, format)
+    make === nothing &&
+        error("make_natural_expression: no expression registered for $(repr(format))")
+    make(document)
 end
 
 # ── The ladder ──────────────────────────────────────────────────────────────

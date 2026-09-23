@@ -289,7 +289,48 @@ what renders, through the window with a real `Editor`, as
   answered); `test_kernel()` keeps its known 3 failures and 3 errors.
   Originally: Test: the output and the
   scratch module state are the same as for the same code as text.
-- [ ] **Step 5. An object in a form (M1).** Note a widget in a tab, paste it into
+- [x] **Step 5. An object in a form (M1).** *Done.* As built:
+  - **M6, the expression hook, decided by the owner on 2026-09-23 (option A).**
+    The conversation package may not depend on the Julia domain, so it can not
+    call `make_julia_expression`. The natural seam gained
+    `register_natural_expression!(format, make)`, `has_natural_expression` and
+    `make_natural_expression(format, document)`, keyed by format as the parser
+    is; `register_natural_domain!` takes `expression =`, and the Julia domain
+    registers `make_julia_expression` beside `parse_julia`. The rejected option
+    B was a generic function declared in the kernel's tool module.
+  - The evaluator runs a form that is already a document, with or without an
+    object, through `make_natural_expression(:jl, …)` and
+    `execute_julia_expression`; a text form still runs its text. A form that
+    holds an object (`_holds_object`: a node that is neither Julia, by its
+    natural format, nor an element collection) keeps an empty `source`, is no
+    entry of the history, and is left as it is by the switch of the form kind.
+  - M1 is `JuliaObjectToSyntaxLeaf`, the last entry of `JuliaToSyntax`'s type
+    dispatch, on `Document`. It is written by hand, not with
+    `@projection_template`, because the template's reader would give a key on
+    the label to the object's own table: with a noted live widget, a key there
+    would act on the widget. It answers no key, maps a whole selection both
+    ways, and shows a selection only when the object is selected whole.
+  - **Two drawing paths.** A chain that recurses through the Julia table
+    (`print_natural_text`, and the application's window) draws an object in the
+    code as its label, `⟨a.json⟩`, `⟨GraphicsCircle⟩`. A bare
+    `NaturalToGraphics` recurses a child of Julia code through its shared syntax
+    table by the child's own type, so there an object with a syntax notation
+    draws in it (`{"a": 1}`, `"s"`) and one without draws by reflection. The
+    shared table gains no `Document` entry: measured, a JSON document alone
+    still draws as JSON.
+  - Tests: through the window with a real editor, Alt+click on the JSON of a
+    file tab and Ctrl+N note the file; the evaluator with structured forms
+    takes `x.content.content.entries[1].value.value = "Bob"` (the application
+    keeps a file's content in its undo buffer), Tab commits it, Alt+click on
+    `x` and Ctrl+V put the file there, the row draws `⟨a.json⟩`, Enter runs
+    it, and the file's tab, brought back, draws `Bob` and no longer `Alice`.
+    In `test_evaluator_toplevel()`: an object changed by the call is the same
+    object (`===`), the form keeps no text and the history skips it, a form
+    that is an object answers that object, the switch leaves it. In
+    `test_natural_notation()`: the hook. `test_evaluator_toplevel()`,
+    `test_application()`, `test_julia()`, `test_natural_notation()` pass;
+    `test_conversation()` keeps its known failure.
+  Originally: Note a widget in a tab, paste it into
   a hole of `get_document_title(_)`, press Enter, and check the result. Then
   call a function that changes the widget and check that the tab draws the
   change, which proves the form held the live object.

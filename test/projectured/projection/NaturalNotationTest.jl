@@ -46,4 +46,12 @@ function test_natural_notation()
     @testset "the test leaves the natural tables as it found them" begin
         @test all(map(==, tables, saved))
     end
+
+    @testset "a format that is code turns a document into the Expr that runs it" begin
+        @test has_natural_expression(:jl)
+        @test !has_natural_expression(:json)
+        call = parse_natural_text(:jl, "f(1, 2)")
+        @test make_natural_expression(:jl, call) == make_julia_expression(call)
+        @test_throws ErrorException make_natural_expression(:json, call)
+    end
 end

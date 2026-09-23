@@ -174,7 +174,8 @@ to the end or an evaluation turns it on again.
 
 The three `history_` fields are view state too: where Up and Down stand in the
 history of the bottom form. `history_position` is 0 for the draft, and `k` for the
-`k`-th form above the bottom one, counted from the newest. `history_draft` is what
+`k`-th entry of the history, counted from the newest; a form that holds an object
+is no entry, because it has no text. `history_draft` is what
 the bottom form held when the navigation started, and `history_prefix` is the text
 before the caret then. See [`RecallEvaluatorFormOperation`](@ref).
 
@@ -274,6 +275,14 @@ _get_form_source_text(form::Document) =
 # or the hole a structured form starts as. Both keep their text in `value`.
 _is_text_form(form) = form isa PrimitiveString || _is_julia_hole(form)
 
+# Whether the code of a form holds an object that a person pasted into it: a node
+# that is neither Julia nor a list of nodes, or the whole code. The label of an
+# object is not code, so such a form has no text that runs, and the history
+# skips it.
+_holds_object(form) = !_is_text_form(form) && !isempty(search_documents(form, _is_object))
+_is_object(node) = node isa Document && !is_element_collection(node) &&
+                   get_natural_format(typeof(node)) !== :jl
+
 # The insertion of the Julia domain, known by what it is and not by its name,
 # because this package does not depend on that domain.
 _is_julia_hole(form) = _is_julia_hole_type(typeof(form))
@@ -371,11 +380,18 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     i = _find_selected_form_index(t)
     i === nothing && return nothing
     element = t.elements[i]
-    text = _get_form_source_text(element.form)
-    isempty(strip(text)) && return nothing
+    code = element.form
+    # A form that holds an object has no text that runs: it runs as an `Expr`
+    # that holds the object itself, and so does any other form that is already
+    # a document, whose print is its text.
+    by_expression = !_is_text_form(code) && has_natural_expression(:jl)
+    text = _holds_object(code) ? "" : _get_form_source_text(code)
+    !by_expression && isempty(strip(text)) && return nothing
     set = _get_evaluator_tool_set(editor)
     output = try
-        execute_julia_code(set, editor, text)
+        by_expression ?
+            execute_julia_expression(set, editor, make_natural_expression(:jl, code)) :
+            execute_julia_code(set, editor, text)
     catch e
         sprint(showerror, e, catch_backtrace())
     end
@@ -493,6 +509,8 @@ end
 function _change_bottom_form_kind!(editor, t::EvaluatorToplevel)
     n = length(t.elements)
     element = t.elements[n]
+    # An object stays as it is: it has no text to keep.
+    _holds_object(element.form) && return nothing
     fresh = _make_fresh_code(t)
     typeof(fresh) === typeof(element.form) && return nothing
     text = _get_form_source_text(element.form)
@@ -546,7 +564,8 @@ function evaluate_operation(editor, op::RecallEvaluatorFormOperation)
     range = _find_selected_value_range(t)
     (range === nothing || _find_selected_form_index(t) != n) && return nothing
     shown = something(form.value, "")
-    entries = String[_get_form_source_text(t.elements[k].form) for k in (n - 1):-1:1]
+    entries = String[_get_form_source_text(t.elements[k].form) for k in (n - 1):-1:1
+                     if !_holds_object(t.elements[k].form)]
     position = t.history_position
     # A navigation starts from the draft, and again when a person edited what a
     # recall showed.

@@ -601,6 +601,49 @@ end
     @test checks() == [sx - 26]
 end
 
+@testset "a form that holds an object runs with that very object" begin
+    s = history_session("y = 1"; structured = true)
+    # A circle has no notation in a line of code.
+    object = GraphicsCircle(10, 10, 10)
+    call = parse_natural_text(:jl, "setproperty!(x, :radius, 20)")
+    call.arguments[1] = object
+    whole(i) = ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(i - 1, i),
+            ConcreteReference(FieldReferenceStep("form"), EmptyReference())))
+    clear_selection!(s.toplevel)
+    s.toplevel.elements[2].form = call
+    set_selection!(s.toplevel, whole(2))
+    # The object prints as its label inside the code. The window draws the same
+    # label (ApplicationTest.jl); a bare `NaturalToGraphics` draws a child of Julia
+    # code through its shared syntax table instead, by the child's own type.
+    @test print_natural_text(call) == "setproperty!(⟨GraphicsCircle⟩, :radius, 20)"
+    @test s.press!(:return) isa EvaluateSelectedFormOperation
+    # The call changed the object itself, not a copy.
+    @test object.radius == 20
+    form = s.toplevel.elements[2]
+    @test !form.is_error
+    @test form.form === call && call.arguments[1] === object
+    # Its label is no code, so the form keeps no text and the history skips it.
+    @test form.source == ""
+    s.press!(:up); @test s.shown() == "y = 1"
+end
+
+@testset "a form that is an object answers that object" begin
+    s = history_session("y = 1"; structured = true)
+    object = GraphicsCircle(10, 10, 10)
+    whole(i) = ConcreteReference(FieldReferenceStep("elements"),
+        ConcreteReference(RangeReferenceStep(i - 1, i),
+            ConcreteReference(FieldReferenceStep("form"), EmptyReference())))
+    clear_selection!(s.toplevel)
+    s.toplevel.elements[2].form = object
+    set_selection!(s.toplevel, whole(2))
+    # A switch of the kind of the bottom form leaves an object as it is.
+    evaluate_operation(s.ed, ToggleEvaluatorOptionOperation(s.toplevel, :type_structured_forms))
+    @test s.toplevel.elements[2].form === object
+    @test s.press!(:return) isa EvaluateSelectedFormOperation
+    @test s.toplevel.elements[2].result === object
+end
+
 @testset "state persists across forms, like a real REPL and not a sandbox" begin
     toplevel = make_insertion_document(EvaluatorToplevel)
     ed = editor(toplevel)

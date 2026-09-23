@@ -498,6 +498,58 @@ function test_application()
                 @test only(carets)[2] > maximum(twos)
             end
 
+            @testset "a noted object pasted into a form runs as itself, and its tab draws the change" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                editor = Editor(ConsoleBackend(), scene, composed,
+                                Device[Display(), Keyboard(), Mouse()])
+                editor.iomap = iomap
+                press!(event) = begin
+                    operation = _app_fire(composed, editor.iomap, event)
+                    operation isa Operation && evaluate_operation(editor, operation)
+                    operation
+                end
+                type!(text) = foreach(character -> press!(KeyPress(character)), text)
+                drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
+                at(word) = [(x, y) for (text, x, y) in drawn() if text == word]
+                # Alt+click on the JSON of the file tab selects the file, and Ctrl+N
+                # notes it: the clipboard holds the file itself.
+                (ax, ay) = first((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
+                press!(MousePress(:left, ax + 5, ay + 5, 1, ModifierKeys(alt = true)))
+                press!(KeyDown(:n, ModifierKeys(ctrl = true)))
+                noted = only(search_documents(document, node -> node isa ClipboardSlice)).slice
+                @test noted isa JsonFile
+                # The evaluator, with structured forms, takes code that names `x`.
+                toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
+                button = only(item for item in toolbar.elements
+                              if string(item.action.label) == "Evaluator")
+                evaluate_operation(editor, InvokeActionOperation(button.action))
+                (group, index) = get_pane_focus(_app_window(document))
+                evaluator = get_wrapped_document(group.tabs[index].content)
+                (sx, sy) = only(at("Structured forms"))
+                press!(MousePress(:left, sx - 17, sy + 12, 1, ModifierKeys()))
+                # The application keeps the content of a file in its undo buffer.
+                type!("x.content.content.entries[1].value.value = \"Bob\"")
+                # Tab commits the hole into a tree of the code.
+                press!(KeyDown(:tab, ModifierKeys()))
+                # Alt+click on `x` selects it whole, and Ctrl+V puts the noted file
+                # there, which the code draws as its label.
+                (xx, xy) = only(at("x"))
+                press!(MousePress(:left, xx + 3, xy + 5, 1, ModifierKeys(alt = true)))
+                press!(KeyDown(:v, ModifierKeys(ctrl = true)))
+                @test "⟨a.json⟩" in [text for (text, _, _) in drawn()]
+                @test _app_plain(press!(KeyDown(:return, ModifierKeys()))) isa
+                      EvaluateSelectedFormOperation
+                @test !evaluator.elements[1].is_error
+                # The evaluation changed the file itself, so its tab, brought to the
+                # front again, draws the new value and not the old one.
+                @test occursin("Bob", print_natural_text(noted.content.content))
+                (tx, ty) = last(sort(at("a.json")))
+                press!(MousePress(:left, tx + 5, ty + 5, 1, ModifierKeys()))
+                texts = [text for (text, _, _) in drawn()]
+                @test any(text -> occursin("Bob", text), texts)
+                @test !any(text -> occursin("Alice", text), texts)
+            end
+
             @testset "an evaluated form draws as Julia, and a form with a comment as typed" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = Editor(ConsoleBackend(), scene, composed,
