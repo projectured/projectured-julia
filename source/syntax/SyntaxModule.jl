@@ -54,6 +54,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward, m
 export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
        render, set_cell_function!,
        get_syntax_children, get_opening_delimiter, get_closing_delimiter, get_separator,
+       is_on_closing_delimiter,
        get_indentation, is_syntax_collapsed, is_syntax_collapsible,
        build_syntax_child_path, peel_child_step
 export SyntaxLeafToText, SyntaxCompoundToText, SyntaxListToText, SyntaxToText,

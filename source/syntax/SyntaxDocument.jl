@@ -501,6 +501,24 @@ get_indentation(n::SyntaxNode) = n.indentation
 is_syntax_collapsed(n::SyntaxNode)   = n.collapsed
 is_syntax_collapsible(::SyntaxNode)  = true
 
+# The fields that hold a closing delimiter: `close` of a `SyntaxNode` and of a
+# `SyntaxLeaf`, `closing_delimiter` of a `SyntaxDelimitation`.
+const _CLOSING_DELIMITER_FIELDS = ("close", "closing_delimiter")
+
+"""
+    is_on_closing_delimiter(selection) -> Bool
+
+Whether `selection`, the selection that a document holds, is a caret on the closing
+delimiter that the projection of that document to syntax printed, such as the `}`
+of an object. A container rule that leaves a key to its parent there asks this.
+"""
+function is_on_closing_delimiter(selection)
+    is_introduced_reference(selection) || return false
+    output = strip_reference_types(selection.head.output_path)
+    return output isa ConcreteReference && output.head isa FieldReferenceStep &&
+           output.head.name in _CLOSING_DELIMITER_FIELDS
+end
+
 # Canonical keyword constructor: `children` leads positionally. Its only job is to
 # coerce — the delimiters through `_text`, the children through `_children` — and
 # hand the rest to the `@document` keyword constructor, so every default is

@@ -506,6 +506,20 @@ function test_json_construct()
             @test all(answered)
             @test isempty(compare_content(doc, JsonObject("a" => JsonObject("b" => JsonString("x"),
                                                                              "c" => JsonNumber(1)))))
+            # On the closing brace of the nested object, the object declines the `,`
+            # and its parent adds the entry. From `"x"│`, the four presses of Right
+            # pass the end of the line and the indentation, onto the `}`.
+            (doc, answered) = build(vcat(
+                [KeyPress('{')], chars("a"), [tab, KeyPress('{')], chars("b"), [tab, KeyPress('"')],
+                chars("x"), [right, right, right, right, KeyPress(',')], chars("c"), [tab], chars("1")))
+            @test all(answered)
+            @test isempty(compare_content(doc, JsonObject("a" => JsonObject("b" => JsonString("x")),
+                                                          "c" => JsonNumber(1))))
+            # The same for an array: after the nested `]`, the outer array takes the `,`.
+            (doc, answered) = build(vcat(
+                [KeyPress('['), KeyPress('['), KeyPress('1'), right, KeyPress(','), KeyPress('2')]))
+            @test all(answered)
+            @test isempty(compare_content(doc, JsonArray(JsonArray(JsonNumber(1)), JsonNumber(2))))
         end
 
         # @broken: authoring gap — an empty [] / {} is unreachable by typing (creation

@@ -96,8 +96,12 @@ _json_replaceable(doc, sel) =
         replace_selected_document(doc, @with_selection JsonNumber(parse(Int, string(c))) value{1})
 end
 
+# A `,` on the closing bracket or brace of a container is the parent's: the caret
+# has left the container's content, so the container declines and its parent answers.
 @gestures JsonArray begin
-    KeyPress(',') => "Insert a new element" => append_insertion_operation(doc, :elements, JsonInsertion)
+    KeyPress(',') => "Insert a new element" =>
+        is_on_closing_delimiter(get_selection(doc)) ? nothing :
+        append_insertion_operation(doc, :elements, JsonInsertion)
 end
 
 # The order of the entries in a sorted object: by key. An entry still under
@@ -106,7 +110,9 @@ end
 _json_entry_sort_key(entry) = entry isa JsonObjectEntry ? (0, entry.key) : (1, "")
 
 @gestures JsonObject begin
-    KeyPress(',') => "Insert a new entry" => append_insertion_operation(doc, :entries, JsonObjectEntry)
+    KeyPress(',') => "Insert a new entry" =>
+        is_on_closing_delimiter(get_selection(doc)) ? nothing :
+        append_insertion_operation(doc, :entries, JsonObjectEntry)
     KeyDown(:tab) => "Move from key to value" => move_to_field(doc; from = :key, to = :value)
     # The way back has no key of its own. A rule with no gesture reaches the user by
     # name instead, through the command palette. The sort rule spends no key either.

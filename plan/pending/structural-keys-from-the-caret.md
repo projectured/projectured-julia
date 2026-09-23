@@ -142,7 +142,17 @@ parent entry and the parent container, whose `,` rule answers.
       37 fail, where the 37 unreached positions are the same as in the baseline and
       the 12 more positions it now enumerates are all reached; `julia_example` 84
       pass, 28 fail, the same 28 positions.
-- [ ] Step 3: D3 in the JSON rules, with a test for `,` after a nested `}`.
+- [x] Step 3: D3 in the JSON rules, with a test for `,` after a nested `}`.
+      The syntax slice has `is_on_closing_delimiter(selection)`: the selection is
+      an introduced step whose output path starts at a closing delimiter field
+      (`close` of `SyntaxNode` and `SyntaxLeaf`, `closing_delimiter` of
+      `SyntaxDelimitation`). The `,` rules of `JsonObject` and `JsonArray` answer
+      `nothing` there, so bubbling reaches the parent. In the probe, press 4 (the
+      nested `}`) now adds the entry to the root, and press 6 (the root `}`)
+      answers nothing, because the root has no parent container. The testset
+      `json/caret-only` also builds `{"a": {"b": "x"}, "c": 1}` with four presses
+      of `Right` from `"x"│`, and `[[1], 2]` with one `Right` after the `1`;
+      `test_json_construct()` passes 27 with 2 broken, `test_json` 194.
 - [ ] Step 4: the `json_build` live example builds its document with `Right` and no
       `Alt+Up`, and its test replays it.
 - [ ] Step 5: the same suites after the change, compared with the baseline.
