@@ -705,7 +705,7 @@ function record_assistant_conversation_video(filename::AbstractString = tempname
         [enter],                                      # submit the draft turn
     )
 
-    record_video(assistant, projection, gestures, filename;
+    record_video(assistant, projection; gestures, filename,
                  width=width, height=height, fps=fps, final_hold=final_hold,
                  wait_for = () -> assistant.status === :idle, kwargs...)
 end

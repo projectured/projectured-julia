@@ -10,7 +10,7 @@ mutable struct _VideoEditor
 end
 
 """
-    record_video(document, projection, gestures, filename::AbstractString;
+    record_video(document, projection; gestures, filename::AbstractString,
                  fps=30, width=1200, height=800,
                  background=(0xfd,0xf6,0xe3,0xff),
                  initial_hold=0.5, final_hold=initial_hold,
@@ -49,7 +49,7 @@ gestures = [
     (event = KeyPress('i'),                        hold = 0.3),
     (event = KeyDown(:right, ModifierKeys(), false),  hold = 0.5),
 ]
-record_video(doc, proj, gestures, "/tmp/demo.mp4"; fps=30)
+record_video(doc, proj; gestures, filename = "/tmp/demo.mp4", fps = 30)
 ```
 
 `initial_selection` controls where the caret starts. Keyboard typein (e.g.
@@ -66,8 +66,8 @@ predicate, after the last gesture the recording spins (yielding) until it return
 `true` — or `wait_timeout` wall-clock seconds elapse — then re-prints so the
 final-hold frames show the settled state (e.g. `wait_for = () -> a.status === :idle`).
 """
-function record_video(document, projection, gestures::AbstractVector,
-                      filename::AbstractString;
+function record_video(document, projection; gestures::AbstractVector,
+                      filename::AbstractString,
                       fps::Integer = 30,
                       width::Integer = 1200,
                       height::Integer = 800,

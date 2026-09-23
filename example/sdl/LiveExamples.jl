@@ -91,7 +91,7 @@ single timeline's mouse coordinates work in both). Extra `kwargs` pass through t
 function record_live_example(live::LiveExample, filename::AbstractString=tempname()*".mp4"; kwargs...)
     document   = live.example.make_document()
     projection = live.example.make_projection()
-    record_video(document, projection, live.timeline, filename;
+    record_video(document, projection; gestures = live.timeline, filename,
                  width=live.width, height=live.height, fps=live.fps,
                  initial_selection=_resolve_selection(live.initial_selection, document),
                  kwargs...)
@@ -133,7 +133,7 @@ function play_live_example(live::LiveExample; width::Integer=live.width,
     # recorder); in the windowed scene they must be rerooted to the screen by the
     # steps that lead to this window's content. Event entries are rerooted by the
     # reader automatically, so they need no prefix.
-    play_live!(SdlBackend(), composed, screen, live.timeline;
+    play_live!(SdlBackend(), live.timeline; projection = composed, document = screen,
                window_id=window_id, initial_hold=initial_hold,
                op_prefix = @reference(screen, windows[1].content))
 end

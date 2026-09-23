@@ -33,8 +33,8 @@ function test_record_video()
         ]
         filename = tempname() * ".mp4"
         ok = try
-            record_video(make_json_document_example(), make_json_projection_example(),
-                         gestures, filename; fps=30, width=400, height=300, supersample=1)
+            record_video(make_json_document_example(), make_json_projection_example();
+                         gestures, filename, fps=30, width=400, height=300, supersample=1)
             true
         catch e
             @warn "record_video test skipped (ffmpeg unavailable?): $e"
@@ -57,8 +57,8 @@ function test_record_video()
         before = evaluate_reference(doc, string_ref)
         filename = tempname() * ".mp4"
         ok = try
-            record_video(doc, proj, [(event = KeyPress('z'), hold = 0.2)], filename;
-                         fps=10, width=400, height=300, supersample=1,
+            record_video(doc, proj; gestures = [(event = KeyPress('z'), hold = 0.2)],
+                         filename, fps=10, width=400, height=300, supersample=1,
                          initial_selection=caret)
             true
         catch e
@@ -92,7 +92,7 @@ function test_record_video()
             (event     = KeyPress('q'),                    hold = 0.2),
         ]
         ok = try
-            record_video(doc, proj, timeline, filename;
+            record_video(doc, proj; gestures = timeline, filename,
                          fps=10, width=400, height=300, supersample=1)
             true
         catch e
@@ -109,9 +109,9 @@ function test_record_video()
     end
 
     # .mp4 is the only supported container.
-    @test_throws ErrorException record_video(
-        make_json_document_example(), make_json_projection_example(),
-        [(event = KeyPress('a'), hold = 0.1)], tempname() * ".avi")
+    @test_throws ErrorException record_video(make_json_document_example(), make_json_projection_example();
+                                             gestures = [(event = KeyPress('a'), hold = 0.1)],
+                                             filename = tempname() * ".avi")
 
     @testset "assistant conversation demo records and waits for the reply" begin
         # Drives the full assistant composer: prose → julia eval → prose → submit,
