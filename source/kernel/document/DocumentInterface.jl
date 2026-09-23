@@ -407,13 +407,15 @@ See also `get_wrapped_document`.
 function replace_wrapped_document! end
 
 """
-    search_documents(obj, predicate; include_selection=false, maxdepth=64, raw=false) -> Vector
+    search_documents(obj, predicate; include_selection=false, maxdepth=64, raw=false,
+                     descend=(parent, child) -> true) -> Vector
     search_documents(obj, query::Union{AbstractString,Regex}; …)                      -> Vector
 
 Walk any object and return the matching nodes, **each at most once** even when a
 node is shared. A `String` (substring) or `Regex` matches leaf nodes by their
 string form. By default the result is **document-scoped**: a scalar match folds
 up to the nearest enclosing `Document`; pass `raw=true` to return the exact
-matched value.
+matched value. `descend(parent, child)` returns whether the walk enters `child`;
+see `walk_document`.
 """
 function search_documents end

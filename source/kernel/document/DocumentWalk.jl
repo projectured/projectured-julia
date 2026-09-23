@@ -3,11 +3,12 @@
 #
 # There is exactly one traversal. It knows how to descend four shapes — a
 # positional collection (`is_element_collection`), a dict, an array, and a struct
-# read by `fieldnames` — how to stop (scalar leaves, `is_walk_opaque`, `maxdepth`),
-# how to fold a scalar match up to its enclosing `Document`, and how to keep from
-# looping. What it deliberately leaves open is how to *name* the node it is standing
-# on: a caller that wants the matching *objects* names a node by the object itself,
-# a caller that wants the *paths* names it by a location it builds up as it descends.
+# read by `fieldnames` — how to stop (scalar leaves, `is_walk_opaque`, `maxdepth`,
+# and a child that the caller's `descend` refuses), how to fold a scalar match up
+# to its enclosing `Document`, and how to keep from looping. What it leaves open
+# is how to *name* the node it is standing on, and which children it enters: a
+# caller that wants the matching *objects* names a node by the object itself, a
+# caller that wants the *paths* names it by a location it builds up as it descends.
 # Those location functions are the `DocumentWalk`'s parameters — supplied by the
 # caller, not dispatched off a subtype — which is what lets the walk sit below the
 # reference layer (whose `Reference` a caller passes back in as a location) while
@@ -79,7 +80,8 @@ make_string_predicate(q::Regex)          = x -> (t = _walk_string(x); t !== noth
 
 """
     walk_document(walk::DocumentWalk, obj, predicate;
-                  include_selection=false, maxdepth=64, raw=false) -> Vector
+                  include_selection=false, maxdepth=64, raw=false,
+                  descend=(parent, child) -> true) -> Vector
 
 Walk any object graph and return the **location** of every match, as `walk`
 defines locations.
@@ -97,11 +99,13 @@ walk. `maxdepth` bounds recursion for structures that are never the *same* objec
 — an infinite lazy list whose nodes are generated fresh on demand — which the
 visited set alone cannot stop.
 
-`descend(parent, child) -> Bool` says whether the walk enters `child` from
-`parent`; a child it does not enter is neither matched nor walked. The default
-enters every child. A search whose matches can be only in some places gives
-one, so it does not walk what can hold none, such as the types and the
-functions that an action holds.
+`descend(parent, child) -> Bool` returns whether the walk enters `child` from
+`parent`. The walk does not match or walk a child that it does not enter. The
+root is always entered, and the default enters every child. Pass one when the
+matches can be only in some parts of the graph, so that the walk skips the
+parts that can hold none, such as a type or a function held in a field. An
+exception from `predicate` counts as no match; an exception from `descend` goes
+to the caller.
 
 `obj` need not be a document: the walk descends structs, arrays, and dicts alike.
 """
@@ -145,6 +149,9 @@ end
 # `reported` dedups by location identity — sibling scalars under one document share
 # the same enclosing location object, so that document is reported once, while
 # distinct locations are all kept.
+# @positional: a private recursion. All but `obj`, `location`, `enclosing`, `seen`
+# and `depth` pass through unchanged, and the compile count below is measured on
+# this form.
 function _walk_document!(walk, results, reported, obj, predicate, location, enclosing,
                          seen, include_selection, depth, raw, descend)
     # Nothing dispatches on `enclosing`: it is pushed into `results::Vector{Any}`,

@@ -712,5 +712,17 @@ the six known failures; the naming, argument and tree guards pass.
       `open_simulation_pane!`, and the first focus of an embedded tree.
 - [ ] The guides: `selection.md`, `clipboard.md`, `pane.md`, and a guide for
       the route and `read_rooted_operation`.
-- [ ] Audit `document/DocumentWalk.jl` against the architecture invariants, as
+- [x] Audit `document/DocumentWalk.jl` against the architecture invariants, as
       `SEALING.md` says, report the result, and ask the owner to seal it again.
+      Audited 2026-09-23 by the seal auditor. The code complies (a data walk,
+      no new generic, the default keeps every search the same). Three
+      documentation defects in the file are fixed: the fragment header names
+      the new stop and the new open choice, the signature of `walk_document`
+      lists `descend`, and its docstring drops an example from a higher layer
+      and says that an error in `descend` goes to the caller. The private
+      recursion `_walk_document!` got a `# @positional:` reason, and
+      `DocumentWalkTest.jl` got two cases for `descend` (19/19). The docstring
+      of `search_documents` names the keyword. Open, for the owner: the
+      docstring of `search_references` is in the sealed `ReferenceSearch.jl`
+      and does not name `descend`; lines 77-78 of `DocumentWalk.jl` were over
+      the 90-character budget on `main` already.

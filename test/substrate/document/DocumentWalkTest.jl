@@ -40,6 +40,21 @@ doc    = CellVector([shared, shared])
     @test all(r -> evaluate_reference(doc, r) === shared, refs)
 end
 
+# ── descend: the caller chooses which children the walk enters ────────────
+@testset "descend: a child the caller refuses is neither matched nor walked" begin
+    first_alice = PrimitiveString("Alice")
+    inner = CellVector([PrimitiveString("Alice")])
+    outer = CellVector([first_alice, inner])
+    refuse_inner(_, child) = child !== inner
+    @test search_documents(outer, is_alice; descend = refuse_inner) == [first_alice]
+    @test length(search_references(outer, is_alice; descend = refuse_inner)) == 1
+    # The default enters every child, so passing it changes nothing.
+    enter_all(_, _) = true
+    @test search_documents(outer, is_alice; descend = enter_all) == search_documents(outer, is_alice)
+    @test search_references(outer, is_alice; descend = enter_all) == search_references(outer, is_alice)
+    @test length(search_documents(outer, is_alice)) == 2
+end
+
 # ── Cycles terminate under both policies ──────────────────────────────────
 # search_documents's global visited set stops on the revisit; search_references drops only paths
 # that loop back through one of their own ancestors. Neither may hang.
