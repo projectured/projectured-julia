@@ -352,10 +352,11 @@ end
 """
     _reference_of_tab(tree, tab) -> Reference or nothing
 
-Where `tab` sits, as a reference the model can write.
+Where `tab` sits in `tree`, as a typed path from the tree; a verb puts the
+route to the tree in front of it to answer a complete reference.
 
 Built by identity and then annotated against the tree, which is what
-`@reference(window, path)` does at its call site: every node records the type of
+`@reference(tree, path)` does at its call site: every node records the type of
 what it stands on, and a bare path is refused by [`get_referenced_value`](@ref).
 """
 function _reference_of_tab(tree::PaneTree, tab)
