@@ -177,6 +177,11 @@ history of the bottom form. `history_position` is 0 for the draft, and `k` for t
 `k`-th form above the bottom one, counted from the newest. `history_draft` is what
 the bottom form held when the navigation started, and `history_prefix` is the text
 before the caret then. See [`RecallEvaluatorFormOperation`](@ref).
+
+`parse_evaluated_forms` says whether an evaluation turns the code of its form into
+a Julia document. It does so only when the document prints back as the code was
+typed, less the blank space around it, so a comment or a person's own spacing is
+never rewritten. See [`EvaluateSelectedFormOperation`](@ref).
 """
 @document struct EvaluatorToplevel <: EvaluatorDocument
     elements::CellVector = CellVector()
@@ -184,10 +189,11 @@ before the caret then. See [`RecallEvaluatorFormOperation`](@ref).
     history_position::Int = 0
     history_draft::String = ""
     history_prefix::String = ""
+    parse_evaluated_forms::Bool = true
 end
 EvaluatorToplevel(elements::Vector) =
     EvaluatorToplevel(CellVector(Cell[Cell(e) for e in elements]), Cell(true),
-                      Cell(0), Cell(""), Cell(""), Cell(nothing))
+                      Cell(0), Cell(""), Cell(""), Cell(true), Cell(nothing))
 
 set_cell_function!(t::EvaluatorToplevel, f::Function) =
     (set_cell_function!(getfield(t.elements, :elements), () -> Cell[Cell(x) for x in f()]); t)
@@ -215,6 +221,11 @@ the caret sits in, the same evaluation [`ComposerEvaluateOperation`](@ref) runs
 for the composer's draft, and open a fresh empty form after it so a person can
 keep typing at once. The complete selection moves to the fresh form, so the form
 that was evaluated shows no caret.
+
+The form that was evaluated keeps its code as typed in `source`. When the
+toplevel's `parse_evaluated_forms` is on, its code becomes a Julia document if
+the document prints back as that code, less the blank space around it. The
+evaluation runs the code as typed either way.
 
 Declines — leaves the toplevel untouched — when the caret names no element, or
 that element's source is blank. Both are checked here, at evaluation time, not
@@ -335,6 +346,29 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     t.history_draft = ""
     t.history_prefix = ""
     _select_in_toplevel!(editor, t, _make_form_caret_reference(length(t.elements), 0))
+    # The caret has left the evaluated form, so no selection names a place in the
+    # string that the parse replaces.
+    element.source = text
+    t.parse_evaluated_forms && _parse_evaluated_form!(element)
+    nothing
+end
+
+# The code of an evaluated form becomes a Julia document when the document prints
+# back as the code, less the blank space around it. Otherwise the form keeps its
+# string: code with a comment, with a spacing of its own, that does not parse, or
+# that no loaded domain reads as Julia. A parser throws for a construct it does
+# not support, and that is an answer here, not a fault.
+function _parse_evaluated_form!(element::EvaluatorForm)
+    element.form isa PrimitiveString || return nothing
+    has_natural_parser(:jl) || return nothing
+    code = strip(something(element.form.value, ""))
+    parsed = try
+        document = parse_natural_text(:jl, code)
+        print_natural_text(document) == code ? document : nothing
+    catch
+        nothing
+    end
+    parsed === nothing || (element.form = parsed)
     nothing
 end
 

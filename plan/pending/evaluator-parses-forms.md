@@ -82,7 +82,14 @@ Work in the worktree `../projectured-julia-evaluator-parses-forms`, branch
 `evaluator-parses-forms`, one commit per step. Do not land on `main` without the
 owner's word.
 
-- [ ] **Step 1. The field and the swap.** Add `parse_evaluated_forms` to
+- [x] **Step 1. The field and the swap.** *Done.* The swap runs after the caret
+  has moved to the fresh form, so no selection names a place in the string it
+  replaces. The print of the parsed document is inside the `try` as well: a
+  failure there keeps the string. An error result carries a stack trace that
+  names the line of its caller, so the test compares an error by its first
+  line. `test_evaluator_toplevel()` passes; `test_conversation()` keeps its one
+  known failure.
+  **The field and the swap.** Add `parse_evaluated_forms` to
   `EvaluatorToplevel` and to its positional constructor. In
   `evaluate_operation(editor, ::EvaluateSelectedFormOperation)`, after the
   result is set, swap the form by D1, D5 and D7, and set `source` by D4.

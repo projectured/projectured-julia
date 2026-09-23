@@ -212,6 +212,61 @@ end
     @test read_gesture(toplevel, KeyDown(:return, ModifierKeys(alt = true))) === nothing
 end
 
+# The form that evaluating `code` leaves behind, with the parse on or off.
+function evaluated_form(code; parse = true)
+    toplevel = make_insertion_document(EvaluatorToplevel)
+    toplevel.parse_evaluated_forms = parse
+    toplevel.elements[1].form.value = code
+    evaluate_operation(editor(toplevel), read_gesture(toplevel, enter()))
+    toplevel.elements[1]
+end
+
+@testset "an evaluated form becomes Julia when it prints back as typed" begin
+    form = evaluated_form("x = 1 + 2")
+    @test form.form isa JuliaAssignment
+    @test print_natural_text(form.form) == "x = 1 + 2"
+    @test form.source == "x = 1 + 2"
+    # The blank space around the code does not stop it, and `source` keeps it.
+    form = evaluated_form("\nx = 1 + 2\n")
+    @test form.form isa JuliaAssignment
+    @test form.source == "\nx = 1 + 2\n"
+    # With the parse off, the form keeps the string it was typed as.
+    form = evaluated_form("x = 1 + 2"; parse = false)
+    @test form.form isa PrimitiveString
+    @test form.form.value == "x = 1 + 2"
+    @test form.source == "x = 1 + 2"
+end
+
+@testset "a form whose parse would rewrite it keeps its string" begin
+    # A comment has no place in the Julia document, and a person's own spacing
+    # would be normalized: both forms keep what was typed.
+    for code in ("x = 1 + 2  # three", "max(1,2)")
+        form = evaluated_form(code)
+        @test form.form isa PrimitiveString
+        @test form.form.value == code
+    end
+    # Code that does not parse keeps its string, and its error.
+    form = evaluated_form("x = (")
+    @test form.form isa PrimitiveString
+    @test form.form.value == "x = ("
+    @test form.is_error
+end
+
+@testset "the parse changes the form, never the result" begin
+    # An error names the line of the test that made it in its stack trace, so an
+    # error is compared by its first line.
+    result_of(form) = form.is_error ? first(split(_et_flatten(form.result), '\n')) :
+                                      _et_flatten(form.result)
+    for code in ("x = 1 + 2", "x = 1 + 2  # three", "max(1,2)", "x = (")
+        parsed = evaluated_form(code)
+        plain = evaluated_form(code; parse = false)
+        @test result_of(parsed) == result_of(plain)
+        @test parsed.is_error == plain.is_error
+    end
+    @test occursin("3", _et_flatten(evaluated_form("x = 1 + 2").result))
+    @test result_of(evaluated_form("x = (")) == "ParseError:"
+end
+
 @testset "SHIFT+ENTER puts a line break at the caret" begin
     toplevel = make_insertion_document(EvaluatorToplevel)
     operation = read_gesture(toplevel, shift_enter())
@@ -227,8 +282,9 @@ end
 
 # A toplevel with the forms `codes` evaluated, as a person types and evaluates them,
 # and the functions a test of the history needs.
-function history_session(codes...)
+function history_session(codes...; parse = true)
     toplevel = make_insertion_document(EvaluatorToplevel)
+    toplevel.parse_evaluated_forms = parse
     ed = editor(toplevel)
     type!(text) = evaluate_operation(ed, ReplaceStringRangeOperation(toplevel.selection, text))
     press!(key) = (op = read_gesture(toplevel, KeyDown(key, ModifierKeys()));
@@ -259,7 +315,7 @@ end
     s.press!(:down); @test s.shown() == ""
     s.press!(:down); @test s.shown() == ""
     # Evaluated forms keep their code: a recall writes only the bottom form.
-    @test [s.toplevel.elements[i].form.value for i in 1:3] == ["x = 1", "y = 2", "x + y"]
+    @test [print_natural_text(s.toplevel.elements[i].form) for i in 1:3] == ["x = 1", "y = 2", "x + y"]
 end
 
 @testset "the text before the caret is a prefix, and the draft comes back" begin
@@ -288,7 +344,7 @@ end
 end
 
 @testset "UP and DOWN in a form above move the caret to its neighbors" begin
-    s = history_session("1", "22", "333")
+    s = history_session("1", "22", "333"; parse = false)
     form_caret(i, k) = ConcreteReference(FieldReferenceStep("elements"),
         ConcreteReference(RangeReferenceStep(i - 1, i), ConcreteReference(FieldReferenceStep("form"),
             ConcreteReference(FieldReferenceStep("value"), ConcreteReference(RangeReferenceStep(k, k), EmptyReference())))))
