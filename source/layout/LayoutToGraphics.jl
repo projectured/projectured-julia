@@ -220,25 +220,40 @@ same shape this module stores on `ChildrenIoMap`.
 function _route_to_children(child_entries::Vector, x::Int, y::Int, make_evt)
     for (i, entry) in enumerate(child_entries)
         entry === nothing && continue
-        (ox_cell, oy_cell, cim) = entry::Tuple{Cell,Cell,Any}
-        canvas = cim.output
-        canvas isa GraphicsCanvas || continue
-        ox = Int(ox_cell[])
-        oy = Int(oy_cell[])
-        lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
-        # Bound the hit to this child's own box. `GraphicsText` carries no width
-        # (the backend measures it at draw time), so `hit_element_at` leaves a
-        # text element's right/bottom edge open — which in a row layout lets the
-        # leftmost child greedily capture every click to its right. The child
-        # canvas's `w`/`h` give the missing bound, so each child owns exactly its
-        # laid-out box and a click resolves to the child actually under it.
-        cw, ch = Int(canvas.w[]), Int(canvas.h[])
-        (0 <= lx < cw && 0 <= ly < ch) || continue
-        hit_element_at(canvas, lx, ly) === nothing && continue
-        result = read_child_event(cim, make_evt(lx, ly))
+        point = _find_child_point(entry, x, y; bounded = true)
+        point === nothing && continue
+        result = read_child_event(last(entry), make_evt(point...))
         result !== nothing && return (result, i)
     end
     nothing
+end
+
+# The point `(x, y)` in the frame of a child, when the child drew something
+# there, or `nothing`.
+#
+# A child that is a canvas is hit where it drew an element. `bounded` also keeps
+# the hit inside the canvas's own box: `GraphicsText` carries no width (the
+# backend measures it at draw time), so `hit_element_at` leaves a text element's
+# right/bottom edge open, which in a row layout lets the leftmost child capture
+# every click to its right. The canvas's `w`/`h` give the missing bound, so each
+# child owns exactly its laid-out box.
+#
+# A bare graphics document, such as a circle laid out directly, is hit anywhere
+# in the box of its size, the box `_child_w` and `_child_h` gave it.
+function _find_child_point(entry, x::Int, y::Int; bounded::Bool)
+    (ox_cell, oy_cell, cim) = entry::Tuple{Cell,Cell,Any}
+    output = cim.output
+    ox, oy = Int(ox_cell[]), Int(oy_cell[])
+    if output isa GraphicsCanvas
+        lx, ly = x - ox - Int(output.x), y - oy - Int(output.y)
+        bounded && !(0 <= lx < Int(output.w[]) && 0 <= ly < Int(output.h[])) && return nothing
+        hit_element_at(output, lx, ly) === nothing && return nothing
+        return (lx, ly)
+    end
+    output isa GraphicsDocument || return nothing
+    lx, ly = x - ox, y - oy
+    (w, h) = get_graphics_size(output)
+    (0 <= lx < w && 0 <= ly < h) ? (lx, ly) : nothing
 end
 
 _route_scroll(entries, evt::MouseScroll) =
@@ -1534,14 +1549,9 @@ function _route_to_children_reverse(child_entries::Vector, x::Int, y::Int, make_
     for i in length(child_entries):-1:1
         entry = child_entries[i]
         entry === nothing && continue
-        (ox_cell, oy_cell, cim) = entry::Tuple{Cell,Cell,Any}
-        canvas = cim.output
-        canvas isa GraphicsCanvas || continue
-        ox = Int(ox_cell[])
-        oy = Int(oy_cell[])
-        lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
-        hit_element_at(canvas, lx, ly) === nothing && continue
-        result = read_child_event(cim, make_evt(lx, ly))
+        point = _find_child_point(entry, x, y; bounded = false)
+        point === nothing && continue
+        result = read_child_event(last(entry), make_evt(point...))
         result !== nothing && return (result, i)
     end
     nothing

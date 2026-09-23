@@ -202,6 +202,23 @@ function test_widget_selection()
         @test read_intent(projection, iomap, _press(900, 900, _ALT)) === nothing
     end
 
+    @testset "an Alt+click selects a shape that a layout holds bare" begin
+        # A layout sizes a bare shape by its own size, and routes a press to it by
+        # the same box.
+        circle = GraphicsCircle(10, 10, 10)
+        layout = HorizontalLayout(Any[WidgetLabel(Point2D(0, 0), "a"), circle]; gap = 10)
+        projection = RecursiveProjection(TypeDispatchingProjection(vcat(
+            _selection_projection().child.dispatch, Pair{Type,Any}[GraphicsDocument => GraphicsToGraphics()])))
+        iomap = print_document(projection, projection, layout, PrinterContext())
+        centre = nothing
+        _selection_walk(iomap.output) do node, x, y
+            node isa GraphicsCircle && (centre = (x + Int(node.cx), y + Int(node.cy)))
+        end
+        op = read_intent(projection, iomap, _press(centre..., _ALT))
+        @test op isa ReplaceSelectionOperation
+        @test evaluate_reference(layout, op.path) === circle
+    end
+
     @testset "the selected widget draws a ring, and only while it is selected" begin
         t = _selection_tree()
         projection = _selection_projection()

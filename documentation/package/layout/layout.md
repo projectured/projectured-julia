@@ -55,7 +55,7 @@ A grid column that is offered a size must not read its cells to find its own wid
 
 Every layout reader goes through one router:
 
-- A mouse event goes to the child under the pointer. The router translates the point into the frame of the child, limits the hit to the box of the child, and confirms it with `hit_element_at`. The box matters: a `GraphicsText` has no width of its own, so without the box a text on the left of a row would take clicks meant for its right neighbour. Stack, constraint and anchored layouts try the topmost child first, because their children can overlap.
+- A mouse event goes to the child under the pointer. The router translates the point into the frame of the child, limits the hit to the box of the child, and confirms it with `hit_element_at`. The box matters: a `GraphicsText` has no width of its own, so without the box a text on the left of a row would take clicks meant for its right neighbour. Stack, constraint and anchored layouts try the topmost child first, because their children can overlap. A child that is a bare graphics document, such as a circle laid out directly, has no canvas to hit: it is hit anywhere in the box of its size, `get_graphics_size`, the same box that sizes it.
 - A key goes only to the child that the selection of the layout names. There is no broadcast.
 - Tab goes to the selected child first; if it returns nothing, the focus moves to the next focusable sibling with the functions of `ProjecturedFocus`.
 - An Alt+press selects the innermost document under the pointer as a whole (`read_child_event`).
