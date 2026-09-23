@@ -206,7 +206,7 @@ Steps:
   update the comment diagrams that draw the legacy form.
 - [x] 4. `GraphicsCanvas`: the keyword form takes a `CollectionDocument`; move the
   seventeen calls; delete the three forms.
-- [ ] 5. `WidgetTable`: one keyword constructor; move the three tests.
+- [x] 5. `WidgetTable`: one keyword constructor; move the three tests.
 - [ ] 6. The ledger is empty: the guard and §4 of the rule say so.
 - [ ] 7. omnet-julia: the five calls, on a branch.
 

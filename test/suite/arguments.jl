@@ -44,9 +44,7 @@ const ARGUMENT_PROTOCOL = Set(String[
 
 # Every public name over the line on 2026-09-22, the day the rule landed. The
 # list only shrinks.
-const LEDGER = Set(String[
-    "WidgetTable",
-])
+const LEDGER = Set(String[])
 
 "One definition of a file: where it stands, what it is called, and what it takes."
 struct ArgumentDefinition

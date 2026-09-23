@@ -21,8 +21,8 @@ function test_widget_table_list_header_floor()
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
     grow = SizePolicy(nothing, nothing, nothing, 1.0)
     head = ListNode(make_widget_table_row(Any["a", "b"]))
-    table = WidgetTable(Point2D(0, 0), Any["id", "a much longer header"], head, 2;
-                        column_policies = Any[grow, grow])
+    table = WidgetTable(Point2D(0, 0); column_headers = Any["id", "a much longer header"],
+                        rows = head, column_count = 2, column_policies = Any[grow, grow])
     function print_at(width)
         ctx = with_available_size(PrinterContext(); width = Cell(Int32(width)),
                                   height = Cell(Int32(300)))
@@ -70,8 +70,8 @@ end
 texts_of(i, c) = c == 1 ? "row " * string(i) : string(i * 10)
 
 policies = Any[Fixed(120), Fixed(80)]
-make_table(rows; kw...) = WidgetTable(Point2D(0, 0), Any["name", "value"], rows, 2;
-                                      column_policies = policies, kw...)
+make_table(rows; kw...) = WidgetTable(Point2D(0, 0); column_headers = Any["name", "value"],
+                                      rows, column_count = 2, column_policies = policies, kw...)
 
 # Every text a canvas drew, as (x, y, text), through viewports and down a list
 # for at most `limit` nodes in each direction.
@@ -228,8 +228,8 @@ end
 
 @testset "a list is refused where it cannot be drawn lazily" begin
     rows = make_list(3, texts_of)
-    content = WidgetTable(Point2D(0, 0), Any["name", "value"], rows, 2;
-                          column_policies = Any[Fixed(120), Content])
+    content = WidgetTable(Point2D(0, 0); column_headers = Any["name", "value"], rows,
+                          column_count = 2, column_policies = Any[Fixed(120), Content])
     @test_throws ErrorException print_document(rec, nothing, content, context())
     weighted = make_table(make_list(3, texts_of); row_policy = Fill)
     @test_throws ErrorException print_document(rec, nothing, weighted, context())

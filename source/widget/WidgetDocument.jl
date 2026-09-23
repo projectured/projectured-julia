@@ -2136,7 +2136,7 @@ WidgetAccordion(position::Point2D, items::Vector; expanded::Integer=1, width::In
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 
 """
-    WidgetTable(position; column_headers, row_headers, rows, column_count, ...)
+    WidgetTable(position; column_headers, rows, column_count, row_headers, ...)
     WidgetTable(position, headers::Vector, rows::Vector)   # string convenience shim
 
 A grid of cells with optional column headers and row headers.
@@ -2235,16 +2235,28 @@ _table_cell_doc(v)           = WidgetLabel(Point2D(0, 0), string(v))
 # Wrap one body row (a Vector of values or Documents) into a CellVector of cells.
 _table_row(r) = CellVector(Cell[Cell(_table_cell_doc(c)) for c in r])
 
+# The body of a table: a vector of rows becomes a collection of rows, and a list
+# of rows stays the list, which the table draws one row at a time.
+_table_rows(rows::Vector) = CellVector(Cell[Cell(_table_row(r)) for r in rows])
+_table_rows(rows::ListNode) = Cell(rows)
+
 """
-    WidgetTable(position; column_headers, row_headers, rows, column_count,
+    WidgetTable(position; column_headers, rows, column_count, row_headers=Any[],
                 border_width=1, visible=true,
                 column_policy=Content, row_policy=Content,
                 column_policies=Any[], row_policies=Any[],
                 cell_policy=:clip, column_cell_policies=Symbol[])
 
-Document-cell constructor. `column_headers` / `row_headers` are `Vector`s of
-`Document`/`nothing` (pass `[]` for none); `rows` is a `Vector` of rows, each a
-`Vector` of `Document`/value cells.
+Document-cell constructor. `column_headers` and `row_headers` are `Vector`s of
+`Document`/`nothing`, and a table has no row headers unless it is given some.
+`rows` is a `Vector` of rows, each a `Vector` of `Document`/value cells, or a
+`ListNode` of rows.
+
+**A table whose rows are a list** is drawn one row at a time as a viewport
+reaches it, with no count and no end it has to have. Each node's value is a row,
+which [`make_widget_table_row`](@ref) builds from a vector of values or
+documents. Every column must be given a width — `Fixed`, or a weight — and the
+rows are `Fixed` or `Content`; a list draws no row headers.
 
 **A body column and a body row take a `SizePolicy`**, the way a `GridLayout`'s
 do: `column_policy` / `row_policy` say what every one is and the two vectors name
@@ -2258,8 +2270,9 @@ for every column and `column_cell_policies` for the ones that differ. A table
 is a data table until someone says otherwise, so the default is `:clip`: one
 line, cut at the column's edge.
 """
-function WidgetTable(position::Point2D; column_headers::Vector, row_headers::Vector,
-                     rows::Vector, column_count::Integer,
+function WidgetTable(position::Point2D; column_headers::Vector,
+                     rows::Union{Vector,ListNode}, column_count::Integer,
+                     row_headers::Vector=Any[],
                      border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
@@ -2267,42 +2280,12 @@ function WidgetTable(position::Point2D; column_headers::Vector, row_headers::Vec
                      margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing)
     cell_policy in (:clip, :wrap) ||
         error("WidgetTable: cell_policy is :clip or :wrap, not ", repr(cell_policy))
+    rows isa ListNode && !isempty(row_headers) &&
+        error("WidgetTable: a table whose rows are a list draws no row headers")
     WidgetTable(Cell(position),
                 CellVector(Cell[Cell(_table_cell_doc(h)) for h in column_headers]),
                 CellVector(Cell[Cell(_table_cell_doc(h)) for h in row_headers]),
-                CellVector(Cell[Cell(_table_row(r)) for r in rows]),
-                Cell(Int(column_count)), Cell(Int(border_width)),
-                Cell(column_policy), Cell(row_policy),
-                Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
-                Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
-                Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
-                Cell(nothing), Cell(tooltip))
-end
-
-"""
-    WidgetTable(position, column_headers, rows::ListNode, column_count; …)
-
-A table whose rows are a list: drawn one row at a time as a viewport reaches
-it, with no count and no end it has to have. Each node's value is a row, which
-[`make_widget_table_row`](@ref) builds from a vector of values or documents.
-Every column must be given a width — `Fixed`, or a weight — and the rows are
-`Fixed` or `Content`; a list draws no row headers. The keywords are the
-document-cell constructor's.
-"""
-function WidgetTable(position::Point2D, column_headers::Vector, rows::ListNode,
-                     column_count::Integer;
-                     border_width::Integer=1, visible::Bool=true,
-                     column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
-                     column_policies=Any[], row_policies=Any[],
-                     cell_policy::Symbol=:clip, column_cell_policies=Symbol[],
-                     margin=nothing, border=nothing, padding=nothing, style=nothing,
-                     tooltip=nothing)
-    cell_policy in (:clip, :wrap) ||
-        error("WidgetTable: cell_policy is :clip or :wrap, not ", repr(cell_policy))
-    WidgetTable(Cell(position),
-                CellVector(Cell[Cell(_table_cell_doc(h)) for h in column_headers]),
-                CellVector(),
-                Cell(rows),
+                _table_rows(rows),
                 Cell(Int(column_count)), Cell(Int(border_width)),
                 Cell(column_policy), Cell(row_policy),
                 Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
