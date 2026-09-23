@@ -46,6 +46,7 @@ end
 
 Body(variable) = Body(variable, -1.0, -1.0, rs_nil(), nothing)
 Body(variable, size::Rs) = Body(variable, -1.0, -1.0, size, nothing)
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 Body(variable, mass::Real, charge::Real, size::Rs) =
     Body(variable, Float64(mass), Float64(charge), size, nothing)
 
@@ -255,6 +256,7 @@ for T in (:ElectricRepulsion, :VerticalElectricRepulsion, :HorizontalElectricRep
     end
 end
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 ElectricRepulsion(charge1::AbstractBody, charge2::AbstractBody,
                   linearity_distance::Real = -1, max_distance::Real = -1) =
     ElectricRepulsion(ForceProviderConfig(), charge1, charge2,
@@ -339,14 +341,17 @@ for T in (:Spring, :VerticalSpring, :HorizontalSpring, :BasePlaneSpring)
     end
 end
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 Spring(body1, body2, spring_coefficient::Real = -1, repose_length::Real = -1) =
     Spring(ForceProviderConfig(), body1, body2,
            Float64(spring_coefficient), Float64(repose_length))
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 VerticalSpring(body1, body2, spring_coefficient::Real = -1, repose_length::Real = -1) =
     VerticalSpring(ForceProviderConfig(), body1, body2,
                    Float64(spring_coefficient), Float64(repose_length))
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 HorizontalSpring(body1, body2, spring_coefficient::Real = -1, repose_length::Real = -1) =
     HorizontalSpring(ForceProviderConfig(), body1, body2,
                      Float64(spring_coefficient), Float64(repose_length))

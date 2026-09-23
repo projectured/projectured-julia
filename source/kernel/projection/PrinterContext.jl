@@ -31,6 +31,7 @@ struct PrinterContext
     clock::Clock
 end
 
+# @positional: the four of a printer context: where it prints, the width and the height it offers, and its properties.
 PrinterContext(reference::Reference,
                available_width::Union{Nothing, Cell},
                available_height::Union{Nothing, Cell},
@@ -69,6 +70,7 @@ function make_child_context(ctx::PrinterContext, steps::ReferenceStep...)
         ctx.clock)
 end
 
+# @positional: a path, in the order it is walked: the context, the node, and the steps that lead to the child.
 """
     make_child_context(ctx, current_doc, steps...) -> PrinterContext
 

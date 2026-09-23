@@ -28,6 +28,7 @@ struct Inset
     right::Cell   # Number
 end
 
+# @positional: the four sides of an inset, in the order of the clock.
 Inset(top::Real, bottom::Real, left::Real, right::Real) =
     Inset(Cell(top), Cell(bottom), Cell(left), Cell(right))
 

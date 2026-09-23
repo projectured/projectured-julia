@@ -132,14 +132,19 @@ _constrained(name::Symbol, value) = value === nothing ? NamedTuple() : NamedTupl
 
 KeyPressPattern(char, guard = nothing, label = nothing) =
     EventPattern{KeyPress}(_constrained(:char, char), nothing, guard, label)
+# @positional: a gesture pattern: the key, the modifiers and the predicate, in one order everywhere.
 KeyDownPattern(key, modifiers = nothing, guard = nothing, label = nothing) =
     EventPattern{KeyDown}(_constrained(:key, key), modifiers, guard, label)
+# @positional: a gesture pattern: the key, the modifiers and the predicate, in one order everywhere.
 KeyUpPattern(key, modifiers = nothing, guard = nothing, label = nothing) =
     EventPattern{KeyUp}(_constrained(:key, key), modifiers, guard, label)
+# @positional: a gesture pattern: the button, the modifiers and the predicate, in one order everywhere.
 MouseDownPattern(button, modifiers = nothing, guard = nothing, label = nothing) =
     EventPattern{MouseDown}(_constrained(:button, button), modifiers, guard, label)
+# @positional: a gesture pattern: the button, the modifiers and the predicate, in one order everywhere.
 MouseUpPattern(button, modifiers = nothing, guard = nothing, label = nothing) =
     EventPattern{MouseUp}(_constrained(:button, button), modifiers, guard, label)
+# @positional: a gesture pattern: the button, the modifiers and the predicate, in one order everywhere.
 MousePressPattern(button, modifiers = nothing, guard = nothing, label = nothing) =
     EventPattern{MousePress}(_constrained(:button, button), modifiers, guard, label)
 MouseMovePattern(modifiers = nothing, guard = nothing, label = nothing) =

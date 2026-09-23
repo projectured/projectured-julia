@@ -51,6 +51,7 @@ backend converts it to its own device encoding at draw time.
     color::StyleColor
 end
 
+# @positional: the text, then where it stands: x and y.
 function GraphicsText(text::AbstractString, x::Integer, y::Integer,
                       font::StyleFont, color::StyleColor=color_white)
     GraphicsText(Cell(text), Cell(Int32(x)), Cell(Int32(y)),
@@ -105,6 +106,7 @@ end
 _norm_border(::Nothing) = color_transparent
 _norm_border(c::StyleColor) = c
 
+# @positional: the geometry of a rectangle, in one order everywhere: x, y, width and height.
 function GraphicsRect(x::Integer, y::Integer, w::Integer, h::Integer,
                       color::StyleColor=color_white,
                       radius::Integer=0;
@@ -150,6 +152,7 @@ _norm_dash(::Nothing) = nothing
 _norm_dash(n::Integer) = (Int(n), Int(n))
 _norm_dash(d) = (Int(d[1]), Int(d[2]))
 
+# @positional: the two ends of a line: x, y and x, y.
 function GraphicsLine(x1::Integer, y1::Integer, x2::Integer, y2::Integer,
                       color::StyleColor=color_black;
                       width::Integer=1, dash=nothing)
@@ -177,6 +180,7 @@ switch knobs and slider thumbs.
     border_color::StyleColor
 end
 
+# @positional: the geometry of a circle: the centre, then the radius.
 function GraphicsCircle(cx::Integer, cy::Integer, radius::Integer,
                         color::StyleColor=color_black;
                         border_width::Integer=0, border_color=nothing)
@@ -474,6 +478,7 @@ work.
     transform::AffineTransform
 end
 
+# @positional: the geometry of a viewport, in one order everywhere: x, y, width and height.
 function GraphicsViewport(x::Integer, y::Integer, w::Integer, h::Integer,
                           content::GraphicsCanvas; transform::AffineTransform=affine_identity)
     GraphicsViewport(Cell(Int32(x)), Cell(Int32(y)),
@@ -485,6 +490,7 @@ end
 
 # A viewport whose box is reactive and whose transform is the identity: what a
 # layout builds when it clips a child to a slot that moves with the layout.
+# @positional: the geometry of a viewport, in one order everywhere: x, y, width and height.
 function GraphicsViewport(x::Cell, y::Cell, w::Cell, h::Cell, content::Cell)
     GraphicsViewport(x, y, w, h, content, Cell(affine_identity), Cell(nothing))
 end
@@ -499,6 +505,7 @@ end
     data::Any
 end
 
+# @positional: the geometry of an image, in one order everywhere: x, y, width and height.
 function GraphicsImage(x::Integer, y::Integer, w::Integer, h::Integer, data)
     GraphicsImage(Cell(Int32(x)), Cell(Int32(y)),
                   Cell(Int32(w)), Cell(Int32(h)),
@@ -539,6 +546,7 @@ function _dist2_point_segment(px, py, ax, ay, bx, by)
     (px - qx)^2 + (py - qy)^2
 end
 
+# @positional: a point and a tolerance: the polyline, x, y and the distance.
 """
     is_point_near_polyline(points, x, y, tolerance) -> Bool
 

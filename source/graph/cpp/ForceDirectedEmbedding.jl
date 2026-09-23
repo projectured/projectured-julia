@@ -191,6 +191,7 @@ end
 
 # an = a[pn, vn]: put the positions and velocities in, ask every force provider
 # for its forces, and read the accelerations out.
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 function accelerations!(embedding::ForceDirectedEmbedding, an::Vector{Pt},
                         pn::Vector{Pt}, vn::Vector{Pt})
     for i in 1:length(embedding.variables)
@@ -210,6 +211,7 @@ end
 
 # The average distance between consecutive acceleration estimates, relative to
 # how large they are. This is the error the time step chases.
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 function average_relative_error(a1, a2, a3, a4)
     sum1 = 0.0
     sum2 = 0.0
@@ -224,6 +226,7 @@ function average_relative_error(a1, a2, a3, a4)
     sum2 == 0 ? 0.0 : sum1 / sum2
 end
 
+# @positional: a port of the C++ layouter: it keeps the signature of the original, so a reader holds the two side by side.
 add_multiplied!(pts, a, b::Real, c) =
     (for i in 1:length(pts); pts[i] = c[i] * b + a[i]; end; nothing)
 increment_with_multiplied!(pts, a::Real, b) =

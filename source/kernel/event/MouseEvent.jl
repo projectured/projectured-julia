@@ -57,6 +57,7 @@ end
 
 # Convenience constructors default the multi-click count to 1. The `::ModifierKeys`
 # form disambiguates from the 5-arg primary by argument type.
+# @positional: the four of a mouse event, in the order every backend sends them.
 MousePress(button::Symbol, x::Int, y::Int, modifiers::ModifierKeys) =
     MousePress(button, x, y, 1, modifiers)
 MousePress(button::Symbol, x::Int, y::Int) =
@@ -123,6 +124,7 @@ struct MouseScroll <: DeviceEvent
     modifiers::ModifierKeys
 end
 
+# @positional: the four of a scroll event, in the order every backend sends them.
 MouseScroll(dx::Int, dy::Int, x::Int, y::Int) = MouseScroll(dx, dy, x, y, ModifierKeys())
 
 get_modifier_keys(event::Union{MouseDown,MouseUp,MousePress,MouseMove,
