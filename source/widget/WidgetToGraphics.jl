@@ -3292,8 +3292,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
                 end
             end
             allocate_axis(Int(avail_main[]); mins, maxs, prefs, weights = wts,
-                          gap = splitter_thickness,
-                          n = n_local)
+                          gap = splitter_thickness, n = n_local)
         end)
     end
 
@@ -6536,10 +6535,8 @@ function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Widg
         segment_widths = segment_count == 0 ? label_widths :
             allocate_axis(offered_width; mins = copy(label_widths),
                           maxs = fill(typemax(Int), segment_count),
-                          prefs = copy(label_widths),
-                          weights = fill(1.0, segment_count),
-                          gap = 0,
-                          n = segment_count)
+                          prefs = copy(label_widths), weights = fill(1.0, segment_count),
+                          gap = 0, n = segment_count)
         content_height = _resolve_height(ctx, 0, text_height + 2segment_padding_y + inset_height) - inset_height
         content_width  = sum(segment_widths; init=0)
         corner_radius = _sc(p.corner_radius)

@@ -126,8 +126,7 @@ end
 
 """
     clip_child_to_slot(child, iomap; x_cell, y_cell, slot_x, slot_y, slot_w, slot_h,
-                       clip_x,
-                       clip_y)
+                       clip_x, clip_y)
 
 A child drawn inside the slot it was allocated, on each axis the slot's extent
 was known independently of the child — §3b of the layout rules: the container
@@ -137,8 +136,7 @@ position the alignment gave it, expressed inside the viewport. Every cell is
 a `Cell`, so a slot that moves moves the viewport with it. A grid draws its
 cells through this, and so does a table whose rows are a list.
 """
-function clip_child_to_slot(child::GraphicsDocument, cim;
-                            x_cell::Cell, y_cell::Cell,
+function clip_child_to_slot(child::GraphicsDocument, cim; x_cell::Cell, y_cell::Cell,
                             slot_x::Cell, slot_y::Cell, slot_w::Cell, slot_h::Cell,
                             clip_x::Bool, clip_y::Bool)
     vx = clip_x ? slot_x : x_cell
@@ -1269,13 +1267,9 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         clip_y = _gl_offers(policy_of_row(row))
         if clip_x || clip_y
             push!(wrapped, clip_child_to_slot(c, child_iomaps[i]; x_cell = child_x[i],
-                                              y_cell = child_y[i],
-                                              slot_x = col_x[col],
-                                              slot_y = row_y[row],
-                                              slot_w = col_w[col],
-                                              slot_h = row_h[row],
-                                              clip_x,
-                                              clip_y))
+                                              y_cell = child_y[i], slot_x = col_x[col],
+                                              slot_y = row_y[row], slot_w = col_w[col],
+                                              slot_h = row_h[row], clip_x, clip_y))
         else
             push!(wrapped, _wrap_child(c, child_x[i], child_y[i]))
         end

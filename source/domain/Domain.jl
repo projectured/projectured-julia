@@ -501,10 +501,11 @@ function _prefix_before_field(path::ConcreteReference, field)
     ConcreteReference(path.type, h, rest)
 end
 
-_insert_gesture_binding(::Type{I}, tag::String) where {I} = GestureBinding(KeyDownPattern(:insert, nothing, nothing), (doc, event) -> insert_document_operation(I);
-                                                                           applicable = (doc, sel) -> true,
-                                                                           description = "Insert a new " * (isempty(tag) ? "" : tag * " ") * "document",
-                                                                           domain = isempty(tag) ? "document" : tag)
+_insert_gesture_binding(::Type{I}, tag::String) where {I} =
+    GestureBinding(KeyDownPattern(:insert, nothing, nothing),
+                   (doc, event) -> insert_document_operation(I);
+                   description = "Insert a new " * (isempty(tag) ? "" : tag * " ") * "document",
+                   domain = isempty(tag) ? "document" : tag)
 
 # ── The universal domain: DocumentNothing / DocumentInsertion ─────────────────
 #

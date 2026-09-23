@@ -571,8 +571,7 @@ Pixel rounding may leave ±1 px residual; the residual is absorbed by the
 last weighted child if any.
 """
 function allocate_axis(available::Int; mins::Vector{Int}, maxs::Vector{Int},
-                       prefs::Vector{Int}, weights::Vector{Float64},
-                       gap::Int, n::Int)
+                       prefs::Vector{Int}, weights::Vector{Float64}, gap::Int, n::Int)
     actual = Vector{Int}(undef, n)
     for i in 1:n
         actual[i] = clamp(prefs[i], mins[i], maxs[i])
@@ -749,8 +748,7 @@ drawn, inside the region, rather than off the edge where nobody would see it.
 Entries that still overlap are stacked downward in `stacking_gap` steps, first
 one placed first.
 """
-function compute_anchored_positions(entries, targets;
-                                    bounding_w::Int, bounding_h::Int,
+function compute_anchored_positions(entries, targets; bounding_w::Int, bounding_h::Int,
                                     stacking_gap::Int)
     n = length(entries)
     positions = Vector{Tuple{Int,Int}}(undef, n)

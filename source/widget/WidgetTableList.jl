@@ -178,10 +178,7 @@ function _wtl_row(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx
             slot_w = ComputedCell(() -> Int32(st.widths[][c]))
             slot_h = ComputedCell(() -> Int32(Int(row_h[])))
             push!(out, clip_child_to_slot(child, cim; x_cell, y_cell, slot_x = x_cell,
-                                          slot_y = y_cell,
-                                          slot_w,
-                                          slot_h,
-                                          clip_x = true,
+                                          slot_y = y_cell, slot_w, slot_h, clip_x = true,
                                           clip_y = st.row_extent !== nothing))
         end
         push!(out, GraphicsRect(0, 0, total_w, bw, divider_stroke.color))
@@ -327,11 +324,8 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
                 slot_w = ComputedCell(() -> Int32(widths[][c]))
                 slot_h = ComputedCell(() -> Int32(Int(header_h[])))
                 push!(out, clip_child_to_slot(child, cim; x_cell, y_cell, slot_x = x_cell,
-                                              slot_y = y_cell,
-                                              slot_w,
-                                              slot_h,
-                                              clip_x = true,
-                                              clip_y = false))
+                                              slot_y = y_cell, slot_w, slot_h,
+                                              clip_x = true, clip_y = false))
             end
             push!(out, GraphicsRect(0, 0, Int(total_w[]), bw, divider_stroke.color))
             for edge in columns[]

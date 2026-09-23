@@ -355,8 +355,8 @@ function _legend_plan(p::ChartPlotToGraphicsCanvas, chart::Chart, series,
                  (legend.position === :inside && legend.anchor in (:north, :south))
     area_w = horizontal ? w - 2 * _PAD : w ÷ 3
     area_h = horizontal ? h ÷ 3 : h - 2 * _PAD
-    box = compute_legend_layout(sizes; horizontal, area_w, area_h,
-                        swatch=_SWATCH, gap=_LEGEND_GAP)
+    box = compute_legend_layout(sizes; horizontal, area_w, area_h, swatch=_SWATCH,
+                                gap=_LEGEND_GAP)
     (; position = legend.position, anchor = legend.anchor, border = legend.border,
        font, items, sizes, box, box_w = box.box_w, box_h = box.box_h,
        x = 0, y = 0)
@@ -1578,7 +1578,7 @@ function _sample_hit(g, x::Integer, y::Integer)
         s isa ChartScatterSeries && n > g.style.scatter_fold_threshold && continue
         i0, i1 = sorted ? get_visible_range(s.x, g.view.x_min, g.view.x_max) : (1, n)
         found = find_nearest_sample(s.x, s.y; xs=g.xs, ys=g.ys, px=x, py=y, i0, i1,
-                               sorted=sorted, tolerance=_HIT_TOLERANCE)
+                                    sorted=sorted, tolerance=_HIT_TOLERANCE)
         found === nothing && continue
         found[2] < best_d && (best_d = found[2]; best = (index, found[1]))
     end

@@ -116,8 +116,8 @@ One fault as a value, with its key computed and its message formatted.
 
 See also [`record_fault!`](@ref), which makes one only when the key is new.
 """
-function make_fault_record(site::Symbol;
-                           origin, reference = nothing, exception, traceback = nothing)
+function make_fault_record(site::Symbol; origin, reference = nothing, exception,
+                           traceback = nothing)
     origin_name = get_fault_origin_name(origin)
     exception_name = get_fault_exception_name(exception)
     FaultRecord(compute_fault_key(site, origin_name, exception_name),

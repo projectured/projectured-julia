@@ -244,7 +244,7 @@ The scan is linear in the arrow count, which suits this slice's bounded-document
 posture — a chart is windowed upstream before it is printed.
 """
 function get_visible_arrows(coordinates, sources, targets; lo::Real, hi::Real,
-                        horizon::Real=0.0)
+                            horizon::Real=0.0)
     out = Int[]
     n = min(length(sources), length(targets))
     n == 0 && return out
@@ -639,7 +639,7 @@ that is the accurate way wherever several events share a time: the raw time
 names the whole zero-time region, while the state changed at one point inside it.
 """
 function get_band_intervals(band_times, values; events, event_times, coordinates,
-                        lo::Real, hi::Real)
+                            lo::Real, hi::Real)
     out = Tuple{Float64,Float64,Float64,Int}[]
     n = min(length(band_times), length(values))
     n == 0 && return out

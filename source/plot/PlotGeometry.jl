@@ -361,7 +361,8 @@ unsorted column has no such shortcut and is scanned over the given index range,
 which the caller is expected to have bounded.
 """
 function find_nearest_sample(x, y; xs::AxisScale, ys::AxisScale, px::Real, py::Real,
-                        i0::Integer, i1::Integer, sorted::Bool=true, tolerance::Real=8)
+                             i0::Integer, i1::Integer, sorted::Bool=true,
+                             tolerance::Real=8)
     n = min(length(x), length(y))
     i0 = max(i0, 1); i1 = min(i1, n)
     i1 >= i0 || return nothing
@@ -410,8 +411,8 @@ quantized to `levels` before neighbouring cells in a row are merged into a
 single band, so a dense region costs a handful of wide bands instead of
 hundreds of little squares.
 """
-function fold_scatter(x, y; xs::AxisScale, ys::AxisScale, cell_px::Integer,
-                      i0::Integer, i1::Integer, levels::Integer=8)
+function fold_scatter(x, y; xs::AxisScale, ys::AxisScale, cell_px::Integer, i0::Integer,
+                      i1::Integer, levels::Integer=8)
     cell = max(Int(cell_px), 1)
     nlev = max(Int(levels), 1)
     counts = Dict{Tuple{Int,Int},Int}()
@@ -608,10 +609,9 @@ When the entries do not all fit, `shown` is how many are drawn and `truncated`
 says the caller should replace the last slot with an "and N more" line — which
 is why `shown` leaves room for it rather than filling the box.
 """
-function compute_legend_layout(sizes::AbstractVector;
-                       horizontal::Bool, area_w::Real, area_h::Real,
-                       swatch::Integer=14, gap::Integer=6,
-                       line_gap::Integer=4, pad::Integer=6)
+function compute_legend_layout(sizes::AbstractVector; horizontal::Bool, area_w::Real,
+                               area_h::Real, swatch::Integer=14, gap::Integer=6,
+                               line_gap::Integer=4, pad::Integer=6)
     n = length(sizes)
     n == 0 && return (; cols=0, rows=0, col_w=0, row_h=0, box_w=0, box_h=0,
                         shown=0, truncated=false)
@@ -698,7 +698,7 @@ and a CDF (running sum over total weight).
 the bin values plus any under/overflow so the CDF really reaches 1.
 """
 function compute_histogram_values(edges::AbstractVector, values::AbstractVector;
-                          cumulative::Bool, density::Bool, total::Real=0.0)
+                                  cumulative::Bool, density::Bool, total::Real=0.0)
     n = length(values)
     out = zeros(Float64, n)
     tw = Float64(total)

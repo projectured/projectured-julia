@@ -42,10 +42,8 @@ function _command_binding_expr(rhs, domain::String)
     description = rhs.args[2]
     body = rhs.args[3]
     operation = :(($(esc(:doc)), $(gensym(:event))) -> $(esc(body)))
-    :(GestureBinding(nothing, $operation; applicable = _applicable, description = $description,
-                     domain = $domain,
-                     override = false,
-                     name = $description))
+    :(GestureBinding(nothing, $operation; applicable = _applicable,
+                     description = $description, domain = $domain, name = $description))
 end
 
 # Parse a `@gestures` / `@gesture_set` body into `(applicable_expr, items)`: the
@@ -132,10 +130,8 @@ function _parse_gesture_block(entries, domain::String)
         name_expr = (description === nothing || reads_event) ? :nothing : description
 
         push!(items, :(GestureBinding($pattern, $operation; applicable = _applicable,
-                                      description = $description_expr,
-                                      domain = $domain,
-                                      override = $override,
-                                      name = $name_expr)))
+                                      description = $description_expr, domain = $domain,
+                                      override = $override, name = $name_expr)))
     end
 
     applicable = precondition === nothing ?

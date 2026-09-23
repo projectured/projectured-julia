@@ -289,9 +289,8 @@ end
             moved = source.tabs[1]
             label = "\$kind/\$source_tabs/\$zone"
 
-            operation = make_pane_drop_split_operation(tree, source; source_index = 1, target,
-                                                       orientation,
-                                                       side = zone)
+            operation = make_pane_drop_split_operation(tree, source; source_index = 1,
+                                                       target, orientation, side = zone)
             @test operation !== nothing
             operation === nothing && continue
             evaluate_operation(editor, operation)

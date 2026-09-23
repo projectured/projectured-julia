@@ -73,26 +73,22 @@ function test_anchored_layout()
         # centred on the other axis.
         entry = [(20, 10, :right, 0, 0)]
         @test compute_anchored_positions(entry, [(100, 50, 60, 30)]; bounding_w = 0,
-                                         bounding_h = 0,
-                                         stacking_gap = 4) == [(160, 60)]
+                                         bounding_h = 0, stacking_gap = 4) == [(160, 60)]
 
         # The same request in a region too narrow for the right side takes the
         # left one instead — the preferred side is a preference.
         @test compute_anchored_positions(entry, [(100, 50, 60, 30)]; bounding_w = 150,
-                                         bounding_h = 200,
-                                         stacking_gap = 4) == [(80, 60)]
+                                         bounding_h = 200, stacking_gap = 4) == [(80, 60)]
 
         # Offsets are applied after the side is chosen, not before it.
         offset = [(20, 10, :right, 6, -2)]
         @test compute_anchored_positions(offset, [(100, 50, 60, 30)]; bounding_w = 0,
-                                         bounding_h = 0,
-                                         stacking_gap = 4) == [(166, 58)]
+                                         bounding_h = 0, stacking_gap = 4) == [(166, 58)]
 
         # Every side is expressible.
         for (side, expected) in ((:left, (80, 60)), (:above, (120, 40)), (:below, (120, 80)))
             @test compute_anchored_positions([(20, 10, side, 0, 0)], [(100, 50, 60, 30)];
-                                             bounding_w = 0,
-                                             bounding_h = 0,
+                                             bounding_w = 0, bounding_h = 0,
                                              stacking_gap = 4) == [expected]
         end
     end
@@ -101,9 +97,8 @@ function test_anchored_layout()
         # An annotation whose target is hidden or gone goes to the origin and
         # takes no part in stacking — it is anchored to nothing, so it can
         # crowd nothing.
-        @test compute_anchored_positions([(20, 10, :right, 0, 0)], [nothing]; bounding_w = 0,
-                                         bounding_h = 0,
-                                         stacking_gap = 4) ==
+        @test compute_anchored_positions([(20, 10, :right, 0, 0)], [nothing];
+                                         bounding_w = 0, bounding_h = 0, stacking_gap = 4) ==
               [(0, 0)]
     end
 

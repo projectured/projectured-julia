@@ -228,7 +228,7 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
     horizon = abs(flow_hi - flow_lo) * max(style.split_horizon_viewports, 1)
     horizon_coordinates = horizon / max(abs(scale.p1 - scale.p0), 1) * (hi - lo)
     candidates = get_visible_arrows(coordinates, arrows.sources, arrows.targets; lo, hi,
-                                horizon=horizon_coordinates)
+                                    horizon=horizon_coordinates)
     shapes = _arrow_shapes(chart, events, arrows, coordinates, scale, lane_of,
                            candidates, horizon, style)
 
@@ -327,7 +327,7 @@ function _band_shapes(chart, order, lane_of, times, coordinates, lo, hi)
         for j in 1:length(axis.bands)
             band = axis.bands[j]
             intervals = get_band_intervals(band.times, band.values; events=band.events,
-                                       event_times=times, coordinates, lo, hi)
+                                           event_times=times, coordinates, lo, hi)
             isempty(intervals) && continue
             push!(out, (; axis=identity, band=j, cross, intervals, document=band))
         end

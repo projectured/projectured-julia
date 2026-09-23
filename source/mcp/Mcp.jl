@@ -130,8 +130,8 @@ function render_mcp_tools(editor, tools::AbstractVector{Tool})
                     tool.handler(editor, args)
                 catch exception
                     traceback = catch_backtrace()
-                    record_fault!(editor.faults, :tool; origin = Symbol(tool.name), exception,
-                                  traceback)
+                    record_fault!(editor.faults, :tool; origin = Symbol(tool.name),
+                                  exception, traceback)
                     sprint(showerror, exception, traceback)
                 end
                 # The tool ran on the server task and may have changed what

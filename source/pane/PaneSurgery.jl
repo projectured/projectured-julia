@@ -540,8 +540,8 @@ this orientation the group is not wrapped — the new group joins the parent as 
 sibling, splitting the group's weight — which is what keeps a split from ever
 holding a child split of its own orientation.
 """
-function make_pane_split_operation(tree::PaneTree, group::PaneGroup;
-                                   orientation::Symbol, side::Symbol, tab::PaneTab)
+function make_pane_split_operation(tree::PaneTree, group::PaneGroup; orientation::Symbol,
+                                   side::Symbol, tab::PaneTab)
     new_group = PaneGroup(PaneTab[tab])
     before = side === :left || side === :above
     parent = get_pane_parent(tree, group)
