@@ -418,8 +418,8 @@ function _legend_elements!(out, g)
 
     # Opaque, because a bordered rect paints the border colour underneath its
     # fill: a translucent legend background would take on the border's colour.
-    push!(out, GraphicsRect(plan.x, plan.y, plan.box_w, plan.box_h,
-                            _PLOT_BACKGROUND, 3;
+    push!(out, GraphicsRect(plan.x, plan.y, plan.box_w, plan.box_h;
+                            color = _PLOT_BACKGROUND, radius = 3,
                             border_width = plan.border ? 1 : 0,
                             border_color = plan.border ? _AXIS : nothing))
 
@@ -432,12 +432,12 @@ function _legend_elements!(out, g)
         # names no series has nothing to call out.
         if index != 0
             if index == g.selected_index
-                push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h, _SELECTION, 3))
+                push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h; color = _SELECTION, radius = 3))
             elseif index == g.hovered_index
-                push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h, _HOVER, 3))
+                push!(out, GraphicsRect(x - 3, y, item_w + 6, row_h; color = _HOVER, radius = 3))
             end
         end
-        push!(out, GraphicsRect(x, cy - 4, _SWATCH, 8, color, 2))
+        push!(out, GraphicsRect(x, cy - 4, _SWATCH, 8; color, radius = 2))
         th = plan.sizes[k][2]
         push!(out, GraphicsText(label, x + _SWATCH + _LEGEND_GAP, cy - th ÷ 2;
                                 font = plan.font, color = text_color))
@@ -565,8 +565,8 @@ function _frame_elements!(out, g)
     text_color = _or(style.title_color, _TEXT)
     px, py, pw, ph = g.plot_x, g.plot_y, g.plot_w, g.plot_h
 
-    push!(out, GraphicsRect(0, 0, g.w, g.h, _or(style.background, _BACKGROUND)))
-    push!(out, GraphicsRect(px, py, pw, ph, _or(style.plot_background, _PLOT_BACKGROUND)))
+    push!(out, GraphicsRect(0, 0, g.w, g.h; color = _or(style.background, _BACKGROUND)))
+    push!(out, GraphicsRect(px, py, pw, ph; color = _or(style.plot_background, _PLOT_BACKGROUND)))
 
     chart = g.chart
     grid_x = _axis_grid(chart.x_axis)
@@ -639,12 +639,12 @@ function _selection_elements!(out, g)
     part = g.selected_part
     if part == 1 && !isempty(g.title)
         tw, th = g.measure_label(g.title)
-        push!(out, GraphicsRect(px - 3, _PAD - 2, tw + 6, g.title_h + 2, _SELECTION, 3))
+        push!(out, GraphicsRect(px - 3, _PAD - 2, tw + 6, g.title_h + 2; color = _SELECTION, radius = 3))
     elseif part == 2
-        push!(out, GraphicsRect(px, py + ph + _TICK, pw, g.h - (py + ph + _TICK) - _PAD ÷ 2,
-                                _SELECTION, 3))
+        push!(out, GraphicsRect(px, py + ph + _TICK, pw, g.h - (py + ph + _TICK) - _PAD ÷ 2;
+                                color = _SELECTION, radius = 3))
     elseif part == 3
-        push!(out, GraphicsRect(_PAD ÷ 2, py, px - _TICK - _PAD ÷ 2, ph, _SELECTION, 3))
+        push!(out, GraphicsRect(_PAD ÷ 2, py, px - _TICK - _PAD ÷ 2, ph; color = _SELECTION, radius = 3))
     elseif part == 4 && g.legend !== nothing
         plan = g.legend
         _outline!(out, plan.x - 3, plan.y - 3, plan.box_w + 6, plan.box_h + 6)
@@ -684,7 +684,7 @@ function _marker!(out, shape::Symbol, x::Int, y::Int, size::Int, color::StyleCol
     elseif shape === :dot
         push!(out, GraphicsCircle(x, y, max(r ÷ 2, 1); color))
     elseif shape === :square
-        push!(out, GraphicsRect(x - r, y - r, 2r, 2r, color))
+        push!(out, GraphicsRect(x - r, y - r, 2r, 2r; color))
     elseif shape === :plus
         push!(out, GraphicsLine(x - r, y, x + r, y; color))
         push!(out, GraphicsLine(x, y - r, x, y + r; color))
@@ -760,7 +760,7 @@ function _scatter_elements!(out, g, index::Int, s::ChartScatterSeries)
         for (px, py, bw, bh, level) in bands
             a = 0.15 + 0.85 * level / _DENSITY_LEVELS
             shade = StyleColor(color.red, color.green, color.blue, color.alpha * a)
-            push!(out, GraphicsRect(px - ox, py - oy, bw, bh, shade))
+            push!(out, GraphicsRect(px - ox, py - oy, bw, bh; color = shade))
         end
         return out
     end
@@ -823,7 +823,7 @@ function _bar_elements!(out, g, bar_series)
                 ylo = to_pixel(g.ys, hi) - oy
                 yhi = to_pixel(g.ys, lo) - oy
                 push!(out, GraphicsRect(l, round(Int, min(ylo, yhi)), max(r - l, 1),
-                                        max(round(Int, abs(yhi - ylo)), 1), color))
+                                        max(round(Int, abs(yhi - ylo)), 1); color))
             end
         end
         return out
@@ -853,7 +853,7 @@ function _bar_elements!(out, g, bar_series)
             x = round(Int, centre + dx)
             y0, y1 = min(base, top), max(base, top)
             push!(out, GraphicsRect(x, round(Int, y0), max(round(Int, bw), 1),
-                                    max(round(Int, y1 - y0), 1), color))
+                                    max(round(Int, y1 - y0), 1); color))
         end
     end
 
@@ -901,7 +901,7 @@ function _histogram_elements!(out, g, index::Int, s::ChartHistogramSeries)
             ybot = to_pixel(g.ys, lo == hi ? 0.0 : lo) - oy
             y0, y1 = min(ytop, ybot, baseline), max(ytop, ybot, baseline)
             push!(out, GraphicsRect(l, round(Int, y0), max(r - l, 1),
-                                    max(round(Int, y1 - y0), 1), color;
+                                    max(round(Int, y1 - y0), 1); color,
                                     border_width=1, border_color=_AXIS))
         end
     end
@@ -915,14 +915,14 @@ function _histogram_elements!(out, g, index::Int, s::ChartHistogramSeries)
             r = first(lefts)
             y = round(Int, to_pixel(g.ys, s.underflows) - oy)
             r > l && push!(out, GraphicsRect(l, min(y, baseline), r - l,
-                                             max(abs(baseline - y), 1), faint))
+                                             max(abs(baseline - y), 1); color = faint))
         end
         if s.overflows > 0
             l = last(rights)
             r = round(Int, to_pixel(g.xs, g.view.x_max)) - ox
             y = round(Int, to_pixel(g.ys, s.overflows) - oy)
             r > l && push!(out, GraphicsRect(l, min(y, baseline), r - l,
-                                             max(abs(baseline - y), 1), faint))
+                                             max(abs(baseline - y), 1); color = faint))
         end
     end
     out
@@ -1016,9 +1016,9 @@ function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
     for (l, r, code) in spans
         color = _veiled(strip_state_color(s, code, cycle), veiled)
         push!(out, s.draw_edges ?
-            GraphicsRect(l - ox, top - oy, max(r - l, 1), height, color;
+            GraphicsRect(l - ox, top - oy, max(r - l, 1), height; color,
                          border_width=1, border_color=_STRIP_EDGE) :
-            GraphicsRect(l - ox, top - oy, max(r - l, 1), height, color))
+            GraphicsRect(l - ox, top - oy, max(r - l, 1), height; color))
     end
 
     # A state names itself inside its own segment when the name fits. No
@@ -1069,8 +1069,8 @@ function _overlay_elements!(out, g, plot::ChartPlot)
         # Fill only, no border: a bordered rect is drawn as the border colour
         # with the fill inset on top of it, so a translucent fill would show the
         # border colour through the whole band rather than around it.
-        push!(out, GraphicsRect(rx - g.plot_x, ry - g.plot_y, max(rw, 1), max(rh, 1),
-                                _BAND_FILL))
+        push!(out, GraphicsRect(rx - g.plot_x, ry - g.plot_y, max(rw, 1), max(rh, 1);
+                                color = _BAND_FILL))
     end
 
     # The selected sample, called out whether or not the pointer is near it.
@@ -1123,8 +1123,8 @@ function _overlay_elements!(out, g, plot::ChartPlot)
     # is never clipped away by the viewport.
     tw, th = g.measure_label(label)
     lx = px + tw + 12 > g.plot_w ? px - tw - 8 : px + 8
-    push!(out, GraphicsRect(lx - 4, py - th - 8, tw + 8, th + 6,
-                            _PLOT_BACKGROUND, 3; border_width=1, border_color=_AXIS))
+    push!(out, GraphicsRect(lx - 4, py - th - 8, tw + 8, th + 6;
+                            color = _PLOT_BACKGROUND, radius = 3, border_width=1, border_color=_AXIS))
     push!(out, GraphicsText(label, lx, py - th - 5; font = g.axis_font, color = text_color))
     out
 end
@@ -1237,8 +1237,8 @@ end
 # vanishing.
 function _empty_elements(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, ctx)
     w, h = _canvas_size(p, ctx)
-    Any[GraphicsRect(0, 0, w, h, _BACKGROUND),
-        GraphicsRect(_PAD, _PAD, w - 2 * _PAD, h - 2 * _PAD, _PLOT_BACKGROUND, 4;
+    Any[GraphicsRect(0, 0, w, h; color = _BACKGROUND),
+        GraphicsRect(_PAD, _PAD, w - 2 * _PAD, h - 2 * _PAD; color = _PLOT_BACKGROUND, radius = 4,
                      border_width=1, border_color=_AXIS),
         GraphicsText("empty chart", _PAD * 2, h ÷ 2; font = font_ubuntu_regular_14, color = _TEXT)]
 end

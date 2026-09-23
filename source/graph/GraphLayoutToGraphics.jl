@@ -158,11 +158,11 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             v = getfield(vl, :vertex)[]
             if highlight_vertex !== nothing && v === highlight_vertex
                 g = _HIGHLIGHT_GAP + _HIGHLIGHT_W
-                push!(result, GraphicsRect(bx - g, by - g, bw + 2*g, bh + 2*g,
-                    _HIGHLIGHT, _RADIUS + g))
+                push!(result, GraphicsRect(bx - g, by - g, bw + 2*g, bh + 2*g;
+                    color = _HIGHLIGHT, radius = _RADIUS + g))
             end
-            push!(result, GraphicsRect(bx, by, bw, bh,
-                _FILL, _RADIUS;
+            push!(result, GraphicsRect(bx, by, bw, bh;
+                color = _FILL, radius = _RADIUS,
                 border_width=_BORDER_W, border_color=_BORDER))
             node_at[i] = length(result)
             entry = i <= length(entries) ? entries[i] : nothing

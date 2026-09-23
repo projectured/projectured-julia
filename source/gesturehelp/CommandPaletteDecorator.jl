@@ -142,8 +142,8 @@ end
 function _placed_palette(p::CommandPaletteDecoratorProjection, palette_iomap)
     content = palette_iomap.output
     pad = PALETTE_PADDING
-    panel = GraphicsRect(0, 0, content.w + 2 * pad, content.h + 2 * pad,
-                         color_solarized_background_lighter, 6;
+    panel = GraphicsRect(0, 0, content.w + 2 * pad, content.h + 2 * pad;
+                         color = color_solarized_background_lighter, radius = 6,
                          border_width = 2, border_color = color_solarized_blue)
     GraphicsCanvas(Any[panel, GraphicsCanvas(Any[content]; x = pad, y = pad)];
                    x = p.x, y = p.y)

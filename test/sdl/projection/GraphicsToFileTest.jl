@@ -37,13 +37,13 @@ end
                              CellVector(Cell[Cell(x) for x in e]),
                              layout_none, true, Cell(nothing))
     inner = GraphicsViewport(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(20)), Cell(Int32(20)),
-                             Cell(hold([GraphicsRect(0, 0, 20, 20, blue)])),
+                             Cell(hold([GraphicsRect(0, 0, 20, 20; color = blue)])),
                              Cell(affine_identity), Cell(nothing))
     outer = GraphicsViewport(Cell(Int32(50)), Cell(Int32(50)), Cell(Int32(100)), Cell(Int32(100)),
-                             Cell(hold([inner, GraphicsRect(-40, -40, 300, 300, red)])),
+                             Cell(hold([inner, GraphicsRect(-40, -40, 300, 300; color = red)])),
                              Cell(affine_identity), Cell(nothing))
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(200)), Cell(Int32(200)),
-                            CellVector(Cell[Cell(GraphicsRect(0, 0, 200, 200, white)), Cell(outer)]),
+                            CellVector(Cell[Cell(GraphicsRect(0, 0, 200, 200; color = white)), Cell(outer)]),
                             layout_none, true, Cell(nothing))
     filename = tempname() * ".bmp"
     write_image(canvas, filename; width = 200, height = 200)

@@ -366,10 +366,10 @@ _kind_color(kind, index::Integer, cycle, fallback) =
 # labels. Everything here lives outside the scrolling body, so it stays put.
 function _frame_elements!(out, g)
     style = g.style
-    push!(out, GraphicsRect(0, 0, g.w, g.h, _or(style.background, _BACKGROUND)))
+    push!(out, GraphicsRect(0, 0, g.w, g.h; color = _or(style.background, _BACKGROUND)))
     push!(out, GraphicsRect(round(Int, g.body_x), round(Int, g.body_y),
-                            round(Int, g.body_w), round(Int, g.body_h),
-                            _BODY_BACKGROUND))
+                            round(Int, g.body_w), round(Int, g.body_h);
+                            color = _BODY_BACKGROUND))
 
     text_color = _or(style.tick_color, _TEXT)
     isempty(g.title) ||
@@ -393,8 +393,8 @@ function _gutter_elements!(out, g)
 
     for (strip_x, strip_y, strip_w, strip_h) in _gutter_rects(g, height)
         push!(out, GraphicsRect(round(Int, strip_x), round(Int, strip_y),
-                                round(Int, strip_w), round(Int, strip_h),
-                                background; border_width=1, border_color=_GUTTER_BORDER))
+                                round(Int, strip_w), round(Int, strip_h);
+                                color = background, border_width=1, border_color=_GUTTER_BORDER))
     end
 
     isempty(g.prefix) ||
@@ -487,7 +487,7 @@ function _zero_time_elements!(out, g)
         f1 - f0 >= 1 || continue
         x, y, w, h = flow_rect(g.frame, f0, cross_lo, f1 - f0, cross_hi - cross_lo)
         push!(out, GraphicsRect(round(Int, x), round(Int, y),
-                                round(Int, w), round(Int, h), _ZERO_TIME))
+                                round(Int, w), round(Int, h); color = _ZERO_TIME))
     end
     out
 end
@@ -538,7 +538,7 @@ function _band_elements!(out, g)
             x, y, w, h = flow_rect(g.frame, f0, band.cross - _BAND_HEIGHT - 2,
                                    width, _BAND_HEIGHT)
             push!(out, GraphicsRect(round(Int, x), round(Int, y),
-                                    round(Int, w), round(Int, h), color))
+                                    round(Int, w), round(Int, h); color))
             g.style.band_labels || continue
             name = get_band_state_name(document, value)
             isempty(name) && continue
@@ -685,7 +685,7 @@ function _mark!(out, symbol::Symbol, x::Int, y::Int, radius::Int, color)
     if symbol === :circle || symbol === :dot
         push!(out, GraphicsCircle(x, y, radius; color))
     elseif symbol === :square
-        push!(out, GraphicsRect(x - radius, y - radius, 2 * radius, 2 * radius, color))
+        push!(out, GraphicsRect(x - radius, y - radius, 2 * radius, 2 * radius; color))
     else
         points = build_marker_polygon(symbol, x, y, radius)
         if points === nothing
@@ -813,13 +813,13 @@ function _readout_elements!(out, g, plot)
         if g.vertical
             y = round(Int, flow + g.body_y - size[2] / 2)
             push!(out, GraphicsRect(round(Int, g.body_x - size[1] - _LABEL_GAP - 2), y - 1,
-                                    size[1] + 4, size[2] + 2, _SELECTION))
+                                    size[1] + 4, size[2] + 2; color = _SELECTION))
             push!(out, GraphicsText(text, round(Int, g.body_x - size[1] - _LABEL_GAP),
                                     y; font = g.axis_font, color = _BODY_BACKGROUND))
         else
             x = round(Int, flow + g.body_x - size[1] / 2)
             y = round(Int, g.body_y - g.gutter_h + _GUTTER_PAD)
-            push!(out, GraphicsRect(x - 2, y - 1, size[1] + 4, size[2] + 2, _SELECTION))
+            push!(out, GraphicsRect(x - 2, y - 1, size[1] + 4, size[2] + 2; color = _SELECTION))
             push!(out, GraphicsText(text, x, y; font = g.axis_font, color = _BODY_BACKGROUND))
         end
     end
@@ -912,8 +912,8 @@ end
 # occupies its space and reads as a chart rather than vanishing.
 function _empty_elements(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot, ctx)
     w, h = _canvas_size(p, ctx)
-    Any[GraphicsRect(0, 0, w, h, _BACKGROUND),
-        GraphicsRect(_PAD, _PAD, w - 2 * _PAD, h - 2 * _PAD, _BODY_BACKGROUND, 4;
+    Any[GraphicsRect(0, 0, w, h; color = _BACKGROUND),
+        GraphicsRect(_PAD, _PAD, w - 2 * _PAD, h - 2 * _PAD; color = _BODY_BACKGROUND, radius = 4,
                      border_width=1, border_color=_AXIS),
         GraphicsText("empty sequence chart", _PAD * 2, h ÷ 2;
                      font = font_ubuntu_regular_14, color = _TEXT)]

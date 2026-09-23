@@ -256,10 +256,10 @@ function _push_panel!(elems::Vector, x::Int, y::Int, cw::Int, ch::Int;
     has_outline = border !== nothing && border_w > 0 && !is_color_transparent(border)
     (has_outline || !is_color_transparent(fill)) || return
     if has_outline
-        push!(elems, GraphicsRect(x, y, cw, ch, fill, radius;
+        push!(elems, GraphicsRect(x, y, cw, ch; color = fill, radius,
                                   border_width=border_w, border_color=border))
     else
-        push!(elems, GraphicsRect(x, y, cw, ch, fill, radius))
+        push!(elems, GraphicsRect(x, y, cw, ch; color = fill, radius))
     end
 end
 
@@ -366,10 +366,10 @@ end
 function _push_band!(elements::Vector, x::Int, y::Int, width::Int, height::Int, sides, color::StyleColor)
     is_color_transparent(color) && return
     left, top, right, bottom = sides
-    top > 0 && push!(elements, GraphicsRect(x, y, width, top, color))
-    bottom > 0 && push!(elements, GraphicsRect(x, y + height - bottom, width, bottom, color))
-    left > 0 && push!(elements, GraphicsRect(x, y + top, left, height - top - bottom, color))
-    right > 0 && push!(elements, GraphicsRect(x + width - right, y + top, right, height - top - bottom, color))
+    top > 0 && push!(elements, GraphicsRect(x, y, width, top; color))
+    bottom > 0 && push!(elements, GraphicsRect(x, y + height - bottom, width, bottom; color))
+    left > 0 && push!(elements, GraphicsRect(x, y + top, left, height - top - bottom; color))
+    right > 0 && push!(elements, GraphicsRect(x + width - right, y + top, right, height - top - bottom; color))
 end
 
 # Push the four box parts of a widget whose content is `content_width` by
@@ -477,7 +477,7 @@ end
 # width of `ring`; only its color follows the kind of the selection.
 function _push_focus_ring!(elems::Vector, w::WidgetDocument, cw::Int, ch::Int,
                            ring::StyleStroke, radius::Int; whole = nothing)
-    rect = GraphicsRect(0, 0, 0, 0, color_transparent, radius;
+    rect = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius,
                         border_width=max(1, _sc(ring.width)), border_color=ring.color)
     set_cell_function!(getfield(rect, :w), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(cw))
     set_cell_function!(getfield(rect, :h), () -> getfield(w, :selection)[] === nothing ? Int32(0) : Int32(ch))
@@ -2448,7 +2448,7 @@ function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::Widg
         height = content_height + inset_height
         # A clear surface over the whole button: a press anywhere on it hits the
         # item, and not only on the strokes of its picture.
-        drawn = Any[GraphicsRect(0, 0, width, height, color_transparent, 0)]
+        drawn = Any[GraphicsRect(0, 0, width, height; color = color_transparent, radius = 0)]
         _push_box_parts!(drawn, _get_box_insets(p, w), _get_box_colors(p, w; state),
                          content_width, content_height)
         _push_state_layer!(drawn, enabled && w.hovered === true ? p.layer_hovered_color : nothing,
@@ -3472,16 +3472,16 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             cursor = cox
             for i in 1:(n-1)
                 cursor += Int(slot_main[i][])
-                push!(result, GraphicsRect(cursor, coy, splitter_thickness, cross_extent,
-                                           splitter_color))
+                push!(result, GraphicsRect(cursor, coy, splitter_thickness, cross_extent;
+                                           color = splitter_color))
                 cursor += splitter_thickness
             end
         else
             cursor = coy
             for i in 1:(n-1)
                 cursor += Int(slot_main[i][])
-                push!(result, GraphicsRect(cox, cursor, cross_extent, splitter_thickness,
-                                           splitter_color))
+                push!(result, GraphicsRect(cox, cursor, cross_extent, splitter_thickness;
+                                           color = splitter_color))
                 cursor += splitter_thickness
             end
         end
@@ -5037,17 +5037,17 @@ function print_document(p::WidgetScrollBarToGraphicsCanvas, _, w::WidgetScrollBa
     trad = min(cw, ch) ÷ 2
     track_color = _get_part_color(w, :track_color, p.track_color)
     thumb_color = _get_part_color(w, :thumb_color, p.thumb_color)
-    push!(elems, GraphicsRect(cox, coy, cw, ch, track_color, trad))
+    push!(elems, GraphicsRect(cox, coy, cw, ch; color = track_color, radius = trad))
     value    = clamp(Float64(w.value),     0.0, 1.0)
     thumb_sz = clamp(Float64(w.thumb_size), 0.05, 1.0)
     if w.orientation === :horizontal
         tw = max(p.minimum_thumb_length, Int(round(thumb_sz * cw)))
         tx_pos = cox + Int(round(value * (cw - tw)))
-        push!(elems, GraphicsRect(tx_pos, coy, tw, ch, thumb_color, ch ÷ 2))
+        push!(elems, GraphicsRect(tx_pos, coy, tw, ch; color = thumb_color, radius = ch ÷ 2))
     else
         th = max(p.minimum_thumb_length, Int(round(thumb_sz * ch)))
         ty_pos = coy + Int(round(value * (ch - th)))
-        push!(elems, GraphicsRect(cox, ty_pos, cw, th, thumb_color, cw ÷ 2))
+        push!(elems, GraphicsRect(cox, ty_pos, cw, th; color = thumb_color, radius = cw ÷ 2))
     end
     SimpleIoMap(p, w, _make_canvas(px, py, elems))
 end
@@ -5394,7 +5394,7 @@ function _card_build(p, w, ctx, tim, cim)
         # drew, and the two strokes of the mark cover little of its column. A
         # transparent rectangle makes the whole column the target.
         x0, y0, x1, y1 = fold_box
-        push!(header_elements, GraphicsRect(x0, y0, x1 - x0, y1 - y0, color_transparent, 0))
+        push!(header_elements, GraphicsRect(x0, y0, x1 - x0, y1 - y0; color = color_transparent, radius = 0))
     end
     description_text = _get_state_text(p, w, :description)
     if w.description !== nothing
@@ -5752,7 +5752,7 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
         elements = Any[]
         _push_box_parts!(elements, box, colors, track_width, track_height)
         track_color = _get_state_color(p, w, :track; state)
-        push!(elements, GraphicsRect(content_x, content_y, track_width, track_height, track_color, track_height ÷ 2))
+        push!(elements, GraphicsRect(content_x, content_y, track_width, track_height; color = track_color, radius = track_height ÷ 2))
         knob_padding = _sc(p.knob_padding)
         knob_radius  = (track_height - 2knob_padding) ÷ 2
         left_x  = content_x + knob_padding + knob_radius
@@ -5878,10 +5878,10 @@ function print_document(p::WidgetProgressToGraphicsCanvas, recursion, w::WidgetP
         _push_box_parts!(elements, box, colors, bar_width, bar_height)
         track_color = _get_state_color(p, w, :track)
         indicator_color = _get_state_color(p, w, :indicator)
-        push!(elements, GraphicsRect(content_x, content_y, bar_width, bar_height, track_color, bar_height ÷ 2))
+        push!(elements, GraphicsRect(content_x, content_y, bar_width, bar_height; color = track_color, radius = bar_height ÷ 2))
         filled_width = round(Int, value * bar_width)
         if filled_width > 0
-            push!(elements, GraphicsRect(content_x, content_y, filled_width, bar_height, indicator_color, bar_height ÷ 2))
+            push!(elements, GraphicsRect(content_x, content_y, filled_width, bar_height; color = indicator_color, radius = bar_height ÷ 2))
         end
         (width=outer_width, height=outer_height, elements=elements)
     end))
@@ -5956,8 +5956,8 @@ function print_document(p::WidgetSliderToGraphicsCanvas, recursion, w::WidgetSli
         indicator_c = _get_state_color(p, w, :indicator; state)
         knob_c  = _get_state_color(p, w, :knob; state)
         knob_stroke = _get_state_stroke(p, w, :knob; state)
-        push!(elements, GraphicsRect(content_x, center_y - track_thickness ÷ 2, slider_width, track_thickness, track_c, track_thickness ÷ 2))
-        filled_width > 0 && push!(elements, GraphicsRect(content_x, center_y - track_thickness ÷ 2, filled_width, track_thickness, indicator_c, track_thickness ÷ 2))
+        push!(elements, GraphicsRect(content_x, center_y - track_thickness ÷ 2, slider_width, track_thickness; color = track_c, radius = track_thickness ÷ 2))
+        filled_width > 0 && push!(elements, GraphicsRect(content_x, center_y - track_thickness ÷ 2, filled_width, track_thickness; color = indicator_c, radius = track_thickness ÷ 2))
         push!(elements, GraphicsCircle(content_x + filled_width, center_y, _sc(p.knob_radius); color = knob_c,
                                        border_width=max(1, _sc(knob_stroke.width)), border_color=knob_stroke.color))
         outer_width, outer_height = slider_width + inset_width, slider_height + inset_height
@@ -6349,7 +6349,7 @@ function print_document(p::WidgetHighlightToGraphicsCanvas, recursion, w::Widget
         (cw <= 0 || ch <= 0) && return Any[]
         content_color = _get_state_color(p, w, :content)
         border_stroke = _get_state_stroke(p, w, :border)
-        Any[GraphicsRect(0, 0, cw, ch, content_color, _sc(p.corner_radius);
+        Any[GraphicsRect(0, 0, cw, ch; color = content_color, radius = _sc(p.corner_radius),
                          border_width = _sc(border_stroke.width), border_color = border_stroke.color)]
     end)
     SimpleIoMap(p, w, GraphicsCanvas(x, y, width, height, elements,
@@ -7952,7 +7952,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # Bounds are content-local; the table's own box sits outside the content,
     # so the band is shifted by the content offset.
     hl_bounds = ComputedCell(() -> _wt_highlight_bounds(w.selection, geometry[]))
-    highlight_rect = GraphicsRect(0, 0, 0, 0, row_selected_color, _WT_ROW_RADIUS)
+    highlight_rect = GraphicsRect(0, 0, 0, 0; color = row_selected_color, radius = _WT_ROW_RADIUS)
     set_cell_function!(getfield(highlight_rect, :x), () -> Int32(hl_bounds[][1] + content_x))
     set_cell_function!(getfield(highlight_rect, :y), () -> Int32(hl_bounds[][2] + content_y))
     set_cell_function!(getfield(highlight_rect, :w), () -> Int32(hl_bounds[][3]))
@@ -7963,7 +7963,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # colour. Drawn behind the selection band so a selected+hovered row still reads
     # as selected.
     hov_bounds = ComputedCell(() -> _wt_highlight_bounds(w.hovered, geometry[]))
-    hover_rect = GraphicsRect(0, 0, 0, 0, p.layer_hovered_color, _WT_ROW_RADIUS)
+    hover_rect = GraphicsRect(0, 0, 0, 0; color = p.layer_hovered_color, radius = _WT_ROW_RADIUS)
     set_cell_function!(getfield(hover_rect, :x), () -> Int32(hov_bounds[][1] + content_x))
     set_cell_function!(getfield(hover_rect, :y), () -> Int32(hov_bounds[][2] + content_y))
     set_cell_function!(getfield(hover_rect, :w), () -> Int32(hov_bounds[][3]))
@@ -7972,7 +7972,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     # Invisible whole-canvas hit target so a table nested in a container (which
     # gates routing on `hit_element_at`) is hoverable/clickable over the whole
     # box, not just over drawn glyphs/rules. Cf. the WidgetTree hit target.
-    hit_target = GraphicsRect(0, 0, 0, 0, color_transparent, 0)
+    hit_target = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius = 0)
     set_cell_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w + inset_width))
     set_cell_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h + inset_height))
 
@@ -7989,10 +7989,10 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
         # 2. Header strip backgrounds (behind the grid). The column-header strip
         #    occupies grid row 1; the row-header strip occupies grid column 1.
         if geom.has_col_headers
-            push!(result, GraphicsRect(content_x, content_y, geom.total_w, geom.row_y[2], header_row_color))
+            push!(result, GraphicsRect(content_x, content_y, geom.total_w, geom.row_y[2]; color = header_row_color))
         end
         if geom.has_row_headers
-            push!(result, GraphicsRect(content_x, content_y, geom.col_x[2], geom.total_h, header_row_color))
+            push!(result, GraphicsRect(content_x, content_y, geom.col_x[2], geom.total_h; color = header_row_color))
         end
         # 3. Hover + selection highlight overlays (persistent; their geometry reads
         #    the hovered / selected node so this thunk does not), behind the grid
@@ -8010,13 +8010,13 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
         # 5. Horizontal rules — at row_y[gr] for gr in 1..grid_rows+1 (top border,
         #    inner rules, bottom border).
         for gr in 1:(geom.grid_rows + 1)
-            push!(result, GraphicsRect(content_x, content_y + geom.row_y[gr], geom.total_w, bw,
-                                       divider_stroke.color))
+            push!(result, GraphicsRect(content_x, content_y + geom.row_y[gr], geom.total_w, bw;
+                                       color = divider_stroke.color))
         end
         # 6. Vertical rules — at col_x[gc] for gc in 1..grid_cols+1.
         for gc in 1:(geom.grid_cols + 1)
-            push!(result, GraphicsRect(content_x + geom.col_x[gc], content_y, bw, geom.total_h,
-                                       divider_stroke.color))
+            push!(result, GraphicsRect(content_x + geom.col_x[gc], content_y, bw, geom.total_h;
+                                       color = divider_stroke.color))
         end
         result
     end)
@@ -8633,7 +8633,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # nested in a layout/tab would ignore clicks/hover on the empty part of a row.
     # A full-size (invisible) rect makes the whole canvas a hit target, matching the
     # top-level tree. Its geometry reads `geometry[]` so it tracks size reactively.
-    hit_target = GraphicsRect(0, 0, 0, 0, color_transparent, 0)
+    hit_target = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius = 0)
     set_cell_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w + inset_width))
     set_cell_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h + inset_height))
 
@@ -8644,7 +8644,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # the focus-ring / text-cursor overlay pattern). Bounds are content-local, so
     # the band is shifted by the content offset.
     band_yh = ComputedCell(() -> _wtree_highlight_band(w.selection, geometry[]))
-    selection_band = GraphicsRect(0, 0, 0, 0, row_selected_color, _WT_ROW_RADIUS)
+    selection_band = GraphicsRect(0, 0, 0, 0; color = row_selected_color, radius = _WT_ROW_RADIUS)
     set_cell_function!(getfield(selection_band, :x), () -> Int32(content_x))
     set_cell_function!(getfield(selection_band, :y), () -> Int32(band_yh[][1] + content_y))
     set_cell_function!(getfield(selection_band, :h), () -> Int32(band_yh[][2]))
@@ -8654,7 +8654,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # `w.hovered` (the row under the pointer). Drawn behind the selection band so a
     # selected+hovered row still reads as selected.
     hover_yh = ComputedCell(() -> _wtree_highlight_band(w.hovered, geometry[]))
-    hover_band = GraphicsRect(0, 0, 0, 0, p.layer_hovered_color, _WT_ROW_RADIUS)
+    hover_band = GraphicsRect(0, 0, 0, 0; color = p.layer_hovered_color, radius = _WT_ROW_RADIUS)
     set_cell_function!(getfield(hover_band, :x), () -> Int32(content_x))
     set_cell_function!(getfield(hover_band, :y), () -> Int32(hover_yh[][1] + content_y))
     set_cell_function!(getfield(hover_band, :h), () -> Int32(hover_yh[][2]))

@@ -42,7 +42,7 @@ _al_label(text) = VerticalLayout(Any[WidgetLabel(Point2D(0, 0), text)]; gap = 0)
 struct _AlBoxes <: Projection end
 
 function print_document(p::_AlBoxes, recursion, doc::VerticalLayout, ctx)
-    boxes = Any[GraphicsRect(0, (i - 1) * 30, 40, 20, color_black)
+    boxes = Any[GraphicsRect(0, (i - 1) * 30, 40, 20; color = color_black)
                 for i in 1:length(doc.children)]
     canvas = GraphicsCanvas(CellVector(Cell[Cell(b) for b in boxes]), layout_none)
     SimpleIoMap(p, doc, canvas)

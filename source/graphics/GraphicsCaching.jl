@@ -87,7 +87,7 @@ function _make_checker_background(canvas::GraphicsCanvas)
             if (row + col) % 2 == 0
                 push!(rects, Cell(GraphicsRect(
                     Int32(bx + col * step), Int32(by + row * step),
-                    Int32(min(step, bw - col * step)), Int32(min(step, bh - row * step)),
+                    Int32(min(step, bw - col * step)), Int32(min(step, bh - row * step));
                     color)))
             end
         end

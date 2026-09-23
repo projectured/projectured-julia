@@ -122,7 +122,7 @@ function _wtl_band(p::WidgetTableToGraphicsCanvas, w::WidgetTable, k::Int, st::W
         (edges[column], edges[column + 1] - edges[column])
     end)
     color = kind === :hover ? p.layer_hovered_color : _get_state_color(p, w, :row; state = :selected)
-    rect = GraphicsRect(0, 0, 0, 0, color, _WT_ROW_RADIUS)
+    rect = GraphicsRect(0, 0, 0, 0; color, radius = _WT_ROW_RADIUS)
     set_cell_function!(getfield(rect, :x), () -> Int32(bounds[][1]))
     set_cell_function!(getfield(rect, :y), () -> Int32(st.bw))
     set_cell_function!(getfield(rect, :w), () -> Int32(bounds[][2]))
@@ -167,7 +167,7 @@ function _wtl_row(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx
         out = Any[]
         # A transparent rect the size of the row, so a click on the empty part
         # of a cell reaches the table through a container that gates on a hit.
-        push!(out, GraphicsRect(0, 0, total_w, Int(height[]), color_transparent, 0))
+        push!(out, GraphicsRect(0, 0, total_w, Int(height[]); color = color_transparent, radius = 0))
         push!(out, _wtl_band(p, w, k, st, height, :hover))
         push!(out, _wtl_band(p, w, k, st, height, :selection))
         for c in 1:st.ncols
@@ -181,9 +181,9 @@ function _wtl_row(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx
                                           slot_y = y_cell, slot_w, slot_h, clip_x = true,
                                           clip_y = st.row_extent !== nothing))
         end
-        push!(out, GraphicsRect(0, 0, total_w, bw, divider_stroke.color))
+        push!(out, GraphicsRect(0, 0, total_w, bw; color = divider_stroke.color))
         for edge in edges
-            push!(out, GraphicsRect(edge, 0, bw, Int(height[]), divider_stroke.color))
+            push!(out, GraphicsRect(edge, 0, bw, Int(height[]); color = divider_stroke.color))
         end
         out
     end)
@@ -315,7 +315,7 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
         strip_h = ComputedCell(() -> bw + pad_y + Int(header_h[]) + pad_y)
         set_cell_function!(st.header_height, () -> content_y + Int(strip_h[]))
         header_elements = ComputedCellVector(() -> begin
-            out = Any[GraphicsRect(0, 0, Int(total_w[]), Int(strip_h[]), header_row_color)]
+            out = Any[GraphicsRect(0, 0, Int(total_w[]), Int(strip_h[]); color = header_row_color)]
             for c in 1:ncols
                 (x_cell, y_cell, cim) = st.header_entries[c]
                 cim === nothing && continue
@@ -327,9 +327,9 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
                                               slot_y = y_cell, slot_w, slot_h,
                                               clip_x = true, clip_y = false))
             end
-            push!(out, GraphicsRect(0, 0, Int(total_w[]), bw, divider_stroke.color))
+            push!(out, GraphicsRect(0, 0, Int(total_w[]), bw; color = divider_stroke.color))
             for edge in columns[]
-                push!(out, GraphicsRect(edge, 0, bw, Int(strip_h[]), divider_stroke.color))
+                push!(out, GraphicsRect(edge, 0, bw, Int(strip_h[]); color = divider_stroke.color))
             end
             out
         end)

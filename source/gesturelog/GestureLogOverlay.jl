@@ -104,7 +104,7 @@ function print_document(p::GestureLogOverlayProjection, recursion, input, ctx)
     set_cell_function!(getfield(body, :w), () -> Int32(body_width()))
     set_cell_function!(getfield(body, :h), () -> Int32(body_height()))
 
-    background = GraphicsRect(0, 0, 0, 0, p.background, 4)
+    background = GraphicsRect(0, 0, 0, 0; color = p.background, radius = 4)
     set_cell_function!(getfield(background, :w), () -> Int32(panel_width()))
     set_cell_function!(getfield(background, :h), () -> Int32(panel_height()))
 

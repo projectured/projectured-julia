@@ -22,7 +22,7 @@ selection move repaints the ring and nothing else.
 """
 function make_selection_ring(bounds::Function; color::StyleColor = SELECTION_RING_COLOR,
                              width::Integer = 2)
-    ring = GraphicsRect(0, 0, 0, 0, color_transparent, 3;
+    ring = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius = 3,
                         border_width = width, border_color = color)
     box = ComputedCell(() -> something(bounds(), (0, 0, 0, 0)))
     set_cell_function!(getfield(ring, :border_width), () -> Int32(box[][3] > 0 ? width : 0))

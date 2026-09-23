@@ -59,7 +59,7 @@ function GraphicsText(text::AbstractString, x::Integer, y::Integer;
 end
 
 """
-    GraphicsRect(x, y, w, h, color=color_white, radius=0;
+    GraphicsRect(x, y, w, h; color=color_white, radius=0,
                  radius_tl=radius, radius_tr=radius,
                  radius_br=radius, radius_bl=radius,
                  border_width=0, border_color=nothing)
@@ -71,7 +71,7 @@ behind a selected row, a caret, a rule, a border drawn as four thin boxes.
 
 # Example
 
-    GraphicsRect(Int32(0), Int32(0), Int32(120), Int32(24), StyleColor(0.9, 0.9, 0.9, 1.0), 4)
+    GraphicsRect(0, 0, 120, 24; color = StyleColor(0.9, 0.9, 0.9, 1.0), radius = 4)
 
 See also `GraphicsCanvas`, which holds it, and `GraphicsText`.
 
@@ -106,9 +106,8 @@ _norm_border(::Nothing) = color_transparent
 _norm_border(c::StyleColor) = c
 
 # @positional: the geometry of a rectangle, in one order everywhere: x, y, width and height.
-function GraphicsRect(x::Integer, y::Integer, w::Integer, h::Integer,
-                      color::StyleColor=color_white,
-                      radius::Integer=0;
+function GraphicsRect(x::Integer, y::Integer, w::Integer, h::Integer;
+                      color::StyleColor=color_white, radius::Integer=0,
                       radius_tl::Integer=radius, radius_tr::Integer=radius,
                       radius_br::Integer=radius, radius_bl::Integer=radius,
                       border_width::Integer=0, border_color=nothing)

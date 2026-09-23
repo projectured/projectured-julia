@@ -293,8 +293,13 @@ The line breaks and the comments of a call stay where the author put them.
 
 Steps:
 
-- [ ] 1. `GraphicsText`, `GraphicsCircle`, `GraphicsLine`, `GraphicsRect`: the
-  signatures and the calls of this repository, one commit each.
+- [x] 1. `GraphicsText`, `GraphicsCircle`, `GraphicsLine`, `GraphicsRect`: the
+  signatures and the calls of this repository, one commit each: 57, 15, 33 and
+  90 calls, and the examples of five docstrings and of the graphics guide. Three
+  of the line calls passed all seven fields by position and reached the
+  constructor that `@document` generates; they name the tail as well.
+  `GraphicsText` shares its five-argument arity with that generated
+  constructor, so a call the scan misses would not fail. The scan found none.
 - [ ] 2. omnet-julia: the 33 graphics calls, on a branch. It lands right after
   step 1, because every call there fails once step 1 lands.
 - [ ] 3. The five gesture patterns and their 52 calls — after the owner's

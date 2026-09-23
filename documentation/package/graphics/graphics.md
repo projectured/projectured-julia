@@ -92,8 +92,8 @@ It registers nothing and has no `__init__`.
 
 ```julia
 label  = GraphicsText("Hello", 10, 20; font = font_ubuntu_monospace_regular_24, color = color_white)
-caret  = GraphicsRect(100, 50, 2, 20, color_red)
-card   = GraphicsRect(0, 0, 120, 24, color_white, 4; border_width = 1, border_color = color_black)
+caret  = GraphicsRect(100, 50, 2, 20; color = color_red)
+card   = GraphicsRect(0, 0, 120, 24; color = color_white, radius = 4, border_width = 1, border_color = color_black)
 edge   = GraphicsLine(0, 0, 100, 40; color = color_black, width = 2, dash = (4, 2))
 canvas = GraphicsCanvas([label, caret]; w = 400, h = 100)
 column = GraphicsCanvas(CellVector(Cell[Cell(label), Cell(caret)]), layout_vertical)

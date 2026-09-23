@@ -42,7 +42,7 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
     y_top  = cy + r + gap                      # cosine chart's top edge
 
     # solarized-light backdrop (base3) behind everything
-    background = GraphicsRect(0, 0, w, h, color_solarized_background_lighter)  # base3
+    background = GraphicsRect(0, 0, w, h; color = color_solarized_background_lighter)  # base3
 
     # static circle outline marking the path: an *unfilled* ring (transparent
     # fill + base01 grey outline). Only the dot below is a filled disc.

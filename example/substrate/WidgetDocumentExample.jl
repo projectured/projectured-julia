@@ -678,8 +678,8 @@ end
 
 make_graphics_canvas_document_example() =
     GraphicsCanvas(Any[
-        GraphicsRect(0, 0, 120, 40, color_solarized_blue),
-        GraphicsRect(0, 60, 120, 40, color_solarized_gray),
+        GraphicsRect(0, 0, 120, 40; color = color_solarized_blue),
+        GraphicsRect(0, 60, 120, 40; color = color_solarized_gray),
     ]; w=120, h=100)
 
 function make_screen_document_document_example()

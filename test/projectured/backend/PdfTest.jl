@@ -57,7 +57,7 @@ end
 @testset "write_pdf renders every primitive + embedded font" begin
     fnt = StyleModule.font_dejavu_sans_regular_18
     canvas = GraphicsCanvas([
-        GraphicsRect(10, 10, 120, 40, StyleColor(220 / 255, 60 / 255, 60 / 255, 1.0), 8;
+        GraphicsRect(10, 10, 120, 40; color = StyleColor(220 / 255, 60 / 255, 60 / 255, 1.0), radius = 8,
                      border_width=2, border_color=color_black),
         GraphicsCircle(180, 30, 20; color = StyleColor(60 / 255, 120 / 255, 220 / 255, 200 / 255)),
         GraphicsLine(10, 70, 200, 70; color = color_black, width=2),

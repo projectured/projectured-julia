@@ -290,7 +290,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # Persistent overlay elements. Their geometry cells read the selection-
     # dependent `overlay`; a zero width hides them when inactive (the renderer
     # skips a zero-width rect, and the bounds machinery ignores it).
-    cursor_rect = GraphicsRect(0, 0, 0, 0, color_black)
+    cursor_rect = GraphicsRect(0, 0, 0, 0; color = color_black)
     # A dormant caret is drawn muted: the pane it belongs to still remembers where
     # the caret is, and shows it, but the keyboard is not on it.
     set_cell_function!(getfield(cursor_rect, :color),
@@ -311,7 +311,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     _hl_geo(k) = (v = overlay[].highlight; 1 <= k <= length(v) ? v[k] : nothing)
     function get_highlight_rect(k::Int)
         haskey(hl_cache, k) && return hl_cache[k]
-        r = GraphicsRect(0, 0, 0, 0, hl_color, 4)
+        r = GraphicsRect(0, 0, 0, 0; color = hl_color, radius = 4)
         set_cell_function!(getfield(r, :color), () -> is_live[] ? hl_color : hl_color_dormant)
         set_cell_function!(getfield(r, :x), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[1])))
         set_cell_function!(getfield(r, :y), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[2])))
@@ -780,7 +780,7 @@ end
 
 function _make_persistent_rect(layout, pl0)
     key = pl0.key
-    rect = GraphicsRect(Int(pl0.x), Int(pl0.y), Int(pl0.w), Int(pl0.h), pl0.color)
+    rect = GraphicsRect(Int(pl0.x), Int(pl0.y), Int(pl0.w), Int(pl0.h); color = pl0.color)
     set_cell_function!(getfield(rect, :x),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.x)))
     set_cell_function!(getfield(rect, :y),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
     set_cell_function!(getfield(rect, :w),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.w)))
@@ -977,7 +977,7 @@ end
 function _push_fill_rect!(result, span, x::Integer, y::Integer, w::Integer, h::Integer)
     fill = span.fill_color
     fill isa StyleColor || return
-    push!(result, GraphicsRect(Int(x), Int(y), Int(w), Int(h), fill))
+    push!(result, GraphicsRect(Int(x), Int(y), Int(w), Int(h); color = fill))
 end
 
 # ── Reader helpers ──────────────────────────────────────────────────────
