@@ -18,13 +18,10 @@ const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "rotating_vector.mp4") : ARGS[1]
 const EVALUATOR_BUTTON = (50, 38)
 const CANVAS_CENTRE = (432, 362)      # the canvas row after the first two forms
 
-# A directory with one small file, so the window opens with a wide pane of files
-# and the Evaluator button opens its tab there.
-function make_root()
-    root = mktempdir()
-    write(joinpath(root, "notes.json"), "{\"example\": \"rotating vector\"}")
-    root
-end
+# The navigator lists the example project of the repository, and its README is
+# open, so the window has a wide pane of files and the Evaluator button opens its
+# tab there. The take reads the project and writes nothing into it.
+const PROJECT = normpath(joinpath(@__DIR__, "..", "..", "example", "filesystem", "fixture", "project"))
 
 _key(key; hold = 0.4, kwargs...) = (event = KeyDown(key, ModifierKeys(; kwargs...)), hold = hold)
 _type(text) = make_typein_gestures(text; hold = 0.15, jitter = 0.6)    # the human rhythm, D13
@@ -85,13 +82,12 @@ function make_timeline()
 end
 
 function main()
-    root = make_root()
     timeline = make_timeline()
     scripted = 0.5 + sum(entry.hold for entry in timeline) + 4.0
     println("entries: ", length(timeline), ", scripted seconds: ", round(scripted; digits = 1))
-    path = record_application_video([joinpath(root, "notes.json")], timeline, OUTPUT;
+    path = record_application_video([joinpath(PROJECT, "README.md")], timeline, OUTPUT;
                                     width = 1280, height = 720, fps = 30,
-                                    assistant = :none, root = root,
+                                    assistant = :none, root = PROJECT,
                                     initial_hold = 1.0, final_hold = 4.0)
     println("recorded: ", path)
 end

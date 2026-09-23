@@ -73,15 +73,18 @@ function make_timeline()
     )
 end
 
+# The navigator lists the example project of the repository, and its README is
+# open, so the window has a wide pane of files and the Evaluator button opens its
+# tab there. The take reads the project and writes nothing into it.
+const PROJECT = normpath(joinpath(@__DIR__, "..", "..", "example", "filesystem", "fixture", "project"))
+
 function main()
-    directory = mktempdir()
-    write(joinpath(directory, "notes.json"), "{\"tool\": \"widgets\"}")
     timeline = make_timeline()
     scripted = 1.0 + sum(entry.hold for entry in timeline) + 4.0
     println("entries: ", length(timeline), ", scripted seconds: ", round(scripted; digits = 1))
-    println("recorded: ", record_application_video([joinpath(directory, "notes.json")], timeline, OUTPUT;
+    println("recorded: ", record_application_video([joinpath(PROJECT, "README.md")], timeline, OUTPUT;
                                                    width = 1280, height = 720, fps = 30,
-                                                   assistant = :none, root = directory,
+                                                   assistant = :none, root = PROJECT,
                                                    initial_hold = 1.0, final_hold = 4.0))
 end
 
