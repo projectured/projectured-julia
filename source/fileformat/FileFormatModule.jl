@@ -24,6 +24,7 @@ using ..DocumentModule
 using ..DomainModule
 using ..EventModule
 using ..GestureBindingModule
+using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule
 using ..NaturalModule
@@ -42,7 +43,8 @@ using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..OperationModule: evaluate_operation, make_inverse_operation
-import ..ProjectionModule: print_document, map_reference_forward, map_reference_backward
+import ..ProjectionModule: print_document, read_intent, map_reference_forward,
+                           map_reference_backward
 
 export import_document, export_document,
        ImportDocumentOperation, ExportDocumentOperation

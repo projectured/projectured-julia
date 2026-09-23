@@ -38,6 +38,7 @@ const DomainModule = ProjecturedDomain.DomainModule
 const CellModule = ProjecturedKernel.CellModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
+const IntentModule = ProjecturedKernel.IntentModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const SyntaxModule = ProjecturedSyntax.SyntaxModule
