@@ -1,8 +1,8 @@
 # An evaluated form becomes a Julia document
 
-**Status (2026-09-23): IN PROGRESS.** Worktree
+**Status (2026-09-23): DONE on the branch, not landed.** Worktree
 `../projectured-julia-evaluator-parses-forms`, branch `evaluator-parses-forms`,
-from `main` at `232c9c35`.
+from `main` at `232c9c35`. It waits for the owner's word to land.
 
 **Goal:** when a person presses Enter in an Evaluator tab, the code of the form
 changes from a string to a Julia document, so the form keeps its syntax
@@ -134,7 +134,9 @@ owner's word.
   first form draws as Julia, the second as the typed string, and the `>` and
   `=` column stays aligned in both. A test of what renders, not of what the
   operation returns.
-- [ ] **Step 5. The package document.** Add a paragraph on the swap and its rule
+- [x] **Step 5. The package document.** *Done:* the evaluator section, a design
+  decision and a limit in `documentation/package/conversation/conversation.md`.
+  Originally: Add a paragraph on the swap and its rule
   to `documentation/package/conversation/conversation.md`.
 
 Run for each step: `test_evaluator_toplevel()`, and `test_conversation()`, whose
