@@ -1,13 +1,15 @@
 # An evaluation moves the selection from the root
 
-**Status (2026-09-23): MEASURED. Nothing is fixed.** The owner asked for the
-measurement first, and for no automatic fix: "change the plan, first measure and
-collect, don't fix automatically anything yet". Step 0 is done. Every later step
-waits for the owner's decision on each finding (§4).
+**Status (2026-09-23): IMPLEMENTING.** The owner asked for the measurement first
+("first measure and collect, don't fix automatically anything yet"); Step 0 is
+done. Then the owner decided (§4): "fix them — a draft can keep a dormant caret —
+the rest as recommended by you — drop the 2nd part of the plan". The general
+program of part 2 (every evaluation says its selection from the root) is dropped;
+this plan fixes the measured findings, each at its own place.
 
-**Goal:** know where an evaluation leaves the live selection off the one path from
-the root, and which of those places a person can see. A fix comes only where the
-owner decides that it is worth one.
+**Goal:** the five measured findings pass: after each gesture the live selection
+is one path from the root, with no live selection off it, and no caret is drawn
+off the focus.
 
 **Repositories:** projectured-julia. A search of omnet-julia found no site of this
 kind; only the dormant selection of its embedded panes, which keeps the rule.
@@ -77,24 +79,37 @@ part 3 of the earlier plan: the open of a pane does not carry the content's own
 selection into the root's path, as it does for an empty placeholder. The other
 three break the rule with no effect that the measurement found.
 
-## 4. Decisions for the owner
+## 4. Decisions (2026-09-23, the owner)
 
-For each finding: fix it, or keep it as a broken case. If a fix is made, the owner
-prefers Option 1 of the first version of this plan: the reader answers the
-selection change as a `ReplaceSelectionOperation`, in one `CompoundOperation` with
-the edit, and the readers above reroot it. Option 1 needs a reader, so it can not
-fix #3 or #4, which a script evaluates with no reader. For those two the choices
-are: write no live caret when the root's path does not pass through the draft, or
-let the draft keep a dormant caret, which today only the pane and widget
-containers may.
+The owner dropped the general program of part 2 and decided a local fix for each
+finding. None of them needs a new mechanism.
 
-1. **#3, the caret in the draft after a submit off the focus.** The only visible
-   finding.
-2. **#6, the caret of a new evaluator.** The fix is in the open of a pane: the new
-   tab's content brings its own selection into the root's path.
-3. **#2, #4 and #5.** No visible effect.
-4. **The unused `input` operations of the assistant:** remove them, or keep them
-   for scripts.
+- **#3 and #4 — a draft keeps a dormant caret.** A `ConversationDraft` answers
+  `has_dormant_selection`, as the pane and widget containers do. When the root's
+  live path passes through the draft, `sync_draft_selection!` writes the caret
+  from the root, as it does now. When it does not, the caret is written live from
+  the root and the live selection is written back at once, both with
+  `replace_selection!` at the root. At that second write the kernel keeps the
+  abandoned branch as dormant, because the draft is a keeper, so the draft and
+  every keeper above it name the new caret. A dormant caret is not drawn, and it
+  is live again when the focus comes back to a keeper on its branch. The search
+  for the draft's path from the root enters documents and collections only, so it
+  does not find the draft through an operation that a history records.
+- **#2 — a part that leaves the draft holds no caret.** `reset_draft!` clears the
+  selection of the parts it takes out, which the submit has moved into the
+  transcript.
+- **#5 — a reload selects the file as a whole.** The reader answers the reload
+  with a `ReplaceSelectionOperation` of the whole file, in one
+  `CompoundOperation`, and the readers above reroot it (the owner's Option 1, for
+  this one reader). The evaluation no longer sets `file.selection = nothing`.
+- **#6 — a new tab brings its content's own selection.** When a document that
+  holds a selection of its own is opened in a tab, the focus goes to the tab's
+  content and on along that selection, so the root's path holds it. This is part
+  3 of the earlier plan: the code that puts a document into a larger tree makes
+  the new root hold the selection the document had.
+- **The unused `input` operations of the assistant are kept unchanged.** They can
+  not be reached from the window, and removing exported operations is a change of
+  the API that is not part of these fixes.
 
 ## 5. Steps
 
@@ -104,10 +119,27 @@ containers may.
       Measured on 2026-09-23 (§3).
 
 ### Step 1 — the owner decides
-- [ ] A decision for each item of §4.
+- [x] Decided on 2026-09-23 (§4).
 
-### Later steps
-Written after Step 1, one for each decision to fix. Each one turns its broken case
-into a passing test, and runs `test_application`, the conversation, assistant,
-evaluator and file-format suites, and in omnet-julia `test_ide` without the two
-model tests and `test_campaign_ui`.
+### Step 2 — a draft keeps a dormant caret (#3, #4)
+- [ ] `has_dormant_selection(::ConversationDraft)`; `sync_draft_selection!` keeps
+      the caret dormant when the root's path does not pass through the draft.
+
+### Step 3 — a part that leaves the draft holds no caret (#2)
+- [ ] `reset_draft!` clears the selection of the parts it takes out.
+
+### Step 4 — a reload selects the file as a whole (#5)
+- [ ] The reload's binding answers the reload and the selection together.
+
+### Step 5 — a new tab brings its content's own selection (#6)
+- [ ] `make_pane_open_tab_operation` focuses along the content's own selection.
+
+### Step 6 — tests, suites and guides
+- [ ] The broken cases of the test set pass, and become `@test`.
+- [ ] Suites: `test_application`, the conversation, assistant, evaluator, pane,
+      clipboard and file-format suites, `test_kernel` with its known failures,
+      and in omnet-julia `test_ide` without the two model tests and
+      `test_campaign_ui`. The static guards.
+- [ ] Guides: `kernel/selection.md` names the draft among the keepers; the
+      conversation guide describes the dormant caret; `pane.md` describes where
+      a new tab's focus goes.
