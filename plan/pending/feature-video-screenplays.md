@@ -54,13 +54,15 @@ On 2026-09-16 `qwen3.8:27b` solved 5 of 8 problems of the omnet-julia applicatio
 
 ### 2.4 The faults found while recording
 
-Three faults of the editor came out of the work on S3 on 2026-09-22. The owner said not to fix a fault that the video work finds, so each one is written here and left alone. Each was found with a headless replay of the gestures through `read_intent` and `evaluate_operation`, over a real `Editor` with a `ConsoleBackend`.
+Four faults of the editor, and one thing that is not proven, came out of the work on S3 and S4 on 2026-09-22. The owner said not to fix a fault that the video work finds, so each one is written here and left alone. Each was found with a headless replay of the gestures through `read_intent` and `evaluate_operation`, over a real `Editor` with a `ConsoleBackend`.
 
 **F1. A file tab of the application takes no character.** Open `person.json` in `bin/projectured`, with content or empty. The pane focus is on the tab, the JSON draws, and no key reaches the document: `x`, `,` and `{` each answer no operation. `Alt+Down`, `Tab` and `Alt+click` answer a `ReplaceSelectionOperation`, so the selection moves, but a key after them still answers nothing. A plain click on the text answers nothing at all. The evaluator tab is the control: in the same window `Ctrl+T`, `Insert`, `repl`, Enter and then `1+2` Enter draw `= 3`. So the window, the reader and the loop work, and what fails is the seat of the selection inside a file tab.
 
 What F1 blocks: every screenplay whose keys go into a file tab, which is S3 in the window, and S5 to S8. It does not block S1, S2 and S4, which type into a tool tab: the evaluator and the assistant.
 
 **F2. After a string value, `Right` then `,` inserts nothing.** This is the rule the `json_build` live example is built on. A replay of its timeline today: 192 of its 210 keys answer no operation, and the document stops at `{"name": "Alice"}`. `Alt+Up` in place of the `Right` works, and the same build then runs with no dead key.
+
+**F3. A nested container is never left.** Inside `"address": { … }`, an `Alt+Up` once, twice or three times does not bring the caret back to the root object. The next entry lands inside the nested object again. The live example uses `Alt+Up` four times for exactly this, so F3 is the other half of what broke it.
 
 **F4. A callback made in the evaluator can not be called.** A button built in the evaluator with `action = () -> presses[] += 1` lights up under the pointer, and its press routes: the reader answers an operation. The action never runs. Called by hand, the callback says:
 
@@ -72,8 +74,6 @@ MethodError: no method matching (::Main.ToolScratch.var"#2#3")()
 The closure belongs to the world of the evaluator, and the editor calls it from code compiled before that world. The fault barrier catches it, so the window shows nothing at all. The same closure works in a plain session: the label follows the cell, and `callback()` counts. So a widget that a person builds in the evaluator, or that the assistant builds with `execute_julia_code`, can draw and can not act.
 
 **F5. Not proven: a drag of a slider and a character in a text field.** In the harness neither changed the document, but the coordinates there are computed and not read from a frame, so this is not evidence. It waits for the overlay of G3, which draws the pointer and makes a miss visible.
-
-**F3. A nested container is never left.** Inside `"address": { … }`, an `Alt+Up` once, twice or three times does not bring the caret back to the root object. The next entry lands inside the nested object again. The live example uses `Alt+Up` four times for exactly this, so F3 is the other half of what broke it.
 
 The `json_build` recording of Step 0 produced a file of the right length, which is why the baseline called it good. The file shows a document that stops after one entry. §7 Step 0 says so now.
 
