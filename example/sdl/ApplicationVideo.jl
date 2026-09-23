@@ -24,8 +24,11 @@ encode the session to `filename` (`.mp4`).
 [`run_with_window_tools`](@ref) fills in the toolbar's tools (the message log,
 the frame statistics, the fault log), and [`run_window_editor`](@ref) runs the
 real `run_editor!` loop against a [`VideoBackend`](@ref) standing in for the
-native window. `timeline` is that backend's scripted input — `event` entries
-only, fired on the wall-clock schedule `initial_hold`/`final_hold` describe
+native window. `timeline` is that backend's scripted input. An `(event = …, hold = …)` entry
+is a key or a pointer event, and an `(await = editor -> Bool, hold = …)` entry
+holds the schedule until its predicate answers true or its `hold` of seconds
+runs out — that is how a take waits for a turn of a real model, whose length
+nobody knows in advance. Entries fire on the wall-clock schedule `initial_hold`/`final_hold` describe
 (see `VideoBackend`); the backend appends its own `WindowQuit` `final_hold`
 seconds after the timeline's own last hold runs out, which ends the loop the
 same way the window-close button does.
@@ -61,7 +64,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   make_opened_window_projections(;
                                       content = make_application_content_projections(measure = measure),
                                       measure = measure),
-                              on_start = start)
+                              on_start = editor -> (backend.editor = editor; start(editor)))
         end
         _encode_frames_to_video!(backend.frames_dir, filename, fps)
     finally

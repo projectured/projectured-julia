@@ -59,6 +59,14 @@ mutable struct VideoBackend <: Backend
     pointer_x::Int
     pointer_y::Int
     start_time::Float64
+    # What an `await` entry moves: the schedule of every entry after it, by the
+    # seconds the wait really took. A take that waits for a model waits as long
+    # as the model takes, and the entries after it follow from there.
+    schedule_offset::Float64
+    await_started::Float64
+    # The editor of this recording, which an `await` predicate reads. The driver
+    # puts it here in `on_start`, before the first frame.
+    editor::Any
     frame::Base.RefValue{Int}
     last_frame_file::Union{String,Nothing}
     off::Any
@@ -75,15 +83,19 @@ function VideoBackend(timeline::AbstractVector, window_id::Symbol;
     entries = Vector{Any}(undef, n + 1)
     acc = Float64(initial_hold)
     for i in 1:n
-        haskey(timeline[i], :event) ||
-            error("VideoBackend: timeline entry $i carries no `event` — " *
-                  "only event entries reach the real editor loop")
-        entries[i] = (event = timeline[i].event, fire_at = acc)
-        acc += Float64(timeline[i].hold)
+        entry = timeline[i]
+        if haskey(entry, :await)
+            entries[i] = (await = entry.await, fire_at = acc, cap = Float64(entry.hold))
+        elseif haskey(entry, :event)
+            entries[i] = (event = entry.event, fire_at = acc)
+            acc += Float64(entry.hold)
+        else
+            error("VideoBackend: timeline entry $i carries neither `event` nor `await`")
+        end
     end
     entries[n + 1] = (event = WindowQuit(), fire_at = acc + Float64(final_hold))
     VideoBackend(Int(width), Int(height), Int(fps), String(frames_dir), window_id,
-                entries, 1, false, -1, -1, 0.0, Ref(0), nothing, nothing,
+                entries, 1, false, -1, -1, 0.0, 0.0, -1.0, nothing, Ref(0), nothing, nothing,
                 Int(supersample), Float64(scale))
 end
 
@@ -143,11 +155,38 @@ function read_from_devices(backend::VideoBackend, devices)
     backend.awaiting_render && return nothing
     backend.next_entry > length(backend.timeline) && return nothing
     entry = backend.timeline[backend.next_entry]
-    (time() - backend.start_time) >= entry.fire_at || return nothing
+    elapsed = time() - backend.start_time
+    elapsed >= entry.fire_at + backend.schedule_offset || return nothing
+    haskey(entry, :await) && return _wait_for_entry!(backend, entry, elapsed)
     backend.next_entry += 1
     backend.awaiting_render = true
     _track_pointer!(backend, entry.event)
     WindowInput(backend.window_id, entry.event)
+end
+
+# An `await` entry holds the schedule until its predicate answers true, or
+# until its cap of seconds runs out. It delivers no event, and the frames of
+# the wait are the frames of whatever the editor does meanwhile: a streaming
+# turn of the assistant paints itself into them. When the wait ends, every
+# entry after it moves by the seconds the wait took, so nothing fires late in a
+# batch.
+function _wait_for_entry!(backend::VideoBackend, entry, elapsed::Float64)
+    backend.await_started < 0 && (backend.await_started = elapsed)
+    waited = elapsed - backend.await_started
+    done = waited >= entry.cap
+    if !done
+        answer = try
+            entry.await(backend.editor)
+        catch
+            false
+        end
+        done = answer === true
+    end
+    done || return nothing
+    backend.next_entry += 1
+    backend.schedule_offset = elapsed - entry.fire_at
+    backend.await_started = -1.0
+    nothing
 end
 
 function _track_pointer!(backend::VideoBackend, event)

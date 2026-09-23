@@ -73,6 +73,16 @@ MethodError: no method matching (::Main.ToolScratch.var"#2#3")()
 
 The closure belongs to the world of the evaluator, and the editor calls it from code compiled before that world. The fault barrier catches it, so the window shows nothing at all. The same closure works in a plain session: the label follows the cell, and `callback()` counts. So a widget that a person builds in the evaluator, or that the assistant builds with `execute_julia_code`, can draw and can not act.
 
+**F6. The assistant is told about functions it can not call.** The application declares a narrow API (`make_application_api`), and `execute_julia_code` runs in a scratch namespace that binds only what that declaration names. The guides and `search_api` answer with names outside it, and the model spends its rounds on them:
+
+```
+UndefVarError: `search_documents` not defined in `Main.ToolScratch`
+  Hint: a global variable of this name also exists in ProjecturedKernel.DocumentModule.
+Module 'PaneModule' not found.        # from list_functions("PaneModule"), a module the system prompt names
+```
+
+`list_functions`, `list_types` and `list_modules` call `_find_module(name)` with no API argument (`source/kernel/tool/Documentation.jl:514`), so a declared module is invisible to them. A round spent this way is a round the model does not spend on the task, and the cap is five.
+
 **F5. Not proven: a drag of a slider and a character in a text field.** In the harness neither changed the document, but the coordinates there are computed and not read from a frame, so this is not evidence. It waits for the overlay of G3, which draws the pointer and makes a miss visible.
 
 The `json_build` recording of Step 0 produced a file of the right length, which is why the baseline called it good. The file shows a document that stops after one entry. §7 Step 0 says so now.
@@ -180,6 +190,19 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 | 2 | Type the prompt "Open a second tab with people.json sorted by name, beside the first one." Enter. | The tool calls stream into the conversation, at the speed of the real turn. A new tab opens beside the first. | It searches the API, writes Julia and runs it. |
 | 3 | Type the prompt "Under the two tabs, add a card with a table of the names and the ages." Enter. | The same, for the card with the table. | |
 | 4 | Press Ctrl+Z. | The card goes away. | A change of the assistant is taken back like one of yours. |
+
+- **The rehearsals of 2026-09-23, with `qwen3.8:27b` on the CPU.** Four turns, none of them opened a tab. The model reads the guides, prints the pane tree with `show_layout`, searches the API, and then spends its rounds on names it can not call (F6) and on field names it guesses wrong.
+
+| The prompt of the user | Seconds | The end |
+| --- | --- | --- |
+| Open people.json sorted by name in a second tab, beside the first one. | 130 | no tab |
+| The same, with the transcript printed | 308 | no tab |
+| Show the names and ages from people.json as a table in a new tab. | 103 | no tab |
+| Use `open_pane!` to open a tab titled People that holds a `WidgetTable` with the names and the ages. | 160 | no tab |
+
+  The take of the timeline (two prompts, 169 s) shows the same: the model searches, and the window does not change. The harness for a rehearsal is `tool/video/rehearse_assistant.jl`, and it prints every tool call and its answer.
+
+- **The choice this needs:** a model that finishes the task. The owner decides between the local `qwen3.8:27b`, Claude through `ANTHROPIC_API_KEY` (not set in this session), a task small enough for the local model, and waiting until F6 is fixed.
 
 - **Acceptance:** both prompts succeed in the kept take. Beat 4 needs the window history to hold a change that the assistant makes to the panes. Step 6 checks that first. If the history does not hold it, beat 4 changes to an edit of the data, and this plan records why.
 
