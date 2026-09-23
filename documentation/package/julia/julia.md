@@ -28,9 +28,15 @@ A variable-length list of children is a `CellVector`: `arguments`, `statements`,
 
 ### The printer
 
-`JuliaToSyntax()` is a `TypeDispatchingProjection` of `@projection_template` rules, one for each type. The package writes no reference map and no reader by hand. The template markers cover the keyword headers, the coloured callee and the lists of variable length.
+`JuliaToSyntax()` is a `TypeDispatchingProjection` of `@projection_template` rules, one for each type. The template markers cover the keyword headers, the coloured callee and the lists of variable length.
+
+The last entry of the dispatch is `Document => JuliaObjectToSyntaxLeaf()`. The dispatch takes the first entry that matches, so no Julia node reaches it: it draws a document that is not Julia, an object that stands in the code, as one leaf with its title in angle marks, `⟨a.json⟩`, or its type name when it has no title. It is the one leaf written by hand, because the reader of a template would give a key on the label to the object's own table. It answers no key, maps a whole selection both ways, and shows a selection only when the object is selected whole. A chain that recurses through this table, as `print_natural_text` and the application's window do, draws the label; a bare `NaturalToGraphics` recurses a child of the code through its shared syntax table by the child's own type.
 
 The leaves are opaque: they have no `bound` marker. So a caret selects an identifier, a number or a string as a whole, and does not go into its characters. A `bound` leaf needs the flat-offset mapping of JSON for the tokens that no document field produces, such as `function`, `(` and `end`.
+
+### The expression
+
+`make_julia_expression(document)` gives the `Expr(:toplevel, …)` that runs a Julia document, the shape `Meta.parseall` gives. It copies the document with `copy_document` under a copy policy whose stop hooks put a placeholder identifier where a node that is not Julia stands, prints the copy, parses the text, and puts each object back as a `QuoteNode`. So an evaluation uses the object itself, and a noted live object keeps its identity. A hole stands for the parse of its text, because its print adds the completion; a hole whose text does not parse raises an error. The domain registers the function as the expression of its format, `:jl`, in the natural seam.
 
 ### Type-in
 

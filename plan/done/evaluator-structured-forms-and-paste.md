@@ -1,6 +1,6 @@
 # The evaluator takes structured forms, pasted objects and pasted references
 
-**Status (2026-09-23): IN PROGRESS.** Worktree
+**Status (2026-09-23): DONE on the branch, not landed.** Worktree
 `../projectured-julia-evaluator-structured-forms`, branch
 `evaluator-structured-forms`, from `main` at `f6b60214`. The owner agreed to the
 recommended answer of every question in section 4, to the switch of section 2D,
@@ -368,8 +368,12 @@ what renders, through the window with a real `Editor`, as
   Originally: The key, the operation, and the text.
   Test: pasted into a string form and evaluated, the reference gives the
   selected object itself (`===`).
-- [ ] **Step 7. The package documents** of the conversation, the clipboard and
-  the Julia domain.
+- [x] **Step 7. The package documents** of the conversation, the clipboard and
+  the Julia domain. *Done,* and of the natural seam and the kernel's tool
+  module too: `conversation.md` (structured forms, the options, the run as an
+  `Expr`, two design decisions, two limits), `clipboard.md` (Copy reference, two
+  limits), `julia.md` (the label, the expression), `natural.md` (the expression
+  hook) and `kernel/agent.md` (`execute_julia_expression`).
 
 The suites: `test_evaluator_toplevel()`, `test_application()`, `test_julia()`,
 the clipboard tests, `test_kernel()` for M3, and the argument and naming guards.

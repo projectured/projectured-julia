@@ -3,8 +3,10 @@
 # EvaluatorForm / EvaluatorToplevel → WidgetDocument projection, for the
 # standalone REPL a person opens by typing `repl` into an empty tab:
 #
-#     EvaluatorToplevelToWidgetComposite → WidgetScrollPane over a VerticalLayout
-#                                          of the elements, which follows the end
+#     EvaluatorToplevelToWidgetComposite → a GridLayout of one column: the row of
+#                                          options, then a WidgetScrollPane over a
+#                                          VerticalLayout of the elements, which
+#                                          follows the end
 #     EvaluatorFormToVerticalLayout      → VerticalLayout of a `>` row and a `=` row
 #
 # Neither prints a child. The toplevel's layout holds the forms, and a form's rows

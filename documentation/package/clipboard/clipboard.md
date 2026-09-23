@@ -13,11 +13,12 @@ The clipboard is a wrapper document around the whole content of a window:
 
 `ClipboardSliceToAnyProjection` prints both the content and the slice. Its output is a computed cell that chooses one of them by the `display_slice` cell. So Ctrl+/ toggles the view with a plain cell write, and the chain prints again only the stages after the clipboard. The output has no node for the clipboard itself: a reference forward loses the `content` or `slice` step, and a reference backward gets it again.
 
-The reader has six gestures, in a gesture table of the projection:
+The reader has seven gestures, in a gesture table of the projection:
 
 | Key | Gesture | What it stores or does |
 | --- | --- | --- |
 | Ctrl+C | copy | a deep copy of the selected document, with no selection |
+| Ctrl+Shift+C | copy the reference | Julia code that gives the selected document, as text |
 | Ctrl+X | cut | the selected document itself; the source becomes `DocumentNothing()` |
 | Ctrl+N | note | the selected document itself, not a copy: a live bookmark |
 | Ctrl+V | paste | the stored document replaces the selection |
@@ -37,6 +38,14 @@ A paste replaces a whole document. Three checks decide whether the selection can
 A selection that ends in a character range of a text or number field is different. Copy, cut and paste then act on the characters of that field with `ReplaceStringRangeOperation` and `ReplaceNumberRangeOperation`. This is how Ctrl+C and Ctrl+V work in a text field of a form.
 
 `find_clipboard_document(document)` returns the document that a selection copies. The default is the document itself. `ProjecturedPane` adds a method, so the selection of a tab copies the content of the tab and not the frame around it.
+
+### The reference
+
+Ctrl+Shift+C answers `CopyReferenceOperation`, which holds the clipboard and no path, so it travels up the chain unchanged. When it runs, it reads the complete selection from the root document of the editor, and drops steps from the end until the path names a document: a caret inside a text names the document that holds the text. It writes this code into the slice as a `PrimitiveString` and onto the system clipboard:
+
+    evaluate_reference(editor.document, @reference(editor.document, <path>))
+
+`make_reference_code(reference)` makes the code. The path is the `show` of the reference without its type checkpoints, and `@reference` with the document types it again. In an evaluator, where `editor` is bound, the code gives the selected document itself. A paste at a caret types the code, in this editor or in another program. The operation writes no document, so its inverse is `DoNothingOperation()`.
 
 ### The copy
 
@@ -78,3 +87,5 @@ run_example("json"; clipboard = true)     # the same wrapper, from the gallery
 
 - The text mode copies a range inside one span only. A range across lines returns `nothing`.
 - In the gallery, `clipboard = true` can not go with `tooltip = true` or `inspector = true`.
+- A reference is a path, so a reference through an index goes stale when the tree changes shape, for example when the tabs are moved.
+- A paste of text reads the complete selection. A tool that the toolbar of the application opens leaves that selection unwritten from the root, so Ctrl+V into it does nothing until a click places the caret.

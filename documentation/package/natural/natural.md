@@ -38,16 +38,17 @@ function __init__()
 end
 ```
 
-`register_natural_domain!` is three registrations in one call. The keywords come in pairs: `rung` with `make`, and `format` with `extension`. `parse` needs `format`.
+`register_natural_domain!` is the registrations below in one call. The keywords come in pairs: `rung` with `make`, and `format` with `extension`. `parse` and `expression` need `format`.
 
 | Part of the table | Key | Filled by | Read by |
 | --- | --- | --- | --- |
 | notations | a type | `register_natural_notation!(T, rung, make)` | `make_natural_projection`, `get_natural_entries` |
 | formats | a type | `register_natural_format!(T, format, extension)` | `get_natural_format`, `get_natural_extension` |
 | parsers | a format | `register_natural_parser!(format, parse)` | `parse_natural_text`, `has_natural_parser`, `find_natural_parser` |
+| expressions | a format | `register_natural_expression!(format, make)` | `make_natural_expression`, `has_natural_expression` |
 | ladder | a pair of rungs | `register_natural_rung!(from, to, make)` | `make_natural_projection` |
 
-The parser is keyed by the format and not by a type, so a package can register a grammar without the projection that prints it. YAML uses this to read `.yml` with `register_natural_parser!(:yml, parse_yaml)`. The `make` of a `:graphics` notation takes `(; measure)`, the text measure of the backend, and the `make` of another notation takes no argument. The `make` of a ladder step always takes `(; measure)`. A row that is registered twice keeps the first, so a reload adds no copy. A lookup of a notation or a format takes the most derived registered type that the document is a subtype of, whatever the order of the registrations: a row on an abstract root answers for every document under it, and a row on a subtype answers for that subtype.
+The parser is keyed by the format and not by a type, so a package can register a grammar without the projection that prints it. YAML uses this to read `.yml` with `register_natural_parser!(:yml, parse_yaml)`. The expression of a format is keyed the same way, for a format that is code: `make(document)` gives the `Expr` that runs the document. The Julia domain registers `make_julia_expression`, and the evaluator of the conversation package runs a structured form through `make_natural_expression(:jl, form)` without depending on the Julia domain. The `make` of a `:graphics` notation takes `(; measure)`, the text measure of the backend, and the `make` of another notation takes no argument. The `make` of a ladder step always takes `(; measure)`. A row that is registered twice keeps the first, so a reload adds no copy. A lookup of a notation or a format takes the most derived registered type that the document is a subtype of, whatever the order of the registrations: a row on an abstract root answers for every document under it, and a row on a subtype answers for that subtype.
 
 `make_natural_projection(document, target)` builds the chain from the document up to `:syntax`, `:text`, `:graphics` or `:string`. It takes the highest rung that the document declares and for which the ladder has every step, and it considers `:graphics` only for a graphics target. The result is a `ChainingProjection` of `RecursiveProjection` stages, or `nothing` when no path exists. `print_natural_text(document)` is `make_natural_projection(document, :string)`, one print and a `String`.
 

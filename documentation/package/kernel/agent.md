@@ -29,7 +29,7 @@ on both.
 ```
 Tool.jl           Tool (an action), Resource (a read-only datum), MeaningModel, ToolSet
 ToolSet.jl        register / list / find / call — all on a ToolSet
-CodeExecution.jl  execute_julia_code, and its persistent scratch namespace
+CodeExecution.jl  execute_julia_code and execute_julia_expression, and their persistent scratch namespace
 SearchQuery.jl    what a search query says: keywords with classes, a pattern, a description
 Documentation.jl  guide / module / type / function docs, and search over them
 MeaningSearch.jl  the rank of a description by its meaning, and the stores of vectors
@@ -140,6 +140,12 @@ it wants. `nothing` with nothing printed answers "Done.", because an empty
 answer reads as a broken tool. A name that is not defined answers with the
 nearest declared names: a call to `plot_results` returns `make_result_plot`,
 the search that starts from a guess, done where the guess fails.
+
+`execute_julia_expression(set, target, expression)` runs code that is already an
+`Expr`, as `make_julia_expression` gives it, and shares everything with
+`execute_julia_code` except the parse: the scratch module, the `editor` binding,
+the answer and the notice to the observers. An object that the expression holds
+in a `QuoteNode` is used as that very object.
 
 **A description is ranked by its meaning.** When the `ToolSet` has a
 `MeaningModel`, the vector of the description and the vector of each entry or
