@@ -32,11 +32,11 @@
 """
     CLIPBOARD_GESTURES
 
-The six gestures a clipboard slice can offer, by name: `:toggle` (`Ctrl+/`),
-`:copy` (`Ctrl+C`), `:cut` (`Ctrl+X`), `:note` (`Ctrl+N`), `:paste` (`Ctrl+V`) and
-`:paste_copy` (`Ctrl+Shift+V`).
+The seven gestures a clipboard slice can offer, by name: `:toggle` (`Ctrl+/`),
+`:copy` (`Ctrl+C`), `:copy_reference` (`Ctrl+Shift+C`), `:cut` (`Ctrl+X`),
+`:note` (`Ctrl+N`), `:paste` (`Ctrl+V`) and `:paste_copy` (`Ctrl+Shift+V`).
 """
-const CLIPBOARD_GESTURES = (:toggle, :copy, :cut, :note, :paste, :paste_copy)
+const CLIPBOARD_GESTURES = (:toggle, :copy, :copy_reference, :cut, :note, :paste, :paste_copy)
 
 """
     ClipboardSliceToAnyProjection(; display_slice=false, to_text=nothing, from_text=nothing,
@@ -242,6 +242,58 @@ end
 # a range store its characters in the slice and on the system clipboard. A copy
 # at a caret has nothing to take, and goes on to the rules below.
 
+"""
+    CopyReferenceOperation(clipboard)
+
+`Ctrl+Shift+C`: copy the reference of the selected object, as Julia code that
+gives that object when an evaluator runs it:
+
+    evaluate_reference(editor.document, @reference(editor.document, <path>))
+
+The path is the complete selection, read from the root document of the editor
+when the operation runs. A selection that ends inside a text names the document
+that holds the text, so the code always gives an object. The code goes to the
+system clipboard and into the slice as text, so a paste at a caret types it, in
+this editor or in another program.
+
+It holds the clipboard and no path, so it travels up the chain unchanged.
+"""
+struct CopyReferenceOperation <: Operation
+    clipboard::ClipboardSlice
+end
+
+OperationModule.operation_travels_unchanged(::CopyReferenceOperation) = true
+
+# A copy writes the clipboard and no document, so there is nothing to undo.
+make_inverse_operation(document, ::CopyReferenceOperation) = DoNothingOperation()
+
+function evaluate_operation(editor, op::CopyReferenceOperation)
+    root = editor.document
+    selection = getfield(root, :selection)[]
+    selection isa Reference || return nothing
+    steps = collect(Any, get_reference_steps(strip_reference_types(selection)))
+    while !isempty(steps) &&
+          !(try_evaluate_reference(root, _make_steps_path(steps), missing) isa Document)
+        pop!(steps)
+    end
+    isempty(steps) && return nothing
+    text = make_reference_code(_make_steps_path(steps))
+    op.clipboard.slice = PrimitiveString(text)
+    write_os_clipboard!(text)
+    nothing
+end
+
+"""
+    make_reference_code(reference) -> String
+
+Julia code that gives the object `reference` names from the root document of an
+editor, in an evaluator where `editor` is bound. `reference` has no type
+checkpoints; `@reference` with the document types the path again.
+"""
+make_reference_code(reference) =
+    "evaluate_reference(editor.document, @reference(editor.document, " *
+    lstrip(sprint(show, reference), '.') * "))"
+
 function _text_target_paste(p, input)
     target = _find_text_target(input; writes = true)
     target === nothing && return nothing
@@ -389,7 +441,7 @@ end
 # ModifierKeys are matched exactly, so `Ctrl+Shift+V` (paste-copy) and `Ctrl+V`
 # (paste) are distinct — order between them is therefore immaterial.
 function get_projection_gesture_bindings(p::ClipboardSliceToAnyProjection, iomap)
-    named = (:toggle, :copy, :cut, :note, :paste_copy, :paste)
+    named = (:toggle, :copy, :copy_reference, :cut, :note, :paste_copy, :paste)
     GestureBinding[binding for (name, binding) in zip(named, _make_clipboard_bindings(p))
                    if name in p.offered_gestures]
 end
@@ -403,6 +455,10 @@ function _make_clipboard_bindings(p::ClipboardSliceToAnyProjection)
         GestureBinding(KeyDownPattern(:c; modifiers = [:ctrl]),
                        (doc, event) -> _clipboard_copy(p, doc); description = "Copy",
                        domain = "clipboard", name = "Copy"),
+        GestureBinding(KeyDownPattern(:c; modifiers = [:ctrl, :shift]),
+                       (doc, event) -> CopyReferenceOperation(doc);
+                       description = "Copy the reference of the selected object",
+                       domain = "clipboard", name = "Copy reference"),
         GestureBinding(KeyDownPattern(:x; modifiers = [:ctrl]),
                        (doc, event) -> _clipboard_cut(p, doc); description = "Cut",
                        domain = "clipboard", name = "Cut"),

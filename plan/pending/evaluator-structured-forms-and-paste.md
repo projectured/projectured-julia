@@ -334,7 +334,38 @@ what renders, through the window with a real `Editor`, as
   a hole of `get_document_title(_)`, press Enter, and check the result. Then
   call a function that changes the widget and check that the tab draws the
   change, which proves the form held the live object.
-- [ ] **Step 6. Copy reference (M4, M5).** The key, the operation, and the text.
+- [x] **Step 6. Copy reference (M4, M5).** *Done.* As built:
+  - `Ctrl+Shift+C` is the key `:copy_reference` of the clipboard, added to
+    `CLIPBOARD_GESTURES`, so every window that offers the default set offers it;
+    the modifiers of a clipboard key match exactly, so `Ctrl+C` does not take it.
+  - `CopyReferenceOperation(clipboard)` holds the clipboard document and no
+    path, travels up unchanged, and has no inverse to undo (a copy writes no
+    document). At evaluation it reads the complete selection from
+    `editor.document`, drops the steps at the end until the path names a
+    document (a caret inside a text names the document that holds the text),
+    and writes the code into the slice as a `PrimitiveString` and onto the
+    system clipboard.
+  - **M5 needed no new printer.** The `show` of a reference without its type
+    checkpoints, less its leading dot, is `@reference` code. The one-argument
+    `@reference(path)` refuses it as under-typed; the two-argument
+    `@reference(editor.document, path)` types it against the document. The code
+    is `evaluate_reference(editor.document, @reference(editor.document, …))`,
+    made by `make_reference_code`. Measured in the window: it gives the selected
+    object itself (`===`).
+  - **Found, not from this branch:** a tool that the toolbar opens leaves the
+    complete selection unwritten from the root. Keys still reach its form,
+    because they follow the pane's focus, but the clipboard reads the complete
+    selection, so `Ctrl+V` of text into a fresh evaluator form does nothing until
+    a click writes the selection. It is the subject of the rule
+    `PAR-SELECTION-WRITTEN-AT-ROOT` and of the worktree `selection-root`. The
+    window test clicks on a typed character before it pastes, and says why.
+  - Tests: through the window, Alt+click selects a file, `Ctrl+Shift+C` copies
+    its reference, `Ctrl+V` types the code into a form, and Enter answers the
+    file itself; in `test_clipboard()`, a caret inside a text names the document
+    that holds it, and the code gives that document where `editor` is bound. A
+    stub clipboard keeps the machine's clipboard untouched.
+    `test_application()` and `test_clipboard()` pass.
+  Originally: The key, the operation, and the text.
   Test: pasted into a string form and evaluated, the reference gives the
   selected object itself (`===`).
 - [ ] **Step 7. The package documents** of the conversation, the clipboard and

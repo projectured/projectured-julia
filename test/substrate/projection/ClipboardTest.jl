@@ -682,7 +682,35 @@ end
     @test read_intent(p, iomap, KeyDown(:n, ctrl)) isa CompoundOperation
     @test read_intent(p, iomap, KeyDown(:v, ctrl)) isa CompoundOperation
     @test read_intent(p, iomap, KeyDown(:v, ctrl_shift)) isa CompoundOperation
-    @test Set(CLIPBOARD_GESTURES) == Set((:toggle, :copy, :cut, :note, :paste, :paste_copy))
+    @test Set(CLIPBOARD_GESTURES) ==
+              Set((:toggle, :copy, :copy_reference, :cut, :note, :paste, :paste_copy))
+end
+
+@testset "Ctrl+Shift+C copies the reference of the selected object as code" begin
+    buffer = Ref("")
+    set_os_clipboard_backend!(read = () -> buffer[], write = text -> (buffer[] = text; true))
+    try
+        slice = ClipboardSlice(PrimitiveString("abc"))
+        p = ClipboardSliceToAnyProjection()
+        iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
+        operation = read_intent(p, iomap, KeyDown(:c, ModifierKeys(ctrl = true, shift = true)))
+        @test operation isa CopyReferenceOperation
+        # A caret inside the text names the document that holds the text.
+        set_selection!(slice, ConcreteReference(FieldReferenceStep("content"),
+            ConcreteReference(FieldReferenceStep("value"),
+                ConcreteReference(RangeReferenceStep(1, 1), EmptyReference()))))
+        editor = (document = slice,)
+        evaluate_operation(editor, operation)
+        @test buffer[] == "evaluate_reference(editor.document, @reference(editor.document, content))"
+        @test slice.slice isa PrimitiveString && slice.slice.value == buffer[]
+        # The code gives the object where `editor` is bound, as in an evaluator.
+        scratch = Module()
+        Core.eval(scratch, :(using ProjecturedKernel.ReferenceModule))
+        Core.eval(scratch, :(editor = $(QuoteNode(editor))))
+        @test Core.eval(scratch, Meta.parse(buffer[])) === slice.content
+    finally
+        reset_os_clipboard_backend!()
+    end
 end
 
 @testset "an operation from the content is re-rooted under it" begin

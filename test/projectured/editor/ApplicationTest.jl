@@ -550,6 +550,59 @@ function test_application()
                 @test !any(text -> occursin("Alice", text), texts)
             end
 
+            @testset "Copy reference pastes code into a form that gives the selected object" begin
+                # The system clipboard of the machine is left alone.
+                buffer = Ref("")
+                set_os_clipboard_backend!(read = () -> buffer[], write = text -> (buffer[] = text; true))
+                try
+                    document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                    editor = Editor(ConsoleBackend(), scene, composed,
+                                    Device[Display(), Keyboard(), Mouse()])
+                    editor.iomap = iomap
+                    press!(event) = begin
+                        operation = _app_fire(composed, editor.iomap, event)
+                        operation isa Operation && evaluate_operation(editor, operation)
+                        operation
+                    end
+                    drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
+                    selected() = try_evaluate_reference(scene, getfield(scene, :selection)[], missing)
+                    copy_reference!() = _app_plain(press!(KeyDown(:c, ModifierKeys(ctrl = true, shift = true))))
+                    (ax, ay) = first((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
+                    # Alt+click selects the file whole, and Ctrl+Shift+C copies its
+                    # reference as code.
+                    press!(MousePress(:left, ax + 5, ay + 5, 1, ModifierKeys(alt = true)))
+                    file = selected()
+                    @test file isa JsonFile
+                    @test copy_reference!() isa CopyReferenceOperation
+                    @test startswith(buffer[], "evaluate_reference(editor.document, @reference(editor.document, ")
+                    code = buffer[]
+                    # Ctrl+V at the caret of a form types the code, and Enter gives the
+                    # file itself.
+                    toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
+                    button = only(item for item in toolbar.elements
+                                  if string(item.action.label) == "Evaluator")
+                    evaluate_operation(editor, InvokeActionOperation(button.action))
+                    (group, index) = get_pane_focus(_app_window(document))
+                    evaluator = get_wrapped_document(group.tabs[index].content)
+                    # A tool that the toolbar opens leaves the complete selection
+                    # unwritten from the root, and the clipboard reads that selection.
+                    # A click on typed text writes it: type a character, click after
+                    # it, and delete it again.
+                    press!(KeyPress('q'))
+                    (qx, qy) = only((x, y) for (text, x, y) in drawn() if text == "q")
+                    press!(MousePress(:left, qx + 8, qy + 5, 1, ModifierKeys()))
+                    press!(KeyDown(:backspace, ModifierKeys()))
+                    @test evaluator.elements[1].form.value == ""
+                    press!(KeyDown(:v, ModifierKeys(ctrl = true)))
+                    @test evaluator.elements[1].form.value == code
+                    press!(KeyDown(:return, ModifierKeys()))
+                    @test !evaluator.elements[1].is_error
+                    @test evaluator.elements[1].result === file
+                finally
+                    reset_os_clipboard_backend!()
+                end
+            end
+
             @testset "an evaluated form draws as Julia, and a form with a comment as typed" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = Editor(ConsoleBackend(), scene, composed,
