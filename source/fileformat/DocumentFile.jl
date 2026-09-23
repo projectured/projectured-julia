@@ -164,9 +164,12 @@ end
     ReloadFileOperation(file)
 
 Re-read `file`'s own name from disk and swap the result into its `content` (a
-reactive write, so the projection re-renders). The selection is cleared since
-the old one pointed into the replaced content. A non-existent file re-seeds
+reactive write, so the projection re-renders). A non-existent file re-seeds
 the extension's insertion placeholder.
+
+It writes no selection. Ctrl+O answers it together with a selection of the whole
+file, which every reader above makes a path from the root, because the old
+selection pointed into the replaced content.
 """
 struct ReloadFileOperation <: Operation
     file::FileDocument
@@ -178,13 +181,15 @@ function evaluate_operation(editor, op::ReloadFileOperation)
     # new document; a plain content is replaced outright.
     file.content = replace_wrapped_document!(get_file_content(file),
                                              read_document_file(get_filename(file)))
-    file.selection = nothing
+    nothing
 end
 
 # Both commands need a name; decline (no binding fires) when the file has
 # none — a "Save As" path picker for unnamed files is future work.
 _save_file(doc::FileDocument)   = isempty(get_filename(doc)) ? nothing : SaveFileOperation(doc)
-_reload_file(doc::FileDocument) = isempty(get_filename(doc)) ? nothing : ReloadFileOperation(doc)
+_reload_file(doc::FileDocument) =
+    isempty(get_filename(doc)) ? nothing :
+        CompoundOperation(Any[ReloadFileOperation(doc), ReplaceSelectionOperation(EmptyReference())])
 
 @gestures FileDocument begin
     KeyDown(:s; ctrl) => "Save file to disk"     => _save_file(doc)
