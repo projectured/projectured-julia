@@ -148,7 +148,22 @@ saves.
 `layout_graph` and `sync_document!` stay on the ledger for wave 3: both are
 wide constructors of a tuple, not a list of options.
 
-### Wave 3: the constructors and the wide tuples — IN PROGRESS
+### Wave 3: the constructors and the wide tuples — DONE
+
+**Done, 2026-09-23.** No public definition is over the line any more: public
+13 → 0, every definition over the limit 787 → 779, of them 347 protocol methods
+and 74 with a marker. The 360 left are private helpers, and wave 4 holds them.
+
+The suites that cover the changed slices keep their known results:
+`test_substrate()` 3 failures and 2 errors of the split-pane drag, and
+`test_sql()`, `test_book()`, `test_xml()`, `test_json()`, `test_yaml()`,
+`test_markdown()`, `test_chart()`, `test_sequencechart()`, `test_graph()`,
+`test_sdl()`, `test_gesture_log()`, `test_application()`, `test_arguments()` and
+the fault suite (85 of 85) all pass. In omnet-julia, against this branch, the
+result-frame, NED, filter and workflow tests pass except
+`test_filter_run_table_bounded`, which fails the same way (3 failures, 1 error)
+with both repositories at main.
+
 
 **Measured 2026-09-23, after wave 2.** Seven names were left on the ledger,
 thirteen definitions. The first estimate of this section counted every call of
@@ -209,7 +224,9 @@ Steps:
 - [x] 5. `WidgetTable`: one keyword constructor; move the three tests.
 - [x] 6. The ledger is empty, and the guard loses it: §4 of the rule, the guard,
   `test_arguments()` and the survey tool say so.
-- [ ] 7. omnet-julia: the five calls, on a branch.
+- [x] 7. omnet-julia: the five calls, on the branch `keyword-wave3` of its own
+  worktree, in two commits: four calls that work with projectured-julia's main,
+  and the list table, which needs this wave and lands after it.
 
 ### Wave 4: the private helpers, deferred
 
