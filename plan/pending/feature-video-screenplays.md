@@ -62,6 +62,17 @@ What F1 blocks: every screenplay whose keys go into a file tab, which is S3 in t
 
 **F2. After a string value, `Right` then `,` inserts nothing.** This is the rule the `json_build` live example is built on. A replay of its timeline today: 192 of its 210 keys answer no operation, and the document stops at `{"name": "Alice"}`. `Alt+Up` in place of the `Right` works, and the same build then runs with no dead key.
 
+**F4. A callback made in the evaluator can not be called.** A button built in the evaluator with `action = () -> presses[] += 1` lights up under the pointer, and its press routes: the reader answers an operation. The action never runs. Called by hand, the callback says:
+
+```
+MethodError: no method matching (::Main.ToolScratch.var"#2#3")()
+  (method too new to be called from this world context.)
+```
+
+The closure belongs to the world of the evaluator, and the editor calls it from code compiled before that world. The fault barrier catches it, so the window shows nothing at all. The same closure works in a plain session: the label follows the cell, and `callback()` counts. So a widget that a person builds in the evaluator, or that the assistant builds with `execute_julia_code`, can draw and can not act.
+
+**F5. Not proven: a drag of a slider and a character in a text field.** In the harness neither changed the document, but the coordinates there are computed and not read from a frame, so this is not evidence. It waits for the overlay of G3, which draws the pointer and makes a miss visible.
+
 **F3. A nested container is never left.** Inside `"address": { … }`, an `Alt+Up` once, twice or three times does not bring the caret back to the root object. The next entry lands inside the nested object again. The live example uses `Alt+Up` four times for exactly this, so F3 is the other half of what broke it.
 
 The `json_build` recording of Step 0 produced a file of the right length, which is why the baseline called it good. The file shows a document that stops after one entry. §7 Step 0 says so now.
@@ -195,28 +206,35 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 
 - **Feature:** a widget is a document. The evaluator makes one, a tab shows it, and each `push!` adds a widget to the tab while it runs. A widget that reads a cell follows it with no callback.
 - **Claim:** you can design a tool window without a GUI toolkit.
-- **Setup:** `bin/projectured` with no file, 1280×720. The evaluator is on the left. Beat 4 opens the tool in a tab on the right.
-- **Beats:** each form is typed and runs on Enter.
+- **Setup:** `bin/projectured notes.json`, 1280×720. The file gives the window a wide pane, and the evaluator opens beside it with `Ctrl+T`, `Insert`, `repl`. With no file, a new tab lands in the narrow column of the navigator.
+- **Beats, as the take of 2026-09-22 runs them.** Each form is typed and runs on Enter. A form that changes the tool ends with `tool`, so the newest result row shows the whole tool, as S1 does with its canvas.
 
-| # | Action | On the screen | Caption |
-| --- | --- | --- | --- |
-| 1 | Type `repl` into the empty tab, Enter. | The evaluator. | |
-| 2 | `presses = Cell(0)` | A `=` row shows the cell. | |
-| 3 | `button = WidgetButton(Point2D(0, 0), Point2D(160, 36), "Press me"; action = () -> presses[] += 1)` | The button draws in the result row. | A widget is a document. It draws as itself. |
-| 4 | `tool = WidgetComposite(Point2D(0, 0), [button])`, then `open_pane!(editor, tool; title = "My tool")` | A tab "My tool" opens on the right, with the button in it. | |
-| 5 | `push!(tool.elements, WidgetLabel(Point2D(0, 0), () -> "Pressed $(presses[]) times"))` | "Pressed 0 times" appears under the button. | A `push!` adds a widget to the running tool. |
-| 6 | The pointer clicks the button three times. | The label counts to 3. | A click writes the cell. The label reads it. |
-| 7 | `slider = WidgetSlider(Point2D(0, 0), 0.3)`, a `push!` of it, and a `push!` of `WidgetProgress(Point2D(0, 0), () -> slider.value)` | A slider and a progress bar at 30 %. | |
-| 8 | The pointer drags the slider. | The progress bar follows the slider. | No callback. The bar reads the slider. |
-| 9 | `name = WidgetText(Point2D(0, 0), "Ada")`, a `push!` of it, and a `push!` of `WidgetLabel(Point2D(0, 0), () -> "Hello, $(name.content)")` | A text field with "Ada", and "Hello, Ada" under it. | |
-| 10 | Click into the text field, and type a new name. | The greeting changes with each character. | |
-| 11 | Hold 3 s on the finished tool. | | A tool window, built while it runs. |
+| # | The form | On the screen |
+| --- | --- | --- |
+| 1 | `presses = Cell(0)` | a `=` row |
+| 2 | `live(text) = set_cell_function!(WidgetLabel(Point2D(0, 0), ""), text)` | the helper that makes a label follow a thunk |
+| 3 | `button = WidgetButton(Point2D(0, 0), Point2D(160, 36), "Press me"; action = () -> presses[] += 1)` | the button draws in the result row |
+| 4 | `tool = VerticalLayout(Any[button]; gap = 12)` | the tool, with one widget |
+| 5 | `push!(tool.children, live(() -> "Pressed $(presses[]) times")); tool` | the label under the button |
+| 6 | `slider = WidgetSlider(Point2D(0, 0), 0.3); push!(tool.children, slider); tool` | the slider |
+| 7 | `push!(tool.children, live(() -> "Slider at $(round(slider.value; digits = 2))")); tool` | the label that reads the slider |
+| 8 | `name = WidgetText(Point2D(0, 0), "Ada"); push!(tool.children, name); tool` | the text field |
+| 9 | `push!(tool.children, WidgetTable(Point2D(0, 0), ["what", "value"], [["presses", live(…)], ["slider", live(…)], ["name", live(…)]])); tool` | the table, whose value cells are live labels |
+| 10 | `presses[] = 3; tool` | the label and the table say 3 |
+| 11 | `slider.value = 0.8; tool` | the knob moves, and the label and the table say 0.8 |
+| 12 | `name.content = "Ada Lovelace"; tool` | the field and the table say the new name |
+| 13 | `open_pane!(editor, tool; title = "My tool")` | the tool takes a tab of its own |
+
+- **The take of 2026-09-22.** 1280×720, 166 s, 1.3 MB. The script is `tool/video/record_widget_tool.jl`.
+
+  What the work settled: a `WidgetComposite` puts every element at one place, so the table covers the rest; the column is `VerticalLayout(Any[…]; gap)`, and its field is `children`. A thunk passed to `WidgetLabel` is drawn as the function, so a live label is made with `set_cell_function!`. `WidgetProgress` takes a number and no function, so the video uses a second live label in its place. `open_pane!` moves the focus to the new tab, so it comes last, after the typing is done.
+
+- **The pointer beats wait for F4.** Beats 6, 8 and 10 of the first draft (three presses of the button, a drag of the slider, a character in the field) are not in this take. The button lights up under the pointer, and its action never runs, because the closure belongs to the world of the evaluator (F4 of §2.4). The take shows the same reactivity with a write from the evaluator, which is beats 10 to 12.
 
 - **Acceptance:**
-  - The step writes the real forms into this table. The field names `slider.value` and `name.content`, the layout of `WidgetComposite` as a column, and the placement of the new tab on the right are guesses from `source/widget/WidgetDocument.jl`. The step checks each one.
-  - A click on the button, a drag of the slider and the type-in of the text field work in the recording, with the pointer of G3.
-  - If a widget in a result row of the evaluator does not draw as itself, beat 3 shows the button first in the tab of beat 4.
+  - Every form runs with no error, which a headless replay checks before the recording.
   - The video lasts at most 3 min (D5).
+  - When F4 is fixed, the pointer beats come back, and the writes of beats 10 to 12 make way for them.
 
 ### Tier 2
 
@@ -338,9 +356,10 @@ The number of the frames follows the wall clock, so one second of the session is
 
 ### Step 4: S4, a tool window from widgets
 
-- [ ] Write the real forms of the beats, test each one in the evaluator of the application, and record them in §5.
-- [ ] Check the click, the drag and the type-in of beats 6, 8 and 10 in a recording.
-- [ ] Write the timeline, record, and give the video to the owner.
+- [x] Write the real forms of the beats, test each one in the evaluator of the application, and record them in §5.
+- [x] Check the click, the drag and the type-in. The click routes and the action never runs (F4), so the take writes the cells from the evaluator instead.
+- [x] Write the timeline, record, and give the video to the owner: 166 s, 2026-09-22.
+- [ ] When F4 is fixed, record again with the pointer beats.
 
 ### Step 5: the real model in a take
 
