@@ -124,6 +124,37 @@ Decided by the owner on 2026-09-23:
   place, the operation is the answer from below, which is what
   `Intent.operation` means now. From there up, every reader does what it does
   now.
+- **The route is a separate field of `Intent`.** It is not put in the gesture
+  slot.
+- **The route goes down by forward mapping, and the operation comes up by
+  backward mapping.** A reader that passes the `Intent` to a child gives it the
+  route that remains below that child: it drops its own step, or, in a chain, it
+  maps the route through the earlier stages with `map_reference_forward`, as the
+  printer does. When the route that remains for a child is empty, that child is
+  the place: the parent does not call it, and takes the operation as its answer.
+- **The first slice is small.** Only the readers from the root to the pane tree,
+  for `focus_pane!` alone, to see how it goes before the other readers.
+- **The verbs take and return references from the root (option B).** The code
+  that makes a reference for a caller makes it from the root, so a verb does not
+  need to find the path itself.
+- **A program concatenates the two paths itself (option 3).** `window` is the
+  path from the root to the tree, and the path in the tree is typed against the
+  tree object, as now:
+
+  ```julia
+  window = get_window_tree_reference(editor)
+  tree   = get_window_tree(editor)
+  where  = concat_references(window, @reference(tree, root.elements[1].tabs[1]))
+  ```
+
+  A caller that already has a typed reference concatenates it with no tree
+  object. A caller that writes a path by hand needs the tree object to type it.
+  The typing keeps the stale check of `_refuse_stale`.
+- **`get_window_tree_reference(editor)` is a new function in the pane slice**
+  beside `get_window_tree`. It follows the same descent (the first window, then
+  each wrapper through `get_wrapped_document`) and names each step by identity:
+  the index of the window, and the field of the wrapper that holds the next
+  node. It looks at one level at a time and walks no content of a tab.
 
 Kept from the first version of this plan:
 
@@ -177,8 +208,7 @@ while the editor evaluates another operation.
      called: the parent takes the operation as the answer of that child. In a
      chain, the later stages are not called: the chain starts at the stage
      whose output is the place.
-   - **Where the route lives.** Most likely a field of `Intent`, or the
-     gesture slot, which is free when the gesture is `nothing`.
+   - ~~Where the route lives.~~ Decided: a separate field of `Intent` (§3).
    - **What the gesture log records.** It keeps every operation that is not a
      selection move, so a verb's operation appears with an empty gesture.
 4. **Part 2 is separate.** An evaluation that writes a selection below the root
@@ -190,8 +220,55 @@ while the editor evaluates another operation.
 
 ## 6. Steps
 
-No step is approved to start. Each step needs the owner's word first. Step 2
-and Step 3 are an outline.
+Step 1b is approved to start (2026-09-23). The other steps need the owner's
+word first. Step 2 and Step 3 are an outline.
+
+### Step 1b — the first slice: `focus_pane!` through the readers to the tree
+
+The readers from the root to the pane tree, measured on 2026-09-23 in the
+window as the binary opens it (the iomap chain from the root to the iomap whose
+input is the tree):
+
+```
+ 1  ReferenceDispatchingProjection     ScreenDocument   → inner_iomap
+ 2  WindowManagingProjection           ScreenDocument   → inner_iomap
+ 3  WidgetPopupResolverProjection      ScreenDocument   → child_iomap
+ 4  ScreenToScreen                     ScreenDocument   → window_iomaps[1]
+ 5  ScreenToScreen                     WindowDocument   → content_iomap
+ 6  ReferenceDispatchingProjection     ClipboardSlice   → inner_iomap
+ 7  NestingProjection                  ClipboardSlice   → child_iomap
+ 8  GestureLogRecordingProjection      ClipboardSlice   → inner_iomap
+ 9  CommandPaletteDecoratorProjection  ClipboardSlice   → inner_iomap
+10  GestureHelpDecoratorProjection     ClipboardSlice   → inner_iomap
+11  ContextMenuProbeProjection         ClipboardSlice   → child_iomap
+12  ChainingProjection                 ClipboardSlice   → step_iomaps[2]  (stage 1 the clipboard, stage 2 the rest)
+13  NestingProjection                  WidgetShell      → child_iomap
+14  SelectionWalkingProjection         WidgetShell      → child_iomap
+15  WidgetHoverTrackingProjection      WidgetShell      → child_iomap
+16  WidgetShellToGraphicsCanvas        WidgetShell      → child_iomaps[3][3]
+17  NestingProjection                  UndoBuffer       → child_iomap
+18  UndoBufferToAnyProjection          UndoBuffer       → content_iomap
+19  ChainingProjection                 PaneTree         ← the place: not called
+```
+
+Four of them choose among children: the popup resolver (3), the screen (4),
+the chain (12) and the shell (16). The others pass the `Intent` to one inner
+iomap. The clipboard is stage 1 of chain 12, so the route is mapped forward
+through it before stage 2 gets it, and on the way up the clipboard reroots
+`content` as it does now.
+
+- [ ] Make the `Intent` struct change first, before a warm session loads it:
+      the `route` field, and the constructors and `with_intent_labels` keep it.
+- [ ] `get_window_tree_reference(editor)`.
+- [ ] The readers 1 to 18 follow the route on the way down and do not take the
+      operation until it comes back up.
+- [ ] `focus_pane!` takes a reference from the root, sends
+      `Intent(nothing, operation; route)` through `editor.projection`, and
+      evaluates the answer against the editor.
+- [ ] Test, in the window as the binary opens it: after `focus_pane!` on the
+      navigator, every level holds its suffix of one path, and Ctrl+C copies
+      the navigator. The rooted operation is the same one that a press on the
+      same tab makes.
 
 ### Step 0 — facts
 
