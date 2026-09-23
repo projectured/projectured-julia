@@ -278,7 +278,16 @@ what renders, through the window with a real `Editor`, as
   Originally: Test on the Julia
   examples: for each, the `Expr` of the parsed document equals `Meta.parseall`
   of its text, apart from line numbers.
-- [ ] **Step 4. The evaluator runs an `Expr` (M3).** Test: the output and the
+- [x] **Step 4. The evaluator runs an `Expr` (M3).** *Done.* As built: the body
+  of `execute_julia_code` after the parse moved into a private
+  `_run_expression(set, target, make_expression)`, which both entry points call;
+  `execute_julia_expression(set, target, expression)` passes its `Expr`, and the
+  text entry passes `Meta.parseall(code)`. Each logs its own call and result.
+  `CodeExecution.jl` and `ToolModule.jl` are marked `⬜` in `SEALING.md`, not
+  sealed. Tests: `test_code_execution()` passes with a new case (the same answer
+  and the same binding as text, an object in a `QuoteNode` as itself, a failure
+  answered); `test_kernel()` keeps its known 3 failures and 3 errors.
+  Originally: Test: the output and the
   scratch module state are the same as for the same code as text.
 - [ ] **Step 5. An object in a form (M1).** Note a widget in a tab, paste it into
   a hole of `get_document_title(_)`, press Enter, and check the result. Then

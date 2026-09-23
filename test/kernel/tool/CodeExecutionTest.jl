@@ -43,6 +43,21 @@ function test_code_execution()
         @test startswith(printed, join(string.(1:300), '\n') * "\nThe last value is NTuple")
     end
 
+    @testset "an Expr runs as its text does" begin
+        # A second tool set, so the two ways run from the same empty state.
+        other = ToolSet(; api = Module[NearToy])
+        @test execute_julia_expression(other, nothing, Meta.parseall("z = 40 + 2")) ==
+              run("z = 40 + 2") == "42\n"
+        # The binding stays in the scratch module, as a binding from text does.
+        @test execute_julia_expression(other, nothing, :(z + 1)) == "43\n"
+        # An object in a QuoteNode is that very object.
+        object = Ref(7)
+        execute_julia_expression(other, nothing, Expr(:toplevel, QuoteNode(object)))
+        @test get_last_evaluated_value(other) === object
+        # A failure is answered, not thrown.
+        @test occursin("UndefVarError", execute_julia_expression(other, nothing, :(no_such_name_q)))
+    end
+
     @testset "nothing is Done., unless the code printed" begin
         @test run("nothing") == "Done."
         @test run("x = 3; nothing") == "Done."

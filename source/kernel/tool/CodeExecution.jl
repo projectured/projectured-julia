@@ -162,12 +162,37 @@ function execute_julia_code(set::ToolSet, target, code)
         @info "[tool] execute_julia_code result" answer
         return answer
     end
+    # parseall handles code of several lines
+    output = _run_expression(set, target, () -> Meta.parseall(code))
+    @info "[tool] execute_julia_code result" output
+    output
+end
+
+"""
+    execute_julia_expression(set, target, expression) -> String
+
+[`execute_julia_code`](@ref) for code that is already an `Expr`, such as
+`Meta.parseall` or `make_julia_expression` gives: the same scratch module, the
+same `editor` binding, the same answer, and the same notice to the observers. An
+object that the expression holds in a `QuoteNode` is used as that very object.
+"""
+function execute_julia_expression(set::ToolSet, target, expression)
+    @info "[tool] execute_julia_expression call" expression
+    set.last_value = nothing
+    output = _run_expression(set, target, () -> expression)
+    @info "[tool] execute_julia_expression result" output
+    output
+end
+
+# Everything an evaluation does after the parse. `make_expression` runs inside
+# the guard, so a failure to make the expression is answered like any other.
+function _run_expression(set::ToolSet, target, make_expression::Function)
     output = try
         m = _scratch_module(set)
         # (Re)bind `editor` each call, so user code can reference it and so it
         # always tracks the current target.
         Core.eval(m, :(editor = $(QuoteNode(target))))
-        expr = Meta.parseall(code)          # parseall handles multi-line code
+        expr = make_expression()
 
         stdout_pipe = Pipe()
         stderr_pipe = Pipe()
@@ -200,7 +225,6 @@ function execute_julia_code(set::ToolSet, target, code)
     catch e
         sprint(showerror, e, catch_backtrace()) * _suggest_nearest_names(e, set)
     end
-    @info "[tool] execute_julia_code result" output
     _notify_evaluation(set)
     output
 end
