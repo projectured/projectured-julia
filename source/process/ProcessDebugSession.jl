@@ -105,7 +105,7 @@ function toggle_breakpoint!(session::ProcessDebugSession, node)
 end
 
 """
-    set_process_position!(session, model, node, previous) -> session
+    set_process_position!(session, model; node, previous) -> session
 
 Move the session to node index `node`, coming from `previous`, resolving both
 against `model`. The only place the index and document representations of a
@@ -113,7 +113,7 @@ position are written, so a view reading either sees the same thing. An index
 naming nothing (0, out of range, a node that has since moved) resolves to
 `nothing`, which every view draws as no highlight at all.
 """
-function set_process_position!(session::ProcessDebugSession, model, node, previous)
+function set_process_position!(session::ProcessDebugSession, model; node, previous)
     session.node = Int(node)
     session.previous = Int(previous)
     session.current = model === nothing ? nothing : find_node_at_index(model, Int(node))
@@ -159,11 +159,11 @@ function sync_process_debug!(session::ProcessDebugSession, trace::ProcessTrace,
 
     if model !== nothing && is_stale(session, model)
         session.status = :stale
-        set_process_position!(session, model, 0, 0)
+        set_process_position!(session, model; node = 0, previous = 0)
         return session
     end
 
-    set_process_position!(session, model, trace.node, trace.previous)
+    set_process_position!(session, model; node = trace.node, previous = trace.previous)
     session.step_count = trace.step_count
     session.locals = trace.locals
     session.status = trace.finished ? :finished : trace.paused ? :paused : :running
@@ -178,7 +178,7 @@ Forget a run: no position, no status, no staleness stamp. The breakpoints stay
 """
 function detach_process_debug!(session::ProcessDebugSession)
     session.status = :detached
-    set_process_position!(session, nothing, 0, 0)
+    set_process_position!(session, nothing; node = 0, previous = 0)
     session.step_count = 0
     session.locals = nothing
     session.node_count = 0
