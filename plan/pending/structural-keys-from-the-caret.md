@@ -69,6 +69,16 @@ holds the position and lets that child map it, so the step is made by the
 innermost printer of the position, and each level above reroots it under its own
 steps.
 
+As built (Step 2): the template child delegations use one helper,
+`_map_child_backward`. When a child can not map a position of its own output and
+its wiring prints parts of its own (a node wiring), the helper makes the child's
+own introduced step, and the parent prepends its path as for any other answer.
+The `SubNodeSlot` delegation keeps its own handling, because a sub-node shares
+the input of its parent. The syntax layer is not changed: a caret in the
+indentation of a line stays a flat offset at the level that widens the
+indentation. That level prints the widened spaces, so the rule of D2 already
+holds there.
+
 ### 3.3 D3, in the JSON rules
 
 The `,` rule of `JsonObject` and of `JsonArray` declines when the node's own
@@ -111,8 +121,27 @@ parent entry and the parent container, whose `,` rule answers.
       known empty containers. The docstring of the chain reader already promised
       this ("a `,` on a delimiter where the text edit would die becomes a JSON
       sibling insert"), and it gained the paragraph that states the rule.
-- [ ] Step 2: D2 in the fallbacks, with a test that the caret after a nested value
+- [x] Step 2: D2 in the fallbacks, with a test that the caret after a nested value
       and on a nested closing brace is recorded at the nested node.
+      `_map_child_backward` in `ProjectionTemplate.jl`. The probe
+      (`build/video/probe_json_close.jl`) over `{"a": {"b": "x"}}`, with `Right`
+      from `x│`:
+
+      | Press | The caret | `,` adds an entry to |
+      | --- | --- | --- |
+      | 1 | `.entries[1].value·proj(JsonObjectToSyntaxNode, ·proj(SyntaxCompoundToText, {12}))`, after `"x"` | the nested object |
+      | 2, 3 | `·proj(JsonObjectToSyntaxNode, ·proj(SyntaxCompoundToText, {24}))`, `{25}`, the indentation before the nested `}` | the root |
+      | 4 | `.entries[1].value·proj(JsonObjectToSyntaxNode, .close{0})`, before the nested `}` | the nested object (D3 changes this) |
+      | 5 | `·proj(JsonObjectToSyntaxNode, ·proj(SyntaxCompoundToText, {27}))`, after the nested `}` | the root |
+      | 6 | `·proj(JsonObjectToSyntaxNode, .close{0})`, before the root `}` | the root |
+
+      The testset `json/caret-only` builds `{"a": {"b": "x", "c": 1}}` with a `,`
+      after `"x"` and `Right`; `test_json_construct()` passes 23 with 2 broken.
+      `test_json` 194 pass; `test_kernel` 2059 pass, 3 fail, 3 error, as the
+      baseline. Navigation: `json_example` 546 pass; `xml_example` 1462 pass,
+      37 fail, where the 37 unreached positions are the same as in the baseline and
+      the 12 more positions it now enumerates are all reached; `julia_example` 84
+      pass, 28 fail, the same 28 positions.
 - [ ] Step 3: D3 in the JSON rules, with a test for `,` after a nested `}`.
 - [ ] Step 4: the `json_build` live example builds its document with `Right` and no
       `Alt+Up`, and its test replays it.

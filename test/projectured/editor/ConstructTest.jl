@@ -498,6 +498,14 @@ function test_json_construct()
             @test isempty(compare_content(doc, JsonObject("name" => JsonString("Alice"),
                                                           "age" => JsonNumber(30),
                                                           "city" => JsonString("W"))))
+            # The caret after a nested value belongs to the nested object, which
+            # printed the delimiter under it, so the `,` adds the entry there.
+            (doc, answered) = build(vcat(
+                [KeyPress('{')], chars("a"), [tab, KeyPress('{')], chars("b"), [tab, KeyPress('"')],
+                chars("x"), [right, KeyPress(',')], chars("c"), [tab], chars("1")))
+            @test all(answered)
+            @test isempty(compare_content(doc, JsonObject("a" => JsonObject("b" => JsonString("x"),
+                                                                             "c" => JsonNumber(1)))))
         end
 
         # @broken: authoring gap — an empty [] / {} is unreachable by typing (creation

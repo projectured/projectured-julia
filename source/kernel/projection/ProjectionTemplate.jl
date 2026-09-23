@@ -734,6 +734,21 @@ function map_reference_forward(p::Projection, iomap::RuleIoMap, reference)
     _typed_generic(r, iomap.output)
 end
 
+# A node wiring prints parts of its own (delimiters, separators, layout), which a
+# reference can reach and which have no input pre-image.
+const _INTRODUCING_WIRINGS = Union{NodeWiring,MixedNodeWiring,InlineWiring,SectionsWiring,
+                                   FixedNodeWiring,ConditionalNodeWiring}
+
+# A child maps a position of its own output back to its input. A position that the
+# child can not map is a part that its own projection printed, so the step that names
+# it stands at the child: as late in the reference as it can, never at an ancestor.
+function _map_child_backward(child, reference)
+    inner = map_reference_backward(child.projection, child, reference)
+    inner === nothing || return inner
+    (child isa RuleIoMap && child.wiring isa _INTRODUCING_WIRINGS) || return nothing
+    return make_introduced_reference(child.projection, child.input, reference)
+end
+
 function map_reference_backward(p::Projection, iomap::RuleIoMap, reference)
     w = iomap.wiring
     r = w isa AtomicWiring    ? _atomic_backward(p, w, reference) :
@@ -839,8 +854,7 @@ function _node_backward(p, w, iomap, reference)
             child_i = after.head.start + 1
             ims = iomap.child_iomaps
             1 <= child_i <= length(ims) || return nothing
-            child = ims[child_i]
-            inner = map_reference_backward(child.projection, child, after.tail)
+            inner = _map_child_backward(ims[child_i], after.tail)
             inner === nothing && return nothing
             # Structural boundary: emit a clean, checkpoint-free input path (matches the
             # canonical walk and what clicks produce), so navigation reaches every
@@ -912,8 +926,7 @@ function _slots_backward(slots, project_child, children_field, intype, reference
                 end
                 return nothing
             elseif slot isa ProjectSlot
-                child = project_child(slot.in_field)
-                inner = map_reference_backward(child.projection, child, leaf_path)
+                inner = _map_child_backward(project_child(slot.in_field), leaf_path)
                 inner === nothing && return nothing
                 return _prepend(inner, FieldReferenceStep(String(slot.in_field)))
             elseif slot isa SubNodeSlot
@@ -1024,8 +1037,7 @@ function _mixed_backward(p, w, iomap, reference)
             end
             return nothing
         elseif slot isa ProjectSlot
-            child = iomap.child_iomaps.prefix[slot.in_field][]
-            inner = map_reference_backward(child.projection, child, leaf_path)
+            inner = _map_child_backward(iomap.child_iomaps.prefix[slot.in_field][], leaf_path)
             inner === nothing && return nothing
             return _prepend(inner, FieldReferenceStep(String(slot.in_field)))
         else
@@ -1037,7 +1049,7 @@ function _mixed_backward(p, w, iomap, reference)
         1 <= i <= length(ims) || return nothing
         leaf_path isa EmptyReference &&
             return _path(FieldReferenceStep(String(w.coll_field)), ElementReferenceStep(i))
-        inner = map_reference_backward(ims[i].projection, ims[i], leaf_path)
+        inner = _map_child_backward(ims[i], leaf_path)
         inner === nothing && return nothing
         return _prepend(_strip_checkpoints(inner), FieldReferenceStep(String(w.coll_field)), ElementReferenceStep(i))
     end
@@ -1142,7 +1154,7 @@ function _sections_backward(p, w, iomap, reference)
     inner_path = after2.tail
     inner_path isa EmptyReference &&
         return _path(FieldReferenceStep(String(sec.field)), ElementReferenceStep(entry_i))
-    translated = map_reference_backward(sec.entries[entry_i].projection, sec.entries[entry_i], inner_path)
+    translated = _map_child_backward(sec.entries[entry_i], inner_path)
     translated === nothing && return nothing
     return _prepend(_strip_checkpoints(translated), FieldReferenceStep(String(sec.field)), ElementReferenceStep(entry_i))
 end
@@ -1373,7 +1385,7 @@ end
 function read_intent(p::Projection, iomap::RuleIoMap, op::ReplaceSelectionOperation)
     result = map_reference_backward(p, iomap, op.path)
     result !== nothing && return ReplaceSelectionOperation(result)
-    iomap.wiring isa Union{NodeWiring,MixedNodeWiring,InlineWiring,SectionsWiring,FixedNodeWiring,ConditionalNodeWiring} || return nothing
+    iomap.wiring isa _INTRODUCING_WIRINGS || return nothing
     return ReplaceSelectionOperation(make_introduced_reference(p, iomap.input, op.path))
 end
 
