@@ -133,15 +133,21 @@ triggers above are still not tested.
 
 The **documentation tooltip is done**, 2026-09-19, and by the generic rather
 than by a source: `compute_tooltip(::JuliaFunction)` answers the signature, and
-`compute_tooltip(::JuliaDocstring)` answers the signature and the prose. Two
-remain:
+`compute_tooltip(::JuliaDocstring)` answers the signature and the prose.
 
-- **Type tooltip** — show inferred schema / type for the selected JSON or
+The **fault tooltip is done**, 2026-09-23, by the generic as well.
+`compute_tooltip(::FaultReport)` answers what failed, where it was caught and
+the whole message, as a `TextString`, and `FaultToWidget` gives its alert the
+same text as its `tooltip`, because a mark is inert and the selection never
+names a report. What remains for it: a mark in the text, the syntax or the
+graphics domain says nothing, because nothing there can be selected; and a line
+of the fault log says nothing, because `FaultLogToSyntax` maps no reference per
+entry, so a press inside the log names the whole log.
+
+One remains, **deferred by the owner on 2026-09-23**:
+
+- **Type tooltip** — show the inferred schema or type of the selected JSON or
   table node.
-- **Error tooltip** — show validation errors on a node.
-
-Each is a different `TooltipSource.content` + possibly a new dispatcher
-entry for that content type.
 
 ## Step 8 (cont.) — Multi-tooltip test
 

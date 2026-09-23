@@ -31,6 +31,10 @@ using ProjecturedKernelExample
 using ProjecturedProjection.ProjectionAlgebraModule
 using ProjecturedSyntax.SyntaxModule
 using ProjecturedText.TextModule
+# Through the package under test, which declares both: the tooltip generic that
+# a fault report answers, and the widget a mark is drawn as.
+using ProjecturedFault.DomainModule
+using ProjecturedFault.WidgetModule
 
 import ProjecturedKernel.EditorModule: read!
 

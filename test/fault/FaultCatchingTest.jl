@@ -119,6 +119,27 @@ function test_fault_catching()
         @test map_reference_forward(barrier, iomap, EmptyReference()) === nothing
     end
 
+    @testset "a mark says the whole fault when the pointer rests on it" begin
+        report = FaultReport(site = "print", origin = "OddLeafBreaker",
+                             message = "BoundsError: index 4 of a vector of 3")
+        # The one line a mark draws is cut where the mark ends; the window says
+        # what failed, where it was caught, and the whole message.
+        said = compute_tooltip(report)
+        @test said isa TextString
+        text = string(said.content)
+        @test occursin("OddLeafBreaker", text)
+        @test occursin("print", text)
+        @test occursin("BoundsError: index 4 of a vector of 3", text)
+
+        # A mark is inert, so the selection never names the report: what a person
+        # points at is the widget the mark is drawn as, and a widget says what its
+        # own `tooltip` holds.
+        alert = print_document(FaultToWidget(), FaultToWidget(), report,
+                               PrinterContext()).output
+        @test alert isa WidgetAlert
+        @test String(compute_tooltip(alert).value) == text
+    end
+
     @testset "the barrier needs no store to work" begin
         projection = RecursiveProjection(
             FaultCatchingProjection(inner = _probe_dispatch(),

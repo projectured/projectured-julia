@@ -78,6 +78,8 @@ A printer does not throw when `print_document` runs. It builds a graph of thunks
 
 The reader and the two reference mappers catch too. A reader that throws returns `Intent(gesture, nothing)`, so the layer above gets its turn. A mapper that throws returns `nothing`, the normal answer for a node with no image, so the selection does not walk into a mark.
 
+**A mark says the whole fault when the pointer rests on it.** A mark draws one line, which a long message does not fit in. `compute_tooltip` of a `FaultReport` answers what failed, where it was caught and the whole message, as a `TextString`. A mark is inert, so the selection never names the report itself; `FaultToWidget` therefore gives its alert the same text as its own `tooltip`, and a widget is what a person points at. A mark in the text, the syntax or the graphics domain says nothing yet, because nothing there can be selected.
+
 ### Why the store is not made of cells
 
 `PAR-NO-WRITE-IN-THUNK` forbids a thunk to write a cell: a write in the middle of a computation invalidates its consumers half way through. The log is a document made of cells. So the catch writes a `FaultStore`, a plain object outside the reactive graph. The store is safe to write from a thunk: it has no dependents, and a write keyed by the fault leaves one entry for a thunk that runs ten times. The editor frame then calls `report_frame_faults!` once, on its own task and outside every thunk, and that call writes the log through `append_fault!`.
