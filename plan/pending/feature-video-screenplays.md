@@ -204,6 +204,14 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 
 - **The choice this needs:** a model that finishes the task. The owner decides between the local `qwen3.8:27b`, Claude through `ANTHROPIC_API_KEY` (not set in this session), a task small enough for the local model, and waiting until F6 is fixed.
 
+- **The owner's answer, 2026-09-23:** keep qwen, and extend the API of the application so that qwen can do it. What the rehearsals after that showed, and what changed:
+  - Every turn ended at the round cap of the agent, which is 8 (`source/kernel/agent/Agent.jl`), and the assistant builds its agent with that default (`source/assistant/AssistantTurn.jl:678`). The model spends the rounds on discovery.
+  - `make_application_api` now also declares `DocumentModule => (:search_documents, :get_wrapped_document)`, `FileFormatModule => (:get_file_content,)` and `NaturalModule => (:print_natural_text, :parse_natural_text)`, so a model can read what a tab holds.
+  - `APPLICATION_SYSTEM` names the shortest path to a tab's text, and says that the program `show_layout` prints runs whole, because a model copied one line of it without the line that defines `window`.
+  - The model called `print_natural_text` on the file document itself, which has no natural text. `print_natural_text(::FileDocument)` in `source/fileformat/DocumentFile.jl` now answers the text of what the file holds, through its history.
+  - **Not yet tested.** The rehearsal after the last change was stopped, see the next point.
+- **The whole computer crashed during a rehearsal on 2026-09-23.** The model needs 17 GB outside the memory cap of Julia, and the VS Code language server (9 GB) and other sessions' Julia runs were active. A rehearsal starts only when `free -g` shows at least 47 GB available: 20 GB for the capped Julia, 17 GB for the model, and 10 GB of margin. The check runs before each rehearsal, not once.
+
 - **Acceptance:** both prompts succeed in the kept take. Beat 4 needs the window history to hold a change that the assistant makes to the panes. Step 6 checks that first. If the history does not hold it, beat 4 changes to an edit of the data, and this plan records why.
 
 #### S3. JSON from nothing
