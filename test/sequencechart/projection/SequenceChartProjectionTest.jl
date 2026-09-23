@@ -770,7 +770,7 @@ function test_sequencechart_selection()
         @testset "inserting events remaps arrow endpoints" begin
             chart = _sc_chart()
             before = collect(chart.arrows.targets)
-            _sc_apply(chart, insert_events(chart, 1, [-1.0], [1]))
+            _sc_apply(chart, insert_events(chart, 1; times = [-1.0], axes = [1]))
             @test get_event_count(chart.events) == 7
             # Every arrow still points at the occurrence it always did, one row
             # further along.

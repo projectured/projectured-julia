@@ -180,7 +180,7 @@ function test_sequencechart_geometry()
             coordinates = SCG.get_timeline_coordinates(times, nothing, :nonlinear)
             scale = SCG.AxisScale(coordinates[1], coordinates[end], 0.0, 600.0)
 
-            ticks = SCG.flow_ticks(times, coordinates, scale, :nonlinear; target_px=100)
+            ticks = SCG.flow_ticks(times, coordinates; scale, mode = :nonlinear, target_px=100)
             @test length(ticks) >= 2
             @test issorted([c for (c, _) in ticks])
             @test all(scale.lo - 1e-9 <= c <= scale.hi + 1e-9 for (c, _) in ticks)
@@ -188,10 +188,11 @@ function test_sequencechart_geometry()
             # In :time mode the ticks are round numbers instead of round pixels.
             linear = SCG.get_timeline_coordinates(times, nothing, :time)
             lscale = SCG.AxisScale(linear[1], linear[end], 0.0, 600.0)
-            time_ticks = SCG.flow_ticks(times, linear, lscale, :time; target_px=100)
+            time_ticks = SCG.flow_ticks(times, linear; scale = lscale, mode = :time,
+                                        target_px=100)
             @test length(time_ticks) >= 2
 
-            @test isempty(SCG.flow_ticks(Float64[], Float64[], scale, :time))
+            @test isempty(SCG.flow_ticks(Float64[], Float64[]; scale, mode = :time))
         end
 
         @testset "honest tick labels" begin

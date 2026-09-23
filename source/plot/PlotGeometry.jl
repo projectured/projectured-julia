@@ -454,7 +454,7 @@ function fold_scatter(x, y; xs::AxisScale, ys::AxisScale, cell_px::Integer, i0::
 end
 
 """
-    fold_bins(lefts, rights, values, min_px) -> Vector{Tuple{Int,Int,Float64,Float64}}
+    fold_bins(lefts, rights, values; min_px) -> Vector{Tuple{Int,Int,Float64,Float64}}
 
 Merge adjacent bins narrower than `min_px` pixels into envelope bars, returning
 `(left, right, min_value, max_value)` per surviving bar.
@@ -464,7 +464,7 @@ can draw every result the same way and only sees a difference where the folding
 actually happened.
 """
 function fold_bins(lefts::AbstractVector, rights::AbstractVector,
-                   values::AbstractVector, min_px::Integer)
+                   values::AbstractVector; min_px::Integer)
     out = Tuple{Int,Int,Float64,Float64}[]
     n = min(length(lefts), length(rights), length(values))
     n == 0 && return out
@@ -514,7 +514,7 @@ function strip_runs(values, i0::Integer, i1::Integer)
 end
 
 """
-    fold_strips(lefts, rights, codes, min_px) -> Vector{Tuple{Int,Int,Int}}
+    fold_strips(lefts, rights, codes; min_px) -> Vector{Tuple{Int,Int,Int}}
 
 Merge adjacent strip segments narrower than `min_px` pixels into single spans,
 returning `(left, right, code)` per surviving span.
@@ -529,7 +529,7 @@ is itself at least `min_px` wide: a wide segment always draws at its own left
 edge with its own code, and never inherits the sliver in front of it.
 """
 function fold_strips(lefts::AbstractVector, rights::AbstractVector,
-                     codes::AbstractVector, min_px::Real)
+                     codes::AbstractVector; min_px::Real)
     out = Tuple{Int,Int,Int}[]
     n = min(length(lefts), length(rights), length(codes))
     n == 0 && return out

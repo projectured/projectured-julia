@@ -232,7 +232,7 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
     shapes = _arrow_shapes(chart, events, arrows, coordinates, scale, lane_of,
                            candidates, horizon, style)
 
-    ticks = flow_ticks(times, coordinates, scale, chart.timeline.mode;
+    ticks = flow_ticks(times, coordinates; scale, mode = chart.timeline.mode,
                        target_px=_TICK_TARGET_PX)
     neighbourhood = _tick_neighbourhood(times, coordinates, scale, ticks)
     raw_labels = String[get_honest_tick_label(t, neighbourhood) for (_, t) in ticks]
@@ -1015,7 +1015,7 @@ end
 
 # @positional: a point of the chart: the chart, its coordinates, x and y.
 """
-    find_band_hit(geometry, plot, x, y) -> (axis, band, row) | nothing
+    find_band_hit(geometry, plot, x, y) -> (axis = …, band = …, row = …) | nothing
 
 Which state-band sample is under a canvas point.
 """
@@ -1027,7 +1027,7 @@ function find_band_hit(g, plot, x::Real, y::Real)
         for (c0, c1, _, index) in band.intervals
             f0 = to_pixel(g.scale, c0); f1 = to_pixel(g.scale, c1)
             (f0 <= flow <= f1) || continue
-            return (band.axis, band.band, index)
+            return (axis = band.axis, band = band.band, row = index)
         end
     end
     nothing
@@ -1116,7 +1116,8 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
         arrow = find_arrow_hit(g, plot, x, y)
         arrow === nothing || return _make_selection_operation(plot, get_arrow_reference(chart, arrow))
         band = find_band_hit(g, plot, x, y)
-        band === nothing || return _make_selection_operation(plot, get_band_reference(chart, band...))
+        band === nothing || return _make_selection_operation(plot,
+                                 get_band_reference(chart; band...))
         lane = find_lane_hit(g, plot, x, y)
         lane === nothing || return _make_selection_operation(plot, get_axis_reference(chart, lane))
         return nothing

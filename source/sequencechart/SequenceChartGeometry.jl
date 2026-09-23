@@ -321,7 +321,7 @@ function tick_common_prefix(labels)
 end
 
 """
-    flow_ticks(times, coordinates, scale, mode; target_px=100) -> Vector{(coordinate, time)}
+    flow_ticks(times, coordinates; scale, mode, target_px=100) -> Vector{(coordinate, time)}
 
 Where the gutter's ticks go and what time each one stands for.
 
@@ -331,7 +331,7 @@ time has no fixed width, so the ticks are placed at even *pixel* intervals
 instead and each one is labelled with the time that happens to be there — which
 is why [`get_honest_tick_label`](@ref) exists.
 """
-function flow_ticks(times, coordinates, scale::AxisScale, mode::Symbol;
+function flow_ticks(times, coordinates; scale::AxisScale, mode::Symbol,
                     target_px::Real=100)
     out = Tuple{Float64,Float64}[]
     n = min(length(times), length(coordinates))

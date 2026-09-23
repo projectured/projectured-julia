@@ -819,7 +819,7 @@ function _bar_elements!(out, g, bar_series)
             lefts = Int[round(Int, to_pixel(g.xs, c - 0.5)) - ox for c in 1:n]
             rights = Int[round(Int, to_pixel(g.xs, c + 0.5)) - ox for c in 1:n]
             vals = Float64[c <= length(s.values) ? Float64(s.values[c]) : 0.0 for c in 1:n]
-            for (l, r, lo, hi) in fold_bins(lefts, rights, vals, style.bin_fold_px)
+            for (l, r, lo, hi) in fold_bins(lefts, rights, vals; min_px = style.bin_fold_px)
                 ylo = to_pixel(g.ys, hi) - oy
                 yhi = to_pixel(g.ys, lo) - oy
                 push!(out, GraphicsRect(l, round(Int, min(ylo, yhi)), max(r - l, 1),
@@ -880,7 +880,7 @@ function _histogram_elements!(out, g, index::Int, s::ChartHistogramSeries)
 
     lefts = Int[round(Int, to_pixel(g.xs, Float64(edges[i]))) - ox for i in 1:n]
     rights = Int[round(Int, to_pixel(g.xs, Float64(edges[i+1]))) - ox for i in 1:n]
-    bars = fold_bins(lefts, rights, Float64.(values[1:n]), style.bin_fold_px)
+    bars = fold_bins(lefts, rights, Float64.(values[1:n]); min_px = style.bin_fold_px)
 
     if s.draw === :outline
         # A silhouette instead of filled cells: several overlaid histograms stay
@@ -995,7 +995,7 @@ function _compute_strip_spans(xs::AxisScale, view, s::ChartStripSeries)
         rights[k] = b < n ? to_pixel(xs, Float64(x[b + 1])) : to_pixel(xs, drawn_end)
         codes[k] = Int(values[a])
     end
-    fold_strips(lefts, rights, codes, 1)
+    fold_strips(lefts, rights, codes; min_px = 1)
 end
 
 # Enough contrast to read a state name against whatever colour that state took.
