@@ -35,6 +35,7 @@ import ..SerializationModule: emit_text,
 
 export _julia_operator_string
 export parse_julia, parse_julia_file
+export make_julia_expression
 export compute_julia_signature
 export JuliaInsertionToSyntaxLeaf, get_julia_completion, make_julia_scaffold
 export JuliaFile, PRED_REF_FUNCTION_NAME, find_julia_definition, get_julia_definition_name
@@ -67,6 +68,7 @@ export JuliaIdentifier, JuliaInteger, JuliaFloat, JuliaString, JuliaBool, JuliaN
 
 include("JuliaDocument.jl")
 include("JuliaParser.jl")
+include("JuliaExpression.jl")
 include("JuliaInsertionToSyntax.jl")
 include("JuliaFile.jl")
 include("JuliaToSyntax.jl")

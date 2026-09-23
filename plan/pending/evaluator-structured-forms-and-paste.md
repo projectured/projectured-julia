@@ -260,7 +260,22 @@ what renders, through the window with a real `Editor`, as
   the window: a press on each check box flips its field and draws the new state;
   the bottom form changes kind and keeps its text; the row stays in place when
   the forms scroll; the command palette lists the two rules.
-- [ ] **Step 3. A Julia document becomes an `Expr` (M2).** Test on the Julia
+- [x] **Step 3. A Julia document becomes an `Expr` (M2).** *Done.* As built:
+  `make_julia_expression` in `source/julia/JuliaExpression.jl` makes the shadow
+  with `copy_document` under a copy policy of its own. The policy's stop hooks
+  (`is_descendable_for_copy`, `make_copy_placeholder`) stop at a document that is
+  neither Julia nor an element collection, keep it in a table, and put a
+  placeholder identifier in its place; a `CellVector` of arguments is a document
+  too, so the collection test is needed. A method of `copy_document` for the
+  policy and `JuliaInsertion` puts the parse of the hole's text in the shadow,
+  because the print of a hole adds its completion. The objects go back into the
+  parsed `Expr` as `QuoteNode`s. A document that is not Julia at all becomes
+  `Expr(:toplevel, QuoteNode(document))`. Tests: `test_julia_expression()`, in
+  `test_julia()`, 133 of 133: more than 40 examples become the `Expr` of their
+  own text (a fragment such as `where {T}` is skipped, because it is no code by
+  itself), ten sources keep their meaning, an object is the same object after an
+  evaluation (`===`), and a hole stands for its code or raises an error.
+  Originally: Test on the Julia
   examples: for each, the `Expr` of the parsed document equals `Meta.parseall`
   of its text, apart from line numbers.
 - [ ] **Step 4. The evaluator runs an `Expr` (M3).** Test: the output and the
