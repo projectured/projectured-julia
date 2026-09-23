@@ -618,14 +618,54 @@ What Step 2 found and decided:
   clipboard and range selection, `test_pane_tab_b1` 8, `test_filesystem` 28,
   all with no failure; `test_kernel` with only the six known failures.
 
-**Waiting for the owner: the form of the program `show_layout` prints.** It
-prints `window = get_window_tree(editor)` and `@reference(window, …)` for each
-tab, which is a path from the first window's tree. With complete references it
-can print either (a) one self-contained line for each tab, with the path from
-the root written out, or (b) one name for each tree, then short lines with
-`concat_references(tree_reference, @reference(tree, …))`. The docstring
-examples that show that program (`PaneDocument.jl`, the header of
-`PaneProgram.jl`) follow the choice.
+**What `show_layout` shows: decided by the owner on 2026-09-23.** The program
+it printed no longer fitted the verbs: its paths started at the first window's
+tree, and the verbs take complete references. Back at the drawing board, its two
+jobs were separated — reading the layout, and changing it — and several forms
+may live side by side:
+
+- **The layout is printed as a tree of reference steps.** Each line holds the
+  steps from its parent line, the type of the node it reaches (as a typed
+  `@reference` writes it), and a note: the node's name through the seam
+  `get_document_title`, a short description, and the focus. The first line is
+  the root, shown by its type only, not as `editor.document`, so that a model
+  does not write `editor` into a path. A model joins the steps of the lines on a
+  branch and writes `@reference(editor.document, windows[1]…tabs[2])`.
+
+  ```
+  (root)                                           ::ScreenDocument  # the editor's document
+    .windows[1]                                    ::WindowDocument  # "ProjecturEd", 1600 × 1000
+      .content.content.content.content             ::PaneTree        # inside ClipboardSlice › WidgetShell › UndoBuffer
+        .root                                      ::PaneSplit       # side by side: 20% | 80%
+          .elements[1]                             ::PaneGroup
+            .tabs[1]                               ::PaneTab         # Files (focused) — a workspace of 1 folder
+          .elements[2]                             ::PaneGroup
+            .tabs[1]                               ::PaneTab         # a.json — a JSON document
+            .tabs[2]                               ::PaneTab         # notes.txt — 2 lines of text
+  ```
+
+  Which nodes get a line can be filtered. The default is the nodes a pane search
+  enters: the screen, the windows, the pane trees, the splits, the groups and
+  the tabs; a line through wrappers names them in its note; a tab's content
+  gets no line unless it holds another pane tree. Nothing assumes one window or
+  one tree: a second window is a second branch, and a tree inside a tab goes on
+  below the tab.
+- **A verb for each common change** (A): `focus_pane!`, `open_pane!`,
+  `duplicate_pane!` and `close_pane!` exist; `move_pane!` is added, because a
+  move is the one common change that has no verb. A rare change, such as the
+  weights of a split, is a `replace_referenced_value!` at a path read off the
+  tree.
+- **The printed program (D) goes.** Its two jobs are covered by the tree and
+  the verbs, and it is the form that broke.
+- **The layout as data (C) is left out for now.** It would give a model one
+  more language, and the tree with `replace_referenced_value!` covers a large
+  rewrite.
+
+- [ ] `show_layout` prints the tree; the program printer goes.
+- [ ] `move_pane!` and `make_move_pane_operation`.
+- [ ] The texts that describe the program follow: the docstrings
+      (`PaneProgram.jl`, `PaneDocument.jl`, `ReferenceBuilder.jl`), the
+      application's system prompt, and omnet-julia's window instructions.
 - [ ] omnet-julia: `focus_runner_group!`, `_open_file_navigator!`,
       `open_simulation_pane!`, and the first focus of an embedded tree.
 - [ ] The guides: `selection.md`, `clipboard.md`, `pane.md`, and a guide for
