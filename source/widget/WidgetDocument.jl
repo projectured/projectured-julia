@@ -2731,10 +2731,14 @@ function evaluate_operation(editor, op::InvokeActionOperation)
     action.enabled === false && return        # a disabled action is inert
     callback = action.callback
     callback === nothing && return
-    if applicable(callback, editor)
-        callback(editor)
-    elseif applicable(callback)
-        callback()
+    # A callback can be newer than the loop that presses it: a closure typed into
+    # the evaluator, or written by the assistant, is made after the loop was
+    # compiled. From the loop's own world `applicable` answers false for it, so
+    # the check and the call both run in the latest world.
+    if Base.invokelatest(applicable, callback, editor)
+        Base.invokelatest(callback, editor)
+    elseif Base.invokelatest(applicable, callback)
+        Base.invokelatest(callback)
     end
 end
 

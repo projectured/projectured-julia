@@ -101,6 +101,22 @@ end
     @test fired[] == 1
 end
 
+@testset "a callback newer than the loop that presses it still runs" begin
+    # `eval` makes the closure while this function runs, so it belongs to a newer
+    # world than the function, as a closure typed into the evaluator or written
+    # by the assistant is newer than the editor loop. The press must run it.
+    fired = Ref(0)
+    make_callback = Core.eval(Module(), :(counter -> () -> (counter[] += 1)))
+    callback = Base.invokelatest(make_callback, fired)
+    a = Action("X"; callback = callback)
+    evaluate_operation(_ActionMockEditor(a), InvokeActionOperation(a))
+    @test fired[] == 1
+    takes_editor = Base.invokelatest(Core.eval(Module(), :(counter -> editor -> (counter[] += 10))), fired)
+    b = Action("Y"; callback = takes_editor)
+    evaluate_operation(_ActionMockEditor(b), InvokeActionOperation(b))
+    @test fired[] == 11
+end
+
 @testset "a bound control is a LIVE view of its Action" begin
     # The property the whole design rests on: a control reads the action's cells
     # rather than owning copies, so renaming or disabling the command re-renders
