@@ -1,7 +1,10 @@
 # An operation enters at any reference
 
-**Status (2026-09-23): IMPLEMENTED IN projectured-julia, on the branch
-`selection-root`.** Steps 1b, 2 and 3 are done there, with the guides and the
+**Status (2026-09-23): IMPLEMENTED IN projectured-julia, and landed on `main`
+with the owner's approval** (rebased onto `d7a440f9`; after the rebase the
+related suites pass, `test_application` 232/232, and three evaluator tests that
+`main` brought press a toolbar button and now apply what it posts).
+**omnet-julia is next.** Steps 1b, 2 and 3 are done there, with the guides and the
 audit of `DocumentWalk.jl`. On 2026-09-23 the owner deferred omnet-julia
 (it needs the projectured-julia part visible to it), keeps the sealing of
 `DocumentWalk.jl` for a review of the owner's own, and permitted one sentence
