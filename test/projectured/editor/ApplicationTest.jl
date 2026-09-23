@@ -773,10 +773,17 @@ function test_application()
                 type!(text) = foreach(character -> press!(KeyPress(character)), text)
                 drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
                 at(word) = [(x, y) for (text, x, y) in drawn() if text == word]
-                # Alt+click on the JSON of the file tab selects the file, and Ctrl+N
-                # notes it: the clipboard holds the file itself.
+                # Alt+click on the JSON of the file tab selects the string under the
+                # pointer, Alt+Up walks out to the file, and Ctrl+N notes it: the
+                # clipboard holds the file itself.
+                selected() = try_evaluate_reference(scene, getfield(scene, :selection)[], missing)
                 (ax, ay) = first((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
                 press!(MousePress(:left, ax + 5, ay + 5, 1, ModifierKeys(alt = true)))
+                @test selected() isa JsonString
+                for _ in 1:8
+                    selected() isa JsonFile && break
+                    press!(KeyDown(:up, ModifierKeys(alt = true)))
+                end
                 press!(KeyDown(:n, ModifierKeys(ctrl = true)))
                 noted = only(search_documents(document, node -> node isa ClipboardSlice)).slice
                 @test noted isa JsonFile
@@ -830,9 +837,14 @@ function test_application()
                     selected() = try_evaluate_reference(scene, getfield(scene, :selection)[], missing)
                     copy_reference!() = _app_plain(press!(KeyDown(:c, ModifierKeys(ctrl = true, shift = true))))
                     (ax, ay) = first((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
-                    # Alt+click selects the file whole, and Ctrl+Shift+C copies its
-                    # reference as code.
+                    # Alt+click selects the string under the pointer, Alt+Up walks out
+                    # to the file, and Ctrl+Shift+C copies its reference as code.
                     press!(MousePress(:left, ax + 5, ay + 5, 1, ModifierKeys(alt = true)))
+                    @test selected() isa JsonString
+                    for _ in 1:8
+                        selected() isa JsonFile && break
+                        press!(KeyDown(:up, ModifierKeys(alt = true)))
+                    end
                     file = selected()
                     @test file isa JsonFile
                     @test copy_reference!() isa CopyReferenceOperation
@@ -1334,6 +1346,39 @@ function test_application()
                                           ModifierKeys())) isa CompoundOperation
                 @test holds_one_path(w)
             end
+        end
+
+        # A file opened from the explorer takes a click, a key and an Alt+click in
+        # its document, as the document alone takes them.
+        @testset "a click in a file opened from the explorer reaches its document" begin
+            document, scene, composed, iomap = _app_make_scene(paths[2:2], dir)
+            editor = _app_make_editor(scene, composed, iomap)
+            press!(event) = begin
+                operation = _app_fire(composed, editor.iomap, event)
+                operation isa Operation && _app_apply!(editor, operation)
+                _app_plain(operation)
+            end
+            drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
+            carets() = _app_drawn_carets(get_iomap_output(editor.iomap).windows[1].content)
+            (x, y) = first((x, y) for (text, x, y) in drawn() if text == "a.json")
+            press!(MousePress(:left, x + 3, y + 3, 1, ModifierKeys()))
+            @test press!(KeyDown(:return, ModifierKeys())) isa OpenFileOperation
+            file = only(search_documents(document, node -> node isa JsonFile;
+                                         descend = _app_is_content_search_step))
+            name() = get_wrapped_document(file.content).entries[1].value.value
+
+            (x, y) = only((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
+            @test press!(MousePress(:left, x + 3, y + 3, 1, ModifierKeys())) isa ReplaceSelectionOperation
+            @test occursin(r"\.entries\[1\]\.value\.value\{\d+\}$",
+                           repr(strip_reference_types(get_selection(scene))))
+            @test length(carets()) == 1
+            press!(KeyPress('x'))
+            @test occursin("x", name()) && length(name()) == length("Alice") + 1
+
+            (x, y) = only((x, y) for (text, x, y) in drawn() if occursin("lice", text))
+            @test press!(MousePress(:left, x + 3, y + 3, 1, ModifierKeys(alt = true))) isa
+                  ReplaceSelectionOperation
+            @test evaluate_reference(scene, get_selection(scene)) isa JsonString
         end
         rm(dir; recursive = true)
     end

@@ -56,13 +56,34 @@ mktempdir() do dir
         @test occursin("goodbye", read(path, String))
     end
 
-    @testset "Ctrl+O reads the file back" begin
+    # Ctrl+O answers the reload and a selection of the whole file. The selection
+    # needs an editor, so the case evaluates the reload alone.
+    @testset "Ctrl+O reads the file back, and selects the whole file" begin
         file = make_file(get_file_document_type(path), path, read(path, String))
         write(path, "{\"greeting\": \"reloaded\"}")
         op = read_gesture(file, KeyDown(:o, ModifierKeys(ctrl = true)))
-        @test op isa Operation
-        evaluate_operation(nothing, op)
+        @test op isa CompoundOperation
+        @test any(o -> o isa ReplaceSelectionOperation && o.path isa EmptyReference, op.operations)
+        evaluate_operation(nothing, only(o for o in op.operations if o isa ReloadFileOperation))
         @test occursin("reloaded", render(file))
+    end
+
+    # A press inside the file goes to the file's content, and its answer names
+    # the content; the file's own keys still answer.
+    @testset "a press inside the file reaches its content" begin
+        write(path, "{\"greeting\": \"hello\"}")
+        file = make_file(get_file_document_type(path), path, read(path, String))
+        renderer = NaturalToGraphics(measure = _stub)
+        iomap = print_document(renderer, nothing, file,
+                               PrinterContext(EmptyReference(), Cell(600), Cell(400),
+                                              Dict{Symbol,Any}()))
+        (x, y) = only((x, y) for (text, x, y) in _app_drawn_at(get_iomap_output(iomap))
+                      if occursin("hello", text))
+        answer = read_intent(renderer, iomap, MousePress(:left, x + 3, y + 3, 1, ModifierKeys()))
+        @test answer isa ReplaceSelectionOperation
+        @test occursin(r"^\.content\.entries\[1\]\.value\.value\{\d+\}$",
+                       repr(strip_reference_types(answer.path)))
+        @test read_intent(renderer, iomap, KeyDown(:s, ModifierKeys(ctrl = true))) isa SaveFileOperation
     end
 
     @testset "a file with an empty name declines both" begin
