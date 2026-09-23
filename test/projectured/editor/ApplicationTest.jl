@@ -805,6 +805,84 @@ function test_application()
                 end
             end
 
+            @testset "a noted circle, pasted into code, draws the change the code makes" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                editor = Editor(ConsoleBackend(), scene, composed,
+                                Device[Display(), Keyboard(), Mouse()])
+                editor.iomap = iomap
+                fire!(event) = begin
+                    operation = _app_fire(composed, editor.iomap, event)
+                    operation isa Operation && evaluate_operation(editor, operation)
+                    operation
+                end
+                # A click as the editor gets it: the button down, the button up, and
+                # the press that the gesture recognizer makes of the two.
+                function click!(x, y; alt = false)
+                    modifiers = ModifierKeys(alt = alt)
+                    fire!(MouseDown(:left, x, y, modifiers))
+                    fire!(MouseUp(:left, x, y, modifiers))
+                    fire!(MousePress(:left, x, y, 1, modifiers))
+                end
+                key!(name; modifiers...) = fire!(KeyDown(name, ModifierKeys(; modifiers...)))
+                type!(text) = foreach(character -> fire!(KeyPress(character)), text)
+                content() = get_iomap_output(editor.iomap).windows[1].content
+                drawn() = _app_drawn_at(content())
+                function circles(node, ox = 0, oy = 0, found = Tuple{Int,Int,Int}[])
+                    node = _app_value(node)
+                    if node isa GraphicsCircle
+                        push!(found, (ox + Int(_app_value(node.cx)), oy + Int(_app_value(node.cy)),
+                                      Int(_app_value(node.radius))))
+                    elseif node isa GraphicsCanvas
+                        foreach(element -> circles(element, ox + Int(_app_value(node.x)),
+                                                   oy + Int(_app_value(node.y)), found), node.elements)
+                    elseif node isa GraphicsViewport
+                        circles(node.content, ox + Int(_app_value(node.x)), oy + Int(_app_value(node.y)), found)
+                    end
+                    found
+                end
+                toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
+                button = only(item for item in toolbar.elements
+                              if string(item.action.label) == "Evaluator")
+                evaluate_operation(editor, InvokeActionOperation(button.action))
+                (group, index) = get_pane_focus(_app_window(document))
+                evaluator = get_wrapped_document(group.tabs[index].content)
+                # Switch to structured edit. The press on the box leaves the caret in
+                # the form, so the keys that follow still type into it.
+                (sx, sy) = only((x, y) for (text, x, y) in drawn() if text == "Structured forms")
+                click!(sx - 17, sy + 12)
+                @test evaluator.type_structured_forms
+                @test evaluator.elements[1].form isa JuliaInsertion
+                type!("GraphicsCircle(10, 10, 10)")
+                @test evaluator.elements[1].form.value == "GraphicsCircle(10, 10, 10)"
+                key!(:return)
+                circle = evaluator.elements[1].result
+                @test circle isa GraphicsCircle
+                (cx, cy, radius) = only(circles(content()))
+                @test radius == 10
+                # Note the circle: Alt+click on it selects the result itself.
+                click!(cx, cy; alt = true)
+                key!(:n; ctrl = true)
+                @test only(search_documents(document, node -> node isa ClipboardSlice)).slice === circle
+                # A click on the empty space below the forms puts the caret back in
+                # the bottom form.
+                (bx, by) = last((x, y) for (text, x, y) in drawn() if text == ">")
+                click!(bx + 100, by + 150)
+                @test last(get_reference_steps(strip_reference_types(evaluator.selection))) ==
+                      RangeReferenceStep(0, 0)
+                # Code that names `x`, and the circle pasted where `x` stands.
+                type!("x.radius = 30")
+                key!(:tab)
+                (xx, xy) = only((x, y) for (text, x, y) in drawn() if text == "x")
+                click!(xx + 3, xy + 5; alt = true)
+                key!(:v; ctrl = true)
+                @test "⟨GraphicsCircle⟩" in [text for (text, _, _) in drawn()]
+                key!(:return)
+                @test !evaluator.elements[2].is_error
+                # The circle itself changed, and its drawing follows.
+                @test circle.radius == 30
+                @test only(circles(content()))[3] == 30
+            end
+
             @testset "an evaluated form draws as Julia, and a form with a comment as typed" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = Editor(ConsoleBackend(), scene, composed,

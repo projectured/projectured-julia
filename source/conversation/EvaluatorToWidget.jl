@@ -60,6 +60,9 @@ function print_document(projection::EvaluatorFormToVerticalLayout,
     iomap
 end
 
+_is_plain_left_press(event) =
+    event isa MousePress && event.button === :left && event.modifiers == ModifierKeys()
+
 _make_prompt_row(children::Function) =
     HorizontalLayout(ComputedCellVector(children), Cell(:top), Cell(_PROMPT_GAP),
                      Cell(nothing), Cell(nothing), Cell(nothing))
@@ -94,6 +97,19 @@ function map_reference_backward(::EvaluatorFormToVerticalLayout, iomap, referenc
             return _from_steps(Any[FieldReferenceStep(name)], _from_steps(steps[5:end]))
     end
     EmptyReference()
+end
+
+# A plain left press on a form that nothing in it answers, on its prompt or on
+# the empty space after its code, puts the caret at the end of the code, so a
+# click on a form is the way back to typing in it. A form whose code is a
+# document selects the code whole instead.
+function read_intent(::EvaluatorFormToVerticalLayout, iomap, event::MousePress)
+    _is_plain_left_press(event) || return nothing
+    code = iomap.input.form
+    _is_text_form(code) ||
+        return ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("form"), EmptyReference()))
+    ReplaceSelectionOperation(ConcreteReference(FieldReferenceStep("form"),
+                                                _valpath(length(_get_form_source_text(code)))))
 end
 
 # ── print_document: the toplevel → its options over a scroll pane of its forms ──
@@ -162,20 +178,32 @@ end
 # A key that a layer inside the toplevel already answered, as the hole of a
 # structured form answers Enter, is offered to the table of the toplevel as a
 # claimed key, so only an `override` rule can take it over. The reader that
-# `@projection_template` emits does the same for a template node. Anything else
-# goes to the generic bridge.
+# `@projection_template` emits does the same for a template node.
+#
+# A plain left press that nothing inside answered, on the empty space of the
+# toplevel, puts the caret at the end of the bottom form, where the next key
+# goes, as a click on the empty space of a terminal goes to its prompt.
+#
+# Anything else goes to the generic bridge.
 function read_intent(projection::EvaluatorToplevelToWidgetComposite, recursion,
                      change::Intent, iomap)
     if change.operation !== nothing && change.gesture isa Union{KeyPress, KeyDown}
         own = read_gesture(iomap.input, change.gesture; claimed = change.operation)
         own === nothing || return Intent(change.gesture, own)
     end
+    if change.operation === nothing && _is_plain_left_press(change.gesture)
+        t = iomap.input
+        return Intent(change.gesture,
+                      ReplaceSelectionOperation(_make_form_end_reference(t, length(t.elements))))
+    end
     invoke(read_intent, Tuple{Projection, Any, Intent, Any}, projection, recursion, change, iomap)
 end
 
 # `elements[i].<rest>` ↔ `children[2].content.children[i].<rest>`. The rest
 # is a path in the form, which the layout stage maps through the form's own row.
-# A path into the row of options names the whole toplevel.
+# A path into the row of options names nothing, so a press on an option leaves
+# the caret in the code where it is; any other path outside the forms names the
+# whole toplevel.
 function map_reference_forward(::EvaluatorToplevelToWidgetComposite, iomap, reference)
     steps = _steps(reference)
     steps === nothing && return nothing
@@ -189,6 +217,7 @@ end
 
 function map_reference_backward(::EvaluatorToplevelToWidgetComposite, iomap, reference)
     steps = _steps(reference)
+    _is_options_path(steps) && return nothing
     n = length(_FORMS_STEPS)
     (steps !== nothing && length(steps) > n && all(k -> steps[k] == _FORMS_STEPS[k], 1:n)) ||
         return EmptyReference()
@@ -197,6 +226,10 @@ function map_reference_backward(::EvaluatorToplevelToWidgetComposite, iomap, ref
     (i, rest) = found
     _from_steps(Any[FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i)], _from_steps(rest))
 end
+
+_is_options_path(steps) =
+    steps !== nothing && length(steps) >= 2 && _is_field_step(steps[1], "children") &&
+    steps[2] == RangeReferenceStep(0, 1)
 
 # ── Natural-projection registration ──────────────────────────────────────────
 #

@@ -582,21 +582,31 @@ end
     canvas = get_iomap_output(iomap)
     label(text) = only((x, y) for (t, x, y) in placed(canvas) if t == text)
     checks() = [x for (t, x, _) in placed(canvas) if t == "\ue06c"]
+    # A click as the editor gets it: the button down, the button up, and the press
+    # that the gesture recognizer makes of the two. It answers what the press does.
     function press!(x, y)
-        change = read_intent(projection, nothing, Intent(MousePress(:left, x, y, 1, ModifierKeys())), iomap)
-        operation = change isa Intent ? change.operation : change
-        operation isa Operation && evaluate_operation(ed, operation)
+        operation = nothing
+        for event in (MouseDown(:left, x, y, ModifierKeys()), MouseUp(:left, x, y, ModifierKeys()),
+                      MousePress(:left, x, y, 1, ModifierKeys()))
+            change = read_intent(projection, nothing, Intent(event), iomap)
+            operation = change isa Intent ? change.operation : change
+            operation isa Operation && evaluate_operation(ed, operation)
+        end
         operation
     end
+    caret_steps() = get_reference_steps(strip_reference_types(toplevel.selection))
     # Each box stands 26 pixels left of its name, and only the parse box is checked.
     (px, py) = label("Parse evaluated forms")
     (sx, sy) = label("Structured forms")
     @test checks() == [px - 26]
     @test press!(px - 17, py + 12) isa ToggleEvaluatorOptionOperation
     @test !toplevel.parse_evaluated_forms
+    # The press leaves the caret in the code, where the next key goes.
+    @test caret_steps()[end] == RangeReferenceStep(0, 0) && caret_steps()[3] == FieldReferenceStep("form")
     @test press!(sx - 17, sy + 12) isa ToggleEvaluatorOptionOperation
     @test toplevel.type_structured_forms
     @test toplevel.elements[1].form isa JuliaInsertion
+    @test caret_steps()[end] == RangeReferenceStep(0, 0) && caret_steps()[3] == FieldReferenceStep("form")
     # The boxes draw the new state.
     @test checks() == [sx - 26]
 end
