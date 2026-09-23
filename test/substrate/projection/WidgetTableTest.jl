@@ -318,9 +318,11 @@ _w2g = WidgetToGraphics(font_ubuntu_regular_20; measure = _det)
 _rec = RecursiveProjection(TypeDispatchingProjection(vcat(LayoutToGraphics().dispatch, _w2g.dispatch)))
 
 # Both strips: three columns named, and an ordinal beside each of six rows.
-_table() = WidgetTable(Point2D(0, 0),
-                       Any["ID", "Name", "Role"], Any["1", "2", "3", "4", "5", "6"],
-                       Any[Any["r$(i)a", "r$(i)b", "r$(i)c"] for i in 1:6], 3)
+_table() = WidgetTable(Point2D(0, 0);
+                       column_headers = Any["ID", "Name", "Role"],
+                       row_headers = Any["1", "2", "3", "4", "5", "6"],
+                       rows = Any[Any["r$(i)a", "r$(i)b", "r$(i)c"] for i in 1:6],
+                       column_count = 3)
 
 # Every viewport of a printed pane, with its box.
 function _viewports(node, ox = 0, oy = 0, found = Tuple{Int,Int,Int,Int}[])

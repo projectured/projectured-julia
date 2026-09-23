@@ -136,13 +136,13 @@ All four chart kinds in one two-by-two grid — the registered `chart` example,
 and what the domain's guide screenshot shows.
 """
 function make_chart_document_example()
-    WidgetTable(Point2D(0, 0),
-        Any[], Any[],
-        Any[
+    WidgetTable(Point2D(0, 0);
+        column_headers = Any[], row_headers = Any[],
+        rows = Any[
             Any[make_chart_line_document_example(), make_chart_bar_document_example()],
             Any[make_chart_histogram_document_example(), make_chart_scatter_document_example()],
         ],
-        2)
+        column_count = 2)
 end
 
 """

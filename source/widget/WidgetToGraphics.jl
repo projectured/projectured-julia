@@ -2844,7 +2844,7 @@ function map_reference_forward(::WidgetShellToGraphicsCanvas, iomap::ChildrenIoM
         (ox, oy, cim) = entry
         cim.input === target || continue
         child = map_reference_forward(cim.projection, cim, reference.tail)
-        return shift_child_image(child, ox, oy, cim)
+        return shift_child_image(child, cim; off_x = ox, off_y = oy)
     end
     nothing
 end
@@ -5563,7 +5563,7 @@ function map_reference_forward(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMa
         (ox, oy, cim) = entry
         cim.input === target || continue
         child = map_reference_forward(cim.projection, cim, reference.tail)
-        return shift_child_image(child, ox, oy, cim)
+        return shift_child_image(child, cim; off_x = ox, off_y = oy)
     end
     nothing
 end

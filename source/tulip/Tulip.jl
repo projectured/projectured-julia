@@ -109,7 +109,7 @@ function solve_constraint_layout(solver::TulipConstraintSolver, n::Int,
         # equality chain like `b.left == a.right + 8` leaves the absolute origin
         # of the chain undetermined, the LP prefers the leftmost valid placement
         # (a.left → 0) over the symmetric centroid (a.left → -54).
-        function soft_equal!(terms, rhs, w_pos, w_neg=w_pos)
+        function soft_equal!(terms, rhs, w_pos; w_neg=w_pos)
             sp = MOI.add_variable(model)
             sn = MOI.add_variable(model)
             MOI.add_constraint(model, sp, MOI.GreaterThan(0.0))
@@ -131,8 +131,10 @@ function solve_constraint_layout(solver::TulipConstraintSolver, n::Int,
         for i in 1:n
             soft_equal!([MOI.ScalarAffineTerm(1.0, W[i])], Float64(intrinsic_w[i]), STAY_WEIGHT)
             soft_equal!([MOI.ScalarAffineTerm(1.0, H[i])], Float64(intrinsic_h[i]), STAY_WEIGHT)
-            soft_equal!([MOI.ScalarAffineTerm(1.0, L[i])], 0.0, origin_stay_pos, origin_stay_neg)
-            soft_equal!([MOI.ScalarAffineTerm(1.0, T[i])], 0.0, origin_stay_pos, origin_stay_neg)
+            soft_equal!([MOI.ScalarAffineTerm(1.0, L[i])], 0.0, origin_stay_pos;
+                        w_neg = origin_stay_neg)
+            soft_equal!([MOI.ScalarAffineTerm(1.0, T[i])], 0.0, origin_stay_pos;
+                        w_neg = origin_stay_neg)
         end
 
         # User relations.

@@ -116,15 +116,16 @@ end
 
 @testset "such a window stays on the screen, and beside the pointer" begin
     place = ProjecturedSdl.compute_window_place
+    area = (area_width = 1000, area_height = 800)
 
     # Inside the work area, wherever it was asked for.
-    @test place(100, 100, 200, 80, 1000, 800, nothing) == (100, 100)
+    @test place(100, 100, 200, 80; area..., pointer = nothing) == (100, 100)
     # Over the right or the bottom edge: moved in.
-    @test place(900, 100, 200, 80, 1000, 800, nothing) == (800, 100)
-    @test place(100, 780, 200, 80, 1000, 800, nothing) == (100, 720)
+    @test place(900, 100, 200, 80; area..., pointer = nothing) == (800, 100)
+    @test place(100, 780, 200, 80; area..., pointer = nothing) == (100, 720)
     # A window that would hold the pointer goes to the left of it, and to the
     # right when there is no room on the left.
-    @test place(900, 100, 200, 80, 1000, 800, (850, 120)) == (642, 100)
-    @test place(0, 100, 200, 80, 1000, 800, (40, 120)) == (48, 100)
+    @test place(900, 100, 200, 80; area..., pointer = (850, 120)) == (642, 100)
+    @test place(0, 100, 200, 80; area..., pointer = (40, 120)) == (48, 100)
 end
 end # test_native_window

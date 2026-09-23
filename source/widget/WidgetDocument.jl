@@ -2130,7 +2130,7 @@ WidgetAccordion(position::Point2D, items::Vector; expanded::Integer=1, width::In
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 
 """
-    WidgetTable(position, column_headers, row_headers, rows, column_count; ...)
+    WidgetTable(position; column_headers, row_headers, rows, column_count, ...)
     WidgetTable(position, headers::Vector, rows::Vector)   # string convenience shim
 
 A grid of cells with optional column headers and row headers.
@@ -2230,7 +2230,7 @@ _table_cell_doc(v)           = WidgetLabel(Point2D(0, 0), string(v))
 _table_row(r) = CellVector(Cell[Cell(_table_cell_doc(c)) for c in r])
 
 """
-    WidgetTable(position, column_headers, row_headers, rows, column_count;
+    WidgetTable(position; column_headers, row_headers, rows, column_count,
                 border_width=1, visible=true,
                 column_policy=Content, row_policy=Content,
                 column_policies=Any[], row_policies=Any[],
@@ -2252,8 +2252,8 @@ for every column and `column_cell_policies` for the ones that differ. A table
 is a data table until someone says otherwise, so the default is `:clip`: one
 line, cut at the column's edge.
 """
-function WidgetTable(position::Point2D, column_headers::Vector, row_headers::Vector,
-                     rows::Vector, column_count::Integer;
+function WidgetTable(position::Point2D; column_headers::Vector, row_headers::Vector,
+                     rows::Vector, column_count::Integer,
                      border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
@@ -2326,7 +2326,8 @@ function WidgetTable(position::Point2D, headers::Vector, rows::Vector;
                      tooltip=nothing)
     column_count = isempty(headers) ?
         (isempty(rows) ? 0 : maximum(length(r) for r in rows)) : length(headers)
-    WidgetTable(position, collect(Any, headers), Any[], collect(Any, rows), column_count;
+    WidgetTable(position; column_headers = collect(Any, headers), row_headers = Any[],
+                rows = collect(Any, rows), column_count = column_count,
                 border_width=border_width, visible=visible,
                 column_policy=column_policy, row_policy=row_policy,
                 column_policies=column_policies, row_policies=row_policies,

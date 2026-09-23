@@ -44,8 +44,7 @@ function write_object!(w::PdfWriter, num::Int, body::AbstractString)
     write(w.io, string(num), " 0 obj\n", body, "\nendobj\n")
 end
 
-# @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
-function write_stream!(w::PdfWriter, num::Int, dict::AbstractString, data::Vector{UInt8})
+function write_stream!(w::PdfWriter, num::Int; dict::AbstractString, data::Vector{UInt8})
     w.offsets[num] = position(w.io)
     write(w.io, string(num), " 0 obj\n<< ", dict, " /Length ", string(length(data)), " >>\nstream\n")
     write(w.io, data)
@@ -490,7 +489,7 @@ end
 
 function _write_font!(w::PdfWriter, info)
     reg = info.reg; ttf = reg.ttf; bn = reg.basefont
-    write_stream!(w, info.ff, "/Length1 $(length(ttf.bytes))", ttf.bytes)
+    write_stream!(w, info.ff; dict = "/Length1 $(length(ttf.bytes))", data = ttf.bytes)
 
     scale = 1000 / ttf.units_per_em
     x0, y0, x1, y1 = ttf.bbox
@@ -513,7 +512,7 @@ function _write_font!(w::PdfWriter, info)
     warr = String(take!(wio))
     dw = get_glyph_advance_1000(ttf, UInt16(0))
 
-    write_stream!(w, info.tu, "", _tounicode_cmap(reg))
+    write_stream!(w, info.tu; dict = "", data = _tounicode_cmap(reg))
     write_object!(w, info.cid,
         "<< /Type /Font /Subtype /CIDFontType2 /BaseFont /$bn " *
         "/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> " *
@@ -582,7 +581,7 @@ function _write_pdf_document(filename::AbstractString, contents::Vector{Vector{U
     pages_num = new_object!(w); catalog_num = new_object!(w)
 
     for (cn, c) in zip(content_nums, contents)
-        write_stream!(w, cn, "", c)
+        write_stream!(w, cn; dict = "", data = c)
     end
     for (_, info) in fontnums
         _write_font!(w, info)
@@ -593,12 +592,12 @@ function _write_pdf_document(filename::AbstractString, contents::Vector{Vector{U
     end
     for ni in imgnums
         im = ni.img
-        write_stream!(w, ni.smask,
-            "/Type /XObject /Subtype /Image /Width $(im.nw) /Height $(im.nh) /ColorSpace /DeviceGray /BitsPerComponent 8",
-            im.alpha)
-        write_stream!(w, ni.base,
-            "/Type /XObject /Subtype /Image /Width $(im.nw) /Height $(im.nh) /ColorSpace /DeviceRGB /BitsPerComponent 8 /SMask $(ni.smask) 0 R",
-            im.rgb)
+        write_stream!(w, ni.smask;
+                      dict = "/Type /XObject /Subtype /Image /Width $(im.nw) /Height $(im.nh) /ColorSpace /DeviceGray /BitsPerComponent 8",
+                      data = im.alpha)
+        write_stream!(w, ni.base;
+                      dict = "/Type /XObject /Subtype /Image /Width $(im.nw) /Height $(im.nh) /ColorSpace /DeviceRGB /BitsPerComponent 8 /SMask $(ni.smask) 0 R",
+                      data = im.rgb)
     end
 
     res = IOBuffer(); print(res, "<< ")

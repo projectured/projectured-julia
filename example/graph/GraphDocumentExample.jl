@@ -5,14 +5,13 @@
 
 function make_graph_document_example()
     # Vertex 1: a tiny table (2 columns: Name / Role).
-    table = WidgetTable(Point2D(0, 0),
-        Any[JsonString("Name"), JsonString("Role")],
-        Any[],
-        Any[
+    table = WidgetTable(Point2D(0, 0);
+        column_headers = Any[JsonString("Name"), JsonString("Role")],
+        row_headers = Any[],
+        rows = Any[
             Any[JsonString("Ada"), JsonString("Lead")],
         ],
-        2;
-    )
+        column_count = 2)
 
     # Vertex 2: a small JSON object.
     json = JsonObject("id" => JsonNumber(42), "active" => JsonBool(true))

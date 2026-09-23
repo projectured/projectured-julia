@@ -446,7 +446,7 @@ Per-child minimum on `axis` (`:x` or `:y`). Reads through the
 `LayoutConstraint` wrapper when present; falls back to `0` for bare
 children.
 """
-function layout_min(doc, axis::Symbol, intrinsic::Integer, default=nothing)
+function layout_min(doc, axis::Symbol, intrinsic::Integer; default=nothing)
     doc isa LayoutConstraint || return _policy_field(default, :min, 0)
     v = axis === :x ? doc.min_width : doc.min_height
     v === nothing ? _policy_field(default, :min, 0) : Int(v)
@@ -466,7 +466,7 @@ end
 
 Per-child maximum on `axis`. Falls back to `typemax(Int)` for bare children.
 """
-function layout_max(doc, axis::Symbol, intrinsic::Integer, default=nothing)
+function layout_max(doc, axis::Symbol, intrinsic::Integer; default=nothing)
     doc isa LayoutConstraint || return _policy_field(default, :max, typemax(Int))
     v = axis === :x ? doc.max_width : doc.max_height
     v === nothing ? _policy_field(default, :max, typemax(Int)) : Int(v)
@@ -478,18 +478,18 @@ end
 Per-child preferred extent on `axis`. Falls back to the child's intrinsic
 extent (`intrinsic`) when the constraint is absent or `nothing`.
 """
-function layout_preferred(doc, axis::Symbol, intrinsic::Integer, default=nothing)
+function layout_preferred(doc, axis::Symbol, intrinsic::Integer; default=nothing)
     doc isa LayoutConstraint || return _policy_field(default, :preferred, Int(intrinsic))
     v = axis === :x ? doc.preferred_width : doc.preferred_height
     v === nothing ? _policy_field(default, :preferred, Int(intrinsic)) : Int(v)
 end
 
 """
-    layout_weight(doc, axis) -> Float64
+    layout_weight(doc, axis; default=nothing) -> Float64
 
 Per-child weight on `axis`. Falls back to `0.0` for bare children.
 """
-function layout_weight(doc, axis::Symbol, default=nothing)
+function layout_weight(doc, axis::Symbol; default=nothing)
     doc isa LayoutConstraint || return _policy_field(default, :weight, 0.0)
     v = axis === :x ? doc.weight_width : doc.weight_height
     v === nothing ? _policy_field(default, :weight, 0.0) : Float64(v)

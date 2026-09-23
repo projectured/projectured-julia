@@ -3,28 +3,23 @@
 # cells; the second uses Primitive / Math cells.
 
 function make_table_document_example()
-    WidgetTable(Point2D(40, 40),
-        # column headers
-        Any[JsonString("Name"), JsonString("Age"), JsonString("City")],
-        # row headers (none)
-        Any[],
-        # body rows (each a vector of document cells)
-        Any[
+    WidgetTable(Point2D(40, 40);
+        column_headers = Any[JsonString("Name"), JsonString("Age"), JsonString("City")],
+        row_headers = Any[],
+        # each body row is a vector of document cells
+        rows = Any[
             Any[JsonString("Jennifer"), JsonNumber(30), JsonString("New York")],
             Any[JsonString("Bob"),      JsonNumber(25), JsonString("Springfield")],
             Any[JsonString("Carol"),    JsonNumber(42), JsonString("Metropolis")],
         ],
-        3)                       # column_count
+        column_count = 3)
 end
 
 function make_math_table_document_example()
-    WidgetTable(Point2D(40, 40),
-        # column headers
-        Any[PrimitiveString("A"), PrimitiveString("B"), PrimitiveString("C")],
-        # row headers
-        Any[PrimitiveString("1"), PrimitiveString("2"), PrimitiveString("3")],
-        # body rows
-        Any[
+    WidgetTable(Point2D(40, 40);
+        column_headers = Any[PrimitiveString("A"), PrimitiveString("B"), PrimitiveString("C")],
+        row_headers = Any[PrimitiveString("1"), PrimitiveString("2"), PrimitiveString("3")],
+        rows = Any[
             # row 1: plain numbers
             Any[PrimitiveNumber(10), PrimitiveNumber(20), PrimitiveNumber(30)],
             # row 2: math formulas
@@ -36,5 +31,5 @@ function make_math_table_document_example()
                 MathBinaryOperation(:/, MathParenthesized(MathBinaryOperation(:+, MathVariable("A"), MathVariable("C"))), PrimitiveNumber(2)),
                 MathBinaryOperation(:*, PrimitiveNumber(3), MathParenthesized(MathBinaryOperation(:+, MathVariable("A"), MathVariable("B"))))],
         ],
-        3)
+        column_count = 3)
 end
