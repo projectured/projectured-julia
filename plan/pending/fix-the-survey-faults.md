@@ -197,7 +197,20 @@ memory cap of 20 GB. No second Julia process runs at the same time.
       Six failures of the meaning search appeared only because the warm session
       had run `test_kernel()` before: the store of a toy model lives in the
       process. In a fresh session the meaning search passes 67 of 67.
-- [ ] The downstream IDE tests, against the worktree and against `main`.
+- [x] `main` moved 82 commits ahead while the fixes were made, among them the
+      widget colours campaign. The owner chose a merge, not a rebase. Twenty
+      conflicts in eight files: each resolution keeps the drawing, the box
+      model and the keyword forms of `main`, and the behaviour of the fixes.
+      A widget state write goes through `_write_view_state` now. Three more
+      places needed a hand after the merge, where each side had changed a
+      different line: the fold test of the accordion, the `WidgetTree` of the
+      reflection view, and one stale limit of `widget.md`.
+- [x] The downstream IDE tests, in a scratch environment pointed once at the
+      worktree and once at `main`: both give 81 pass, 4 fail, 1 error in
+      `test_select_and_paste`, and `test_ide_window_wrap` passes in both. The
+      failures are not from this work. A downstream repository must run
+      `Pkg.resolve()` after this lands, because `ProjecturedStatistics` has a
+      new dependency.
 - [ ] Land on `main`, and move this plan to `plan/done/`.
 
 ## 5. Decisions
