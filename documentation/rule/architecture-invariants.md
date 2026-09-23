@@ -114,6 +114,7 @@ requirement; the rule is its own lead sentence.
 | [PAR-REFERENCE-DSL](#par-reference-dsl) | Build and match reference paths with the DSL, not by hand |
 | [PAR-EVERY-DOCUMENT-HAS-SELECTION](#par-every-document-has-selection) | Every concrete `Document` has a `selection::Cell`, and every selection-reachable child is itself a `Document` |
 | [PAR-REPLACE-SELECTION](#par-replace-selection) | Change selection with `replace_selection!`, not a bare `set_selection!` |
+| [PAR-SELECTION-WRITTEN-AT-ROOT](#par-selection-written-at-root) | Every write of the live selection starts at the root document; a reader reads its own selection and never searches below |
 | [PAR-EMPTY-PATH-IS-SELECTION](#par-empty-path-is-selection) | The empty path is a whole-element selection in its own right, not an absence |
 | [PAR-FOLDED-CHECKPOINTS](#par-folded-checkpoints) | Folded node-type checkpoints are the canonical form; produce and consume them, don't fabricate them |
 | [PAR-REACTIVE-OUTPUT-SELECTION](#par-reactive-output-selection) | Wire the output selection reactively; focus is the selection |
@@ -643,6 +644,26 @@ enter it.
 selection can be left behind, producing multiple visible cursors. Use
 `replace_selection!` (clear then set) whenever moving the cursor; reserve bare
 `set_selection!` for the case where you have already cleared.
+
+### PAR-SELECTION-WRITTEN-AT-ROOT
+
+**Every write of the live selection starts at the root document.** The live
+selection is one path from the root, and each document on that path holds its
+suffix of it (PAR-EVERY-DOCUMENT-HAS-SELECTION). A write that starts below the
+root changes the suffixes below its start and leaves every document above it
+with an old path or none, so the chain is no longer one path.
+
+- Do not call `replace_selection!` or `set_selection!` on a document below the
+  root of a live tree, and do not evaluate a selection operation against such a
+  document. Code that moves the selection makes an operation whose path starts
+  at the root, and the editor evaluates it there.
+- A reader reads its own `selection` only. It never searches the documents
+  below it for a selection, because the rule above makes its own suffix
+  correct.
+- A document that nothing holds yet is its own root. The code that puts it into
+  a larger tree makes sure that the new root holds the selection it had.
+- A dormant selection, which a document keeps off the live path, is not the
+  live selection, and this rule does not apply to it.
 
 ### PAR-EMPTY-PATH-IS-SELECTION
 
