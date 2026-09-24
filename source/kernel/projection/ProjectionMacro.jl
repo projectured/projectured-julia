@@ -17,7 +17,7 @@ The macro exports the type it declares, the way `@document` does. A projection
 type is the public name of the rule it holds, so the module that declares it
 needs no `export` line of its own.
 
-This is `@cell_struct` (the cell layer's transparent-Cell struct codegen) plus
+This is `@cell_struct` (the struct layer's transparent-Cell struct codegen) plus
 one default: a struct without an explicit supertype gets `<: Projection`. The
 injected `:Projection` resolves in the caller's scope (the result is `esc`'d)
 — same mechanic as `@iomap`/`IoMap`.

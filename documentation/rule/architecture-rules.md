@@ -197,7 +197,7 @@ package whose document walk can express them.
   fragments of one module (the `@event_case` / `@gestures` parser, in-namespace by
   construction); otherwise sink the machinery to a module at or below both users and
   export it (the transparent-Cell struct codegen: `@cell_struct` + builders in the
-  cell layer, built on by `@document`, `@iomap`, and `@projection`).
+  struct layer, built on by `@document`, `@iomap`, and `@projection`).
 - **Lower layers may *mention* higher concepts only as opaque payloads** — an untyped
   field the lower layer never interprets (`ProjectionReferenceStep.projection::Any`,
   `Intent`). If the lower layer needs to *call* it, that's a seam, not a payload.

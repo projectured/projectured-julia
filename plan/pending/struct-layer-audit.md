@@ -80,10 +80,12 @@ New exported names: `get_cell_struct_parameter_names`,
     parameter in `test_document_macro`.
 - [x] 3. The module file: the docstring, and the export block in the order of the
   export rule. `CellStructModule` leaves `EXPORT_UNMIGRATED`.
-- [ ] 4. Outside the layer: the docstrings of the two test files, the import of
+- [x] 4. Outside the layer: the docstrings of the two test files, the import of
   `get_cell_struct_kind` from its owner in `ProjecturedSubstrateTest`, and the
   guides `cell.md`, `macros.md`, `testing-guide.md` and
-  `architecture-invariants.md`.
+  `architecture-invariants.md`. Also `architecture-rules.md`, `document.md`, the
+  folder table of `kernel/architecture.md` and one sentence of
+  `ProjectionMacro.jl`, which put the struct code in the cell layer.
 - [ ] 5. Verification, and the move of this plan to `plan/done/`.
 
 ## What the implementation found

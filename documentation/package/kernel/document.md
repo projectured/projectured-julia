@@ -108,10 +108,10 @@ at a time, instead of walking the whole value up front. See
 [reflection.md](../reflection/reflection.md) for the policy and the widget view
 built on that shadow.
 
-Both lean on cell-layer primitives — `copy_cell_as` (clone a cell in its own kind;
-the cell contract) and `get_cell_struct_kind` (the cell kind a value's fields are
-built from; the cell-struct toolkit) — since a document's kind lives in its field
-cells, not in its type name.
+Both use two primitives of the layers below, because the kind of a document is
+in its field cells and not in its type name. `copy_cell_as`, of the cell layer,
+makes a cell in the kind of another. `get_cell_struct_kind`, of the struct layer,
+returns the kind of the cells of a value.
 
 ## A copy under a policy
 

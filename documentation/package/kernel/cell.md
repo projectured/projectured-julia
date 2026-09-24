@@ -131,7 +131,7 @@ are stored as `Cell` but are read and written *transparently*: `obj.f` reads the
 underlying cell's value, `obj.f = v` writes into it, and `getfield(obj, :f)` is the
 escape hatch that returns the raw `Cell`. This is why the bulk of the code reads
 like ordinary Julia struct manipulation even though every field is reactive. The
-kernel codegen behind this is [`@cell_struct`](#cellstructmodule-the-transparent-cell-struct-codegen)
+kernel codegen behind this is [`@cell_struct`](#cellstructmodule-the-struct-of-cells)
 below; the full field-wrapping mechanics live in [the macros guide](macros.md).
 
 ## Idioms you will encounter
@@ -178,7 +178,7 @@ cell/CellModule.jl                (CellModule)        — the cell kinds, one fi
         ├─ ImmutableCell.jl   — a read-only box
         └─ CellDefaults.jl    — the bodies of the other generics, one method for each kind
         │  Cell and AbstractCell, used by ↓
-struct/CellStructModule.jl        (CellStructModule)  — the transparent-cell struct codegen:
+struct/CellStructModule.jl        (CellStructModule)  — the struct of cells:
         ├─ CellStructPlan.jl  — the parse of a struct definition that the struct macros share
         └─ CellStruct.jl      — @cell_struct and its expression builders
 ```
@@ -213,41 +213,57 @@ Public surface: `AbstractCell`, `is_cell_up_to_date`, `unwrap_cell`,
 `MutableCell` and `ImmutableCell`. `peek` is an untracked read, a method of
 `Base.peek`.
 
-## CellStructModule — the transparent-Cell struct codegen
+## CellStructModule — the struct of cells
 
-`CellStructModule` (built on `CellModule` via `using ..CellModule`) is the
-compile-time struct toolkit, split out of the runtime engine so a reader of the
-reactive kinds never has to read AST-rewriting codegen. `@cell_struct struct T
-[<: Super] … end` turns every field into a `::Cell` field. It generates an
-**auto-wrapping inner constructor**: raw values wrap in `Cell(v)`, and Cells pass
-through unchanged, which is how construction-time cell sharing works. It also
-generates **transparent accessors**: `obj.f` reads the cell value, `obj.f = v`
-writes into it, and `getfield(obj, :f)` reaches the raw cell. When a field
-declares a `field::T = value` default, it also generates a **keyword
-constructor** with the `Base.@kwdef` optional/required split. No supertype is
-injected; the struct keeps what the definition wrote.
+`CellStructModule` is the struct layer, and it uses `CellModule` and nothing else.
+`@cell_struct struct T [<: Super] … end` writes each field as a cell and generates
+three parts:
 
-The macro is assembled by `build_cell_struct_exprs(structdef)`. It composes two
-module-internal expr-builders (`cell_struct_autowrap_ctor`,
-`cell_struct_property_accessors`) with the exported keyword/positional builders
-(`build_cell_struct_keyword_parameters`, `build_cell_struct_keyword_constructor`, `build_cell_struct_positional_ctors`)
-and the `CellStructPlan` parse. Together these form the **composition seam for
-macro authors**. `@iomap` and `@projection` (projection layer) inject their default
-supertype and return `esc(build_cell_struct_exprs(structdef))` wholesale; `@document`
-(document layer) generates its own kind-parameterized stem and reuses only the
-keyword-ctor builders. The builders emit `Cell`, `new`, `getfield` as bare names
-that resolve in the delegating macro's *caller* scope, so the emitted code needs
-only `Cell` in scope; invoking `@cell_struct` itself (or a macro built on it)
-requires `using ..CellStructModule`. See [the macros guide](macros.md) for the
-full field-wrapping and `@document` codegen details.
+- An inner constructor `T(values…)`. It wraps each value in a cell of the kind of
+  its field. A cell of the type of the field is the cell of the field, so two
+  structs can share one cell.
+- `getproperty` and `setproperty!`. `obj.f` reads the value of the cell,
+  `obj.f = v` writes it, and `getfield(obj, :f)` returns the cell.
+- A keyword constructor, when a field has a default `f = value`. It has the
+  optional and required keywords of `Base.@kwdef`.
 
-Public surface: `@cell_struct`, `build_cell_struct_exprs`, `build_cell_struct_keyword_parameters`,
-`build_cell_struct_keyword_constructor`, `build_cell_struct_positional_ctors`, `parse_cell_struct_macro_default`, and
-the `CellStructPlan` parse toolkit (`CellStructPlan`, `make_cell_struct_plan`, `add_cell_struct_field!`,
-`retype_cell_struct_fields!`, `get_cell_struct_value_types`, `get_cell_struct_field_kinds`, `get_cell_kind`,
-`get_cell_struct_required_count`, `get_cell_struct_trailing_default_count`). The expr-builders
-`cell_struct_autowrap_ctor` and `cell_struct_property_accessors` are
-module-internal.
+A kind is a type: `ReactiveCell`, `ImmutableCell` or `MutableCell`. A field
+`f::ImmutableCell{T}` or `f::MutableCell{T}` has that kind. Every other field has
+the kind that the macro gets before `struct`, or `ReactiveCell` without one. A
+reactive field is a `Cell`, and an immutable or a mutable field is a cell of the
+declared value type. The struct keeps its supertype and its type parameters.
+`T{A}(values…)` always works, and `T(values…)` works when each parameter is the
+value type of a field.
+
+The generated code holds the kinds and `Cell` as objects, so a module that calls
+`@cell_struct` needs only the macro in scope. The code names `new`, `getfield` and
+`Base` without a module, so `build_cell_struct_exprs` returns it unescaped and
+the macro escapes it.
+
+The builders are public, so a macro that makes a struct of cells with parts of its
+own starts from them:
+
+- `make_cell_struct_plan` reads a `struct` definition into a `CellStructPlan`.
+- The `get_cell_struct_…` functions and `find_cell_struct_parameter_slots` answer
+  questions about the fields and the type parameters of a plan.
+- The `build_cell_struct_…` functions return the parts as expressions, and
+  `build_cell_struct_exprs` returns all of `@cell_struct`.
+- `parse_cell_struct_macro_arguments` reads the kind before `struct`.
+
+[The macros guide](macros.md) says how `@iomap`, `@projection` and `@document`
+use them. At run time, `get_cell_struct_kind(x)` returns the kind of the cell in
+the first field of `x`, and `get_cell_value_type(x)` returns the value type of a
+cell or the type of any other value.
+
+Public surface: `CellStructPlan`, `make_cell_struct_plan`, `add_cell_struct_field!`,
+`retype_cell_struct_fields!`, `get_cell_struct_value_types`,
+`get_cell_struct_field_kinds`, `get_cell_struct_parameter_names`,
+`find_cell_struct_parameter_slots`, `get_cell_struct_trailing_default_count`,
+`get_cell_struct_required_count`, `build_cell_struct_field_type`,
+`build_cell_struct_keyword_parameters`, `build_cell_struct_keyword_constructor`,
+`build_cell_struct_positional_ctors`, `build_cell_struct_exprs`,
+`parse_cell_struct_macro_arguments`, `@cell_struct`, `get_cell_value_type` and
+`get_cell_struct_kind`.
 
 ## PerformanceModule — instrumentation
 

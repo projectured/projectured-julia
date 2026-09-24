@@ -20,7 +20,7 @@ through generated `getproperty` / `setproperty!` methods.
 
 ## `@cell_struct` — the codegen the three build on
 
-The shared pattern is implemented **once, in the cell layer**:
+The shared pattern is implemented **once, in the struct layer**:
 [struct/CellStruct.jl](../../../source/kernel/struct/CellStruct.jl) defines
 `@cell_struct struct T [<: Super] … end`: every field becomes a transparent
 `Cell` (auto-wrapping constructor, read/write-through accessors, raw cells via
@@ -30,12 +30,21 @@ or IoMap vocabulary.
 
 `@iomap` and `@projection` are exactly `@cell_struct` plus their default
 supertype: they inject `<: IoMap` / `<: Projection` when none is written and
-delegate to the cell layer's assembler (`build_cell_struct_exprs`). `@document`
-generates its own kind-parameterized stem (see below), but shares the cell
-layer's codegen kit for everything that is not document-specific: the field
-parse (`make_cell_struct_plan`, which reads the three field forms into a `CellStructPlan`),
-the keyword-constructor builders (`build_cell_struct_keyword_parameters`,
-`build_cell_struct_keyword_constructor`), and **Rule Y** (`build_cell_struct_positional_ctors`).
+delegate to the struct layer's assembler (`build_cell_struct_exprs`). `@document`
+generates its own kind-parameterized stem (see below), but shares the struct
+layer's codegen kit for everything that is not document-specific:
+
+- the field parse (`make_cell_struct_plan`, which reads the four field forms into
+  a `CellStructPlan`) and the argument parse (`parse_cell_struct_macro_arguments`);
+- the kind and the value type of each field (`get_cell_struct_field_kinds`,
+  `get_cell_struct_value_types`), and the declared type of a field of a kind
+  (`build_cell_struct_field_type`);
+- the rule that binds a type parameter from a constructor argument
+  (`find_cell_struct_parameter_slots`, `get_cell_value_type`), and the names of
+  the parameters for a type application (`get_cell_struct_parameter_names`);
+- the keyword-constructor builders (`build_cell_struct_keyword_parameters`,
+  `build_cell_struct_keyword_constructor`), and **Rule Y**
+  (`build_cell_struct_positional_ctors`).
 Rule Y fills a trailing run of defaults positionally; it is a rule about any
 cell struct, not about documents. `@document` is then a parse plus six emitters, each a pure
 function of the plan. Use `@cell_struct` directly for a transparent-Cell struct
@@ -209,7 +218,7 @@ name is a UnionAll matching every kind, so `::JsonString` dispatch and
 - **Kind conversion** happens through the generic functions, not ctors:
   `copy_document(doc)` deep-copies and preserves each cell's kind, and
   `copy_document(K, doc)` rebuilds every cell as kind `K` (reactive ↔ mutable ↔
-  immutable). To query, `get_cell_struct_kind(doc)` (the cell layer) reads the
+  immutable). To query, `get_cell_struct_kind(doc)` (the struct layer) reads the
   kind a value's fields are built from. A cell struct's kind lives in its field
   cells, not in its type name.
 

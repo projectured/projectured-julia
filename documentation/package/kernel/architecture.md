@@ -155,7 +155,9 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 
 | Folder | Holds |
 | --- | --- |
-| `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds, `@cell_struct`, `PerformanceModule` (see [cell.md](cell.md)) |
+| `performance/` | `PerformanceModule` — the per-frame performance counters (see [cell.md](cell.md)) |
+| `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds (see [cell.md](cell.md)) |
+| `struct/` | `CellStructModule` — `@cell_struct` and the builders of a struct of cells (see [cell.md](cell.md)) |
 | `clock/` | `ClockModule` — the animation `Clock` (a `@cell_struct`), `get_reactive_clock_time`/`get_clock_time`/`set_clock_time!`, the shared `get_wall_clock` singleton |
 | `event/` | the input event vocabulary — `EventModule` (ModifierKeys, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, WindowInput) and `EventModule` (`EventPattern`, `@event_case`) |
 | `device/` | `DeviceModule` — the `Device`, `Keyboard`, `Mouse`, `Display` device types (with physical properties) |

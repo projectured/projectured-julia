@@ -80,7 +80,7 @@ using ProjecturedKernel.EventModule: KeyDown
 using ProjecturedKernel.EventModule: ModifierKeys
 using ProjecturedReflection.ReflectionModule
 using ProjecturedReflection.ReflectionModule
-using ProjecturedKernel.DocumentModule: get_cell_struct_kind
+using ProjecturedKernel.CellStructModule: get_cell_struct_kind
 using ProjecturedVersioning.VersioningModule
 using ProjecturedVersioning.VersioningModule: VersioningToAnyProjection
 using ProjecturedDomain.DomainModule: DocumentNothing
