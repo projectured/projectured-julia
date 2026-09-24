@@ -1,6 +1,6 @@
 # Video time for an animated take
 
-> **Status:** in progress. Written 2026-09-24.
+> **Status:** done. Written and done 2026-09-24.
 
 While a form of S1 is typed, the animation stutters (F10 of
 `feature-video-screenplays.md`). The video backend takes one frame for each
@@ -50,4 +50,15 @@ this plan.
         needs a cap above 0.
       - Escape quits the application window. A take that ends on Escape is
         shorter than its schedule, in both clocks.
-- [ ] Step 2: S1 in video time, recorded and given to the owner.
+- [x] Step 2: S1 in video time, recorded and given to the owner. **Done.**
+      - The first form is `clock = editor.clock`. It becomes a Julia document,
+        and its row shows `Clock(time = …)`. The probe of the forms
+        (`build/suites/s1/probe_evaluate.jl`) gives its editor a clock, because
+        the mock editor of the tests has none.
+      - The warm-up and the take pass `video_time = true`.
+      - The take `build/video/rotating_vector_v5.mp4` is 114.3 s, exactly its
+        schedule. The count of distinct frames of the picture pane
+        (crop 300×300 at 777,92, `mpdecimate`) is 30 a second from 51 s to the
+        end. In `rotating_vector_v4.mp4`, which kept the wall clock, it was
+        about 7 a second while a form was typed and about 16 while the take
+        held still.

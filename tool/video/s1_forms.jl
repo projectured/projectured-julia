@@ -3,7 +3,7 @@
 
 # The forms before the canvas has a pane of its own.
 const FIRST_FORMS = [
-    "clock = get_wall_clock()",
+    "clock = editor.clock",
     "canvas = GraphicsCanvas([GraphicsRect(0, 0, 300, 300; color = color_solarized_background_lighter)]; w = 300, h = 300)",
 ]
 

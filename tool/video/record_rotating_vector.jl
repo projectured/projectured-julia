@@ -15,6 +15,9 @@
 #
 # Before the take, the first steps run once, typed fast, into a take that is
 # thrown away, so the evaluator and the split are compiled before the first frame.
+#
+# The take keeps video time: the animation reads the editor's clock, and each
+# frame is 1/30 s after the one before, also while a key makes a frame slow.
 
 using Projectured, ProjecturedExample, ProjecturedSdl, ProjecturedSdlExample, ProjecturedVideo
 
@@ -87,15 +90,16 @@ function main()
     println("warm-up: ", record_application_video([joinpath(PROJECT, "README.md")], make_warm_up_timeline(),
                                                   warm_up; width = 1280, height = 720, fps = 30,
                                                   assistant = :none, root = PROJECT,
-                                                  initial_hold = 0.2, final_hold = 0.2))
+                                                  initial_hold = 0.2, final_hold = 0.2,
+                                                  video_time = true))
     rm(warm_up; force = true)
     timeline = make_timeline()
-    scripted = 0.5 + sum(entry.hold for entry in timeline) + 4.0
+    scripted = 1.0 + sum(entry.hold for entry in timeline) + 4.0
     println("entries: ", length(timeline), ", scripted seconds: ", round(scripted; digits = 1))
     path = record_application_video([joinpath(PROJECT, "README.md")], timeline, OUTPUT;
                                     width = 1280, height = 720, fps = 30,
                                     assistant = :none, root = PROJECT,
-                                    initial_hold = 1.0, final_hold = 4.0)
+                                    initial_hold = 1.0, final_hold = 4.0, video_time = true)
     println("recorded: ", path)
 end
 
