@@ -155,5 +155,20 @@ The owner's answers to the three questions of 2026-09-24:
       `test_evaluator_toplevel` 213, `test_julia` 133, the Julia navigation with
       the same 28 unreached positions. All 13 forms of the new take become Julia
       documents (`build/suites/s1/probe_forms.jl`).
-- [ ] Step 5: the script: items 1, 5, 6 and 9, and the forms of item 3.
+- [x] Step 5: the script: items 1, 5, 6 and 9, and the forms of item 3.
+      `tool/video/s1_forms.jl` holds the 13 forms; `record_rotating_vector.jl`
+      types them and first runs the warm-up. The helper is `add!`, because
+      `draw!` is a name of the graph layout port (`LcgRandom.jl`), which the
+      evaluator sees. `build/suites/s1/probe_evaluate.jl` evaluates the forms
+      headless before a take: all 13 are Julia documents, and none fails.
 - [ ] Step 6: record S1 again and give it to the owner.
+      The take of 2026-09-24 (`build/video/rotating_vector_v3.mp4`, 220.2 s,
+      3.8 MB), on `main` at c6da5faf: the evaluator opens at 1 s, every form has
+      the colors of the Julia notation, each `add!` answers `nothing`, and the
+      axes come last. Three things remain:
+      1. **A Julia form does not wrap.** The Julia notation never breaks a line,
+         so a long form is cut at the edge of the left pane; as a string it
+         wrapped. This waits for the owner: a soft wrap for Julia code, in the
+         evaluator or everywhere, is a design choice.
+      2. **The length.** 220 s, over the 3 min of D5.
+      3. **The time of the clock** has all its digits: `Clock(time = 39.41121697425842)`.
