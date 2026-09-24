@@ -189,8 +189,20 @@ name.content = "Ada Lovelace"
       failures stand at the same places; the scan finds 619 calls and none
       with a `Point2D` first. The forms of the S4 script still have the old
       shape; Step 5 writes them again.
-- [ ] Step 2: the calls of omnet-julia, on a branch, tested against this
-      worktree.
+- [x] Step 2: the calls of omnet-julia, on a branch, tested against this
+      worktree. **Done.** Branch `widget-keywords` of omnet-julia, worktree
+      `omnet-julia-widget-keywords`, commit 09cf33b9: the same three passes
+      (46 files of calls, 3 Markdown files), and by hand the code of
+      `test/ide/AssistantSessionTest.jl` that the assistant runs. The suites
+      run twice, over both main checkouts and over both worktrees (a scratch
+      environment in `/var/tmp/omnet_widget_env`, with `OmnetIdeTest` added):
+      74 suites of presentation, legacy, result, cosim and study, and two IDE
+      suites. They give the same counts, except `test_legacy`, where main runs
+      two tests more: its checkout has the untracked `mm1k/` with a `.ned` and
+      an `.ini` file, which the agreement tests walk. `test_parallel_sim_dashboard_panel`
+      spins on a parallel engine and is left out of both runs; the IDE
+      environment of main needed a `Pkg.resolve()` for the new dependency of
+      `ProjecturedStatistics`. The branch lands right after projectured-julia.
 - [x] Step 3: the live values of §3.3, with tests. **Done.** A label takes a
       cell as it is (no caller passed one before) and makes a function a
       `ComputedCell` whose answer shows as it is when it is a string or a
