@@ -216,5 +216,33 @@ end
     @test !has_dependents(source)
 end
 
+@testset "a MethodError in a chain of ten computed cells" begin
+    runs = Ref(0)
+    top = ComputedCell(() -> (runs[] += 1; throw(MethodError(identity, ()))))
+    for _ in 2:10
+        below = top
+        top = ComputedCell(() -> below[])
+    end
+    # In the latest world, no thunk retries.
+    @test_throws MethodError Base.invokelatest(getindex, top)
+    @test runs[] == 1
+
+    # In an older world, each level retries once in the latest world.
+    world = Base.get_world_counter()
+    @eval _get_cell_test_newer_value() = 42
+    runs[] = 0
+    @test_throws MethodError Base.invoke_in_world(world, getindex, top)
+    @test runs[] == 11
+
+    # A thunk that calls a method newer than the world of its reader gets its
+    # value through the retry.
+    newer = ComputedCell(() -> _get_cell_test_newer_value())
+    @test Base.invoke_in_world(world, getindex, newer) == 42
+end
+
 end # @testset "Cell"
 end # test_cell
+
+# The method with one argument exists when the test starts, so the name is bound
+# in every world. The test adds the method with no argument in a newer world.
+_get_cell_test_newer_value(value::Int) = value

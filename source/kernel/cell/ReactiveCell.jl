@@ -174,17 +174,18 @@ function Base.getindex(c::ReactiveCell)
     return c.value
 end
 
-# Force a computed cell's thunk. The fast path is a direct call; if that raises a
-# `MethodError` (typically a world-age miss — a thunk constructed in a newer world
-# than the caller's, then forced from an older-world call site), retry once through
-# `Base.invokelatest`, which resolves against the latest method table. A genuine
-# `MethodError` simply rethrows from the retry. Thunks are contractually pure, so a
-# second evaluation is safe.
+# Run the thunk of a computed cell. A thunk that calls a method newer than the
+# world of the task that reads it throws a `MethodError`, so the thunk then runs
+# once more through `Base.invokelatest`. The retry happens only in an older world.
+# Code inside `invokelatest` runs in the latest world, so a nested cell does not
+# retry, and a real `MethodError` runs each thunk of a chain once. A thunk is pure,
+# so a second run is safe.
 function _force_thunk(@nospecialize(f))
     try
         return f()
-    catch e
-        e isa MethodError || rethrow()
+    catch exception
+        is_older_world = Base.tls_world_age() < Base.get_world_counter()
+        exception isa MethodError && is_older_world || rethrow()
         return Base.invokelatest(f)
     end
 end
