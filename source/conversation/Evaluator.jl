@@ -401,7 +401,9 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     # A `Document` return value is kept as the result so it renders live;
     # otherwise the printed output, exactly as the composer's own evaluate does.
     val = get_last_evaluated_value(set)
-    result = val isa Document ? val : make_evaluator_result_text(rstrip(output))
+    result = val isa Document ? val :
+             _is_silent_nothing(val, output) ? _make_nothing_result() :
+             make_evaluator_result_text(rstrip(output))
     element.result = result
     element.is_error = is_err
     push!(t.elements, _make_fresh_form(t))
@@ -419,6 +421,20 @@ function evaluate_operation(editor, op::EvaluateSelectedFormOperation)
     # toplevel says of parsing a string form.
     (t.parse_evaluated_forms || _is_julia_hole(element.form)) && _parse_evaluated_form!(element)
     nothing
+end
+
+# The tool answers "Done." for a `nothing` that printed nothing, which is a word
+# for a model. The evaluator shows the value itself: the `nothing` of the Julia
+# notation, drawn by the Julia domain when one is loaded.
+_is_silent_nothing(value, output) = value === nothing && strip(output) == "Done."
+
+function _make_nothing_result()
+    has_natural_parser(:jl) || return make_evaluator_result_text("nothing")
+    try
+        parse_natural_text(:jl, "nothing")
+    catch
+        make_evaluator_result_text("nothing")
+    end
 end
 
 # The code of an evaluated form becomes a Julia document when the document prints

@@ -243,10 +243,14 @@ const _SHOWN_VALUE_CHARACTERS = 200
 # is, a long one by its `summary` and how to read a part of it, and `nothing` as
 # nothing at all. Prose a verb answers on purpose is shown whole, however long:
 # a `Text` as it is, and a long `String` without its quotes. A verb that answers
-# `show_layout`'s layout or a search's hits answers it to be read.
+# `show_layout`'s layout or a search's hits answers it to be read. A function is
+# shown as the Julia REPL shows it, by its name and its number of methods; its
+# plain `repr` in the scratch module is the name of its type. The code just made
+# the function in a newer world, so the display runs in the newest one.
 function _describe_last_value(value)
     value === nothing && return ""
     value isa Base.Text && return string(value) * "\n"
+    value isa Function && return Base.invokelatest(sprint, show, MIME"text/plain"(), value) * "\n"
     text = repr(value; context = :limit => true)
     (length(text) <= _SHOWN_VALUE_CHARACTERS && !occursin('\n', text)) && return text * "\n"
     value isa AbstractString && return String(value) * "\n"

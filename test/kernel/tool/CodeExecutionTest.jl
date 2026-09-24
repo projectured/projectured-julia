@@ -64,6 +64,10 @@ function test_code_execution()
         @test run("println(\"hi\"); nothing") == "hi\n"
     end
 
+    @testset "a function is shown as the REPL shows it" begin
+        @test run("phase_q() = 1") == "phase_q (generic function with 1 method)\n"
+    end
+
     @testset "a name nobody defined is answered with the nearest declared names" begin
         answer = run("count_row([1])")
         @test occursin("UndefVarError", answer)

@@ -279,6 +279,18 @@ end
     end
 end
 
+@testset "a form that answers nothing shows the nothing of Julia" begin
+    # Nothing printed: the result is the Julia `nothing`, drawn by the Julia domain.
+    form = evaluated_form("x_q = 3; nothing")
+    @test nameof(typeof(form.result)) === :JuliaNothing
+    # Something printed: the result is what was printed.
+    form = evaluated_form("println(\"hi\"); nothing")
+    @test _et_flatten(form.result) == "hi"
+    # A function reads as the REPL shows it.
+    form = evaluated_form("phase_q() = 1")
+    @test _et_flatten(form.result) == "phase_q (generic function with 1 method)"
+end
+
 @testset "a form whose parse would change more than spacing keeps its string" begin
     # A comment has no place in the Julia document, and the print gives a lambda
     # parentheses that were not typed: both forms keep what was typed.
