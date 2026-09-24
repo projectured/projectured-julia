@@ -122,7 +122,27 @@ The owner's answers to the three questions of 2026-09-24:
       (`source/presentation/result/VectorPlot.jl:236`) passes the color of a
       polyline positionally and must change to `color = p.line_color` in the
       same step; `inet-julia` has no such call.
-- [ ] Step 4b: decision B, the keyword arguments after `;` and the short function
+- [x] Step 4b: decision B, the keyword arguments after `;` and the short function
       definition in the Julia domain.
+      `JuliaCall` has `keyword_arguments`, which the parser fills from the
+      `:parameters` of a call; a keyword written after `,` stays in `arguments`.
+      The printer draws a call as its name, the arguments `(a, b` and the
+      keyword arguments `; k = 1)`, whose `; ` shows only when a keyword is
+      there, so the paths of the arguments do not change. `@document` makes the
+      constructor that turns a plain vector into a collection only for a struct
+      with one collection (Rule C), so `JuliaDocument.jl` adds the two for a call
+      by hand. The parser unwraps a body of one statement of every short
+      function definition, not only of one with `where`. The formula slice builds
+      its own `Expr` of a call and carries the keywords in `:parameters`.
+      `phase() = …` and `f(a; k = 1)` print back as written. `test_julia` 133,
+      `test_evaluator_toplevel` 210, and the navigation of `julia_example` 84
+      pass with the same 28 positions unreached as the baseline.
+      **Found, and not fixed:** `test_formula` fails 12, `test_fsm` 23 and
+      `test_process` 108, and all of them come from `main`. Commit 154f3306
+      ("a pasted object runs as itself") puts `Document => JuliaObjectToSyntaxLeaf()`
+      last in the table of `JuliaToSyntax`, and the formula, FSM and process
+      projections copy that table and append their own rows after it, so the
+      catch-all row wins: a formula reference draws `⟨FormulaReference⟩`, a
+      component `⟨FsmComponent⟩`.
 - [ ] Step 5: the script: items 1, 5, 6 and 9, and the forms of item 3.
 - [ ] Step 6: record S1 again and give it to the owner.

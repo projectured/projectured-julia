@@ -104,11 +104,9 @@ _convert_head(::Val{H}, x::Expr) where {H} =
 
 function _convert_head(::Val{:call}, x::Expr)
     callee = x.args[1]
-    # Keyword arguments arrive as a leading `Expr(:parameters, kw…)` (the args
-    # after `;`). Flatten them into the argument list as `key = value`
-    # assignments — `f(a; k=v)` and `f(a, k=v)` are equivalent Julia. Emit the
-    # positional arguments first, then the keywords, so the rendering reads
-    # naturally (`f(editor, title = …)`), regardless of AST order.
+    # The keyword arguments after `;` arrive as a leading `Expr(:parameters, kw…)`,
+    # and they are kept apart, so the call prints the `;` its code wrote. A range,
+    # an operator and a unary operator take no keywords.
     positional = Any[]
     keywords   = Any[]
     for a in x.args[2:end]
@@ -118,7 +116,7 @@ function _convert_head(::Val{:call}, x::Expr)
             push!(positional, a)
         end
     end
-    args = vcat(positional, keywords)
+    args = isempty(keywords) ? positional : Any[]
     if callee === :(:)
         if length(args) == 2
             return JuliaRange(convert_expr(args[1]), convert_expr(args[2]))
@@ -133,7 +131,8 @@ function _convert_head(::Val{:call}, x::Expr)
             return JuliaUnaryOperation(callee, convert_expr(args[1]))
         end
     end
-    return JuliaCall(convert_expr(callee), JuliaDocument[convert_expr(a) for a in args])
+    return JuliaCall(convert_expr(callee), JuliaDocument[convert_expr(a) for a in positional],
+                     JuliaDocument[convert_expr(k) for k in keywords])
 end
 
 # ── Macrocall ────────────────────────────────────────────────────────────────
@@ -238,10 +237,13 @@ end
 function _convert_head(::Val{:(=)}, x::Expr)
     target = x.args[1]
     value = x.args[2]
-    # Julia wraps the body of a short-form definition WITH a `where` in a block
-    # (`f(x::T) where {T} = x` becomes `… = begin x end`) but not one without.
-    # Unwrap it, so both forms read the same way they were written.
-    if target isa Expr && target.head === :where && value isa Expr && value.head === :block
+    # Julia wraps the body of a short function definition in a block, as in
+    # `f(x) = x` becoming `f(x) = begin x end`. A body of one statement is
+    # unwrapped, so the definition prints on one line, as it was written. The
+    # signature is a call, a call with `where`, or a call with a return type; a
+    # plain assignment keeps its block.
+    if target isa Expr && target.head in (:call, :where, :(::)) &&
+       value isa Expr && value.head === :block
         statements = [s for s in value.args if !(s isa LineNumberNode)]
         length(statements) == 1 && (value = statements[1])
     end

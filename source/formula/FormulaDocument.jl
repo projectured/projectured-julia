@@ -350,8 +350,12 @@ function _to_expr(node)
     elseif node isa JuliaUnaryOperation
         return Expr(:call, node.operator, _to_expr(node.operand))
     elseif node isa JuliaCall
-        return Expr(:call, _to_expr(node.callee),
-                    Any[_to_expr(a) for a in node.arguments]...)
+        arguments = Any[_to_expr(a) for a in node.arguments]
+        isempty(node.keyword_arguments) && return Expr(:call, _to_expr(node.callee), arguments...)
+        # A keyword after `;` is `k = v`, which the call reads as `Expr(:kw, …)`.
+        keywords = Any[(k = _to_expr(k); k isa Expr && k.head === :(=) ? Expr(:kw, k.args...) : k)
+                       for k in node.keyword_arguments]
+        return Expr(:call, _to_expr(node.callee), Expr(:parameters, keywords...), arguments...)
     elseif node isa JuliaRange
         s = node.step
         return s === nothing ?

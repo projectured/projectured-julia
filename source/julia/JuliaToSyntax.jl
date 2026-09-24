@@ -178,10 +178,19 @@ end
 # F1 (nested `(args)` sub-node) + F3 (callee override): a bare identifier callee is
 # a function name → render it through a function-coloured identifier leaf; anything
 # else (a field access, an expression) recurses through its own projection.
+#
+# The arguments and the keyword arguments are two sub-nodes: `(a, b` and
+# `; k = 1)`. The second one opens with `; ` only when it holds a keyword, so a call
+# with none reads `(a, b)`, and it closes the call.
 @projection_template JuliaCallToSyntaxNode JuliaCall (p, c) ->
     SyntaxConcatenation([ project(:callee; as = v -> v isa JuliaIdentifier ? JuliaIdentifierToSyntaxLeaf(p.callee) : nothing),
                           SyntaxNode(collection(:arguments);
                                      open=TextString("(", p.delim),
+                                     sep=TextString(", ", p.delim)),
+                          SyntaxNode(collection(:keyword_arguments);
+                                     open=TextString(ComputedCell(() -> isempty(c.keyword_arguments) ? "" : "; "),
+                                                     Cell(p.delim.font), Cell(p.delim.color),
+                                                     Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing)),
                                      close=TextString(")", p.delim),
                                      sep=TextString(", ", p.delim)) ])
 

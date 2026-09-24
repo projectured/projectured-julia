@@ -101,12 +101,22 @@ A prefix unary operation (e.g. `-x`, `!flag`, `~bits`).
 end
 
 """
-A function call expression.
+A function call expression. `keyword_arguments` are the arguments after `;`,
+each a `key = value`, as in `f(a; k = 1)`. A keyword argument written after `,`,
+as in `f(a, k = 1)`, stays in `arguments`, where the code wrote it.
 """
 @document struct JuliaCall <: JuliaDocument
     callee::Document
     arguments::CellVector
+    keyword_arguments::CellVector = CellVector()
 end
+
+# Most callers give the lists of a call as plain vectors, and each becomes the
+# collection that the call holds. `@document` makes such a constructor only for a
+# struct with one collection (its Rule C), and a call has two.
+JuliaCall(callee, arguments::AbstractVector) = JuliaCall(callee, CellVector(arguments), CellVector())
+JuliaCall(callee, arguments::AbstractVector, keyword_arguments::AbstractVector) =
+    JuliaCall(callee, CellVector(arguments), CellVector(keyword_arguments))
 
 """
 A macro call expression, e.g. `@doc "…" expr` or `@show x`. `name` is
