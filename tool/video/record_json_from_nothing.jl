@@ -4,9 +4,9 @@
 #
 # Screenplay S3: JSON from nothing.
 # The build moves the caret alone and never selects structure: `Right` leaves a
-# string, a `,` after a value adds the next entry or element, and presses of
-# `Right` carry the caret past the closing `}` or `]` of a nested container, where
-# the `,` belongs to the outer object.
+# string, a `,` after a value adds the next entry or element, and `Down`
+# carries the caret to the end of the line of the closing `}` or `]` of a
+# nested container, where the `,` belongs to the outer object.
 # The script first replays the timeline headless. It records only when every
 # key produced an operation.
 # With `--gestures`, a panel in a corner shows each key and the operation it made.
@@ -28,9 +28,9 @@ _key(key; hold = 0.35, kwargs...) = (event = KeyDown(key, ModifierKeys(; kwargs.
 _press(character; hold = 0.4) = (event = KeyPress(character), hold = hold)
 _type(text) = make_typein_gestures(text; hold = 0.15, jitter = 0.6)   # the human rhythm, D13
 _right(; hold = 0.3) = _key(:right; hold = hold)                     # leave a string
-# From inside the last string of a nested container: past the closing quote, the
-# indentation of the next line and the closing `}` or `]`.
-_leave_container() = [_right(; hold = 0.22) for _ in 1:5]
+# From the last value of a nested container: the next line holds only the
+# closing `}` or `]`, so Down puts the caret at its end, after the brace.
+_leave_container() = [_key(:down; hold = 0.4)]
 
 _entry_text(key, value) = vcat(_type(key), [_key(:tab)], [_press('"')], _type(value))
 _entry_number(key, value) = vcat(_type(key), [_key(:tab)], _type(value))
