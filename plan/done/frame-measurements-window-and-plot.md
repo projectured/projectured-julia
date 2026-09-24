@@ -1,6 +1,8 @@
 # Frame measurements: frame names, a window of recent frames, milliseconds and a plot
 
-> **Status (2026-09-24): IN PROGRESS.** Steps 1 to 5 are done.
+> **Status (2026-09-24): DONE.** All six steps are in place. The kernel keeps the
+> last 1000 frames, the table summarizes them in milliseconds, and a frame plot
+> draws them.
 
 The editor measures each frame into `editor.frame_samples`, a `FrameSampleStore`
 of the kernel performance layer. The store keeps only running summaries since
@@ -165,4 +167,8 @@ unsealed files of the layer again. Move this plan to `plan/done/`.
   - `test_export_collisions()` fails on `format_fault_message`, which the
     kernel `FaultModule` and `FaultViewModule` both export. It fails on main
     too, and this plan does not change it.
-- [ ] Step 6
+- [x] Step 6 — `statistics.md` and `editor.md` follow the change.
+  `test_naming()`, `test_arguments()` and `test_documentation()` pass. The
+  second audit of `PerformanceModule.jl` and `FrameSample.jl` finds nothing
+  new. `PerformanceCounter.jl` is sealed and still says two things twice in
+  its comments; a fix needs the owner's permission for that file.
