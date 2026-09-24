@@ -52,7 +52,7 @@ The question of `Computed` against `ComputedCell` is a plan of its own:
 - [x] 4. The comments and docstrings of `ReactiveCell.jl`, `CellDefaults.jl` and
   `CellComputed.jl`: no history, no first person, no repeated half, no false
   claim, no line over 90 characters.
-- [ ] 5. `CellModule.jl`: the docstring in the writing rules, the `using` of
+- [x] 5. `CellModule.jl`: the docstring in the writing rules, the `using` of
   `PerformanceModule` moved from `ReactiveCell.jl`, and the exports grouped by
   fragment.
 - [ ] 6. Outside the layer: the guide `cell.md`, the two engine names in

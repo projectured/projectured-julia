@@ -1,7 +1,7 @@
-# Fragment of `CellModule` — the pull-based reactive kind and its engine.
-# `AbstractCell` is already in scope. This is the only cell kind that touches the
-# performance counters, so it pulls in the bump macro.
-using ..PerformanceModule
+# Fragment of `CellModule` — the pull-based reactive kind and its engine: the read
+# that records its reader, the write that invalidates the readers, and the
+# computation that runs on the next read. The engine counts its reads, computes,
+# invalidations and writes with `@count_performance`.
 
 """
     ReactiveCell{T}
