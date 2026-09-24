@@ -16,7 +16,7 @@ end
 # whole-selected insertion keep working: the leaf's char editing declines
 # without a value cursor, so those keys fall through to `@gestures JsonDocument`.
 
-JsonInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(JsonDocument)
+JsonInsertionToSyntaxLeaf() = DomainInsertionToSyntaxLeaf(JsonDocument; placeholder = "enter json value")
 
 @projection struct JsonBoolToSyntaxLeaf
     style::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_yellow)

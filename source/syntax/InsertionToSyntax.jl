@@ -49,14 +49,20 @@ struct InsertionToSyntaxLeaf <: Projection
     label::StyleText
     value::StyleText
     hint::StyleText
+    # What an empty buffer shows in place of `prefix · suffix`, in the colour of the
+    # label, as the other empty fields of a domain show a hint; `nothing` keeps the
+    # frame around the empty name.
+    placeholder::Union{Nothing,String}
 end
 
 InsertionToSyntaxLeaf(commit; prefix::AbstractString = "", suffix::AbstractString = "",
                       completion = name_completion,
                       label = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray),
                       value = StyleText(font_ubuntu_monospace_regular_20, color_default),
-                      hint  = StyleText(font_ubuntu_monospace_regular_20, color_completion_hint)) =
-    InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, completion, label, value, hint)
+                      hint  = StyleText(font_ubuntu_monospace_regular_20, color_completion_hint),
+                      placeholder::Union{Nothing,AbstractString} = nothing) =
+    InsertionToSyntaxLeaf(String(prefix), String(suffix), commit, completion, label, value, hint,
+                          placeholder === nothing ? nothing : String(placeholder))
 
 # ── Completion policies ───────────────────────────────────────────────────────
 #
@@ -118,6 +124,10 @@ function map_reference_backward(::InsertionToSyntaxLeaf, iomap, reference)
         ::SyntaxDelimitation.content.leaf_path... => @reference_case leaf_path begin
             ∅ => whole                                 # whole content leaf → whole insertion
             ::SyntaxLeaf.value{s:e} => @reference ::DocumentInsertion.value::String{s:e}::Position
+            # The hint, and a placeholder in its place, is no text of the name: a
+            # caret on it is the caret at the end of the name.
+            ::SyntaxLeaf.close{k} => ConcreteReference(DocumentInsertion, FieldReferenceStep("value"),
+                ConcreteReference(String, RangeReferenceStep(n, n), EmptyReference(Position)))
         end
         ::SyntaxDelimitation.closing_delimiter{k} => (k == 0 ?
             ConcreteReference(DocumentInsertion, FieldReferenceStep("value"),
@@ -138,9 +148,16 @@ function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
                        Cell(p.value.font),
                        ComputedCell(() -> _typed_color(p, p.completion(ins).state)),
                        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
-    hint = TextString(ComputedCell(() -> p.completion(ins).hint),
-                      Cell(p.hint.font), Cell(p.hint.color),
+    # An empty buffer with a placeholder shows the placeholder alone: it stands in
+    # the span of the completion hint, and the frame of the label is empty.
+    shows_placeholder() = p.placeholder !== nothing && isempty(something(ins.value, ""))
+    hint = TextString(ComputedCell(() -> shows_placeholder() ? p.placeholder : p.completion(ins).hint),
+                      Cell(p.hint.font),
+                      ComputedCell(() -> shows_placeholder() ? p.label.color : p.hint.color),
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    frame(text) = TextString(ComputedCell(() -> shows_placeholder() ? "" : text),
+                             Cell(p.label.font), Cell(p.label.color),
+                             Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     # **The rendered selection is the FORWARD IMAGE of the insertion's own, not a
     # copy of it.** The buffer's cursor is `value{k}` in the insertion's grammar,
     # and the same place is `content::SyntaxLeaf.value::TextString{k}` in the
@@ -165,8 +182,8 @@ function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
     end)
     leaf = SyntaxLeaf(typed; close=hint, selection=leaf_selection)
     io = SimpleIoMap(p, ins, SyntaxDelimitation(leaf;
-        opening_delimiter=TextString(p.prefix, p.label),
-        closing_delimiter=TextString(p.suffix, p.label),
+        opening_delimiter=frame(p.prefix),
+        closing_delimiter=frame(p.suffix),
         selection=node_selection))
     iomap_cell[] = io
     io
@@ -350,7 +367,7 @@ DocumentInsertionToSyntaxLeaf() =
     InsertionToSyntaxLeaf(default_factory; prefix = "Insert a new ", suffix = " here")
 
 """
-    DomainInsertionToSyntaxLeaf(root; prefix = "insert a new ", suffix = " here")
+    DomainInsertionToSyntaxLeaf(root; prefix = "insert a new ", suffix = " here", placeholder = nothing)
 
 A domain-constrained insertion: the shared typed-name buffer completing over
 `root`'s reflected candidates **prefix-free** (inside a `JsonInsertion`,
@@ -360,11 +377,12 @@ A domain-constrained insertion: the shared typed-name buffer completing over
 """
 DomainInsertionToSyntaxLeaf(root::Type;
                             prefix::AbstractString = "insert a new ",
-                            suffix::AbstractString = " here") =
+                            suffix::AbstractString = " here",
+                            placeholder::Union{Nothing,AbstractString} = nothing) =
     InsertionToSyntaxLeaf(value -> begin
             T = resolve_insertion(root, value)
             T === nothing ? nothing : make_insertion_document(T)
-        end; prefix, suffix)
+        end; prefix, suffix, placeholder)
 
 # ── InsertionNothingToSyntaxLeaf: the *Nothing placeholder rendering ───────────────────
 
