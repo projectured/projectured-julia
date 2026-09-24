@@ -1,5 +1,6 @@
 # Fragment of `CellModule` — the read-only, zero-cost cell kind.
 
+# NOTE: as with MutableCell, the `ImmutableCell(v)` ctor is auto-generated.
 """
     ImmutableCell{T}
 
@@ -23,7 +24,6 @@ A plain immutable wrapper: `c[]` reads; there is no write (`c[] = v` is a
 concrete field type inlines into its parent. `ImmutableCell(v)` infers
 `T = typeof(v)`; pass `ImmutableCell{T}(v)` for a wider field type.
 """
-# NOTE: as with MutableCell, the `ImmutableCell(v)` ctor is auto-generated.
 struct ImmutableCell{T} <: AbstractCell{T}
     value::T
 end

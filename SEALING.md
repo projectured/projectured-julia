@@ -67,8 +67,8 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `cell/CellInterface.jl`
   - ⬜ `cell/CellComputed.jl`
   - ⬜ `cell/ReactiveCell.jl`
-  - 🔒 `cell/MutableCell.jl`
-  - 🔒 `cell/ImmutableCell.jl`
+  - ⬜ `cell/MutableCell.jl`
+  - ⬜ `cell/ImmutableCell.jl`
   - ⬜ `cell/CellDefaults.jl`
 - **Layer 4 — struct** (`struct/`)
   - 🔒 `struct/CellStructModule.jl`
