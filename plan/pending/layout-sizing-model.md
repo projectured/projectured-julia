@@ -172,20 +172,121 @@ the axis clips it.
 `Content` then means what it was always read as: **the natural extent, up to the
 edge**. No new policy is needed. `Fill`, `Relative` and `Fixed` do not change.
 
-### 5.2 Where the limit comes from
+### 5.2 The calculation on one axis
 
-- **The cross axis of a stack**, and every axis of a grid cell, a card body, a
-  pane, a split slot, a shell and a viewport: the container's own extent, less
-  its insets. It never reads the child, so it has no cycle.
-- **The main axis of a stack**: a child that is not weighted gets the stack's
-  extent, less the gaps, less the drawn extents of the unweighted children
-  before it, and less the minimums of all the others. A weighted child gets its
-  slot, as today. So each limit reads only children that come earlier in one
-  fixed order, and no cell reads its own result. For the evaluator row
-  `[prompt, result]` the result's limit is the row, less the prompt, less the
-  gap.
+**Names.** `∅` is "no value". On one axis:
 
-### 5.3 What goes away
+| Name | What it is |
+| --- | --- |
+| `S` | the slot that the container itself received, or `∅` |
+| `L` | the limit that the container itself received, or `∅`; when `S ≠ ∅`, `L = S` |
+| `ins` | the container's own insets on the axis: margin, border, padding, bands |
+| `B` | the room inside the container: `B = L − ins`, or `∅` when `L = ∅` |
+| `g`, `n` | the gap between children, and the count of children |
+| `minᵢ, prefᵢ, maxᵢ, wᵢ` | the placement of child `i`: its `LayoutConstraint`, else the container's default policy. `Content = (∅, ∅, ∅, 0)`, `Fixed(k) = (k, k, k, 0)`, `Relative(w) = (0, 0, ∅, w)`. A `∅` minimum counts as 0 |
+| `sᵢ`, `lᵢ` | the slot and the limit that child `i` receives |
+| `eᵢ` | the extent that child `i` draws |
+| `A` | the size that the child authored, or `∅` |
+| `C(x)` | the content's extent when it may use `x`. Rigid content: `C(x) = C`, the same for every `x`. Reflowing content: laid out at `x`, so `C(x) ≤ x` unless one piece that can not break is longer. `C(∞)` is the content with no bound: text on one line per paragraph |
+
+**The child.** Every printer follows one rule:
+
+```
+e = A              when A ≠ ∅                 the authored size wins
+e = max(s, C(s))   when s ≠ ∅                 take the slot, never less than the content
+e = C(l)           when s = ∅ and l ≠ ∅       the content, laid out up to the limit    ← new
+e = C(∞)           when s = ∅ and l = ∅       the content, unbounded
+```
+
+An overlay (a tooltip, a menu) caps instead of taking a slot:
+`e = min(max(A, C(b)), b)` with `b = s` when `s ≠ ∅`, else `l`.
+
+The container clips the child at `sᵢ` when it gave a slot, and at `lᵢ` when it
+gave only a limit. So rigid content wider than its limit is cut at the edge.
+
+**The cross axis of a stack** (the width of each child in a column, the height of
+each child in a row):
+
+```
+wᵢ > 0             sᵢ = B        lᵢ = B
+prefᵢ ≠ ∅          sᵢ = prefᵢ    lᵢ = prefᵢ         (Fixed)
+otherwise          sᵢ = ∅        lᵢ = B             ← new: today lᵢ does not exist
+extent of the stack on this axis = B when S ≠ ∅, else maxᵢ eᵢ
+```
+
+**The main axis of a stack** (the width of each child in a row, the height of each
+child in a column):
+
+```
+an unweighted child i (wᵢ = 0):
+    sᵢ = ∅
+    lᵢ = B − g·(n−1) − Σ(j < i, wⱼ = 0) eⱼ − Σ(j > i, wⱼ = 0) minⱼ − Σ(wⱼ > 0) minⱼ     ← new
+         (∅ when B = ∅)
+
+a weighted child i (wᵢ > 0), when S ≠ ∅:
+    a  = allocate_axis(S − ins; min, max, pref, w, g), with prefⱼ = eⱼ for every unweighted j
+    sᵢ = aᵢ     lᵢ = aᵢ                                                              (today)
+
+a weighted child i, when S = ∅:
+    it is placed as an unweighted child: sᵢ = ∅, lᵢ as above                         ← new
+
+extent of the stack on this axis = S − ins when it distributes, else Σ eᵢ + g·(n−1)
+```
+
+Each `lᵢ` reads only the drawn extents of the unweighted children before it and
+the minimums of the others, and the allocation reads the unweighted children
+after they are drawn. So every value reads only values computed before it, and no
+cell reads its own result.
+
+**A grid.** A column is to its cells what a child of a row is: a weighted or
+`Fixed` column gives each of its cells `s = l =` its width; a `Content` column
+gives its cells `s = ∅` and `l =` the column's limit, which the main-axis
+formula computes over the columns. Rows are the same on the other axis.
+
+**A container that knows its own extent** (a viewport, a shell, a split slot, a
+tab page, a pane, the width of a card): `X = A` when authored, else `S − ins`. It
+gives its content `s = X`, `l = X`, as today plus the limit. On an axis where its
+extent comes from its content (the height of a card), it gives `s = ∅`,
+`l = ∅`.
+
+**Text and flow.** `WordWrapping` wraps at `s`, else at `l`, else not at all.
+`FlowLayout` breaks at `min(max_width, s or l)`, where `max_width` is `∅` unless
+a caller wrote it.
+
+**The root.** The window gives its content `S = L =` its size.
+
+### 5.3 Worked examples
+
+1. A column in a pane that gives it `S = 500`, with a label (40 wide), a long
+   paragraph and a button (30 wide), all `Content`:
+
+   | | today | with the limit |
+   | --- | --- | --- |
+   | `child_width = Content` | 40; wraps at 800 and is cut at 500; 30 | `l = 500`: 40; `C(500) ≤ 500`; 30 |
+   | `child_width = Fill` | 500; 500; 500 | 500; 500; 500 |
+
+2. A row with `S = 400`, `g = 8`: a label "Name:" (50), a field with `Fill`, a
+   button "Go" (30):
+
+   ```
+   l₁ = 400 − 16 − 0 − 0 − 0      = 384    e₁ = 50
+   l₃ = 400 − 16 − 50 − 0         = 334    e₃ = 30
+   s₂ = allocate(400; pref = [50, 0, 30], w = [0, 1, 0], g = 8) = 304
+   ```
+
+3. A row with `S = 400`, `g = 8`, and two long paragraphs, both `Content`:
+
+   ```
+   l₁ = 400 − 8 − 0   = 392    e₁ = 392 (it wraps at 392)
+   l₂ = 400 − 8 − 392 = 0      the second paragraph has no room
+   ```
+
+   The order decides, and the first child takes the room. To share a row
+   between two children that reflow, the placement gives them weights:
+   `child_width = Fill` gives each `(400 − 8) / 2 = 196`. This is the one
+   combination where `Content` is not enough on its own.
+
+### 5.4 What goes away
 
 - the 800 pixel fallback of `WordWrapping`, and the 400 of `FlowLayout`;
 - the table list's own rule for a wrapping cell, and the card's own text width;
@@ -195,7 +296,7 @@ edge**. No new policy is needed. `Fill`, `Relative` and `Fixed` do not change.
 
 The toolbar keeps withholding the slot, and it gives a limit.
 
-### 5.4 The cost
+### 5.5 The cost
 
 This is a change of the model, not of one place:
 
@@ -219,7 +320,14 @@ This is a change of the model, not of one place:
 
 ## 7. The decision the owner makes
 
-1. Which of the four.
+The owner, 2026-09-24:
+
+> hey, I don't care about the evaluator, that's just a special case, I said it
+> already, I want to solve it once and for all
+>
+> so I kind of chose §5
+
+1. Which of the four: §5, pending the owner's reading of §5.2.
 2. If §5: the name of the limit, and whether it lands in steps (the cross axis
    and the containers first, the main axis of the stacks second, the removal of
    the patches of §4.2 last), each with its own baseline diff.
