@@ -579,8 +579,8 @@ function _arrow_elements!(out, g)
             x0, y0 = flow_point(g.frame, shape.f0, shape.c0)
             x1, y1 = flow_point(g.frame, shape.f1, shape.c1)
             push!(out, GraphicsPolyline([(round(Int, x0), round(Int, y0)),
-                                         (round(Int, x1), round(Int, y1))],
-                                        color; width=style.arrow_width, dash=dash,
+                                         (round(Int, x1), round(Int, y1))];
+                                        color, width=style.arrow_width, dash=dash,
                                         end_arrow=head, arrow_size=style.arrowhead_size))
         else
             _split_elements!(out, g, shape, color, dash, head)
@@ -595,7 +595,7 @@ function _arc_elements!(out, g, shape, color, dash, head)
     points = get_arc_geometry(shape.f0, shape.f1, shape.c0, shape.height)
     placed = [(round(Int, x), round(Int, y))
               for (x, y) in (flow_point(g.frame, f, c) for (f, c) in points)]
-    push!(out, GraphicsSpline(placed, color; kind=:bezier, width=g.style.arrow_width,
+    push!(out, GraphicsSpline(placed; color, kind=:bezier, width=g.style.arrow_width,
                               dash=dash, end_arrow=head,
                               arrow_size=g.style.arrowhead_size))
     out
@@ -609,13 +609,13 @@ function _split_elements!(out, g, shape, color, dash, head)
     x0, y0 = flow_point(g.frame, near[1], shape.c0)
     x1, y1 = flow_point(g.frame, near[2], shape.c0)
     push!(out, GraphicsPolyline([(round(Int, x0), round(Int, y0)),
-                                 (round(Int, x1), round(Int, y1))],
-                                color; width=g.style.arrow_width, dash=dash))
+                                 (round(Int, x1), round(Int, y1))];
+                                color, width=g.style.arrow_width, dash=dash))
     x2, y2 = flow_point(g.frame, far[2], shape.c1)
     x3, y3 = flow_point(g.frame, far[1], shape.c1)
     push!(out, GraphicsPolyline([(round(Int, x2), round(Int, y2)),
-                                 (round(Int, x3), round(Int, y3))],
-                                color; width=g.style.arrow_width, dash=(2, 3),
+                                 (round(Int, x3), round(Int, y3))];
+                                color, width=g.style.arrow_width, dash=(2, 3),
                                 end_arrow=head, arrow_size=g.style.arrowhead_size))
     out
 end
@@ -630,7 +630,7 @@ function _elided_marker!(out, g, shape, color)
         x, y = flow_point(g.frame, mid_flow + offset, mid_cross + side)
         push!(points, (round(Int, x), round(Int, y)))
     end
-    push!(out, GraphicsPolyline(points, color; width=1))
+    push!(out, GraphicsPolyline(points; color, width=1))
     out
 end
 
@@ -691,7 +691,7 @@ function _mark!(out, symbol::Symbol, x::Int, y::Int, radius::Int, color)
         if points === nothing
             push!(out, GraphicsCircle(x, y, radius; color))
         else
-            push!(out, GraphicsPolygon(points, color))
+            push!(out, GraphicsPolygon(points; color))
         end
     end
     out
@@ -767,13 +767,13 @@ function _arrow_highlight!(out, g, row::Integer, color)
             points = get_arc_geometry(shape.f0, shape.f1, shape.c0, shape.height)
             placed = [(round(Int, x), round(Int, y))
                       for (x, y) in (flow_point(g.frame, f, c) for (f, c) in points)]
-            push!(out, GraphicsSpline(placed, color; kind=:bezier, width=3))
+            push!(out, GraphicsSpline(placed; color, kind=:bezier, width=3))
         else
             x0, y0 = flow_point(g.frame, shape.f0, shape.c0)
             x1, y1 = flow_point(g.frame, shape.f1, shape.c1)
             push!(out, GraphicsPolyline([(round(Int, x0), round(Int, y0)),
-                                         (round(Int, x1), round(Int, y1))],
-                                        color; width=3))
+                                         (round(Int, x1), round(Int, y1))];
+                                        color, width=3))
         end
         break
     end

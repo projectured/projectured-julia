@@ -106,7 +106,22 @@ The owner's answers to the three questions of 2026-09-24:
       The forms then read, for example:
       `dot = GraphicsCircle(() -> 90 + 60 * cos(phase()), () -> 90 - 60 * sin(phase()), 5; color = color_solarized_magenta)`.
       The four axes of the example are four `GraphicsLine`s of numbers.
-- [ ] Step 4a: decision A, the constructors of the graphics domain.
+- [x] Step 4a: decision A, the constructors of the graphics domain.
+      `GraphicsDocument.jl`: `_make_pixel_cell`, `_make_points_cell` and
+      `_make_text_cell` turn a number, a cell or a function into the cell of a
+      field; a function becomes a `ComputedCell`, and a number is rounded to a
+      whole pixel. `GraphicsText`, `GraphicsRect`, `GraphicsLine`,
+      `GraphicsCircle`, `GraphicsPolyline`, `GraphicsPolygon`, `GraphicsSpline`,
+      `GraphicsViewport`, `GraphicsImage` and the box of `GraphicsCanvas` take
+      them. The color of `GraphicsPolyline`, `GraphicsPolygon` and
+      `GraphicsSpline` is a keyword now; 14 calls in the chart, the sequence
+      chart, the graph layout and two tests changed with it. `test_graphics` 35,
+      `test_chart` 345, `test_graph` 369, `test_sequencechart` 279, and
+      `test_substrate` 80451 with the known failures at the same places.
+      **When this lands on `main`:** `omnet-julia`
+      (`source/presentation/result/VectorPlot.jl:236`) passes the color of a
+      polyline positionally and must change to `color = p.line_color` in the
+      same step; `inet-julia` has no such call.
 - [ ] Step 4b: decision B, the keyword arguments after `;` and the short function
       definition in the Julia domain.
 - [ ] Step 5: the script: items 1, 5, 6 and 9, and the forms of item 3.

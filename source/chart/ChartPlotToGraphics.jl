@@ -678,7 +678,7 @@ function _marker!(out, shape::Symbol, x::Int, y::Int, size::Int, color::StyleCol
     r = max(size ÷ 2, 1)
     polygon = build_marker_polygon(shape, x, y, r)
     if polygon !== nothing
-        push!(out, GraphicsPolygon(polygon, color))
+        push!(out, GraphicsPolygon(polygon; color))
     elseif shape === :circle
         push!(out, GraphicsCircle(x, y, r; color))
     elseif shape === :dot
@@ -725,7 +725,7 @@ function _line_elements!(out, g, index::Int, s::ChartLineSeries)
     elseif s.draw_style !== :none
         shaped = s.draw_style === :linear ? pts : step_points(pts, s.draw_style)
         length(shaped) >= 2 &&
-            push!(out, GraphicsPolyline(shaped, color; width=max(s.line_width, 1),
+            push!(out, GraphicsPolyline(shaped; color, width=max(s.line_width, 1),
                                         dash=_dash_pattern(s.line_style)))
     end
 
@@ -893,7 +893,7 @@ function _histogram_elements!(out, g, index::Int, s::ChartHistogramSeries)
         if !isempty(pts)
             pushfirst!(pts, (first(bars)[1], baseline))
             push!(pts, (last(bars)[2], baseline))
-            push!(out, GraphicsPolyline(pts, color; width=2))
+            push!(out, GraphicsPolyline(pts; color, width=2))
         end
     else
         for (l, r, lo, hi) in bars

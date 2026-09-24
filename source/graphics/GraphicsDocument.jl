@@ -15,6 +15,36 @@ abstract type GraphicsDocument <: Document end
 
 @enum LayoutDirection layout_none layout_horizontal layout_vertical
 
+# ── Live values ──────────────────────────────────────────────────────────
+#
+# A constructor takes each geometric argument — a coordinate, a size, the points
+# of a line — as a number, as a cell that holds one, or as a function of no
+# arguments. A function becomes a computed cell, so the shape follows what the
+# function reads, as a dot that circles a ring follows a clock. A number is
+# rounded to a whole pixel, and so is each coordinate of a point. The text of a
+# `GraphicsText` is live in the same way.
+
+const _LiveNumber = Union{Real, Cell, Function}
+const _LivePoints = Union{AbstractVector, Cell, Function}
+const _LiveText = Union{AbstractString, Cell, Function}
+
+_round_pixel(value::Integer) = Int32(value)
+_round_pixel(value::Real) = round(Int32, value)
+
+_make_pixel_cell(value::Real) = Cell(_round_pixel(value))
+_make_pixel_cell(value::Cell) = value
+_make_pixel_cell(value::Function) = ComputedCell(() -> _round_pixel(value()))
+
+_round_points(points) = Tuple{Int,Int}[(round(Int, point[1]), round(Int, point[2])) for point in points]
+
+_make_points_cell(points::AbstractVector) = Cell(_round_points(points))
+_make_points_cell(points::Cell) = points
+_make_points_cell(points::Function) = ComputedCell(() -> _round_points(points()))
+
+_make_text_cell(text::AbstractString) = Cell(String(text))
+_make_text_cell(text::Cell) = text
+_make_text_cell(text::Function) = ComputedCell(() -> String(text()))
+
 # ── GraphicsInsertion ─────────────────────────────────────────────────────
 
 @document struct GraphicsInsertion <: GraphicsDocument
@@ -51,9 +81,9 @@ backend converts it to its own device encoding at draw time.
     color::StyleColor
 end
 
-function GraphicsText(text::AbstractString, x::Integer, y::Integer;
+function GraphicsText(text::_LiveText, x::_LiveNumber, y::_LiveNumber;
                       font::StyleFont, color::StyleColor=color_white)
-    GraphicsText(Cell(text), Cell(Int32(x)), Cell(Int32(y)),
+    GraphicsText(_make_text_cell(text), _make_pixel_cell(x), _make_pixel_cell(y),
                  Cell(font), Cell(color),
                  Cell(nothing))
 end
@@ -106,12 +136,12 @@ _norm_border(::Nothing) = color_transparent
 _norm_border(c::StyleColor) = c
 
 # @positional: the geometry of a rectangle, in one order everywhere: x, y, width and height.
-function GraphicsRect(x::Integer, y::Integer, w::Integer, h::Integer;
+function GraphicsRect(x::_LiveNumber, y::_LiveNumber, w::_LiveNumber, h::_LiveNumber;
                       color::StyleColor=color_white, radius::Integer=0,
                       radius_tl::Integer=radius, radius_tr::Integer=radius,
                       radius_br::Integer=radius, radius_bl::Integer=radius,
                       border_width::Integer=0, border_color=nothing)
-    GraphicsRect(Cell(Int32(x)), Cell(Int32(y)), Cell(Int32(w)), Cell(Int32(h)),
+    GraphicsRect(_make_pixel_cell(x), _make_pixel_cell(y), _make_pixel_cell(w), _make_pixel_cell(h),
                  Cell(color),
                  Cell(Int32(radius_tl)), Cell(Int32(radius_tr)),
                  Cell(Int32(radius_br)), Cell(Int32(radius_bl)),
@@ -151,10 +181,10 @@ _norm_dash(n::Integer) = (Int(n), Int(n))
 _norm_dash(d) = (Int(d[1]), Int(d[2]))
 
 # @positional: the two ends of a line: x, y and x, y.
-function GraphicsLine(x1::Integer, y1::Integer, x2::Integer, y2::Integer;
+function GraphicsLine(x1::_LiveNumber, y1::_LiveNumber, x2::_LiveNumber, y2::_LiveNumber;
                       color::StyleColor=color_black,
                       width::Integer=1, dash=nothing)
-    GraphicsLine(Cell(Int32(x1)), Cell(Int32(y1)), Cell(Int32(x2)), Cell(Int32(y2)),
+    GraphicsLine(_make_pixel_cell(x1), _make_pixel_cell(y1), _make_pixel_cell(x2), _make_pixel_cell(y2),
                  Cell(color),
                  Cell(Int32(width)), Cell(_norm_dash(dash)), Cell(nothing))
 end
@@ -165,6 +195,10 @@ end
     GraphicsCircle(cx, cy, radius; color::StyleColor=color_black, border_width=0, border_color=nothing)
 
 A reactive filled circle centered at `(cx,cy)` in `color` (a [`StyleColor`](@ref)).
+`cx`, `cy` and `radius` are each a number, a cell, or a function of no arguments
+that the circle computes again when what it reads changes:
+`GraphicsCircle(() -> 90 + 60 * cos(phase()), () -> 90 - 60 * sin(phase()), 5)`.
+The same holds for the geometry of every graphics element.
 Optional anti-aliased outline via `border_width` + `border_color` (a
 [`StyleColor`](@ref), or `nothing` for no border). Used for avatars, radio dots,
 switch knobs and slider thumbs.
@@ -178,10 +212,10 @@ switch knobs and slider thumbs.
     border_color::StyleColor
 end
 
-function GraphicsCircle(cx::Integer, cy::Integer, radius::Integer;
+function GraphicsCircle(cx::_LiveNumber, cy::_LiveNumber, radius::_LiveNumber;
                         color::StyleColor=color_black,
                         border_width::Integer=0, border_color=nothing)
-    GraphicsCircle(Cell(Int32(cx)), Cell(Int32(cy)), Cell(Int32(radius)),
+    GraphicsCircle(_make_pixel_cell(cx), _make_pixel_cell(cy), _make_pixel_cell(radius),
                    Cell(color),
                    Cell(Int32(border_width)),
                    Cell(_norm_border(border_color)),
@@ -191,7 +225,7 @@ end
 # ── GraphicsPolyline ─────────────────────────────────────────────────────
 
 """
-    GraphicsPolyline(points, color::StyleColor=color_black; width=1, dash=nothing,
+    GraphicsPolyline(points; color::StyleColor=color_black, width=1, dash=nothing,
                      start_arrow=false, end_arrow=false, arrow_size=8)
 
 A reactive connected sequence of straight segments through `points` (a
@@ -214,12 +248,11 @@ the adjacent segment.
     arrow_size::Int32
 end
 
-function GraphicsPolyline(points::AbstractVector,
-                          color::StyleColor=color_black;
+function GraphicsPolyline(points::_LivePoints;
+                          color::StyleColor=color_black,
                           width::Integer=1, dash=nothing, start_arrow::Bool=false,
                           end_arrow::Bool=false, arrow_size::Integer=8)
-    pts = Tuple{Int,Int}[(Int(p[1]), Int(p[2])) for p in points]
-    GraphicsPolyline(Cell(pts), Cell(color),
+    GraphicsPolyline(_make_points_cell(points), Cell(color),
                      Cell(Int32(width)), Cell(_norm_dash(dash)),
                      Cell(start_arrow), Cell(end_arrow),
                      Cell(Int32(arrow_size)), Cell(nothing))
@@ -228,7 +261,7 @@ end
 # ── GraphicsPolygon ──────────────────────────────────────────────────────
 
 """
-    GraphicsPolygon(points, color::StyleColor=color_black; border_width=0, border_color=nothing)
+    GraphicsPolygon(points; color::StyleColor=color_black, border_width=0, border_color=nothing)
 
 A reactive closed filled shape through `points` (a `Vector{Tuple{Int,Int}}` of
 absolute `(x, y)` pixels) in `color` (a [`StyleColor`](@ref)) — the filled
@@ -247,11 +280,10 @@ rather than fan it. Self-intersecting outlines are not supported.
     border_color::StyleColor
 end
 
-function GraphicsPolygon(points::AbstractVector,
-                         color::StyleColor=color_black;
+function GraphicsPolygon(points::_LivePoints;
+                         color::StyleColor=color_black,
                          border_width::Integer=0, border_color=nothing)
-    pts = Tuple{Int,Int}[(Int(p[1]), Int(p[2])) for p in points]
-    GraphicsPolygon(Cell(pts), Cell(color),
+    GraphicsPolygon(_make_points_cell(points), Cell(color),
                     Cell(Int32(border_width)),
                     Cell(_norm_border(border_color)),
                     Cell(nothing))
@@ -260,7 +292,7 @@ end
 # ── GraphicsSpline ───────────────────────────────────────────────────────
 
 """
-    GraphicsSpline(points, color::StyleColor=color_black; kind=:catmullrom, width=1,
+    GraphicsSpline(points; color::StyleColor=color_black, kind=:catmullrom, width=1,
                    dash=nothing, start_arrow=false, end_arrow=false, arrow_size=8,
                    segments=12)
 
@@ -284,13 +316,12 @@ behave as on `GraphicsPolyline`.
     segments::Int32
 end
 
-function GraphicsSpline(points::AbstractVector,
-                        color::StyleColor=color_black;
+function GraphicsSpline(points::_LivePoints;
+                        color::StyleColor=color_black,
                         kind::Symbol=:catmullrom, width::Integer=1, dash=nothing,
                         start_arrow::Bool=false, end_arrow::Bool=false,
                         arrow_size::Integer=8, segments::Integer=12)
-    pts = Tuple{Int,Int}[(Int(p[1]), Int(p[2])) for p in points]
-    GraphicsSpline(Cell(pts), Cell(kind), Cell(color),
+    GraphicsSpline(_make_points_cell(points), Cell(kind), Cell(color),
                    Cell(Int32(width)), Cell(_norm_dash(dash)),
                    Cell(start_arrow), Cell(end_arrow),
                    Cell(Int32(arrow_size)), Cell(Int32(segments)), Cell(nothing))
@@ -432,10 +463,10 @@ end
 # `GraphicsCanvas()` is the macro's keyword constructor — an empty canvas at the
 # origin. Every field defaults, so Rule Y emits no positional constructor and the
 # typed constructors below stay in sole charge of positional construction.
-GraphicsCanvas(elements::CollectionDocument; x::Integer=0, y::Integer=0, w::Integer=0,
-               h::Integer=0, layout::LayoutDirection=layout_none, overlapping::Bool=true) =
-    GraphicsCanvas(Int32(x), Int32(y), Int32(w), Int32(h), elements, layout, overlapping,
-                   Cell(nothing))
+GraphicsCanvas(elements::CollectionDocument; x::_LiveNumber=0, y::_LiveNumber=0, w::_LiveNumber=0,
+               h::_LiveNumber=0, layout::LayoutDirection=layout_none, overlapping::Bool=true) =
+    GraphicsCanvas(_make_pixel_cell(x), _make_pixel_cell(y), _make_pixel_cell(w), _make_pixel_cell(h),
+                   elements, layout, overlapping, Cell(nothing))
 GraphicsCanvas(elements::Vector; kwargs...) =
     GraphicsCanvas(CellVector(Cell[Cell(e) for e in elements]); kwargs...)
 GraphicsCanvas(elements::CollectionDocument, layout::LayoutDirection) =
@@ -480,10 +511,10 @@ work.
 end
 
 # @positional: the geometry of a viewport, in one order everywhere: x, y, width and height.
-function GraphicsViewport(x::Integer, y::Integer, w::Integer, h::Integer,
+function GraphicsViewport(x::_LiveNumber, y::_LiveNumber, w::_LiveNumber, h::_LiveNumber,
                           content::GraphicsCanvas; transform::AffineTransform=affine_identity)
-    GraphicsViewport(Cell(Int32(x)), Cell(Int32(y)),
-                     Cell(Int32(w)), Cell(Int32(h)),
+    GraphicsViewport(_make_pixel_cell(x), _make_pixel_cell(y),
+                     _make_pixel_cell(w), _make_pixel_cell(h),
                      Cell(content),
                      Cell(transform),
                      Cell(nothing))
@@ -507,9 +538,9 @@ end
 end
 
 # @positional: the geometry of an image, in one order everywhere: x, y, width and height.
-function GraphicsImage(x::Integer, y::Integer, w::Integer, h::Integer, data)
-    GraphicsImage(Cell(Int32(x)), Cell(Int32(y)),
-                  Cell(Int32(w)), Cell(Int32(h)),
+function GraphicsImage(x::_LiveNumber, y::_LiveNumber, w::_LiveNumber, h::_LiveNumber, data)
+    GraphicsImage(_make_pixel_cell(x), _make_pixel_cell(y),
+                  _make_pixel_cell(w), _make_pixel_cell(h),
                   Cell(data),
                   Cell(nothing))
 end

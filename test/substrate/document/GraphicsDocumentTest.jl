@@ -43,7 +43,7 @@ end
     # notches between the arms.
     star = [(50, 0), (62, 33), (98, 35), (70, 56), (79, 90),
             (50, 71), (21, 90), (30, 56), (2, 35), (38, 33)]
-    pg = GraphicsPolygon(star, color_red; border_width=2, border_color=color_black)
+    pg = GraphicsPolygon(star; color = color_red, border_width=2, border_color=color_black)
     @test pg.points == star
     @test pg.color == color_red
     @test pg.border_width == 2
@@ -66,6 +66,28 @@ end
     @test plain.border_width == 0
     @test plain.border_color.alpha == 0
     @test get_graphics_size(plain) == (10, 10)
+end
+
+@testset "a geometric argument is a number, a cell or a function" begin
+    angle = Cell(0.0)
+    # A function follows what it reads, and its answer is rounded to a pixel.
+    dot = GraphicsCircle(() -> 90 + 60 * cos(angle[]), () -> 90 - 60 * sin(angle[]), 5.4;
+                         color = color_red)
+    @test (dot.cx, dot.cy, dot.radius) == (150, 90, 5)
+    angle[] = pi / 2
+    @test (dot.cx, dot.cy) == (90, 30)
+    # A cell is taken as it is.
+    x = Cell(Int32(7))
+    line = GraphicsLine(x, 0, 20, 30; color = color_black)
+    @test line.x1 == 7
+    x[] = Int32(9)
+    @test line.x1 == 9
+    # Points: a vector or a function, each point rounded.
+    trace = GraphicsPolyline(() -> [(i, 2.6 * i) for i in 0:2]; color = color_black, width = 2)
+    @test trace.points == [(0, 0), (1, 3), (2, 5)]
+    # A text can be live too.
+    label = GraphicsText(() -> string("t = ", round(Int, angle[])), 0, 0; font = font_ubuntu_monospace_regular_20)
+    @test label.text == "t = 2"
 end
 
 @testset "IdentityProjection" begin

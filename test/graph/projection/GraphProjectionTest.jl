@@ -420,7 +420,7 @@ end
 
 @testset "edge graphics primitives" begin
     # Polyline construct + hit-test.
-    pl = GraphicsPolyline([(0, 0), (10, 0), (10, 10)], color_black;
+    pl = GraphicsPolyline([(0, 0), (10, 0), (10, 10)]; color = color_black,
                           width=2, end_arrow=true, arrow_size=8)
     @test length(pl.points) == 3
     @test pl.end_arrow == true

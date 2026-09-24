@@ -127,12 +127,12 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             length(route) < 2 && continue
             e = getfield(el, :edge)[]
             directed = e isa GraphEdge ? e.directed : false
-            push!(result, GraphicsPolyline(route, _EDGE;
+            push!(result, GraphicsPolyline(route; color = _EDGE,
                 width=_EDGE_W, end_arrow=directed, arrow_size=_ARROW))
             # The highlighted edge is re-stroked over its own line, keeping the
             # arrowhead it already drew.
             if highlight_edge !== nothing && e === highlight_edge
-                push!(result, GraphicsPolyline(route, _HIGHLIGHT;
+                push!(result, GraphicsPolyline(route; color = _HIGHLIGHT,
                     width=_HIGHLIGHT_W, end_arrow=directed, arrow_size=_ARROW))
             end
             lim = i <= length(labels) ? labels[i] : nothing
