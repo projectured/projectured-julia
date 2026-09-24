@@ -198,7 +198,18 @@ name.content = "Ada Lovelace"
       `ComputedCell` of a `Float64`. `_table_cell_doc` makes a function a live
       label. `test_widget_live_values()` checks the text that the printed canvas
       draws before and after the cell changes: 14 of 14.
-- [ ] Step 4: the pointer of §3.4, with a test.
+- [x] Step 4: the pointer of §3.4, with a test. **Done.** `VideoBackend` and
+      `record_application_video` take `pointer = true`. `_track_pointer!` notes
+      the left button: a `MouseDown` holds it, a `MouseUp` or a scripted
+      `MousePress` releases it at the second of the schedule
+      (`_get_schedule_seconds`, which `read_from_devices` uses too). The arrow
+      is a `GraphicsPolygon` of 7 points, white with a black border; the ring
+      is `color_solarized_orange`, 11 px, 3 px wide, and after a release it
+      grows by 6 px while its alpha falls to zero in 0.3 s. The test records
+      one take with the pointer and one without, over the same folder (the
+      navigator shows its name), and finds the pixels that differ in the last
+      frames: they start at the place of the last mouse event and fit in the
+      arrow, 5 of 5.
 - [ ] Step 5: `find_form_document` and the check in the scripts (§3.5); S4 with
       the forms and the order of §3.6, recorded and given to the owner.
 - [ ] Step 6: the landing of both repositories, when the owner says so.

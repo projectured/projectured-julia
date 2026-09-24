@@ -7,7 +7,7 @@
 """
     VideoBackend(timeline, window_id; width=1280, height=720, fps=30,
                 initial_hold=0.5, final_hold=initial_hold,
-                supersample=2, scale=1, video_time=false,
+                supersample=2, scale=1, video_time=false, pointer=true,
                 frames_dir=mktempdir()) -> VideoBackend
 
 A `Backend` whose input is a scripted `timeline` and whose output is one PNG
@@ -41,7 +41,14 @@ editor's clock shows the same time ([`get_frame_clock_time`](@ref)), so an
 animation that reads it moves one frame of time per frame, however long a frame
 took to make. It is for a take whose changes come from its timeline and its
 clock; a take that waits for work outside the loop, such as the answer of a
-model, keeps the wall clock. The rendering itself is `ProjecturedSdl`'s
+model, keeps the wall clock.
+
+With `pointer = true` each frame shows the mouse pointer where the last mouse
+event of the timeline left it, from the first mouse event on: an arrow, a ring
+around its tip while the left button is held, and the ring fading out for 0.3 s
+after a release or a click. The pointer is drawn over the window in a canvas of
+the frame's own, so nothing of it enters the document of the application. The
+rendering itself is `ProjecturedSdl`'s
 offscreen renderer (`_open_offscreen_renderer`), opened here and closed by
 [`quit_backend!`](@ref).
 """
@@ -83,13 +90,18 @@ mutable struct VideoBackend <: Backend
     supersample::Int
     scale::Float64
     video_time::Bool
+    # The pointer of the video: whether it is drawn, whether the left button is
+    # held, and the schedule second of the last release or click.
+    pointer::Bool
+    pointer_held::Bool
+    pointer_released_at::Float64
 end
 
 function VideoBackend(timeline::AbstractVector, window_id::Symbol;
                       width::Integer = 1280, height::Integer = 720, fps::Integer = 30,
                       initial_hold::Real = 0.5, final_hold::Real = initial_hold,
                       supersample::Integer = 2, scale::Real = 1,
-                      video_time::Bool = false,
+                      video_time::Bool = false, pointer::Bool = true,
                       frames_dir::AbstractString = mktempdir())
     n = length(timeline)
     entries = Vector{Any}(undef, n + 1)
@@ -108,7 +120,7 @@ function VideoBackend(timeline::AbstractVector, window_id::Symbol;
     entries[n + 1] = (event = WindowQuit(), fire_at = acc + Float64(final_hold))
     VideoBackend(Int(width), Int(height), Int(fps), String(frames_dir), window_id,
                 entries, 1, false, -1, -1, 0.0, 0.0, -1.0, nothing, Ref(0), nothing, nothing,
-                Int(supersample), Float64(scale), video_time)
+                Int(supersample), Float64(scale), video_time, pointer, false, -Inf)
 end
 
 # The video time of the frame about to be written: the frames written so far,
@@ -117,6 +129,11 @@ _get_video_seconds(backend::VideoBackend) = backend.frame[] / backend.fps
 
 get_frame_clock_time(backend::VideoBackend, wall_time) =
     backend.video_time ? _get_video_seconds(backend) : wall_time
+
+# The second of the schedule: the video time when the backend keeps it, and the
+# wall clock since the first frame otherwise.
+_get_schedule_seconds(backend::VideoBackend) =
+    backend.video_time ? _get_video_seconds(backend) : time() - backend.start_time
 
 # The exact naming `_emit_frames!` writes each frame under, so a backfilled
 # copy lands where ffmpeg's `frame_%06d.png` pattern expects it.
@@ -177,7 +194,7 @@ function read_from_devices(backend::VideoBackend, devices)
     backend.awaiting_render && return nothing
     backend.next_entry > length(backend.timeline) && return nothing
     entry = backend.timeline[backend.next_entry]
-    elapsed = backend.video_time ? _get_video_seconds(backend) : time() - backend.start_time
+    elapsed = _get_schedule_seconds(backend)
     elapsed >= entry.fire_at + backend.schedule_offset || return nothing
     haskey(entry, :await) && return _wait_for_entry!(backend, entry, elapsed)
     backend.next_entry += 1
@@ -215,7 +232,42 @@ function _track_pointer!(backend::VideoBackend, event)
     event isa Union{MouseDown,MouseUp,MousePress,MouseMove,MouseScroll} || return nothing
     backend.pointer_x = event.x
     backend.pointer_y = event.y
+    if event isa MouseDown && event.button === :left
+        backend.pointer_held = true
+    elseif event isa Union{MouseUp,MousePress} && event.button === :left
+        backend.pointer_held = false
+        backend.pointer_released_at = _get_schedule_seconds(backend)
+    end
     nothing
+end
+
+# The arrow of the pointer with its tip at (0, 0), the outline of a common
+# desktop pointer; the ring around the tip; and how long the ring takes to fade
+# out after a release.
+const _POINTER_ARROW = [(0, 0), (0, 17), (4, 13), (7, 20), (10, 19), (7, 12), (12, 12)]
+const _POINTER_RING_RADIUS = 11
+const _POINTER_RING_WIDTH = 3
+const _POINTER_FADE_SECONDS = 0.3
+
+# The shapes of the pointer where the timeline left it: the ring while the left
+# button is held or while it fades out, and the arrow on top.
+function _make_pointer_graphics(backend::VideoBackend)
+    x, y = backend.pointer_x, backend.pointer_y
+    ring = color_solarized_orange
+    since_release = _get_schedule_seconds(backend) - backend.pointer_released_at
+    elements = Any[]
+    if backend.pointer_held
+        push!(elements, GraphicsCircle(x, y, _POINTER_RING_RADIUS; color = color_transparent,
+                                       border_width = _POINTER_RING_WIDTH, border_color = ring))
+    elseif 0 <= since_release < _POINTER_FADE_SECONDS
+        left = 1 - since_release / _POINTER_FADE_SECONDS
+        faded = StyleColor(ring.red, ring.green, ring.blue, left)
+        push!(elements, GraphicsCircle(x, y, _POINTER_RING_RADIUS + 6 * (1 - left); color = color_transparent,
+                                       border_width = _POINTER_RING_WIDTH, border_color = faded))
+    end
+    push!(elements, GraphicsPolygon([(x + dx, y + dy) for (dx, dy) in _POINTER_ARROW];
+                                    color = color_white, border_width = 1, border_color = color_black))
+    elements
 end
 
 # Fill the wall-clock gap since the last frame with copies of it: while more
@@ -254,6 +306,9 @@ function write_to_devices(backend::VideoBackend, devices, screen::ScreenDocument
     # there is nothing yet to backfill a gap against.
     backend.start_time < 0 ? (backend.start_time = time()) :
         (backend.video_time || _backfill_frames!(backend))
+    if backend.pointer && backend.pointer_x >= 0
+        canvas = GraphicsCanvas(Any[canvas; _make_pointer_graphics(backend)]; w = backend.width, h = backend.height)
+    end
     _emit_frames!(backend.off, canvas, backend.width, backend.height, window.bg,
                  backend.frames_dir, backend.frame, 1)
     backend.last_frame_file = _video_frame_path(backend.frames_dir, backend.frame[])

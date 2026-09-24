@@ -31,7 +31,9 @@ import FFMPEG
 import ProjecturedKernel.BackendModule: Backend, record_video,
        initialize_backend!, quit_backend!, measure_text, write_to_devices,
        read_from_devices, wait_for_input, get_pointer_position, get_display_size
-import ProjecturedGraphics.GraphicsModule: GraphicsCanvas
+import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsCircle, GraphicsPolygon
+import ProjecturedGraphics.StyleModule: StyleColor, color_black, color_white, color_transparent,
+       color_solarized_orange
 import ProjecturedKernel.ProjectionModule: print_document, read_intent
 import ProjecturedKernel.OperationModule: evaluate_operation
 import ProjecturedKernel.SelectionModule: clear_selection!, set_selection!

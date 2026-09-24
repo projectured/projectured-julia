@@ -123,4 +123,47 @@ end
         rm(filename; force = true)
     end
 end
+
+# The last frame of a video as rows of RGB pixels, or `nothing` when `ffmpeg` is
+# not on `PATH`.
+function _read_last_frame(filename::AbstractString, width::Integer, height::Integer)
+    bytes = try
+        read(`ffmpeg -v error -sseof -0.1 -i $filename -frames:v 1 -f rawvideo -pix_fmt rgb24 -`)
+    catch e
+        @warn "ffmpeg unavailable, skipping the frame assertions: $e"
+        return nothing
+    end
+    length(bytes) == width * height * 3 || return nothing
+    [(Int(bytes[3 * (y * width + x) + 1]), Int(bytes[3 * (y * width + x) + 2]), Int(bytes[3 * (y * width + x) + 3]))
+     for y in 0:height - 1, x in 0:width - 1]
+end
+
+@testset "the pointer is drawn where the last mouse event left it" begin
+    width, height = 480, 360
+    timeline = Any[(event = MouseMove(300, 200, :none, ModifierKeys()), hold = 0.5)]
+    # One folder for both takes: the navigator shows its name.
+    root = mktempdir()
+    frames = map((true, false)) do pointer
+        filename = tempname() * ".mp4"
+        record_application_video(String[], timeline, filename; width = width, height = height, fps = 10,
+                                 assistant = :none, root = root, initial_hold = 0.2, final_hold = 0.3,
+                                 supersample = 1, video_time = true, pointer = pointer)
+        frame = _read_last_frame(filename, width, height)
+        rm(filename; force = true)
+        frame
+    end
+    if !any(isnothing, frames)
+        with_pointer, without = frames
+        # The pixels that the pointer changed, beyond the noise of the encoder.
+        changed = [Tuple(index) for index in CartesianIndices(with_pointer)
+                   if maximum(abs.(with_pointer[index] .- without[index])) > 60]
+        @test !isempty(changed)
+        rows, columns = first.(changed), last.(changed)
+        # Julia indices start at 1, pixels at 0.
+        @test abs(minimum(columns) - 1 - 300) <= 2
+        @test abs(minimum(rows) - 1 - 200) <= 2
+        @test maximum(columns) - minimum(columns) <= 16
+        @test maximum(rows) - minimum(rows) <= 24
+    end
+end
 end # test_application_video

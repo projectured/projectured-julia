@@ -13,7 +13,7 @@
     record_application_video(paths, timeline, filename; width=1280, height=720,
                              fps=30, assistant=:none, model="", context=0,
                              root=pwd(), initial_hold=0.5, final_hold=1.0,
-                             supersample=2, scale=1, video_time=false,
+                             supersample=2, scale=1, video_time=false, pointer=true,
                              measure=measure_truetype_text) -> String
 
 Record the application window of [`run_application`](@ref) — built the same
@@ -42,6 +42,9 @@ window, so the video draws what the window draws.
 that reads the editor's clock moves one frame of time per frame, also while the
 frames are slow to make. A take that waits for a model keeps the wall clock.
 
+`pointer = true` draws the mouse pointer of the timeline over each frame (see
+`VideoBackend`).
+
 The frames land in a temporary directory the backend owns and are encoded with
 the same `ffmpeg` call [`record_video`](@ref) uses
 (`ProjecturedVideo._encode_frames_to_video!`), then discarded.
@@ -54,7 +57,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   root::AbstractString = pwd(),
                                   initial_hold::Real = 0.5, final_hold::Real = 1.0,
                                   supersample::Integer = 2, scale::Real = 1,
-                                  video_time::Bool = false,
+                                  video_time::Bool = false, pointer::Bool = true,
                                   measure = measure_truetype_text)
     lowercase(splitext(filename)[2]) == ".mp4" ||
         error("record_application_video: only .mp4 output is supported (got \"$filename\")")
@@ -65,7 +68,8 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
     title = "ProjecturEd"
     backend = VideoBackend(timeline, Symbol(title); width = width, height = height,
                            fps = fps, initial_hold = initial_hold, final_hold = final_hold,
-                           supersample = supersample, scale = scale, video_time = video_time)
+                           supersample = supersample, scale = scale, video_time = video_time,
+                           pointer = pointer)
     try
         run_with_window_tools() do feeds, start
             editor = make_editor(document, projection, title; backend = backend,
