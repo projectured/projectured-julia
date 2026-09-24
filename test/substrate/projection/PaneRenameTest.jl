@@ -120,6 +120,36 @@ _steps(reference) = reference === nothing ? nothing :
     @test caret() == [FieldReferenceStep("selector_element_pairs"), ElementReferenceStep(1)]
 end
 
+# Every caret drawn, at its place: the text domain draws a caret as a rectangle
+# 2 pixels wide, and a text with no caret draws that rectangle 0 pixels wide.
+function _carets(node, ox = 0, oy = 0, found = Tuple{Int,Int}[], depth = 0)
+    depth > 60 && return found
+    if node isa GraphicsRect
+        Int(node.w) == 2 && Int(node.h) > 0 && push!(found, (ox + Int(node.x), oy + Int(node.y)))
+    elseif node isa GraphicsCanvas
+        for i in 1:length(node.elements)
+            _carets(node.elements[i], ox + Int(node.x), oy + Int(node.y), found, depth + 1)
+        end
+    elseif node isa GraphicsViewport
+        _carets(node.content, ox + Int(node.x), oy + Int(node.y), found, depth + 1)
+    end
+    found
+end
+
+@testset "the tab bar draws the caret in the name" begin
+    tree, group, editor = _seeded()
+    drawn() = _carets(get_iomap_output(print_document(_chain(), editor.document)))
+    @test isempty(drawn())
+    _press!(editor, KeyDown(:f2, ModifierKeys()))
+    at_end = only(drawn())
+    # The stub measures 10 pixels for each character, so one more character moves
+    # the caret 10 pixels to the right.
+    _type!(editor, "!")
+    @test only(drawn()) == (at_end[1] + 10, at_end[2])
+    _press!(editor, KeyDown(:escape, ModifierKeys()))
+    @test isempty(drawn())
+end
+
 @testset "F2 on an empty group does nothing" begin
     group = PaneGroup(PaneTab[])
     tree = PaneTree(group)

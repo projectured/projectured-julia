@@ -3896,6 +3896,45 @@ end
 _tab_scroll_offset(w::WidgetTabbedPane, strip_w::Int, view_w::Int) =
     clamp(Int(getfield(w, :tab_scroll)[]), 0, max(0, strip_w - view_w))
 
+# ── The name that holds the caret ───────────────────────────────────────────
+#
+# A tab bar draws its names as plain text, except the one that holds the caret.
+# That name is drawn through a text view of one span, as a `WidgetText` draws a
+# plain value, so the text domain draws its caret as it draws every other caret.
+# The view only draws: the keys that edit a name go to the document that owns
+# the name. The caret is `selector_element_pairs[i].selector{k}`.
+
+# The tab whose name holds the caret, and the caret position, or `nothing`.
+function _find_tab_name_caret(selection)
+    selection isa Reference || return nothing
+    steps = get_reference_steps(strip_reference_types(selection))
+    (length(steps) == 4 &&
+     steps[1] isa FieldReferenceStep && steps[1].name == "selector_element_pairs" &&
+     steps[2] isa RangeReferenceStep &&
+     steps[3] isa FieldReferenceStep && steps[3].name == "selector" &&
+     steps[4] isa RangeReferenceStep) || return nothing
+    (steps[2].stop, steps[4].start)
+end
+
+# The view of the name that holds the caret, in the style of the selected tab,
+# drawn with a `TextToGraphics` of its own.
+function _print_tab_name_view(p, recursion, w::WidgetTabbedPane, caret::Cell, ctx)
+    span = TextString(() -> begin
+        found = caret[]
+        pairs = w.selector_element_pairs
+        (found === nothing || !(1 <= found[1] <= length(pairs))) ? "" :
+            string(pairs[found[1]].selector)
+    end, _get_state_text(p, w, :tab; state = :selected))
+    view = TextBlock(span)
+    set_cell_function!(getfield(view, :selection), () -> begin
+        found = caret[]
+        found === nothing ? nothing : make_flat_range_reference(found[2], found[2])
+    end)
+    measure = p.measure isa TextMeasurer ? p.measure.measure : p.measure
+    reconcile_child_iomap(() -> view,
+                          v -> print_document(TextToGraphics(measure = measure), recursion, v, ctx))
+end
+
 function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::WidgetTabbedPane, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     pairs = w.selector_element_pairs
@@ -3912,6 +3951,8 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     geom = ComputedCell(() -> _tab_strip_geometry(p, w))
 
     sel_cell = getfield(w, :selection)
+    name_caret = ComputedCell(() -> _find_tab_name_caret(get_stored_selection(w)))
+    name_view = _print_tab_name_view(p, recursion, w, name_caret, ctx)
 
     _active_idx(sel, ntabs) = begin
         i = _tab_index_from_selection(sel, ntabs)
@@ -3938,7 +3979,13 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
             tab_text = _get_state_text(p, w, :tab; state)
             fg = tab_text.color
             iw > 0 && _push_icon!(result, icon, tx + sel_pad, coy + sel_pad, iw, fg)
-            _push_text!(result, tab_text.font, label, tx + sel_pad + iw + gap, coy + sel_pad, fg)
+            name_x, name_y = tx + sel_pad + iw + gap, coy + sel_pad
+            found = name_caret[]
+            if found !== nothing && found[1] == i
+                push!(result, _make_canvas(name_x, name_y, Any[name_view[].output]))
+            else
+                _push_text!(result, tab_text.font, label, name_x, name_y, fg)
+            end
             # The button column sits at the tab's right edge, tinted like its label.
             _push_tab_buttons!(result, g, tabs[i], fg)
         end

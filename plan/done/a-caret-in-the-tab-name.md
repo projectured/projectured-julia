@@ -1,6 +1,6 @@
 # A caret in the tab name
 
-> **Status:** in progress. Written 2026-09-24.
+> **Status:** done. Written and implemented 2026-09-24, on the branch `feature-videos`.
 
 `F2` puts the caret in the name of the focused tab, and typing edits the name.
 But the tab bar draws no caret while you edit, so you can not see where the next
@@ -61,8 +61,19 @@ pane of the picture) and chose option B on 2026-09-24:
       the path that a widget gets carries no live or dormant state, so a dormant
       caret would draw as a live one. A group that lost the focus therefore shows
       no caret in a name. `test_pane_rename()` passes 23.
-- [ ] Step 2: the tab bar draws the edited name through a text view. A test in
+- [x] Step 2: the tab bar draws the edited name through a text view. A test in
       `PaneRenameTest.jl`: after `F2` the tab bar draws a caret at the end of the
       name, and it moves when you type; after `Escape` it is gone.
-- [ ] Step 3: check it in the real window, and run the tests of the pane, the
+      `WidgetToGraphics.jl`: `_find_tab_name_caret` reads the caret from the
+      stored selection of the tabbed pane, and `_print_tab_name_view` draws that
+      name through a `TextBlock` of one span with a `TextToGraphics` of its own,
+      in the style of the selected tab. The view is made once for each tabbed
+      pane and holds an empty string while no name has the caret.
+      `test_pane_rename()` passes 26.
+- [x] Step 3: check it in the real window, and run the tests of the pane, the
       tab strip and the widget layer.
+      A probe take of the application (`build/video/probe_tabname_app.mp4`)
+      shows `|untitled` after `F2` on an unnamed tab, then `Pi|` and `Pic|` while
+      typing. `test_substrate` passes 80445 (the baseline and the 7 new checks),
+      with the known failures at the same places; `test_application` 297,
+      `test_console_backend` 83.
