@@ -7,7 +7,8 @@
 """
     VideoBackend(timeline, window_id; width=1280, height=720, fps=30,
                 initial_hold=0.5, final_hold=initial_hold,
-                supersample=2, scale=1, frames_dir=mktempdir()) -> VideoBackend
+                supersample=2, scale=1, video_time=false,
+                frames_dir=mktempdir()) -> VideoBackend
 
 A `Backend` whose input is a scripted `timeline` and whose output is one PNG
 per repainted frame, so `run_editor!` records a session instead of showing one.
@@ -31,7 +32,16 @@ that frame, once per `1/fps` slot the gap covers — so a slow repaint holds the
 old state on screen for as long as it really took, instead of shrinking the
 video below the length of the session — then renders and writes the new one.
 `wait_for_input` sleeps at most `1/fps` so the loop keeps ticking at that pace
-even with nothing scheduled. The rendering itself is `ProjecturedSdl`'s
+even with nothing scheduled.
+
+With `video_time = true` the backend keeps video time instead: frame `n` is at
+`n / fps` seconds, each frame follows the one before by exactly `1/fps`, no frame
+is copied, the entries fire by video time, and the loop does not sleep. The
+editor's clock shows the same time ([`get_frame_clock_time`](@ref)), so an
+animation that reads it moves one frame of time per frame, however long a frame
+took to make. It is for a take whose changes come from its timeline and its
+clock; a take that waits for work outside the loop, such as the answer of a
+model, keeps the wall clock. The rendering itself is `ProjecturedSdl`'s
 offscreen renderer (`_open_offscreen_renderer`), opened here and closed by
 [`quit_backend!`](@ref).
 """
@@ -72,12 +82,14 @@ mutable struct VideoBackend <: Backend
     off::Any
     supersample::Int
     scale::Float64
+    video_time::Bool
 end
 
 function VideoBackend(timeline::AbstractVector, window_id::Symbol;
                       width::Integer = 1280, height::Integer = 720, fps::Integer = 30,
                       initial_hold::Real = 0.5, final_hold::Real = initial_hold,
                       supersample::Integer = 2, scale::Real = 1,
+                      video_time::Bool = false,
                       frames_dir::AbstractString = mktempdir())
     n = length(timeline)
     entries = Vector{Any}(undef, n + 1)
@@ -96,8 +108,15 @@ function VideoBackend(timeline::AbstractVector, window_id::Symbol;
     entries[n + 1] = (event = WindowQuit(), fire_at = acc + Float64(final_hold))
     VideoBackend(Int(width), Int(height), Int(fps), String(frames_dir), window_id,
                 entries, 1, false, -1, -1, 0.0, 0.0, -1.0, nothing, Ref(0), nothing, nothing,
-                Int(supersample), Float64(scale))
+                Int(supersample), Float64(scale), video_time)
 end
+
+# The video time of the frame about to be written: the frames written so far,
+# each `1/fps` long.
+_get_video_seconds(backend::VideoBackend) = backend.frame[] / backend.fps
+
+get_frame_clock_time(backend::VideoBackend, wall_time) =
+    backend.video_time ? _get_video_seconds(backend) : wall_time
 
 # The exact naming `_emit_frames!` writes each frame under, so a backfilled
 # copy lands where ffmpeg's `frame_%06d.png` pattern expects it.
@@ -135,7 +154,10 @@ get_pointer_position(backend::VideoBackend) = (backend.pointer_x, backend.pointe
 
 get_display_size(backend::VideoBackend; display::Integer = 0) = (backend.width, backend.height)
 
+# In video time the loop makes the next frame at once; it only lets other tasks
+# run.
 wait_for_input(backend::VideoBackend, devices, timeout_seconds) =
+    backend.video_time ? (yield(); nothing) :
     (sleep(min(Float64(timeout_seconds), 1.0 / backend.fps)); nothing)
 
 """
@@ -155,7 +177,7 @@ function read_from_devices(backend::VideoBackend, devices)
     backend.awaiting_render && return nothing
     backend.next_entry > length(backend.timeline) && return nothing
     entry = backend.timeline[backend.next_entry]
-    elapsed = time() - backend.start_time
+    elapsed = backend.video_time ? _get_video_seconds(backend) : time() - backend.start_time
     elapsed >= entry.fire_at + backend.schedule_offset || return nothing
     haskey(entry, :await) && return _wait_for_entry!(backend, entry, elapsed)
     backend.next_entry += 1
@@ -230,7 +252,8 @@ function write_to_devices(backend::VideoBackend, devices, screen::ScreenDocument
               "$(typeof(canvas)), expected GraphicsCanvas")
     # The first frame starts the timeline's clock (see `initialize_backend!`);
     # there is nothing yet to backfill a gap against.
-    backend.start_time < 0 ? (backend.start_time = time()) : _backfill_frames!(backend)
+    backend.start_time < 0 ? (backend.start_time = time()) :
+        (backend.video_time || _backfill_frames!(backend))
     _emit_frames!(backend.off, canvas, backend.width, backend.height, window.bg,
                  backend.frames_dir, backend.frame, 1)
     backend.last_frame_file = _video_frame_path(backend.frames_dir, backend.frame[])

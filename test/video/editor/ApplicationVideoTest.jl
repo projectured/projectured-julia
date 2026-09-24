@@ -83,4 +83,44 @@ function test_application_video()
         rm(filename; force = true)
     end
 end
+
+@testset "in video time, the editor's clock moves one frame of time per frame" begin
+    fps = 10
+    initial_hold = 0.3
+    final_hold = 0.5
+    # An await entry notes the time of the editor's clock where the schedule
+    # reaches it, and lets the schedule go on at once. Its hold is only a cap on
+    # the wait, and a cap of 0 would end the wait before the note is taken.
+    times = Float64[]
+    note_time = (await = editor -> (push!(times, get_clock_time(editor.clock)); true), hold = 1.0)
+    timeline = Any[
+        note_time,
+        (event = KeyDown(:t, ModifierKeys(ctrl = true)), hold = 1.0),
+        note_time,
+    ]
+    filename = tempname() * ".mp4"
+    ok = try
+        record_application_video(String[], timeline, filename;
+                                 width = 480, height = 360, fps = fps,
+                                 assistant = :none, root = mktempdir(),
+                                 initial_hold = initial_hold, final_hold = final_hold,
+                                 supersample = 1, video_time = true)
+        true
+    catch e
+        @warn "record_application_video test skipped (ffmpeg unavailable?): $e"
+        false
+    end
+    if ok
+        # The clock shows the schedule's time, whatever the frames cost to make:
+        # the first note at the initial hold, the second one second later.
+        @test length(times) == 2
+        @test isapprox(times[1], initial_hold; atol = 1 / fps)
+        @test isapprox(times[2] - times[1], 1.0; atol = 1 / fps)
+        # The video is as long as the schedule, frame for frame.
+        _, frames = _probe_video(filename)
+        expected = initial_hold + 1.0 + final_hold
+        frames === nothing || @test abs(frames - expected * fps) <= 1
+        rm(filename; force = true)
+    end
+end
 end # test_application_video

@@ -89,6 +89,17 @@ function run_frame!(editor::Editor)
     _consider_safe_mode!(editor)
 end
 
+"""
+    get_frame_clock_time(backend, wall_time) -> Float64
+
+The time that the editor's clock shows in a frame, in seconds. `wall_time` is
+the wall-clock time since the loop started, and a backend answers it unless it
+keeps a time of its own: a recorder that keeps video time answers the time of
+the frame it is about to write, so an animation moves one frame of time per
+frame, however long the frame took to make.
+"""
+get_frame_clock_time(backend, wall_time) = wall_time
+
 # ── Main loop ──────────────────────────────────────────────────────────
 
 """
@@ -141,8 +152,9 @@ function run_editor!(editor::Editor; mcp::Bool=false,
         server === nothing || start_agent_server!(server)
         # Advance this editor's private animation clock once per frame;
         # subscribers via `get_reactive_clock_time(editor.clock)` re-evaluate
-        # on the next pull. Logical time is wall-clock seconds since the loop
-        # started.
+        # on the next pull. Logical time is the time of the frame that
+        # `get_frame_clock_time` answers: wall-clock seconds since the loop
+        # started, unless the backend keeps a time of its own.
         t_start = Base.time()
         while true
             # A wake posted since the last frame took ownership skips the
@@ -161,7 +173,7 @@ function run_editor!(editor::Editor; mcp::Bool=false,
             # extent; the cell operations below count into it and `perf!` reads it.
             frame_started = Base.time()
             with_performance_counters() do
-                set_clock_time!(editor.clock, frame_started - t_start)
+                set_clock_time!(editor.clock, get_frame_clock_time(editor.backend, frame_started - t_start))
                 # What was posted or stored from outside this task, applied
                 # here so the frame paints what its feeds just wrote.
                 _run_barrier(editor, :evaluate) do

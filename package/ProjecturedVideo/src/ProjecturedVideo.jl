@@ -38,6 +38,7 @@ import ProjecturedKernel.SelectionModule: clear_selection!, set_selection!
 import ProjecturedKernel.ProjectionModule: PrinterContext
 import ProjecturedKernel.CellModule: Cell, ComputedCell
 import ProjecturedKernel.ClockModule: Clock, set_clock_time!
+import ProjecturedKernel.EditorModule: get_frame_clock_time
 import ProjecturedKernel.ReferenceModule: EmptyReference
 import ProjecturedKernel.EventModule: WindowInput, WindowQuit,
        MouseDown, MouseUp, MousePress, MouseMove, MouseScroll

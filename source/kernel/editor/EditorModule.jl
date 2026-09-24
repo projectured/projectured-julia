@@ -30,6 +30,7 @@ using ..FeedModule
 import ..FeedModule: drain_changes!
 
 export Editor, make_editor, run_editor!, read!, read_rooted_operation, evaluate!, print!, run_frame!,
+       get_frame_clock_time,
        post_operation!, drain_operations!, is_editor_degraded,
        get_consecutive_fault_limit,
        is_editor_in_safe_mode, enter_safe_mode!, leave_safe_mode!,
