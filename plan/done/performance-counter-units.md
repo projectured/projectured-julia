@@ -1,6 +1,8 @@
 # The performance counters keep times and counts apart
 
-> **Status (2026-09-24): IN PROGRESS.** Steps 1 and 2 are done.
+> **Status (2026-09-24): DONE.** The counters keep times and counts apart, every
+> reader forwards every key, and the layer exports 5 counter names and 8 frame
+> names. `PerformanceCounter.jl` is unsealed until the owner seals the layer.
 
 The counter part of the kernel performance layer writes nanoseconds from
 `@performance_time` and counts from `@count_performance` into one
@@ -97,4 +99,5 @@ Audit the three files of the layer again. Move this plan to `plan/done/`.
   - The comment on `@info` in `perf!` said that the logger avoids a closed
     pipe; it now says that the line reaches every logger that the process
     installed, as the fault cascade says.
-- [ ] Step 3
+- [x] Step 3 — the audit of `PerformanceModule.jl`, `PerformanceCounter.jl` and
+  `FrameSample.jl` finds nothing more.
