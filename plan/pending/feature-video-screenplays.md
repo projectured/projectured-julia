@@ -91,7 +91,15 @@ Module 'PaneModule' not found.        # from list_functions("PaneModule"), a mod
 
 **F10. While a form is typed, the animation of S1 stutters.** The owner saw it on 2026-09-24: "when no type-in occurs the video shows very smooth movement of the circle and lines, but during type-in its laggish". The video backend takes one frame for each 1/30 s of wall clock, and when the work between two frames takes longer, it copies the last frame into the missed slots (`_backfill_frames!`). A key makes that work large: the evaluator handles it, the text is laid out again, and the frame is drawn at 2 and written to disk. Measured on `rotating_vector_v4.mp4`, the picture pane gets about 7 new frames a second while a form is typed and about 16 while the take holds still. F8 has the same cause. The fix proposed to the owner: the recorder keeps video time, not wall-clock time. Each frame is exactly 1/30 s after the one before; the timeline fires by video time; the editor loop takes the time of its clock from the backend, so the editor's clock (`editor.clock`) moves 1/30 s a frame; and the forms of S1 read `editor.clock` in place of `get_wall_clock()`. **Fixed 2026-09-24** (`plan/done/video-time-for-an-animated-take.md`). The owner agreed, and asked that the other takes keep the wall clock: a take that does not move, or that waits for a model, does not need it. So video time is an option of the recorder, off by default, and S1 turns it on. The take `build/video/rotating_vector_v5.mp4` is 114.3 s, exactly its schedule. From 51 s to the end, the picture pane gets 30 new frames a second, while a form is typed and while the take holds still.
 
-**F5. Not proven: a drag of a slider and a character in a text field.** In the harness neither changed the document, but the coordinates there are computed and not read from a frame, so this is not evidence. It waits for the overlay of G3, which draws the pointer and makes a miss visible.
+**F5. A real drag does not move the slider, and a click leaves its knob held.** In the harness neither a drag nor a character changed the document, but the coordinates there were computed and not read from a frame. The probe of 2026-09-24 (`build/suites/s4/probe_drag.jl`) sends real mouse events to the slider of S4 in its own pane, and reads `slider.value` and `presses` from the scratch module of the evaluator after each gesture:
+
+- The slider takes the knob only on a `MousePress`. The gesture recognizer makes a `MousePress` after the `MouseUp`, and only when the up is less than 5 px and 0.3 s from the down. So a real drag (down on the knob, moves with the left button, up at 0.8) leaves the value at 0.3.
+- A real click on the track sets the value (0.5125 at x = 900) and then takes the knob, after the button is already up. The knob stays held (`dragging = true`): a move with no button moves it to 0.93, until the next `MouseUp`.
+- A press that the script makes (`MousePress`, moves, `MouseUp`) works, and that is why the old take could press the button.
+- A real click on the button counts, except the first one of the probe. The recognizer measures a click with the wall clock, and the first down in the pane took longer than 0.3 s, which is the time of the compilation. A warm-up before the take compiles that path. A live window can lose its first click in the same way; recorded, not fixed.
+- Not checked: a character in the text field.
+
+The fix proposed to the owner: the slider takes the knob on `MouseDown`, moves while it is held, and lets go on `MouseUp` (`read_intent` of `WidgetSliderToGraphicsCanvas`, `source/widget/WidgetToGraphics.jl`, not sealed).
 
 The `json_build` recording of Step 0 produced a file of the right length, which is why the baseline called it good. The file shows a document that stops after one entry. §7 Step 0 says so now.
 
@@ -478,7 +486,7 @@ Everything the three recorded videos still lack, and everything the work on them
 | F2 | After a string value, `Right` then `,` inserts nothing | S3, the `json_build` example | A | M |
 | F3 | `Alt+Up` never leaves a nested container | S3, the `json_build` example | A | M |
 | F1 | A file tab of the application takes no character | S3 in the window, S5 to S8, and the post's claim that the application edits files | A | L |
-| F5 | Not proven: a drag of a slider and a character in a text field | S4 | B | S once G3 exists |
+| F5 | A real drag does not move the slider, and a click leaves its knob held (§2.4); a character in the text field is not checked | S4 | A | S |
 | F7 | The caret can not leave a container whose last value is a bool (§2.4) | S3, the `json_build` example | B | M |
 | A1 | A moving `GraphicsCircle`, `GraphicsPolyline` or `GraphicsLine` needs every positional field, so the forms are long | S1 | B | M |
 | A2 | A thunk given to `WidgetLabel` draws as the function, so the video types a `live(...)` helper | S4 | B | M |
