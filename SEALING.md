@@ -50,14 +50,14 @@ The layer *numbers* below live only in this list and in `ProjecturedKernel.jl`'s
 include order — the source files state their dependencies, never their index.
 
 - **Layer 1 — fault** (`fault/`)
-  - ⬜ `fault/FaultModule.jl`
-  - ⬜ `fault/FaultInterface.jl`
-  - ⬜ `fault/FaultDefaults.jl`
-  - ⬜ `fault/FaultRecord.jl`
-  - ⬜ `fault/FaultStore.jl`
-  - ⬜ `fault/FaultPolicy.jl`
-  - ⬜ `fault/FaultCascade.jl`
-  - ⬜ `fault/FaultBarrier.jl`
+  - 🔒 `fault/FaultModule.jl`
+  - 🔒 `fault/FaultInterface.jl`
+  - 🔒 `fault/FaultDefaults.jl`
+  - 🔒 `fault/FaultRecord.jl`
+  - 🔒 `fault/FaultStore.jl`
+  - 🔒 `fault/FaultPolicy.jl`
+  - 🔒 `fault/FaultCascade.jl`
+  - 🔒 `fault/FaultBarrier.jl`
 - **Layer 2 — performance** (`performance/`)
   - ⬜ `performance/PerformanceModule.jl`
   - 🔒 `performance/PerformanceCounter.jl`
