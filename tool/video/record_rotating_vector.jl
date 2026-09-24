@@ -8,7 +8,7 @@
 # selects the canvas, Ctrl+N notes it, Ctrl+\ splits the window, Ctrl+V pastes
 # the same canvas there, F2 names the pane, Ctrl+Alt+Left brings the focus back,
 # and Down moves the caret from the selected canvas into the fresh prompt. A
-# helper, `draw!`, adds elements to the canvas and returns nothing, so each later
+# helper, `add!`, adds elements to the canvas and returns nothing, so each later
 # form adds one part, the picture grows in its own pane, and no result row changes
 # with it. A moving part takes a function where it moves, and the axes of the two
 # traces come last. Every form becomes a Julia document.
@@ -34,32 +34,11 @@ _type(text) = make_typein_gestures(text; hold = 0.15, jitter = 0.6)    # the hum
 _press(x, y; hold = 0.6, kwargs...) = [(event = MouseMove(x, y, :none, ModifierKeys()), hold = 0.4),
                                        (event = MousePress(:left, x, y, ModifierKeys(; kwargs...)), hold = hold)]
 
-# The forms before the canvas has a pane of its own.
-const FIRST_FORMS = [
-    "clock = get_wall_clock()",
-    "canvas = GraphicsCanvas([GraphicsRect(0, 0, 300, 300; color = color_solarized_background_lighter)]; w = 300, h = 300)",
-]
-
-# The forms after it. Each `draw!` returns nothing, so its result row says
-# `nothing`, and the picture changes only where it is: in its pane, and in the one
-# row that made it.
-const LATER_FORMS = [
-    "draw!(elements...) = foreach(element -> push!(canvas.elements, element), elements)",
-    "draw!(GraphicsCircle(90, 90, 60; color = color_transparent, border_width = 2, border_color = color_solarized_content_darker))",
-    "phase() = -0.5 * get_reactive_clock_time(clock)",
-    "dot = GraphicsCircle(() -> 90 + 60 * cos(phase()), () -> 90 - 60 * sin(phase()), 5; color = color_solarized_magenta)",
-    "draw!(dot)",
-    "draw!(GraphicsPolyline(() -> [(170 + i, 90 - 60 * sin(phase() - i / 50)) for i in 0:120]; color = color_solarized_blue, width = 2))",
-    "draw!(GraphicsPolyline(() -> [(90 + 60 * cos(phase() - i / 50), 170 + i) for i in 0:120]; color = color_solarized_green, width = 2))",
-    "draw!(GraphicsLine(170, () -> dot.cy, () -> dot.cx, () -> dot.cy; color = color_solarized_content_lighter, dash = (5, 5)))",
-    "draw!(GraphicsLine(() -> dot.cx, 170, () -> dot.cx, () -> dot.cy; color = color_solarized_content_lighter, dash = (5, 5)))",
-    "draw!(GraphicsLine(170, 90, 290, 90), GraphicsLine(170, 30, 170, 150))",
-    "draw!(GraphicsLine(90, 170, 90, 290), GraphicsLine(30, 170, 150, 170))",
-]
+include(joinpath(@__DIR__, "s1_forms.jl"))
 
 # How long the window stays still after a form runs. A form that changes the
 # picture holds longer, so the viewer sees what it added.
-_changes_picture(form) = startswith(form, "draw!(") && !occursin(" = foreach", form)
+_changes_picture(form) = startswith(form, "add!(") && !occursin(" = foreach", form)
 _hold_of(form) = _changes_picture(form) ? 3.0 : 1.2
 
 function _forms(forms; type = _type)
