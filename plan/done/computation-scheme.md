@@ -106,7 +106,7 @@ Markdown: 19 files in projectured-julia and 2 in omnet-julia name `Computed`,
 - [x] 6. omnet-julia and inet-julia: steps 2 to 5, each on a branch in a
   worktree of its own. They land right after projectured-julia, because their
   `[sources]` reach its main checkout.
-- [ ] 7. Verification, the smaller set that the owner asked for instead of
+- [x] 7. Verification, the smaller set that the owner asked for instead of
   `test_all()`:
   - `test_cell()`, `test_kernel()`, `test_substrate()` and `test_fault()`,
     against the baselines of `main`;
@@ -115,11 +115,45 @@ Markdown: 19 files in projectured-julia and 2 in omnet-julia name `Computed`,
   - the naming guard, the export guard and the argument guard;
   - omnet-julia compiled against the worktrees, with its own check at run time.
 
+## Verification results
+
+- projectured-julia loads with the umbrella test package, so the macro is in
+  scope everywhere: Julia expands a macro when it loads the code.
+- The check at run time passes 401 checks: each module that runs a changed
+  file sees `Computation`, `Cell`, `CellVector` and `set_cell_computation!`
+  where the file uses them. Three files have no method: two interface files
+  that changed only in docstrings, and `tool/video/record_widget_tool.jl`,
+  whose code is in strings.
+- `test_kernel()`: 2158 pass, the 11 tests of the macro more than before, with
+  the 3 fails and 3 errors of `main`. `test_substrate()`: 80445 pass, with the 3
+  fails and 2 errors of the split pane test on `main`. `test_fault()`: 73 pass.
+- The substrate count is 12 below an earlier run. Measured the same way, one
+  example at a time, every one of the 68 examples gives the same count on
+  `main` and on this branch, 76119 in all. The earlier run did not load the
+  umbrella test package, which registers more domains; the difference is the
+  process, not the change.
+- The naming guard, the export guard and the documentation guard pass. The
+  argument guard reports only `start_application!`, which is on `main` too.
+
+- omnet-julia compiles all 512 packages against the two worktrees, and its
+  check at run time finds no module that misses a name. Three package roots
+  of omnet-julia import the names of `CellModule` by list, and a file that
+  they include uses the macro: `OmnetPresentation`, `OmnetIdeTest` and
+  `OmnetLegacyTictocTest`. The first load found `OmnetPresentation`; a search
+  of every package root found the other two, whose test packages the scratch
+  environment does not load.
+- inet-julia was not loaded. Its change is two lambdas, a qualified call and
+  one import list, which gets `@computation`.
+
 ## Risks
 
 - **Open branches of other sessions** use `Computed` and `set_cell_function!`.
-  `feature-videos` is one. Each needs the rewrite when it rebases. The plan
-  checks the open branches before the landing and lists what they add.
+  Checked on 2026-09-24: `feature-videos` in projectured-julia, 13 commits
+  ahead, and `widget-keywords-on-main` in omnet-julia, one commit ahead, both
+  conflict with this change: 7 files in projectured-julia and 12 or more in
+  omnet-julia, mostly widgets. The omnet branch also adds 11 lines with the old
+  names. `one-interface` and inet's `t1s-sealed-trim` add nothing and do not
+  conflict.
 - **The parse trap** of a macro call in an argument list. The script writes the
   parenthesized form wherever an argument follows, and a test covers both forms.
 - **The line width.** `@computation body` is shorter than
