@@ -6,9 +6,15 @@
 # The Evaluator button of the toolbar opens the evaluator. The first forms make
 # a canvas, and the canvas gets a pane of its own beside the evaluator: Alt+click
 # selects the canvas, Ctrl+N notes it, Ctrl+\ splits the window, Ctrl+V pastes
-# the same canvas there, F2 names the pane, Ctrl+Alt+Left brings the focus back, and Down moves the
-# caret from the selected canvas into the fresh prompt. Each later form adds one part and returns nothing, so
-# the picture grows in its own pane and no result row changes with it.
+# the same canvas there, F2 names the pane, Ctrl+Alt+Left brings the focus back,
+# and Down moves the caret from the selected canvas into the fresh prompt. A
+# helper, `draw!`, adds elements to the canvas and returns nothing, so each later
+# form adds one part, the picture grows in its own pane, and no result row changes
+# with it. A moving part takes a function where it moves, and the axes of the two
+# traces come last. Every form becomes a Julia document.
+#
+# Before the take, the first steps run once, typed fast, into a take that is
+# thrown away, so the evaluator and the split are compiled before the first frame.
 
 using Projectured, ProjecturedExample, ProjecturedSdl, ProjecturedSdlExample, ProjecturedVideo
 
@@ -34,34 +40,50 @@ const FIRST_FORMS = [
     "canvas = GraphicsCanvas([GraphicsRect(0, 0, 300, 300; color = color_solarized_background_lighter)]; w = 300, h = 300)",
 ]
 
-# The forms after it. Each `push!` returns nothing, so its result row stays
-# small, and the picture changes only where it is: in its pane, and in the one
+# The forms after it. Each `draw!` returns nothing, so its result row says
+# `nothing`, and the picture changes only where it is: in its pane, and in the one
 # row that made it.
 const LATER_FORMS = [
-    "ring = GraphicsCircle(90, 90, 60; color = StyleColor(0.0, 0.0, 0.0, 0.0), border_width = 2, border_color = color_solarized_content_darker)",
-    "push!(canvas.elements, ring); nothing",
+    "draw!(elements...) = foreach(element -> push!(canvas.elements, element), elements)",
+    "draw!(GraphicsCircle(90, 90, 60; color = color_transparent, border_width = 2, border_color = color_solarized_content_darker))",
     "phase() = -0.5 * get_reactive_clock_time(clock)",
-    "dot = GraphicsCircle(ComputedCell(() -> round(Int32, 90 + 60cos(phase()))), ComputedCell(() -> round(Int32, 90 - 60sin(phase()))), 5, color_solarized_magenta, 0, StyleColor(0.0, 0.0, 0.0, 0.0), nothing)",
-    "push!(canvas.elements, dot); nothing",
-    "sine = GraphicsPolyline(ComputedCell(() -> Tuple{Int,Int}[(170 + i, round(Int, 90 - 60sin(phase() - i * 0.02))) for i in 0:120]), color_solarized_blue, 2, nothing, false, false, 8, nothing)",
-    "push!(canvas.elements, sine); nothing",
-    "cosine = GraphicsPolyline(ComputedCell(() -> Tuple{Int,Int}[(round(Int, 90 + 60cos(phase() - i * 0.02)), 170 + i) for i in 0:120]), color_solarized_green, 2, nothing, false, false, 8, nothing)",
-    "push!(canvas.elements, cosine); nothing",
-    "push!(canvas.elements, GraphicsLine(170, ComputedCell(() -> dot.cy), ComputedCell(() -> dot.cx), ComputedCell(() -> dot.cy), color_solarized_content_lighter, 1, (5, 5), nothing)); nothing",
-    "push!(canvas.elements, GraphicsLine(ComputedCell(() -> dot.cx), 170, ComputedCell(() -> dot.cx), ComputedCell(() -> dot.cy), color_solarized_content_lighter, 1, (5, 5), nothing)); nothing",
+    "dot = GraphicsCircle(() -> 90 + 60 * cos(phase()), () -> 90 - 60 * sin(phase()), 5; color = color_solarized_magenta)",
+    "draw!(dot)",
+    "draw!(GraphicsPolyline(() -> [(170 + i, 90 - 60 * sin(phase() - i / 50)) for i in 0:120]; color = color_solarized_blue, width = 2))",
+    "draw!(GraphicsPolyline(() -> [(90 + 60 * cos(phase() - i / 50), 170 + i) for i in 0:120]; color = color_solarized_green, width = 2))",
+    "draw!(GraphicsLine(170, () -> dot.cy, () -> dot.cx, () -> dot.cy; color = color_solarized_content_lighter, dash = (5, 5)))",
+    "draw!(GraphicsLine(() -> dot.cx, 170, () -> dot.cx, () -> dot.cy; color = color_solarized_content_lighter, dash = (5, 5)))",
+    "draw!(GraphicsLine(170, 90, 290, 90), GraphicsLine(170, 30, 170, 150))",
+    "draw!(GraphicsLine(90, 170, 90, 290), GraphicsLine(30, 170, 150, 170))",
 ]
 
 # How long the window stays still after a form runs. A form that changes the
 # picture holds longer, so the viewer sees what it added.
-_hold_of(form) = startswith(form, "push!") ? 3.0 : 1.2
+_changes_picture(form) = startswith(form, "draw!(") && !occursin(" = foreach", form)
+_hold_of(form) = _changes_picture(form) ? 3.0 : 1.2
 
-function _forms(forms)
+function _forms(forms; type = _type)
     timeline = Any[]
     for form in forms
-        append!(timeline, _type(form))
+        append!(timeline, type(form))
         push!(timeline, _key(:return; hold = _hold_of(form)))
     end
     timeline
+end
+
+# The warm-up: the steps of the first half, typed fast, with no hold to watch.
+_type_fast(text) = [(event = KeyPress(c), hold = 0.01) for c in text]
+
+function make_warm_up_timeline()
+    vcat(
+        _press(EVALUATOR_BUTTON...; hold = 1.0),
+        _forms(FIRST_FORMS; type = _type_fast),
+        _press(CANVAS_CENTRE...; hold = 0.5, alt = true),
+        [_key(:n; ctrl = true), _key(:backslash; ctrl = true), _key(:v; ctrl = true), _key(:f2)],
+        _type_fast("Picture"),
+        [_key(:escape), _key(:left; ctrl = true, alt = true), _key(:down)],
+        _forms(LATER_FORMS[1:2]; type = _type_fast),
+    )
 end
 
 function make_timeline()
@@ -82,6 +104,12 @@ function make_timeline()
 end
 
 function main()
+    warm_up = joinpath(dirname(OUTPUT), "rotating_vector_warm_up.mp4")
+    println("warm-up: ", record_application_video([joinpath(PROJECT, "README.md")], make_warm_up_timeline(),
+                                                  warm_up; width = 1280, height = 720, fps = 30,
+                                                  assistant = :none, root = PROJECT,
+                                                  initial_hold = 0.2, final_hold = 0.2))
+    rm(warm_up; force = true)
     timeline = make_timeline()
     scripted = 0.5 + sum(entry.hold for entry in timeline) + 4.0
     println("entries: ", length(timeline), ", scripted seconds: ", round(scripted; digits = 1))
