@@ -4,7 +4,7 @@ A cell computes when it gets a `Computed(f)`. The function `ComputedCell(f)` is
 a second spelling of the same thing: its body is `ReactiveCell{Any}(Computed(f))`,
 which is `Cell(Computed(f))`. The owner chose on 2026-09-24 to remove
 `ComputedCell` and to write `Cell(Computed(f))`, in a plan of its own, after the
-audit of the cell layer ([cell-layer-audit.md](cell-layer-audit.md)).
+audit of the cell layer ([cell-layer-audit.md](../done/cell-layer-audit.md)).
 
 ## Why
 

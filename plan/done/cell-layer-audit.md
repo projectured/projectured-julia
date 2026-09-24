@@ -10,7 +10,7 @@ approved every item on 2026-09-24, gave permission to change the sealed file
 `has_dependents`.
 
 The question of `Computed` against `ComputedCell` is a plan of its own:
-[computed-cell-spelling.md](computed-cell-spelling.md).
+[computed-cell-spelling.md](../pending/computed-cell-spelling.md).
 
 ## Decisions
 
@@ -58,3 +58,30 @@ The question of `Computed` against `ComputedCell` is a plan of its own:
 - [x] 6. Outside the layer: the guide `cell.md`, the two engine names in
   `architecture-invariants.md`, and the read of the `valid` field in
   `DbCatalogToSyntax.jl`.
+
+## What the implementation found
+
+- The example of `copy_cell_as` in `CellInterface.jl` passed `original.width`,
+  which reads the value and not the cell. It passes
+  `getfield(original, :width)` now.
+- The cell test carried history comments and a link to `plan/pending/` for a
+  plan in `plan/done/`. They say what is now.
+- The chain test reads inside `Base.invokelatest`. The world of a test task is
+  fixed when its top-level call starts, and an earlier test in the same call
+  can define methods, so a bare read can run in an older world. In an older
+  world, each level of a chain retries once: a chain of ten runs its bottom
+  thunk eleven times, where it ran 1024 times before.
+- No runnable test covers `_children_realized` in `DbCatalogToSyntax.jl`; the
+  DbCatalog syntax tests need an ODBC database. A check by hand gave the same
+  answers as before: `false` for a computed element list before its read, and
+  `true` after it, for a stored list, and for a value that is not a
+  `CellVector`.
+
+## Verification
+
+- `test_cell()`: 83 pass, with the counters compiled out and compiled in.
+- `test_performance_counter()`: 3 pass, and 11 with the counters compiled in.
+- `test_kernel_layering()`: 10 pass. `test/suite/naming.jl`: clean.
+- `test_declared_api()`: 117 pass.
+- `test_frame_statistics_feed()`: 41 pass. `test_serialization()`: 56 pass.
+  `test_documentation()`: pass. `test_reactive_surface()`: no error.
