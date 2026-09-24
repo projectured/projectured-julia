@@ -6528,6 +6528,7 @@ const LUCIDE_ICON_GLYPHS = (
     :keyboard       => 0xe284,  # keyboard
     :warning        => 0xe193,  # triangle-alert
     :chart          => 0xe2a3,  # chart-column
+    :chart_line     => 0xe2a5,  # chart-line
     :crosshair      => 0xe0ac,  # crosshair
     # Kinds of file
     :lambda         => 0xe780,  # lambda

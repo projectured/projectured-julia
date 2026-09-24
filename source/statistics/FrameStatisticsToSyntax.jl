@@ -1,43 +1,40 @@
-# Fragment of `FrameStatisticsModule`.
+# Fragment of `FrameStatisticsModule` — the projection of a
+# [`FrameStatistics`](FrameStatisticsDocument.jl) onto a `SyntaxNode`: a head
+# line with the frame counts, a header line, and one line for each measurement.
+# The DejaVu monospace font keeps the columns aligned, for the same reason the
+# message log panel uses it. The default colors suit the light background of a
+# tab.
 #
-# Projects a [`FrameStatistics`](FrameStatisticsDocument.jl) onto a
-# `SyntaxNode` for display: a head line with the frame count, a header line,
-# and one line per measurement. The DejaVu monospace font keeps the columns
-# aligned, for the same reason the message log panel uses it. The colors suit
-# the light background of a tab.
-#
-# Read-only. There is nothing to author here, so this is a plain leaf
-# printer with no reader and no reference mappers.
+# Read-only. There is nothing to author here, so this is a plain leaf printer
+# with no reader and no reference mappers.
 @projection struct FrameStatisticsToSyntax
-    header::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
-    row::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
-    empty::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    header::ImmutableCell{StyleText} =
+        StyleText(font_dejavu_monospace_bold_16, color_solarized_cyan)
+    row::ImmutableCell{StyleText} =
+        StyleText(font_dejavu_monospace_regular_16, color_slate_700)
+    empty::ImmutableCell{StyleText} =
+        StyleText(font_dejavu_monospace_regular_16, color_slate_500)
 end
 
-# Column widths in characters: the name, then six number columns.
+# Column widths in characters: the name, the unit, then six number columns.
 const _NAME_WIDTH = 16
+const _UNIT_WIDTH = 6
 const _NUMBER_WIDTH = 12
-
-# A count prints as an integer; everything else keeps four significant
-# digits, which tells 0.0021 s from 0.021 s and stays in its column.
-_format_measurement_value(value::Float64) =
-    isinteger(value) && abs(value) < 1e15 ? string(Int(value)) :
-    string(round(value; sigdigits = 4))
 
 """
     print_document(p::FrameStatisticsToSyntax, recursion, statistics::FrameStatistics, ctx)
 
-One `SyntaxNode` per line, joined by newlines. The lines are derived, not
-copied: the outer node reads `statistics.frame_count` and the row cells
-inside a `ComputedCellVector`, so a flush rebuilds exactly the lines whose
-numbers changed.
+One `SyntaxNode` for each line, joined by newlines. The lines are derived, not
+copied: the outer node reads `statistics.frame_count` and the row cells inside
+a `ComputedCellVector`, so a flush rebuilds exactly the lines whose numbers
+changed.
 """
 function print_document(p::FrameStatisticsToSyntax, recursion,
                         statistics::FrameStatistics, ctx::PrinterContext)
     children = ComputedCellVector(function ()
         rows = statistics.rows
         lines = SyntaxDocument[]
-        push!(lines, SyntaxLeaf(TextString("$(statistics.frame_count) frames", p.header)))
+        push!(lines, SyntaxLeaf(TextString(_format_head_line(statistics), p.header)))
         if isempty(rows)
             push!(lines, SyntaxLeaf(TextString("no frame yet", p.empty)))
             return lines
@@ -51,28 +48,47 @@ function print_document(p::FrameStatisticsToSyntax, recursion,
     SimpleIoMap(p, statistics, SyntaxNode(children; sep=TextString("\n")))
 end
 
+# "1234 frames, the rows cover the last 1000": the frames since the start, and
+# how many of them the rows summarize when that is fewer.
+function _format_head_line(statistics::FrameStatistics)
+    frame_count = statistics.frame_count
+    rows = statistics.rows
+    covered = isempty(rows) ? 0 : maximum(rows[index].count for index in 1:length(rows))
+    covered < frame_count ? "$(frame_count) frames, the rows cover the last $(covered)" :
+                            "$(frame_count) frames"
+end
+
 function _header_line(p::FrameStatisticsToSyntax)
-    columns = rpad("measurement", _NAME_WIDTH) *
+    columns = rpad("measurement", _NAME_WIDTH) * rpad("unit", _UNIT_WIDTH) *
               join(lpad(label, _NUMBER_WIDTH)
-                   for label in ("count", "minimum", "maximum", "mean", "deviation", "total"))
+                   for label in ("frames", "minimum", "maximum", "mean", "deviation",
+                                 "total"))
     SyntaxLeaf(TextString(columns, p.header))
 end
 
-# One line: "frame_time   1234   0.0001   0.03   0.0021   0.0009   2.59".
+# One line: "frame_time      ms          1000        2.13       45.02 …".
 function _measurement_line(p::FrameStatisticsToSyntax, row::FrameMeasurement)
-    columns = rpad(row.name, _NAME_WIDTH) *
+    unit = is_frame_time_measurement(Symbol(row.name)) ? "ms" : ""
+    columns = rpad(row.name, _NAME_WIDTH) * rpad(unit, _UNIT_WIDTH) *
               lpad(string(row.count), _NUMBER_WIDTH) *
-              join(lpad(_format_measurement_value(value), _NUMBER_WIDTH)
-                   for value in (row.minimum, row.maximum, row.mean,
-                                 row.standard_deviation, row.total))
+              join(lpad(text, _NUMBER_WIDTH) for text in _format_measurement_values(row))
     SyntaxLeaf(TextString(columns, p.row))
 end
 
-# ── Natural-projection registration ─────────────────────────────────────────
-# The row that lets a tab draw a statistics table. The factory form, so every
-# renderer builds its own projection instance.
-
-function __init__()
-    register_natural_syntax!(:statistics, () -> Pair{Type,Any}[FrameStatistics => FrameStatisticsToSyntax()])
-    register_pred_type!(FrameStatistics)
+# The minimum, the maximum, the mean, the deviation and the total of a row, as
+# text. A time shows in milliseconds with two decimals, and its total with
+# none. A count shows as a whole number, and its mean and deviation with one
+# decimal. A row that no recent frame measured shows a dash.
+function _format_measurement_values(row::FrameMeasurement)
+    row.count == 0 && return fill("-", 5)
+    if is_frame_time_measurement(Symbol(row.name))
+        return [@sprintf("%.2f", row.minimum * 1000),
+                @sprintf("%.2f", row.maximum * 1000),
+                @sprintf("%.2f", row.mean * 1000),
+                @sprintf("%.2f", row.standard_deviation * 1000),
+                @sprintf("%.0f", row.total * 1000)]
+    end
+    [@sprintf("%.0f", row.minimum), @sprintf("%.0f", row.maximum),
+     @sprintf("%.1f", row.mean), @sprintf("%.1f", row.standard_deviation),
+     @sprintf("%.0f", row.total)]
 end

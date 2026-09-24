@@ -55,6 +55,8 @@ end
     # the phrase is not enough. The head line is what `FrameStatisticsToSyntax`
     # prints, and the fields do not say it.
     @test occursin("0 frames", render(FrameStatistics()))
+    # The plot draws through the chart renderer, which writes the chart title.
+    @test occursin("Frame times", render(FramePlot()))
 end
 
 @testset "the file explorer opens by name, seeded" begin

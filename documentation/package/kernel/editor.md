@@ -67,7 +67,7 @@ while true
         drain_feeds!(editor)         # the inbox first, then every registered feed
         run_frame!(editor)           # read!/evaluate! up to MAX_OPERATIONS_PER_FRAME, then print!
         perf!(editor)                # log reactive counters
-        record_frame_measurements!(editor, …)  # fold this frame into editor.frame_samples
+        record_frame_measurements!(editor, …)  # record this frame in editor.frame_samples
     end
 end
 ```
@@ -189,7 +189,7 @@ The concrete feeds so far:
 | --- | --- | --- | --- |
 | `InboxFeed` (built-in, always first) | `post_operation!` and `run_on_editor_task!` callers | bounded queue, backpressure | the edited document |
 | `MessageLogFeed` (`ProjecturedLog`) | any task that logs | ring buffer | the `MessageLog` |
-| `FrameStatisticsFeed` (`ProjecturedStatistics`) | the loop itself | per-measurement fold | the `FrameStatistics` table |
+| `FrameStatisticsFeed` (`ProjecturedStatistics`) | the loop itself | ring of the last 1000 frames | the `FrameStatistics` table and the `FramePlot` |
 | `ReflectionFeed` (`ProjecturedReflection`) | the value, and a chevron that flags a marker | the value itself | the reflected tree of the value |
 
 The fault store predates the feeds and stays what it is: `run_frame!` reports
@@ -457,10 +457,12 @@ when an operation was applied. Use these to find unintentional
 recomputation: if a single keypress causes thousands of `computes`,
 something is reading more cells than necessary.
 
-The loop also folds every frame into `editor.frame_samples` — the frame time
-always, the counters above when they are compiled in — and the
-`FrameStatisticsFeed` shows the summaries as a document (open a tab and type
-`statistics`).
+The loop also records every frame in `editor.frame_samples`: the frame time
+always, and the counters above when they are compiled in. The store keeps the
+last 1000 frames. The `FrameStatisticsFeed` shows their summaries as a table
+(open a tab and type `statistics`) and their times as a plot (type
+`frame plot`). `write_frame_samples!("frames.csv", editor.frame_samples)`
+writes the frames as CSV.
 
 ## Adding new operations
 

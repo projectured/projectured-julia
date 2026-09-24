@@ -1,6 +1,6 @@
 # Frame measurements: frame names, a window of recent frames, milliseconds and a plot
 
-> **Status (2026-09-24): IN PROGRESS.** Steps 1 and 2 are done.
+> **Status (2026-09-24): IN PROGRESS.** Steps 1 to 5 are done.
 
 The editor measures each frame into `editor.frame_samples`, a `FrameSampleStore`
 of the kernel performance layer. The store keeps only running summaries since
@@ -145,7 +145,24 @@ unsealed files of the layer again. Move this plan to `plan/done/`.
     table summarizes the window from this step on. The flush now writes a field
     only when its number changed: a cell write invalidates its readers even
     when the value is the same, so the old docstring claim was not true.
-- [ ] Step 3
-- [ ] Step 4
-- [ ] Step 5
+- [x] Steps 3, 4 and 5 — one commit, because the three steps change the same
+  statistics files. `test_frame_statistics_feed()` 35 pass, `test_tool_views()`
+  19 pass. An offscreen render of the table and of the plot, with 1200
+  synthetic frames, shows the unit column, the milliseconds and the lines.
+  Decisions made while implementing:
+  - The head line keeps its form `N frames`, and adds `, the rows cover the
+    last M` when the ring holds fewer frames than the session had.
+  - The number column `count` is `frames`, so it does not read as the unit of
+    a count measurement. A row that no recent frame measured shows a dash.
+  - `__init__` moved from `FrameStatisticsToSyntax.jl` to the module file,
+    where code-quality section 1 puts it. It registers both rows.
+  - The feed tests the `names` cell of the plot, not `frames`: a plot with no
+    series reads only `names`, so a test on `frames` never gave the first flush.
+  - `FramePlotToChart` calls the generated `Chart` constructor, because the
+    keyword constructor copies the list of series and breaks its derivation.
+  - The CSV rounds a time to a microsecond (a separate commit): the first
+    render showed sixteen digits and floating-point noise.
+  - `test_export_collisions()` fails on `format_fault_message`, which the
+    kernel `FaultModule` and `FaultViewModule` both export. It fails on main
+    too, and this plan does not change it.
 - [ ] Step 6

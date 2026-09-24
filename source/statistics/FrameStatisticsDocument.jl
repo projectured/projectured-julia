@@ -1,6 +1,7 @@
 # Fragment of `FrameStatisticsModule` — the frame statistics document types:
-# `FrameMeasurement`, the summary row of one measurement, and
-# `FrameStatistics`, the table of every measurement of one editor loop.
+# `FrameMeasurement`, the summary row of one measurement, `FrameStatistics`,
+# the table of every measurement of one editor loop, and `FramePlot`, the
+# frame times of the recent frames.
 
 @document struct FrameMeasurement
     name::String
@@ -93,3 +94,67 @@ get_session_frame_statistics() = _SESSION_FRAME_STATISTICS
 # table: a fresh one would never fill, because the feed flushes into the
 # table it was registered with.
 make_insertion_document(::Type{FrameStatistics}) = get_session_frame_statistics()
+
+# ── The frame plot ───────────────────────────────────────────────────────────
+
+"""
+    FramePlot()
+
+The frame times of the recent frames, as columns. `frames` holds the frame
+numbers, and `names` and `columns` hold one column in seconds for each time
+measurement of the editor's sample store. A value is `NaN` where a frame did
+not measure the name.
+
+A column is one cell, not one cell for each frame: nothing selects a single
+frame, and a view draws a whole column at once.
+"""
+@document struct FramePlot
+    names::Vector{String} = String[]
+    frames::Vector{Float64} = Float64[]
+    columns::Vector{Vector{Float64}} = Vector{Float64}[]
+end
+
+get_document_title(::FramePlot) = "Frame plot"
+get_insertion_aliases(::Type{FramePlot}) = ["frame plot"]
+
+# Last session's frames are not this one's: a load starts an empty plot.
+pred_arguments(::FramePlot) = (), Pair{Symbol, Any}[]
+
+"""
+    flush_frame_plot!(plot, store) -> Int
+
+Write the recent frames of `store` into the plot, one column for each time
+measurement, and answer how many columns it holds. The names are written only
+when they changed, so a flush gives a view new columns and keeps its series.
+
+Runs on the editor task only, because it writes cells.
+"""
+function flush_frame_plot!(plot::FramePlot, store::FrameSampleStore)
+    samples = collect_recent_frame_samples(store)
+    names = String[]
+    columns = Vector{Float64}[]
+    for (name, values) in samples.columns
+        is_frame_time_measurement(name) || continue
+        push!(names, String(name))
+        push!(columns, values)
+    end
+    _write_changed_field!(plot, :names, names)
+    plot.frames = Float64.(samples.frames)
+    plot.columns = columns
+    length(names)
+end
+
+# One plot for the session, for the same reason as the one table above.
+const _SESSION_FRAME_PLOT = FramePlot()
+
+"""
+    get_session_frame_plot() -> FramePlot
+
+The one frame plot of the session. Every plot view a person opens is this
+document, so two of them show the same frames.
+"""
+get_session_frame_plot() = _SESSION_FRAME_PLOT
+
+# A person who types `frame plot` into an empty tab gets the session's plot,
+# for the same reason as the table.
+make_insertion_document(::Type{FramePlot}) = get_session_frame_plot()
