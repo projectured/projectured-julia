@@ -29,7 +29,10 @@ end
 A line of text a person reads and does not edit.
 
 Use it to put a caption, a heading or a short note beside another widget, in a
-card, a row or a column. `content` is a string or a document.
+card, a row or a column. `content` is a string, a document, a cell that holds
+one, or a function of no arguments. A function makes a live label: it shows what
+the function answers now, and an answer that is neither a string nor a document
+shows as its text.
 
 # Example
 
@@ -60,12 +63,27 @@ and `WidgetAlert` for a message with a title.
     tooltip::Any
 end
 
+# A widget that shows a value takes it as the value, as a cell that holds it, or
+# as a function of no arguments. A function becomes a computed cell, so the
+# widget follows what the function reads. A value that a person edits, such as
+# the content of a `WidgetText` or the value of a `WidgetSlider`, takes no
+# function: a computed cell takes no edit.
+
+# What a label shows of an answer: a string or a document as it is, and any other
+# value as its text.
+_make_shown_content(content::Union{AbstractString, Document}) = content
+_make_shown_content(content) = string(content)
+
+_make_shown_cell(content::Cell) = content
+_make_shown_cell(content::Function) = ComputedCell(() -> _make_shown_content(content()))
+_make_shown_cell(content) = Cell(content)
+
 function WidgetLabel(content; position::Point2D=Point2D(0, 0),
                      text_style=nothing,
                      visible::Bool=true,
                      margin=nothing, border=nothing, padding=nothing,
                      style=nothing, tooltip=nothing)
-    WidgetLabel(Cell(position), Cell(content), Cell(text_style),
+    WidgetLabel(Cell(position), _make_shown_cell(content), Cell(text_style),
                 Cell(visible), Cell(margin), Cell(border), Cell(padding),
                 Cell(style), Cell(tooltip), Cell(nothing))
 end
@@ -1613,8 +1631,9 @@ get_instance_gesture_bindings(w::WidgetSwitch) = w.gestures
 
 A bar filled to a share between zero and one.
 
-Use it to show how far a set of runs or a long job is; write `value` as it
-advances. `width` is the bar's length in pixels.
+Use it to show how far a set of runs or a long job is. `value` is a number, a
+cell that holds one, or a function of no arguments that the bar follows; a number
+is written as the job advances. `width` is the bar's length in pixels.
 
 # Example
 
@@ -1634,9 +1653,13 @@ in one word.
     style::Any
     tooltip::Any
 end
-WidgetProgress(value::Real; position::Point2D=Point2D(0, 0), width::Integer=240, visible::Bool=true,
+_make_share_cell(value::Real) = Cell(Float64(value))
+_make_share_cell(value::Cell) = value
+_make_share_cell(value::Function) = ComputedCell(() -> Float64(value()))
+
+WidgetProgress(value::Union{Real, Cell, Function}; position::Point2D=Point2D(0, 0), width::Integer=240, visible::Bool=true,
                margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
-    WidgetProgress(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible),
+    WidgetProgress(Cell(position), _make_share_cell(value), Cell(Int(width)), Cell(visible),
                    Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
 
 # ── WidgetSlider ────────────────────────────────────────────────────────────
@@ -2230,6 +2253,7 @@ get_widget_table_selected_row(w::WidgetTable) = _widget_element_selected(w.selec
 # Wrap a raw cell value in a renderable widget document; pass Documents through.
 _table_cell_doc(v::Document) = v
 _table_cell_doc(::Nothing)   = nothing
+_table_cell_doc(v::Function) = WidgetLabel(v)
 _table_cell_doc(v)           = WidgetLabel(string(v))
 
 # Wrap one body row (a Vector of values or Documents) into a CellVector of cells.
@@ -2298,14 +2322,16 @@ end
     make_widget_table_row(values) -> CellVector
 
 One row of a table, from a vector of values or documents: a document passes
-through, and anything else becomes a `WidgetLabel` of its text. It is what a
-node of a list-backed table holds.
+through, a function of no arguments becomes a live `WidgetLabel` that shows its
+answer, and anything else becomes a `WidgetLabel` of its text. It is what a node
+of a list-backed table holds.
 """
 make_widget_table_row(values) = _table_row(values)
 
 # String convenience shim: headers become a column-header strip, rows become the
-# body, columns inferred from the header count (or the widest row). Strings are
-# wrapped in WidgetLabels via `_table_cell_doc`.
+# body, columns inferred from the header count (or the widest row). A value that
+# is not a document becomes a `WidgetLabel` through `_table_cell_doc`, and a
+# function a live one.
 function WidgetTable(headers::Vector, rows::Vector; position::Point2D=Point2D(0, 0),
                      border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,

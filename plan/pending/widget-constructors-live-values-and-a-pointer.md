@@ -191,7 +191,13 @@ name.content = "Ada Lovelace"
       shape; Step 5 writes them again.
 - [ ] Step 2: the calls of omnet-julia, on a branch, tested against this
       worktree.
-- [ ] Step 3: the live values of §3.3, with tests.
+- [x] Step 3: the live values of §3.3, with tests. **Done.** A label takes a
+      cell as it is (no caller passed one before) and makes a function a
+      `ComputedCell` whose answer shows as it is when it is a string or a
+      document, and as its text otherwise. A progress bar makes a function a
+      `ComputedCell` of a `Float64`. `_table_cell_doc` makes a function a live
+      label. `test_widget_live_values()` checks the text that the printed canvas
+      draws before and after the cell changes: 14 of 14.
 - [ ] Step 4: the pointer of §3.4, with a test.
 - [ ] Step 5: `find_form_document` and the check in the scripts (§3.5); S4 with
       the forms and the order of §3.6, recorded and given to the owner.
