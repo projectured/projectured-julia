@@ -43,8 +43,8 @@ end
 # One line: the column `index` of the plot in milliseconds, over the frame
 # numbers. Both columns derive from the plot.
 _make_frame_time_series(plot::FramePlot, index::Integer, name::AbstractString) =
-    ChartLineSeries(name, Computed(() -> plot.frames),
-                    Computed(() -> _get_frame_time_milliseconds(plot, index)),
+    ChartLineSeries(name, @computation(plot.frames),
+                    @computation(_get_frame_time_milliseconds(plot, index)),
                     true, :linear, :solid, 1, :none, 4, nothing, true, nothing)
 
 # A column that a flush has not written yet reads as no value for each frame,

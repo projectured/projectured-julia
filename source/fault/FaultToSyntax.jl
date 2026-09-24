@@ -27,6 +27,6 @@ end
 
 function print_document(p::FaultToSyntax, recursion, report::FaultReport,
                         ctx::PrinterContext)
-    text = Cell(Computed(() -> TextString(format_fault_label(report), p.style)))
+    text = Cell(@computation TextString(format_fault_label(report), p.style))
     SimpleIoMap(p, report, SyntaxLeaf(text))
 end

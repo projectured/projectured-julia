@@ -33,19 +33,19 @@ function print_document(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx
     # CellVectors), never pre-wrapped Cells — pre-wrapping would double-wrap and
     # make `rows[r]` a `Cell` instead of the row `CellVector`.
     # Column headers = the first row of the CellTable (column names).
-    column_headers = CellVector(Computed(() -> begin
+    column_headers = CellVector(@computation begin
         nr2, nc2 = size(ct)
         nr2 == 0 ? Any[] : Any[_to_doc(ct[1, c]) for c in 1:nc2]
-    end))
+    end)
     # Data rows, Primitive-wrapped, each a CellVector of document cells.
-    rows = CellVector(Computed(() -> begin
+    rows = CellVector(@computation begin
         nr2, nc2 = size(ct)
         out = Any[]
         for r in 2:nr2
             push!(out, CellVector(Cell[Cell(_to_doc(ct[r, c])) for c in 1:nc2]))
         end
         out
-    end))
+    end)
     table = WidgetTable(Cell(Point2D(0, 0)),
                         column_headers,
                         CellVector(),        # no row headers

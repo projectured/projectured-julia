@@ -1190,12 +1190,12 @@ function _canvas_size(p::ChartPlotToGraphicsCanvas, ctx)
 end
 
 function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot, ctx)
-    geometry = Cell(Computed(() -> begin
+    geometry = Cell(@computation begin
         w, h = _canvas_size(p, ctx)
         _layout(p, plot, w, h)
-    end))
+    end)
 
-    elements = CellVector(Computed(() -> begin
+    elements = CellVector(@computation begin
         g = geometry[]
         g === nothing && return _empty_elements(p, plot, ctx)
         out = Any[]
@@ -1219,14 +1219,14 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
         # Last, so an inside legend sits over the series rather than under them.
         _legend_elements!(out, g)
         out
-    end))
+    end)
 
     # Width and height are computed rather than fixed so a resize reflows the
     # same canvas object instead of replacing it.
-    size_cell = Cell(Computed(() -> _canvas_size(p, ctx)))
+    size_cell = Cell(@computation _canvas_size(p, ctx))
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                            Cell(Computed(() -> Int32(size_cell[][1]))),
-                            Cell(Computed(() -> Int32(size_cell[][2]))),
+                            Cell(@computation Int32(size_cell[][1])),
+                            Cell(@computation Int32(size_cell[][2])),
                             Cell(elements), Cell(layout_none), Cell(true),
                             Cell(nothing))
     ChartPlotToGraphicsCanvasIoMap(p, plot, canvas, geometry)

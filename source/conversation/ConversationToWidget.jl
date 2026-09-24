@@ -171,12 +171,12 @@ function print_document(projection::ConversationConversationToWidgetComposite,
     # Cache the child turn iomaps (recomputed only when the turn list changes),
     # so the produced cards keep a stable identity that the toggle reader can
     # match against. The layout reads each iomap's `.output`.
-    ioms = Cell(Computed(() -> Any[
+    ioms = Cell(@computation(Any[
         print_document(rec, rec, c.turns[i], make_child_context(ctx, ref))
         for i in eachindex(c.turns)
     ]))
     # Every turn fills the width it is given and grows with what it holds.
-    layout = VerticalLayout(CellVector(Computed(() -> Any[im.output for im in ioms[]])),
+    layout = VerticalLayout(CellVector(@computation Any[im.output for im in ioms[]]),
                             Cell(:left), Cell(_TURN_GAP),
                             Cell(Fill), Cell(Content), Cell(nothing))
     iomap = ChildrenIoMap(projection, c, layout, ioms)
@@ -189,12 +189,12 @@ end
 function print_document(projection::ConversationTurnToWidgetComposite,
                           recursion, t::ConversationTurn, ctx)
     rec, ref = recursion, ctx.reference
-    ioms = Cell(Computed(() -> Any[
+    ioms = Cell(@computation(Any[
         print_document(rec, rec, t.parts[i], make_child_context(ctx, ref))
         for i in eachindex(t.parts)
     ]))
     # And so does every part inside a turn.
-    body = VerticalLayout(CellVector(Computed(() -> Any[im.output for im in ioms[]])),
+    body = VerticalLayout(CellVector(@computation Any[im.output for im in ioms[]]),
                           Cell(:left), Cell(_GAP),
                           Cell(Fill), Cell(Content), Cell(nothing))
     # A turn is a band and not a box. The user's band is tinted and the model's

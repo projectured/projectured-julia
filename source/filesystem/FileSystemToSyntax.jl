@@ -29,13 +29,13 @@ function print_document(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemF
     # trick, as in FileSystemDirectoryToSyntaxNode), unwrapping our introduced caret
     # back into the leaf's own `.value{k}` span.
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = f.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
     leaf = SyntaxLeaf(TextString(() -> " " * basename(f.pathname), p.style); selection=sel)
     iomap = SimpleIoMap(p, f, leaf)
     iomap_cell[] = iomap
@@ -94,8 +94,8 @@ end
 
 
 function print_document(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSystemDirectory, ctx)
-    child_iomaps = Cell(Computed(() -> [print_child(recursion, elem,
-                                    make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
+    child_iomaps = Cell(@computation([print_child(recursion, elem,
+                                  make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
                                for (i, elem) in enumerate(d.elements)]))
 
     name_leaf = SyntaxLeaf(
@@ -103,7 +103,7 @@ function print_document(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSy
         selection=d.selection)
 
     body_node = SyntaxNode(
-        CellVector(Computed(() -> SyntaxDocument[im.output for im in child_iomaps[]]));
+        CellVector(@computation SyntaxDocument[im.output for im in child_iomaps[]]);
         indentation=2)
 
     # Wire the output selection canonically: map d.selection forward through this
@@ -111,13 +111,13 @@ function print_document(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSy
     # child_iomaps). The not-yet-built iomap is supplied via the deferred-iomap
     # trick (iomap_cell), as in JsonArrayToSyntaxNode / CopyingProjection.
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = d.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
         CellVector(Cell[Cell(name_leaf), Cell(body_node)]);

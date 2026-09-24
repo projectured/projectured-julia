@@ -153,9 +153,9 @@ TextString(content::Function,      style::StyleText) = TextString(content, style
 function make_hinted_text(content_thunk; empty_thunk, placeholder::AbstractString,
                           style::StyleText)
     TextString(
-        Cell(Computed(() -> empty_thunk() ? placeholder : content_thunk())),
+        Cell(@computation empty_thunk() ? placeholder : content_thunk()),
         style.font,                                                        # immutable (authored font)
-        Cell(Computed(() -> empty_thunk() ? color_solarized_gray : style.color)),   # reactive (hint colour)
+        Cell(@computation empty_thunk() ? color_solarized_gray : style.color),   # reactive (hint colour)
         Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 end
 

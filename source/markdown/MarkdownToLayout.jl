@@ -25,11 +25,11 @@ end
 
 function print_document(p::MarkdownRootToVerticalLayout, recursion, root::MarkdownRoot, ctx)
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         iomap = iomap_cell[]
         iomap === nothing && return nothing
         map_reference_forward(p, iomap, root.selection)
-    end))
+    end)
     # The page's own element cells are reused, not copied: the layout's
     # children share the root's element storage (only the selection cell is
     # the layout's own), and the layout renderer recurses each element.
@@ -45,7 +45,7 @@ function print_document(p::MarkdownRootToVerticalLayout, recursion, root::Markdo
     cards = IdDict{Any,Any}()
     block_of(element) = _is_carded_block(element) ?
         get!(() -> make_embed_card(element, get_filename(element)), cards, element) : element
-    children = CellVector(Computed(() -> Any[block_of(element) for element in elements]))
+    children = CellVector(@computation Any[block_of(element) for element in elements])
     out = VerticalLayout(children,
                          Cell(p.horizontal_align), Cell(p.gap),
                          Cell(Fill), Cell(nothing), sel)

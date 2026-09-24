@@ -255,7 +255,7 @@ function test_undo_buffer()
         # projection, which prints the list through the identity.
         inner_iomap = print_document(projection, IdentityProjection(), inner, PrinterContext())
         outer_iomap = UndoBufferToAnyIoMap(projection, outer,
-                                           Cell(Computed(() -> inner_iomap.output)), inner_iomap)
+                                           Cell(@computation inner_iomap.output), inner_iomap)
         editor = _UndoEditor(outer)
 
         operation = read_intent(projection, outer_iomap, _write_first("changed"))
@@ -291,7 +291,7 @@ function test_undo_buffer()
         projection = UndoBufferToAnyProjection()
         inner_iomap = print_document(projection, IdentityProjection(), inner, PrinterContext())
         outer_iomap = UndoBufferToAnyIoMap(projection, outer,
-                                           Cell(Computed(() -> inner_iomap.output)), inner_iomap)
+                                           Cell(@computation inner_iomap.output), inner_iomap)
         editor = _UndoEditor(outer)
         evaluate_operation(editor, read_intent(projection, outer_iomap, _write_first("changed")))
 

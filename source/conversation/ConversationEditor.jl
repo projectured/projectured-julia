@@ -529,7 +529,7 @@ function _editable_body(c::DocumentInsertion)
     # completion hint span — the same feedback the syntax-leaf insertion shows.
     # font_color is driven by `set_cell_function!` below, so it must be a reactive Cell,
     # not the immutable default — pass it explicitly. font stays immutable (authored).
-    value_span = TextString(Cell(Computed(() -> _value(c))), _FONT, Cell(color_default),
+    value_span = TextString(Cell(@computation _value(c)), _FONT, Cell(color_default),
                             nothing, nothing, nothing)
     set_cell_function!(getfield(value_span, :font_color), function ()
         state = name_completion(c).state
@@ -634,7 +634,7 @@ function print_document(p::ConversationComposerToWidget, recursion, d::Conversat
     # the same as a turn's parts in the transcript.
     iomap_ref = Ref{Any}(nothing)
     body = VerticalLayout(
-        CellVector(Computed(() -> (n = length(d.parts);
+        CellVector(@computation((n = length(d.parts);
                           Any[_make_draft_part_card(p, d, iomap_ref, i, d.parts[i].content, i == n) for i in 1:n]))),
         Cell(:left), Cell(_GAP), Cell(Fill), Cell(Content), Cell(nothing))
     iomap = SimpleIoMap(p, d, body)

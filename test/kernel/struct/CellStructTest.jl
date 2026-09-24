@@ -52,7 +52,7 @@ end
     @test getfield(p, :a)[] == 10
 
     # the field cell participates in the reactive graph
-    d = Cell(Computed(() -> p.a + 1))
+    d = Cell(@computation p.a + 1)
     @test d[] == 11
     p.a = 20
     @test d[] == 21

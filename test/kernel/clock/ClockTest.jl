@@ -25,7 +25,7 @@ function test_clock()
 
         # SUBSCRIBE: reading via get_reactive_clock_time makes the calling cell
         # a dependent, so the write invalidates it.
-        subscribed = Cell(Computed(() -> get_reactive_clock_time(clock) * 2))
+        subscribed = Cell(@computation get_reactive_clock_time(clock) * 2)
         @test subscribed[] == 0.0
         set_clock_time!(clock, 1.5)
         @test !is_cell_up_to_date(subscribed)
@@ -33,7 +33,7 @@ function test_clock()
 
         # SAMPLE: reading via get_clock_time registers nothing, so the write
         # leaves the cell valid.
-        sampled = Cell(Computed(() -> get_clock_time(clock) + 10.0))
+        sampled = Cell(@computation get_clock_time(clock) + 10.0)
         @test sampled[] == 11.5
         set_clock_time!(clock, 2.0)
         @test is_cell_up_to_date(sampled)
@@ -42,8 +42,8 @@ function test_clock()
 
     @testset "independence: setting one clock's time leaves others alone" begin
         a, b = Clock(), Clock()
-        sub_a = Cell(Computed(() -> get_reactive_clock_time(a) + 1))
-        sub_b = Cell(Computed(() -> get_reactive_clock_time(b) + 100))
+        sub_a = Cell(@computation get_reactive_clock_time(a) + 1)
+        sub_b = Cell(@computation get_reactive_clock_time(b) + 100)
         @test sub_a[] == 1.0
         @test sub_b[] == 100.0
 

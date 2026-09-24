@@ -58,7 +58,7 @@ function print_document(ap::SwitchingProjection, recursion, input, ctx)
     # same-index input change reuses the cached inner (which reacts on its own).
     inner = reconcile_child_iomap(() -> ap.index[],
                 i -> print_document(ap.projections[i], recursion, input, ctx))
-    output = Cell(Computed(() -> inner[].output))
+    output = Cell(@computation inner[].output)
     return SwitchingIoMap(ap, input, output, ap.index, inner)
 end
 

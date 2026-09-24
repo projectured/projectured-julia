@@ -85,16 +85,16 @@ function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDoc
     # Wire the tree's selection forward from the document selection through this
     # projection's own forward map (deferred-iomap trick, as in FileSystemToSyntax).
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
     # The roots are a reactive thunk so structural file-system changes rebuild the
     # node tree without re-running `print_document`.
-    roots = CellVector(Computed(() -> Any[_fs_node(doc, p.open_file)]))
+    roots = CellVector(@computation Any[_fs_node(doc, p.open_file)])
     # Positional, so every declared field is named here in order and the
     # selection comes last: position, roots, visible, margin, border, padding,
     # style, hovered, collapsed, gestures, tooltip, selection.

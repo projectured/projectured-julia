@@ -47,13 +47,13 @@ end
 # ── Print ─────────────────────────────────────────────────────────────────────
 
 function print_document(p::TextFirstLine, recursion, text::TextBlock, ctx)
-    both = Cell(Computed(() -> _first_line(text)))
-    elements_cv = CellVector(Computed(() -> both[][1]))
-    info_cell = Cell(Computed(() -> both[][2]))
-    out_selection = Cell(Computed(() -> begin
+    both = Cell(@computation _first_line(text))
+    elements_cv = CellVector(@computation both[][1])
+    info_cell = Cell(@computation both[][2])
+    out_selection = Cell(@computation begin
         kept = TextBlock(elements_cv, Cell(nothing))
         _map_selection_over_runs(_make_first_line_runs(info_cell[], text, kept), text, text.selection)
-    end))
+    end)
     output = TextBlock(elements_cv, out_selection)
     TextFirstLineIoMap(p, text, output, info_cell)
 end

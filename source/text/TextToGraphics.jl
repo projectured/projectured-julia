@@ -277,15 +277,15 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # The block's prevailing font sizes a blank line that has no font of its own
     # (an empty `TextLine`). It lives in its own cell because only such a line
     # reads it: a font edit still re-lays out just the lines that render glyphs.
-    block_font = Cell(Computed(() -> _block_font(styled)))
+    block_font = Cell(@computation _block_font(styled))
     # The overlay is laid out from the **stored** selection, live or dormant, so a
     # dormant caret still has a place on the screen. `is_live` decides only how it
     # is painted. Reading the raw cell is what makes a dormant selection visible at
     # all: the property answers `nothing` for one, which is the default that keeps
     # every other reader correct.
     selection_cell = getfield(styled, :selection)
-    overlay = Cell(Computed(() -> _layout_overlay(p, styled, _get_stored_path(selection_cell[]), block_font)))
-    is_live = Cell(Computed(() -> _is_live_selection(selection_cell[])))
+    overlay = Cell(@computation _layout_overlay(p, styled, _get_stored_path(selection_cell[]), block_font))
+    is_live = Cell(@computation _is_live_selection(selection_cell[]))
 
     # Persistent overlay elements. Their geometry cells read the selection-
     # dependent `overlay`; a zero width hides them when inactive (the renderer
@@ -335,7 +335,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # The block resolved into visual lines (see `_line_groups`). Reads only the
     # element structure, the element types and a line's indentation — never a span's
     # `.content` — so it is invariant under content edits.
-    lines_cell = Cell(Computed(() -> _line_groups(styled)))
+    lines_cell = Cell(@computation _line_groups(styled))
 
     # Per-line reactive cells, built once per line index and reused. A line's
     # `layout` reads only that line's spans' content; its `y` chains off the
@@ -347,13 +347,13 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     line_cells = Dict{Int,NamedTuple}()
     function get_line_cells(L::Int)
         haskey(line_cells, L) && return line_cells[L]
-        line_layout = Cell(Computed(() -> _layout_group(p, lines_cell[][L], 0, nothing, true, block_font)))
-        line_h = Cell(Computed(() -> Int32(line_layout[].height)))
+        line_layout = Cell(@computation _layout_group(p, lines_cell[][L], 0, nothing, true, block_font))
+        line_h = Cell(@computation Int32(line_layout[].height))
         line_y = if L == 1
             Cell(Int32(0))
         else
             prev = get_line_cells(L - 1)
-            Cell(Computed(() -> Int32(prev.y[] + prev.h[])))
+            Cell(@computation Int32(prev.y[] + prev.h[]))
         end
         cache = Dict{Any,Any}()
         segs = CellVector(Computed(function ()

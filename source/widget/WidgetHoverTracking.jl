@@ -62,7 +62,7 @@ end
 
 function print_document(p::WidgetHoverTrackingProjection, recursion, input, ctx)
     child_iomap = print_document(p.inner, recursion, input, ctx)
-    WidgetHoverTrackingIoMap(p, input, Cell(Computed(() -> child_iomap.output)), child_iomap)
+    WidgetHoverTrackingIoMap(p, input, Cell(@computation child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────

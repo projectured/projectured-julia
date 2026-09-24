@@ -42,7 +42,7 @@ WindowInputUnwrappingProjection(; inner) = WindowInputUnwrappingProjection(inner
 
 function print_document(p::WindowInputUnwrappingProjection, recursion, input, ctx)
     inner = print_document(p.inner, recursion, input, ctx)
-    WindowInputUnwrappingIoMap(p, input, Cell(Computed(() -> inner.output)), inner)
+    WindowInputUnwrappingIoMap(p, input, Cell(@computation inner.output), inner)
 end
 
 function read_intent(p::WindowInputUnwrappingProjection, recursion, change::Intent, iomap::WindowInputUnwrappingIoMap)

@@ -25,11 +25,11 @@ function print_document(p::CellVectorToVerticalLayout, recursion, cv::CellVector
     # Reuse the input's element cells (no transform here — the layout renderer
     # recurses them). The deferred-iomap trick wires the output selection.
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         map_reference_forward(p, im, cv.selection)
-    end))
+    end)
     out = VerticalLayout(CellVector(getfield(cv, :elements), Cell(nothing)),
                          Cell(p.horizontal_align), Cell(p.gap),
                          Cell(nothing), Cell(nothing), sel)

@@ -864,14 +864,14 @@ function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
                         plot::SequenceChartPlot, ctx)
     # One cumulative pass over the trace, isolated so that looking at the chart
     # never re-runs it.
-    timeline = Cell(Computed(() -> _timeline(plot.chart)))
+    timeline = Cell(@computation _timeline(plot.chart))
 
-    geometry = Cell(Computed(() -> begin
+    geometry = Cell(@computation begin
         w, h = _canvas_size(p, ctx)
         _layout(p, plot, timeline[], w, h)
-    end))
+    end)
 
-    elements = CellVector(Computed(() -> begin
+    elements = CellVector(@computation begin
         g = geometry[]
         g === nothing && return _empty_elements(p, plot, ctx)
         out = Any[]
@@ -895,14 +895,14 @@ function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
         push!(out, GraphicsViewport(round(Int, g.body_x), round(Int, g.body_y),
                                     round(Int, g.body_w), round(Int, g.body_h), content))
         out
-    end))
+    end)
 
     # Width and height are computed rather than fixed so a resize reflows the
     # same canvas object instead of replacing it.
-    size_cell = Cell(Computed(() -> _canvas_size(p, ctx)))
+    size_cell = Cell(@computation _canvas_size(p, ctx))
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                            Cell(Computed(() -> Int32(size_cell[][1]))),
-                            Cell(Computed(() -> Int32(size_cell[][2]))),
+                            Cell(@computation Int32(size_cell[][1])),
+                            Cell(@computation Int32(size_cell[][2])),
                             Cell(elements), Cell(layout_none), Cell(true),
                             Cell(nothing))
     SequenceChartPlotToGraphicsCanvasIoMap(p, plot, canvas, timeline, geometry)

@@ -124,7 +124,7 @@ function print_document(p::CommandPaletteDecoratorProjection, recursion, input, 
     # placed palette while it is open. The wrapper itself never changes, so the
     # inner output is always element 1 and a mapped reference always gains the same
     # one step.
-    elements = CellVector(Computed(() ->
+    elements = CellVector(@computation(
         p.state.open[] ?
             Any[inner_iomap.output, _placed_palette(p, palette_iomap)] :
             Any[inner_iomap.output]))

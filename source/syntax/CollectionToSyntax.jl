@@ -50,23 +50,23 @@ function map_reference_backward(::CollectionCellVectorToSyntax, iomap, reference
 end
 
 function print_document(p::CollectionCellVectorToSyntax, recursion, cv::CellVector, ctx)
-    child_iomaps = Cell(Computed(() -> [print_child(recursion, x,
-                                    make_child_context(ctx, ElementReferenceStep(i)))
+    child_iomaps = Cell(@computation([print_child(recursion, x,
+                                  make_child_context(ctx, ElementReferenceStep(i)))
                                for (i, x) in enumerate(cv)]))
     # Wire the output SyntaxNode's selection cell to forward-project the input
     # CellVector's selection.  The iomap_cell trick (same as DbCatalogToSyntax)
     # avoids a forward reference: we build the iomap after the node, then fill in
     # the cell so the lazy sel thunk closes over a valid iomap.
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = cv.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
     node = SyntaxNode(
-        CellVector(Computed(() -> SyntaxDocument[im.output for im in child_iomaps[]]));
+        CellVector(@computation SyntaxDocument[im.output for im in child_iomaps[]]);
         open=TextString("[", p.delim),
         close=TextString("]", p.delim),
         sep=TextString(", ", p.sep),

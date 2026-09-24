@@ -20,7 +20,7 @@ function test_performance_counter()
         # `with_performance_counters` runs the body and returns its value, and
         # `@measure_performance_time` yields its expression.
         counters = with_performance_counters() do
-            a = Cell(1); b = Cell(Computed(() -> a[] + 1))
+            a = Cell(1); b = Cell(@computation a[] + 1)
             _ = b[]; a[] = 2; _ = b[]
             @test (@measure_performance_time :timed_expr (1 + 2)) == 3
             get_performance_counters()
@@ -34,7 +34,7 @@ function test_performance_counter()
     # engine-internal detail and would over-specify the test.
     counters = with_performance_counters() do
         a = Cell(1)
-        b = Cell(Computed(() -> a[] + 1))
+        b = Cell(@computation a[] + 1)
         _ = b[]           # first read: 1 compute + at least 2 reads (a, b)
         a[] = 2           # write + invalidation
         _ = b[]           # recompute

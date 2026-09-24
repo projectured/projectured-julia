@@ -87,7 +87,7 @@ end
 
 function print_document(p::TooltipProbeProjection, recursion, input, ctx)
     child_iomap = print_document(p.inner, recursion, input, ctx)
-    TooltipProbeIoMap(p, input, Cell(Computed(() -> child_iomap.output)), child_iomap)
+    TooltipProbeIoMap(p, input, Cell(@computation child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────

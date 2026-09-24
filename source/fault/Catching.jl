@@ -123,7 +123,7 @@ function print_document(p::FaultCatchingProjection, recursion, input, ctx)
         _is_fault_caught(policy, exception) || rethrow()
         early = _take_fault(store, p.inner, reference, exception, catch_backtrace())
     end
-    guarded = Cell(Computed() do
+    guarded = Cell(@computation begin
         if early !== nothing
             report = FaultReport(early)
             return (output = _print_fault_mark(p, report, ctx), fault = early, report = report)
@@ -138,10 +138,10 @@ function print_document(p::FaultCatchingProjection, recursion, input, ctx)
         end
     end)
     FaultCatchingIoMap(p, input,
-                       Cell(Computed(() -> guarded[].output)),
+                       Cell(@computation guarded[].output),
                        inner, store, policy,
-                       Cell(Computed(() -> guarded[].fault)),
-                       Cell(Computed(() -> guarded[].report)))
+                       Cell(@computation guarded[].fault),
+                       Cell(@computation guarded[].report))
 end
 
 # Record the fault and answer it. The store answers `nothing` when it is full or

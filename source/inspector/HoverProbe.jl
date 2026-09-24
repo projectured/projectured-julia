@@ -73,7 +73,7 @@ end
 
 function print_document(p::HoverProbeProjection, recursion, input, ctx)
     child_iomap = print_document(p.inner, recursion, input, ctx)
-    HoverProbeIoMap(p, input, Cell(Computed(() -> child_iomap.output)), child_iomap)
+    HoverProbeIoMap(p, input, Cell(@computation child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────

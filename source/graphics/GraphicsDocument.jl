@@ -33,17 +33,17 @@ _round_pixel(value::Real) = round(Int32, value)
 
 _make_pixel_cell(value::Real) = Cell(_round_pixel(value))
 _make_pixel_cell(value::Cell) = value
-_make_pixel_cell(value::Function) = Cell(Computed(() -> _round_pixel(value())))
+_make_pixel_cell(value::Function) = Cell(@computation _round_pixel(value()))
 
 _round_points(points) = Tuple{Int,Int}[(round(Int, point[1]), round(Int, point[2])) for point in points]
 
 _make_points_cell(points::AbstractVector) = Cell(_round_points(points))
 _make_points_cell(points::Cell) = points
-_make_points_cell(points::Function) = Cell(Computed(() -> _round_points(points())))
+_make_points_cell(points::Function) = Cell(@computation _round_points(points()))
 
 _make_text_cell(text::AbstractString) = Cell(String(text))
 _make_text_cell(text::Cell) = text
-_make_text_cell(text::Function) = Cell(Computed(() -> String(text())))
+_make_text_cell(text::Function) = Cell(@computation String(text()))
 
 # ── GraphicsInsertion ─────────────────────────────────────────────────────
 

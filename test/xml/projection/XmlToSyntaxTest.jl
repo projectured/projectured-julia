@@ -16,7 +16,7 @@ el = XmlElement("a", [XmlAttribute("href", "x")], XmlDocument[XmlText("hi")])
 # incremental: a tag rename propagates to both the open and close tags
 edoc = XmlElement("old")
 etree = print_document(x2s, edoc).output
-eout = Cell(Computed(() -> render(etree)))
+eout = Cell(@computation render(etree))
 @test eout[] == "<old></old>"
 edoc.tag = "new"
 @test !is_cell_up_to_date(eout)

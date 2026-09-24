@@ -108,13 +108,13 @@ end
 function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
     # The state travels with the image: a dormant selection maps forward as a
     # dormant one, so the painter downstream can draw it pale.
-    sel = Cell(Computed(() -> map_selection_forward(leaf, path -> begin
+    sel = Cell(@computation(map_selection_forward(leaf, path -> begin
         leaf_sel = strip_reference_types(path)             # canonical → plain skeleton
         leaf_sel isa EmptyReference && return @reference()
         c = _leaf_cursor(leaf)
         c < 0 ? nothing : _flat_to_text_elem_path(_leaf_spans(leaf), c)
     end)))
-    SimpleIoMap(p, leaf, TextBlock(CellVector(Computed(() -> _leaf_spans(leaf))), sel))
+    SimpleIoMap(p, leaf, TextBlock(CellVector(@computation _leaf_spans(leaf)), sel))
 end
 
 function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
@@ -523,7 +523,7 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
     # output objects for downstream reuse (printer locality). A collapsed node
     # projects no children (its reactive subtree is pruned).
     child_cache = IdDict{Any, IoMap}()
-    child_iomaps = Cell(Computed(() -> begin
+    child_iomaps = Cell(@computation begin
         is_syntax_collapsed(node) && return IoMap[]
         kids = get_syntax_children(node)
         result = IoMap[]
@@ -536,21 +536,21 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
             objectid(k) in seen || delete!(child_cache, k)
         end
         result
-    end))
+    end)
 
     # Own chrome interleaved with each child's spliced element list. Returns a
     # tuple `(elements, child_elem_ranges, indent_indices)`. This cell reads only
     # syntax content and `child_iomaps` — never any selection cell — so the output
     # element vector is stable across caret moves (spans-stability property); the
     # separate selection cell below is what recomputes on a caret move.
-    spans = Cell(Computed(() -> begin
+    spans = Cell(@computation begin
         empty!(deco.seen)
         res = _splice_compound(node, p, deco, child_iomaps[])
         for k in collect(keys(deco.spans))
             k in deco.seen || delete!(deco.spans, k)
         end
         res
-    end))
+    end)
 
     # The selection cell forward-maps through this projection's own mapper, so it
     # needs the finished IoMap. Build the IoMap after the output but let the
@@ -558,24 +558,24 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
     # forward-reference break, as in CollectionToSyntax/BookToSyntax).
     iomap_cell = Cell(nothing)
     output = TextBlock(
-        CellVector(Computed(() -> spans[].elements)),
+        CellVector(@computation spans[].elements),
         # The bit rides from input to output. `map_selection_forward` hands the
         # stored path to the composer and gives the image back carrying the node's
         # own live/dormant state, so a dormant caret stays dormant all the way to
         # the Text domain, where the painter turns it into a pale colour.
         # `map_missing`: case 4 of the composer promotes a *child's* caret when the
         # node holds no selection of its own, so this hop must map an absent one too.
-        Cell(Computed(() -> map_selection_forward(node,
+        Cell(@computation(map_selection_forward(node,
             path -> _compose_node_selection(node, p, iomap_cell[], child_iomaps[], path);
             map_missing = true))))
 
     iomap = SyntaxCompoundToTextIoMap(p, node, output,
         child_iomaps,
-        Cell(Computed(() -> spans[].child_elem_ranges)),
-        Cell(Computed(() -> spans[].indent_indices)),
-        Cell(Computed(() -> _active_marker(p, node) === nothing ? 0 : 1)),
-        Cell(Computed(() -> spans[].own_spans)),
-        Cell(Computed(() -> spans[].sep_indices)))
+        Cell(@computation spans[].child_elem_ranges),
+        Cell(@computation spans[].indent_indices),
+        Cell(@computation _active_marker(p, node) === nothing ? 0 : 1),
+        Cell(@computation spans[].own_spans),
+        Cell(@computation spans[].sep_indices))
     iomap_cell[] = iomap
     iomap
 end

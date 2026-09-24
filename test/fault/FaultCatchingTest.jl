@@ -24,9 +24,9 @@ struct OddLeafBreaker <: Projection end
 
 ProjectionModule.print_document(::OddLeafBreaker, recursion, leaf::FaultProbeLeaf, ctx) =
     SimpleIoMap(nothing, leaf,
-                Cell(Computed(() -> isodd(leaf.value) ?
-                              error("leaf $(leaf.value) is odd") :
-                              SyntaxLeaf(TextString(string(leaf.value))))))
+                Cell(@computation(isodd(leaf.value) ?
+                            error("leaf $(leaf.value) is odd") :
+                            SyntaxLeaf(TextString(string(leaf.value))))))
 
 ProjectionModule.read_intent(::OddLeafBreaker, recursion, change::Intent, iomap) = change
 ProjectionModule.map_reference_forward(::OddLeafBreaker, iomap, reference) = nothing
@@ -60,8 +60,8 @@ function ProjectionModule.print_document(p::InterruptingProjection, recursion,
                                          leaf::FaultProbeLeaf, ctx)
     p.when === :early && throw(InterruptException())
     SimpleIoMap(nothing, leaf,
-                Cell(Computed(() -> p.when === :late ? throw(InterruptException()) :
-                                    SyntaxLeaf(TextString(string(leaf.value))))))
+                Cell(@computation(p.when === :late ? throw(InterruptException()) :
+                                  SyntaxLeaf(TextString(string(leaf.value))))))
 end
 
 function ProjectionModule.read_intent(p::InterruptingProjection, recursion,

@@ -63,7 +63,7 @@ TooltipDecoratorProjection(; trigger::Function,
 
 function print_document(p::TooltipDecoratorProjection, recursion, input::TooltipSource, ctx)
     child_iomap = print_child(recursion, input.child, ctx)
-    TooltipDecoratorIoMap(p, input, Cell(Computed(() -> child_iomap.output)), child_iomap)
+    TooltipDecoratorIoMap(p, input, Cell(@computation child_iomap.output), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────

@@ -29,7 +29,7 @@ function test_frame_statistics_feed()
         editor = Editor(HeadlessBackend(), statistics, FrameStatisticsToSyntax(),
                         Device[]; feeds = Feed[feed])
         # Subscribe the way a view does: read `frame_count` in a computation.
-        view = Cell(Computed(() -> statistics.frame_count))
+        view = Cell(@computation statistics.frame_count)
         view[]
         EditorModule.record_frame_performance!(editor, 0.016)
         @test compute_wake_deadline(feed, editor) == 0.25
@@ -112,7 +112,7 @@ function test_frame_statistics_feed()
         editor = Editor(HeadlessBackend(), statistics, FrameStatisticsToSyntax(),
                         Device[]; feeds = Feed[feed])
         # Subscribe the way a plot view does: read `names` in a computation.
-        view = Cell(Computed(() -> length(plot.names)))
+        view = Cell(@computation length(plot.names))
         view[]
         EditorModule.record_frame_performance!(editor, 0.016)
         @test compute_wake_deadline(feed, editor) == 0.25
@@ -129,13 +129,13 @@ function test_frame_statistics_feed()
         feed = FrameStatisticsFeed(statistics = statistics, plot = plot)
         editor = Editor(HeadlessBackend(), statistics, FrameStatisticsToSyntax(),
                         Device[]; feeds = Feed[feed])
-        table_view = Cell(Computed(() -> statistics.frame_count))
+        table_view = Cell(@computation statistics.frame_count)
         table_view[]
         EditorModule.record_frame_performance!(editor, 0.016)
         @test drain_feeds!(editor) == 1
         # The plot opens now, and no frame comes after it: the plot keeps its own
         # count, so it is due all the same.
-        plot_view = Cell(Computed(() -> length(plot.names)))
+        plot_view = Cell(@computation length(plot.names))
         plot_view[]
         @test compute_wake_deadline(feed, editor) == 0.25
         @test drain_feeds!(editor) == 1

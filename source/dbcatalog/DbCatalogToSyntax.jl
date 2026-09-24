@@ -30,11 +30,11 @@
 end
 
 function print_document(p::DbCatalogColumnToSyntaxLeaf, recursion, col::DbCatalogColumn, ctx)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         path = col.selection
         path === nothing && return nothing
         map_reference_forward(p, nothing, path)
-    end))
+    end)
     SimpleIoMap(p, col, SyntaxLeaf(
         TextString(() -> " " * col.name * "::" * col.data_type, p.style);
         selection=sel))
@@ -187,27 +187,27 @@ end
 function _catalog_syntax_node(p, recursion, ctx, input_doc,
                               name_style::StyleText,
                               keyword::String, label, children)
-    child_iomaps = Cell(Computed(() -> begin
+    child_iomaps = Cell(@computation begin
         [print_child(recursion, elem, make_child_context(ctx, ElementReferenceStep(i)))
          for (i, elem) in enumerate(children)]
-    end))
+    end)
 
     # The keyword group holds the projected items directly and is the lazy /
     # collapsible unit. Collapsed until its child collection is materialized.
     keyword_node = SyntaxNode(
-        CellVector(Computed(() -> SyntaxDocument[im.output for im in child_iomaps[]]));
+        CellVector(@computation SyntaxDocument[im.output for im in child_iomaps[]]);
         open=TextString(" " * keyword, font_ubuntu_monospace_regular_20, color_default),
         indentation=-1,
         collapsed=Cell(!_children_realized(children)))
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = input_doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     # The entity groups its keyword(s); it stays expanded (foldable by the user).
     entity_node = SyntaxNode(

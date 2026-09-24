@@ -99,7 +99,7 @@ end
 
 # ── reactivity: a computed cell over a document field ────────────────────
 base = Cell("IDLE")
-named = FsmState(Cell(Computed(() -> base[] * "!")))
+named = FsmState(Cell(@computation base[] * "!"))
 @test named.name == "IDLE!"
 base[] = "BUSY"
 @test named.name == "BUSY!"

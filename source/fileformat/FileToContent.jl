@@ -27,8 +27,8 @@ function print_document(p::FileToContent, recursion, file::FileDocument, ctx)
     child = reconcile_child_iomap(
         () -> get_file_content(file),
         v -> print_child(recursion, v, make_child_context(ctx, file, step)))
-    ContentIoMap(p, file, Cell(Computed(() -> child[].output)),
-                 Cell(Computed(() -> child[])))
+    ContentIoMap(p, file, Cell(@computation child[].output),
+                 Cell(@computation child[]))
 end
 
 # Forward: `.content.rest...` is entirely the child's own domain, and this

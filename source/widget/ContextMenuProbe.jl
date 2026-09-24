@@ -50,7 +50,7 @@ end
 
 function print_document(p::ContextMenuProbeProjection, recursion, input, ctx)
     child_iomap = print_document(p.inner, recursion, input, ctx)
-    ContextMenuProbeIoMap(p, input, Cell(Computed(() -> child_iomap.output)), child_iomap)
+    ContextMenuProbeIoMap(p, input, Cell(@computation child_iomap.output), child_iomap)
 end
 
 function read_intent(p::ContextMenuProbeProjection, recursion, change::Intent,

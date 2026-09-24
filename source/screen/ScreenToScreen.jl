@@ -44,12 +44,12 @@ function print_document(p::ScreenToScreen, recursion, input::ScreenDocument, ctx
         () -> input.windows,
         (i, x) -> print_document(p, recursion, x,
             make_child_context(ctx, FieldReferenceStep("windows"), ElementReferenceStep(i))))
-    out_windows = Cell(Computed(() -> CellVector(Cell[Cell(im.output) for im in window_iomaps[]])))
-    sel = Cell(Computed(() -> begin
+    out_windows = Cell(@computation CellVector(Cell[Cell(im.output) for im in window_iomaps[]]))
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         map_reference_forward(p, im, input.selection)
-    end))
+    end)
     output = ScreenDocument(out_windows, sel)
     iomap = ScreenToScreenIoMap(p, input, output, window_iomaps)
     iomap_cell[] = iomap
@@ -65,10 +65,10 @@ function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx
     # that followed that size would chase it. So a text wraps at the maximum
     # width, and the window ends as wide as the text needed.
     maximum_size = getfield(input, :maximum_size)
-    offer_width = Cell(Computed(() -> (m = maximum_size[];
-                                       m[1] > 0 ? m[1] : getfield(input, :width)[])))
-    offer_height = Cell(Computed(() -> (m = maximum_size[];
-                                        m[2] > 0 ? m[2] : getfield(input, :height)[])))
+    offer_width = Cell(@computation((m = maximum_size[];
+                                     m[1] > 0 ? m[1] : getfield(input, :width)[])))
+    offer_height = Cell(@computation((m = maximum_size[];
+                                      m[2] > 0 ? m[2] : getfield(input, :height)[])))
     content_ctx = with_available_size(make_child_context(ctx, FieldReferenceStep("content"));
                                       width=offer_width, height=offer_height)
     # Reconcile the content by identity so replacing a same-id window's content
@@ -79,11 +79,11 @@ function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx
     content_iomap = reconcile_child_iomap(() -> input.content,
                                           c -> print_child(recursion, c, content_ctx))
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         map_reference_forward(p, im, input.selection)
-    end))
+    end)
     # Metadata cells are shared verbatim (non-document fields), so a metadata edit on
     # the input window is reflected here through the shared cell; only content and
     # selection are produced fresh.
@@ -98,7 +98,7 @@ function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx
                             bg = getfield(input, :bg), style = getfield(input, :style),
                             auto_dismiss = getfield(input, :auto_dismiss),
                             modal = getfield(input, :modal),
-                            content = Cell(Computed(() -> content_iomap[].output)),
+                            content = Cell(@computation content_iomap[].output),
                             selection = sel)
     iomap = ScreenWindowIoMap(p, input, output, content_iomap)
     iomap_cell[] = iomap

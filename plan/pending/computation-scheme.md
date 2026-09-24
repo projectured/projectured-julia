@@ -72,12 +72,12 @@ Markdown: 19 files in projectured-julia and 2 in omnet-julia name `Computed`,
 
 ## Steps
 
-- [ ] 1. The layer. `CellComputation.jl` with `Computation` and
+- [x] 1. The layer. `CellComputation.jl` with `Computation` and
   `@computation`; the fields `computation`; `set_cell_computation!`; `show`
   with the new words; the docstrings; the exports. Tests for the macro: the
   plain form, the parenthesized form in an argument list, a `begin` block, a
   typed cell, a write, and `@computation f` for a function `f`.
-- [ ] 2. The rewrite of the lambdas, with a script that walks the syntax tree,
+- [x] 2. The rewrite of the lambdas, with a script that walks the syntax tree,
   as for `ComputedCell`:
   - `Computed(() -> body)` becomes `@computation body`. The plain form stands
     where the call is alone, the right side of `=` or the last argument; the

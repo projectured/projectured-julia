@@ -271,11 +271,11 @@ end
 
 function print_document(p::MarkdownStyledTextToSyntaxLeaf, recursion, t::MarkdownText, ctx)
     style = get_property(ctx, :md_style, p.style)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         s = t.selection
         is_introduced_reference(s) && return s
         map_reference_forward(p, nothing, s)
-    end))
+    end)
     SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style); selection=sel))
 end
 
@@ -318,19 +318,19 @@ _mode(::MarkdownLinkToStyledNode)     = :link
 function print_document(p::MarkdownStyledInline, recursion, doc, ctx)
     ambient = get_property(ctx, :md_style, _BODY)
     style = _mode_style(_mode(p), ambient, doc)
-    child_iomaps = Cell(Computed(() -> [
+    child_iomaps = Cell(@computation([
         print_child(recursion, child,
             with_property(make_child_context(ctx, FieldReferenceStep("content"), ElementReferenceStep(i)), :md_style, style))
         for (i, child) in enumerate(doc.content)]))
-    items = CellVector(Computed(() -> SyntaxDocument[im.output for im in child_iomaps[]]))
+    items = CellVector(@computation SyntaxDocument[im.output for im in child_iomaps[]])
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
     node = SyntaxNode(items; indentation=0, selection=sel)
     iomap = ChildrenIoMap(p, doc, node, child_iomaps)
     iomap_cell[] = iomap
@@ -407,8 +407,8 @@ function _md_image_value(url, style::StyleText, placeholder::StyleText; max_w::I
         raw  = getfield(img, :raw)
         set_cell_function!(raw, () -> (try decode_image(path) catch; nothing end))
         _nat(i, fb) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fb)
-        dw = Cell(Computed(() -> Int32(min(_nat(2, 720), max_w))))
-        dh = Cell(Computed(() -> begin w = min(_nat(2, 720), max_w); Int32(round(Int, _nat(3, 460) * w / _nat(2, 720))) end))
+        dw = Cell(@computation Int32(min(_nat(2, 720), max_w)))
+        dh = Cell(@computation begin w = min(_nat(2, 720), max_w); Int32(round(Int, _nat(3, 460) * w / _nat(2, 720))) end)
         return TextGraphics(Cell(img), dw, dh, Cell(style.font), Cell(""),
                             Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     end
@@ -416,16 +416,16 @@ function _md_image_value(url, style::StyleText, placeholder::StyleText; max_w::I
 end
 
 function print_document(p::MarkdownImageToStyledNode, recursion, doc::MarkdownImage, ctx)
-    alt_sel = Cell(Computed(() -> begin
+    alt_sel = Cell(@computation begin
         @reference_case doc.selection begin
             ::MarkdownImage.alt.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
-    end))
-    url_sel = Cell(Computed(() -> begin
+    end)
+    url_sel = Cell(@computation begin
         @reference_case doc.selection begin
             ::MarkdownImage.url.rest... => @reference ::SyntaxLeaf.value::TextString.^(rest)
         end
-    end))
+    end)
     alt_leaf = SyntaxLeaf(
         make_hinted_text(() -> doc.alt; empty_thunk = () -> isempty(doc.alt),
                          placeholder = "image",
@@ -476,24 +476,24 @@ end
 _md_list_marker(ordered::Bool, i::Int) = ordered ? "$(i). " : "• "
 
 function print_document(p::MarkdownListToStyledNode, recursion, lst::MarkdownList, ctx)
-    child_iomaps = Cell(Computed(() -> [print_child(recursion, item,
-                                    make_child_context(ctx, FieldReferenceStep("items"), ElementReferenceStep(i)))
+    child_iomaps = Cell(@computation([print_child(recursion, item,
+                                  make_child_context(ctx, FieldReferenceStep("items"), ElementReferenceStep(i)))
                                for (i, item) in enumerate(lst.items)]))
-    items = CellVector(Computed(() -> begin
+    items = CellVector(@computation begin
         ord = lst.ordered
         SyntaxDocument[
             SyntaxDelimitation(im.output;
                                opening_delimiter=TextString(_md_list_marker(ord, i), p.marker_style))
             for (i, im) in enumerate(child_iomaps[]) ]
-    end))
+    end)
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = lst.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
     node = SyntaxNode(items; sep=TextString("\n", p.marker_style), indentation=0, selection=sel)
     iomap = ChildrenIoMap(p, lst, node, child_iomaps)
     iomap_cell[] = iomap

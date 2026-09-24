@@ -78,10 +78,10 @@ function print_document(p::TextFiltering, recursion, text::TextBlock, ctx)
     pattern_cell = p.pattern
     ci_cell = p.case_insensitive
     invert_cell = p.invert
-    both = Cell(Computed(() -> _filter(text, _effective_pattern(pattern_cell[], ci_cell[]), invert_cell[])))   # (elements, kept)
-    elements_cv = CellVector(Computed(() -> both[][1]))
-    kept_cell = Cell(Computed(() -> both[][2]))
-    out_selection = Cell(Computed(() -> _forward_map(kept_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection)))
+    both = Cell(@computation _filter(text, _effective_pattern(pattern_cell[], ci_cell[]), invert_cell[]))   # (elements, kept)
+    elements_cv = CellVector(@computation both[][1])
+    kept_cell = Cell(@computation both[][2])
+    out_selection = Cell(@computation _forward_map(kept_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection))
     output = TextBlock(elements_cv, out_selection)
     TextFilteringIoMap(p, text, output, kept_cell)
 end

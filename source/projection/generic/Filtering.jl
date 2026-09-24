@@ -31,8 +31,8 @@ FilteringProjection(; predicate::Function=Returns(true)) =
     FilteringProjection(predicate)
 
 function print_document(p::FilteringProjection, recursion, input::CellVector, ctx)
-    kept = Cell(Computed(() -> Int[i for i in 1:length(input) if p.predicate(input[i])]))
-    output = CellVector(Computed(() -> [input[i] for i in kept[]]))
+    kept = Cell(@computation Int[i for i in 1:length(input) if p.predicate(input[i])])
+    output = CellVector(@computation [input[i] for i in kept[]])
     set_cell_function!(getfield(output, :selection), () -> input.selection)
     FilteringIoMap(p, input, output, kept)
 end

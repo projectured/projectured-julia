@@ -53,7 +53,7 @@ function print_document(projection::EvaluatorFormToVerticalLayout,
     result_row = _make_prompt_row(() -> Any[form.is_error === true ? error_prompt : result_prompt,
                                             form.result])
     rows = (code_row, result_row)
-    output = VerticalLayout(CellVector(Computed(() -> _has_result(form) ? Any[rows...] : Any[code_row])),
+    output = VerticalLayout(CellVector(@computation _has_result(form) ? Any[rows...] : Any[code_row]),
                             Cell(:left), Cell(_ROW_GAP), Cell(Fill), Cell(nothing), Cell(nothing))
     iomap = SimpleIoMap(projection, form, output)
     _follow_selection!(output, form, projection, iomap, Any[])
@@ -144,7 +144,7 @@ const _FORMS_STEPS = (FieldReferenceStep("children"), RangeReferenceStep(1, 2),
 
 function print_document(projection::EvaluatorToplevelToWidgetComposite,
                           recursion, t::EvaluatorToplevel, ctx)
-    layout = VerticalLayout(CellVector(Computed(() -> Any[element for element in t.elements])),
+    layout = VerticalLayout(CellVector(@computation Any[element for element in t.elements]),
                             Cell(:left), Cell(_ELEMENT_GAP),
                             Cell(Fill), Cell(Content), Cell(nothing))
     # The pane paints no background, so the forms stand on the page of the tab.

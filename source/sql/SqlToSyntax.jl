@@ -104,24 +104,24 @@ end
 end
 
 function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlSubqueryFromItem, ctx)
-    subq_im = Cell(Computed(() -> print_document(recursion, recursion, doc.subquery,
-                                           make_child_context(ctx, FieldReferenceStep("subquery")))))
-    child_iomaps_cell = Cell(Computed(() -> Any[subq_im[]]))
+    subq_im = Cell(@computation(print_document(recursion, recursion, doc.subquery,
+                                         make_child_context(ctx, FieldReferenceStep("subquery")))))
+    child_iomaps_cell = Cell(@computation Any[subq_im[]])
 
     paren_node = SyntaxNode(() -> SyntaxDocument[subq_im[].output]; open = "(", close = ")",
                             sep = " ")
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> begin
+        CellVector(@computation begin
             docs = SyntaxDocument[paren_node]
             if doc.alias !== nothing
                 push!(docs, _kw("AS", p.keyword))
@@ -130,7 +130,7 @@ function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlS
                                p.identifier_font, color_default)))
             end
             docs
-        end));
+        end);
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -199,21 +199,21 @@ end
 end
 
 function print_document(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectItem, ctx)
-    expr_im = Cell(Computed(() -> print_document(recursion, recursion, doc.expression,
-                                           make_child_context(ctx, FieldReferenceStep("expression")))))
-    child_iomaps_cell = Cell(Computed(() -> Any[expr_im[]]))
+    expr_im = Cell(@computation(print_document(recursion, recursion, doc.expression,
+                                         make_child_context(ctx, FieldReferenceStep("expression")))))
+    child_iomaps_cell = Cell(@computation Any[expr_im[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> begin
+        CellVector(@computation begin
             docs = SyntaxDocument[expr_im[].output]
             if doc.column_alias !== nothing
                 push!(docs, _kw("AS", p.keyword))
@@ -222,7 +222,7 @@ function print_document(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectI
                                p.alias_font, color_default)))
             end
             docs
-        end));
+        end);
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -274,28 +274,28 @@ read_intent(::SqlSelectItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 end
 
 function print_document(p::SqlSelectClauseToSyntaxNode, recursion, doc::SqlSelectClause, ctx)
-    item_ims = Cell(Computed(() -> [
+    item_ims = Cell(@computation([
         print_document(recursion, recursion, item, make_child_context(ctx, ElementReferenceStep(i)))
         for (i, item) in enumerate(doc.items)]))
 
     items_body = _comma_body(() -> SyntaxDocument[im.output for im in item_ims[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> begin
+        CellVector(@computation begin
             kws = SyntaxDocument[_kw("SELECT", p.keyword)]
             doc.distinct !== nothing && push!(kws, _kw("DISTINCT", p.keyword))
             push!(kws, items_body)
             kws
-        end));
+        end);
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -357,7 +357,7 @@ read_intent(::SqlSelectClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 end
 
 function print_document(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJoinedFromItem, ctx)
-    projected = Cell(Computed(() -> begin
+    projected = Cell(@computation begin
         jt = print_document(recursion, recursion, doc.join_type,
                               make_child_context(ctx, FieldReferenceStep("join_type")))
         fi = print_document(recursion, recursion, doc.from_item,
@@ -366,27 +366,27 @@ function print_document(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJoi
             print_document(recursion, recursion, doc.condition,
                              make_child_context(ctx, FieldReferenceStep("condition")))
         (jt, fi, cond_im)
-    end))
-    child_iomaps_cell = Cell(Computed(() -> begin
+    end)
+    child_iomaps_cell = Cell(@computation begin
         jt, fi, cond_im = projected[]
         cond_im === nothing ? Any[jt, fi] : Any[jt, fi, cond_im]
-    end))
+    end)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> begin
+        CellVector(@computation begin
             jt, fi, cond_im = projected[]
             cond_im === nothing ? SyntaxDocument[jt.output, fi.output] :
                                   SyntaxDocument[jt.output, fi.output, cond_im.output]
-        end));
+        end);
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -466,23 +466,22 @@ read_intent(::SqlJoinedFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 end
 
 function print_document(p::SqlJoinOnConditionToSyntaxNode, recursion, doc::SqlJoinOnCondition, ctx)
-    expr_im = Cell(Computed(() ->
-        print_document(recursion, recursion, doc.expression,
+    expr_im = Cell(@computation(print_document(recursion, recursion, doc.expression,
                          make_child_context(ctx, FieldReferenceStep("expression")))))
-    child_iomaps_cell = Cell(Computed(() -> Any[expr_im[]]))
+    child_iomaps_cell = Cell(@computation Any[expr_im[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> SyntaxDocument[_kw("ON", p.keyword),
-                                                 expr_im[].output]));
+        CellVector(@computation(SyntaxDocument[_kw("ON", p.keyword),
+                                               expr_im[].output]));
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -554,15 +553,15 @@ end
 end
 
 function print_document(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromItem, ctx)
-    projected = Cell(Computed(() -> begin
+    projected = Cell(@computation begin
         base = print_document(recursion, recursion, doc.base_item,
                                 make_child_context(ctx, FieldReferenceStep("base_item")))
         joins = [print_document(recursion, recursion, seg,
                                   make_child_context(ctx, ElementReferenceStep(i)))
                  for (i, seg) in enumerate(doc.joins)]
         (base, joins)
-    end))
-    child_iomaps_cell = Cell(Computed(() -> begin base, joins = projected[]; Any[base; joins] end))
+    end)
+    child_iomaps_cell = Cell(@computation begin base, joins = projected[]; Any[base; joins] end)
 
     joins_body = _newline_body_compact(() -> begin
         _, joins = projected[]
@@ -570,20 +569,20 @@ function print_document(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromItem,
     end)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> begin
+        CellVector(@computation begin
             base, joins = projected[]
             isempty(joins) ? SyntaxDocument[base.output] :
                              SyntaxDocument[base.output, joins_body]
-        end));
+        end);
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -656,23 +655,23 @@ read_intent(::SqlFromItemToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 end
 
 function print_document(p::SqlFromClauseToSyntaxNode, recursion, doc::SqlFromClause, ctx)
-    item_ims = Cell(Computed(() -> [
+    item_ims = Cell(@computation([
         print_document(recursion, recursion, item, make_child_context(ctx, ElementReferenceStep(i)))
         for (i, item) in enumerate(doc.items)]))
 
     items_body = _comma_body(() -> SyntaxDocument[im.output for im in item_ims[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> SyntaxDocument[_kw("FROM", p.keyword), items_body]));
+        CellVector(@computation SyntaxDocument[_kw("FROM", p.keyword), items_body]);
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -731,25 +730,24 @@ read_intent(::SqlFromClauseToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 end
 
 function print_document(p::SqlWhereFilterConditionToSyntaxNode, recursion, doc::SqlWhereFilterCondition, ctx)
-    expr_im = Cell(Computed(() ->
-        print_document(recursion, recursion, doc.expression,
+    expr_im = Cell(@computation(print_document(recursion, recursion, doc.expression,
                          make_child_context(ctx, FieldReferenceStep("expression")))))
-    child_iomaps_cell = Cell(Computed(() -> Any[expr_im[]]))
+    child_iomaps_cell = Cell(@computation Any[expr_im[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     # No delimiters, no separator, no indentation — the node exists only so the whole
     # condition has a level to select (`∅`). That is a navigation anchor, not a sequence.
     # Positional (content, selection): SyntaxNavigation has no keyword constructor. The
     # content is a computed cell so the child stays lazily projected.
-    node = SyntaxNavigation(Cell(Computed(() -> expr_im[].output)), sel)
+    node = SyntaxNavigation(Cell(@computation expr_im[].output), sel)
 
     iomap = ChildrenIoMap(p, doc, node, child_iomaps_cell)
     iomap_cell[] = iomap
@@ -799,26 +797,26 @@ read_intent(::SqlWhereFilterConditionToSyntaxNode, iomap::ChildrenIoMap, op) = n
 end
 
 function print_document(p::SqlWhereClauseToSyntaxNode, recursion, doc::SqlWhereClause, ctx)
-    cond_im = Cell(Computed(() -> doc.condition === nothing ? nothing :
+    cond_im = Cell(@computation(doc.condition === nothing ? nothing :
         print_document(recursion, recursion, doc.condition,
                          make_child_context(ctx, FieldReferenceStep("condition")))))
     cond_body = _newline_body(() -> begin
         ci = cond_im[]
         ci !== nothing ? SyntaxDocument[ci.output] : SyntaxDocument[]
     end)
-    child_iomaps_cell = Cell(Computed(() -> begin ci = cond_im[]; ci === nothing ? Any[] : Any[ci] end))
+    child_iomaps_cell = Cell(@computation begin ci = cond_im[]; ci === nothing ? Any[] : Any[ci] end)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> SyntaxDocument[_kw("WHERE", p.keyword), cond_body]));
+        CellVector(@computation SyntaxDocument[_kw("WHERE", p.keyword), cond_body]);
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -952,29 +950,29 @@ end
 end
 
 function print_document(p::SqlComparisonToSyntaxNode, recursion, doc::SqlComparison, ctx)
-    projected = Cell(Computed(() -> begin
+    projected = Cell(@computation begin
         left  = print_document(recursion, recursion, doc.left,
                                  make_child_context(ctx, FieldReferenceStep("left")))
         right = print_document(recursion, recursion, doc.right,
                                  make_child_context(ctx, FieldReferenceStep("right")))
         (left, right)
-    end))
-    child_iomaps_cell = Cell(Computed(() -> begin left, right = projected[]; Any[left, right] end))
+    end)
+    child_iomaps_cell = Cell(@computation begin left, right = projected[]; Any[left, right] end)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> begin
+        CellVector(@computation begin
             left, right = projected[]
             SyntaxDocument[left.output, _kw(doc.operator, p.keyword), right.output]
-        end));
+        end);
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -1041,29 +1039,29 @@ SqlBooleanBinaryToSyntaxNode(keyword; keyword_style=StyleText(font_ubuntu_monosp
     SqlBooleanBinaryToSyntaxNode(keyword, keyword_style)
 
 function print_document(p::SqlBooleanBinaryToSyntaxNode, recursion, doc, ctx)
-    projected = Cell(Computed(() -> begin
+    projected = Cell(@computation begin
         left  = print_document(recursion, recursion, doc.left,
                                  make_child_context(ctx, FieldReferenceStep("left")))
         right = print_document(recursion, recursion, doc.right,
                                  make_child_context(ctx, FieldReferenceStep("right")))
         (left, right)
-    end))
-    child_iomaps_cell = Cell(Computed(() -> begin left, right = projected[]; Any[left, right] end))
+    end)
+    child_iomaps_cell = Cell(@computation begin left, right = projected[]; Any[left, right] end)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> begin
+        CellVector(@computation begin
             left, right = projected[]
             SyntaxDocument[left.output, _kw(p.keyword, p.keyword_style), right.output]
-        end));
+        end);
         open=TextString("(", p.keyword_style.font, color_default),
         close=TextString(")", p.keyword_style.font, color_default),
         sep=TextString(" ", p.keyword_style.font, color_default),
@@ -1129,22 +1127,21 @@ read_intent(::SqlBooleanBinaryToSyntaxNode, iomap::ChildrenIoMap, op) = nothing
 end
 
 function print_document(p::SqlNotToSyntaxNode, recursion, doc::SqlNot, ctx)
-    expr_im = Cell(Computed(() -> print_document(recursion, recursion, doc.expression,
-                                           make_child_context(ctx, FieldReferenceStep("expression")))))
-    child_iomaps_cell = Cell(Computed(() -> Any[expr_im[]]))
+    expr_im = Cell(@computation(print_document(recursion, recursion, doc.expression,
+                                         make_child_context(ctx, FieldReferenceStep("expression")))))
+    child_iomaps_cell = Cell(@computation Any[expr_im[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() ->
-            SyntaxDocument[_kw("NOT", p.keyword), expr_im[].output]));
+        CellVector(@computation SyntaxDocument[_kw("NOT", p.keyword), expr_im[].output]);
         open=TextString("(", p.keyword.font, color_default),
         close=TextString(")", p.keyword.font, color_default),
         sep=TextString(" ", p.keyword.font, color_default),
@@ -1216,21 +1213,21 @@ _get_printed_select_clauses(stmt::SqlSelectStatement) =
      if printed]
 
 function print_document(p::SqlSelectStatementToSyntaxNode, recursion, stmt::SqlSelectStatement, ctx)
-    child_iomaps_cell = Cell(Computed(() -> Any[
+    child_iomaps_cell = Cell(@computation(Any[
         print_document(recursion, recursion, getproperty(stmt, Symbol(name)),
                        make_child_context(ctx, FieldReferenceStep(name)))
         for name in _get_printed_select_clauses(stmt)]))
 
-    children = CellVector(Computed(() -> SyntaxDocument[im.output for im in child_iomaps_cell[]]))
+    children = CellVector(@computation SyntaxDocument[im.output for im in child_iomaps_cell[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = stmt.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(children; selection=sel)
 
@@ -1307,7 +1304,7 @@ end
 end
 
 function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlInsertStatement, ctx)
-    projected = Cell(Computed(() -> begin
+    projected = Cell(@computation begin
         table_im = print_document(recursion, recursion, stmt.table,
                                     make_child_context(ctx, FieldReferenceStep("table")))
         col_ims = [print_document(recursion, recursion, c,
@@ -1317,11 +1314,11 @@ function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlI
                                     make_child_context(ctx, FieldReferenceStep("values"), ElementReferenceStep(i)))
                    for (i, v) in enumerate(stmt.values)]
         (table_im, col_ims, val_ims)
-    end))
-    child_iomaps_cell = Cell(Computed(() -> begin
+    end)
+    child_iomaps_cell = Cell(@computation begin
         table_im, col_ims, val_ims = projected[]
         Any[table_im; col_ims; val_ims]
-    end))
+    end)
 
     columns_paren = SyntaxNode(() -> begin
         _, col_ims, _ = projected[]
@@ -1333,16 +1330,16 @@ function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlI
     end; open = "(", close = ")", sep = ", ")
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = stmt.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> begin
+        CellVector(@computation begin
             _, col_ims, _ = projected[]
             docs = SyntaxDocument[_kw("INSERT", p.keyword),
                                   _kw("INTO", p.keyword),
@@ -1351,7 +1348,7 @@ function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlI
             push!(docs, _kw("VALUES", p.keyword))
             push!(docs, values_paren)
             docs
-        end));
+        end);
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -1452,29 +1449,29 @@ read_intent(::SqlInsertStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothin
 end
 
 function print_document(p::SqlUpdateAssignmentToSyntaxNode, recursion, doc::SqlUpdateAssignment, ctx)
-    projected = Cell(Computed(() -> begin
+    projected = Cell(@computation begin
         col_im = print_document(recursion, recursion, doc.column_name,
                                   make_child_context(ctx, FieldReferenceStep("column_name")))
         val_im = print_document(recursion, recursion, doc.value,
                                   make_child_context(ctx, FieldReferenceStep("value")))
         (col_im, val_im)
-    end))
-    child_iomaps_cell = Cell(Computed(() -> begin col_im, val_im = projected[]; Any[col_im, val_im] end))
+    end)
+    child_iomaps_cell = Cell(@computation begin col_im, val_im = projected[]; Any[col_im, val_im] end)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> begin
+        CellVector(@computation begin
             col_im, val_im = projected[]
             SyntaxDocument[col_im.output, _kw("=", p.keyword), val_im.output]
-        end));
+        end);
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -1546,7 +1543,7 @@ read_intent(::SqlUpdateAssignmentToSyntaxNode, iomap::ChildrenIoMap, op) = nothi
 end
 
 function print_document(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlUpdateStatement, ctx)
-    projected = Cell(Computed(() -> begin
+    projected = Cell(@computation begin
         table_im = print_document(recursion, recursion, stmt.table,
                                     make_child_context(ctx, FieldReferenceStep("table")))
         assign_ims = [print_document(recursion, recursion, a,
@@ -1556,11 +1553,11 @@ function print_document(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlU
             print_document(recursion, recursion, stmt.where_clause.condition,
                              make_child_context(ctx, FieldReferenceStep("where_clause"), FieldReferenceStep("condition")))
         (table_im, assign_ims, where_im)
-    end))
-    child_iomaps_cell = Cell(Computed(() -> begin
+    end)
+    child_iomaps_cell = Cell(@computation begin
         table_im, assign_ims, where_im = projected[]
         where_im === nothing ? Any[table_im; assign_ims] : Any[table_im; assign_ims; where_im]
-    end))
+    end)
 
     assignments_body = _comma_node(() -> begin
         _, assign_ims, _ = projected[]
@@ -1568,16 +1565,16 @@ function print_document(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlU
     end)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = stmt.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> begin
+        CellVector(@computation begin
             table_im, _, where_im = projected[]
             docs = SyntaxDocument[_kw("UPDATE", p.keyword),
                                   table_im.output,
@@ -1588,7 +1585,7 @@ function print_document(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlU
                 push!(docs, where_im.output)
             end
             docs
-        end));
+        end);
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -1683,21 +1680,21 @@ read_intent(::SqlUpdateStatementToSyntaxNode, iomap::ChildrenIoMap, op) = nothin
 end
 
 function print_document(p::SqlColumnDefinitionToSyntaxNode, recursion, doc::SqlColumnDefinition, ctx)
-    col_im = Cell(Computed(() -> print_document(recursion, recursion, doc.column_name,
-                                          make_child_context(ctx, FieldReferenceStep("column_name")))))
-    child_iomaps_cell = Cell(Computed(() -> Any[col_im[]]))
+    col_im = Cell(@computation(print_document(recursion, recursion, doc.column_name,
+                                        make_child_context(ctx, FieldReferenceStep("column_name")))))
+    child_iomaps_cell = Cell(@computation Any[col_im[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> SyntaxDocument[
+        CellVector(@computation(SyntaxDocument[
             col_im[].output,
             SyntaxLeaf(TextString(() -> doc.data_type, p.type))]));
         sep=TextString(" ", p.type.font, color_default),
@@ -1760,18 +1757,18 @@ read_intent(::SqlColumnDefinitionToSyntaxNode, iomap::ChildrenIoMap, op) = nothi
 end
 
 function print_document(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt::SqlCreateTableStatement, ctx)
-    projected = Cell(Computed(() -> begin
+    projected = Cell(@computation begin
         table_im = print_document(recursion, recursion, stmt.table_name,
                                     make_child_context(ctx, FieldReferenceStep("table_name")))
         col_ims = [print_document(recursion, recursion, c,
                                     make_child_context(ctx, FieldReferenceStep("columns"), ElementReferenceStep(i)))
                    for (i, c) in enumerate(stmt.columns)]
         (table_im, col_ims)
-    end))
-    child_iomaps_cell = Cell(Computed(() -> begin
+    end)
+    child_iomaps_cell = Cell(@computation begin
         table_im, col_ims = projected[]
         Any[table_im; col_ims]
-    end))
+    end)
 
     columns_body = SyntaxNode(() -> begin
         _, col_ims = projected[]
@@ -1779,22 +1776,22 @@ function print_document(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt:
     end; open = "(", close = ")", sep = ",", indentation = 1)
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = stmt.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> begin
+        CellVector(@computation begin
             table_im, _ = projected[]
             SyntaxDocument[_kw("CREATE", p.keyword),
                            _kw("TABLE", p.keyword),
                            table_im.output,
                            columns_body]
-        end));
+        end);
         close=TextString(";", p.keyword.font, color_default),
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
@@ -1875,16 +1872,16 @@ end
 
 function print_document(p::SqlCreateSchemaStatementToSyntaxNode, recursion, stmt::SqlCreateSchemaStatement, ctx)
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = stmt.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> SyntaxDocument[
+        CellVector(@computation(SyntaxDocument[
             _kw("CREATE", p.keyword),
             _kw("SCHEMA", p.keyword),
             SyntaxLeaf(TextString(() -> stmt.schema_name, p.identifier_font, color_solarized_green))]));
@@ -1892,7 +1889,7 @@ function print_document(p::SqlCreateSchemaStatementToSyntaxNode, recursion, stmt
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
-    iomap = ChildrenIoMap(p, stmt, node, Cell(Computed(() -> Any[])))
+    iomap = ChildrenIoMap(p, stmt, node, Cell(@computation Any[]))
     iomap_cell[] = iomap
     return iomap
 end
@@ -1948,22 +1945,22 @@ _get_closed_statement_path(path) = @reference_case path begin
 end
 
 function print_document(p::SqlStatementListToSyntaxNode, recursion, doc::SqlStatementList, ctx)
-    stmt_ims = Cell(Computed(() -> [
+    stmt_ims = Cell(@computation([
         print_document(recursion, recursion, s, make_child_context(ctx, ElementReferenceStep(i)))
         for (i, s) in enumerate(doc.statements)]))
-    child_iomaps_cell = Cell(Computed(() -> Any[im for im in stmt_ims[]]))
+    child_iomaps_cell = Cell(@computation Any[im for im in stmt_ims[]])
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
 
     node = SyntaxNode(
-        CellVector(Computed(() -> SyntaxDocument[_close_statement(p, im) for im in stmt_ims[]]));
+        CellVector(@computation SyntaxDocument[_close_statement(p, im) for im in stmt_ims[]]);
         sep=TextString("\n\n", p.font, color_default),
         selection=sel)
 

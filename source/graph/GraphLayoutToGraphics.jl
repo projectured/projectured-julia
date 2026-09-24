@@ -65,7 +65,7 @@ end
 
 function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::GraphLayout, ctx)
     # Recurse each vertex's content into a canvas, tracking its placed origin.
-    child_iomaps = Cell(Computed(() -> begin
+    child_iomaps = Cell(@computation begin
         n = length(layout.vertex_layouts)
         entries = Any[]
         for i in 1:n
@@ -84,11 +84,11 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             end
         end
         entries
-    end))
+    end)
 
     # Recurse each edge's optional label into a canvas. A decoration, like the
     # edges themselves — not selectable in v1, so no per-label iomap delegation.
-    edge_label_iomaps = Cell(Computed(() -> begin
+    edge_label_iomaps = Cell(@computation begin
         m = length(layout.edge_layouts)
         out = Any[]
         for i in 1:m
@@ -102,13 +102,13 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             end
         end
         out
-    end))
+    end)
 
     # The drawing, and where each vertex's box ended up in it. The two are built
     # together because the second is a fact about the first: element order
     # depends on how many edges and edge labels came before the nodes, and a
     # second pass that recomputed it would be the same code twice.
-    drawn = Cell(Computed(() -> begin
+    drawn = Cell(@computation begin
         result = Any[]
         # Read the highlights once per repaint. They are compared by identity
         # against the vertex/edge each layout holds.
@@ -172,10 +172,10 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
             end
         end
         (result, node_at)
-    end))
+    end)
 
-    elements = CellVector(Computed(() -> drawn[][1]))
-    node_elements = Cell(Computed(() -> drawn[][2]))
+    elements = CellVector(@computation drawn[][1])
+    node_elements = Cell(@computation drawn[][2])
 
     # How much room the graph needs, read off the layout that placed it.
     #
@@ -219,8 +219,8 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
     end))
 
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                            Cell(Computed(() -> Int32(extent[][1]))),
-                            Cell(Computed(() -> Int32(extent[][2]))),
+                            Cell(@computation Int32(extent[][1])),
+                            Cell(@computation Int32(extent[][2])),
                             elements, layout_none, true, Cell(nothing))
     GraphLayoutToGraphicsCanvasIoMap(p, layout, canvas, child_iomaps, node_elements)
 end

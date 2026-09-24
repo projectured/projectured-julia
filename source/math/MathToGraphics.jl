@@ -225,7 +225,7 @@ end
 # Element and box builders
 # ════════════════════════════════════════════════════════════════════════════
 
-_int32(f) = Cell(Computed(() -> Int32(f())))
+_int32(f) = Cell(@computation Int32(f()))
 
 # One run of text. `x`/`y` are the top-left of its box, relative to the canvas
 # that holds it; a backend draws a glyph box from its top, so the baseline sits
@@ -263,9 +263,9 @@ its ascent and descent from the font, so it sits on the same baseline as a leaf.
 function _glyph_box(c::MathConfig, text::Function, font::Function,
                     color::StyleColor = c.ink)
     MathGlyphBox(_text_element(text, font, color),
-                 Cell(Computed(() -> c.measure(text(), font())[1])),
-                 Cell(Computed(() -> font_ascent(font()))),
-                 Cell(Computed(() -> font_descent(font()))))
+                 Cell(@computation c.measure(text(), font())[1]),
+                 Cell(@computation font_ascent(font())),
+                 Cell(@computation font_descent(font())))
 end
 
 """
@@ -299,10 +299,10 @@ function _math_iomap(p, doc, build::Cell)
                             end)),
                             layout_none, true, Cell(nothing))
     MathIoMap(p, doc, canvas,
-              Cell(Computed(() -> build[].children)),
-              Cell(Computed(() -> build[].width[])),
-              Cell(Computed(() -> build[].ascent[])),
-              Cell(Computed(() -> build[].descent[])))
+              Cell(@computation build[].children),
+              Cell(@computation build[].width[]),
+              Cell(@computation build[].ascent[]),
+              Cell(@computation build[].descent[]))
 end
 
 """
@@ -394,9 +394,9 @@ function _leaf_iomap(p, doc, text::Function, font::Function, color::StyleColor,
     build = Cell(Computed(function ()
         element = _text_element(text, font, color)
         _build(Any[element],
-               Cell(Computed(() -> c.measure(text(), font())[1])),
-               Cell(Computed(() -> font_ascent(font()))),
-               Cell(Computed(() -> font_descent(font()))),
+               Cell(@computation c.measure(text(), font())[1]),
+               Cell(@computation font_ascent(font())),
+               Cell(@computation font_descent(font())),
                MathChild[])
     end))
     _math_iomap(p, doc, build)
@@ -496,8 +496,8 @@ function print_document(p::MathInsertionToGraphics, recursion, doc::MathInsertio
     style = _style_of(p, ctx)
     c = p.config
     build = Cell(Computed(function ()
-        width = Cell(Computed(() -> max(4, compute_math_metrics(c, style).x_height)))
-        ascent = Cell(Computed(() -> compute_math_metrics(c, style).x_height))
+        width = Cell(@computation max(4, compute_math_metrics(c, style).x_height))
+        ascent = Cell(@computation compute_math_metrics(c, style).x_height)
         element = _outline_element(() -> 0, () -> 0, () -> width[], () -> ascent[], c.hint)
         _build(Any[element], width, ascent, Cell(0), MathChild[])
     end))
@@ -650,8 +650,8 @@ function _delimiter_box(c::MathConfig, style::Symbol, kind::Symbol, side::Symbol
         tiled() ? c.measure(string(pieces[1]), m.upright)[1] :
                   c.measure(glyph, scaled_font())[1]
     end))
-    ascent = Cell(Computed(() -> compute_math_metrics(c, style).axis + half()))
-    descent = Cell(Computed(() -> max(0, half() - compute_math_metrics(c, style).axis)))
+    ascent = Cell(@computation compute_math_metrics(c, style).axis + half())
+    descent = Cell(@computation max(0, half() - compute_math_metrics(c, style).axis))
 
     output = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                             _int32(() -> width[]),
@@ -785,9 +785,9 @@ function print_document(p::MathFractionToGraphics, recursion, doc::MathFraction,
             gap() - m.axis + _box_ascent(denominator, im) + _box_descent(denominator, im)
         end))
 
-        rule_y = Cell(Computed(() -> Int32(ascent[] -
-                                           compute_math_metrics(c, style).axis -
-                                           compute_math_metrics(c, style).rule)))
+        rule_y = Cell(@computation(Int32(ascent[] -
+                                         compute_math_metrics(c, style).axis -
+                                         compute_math_metrics(c, style).rule)))
         elements = Any[]
         children = MathChild[]
         for (box, above, field) in ((numerator, true, "numerator"),
@@ -869,7 +869,7 @@ function print_document(p::MathScriptToGraphics, recursion, doc::MathScript, ctx
             superscript === nothing || (w = max(w, _box_width(superscript, im)))
             w
         end))
-        width = Cell(Computed(() -> _box_width(base, metrics()) + script_width[]))
+        width = Cell(@computation _box_width(base, metrics()) + script_width[])
         ascent = Cell(Computed(function ()
             m = metrics()
             im = inner_metrics()
@@ -886,10 +886,10 @@ function print_document(p::MathScriptToGraphics, recursion, doc::MathScript, ctx
         end))
 
         base_x = Cell(Int32(0))
-        base_y = Cell(Computed(() -> Int32(ascent[] - _box_ascent(base, metrics()))))
+        base_y = Cell(@computation Int32(ascent[] - _box_ascent(base, metrics())))
         elements = Any[_place(_box_output(base), base_x, base_y)]
         children = MathChild[MathChild((FieldReferenceStep("base"),), base, base_x, base_y)]
-        script_x = Cell(Computed(() -> Int32(_box_width(base, metrics()))))
+        script_x = Cell(@computation Int32(_box_width(base, metrics())))
         if superscript !== nothing
             y = Cell(Computed(function ()
                 im = inner_metrics()
@@ -953,7 +953,7 @@ function print_document(p::MathRadicalToGraphics, recursion, doc::MathRadical, c
             wanted = ceil(Int, m.size * inner_height() / ink)
             _scaled(m.upright, clamp(wanted, m.size, round(Int, 2.2 * m.size)))
         end
-        sign_width = Cell(Computed(() -> c.measure("√", sign_font())[1]))
+        sign_width = Cell(@computation c.measure("√", sign_font())[1])
         index_width = Cell(Computed(function ()
             index === nothing && return 0
             # The index sits over the sign's left arm, so only its overhang adds
@@ -969,9 +969,9 @@ function print_document(p::MathRadicalToGraphics, recursion, doc::MathRadical, c
                        _box_ascent(index, index_metrics()) +
                        _box_descent(index, index_metrics()))
         end))
-        descent = Cell(Computed(() -> _box_descent(radicand, metrics())))
-        width = Cell(Computed(() -> index_width[] + sign_width[] +
-                                    _box_width(radicand, metrics()) + metrics().thin))
+        descent = Cell(@computation _box_descent(radicand, metrics()))
+        width = Cell(@computation(index_width[] + sign_width[] +
+                                  _box_width(radicand, metrics()) + metrics().thin))
 
         # The bar runs from the top of the sign across the radicand.
         bar_y = Cell(Computed(function ()
@@ -992,8 +992,8 @@ function print_document(p::MathRadicalToGraphics, recursion, doc::MathRadical, c
                                       () -> _box_width(radicand, metrics()) + metrics().thin +
                                             metrics().rule,
                                       () -> metrics().rule, c.ink))
-        radicand_x = Cell(Computed(() -> Int32(index_width[] + sign_width[])))
-        radicand_y = Cell(Computed(() -> Int32(ascent[] - _box_ascent(radicand, metrics()))))
+        radicand_x = Cell(@computation Int32(index_width[] + sign_width[]))
+        radicand_y = Cell(@computation Int32(ascent[] - _box_ascent(radicand, metrics())))
         push!(elements, _place(_box_output(radicand), radicand_x, radicand_y))
         children = MathChild[MathChild((FieldReferenceStep("radicand"),), radicand,
                                        radicand_x, radicand_y)]
@@ -1060,7 +1060,7 @@ function print_document(p::MathBigOperatorToGraphics, recursion, doc::MathBigOpe
             word && return m.upright
             _scaled(m.upright, round(Int, m.size * (style === :display ? 1.8 : 1.2)))
         end
-        sign_width = Cell(Computed(() -> c.measure(glyph, sign_font())[1]))
+        sign_width = Cell(@computation c.measure(glyph, sign_font())[1])
         # The sign centers on the axis, like every other tall thing — by its
         # *ink*, because a sign that is centered by its text box sits visibly
         # high. A word operator has no single ink to center, so it keeps its
@@ -1099,7 +1099,7 @@ function print_document(p::MathBigOperatorToGraphics, recursion, doc::MathBigOpe
         limit_gap = () -> metrics().rule * 3
 
         if placement === :under_over
-            head_width = Cell(Computed(() -> max(sign_width[], limit_width[])))
+            head_width = Cell(@computation max(sign_width[], limit_width[]))
             ascent = Cell(Computed(function ()
                 im = inner_metrics()
                 a = sign_reach_up[]
@@ -1112,15 +1112,15 @@ function print_document(p::MathBigOperatorToGraphics, recursion, doc::MathBigOpe
                 lower === nothing ? d :
                     d + limit_gap() + _box_ascent(lower, im) + _box_descent(lower, im)
             end))
-            width = Cell(Computed(() -> head_width[] + metrics().thin +
-                                        _box_width(body, metrics())))
+            width = Cell(@computation(head_width[] + metrics().thin +
+                                      _box_width(body, metrics())))
             elements = Any[]
             children = MathChild[]
             push!(elements, _text_element(() -> glyph, sign_font, c.ink,
                                           () -> (head_width[] - sign_width[]) ÷ 2,
                                           () -> ascent[] - sign_reach_up[] + sign_y[]))
             if upper !== nothing
-                x = Cell(Computed(() -> Int32((head_width[] - _box_width(upper, inner_metrics())) ÷ 2)))
+                x = Cell(@computation Int32((head_width[] - _box_width(upper, inner_metrics())) ÷ 2))
                 y = Cell(Computed(function ()
                     im = inner_metrics()
                     Int32(ascent[] - sign_reach_up[] - limit_gap() -
@@ -1130,14 +1130,14 @@ function print_document(p::MathBigOperatorToGraphics, recursion, doc::MathBigOpe
                 push!(children, MathChild((FieldReferenceStep("upper"),), upper, x, y))
             end
             if lower !== nothing
-                x = Cell(Computed(() -> Int32((head_width[] - _box_width(lower, inner_metrics())) ÷ 2)))
-                y = Cell(Computed(() -> Int32(ascent[] + sign_reach_down[] +
-                                              limit_gap())))
+                x = Cell(@computation Int32((head_width[] - _box_width(lower, inner_metrics())) ÷ 2))
+                y = Cell(@computation(Int32(ascent[] + sign_reach_down[] +
+                                            limit_gap())))
                 push!(elements, _place(_box_output(lower), x, y))
                 push!(children, MathChild((FieldReferenceStep("lower"),), lower, x, y))
             end
-            body_x = Cell(Computed(() -> Int32(head_width[] + metrics().thin)))
-            body_y = Cell(Computed(() -> Int32(ascent[] - _box_ascent(body, metrics()))))
+            body_x = Cell(@computation Int32(head_width[] + metrics().thin))
+            body_y = Cell(@computation Int32(ascent[] - _box_ascent(body, metrics())))
             push!(elements, _place(_box_output(body), body_x, body_y))
             push!(children, MathChild((FieldReferenceStep("body"),), body, body_x, body_y))
         else
@@ -1156,8 +1156,8 @@ function print_document(p::MathBigOperatorToGraphics, recursion, doc::MathBigOpe
                     max(d, sign_reach_down[] - metrics().rule +
                            _box_ascent(lower, im) + _box_descent(lower, im))
             end))
-            width = Cell(Computed(() -> sign_width[] + limit_width[] + metrics().thin +
-                                        _box_width(body, metrics())))
+            width = Cell(@computation(sign_width[] + limit_width[] + metrics().thin +
+                                      _box_width(body, metrics())))
             elements = Any[]
             children = MathChild[]
             push!(elements, _text_element(() -> glyph, sign_font, c.ink,
@@ -1168,18 +1168,18 @@ function print_document(p::MathBigOperatorToGraphics, recursion, doc::MathBigOpe
                     Int32(max(0, ascent[] - sign_reach_up[] + metrics().rule -
                                  _box_ascent(upper, im) - _box_descent(upper, im)))
                 end))
-                limit_x = Cell(Computed(() -> Int32(sign_width[])))
+                limit_x = Cell(@computation Int32(sign_width[]))
                 push!(elements, _place(_box_output(upper), limit_x, y))
                 push!(children, MathChild((FieldReferenceStep("upper"),), upper, limit_x, y))
             end
             if lower !== nothing
-                y = Cell(Computed(() -> Int32(ascent[] + sign_reach_down[] - metrics().rule)))
-                limit_x = Cell(Computed(() -> Int32(sign_width[])))
+                y = Cell(@computation Int32(ascent[] + sign_reach_down[] - metrics().rule))
+                limit_x = Cell(@computation Int32(sign_width[]))
                 push!(elements, _place(_box_output(lower), limit_x, y))
                 push!(children, MathChild((FieldReferenceStep("lower"),), lower, limit_x, y))
             end
-            body_x = Cell(Computed(() -> Int32(sign_width[] + limit_width[] + metrics().thin)))
-            body_y = Cell(Computed(() -> Int32(ascent[] - _box_ascent(body, metrics()))))
+            body_x = Cell(@computation Int32(sign_width[] + limit_width[] + metrics().thin))
+            body_y = Cell(@computation Int32(ascent[] - _box_ascent(body, metrics())))
             push!(elements, _place(_box_output(body), body_x, body_y))
             push!(children, MathChild((FieldReferenceStep("body"),), body, body_x, body_y))
         end
@@ -1237,19 +1237,19 @@ function print_document(p::MathDerivativeToGraphics, recursion, doc::MathDerivat
         order_text = () -> doc.order == 1 ? "" : string(doc.order)
         sign = () -> _differential_glyph(doc.kind)
 
-        sign_width = Cell(Computed(() -> c.measure(sign(), inner_metrics().upright)[1]))
+        sign_width = Cell(@computation c.measure(sign(), inner_metrics().upright)[1])
         order_width = Cell(Computed(function ()
             isempty(order_text()) && return 0
             c.measure(order_text(), compute_math_metrics(c, :scriptscript).upright)[1]
         end))
 
-        numerator_width = Cell(Computed(() -> sign_width[] + order_width[] +
-                                              _box_width(body, inner_metrics())))
-        denominator_width = Cell(Computed(() -> sign_width[] +
-                                                _box_width(variable, inner_metrics()) +
-                                                order_width[]))
+        numerator_width = Cell(@computation(sign_width[] + order_width[] +
+                                            _box_width(body, inner_metrics())))
+        denominator_width = Cell(@computation(sign_width[] +
+                                              _box_width(variable, inner_metrics()) +
+                                              order_width[]))
         pad = () -> metrics().thin
-        width = Cell(Computed(() -> max(numerator_width[], denominator_width[]) + 2 * pad()))
+        width = Cell(@computation max(numerator_width[], denominator_width[]) + 2 * pad())
         gap = () -> 3 * metrics().rule
         row_ascent(box) = _box_ascent(box, inner_metrics())
         row_height(box) = _box_ascent(box, inner_metrics()) + _box_descent(box, inner_metrics())
@@ -1257,18 +1257,18 @@ function print_document(p::MathDerivativeToGraphics, recursion, doc::MathDerivat
             im = inner_metrics()
             font_ascent(im.upright) + font_descent(im.upright)
         end
-        numerator_height = Cell(Computed(() -> max(row_height(body), line_height())))
+        numerator_height = Cell(@computation max(row_height(body), line_height()))
         denominator_height =
-            Cell(Computed(() -> max(row_height(variable), line_height())))
-        ascent = Cell(Computed(() -> metrics().axis + metrics().rule + gap() + numerator_height[]))
-        descent = Cell(Computed(() -> gap() - metrics().axis + denominator_height[]))
-        rule_y = Cell(Computed(() -> Int32(ascent[] - metrics().axis - metrics().rule)))
+            Cell(@computation max(row_height(variable), line_height()))
+        ascent = Cell(@computation metrics().axis + metrics().rule + gap() + numerator_height[])
+        descent = Cell(@computation gap() - metrics().axis + denominator_height[])
+        rule_y = Cell(@computation Int32(ascent[] - metrics().axis - metrics().rule))
 
         elements = Any[]
-        numerator_x = Cell(Computed(() -> Int32((width[] - numerator_width[]) ÷ 2)))
-        numerator_y = Cell(Computed(() -> Int32(rule_y[] - gap() - numerator_height[])))
-        denominator_x = Cell(Computed(() -> Int32((width[] - denominator_width[]) ÷ 2)))
-        denominator_y = Cell(Computed(() -> Int32(rule_y[] + metrics().rule + gap())))
+        numerator_x = Cell(@computation Int32((width[] - numerator_width[]) ÷ 2))
+        numerator_y = Cell(@computation Int32(rule_y[] - gap() - numerator_height[]))
+        denominator_x = Cell(@computation Int32((width[] - denominator_width[]) ÷ 2))
+        denominator_y = Cell(@computation Int32(rule_y[] + metrics().rule + gap()))
 
         push!(elements, _text_element(sign, () -> inner_metrics().upright, c.ink,
                                       () -> numerator_x[],
@@ -1288,10 +1288,10 @@ function print_document(p::MathDerivativeToGraphics, recursion, doc::MathDerivat
                                                 _box_width(variable, inner_metrics()),
                                           () -> denominator_y[]))
         end
-        body_x = Cell(Computed(() -> Int32(numerator_x[] + sign_width[] + order_width[])))
-        body_y = Cell(Computed(() -> Int32(numerator_y[] + numerator_height[] - row_height(body))))
-        variable_x = Cell(Computed(() -> Int32(denominator_x[] + sign_width[])))
-        variable_y = Cell(Computed(() -> Int32(denominator_y[])))
+        body_x = Cell(@computation Int32(numerator_x[] + sign_width[] + order_width[]))
+        body_y = Cell(@computation Int32(numerator_y[] + numerator_height[] - row_height(body)))
+        variable_x = Cell(@computation Int32(denominator_x[] + sign_width[]))
+        variable_y = Cell(@computation Int32(denominator_y[]))
         push!(elements, _place(_box_output(body), body_x, body_y))
         push!(elements, _place(_box_output(variable), variable_x, variable_y))
         push!(elements, _rule_element(() -> 0, () -> rule_y[], () -> width[],
@@ -1341,13 +1341,13 @@ function print_document(p::MathFunctionToGraphics, recursion, doc::MathFunction,
             # child sits at the top of it unless the shift is the deeper of the
             # two.
             down = () -> round(Int, 0.2 * metrics().size)
-            base_offset = Cell(Computed(() -> Int32(max(0, down() -
-                                                        _box_ascent(base, compute_math_metrics(c, inner))))))
+            base_offset = Cell(@computation(Int32(max(0, down() -
+                                                      _box_ascent(base, compute_math_metrics(c, inner))))))
             base_box = MathGlyphBox(
                 _place(_box_output(base), Cell(Int32(0)), base_offset),
-                Cell(Computed(() -> _box_width(base, compute_math_metrics(c, inner)))),
-                Cell(Computed(() -> max(0, _box_ascent(base, compute_math_metrics(c, inner)) - down()))),
-                Cell(Computed(() -> down() + _box_descent(base, compute_math_metrics(c, inner)))))
+                Cell(@computation _box_width(base, compute_math_metrics(c, inner))),
+                Cell(@computation max(0, _box_ascent(base, compute_math_metrics(c, inner)) - down())),
+                Cell(@computation down() + _box_descent(base, compute_math_metrics(c, inner))))
             push!(boxes, base_box)
             push!(spaces, :none)
             # The box is a wrapper the projection introduced, not the base
@@ -1382,8 +1382,8 @@ function print_document(p::MathFunctionToGraphics, recursion, doc::MathFunction,
         # base inside itself, and a click needs the sum of the two.
         placed = row.children[1]
         children = MathChild[MathChild((FieldReferenceStep("base"),), base, placed.x,
-                                       Cell(Computed(() -> Int32(Int(placed.y[]) +
-                                                                 Int(base_offset[])))))]
+                                       Cell(@computation(Int32(Int(placed.y[]) +
+                                                               Int(base_offset[])))))]
         for child in row.children
             child.steps === () || push!(children, child)
         end
@@ -1424,11 +1424,11 @@ function print_document(p::MathAccentToGraphics, recursion, doc::MathAccent, ctx
             wide && (doc.accent === :bar || doc.accent === :overline) && return m.rule
             m.x_height ÷ 2
         end))
-        width = Cell(Computed(() -> _box_width(base, metrics())))
-        ascent = Cell(Computed(() -> _box_ascent(base, metrics()) + gap() + accent_height[]))
-        descent = Cell(Computed(() -> _box_descent(base, metrics())))
+        width = Cell(@computation _box_width(base, metrics()))
+        ascent = Cell(@computation _box_ascent(base, metrics()) + gap() + accent_height[])
+        descent = Cell(@computation _box_descent(base, metrics()))
 
-        base_y = Cell(Computed(() -> Int32(gap() + accent_height[])))
+        base_y = Cell(@computation Int32(gap() + accent_height[]))
         elements = Any[_place(_box_output(base), Cell(Int32(0)), base_y)]
         children = MathChild[MathChild((FieldReferenceStep("base"),), base,
                                        Cell(Int32(0)), base_y)]
@@ -1446,7 +1446,7 @@ function print_document(p::MathAccentToGraphics, recursion, doc::MathAccent, ctx
                 _scaled(m.upright, clamp(round(Int, m.size * width[] / base_width),
                                          m.size ÷ 2, 2 * m.size))
             end
-            glyph_width = Cell(Computed(() -> c.measure(glyph, font())[1]))
+            glyph_width = Cell(@computation c.measure(glyph, font())[1])
             push!(elements, _text_element(() -> glyph, font, c.ink,
                                           () -> (width[] - glyph_width[]) ÷ 2,
                                           () -> -font_ascent(font()) +
@@ -1492,11 +1492,11 @@ function _grid(boxes::Vector, columns::Int, c::MathConfig, style::Symbol, field:
     column_gap = () -> compute_math_metrics(c, style).size ÷ 2
     row_gap = () -> compute_math_metrics(c, style).size ÷ 4
 
-    width = Cell(Computed(() -> sum(column_width[]) + (columns - 1) * column_gap()))
-    height = Cell(Computed(() -> sum(row_ascent[]) + sum(row_descent[]) + (rows - 1) * row_gap()))
-    ascent = Cell(Computed(() -> (height[] + 1) ÷ 2 +
-                                 compute_math_metrics(c, style).axis))
-    descent = Cell(Computed(() -> height[] - ascent[]))
+    width = Cell(@computation sum(column_width[]) + (columns - 1) * column_gap())
+    height = Cell(@computation sum(row_ascent[]) + sum(row_descent[]) + (rows - 1) * row_gap())
+    ascent = Cell(@computation((height[] + 1) ÷ 2 +
+                               compute_math_metrics(c, style).axis))
+    descent = Cell(@computation height[] - ascent[])
 
     elements = Any[]
     children = MathChild[]
@@ -1543,7 +1543,7 @@ function _delimited(inner, kind::Symbol, c::MathConfig, style::Symbol)
         GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                        _int32(() -> inner.width[]),
                        _int32(() -> inner.ascent[] + inner.descent[]),
-                       CellVector(Computed(() -> inner.elements)),
+                       CellVector(@computation inner.elements),
                        layout_none, true, Cell(nothing)),
         inner.width, inner.ascent, inner.descent)
     # The row places the whole grid as one box; its children are inside that
@@ -1552,8 +1552,8 @@ function _delimited(inner, kind::Symbol, c::MathConfig, style::Symbol)
                Any[nothing, (), nothing])
     placed = row.children[1]
     shifted = MathChild[MathChild(child.steps, child.iomap,
-                                  Cell(Computed(() -> Int32(Int(placed.x[]) + Int(child.x[])))),
-                                  Cell(Computed(() -> Int32(Int(placed.y[]) + Int(child.y[])))))
+                                  Cell(@computation Int32(Int(placed.x[]) + Int(child.x[]))),
+                                  Cell(@computation Int32(Int(placed.y[]) + Int(child.y[]))))
                         for child in inner.children]
     _build(row.elements, row.width, row.ascent, row.descent, shifted)
 end
@@ -1648,9 +1648,9 @@ function _grid_left(boxes::Vector, c::MathConfig, style::Symbol, field::String)
         end
         h
     end))
-    ascent = Cell(Computed(() -> (height[] + 1) ÷ 2 +
-                                 compute_math_metrics(c, style).axis))
-    descent = Cell(Computed(() -> height[] - ascent[]))
+    ascent = Cell(@computation((height[] + 1) ÷ 2 +
+                               compute_math_metrics(c, style).axis))
+    descent = Cell(@computation height[] - ascent[])
     elements = Any[]
     children = MathChild[]
     for i in eachindex(boxes)
@@ -1693,7 +1693,7 @@ function _selection_element(p, doc, build::Cell)
     GraphicsRect(Cell(Int32(0)), Cell(Int32(0)),
                  _int32(() -> build[].width[]),
                  _int32(() -> build[].ascent[] + build[].descent[]),
-                 Cell(Computed(() -> _is_selected(doc) ? _SELECTION_WASH : color_transparent)),
+                 Cell(@computation _is_selected(doc) ? _SELECTION_WASH : color_transparent),
                  Cell(Int32(2)), Cell(Int32(2)), Cell(Int32(2)), Cell(Int32(2)),
                  Cell(Int32(0)), Cell(color_transparent), Cell(nothing))
 end

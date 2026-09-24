@@ -30,7 +30,7 @@ end
 
 function print_document(p::SelectionWalkingProjection, recursion, input, ctx)
     child_iomap = print_document(p.inner, recursion, input, ctx)
-    SelectionWalkingIoMap(p, input, Cell(Computed(() -> child_iomap.output)), child_iomap)
+    SelectionWalkingIoMap(p, input, Cell(@computation child_iomap.output), child_iomap)
 end
 
 function read_intent(p::SelectionWalkingProjection, recursion, change::Intent,

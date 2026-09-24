@@ -66,7 +66,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
 
     # Recurse each vertex's content to measure its intrinsic size. Reactive: a
     # content edit that changes w/h re-runs the layout cell below.
-    child_iomaps = Cell(Computed(() -> begin
+    child_iomaps = Cell(@computation begin
         n = length(graph.vertices)
         ims = Any[]
         for i in 1:n
@@ -79,12 +79,12 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
             end
         end
         ims
-    end))
+    end)
 
     # Run the engine (keyed on the live sizes + topology + constraints). Held in
     # one cell so it re-runs only when a size, the vertex/edge list or a
     # constraint changes.
-    placed = Cell(Computed(() -> begin
+    placed = Cell(@computation begin
         ims = child_iomaps[]
         n = length(graph.vertices)
         sizes = Dict{UInt,Tuple{Int,Int}}()
@@ -100,9 +100,9 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
         # that defers its choice reads the vertex count to make it.
         name = layout_engine_name(resolve_layout_engine(p.engine, length(sizes)))
         (positions, routes, name)
-    end))
+    end)
 
-    vertex_layouts = CellVector(Computed(() -> begin
+    vertex_layouts = CellVector(@computation begin
         positions, _, _ = placed[]
         n = length(graph.vertices)
         out = Any[]
@@ -113,9 +113,9 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
             push!(out, VertexLayout(v, x, y, w, h))
         end
         out
-    end))
+    end)
 
-    edge_layouts = CellVector(Computed(() -> begin
+    edge_layouts = CellVector(@computation begin
         _, routes, _ = placed[]
         n = length(graph.edges)
         out = Any[]
@@ -126,19 +126,19 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
             push!(out, EdgeLayout(e, route))
         end
         out
-    end))
+    end)
 
     # The highlights pass through as derived cells. They are read by the
     # renderer only, so changing one repaints without disturbing `child_iomaps`
     # or `placed` — the expensive engine run stays cached across a highlight
     # change, which is what makes a live current-state marker affordable.
     layout = GraphLayout(vertex_layouts, edge_layouts, Cell(:tb), Cell(40), Cell(60),
-        Cell(Computed(() -> graph.highlight_vertex)),
-        Cell(Computed(() -> graph.highlight_edge)),
-        Cell(Computed(() -> placed[][3])),
-        Cell(Computed(() -> let im = iomap_cell[]
+        Cell(@computation graph.highlight_vertex),
+        Cell(@computation graph.highlight_edge),
+        Cell(@computation placed[][3]),
+        Cell(@computation let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, graph.selection)
-        end)))
+        end))
 
     iomap = GraphGraphToGraphLayoutIoMap(p, graph, layout, child_iomaps)
     iomap_cell[] = iomap

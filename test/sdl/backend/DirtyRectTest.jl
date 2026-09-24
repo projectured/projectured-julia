@@ -14,7 +14,7 @@ make_res() = SDL.SdlWindowResources(
     # A canvas whose elements are produced by a computed thunk over `src`,
     # mirroring how the projection pipeline regenerates element vectors.
     src = Cell(10)
-    cv = CellVector(Computed(() -> [GraphicsRect(src[], 20, 30, 40)]))  # x=src, y=20, w=30, h=40
+    cv = CellVector(@computation [GraphicsRect(src[], 20, 30, 40)])  # x=src, y=20, w=30, h=40
     canvas = GraphicsCanvas(cv, layout_none)
     res = make_res()
 
@@ -37,7 +37,7 @@ end
 @testset "clamps to the window bounds" begin
     src = Cell(0)
     # A rect wider/taller than the window; padding must not push past edges.
-    cv = CellVector(Computed(() -> [GraphicsRect(src[], src[], 2000, 2000)]))
+    cv = CellVector(@computation [GraphicsRect(src[], src[], 2000, 2000)])
     canvas = GraphicsCanvas(cv, layout_none)
     res = make_res()
     @test SDL._compute_dirty_rect(res, canvas) == (0, 0, 800, 600)
@@ -89,7 +89,7 @@ end
     # and the dirty walk descends to repaint just that line.
     line_canvas(y, wcell) = GraphicsCanvas(
         Int32(0), Int32(y), Int32(0), Int32(0),
-        CellVector(Computed(() -> [GraphicsRect(0, 0, Int(wcell[]), 18)])),
+        CellVector(@computation [GraphicsRect(0, 0, Int(wcell[]), 18)]),
         layout_none, false, Cell(nothing))
     src3 = Cell(50)                       # width of line 3's rect
     l1 = line_canvas(0,  Cell(100))

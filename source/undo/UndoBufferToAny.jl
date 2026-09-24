@@ -53,7 +53,7 @@ const _CONTENT_STEPS = (FieldReferenceStep("content"),)
 function print_document(p::UndoBufferToAnyProjection, recursion, input::UndoBuffer, ctx)
     content_iomap = print_child(recursion, input.content,
                                 make_child_context(ctx, FieldReferenceStep("content")))
-    UndoBufferToAnyIoMap(p, input, Cell(Computed(() -> content_iomap.output)), content_iomap)
+    UndoBufferToAnyIoMap(p, input, Cell(@computation content_iomap.output), content_iomap)
 end
 
 # ── Reference mapping ────────────────────────────────────────────────────────

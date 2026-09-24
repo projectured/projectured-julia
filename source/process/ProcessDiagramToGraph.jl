@@ -250,21 +250,21 @@ function print_document(p::ProcessDiagramToGraph, recursion,
 
     # One cell holds the whole walk: vertices, edges and the node → vertex map
     # are one construction and must never disagree about identity.
-    flowchart = Cell(Computed(() -> _build_flowchart(model isa ProcessModel ? model : nothing)))
+    flowchart = Cell(@computation _build_flowchart(model isa ProcessModel ? model : nothing))
 
-    vertices = CellVector(Computed(() -> Any[v for v in flowchart[].vertices]))
-    edges = CellVector(Computed(() -> Any[e for e in flowchart[].edges]))
+    vertices = CellVector(@computation Any[v for v in flowchart[].vertices])
+    edges = CellVector(@computation Any[e for e in flowchart[].edges])
 
     # The live overlay. `session` is duck-typed on purpose: the diagram is
     # drawable with nothing attached, and the debug slice is what fills it in.
-    highlight_vertex = Cell(Computed(() -> begin
+    highlight_vertex = Cell(@computation begin
         diagram isa ProcessDiagram || return nothing
         session = diagram.session
         session === nothing && return nothing
         _vertex_of(flowchart[], session.current)
-    end))
+    end)
 
-    highlight_edge = Cell(Computed(() -> begin
+    highlight_edge = Cell(@computation begin
         diagram isa ProcessDiagram || return nothing
         session = diagram.session
         session === nothing && return nothing
@@ -275,12 +275,12 @@ function print_document(p::ProcessDiagramToGraph, recursion,
             e.source === from && e.target === to && return e
         end
         nothing
-    end))
+    end)
 
     graph = GraphGraph(vertices, edges, highlight_vertex, highlight_edge,
-        Cell(Computed(() -> let im = iomap_cell[]
+        Cell(@computation let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, diagram.selection)
-        end)))
+        end))
 
     iomap = ProcessDiagramToGraphIoMap(p, diagram, graph)
     iomap_cell[] = iomap

@@ -108,7 +108,7 @@ function print_document(p::CellToSyntax, recursion, cell::Cell, ctx)
     # the cell, so a `sync_document!`/`setproperty!` write repaints without rebuilding
     # the whole projection.
     inner = reconcile_child_iomap(() -> cell[], v -> print_child(recursion, v, ctx))
-    SimpleIoMap(p, cell, Cell(Computed(() -> inner[].output)))
+    SimpleIoMap(p, cell, Cell(@computation inner[].output))
 end
 
 # ── ObjectNodeToSyntaxNode ───────────────────────────────────────────────────
@@ -210,7 +210,7 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
         elem_ims = reconcile_child_iomaps(
             () -> _visible_elements(p, obj),
             (i, x) -> print_child(recursion, x, make_child_context(ctx, ElementReferenceStep(i))))
-        output = Cell(Computed(() -> SyntaxNode(SyntaxDocument[im.output for im in elem_ims[]];
+        output = Cell(@computation(SyntaxNode(SyntaxDocument[im.output for im in elem_ims[]];
             open = p.open_delimiter, close = p.close_delimiter, sep = " ", indentation = ind)))
         return SimpleIoMap(p, obj, output)
     end
@@ -228,14 +228,14 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     # Field structure (which fields) is stable; build each field's entry once, then
     # assemble the node in a computed cell that reads each field's (reactive) value.
     entries = [_field_entry(p, recursion, obj, ctx, fn) for fn in fnames]
-    output = Cell(Computed(() -> begin
+    output = Cell(@computation begin
         field_nodes = SyntaxDocument[
             SyntaxNode(SyntaxDocument[nl, _field_value(p, fim)]; sep = " ")
             for (nl, fim) in entries]
         fields_block = SyntaxNode(field_nodes; open = p.open_delimiter,
             close = p.close_delimiter, sep = " ", indentation = ind)
         SyntaxNode(SyntaxDocument[type_leaf, fields_block]; sep = " ")
-    end))
+    end)
     SimpleIoMap(p, obj, output)
 end
 

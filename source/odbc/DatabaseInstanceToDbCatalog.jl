@@ -31,42 +31,42 @@ _make_database_instance(instance::DatabaseInstance, database::String) =
                                                        password = instance.credentials.password))
 
 function _build_columns(pool, inst, schema_name::String, table_name::String)
-    CellVector(Computed(() -> begin
+    CellVector(@computation begin
         cols = with_connection(pool, inst) do adapter
             get_db_catalog_columns(adapter, schema_name, table_name)
         end
         DbCatalogColumn[DbCatalogColumn(c.name, c.data_type) for c in cols]
-    end))
+    end)
 end
 
 function _build_tables(pool, inst, schema_name::String)
-    CellVector(Computed(() -> begin
+    CellVector(@computation begin
         names = with_connection(pool, inst) do adapter
             get_db_catalog_tables(adapter, schema_name)
         end
         DbCatalogTable[DbCatalogTable(n, _build_columns(pool, inst, schema_name, n))
                        for n in names]
-    end))
+    end)
 end
 
 function _build_schemas(pool, inst, database_name::String)
-    CellVector(Computed(() -> begin
+    CellVector(@computation begin
         names = with_connection(pool, inst) do adapter
             get_db_catalog_schemas(adapter, database_name)
         end
         DbCatalogSchema[DbCatalogSchema(n, _build_tables(pool, inst, n))
                         for n in names]
-    end))
+    end)
 end
 
 function _build_databases(pool, inst)
-    CellVector(Computed(() -> begin
+    CellVector(@computation begin
         names = with_connection(pool, inst) do adapter
             get_db_catalog_databases(adapter)
         end
         DbCatalogDatabase[DbCatalogDatabase(n, _build_schemas(pool, _make_database_instance(inst, n), n))
                           for n in names]
-    end))
+    end)
 end
 
 # ── DatabaseInstanceToDbCatalog ─────────────────────────────────────────────────

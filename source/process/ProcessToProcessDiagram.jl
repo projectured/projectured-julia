@@ -33,9 +33,9 @@ function print_document(p::ProcessToProcessDiagram, recursion,
     iomap_cell = Cell(nothing)
     diagram = ProcessDiagram(
         Cell(model), Cell(nothing),
-        Cell(Computed(() -> let im = iomap_cell[]
+        Cell(@computation let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, model.selection)
-        end)))
+        end))
     iomap = ProcessToProcessDiagramIoMap(p, model, diagram)
     iomap_cell[] = iomap
     iomap

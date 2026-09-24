@@ -168,8 +168,8 @@ function test_document_contract()
 
         # The point of the shadow: a reader of it runs again when the source moves.
         # A native child would read correctly here and never invalidate.
-        seen = Cell(Computed(() -> shadow.content === nothing ? "" :
-                                   shadow.content.label))
+        seen = Cell(@computation(shadow.content === nothing ? "" :
+                                 shadow.content.label))
         @test seen[] == "first"
         source.content.label = "second"
         sync_document!(shadow, source)

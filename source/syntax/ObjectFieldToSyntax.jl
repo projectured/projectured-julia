@@ -48,11 +48,11 @@ function print_document(p::ObjectFieldToSyntax, recursion, field::ObjectField, c
     inner = reconcile_child_iomap(() -> get_object_field_value(field),
                                   v -> print_child(recursion, v, child_ctx))
     ind = p.newlines ? 1 : 0
-    output = Cell(Computed(() -> begin
+    output = Cell(@computation begin
         value_node = inner[].output
         name === nothing ? value_node :
             SyntaxNode(SyntaxDocument[SyntaxLeaf(TextString(name, p.field_name)), value_node];
                        sep = " ", indentation = ind)
-    end))
+    end)
     SimpleIoMap(p, field, output)
 end

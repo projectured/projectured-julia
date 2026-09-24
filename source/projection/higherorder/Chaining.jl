@@ -78,7 +78,7 @@ function print_document(seq::ChainingProjection, recursion, input, ctx)
     end
     foreach(getindex, step_iomaps)            # eager initial build (forces every stage)
     return ChainingIoMap(seq, input, step_iomaps,
-                                   Cell(Computed(() -> step_iomaps[end][].output)))
+                                   Cell(@computation step_iomaps[end][].output))
 end
 
 # Pure: thread each stage's immutable output straight into the next stage — no
@@ -100,7 +100,7 @@ end
 # captures its own `p`/`prev`.
 function _seq_stage(p, recursion, prev::Cell, ctx)
     iomap_cell = reconcile_child_iomap(() -> prev[], v -> print_document(p, recursion, v, ctx))
-    out_cell   = Cell(Computed(() -> unwrap_cell(iomap_cell[].output)))
+    out_cell   = Cell(@computation unwrap_cell(iomap_cell[].output))
     (iomap_cell, out_cell)
 end
 

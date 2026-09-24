@@ -114,13 +114,13 @@ _set_list_link_lazily!(copy_node, original::ListNode, copied::ListNode, link::Sy
 # its own that is read with `peek`, so the link of the copy depends on no cell of
 # the original: once read, it keeps the node that it copied.
 _copy_list_link(copy_node, original::ListNode, copied::ListNode, link::Symbol, back::Symbol) =
-    peek(Cell(Computed(() -> begin
+    peek(Cell(@computation begin
         linked = unwrap_cell(getfield(original, link))
         linked === nothing && return nothing
         linked_copy = _copy_list_node_lazily(copy_node, linked)
         set_cell_value!(getfield(linked_copy, back), copied)
         linked_copy
-    end)))
+    end))
 
 # A list shadow is synced from the node that it holds outward, one direction at a
 # time, so the walk never follows `next` back through `prev`. The generic walk

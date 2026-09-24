@@ -27,7 +27,7 @@ function print_document(p::FocusingProjection, recursion, input, ctx)
     # sit in a chain and have downstream stages wire to this iomap. The cursor rides
     # the `map_reference_forward` composition, so the sub-document's own selection is
     # left untouched.
-    SimpleIoMap(p, input, Cell(Computed(() -> evaluate_reference(input, p.part))))
+    SimpleIoMap(p, input, Cell(@computation evaluate_reference(input, p.part)))
 end
 
 function map_reference_forward(p::FocusingProjection, iomap, reference)

@@ -76,7 +76,7 @@ end
 # ── Printer ───────────────────────────────────────────────────────────────────
 
 function print_document(p::VersioningToAnyProjection, recursion, input::VersionedObject, ctx)
-    selection_cell = Cell(Computed(() -> begin
+    selection_cell = Cell(@computation begin
         selected = select_version(input)
         selected === nothing && return nothing
         idx, version = selected
@@ -84,13 +84,13 @@ function print_document(p::VersioningToAnyProjection, recursion, input::Versione
                           make_child_context(ctx, FieldReferenceStep("versions"),
                                         ElementReferenceStep(idx), FieldReferenceStep("value")))
         (idx, value_iomap)
-    end))
-    output = Cell(Computed(() -> begin
+    end)
+    output = Cell(@computation begin
         sel = selection_cell[]
         sel === nothing ? DocumentNothing() : sel[2].output
-    end))
-    index = Cell(Computed(() -> (sel = selection_cell[]; sel === nothing ? nothing : sel[1])))
-    value_iomap = Cell(Computed(() -> (sel = selection_cell[]; sel === nothing ? nothing : sel[2])))
+    end)
+    index = Cell(@computation (sel = selection_cell[]; sel === nothing ? nothing : sel[1]))
+    value_iomap = Cell(@computation (sel = selection_cell[]; sel === nothing ? nothing : sel[2]))
     VersioningToAnyIoMap(p, input, selection_cell, output, index, value_iomap)
 end
 

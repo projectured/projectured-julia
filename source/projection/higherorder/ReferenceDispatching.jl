@@ -70,7 +70,7 @@ end
 function print_document(rdp::ReferenceDispatchingProjection, recursion, input, ctx)
     proj = _dispatch_proj(rdp, ctx.reference)
     inner = print_document(proj, recursion, input, ctx)
-    ReferenceDispatchingIoMap(rdp, input, Cell(Computed(() -> inner.output)), ctx.reference, inner)
+    ReferenceDispatchingIoMap(rdp, input, Cell(@computation inner.output), ctx.reference, inner)
 end
 
 function read_intent(rdp::ReferenceDispatchingProjection, recursion, change::Intent, iomap::ReferenceDispatchingIoMap)

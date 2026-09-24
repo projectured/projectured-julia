@@ -32,16 +32,16 @@ end
 
 function print_document(p::RstRootToVerticalLayout, recursion, root::RstRoot, ctx)
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         iomap = iomap_cell[]
         iomap === nothing && return nothing
         map_reference_forward(p, iomap, root.selection)
-    end))
+    end)
     # The page's blocks, each in its own domain; an embedded file stands in a
     # card, built once for the block (see `_rst_block`).
     elements = root.elements::CellVector
     cards = IdDict{Any,Any}()
-    children = CellVector(Computed(() -> Any[_rst_block(element, cards) for element in elements]))
+    children = CellVector(@computation Any[_rst_block(element, cards) for element in elements])
     out = VerticalLayout(children,
                          Cell(p.horizontal_align), Cell(p.gap),
                          Cell(nothing), Cell(nothing), sel)
@@ -66,20 +66,20 @@ end
 
 function print_document(p::RstSectionToVerticalLayout, recursion, section::RstSection, ctx)
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         iomap = iomap_cell[]
         iomap === nothing && return nothing
         map_reference_forward(p, iomap, section.selection)
-    end))
+    end)
     # The title line, then the section's own blocks — which keep their cells, so
     # each block renders in its own domain and an embed reaches the widget
     # renderer. The title is rebuilt reactively: editing it re-renders the line.
     cards = IdDict{Any,Any}()
-    children = CellVector(Computed(() -> begin
+    children = CellVector(@computation begin
         stack = Any[_title_block(section)]
         append!(stack, [_rst_block(element, cards) for element in section.elements])
         stack
-    end))
+    end)
     out = VerticalLayout(children, Cell(p.horizontal_align), Cell(p.gap),
                          Cell(nothing), Cell(nothing), sel)
     iomap = SimpleIoMap(p, section, out)

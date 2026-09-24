@@ -38,7 +38,7 @@ end
 
 function print_document(p::FaultSafeModeProjection, recursion, input, ctx)
     inner = print_document(p.content, nothing, p.log, ctx)
-    FaultSafeModeIoMap(p, input, Cell(Computed(() -> inner.output)), inner)
+    FaultSafeModeIoMap(p, input, Cell(@computation inner.output), inner)
 end
 
 read_intent(::FaultSafeModeProjection, recursion, change::Intent,

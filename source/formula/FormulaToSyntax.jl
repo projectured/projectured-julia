@@ -86,7 +86,7 @@ end
 
 function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaFormula, ctx)
     code_ref = make_child_context(ctx, f, @reference_step code)
-    code_iomap = Cell(Computed(() -> print_child(recursion, f.code, code_ref)))
+    code_iomap = Cell(@computation print_child(recursion, f.code, code_ref))
 
     # The name leaf displays the formula name; renaming is a structural
     # operation, not character editing here, so it carries no input mapping.
@@ -102,15 +102,15 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
     result_leaf = SyntaxLeaf(TextString(() -> _result_to_string(f.result), p.result))
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = hasfield(typeof(f), :selection) ? f.selection : nothing
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
     node = SyntaxNode(
-        CellVector(Computed(() -> begin
+        CellVector(@computation begin
             mode = f.display_mode
             if mode === :code
                 SyntaxDocument[code_iomap[].output]
@@ -120,9 +120,9 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
                 SyntaxDocument[name_leaf, eq_leaf, code_iomap[].output,
                                arrow_leaf, result_leaf]
             end
-        end));
+        end);
         selection=sel)
-    iomap = ChildrenIoMap(p, f, node, Cell(Computed(() -> IoMap[code_iomap[]])))
+    iomap = ChildrenIoMap(p, f, node, Cell(@computation IoMap[code_iomap[]]))
     iomap_cell[] = iomap
     iomap
 end
@@ -182,21 +182,20 @@ end
 end
 
 function print_document(p::FormulaEnvironmentToSyntaxNode, recursion, e::FormulaEnvironment, ctx)
-    child_iomaps = Cell(Computed(() ->
-        [print_child(recursion, e.formulas[i],
+    child_iomaps = Cell(@computation([print_child(recursion, e.formulas[i],
              make_child_context(ctx, e, (@reference_step formulas), (@reference_step [i])))
          for i in 1:length(e.formulas)]))
 
     iomap_cell = Cell(nothing)
-    sel = Cell(Computed(() -> begin
+    sel = Cell(@computation begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = hasfield(typeof(e), :selection) ? e.selection : nothing
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end))
+    end)
     node = SyntaxNode(
-        CellVector(Computed(() -> SyntaxDocument[im.output for im in child_iomaps[]]));
+        CellVector(@computation SyntaxDocument[im.output for im in child_iomaps[]]);
         sep=TextString("\n", p.font, color_default),
         selection=sel)
     iomap = ChildrenIoMap(p, e, node, child_iomaps)
