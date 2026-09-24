@@ -38,7 +38,7 @@ function test_serialization()
                 # containers are allocated lazily, so "detached" is `nothing` (never
                 # allocated) or an empty container.
                 selcell = getfield(loaded, :selection)
-                @test (d = getfield(selcell, :deps);       d === nothing || isempty(d))
+                @test (d = getfield(selcell, :dependencies); d === nothing || isempty(d))
                 @test (d = getfield(selcell, :dependents); d === nothing || isempty(d))
                 @test getfield(selcell, :thunk) === nothing
 

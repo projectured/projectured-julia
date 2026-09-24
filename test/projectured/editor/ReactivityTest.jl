@@ -259,7 +259,7 @@ followed(surface::ReactiveSurface) = !isempty(invalidated(surface))
 # `output` field cell is the only witness, which is why `reactive_surface`
 # collects it.
 function _orphaning_fixture()
-    source = ReactiveCell(1)
+    source = Cell(1)
     iomap = SimpleIoMap(nothing, source, nothing)
     set_cell_function!(getfield(iomap, :output), () -> source[] * 2)
     node = IoMapNode(iomap, nothing, source, iomap.output, "fixture", 0)

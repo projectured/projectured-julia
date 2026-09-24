@@ -41,7 +41,7 @@ The question of `Computed` against `ComputedCell` is a plan of its own:
 - [x] 1. `_force_thunk` retries only in an older world, and two tests cover it:
   a chain with a real `MethodError` runs its bottom thunk once, and a thunk that
   calls a newer method gets its value through the retry.
-- [ ] 2. The engine: remove `invalidate!`, `is_cell_up_to_date(::Vector{Cell})`
+- [x] 2. The engine: remove `invalidate!`, `is_cell_up_to_date(::Vector{Cell})`
   and `ReactiveCell(value)`; `_recompute!` calls `_detach_upstream!`; one
   invalidation walk; the private names of the decisions above.
 - [ ] 3. The contract: `CellInterface.jl` declares `is_computed_cell` and

@@ -52,20 +52,20 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     # until a projection observes them, are read by nothing; the eager empty `Set` +
     # `Vector` was ~90% of a ReactiveCell's construction cost (measured ~168 B vs a
     # MutableCell's 24 B). Every access below treats `nothing` as empty, and
-    # `_deps!` / `_dependents!` allocate on demand.
-    deps::Union{Nothing, Set{ReactiveCell}}       # cells I read from  (upstream, STRONG)
+    # `_get_dependencies!` / `_get_dependents!` allocate on demand.
+    dependencies::Union{Nothing, Set{ReactiveCell}}       # cells I read from  (upstream, STRONG)
     dependents::Union{Nothing, Vector{WeakRef}}   # cells that read me  (downstream, WEAK)
 
     ReactiveCell{T}(value) where {T} =
         new{T}(value, nothing, true, nothing, nothing)
     # A `Computed` argument carries the cell's *thunk*: `value` starts *undefined* (a
     # typed field cannot hold a placeholder) and `valid = false` guarantees
-    # `recompute!` assigns it before any read returns.
+    # `_recompute!` assigns it before any read returns.
     function ReactiveCell{T}(computed::Computed) where {T}
         c = new{T}()
         c.thunk = computed.thunk
         c.valid = false
-        c.deps = nothing
+        c.dependencies = nothing
         c.dependents = nothing
         return c
     end
@@ -84,9 +84,9 @@ end
 # so one compiled body serves every cell — and a free parameter is the one shape
 # an ahead-of-time build cannot enumerate, which is what made these calls
 # unresolvable and put them in a seal file.
-@inline _deps!(@nospecialize(c::ReactiveCell)) =
-    (d = c.deps; d === nothing ? (c.deps = Set{ReactiveCell}()) : d)
-@inline _dependents!(@nospecialize(c::ReactiveCell)) =
+@inline _get_dependencies!(@nospecialize(c::ReactiveCell)) =
+    (d = c.dependencies; d === nothing ? (c.dependencies = Set{ReactiveCell}()) : d)
+@inline _get_dependents!(@nospecialize(c::ReactiveCell)) =
     (d = c.dependents; d === nothing ? (c.dependents = WeakRef[]) : d)
 
 """
@@ -116,9 +116,6 @@ type" tests `isa ReactiveCell`.
 """
 const Cell = ReactiveCell{Any}
 
-"""Primitive untyped cell holding `value`."""
-ReactiveCell(value) = ReactiveCell{Any}(value)
-
 """
     ComputedCell(f) -> Cell
 
@@ -146,8 +143,9 @@ ComputedCell(f::Function) = ReactiveCell{Any}(Computed(f))
 # dependency. The stack is task-local, not a module global: concurrent
 # evaluations (e.g. separate editors on separate tasks) each get their own, so
 # their dependency tracking never crosses.
-_computing_stack() =
-    get!(() -> ReactiveCell[], task_local_storage(), :projectured_reactive_computing)::Vector{ReactiveCell}
+_get_computing_stack() =
+    get!(() -> ReactiveCell[], task_local_storage(),
+         :projectured_reactive_computing)::Vector{ReactiveCell}
 
 # The reactive hot path bumps the performance counters via `@count_performance`
 # (imported at the top of this file). The macro lives in `PerformanceModule`
@@ -160,16 +158,16 @@ _computing_stack() =
 function Base.getindex(c::ReactiveCell)
     @count_performance :reads
     # register dependency if inside a computation
-    stack = _computing_stack()
+    stack = _get_computing_stack()
     if !isempty(stack)
         observer = stack[end]
         if observer !== c
             _register_dependent!(c, observer)
-            push!(_deps!(observer), c)
+            push!(_get_dependencies!(observer), c)
         end
     end
     if !c.valid
-        recompute!(c)
+        _recompute!(c)
     end
     return c.value
 end
@@ -190,20 +188,13 @@ function _force_thunk(@nospecialize(f))
     end
 end
 
-function recompute!(c::ReactiveCell)
+function _recompute!(c::ReactiveCell)
     if c.thunk === nothing
         c.valid = true
         return
     end
-    # detach old upstream links
-    if c.deps !== nothing
-        for dep in c.deps
-            _unregister_dependent!(dep, c)
-        end
-        empty!(c.deps)
-    end
-    # evaluate thunk while tracking dependencies
-    stack = _computing_stack()
+    _detach_upstream!(c)
+    stack = _get_computing_stack()
     push!(stack, c)
     try
         c.value = _force_thunk(c.thunk)
@@ -216,20 +207,18 @@ end
 
 # ── invalidation ─────────────────────────────────────────────────────────
 
-function invalidate!(c::ReactiveCell)
-    c.valid && _invalidate_walk!(c)
-end
-
-function _invalidate_walk!(c::ReactiveCell)
-    c.valid = false
-    @count_performance :invalidations
+function _invalidate_dependents!(c::ReactiveCell)
     ds = c.dependents
     ds === nothing && return
     for i in eachindex(ds)
         d = ds[i].value
         d === nothing && continue      # reader already collected — nothing to invalidate
         dd = d::ReactiveCell
-        dd.valid && _invalidate_walk!(dd)
+        if dd.valid
+            dd.valid = false
+            @count_performance :invalidations
+            _invalidate_dependents!(dd)
+        end
     end
 end
 
@@ -314,9 +303,7 @@ function Base.setindex!(c::ReactiveCell, computed::Computed)
     return computed
 end
 
-"""Return `true` if the cached value is up to date."""
 is_cell_up_to_date(c::ReactiveCell) = c.valid
-is_cell_up_to_date(cs::Vector{Cell}) = all(is_cell_up_to_date, cs)
 
 # ── untracked read ─────────────────────────────────────────────────────────
 
@@ -345,29 +332,18 @@ dependent of `c`. A generic reactive primitive (cf. Solid's `untrack`, MobX's
 than subscribe to it.
 """
 function Base.peek(c::ReactiveCell)
-    c.valid || recompute!(c)
+    c.valid || _recompute!(c)
     return c.value
 end
 
 # ── helpers ──────────────────────────────────────────────────────────────
 
 function _detach_upstream!(c::ReactiveCell)
-    c.deps === nothing && return
-    for dep in c.deps
-        _unregister_dependent!(dep, c)
+    c.dependencies === nothing && return
+    for dependency in c.dependencies
+        _unregister_dependent!(dependency, c)
     end
-    empty!(c.deps)
-end
-
-function _invalidate_dependents!(c::ReactiveCell)
-    ds = c.dependents
-    ds === nothing && return
-    for i in eachindex(ds)
-        d = ds[i].value
-        d === nothing && continue      # reader already collected
-        dd = d::ReactiveCell
-        dd.valid && _invalidate_walk!(dd)
-    end
+    empty!(c.dependencies)
 end
 
 """
@@ -413,7 +389,7 @@ end
 # never reads `T`.
 function _register_dependent!(@nospecialize(c::ReactiveCell),
                               @nospecialize(observer::ReactiveCell))
-    ds = _dependents!(c)
+    ds = _get_dependents!(c)
     i, n = 1, length(ds)
     @inbounds while i <= n
         v = ds[i].value
