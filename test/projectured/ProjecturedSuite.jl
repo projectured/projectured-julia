@@ -134,6 +134,7 @@ include("PackageGraphTest.jl")
 include("../suite/tree.jl")
 include("../suite/naming.jl")
 include("../suite/arguments.jl")
+include("../suite/exports.jl")
 include("../suite/documentation.jl")
 # Suites that rose from the domain test package when it dissolved: each
 # fixture names several domains, so none of them belongs to one.
@@ -312,6 +313,27 @@ function test_arguments()
 end
 
 """
+    test_exports()
+
+The export guard: the rule of the export block of
+`documentation/rule/code-quality-rules.md` §1. Each `*Module.jl` file under
+`source/` has one `export` statement for each fragment, in the order of the
+includes, with the names in the order that the fragment defines them, and no
+comment inside the block. A module on the list in `test/suite/exports.jl` is
+not migrated yet, and it fails when it follows the rule, so that the list stays
+true. It loads nothing and runs in about a second.
+"""
+function test_exports()
+    @testset "exports" begin
+        root = normpath(joinpath(@__DIR__, "..", ".."))
+        for violation in export_violations(root)
+            @test violation == ""
+        end
+        @test isempty(export_violations(root))
+    end
+end
+
+"""
     test_documentation()
 
 The writing guard: the part of
@@ -354,6 +376,7 @@ function test_all()
     test_tree()
     test_naming()
     test_arguments()
+    test_exports()
     test_documentation()
     test_package_graph()
     test_kernel()
@@ -466,7 +489,7 @@ function test_table()
 end
 
 export test_all, test_domain_examples, test_package_graph, test_tree, test_naming,
-       test_arguments, test_documentation
+       test_arguments, test_exports, test_documentation
 export test_kernel, test_substrate, test_domain
 export test_export_collisions, test_export_collision_checker, export_collisions
 export test_search_scale

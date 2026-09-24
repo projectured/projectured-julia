@@ -34,6 +34,17 @@ name; then every `import`, under a comment that says the module extends those
 names; then every `export`. A module exports only what no macro exports for it.
 `@document`, `@domain` and `@projection` each export the type they declare.
 
+**The export block has one statement for each fragment, in the order of the
+includes.** A statement names what one fragment defines, in the order that the
+fragment defines it. A reader who finds a name in the block then knows which
+file to open, and a reader of a fragment finds all its public names in one
+place. The interface fragment comes first. Its statement names every generic
+that it declares, also when a sibling file holds the body. A fragment that
+defines no public name has no statement. Do not put a comment inside the block:
+the docstring of the module says what each fragment holds.
+[CellModule.jl](../../source/kernel/cell/CellModule.jl) shows the shape, and
+`test_exports()` checks it.
+
 **A fragment file opens with a one-line comment**, not a docstring:
 
 ```julia
