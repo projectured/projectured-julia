@@ -60,5 +60,11 @@ function test_clock()
         @test get_clock_time(clock) == 3.14
     end
 
+    @testset "a clock shows as its constructor makes it" begin
+        clock = Clock()
+        set_clock_time!(clock, 12.5)
+        @test repr(clock) == "Clock(time = 12.5)"
+    end
+
 end
 end # test_clock

@@ -44,6 +44,10 @@ absolute write.
 """
 set_clock_time!(clock::Clock, t::Real) = (clock.time = Float64(t); nothing)
 
+# A clock shows as its constructor makes it, `Clock(time = 12.3)`, and not as the
+# cell that holds its time. The read is a sample: a display subscribes to nothing.
+Base.show(io::IO, clock::Clock) = print(io, "Clock(time = ", get_clock_time(clock), ")")
+
 # The one process-wide clock reflecting OS time — the singleton `get_wall_clock`
 # returns. Not exported; the accessor is the public entry point.
 const _WALL_CLOCK = Clock()

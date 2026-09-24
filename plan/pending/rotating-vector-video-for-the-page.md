@@ -63,8 +63,10 @@ The owner's answers to the three questions of 2026-09-24:
       (`parse_natural_text(:jl, "nothing")`, a `JuliaNothing` in bold magenta);
       the tool keeps "Done." for a model. `test_code_execution()` and
       `test_evaluator_toplevel()` pass 233.
-- [ ] Step 2: item 4 for the clock, in the sealed `Clock.jl` with the owner's
-      permission (decision C).
+- [x] Step 2: item 4 for the clock, in the sealed `Clock.jl` with the owner's
+      permission (decision C). `Base.show(io, ::Clock)` prints
+      `Clock(time = 12.5)` with a sample of the time, so a display subscribes to
+      nothing. The file stays sealed. `test_clock()` passes 16.
 - [x] Step 3: item 7, find which forms stay strings and why.
       `build/suites/s1/probe_forms.jl` parses each form as the evaluator does and
       compares the print with the typed code, token by token. Four reasons:
