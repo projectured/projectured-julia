@@ -83,6 +83,11 @@ end
 end
 
 # `M` first binds it to the mutable native struct — the object a simulator mutates.
+"""
+    DmNative(a)
+
+A schema whose bare name is the mutable native struct.
+"""
 @document [M, C] struct DmNative
     a::Int
 end
@@ -91,6 +96,11 @@ end
 # rather than mutates. `selection::Nothing` is written out for the same reason it
 # is on a value document: the injected union is over heap types, and one of them
 # in the struct is what would stop it being isbits.
+"""
+    DmImmutableNative(a)
+
+A schema whose bare name is the immutable native struct.
+"""
 @document ImmutableCell [I, C] struct DmImmutableNative
     a::Int
     selection::Nothing
@@ -315,6 +325,16 @@ end
     @test DmNative(4) isa ADmNative
     @test ACDmNative(1, nothing) isa ADmNative
     @test copy_document(ReactiveCell, DmNative(4)) isa ACDmNative
+end
+
+@testset "a docstring reaches the struct that the bare name names" begin
+    # A lookup of the bare name reaches the binding of the type it names. When
+    # that is the native struct, the native struct must carry the docstring, and
+    # the cell layout keeps it for its coded name.
+    documented = Base.Docs.meta(parentmodule(MDmNative))
+    for name in (:MDmNative, :ACDmNative, :IDmImmutableNative, :ACDmImmutableNative)
+        @test haskey(documented, Base.Docs.Binding(parentmodule(MDmNative), name))
+    end
 end
 
 @testset "a preset is @document with a fixed layout list" begin

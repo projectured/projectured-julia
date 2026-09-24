@@ -134,6 +134,13 @@ token before the layout list (`ImmutableCell`, `MutableCell`, …) is the field
 cell kind the auto-wrapping constructor uses; it is independent of the layout
 list.
 
+A docstring directly above `@document` documents the schema, and a lookup of
+the bare name shows it, whichever layout the bare name took. The cell layout
+always carries it, so `ACFoo` shows it too. When the list starts with `M` or
+`I`, the native struct carries it as well, because the bare name is that
+struct. Do not put a comment or a blank line between the docstring and
+`@document`. Julia then discards the text.
+
 A package that keeps the same list on every schema declares a preset once.
 [`@document_preset`](../../../source/kernel/document/DocumentMacro.jl) defines
 `@name` as `@document` with a fixed layout list, and every schema in the

@@ -674,7 +674,11 @@ function _document_expr(args)
     # ergonomic as building the stem.
     native_parts = Any[]
     if :M in layouts || :I in layouts
-        push!(native_parts, _emit_native(plan, family, native; mutable = native_mutable))
+        # When the list starts with `M` or `I`, the bare name is the native struct,
+        # and a lookup of the bare name reaches the binding of that struct. So the
+        # native struct takes the docstring too; the stem keeps it for `ACFoo`.
+        native_def = _emit_native(plan, family, native; mutable = native_mutable)
+        push!(native_parts, binding in (:M, :I) ? :(Base.@__doc__ $native_def) : native_def)
         append!(native_parts, build_cell_struct_positional_ctors(plan, native))
         if plan.n_programmer_defaults > 0 || plan.n_declared == 0
             push!(native_parts, build_cell_struct_keyword_constructor(native, plan.field_names,
