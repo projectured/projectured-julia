@@ -103,7 +103,7 @@ Markdown: 19 files in projectured-julia and 2 in omnet-julia name `Computed`,
   - **Follow-up, not in this plan:** comments and docstrings in other layers
     say "thunk" 103 times in 51 files, in several senses, and one of the files,
     `kernel/fault/FaultStore.jl`, is sealed. They need a pass of their own.
-- [ ] 6. omnet-julia and inet-julia: steps 2 to 5, each on a branch in a
+- [x] 6. omnet-julia and inet-julia: steps 2 to 5, each on a branch in a
   worktree of its own. They land right after projectured-julia, because their
   `[sources]` reach its main checkout.
 - [ ] 7. Verification, the smaller set that the owner asked for instead of
