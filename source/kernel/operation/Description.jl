@@ -50,8 +50,10 @@ end
 _delta(delta::Integer) = delta > 0 ? "in" : delta < 0 ? "out" : "reset"
 
 # The type checkpoints of a folded reference say nothing to a human and eat the
-# whole width, so the skeleton is what the log shows: `entries[1].value`.
-_short_reference(reference::Reference) = _truncate(string(strip_reference_types(reference)), 60)
+# whole width, so the skeleton is what the log shows: `entries[1].value`. The
+# compact form keeps a step short that would print its whole content.
+_short_reference(reference::Reference) =
+    _truncate(sprint(show, strip_reference_types(reference); context = :compact => true), 60)
 _short_reference(reference) = _truncate(string(reference), 60)
 
 # A value that a human can read: a literal keeps its text, a document shows its

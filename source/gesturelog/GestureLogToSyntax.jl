@@ -24,6 +24,9 @@
     operation::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_700)
     muted::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
     empty::ImmutableCell{StyleText} = StyleText(font_dejavu_monospace_regular_16, color_slate_500)
+    # The most characters of an operation that a line shows. A longer operation is
+    # cut, and ends in `…`. The font is monospaced, so this bounds the width too.
+    operation_width::ImmutableCell{Int} = typemax(Int)
 end
 
 # The width of the gesture column, in characters. The font is monospaced, so a
@@ -58,9 +61,12 @@ function _line(p::GestureLogToSyntax, entry::GestureLogEntry)
     SyntaxNode(SyntaxDocument[
         SyntaxLeaf(TextString(lpad(string(entry.index), 4) * "  ", p.index)),
         SyntaxLeaf(TextString(rpad(entry.gesture, _GESTURE_WIDTH) * "  ", gesture_style)),
-        SyntaxLeaf(TextString(entry.operation, operation_style)),
+        SyntaxLeaf(TextString(_cut_text(entry.operation, p.operation_width), operation_style)),
     ])
 end
+
+_cut_text(text::AbstractString, width::Integer) =
+    length(text) <= width ? String(text) : string(first(text, max(0, width - 1)), "…")
 
 # ── Natural-projection registration ─────────────────────────────────────────
 # The row that lets a tab draw a gesture log. The factory form, so every

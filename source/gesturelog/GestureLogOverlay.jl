@@ -28,24 +28,29 @@ const GESTURE_LOG_BACKGROUND = StyleColor(0.0, 0.0, 0.0, 0.72)
 const _WIDTH_SLACK = 8
 
 """
-    make_gesture_log_panel_syntax_projection() -> GestureLogToSyntax
+    make_gesture_log_panel_syntax_projection(; operation_width = typemax(Int)) -> GestureLogToSyntax
 
 A `GestureLogToSyntax` with light text, for the dark background of the panel.
+`operation_width` is the most characters of an operation that a line shows.
 """
-make_gesture_log_panel_syntax_projection() =
+make_gesture_log_panel_syntax_projection(; operation_width::Integer = typemax(Int)) =
     GestureLogToSyntax(index = StyleText(font_dejavu_monospace_regular_16, color_gray159),
                        operation = StyleText(font_dejavu_monospace_regular_16, color_gray223),
                        muted = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray),
-                       empty = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray))
+                       empty = StyleText(font_dejavu_monospace_regular_16, color_solarized_gray),
+                       operation_width = Int(operation_width))
 
 """
-    make_gesture_log_content_projection(; measure = measure_truetype_text)
+    make_gesture_log_content_projection(; measure = measure_truetype_text,
+                                          operation_width = typemax(Int))
 
 The chain that renders a `GestureLog` down to graphics, with the colors of the
-panel.
+panel. `operation_width` limits the operation of a line, and so the width of the
+panel, which follows its longest line.
 """
-make_gesture_log_content_projection(; measure = measure_truetype_text) =
-    ChainingProjection(make_gesture_log_panel_syntax_projection(),
+make_gesture_log_content_projection(; measure = measure_truetype_text,
+                                      operation_width::Integer = typemax(Int)) =
+    ChainingProjection(make_gesture_log_panel_syntax_projection(; operation_width),
                        RecursiveProjection(SyntaxToText()),
                        TextToGraphics(measure = measure))
 

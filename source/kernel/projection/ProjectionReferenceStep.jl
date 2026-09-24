@@ -96,6 +96,20 @@ ReferenceModule.evaluate_reference_step(step::ProjectionReferenceStep, document)
 Base.:(==)(a::ProjectionReferenceStep, b::ProjectionReferenceStep) =
     a.projection === b.projection && a.output_path == b.output_path
 
+# A short line, such as a log of operations, asks for the `:compact` form through
+# its `IOContext`. There the step reads as the part that the projection printed,
+# in the vocabulary of its output and between ‹ and ›, and the projection is left
+# out: `.entries[5].value‹.close{0}›`. A step inside the output path of another
+# step adds no second pair of marks. Every other display keeps the full form.
+function Base.show(io::IO, step::ProjectionReferenceStep)
+    get(io, :compact, false) || return Base.show_default(io, step)
+    inner = strip_reference_types(step.output_path)
+    get(io, :introduced, false) && return show(io, inner)
+    print(io, "‹")
+    show(IOContext(io, :introduced => true), inner)
+    print(io, "›")
+end
+
 # ── DSL registrations ──────────────────────────────────────────────────────
 
 # `.proj(projection, subpath)` — argument 2 is a subpath, so both DSL parsers

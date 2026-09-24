@@ -1,6 +1,6 @@
 # tool/video/record_json_from_nothing.jl
 #
-# Run it as: julia --project=environment/all tool/video/record_json_from_nothing.jl [<output>.mp4]
+# Run it as: julia --project=environment/all tool/video/record_json_from_nothing.jl [<output>.mp4] [--gestures]
 #
 # Screenplay S3: JSON from nothing.
 # The build moves the caret alone and never selects structure: `Right` leaves a
@@ -9,11 +9,20 @@
 # the `,` belongs to the outer object.
 # The script first replays the timeline headless. It records only when every
 # key produced an operation.
+# With `--gestures`, a panel in a corner shows each key and the operation it made.
+# With `--check`, the script stops after the replay.
 
 using Projectured, ProjecturedExample, ProjecturedSdl, ProjecturedSdlExample, ProjecturedVideo
 
-const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "json_from_nothing.mp4") : ARGS[1]
-const WIDTH, HEIGHT, FPS = 900, 720, 30
+const GESTURES = "--gestures" in ARGS
+const PATHS = filter(argument -> !startswith(argument, "--"), ARGS)
+const OUTPUT = isempty(PATHS) ? joinpath(pwd(), "json_from_nothing.mp4") : PATHS[1]
+const GESTURE_LINES = 8     # the lines the panel shows
+# The panel needs room beside the JSON, so a take with it is wider. The panel
+# font is monospaced: 60 characters of an operation keep the panel right of the
+# widest line of the JSON.
+const OPERATION_WIDTH = 60
+const WIDTH, HEIGHT, FPS = (GESTURES ? 1280 : 900), 720, 30
 
 _key(key; hold = 0.35, kwargs...) = (event = KeyDown(key, ModifierKeys(; kwargs...)), hold = hold)
 _press(character; hold = 0.4) = (event = KeyPress(character), hold = hold)
@@ -43,10 +52,31 @@ const TIMELINE = vcat(
     _type("active"), [_key(:tab), _press('t'; hold = 2.5)],
 )
 
+# The panel of gestures. The recorder at the root writes each key and the
+# operation it made into the log, and the overlay draws the log in a corner. A
+# selection is kept, and drawn muted, so the presses of Right that carry the
+# caret out of a container show too.
+_shows_in_overlay(gesture, operation) = !(operation === nothing || operation isa DoNothingOperation)
+
+# The video draws through SDL, whose hinted advances are whole pixels, so the
+# panel measures its text the same way: with the advances of the font file, a
+# long line draws wider than the panel. The check draws nothing and needs no SDL.
+function _with_gesture_overlay(projection; capacity = GESTURE_LINES, measure = measure_sdl_text)
+    log = GestureLog(; capacity = capacity)
+    GestureLogRecordingProjection(
+        inner = GestureLogOverlayProjection(inner = projection, log = log, anchor = :bottom_right,
+                    content = make_gesture_log_content_projection(; measure,
+                                                                    operation_width = OPERATION_WIDTH)),
+        log = log, filter = _shows_in_overlay)
+end
+
 function make_editor()
     example = only(live.example for live in live_examples if live.name == "json_build")
     document = example.make_document()
-    projection = example.make_projection()
+    # The check keeps every line of the log, to show the longest one.
+    projection = GESTURES ? _with_gesture_overlay(example.make_projection(); capacity = 1000,
+                                                  measure = measure_truetype_text) :
+                            example.make_projection()
     set_selection!(document, EmptyReference())
     editor = Editor(ConsoleBackend(), document, projection, Device[Display(), Keyboard(), Mouse()])
     editor.iomap = print_document(projection, nothing, document,
@@ -72,6 +102,12 @@ function check()
             dead += 1
         end
     end
+    if GESTURES
+        lines = [string(entry.index, "  ", rpad(entry.gesture, 18), entry.operation)
+                 for entry in projection.log.entries]
+        println("gesture lines: ", length(lines), ", the longest before the cut: ", maximum(length, lines))
+        foreach(println, lines[max(1, end - 11):end])
+    end
     (dead, print_natural_text(editor.document))
 end
 
@@ -83,7 +119,10 @@ function main()
         println("NOT RECORDED: a key did nothing.")
         return
     end
-    example = only(live.example for live in live_examples if live.name == "json_build")
+    "--check" in ARGS && return
+    build = only(live.example for live in live_examples if live.name == "json_build")
+    example = GESTURES ? Example("json_from_nothing", build.make_document,
+                                 () -> _with_gesture_overlay(build.make_projection())) : build
     live = LiveExample("json_from_nothing", example, TIMELINE;
                        initial_selection = EmptyReference(),
                        width = WIDTH, height = HEIGHT, fps = FPS)

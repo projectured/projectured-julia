@@ -52,6 +52,37 @@ function test_gesture_log()
         @test log.entries[1].operation == "select .elements[1]"
     end
 
+    @testset "a part that a projection printed is rendered short" begin
+        log = GestureLog()
+        array = mkarray()
+        close = ConcreteReference(FieldReferenceStep("close"),
+                                  ConcreteReference(RangeReferenceStep(0, 0), EmptyReference()))
+        on_close = make_introduced_reference(JsonArrayToSyntaxNode(), array, close)
+        record_gesture!(log, left, ReplaceSelectionOperation(on_close))
+        @test log.entries[1].operation == "select ‹.close{0}›"
+        # Below a path of the document, as a caret on a nested container is.
+        nested = ConcreteReference(FieldReferenceStep("elements"),
+                                   ConcreteReference(RangeReferenceStep(0, 1), on_close))
+        record_gesture!(log, left, ReplaceSelectionOperation(nested))
+        @test log.entries[2].operation == "select .elements[1]‹.close{0}›"
+        # A step inside the output path of another step adds no second pair of marks.
+        flat = ConcreteReference(RangeReferenceStep(12, 12), EmptyReference())
+        layout = make_introduced_reference(JsonArrayToSyntaxNode(), array,
+                                           make_introduced_reference(SyntaxToText(), SyntaxNode, flat))
+        record_gesture!(log, left, ReplaceSelectionOperation(layout))
+        @test log.entries[3].operation == "select ‹{12}›"
+    end
+
+    @testset "a line cuts an operation longer than its width" begin
+        log = GestureLog()
+        text = ChainingProjection(GestureLogToSyntax(operation_width = 8),
+                                  RecursiveProjection(SyntaxToText()),
+                                  RecursiveProjection(TextToString()))
+        iomap = print_document(text, log)
+        record_gesture!(log, left, ToggleCollapseOperation())      # "toggle collapse"
+        @test endswith(only(split(_force(iomap.output), "\n")), "toggle …")
+    end
+
     @testset "the default filter drops the selection operations" begin
         @test !default_gesture_log_filter(left, ReplaceSelectionOperation(EmptyReference()))
         @test !default_gesture_log_filter(left, DoNothingOperation())
