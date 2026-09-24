@@ -170,6 +170,11 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 
   The forms that work, in order: `clock = get_wall_clock()`; the `GraphicsCanvas` with a `GraphicsRect` background; `ring = GraphicsCircle(90, 90, 60, …)`; `push!` of the ring; `phase() = -0.5 * get_reactive_clock_time(clock)`; `dot = GraphicsCircle(ComputedCell(…), ComputedCell(…), 5, …)`; `push!` of the dot; the sine `GraphicsPolyline`; its `push!`; the cosine `GraphicsPolyline`; its `push!`; and the two dashed `GraphicsLine`s, each in its own `push!`.
 
+- **The take of 2026-09-24, for the web site.** Recorded on the branch rebased on `main` at d4fc522c: 1280×720, 256.6 s, 4.5 MB, `build/video/rotating_vector_v2.mp4`. The forms wrap inside the left pane, and the tab name shows its caret while `F2` names the pane. Not yet good enough for the page:
+  - **A frozen start.** For 11 s the window shows the README, then the Evaluator button stays pressed for 5 s while the evaluator compiles. The keys that fall due in that pause arrive in one burst, so the first form is half typed when the tab appears (F8).
+  - **The length.** 256.6 s, where D5 allows 3 min and the section of the page says "short sessions". The long positional constructors of the graphics are most of it.
+  - **Internal text in two results.** `phase()` shows `Main.ToolScratch.var"#phase"()`, and `clock` shows the raw fields of the clock.
+
 - **The refinements the owner asked for, to do before the video is published:**
   - **The typing rhythm.** The take typed with `hold = 0.045` and `jitter = 0.5`, which is faster than a person. Use the rhythm of `make_typein_gestures` itself (`hold = 0.15`, `jitter = 0.6`, `example/kernel/Harness.jl:118`), which is what the owner means by the human one. The forms hold about 1200 characters, so this rhythm adds about two minutes, and the forms must get shorter to stay inside D5.
   - **The forms are long**, because a `GraphicsCircle`, a `GraphicsPolyline` and a `GraphicsLine` with a cell in a field take every positional field. A constructor that takes a function or a cell by keyword would cut the typing in half. It is an API change, and the owner approves it before it is made.
