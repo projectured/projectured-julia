@@ -144,8 +144,8 @@ See also [`FaultStore`](@ref) and [`drain_faults!`](@ref).
 """
 function record_fault!(store::FaultStore, site::Symbol; origin, reference = nothing,
                        exception, traceback = nothing)
-    key = compute_fault_key(site, get_fault_origin_name(origin),
-                            get_fault_exception_name(exception))
+    key = _compute_fault_key(site, _get_fault_origin_name(origin),
+                             _get_fault_exception_name(exception))
     known = get(store.records, key, nothing)
     if known !== nothing
         grown = FaultRecord(known.key, known.site, known.origin, known.exception_type,
@@ -246,18 +246,3 @@ function reset_consecutive_fault_count!(store::FaultStore, counter::Symbol)
 end
 
 reset_consecutive_fault_count!(::Nothing, counter::Symbol) = nothing
-
-"""
-    clear_fault_store!(store) -> store
-
-Forget every record. The `dropped` count is forgotten with them.
-"""
-function clear_fault_store!(store::FaultStore)
-    empty!(store.records)
-    empty!(store.order)
-    empty!(store.undrained)
-    empty!(store.queued_counts)
-    empty!(store.consecutive)
-    store.dropped = 0
-    store
-end

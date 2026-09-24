@@ -12,7 +12,7 @@ The kernel's `FaultModule` holds the record, the store, the policy, the barrier 
 
 | Where | What |
 | --- | --- |
-| `source/kernel/fault/FaultRecord.jl` | `FaultRecord`, `make_fault_record`, `compute_fault_key` |
+| `source/kernel/fault/FaultRecord.jl` | `FaultRecord`, `make_fault_record`, `format_fault_message` |
 | `source/kernel/fault/FaultStore.jl` | `FaultStore`, `record_fault!`, `drain_faults!`, `attach_fault_target!` |
 | `source/kernel/fault/FaultPolicy.jl` | `FaultPolicy`, `make_strict_fault_policy` |
 | `source/kernel/fault/FaultBarrier.jl` | `run_fault_barrier`, the catch of the editor loop |
@@ -98,7 +98,7 @@ A substitute prints the report as a document of the right domain: a red `SyntaxL
 
 ### Why the key holds no reference
 
-A chain limits how far a fault spreads downward. Nothing limits how far it spreads sideways: one bug in one projection fails at every leaf of one kind, which in a large document is thousands of nodes. So `compute_fault_key` holds the site, the origin and the exception type, and not the reference or the message. Three thousand failures become one record with `count = 3000`, and one place kept as an example. A line of the `FaultLog` keeps the key of its record, so the log has one line for each record of the store. The document still shows one mark for each node, because each mark is a value in the cell of its node. The drain gives a record to the log once for each power of ten of its count. So a fault that repeats on every frame does not write the log on every frame.
+A chain limits how far a fault spreads downward. Nothing limits how far it spreads sideways: one bug in one projection fails at every leaf of one kind, which in a large document is thousands of nodes. So the key of a record holds the site, the origin and the exception type, and not the reference or the message. Three thousand failures become one record with `count = 3000`, and one place kept as an example. A line of the `FaultLog` keeps the key of its record, so the log has one line for each record of the store. The document still shows one mark for each node, because each mark is a value in the cell of its node. The drain gives a record to the log once for each power of ten of its count. So a fault that repeats on every frame does not write the log on every frame.
 
 ### Repair
 

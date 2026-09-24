@@ -34,14 +34,12 @@ The module lives in seven fragments that share this namespace:
 module FaultModule
 
 export FaultRecord, FaultStore, FaultPolicy,
-       make_fault_record, compute_fault_key, format_fault_message,
-       format_fault_traceback,
+       make_fault_record, format_fault_message,
        record_fault!, drain_faults!, attach_fault_target!, attach_fault_wake!,
        get_consecutive_fault_count, reset_consecutive_fault_count!,
-       clear_fault_store!, get_fault_records,
+       get_fault_records,
        append_fault!, play_fault_sound!, is_passthrough_exception,
        get_fault_store, make_safe_mode_projection,
-       get_fault_origin_name, get_fault_exception_name,
        report_fault!, run_fault_barrier,
        make_strict_fault_policy
 

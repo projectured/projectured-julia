@@ -40,7 +40,7 @@ struct FaultRecord
 end
 
 """
-    compute_fault_key(site, origin, exception_type) -> UInt64
+    _compute_fault_key(site, origin, exception_type) -> UInt64
 
 What makes two faults the same one.
 
@@ -58,11 +58,11 @@ index 7 carry different messages and the same bug.
 
 # Example
 
-    key = compute_fault_key(:print, :JsonToSyntax, :BoundsError)
+    key = _compute_fault_key(:print, :JsonToSyntax, :BoundsError)
 
 See also [`FaultRecord`](@ref).
 """
-compute_fault_key(site::Symbol, origin::Symbol, exception_type::Symbol) =
+_compute_fault_key(site::Symbol, origin::Symbol, exception_type::Symbol) =
     hash((site, origin, exception_type))
 
 """
@@ -85,7 +85,7 @@ function format_fault_message(exception; maximum_length::Integer = 400)
 end
 
 """
-    format_fault_traceback(exception, traceback; maximum_lines = 12) -> String
+    _format_fault_traceback(exception, traceback; maximum_lines = 12) -> String
 
 The traceback of `exception`, truncated to the frames nearest the failure.
 
@@ -93,7 +93,7 @@ It never throws, and it answers `""` where no traceback was taken. Formatting a
 traceback is expensive, so `record_fault!` formats one only for a key the store
 has not seen.
 """
-function format_fault_traceback(exception, traceback; maximum_lines::Integer = 12)
+function _format_fault_traceback(exception, traceback; maximum_lines::Integer = 12)
     traceback === nothing && return ""
     text = try
         sprint(showerror, exception, traceback)
@@ -123,28 +123,28 @@ See also [`record_fault!`](@ref), which makes one only when the key is new.
 """
 function make_fault_record(site::Symbol; origin, reference = nothing, exception,
                            traceback = nothing)
-    origin_name = get_fault_origin_name(origin)
-    exception_name = get_fault_exception_name(exception)
-    FaultRecord(compute_fault_key(site, origin_name, exception_name),
+    origin_name = _get_fault_origin_name(origin)
+    exception_name = _get_fault_exception_name(exception)
+    FaultRecord(_compute_fault_key(site, origin_name, exception_name),
                 site, origin_name, exception_name,
                 format_fault_message(exception),
-                format_fault_traceback(exception, traceback),
+                _format_fault_traceback(exception, traceback),
                 reference, time(), 1)
 end
 
 """
-    get_fault_origin_name(origin) -> Symbol
+    _get_fault_origin_name(origin) -> Symbol
 
 The name to record for the thing that failed.
 """
-get_fault_origin_name(origin::Symbol) = origin
-get_fault_origin_name(origin::Type) = nameof(origin)
-get_fault_origin_name(origin::Nothing) = :unknown
-get_fault_origin_name(origin) = nameof(typeof(origin))
+_get_fault_origin_name(origin::Symbol) = origin
+_get_fault_origin_name(origin::Type) = nameof(origin)
+_get_fault_origin_name(origin::Nothing) = :unknown
+_get_fault_origin_name(origin) = nameof(typeof(origin))
 
 """
-    get_fault_exception_name(exception) -> Symbol
+    _get_fault_exception_name(exception) -> Symbol
 
 The name to record for the exception.
 """
-get_fault_exception_name(exception) = nameof(typeof(exception))
+_get_fault_exception_name(exception) = nameof(typeof(exception))
