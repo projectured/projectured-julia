@@ -98,12 +98,16 @@ function test_frame_samples()
         store = FrameSampleStore(capacity = 3)
         record_frame_sample!(store, [:frame_time => 0.010, :reads => 5]; end_time = 100.0)
         record_frame_sample!(store, [:frame_time => 0.020]; end_time = 100.5)
+        record_frame_sample!(store, [:frame_time => 0.0123456, :reads => 7];
+                             end_time = 100.5160000001)
         io = IOBuffer()
-        @test write_frame_samples!(io, store) == 2
+        @test write_frame_samples!(io, store) == 3
+        # A time is rounded to a microsecond.
         @test String(take!(io)) == """
             frame,end_time_s,frame_time_ms,reads
             1,0,10,5
             2,0.5,20,
+            3,0.516,12.346,7
             """
     end
 

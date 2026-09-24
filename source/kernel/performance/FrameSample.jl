@@ -185,12 +185,13 @@ function collect_recent_frame_samples(store::FrameSampleStore)
      columns = [name => store.columns[name][slots] for name in store.names])
 end
 
-# One CSV field: nothing for `NaN`, an integer for a whole number, and the
-# shortest text that reads back as the same number otherwise.
-function _format_frame_sample_field(value::Float64)
+# One CSV field: nothing for `NaN`, and otherwise the number rounded to `digits`
+# decimals, written as an integer when it is a whole number.
+function _format_frame_sample_field(value::Float64; digits::Integer)
     isnan(value) && return ""
-    isinteger(value) && abs(value) < 1e15 && return string(Int(value))
-    string(value)
+    rounded = round(value; digits)
+    isinteger(rounded) && abs(rounded) < 1e15 && return string(Int(rounded))
+    string(rounded)
 end
 
 """
@@ -202,8 +203,9 @@ wrote.
 
 The columns are `frame`, the frame number since the start; `end_time_s`, the
 seconds from the end of the first frame written; and one column for each
-measurement. A time is in milliseconds and its column name ends in `_ms`. A
-field is empty where a frame did not measure the name.
+measurement. A time is in milliseconds and its column name ends in `_ms`. Every
+time is rounded to a microsecond. A field is empty where a frame did not
+measure the name.
 
 Use it to keep the frames of a session, or to plot them in another program.
 
@@ -223,11 +225,12 @@ function write_frame_samples!(io::IO, store::FrameSampleStore)
     println(io, join(headers, ","))
     start = isempty(samples.end_times) ? 0.0 : first(samples.end_times)
     for (index, frame) in enumerate(samples.frames)
-        fields = [string(frame),
-                  _format_frame_sample_field(samples.end_times[index] - start)]
+        seconds = samples.end_times[index] - start
+        fields = [string(frame), _format_frame_sample_field(seconds; digits = 6)]
         for (name, values) in samples.columns
-            scale = is_frame_time_measurement(name) ? 1000.0 : 1.0
-            push!(fields, _format_frame_sample_field(values[index] * scale))
+            push!(fields, is_frame_time_measurement(name) ?
+                          _format_frame_sample_field(1000 * values[index]; digits = 3) :
+                          _format_frame_sample_field(values[index]; digits = 6))
         end
         println(io, join(fields, ","))
     end
