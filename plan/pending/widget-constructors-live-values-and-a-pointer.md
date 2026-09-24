@@ -272,3 +272,13 @@ sealed).
         of the pane; and `presses = Cell(0)` shows `Cell(primitive, 0)`.
 - [ ] Step 6: a cell that is a result follows the cell (§3.7), with a test.
 - [ ] Step 7: the landing of both repositories, when the owner says so.
+      **Landed, not pushed** (2026-09-24, "land in main first"): projectured-julia
+      `main` f954f90e and omnet-julia `main` b532199b, by fast-forward. Both mains
+      moved twice while the branches were tested (the cell renames
+      `ComputedCell` → `Cell(Computed(f))` → `Cell(@computation expr)`), so both
+      branches were built again twice on the newest main: the commits before and
+      after the keyword change were applied again, and the keyword change was
+      made again by its three scripts, which found the same 619 calls each time.
+      The 16 suites of projectured-julia and the 76 of omnet-julia gave the same
+      counts over main and over the branches, apart from the 33 new tests and the
+      untracked `mm1k/` of the omnet checkout. Steps 5 and 6 are still open.
