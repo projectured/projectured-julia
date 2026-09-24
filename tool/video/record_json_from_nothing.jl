@@ -70,9 +70,13 @@ function _with_gesture_overlay(projection; capacity = GESTURE_LINES, measure = m
         log = log, filter = _shows_in_overlay)
 end
 
+# The take starts from an empty JSON document. Its placeholder draws `empty json`,
+# and `{` on it makes the object.
+make_seed() = JsonNothing()
+
 function make_editor()
     example = only(live.example for live in live_examples if live.name == "json_build")
-    document = example.make_document()
+    document = make_seed()
     # The check keeps every line of the log, to show the longest one.
     projection = GESTURES ? _with_gesture_overlay(example.make_projection(); capacity = 1000,
                                                   measure = measure_truetype_text) :
@@ -121,8 +125,9 @@ function main()
     end
     "--check" in ARGS && return
     build = only(live.example for live in live_examples if live.name == "json_build")
-    example = GESTURES ? Example("json_from_nothing", build.make_document,
-                                 () -> _with_gesture_overlay(build.make_projection())) : build
+    example = Example("json_from_nothing", make_seed,
+                      GESTURES ? () -> _with_gesture_overlay(build.make_projection()) :
+                                 build.make_projection)
     live = LiveExample("json_from_nothing", example, TIMELINE;
                        initial_selection = EmptyReference(),
                        width = WIDTH, height = HEIGHT, fps = FPS)
