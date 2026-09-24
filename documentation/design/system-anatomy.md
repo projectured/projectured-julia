@@ -34,7 +34,7 @@ mechanism see the [reference guide](../package/kernel/reference.md) and
                            │                    │                  │
                     ┌──────▼────────────────────▼──────────────────▼──────┐
                     │              Reactive Cell Engine                    │
-                    │              (kernel layer 2 — `cell/`)             │
+                    │              (kernel layer 3 — `cell/`)             │
                     └─────────────────────────────────────────────────────┘
 ```
 
@@ -80,9 +80,10 @@ for the rules.
 
 ```
 ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
-        ▲                      18 layers: fault → cell → clock → event → device → gesture →
-        │                      backend → document → reference → selection → operation →
-        │                      binding → iomap → projection → tool → llm → agent → editor
+        ▲                      23 layers: fault → performance → cell → struct → clock → event →
+        │                      device → gesture → backend → document → reference →
+        │                      selection → operation → intent → binding → iomap →
+        │                      projection → tool → llm → agent → feed → editor → playback
         │                      Zero runtime deps, zero concrete documents.
 The substrate: 28 packages     one concept each, an acyclic package graph
         ▲                      the vocabulary — collection, primitive, domain,
@@ -189,12 +190,13 @@ the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 
 ### Stage 0 — Reactive Cell Engine
 
-**kernel layer 2 — `cell/`** (`CellModule`)
+**kernel layer 3 — `cell/`** (`CellModule`)
 
 - `AbstractCell` and three kinds: `ReactiveCell` (tracks dependencies and
   invalidates lazily), `MutableCell` (a plain writable box), and `ImmutableCell`
-  (a frozen value). `Cell` is the constructor that picks the kind. `@cell_struct`
-  generates structs whose fields are transparently cell-backed.
+  (a frozen value). `Cell` is the constructor that picks the kind. The struct
+  layer above it holds `@cell_struct`, which generates structs whose fields are
+  transparently cell-backed.
 - **Pull-based lazy evaluation:** computed cells evaluate only on read (`c[]`).
 - **Automatic dependency tracking:** a per-task (task-local) computing stack
   registers every cell read during a computation as an upstream dependency.
@@ -347,7 +349,7 @@ The substrate packages form their own DAG, and so do the twenty domains.
 [package-rules.md](../rule/package-rules.md) has the substrate table; [domain-inventory.md](domain-inventory.md)
 has the domain table.
 
-### The 18 kernel layers
+### The 23 kernel layers
 
 In include order, each importing only layers above it in this list — the order
 [package/ProjecturedKernel/src/ProjecturedKernel.jl](../../package/ProjecturedKernel/src/ProjecturedKernel.jl)
@@ -357,37 +359,46 @@ includes them in:
  1 fault       the FaultRecord, the FaultStore a computation may write, the FaultPolicy,
                run_fault_barrier and the report_fault! cascade. It imports nothing,
                which is why it comes first: every layer above can report.
- 2 cell        AbstractCell + the ReactiveCell / MutableCell / ImmutableCell kinds,
-               @cell_struct, the per-frame performance counters
- 3 clock       the animation Clock (a @cell_struct with a reactive time field),
+ 2 performance the per-frame performance counters and the FrameMeasurementStore of
+               an editor
+ 3 cell        AbstractCell + the ReactiveCell / MutableCell / ImmutableCell kinds,
+               Computation and @computation
+ 4 struct      @cell_struct, CellStructPlan and the builders of a struct of cells
+ 5 clock       the animation Clock (a @cell_struct with a reactive time field),
                get_clock_time / set_clock_time!, the get_wall_clock singleton
- 4 event       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys,
+ 6 event       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys,
                KeyDown/KeyPress/Mouse*/Window*, WindowInput), the event pattern
                language (EventPattern, matches, describe, @event_case)
- 5 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
- 6 gesture     event → gesture recognition (MousePress / KeyChord synthesis)
- 7 backend     the Backend seam (lifecycle, text, device I/O, display size, device
+ 7 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
+ 8 gesture     event → gesture recognition (MousePress / KeyChord synthesis)
+ 9 backend     the Backend seam (lifecycle, text, device I/O, display size, device
                config, image/video output)
- 8 document    the Document supertype, @document, the is_element_collection /
+10 document    the Document supertype, @document, the is_element_collection /
                is_walk_opaque traits, search_documents
- 9 reference   ReferenceStep / Reference and the step seam, evaluate_reference,
+11 reference   ReferenceStep / Reference and the step seam, evaluate_reference,
                search_references, the @reference / @reference_case /
                @reference_rules DSLs
-10 selection   get_selection / set_selection! / clear_selection! / with_selection
-11 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
-12 binding     GestureBinding, the per-document-type registry, @gestures /
+12 selection   get_selection / set_selection! / clear_selection! / with_selection
+13 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
+14 intent      Intent and ClaimedGesture, the unit that flows back through the
+               readers, CollectIntents and CollectedIntentsOperation
+15 binding     GestureBinding, the per-document-type registry, @gestures /
                @gesture_set, read_gesture / read_bound_gesture
-13 iomap       the IoMap contract (IoMap + accessors) and the concrete IO maps
+16 iomap       the IoMap contract (IoMap + accessors) and the concrete IO maps
                (SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap)
-14 projection  the four interface functions, Intent, @projection,
-               ProjectionTemplate, ProjectionReferenceStep
-15 tool        the editor's capability surface: Tool / Resource / ToolSet,
+17 projection  the four interface functions, @projection, ProjectionTemplate,
+               ProjectionReferenceStep
+18 tool        the editor's capability surface: Tool / Resource / ToolSet,
                execute_julia_code, doc/API search, register_default_tools!
-16 llm         the LLM provider abstraction: Llm, stream_turn, render_tool_schema,
+19 llm         the LLM provider abstraction: Llm, stream_turn, render_tool_schema,
                LlmMessage / LlmRequest, LlmEvent
-17 agent       the AI control surface: AgentModule (inbound, the MCP
+20 agent       the AI control surface: AgentModule (inbound, the MCP
                seam) and AgentModule (outbound, the Agent and run_turn! loop)
-18 editor      run_editor!, the read-eval-print loop, Playback
+21 feed        the feed contract: a registered inflow that the editor moves into a
+               target document once per frame
+22 editor      run_editor!, the read-eval-print loop
+23 playback    scripted live playback: a timeline that fires in the editor loop on a
+               wall-clock schedule
 ```
 
 **The twenty-eight substrate packages**, in a topological order. Each is one
@@ -486,7 +497,7 @@ for adding one.
 | Web backend (browser renderer) | `backend/Web.jl` | ✅ (new in Julia port) |
 | PDF export backend | `backend/Pdf.jl` | ✅ |
 | IO Maps | `IoMapDefaults.jl` + per-projection | ✅ |
-| References | `reference/` (layer 9) | ✅ |
+| References | `reference/` (layer 11) | ✅ |
 | Navigation operations | `Operations.jl` (`ReplaceSelectionOperation`) | ✅ |
 | Editor REPL | `EditorModule.jl` | ✅ |
 | All higher-order projections | `projection/higherorder/` | ✅ |
