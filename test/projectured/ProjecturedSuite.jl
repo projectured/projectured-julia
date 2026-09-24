@@ -73,10 +73,11 @@ import ProjecturedSubstrateTest: test_substrate
 import ProjecturedKernelTest: test_printer, test_reader, test_repl,
                               explore_selections, test_navigation,
                               walk_printer_output, walk_reader_events, walk_repl_loop,
-                              test_event_case, test_gesture_binding, test_focusing,
+                              test_event_case, test_gesture_binding,
                               WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
                               _ALL_READER_EVENTS, _assert_reaches_all
-import ProjecturedSubstrateTest: collect_position_selections, collect_tree_selections
+import ProjecturedSubstrateTest: collect_position_selections, collect_tree_selections,
+                                 test_focusing
 # The navigation presets over the generic driver (position + tree gesture sets).
 import ProjecturedSubstrateTest: test_position_navigation, test_tree_navigation,
                               explore_position_selections, explore_tree_selections
