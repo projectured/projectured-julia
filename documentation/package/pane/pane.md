@@ -221,7 +221,7 @@ A path to a node that the tree does not hold is not fully typed, and every verb 
 run_example(pane_example)         # three groups, four tabs
 run_example(empty_pane_example)   # one empty group
 
-reference = open_pane!(editor, WidgetLabel(Point2D(0, 0), "The delay of every run"); title = "Note")
+reference = open_pane!(editor, WidgetLabel("The delay of every run"); title = "Note")
 focus_pane!(editor, reference)
 show_layout(editor)
 tree_reference = find_pane_tree_reference(editor)

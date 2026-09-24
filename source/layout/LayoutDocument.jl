@@ -49,7 +49,7 @@ of 120 pixels, a row of buttons 32 pixels high. A layout takes it as
 
 # Example
 
-    open_pane!(editor, VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "Runs"), WidgetLabel(Point2D(0, 0), "Results")];
+    open_pane!(editor, VerticalLayout(Any[WidgetLabel("Runs"), WidgetLabel("Results")];
                                       gap = 4, child_width = Fixed(200));
                title = "Fixed width")
 
@@ -68,7 +68,7 @@ button beside a field that fills the rest. It is the default of every layout.
 
 # Example
 
-    open_pane!(editor, GridLayout(Any[WidgetLabel(Point2D(0, 0), "Filter"), WidgetText(Point2D(0, 0), ""; width = 120)], 2;
+    open_pane!(editor, GridLayout(Any[WidgetLabel("Filter"), WidgetText(""; width = 120)], 2;
                                   column_policies = [Content, Fill]);
                title = "Form")
 

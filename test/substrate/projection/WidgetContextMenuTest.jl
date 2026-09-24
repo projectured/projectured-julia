@@ -18,7 +18,7 @@ proj = make_layout_projection_example()
 
 @testset "a right click opens the menu at the pointer" begin
     menu  = WidgetMenu([WidgetMenuItem("Cut"), WidgetMenuItem("Copy"), WidgetMenuItem("Paste")])
-    child = WidgetLabel(Point2D(0, 0), "right-click me")
+    child = WidgetLabel("right-click me")
     wrap  = WidgetContextMenu(child, menu)
     iomap = print_document(proj, wrap)
 
@@ -35,7 +35,7 @@ end
 
 @testset "a left click routes to the child, not the menu" begin
     fired = Ref(0)
-    btn   = WidgetButton(Point2D(0, 0), Point2D(80, 24), "OK"; action = (_e) -> (fired[] += 1))
+    btn   = WidgetButton("OK"; size = Point2D(80, 24), action = (_e) -> (fired[] += 1))
     menu  = WidgetMenu([WidgetMenuItem("X")])
     wrap  = WidgetContextMenu(btn, menu)
     iomap = print_document(proj, wrap)
@@ -50,20 +50,20 @@ end
 
 @testset "a disabled wrapper ignores the right click" begin
     menu  = WidgetMenu([WidgetMenuItem("X")])
-    wrap  = WidgetContextMenu(WidgetLabel(Point2D(0, 0), "x"), menu; enabled = false)
+    wrap  = WidgetContextMenu(WidgetLabel("x"), menu; enabled = false)
     iomap = print_document(proj, wrap)
     @test read_intent(proj, iomap, MousePress(:right, 5, 5, ModifierKeys())) === nothing
 end
 
 @testset "a wrapper with no menu is inert on right click" begin
-    wrap  = WidgetContextMenu(WidgetLabel(Point2D(0, 0), "x"), nothing)
+    wrap  = WidgetContextMenu(WidgetLabel("x"), nothing)
     iomap = print_document(proj, wrap)
     @test read_intent(proj, iomap, MousePress(:right, 5, 5, ModifierKeys())) === nothing
 end
 
 @testset "the resolver places the menu at the pointer (absolute OpenWindowOperation)" begin
     menu = WidgetMenu([WidgetMenuItem("Cut"), WidgetMenuItem("Copy")])
-    wrap = WidgetContextMenu(WidgetLabel(Point2D(0, 0), "target"), menu)
+    wrap = WidgetContextMenu(WidgetLabel("target"), menu)
     # Mirror the real pipeline (as WidgetSelectTest does): the resolver wraps the
     # content projection, isolated through a NestingProjection.
     inner    = NestingProjection(proj; recursion = IdentityProjection())

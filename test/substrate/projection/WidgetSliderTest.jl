@@ -5,7 +5,7 @@ end
 # A lone slider at 0.3 on a track of 240 px, printed by the widget renderer, and
 # the height at which a pointer is on its track.
 function _make_slider_iomap()
-    slider = WidgetSlider(Point2D(0, 0), 0.3; width = 240)
+    slider = WidgetSlider(0.3; width = 240)
     projection = RecursiveProjection(TypeDispatchingProjection(
         WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = (t, f) -> (length(t) * 10, 24)).dispatch))
     iomap = print_document(projection, nothing, slider, PrinterContext())

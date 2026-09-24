@@ -8,7 +8,7 @@ function test_pane_to_widget()
 @testset "PaneToWidget" begin
 
 _stub(t, f) = (max(1, length(t)) * 10, 24)
-_tab(name) = PaneTab(name, WidgetLabel(Point2D(0, 0), name))
+_tab(name) = PaneTab(name, WidgetLabel(name))
 _pane_stage() = RecursiveProjection(PaneToWidget())
 # The pane tree prints as an overlay composite: the layout in slot 1, the drop
 # indicator in slot 2. Slot 1 is what these tests are about.

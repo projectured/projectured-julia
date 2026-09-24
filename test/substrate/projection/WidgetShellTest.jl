@@ -38,7 +38,7 @@ function test_widget_shell_layout()
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
     offer(w, h) = with_available_size(PrinterContext();
                                       width = Cell(Int32(w)), height = Cell(Int32(h)))
-    shell() = WidgetShell(WidgetScrollPane(WidgetLabel(Point2D(0, 0), "body");
+    shell() = WidgetShell(WidgetScrollPane(WidgetLabel("body");
                                            size = Point2D(0, 0));
                           menu_bar = WidgetMenu(Any[WidgetMenuItem("File"),
                                                     WidgetMenuItem("View")];
@@ -109,8 +109,8 @@ function test_widget_shell_pointer()
     _unmark(op) = op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op
 
     @testset "a down on a tab starts a drag of that tab" begin
-        tabs = WidgetTabbedPane(Any[("One", WidgetLabel(Point2D(0, 0), "first")),
-                                    ("Two", WidgetLabel(Point2D(0, 0), "second"))];
+        tabs = WidgetTabbedPane(Any[("One", WidgetLabel("first")),
+                                    ("Two", WidgetLabel("second"))];
                                 draggable = true)
         iomap = print_document(rec, nothing, framed(tabs), offer(800, 600))
         texts, _ = _shell_layout_walk(iomap.output)
@@ -121,8 +121,8 @@ function test_widget_shell_pointer()
     end
 
     @testset "a divider drag keeps its band over the status line" begin
-        split = WidgetSplitPane(:horizontal, Any[WidgetLabel(Point2D(0, 0), "left"),
-                                                 WidgetLabel(Point2D(0, 0), "right")];
+        split = WidgetSplitPane(:horizontal, Any[WidgetLabel("left"),
+                                                 WidgetLabel("right")];
                                 sizes = [300, 300])
         iomap = print_document(rec, nothing, framed(split), offer(800, 600))
         # The divider: the first point at mid-height where a down grabs it.

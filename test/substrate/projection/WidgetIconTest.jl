@@ -31,7 +31,7 @@ function test_widget_icon()
 @testset "Icons" begin
 
 proj = make_widget_projection_example()
-_btn(; kw...) = print_document(proj, WidgetButton(Point2D(0, 0), Point2D(0, 0), "Save"; kw...)).output
+_btn(; kw...) = print_document(proj, WidgetButton("Save"; kw...)).output
 
 @testset "a built-in icon is a glyph of the icon font, and it widens the button" begin
     plain  = _btn()
@@ -57,7 +57,7 @@ end
 
 @testset "a bound command's icon drives the button (Action.icon)" begin
     save = Action("Save"; icon = :save)
-    b = print_document(proj, WidgetButton(Point2D(0, 0), Point2D(0, 0), save)).output
+    b = print_document(proj, WidgetButton(save)).output
     @test _glyphs_of(b) == [_glyph(:save)]
 end
 
@@ -87,10 +87,10 @@ end
 end
 
 @testset "a tabbed pane draws an icon on a 3-tuple tab" begin
-    plain = print_document(proj, WidgetTabbedPane([("A", WidgetLabel(Point2D(0,0), "x")),
-                                                     ("B", WidgetLabel(Point2D(0,0), "y"))])).output
-    iconed = print_document(proj, WidgetTabbedPane([("A", WidgetLabel(Point2D(0,0), "x"), :folder),
-                                                      ("B", WidgetLabel(Point2D(0,0), "y"))])).output
+    plain = print_document(proj, WidgetTabbedPane([("A", WidgetLabel("x")),
+                                                     ("B", WidgetLabel("y"))])).output
+    iconed = print_document(proj, WidgetTabbedPane([("A", WidgetLabel("x"), :folder),
+                                                      ("B", WidgetLabel("y"))])).output
     @test !(_glyph(:folder) in _glyphs_of(plain))          # icon-less tabs
     @test _glyph(:folder) in _glyphs_of(iconed)            # the :folder tab icon
 end
@@ -129,8 +129,8 @@ end
 end
 
 @testset "a label with a font of its own writes an icon in the theme's color" begin
-    plain = only(_prims_of(print_document(proj, WidgetLabel(Point2D(0, 0), "x")).output, GraphicsText))
-    icon = only(_prims_of(print_document(proj, WidgetLabel(Point2D(0, 0), _glyph(:loader);
+    plain = only(_prims_of(print_document(proj, WidgetLabel("x")).output, GraphicsText))
+    icon = only(_prims_of(print_document(proj, WidgetLabel(_glyph(:loader);
                                                            text_style = font_lucide_icons_20)).output,
                           GraphicsText))
     @test _is_icon_glyph(icon)
@@ -140,7 +140,7 @@ end
 end
 
 @testset "a tree node draws its registered icon" begin
-    tr = WidgetTree(Point2D(0, 0), Any[
+    tr = WidgetTree(Any[
         WidgetTreeNode(:folder, "src", Any[WidgetTreeNode(:file, "a.jl")]),
     ])
     canvas = print_document(proj, tr).output
@@ -152,7 +152,7 @@ end
     src = only(t for t in texts if string(_icon_value(t.text)) == "src")
     @test Int(_icon_value(src.x)) > Int(_icon_value(folder.x)) + _icon_value(folder.font).size
     # An icon-less tree (bare tuple form) draws no icon of a node.
-    tuple_tree = WidgetTree(Point2D(0, 0), Any[("src", Any["a.jl"])])
+    tuple_tree = WidgetTree(Any[("src", Any["a.jl"])])
     glyphs = _glyphs_of(print_document(proj, tuple_tree).output)
     @test !(_glyph(:folder) in glyphs) && !(_glyph(:file) in glyphs)
 end

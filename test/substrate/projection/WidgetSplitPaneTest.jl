@@ -14,7 +14,7 @@ _proj() = make_widget_projection_example(measure = _stub)
 _direct() = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
     WidgetToGraphics(font_ubuntu_regular_20; measure = _stub).dispatch)))
-_label(text) = WidgetLabel(Point2D(0, 0), text)
+_label(text) = WidgetLabel(text)
 
 # The whole drawn tree as a string, viewports included.
 function shape(node, depth = 0)
@@ -60,7 +60,7 @@ end
     # click must reach a slot that was added after the print.
     pane = WidgetSplitPane(:horizontal, Any[_label("one"), _label("two")])
     standing = print_document(_direct(), pane)
-    push!(pane.elements, WidgetButton(Point2D(0, 0), Point2D(60, 24), "press"))
+    push!(pane.elements, WidgetButton("press"; size = Point2D(60, 24)))
 
     entries = getfield(standing, :child_iomaps)[]
     @test length(entries) == 3

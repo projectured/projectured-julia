@@ -27,8 +27,8 @@ _bproj() = ChainingProjection(
                         (doc, evt) -> InvokeActionOperation(doc.action);
                         applicable = _always, description = "context menu",
                         domain = "test")
-    btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go";
-                       action = (_e) -> (fired[] = true), gestures = [rc])
+    btn = WidgetButton("Go";
+                       size = Point2D(120, 40), action = (_e) -> (fired[] = true), gestures = [rc])
     proj = _bproj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
     # The built-in primary op still handles left-click.
@@ -46,8 +46,8 @@ end
                             applicable = _always, description = "custom left",
                             domain = "test")
     fired = Ref(false)
-    btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go";
-                       action = (_e) -> (fired[] = true), gestures = [shadow])
+    btn = WidgetButton("Go";
+                       size = Point2D(120, 40), action = (_e) -> (fired[] = true), gestures = [shadow])
     proj = _bproj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
     op = read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys()))
@@ -60,8 +60,8 @@ end
     suppress = GestureBinding(MousePressPattern(:left),
                               (doc, evt) -> DoNothingOperation(); applicable = _always,
                               description = "disabled left", domain = "test")
-    btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go";
-                       action = (_e) -> (fired[] = true), gestures = [suppress])
+    btn = WidgetButton("Go";
+                       size = Point2D(120, 40), action = (_e) -> (fired[] = true), gestures = [suppress])
     proj = _bproj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
     op = read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys()))
@@ -72,7 +72,7 @@ end
 
 @testset "button: a plain button with no gestures is unchanged" begin
     fired = Ref(false)
-    btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go"; action = (_e) -> (fired[] = true))
+    btn = WidgetButton("Go"; size = Point2D(120, 40), action = (_e) -> (fired[] = true))
     proj = _bproj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
     @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys())) isa InvokeActionOperation
@@ -89,7 +89,7 @@ end
     rc = GestureBinding(MousePressPattern(:right),
                         (doc, evt) -> (fired[] = true; DoNothingOperation());
                         applicable = _always, description = "context", domain = "test")
-    cb = WidgetCheckbox(Point2D(0, 0), false; gestures = [rc])
+    cb = WidgetCheckbox(false; gestures = [rc])
     proj = _bproj()
     iomap = print_document(proj, nothing, cb, PrinterContext())
     op = read_intent(proj, iomap, MousePress(:right, 5, 5, ModifierKeys()))
@@ -102,7 +102,7 @@ end
     rc = GestureBinding(MousePressPattern(:right),
                         (doc, evt) -> (fired[] = true; DoNothingOperation());
                         applicable = _always, description = "context", domain = "test")
-    sw = WidgetSwitch(Point2D(0, 0), false; gestures = [rc])
+    sw = WidgetSwitch(; checked = false, gestures = [rc])
     proj = _bproj()
     iomap = print_document(proj, nothing, sw, PrinterContext())
     op = read_intent(proj, iomap, MousePress(:right, 5, 5, ModifierKeys()))
@@ -134,7 +134,7 @@ _pathref(i) = ConcreteReference(FieldReferenceStep("roots"),
                         (node, evt) -> (opened[] = true; DoNothingOperation());
                         applicable = _always, description = "open", domain = "test-node")
     node = WidgetTreeNode(:file, "a.jl"; gestures = [nb])
-    w = WidgetTree(Point2D(0, 0), Any[node])
+    w = WidgetTree(Any[node])
     io = print_document(_treeproj, w)
     row = io.geometry.rows[1]
     op = _readop(io, MousePress(:right, row.chevron_x1 + 2, row.y0 + 2, ModifierKeys()))
@@ -144,7 +144,7 @@ end
 
 @testset "tree: a node without a binding still selects on left-click" begin
     node = WidgetTreeNode(:file, "a.jl")            # no gestures
-    w = WidgetTree(Point2D(0, 0), Any[node])
+    w = WidgetTree(Any[node])
     io = print_document(_treeproj, w)
     row = io.geometry.rows[1]
     op = _readop(io, MousePress(:left, row.chevron_x1 + 2, row.y0 + 2, ModifierKeys()))
@@ -157,7 +157,7 @@ end
                         (node, evt) -> (entered[] = true; DoNothingOperation());
                         applicable = _always, description = "enter", domain = "test-node")
     node = WidgetTreeNode(:file, "a.jl"; gestures = [kb])
-    w = WidgetTree(Point2D(0, 0), Any[node])
+    w = WidgetTree(Any[node])
     io = print_document(_treeproj, w)
     getfield(w, :selection)[] = _pathref(1)          # select the node
     op = _readop(io, KeyDown(:return, ModifierKeys()))

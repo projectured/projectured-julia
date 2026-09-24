@@ -175,7 +175,7 @@ end
 
 @testset "an override wins, a state keeps its field, a disabled widget ignores the override" begin
     red_surface = WidgetStyle(padding_color = red, content_color = red)
-    button(; kw...) = WidgetButton(Point2D(0, 0), Point2D(0, 0), "Save"; style = red_surface, kw...)
+    button(; kw...) = WidgetButton("Save"; style = red_surface, kw...)
     @test _has_color(_drawn_colors(render(default_projection, button())), red)
     @test !_has_color(_drawn_colors(render(default_projection, button(enabled = false))), red)
     # A hovered button draws its layer over the surface that the override gives.
@@ -185,7 +185,7 @@ end
     @test _has_color(colors, red) && _has_color(colors, theme.hover_layer)
     # The override of the normal state does not reach the checked state, and
     # the override of the checked state does.
-    on(style) = WidgetToggle(Point2D(0, 0), "Bold"; pressed = true, style)
+    on(style) = WidgetToggle("Bold"; pressed = true, style)
     normal_only = _drawn_colors(render(default_projection,
         on(WidgetToggleStyle(padding_color = red, content_color = red))))
     @test !_has_color(normal_only, red) && _has_color(normal_only, theme.accent)
@@ -197,7 +197,7 @@ end
     margin_color, border_color, padding_color, content_color =
         StyleColor(1.0, 0.0, 0.0, 1.0), StyleColor(0.0, 1.0, 0.0, 1.0),
         StyleColor(0.0, 0.0, 1.0, 1.0), StyleColor(1.0, 1.0, 0.0, 1.0)
-    label = WidgetLabel(Point2D(0, 0), "Runs"; margin = Inset(3, 3, 3, 3), border = Inset(2, 2, 2, 2),
+    label = WidgetLabel("Runs"; margin = Inset(3, 3, 3, 3), border = Inset(2, 2, 2, 2),
                         padding = Inset(5, 5, 5, 5),
                         style = WidgetStyle(; margin_color, border_color, padding_color, content_color))
     output = render(default_projection, label)
@@ -221,14 +221,14 @@ end
 @testset "a transparent part adds no element" begin
     # The page of a tabbed pane is transparent by default and adds no rect; a
     # page color adds one.
-    tabs(; kw...) = WidgetTabbedPane([("One", WidgetLabel(Point2D(0, 0), "a"))]; kw...)
+    tabs(; kw...) = WidgetTabbedPane([("One", WidgetLabel("a"))]; kw...)
     @test !_has_color(_drawn_colors(render(default_projection, tabs())), red)
     @test count(c -> is_color_equal(c, red),
                 _drawn_colors(render(default_projection, tabs(style = WidgetTabbedPaneStyle(page_color = red))))) == 1
     # A label draws no box at all by default.
-    @test isempty(_drawn_rects(render(default_projection, WidgetLabel(Point2D(0, 0), "a"))))
+    @test isempty(_drawn_rects(render(default_projection, WidgetLabel("a"))))
     # A transparent surface with a visible border keeps the rect of its outline.
-    clear = WidgetText(Point2D(0, 0), "x";
+    clear = WidgetText("x";
                        style = WidgetStyle(padding_color = color_transparent, content_color = color_transparent))
     rects = _drawn_rects(render(default_projection, clear))
     @test any(r -> is_color_transparent(r.color) && Int(r.border_width) == 1 &&

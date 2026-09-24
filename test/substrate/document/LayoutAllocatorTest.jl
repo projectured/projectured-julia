@@ -99,7 +99,7 @@ end # test_layout_allocator
 function test_layout_constraint_helpers()
 @testset "LayoutConstraint — defaults" begin
 
-bare = WidgetLabel(Point2D(0, 0), "x")
+bare = WidgetLabel("x")
 @test layout_min(bare,       :x, 100) == 0
 @test layout_max(bare,       :x, 100) == typemax(Int)
 @test layout_preferred(bare, :x, 100) == 100
@@ -109,7 +109,7 @@ end # @testset
 
 @testset "LayoutConstraint — overrides applied per axis" begin
 
-inner = WidgetLabel(Point2D(0, 0), "x")
+inner = WidgetLabel("x")
 wrapped = LayoutConstraint(inner;
                            min_width=50, max_width=300, preferred_width=200, weight_width=0.5,
                            min_height=10, max_height=20)
@@ -127,7 +127,7 @@ end # @testset
 
 @testset "LayoutConstraint — reactive updates" begin
 
-inner = WidgetLabel(Point2D(0, 0), "x")
+inner = WidgetLabel("x")
 wrapped = LayoutConstraint(inner; weight_width=0.3)
 @test layout_weight(wrapped, :x) == 0.3
 wrapped.weight_width = 0.7

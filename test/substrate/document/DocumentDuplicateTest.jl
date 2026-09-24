@@ -16,7 +16,7 @@ function _refusal(document)
     end
 end
 
-_label(text) = WidgetLabel(Point2D(0, 0), text)
+_label(text) = WidgetLabel(text)
 
 @testset "an empty tab duplicates into another empty tab" begin
     empty = DocumentNothing()
@@ -54,8 +54,8 @@ end
 end
 
 @testset "a button shares its command, which every control that shows it shares" begin
-    button = WidgetButton(Point2D(0, 0), Point2D(40, 20), "Run"; action = _ -> nothing)
-    card = WidgetCard(Point2D(0, 0); title = "card", content = button)
+    button = WidgetButton("Run"; size = Point2D(40, 20), action = _ -> nothing)
+    card = WidgetCard(; title = "card", content = button)
     @test has_document_duplicate(card)
     duplicate = make_document_duplicate(card)
     @test duplicate.content !== button
@@ -63,8 +63,8 @@ end
 end
 
 @testset "a widget that holds a bare function refuses" begin
-    field = WidgetText(Point2D(0, 0), "12"; validator = make_numeric_validator())
-    card = WidgetCard(Point2D(0, 0); title = "card", content = field)
+    field = WidgetText("12"; validator = make_numeric_validator())
+    card = WidgetCard(; title = "card", content = field)
     @test occursin("action", _refusal(card))
 end
 

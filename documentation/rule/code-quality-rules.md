@@ -241,7 +241,7 @@ every call instead.
 
 **A constructor takes what the document is, and names its chrome.** The content,
 the centre and the radius stand positionally; a style, a view state and an option
-take names. `WidgetLabel(position, content; text_style, padding, tooltip)` is the
+take names. `WidgetLabel(content; position, text_style, padding, tooltip)` is the
 shape.
 
 ### An exception is written down

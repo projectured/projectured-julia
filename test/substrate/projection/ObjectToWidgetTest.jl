@@ -86,7 +86,7 @@ end # @testset
 
     proj = _proj()
     iomap = print_document(ObjectToWidget(), proj)
-    foreign = WidgetText(Point2D(0, 0), "x")
+    foreign = WidgetText("x")
     op = ReplaceReferencedValueOperation(foreign, _content_ref(), "y")
     @test read_intent(ObjectToWidget(), iomap, op) === op
 
@@ -99,7 +99,7 @@ end # @testset
     w2g  = WidgetToGraphics(font; measure=stub)
     cb_proj = first(pr for (T, pr) in w2g.dispatch if T === WidgetCheckbox)
 
-    cb = WidgetCheckbox(Point2D(0, 0), false)
+    cb = WidgetCheckbox(false)
     iomap = print_document(cb_proj, nothing, cb, PrinterContext())
     op = read_intent(cb_proj, iomap, MousePress(:left, 1, 1, ModifierKeys()))
 
@@ -190,19 +190,19 @@ end # @testset
 end # @testset
 
 @testset "WidgetCard defaults to not collapsed" begin
-    @test WidgetCard(Point2D(0, 0); title="t", content="c").collapsed == false
+    @test WidgetCard(; title="t", content="c").collapsed == false
 end # @testset
 
 @testset "WidgetCard height: content-tall by default, fixed when given" begin
     proj = make_widget_projection_example()
     # height = 0 (default) wraps the content...
-    auto = WidgetCard(Point2D(0, 0); title="t", content="c")
+    auto = WidgetCard(; title="t", content="c")
     @test auto.height == 0
     auto_h = Int(print_document(proj, auto).output.h[])
     @test auto_h > 0
     # ...while a positive height is taken literally, so a scrolling body has a
     # bounded allocation to scroll inside instead of extending past the border.
-    fixed = WidgetCard(Point2D(0, 0); title="t", content="c", height = auto_h + 200)
+    fixed = WidgetCard(; title="t", content="c", height = auto_h + 200)
     @test Int(print_document(proj, fixed).output.h[]) == auto_h + 200
 end # @testset
 
@@ -215,8 +215,8 @@ end # @testset
     proj = RecursiveProjection(TypeDispatchingProjection(
         WidgetToGraphics(font_ubuntu_monospace_regular_20;
                          measure = (t, f) -> (length(t) * 10, 24)).dispatch))
-    button = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go")
-    card = WidgetCard(Point2D(0, 0); title="t", content=button, width=240)
+    button = WidgetButton("Go"; size = Point2D(120, 40))
+    card = WidgetCard(; title="t", content=button, width=240)
     iomap = print_document(proj, nothing, card, PrinterContext())
     entries() = length(getfield(iomap, :child_iomaps)[])
     open_height, open_entries = Int(iomap.output.h[]), entries()

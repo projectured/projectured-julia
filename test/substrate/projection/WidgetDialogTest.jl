@@ -52,8 +52,8 @@ end
 
 @testset "a button click runs its action and closes the dialog" begin
     fired = Ref(0)
-    ok = WidgetButton(Point2D(0, 0), Point2D(72, 0), "OK"; action = (_e) -> (fired[] += 1))
-    dlg = WidgetDialog("Confirm", WidgetLabel(Point2D(0, 0), "Proceed?"), Any[ok])
+    ok = WidgetButton("OK"; size = Point2D(72, 0), action = (_e) -> (fired[] += 1))
+    dlg = WidgetDialog("Confirm", WidgetLabel("Proceed?"), Any[ok])
     iomap = print_document(proj, dlg)
     xy = _dialog_text_xy(iomap.output, "OK")
     @test xy !== nothing
@@ -77,7 +77,7 @@ end
 # ── Modality: WindowManager drops input to non-modal windows ──────────────────
 
 @testset "a modal window blocks input to other windows" begin
-    select = WidgetSelect(Point2D(0, 0), "Apple"; options=["Apple", "Banana"], width=160)
+    select = WidgetSelect("Apple"; options=["Apple", "Banana"], width=160)
     base   = WindowDocument(; id=:base, x=0, y=0, width=300, height=200,
                             content=VerticalLayout(Any[select]; horizontal_align=:left))
     dlg    = WidgetMessageBox("Hi", "Modal!")        # popup_id defaults to :widget_dialog
@@ -104,7 +104,7 @@ end
 
 @testset "a button with a dialog opens it as a modal window" begin
     dlg  = WidgetMessageBox("Confirm", "Sure?")
-    btn  = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Open"; dialog = dlg)
+    btn  = WidgetButton("Open"; size = Point2D(120, 40), dialog = dlg)
     base = WindowDocument(; id=:base, x=0, y=0, width=300, height=200,
                           content=VerticalLayout(Any[btn]; horizontal_align=:left))
     screen = ScreenDocument([base])

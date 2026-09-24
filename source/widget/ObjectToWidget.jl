@@ -88,7 +88,7 @@ function print_document(p::ObjectToWidget, recursion, obj, ctx)
     # byte-identical to the historical output and ProjectionConfiguring still gets
     # a WidgetComposite whose `visible` it can toggle.
     grid = _struct_grid(p, obj, EmptyReference(), controls, 0)
-    output = WidgetComposite(Point2D(0, 0), Any[grid])
+    output = WidgetComposite(Any[grid])
     ObjectToWidgetIoMap(p, obj, output, controls)
 end
 
@@ -137,7 +137,7 @@ function _struct_grid(p::ObjectToWidget, obj, basepath::Reference, controls, dep
         f = getfield(obj, nm)
         value = f isa Cell ? f[] : f
         path = extend_reference(basepath, FieldReferenceStep(String(nm)))
-        push!(children, WidgetLabel(Point2D(0, 0), String(nm)))
+        push!(children, WidgetLabel(String(nm)))
         push!(children, _print_value(p, value, f isa Cell ? f : nothing, path, controls, depth))
     end
     GridLayout(children, 2;
@@ -151,7 +151,7 @@ end
 function _print_value(p::ObjectToWidget, value, cell, path::Reference, controls, depth::Int)
     kind = _value_kind(value)
     if kind === :bool
-        control = WidgetCheckbox(Point2D(0, 0), value)
+        control = WidgetCheckbox(value)
         cell isa Cell && push!(controls, (control, path))
         return control
     elseif kind === :string || kind === :real
@@ -160,21 +160,21 @@ function _print_value(p::ObjectToWidget, value, cell, path::Reference, controls,
             push!(controls, (control, path))
             return control
         end
-        return WidgetLabel(Point2D(0, 0), _as_string(value))   # read-only leaf
+        return WidgetLabel(_as_string(value))   # read-only leaf
     elseif (kind === :vector || kind === :struct) && depth >= _MAX_DEPTH
-        return WidgetLabel(Point2D(0, 0), _as_string(value))   # recursion bound
+        return WidgetLabel(_as_string(value))   # recursion bound
     elseif kind === :vector
         return _print_vector(p, value, path, controls, depth + 1)
     elseif kind === :struct
         return _print_struct_card(p, value, path, controls, depth + 1)
     end
-    WidgetLabel(Point2D(0, 0), _as_string(value))
+    WidgetLabel(_as_string(value))
 end
 
 # A nested struct: its own 2-column grid inside a composite, in a collapsible card.
 function _print_struct_card(p::ObjectToWidget, obj, path::Reference, controls, depth::Int)
     grid = _struct_grid(p, obj, path, controls, depth)
-    body = WidgetComposite(Point2D(0, 0), Any[grid])
+    body = WidgetComposite(Any[grid])
     _collapsible_card(p, _type_title(obj), body)
 end
 
@@ -197,7 +197,7 @@ end
 # `card.collapsed`. The card reads that cell as it draws: it turns the chevron and
 # drops the body, so the toggle re-renders without reprinting the projection.
 _collapsible_card(p::ObjectToWidget, title::AbstractString, body) =
-    WidgetCard(Point2D(0, 0); title = WidgetLabel(Point2D(0, 0), title),
+    WidgetCard(; title = WidgetLabel(title),
                content = body, width = _CARD_WIDTH, collapsible = true)
 
 _type_title(obj) = String(nameof(typeof(obj)))
@@ -215,7 +215,7 @@ function _editable_text_control(p::ObjectToWidget, cell::Cell)
     set_cell_computation!(getfield(ts, :content), () -> _as_string(cell[]))
     tt = TextBlock(ts)
     set_cell_computation!(getfield(tt, :selection), () -> _end_cursor(length(_as_string(cell[]))))
-    WidgetText(Point2D(0, 0), tt)
+    WidgetText(tt)
 end
 
 _as_string(v) = v isa AbstractString ? String(v) : (v === nothing ? "" : string(v))

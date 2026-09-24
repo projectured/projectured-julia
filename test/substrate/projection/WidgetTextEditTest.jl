@@ -10,7 +10,7 @@ _stub(t, f) = (length(t) * 10, 24)
 # An editable WidgetText: content is a TextBlock recursed through the Text domain.
 function _doc()
     content = TextBlock(TextString("edit me", _font, color_default))
-    WidgetText(Point2D(0, 0), content)
+    WidgetText(content)
 end
 
 # Combined renderer: widget nodes via WidgetToGraphics, the recursed TextBlock via
@@ -50,7 +50,7 @@ end
 
 @testset "a disabled WidgetText accepts no edits" begin
     content = TextBlock(TextString("edit me", _font, color_default))
-    doc = WidgetText(Point2D(0, 0), content; enabled=false)
+    doc = WidgetText(content; enabled=false)
     set_selection!(doc, _cursor(3))
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
     @test iomap.output isa GraphicsCanvas                      # still renders
@@ -90,7 +90,7 @@ end
 
 @testset "a WidgetTextarea edits its text, and Return breaks the line" begin
     content = TextBlock(TextString("one two", _font, color_default))
-    doc = WidgetTextarea(Point2D(40, 40), content; rows = 3)
+    doc = WidgetTextarea(content; position = Point2D(40, 40), rows = 3)
     set_selection!(doc, _cursor(3))            # cursor after "one"
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
 
@@ -132,7 +132,7 @@ _held_caret(widget) = strip_reference_types(widget.selection)
 
 @testset "a disabled WidgetTextarea takes no edit" begin
     content = TextBlock(TextString("one", _font, color_default))
-    off = WidgetTextarea(Point2D(0, 0), content; enabled = false)
+    off = WidgetTextarea(content; enabled = false)
     set_selection!(off, _cursor(1))
     iomap = print_document(_proj(), nothing, off, PrinterContext())
     @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys())) === nothing
@@ -140,7 +140,7 @@ _held_caret(widget) = strip_reference_types(widget.selection)
     @test read_intent(_proj(), iomap, MousePress(:left, 10, 10, ModifierKeys())) === nothing
     @test off.content.elements[1].content == "one"
 
-    plain = WidgetTextarea(Point2D(0, 0), "one\ntwo"; enabled = false)
+    plain = WidgetTextarea("one\ntwo"; enabled = false)
     set_selection!(plain, _plain_cursor(1))
     plain_iomap = print_document(_proj(), nothing, plain, PrinterContext())
     @test read_intent(_proj(), plain_iomap, KeyPress('X', "X", ModifierKeys())) === nothing
@@ -148,7 +148,7 @@ _held_caret(widget) = strip_reference_types(widget.selection)
 end
 
 @testset "a WidgetText of a plain string edits the string" begin
-    doc = WidgetText(Point2D(0, 0), "edit me")
+    doc = WidgetText("edit me")
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
     # With no caret the string is drawn whole, and a key has nowhere to go.
     @test occursin("edit me", join(text for (text, _, _) in _drawn_texts(iomap.output)))
@@ -179,7 +179,7 @@ end
     @test moved isa ReplaceSelectionOperation && moved.path == _plain_cursor(2)
 
     # A validator sees the edit of a plain string as it sees any other.
-    digits = WidgetText(Point2D(0, 0), "12"; validator = make_numeric_validator())
+    digits = WidgetText("12"; validator = make_numeric_validator())
     set_selection!(digits, _plain_cursor(2))
     digits_iomap = print_document(_proj(), nothing, digits, PrinterContext())
     @test read_intent(_proj(), digits_iomap, KeyPress('a', "a", ModifierKeys())) === nothing
@@ -188,7 +188,7 @@ end
 end
 
 @testset "a WidgetTextarea of a plain string edits the string, and Return breaks the line" begin
-    doc = WidgetTextarea(Point2D(0, 0), "one two"; rows = 3)
+    doc = WidgetTextarea("one two"; rows = 3)
     set_selection!(doc, _plain_cursor(3))
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
     broken = read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys()))

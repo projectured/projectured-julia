@@ -236,7 +236,7 @@ end
 @testset "the pointer lights what it is over, in the bands and in the content" begin
     # The whole fold, with a toolbar and a tooltip, because the hover tracker has
     # to see the bands and the probe must not take the moves it needs.
-    press = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Press")
+    press = WidgetButton("Press"; size = Point2D(120, 40))
     command = make_window_command("Run", editor -> nothing)
     bands(document) = (nothing, WidgetToolbar(Any[command]), nothing, nothing, nothing)
     document, projection = make_window_wrap(;

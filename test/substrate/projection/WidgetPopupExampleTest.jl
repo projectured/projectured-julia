@@ -26,7 +26,7 @@ end
 
 # ── End-to-end: clicking the select opens a real popup window at its position ──
 @testset "clicking the select opens a popup window at the trigger's screen position" begin
-    select = WidgetSelect(Point2D(0, 0), "Apple";
+    select = WidgetSelect("Apple";
                           options=["Apple", "Banana", "Cherry"], width=200)
     main   = WindowDocument(; id=:default, title="main", x=50, y=40,
                             width=320, height=220,

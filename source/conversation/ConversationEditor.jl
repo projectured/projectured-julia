@@ -616,9 +616,9 @@ function _make_draft_part_card(p, d::ConversationDraft, iomap_ref::Ref, i::Int, 
         _follow_draft!(_editable_body(content), d, p, iomap_ref,
                        vcat(lead, FieldReferenceStep("content")); dormant = true) :
         _committed_body(content)
-    card = WidgetCard(Point2D(0, 0);
+    card = WidgetCard(;
                       title = tag === nothing ? nothing :
-                              WidgetLabel(Point2D(0, 0), tag; text_style = _KIND_STYLE),
+                              WidgetLabel(tag; text_style = _KIND_STYLE),
                       content = body,
                       variant = variant)
     # A card passes a key to its content only while it holds a selection.

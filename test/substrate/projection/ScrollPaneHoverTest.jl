@@ -17,7 +17,7 @@ _scroll_pane_projection() = RecursiveProjection(TypeDispatchingProjection(
                      measure = measure_truetype_text).dispatch))
 
 _scroll_pane_list() =
-    WidgetList(Point2D(0, 0), ["row $i" for i in 1:40]; selected = 0, width = 200)
+    WidgetList(["row $i" for i in 1:40]; selected = 0, width = 200)
 
 # The row a pointer event resolves to, whatever form the answer takes.
 function _scroll_pane_row(projection, iomap, evt)
@@ -91,7 +91,7 @@ function test_scroll_pane_hover()
     # it.
     @testset "a pane that follows the end follows a content that grows" begin
         projection = _scroll_pane_projection()
-        make_card(collapsed) = WidgetCard(Point2D(0, 0); title = WidgetLabel(Point2D(0, 0), "rows"),
+        make_card(collapsed) = WidgetCard(; title = WidgetLabel("rows"),
                                           content = _scroll_pane_list(), collapsible = true,
                                           collapsed = collapsed)
         card = make_card(true)

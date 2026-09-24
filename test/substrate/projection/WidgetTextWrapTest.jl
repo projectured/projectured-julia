@@ -37,7 +37,7 @@ _print(document, width) = print_document(_projection(), nothing, document,
                                           height = Cell(Int32(600)))).output
 
 @testset "a label breaks at the width it was offered" begin
-    label = WidgetLabel(Point2D(0, 0), SENTENCE)
+    label = WidgetLabel(SENTENCE)
     spans = _spans(_print(label, 200))
     @test length(spans) > 1
     @test maximum(right for (_, right, _) in spans) <= 200
@@ -46,15 +46,15 @@ _print(document, width) = print_document(_projection(), nothing, document,
 end
 
 @testset "a label with no offer is the one line it measures" begin
-    label = WidgetLabel(Point2D(0, 0), SENTENCE)
+    label = WidgetLabel(SENTENCE)
     spans = _spans(print_document(_projection(), nothing, label, PrinterContext()).output)
     @test length(spans) == 1
     @test spans[1][3] == SENTENCE
 end
 
 @testset "a card breaks its description to the width it was told" begin
-    card = WidgetCard(Point2D(0, 0); title = "A title", description = SENTENCE,
-                      content = WidgetLabel(Point2D(0, 0), SENTENCE), width = 240)
+    card = WidgetCard(; title = "A title", description = SENTENCE,
+                      content = WidgetLabel(SENTENCE), width = 240)
     canvas = _print(card, 900)
     spans = _spans(canvas)
     # The card is the width it was told, and nothing it drew reaches past it.
@@ -66,7 +66,7 @@ end
 
 @testset "a word wider than the box keeps its own line" begin
     long = "short " * repeat("x", 60)
-    spans = _spans(_print(WidgetLabel(Point2D(0, 0), long), 100))
+    spans = _spans(_print(WidgetLabel(long), 100))
     @test length(spans) == 2
     @test spans[2][3] == repeat("x", 60)
 end

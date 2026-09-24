@@ -30,7 +30,7 @@ end
 _readop(io, g) = (op = _readop_marked(io, g);
                   op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op)
 _fresh() = begin
-    w = WidgetTree(Point2D(0, 0), Any[("src", Any["a.jl", "b.jl"]), "README"])
+    w = WidgetTree(Any[("src", Any["a.jl", "b.jl"]), "README"])
     (w, print_document(_treeproj, w))
 end
 # GraphicsRect overlays in the canvas (the hover + selection bands). Canvas
@@ -139,7 +139,7 @@ end
 # tree's gesture logic lived only in the 4-arg reader (which containers don't call).
 @testset "crossings + clicks reach a tree nested in containers" begin
     _full = make_widget_projection_example(measure = _det)
-    _tree() = WidgetTree(Point2D(0, 0), Any[
+    _tree() = WidgetTree(Any[
         WidgetTreeNode(:folder, "src", Any[WidgetTreeNode(:file, "a.jl")]),
         WidgetTreeNode(:file, "README")])
     # Count grid points whose MouseEnter / MousePress reach the tree.

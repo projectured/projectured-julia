@@ -15,8 +15,8 @@ _tooltip_pointer() = (300, 400)
 
 # A widget that says something, and one that says nothing, side by side.
 _tooltip_labels() = VerticalLayout(Any[
-    WidgetLabel(Point2D(0, 0), "speaks"; tooltip = "what this label is for"),
-    WidgetLabel(Point2D(0, 40), "silent"),
+    WidgetLabel("speaks"; tooltip = "what this label is for"),
+    WidgetLabel("silent"; position = Point2D(0, 40)),
 ])
 
 # What draws what a tooltip holds. A window whose content type is named by no row
@@ -154,8 +154,8 @@ end
 # The probe only watches the pointer: a move goes on to the readers inside, so a
 # divider held under the probe still follows it.
 @testset "a move passes on to the readers inside" begin
-    split = WidgetSplitPane(:horizontal, Any[WidgetLabel(Point2D(0, 0), "left"),
-                                             WidgetLabel(Point2D(0, 0), "right")];
+    split = WidgetSplitPane(:horizontal, Any[WidgetLabel("left"),
+                                             WidgetLabel("right")];
                             sizes = [150, 150])
     scene, composed, _ = _tooltip_scene(; document = split)
     grab = nothing
@@ -245,7 +245,7 @@ function test_context_menu_probe()
 
 # `context_menu` is a field of the window's own frame and of nothing else, so
 # the shell is what carries one. Every other document computes its menu.
-_speaks() = WidgetShell(WidgetLabel(Point2D(0, 0), "speaks");
+_speaks() = WidgetShell(WidgetLabel("speaks");
                         size = Point2D(200, 100),
                         context_menu = WidgetMenu([WidgetMenuItem("Copy"),
                                                    WidgetMenuItem("Paste")]))
@@ -269,7 +269,7 @@ end
 end
 
 @testset "a document that offers none opens none" begin
-    @test !(_read(WidgetShell(WidgetLabel(Point2D(0, 0), "silent");
+    @test !(_read(WidgetShell(WidgetLabel("silent");
                               size = Point2D(200, 100))) isa OpenPopupOperation)
 end
 

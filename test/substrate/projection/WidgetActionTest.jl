@@ -27,14 +27,14 @@ proj = make_widget_projection_example()
     @test iop.operations[1].action === save
 
     # Button bound to the same command.
-    btn = WidgetButton(Point2D(0, 0), Point2D(80, 0), save)
+    btn = WidgetButton(save; size = Point2D(80, 0))
     bio = print_document(proj, btn)
     bop = read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys()))
     @test bop isa InvokeActionOperation
     @test bop.action === save
 
     # Keyboard shortcut collected by the shell from its menu bar.
-    shell = WidgetShell(WidgetLabel(Point2D(0, 0), "body");
+    shell = WidgetShell(WidgetLabel("body");
                         menu_bar = WidgetMenu([WidgetMenuItem(save)]),
                         size = Point2D(300, 200))
     sio = print_document(proj, shell)
@@ -57,11 +57,11 @@ end
     iio  = print_document(proj, item)
     @test read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys())) === nothing
 
-    btn = WidgetButton(Point2D(0, 0), Point2D(80, 0), save)
+    btn = WidgetButton(save; size = Point2D(80, 0))
     bio = print_document(proj, btn)
     @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys())) === nothing
 
-    shell = WidgetShell(WidgetLabel(Point2D(0, 0), "body");
+    shell = WidgetShell(WidgetLabel("body");
                         menu_bar = WidgetMenu([WidgetMenuItem(save)]),
                         size = Point2D(300, 200))
     sio = print_document(proj, shell)
@@ -78,7 +78,7 @@ end
 @testset "a shortcut is consumed by the shell, ahead of the focused child" begin
     fired = Ref(0)
     save  = Action("Save"; shortcut = Shortcut(:s; ctrl = true), callback = (_e) -> (fired[] += 1))
-    shell = WidgetShell(WidgetLabel(Point2D(0, 0), "body");
+    shell = WidgetShell(WidgetLabel("body");
                         menu_bar = WidgetMenu([WidgetMenuItem(save)]),
                         size = Point2D(300, 200))
     sio = print_document(proj, shell)
@@ -123,7 +123,7 @@ end
     # every view of it with no re-binding step. Asserted on the DRAWN OUTPUT —
     # a structural check would pass against a frozen render.
     save = Action("Save"; callback = (_e) -> nothing)
-    btn  = WidgetButton(Point2D(0, 0), Point2D(200, 0), save)
+    btn  = WidgetButton(save; size = Point2D(200, 0))
     item = WidgetMenuItem(save)
     bio, iio = print_document(proj, btn), print_document(proj, item)
     @test _dialog_text_xy(bio.output, "Save") !== nothing
@@ -150,22 +150,22 @@ end
 
 @testset "a control's own label and icon fold into a fresh Action" begin
     f = (_e) -> nothing
-    b = WidgetButton(Point2D(0, 0), Point2D(80, 0), "Go"; action = f, icon = :save)
+    b = WidgetButton("Go"; size = Point2D(80, 0), action = f, icon = :save)
     @test b.action isa Action
     @test b.action.label === "Go" && b.action.icon === :save && b.action.callback === f
     # Two sugar-built controls never share an Action.
-    @test WidgetButton(Point2D(0, 0), Point2D(80, 0), "Go").action !==
-          WidgetButton(Point2D(0, 0), Point2D(80, 0), "Go").action
+    @test WidgetButton("Go"; size = Point2D(80, 0)).action !==
+          WidgetButton("Go"; size = Point2D(80, 0)).action
     # A sugar action declares no shortcut, so it never enters the shell registry.
     @test b.action.shortcut === nothing
 
     # A bound Action is the source of truth and is never written to: an own
     # label that says something ELSE has nowhere to live.
     save = Action("Save"; icon = :save, callback = f)
-    @test WidgetButton(Point2D(0, 0), Point2D(80, 0), save).action === save
-    @test WidgetButton(Point2D(0, 0), Point2D(80, 0), "Save"; action = save).action === save
-    @test_throws ErrorException WidgetButton(Point2D(0, 0), Point2D(80, 0), "Different"; action = save)
-    @test_throws ErrorException WidgetButton(Point2D(0, 0), Point2D(80, 0), save; action = f)
+    @test WidgetButton(save; size = Point2D(80, 0)).action === save
+    @test WidgetButton("Save"; size = Point2D(80, 0), action = save).action === save
+    @test_throws ErrorException WidgetButton("Different"; size = Point2D(80, 0), action = save)
+    @test_throws ErrorException WidgetButton(save; size = Point2D(80, 0), action = f)
 end
 
 @testset "a command that does something beats the dialog it also carries" begin
@@ -173,14 +173,14 @@ end
     dlg = WidgetMessageBox("Confirm", "Proceed?")
 
     # Dialog alone: the click opens it.
-    only_dialog = WidgetButton(Point2D(0, 0), Point2D(80, 0), "Open"; dialog = dlg)
+    only_dialog = WidgetButton("Open"; size = Point2D(80, 0), dialog = dlg)
     dio = print_document(proj, only_dialog)
     @test read_intent(proj, dio, MousePress(:left, 2, 2, ModifierKeys())) isa OpenWindowOperation
 
     # Callback as well: the callback wins, and the dialog is the fallback for a
     # command that does nothing.
-    both = WidgetButton(Point2D(0, 0), Point2D(80, 0), "Open";
-                        action = (_e) -> (fired[] += 1), dialog = dlg)
+    both = WidgetButton("Open";
+                        size = Point2D(80, 0), action = (_e) -> (fired[] += 1), dialog = dlg)
     bio = print_document(proj, both)
     @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys())) isa InvokeActionOperation
 end

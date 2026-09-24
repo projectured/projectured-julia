@@ -72,8 +72,8 @@ end
 end
 
 @testset "vertical orientation drags along the y axis" begin
-    top    = WidgetTitlePane("T", WidgetLabel(Point2D(8, 8), "t"))
-    bottom = WidgetTitlePane("B", WidgetLabel(Point2D(8, 8), "b"))
+    top    = WidgetTitlePane("T", WidgetLabel("t"; position = Point2D(8, 8)))
+    bottom = WidgetTitlePane("B", WidgetLabel("b"; position = Point2D(8, 8)))
     doc    = WidgetSplitPane(:vertical, Any[top, bottom]; sizes=[200, 200])
     proj   = _proj()
     iomap  = print_document(proj, doc)
@@ -89,7 +89,7 @@ end
 end
 
 @testset "constrained regime: dragged size sticks across a reprint (pinned)" begin
-    mk(t) = LayoutConstraint(WidgetTitlePane(t, WidgetLabel(Point2D(8, 8), lowercase(t)));
+    mk(t) = LayoutConstraint(WidgetTitlePane(t, WidgetLabel(lowercase(t); position = Point2D(8, 8)));
                              weight_width=1.0, preferred_width=200)
     doc   = WidgetSplitPane(:horizontal, Any[mk("L"), mk("R")])
     proj  = _proj()
@@ -121,8 +121,8 @@ end
     # the active tab's frame, otherwise the grab region floats above where the
     # splitter is actually drawn (the bug that made the assistant
     # conversation/draft splitter unmovable in a pane tab).
-    top    = WidgetTitlePane("T", WidgetLabel(Point2D(8, 8), "t"))
-    bottom = WidgetTitlePane("B", WidgetLabel(Point2D(8, 8), "b"))
+    top    = WidgetTitlePane("T", WidgetLabel("t"; position = Point2D(8, 8)))
+    bottom = WidgetTitlePane("B", WidgetLabel("b"; position = Point2D(8, 8)))
     split  = WidgetSplitPane(:vertical, Any[top, bottom]; sizes=[150, 150])
     tabbed = WidgetTabbedPane(Any[("Tab", split)])
     proj   = _proj()

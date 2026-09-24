@@ -9,8 +9,7 @@ function test_widget_transform_pane()
 
     # A pane with no insets, so the content offset is (0, 0) and the cursor
     # coordinate equals the viewport-space coordinate.
-    _doc() = WidgetTransformPane(WidgetComposite(Point2D(0, 0),
-                Any[WidgetLabel(Point2D(0, 0), "x")]); size=Point2D(200, 200))
+    _doc() = WidgetTransformPane(WidgetComposite(Any[WidgetLabel("x")]); size=Point2D(200, 200))
 
     @testset "Ctrl+wheel zooms in about the cursor" begin
         doc   = _doc()
@@ -36,7 +35,7 @@ function test_widget_transform_pane()
     end
 
     @testset "zoom clamps at the maximum" begin
-        doc   = WidgetTransformPane(WidgetComposite(Point2D(0, 0), Any[WidgetLabel(Point2D(0, 0), "x")]);
+        doc   = WidgetTransformPane(WidgetComposite(Any[WidgetLabel("x")]);
                                     size=Point2D(200, 200), transform=make_affine_scale(4.0, 4.0))
         proj  = _proj()
         iomap = print_document(proj, doc)
@@ -98,7 +97,7 @@ function test_widget_transform_pane()
     end
 
     @testset "Ctrl+0 resets to the identity" begin
-        doc   = WidgetTransformPane(WidgetComposite(Point2D(0, 0), Any[WidgetLabel(Point2D(0, 0), "x")]);
+        doc   = WidgetTransformPane(WidgetComposite(Any[WidgetLabel("x")]);
                                     size=Point2D(200, 200), transform=make_affine_scale(2.0, 2.0))
         proj  = _proj()
         iomap = print_document(proj, doc)

@@ -100,7 +100,7 @@ function print_document(p::AssistantToWidgetCard,
                                   padding=_PAD5)
     cell = WidgetScrollPane(a.draft; size=Point2D(0, p.cell_height),
                             padding=_PAD5)
-    card = WidgetCard(Point2D(0, 0); title=p.title,
+    card = WidgetCard(; title=p.title,
                       content=VerticalLayout(Any[transcript, cell]; gap=6, child_width=Fill))
     column = VerticalLayout(Any[card]; gap=6, child_width=Fill)
     iomap = SimpleIoMap(p, a, column)

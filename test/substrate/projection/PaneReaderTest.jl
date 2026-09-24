@@ -16,7 +16,7 @@ function test_pane_reader()
 @testset "PaneToWidget reader" begin
 
 _stub(t, f) = (max(1, length(t)) * 10, 24)
-_tab(name) = PaneTab(name, WidgetLabel(Point2D(0, 0), name))
+_tab(name) = PaneTab(name, WidgetLabel(name))
 _chain() = ChainingProjection(RecursiveProjection(PaneToWidget()),
                               make_widget_projection_example(measure = _stub))
 
@@ -115,7 +115,7 @@ end
 end
 
 @testset "a + whose content refuses its duplicate gives no edit" begin
-    field = WidgetText(Point2D(0, 0), "12"; validator = make_numeric_validator())
+    field = WidgetText("12"; validator = make_numeric_validator())
     tree = PaneTree(PaneGroup(PaneTab[PaneTab("field", field)]))
     proj = _chain()
     iomap = print_document(proj, tree)
@@ -196,7 +196,7 @@ end
     tree = PaneTree(group)
     proj = _chain()
     iomap = print_document(proj, tree)
-    stranger = WidgetTabbedPane(Any[("x", WidgetLabel(Point2D(0, 0), "x"))])
+    stranger = WidgetTabbedPane(Any[("x", WidgetLabel("x"))])
     pane_stage = RecursiveProjection(PaneToWidget())
     pane_iomap = print_document(pane_stage, tree)
     @test read_intent(pane_stage, pane_iomap, CloseTabOperation(stranger, 1)) === nothing
@@ -218,7 +218,7 @@ end
     # Between the strip and the tree, a projection that is not a widget has no
     # reader for a report, so the reader of `Projection` answers for it. A report
     # names its tabbed pane and no place, so that reader passes it up unchanged.
-    pane = WidgetTabbedPane(Any[("x", WidgetLabel(Point2D(0, 0), "x"))])
+    pane = WidgetTabbedPane(Any[("x", WidgetLabel("x"))])
     between = _PaneReaderGenericStage()
     iomap = SimpleIoMap(between, pane, pane)
     for report in (CloseTabOperation(pane, 1), OpenTabOperation(pane),
@@ -396,7 +396,7 @@ _is_content_selected(tree, group, i) =
     string(strip_reference_types(get_pane_content_path(tree, group, i)))
 
 @testset "an Alt+click on a page selects what the tab holds, as a whole" begin
-    for content in (WidgetLabel(Point2D(0, 0), "label"), DocumentNothing())
+    for content in (WidgetLabel("label"), DocumentNothing())
         group = PaneGroup(PaneTab[PaneTab("t", content)])
         tree = PaneTree(group)
         editor = _PaneReaderMockEditor(tree)
@@ -422,9 +422,9 @@ _is_content_selected(tree, group, i) =
 end
 
 @testset "an Alt+click inside a widget page selects the widget, not the page" begin
-    label = WidgetLabel(Point2D(0, 0), "inner")
-    view = WidgetCard(Point2D(0, 0); title = "a view",
-                      content = HorizontalLayout(Any[label, WidgetLabel(Point2D(0, 0), "other")]))
+    label = WidgetLabel("inner")
+    view = WidgetCard(; title = "a view",
+                      content = HorizontalLayout(Any[label, WidgetLabel("other")]))
     group = PaneGroup(PaneTab[_tab("a"), PaneTab("view", view)])
     tree = PaneTree(group)
     editor = _PaneReaderMockEditor(tree)
@@ -483,7 +483,7 @@ end
         io = print_document(p, IdentityProjection(), slice, PrinterContext())
         read_intent(p, io, KeyDown(:v, ModifierKeys(ctrl = true)))
     end
-    stored = WidgetLabel(Point2D(0, 0), "stored")
+    stored = WidgetLabel("stored")
     slice = ClipboardSlice(tree, stored)
     # The empty content takes the object.
     slice.selection = content_of(2)
@@ -501,7 +501,7 @@ end
 end
 
 @testset "a copy or a note of a focused tab takes what the tab shows" begin
-    label = WidgetLabel(Point2D(0, 0), "shown")
+    label = WidgetLabel("shown")
     group = PaneGroup(PaneTab[PaneTab("shown", label)])
     tree = PaneTree(group)
     root = FieldReferenceStep("content")

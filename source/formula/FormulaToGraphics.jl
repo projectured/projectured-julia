@@ -23,9 +23,9 @@ function print_document(p::FormulaFormulaToLayout, recursion, formula::FormulaFo
     value = _formula_value_text(get_formula_value(formula))
     children = if is_math_code(code)
         Any[MathAssignment(_formula_name_tree(name), code),
-            WidgetLabel(Point2D(0, 0), "= " * value)]
+            WidgetLabel( "= " * value)]
     else
-        Any[WidgetLabel(Point2D(0, 0), name * " = " * print_natural_text(code) * " = " * value)]
+        Any[WidgetLabel( name * " = " * print_natural_text(code) * " = " * value)]
     end
     SimpleIoMap(p, formula, HorizontalLayout(children))
 end

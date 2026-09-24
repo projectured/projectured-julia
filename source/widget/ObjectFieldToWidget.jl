@@ -106,7 +106,7 @@ function _control(p::ObjectFieldToWidget, field::ObjectField)
 end
 
 function _checkbox(p::ObjectFieldToWidget, field::ObjectField)
-    control = WidgetCheckbox(Point2D(0, 0), get_object_field_value(field))
+    control = WidgetCheckbox(get_object_field_value(field))
     set_cell_computation!(getfield(control, :content),
                           () -> get_object_field_value(field))
     control
@@ -132,7 +132,7 @@ function _text_control(p::ObjectFieldToWidget, field::ObjectField)
         inside === nothing ?
             _end_cursor(length(_as_string(get_object_field_value(field)))) : inside
     end)
-    WidgetText(Point2D(0, 0), tt)
+    WidgetText(tt)
 end
 
 # The caret the field holds, as a path inside the control's own content.
@@ -153,7 +153,7 @@ function _caret_in_content(selection)
 end
 
 function _read_only_label(p::ObjectFieldToWidget, field::ObjectField)
-    control = WidgetLabel(Point2D(0, 0), _as_string(get_object_field_value(field)))
+    control = WidgetLabel(_as_string(get_object_field_value(field)))
     set_cell_computation!(getfield(control, :content),
                        () -> _as_string(get_object_field_value(field)))
     control

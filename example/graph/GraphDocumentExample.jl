@@ -5,7 +5,7 @@
 
 function make_graph_document_example()
     # Vertex 1: a tiny table (2 columns: Name / Role).
-    table = WidgetTable(Point2D(0, 0);
+    table = WidgetTable(;
         column_headers = Any[JsonString("Name"), JsonString("Role")],
         row_headers = Any[],
         rows = Any[

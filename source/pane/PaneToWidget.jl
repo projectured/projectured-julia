@@ -177,7 +177,7 @@ function print_document(p::PaneTreeToWidget, recursion, tree::PaneTree, ctx)
     # available size for its children, which would collapse the split panes to
     # their intrinsic sizes.)
     indicator = _drop_indicator(tree, available)
-    composite = WidgetComposite(Point2D(0, 0), Any[])
+    composite = WidgetComposite(Any[])
     set_cell_computation!(getfield(composite.elements, :elements),
                        () -> Cell[Cell(root_iomap[].output), Cell(indicator)])
     iomap = PaneTreeToWidgetIoMap(p, tree, composite, root_iomap, available)
@@ -209,7 +209,7 @@ const _PANE_LAYER = @reference ::WidgetComposite.elements::CellVector[1]::Widget
 # read the drag, so showing and moving it costs no re-print — and it is always in
 # the tree, just invisible, so the widget tree keeps its shape.
 function _drop_indicator(tree::PaneTree, available)
-    indicator = WidgetHighlight(Point2D(0, 0); visible = false)
+    indicator = WidgetHighlight(; visible = false)
     rectangle() = _drop_indicator_rectangle(tree, available)
     set_cell_computation!(getfield(indicator, :position), () -> begin
         r = rectangle()

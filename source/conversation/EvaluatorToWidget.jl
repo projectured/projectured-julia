@@ -68,7 +68,7 @@ _is_plain_left_press(event) =
     event isa MousePress && event.button === :left && event.modifiers == ModifierKeys()
 
 _make_prompt(text, style) =
-    LayoutConstraint(WidgetLabel(Point2D(0, 0), text; text_style = style); width = Content)
+    LayoutConstraint(WidgetLabel(text; text_style = style); width = Content)
 
 _make_prompt_row(children::Function) =
     HorizontalLayout(CellVector(Computation(children)), Cell(:top), Cell(_PROMPT_GAP),
@@ -165,9 +165,9 @@ end
 # give ahead of its own toggle.
 function _make_option_row(t::EvaluatorToplevel)
     HorizontalLayout(Any[_make_option_checkbox(t, :parse_evaluated_forms),
-                         WidgetLabel(Point2D(0, 0), "Parse evaluated forms"; text_style = _PROMPT_STYLE),
+                         WidgetLabel("Parse evaluated forms"; text_style = _PROMPT_STYLE),
                          _make_option_checkbox(t, :type_structured_forms),
-                         WidgetLabel(Point2D(0, 0), "Structured forms"; text_style = _PROMPT_STYLE)];
+                         WidgetLabel("Structured forms"; text_style = _PROMPT_STYLE)];
                      vertical_align = :center, gap = _PROMPT_GAP)
 end
 
@@ -178,7 +178,7 @@ function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol)
     gestures = GestureBinding[bind(MousePressPattern(:left; modifiers = Symbol[])),
                               bind(KeyDownPattern(:space; modifiers = Symbol[])),
                               bind(KeyDownPattern(:return; modifiers = Symbol[]))]
-    box = WidgetCheckbox(Point2D(0, 0), getproperty(t, option) === true; gestures)
+    box = WidgetCheckbox( getproperty(t, option) === true; gestures)
     set_cell_computation!(box, () -> getproperty(t, option) === true)
 end
 

@@ -16,13 +16,13 @@ const _ALT = ModifierKeys(alt = true)
 # text field. The button counts its presses.
 function _selection_tree()
     count = Ref(0)
-    button = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go";
-                          action = (_editor) -> (count[] += 1))
-    label = WidgetLabel(Point2D(0, 0), "hello")
-    field = WidgetText(Point2D(0, 0), "typed")
+    button = WidgetButton("Go";
+                          size = Point2D(120, 40), action = (_editor) -> (count[] += 1))
+    label = WidgetLabel("hello")
+    field = WidgetText("typed")
     layout = VerticalLayout(Any[button, label, field]; gap = 10)
-    card = WidgetCard(Point2D(0, 0); title = "Title", content = layout)
-    root = WidgetComposite(Point2D(0, 0), Any[card])
+    card = WidgetCard(; title = "Title", content = layout)
+    root = WidgetComposite(Any[card])
     (root = root, card = card, layout = layout, button = button, label = label,
      field = field, count = count)
 end
@@ -112,9 +112,9 @@ end
 
 # Two check boxes with a label between them, and the focus on the first one.
 function _selection_boxes()
-    first = WidgetCheckbox(Point2D(0, 0), false)
-    second = WidgetCheckbox(Point2D(0, 0), false)
-    layout = VerticalLayout(Any[first, WidgetLabel(Point2D(0, 0), "between"), second]; gap = 10)
+    first = WidgetCheckbox(false)
+    second = WidgetCheckbox(false)
+    layout = VerticalLayout(Any[first, WidgetLabel("between"), second]; gap = 10)
     set_selection!(layout, ConcreteReference(FieldReferenceStep("children"),
         ConcreteReference(RangeReferenceStep(0, 1), EmptyReference())))
     (layout = layout, first = first, second = second)
@@ -206,7 +206,7 @@ function test_widget_selection()
         # A layout sizes a bare shape by its own size, and routes a press to it by
         # the same box.
         circle = GraphicsCircle(10, 10, 10)
-        layout = HorizontalLayout(Any[WidgetLabel(Point2D(0, 0), "a"), circle]; gap = 10)
+        layout = HorizontalLayout(Any[WidgetLabel("a"), circle]; gap = 10)
         projection = RecursiveProjection(TypeDispatchingProjection(vcat(
             _selection_projection().child.dispatch, Pair{Type,Any}[GraphicsDocument => GraphicsToGraphics()])))
         iomap = print_document(projection, projection, layout, PrinterContext())
@@ -330,7 +330,7 @@ function test_widget_selection()
     @testset "only a plain left down moves the focus" begin
         projection = _selection_projection()
         focus = ProjecturedFocus.FocusModule
-        box = WidgetCheckbox(Point2D(0, 0), false)
+        box = WidgetCheckbox(false)
         down = MouseDown(:left, 1, 1, ModifierKeys())
         @test focus.is_focusing_press(down)
         @test !focus.is_focusing_press(MouseDown(:right, 1, 1, ModifierKeys()))
@@ -342,9 +342,9 @@ function test_widget_selection()
         pressed = ReplaceReferencedValueOperation(box, "content", true)
         @test focus.convert_to_focus_selection(pressed, box) === pressed
         # Not a control, a disabled control, and a control that holds the focus.
-        @test focus.convert_to_focus_selection(nothing, WidgetLabel(Point2D(0, 0), "x")) === nothing
+        @test focus.convert_to_focus_selection(nothing, WidgetLabel("x")) === nothing
         @test focus.convert_to_focus_selection(nothing,
-                  WidgetCheckbox(Point2D(0, 0), false; enabled = false)) === nothing
+                  WidgetCheckbox(false; enabled = false)) === nothing
         box.selection = EmptyReference()
         @test focus.convert_to_focus_selection(nothing, box) === nothing
 

@@ -20,7 +20,7 @@ card's selection is the document's own, under the card's `content` step, so a
 key the page routes to the card reaches the document.
 """
 function make_embed_card(document, title::AbstractString)
-    card = WidgetCard(Point2D(0, 0); title = WidgetLabel(Point2D(0, 0), String(title)),
+    card = WidgetCard(; title = WidgetLabel(String(title)),
                       content = document, collapsible = true)
     set_cell_computation!(getfield(card, :selection), () -> begin
         inner = hasproperty(document, :selection) ? getfield(document, :selection)[] : nothing

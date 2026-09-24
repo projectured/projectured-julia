@@ -31,8 +31,8 @@ _proj() = ChainingProjection(
 # A lone button with a side-effecting action over a captured counter.
 function _button_doc()
     count = Ref(0)
-    button = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go";
-                          action = (_editor) -> (count[] += 1))
+    button = WidgetButton("Go";
+                          size = Point2D(120, 40), action = (_editor) -> (count[] += 1))
     (button, count)
 end
 
@@ -114,9 +114,9 @@ end
 
 @testset "the hover tracker clears the previously-hovered button on leave" begin
     # Two buttons side by side inside a composite.
-    a = WidgetButton(Point2D(0, 0), Point2D(100, 40), "A"; action = (_e) -> nothing)
-    b = WidgetButton(Point2D(120, 0), Point2D(100, 40), "B"; action = (_e) -> nothing)
-    composite = WidgetComposite(Point2D(0, 0), Any[a, b])
+    a = WidgetButton("A"; size = Point2D(100, 40), action = (_e) -> nothing)
+    b = WidgetButton("B"; position = Point2D(120, 0), size = Point2D(100, 40), action = (_e) -> nothing)
+    composite = WidgetComposite(Any[a, b])
     proj = _proj()                          # one tracker instance, reused across reads
     ed = _WidgetButtonMockEditor(composite)
 
@@ -143,9 +143,9 @@ end
 
 @testset "button click inside a composite still reaches the action" begin
     count = Ref(0)
-    button = WidgetButton(Point2D(0, 0), Point2D(100, 40), "X";
-                          action = (_e) -> (count[] += 1))
-    composite = WidgetComposite(Point2D(0, 0), Any[button])
+    button = WidgetButton("X";
+                          size = Point2D(100, 40), action = (_e) -> (count[] += 1))
+    composite = WidgetComposite(Any[button])
     proj = _proj()
     iomap = print_document(proj, nothing, composite, PrinterContext())
     op = read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys()))
@@ -159,7 +159,7 @@ end
     pixels = UInt8[0xff,0x00,0x00,0xff, 0x00,0xff,0x00,0xff,
                    0x00,0x00,0xff,0xff, 0xff,0xff,0xff,0xff]
     image = ImageMemory((pixels, 2, 2))
-    button = WidgetButton(Point2D(0, 0), Point2D(40, 40), image; action = (_e) -> nothing)
+    button = WidgetButton(image; size = Point2D(40, 40), action = (_e) -> nothing)
     iomap = print_document(_proj(), nothing, button, PrinterContext())
     canvas = iomap.output
     @test canvas isa GraphicsCanvas
@@ -169,7 +169,7 @@ end
 @testset "a label with image content renders a GraphicsImage at its natural size" begin
     pixels = UInt8[0xff,0x00,0x00,0xff, 0x00,0xff,0x00,0xff,
                    0x00,0x00,0xff,0xff, 0xff,0xff,0xff,0xff]
-    label = WidgetLabel(Point2D(0, 0), ImageMemory((pixels, 2, 2)))
+    label = WidgetLabel(ImageMemory((pixels, 2, 2)))
     iomap = print_document(_proj(), nothing, label, PrinterContext())
     @test _canvas_has_image(iomap.output)
 end
@@ -178,19 +178,19 @@ end
 # is settable by keyword, and — because it is threaded through the order-sensitive
 # positional constructor right after `visible` — must not shift any other field.
 @testset "enabled flag: defaults true, settable, and leaves other fields intact" begin
-    btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go")
+    btn = WidgetButton("Go"; size = Point2D(120, 40))
     @test btn.enabled === true
     @test btn.visible === true                       # slot after visible not shifted
-    btn_off = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go"; enabled=false)
+    btn_off = WidgetButton("Go"; size = Point2D(120, 40), enabled=false)
     @test btn_off.enabled === false
     @test btn_off.visible === true
     # A disabled button is still a normal document: it prints to a canvas.
     @test print_document(_proj(), nothing, btn_off, PrinterContext()).output isa GraphicsCanvas
 
-    cb = WidgetCheckbox(Point2D(0, 0), true)
+    cb = WidgetCheckbox(true)
     @test cb.enabled === true
     @test cb.content === true                         # content slot intact
-    cb_off = WidgetCheckbox(Point2D(0, 0), false; enabled=false)
+    cb_off = WidgetCheckbox(false; enabled=false)
     @test cb_off.enabled === false
     @test cb_off.content === false
 end
@@ -199,8 +199,8 @@ end
 # operation for any pointer event — no action, no toggle, no hover/press state.
 @testset "a disabled button is inert: no action, no hover/press" begin
     fired = Ref(false)
-    btn = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go";
-                       action = (_e) -> (fired[] = true), enabled = false)
+    btn = WidgetButton("Go";
+                       size = Point2D(120, 40), action = (_e) -> (fired[] = true), enabled = false)
     proj = _proj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
     @test iomap.output isa GraphicsCanvas                      # disabled still renders
@@ -212,7 +212,7 @@ end
 end
 
 @testset "a disabled checkbox swallows the toggle click" begin
-    cb = WidgetCheckbox(Point2D(0, 0), false; enabled = false)
+    cb = WidgetCheckbox(false; enabled = false)
     proj = _proj()
     iomap = print_document(proj, nothing, cb, PrinterContext())
     @test iomap.output isa GraphicsCanvas
@@ -224,23 +224,23 @@ end
 # interactive controls — default true, settable by keyword, and threaded through
 # each order-sensitive positional constructor without shifting a neighbour field.
 @testset "enabled flag is present on the other interactive widgets" begin
-    @test WidgetText(Point2D(0, 0), "x").enabled === true
-    @test WidgetText(Point2D(0, 0), "x"; enabled=false).enabled === false
-    @test WidgetTextarea(Point2D(0, 0), "x").enabled === true
-    @test WidgetTextarea(Point2D(0, 0), "x"; rows=3, enabled=false).enabled === false
-    @test WidgetTextarea(Point2D(0, 0), "x"; rows=3).rows == 3          # neighbour intact
-    @test WidgetSelect(Point2D(0, 0), "v").enabled === true
-    @test WidgetSelect(Point2D(0, 0), "v"; enabled=false).enabled === false
-    @test WidgetSwitch(Point2D(0, 0), true).enabled === true
-    @test WidgetSwitch(Point2D(0, 0), true; enabled=false).checked === true   # neighbour intact
-    @test WidgetSlider(Point2D(0, 0), 0.3).enabled === true
-    @test WidgetSlider(Point2D(0, 0), 0.3; enabled=false).value == 0.3        # neighbour intact
-    @test WidgetToggle(Point2D(0, 0), "t"; pressed=true).enabled === true
-    @test WidgetToggle(Point2D(0, 0), "t"; pressed=true, enabled=false).pressed === true
-    @test WidgetToggleGroup(Point2D(0, 0), ["a","b"]; selected=2).enabled === true
-    @test WidgetToggleGroup(Point2D(0, 0), ["a","b"]; selected=2).selected == 2
-    @test WidgetRadioGroup(Point2D(0, 0), ["a","b"]; selected=2).enabled === true
-    @test WidgetRadioGroup(Point2D(0, 0), ["a","b"]; selected=2, enabled=false).selected == 2
+    @test WidgetText("x").enabled === true
+    @test WidgetText("x"; enabled=false).enabled === false
+    @test WidgetTextarea("x").enabled === true
+    @test WidgetTextarea("x"; rows=3, enabled=false).enabled === false
+    @test WidgetTextarea("x"; rows=3).rows == 3          # neighbour intact
+    @test WidgetSelect("v").enabled === true
+    @test WidgetSelect("v"; enabled=false).enabled === false
+    @test WidgetSwitch(; checked = true).enabled === true
+    @test WidgetSwitch(; checked = true, enabled=false).checked === true   # neighbour intact
+    @test WidgetSlider(0.3).enabled === true
+    @test WidgetSlider(0.3; enabled=false).value == 0.3        # neighbour intact
+    @test WidgetToggle("t"; pressed=true).enabled === true
+    @test WidgetToggle("t"; pressed=true, enabled=false).pressed === true
+    @test WidgetToggleGroup(["a","b"]; selected=2).enabled === true
+    @test WidgetToggleGroup(["a","b"]; selected=2).selected == 2
+    @test WidgetRadioGroup(["a","b"]; selected=2).enabled === true
+    @test WidgetRadioGroup(["a","b"]; selected=2, enabled=false).selected == 2
     @test WidgetMenuItem("m").enabled === true
     @test WidgetMenuItem("m"; enabled=false).enabled === false
 end
@@ -249,8 +249,8 @@ end
 # / no drop shadow). We compare the element count: an enabled resting button
 # carries an extra shadow rect that the disabled one drops.
 @testset "a disabled button renders flat (no shadow rect)" begin
-    on  = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go")
-    off = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go"; enabled = false)
+    on  = WidgetButton("Go"; size = Point2D(120, 40))
+    off = WidgetButton("Go"; size = Point2D(120, 40), enabled = false)
     proj = _proj()
     on_canvas  = print_document(proj, nothing, on,  PrinterContext()).output
     off_canvas = print_document(proj, nothing, off, PrinterContext()).output
@@ -261,9 +261,9 @@ end
 # print branch must not throw and must still produce a canvas.
 @testset "disabled Switch / Toggle / Select still render via the muted branch" begin
     proj = _proj()
-    for w in (WidgetSwitch(Point2D(0, 0), true; enabled=false),
-              WidgetToggle(Point2D(0, 0), "Bold"; pressed=true, enabled=false),
-              WidgetSelect(Point2D(0, 0), "Apple"; width=180, enabled=false))
+    for w in (WidgetSwitch(; checked = true, enabled=false),
+              WidgetToggle("Bold"; pressed=true, enabled=false),
+              WidgetSelect("Apple"; width=180, enabled=false))
         @test print_document(proj, nothing, w, PrinterContext()).output isa GraphicsCanvas
     end
 end
@@ -282,8 +282,8 @@ end
         i = findfirst(e -> e isa GraphicsRect && e.color.alpha == 0 && Int(e.border_width) > 0, els)
         i === nothing ? nothing : els[i]
     end
-    for mk in (() -> WidgetButton(Point2D(0, 0), Point2D(80, 30), "Go"),
-               () -> WidgetCheckbox(Point2D(0, 0), false))
+    for mk in (() -> WidgetButton("Go"; size = Point2D(80, 30)),
+               () -> WidgetCheckbox(false))
         un = print_document(proj, nothing, mk(), PrinterContext()).output
         fw = mk(); getfield(fw, :selection)[] = EmptyReference()
         fo = print_document(proj, nothing, fw, PrinterContext()).output
@@ -301,20 +301,20 @@ end
 # reaches the focused leaf via selection routing). Disabled leaves stay inert.
 @testset "Enter/Space activate the focused button and checkbox" begin
     proj = _proj()
-    btn = WidgetButton(Point2D(0, 0), Point2D(80, 30), "Go"; action = (_e) -> nothing)
+    btn = WidgetButton("Go"; size = Point2D(80, 30), action = (_e) -> nothing)
     biomap = print_document(proj, nothing, btn, PrinterContext())
     @test read_intent(proj, biomap, KeyDown(:return, ModifierKeys())) isa InvokeActionOperation
     @test read_intent(proj, biomap, KeyDown(:space,  ModifierKeys())) isa InvokeActionOperation
-    dbtn = WidgetButton(Point2D(0, 0), Point2D(80, 30), "Go"; action = (_e) -> nothing, enabled = false)
+    dbtn = WidgetButton("Go"; size = Point2D(80, 30), action = (_e) -> nothing, enabled = false)
     @test read_intent(proj, print_document(proj, nothing, dbtn, PrinterContext()),
                           KeyDown(:return, ModifierKeys())) === nothing
 
-    cb = WidgetCheckbox(Point2D(0, 0), false)
+    cb = WidgetCheckbox(false)
     ciomap = print_document(proj, nothing, cb, PrinterContext())
     op = read_intent(proj, ciomap, KeyDown(:space, ModifierKeys()))
     @test op isa ReplaceReferencedValueOperation && op.value == true
     @test read_intent(proj, ciomap, KeyDown(:return, ModifierKeys())) isa ReplaceReferencedValueOperation
-    dcb = WidgetCheckbox(Point2D(0, 0), false; enabled = false)
+    dcb = WidgetCheckbox(false; enabled = false)
     @test read_intent(proj, print_document(proj, nothing, dcb, PrinterContext()),
                           KeyDown(:space, ModifierKeys())) === nothing
 end
@@ -323,16 +323,16 @@ end
 # relative ∅ paths, skipping disabled ones, and recurse through containers.
 @testset "first/get_last_focusable_path find enabled leaves and skip disabled" begin
     # A bare focusable leaf is its own whole-element (∅) selection.
-    @test get_first_focusable_path(WidgetButton(Point2D(0,0), Point2D(80,30), "A")) isa EmptyReference
+    @test get_first_focusable_path(WidgetButton("A"; size = Point2D(80,30))) isa EmptyReference
     # A disabled leaf has no focusable path.
-    @test get_first_focusable_path(WidgetButton(Point2D(0,0), Point2D(80,30), "A"; enabled=false)) === nothing
+    @test get_first_focusable_path(WidgetButton("A"; size = Point2D(80,30), enabled=false)) === nothing
     # A display-only widget has none either.
-    @test get_first_focusable_path(WidgetLabel(Point2D(0,0), "x")) === nothing
+    @test get_first_focusable_path(WidgetLabel("x")) === nothing
 
-    comp = WidgetComposite(Point2D(0,0), Any[
-        WidgetButton(Point2D(0,0), Point2D(80,30), "A"),
-        WidgetButton(Point2D(0,0), Point2D(80,30), "B"; enabled=false),
-        WidgetCheckbox(Point2D(0,0), true),
+    comp = WidgetComposite(Any[
+        WidgetButton("A"; size = Point2D(80,30)),
+        WidgetButton("B"; size = Point2D(80,30), enabled=false),
+        WidgetCheckbox(true),
     ])
     fp = get_first_focusable_path(comp)
     @test fp isa ConcreteReference
@@ -343,9 +343,9 @@ end
     @test lp.tail.head.start == 2                                         # slot 3 (checkbox); disabled slot 2 skipped
 
     # Nested: the first focusable descends into the child container.
-    nested = WidgetComposite(Point2D(0,0), Any[
-        WidgetLabel(Point2D(0,0), "x"),                                   # skipped (not focusable)
-        WidgetComposite(Point2D(0,0), Any[WidgetCheckbox(Point2D(0,0), false)]),
+    nested = WidgetComposite(Any[
+        WidgetLabel("x"),                                   # skipped (not focusable)
+        WidgetComposite(Any[WidgetCheckbox(false)]),
     ])
     np = get_first_focusable_path(nested)
     @test np.head.name == "elements" && np.tail.head.start == 1          # outer slot 2
@@ -363,7 +363,7 @@ end
     @test get_first_focusable_path(a) === nothing               # no focusable; terminates (was StackOverflow)
     @test get_last_focusable_path(a)  === nothing
     # A focusable widget stored as a node's value is still reached (the walk doesn't loop).
-    c = ListNode(WidgetButton(Point2D(0,0), Point2D(40,20), "OK")); d = ListNode("z")
+    c = ListNode(WidgetButton("OK"; size = Point2D(40,20))); d = ListNode("z")
     c.next = d; d.prev = c
     @test get_first_focusable_path(c) isa ConcreteReference
 end
@@ -374,14 +374,14 @@ end
 @testset "composite Tab advances the selection across focusable children" begin
     _mk(i) = ConcreteReference(FieldReferenceStep("elements"),
                 ConcreteReference(RangeReferenceStep(i - 1, i), EmptyReference()))
-    _btn(t) = WidgetButton(Point2D(0, 0), Point2D(80, 30), t)
+    _btn(t) = WidgetButton(t; size = Point2D(80, 30))
     _slot(op) = op.path.tail.head.start + 1          # 1-based selected slot from the op
     proj = _proj()
     tab  = KeyDown(:tab, ModifierKeys())
     stab = KeyDown(:tab, ModifierKeys(shift=true))
     _read(c, ev) = read_intent(proj, print_document(proj, nothing, c, PrinterContext()), ev)
 
-    comp = WidgetComposite(Point2D(0, 0), Any[_btn("A"), WidgetCheckbox(Point2D(0, 0), true), _btn("C")])
+    comp = WidgetComposite(Any[_btn("A"), WidgetCheckbox(true), _btn("C")])
 
     # Bootstrap: nothing selected (∅ on the composite) → first focusable (slot 1).
     op = _read(comp, tab)
@@ -403,8 +403,8 @@ end
     @test _slot(_read(comp, stab)) == 3              # Shift-Tab on first wraps to last
 
     # Disabled children are not Tab stops.
-    comp2 = WidgetComposite(Point2D(0, 0), Any[_btn("A"),
-              WidgetButton(Point2D(0, 0), Point2D(80, 30), "B"; enabled=false), _btn("C")])
+    comp2 = WidgetComposite(Any[_btn("A"),
+              WidgetButton("B"; size = Point2D(80, 30), enabled=false), _btn("C")])
     getfield(comp2, :selection)[] = _mk(1)
     @test _slot(_read(comp2, tab)) == 3              # slot 2 skipped
 end
@@ -415,7 +415,7 @@ end
 @testset "layout Tab advances the selection across focusable children" begin
     _mk(i) = ConcreteReference(FieldReferenceStep("children"),
                 ConcreteReference(RangeReferenceStep(i - 1, i), EmptyReference()))
-    _btn(t) = WidgetButton(Point2D(0, 0), Point2D(80, 30), t)
+    _btn(t) = WidgetButton(t; size = Point2D(80, 30))
     _slot(op) = op.path.tail.head.start + 1
     # A renderer that dispatches both layout nodes and widget nodes (as the widget
     # examples do), wrapped in the hover tracker for the top-level Tab wrap-around.
@@ -426,7 +426,7 @@ end
     tab = KeyDown(:tab, ModifierKeys())
     _read(c, ev) = read_intent(lproj, print_document(lproj, nothing, c, PrinterContext()), ev)
 
-    lay = VerticalLayout(Any[_btn("A"), WidgetCheckbox(Point2D(0, 0), true), _btn("C")]; gap=8)
+    lay = VerticalLayout(Any[_btn("A"), WidgetCheckbox(true), _btn("C")]; gap=8)
     op = _read(lay, tab)                              # bootstrap → first focusable
     @test op isa ReplaceSelectionOperation && op.path.head isa FieldReferenceStep
     @test op.path.head.name == "children" && _slot(op) == 1
@@ -442,7 +442,7 @@ end
 # and — with no selection on the button — went nowhere, so a nested button never
 # depressed even though its click still fired.
 @testset "a button inside a layout depresses (press-down/up routed by coordinate)" begin
-    button = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go"; action = (_e) -> nothing)
+    button = WidgetButton("Go"; size = Point2D(120, 40), action = (_e) -> nothing)
     layout = VerticalLayout(Any[button]; gap = 8)                 # single child at origin
     proj = ChainingProjection(WidgetHoverTrackingProjection(inner =
         RecursiveProjection(TypeDispatchingProjection(vcat(
@@ -463,8 +463,8 @@ end
 # routes them to the hit child. The button is located from the card's rendered child
 # entries so the test does not hard-code the header/padding offset.
 @testset "a button inside a card receives hover + press through the card" begin
-    button = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go"; action = (_e) -> nothing)
-    card = WidgetCard(Point2D(0, 0); title = "T", content = button, width = 240)
+    button = WidgetButton("Go"; size = Point2D(120, 40), action = (_e) -> nothing)
+    card = WidgetCard(; title = "T", content = button, width = 240)
     proj = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(_font; measure=_stub).dispatch)))
@@ -500,7 +500,7 @@ end
 @testset "a filled toggle group answers a press with the segment under it" begin
     # No `target`, so a pick writes the group's own `selected` — the segment
      # index, which is what this test reads back.
-    group = WidgetToggleGroup(Point2D(0, 0), Any["one", "two", "three"])
+    group = WidgetToggleGroup(Any["one", "two", "three"])
     proj = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(_font; measure=_stub).dispatch)))
@@ -554,9 +554,9 @@ function test_widget_button_labels()
     projection = RecursiveProjection(TypeDispatchingProjection(
         WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = measure).dispatch))
     width_of(button) = Int(print_document(projection, nothing, button, PrinterContext()).output.w[])
-    plain_pause = WidgetButton(Point2D(0, 0), Point2D(0, 30), "Pause")
-    plain_resume = WidgetButton(Point2D(0, 0), Point2D(0, 30), "Resume")
-    toggle = WidgetButton(Point2D(0, 0), Point2D(0, 30), "Pause"; labels = ["Pause", "Resume"])
+    plain_pause = WidgetButton("Pause"; size = Point2D(0, 30))
+    plain_resume = WidgetButton("Resume"; size = Point2D(0, 30))
+    toggle = WidgetButton("Pause"; size = Point2D(0, 30), labels = ["Pause", "Resume"])
     @test width_of(plain_pause) < width_of(plain_resume)
     @test width_of(toggle) == width_of(plain_resume)
     # The label changes, and the width does not.

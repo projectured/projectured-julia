@@ -13,12 +13,12 @@ FocusModule.is_selection_walk_stop(::_WalkHolder) = false
 end
 
 function _walking_tree()
-    button = WidgetButton(Point2D(0, 0), Point2D(120, 40), "Go")
-    label = WidgetLabel(Point2D(0, 0), "hello")
-    field = WidgetText(Point2D(0, 0), "typed")
+    button = WidgetButton("Go"; size = Point2D(120, 40))
+    label = WidgetLabel("hello")
+    field = WidgetText("typed")
     layout = VerticalLayout(Any[button, label, field]; gap = 10)
-    card = WidgetCard(Point2D(0, 0); title = "Title", content = layout)
-    root = WidgetComposite(Point2D(0, 0), Any[card])
+    card = WidgetCard(; title = "Title", content = layout)
+    root = WidgetComposite(Any[card])
     (root = root, card = card, layout = layout, button = button, label = label, field = field)
 end
 
@@ -107,7 +107,7 @@ function test_selection_walking()
 
     @testset "a caret goes up to its object, and sideways nowhere" begin
         text = PrimitiveString("abc")
-        holder = WidgetComposite(Point2D(0, 0), Any[WidgetLabel(Point2D(0, 0), "x")])
+        holder = WidgetComposite(Any[WidgetLabel("x")])
         caret = ConcreteReference(RangeReferenceStep(1, 1), EmptyReference())
         @test compute_selection_walk(text, caret, :up) == EmptyReference()
         @test compute_selection_walk(text, caret, :left) === nothing

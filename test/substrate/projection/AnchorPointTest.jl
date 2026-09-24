@@ -10,8 +10,8 @@ function test_anchor_point()
 # Symbols resolve from the enclosing `ProjecturedTest` module's `using Projectured`
 # / `using ProjecturedExample`; `Cell` is referenced fully-qualified.
 proj = make_layout_projection_example()
-mkbtn(w, h, label) = WidgetButton(Point2D(0, 0), Point2D(w, h), label;
-                                  border=Inset(1, 1, 1, 1), padding=Inset(4, 4, 8, 8))
+mkbtn(w, h, label) = WidgetButton(label;
+                                  size = Point2D(w, h), border=Inset(1, 1, 1, 1), padding=Inset(4, 4, 8, 8))
 
 _gv(c, s) = (v = getfield(c, s); Int(v isa CellModule.Cell ? v[] : v))
 
@@ -47,7 +47,7 @@ field(name) = (FieldReferenceStep(name),)
 end
 
 @testset "buttons in a WidgetComposite" begin
-    doc = WidgetComposite(Point2D(0, 0), Any[mkbtn(80, 24, "x"), mkbtn(90, 26, "y")])
+    doc = WidgetComposite(Any[mkbtn(80, 24, "x"), mkbtn(90, 26, "y")])
     iomap = print_document(proj, doc)
     for i in 1:2
         truth = abs_top_left(iomap.output, (i, 1))
@@ -56,7 +56,7 @@ end
 end
 
 @testset "composition across container types (layout > composite > button)" begin
-    inner = WidgetComposite(Point2D(0, 0), Any[mkbtn(70, 22, "p"), mkbtn(70, 22, "q")])
+    inner = WidgetComposite(Any[mkbtn(70, 22, "p"), mkbtn(70, 22, "q")])
     doc = VerticalLayout(Any[inner, mkbtn(100, 30, "tail")]; gap=8, horizontal_align=:left)
     iomap = print_document(proj, doc)
     # children[1] = composite: layout-wrapper -> composite canvas -> composite-wrapper -> button.
@@ -91,7 +91,7 @@ end
     bar = WidgetMenu(Any[WidgetMenuItem("File"; submenu = WidgetMenu(Any[WidgetMenuItem("New")])),
                          WidgetMenuItem("Edit"),
                          WidgetMenuItem("Help")]; orientation = :horizontal)
-    content = WidgetComposite(Point2D(0, 0), Any[mkbtn(80, 24, "x")])
+    content = WidgetComposite(Any[mkbtn(80, 24, "x")])
     shell = WidgetShell(content; menu_bar = bar, size = Point2D(600, 400))
     iomap = print_document(proj, shell)
     # Shell canvas: [background rect, menu_bar wrapper, …]. The menu-bar entry is

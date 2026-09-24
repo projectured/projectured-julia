@@ -30,7 +30,7 @@ function print_document(p::FileSystemChooserToWidget, recursion,
                        make_child_context(ctx, FieldReferenceStep("directory")))
     field = print_child(recursion, chooser.name,
                         make_child_context(ctx, FieldReferenceStep("name")))
-    widget = WidgetComposite(p.position, Any[tree.output, field.output])
+    widget = WidgetComposite(Any[tree.output, field.output]; position = p.position)
     SimpleIoMap(p, chooser, widget)
 end
 

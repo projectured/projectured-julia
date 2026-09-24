@@ -34,7 +34,7 @@ _al_renderer() = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
     WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = _al_measure).dispatch)))
 
-_al_label(text) = VerticalLayout(Any[WidgetLabel(Point2D(0, 0), text)]; gap = 0)
+_al_label(text) = VerticalLayout(Any[WidgetLabel(text)]; gap = 0)
 
 # A content projection that draws a box per child and can say *where* it drew
 # each one. That second half is the contract a reference-named target rests on:
@@ -117,7 +117,7 @@ function test_anchored_layout()
         alone = print_document(renderer, content).output
         @test (Int(alone.w[]), Int(alone.h[])) == (110, 20)
 
-        note = AnchoredEntry(WidgetLabel(Point2D(0, 0), "12 waiting");
+        note = AnchoredEntry(WidgetLabel("12 waiting");
                              target = alone, placement = :right, offset_x = 6)
         annotated = print_document(renderer, AnchoredLayout(content, Any[note])).output
 
@@ -136,9 +136,9 @@ function test_anchored_layout()
         # annotation names *what it annotates* in the content's own terms and the
         # content's projection says where that ended up. Nothing here reads a
         # graphics document directly.
-        content = VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "a"),
-                                     WidgetLabel(Point2D(0, 0), "b")]; gap = 0)
-        note = AnchoredEntry(WidgetLabel(Point2D(0, 0), "note");
+        content = VerticalLayout(Any[WidgetLabel("a"),
+                                     WidgetLabel("b")]; gap = 0)
+        note = AnchoredEntry(WidgetLabel("note");
                              reference = @reference(content, children[2]),
                              placement = :right)
         renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
@@ -156,7 +156,7 @@ function test_anchored_layout()
         @test positions[2] == (40, 30)
 
         # A reference the content cannot place is still not an error.
-        stray = AnchoredEntry(WidgetLabel(Point2D(0, 0), "note");
+        stray = AnchoredEntry(WidgetLabel("note");
                               reference = @reference(content, children[9]),
                               placement = :right)
         strayed = print_document(renderer, AnchoredLayout(content, Any[stray])).output
@@ -167,7 +167,7 @@ function test_anchored_layout()
         content = _al_label("x")
         renderer = _al_renderer()
         target = print_document(renderer, content).output
-        note = AnchoredEntry(WidgetLabel(Point2D(0, 0), "long annotation");
+        note = AnchoredEntry(WidgetLabel("long annotation");
                              target = target, placement = :right)
         # 200 wide leaves no room on the right for a 150-wide annotation past a
         # 10-wide box, so it goes to the left and is clamped into the region.

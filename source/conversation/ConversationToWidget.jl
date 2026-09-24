@@ -131,8 +131,8 @@ _format_label(key::Symbol)          = get(FORMAT_LABELS, key, String(key))
 # A header row: a role mark followed by the role, both in the role's color.
 _role_header(role::Symbol) =
     HorizontalLayout(Any[
-        WidgetLabel(Point2D(0, 0), _role_glyph(role); text_style = _icon_style(role)),
-        WidgetLabel(Point2D(0, 0), String(role); text_style = _role_style(role)),
+        WidgetLabel(_role_glyph(role); text_style = _icon_style(role)),
+        WidgetLabel(String(role); text_style = _role_style(role)),
     ]; vertical_align = :center, gap = 10)
 
 # A card that folds. Its `collapsed` cell reads the flag on the domain node,
@@ -202,7 +202,7 @@ function print_document(projection::ConversationTurnToWidgetComposite,
     # done by a channel the content does not already use. It stays a card, so
     # its chevron still folds it and the collapse reader below still finds
     # the turn that a produced card came from.
-    card = WidgetCard(Point2D(0, 0);
+    card = WidgetCard(;
                       title = _role_header(t.role),
                       content = body,
                       variant = t.role === :user ? :tinted : :plain,
@@ -276,11 +276,11 @@ end
 # A quiet tag: the one line a chromed part draws to name itself. No avatar — a
 # glyph beside a word says the word twice.
 _tag(label::AbstractString) =
-    WidgetLabel(Point2D(0, 0), String(label); text_style = _KIND_STYLE)
+    WidgetLabel(String(label); text_style = _KIND_STYLE)
 
 # The panel of a part: a muted card with a tag, that folds with the part.
 _part_card(tag::AbstractString, body, part::ConversationPart) =
-    _follow_fold!(WidgetCard(Point2D(0, 0);
+    _follow_fold!(WidgetCard(;
                              title = _tag(tag), content = body,
                              variant = :muted, collapsible = true),
                   () -> part.collapsed)
@@ -326,8 +326,8 @@ function _eval_sections(ef::EvaluatorForm, folds)
 end
 
 _section_card(label::AbstractString, body, style::StyleText, foldable::Bool) =
-    WidgetCard(Point2D(0, 0);
-               title = WidgetLabel(Point2D(0, 0), String(label); text_style = style),
+    WidgetCard(;
+               title = WidgetLabel(String(label); text_style = style),
                content = body, variant = :plain, collapsible = foldable,
                padding = Inset(0, 0, _SECTION_INDENT, 0))
 

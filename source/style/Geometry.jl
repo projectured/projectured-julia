@@ -16,7 +16,7 @@ Each side is a `Cell` that holds a number.
 
 # Example
 
-    open_pane!(editor, WidgetCard(Point2D(0, 0); title = "Note", content = WidgetLabel(Point2D(0, 0), "Indented"), padding = Inset(8, 8, 24, 8));
+    open_pane!(editor, WidgetCard(; title = "Note", content = WidgetLabel("Indented"), padding = Inset(8, 8, 24, 8));
                title = "Padded")
 
 See also `Point2D` for a position or a size.
@@ -47,13 +47,13 @@ const inset_default = Inset(0, 0, 0, 0)
 
 A pair of numbers: a position or a size.
 
-Use it to give a widget its position, which is `Point2D(0, 0)` inside a layout
-that places it, or a size such as a button's `Point2D(120, 32)`. Each axis is
+Use it to give a widget its `position`, a keyword that is `Point2D(0, 0)` unless
+the widget is placed by hand, or a size such as a button's `Point2D(120, 32)`. Each axis is
 a `Cell` that holds a number, so a widget moves when the cell changes.
 
 # Example
 
-    open_pane!(editor, WidgetButton(Point2D(0, 0), Point2D(120, 32), "Run"); title = "Button")
+    open_pane!(editor, WidgetButton("Run"; size = Point2D(120, 32)); title = "Button")
 
 See also `Inset` for a spacing per side.
 """

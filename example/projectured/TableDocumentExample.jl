@@ -3,8 +3,8 @@
 # cells; the second uses Primitive / Math cells.
 
 function make_table_document_example()
-    WidgetTable(Point2D(40, 40);
-        column_headers = Any[JsonString("Name"), JsonString("Age"), JsonString("City")],
+    WidgetTable(;
+        position = Point2D(40, 40), column_headers = Any[JsonString("Name"), JsonString("Age"), JsonString("City")],
         row_headers = Any[],
         # each body row is a vector of document cells
         rows = Any[
@@ -16,8 +16,8 @@ function make_table_document_example()
 end
 
 function make_math_table_document_example()
-    WidgetTable(Point2D(40, 40);
-        column_headers = Any[PrimitiveString("A"), PrimitiveString("B"), PrimitiveString("C")],
+    WidgetTable(;
+        position = Point2D(40, 40), column_headers = Any[PrimitiveString("A"), PrimitiveString("B"), PrimitiveString("C")],
         row_headers = Any[PrimitiveString("1"), PrimitiveString("2"), PrimitiveString("3")],
         rows = Any[
             # row 1: plain numbers

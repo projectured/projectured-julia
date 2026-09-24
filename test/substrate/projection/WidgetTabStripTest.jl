@@ -12,8 +12,8 @@ _stub(t, f) = (max(1, length(t)) * 10, 24)
 _proj() = make_widget_projection_example(measure=_stub)
 
 function _pane(; kwargs...)
-    WidgetTabbedPane(Any[("one", WidgetLabel(Point2D(0, 0), "1")),
-                         ("two", WidgetLabel(Point2D(0, 0), "2"))]; kwargs...)
+    WidgetTabbedPane(Any[("one", WidgetLabel("1")),
+                         ("two", WidgetLabel("2"))]; kwargs...)
 end
 
 # Sweep the strip band and collect `x => operation` for every operation of a type
@@ -125,8 +125,8 @@ end
 
 # A pane whose first page offers a duplicate and whose second does not.
 function _duplicable_pane(; kwargs...)
-    WidgetTabbedPane(Any[("one", WidgetLabel(Point2D(0, 0), "1"), nothing, true),
-                         ("two", WidgetLabel(Point2D(0, 0), "2"), nothing, false)]; kwargs...)
+    WidgetTabbedPane(Any[("one", WidgetLabel("1"), nothing, true),
+                         ("two", WidgetLabel("2"), nothing, false)]; kwargs...)
 end
 
 # Every press or down in the strip band that answers a strip report, with where.

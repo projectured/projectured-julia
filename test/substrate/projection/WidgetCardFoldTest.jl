@@ -42,13 +42,13 @@ function _fold_text_positions(canvas, ox = 0, oy = 0, found = Dict{String,Tuple{
     found
 end
 
-_fold_title() = WidgetLabel(Point2D(0, 0), "Details")
+_fold_title() = WidgetLabel("Details")
 _fold_title_x(iomap) = getfield(iomap, :child_iomaps)[][1][1]
 
 function test_widget_card_fold()
     @testset "a collapsible card shows its fold state" begin
         body = "the body of the card"
-        card = WidgetCard(Point2D(0, 0); title = _fold_title(), content = body, collapsible = true)
+        card = WidgetCard(; title = _fold_title(), content = body, collapsible = true)
         proj = _fold_proj()
         iomap = print_document(proj, proj, card, PrinterContext())
         canvas = iomap.output
@@ -59,11 +59,11 @@ function test_widget_card_fold()
 
         # The title moved right, by the column the chevron takes, and the body
         # moved with it: the body lines up under the title's word.
-        plain = WidgetCard(Point2D(0, 0); title = _fold_title(), content = body)
+        plain = WidgetCard(; title = _fold_title(), content = body)
         plain_iomap = print_document(proj, proj, plain, PrinterContext())
         @test _fold_title_x(iomap) > _fold_title_x(plain_iomap)
-        document_body = WidgetCard(Point2D(0, 0); title = _fold_title(),
-                                   content = WidgetLabel(Point2D(0, 0), body), collapsible = true)
+        document_body = WidgetCard(; title = _fold_title(),
+                                   content = WidgetLabel(body), collapsible = true)
         entries = getfield(print_document(proj, proj, document_body, PrinterContext()), :child_iomaps)[]
         @test length(entries) == 2
         @test entries[2][1] == entries[1][1]
@@ -88,7 +88,7 @@ function test_widget_card_fold()
     end
 
     @testset "a card that does not fold draws no chevron" begin
-        card = WidgetCard(Point2D(0, 0); title = _fold_title(), content = "x")
+        card = WidgetCard(; title = _fold_title(), content = "x")
         proj = _fold_proj()
         iomap = print_document(proj, proj, card, PrinterContext())
         texts = _fold_texts(iomap.output)
@@ -106,11 +106,11 @@ function test_widget_card_fold()
     # the chevron's column empty, so the column carries a hit target of its own.
     @testset "a plain card folds from anywhere in its chevron's column" begin
         proj = _fold_proj()
-        make_card() = WidgetCard(Point2D(0, 0); title = _fold_title(), content = "x",
+        make_card() = WidgetCard(; title = _fold_title(), content = "x",
                                  variant = :plain, collapsible = true)
         title_x = _fold_title_x(print_document(proj, proj, make_card(), PrinterContext()))
         card = make_card()
-        iomap = print_document(proj, proj, WidgetComposite(Point2D(0, 0), Any[card]), PrinterContext())
+        iomap = print_document(proj, proj, WidgetComposite(Any[card]), PrinterContext())
         on_column = read_intent(proj, iomap, MousePress(:left, title_x - 1, 28, ModifierKeys()))
         @test on_column isa ToggleCollapseOperation && on_column.target === card
         on_title = read_intent(proj, iomap, MousePress(:left, title_x + 2, 28, ModifierKeys()))
@@ -118,8 +118,8 @@ function test_widget_card_fold()
     end
 
     @testset "a press on the header of an accordion item opens or closes it" begin
-        accordion = WidgetAccordion(Point2D(20, 10), [("First", "the first body"),
-                                                      ("Second", "the second body")]; expanded = 1)
+        accordion = WidgetAccordion([("First", "the first body"),
+                                                      ("Second", "the second body")]; position = Point2D(20, 10), expanded = 1)
         proj = _fold_proj()
         iomap = print_document(proj, proj, accordion, PrinterContext())
         texts = _fold_texts(iomap.output)
@@ -156,10 +156,9 @@ function test_widget_card_fold()
     end
 
     @testset "an accordion draws a title and a body that are documents through the recursion" begin
-        box = WidgetCheckbox(Point2D(0, 0), false)
-        body = VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "inner body"), box]; gap = 4)
-        accordion = WidgetAccordion(Point2D(0, 0),
-                                    [(WidgetLabel(Point2D(0, 0), "Document title"), body),
+        box = WidgetCheckbox(false)
+        body = VerticalLayout(Any[WidgetLabel("inner body"), box]; gap = 4)
+        accordion = WidgetAccordion([(WidgetLabel("Document title"), body),
                                      ("Plain title", "the plain body")]; expanded = 1)
         proj = RecursiveProjection(TypeDispatchingProjection(vcat(
             LayoutToGraphics().dispatch,
@@ -197,16 +196,16 @@ function test_widget_card_fold()
 
     @testset "a card with its own padding" begin
         proj = _fold_proj()
-        themed = print_document(proj, proj, WidgetCard(Point2D(0, 0); content = "abc", variant = :plain),
+        themed = print_document(proj, proj, WidgetCard(; content = "abc", variant = :plain),
                                 PrinterContext()).output
-        bare = print_document(proj, proj, WidgetCard(Point2D(0, 0); content = "abc", variant = :plain,
+        bare = print_document(proj, proj, WidgetCard(; content = "abc", variant = :plain,
                                                      padding = Inset(0, 0, 0, 0)),
                               PrinterContext()).output
         # The themed padding is 16 on each side; the bare card has none.
         @test Int(bare.w[]) == Int(themed.w[]) - 32
         @test Int(bare.h[]) == Int(themed.h[]) - 32
         # An Inset names each side: this one indents and does nothing else.
-        indented = print_document(proj, proj, WidgetCard(Point2D(0, 0); content = "abc", variant = :plain,
+        indented = print_document(proj, proj, WidgetCard(; content = "abc", variant = :plain,
                                                          padding = Inset(0, 0, 12, 0)),
                                   PrinterContext()).output
         @test Int(indented.w[]) == Int(bare.w[]) + 12

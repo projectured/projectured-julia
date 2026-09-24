@@ -99,7 +99,7 @@ end
     @test (@test_logs (:warn, "The pane has no duplicate") make_pane_duplicate_tab_operation(
                inner, inner.root, 1)) === nothing
     # A value inside the content that refuses is named in the reason.
-    field = WidgetText(Point2D(0, 0), "12"; validator = make_numeric_validator())
+    field = WidgetText("12"; validator = make_numeric_validator())
     refusing = PaneTree(PaneGroup([PaneTab("field", field)]))
     logger = Test.TestLogger()
     Base.CoreLogging.with_logger(logger) do

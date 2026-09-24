@@ -24,7 +24,7 @@ end
 # ── WidgetLabel ────────────────────────────────────────────────────────────
 
 """
-    WidgetLabel(position, content; <base kwargs>)
+    WidgetLabel(content; position, <base kwargs>)
 
 A line of text a person reads and does not edit.
 
@@ -33,7 +33,7 @@ card, a row or a column. `content` is a string or a document.
 
 # Example
 
-    open_pane!(editor, WidgetLabel(Point2D(0, 0), "The delay of every run"); title = "Note")
+    open_pane!(editor, WidgetLabel("The delay of every run"); title = "Note")
 
 See also `WidgetText`, which a person edits, `WidgetBadge` for one status word,
 and `WidgetAlert` for a message with a title.
@@ -60,7 +60,7 @@ and `WidgetAlert` for a message with a title.
     tooltip::Any
 end
 
-function WidgetLabel(position::Point2D, content;
+function WidgetLabel(content; position::Point2D=Point2D(0, 0),
                      text_style=nothing,
                      visible::Bool=true,
                      margin=nothing, border=nothing, padding=nothing,
@@ -75,7 +75,7 @@ set_cell_computation!(w::WidgetLabel, f::Function) = (set_cell_computation!(getf
 # ── WidgetText ─────────────────────────────────────────────────────────────
 
 """
-    WidgetText(position, content; width, <base kwargs>)
+    WidgetText(content; position, width, <base kwargs>)
 
 One line of text a person edits.
 
@@ -84,7 +84,7 @@ or beside a button that uses it.
 
 # Example
 
-    open_pane!(editor, WidgetText(Point2D(0, 0), "name =~ *delay*"; width = 240); title = "Filter")
+    open_pane!(editor, WidgetText("name =~ *delay*"; width = 240); title = "Filter")
 
 `width` is a floor and not a size: the box is at least that many pixels wide and
 grows with what is typed into it. It is `0` by default, which is the box that
@@ -109,7 +109,7 @@ only read, and `WidgetSpinBox` for a number.
     tooltip::Any
 end
 
-function WidgetText(position::Point2D, content;
+function WidgetText(content; position::Point2D=Point2D(0, 0),
                     width::Integer=0,
                     validator=nothing,
                     visible::Bool=true,
@@ -148,7 +148,7 @@ end
 # ── WidgetSpinBox ────────────────────────────────────────────────────────────
 
 """
-    WidgetSpinBox(position, value; min=nothing, max=nothing, step=1, width=0,
+    WidgetSpinBox(value; position, min=nothing, max=nothing, step=1, width=0,
                   validator=make_numeric_validator(), <enabled/visible>)
 
 A number with a stepper up and a stepper down.
@@ -159,7 +159,7 @@ bound of `nothing` is no bound. `width` is a floor, as it is on `WidgetText`.
 
 # Example
 
-    open_pane!(editor, WidgetSpinBox(Point2D(0, 0), 10; min = 1, max = 100, width = 80); title = "Runs")
+    open_pane!(editor, WidgetSpinBox(10; min = 1, max = 100, width = 80); title = "Runs")
 
 The `validator` is a hook for typed entry; a step is always numeric.
 
@@ -183,7 +183,7 @@ a value typed as text.
     tooltip::Any
 end
 
-function WidgetSpinBox(position::Point2D, value;
+function WidgetSpinBox(value; position::Point2D=Point2D(0, 0),
                        min=nothing, max=nothing, step=1, width::Integer=0,
                        validator=make_numeric_validator(),
                        visible::Bool=true, enabled::Bool=true,
@@ -196,7 +196,7 @@ end
 # ── WidgetList ───────────────────────────────────────────────────────────────
 
 """
-    WidgetList(position, items; selected=0, width=0, <enabled/visible>)
+    WidgetList(items; position, selected=0, width=0, <enabled/visible>)
 
 A column of rows where one row is selected.
 
@@ -206,7 +206,7 @@ hits, and Up and Down move the selection.
 
 # Example
 
-    open_pane!(editor, WidgetList(Point2D(0, 0), ["Fifo", "TandemQueue"]; selected = 1, width = 200); title = "Configurations")
+    open_pane!(editor, WidgetList(["Fifo", "TandemQueue"]; selected = 1, width = 200); title = "Configurations")
 
 `hovered` is the 1-based row under the pointer (`0` = none). Like a button's
 `hovered` it is **transient UI state**, not content: the reader writes it from
@@ -268,7 +268,7 @@ nothing is selected. The inverse of the `selected` construction keyword.
 """
 get_widget_list_selected(w::WidgetList) = _widget_element_selected(w.selection, "items")
 
-function WidgetList(position::Point2D, items::Vector;
+function WidgetList(items::Vector; position::Point2D=Point2D(0, 0),
                     selected::Integer=0, width::Integer=0,
                     visible::Bool=true, enabled::Bool=true,
                     margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing)
@@ -281,7 +281,7 @@ end
 # ── WidgetCheckbox ─────────────────────────────────────────────────────────
 
 """
-    WidgetCheckbox(position, content; <base kwargs>)
+    WidgetCheckbox(content; position, <base kwargs>)
 
 A box a person ticks on or off.
 
@@ -292,8 +292,8 @@ what it means.
 
 # Example
 
-    open_pane!(editor, HorizontalLayout(Any[WidgetCheckbox(Point2D(0, 0), true),
-                                            WidgetLabel(Point2D(0, 0), "Record vectors")]; gap = 8);
+    open_pane!(editor, HorizontalLayout(Any[WidgetCheckbox(true),
+                                            WidgetLabel("Record vectors")]; gap = 8);
                title = "Option")
 
 `enabled` (default `true`) is a shared interactivity flag alongside `visible`:
@@ -316,7 +316,7 @@ See also `WidgetSwitch`, which is the same choice drawn as a slide, and
     tooltip::Any
 end
 
-function WidgetCheckbox(position::Point2D, content;
+function WidgetCheckbox(content; position::Point2D=Point2D(0, 0),
                         gestures=GestureBinding[],
                         visible::Bool=true,
                         enabled::Bool=true,
@@ -333,7 +333,7 @@ get_instance_gesture_bindings(w::WidgetCheckbox) = w.gestures
 # ── WidgetButton ───────────────────────────────────────────────────────────
 
 """
-    WidgetButton(position, size, content; action, <base kwargs>)
+    WidgetButton(content; position, size=nothing, action, <base kwargs>)
 
 A button a person clicks to run a command.
 
@@ -345,7 +345,7 @@ pixels.
 
 # Example
 
-    open_pane!(editor, WidgetButton(Point2D(0, 0), Point2D(120, 32), "Run again";
+    open_pane!(editor, WidgetButton("Run again";
                                     action = editor -> run_simulations!(select_simulations!(editor; config = "TandemQueue")));
                title = "Runner")
 
@@ -406,7 +406,7 @@ for one choice among several.
     tooltip::Any
 end
 
-function WidgetButton(position::Point2D, size::Point2D, content;
+function WidgetButton(content; position::Point2D=Point2D(0, 0), size::Union{Nothing,Point2D}=nothing,
                       action=nothing,
                       gestures=GestureBinding[],
                       icon=nothing,
@@ -424,7 +424,7 @@ function WidgetButton(position::Point2D, size::Point2D, content;
     # `dialog` (optional) is a child `WidgetDialog` opened modally on click.
     # `content` and `icon` are constructor sugar, not fields: they fold into the
     # button's `Action`, which is the single home of what the command is.
-    WidgetButton(Cell(position), Cell(size),
+    WidgetButton(Cell(position), Cell(something(size, Point2D(0, 0))),
                  Cell(resolve_action(content, icon, action)), Cell(gestures),
                  Cell(dialog),
                  Cell(visible), Cell(enabled), Cell(margin), Cell(border), Cell(padding),
@@ -449,12 +449,12 @@ optional short `label`. A thin convenience over `WidgetButton`, so it accepts th
 same keywords (`action`, `enabled`, `border`, …). Stage 5.
 """
 WidgetToolButton(icon; label="", size::Point2D=Point2D(0, 0), kwargs...) =
-    WidgetButton(Point2D(0, 0), size, label; icon=icon, kwargs...)
+    WidgetButton(label; size = size, icon=icon, kwargs...)
 
 # ── WidgetTooltip ──────────────────────────────────────────────────────────
 
 """
-    WidgetTooltip(position, size, content; <base kwargs>)
+    WidgetTooltip(content; position, size=nothing, <base kwargs>)
 
 A floating tooltip overlay..
 """
@@ -470,11 +470,11 @@ A floating tooltip overlay..
     tooltip::Any
 end
 
-function WidgetTooltip(position::Point2D, size::Point2D, content;
+function WidgetTooltip(content; position::Point2D=Point2D(0, 0), size::Union{Nothing,Point2D}=nothing,
                        visible::Bool=true,
                        margin=nothing, border=nothing, padding=nothing,
                        style=nothing, tooltip=nothing)
-    WidgetTooltip(Cell(position), Cell(size), Cell(content),
+    WidgetTooltip(Cell(position), Cell(something(size, Point2D(0, 0))), Cell(content),
                   Cell(visible), Cell(margin), Cell(border), Cell(padding),
                   Cell(style), Cell(tooltip), Cell(nothing))
 end
@@ -566,8 +566,8 @@ A `WidgetDialog` whose content is a `WidgetLabel(message)` and whose buttons are
 plain closing `WidgetButton`s — the `QMessageBox` analogue.
 """
 function WidgetMessageBox(title, message; buttons=["OK"], popup_id::Symbol=:widget_dialog)
-    btns = Any[WidgetButton(Point2D(0, 0), Point2D(72, 0), b) for b in buttons]
-    WidgetDialog(title, WidgetLabel(Point2D(0, 0), message), btns; popup_id=popup_id)
+    btns = Any[WidgetButton(b; size = Point2D(72, 0)) for b in buttons]
+    WidgetDialog(title, WidgetLabel(message), btns; popup_id=popup_id)
 end
 
 """
@@ -578,13 +578,13 @@ Cancel / OK buttons — the `QInputDialog` analogue. (Editing the field needs th
 text-widget projection, as for any `WidgetText`.)
 """
 function WidgetInputDialog(title, prompt; value="", popup_id::Symbol=:widget_dialog)
-    content = WidgetComposite(Point2D(0, 0), Any[
-        WidgetLabel(Point2D(0, 0), prompt),
-        WidgetText(Point2D(0, 28), value),
+    content = WidgetComposite(Any[
+        WidgetLabel(prompt),
+        WidgetText(value; position = Point2D(0, 28)),
     ])
     WidgetDialog(title, content,
-                 Any[WidgetButton(Point2D(0, 0), Point2D(72, 0), "Cancel"),
-                     WidgetButton(Point2D(0, 0), Point2D(72, 0), "OK")];
+                 Any[WidgetButton("Cancel"; size = Point2D(72, 0)),
+                     WidgetButton("OK"; size = Point2D(72, 0))];
                  popup_id=popup_id)
 end
 
@@ -724,7 +724,7 @@ set_cell_computation!(w::WidgetToolbarItem, f::Function) = (set_cell_computation
 # ── WidgetComposite ────────────────────────────────────────────────────────
 
 """
-    WidgetComposite(position, elements; <base kwargs>)
+    WidgetComposite(elements; position, <base kwargs>)
 
 A container that holds child widgets in order, each at its own position.
 
@@ -734,8 +734,8 @@ children itself: `HorizontalLayout`, `VerticalLayout` or `GridLayout`.
 
 # Example
 
-    open_pane!(editor, WidgetComposite(Point2D(0, 0), Any[WidgetLabel(Point2D(0, 0), "Delay"),
-                                                          WidgetLabel(Point2D(0, 24), "Throughput")]);
+    open_pane!(editor, WidgetComposite(Any[WidgetLabel("Delay"),
+                                                          WidgetLabel("Throughput"; position = Point2D(0, 24))]);
                title = "Placed")
 
 See also `WidgetCard`, which frames one thing with a title, and `VerticalLayout`.
@@ -751,7 +751,7 @@ See also `WidgetCard`, which frames one thing with a title, and `VerticalLayout`
     tooltip::Any
 end
 
-function WidgetComposite(position::Point2D, elements::Vector;
+function WidgetComposite(elements::Vector; position::Point2D=Point2D(0, 0),
                          visible::Bool=true,
                          margin=nothing, border=nothing, padding=nothing,
                          style=nothing, tooltip=nothing)
@@ -838,8 +838,8 @@ function make_pager_widget(; from, total, page::Integer, move,
         nothing
     end
     button(label, where) =
-        WidgetButton(Point2D(0, 0), button_size, label; action = go(where))
-    where_label = WidgetLabel(Point2D(0, 0), "")
+        WidgetButton(label; size = button_size, action = go(where))
+    where_label = WidgetLabel("")
     set_cell_computation!(getfield(where_label, :content), () -> begin
         count = total()
         count <= 0 && return "empty"
@@ -882,21 +882,21 @@ function make_filter_bar_widget(; text, place, regex, apply,
     # filter: a cell with a function behind it recomputes, and a box that
     # recomputed would erase the reader mid-word. So the filter seeds them once
     # and the reader owns them after that.
-    text_box = WidgetText(Point2D(0, 0), text())
-    place_box = WidgetText(Point2D(0, 0), place())
-    regex_switch = WidgetToggle(Point2D(0, 0), ".*"; pressed = regex())
+    text_box = WidgetText(text())
+    place_box = WidgetText(place())
+    regex_switch = WidgetToggle(".*"; pressed = regex())
     # And the press is what says "now". Applying per keystroke would run a
     # filter over the whole history for every letter of a word — the reader
     # would pay for `pack`, `packe` and `packet` to learn about `packet`.
-    press = WidgetButton(Point2D(0, 0), button_size, "find";
-                         action = () -> begin
+    press = WidgetButton("find";
+                         size = button_size, action = () -> begin
                              apply(; text = string(text_box.content),
                                      place = string(place_box.content),
                                      regex = regex_switch.pressed)
                              nothing
                          end)
-    HorizontalLayout(Any[WidgetLabel(Point2D(0, 0), "find"), text_box,
-                         WidgetLabel(Point2D(0, 0), "in"), place_box,
+    HorizontalLayout(Any[WidgetLabel("find"), text_box,
+                         WidgetLabel("in"), place_box,
                          regex_switch, press]; gap = 4)
 end
 
@@ -933,10 +933,10 @@ function make_column_chooser_widget(; columns, is_shown, choose,
     # reader is trying to read a state.
     bar = HorizontalLayout(Any[]; gap = 4)
     set_cell_computation!(getfield(bar, :children), () -> Any[
-        WidgetLabel(Point2D(0, 0), "columns");
-        [WidgetButton(Point2D(0, 0), button_size,
+        WidgetLabel("columns");
+        [WidgetButton(
                       (is_shown(name) ? "[x] " : "[ ] ") * label;
-                      action = () -> (choose(name, !is_shown(name)); nothing))
+                      size = button_size, action = () -> (choose(name, !is_shown(name)); nothing))
          for (name, label) in columns]])
     bar
 end
@@ -1380,7 +1380,7 @@ end
 # ── WidgetBadge ─────────────────────────────────────────────────────────────
 
 """
-    WidgetBadge(position, content; variant=:default, <base kwargs>)
+    WidgetBadge(content; position, variant=:default, <base kwargs>)
 
 A small pill with one word: a status.
 
@@ -1390,8 +1390,8 @@ Use it to mark a state beside a title or in a row: "running", "failed",
 
 # Example
 
-    open_pane!(editor, HorizontalLayout(Any[WidgetLabel(Point2D(0, 0), "TandemQueue"),
-                                            WidgetBadge(Point2D(0, 0), "running")]; gap = 8);
+    open_pane!(editor, HorizontalLayout(Any[WidgetLabel("TandemQueue"),
+                                            WidgetBadge("running")]; gap = 8);
                title = "Status")
 
 See also `WidgetAlert` for a message with a title, and `WidgetLabel`.
@@ -1407,7 +1407,7 @@ See also `WidgetAlert` for a message with a title, and `WidgetLabel`.
     style::Any
     tooltip::Any
 end
-WidgetBadge(position::Point2D, content; variant::Symbol=:default, visible::Bool=true,
+WidgetBadge(content; position::Point2D=Point2D(0, 0), variant::Symbol=:default, visible::Bool=true,
             margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetBadge(Cell(position), Cell(content), Cell(variant), Cell(visible),
                Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
@@ -1415,7 +1415,7 @@ WidgetBadge(position::Point2D, content; variant::Symbol=:default, visible::Bool=
 # ── WidgetSeparator ─────────────────────────────────────────────────────────
 
 """
-    WidgetSeparator(position; orientation=:horizontal, length=200, <base kwargs>)
+    WidgetSeparator(; position, orientation=:horizontal, length=200, <base kwargs>)
 
 A thin rule that divides two parts.
 
@@ -1424,9 +1424,9 @@ Use it to put a line between two groups in a column or a row. `orientation` is
 
 # Example
 
-    open_pane!(editor, VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "Runs"),
-                                          WidgetSeparator(Point2D(0, 0); length = 300),
-                                          WidgetLabel(Point2D(0, 0), "Results")]; gap = 8);
+    open_pane!(editor, VerticalLayout(Any[WidgetLabel("Runs"),
+                                          WidgetSeparator(; length = 300),
+                                          WidgetLabel("Results")]; gap = 8);
                title = "Divided")
 
 See also `WidgetCard`, which frames a group instead of dividing two.
@@ -1442,7 +1442,7 @@ See also `WidgetCard`, which frames a group instead of dividing two.
     style::Any
     tooltip::Any
 end
-WidgetSeparator(position::Point2D; orientation::Symbol=:horizontal,
+WidgetSeparator(; position::Point2D=Point2D(0, 0), orientation::Symbol=:horizontal,
                 length::Integer=200, visible::Bool=true,
                 margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetSeparator(Cell(position), Cell(orientation), Cell(Int(length)), Cell(visible),
@@ -1451,7 +1451,7 @@ WidgetSeparator(position::Point2D; orientation::Symbol=:horizontal,
 # ── WidgetCard ──────────────────────────────────────────────────────────────
 
 """
-    WidgetCard(position; title, description, content, footer, width=0, collapsed=false,
+    WidgetCard(; position, title, description, content, footer, width=0, collapsed=false,
                variant=:card, collapsible=false, <base kwargs>)
 
 A surface with a title, a description, a content body and a footer, stacked
@@ -1465,7 +1465,7 @@ surface is.
 # Example
 
     table = make_result_table(get_simulation_scalar_results(get_project_result_directory(editor)))
-    open_pane!(editor, WidgetCard(Point2D(0, 0); title = "Delay", content = table, width = 600); title = "Delay")
+    open_pane!(editor, WidgetCard(; title = "Delay", content = table, width = 600); title = "Delay")
 
 `collapsed` is transient view state (like `WidgetScrollPane.scroll_position`): a
 click on the chevron of a collapsible card emits `ToggleCollapseOperation(card)`,
@@ -1532,7 +1532,7 @@ folding sections, and `VerticalLayout` to stack cards.
 end
 
 """
-    WidgetCard(position; title, description, content, footer, width=0, height=0, ...)
+    WidgetCard(; position, title, description, content, footer, width=0, height=0, ...)
 
 `height = 0` (the default) is **content-tall**: the card wraps whatever its
 content measures, and its content is laid out with no height allocation. A
@@ -1544,7 +1544,7 @@ widget that wants an allocation to scroll within) needs a bounded height to
 scroll *inside*; in the content-tall mode there is nothing to scroll against, so
 tall content simply extends past the card.
 """
-WidgetCard(position::Point2D; title=nothing, description=nothing, content=nothing,
+WidgetCard(; position::Point2D=Point2D(0, 0), title=nothing, description=nothing, content=nothing,
            footer=nothing, width::Integer=0, height::Integer=0,
            visible::Bool=true, collapsed::Bool=false, variant::Symbol=:card,
            collapsible::Bool=false, margin=nothing, border=nothing, padding=nothing,
@@ -1558,7 +1558,7 @@ WidgetCard(position::Point2D; title=nothing, description=nothing, content=nothin
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
 """
-    WidgetSwitch(position, checked; duration=0)
+    WidgetSwitch(; position, checked=false, duration=0)
 
 An on/off switch, drawn as a knob on a track.
 
@@ -1568,8 +1568,8 @@ it.
 
 # Example
 
-    open_pane!(editor, HorizontalLayout(Any[WidgetLabel(Point2D(0, 0), "Live update"),
-                                            WidgetSwitch(Point2D(0, 0), true)]; gap = 8);
+    open_pane!(editor, HorizontalLayout(Any[WidgetLabel("Live update"),
+                                            WidgetSwitch(; checked = true)]; gap = 8);
                title = "Setting")
 
 When `duration` is greater than zero the knob *slides* between the off and on
@@ -1598,7 +1598,7 @@ See also `WidgetCheckbox` and `WidgetToggleGroup`.
     gestures::Any        # per-instance gesture bindings (see get_instance_gesture_bindings)
     tooltip::Any
 end
-WidgetSwitch(position::Point2D, checked::Bool=false; visible::Bool=true, enabled::Bool=true,
+WidgetSwitch(; position::Point2D=Point2D(0, 0), checked::Bool=false, visible::Bool=true, enabled::Bool=true,
              margin=nothing, border=nothing, padding=nothing, style=nothing,
              duration::Integer=0, gestures=GestureBinding[], tooltip=nothing) =
     WidgetSwitch(Cell(position), Cell(checked), Cell(visible), Cell(enabled),
@@ -1609,7 +1609,7 @@ get_instance_gesture_bindings(w::WidgetSwitch) = w.gestures
 # ── WidgetProgress ──────────────────────────────────────────────────────────
 
 """
-    WidgetProgress(position, value; width=240)
+    WidgetProgress(value; position, width=240)
 
 A bar filled to a share between zero and one.
 
@@ -1618,7 +1618,7 @@ advances. `width` is the bar's length in pixels.
 
 # Example
 
-    open_pane!(editor, WidgetProgress(Point2D(0, 0), 0.4; width = 300); title = "Progress")
+    open_pane!(editor, WidgetProgress(0.4; width = 300); title = "Progress")
 
 See also `WidgetSlider`, which a person drags, and `WidgetBadge` for a state
 in one word.
@@ -1634,7 +1634,7 @@ in one word.
     style::Any
     tooltip::Any
 end
-WidgetProgress(position::Point2D, value::Real=0.0; width::Integer=240, visible::Bool=true,
+WidgetProgress(value::Real; position::Point2D=Point2D(0, 0), width::Integer=240, visible::Bool=true,
                margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetProgress(Cell(position), Cell(Float64(value)), Cell(Int(width)), Cell(visible),
                    Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
@@ -1642,7 +1642,7 @@ WidgetProgress(position::Point2D, value::Real=0.0; width::Integer=240, visible::
 # ── WidgetSlider ────────────────────────────────────────────────────────────
 
 """
-    WidgetSlider(position, value; width=240)
+    WidgetSlider(value; position, width=240)
 
 A knob a person drags along a track to choose a share between zero and one.
 
@@ -1651,7 +1651,7 @@ the runs. `value` is the share, and `width` is the track's length in pixels.
 
 # Example
 
-    open_pane!(editor, WidgetSlider(Point2D(0, 0), 0.5; width = 300); title = "Threshold")
+    open_pane!(editor, WidgetSlider(0.5; width = 300); title = "Threshold")
 
 See also `WidgetSpinBox` for a number chosen by steps, and `WidgetProgress` for
 a share that is only shown.
@@ -1685,7 +1685,7 @@ a share that is only shown.
     scale::Any
     tooltip::Any
 end
-WidgetSlider(position::Point2D, value::Real=0.5; width::Integer=240, visible::Bool=true,
+WidgetSlider(value::Real; position::Point2D=Point2D(0, 0), width::Integer=240, visible::Bool=true,
              enabled::Bool=true, margin=nothing, border=nothing, padding=nothing, style=nothing,
              target=nothing, field::AbstractString="value",
              scale=nothing, tooltip=nothing) =
@@ -1715,7 +1715,7 @@ end
 # ── WidgetRadioGroup ────────────────────────────────────────────────────────
 
 """
-    WidgetRadioGroup(position, options; selected=1)
+    WidgetRadioGroup(options; position, selected=1)
 
 A column of round options where one is selected.
 
@@ -1727,7 +1727,7 @@ select the next or the previous option.
 
 # Example
 
-    open_pane!(editor, WidgetRadioGroup(Point2D(0, 0), ["Scalars", "Vectors", "Histograms"]; selected = 2); title = "Kind")
+    open_pane!(editor, WidgetRadioGroup(["Scalars", "Vectors", "Histograms"]; selected = 2); title = "Kind")
 
 See also `WidgetToggleGroup` for the same choice in one row, and `WidgetSelect`
 for many choices that open on a click.
@@ -1744,7 +1744,7 @@ for many choices that open on a click.
     style::Any
     tooltip::Any
 end
-WidgetRadioGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true, enabled::Bool=true,
+WidgetRadioGroup(options::Vector; position::Point2D=Point2D(0, 0), selected::Integer=1, visible::Bool=true, enabled::Bool=true,
                  margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetRadioGroup(Cell(position), CellVector(Cell[Cell(o) for o in options]),
                      Cell(Int(selected)), Cell(visible), Cell(enabled),
@@ -1753,7 +1753,7 @@ WidgetRadioGroup(position::Point2D, options::Vector; selected::Integer=1, visibl
 # ── WidgetAvatar ────────────────────────────────────────────────────────────
 
 """
-    WidgetAvatar(position, initials; size=64, <base kwargs>)
+    WidgetAvatar(initials; position, size=64, <base kwargs>)
 
 A circular avatar showing initials (image-clipping is future work).
 """
@@ -1768,7 +1768,7 @@ A circular avatar showing initials (image-clipping is future work).
     style::Any
     tooltip::Any
 end
-WidgetAvatar(position::Point2D, initials; size::Integer=64, visible::Bool=true,
+WidgetAvatar(initials; position::Point2D=Point2D(0, 0), size::Integer=64, visible::Bool=true,
              margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetAvatar(Cell(position), Cell(initials), Cell(Int(size)), Cell(visible),
                 Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
@@ -1776,7 +1776,7 @@ WidgetAvatar(position::Point2D, initials; size::Integer=64, visible::Bool=true,
 # ── WidgetAlert ─────────────────────────────────────────────────────────────
 
 """
-    WidgetAlert(position, title, description; icon=nothing, variant=:default, width=0, <base kwargs>)
+    WidgetAlert(title; position, description=nothing, icon=nothing, variant=:default, width=0, <base kwargs>)
 
 A bordered message with a bold title and a muted description.
 
@@ -1789,7 +1789,7 @@ fault; `:default` is calm.
 
 # Example
 
-    open_pane!(editor, WidgetAlert(Point2D(0, 0), "Run failed", "TandemQueue run 3 stopped with an error."; variant = :destructive, width = 400);
+    open_pane!(editor, WidgetAlert("Run failed"; description = "TandemQueue run 3 stopped with an error.", variant = :destructive, width = 400);
                title = "Alert")
 
 See also `WidgetBadge` for one word of status, and `WidgetLabel` for a plain
@@ -1809,7 +1809,7 @@ line.
     style::Any
     tooltip::Any
 end
-WidgetAlert(position::Point2D, title, description=nothing; icon=nothing,
+WidgetAlert(title; position::Point2D=Point2D(0, 0), description=nothing, icon=nothing,
             variant::Symbol=:default, width::Integer=0, visible::Bool=true,
             margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetAlert(Cell(position), Cell(title), Cell(description), Cell(icon), Cell(variant),
@@ -1819,7 +1819,7 @@ WidgetAlert(position::Point2D, title, description=nothing; icon=nothing,
 # ── WidgetSkeleton ──────────────────────────────────────────────────────────
 
 """
-    WidgetSkeleton(position; width=240, height=20, <base kwargs>)
+    WidgetSkeleton(; position, width=240, height=20, <base kwargs>)
 
 A muted rounded placeholder block for loading states.
 """
@@ -1834,7 +1834,7 @@ A muted rounded placeholder block for loading states.
     style::Any
     tooltip::Any
 end
-WidgetSkeleton(position::Point2D; width::Integer=240, height::Integer=20, visible::Bool=true,
+WidgetSkeleton(; position::Point2D=Point2D(0, 0), width::Integer=240, height::Integer=20, visible::Bool=true,
                margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetSkeleton(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible),
                   Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
@@ -1842,7 +1842,7 @@ WidgetSkeleton(position::Point2D; width::Integer=240, height::Integer=20, visibl
 # ── WidgetHighlight ─────────────────────────────────────────────────────────
 
 """
-    WidgetHighlight(position; width, height, visible, style)
+    WidgetHighlight(; position, width, height, visible, style)
 
 A translucent accent rectangle with an accent outline: **an area called out**,
 not a control. It draws nothing of its own beyond that, takes no input, and is
@@ -1863,7 +1863,7 @@ must not do.
     style::Any
     tooltip::Any
 end
-WidgetHighlight(position::Point2D; width::Integer=120, height::Integer=80, visible::Bool=true,
+WidgetHighlight(; position::Point2D=Point2D(0, 0), width::Integer=120, height::Integer=80, visible::Bool=true,
                 style=nothing, tooltip=nothing) =
     WidgetHighlight(Cell(position), Cell(Int(width)), Cell(Int(height)), Cell(visible), Cell(style),
                     Cell(tooltip), Cell(nothing))
@@ -1871,7 +1871,7 @@ WidgetHighlight(position::Point2D; width::Integer=120, height::Integer=80, visib
 # ── WidgetToggle ────────────────────────────────────────────────────────────
 
 """
-    WidgetToggle(position, content; pressed=false)
+    WidgetToggle(content; position, pressed=false)
 
 A two-state toggle button (pressed = accent surface). A press flips `pressed`,
 and so do Return and Space while the toggle has the focus.
@@ -1888,7 +1888,7 @@ and so do Return and Space while the toggle has the focus.
     style::Any
     tooltip::Any
 end
-WidgetToggle(position::Point2D, content; pressed::Bool=false, visible::Bool=true, enabled::Bool=true,
+WidgetToggle(content; position::Point2D=Point2D(0, 0), pressed::Bool=false, visible::Bool=true, enabled::Bool=true,
              margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetToggle(Cell(position), Cell(content), Cell(pressed), Cell(visible), Cell(enabled),
                 Cell(margin), Cell(border), Cell(padding), Cell(style), Cell(tooltip), Cell(nothing))
@@ -1896,7 +1896,7 @@ WidgetToggle(position::Point2D, content; pressed::Bool=false, visible::Bool=true
 # ── WidgetToggleGroup ───────────────────────────────────────────────────────
 
 """
-    WidgetToggleGroup(position, options; selected=1, values=nothing, target=nothing, field="selected")
+    WidgetToggleGroup(options; position, selected=1, values=nothing, target=nothing, field="selected")
 
 A row of segments where one is pressed.
 
@@ -1906,7 +1906,7 @@ vectors, histograms. `options` is what each segment says, and `selected` is the
 
 # Example
 
-    open_pane!(editor, WidgetToggleGroup(Point2D(0, 0), ["Scalars", "Vectors", "Histograms"]; selected = 1); title = "Kind")
+    open_pane!(editor, WidgetToggleGroup(["Scalars", "Vectors", "Histograms"]; selected = 1); title = "Kind")
 
 `values` is what each one **means** — the value written when it is picked — and
 with none the value is the segment's index.
@@ -1936,7 +1936,7 @@ for on or off.
     field::String      # which field of the target a pick writes
     tooltip::Any
 end
-WidgetToggleGroup(position::Point2D, options::Vector; selected::Integer=1, visible::Bool=true,
+WidgetToggleGroup(options::Vector; position::Point2D=Point2D(0, 0), selected::Integer=1, visible::Bool=true,
                   enabled::Bool=true, margin=nothing, border=nothing, padding=nothing, style=nothing,
                   values=nothing, target=nothing,
                   field::AbstractString="selected", tooltip=nothing) =
@@ -1961,7 +1961,7 @@ end
 # ── WidgetSelect ────────────────────────────────────────────────────────────
 
 """
-    WidgetSelect(position, value; options=[], width=0)
+    WidgetSelect(value; position, options=[], width=0)
 
 A box that shows a value and opens a list of options to pick from.
 
@@ -1971,7 +1971,7 @@ lists what can be picked.
 
 # Example
 
-    open_pane!(editor, WidgetSelect(Point2D(0, 0), "TandemQueue"; options = ["Fifo", "TandemQueue"], width = 200); title = "Configuration")
+    open_pane!(editor, WidgetSelect("TandemQueue"; options = ["Fifo", "TandemQueue"], width = 200); title = "Configuration")
 
 A click on the box opens a dropdown of those options as a floating popup window
 (see `WidgetSelectToGraphicsCanvas`'s reader and [`WidgetOption`]). Picking an
@@ -1994,7 +1994,7 @@ visible, and `WidgetList` for a list that stays open.
     style::Any
     tooltip::Any
 end
-WidgetSelect(position::Point2D, value; options::Vector=Any[], width::Integer=0,
+WidgetSelect(value; position::Point2D=Point2D(0, 0), options::Vector=Any[], width::Integer=0,
              visible::Bool=true, enabled::Bool=true,
              margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetSelect(Cell(position), Cell(value),
@@ -2005,7 +2005,7 @@ WidgetSelect(position::Point2D, value; options::Vector=Any[], width::Integer=0,
 # ── WidgetOption ──────────────────────────────────────────────────────────────
 
 """
-    WidgetOption(position, select, value; label=string(value), popup_id=:widget_popup, width=0)
+    WidgetOption(select, value; position, label=string(value), popup_id=:widget_popup, width=0)
 
 One row of an open `WidgetSelect` dropdown. Holds the target `select` document (an
 identity pointer, so its click writes straight back to that object regardless of
@@ -2029,7 +2029,7 @@ to `evaluate_operation`.
     style::Any
     tooltip::Any
 end
-WidgetOption(position::Point2D, select, value; label=string(value),
+WidgetOption(select, value; position::Point2D=Point2D(0, 0), label=string(value),
              popup_id::Symbol=:widget_popup, width::Integer=0, visible::Bool=true,
              margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetOption(Cell(position), Cell(select), Cell(value), Cell(label),
@@ -2039,7 +2039,7 @@ WidgetOption(position::Point2D, select, value; label=string(value),
 # ── WidgetTextarea ──────────────────────────────────────────────────────────
 
 """
-    WidgetTextarea(position, content; width=0, rows=4)
+    WidgetTextarea(content; position, width=0, rows=4)
 
 Several lines of text.
 
@@ -2051,7 +2051,7 @@ types a line break.
 
 # Example
 
-    open_pane!(editor, WidgetTextarea(Point2D(0, 0), "The delay grows with the load.\\nThe queue is the bottleneck."; width = 400, rows = 4); title = "Note")
+    open_pane!(editor, WidgetTextarea("The delay grows with the load.\\nThe queue is the bottleneck."; width = 400, rows = 4); title = "Note")
 
 See also `WidgetText` for one line, and `WidgetLabel` for text that is only
 read.
@@ -2069,7 +2069,7 @@ read.
     style::Any
     tooltip::Any
 end
-WidgetTextarea(position::Point2D, content; width::Integer=0, rows::Integer=4, visible::Bool=true, enabled::Bool=true,
+WidgetTextarea(content; position::Point2D=Point2D(0, 0), width::Integer=0, rows::Integer=4, visible::Bool=true, enabled::Bool=true,
                margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetTextarea(Cell(position), Cell(content), Cell(Int(width)), Cell(Int(rows)),
                    Cell(visible), Cell(enabled),
@@ -2092,7 +2092,7 @@ _as_accordion_item(it::WidgetAccordionItem) = it
 _as_accordion_item(it::Tuple) = WidgetAccordionItem(it[1], it[2])
 
 """
-    WidgetAccordion(position, items; expanded=1, width=0)
+    WidgetAccordion(items; position, expanded=1, width=0)
 
 A column of titled sections where one is open and the others show their title
 only.
@@ -2108,7 +2108,7 @@ the open one.
     root = get_project_result_directory(editor)
     table = make_result_table(get_simulation_scalar_results(root))
     plot = make_result_plot(get_simulation_vector_results(root))
-    open_pane!(editor, WidgetAccordion(Point2D(0, 0), Any[("Scalars", table), ("Vectors", plot)]; expanded = 2, width = 600); title = "Results")
+    open_pane!(editor, WidgetAccordion(Any[("Scalars", table), ("Vectors", plot)]; expanded = 2, width = 600); title = "Results")
 
 Each item is wrapped in a [`WidgetAccordionItem`](@ref).
 
@@ -2127,7 +2127,7 @@ section that folds.
     style::Any
     tooltip::Any
 end
-WidgetAccordion(position::Point2D, items::Vector; expanded::Integer=1, width::Integer=0, visible::Bool=true,
+WidgetAccordion(items::Vector; position::Point2D=Point2D(0, 0), expanded::Integer=1, width::Integer=0, visible::Bool=true,
                 margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =
     WidgetAccordion(Cell(position), CellVector(Cell[Cell(_as_accordion_item(it)) for it in items]),
                     Cell(Int(expanded)), Cell(Int(width)), Cell(visible),
@@ -2136,8 +2136,8 @@ WidgetAccordion(position::Point2D, items::Vector; expanded::Integer=1, width::In
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 
 """
-    WidgetTable(position; column_headers, rows, column_count, row_headers, ...)
-    WidgetTable(position, headers::Vector, rows::Vector)   # string convenience shim
+    WidgetTable(; position, column_headers, rows, column_count, row_headers, ...)
+    WidgetTable(headers::Vector, rows::Vector; position)   # string convenience shim
 
 A grid of cells with optional column headers and row headers.
 
@@ -2148,7 +2148,7 @@ and each string becomes a `WidgetLabel`. The result verbs make their own tables:
 
 # Example
 
-    open_pane!(editor, WidgetTable(Point2D(0, 0), ["run", "delay"], [["Fifo-0", "0.12"], ["Fifo-1", "0.15"]]); title = "By hand")
+    open_pane!(editor, WidgetTable(["run", "delay"], [["Fifo-0", "0.12"], ["Fifo-1", "0.15"]]); title = "By hand")
 
 The single table abstraction. A grid of **document cells** (each cell is a
 `Document`, recursed through the shared recursion — so a cell can be a
@@ -2230,7 +2230,7 @@ get_widget_table_selected_row(w::WidgetTable) = _widget_element_selected(w.selec
 # Wrap a raw cell value in a renderable widget document; pass Documents through.
 _table_cell_doc(v::Document) = v
 _table_cell_doc(::Nothing)   = nothing
-_table_cell_doc(v)           = WidgetLabel(Point2D(0, 0), string(v))
+_table_cell_doc(v)           = WidgetLabel(string(v))
 
 # Wrap one body row (a Vector of values or Documents) into a CellVector of cells.
 _table_row(r) = CellVector(Cell[Cell(_table_cell_doc(c)) for c in r])
@@ -2241,7 +2241,7 @@ _table_rows(rows::Vector) = CellVector(Cell[Cell(_table_row(r)) for r in rows])
 _table_rows(rows::ListNode) = Cell(rows)
 
 """
-    WidgetTable(position; column_headers, rows, column_count, row_headers=Any[],
+    WidgetTable(; position, column_headers, rows, column_count, row_headers=Any[],
                 border_width=1, visible=true,
                 column_policy=Content, row_policy=Content,
                 column_policies=Any[], row_policies=Any[],
@@ -2270,7 +2270,7 @@ for every column and `column_cell_policies` for the ones that differ. A table
 is a data table until someone says otherwise, so the default is `:clip`: one
 line, cut at the column's edge.
 """
-function WidgetTable(position::Point2D; column_headers::Vector,
+function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Vector,
                      rows::Union{Vector,ListNode}, column_count::Integer,
                      row_headers::Vector=Any[],
                      border_width::Integer=1, visible::Bool=true,
@@ -2306,7 +2306,7 @@ make_widget_table_row(values) = _table_row(values)
 # String convenience shim: headers become a column-header strip, rows become the
 # body, columns inferred from the header count (or the widest row). Strings are
 # wrapped in WidgetLabels via `_table_cell_doc`.
-function WidgetTable(position::Point2D, headers::Vector, rows::Vector;
+function WidgetTable(headers::Vector, rows::Vector; position::Point2D=Point2D(0, 0),
                      border_width::Integer=1, visible::Bool=true,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
@@ -2315,7 +2315,7 @@ function WidgetTable(position::Point2D, headers::Vector, rows::Vector;
                      tooltip=nothing)
     column_count = isempty(headers) ?
         (isempty(rows) ? 0 : maximum(length(r) for r in rows)) : length(headers)
-    WidgetTable(position; column_headers = collect(Any, headers), row_headers = Any[],
+    WidgetTable(; position = position, column_headers = collect(Any, headers), row_headers = Any[],
                 rows = collect(Any, rows), column_count = column_count,
                 border_width=border_width, visible=visible,
                 column_policy=column_policy, row_policy=row_policy,
@@ -2356,7 +2356,7 @@ WidgetTreeNode(icon, label; gestures=GestureBinding[]) =
 get_instance_gesture_bindings(node::WidgetTreeNode) = node.gestures
 
 """
-    WidgetTree(position, roots)
+    WidgetTree(roots; position)
 
 A tree / outline view. `roots` is a `Vector` of nodes. A node is a
 [`WidgetTreeNode`](@ref) (icon + label + children), or — for icon-less trees —
@@ -2389,7 +2389,7 @@ a `WidgetStyle`, or a `WidgetTreeStyle`, overriding one color of the projection.
     gestures::Any                # per-instance tree-level gesture bindings
     tooltip::Any
 end
-WidgetTree(position::Point2D, roots::Vector; visible::Bool=true,
+WidgetTree(roots::Vector; position::Point2D=Point2D(0, 0), visible::Bool=true,
            margin=nothing, border=nothing, padding=nothing, style=nothing,
            gestures=GestureBinding[], tooltip=nothing) =
     WidgetTree(Cell(position), CellVector(Cell[Cell(n) for n in roots]), Cell(visible),
@@ -2508,7 +2508,7 @@ with none otherwise.
 # Example
 
     again = Action("Run again"; callback = editor -> run_simulations!(select_simulations!(editor; config = "TandemQueue")))
-    open_pane!(editor, WidgetButton(Point2D(0, 0), Point2D(120, 32), again); title = "Runner")
+    open_pane!(editor, WidgetButton(again); title = "Runner")
 
 `shortcut` is a `KeyDownPattern` (build one with [`Shortcut`]); `icon` is the
 name of an icon drawn before the label. A click invokes it through

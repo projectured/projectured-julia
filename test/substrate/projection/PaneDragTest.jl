@@ -10,7 +10,7 @@ function test_pane_drag()
 @testset "PaneTree drag and drop" begin
 
 _stub(t, f) = (max(1, length(t)) * 10, 24)
-_tab(name) = PaneTab(name, WidgetLabel(Point2D(0, 0), name))
+_tab(name) = PaneTab(name, WidgetLabel(name))
 
 WIDTH = 400
 HEIGHT = 300
@@ -72,7 +72,7 @@ end
 @testset "a grab records where the tab came from" begin
     tree, left, right, editor = _two_groups()
     proj, iomap = _print(tree)
-    stranger = WidgetTabbedPane(Any[("x", WidgetLabel(Point2D(0, 0), "x"))])
+    stranger = WidgetTabbedPane(Any[("x", WidgetLabel("x"))])
     _feed!(editor, proj, iomap, DragTabOperation(stranger, 1))   # not ours
     @test tree.drag === nothing
 

@@ -19,16 +19,16 @@ function make_layout_document_example(; width=600, height=600)
 
     # ── Row: labels of different sizes, vertically centred ───────────────
     row_labels = [
-        WidgetLabel(Point2D(0, 0), "short"),
-        WidgetLabel(Point2D(0, 0), "a longer label"),
-        WidgetLabel(Point2D(0, 0), "mid"),
+        WidgetLabel("short"),
+        WidgetLabel("a longer label"),
+        WidgetLabel("mid"),
     ]
     row = HorizontalLayout(row_labels; vertical_align=:center, gap=12)
 
     # ── Grid: 2 columns of buttons ────────────────────────────────────────
     buttons = [
-        WidgetButton(Point2D(0, 0), Point2D(140, 36), label;
-                     border=Inset(1, 1, 1, 1), style=WidgetStyle(border_color=text_color),
+        WidgetButton(label;
+                     size = Point2D(140, 36), border=Inset(1, 1, 1, 1), style=WidgetStyle(border_color=text_color),
                      padding=Inset(4, 4, 8, 8))
         for label in ("New", "Open", "Save", "Close", "Help")
     ]
@@ -38,7 +38,7 @@ function make_layout_document_example(; width=600, height=600)
 
     # ── Flow: tag-like labels that wrap ──────────────────────────────────
     tags = [
-        WidgetLabel(Point2D(0, 0), t;
+        WidgetLabel(t;
                     padding=Inset(2, 2, 6, 6),
                     border=Inset(1, 1, 1, 1), style=WidgetStyle(border_color=text_color))
         for t in ("alpha", "beta", "gamma", "delta", "epsilon",
@@ -72,8 +72,8 @@ explicit intrinsic size as its starting point.
 """
 function make_constraint_layout_document_example(; width=560, height=560)
     fg = StyleColor(40/255, 80/255, 160/255, 1.0)
-    mkbtn(w, h, label) = WidgetButton(Point2D(0, 0), Point2D(w, h), label;
-                                      border=Inset(1, 1, 1, 1), style=WidgetStyle(border_color=fg),
+    mkbtn(w, h, label) = WidgetButton(label;
+                                      size = Point2D(w, h), border=Inset(1, 1, 1, 1), style=WidgetStyle(border_color=fg),
                                       padding=Inset(4, 4, 8, 8))
 
     header  = mkbtn(width - 20, 40,  "Header")
@@ -109,32 +109,32 @@ end
 
 function make_anchored_layout_document_example()
     content = VerticalLayout(Any[
-        WidgetLabel(Point2D(0, 0), "Node A"),
-        WidgetLabel(Point2D(0, 40), "Node B"),
+        WidgetLabel("Node A"),
+        WidgetLabel("Node B"; position = Point2D(0, 40)),
     ]; gap=8)
-    note = AnchoredEntry(WidgetLabel(Point2D(0, 0), "3 hops");
+    note = AnchoredEntry(WidgetLabel("3 hops");
                          reference=Reference(FieldReferenceStep("children"), ElementReferenceStep(1)),
                          placement=:right)
     AnchoredLayout(content, Any[note])
 end
 
 make_flow_layout_document_example() =
-    FlowLayout(Any[WidgetLabel(Point2D(0, 0), t) for t in ("alpha", "beta", "gamma", "delta", "epsilon")];
+    FlowLayout(Any[WidgetLabel(t) for t in ("alpha", "beta", "gamma", "delta", "epsilon")];
               max_width=200, horizontal_gap=6, vertical_gap=6)
 
 make_grid_layout_document_example() =
-    GridLayout(Any[WidgetLabel(Point2D(0, 0), "R$(r)C$(c)") for r in 1:2 for c in 1:2], 2;
+    GridLayout(Any[WidgetLabel("R$(r)C$(c)") for r in 1:2 for c in 1:2], 2;
               horizontal_gap=8, vertical_gap=8)
 
 make_horizontal_layout_document_example() =
-    HorizontalLayout(Any[WidgetLabel(Point2D(0, 0), "Left"), WidgetLabel(Point2D(0, 0), "Right")]; gap=12)
+    HorizontalLayout(Any[WidgetLabel("Left"), WidgetLabel("Right")]; gap=12)
 
 make_stack_layout_document_example() =
-    StackLayout(Any[WidgetLabel(Point2D(0, 0), "Background"), WidgetLabel(Point2D(0, 0), "Foreground")])
+    StackLayout(Any[WidgetLabel("Background"), WidgetLabel("Foreground")])
 
 make_vertical_layout_document_example() =
-    VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "Top"), WidgetLabel(Point2D(0, 0), "Bottom")]; gap=12)
+    VerticalLayout(Any[WidgetLabel("Top"), WidgetLabel("Bottom")]; gap=12)
 
 make_layout_constraint_document_example() =
-    LayoutConstraint(WidgetLabel(Point2D(0, 0), "Constrained");
+    LayoutConstraint(WidgetLabel("Constrained");
                      min_width=80, preferred_width=160, max_width=320)

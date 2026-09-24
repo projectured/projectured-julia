@@ -7010,7 +7010,7 @@ function _open_select_popup(w::WidgetSelect, iomap::WidgetSelectToGraphicsCanvas
     opts = collect(w.options)
     isempty(opts) && return nothing
     gap = 4
-    items = Any[WidgetOption(Point2D(0, 0), w, opt; width=iomap.control_width) for opt in opts]
+    items = Any[WidgetOption(w, opt; width=iomap.control_width) for opt in opts]
     OpenPopupOperation(; id=:widget_popup, anchor=iomap.anchor,
                        dx=0, dy=iomap.control_height + gap,
                        width=iomap.control_width, height=length(opts) * iomap.control_height,
@@ -7786,7 +7786,7 @@ _wt_shift(policies, offset::Int) =
 # an empty placeholder so the grid sizes consistently.
 _wt_has_col_headers(w::WidgetTable) = length(w.column_headers) > 0
 _wt_has_row_headers(w::WidgetTable) = length(w.row_headers) > 0
-_wt_empty_cell() = WidgetLabel(Point2D(0, 0), "")
+_wt_empty_cell() = WidgetLabel("")
 
 # Build the flat row-major list of grid-child documents for the table.
 function _wt_grid_children(w::WidgetTable)

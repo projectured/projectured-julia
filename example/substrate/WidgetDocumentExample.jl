@@ -16,32 +16,32 @@ function make_widget_document_example(; width=1024, height=768)
 
     # ── Inputs tab ────────────────────────────────────────────────────────────
     inputs = VerticalLayout(Any[
-        HorizontalLayout(Any[WidgetLabel(Point2D(0, 0), "Username:"),
-                             WidgetText(Point2D(0, 0), "alice"; border=fb, padding=Inset(4, 4, 8, 8))]; gap=12),
-        HorizontalLayout(Any[WidgetLabel(Point2D(0, 0), "Email:"),
-                             WidgetText(Point2D(0, 0), "alice@example.com"; border=fb, padding=Inset(4, 4, 8, 8))]; gap=12),
-        HorizontalLayout(Any[WidgetCheckbox(Point2D(0, 0), true; border=fb, padding=Inset(4, 4, 4, 4)),
-                             WidgetLabel(Point2D(0, 0), "Enable notifications")]; gap=12),
-        WidgetSwitch(Point2D(0, 0), true),
-        WidgetRadioGroup(Point2D(0, 0), ["Default", "Comfortable", "Compact"]; selected=2),
-        WidgetSelect(Point2D(0, 0), "Apple"; options=["Apple", "Banana", "Cherry", "Date"], width=220),
-        WidgetSlider(Point2D(0, 0), 0.4; width=260),
-        WidgetTextarea(Point2D(0, 0), "Type your message here.\nIt can span several lines."; width=340, rows=3),
+        HorizontalLayout(Any[WidgetLabel("Username:"),
+                             WidgetText("alice"; border=fb, padding=Inset(4, 4, 8, 8))]; gap=12),
+        HorizontalLayout(Any[WidgetLabel("Email:"),
+                             WidgetText("alice@example.com"; border=fb, padding=Inset(4, 4, 8, 8))]; gap=12),
+        HorizontalLayout(Any[WidgetCheckbox(true; border=fb, padding=Inset(4, 4, 4, 4)),
+                             WidgetLabel("Enable notifications")]; gap=12),
+        WidgetSwitch(; checked = true),
+        WidgetRadioGroup(["Default", "Comfortable", "Compact"]; selected=2),
+        WidgetSelect("Apple"; options=["Apple", "Banana", "Cherry", "Date"], width=220),
+        WidgetSlider(0.4; width=260),
+        WidgetTextarea("Type your message here.\nIt can span several lines."; width=340, rows=3),
     ]; gap=16, horizontal_align=:left)
 
     # ── Buttons & menus tab ───────────────────────────────────────────────────
     tool = (icon) -> WidgetToolButton(icon; size=Point2D(40, 40), border=fb, padding=Inset(8, 8, 8, 8))
     buttons = VerticalLayout(Any[
-        WidgetButton(Point2D(0, 0), Point2D(180, 44), save_action;   # label + icon from the command
-                     border=fb, padding=Inset(4, 4, 8, 8)),
-        WidgetButton(Point2D(0, 0), Point2D(180, 44), "Edit";    # icon on the button itself
-                     icon=:pencil, dialog=WidgetMessageBox("Confirm", "Proceed with the action?"),
+        WidgetButton(save_action;   # label + icon from the command
+                     size = Point2D(180, 44), border=fb, padding=Inset(4, 4, 8, 8)),
+        WidgetButton("Edit";    # icon on the button itself
+                     size = Point2D(180, 44), icon=:pencil, dialog=WidgetMessageBox("Confirm", "Proceed with the action?"),
                      border=fb, padding=Inset(4, 4, 8, 8)),
         # A row of icon-first tool buttons (Stage 5 WidgetToolButton).
         HorizontalLayout(Any[tool(:save), tool(:pencil), tool(:trash), tool(:search)]; gap=8),
-        WidgetToggle(Point2D(0, 0), "Bold"; pressed=true),
-        WidgetToggleGroup(Point2D(0, 0), ["Left", "Center", "Right"]; selected=2),
-        WidgetContextMenu(WidgetLabel(Point2D(0, 0), "Right-click for a context menu"),
+        WidgetToggle("Bold"; pressed=true),
+        WidgetToggleGroup(["Left", "Center", "Right"]; selected=2),
+        WidgetContextMenu(WidgetLabel("Right-click for a context menu"),
                           WidgetMenu([WidgetMenuItem("Cut"), WidgetMenuItem("Copy"),
                                       WidgetMenuItem("Paste")])),
     ]; gap=16, horizontal_align=:left)
@@ -49,28 +49,28 @@ function make_widget_document_example(; width=1024, height=768)
     # ── Display tab ───────────────────────────────────────────────────────────
     display = VerticalLayout(Any[
         HorizontalLayout(Any[
-            WidgetBadge(Point2D(0, 0), "Default"),
-            WidgetBadge(Point2D(0, 0), "Secondary";   variant=:secondary),
-            WidgetBadge(Point2D(0, 0), "Destructive"; variant=:destructive),
-            WidgetBadge(Point2D(0, 0), "Outline";     variant=:outline),
+            WidgetBadge("Default"),
+            WidgetBadge("Secondary";   variant=:secondary),
+            WidgetBadge("Destructive"; variant=:destructive),
+            WidgetBadge("Outline";     variant=:outline),
         ]; gap=8),
-        WidgetCard(Point2D(0, 0); title="Create project",
+        WidgetCard(; title="Create project",
                    description="Deploy your new project in one click.",
                    content="Name and framework go here.", footer="You can change this later."),
-        WidgetAlert(Point2D(0, 0), "Heads up!", "You can add components using the CLI."),
-        HorizontalLayout(Any[WidgetAvatar(Point2D(0, 0), "JD"; size=56),
-                             WidgetProgress(Point2D(0, 0), 0.6; width=260)]; gap=16),
-        WidgetSeparator(Point2D(0, 0); length=320),
-        WidgetSkeleton(Point2D(0, 0); width=320, height=18),
+        WidgetAlert("Heads up!"; description = "You can add components using the CLI."),
+        HorizontalLayout(Any[WidgetAvatar("JD"; size=56),
+                             WidgetProgress(0.6; width=260)]; gap=16),
+        WidgetSeparator(; length=320),
+        WidgetSkeleton(; width=320, height=18),
     ]; gap=16, horizontal_align=:left)
 
     # ── Data tab ──────────────────────────────────────────────────────────────
     data = VerticalLayout(Any[
-        WidgetTable(Point2D(0, 0), ["Invoice", "Status", "Amount"],
+        WidgetTable(["Invoice", "Status", "Amount"],
                     [["INV001", "Paid",    "\$250.00"],
                      ["INV002", "Pending", "\$150.00"],
                      ["INV003", "Unpaid",  "\$350.00"]]),
-        WidgetTree(Point2D(0, 0), Any[
+        WidgetTree(Any[
             WidgetTreeNode(:folder, "src", Any[
                 WidgetTreeNode(:folder, "components", Any[
                     WidgetTreeNode(:file, "button.jl"),
@@ -78,18 +78,16 @@ function make_widget_document_example(; width=1024, height=768)
                 WidgetTreeNode(:file, "app.jl")]),
             WidgetTreeNode(:file, "README.md"),
         ]),
-        WidgetAccordion(Point2D(0, 0), [
+        WidgetAccordion([
             ("Is it accessible?", "Yes. It adheres to the WAI-ARIA design pattern."),
             ("Is it styled?",     "Yes. It matches the theme."),
         ]; expanded=1),
     ]; gap=16, horizontal_align=:left)
 
     # ── Layout tab (split pane + scrollable lists) ────────────────────────────
-    left_scroll  = WidgetScrollPane(WidgetComposite(Point2D(0, 0),
-                       Any[WidgetLabel(Point2D(4, (i - 1) * 44), "Left item $i") for i in 1:8]);
+    left_scroll  = WidgetScrollPane(WidgetComposite(Any[WidgetLabel("Left item $i"; position = Point2D(4, (i - 1) * 44)) for i in 1:8]);
                        size=Point2D(div(width, 2) - 12, height - 200))
-    right_scroll = WidgetScrollPane(WidgetComposite(Point2D(0, 0),
-                       Any[WidgetLabel(Point2D(4, (i - 1) * 44), "Detail $i") for i in 1:8]);
+    right_scroll = WidgetScrollPane(WidgetComposite(Any[WidgetLabel("Detail $i"; position = Point2D(4, (i - 1) * 44)) for i in 1:8]);
                        size=Point2D(div(width, 2) - 12, height - 200))
     layout_split = WidgetSplitPane(:horizontal, Any[
         WidgetTitlePane("Navigation", left_scroll;  padding=Inset(4, 4, 4, 4)),
@@ -102,27 +100,27 @@ function make_widget_document_example(; width=1024, height=768)
     # spin box and list are the new data-entry widgets; StackLayout(active=2) shows
     # a single page (QStackedWidget).
     form = FormLayout([
-        (WidgetLabel(Point2D(0, 0), "Name"),
-         WidgetText(Point2D(0, 0), "Ada Lovelace"; border=fb, padding=Inset(4, 4, 8, 8))),
-        (WidgetLabel(Point2D(0, 0), "Email"),
-         WidgetText(Point2D(0, 0), "ada@analytical.engine"; border=fb, padding=Inset(4, 4, 8, 8))),
-        (WidgetLabel(Point2D(0, 0), "Quantity"),
-         WidgetSpinBox(Point2D(0, 0), 3; min=0, max=99, step=1)),
+        (WidgetLabel("Name"),
+         WidgetText("Ada Lovelace"; border=fb, padding=Inset(4, 4, 8, 8))),
+        (WidgetLabel("Email"),
+         WidgetText("ada@analytical.engine"; border=fb, padding=Inset(4, 4, 8, 8))),
+        (WidgetLabel("Quantity"),
+         WidgetSpinBox(3; min=0, max=99, step=1)),
     ])
-    fruits = WidgetList(Point2D(0, 0), ["Apples", "Bananas", "Cherries", "Dates"];
+    fruits = WidgetList(["Apples", "Bananas", "Cherries", "Dates"];
                         selected=2, width=240)
     pages = StackLayout(Any[
-        WidgetCard(Point2D(0, 0); title="Page 1", content="First page."),
-        WidgetCard(Point2D(0, 0); title="Page 2", content="Second page is active."),
-        WidgetCard(Point2D(0, 0); title="Page 3", content="Third page."),
+        WidgetCard(; title="Page 1", content="First page."),
+        WidgetCard(; title="Page 2", content="Second page is active."),
+        WidgetCard(; title="Page 3", content="Third page."),
     ]; active=2)
     forms = VerticalLayout(Any[
         form,
-        WidgetSeparator(Point2D(0, 0); length=360),
+        WidgetSeparator(; length=360),
         HorizontalLayout(Any[
-            VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "Favorite fruit"), fruits];
+            VerticalLayout(Any[WidgetLabel("Favorite fruit"), fruits];
                            gap=8, horizontal_align=:left),
-            VerticalLayout(Any[WidgetLabel(Point2D(0, 0), "Stacked pages (2 of 3 active)"), pages];
+            VerticalLayout(Any[WidgetLabel("Stacked pages (2 of 3 active)"), pages];
                            gap=8, horizontal_align=:left),
         ]; gap=24),
     ]; gap=16, horizontal_align=:left)
@@ -154,8 +152,7 @@ function make_widget_document_example(; width=1024, height=768)
         WidgetMenuItem(save_action),
     ]; padding=Inset(4, 4, 4, 4))
     status_bar = WidgetStatusBar(["Ready", "shadcn widget gallery", "Ln 1, Col 1"])
-    tip = WidgetTooltip(Point2D(20, height - 80), Point2D(360, 48),
-                        "Widget Gallery — hover items for tips"; visible=false)
+    tip = WidgetTooltip("Widget Gallery — hover items for tips"; position = Point2D(20, height - 80), size = Point2D(360, 48), visible=false)
 
     WidgetShell(tabs;
                 menu_bar=menu_bar, toolbar=toolbar, status_bar=status_bar, overlay=tip,
@@ -179,7 +176,7 @@ _wy(px::Integer) = px
 
 # WidgetLabel — a positioned, non-interactive label.
 make_widget_label_document_example() =
-    WidgetLabel(Point2D(40, 40), "Hello, label")
+    WidgetLabel("Hello, label"; position = Point2D(40, 40))
 
 # WidgetText — an editable text widget. Its content is a TextBlock, so the widget
 # recurses it through the Text domain and all caret navigation / text editing
@@ -188,20 +185,20 @@ make_widget_label_document_example() =
 # with make_widget_text_projection_example.
 function make_widget_text_document_example()
     content = TextBlock(TextString("edit me", font_ubuntu_monospace_regular_20, color_default))
-    WidgetText(Point2D(40, 40), content;
-               border=Inset(1, 1, 1, 1),
+    WidgetText(content;
+               position = Point2D(40, 40), border=Inset(1, 1, 1, 1),
                padding=Inset(8, 8, 12, 12))
 end
 
 # WidgetCheckbox — a checkbox; content is the boolean checked state.
 make_widget_checkbox_document_example() =
-    WidgetCheckbox(Point2D(40, 40), true;
-                   padding=Inset(4, 4, 4, 4))
+    WidgetCheckbox(true;
+                   position = Point2D(40, 40), padding=Inset(4, 4, 4, 4))
 
 # WidgetButton — a clickable button.
 make_widget_button_document_example() =
-    WidgetButton(Point2D(40, 40), Point2D(180, 56), "Click me";
-                 padding=Inset(4, 4, 8, 8))
+    WidgetButton("Click me";
+                 position = Point2D(40, 40), size = Point2D(180, 56), padding=Inset(4, 4, 8, 8))
 
 # WidgetButton (behaviour) — a button whose `action` increments a counter shown
 # by a sibling label. Click it (real input or a scripted MousePress) and the
@@ -211,14 +208,14 @@ make_widget_button_document_example() =
 # InvokeWidgetActionOperation.
 function make_widget_button_action_document_example()
     count = Ref(0)
-    label = WidgetLabel(Point2D(40, 40), "count: 0")
-    button = WidgetButton(Point2D(40, 84), Point2D(180, 48), "Increment";
-                          action = (_editor) -> begin
+    label = WidgetLabel("count: 0"; position = Point2D(40, 40))
+    button = WidgetButton("Increment";
+                          position = Point2D(40, 84), size = Point2D(180, 48), action = (_editor) -> begin
                               count[] += 1
                               label.content = "count: $(count[])"
                           end,
                           padding=Inset(4, 4, 8, 8))
-    WidgetComposite(Point2D(0, 0), Any[label, button])
+    WidgetComposite(Any[label, button])
 end
 
 # WidgetButton / WidgetLabel (image content) — a label and a button whose
@@ -228,16 +225,16 @@ end
 function make_widget_button_image_document_example()
     logo = _load_inline_image("projectured.png")
     icon = _load_inline_image("file.png")
-    picture_label = WidgetLabel(Point2D(40, 40), logo)
-    icon_button = WidgetButton(Point2D(40, 200), Point2D(72, 72), icon;
-                               action = (_editor) -> nothing,
+    picture_label = WidgetLabel(logo; position = Point2D(40, 40))
+    icon_button = WidgetButton(icon;
+                               position = Point2D(40, 200), size = Point2D(72, 72), action = (_editor) -> nothing,
                                padding=Inset(8, 8, 8, 8))
-    WidgetComposite(Point2D(0, 0), Any[picture_label, icon_button])
+    WidgetComposite(Any[picture_label, icon_button])
 end
 
 # WidgetTooltip — a floating tooltip overlay (visible so it renders standalone).
 make_widget_tooltip_document_example() =
-    WidgetTooltip(Point2D(40, 40), Point2D(360, 56), "A floating tooltip")
+    WidgetTooltip("A floating tooltip"; position = Point2D(40, 40), size = Point2D(360, 56))
 
 # WidgetMenuItem — a single item, normally found inside a menu or toolbar.
 make_widget_menu_item_document_example() =
@@ -257,27 +254,27 @@ make_widget_toolbar_document_example() =
 
 # WidgetComposite — a positioned container of child widgets.
 make_widget_composite_document_example() =
-    WidgetComposite(Point2D(40, 40), Any[
-        WidgetLabel(Point2D(0, _wy(0)),  "First"),
-        WidgetLabel(Point2D(0, _wy(40)), "Second"),
-        WidgetLabel(Point2D(0, _wy(80)), "Third"),
-    ])
+    WidgetComposite(Any[
+        WidgetLabel("First"; position = Point2D(0, _wy(0))),
+        WidgetLabel("Second"; position = Point2D(0, _wy(40))),
+        WidgetLabel("Third"; position = Point2D(0, _wy(80))),
+    ]; position = Point2D(40, 40))
 
 # WidgetTitlePane — a pane with a title bar and a content area. The body stays a
 # positioned WidgetComposite: WidgetTitlePane places its content as a positioned
 # widget, so a (position-less) layout child is not the right fit here.
 function make_widget_title_pane_document_example()
-    body = WidgetComposite(Point2D(0, 0), Any[
-        WidgetLabel(Point2D(0, _wy(0)),  "Detail one"),
-        WidgetLabel(Point2D(0, _wy(40)), "Detail two"),
+    body = WidgetComposite(Any[
+        WidgetLabel("Detail one"; position = Point2D(0, _wy(0))),
+        WidgetLabel("Detail two"; position = Point2D(0, _wy(40))),
     ])
     WidgetTitlePane("Details", body; padding=Inset(4, 4, 4, 4))
 end
 
 # WidgetSplitPane — two child panes divided along an axis.
 function make_widget_split_pane_document_example(; width=600)
-    left  = WidgetTitlePane("Left",  WidgetLabel(Point2D(8, 8), "Left content"))
-    right = WidgetTitlePane("Right", WidgetLabel(Point2D(8, 8), "Right content"))
+    left  = WidgetTitlePane("Left",  WidgetLabel("Left content"; position = Point2D(8, 8)))
+    right = WidgetTitlePane("Right", WidgetLabel("Right content"; position = Point2D(8, 8)))
     WidgetSplitPane(:horizontal, Any[left, right];
                     sizes=[div(width, 2), div(width, 2)])
 end
@@ -298,19 +295,19 @@ end
 # offer rather than be stretched by it, beside one that authored none.
 function make_widget_offered_document_example(; width=760, height=420)
     filling = VerticalLayout(Any[
-        WidgetAlert(Point2D(0, 0), "Filling", "This alert takes the width it is offered."),
-        WidgetCard(Point2D(0, 0); title="Card", content="And so does this card."),
+        WidgetAlert("Filling"; description = "This alert takes the width it is offered."),
+        WidgetCard(; title="Card", content="And so does this card."),
     ]; gap=12, child_width=Fill)
     # Filled, so the picture shows each pane's extent: a fixture that guards a
     # size has to draw the size it guards.
     holding = VerticalLayout(Any[
-        WidgetScrollPane(WidgetLabel(Point2D(4, 4), "authored 200x90");
+        WidgetScrollPane(WidgetLabel("authored 200x90"; position = Point2D(4, 4));
                          size=Point2D(200, 90),
                          style=WidgetStyle(content_color=StyleColor(0.86, 0.92, 0.98, 1.0))),
         # No size of its own, and a weight instead: it asks the column for the
         # height the sized pane leaves. That is how a viewport gets an extent
         # without one being written on it.
-        LayoutConstraint(WidgetScrollPane(WidgetLabel(Point2D(4, 4), "asks for the rest");
+        LayoutConstraint(WidgetScrollPane(WidgetLabel("asks for the rest"; position = Point2D(4, 4));
                                           style=WidgetStyle(content_color=StyleColor(0.98, 0.92, 0.86, 1.0)));
                          height=Fill),
     ]; gap=12, child_width=Fill)
@@ -326,8 +323,8 @@ make_widget_scroll_bar_document_example() =
 
 # WidgetScrollPane — a scrollable viewport over an over-tall composite.
 function make_widget_scroll_pane_document_example(; width=400, height=300, line_height=40)
-    items = [WidgetLabel(Point2D(4, _wy((i - 1) * line_height)), "Item $i") for i in 1:20]
-    WidgetScrollPane(WidgetComposite(Point2D(0, 0), Any[items...]);
+    items = [WidgetLabel("Item $i"; position = Point2D(4, _wy((i - 1) * line_height))) for i in 1:20]
+    WidgetScrollPane(WidgetComposite(Any[items...]);
                      size=Point2D(width, height),
                      border=Inset(1, 1, 1, 1))
 end
@@ -335,8 +332,8 @@ end
 # WidgetTransformPane — a zoom/pan viewport over an over-tall composite.
 # Ctrl+wheel zooms about the cursor; a plain wheel pans.
 function make_widget_transform_pane_document_example(; width=400, height=300, line_height=40)
-    items = [WidgetLabel(Point2D(4, _wy((i - 1) * line_height)), "Item $i") for i in 1:20]
-    WidgetTransformPane(WidgetComposite(Point2D(0, 0), Any[items...]);
+    items = [WidgetLabel("Item $i"; position = Point2D(4, _wy((i - 1) * line_height))) for i in 1:20]
+    WidgetTransformPane(WidgetComposite(Any[items...]);
                         size=Point2D(width, height),
                         border=Inset(1, 1, 1, 1))
 end
@@ -346,10 +343,10 @@ function make_widget_shell_document_example(; width=600, height=400)
     # Content stays a positioned WidgetComposite: WidgetShell places its content
     # as a positioned widget below the menu/toolbar bands, so a position-less
     # layout child is not the right fit here.
-    content = WidgetComposite(Point2D(16, 16), Any[
-        WidgetLabel(Point2D(0, _wy(0)),  "Inside a shell"),
-        WidgetLabel(Point2D(0, _wy(40)), "menu + toolbar share Actions; Ctrl+S is a shortcut"),
-    ])
+    content = WidgetComposite(Any[
+        WidgetLabel("Inside a shell"; position = Point2D(0, _wy(0))),
+        WidgetLabel("menu + toolbar share Actions; Ctrl+S is a shortcut"; position = Point2D(0, _wy(40))),
+    ]; position = Point2D(16, 16))
     # Shared commands (Stage 4): one Action drives both a File-menu item and a
     # toolbar button; Save additionally has a Ctrl+S shortcut the shell dispatches.
     new_action  = Action("New")
@@ -385,14 +382,14 @@ end
 # ScreenToScreen), which turns a trigger's OpenPopupOperation into a real popup
 # window anchored at the trigger's screen position.
 function make_widget_popup_document_example(; width=520, height=360)
-    select = WidgetSelect(Point2D(0, 0), "Apple";
+    select = WidgetSelect("Apple";
                           options=["Apple", "Banana", "Cherry"], width=200)
     menu_bar = WidgetMenu([
         WidgetMenuItem("File"; submenu=WidgetMenu([WidgetMenuItem("New"), WidgetMenuItem("Open")])),
         WidgetMenuItem("Edit"; submenu=WidgetMenu([WidgetMenuItem("Undo"), WidgetMenuItem("Redo")])),
     ]; orientation=:horizontal)
     target = WidgetContextMenu(
-        WidgetLabel(Point2D(0, 0), "right-click for a context menu"),
+        WidgetLabel("right-click for a context menu"),
         WidgetMenu([WidgetMenuItem("Cut"), WidgetMenuItem("Copy"), WidgetMenuItem("Paste")]))
     content = VerticalLayout(Any[menu_bar, select, target]; gap=20, horizontal_align=:left)
 
@@ -408,9 +405,9 @@ end
 
 # WidgetTabbedPane — a tabbed container with three tabs.
 function make_widget_tabbed_pane_document_example(; width=600, height=400)
-    tab_alpha = WidgetLabel(Point2D(16, 16), "Content A")
-    tab_beta  = WidgetLabel(Point2D(16, 16), "Content B")
-    tab_gamma = WidgetLabel(Point2D(16, 16), "Content C")
+    tab_alpha = WidgetLabel("Content A"; position = Point2D(16, 16))
+    tab_beta  = WidgetLabel("Content B"; position = Point2D(16, 16))
+    tab_gamma = WidgetLabel("Content C"; position = Point2D(16, 16))
 
     tabs = WidgetTabbedPane([
         ("Alpha", tab_alpha),
@@ -429,24 +426,24 @@ end
 # offsets; the layout spaces them from their intrinsic heights + a gap).
 make_widget_badge_document_example() =
     VerticalLayout(Any[
-        WidgetBadge(Point2D(0, 0), "Default"),
-        WidgetBadge(Point2D(0, 0), "Secondary";   variant=:secondary),
-        WidgetBadge(Point2D(0, 0), "Destructive"; variant=:destructive),
-        WidgetBadge(Point2D(0, 0), "Outline";     variant=:outline),
+        WidgetBadge("Default"),
+        WidgetBadge("Secondary";   variant=:secondary),
+        WidgetBadge("Destructive"; variant=:destructive),
+        WidgetBadge("Outline";     variant=:outline),
     ]; gap=12)
 
 # WidgetSeparator — a rule between two labels, stacked by a VerticalLayout.
 make_widget_separator_document_example() =
     VerticalLayout(Any[
-        WidgetLabel(Point2D(0, 0), "Above the rule"),
-        WidgetSeparator(Point2D(0, 0); length=260),
-        WidgetLabel(Point2D(0, 0), "Below the rule"),
+        WidgetLabel("Above the rule"),
+        WidgetSeparator(; length=260),
+        WidgetLabel("Below the rule"),
     ]; gap=12)
 
 # WidgetCard — title + description + body + footer.
 make_widget_card_document_example() =
-    WidgetCard(Point2D(40, 40);
-               title="Create project",
+    WidgetCard(;
+               position = Point2D(40, 40), title="Create project",
                description="Deploy your new project in one click.",
                content="Name and framework go here.",
                footer="You can change this later.")
@@ -457,12 +454,12 @@ make_widget_card_document_example() =
 # starts collapsed, so both states are on screen at once.
 make_widget_collapsible_card_document_example() =
     VerticalLayout(Any[
-        WidgetCard(Point2D(0, 0);
-                   title=WidgetLabel(Point2D(0, 0), "Details"),
+        WidgetCard(;
+                   title=WidgetLabel("Details"),
                    content="The body of an open card.",
                    collapsible=true),
-        WidgetCard(Point2D(0, 0);
-                   title=WidgetLabel(Point2D(0, 0), "More details"),
+        WidgetCard(;
+                   title=WidgetLabel("More details"),
                    content="The body of a collapsed card, which is not drawn.",
                    collapsible=true, collapsed=true),
     ]; gap=12)
@@ -472,83 +469,79 @@ make_widget_switch_document_example() =
     VerticalLayout(Any[
         # `duration` (ms) opts each switch into a knob-slide animation on toggle;
         # the third snaps instantly (duration defaults to 0).
-        WidgetSwitch(Point2D(0, 0), true;  duration=200),
-        WidgetSwitch(Point2D(0, 0), false; duration=200),
-        WidgetSwitch(Point2D(0, 0), false),
+        WidgetSwitch(;  checked = true, duration=200),
+        WidgetSwitch(; checked = false, duration=200),
+        WidgetSwitch(; checked = false),
     ]; gap=12)
 
 # WidgetProgress — a 60% bar.
 make_widget_progress_document_example() =
-    WidgetProgress(Point2D(40, 40), 0.6; width=260)
+    WidgetProgress(0.6; position = Point2D(40, 40), width=260)
 
 # WidgetSlider — a knob at 40%.
 make_widget_slider_document_example() =
-    WidgetSlider(Point2D(40, 40), 0.4; width=260)
+    WidgetSlider(0.4; position = Point2D(40, 40), width=260)
 
 # WidgetRadioGroup — three options, the middle one selected.
 make_widget_radio_group_document_example() =
-    WidgetRadioGroup(Point2D(40, 40), ["Default", "Comfortable", "Compact"]; selected=2)
+    WidgetRadioGroup(["Default", "Comfortable", "Compact"]; position = Point2D(40, 40), selected=2)
 
 # WidgetAvatar — initials in a circle.
 make_widget_avatar_document_example() =
-    WidgetAvatar(Point2D(40, 40), "JD"; size=64)
+    WidgetAvatar("JD"; position = Point2D(40, 40), size=64)
 
 # WidgetAlert — default and destructive variants, stacked by a VerticalLayout
 # (the gap is uniform regardless of how tall each alert's text wraps).
 make_widget_alert_document_example() =
     VerticalLayout(Any[
-        WidgetAlert(Point2D(0, 0), "Heads up!",
-                    "You can add components to your app using the CLI."),
-        WidgetAlert(Point2D(0, 0), "Something went wrong",
-                    "Your session has expired. Please log in again.";
-                    variant=:destructive),
+        WidgetAlert("Heads up!"; description = "You can add components to your app using the CLI."),
+        WidgetAlert("Something went wrong";
+                    description = "Your session has expired. Please log in again.", variant=:destructive),
     ]; gap=12)
 
 # WidgetSkeleton — loading placeholders, stacked by a VerticalLayout.
 make_widget_skeleton_document_example() =
     VerticalLayout(Any[
-        WidgetSkeleton(Point2D(0, 0); width=260, height=20),
-        WidgetSkeleton(Point2D(0, 0); width=200, height=20),
-        WidgetSkeleton(Point2D(0, 0); width=230, height=20),
+        WidgetSkeleton(; width=260, height=20),
+        WidgetSkeleton(; width=200, height=20),
+        WidgetSkeleton(; width=230, height=20),
     ]; gap=12)
 
 # WidgetToggle — a pressed and an unpressed toggle, stacked by a VerticalLayout.
 make_widget_toggle_document_example() =
     VerticalLayout(Any[
-        WidgetToggle(Point2D(0, 0), "Bold";   pressed=true),
-        WidgetToggle(Point2D(0, 0), "Italic"; pressed=false),
+        WidgetToggle("Bold";   pressed=true),
+        WidgetToggle("Italic"; pressed=false),
     ]; gap=12)
 
 # WidgetToggleGroup — a three-segment control with the middle selected.
 make_widget_toggle_group_document_example() =
-    WidgetToggleGroup(Point2D(40, 40), ["Left", "Center", "Right"]; selected=2)
+    WidgetToggleGroup(["Left", "Center", "Right"]; position = Point2D(40, 40), selected=2)
 
 # WidgetSelect — a select showing a value + chevron, with a list of options a
 # click opens as a dropdown popup (the window route is wired by the screen-level
 # pipeline; see plan/pending/widget-popup-overlay.md Step 6).
 make_widget_select_document_example() =
-    WidgetSelect(Point2D(40, 40), "Apple";
-                 options=["Apple", "Banana", "Cherry", "Date"], width=220)
+    WidgetSelect("Apple";
+                 position = Point2D(40, 40), options=["Apple", "Banana", "Cherry", "Date"], width=220)
 
 # WidgetTextarea — a multi-line text surface.
 make_widget_textarea_document_example() =
-    WidgetTextarea(Point2D(40, 40),
-                   "Type your message here.\nIt can span several lines."; width=340, rows=4)
+    WidgetTextarea("Type your message here.\nIt can span several lines."; position = Point2D(40, 40), width=340, rows=4)
 
 # WidgetAccordion — two items, the first expanded.
 make_widget_accordion_document_example() =
-    WidgetAccordion(Point2D(40, 40), [
+    WidgetAccordion([
         ("Is it accessible?", "Yes. It adheres to the WAI-ARIA design pattern."),
         ("Is it styled?",     "Yes. It comes with default styles that match the theme."),
-    ]; expanded=1)
+    ]; position = Point2D(40, 40), expanded=1)
 
 # WidgetTable — a data table.
 make_widget_table_document_example() =
-    WidgetTable(Point2D(40, 40),
-                ["Invoice", "Status", "Method", "Amount"],
+    WidgetTable(["Invoice", "Status", "Method", "Amount"],
                 [["INV001", "Paid",    "Credit Card", "\$250.00"],
                  ["INV002", "Pending", "PayPal",      "\$150.00"],
-                 ["INV003", "Unpaid",  "Bank Transfer", "\$350.00"]])
+                 ["INV003", "Unpaid",  "Bank Transfer", "\$350.00"]]; position = Point2D(40, 40))
 
 # A table handed an offer, which a bare table cannot show.
 #
@@ -558,8 +551,7 @@ make_widget_table_document_example() =
 # the four rows stay the height of their text inside the pane.
 make_widget_table_offered_document_example() =
     WidgetScrollPane(
-        WidgetTable(Point2D(0, 0),
-                    ["Invoice", "Status", "Amount"],
+        WidgetTable(["Invoice", "Status", "Amount"],
                     [["INV001", "Paid",    "\$250.00"],
                      ["INV002", "Pending", "\$150.00"],
                      ["INV003", "Unpaid",  "\$350.00"]]);
@@ -573,7 +565,7 @@ make_widget_table_offered_document_example() =
 # the corner has not moved, and the body has travelled away from all three.
 make_widget_table_frozen_document_example() =
     WidgetScrollPane(
-        WidgetTable(Point2D(0, 0);
+        WidgetTable(;
                     column_headers = Any["Invoice", "Status", "Method", "Amount"],
                     row_headers = Any["1", "2", "3", "4", "5", "6"],
                     rows = Any[Any["INV00$(i)", "Paid", "Credit Card", "\$$(i)50.00"] for i in 1:6],
@@ -584,14 +576,14 @@ make_widget_table_frozen_document_example() =
 
 # WidgetTree — a nested outline with expand chevrons.
 make_widget_tree_document_example() =
-    WidgetTree(Point2D(40, 40), Any[
+    WidgetTree(Any[
         ("src", Any[
             ("components", Any["button.jl", "card.jl", "table.jl"]),
             "app.jl",
         ]),
         ("test", Any["runtests.jl"]),
         "README.md",
-    ])
+    ]; position = Point2D(40, 40))
 
 # Interaction state — each control shown enabled then disabled, stacked by a
 # VerticalLayout. The disabled variants render with the theme's muted tokens and
@@ -599,16 +591,16 @@ make_widget_tree_document_example() =
 # document/Widget.jl and plan/pending/widget-interaction-state.md.
 make_widget_disabled_document_example() =
     VerticalLayout(Any[
-        WidgetButton(Point2D(0, 0), Point2D(180, 48), "Enabled"),
-        WidgetButton(Point2D(0, 0), Point2D(180, 48), "Disabled"; enabled=false),
-        WidgetCheckbox(Point2D(0, 0), true),
-        WidgetCheckbox(Point2D(0, 0), true; enabled=false),
-        WidgetSwitch(Point2D(0, 0), true),
-        WidgetSwitch(Point2D(0, 0), true; enabled=false),
-        WidgetToggle(Point2D(0, 0), "Bold"; pressed=true),
-        WidgetToggle(Point2D(0, 0), "Bold"; pressed=true, enabled=false),
-        WidgetSelect(Point2D(0, 0), "Apple"; width=220),
-        WidgetSelect(Point2D(0, 0), "Apple"; width=220, enabled=false),
+        WidgetButton("Enabled"; size = Point2D(180, 48)),
+        WidgetButton("Disabled"; size = Point2D(180, 48), enabled=false),
+        WidgetCheckbox(true),
+        WidgetCheckbox(true; enabled=false),
+        WidgetSwitch(; checked = true),
+        WidgetSwitch(; checked = true, enabled=false),
+        WidgetToggle("Bold"; pressed=true),
+        WidgetToggle("Bold"; pressed=true, enabled=false),
+        WidgetSelect("Apple"; width=220),
+        WidgetSelect("Apple"; width=220, enabled=false),
     ]; gap=12)
 
 # Focus traversal — a column of controls with an initial selection on the first,
@@ -616,10 +608,10 @@ make_widget_disabled_document_example() =
 # disabled control is skipped). See plan/pending/widget-focus-traversal.md.
 function make_widget_focus_document_example()
     layout = VerticalLayout(Any[
-        WidgetButton(Point2D(0, 0), Point2D(180, 44), "First"),
-        WidgetCheckbox(Point2D(0, 0), true),
-        WidgetButton(Point2D(0, 0), Point2D(180, 44), "Disabled"; enabled=false),
-        WidgetButton(Point2D(0, 0), Point2D(180, 44), "Last"),
+        WidgetButton("First"; size = Point2D(180, 44)),
+        WidgetCheckbox(true),
+        WidgetButton("Disabled"; size = Point2D(180, 44), enabled=false),
+        WidgetButton("Last"; size = Point2D(180, 44)),
     ]; gap=12)
     sel = get_first_focusable_path(layout)
     sel === nothing || set_selection!(layout, sel)
@@ -635,7 +627,7 @@ end
 # itself.
 
 make_widget_context_menu_document_example() =
-    WidgetContextMenu(WidgetLabel(Point2D(40, 40), "Right-click for options"),
+    WidgetContextMenu(WidgetLabel("Right-click for options"; position = Point2D(40, 40)),
                       WidgetMenu([WidgetMenuItem("Cut"), WidgetMenuItem("Copy"), WidgetMenuItem("Paste")]))
 
 make_widget_dialog_document_example() =
@@ -644,35 +636,35 @@ make_widget_dialog_document_example() =
 make_widget_insertion_document_example() = WidgetInsertion()
 
 make_widget_list_document_example() =
-    WidgetList(Point2D(40, 40), ["Apples", "Bananas", "Cherries"]; selected=2, width=200)
+    WidgetList(["Apples", "Bananas", "Cherries"]; position = Point2D(40, 40), selected=2, width=200)
 
 function make_widget_option_document_example()
-    select = WidgetSelect(Point2D(40, 40), "Apple"; options=["Apple", "Banana"], width=200)
-    WidgetOption(Point2D(40, 84), select, "Banana")
+    select = WidgetSelect("Apple"; position = Point2D(40, 40), options=["Apple", "Banana"], width=200)
+    WidgetOption(select, "Banana"; position = Point2D(40, 84))
 end
 
 make_widget_spin_box_document_example() =
-    WidgetSpinBox(Point2D(40, 40), 3; min=0, max=10, step=1)
+    WidgetSpinBox(3; position = Point2D(40, 40), min=0, max=10, step=1)
 
 make_widget_status_bar_document_example() =
     WidgetStatusBar(["Ready", "Ln 1, Col 1"])
 
 make_tooltip_source_document_example() =
-    TooltipSource(; child=WidgetLabel(Point2D(40, 40), "Hover me"),
-                    content=WidgetLabel(Point2D(0, 0), "A helpful tip"),
+    TooltipSource(; child=WidgetLabel("Hover me"; position = Point2D(40, 40)),
+                    content=WidgetLabel("A helpful tip"),
                     id=:tooltip_source_example)
 
 make_clipboard_collection_document_example() =
-    ClipboardCollection(WidgetLabel(Point2D(0, 0), "Copied selection"),
-                        Any[WidgetLabel(Point2D(0, 0), "Row 1"), WidgetLabel(Point2D(0, 0), "Row 2")])
+    ClipboardCollection(WidgetLabel("Copied selection"),
+                        Any[WidgetLabel("Row 1"), WidgetLabel("Row 2")])
 
 function make_clipboard_slice_document_example()
-    content = WidgetLabel(Point2D(0, 0), "Copied label")
+    content = WidgetLabel("Copied label")
     ClipboardSlice(; content=content, slice=Reference(FieldReferenceStep("content")))
 end
 
 function make_reference_inspector_document_example()
-    target = WidgetLabel(Point2D(0, 0), "Hello")
+    target = WidgetLabel("Hello")
     ReferenceInspector(; reference=Reference(FieldReferenceStep("content")), target=target)
 end
 
@@ -683,7 +675,7 @@ make_graphics_canvas_document_example() =
     ]; w=120, h=100)
 
 function make_screen_document_document_example()
-    content = WidgetLabel(Point2D(40, 40), "A window on screen")
+    content = WidgetLabel("A window on screen"; position = Point2D(40, 40))
     ScreenDocument([WindowDocument(; id=:screen_example, title="Example window",
                                    width=400, height=300, content=content)])
 end
@@ -691,42 +683,42 @@ end
 make_window_document_document_example() =
     WindowDocument(; id=:window_example, title="Example window",
                   width=400, height=300,
-                  content=WidgetLabel(Point2D(40, 40), "Inside a window"))
+                  content=WidgetLabel("Inside a window"; position = Point2D(40, 40)))
 
 # WidgetAlert — a single alert, distinct from `make_widget_alert_document_example`
 # above (which stacks the default and destructive variants).
 make_widget_alert_atom_document_example() =
-    WidgetAlert(Point2D(40, 40), "Heads up!", "You can add components using the CLI.")
+    WidgetAlert("Heads up!"; position = Point2D(40, 40), description = "You can add components using the CLI.")
 
 # WidgetBadge — a single badge, distinct from `make_widget_badge_document_example`
 # above (which stacks all four variants).
 make_widget_badge_atom_document_example() =
-    WidgetBadge(Point2D(40, 40), "Default")
+    WidgetBadge("Default"; position = Point2D(40, 40))
 
 # WidgetSeparator — a single rule, distinct from `make_widget_separator_document_example`
 # above (which frames it between two labels).
 make_widget_separator_atom_document_example() =
-    WidgetSeparator(Point2D(40, 40); length=260)
+    WidgetSeparator(; position = Point2D(40, 40), length=260)
 
 # WidgetSkeleton — a single placeholder block, distinct from
 # `make_widget_skeleton_document_example` above (which stacks three).
 make_widget_skeleton_atom_document_example() =
-    WidgetSkeleton(Point2D(40, 40); width=260, height=20)
+    WidgetSkeleton(; position = Point2D(40, 40), width=260, height=20)
 
 # WidgetSwitch — a single switch, distinct from `make_widget_switch_document_example`
 # above (which stacks on/off/instant variants).
 make_widget_switch_atom_document_example() =
-    WidgetSwitch(Point2D(40, 40), true)
+    WidgetSwitch(; position = Point2D(40, 40), checked = true)
 
 # WidgetTabbedPane — bare (no `WidgetShell` chrome), distinct from
 # `make_widget_tabbed_pane_document_example` above.
 make_widget_tabbed_pane_atom_document_example() =
     WidgetTabbedPane([
-        ("Alpha", WidgetLabel(Point2D(16, 16), "Content A")),
-        ("Beta",  WidgetLabel(Point2D(16, 16), "Content B")),
+        ("Alpha", WidgetLabel("Content A"; position = Point2D(16, 16))),
+        ("Beta",  WidgetLabel("Content B"; position = Point2D(16, 16))),
     ])
 
 # WidgetToggle — a single toggle, distinct from `make_widget_toggle_document_example`
 # above (which stacks pressed and unpressed).
 make_widget_toggle_atom_document_example() =
-    WidgetToggle(Point2D(40, 40), "Bold"; pressed=true)
+    WidgetToggle("Bold"; position = Point2D(40, 40), pressed=true)

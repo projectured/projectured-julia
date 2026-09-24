@@ -18,7 +18,7 @@ _w2g = WidgetToGraphics(font_ubuntu_regular_20; measure = _det)
 # layout/tab/shell dispatches too), and reads reach the table's readers.
 _rec = RecursiveProjection(TypeDispatchingProjection(vcat(LayoutToGraphics().dispatch, _w2g.dispatch)))
 _mods = ModifierKeys()
-_mktable() = WidgetTable(Point2D(0, 0), ["ID", "Name"],
+_mktable() = WidgetTable(["ID", "Name"],
                          [["1", "Ada"], ["2", "Bob"], ["3", "Cy"]])
 _rd_marked(io, g) = begin
     ch = read_intent(_rec, nothing, Intent(g, nothing), io)
@@ -128,7 +128,7 @@ function test_widget_table_fills_offer()
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
-    table = WidgetTable(Point2D(0, 0), Any["name", "value"], Any[Any["a", "1"], Any["b", "2"]];
+    table = WidgetTable(Any["name", "value"], Any[Any["a", "1"], Any["b", "2"]];
                         column_policies = Any[Fill, Fixed(80)])
     for width in (400, 600)
         ctx = with_available_size(PrinterContext(); width = Cell(Int32(width)),
@@ -152,7 +152,7 @@ function test_widget_table_content_floor()
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
     grow = SizePolicy(nothing, nothing, nothing, 1.0)
     long = "a cell that is wider than the header"
-    table = WidgetTable(Point2D(0, 0), Any["id", "text"], Any[Any["1", long], Any["2", "b"]];
+    table = WidgetTable(Any["id", "text"], Any[Any["1", long], Any["2", "b"]];
                         column_policies = Any[grow, grow])
     function geometry_at(width)
         ctx = with_available_size(PrinterContext(); width = Cell(Int32(width)),
@@ -180,7 +180,7 @@ function test_shell_offers_only_its_size()
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
-    pane() = WidgetScrollPane(WidgetLabel(Point2D(0, 0), "a label"); size = Point2D(0, 0))
+    pane() = WidgetScrollPane(WidgetLabel("a label"); size = Point2D(0, 0))
     function viewport_of(shell; offered = true)
         ctx = offered ?
             with_available_size(PrinterContext(); width = Cell(Int32(700)), height = Cell(Int32(500))) :
@@ -217,7 +217,7 @@ function test_scroll_pane_axis_size()
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
     # A label and not a table: a table freezes its header, and a pane over it
     # draws one viewport for each region.
-    content() = WidgetLabel(Point2D(0, 0), "a label")
+    content() = WidgetLabel("a label")
     function viewport(size, width)
         ctx = with_available_size(PrinterContext(); width = Cell(Int32(width)),
                                   height = Cell(Int32(400)))
@@ -252,7 +252,7 @@ function test_widget_table_cell_policy()
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
     long = "a value that is far too wide for eighty pixels"
     # The header names are chosen so that neither is a piece of the long cell.
-    make(; kw...) = WidgetTable(Point2D(0, 0), Any["AA", "BB"],
+    make(; kw...) = WidgetTable(Any["AA", "BB"],
                                 Any[Any[long, "x"], Any["second", "y"]];
                                 column_policies = Any[Fixed(80), Fixed(80)], kw...)
     ctx = with_available_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(400)))
@@ -318,7 +318,7 @@ _w2g = WidgetToGraphics(font_ubuntu_regular_20; measure = _det)
 _rec = RecursiveProjection(TypeDispatchingProjection(vcat(LayoutToGraphics().dispatch, _w2g.dispatch)))
 
 # Both strips: three columns named, and an ordinal beside each of six rows.
-_table() = WidgetTable(Point2D(0, 0);
+_table() = WidgetTable(;
                        column_headers = Any["ID", "Name", "Role"],
                        row_headers = Any["1", "2", "3", "4", "5", "6"],
                        rows = Any[Any["r$(i)a", "r$(i)b", "r$(i)c"] for i in 1:6],
@@ -337,7 +337,7 @@ function _viewports(node, ox = 0, oy = 0, found = Tuple{Int,Int,Int,Int}[])
 end
 
 @testset "a content with no prefix is one viewport, as it always was" begin
-    pane = WidgetScrollPane(WidgetLabel(Point2D(0, 0), "plain"); size = Point2D(120, 60))
+    pane = WidgetScrollPane(WidgetLabel("plain"); size = Point2D(120, 60))
     @test length(_viewports(print_document(_rec, pane).output)) == 1
 end
 

@@ -710,7 +710,7 @@ end
     # here a widget column of an icon-less label pair, which is what a module in a
     # network diagram is.
     renderer = NaturalToGraphics(measure = (text, _font) -> (length(text) * 10, 20))
-    node(name) = GraphVertex(VerticalLayout(Any[WidgetLabel(Point2D(0, 0), name)]; gap = 2))
+    node(name) = GraphVertex(VerticalLayout(Any[WidgetLabel(name)]; gap = 2))
     a, b = node("source"), node("sink")
     graph = GraphGraph(Any[a, b], Any[GraphEdge(a, b)])
 

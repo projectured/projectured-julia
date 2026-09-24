@@ -164,7 +164,7 @@ The proportional one is the argument for the other: a five-second timeout pushes
 everything that happened in the first two milliseconds into a single column.
 """
 function make_sequencechart_pair_document_example()
-    WidgetTable(Point2D(0, 0); column_headers = Any[], row_headers = Any[],
+    WidgetTable(; column_headers = Any[], row_headers = Any[],
         rows = Any[Any[make_sequencechart_document_example()],
                    Any[make_sequencechart_linear_document_example()]],
         column_count = 1)

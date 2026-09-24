@@ -67,7 +67,7 @@ end
     # is the window that appears, not the operation that comes back. A reader
     # that answers `nothing` here has done the work.
     make_scene() = make_window_scene(
-        WidgetSelect(Point2D(0, 0), "Apple"; options = ["Apple", "Banana"], width = 180),
+        WidgetSelect("Apple"; options = ["Apple", "Banana"], width = 180),
         "shell"; width = 400, height = 300)
     content = make_layout_projection_example()
     press = Intent(WindowInput(:shell, MousePress(:left, 5, 5, ModifierKeys())))

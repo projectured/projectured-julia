@@ -9,8 +9,8 @@ function test_layout_closeout()
 proj = make_layout_projection_example()
 
 @testset "FormLayout builds a 2-column grid with hug/fill columns" begin
-    f = FormLayout([(WidgetLabel(Point2D(0, 0), "Name:"),  WidgetText(Point2D(0, 0), "alice")),
-                    (WidgetLabel(Point2D(0, 0), "Email:"), WidgetText(Point2D(0, 0), "a@b.com"))])
+    f = FormLayout([(WidgetLabel("Name:"),  WidgetText("alice")),
+                    (WidgetLabel("Email:"), WidgetText("a@b.com"))])
     @test f isa GridLayout
     @test f.columns == 2
     @test f.column_align == [:right, :left]
@@ -19,7 +19,7 @@ proj = make_layout_projection_example()
 end
 
 @testset "GridLayout per-column fields default to empty, and every column is Content" begin
-    g = GridLayout(Any[WidgetLabel(Point2D(0, 0), "a"), WidgetLabel(Point2D(0, 0), "b")], 2)
+    g = GridLayout(Any[WidgetLabel("a"), WidgetLabel("b")], 2)
     @test isempty(g.column_align)
     @test isempty(g.column_policies)
     @test isempty(g.row_policies)
@@ -36,7 +36,7 @@ end
     # Two labels in a 2-col grid; column 2 stretches. With an available width far
     # wider than the content, column 2's left edge stays put but its cell widens,
     # so the outer width grows to fill (vs. the un-stretched, content-only width).
-    cells = Any[WidgetLabel(Point2D(0, 0), "Name:"), WidgetText(Point2D(0, 0), "x")]
+    cells = Any[WidgetLabel("Name:"), WidgetText("x")]
     plain  = GridLayout(copy(cells), 2)
     filled = GridLayout(copy(cells), 2; column_policies=Any[Content, Fill], horizontal_gap=8)
     ctx = with_available_size(PrinterContext(EmptyReference());
@@ -50,7 +50,7 @@ end
 @testset "a row takes a policy too, and Content is what a grid always meant" begin
     # Two rows of one column. The second fills, so it takes what the first
     # leaves of a seeded height; with no policy both are their content.
-    cells() = Any[WidgetLabel(Point2D(0, 0), "top"), WidgetLabel(Point2D(0, 0), "rest")]
+    cells() = Any[WidgetLabel("top"), WidgetLabel("rest")]
     ctx = with_available_size(PrinterContext(EmptyReference());
                               width=_LC_Cell(600), height=_LC_Cell(400))
     plain  = GridLayout(cells(), 1)
@@ -65,7 +65,7 @@ end
 
 @testset "a Fixed column clips what it holds, and a withheld offer draws one line" begin
     long = "a value that is far too wide for forty pixels of column"
-    cells() = Any[WidgetLabel(Point2D(0, 0), long), WidgetLabel(Point2D(0, 0), "b")]
+    cells() = Any[WidgetLabel(long), WidgetLabel("b")]
     ctx = with_available_size(PrinterContext(EmptyReference());
                               width=_LC_Cell(600), height=_LC_Cell(400))
     # The column hands its forty pixels to the cell, which breaks its lines
@@ -94,7 +94,7 @@ end
 end
 
 @testset "a flow breaks at the width it is offered, and its children are their content" begin
-    words() = Any[WidgetBadge(Point2D(0, 0), w) for w in ("alpha", "beta", "gamma", "delta", "epsilon")]
+    words() = Any[WidgetBadge(w) for w in ("alpha", "beta", "gamma", "delta", "epsilon")]
     wide = with_available_size(PrinterContext(EmptyReference());
                                width=_LC_Cell(600), height=_LC_Cell(400))
     narrow = with_available_size(PrinterContext(EmptyReference());
@@ -119,7 +119,7 @@ end
 end
 
 @testset "a Fixed column is exactly what it was told" begin
-    cells = Any[WidgetLabel(Point2D(0, 0), "a-very-long-label"), WidgetLabel(Point2D(0, 0), "b")]
+    cells = Any[WidgetLabel("a-very-long-label"), WidgetLabel("b")]
     g = GridLayout(cells, 2; column_policies=Any[Fixed(40), Content])
     io = print_document(proj, nothing, g,
                         with_available_size(PrinterContext(EmptyReference());
@@ -132,9 +132,9 @@ end
 @testset "StackLayout active shows exactly one page" begin
     # The full widget pipeline registers StackLayout (the layout-only example omits it).
     wproj = make_widget_projection_example()
-    pages() = Any[WidgetLabel(Point2D(0, 0), "P1"),
-                  WidgetLabel(Point2D(0, 0), "P2"),
-                  WidgetLabel(Point2D(0, 0), "P3")]
+    pages() = Any[WidgetLabel("P1"),
+                  WidgetLabel("P2"),
+                  WidgetLabel("P3")]
     all_io = print_document(wproj, StackLayout(pages()))                 # active=0 ⇒ z-stack
     one_io = print_document(wproj, StackLayout(pages(); active=2))       # only page 2
     @test length(collect(all_io.output.elements)) == 3
@@ -149,11 +149,11 @@ end
 # rebuilds the child iomaps, and the extent / elements / entries re-derive from it. ──
 @testset "StackLayout child add/remove reflows through the held iomap" begin
     wproj = make_widget_projection_example()
-    stack = StackLayout(Any[WidgetLabel(Point2D(0, 0), "P1"),
-                            WidgetLabel(Point2D(0, 0), "P2")])   # active=0 ⇒ all visible
+    stack = StackLayout(Any[WidgetLabel("P1"),
+                            WidgetLabel("P2")])   # active=0 ⇒ all visible
     io = print_document(wproj, stack)
     @test length(collect(io.output.elements)) == 2
-    push!(stack.children, WidgetLabel(Point2D(0, 0), "P3"))
+    push!(stack.children, WidgetLabel("P3"))
     @test length(collect(io.output.elements)) == 3    # add reflows reactively, no re-print
     pop!(stack.children)
     @test length(collect(io.output.elements)) == 2    # remove reflows back

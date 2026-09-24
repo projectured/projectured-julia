@@ -18,8 +18,8 @@ function make_file_dialog(directory::AbstractString, title::AbstractString,
                           confirm::AbstractString)
     chooser = make_filesystem_chooser(directory)
     dialog = WidgetDialog(title, chooser,
-                          Any[WidgetButton(Point2D(0, 0), Point2D(88, 0), "Cancel"),
-                              WidgetButton(Point2D(0, 0), Point2D(88, 0), confirm)];
+                          Any[WidgetButton("Cancel"; size = Point2D(88, 0)),
+                              WidgetButton(confirm; size = Point2D(88, 0))];
                           popup_id = :file_dialog)
     (dialog, chooser)
 end

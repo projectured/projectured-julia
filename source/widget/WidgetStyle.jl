@@ -20,7 +20,7 @@ change to the style changes all of them.
 
 # Example
 
-    WidgetLabel(Point2D(0, 0), "Runs"; style = WidgetStyle(margin_color = color_red))
+    WidgetLabel("Runs"; style = WidgetStyle(margin_color = color_red))
 """
 @document struct WidgetStyle <: WidgetDocument
     margin_color::Any = nothing

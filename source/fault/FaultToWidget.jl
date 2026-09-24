@@ -22,10 +22,8 @@ function print_document(p::FaultToWidget, recursion, report::FaultReport,
     # inert, so the selection never names the report itself; the widget it is
     # drawn as is what a person points at, and a widget answers with its own
     # `tooltip`.
-    alert = WidgetAlert(Point2D(0, 0),
-                        Cell(@computation String(report.origin)),
-                        Cell(@computation report.message);
-                        icon = :warning, variant = :destructive, width = p.width,
+    alert = WidgetAlert(Cell(@computation String(report.origin));
+                        description = Cell(@computation report.message), icon = :warning, variant = :destructive, width = p.width,
                         tooltip = format_fault_report_message(report))
     SimpleIoMap(p, report, alert)
 end

@@ -22,7 +22,7 @@ function test_widget_table_list_header_floor()
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
     grow = SizePolicy(nothing, nothing, nothing, 1.0)
     head = ListNode(make_widget_table_row(Any["a", "b"]))
-    table = WidgetTable(Point2D(0, 0); column_headers = Any["id", "a much longer header"],
+    table = WidgetTable(; column_headers = Any["id", "a much longer header"],
                         rows = head, column_count = 2, column_policies = Any[grow, grow])
     function print_at(width)
         ctx = with_available_size(PrinterContext(); width = Cell(Int32(width)),
@@ -71,7 +71,7 @@ end
 texts_of(i, c) = c == 1 ? "row " * string(i) : string(i * 10)
 
 policies = Any[Fixed(120), Fixed(80)]
-make_table(rows; kw...) = WidgetTable(Point2D(0, 0); column_headers = Any["name", "value"],
+make_table(rows; kw...) = WidgetTable(; column_headers = Any["name", "value"],
                                       rows, column_count = 2, column_policies = policies, kw...)
 
 # Every text a canvas drew, as (x, y, text), through viewports and down a list
@@ -127,7 +127,7 @@ column_of(path) = path.tail.tail.head.start + 1
 end
 
 @testset "the same rows, as a vector and as a list, draw the same texts at the same places" begin
-    vector = WidgetTable(Point2D(0, 0), Any["name", "value"],
+    vector = WidgetTable(Any["name", "value"],
                          Any[Any[texts_of(i, 1), texts_of(i, 2)] for i in 1:3];
                          column_policies = policies)
     list = make_table(make_list(3, texts_of))
@@ -138,7 +138,7 @@ end
 end
 
 @testset "a widget in a list cell draws, and a click on it reaches it" begin
-    box = WidgetCheckbox(Point2D(0, 0), "abc")
+    box = WidgetCheckbox("abc")
     rows = make_list(3, (i, c) -> (i == 2 && c == 1) ? box : texts_of(i, c))
     io = print_document(rec, nothing, make_table(rows), context())
     st = io.state
@@ -229,7 +229,7 @@ end
 
 @testset "a list is refused where it cannot be drawn lazily" begin
     rows = make_list(3, texts_of)
-    content = WidgetTable(Point2D(0, 0); column_headers = Any["name", "value"], rows,
+    content = WidgetTable(; column_headers = Any["name", "value"], rows,
                           column_count = 2, column_policies = Any[Fixed(120), Content])
     @test_throws ErrorException print_document(rec, nothing, content, context())
     weighted = make_table(make_list(3, texts_of); row_policy = Fill)

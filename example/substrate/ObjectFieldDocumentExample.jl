@@ -39,10 +39,10 @@ function make_object_field_form_document_example()
     # two-column grid. A bare control is exactly what its field slot wants, which
     # is the second reason `ObjectFieldToWidget` emits no label of its own.
     FormLayout([
-        (WidgetLabel(Point2D(0, 0), "Server name"), ObjectField(server, "name")),
-        (WidgetLabel(Point2D(0, 0), "Client name"), ObjectField(client, "name")),
-        (WidgetLabel(Point2D(0, 0), "Capacity"),    ObjectField(server, "capacity")),
-        (WidgetLabel(Point2D(0, 0), "Enabled"),     ObjectField(server, "enabled")),
-        (WidgetLabel(Point2D(0, 0), "Second tag"),  ObjectField(server, tag_2)),
+        (WidgetLabel("Server name"), ObjectField(server, "name")),
+        (WidgetLabel("Client name"), ObjectField(client, "name")),
+        (WidgetLabel("Capacity"),    ObjectField(server, "capacity")),
+        (WidgetLabel("Enabled"),     ObjectField(server, "enabled")),
+        (WidgetLabel("Second tag"),  ObjectField(server, tag_2)),
     ])
 end

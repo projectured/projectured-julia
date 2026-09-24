@@ -46,17 +46,17 @@ end
 
 const FIRST_FORMS = [
     "presses = Cell(0)",
-    "live(text) = set_cell_computation!(WidgetLabel(Point2D(0, 0), \"\"), text)",
+    "live(text) = set_cell_computation!(WidgetLabel(\"\"), text)",
     "button = WidgetButton(Point2D(0, 0), Point2D(160, 36), \"Press me\"; action = () -> presses[] += 1)",
     "tool = VerticalLayout(Any[button]; gap = 12)",
 ]
 
 const LATER_FORMS = [
     "push!(tool.children, live(() -> \"Pressed \$(presses[]) times\")); nothing",
-    "slider = WidgetSlider(Point2D(0, 0), 0.3); push!(tool.children, slider); nothing",
+    "slider = WidgetSlider(0.3); push!(tool.children, slider); nothing",
     "push!(tool.children, live(() -> \"Slider at \$(round(slider.value; digits = 2))\")); nothing",
-    "name = WidgetText(Point2D(0, 0), \"Ada\"); push!(tool.children, name); nothing",
-    "push!(tool.children, WidgetTable(Point2D(0, 0), [\"what\", \"value\"], [[\"presses\", live(() -> string(presses[]))], [\"slider\", live(() -> string(round(slider.value; digits = 2)))], [\"name\", live(() -> string(name.content))]])); nothing",
+    "name = WidgetText(\"Ada\"); push!(tool.children, name); nothing",
+    "push!(tool.children, WidgetTable([\"what\", \"value\"], [[\"presses\", live(() -> string(presses[]))], [\"slider\", live(() -> string(round(slider.value; digits = 2)))], [\"name\", live(() -> string(name.content))]])); nothing",
     "name.content = \"Ada Lovelace\"; nothing",
 ]
 

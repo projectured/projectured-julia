@@ -15,7 +15,7 @@ function test_pane_gestures()
 @testset "PaneTree gestures" begin
 
 _stub(t, f) = (max(1, length(t)) * 10, 24)
-_tab(name) = PaneTab(name, WidgetLabel(Point2D(0, 0), name))
+_tab(name) = PaneTab(name, WidgetLabel(name))
 # The example projection, so a fresh tab's own content (an empty text document)
 # renders like it does in the real layout.
 _chain() = make_pane_projection_example(measure = _stub)

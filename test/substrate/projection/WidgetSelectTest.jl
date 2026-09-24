@@ -17,7 +17,7 @@ function test_widget_select_dropdown()
 proj = make_layout_projection_example()
 
 @testset "click opens the option list as an anchor-relative popup" begin
-    select = WidgetSelect(Point2D(0, 0), "Apple";
+    select = WidgetSelect("Apple";
                           options=["Apple", "Banana", "Cherry"], width=180)
     iomap = print_document(proj, select)
 
@@ -41,19 +41,19 @@ proj = make_layout_projection_example()
 end
 
 @testset "a select with no options is inert" begin
-    select = WidgetSelect(Point2D(0, 0), "x"; width=120)
+    select = WidgetSelect("x"; width=120)
     iomap = print_document(proj, select)
     @test read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys())) === nothing
 end
 
 @testset "a disabled select swallows the click" begin
-    select = WidgetSelect(Point2D(0, 0), "Apple"; options=["Apple", "Banana"], enabled=false)
+    select = WidgetSelect("Apple"; options=["Apple", "Banana"], enabled=false)
     iomap = print_document(proj, select)
     @test read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys())) === nothing
 end
 
 @testset "the resolver maps the anchor to an absolute OpenWindowOperation" begin
-    select = WidgetSelect(Point2D(0, 0), "Apple"; options=["Apple", "Banana"], width=180)
+    select = WidgetSelect("Apple"; options=["Apple", "Banana"], width=180)
     # Mirror the real pipeline: the resolver wraps the content projection, isolated
     # through a NestingProjection (as HoverProbe does).
     inner = NestingProjection(proj; recursion = IdentityProjection())
@@ -73,8 +73,8 @@ end
 end
 
 @testset "clicking an option writes the value back and closes the popup" begin
-    select = WidgetSelect(Point2D(0, 0), "Apple"; options=["Apple", "Banana"], width=180)
-    option = WidgetOption(Point2D(0, 0), select, "Banana"; width=180)
+    select = WidgetSelect("Apple"; options=["Apple", "Banana"], width=180)
+    option = WidgetOption(select, "Banana"; width=180)
     oio = print_document(proj, option)
 
     op = read_intent(proj, oio, MousePress(:left, 5, 5, ModifierKeys()))
@@ -98,8 +98,8 @@ end
 end
 
 @testset "a non-left click on an option does nothing" begin
-    select = WidgetSelect(Point2D(0, 0), "Apple"; options=["Apple"], width=120)
-    option = WidgetOption(Point2D(0, 0), select, "Apple"; width=120)
+    select = WidgetSelect("Apple"; options=["Apple"], width=120)
+    option = WidgetOption(select, "Apple"; width=120)
     oio = print_document(proj, option)
     @test read_intent(proj, oio, MousePress(:right, 5, 5, ModifierKeys())) === nothing
     @test select.value == "Apple"
