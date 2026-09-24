@@ -86,7 +86,7 @@ New exported names: `get_cell_struct_parameter_names`,
   `architecture-invariants.md`. Also `architecture-rules.md`, `document.md`, the
   folder table of `kernel/architecture.md` and one sentence of
   `ProjectionMacro.jl`, which put the struct code in the cell layer.
-- [ ] 5. Verification, and the move of this plan to `plan/done/`.
+- [x] 5. Verification, and the move of this plan to `plan/done/`.
 
 ## What the implementation found
 
@@ -114,4 +114,44 @@ New exported names: `get_cell_struct_parameter_names`,
 
 ## Verification
 
-To fill in.
+Each comparison ran the same way on `main` (705ee65d) and in the worktree.
+
+- `test_cell_struct()` 51 pass, `test_cell_struct_plan()` 47 pass.
+- `test_document_macro()`: 84 pass, and the 3 fails and 2 errors of Rule C that
+  `main` also has (79 pass there; the 5 new tests pass).
+- `test_kernel()`: 2212 pass, 3 fail, 3 error. The six are the known ones: five
+  in Rule C and one for `MEvalBranch`.
+- `test_substrate()`: 80473 pass, 3 fail, 2 error, 1 broken, the same as `main`.
+  `test_json()`: 194 pass on both.
+- The guards: `test_tree`, `test_naming`, `test_exports`, `test_documentation`
+  and `test_package_graph` pass. `test_arguments` reports only
+  `start_application!` in `example/projectured/Application.jl`, which `main`
+  reports too.
+- Every package of `environment/all` precompiles.
+- The signatures of every struct of cells in the loaded packages: the field
+  types, the constructors and the property methods. The 2549 structs of `main`
+  are the same in the worktree, and the only new ones are the test fixtures.
+  `methods` of a parametric type does not list its inner constructor, so the
+  suites cover that constructor.
+- omnet-julia, in a scratch environment that points projectured-julia at the
+  worktree and in one that points it at `main`: every package precompiles, the
+  signatures of the 3152 structs of cells are the same, and `test_simulator()`
+  gives 6950 pass on both.
+- inet-julia was not checked. Its `environment/all` names the deleted packages
+  `ProjecturedWorkbench` and `ProjecturedWorkbenchExample` and misses
+  `ProjecturedSerialization`, so it does not load on `main` either. It uses no
+  name of the struct layer. It passes a qualified kind to `@document`, and
+  `DocumentMacro.jl` removes the module part before the parse, as before.
+
+## Left for later
+
+- The document audit: `_REACTIVE_ANY` is `Cell`; `_emit_accessors` and
+  `_emit_autowrap_ctor` are the document forms of the struct builders;
+  `_bare_kind` removes the module part of a kind only for `@document`; and
+  `_emit_keyword_ctors` emits the keyword constructor of the bare name also for a
+  schema whose parameter binds from no argument, where `@cell_struct` emits none.
+- A reactive field wraps a cell of another type in a new `Cell`. The owner
+  decides whether that stays.
+- `kernel/architecture.md` and `system-anatomy.md` list 18 kernel layers, and
+  the kernel has 23. The lists miss the performance, struct, intent, feed and
+  playback layers.
