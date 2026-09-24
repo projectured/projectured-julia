@@ -45,12 +45,12 @@ and the store only appends names, so the index alignment holds.
 Runs on the editor task only — it writes cells.
 """
 function flush_frame_statistics!(statistics::FrameStatistics, store::FrameSampleStore)
-    names = get_measurement_names(store)
+    names = get_frame_measurement_names(store)
     rows = statistics.rows
     for (index, name) in enumerate(names)
-        summary = find_measurement_summary(store, name)
+        summary = find_frame_measurement_summary(store, name)
         summary === nothing && continue
-        deviation = compute_standard_deviation(summary)
+        deviation = compute_frame_standard_deviation(summary)
         if index <= length(rows)
             row = rows[index]
             row.count = summary.count
@@ -65,7 +65,7 @@ function flush_frame_statistics!(statistics::FrameStatistics, store::FrameSample
                                          summary.mean, deviation, summary.total))
         end
     end
-    frame_time = find_measurement_summary(store, :frame_time)
+    frame_time = find_frame_measurement_summary(store, :frame_time)
     frame_time === nothing || (statistics.frame_count = frame_time.count)
     length(names)
 end

@@ -33,13 +33,13 @@ _is_frame_statistics_watched(feed::FrameStatisticsFeed) =
 
 function drain_changes!(feed::FrameStatisticsFeed, editor)
     store = editor.frame_samples
-    count_unflushed_samples(store) > 0 || return 0
+    count_unflushed_frame_samples(store) > 0 || return 0
     _is_frame_statistics_watched(feed) || return 0
     written = flush_frame_statistics!(feed.statistics, store)
-    mark_samples_flushed!(store)
+    mark_frame_samples_flushed!(store)
     written
 end
 
 compute_wake_deadline(feed::FrameStatisticsFeed, editor) =
-    count_unflushed_samples(editor.frame_samples) > 0 &&
+    count_unflushed_frame_samples(editor.frame_samples) > 0 &&
     _is_frame_statistics_watched(feed) ? feed.flush_interval : nothing

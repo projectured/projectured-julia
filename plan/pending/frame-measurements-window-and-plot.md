@@ -1,6 +1,6 @@
 # Frame measurements: frame names, a window of recent frames, milliseconds and a plot
 
-> **Status (2026-09-24): IN PROGRESS.** No step is done yet.
+> **Status (2026-09-24): IN PROGRESS.** Step 1 is done.
 
 The editor measures each frame into `editor.frame_samples`, a `FrameSampleStore`
 of the kernel performance layer. The store keeps only running summaries since
@@ -129,7 +129,9 @@ unsealed files of the layer again. Move this plan to `plan/done/`.
 
 ## Progress
 
-- [ ] Step 1
+- [x] Step 1 — renamed with `julia-rename.jl`; `test_frame_samples()` 16 pass,
+  `test_performance_counter()` 3 pass, `test_kernel_layering()` 10 pass. The
+  two fold tests call the store, because the fold helper is private now.
 - [ ] Step 2
 - [ ] Step 3
 - [ ] Step 4
