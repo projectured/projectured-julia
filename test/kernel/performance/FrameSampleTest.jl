@@ -129,5 +129,20 @@ function test_frame_samples()
         @test summary.count == 1
         @test summary.total ≈ 0.016
     end
+
+    if PERFORMANCE_COUNTERS_ENABLED
+        @testset "the editor records every counter, with its unit" begin
+            editor = Editor(HeadlessBackend(), FrameSampleProbe(),
+                            FrameSampleProbeProjection(), Device[])
+            # A time that no list names reaches the store all the same.
+            with_performance_counters() do
+                @measure_performance_time :probe_time (1 + 2)
+                record_frame_measurements!(editor, 0.016)
+            end
+            store = editor.frame_samples
+            @test compute_frame_measurement_summary(store, :probe_time).unit === :second
+            @test compute_frame_measurement_summary(store, :reads).unit === :count
+        end
+    end
 end
 end

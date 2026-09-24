@@ -5,22 +5,24 @@
 """
     perf!(editor::Editor)
 
-Log reactive performance counters for the current frame. Only prints
-when the editor processed a non-nothing operation.
+Log the performance counters of the current frame: every count, and every time
+in milliseconds, in name order. Logs only when the editor processed an
+operation.
 """
 function perf!(editor::Editor)
     PERFORMANCE_COUNTERS_ENABLED || return
     editor.operation === nothing && return
-    c = get_performance_counters()
-    # The per-stage timing keys are the editor's own (recorded via `@performance_time`
-    # below), not seeded by the reactive engine, so read them defensively: a frame
-    # that ran no stage yet leaves them absent.
-    rt = get(c, :read_time, 0) / 1e6
-    et = get(c, :evaluate_time, 0) / 1e6
-    pt = get(c, :print_time, 0) / 1e6
-    # @info (not raw println) so this never writes to the global stdout the
-    # assistant's `execute_julia_code` may have redirected to a now-closed pipe.
-    @info "[perf] reads=$(c[:reads]) computes=$(c[:computes]) invalidations=$(c[:invalidations]) writes=$(c[:writes]) read=$(round(rt; digits=2))ms eval=$(round(et; digits=2))ms print=$(round(pt; digits=2))ms"
+    counters = get_performance_counters()
+    fields = String[]
+    for key in sort!(collect(keys(counters.counts)))
+        push!(fields, "$(key)=$(counters.counts[key])")
+    end
+    for key in sort!(collect(keys(counters.times)))
+        push!(fields, "$(key)=$(round(counters.times[key] / 1e6; digits = 2))ms")
+    end
+    # Through the logger, so the line reaches every logger that the process
+    # installed.
+    @info "[perf] $(join(fields, ' '))"
 end
 
 # ── One frame ─────────────────────────────────────────────────────────
@@ -68,19 +70,21 @@ function run_frame!(editor::Editor)
     for _ in 1:MAX_OPERATIONS_PER_FRAME
         # A reader that throws is a reader that declined: the gesture is lost,
         # the frame goes on, and the fault says which reader lost it.
-        has_input = @performance_time :read_time _run_barrier(editor, :read;
-                                                              fallback = false) do
-            read!(editor)
+        has_input = @measure_performance_time :read_time begin
+            _run_barrier(editor, :read; fallback = false) do
+                read!(editor)
+            end
         end
         has_input || break
-        @performance_time :evaluate_time evaluate!(editor)
+        @measure_performance_time :evaluate_time evaluate!(editor)
         applied = editor.operation
         editor.iomap === nothing && break     # repaint before reading anything else
     end
     editor.operation = applied
-    @performance_time :print_time _run_barrier(editor, :print;
-                                               origin = typeof(editor.projection)) do
-        print!(editor)
+    @measure_performance_time :print_time begin
+        _run_barrier(editor, :print; origin = typeof(editor.projection)) do
+            print!(editor)
+        end
     end
     _consider_safe_mode!(editor)
 end

@@ -1,6 +1,6 @@
 # The performance counters keep times and counts apart
 
-> **Status (2026-09-24): IN PROGRESS.** Step 1 is done.
+> **Status (2026-09-24): IN PROGRESS.** Steps 1 and 2 are done.
 
 The counter part of the kernel performance layer writes nanoseconds from
 `@performance_time` and counts from `@count_performance` into one
@@ -73,5 +73,28 @@ Audit the three files of the layer again. Move this plan to `plan/done/`.
 ## Progress
 
 - [x] Step 1
-- [ ] Step 2
+- [x] Step 2 — with the counters compiled out: `test_performance_counter()` 3
+  pass, `test_frame_samples()` 32, `test_frame_statistics_feed()` 41,
+  `test_tool_views()` 19, `test_kernel_layering()` 10, `test_declared_api()`
+  111; `test_naming()`, `test_arguments()`, `test_documentation()` and
+  `test_export_collisions()` pass. With `PROJECTURED_PERFORMANCE_COUNTERS=true`
+  and `--compiled-modules=no`, because the switch is fixed at precompile time:
+  `test_performance_counter()` 11 pass, `test_frame_samples()` 34 pass.
+  `test_selection_localities()` fails on main too: 8998 pass and 11250 fail on
+  `c6da5faf`, 9207 and 11516 here. Every example has the same outcome in both;
+  only the examples that read files from the disk probe a different number of
+  selections, because the worktree has other files. Decisions made while
+  implementing:
+  - The macro is `@measure_performance_time`: `measure_` is the verb that the
+    naming table gives to measuring.
+  - `get_performance_counters()` answers `(; counts, times)`, so no new
+    exported type is needed.
+  - The readers forward the keys in name order, so the order of the rows does
+    not depend on the order of a dictionary.
+  - The two timed stages in `EditorLoop.jl` put their expression in a `begin`
+    block, because the longer macro name pushed the continuation lines past 90
+    characters.
+  - The comment on `@info` in `perf!` said that the logger avoids a closed
+    pipe; it now says that the line reaches every logger that the process
+    installed, as the fault cascade says.
 - [ ] Step 3

@@ -148,7 +148,7 @@ struct LocalityReport
                                         # artifacts ⇒ a routing change (the active
                                         # branch switched, dropping old content)
     before_objects::Int                 # objectids reachable before
-    perf::Dict{Symbol,Int}              # counters accrued by mutate! + reforce
+    perf::Dict{Symbol,Int}              # counts accrued by mutate! + reforce
     errors::Vector{String}
 end
 
@@ -178,7 +178,8 @@ function measure_printer_locality(document, projection, mutate!)
         print_document(projection, document)
     catch e
         push!(errors, "print_document threw: $e")
-        return LocalityReport(LocalityCell[], 0, 0, 0, 0, 0, get_performance_counters(), errors)
+        return LocalityReport(LocalityCell[], 0, 0, 0, 0, 0,
+                              get_performance_counters().counts, errors)
     end
     output = iomap.output
 
@@ -204,7 +205,7 @@ function measure_printer_locality(document, projection, mutate!)
         # Re-force to recompute and re-collect object identities + perf delta.
         objs = Set{UInt64}()
         _collect_locality!(output, nothing, :_, Set{UInt64}(), LocalityCell[], objs, errors, 0)
-        (inv, objs, get_performance_counters())
+        (inv, objs, get_performance_counters().counts)
     end
 
     preserved = length(intersect(before_objs, after_objs))

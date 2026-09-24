@@ -236,14 +236,15 @@ module-internal.
 
 ## PerformanceModule — instrumentation
 
-Conditionally-compiled counters of `Dict{Symbol,Int}`, with **no process-global
-store**. The `Cell` engine bumps the reactive counters — `:reads`, `:computes`,
-`:invalidations`, `:writes` — via `@count_performance` on the hot path, and the
-editor folds per-stage timings into `:read_time`, `:evaluate_time`,
-`:print_time`.
+Conditionally-compiled counters, with **no process-global store**. A store keeps
+counts and times apart. The `Cell` engine bumps the reactive counts — `:reads`,
+`:computes`, `:invalidations`, `:writes` — via `@count_performance` on the hot
+path, and the editor measures its stages into the times `:read_time`,
+`:evaluate_time` and `:print_time`, in nanoseconds, with
+`@measure_performance_time`.
 
 The active store is a **task-local dynamic binding** (`ScopedValue`):
-`with_performance_counters(f)` binds a fresh dict for the dynamic extent of `f`,
+`with_performance_counters(f)` binds a fresh store for the dynamic extent of `f`,
 and everything that runs inside counts into it. Outside any such scope the binding
 is `nothing`, so an unscoped cell operation counts nothing and shares no state.
 That is what lets many editors run in one process without their counters
@@ -252,16 +253,16 @@ bump macro.
 
 Counting is **compiled out by default**. `PERFORMANCE_COUNTERS_ENABLED` is
 seeded at precompile from `PROJECTURED_PERFORMANCE_COUNTERS` and defaults off, so
-a normal build carries no instrumentation: `@count_performance`,
-`record_performance!`, and `@performance_time` expand to `nothing`. Set the
+a normal build carries no instrumentation: `@count_performance` expands to
+`nothing`, and `@measure_performance_time` to its expression. Set the
 environment variable to `true` and recompile to profile (or to run the
 count-based demos/tests).
 
-Public surface: `with_performance_counters(f, store=…)` (bind a store for `f`),
-`get_performance_counters()` (a copy of the active store, empty outside a scope),
-`record_performance!(key, n)` (fold in an external measurement),
-`@performance_time key expr` (time `expr`, record the elapsed ns under `key`), and
-`@count_performance key` (the hot-path bump). The editor's read-eval-print loop
+Public surface: `with_performance_counters(f)` (bind a fresh store for `f`),
+`get_performance_counters()` (copies of the counts and the times of the active
+store, both empty outside a scope), `@measure_performance_time key expr` (time
+`expr`, add the elapsed ns to the time `key`), and `@count_performance key` (the
+hot-path bump). The editor's read-eval-print loop
 binds a fresh store and reports it every frame (see
 [EditorModule.run_editor!](../../../source/kernel/editor/EditorModule.jl)), which is the
 easiest way to profile what work a particular edit triggered.

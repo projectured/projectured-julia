@@ -450,7 +450,7 @@ Each frame the editor binds a fresh counter store with `with_performance_counter
 and calls `perf!()` after rendering, which logs
 
 ```
-[perf] reads=… computes=… invalidations=… writes=…
+[perf] computes=… invalidations=… reads=… writes=… evaluate_time=…ms print_time=…ms read_time=…ms
 ```
 
 when an operation was applied. Use these to find unintentional

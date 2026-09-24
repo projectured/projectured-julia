@@ -46,20 +46,22 @@ end
     record_frame_measurements!(editor, frame_seconds) -> Nothing
 
 Record what this frame measured in `editor.frame_samples`: the frame time
-always, and the performance counters when they are compiled in. Runs at the
-end of each frame of `run_editor!`, inside the counter scope, so the counter
-keys of this frame are still bound. Times are in seconds.
+always, and every performance count and time when the counters are compiled
+in. Runs at the end of each frame of `run_editor!`, inside the counter scope,
+so the counters of this frame are still bound. Times are in seconds.
 """
 function record_frame_measurements!(editor::Editor, frame_seconds::Float64)
     times = Pair{Symbol, Float64}[:frame_time => frame_seconds]
     counts = Pair{Symbol, Float64}[]
     if PERFORMANCE_COUNTERS_ENABLED
+        # Every key, in name order, so a new counter reaches the store with no
+        # change here.
         counters = get_performance_counters()
-        for key in (:reads, :computes, :invalidations, :writes)
-            push!(counts, key => Float64(get(counters, key, 0)))
+        for key in sort!(collect(keys(counters.times)))
+            push!(times, key => counters.times[key] / 1e9)
         end
-        for key in (:read_time, :evaluate_time, :print_time)
-            push!(times, key => get(counters, key, 0) / 1e9)
+        for key in sort!(collect(keys(counters.counts)))
+            push!(counts, key => Float64(counters.counts[key]))
         end
     end
     record_frame_sample!(editor.frame_samples; times, counts)

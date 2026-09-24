@@ -2,7 +2,7 @@
 # store keeps the last frames in a ring of fixed size, one column and one unit
 # for each measurement name, and computes a summary from the ring when a reader
 # asks. It is a plain object outside the reactive graph, and one frame costs
-# one store for each measurement.
+# one lookup and one store for each measurement.
 
 """
     FrameMeasurementSummary
