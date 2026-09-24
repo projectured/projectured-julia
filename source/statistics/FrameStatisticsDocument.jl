@@ -1,9 +1,9 @@
 # Fragment of `FrameStatisticsModule` — the frame statistics document types:
-# `FrameMeasurement`, the summary row of one measurement, `FrameStatistics`,
+# `FrameStatisticsRow`, the summary row of one measurement, `FrameStatistics`,
 # the table of every measurement of one editor loop, and `FramePlot`, the
 # frame times of the recent frames.
 
-@document struct FrameMeasurement
+@document struct FrameStatisticsRow
     name::String
     unit::Symbol
     count::Int
@@ -17,8 +17,8 @@ end
 """
     FrameStatistics()
 
-The table. One [`FrameMeasurement`](@ref) row for each measurement, in the
-first-seen order of the editor's sample store. A row summarizes the recent
+The table. One [`FrameStatisticsRow`](@ref) row for each measurement, in the
+first-seen order of the editor's measurement store. A row summarizes the recent
 frames that the store keeps, and its `count` says how many. Its `unit` is
 `:second` for a time, which the row holds in seconds, or `:count`.
 `frame_count` is the number of frames since the editor started, as the table
@@ -49,7 +49,8 @@ names, so the index alignment holds.
 
 Runs on the editor task only, because it writes cells.
 """
-function flush_frame_statistics!(statistics::FrameStatistics, store::FrameSampleStore)
+function flush_frame_statistics!(statistics::FrameStatistics,
+                                 store::FrameMeasurementStore)
     names = get_frame_measurement_names(store)
     rows = statistics.rows
     for (index, name) in enumerate(names)
@@ -63,7 +64,7 @@ function flush_frame_statistics!(statistics::FrameStatistics, store::FrameSample
             _write_changed_field!(row, :standard_deviation, summary.standard_deviation)
             _write_changed_field!(row, :total, summary.total)
         else
-            push!(rows, FrameMeasurement(string(name), summary.unit, summary.count,
+            push!(rows, FrameStatisticsRow(string(name), summary.unit, summary.count,
                                          summary.minimum, summary.maximum,
                                          summary.mean, summary.standard_deviation,
                                          summary.total))
@@ -105,7 +106,7 @@ make_insertion_document(::Type{FrameStatistics}) = get_session_frame_statistics(
 
 The frame times of the recent frames, as columns. `frames` holds the frame
 numbers, and `names` and `columns` hold one column in seconds for each time
-measurement of the editor's sample store. A value is `NaN` where a frame did
+measurement of the editor's measurement store. A value is `NaN` where a frame did
 not measure the name.
 
 A column is one cell, not one cell for each frame: nothing selects a single
@@ -132,17 +133,17 @@ when they changed, so a flush gives a view new columns and keeps its series.
 
 Runs on the editor task only, because it writes cells.
 """
-function flush_frame_plot!(plot::FramePlot, store::FrameSampleStore)
-    samples = collect_recent_frame_samples(store)
+function flush_frame_plot!(plot::FramePlot, store::FrameMeasurementStore)
+    recent = collect_recent_frame_measurements(store)
     names = String[]
     columns = Vector{Float64}[]
-    for column in samples.columns
+    for column in recent.columns
         column.unit === :second || continue
         push!(names, String(column.name))
         push!(columns, column.values)
     end
     _write_changed_field!(plot, :names, names)
-    plot.frames = Float64.(samples.frames)
+    plot.frames = Float64.(recent.frames)
     plot.columns = columns
     length(names)
 end

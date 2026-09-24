@@ -2,7 +2,7 @@
     ProjecturedStatistics
 
 What the editor loop measures about itself: the frame statistics table and
-the frame plot, the feed that flushes the editor's frame sample store into
+the frame plot, the feed that flushes the editor's frame measurement store into
 them, the syntax printer of the table and the chart projection of the plot.
 
 The submodules below are aliased so this package's source files keep their

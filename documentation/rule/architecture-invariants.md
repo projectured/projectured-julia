@@ -235,7 +235,7 @@ consumer can be invalidated half way; and its write is **idempotent**, keyed by
 identity, so a thunk that runs ten times for one logical event leaves one entry.
 
 The editor's other feed stores — the inbox, the message log store, the frame
-sample store — share the shape but do not need the carve-out: their producers
+measurement store — share the shape but do not need the carve-out: their producers
 run on ordinary tasks, outside every thunk, so this ban is not in play for
 them. Only a store a thunk itself writes must have the two properties above,
 and the fault store is the one that does.

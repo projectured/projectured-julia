@@ -43,14 +43,14 @@ function compute_wait_timeout(editor::Editor)
 end
 
 """
-    record_frame_measurements!(editor, frame_seconds) -> Nothing
+    record_frame_performance!(editor, frame_seconds) -> Nothing
 
-Record what this frame measured in `editor.frame_samples`: the frame time
+Record what this frame measured in `editor.frame_measurements`: the frame time
 always, and every performance count and time when the counters are compiled
 in. Runs at the end of each frame of `run_editor!`, inside the counter scope,
 so the counters of this frame are still bound. Times are in seconds.
 """
-function record_frame_measurements!(editor::Editor, frame_seconds::Float64)
+function record_frame_performance!(editor::Editor, frame_seconds::Float64)
     times = Pair{Symbol, Float64}[:frame_time => frame_seconds]
     counts = Pair{Symbol, Float64}[]
     if PERFORMANCE_COUNTERS_ENABLED
@@ -64,7 +64,7 @@ function record_frame_measurements!(editor::Editor, frame_seconds::Float64)
             push!(counts, key => Float64(counters.counts[key]))
         end
     end
-    record_frame_sample!(editor.frame_samples; times, counts)
+    record_frame_measurements!(editor.frame_measurements; times, counts)
     nothing
 end
 

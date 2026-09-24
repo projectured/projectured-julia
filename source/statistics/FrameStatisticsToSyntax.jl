@@ -67,7 +67,7 @@ function _header_line(p::FrameStatisticsToSyntax)
 end
 
 # One line: "frame_time      ms          1000        2.13       45.02 …".
-function _measurement_line(p::FrameStatisticsToSyntax, row::FrameMeasurement)
+function _measurement_line(p::FrameStatisticsToSyntax, row::FrameStatisticsRow)
     unit = row.unit === :second ? "ms" : ""
     columns = rpad(row.name, _NAME_WIDTH) * rpad(unit, _UNIT_WIDTH) *
               lpad(string(row.count), _NUMBER_WIDTH) *
@@ -79,7 +79,7 @@ end
 # text. A time shows in milliseconds with two decimals, and its total with
 # none. A count shows as a whole number, and its mean and deviation with one
 # decimal. A row that no recent frame measured shows a dash.
-function _format_measurement_values(row::FrameMeasurement)
+function _format_measurement_values(row::FrameStatisticsRow)
     row.count == 0 && return fill("-", 5)
     if row.unit === :second
         return [@sprintf("%.2f", row.minimum * 1000),

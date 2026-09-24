@@ -26,7 +26,7 @@ struct FrameMeasurementSummary
 end
 
 """
-    FrameSampleStore(; capacity = 1000)
+    FrameMeasurementStore(; capacity = 1000)
 
 The measurements of the last `capacity` frames.
 
@@ -40,14 +40,14 @@ no lock.
 
 # Example
 
-    store = FrameSampleStore()
-    record_frame_sample!(store; times = [:frame_time => 0.016])
+    store = FrameMeasurementStore()
+    record_frame_measurements!(store; times = [:frame_time => 0.016])
     summary = compute_frame_measurement_summary(store, :frame_time)
 
-See also [`collect_recent_frame_samples`](@ref) and
-[`write_frame_samples!`](@ref).
+See also [`collect_recent_frame_measurements`](@ref) and
+[`write_frame_measurements!`](@ref).
 """
-mutable struct FrameSampleStore
+mutable struct FrameMeasurementStore
     capacity::Int
     names::Vector{Symbol}
     units::Dict{Symbol, Symbol}
@@ -56,21 +56,23 @@ mutable struct FrameSampleStore
     frame_count::Int
 end
 
-function FrameSampleStore(; capacity::Integer = 1000)
-    capacity >= 1 || throw(ArgumentError("a frame sample store holds at least one frame"))
-    FrameSampleStore(Int(capacity), Symbol[], Dict{Symbol, Symbol}(),
+function FrameMeasurementStore(; capacity::Integer = 1000)
+    capacity >= 1 ||
+        throw(ArgumentError("a frame measurement store holds at least one frame"))
+    FrameMeasurementStore(Int(capacity), Symbol[], Dict{Symbol, Symbol}(),
                      Dict{Symbol, Vector{Float64}}(), fill(NaN, capacity), 0)
 end
 
 # The slot of the ring that holds the frame with the number `frame`.
-_get_frame_slot(store::FrameSampleStore, frame::Integer) = mod1(frame, store.capacity)
+_get_frame_slot(store::FrameMeasurementStore, frame::Integer) =
+    mod1(frame, store.capacity)
 
 # The numbers of the frames that the ring holds, oldest first.
-_get_frame_window(store::FrameSampleStore) =
+_get_frame_window(store::FrameMeasurementStore) =
     max(1, store.frame_count - store.capacity + 1):store.frame_count
 
 """
-    record_frame_sample!(store; times = (), counts = (), end_time = time()) -> store
+    record_frame_measurements!(store; times = (), counts = (), end_time = time()) -> store
 
 Record the measurements of one frame in the next slot of the ring. `times` and
 `counts` are iterables of `name => value` pairs: a time is in seconds, and a
@@ -80,7 +82,7 @@ in seconds.
 A name keeps the unit of the group that first gave it. A name given later in
 the other group is an error, because its column would mix two units.
 """
-function record_frame_sample!(store::FrameSampleStore; times = (), counts = (),
+function record_frame_measurements!(store::FrameMeasurementStore; times = (), counts = (),
                               end_time::Real = time())
     _check_frame_units(store, times, :second)
     _check_frame_units(store, counts, :count)
@@ -97,7 +99,7 @@ end
 
 # A name keeps its unit. The check runs before the frame changes the store, so a
 # wrong call leaves the store as it was.
-function _check_frame_units(store::FrameSampleStore, measurements, unit::Symbol)
+function _check_frame_units(store::FrameMeasurementStore, measurements, unit::Symbol)
     for (name, _) in measurements
         known = get(store.units, name, unit)
         known === unit ||
@@ -106,7 +108,7 @@ function _check_frame_units(store::FrameSampleStore, measurements, unit::Symbol)
     end
 end
 
-function _record_frame_values!(store::FrameSampleStore, slot::Int, measurements,
+function _record_frame_values!(store::FrameMeasurementStore, slot::Int, measurements,
                                unit::Symbol)
     for (name, value) in measurements
         column = get(store.columns, name, nothing)
@@ -129,7 +131,7 @@ end
 The summary of the measurement `name` over the frames that the ring holds. A
 frame that did not measure `name` does not count. The store must know `name`.
 """
-function compute_frame_measurement_summary(store::FrameSampleStore, name::Symbol)
+function compute_frame_measurement_summary(store::FrameMeasurementStore, name::Symbol)
     column = store.columns[name]
     unit = store.units[name]
     count = 0
@@ -161,7 +163,7 @@ end
 The measurement names in first-seen order. The answer is a copy, so a caller
 can not change the store through it.
 """
-get_frame_measurement_names(store::FrameSampleStore) = copy(store.names)
+get_frame_measurement_names(store::FrameMeasurementStore) = copy(store.names)
 
 """
     get_frame_count(store) -> Int
@@ -170,10 +172,10 @@ How many frames the store recorded since the start. The ring holds the last
 `capacity` of them. A reader that shows the frames can keep the count that it
 last showed, and show them again when this count is larger.
 """
-get_frame_count(store::FrameSampleStore) = store.frame_count
+get_frame_count(store::FrameMeasurementStore) = store.frame_count
 
 """
-    collect_recent_frame_samples(store) -> (; frames, end_times, columns)
+    collect_recent_frame_measurements(store) -> (; frames, end_times, columns)
 
 The frames that the ring holds, oldest first, as new vectors: the frame numbers,
 the end times in seconds, and one `(; name, unit, values)` column for each
@@ -185,12 +187,12 @@ file, or to draw them.
 
 # Example
 
-    samples = collect_recent_frame_samples(editor.frame_samples)
-    slowest = samples.frames[argmax(samples.columns[1].values)]
+    recent = collect_recent_frame_measurements(editor.frame_measurements)
+    slowest = recent.frames[argmax(recent.columns[1].values)]
 
-See also [`write_frame_samples!`](@ref), which writes the same frames as CSV.
+See also [`write_frame_measurements!`](@ref), which writes the same frames as CSV.
 """
-function collect_recent_frame_samples(store::FrameSampleStore)
+function collect_recent_frame_measurements(store::FrameMeasurementStore)
     frames = collect(_get_frame_window(store))
     slots = [_get_frame_slot(store, frame) for frame in frames]
     (frames = frames,
@@ -201,7 +203,7 @@ end
 
 # One CSV field: nothing for `NaN`, and otherwise the number rounded to `digits`
 # decimals, written as an integer when it is a whole number.
-function _format_frame_sample_field(value::Float64; digits::Integer)
+function _format_frame_measurement_field(value::Float64; digits::Integer)
     isnan(value) && return ""
     rounded = round(value; digits)
     isinteger(rounded) && abs(rounded) < 1e15 && return string(Int(rounded))
@@ -209,8 +211,8 @@ function _format_frame_sample_field(value::Float64; digits::Integer)
 end
 
 """
-    write_frame_samples!(io, store) -> Int
-    write_frame_samples!(path, store) -> Int
+    write_frame_measurements!(io, store) -> Int
+    write_frame_measurements!(path, store) -> Int
 
 Write the frames that the ring holds as CSV, and answer how many frames it
 wrote.
@@ -225,33 +227,33 @@ Use it to keep the frames of a session, or to plot them in another program.
 
 # Example
 
-    write_frame_samples!("frames.csv", editor.frame_samples)
+    write_frame_measurements!("frames.csv", editor.frame_measurements)
 
-See also [`collect_recent_frame_samples`](@ref), which gives the same frames as
+See also [`collect_recent_frame_measurements`](@ref), which gives the same frames as
 vectors.
 """
-function write_frame_samples!(io::IO, store::FrameSampleStore)
-    samples = collect_recent_frame_samples(store)
+function write_frame_measurements!(io::IO, store::FrameMeasurementStore)
+    recent = collect_recent_frame_measurements(store)
     headers = ["frame", "end_time_s"]
-    for column in samples.columns
+    for column in recent.columns
         name = String(column.name)
         push!(headers, column.unit === :second ? "$(name)_ms" : name)
     end
     println(io, join(headers, ","))
-    start = isempty(samples.end_times) ? 0.0 : first(samples.end_times)
-    for (index, frame) in enumerate(samples.frames)
-        seconds = samples.end_times[index] - start
-        fields = [string(frame), _format_frame_sample_field(seconds; digits = 6)]
-        for column in samples.columns
+    start = isempty(recent.end_times) ? 0.0 : first(recent.end_times)
+    for (index, frame) in enumerate(recent.frames)
+        seconds = recent.end_times[index] - start
+        fields = [string(frame), _format_frame_measurement_field(seconds; digits = 6)]
+        for column in recent.columns
             value = column.values[index]
             push!(fields, column.unit === :second ?
-                          _format_frame_sample_field(1000 * value; digits = 3) :
-                          _format_frame_sample_field(value; digits = 6))
+                          _format_frame_measurement_field(1000 * value; digits = 3) :
+                          _format_frame_measurement_field(value; digits = 6))
         end
         println(io, join(fields, ","))
     end
-    length(samples.frames)
+    length(recent.frames)
 end
 
-write_frame_samples!(path::AbstractString, store::FrameSampleStore) =
-    open(io -> write_frame_samples!(io, store), path, "w")
+write_frame_measurements!(path::AbstractString, store::FrameMeasurementStore) =
+    open(io -> write_frame_measurements!(io, store), path, "w")

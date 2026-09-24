@@ -1,4 +1,4 @@
-# The frame sample store — the ring of recent frames. The properties under
+# The frame measurement store — the ring of recent frames. The properties under
 # test: a summary matches a reference computation, the ring keeps exactly the
 # last frames, a frame that did not measure a name holds no value for it, the
 # unit comes from the group that gave the name, and the CSV text is what a
@@ -10,23 +10,24 @@ using ProjecturedKernel.IoMapModule
 using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.DeviceModule
 using ProjecturedKernel.PerformanceModule
-import ProjecturedKernel.EditorModule: Editor, record_frame_measurements!
+import ProjecturedKernel.EditorModule: Editor, record_frame_performance!
 using ProjecturedKernelExample
 
-@document struct FrameSampleProbe
+@document struct FrameMeasurementProbe
     value::Int = 0
 end
 
-struct FrameSampleProbeProjection <: Projection end
-ProjectionModule.print_document(::FrameSampleProbeProjection, recursion, input, ctx) =
+struct FrameMeasurementProbeProjection <: Projection end
+ProjectionModule.print_document(::FrameMeasurementProbeProjection, recursion, input,
+                                ctx) =
     SimpleIoMap(nothing, input, input)
 
-function test_frame_samples()
-@testset "the frame sample store" begin
+function test_frame_measurements()
+@testset "the frame measurement store" begin
     @testset "a summary matches a reference computation" begin
-        store = FrameSampleStore()
+        store = FrameMeasurementStore()
         for value in (1, 2, 3, 4)
-            record_frame_sample!(store; counts = [:x => value])
+            record_frame_measurements!(store; counts = [:x => value])
         end
         summary = compute_frame_measurement_summary(store, :x)
         @test summary.unit === :count
@@ -39,15 +40,17 @@ function test_frame_samples()
     end
 
     @testset "below two values the deviation is zero" begin
-        store = FrameSampleStore()
-        record_frame_sample!(store; counts = [:x => 7])
+        store = FrameMeasurementStore()
+        record_frame_measurements!(store; counts = [:x => 7])
         @test compute_frame_measurement_summary(store, :x).standard_deviation == 0.0
     end
 
     @testset "names keep first-seen order, and the store counts every frame" begin
-        store = FrameSampleStore()
-        record_frame_sample!(store; times = [:frame_time => 0.01], counts = [:reads => 5])
-        record_frame_sample!(store; times = [:frame_time => 0.02], counts = [:reads => 7])
+        store = FrameMeasurementStore()
+        record_frame_measurements!(store; times = [:frame_time => 0.01],
+                                   counts = [:reads => 5])
+        record_frame_measurements!(store; times = [:frame_time => 0.02],
+                                   counts = [:reads => 7])
         @test get_frame_measurement_names(store) == [:frame_time, :reads]
         @test get_frame_count(store) == 2
         @test compute_frame_measurement_summary(store, :frame_time).count == 2
@@ -55,62 +58,65 @@ function test_frame_samples()
     end
 
     @testset "the unit comes from the group that gave the name" begin
-        store = FrameSampleStore()
-        record_frame_sample!(store; times = [:frame_time => 0.01], counts = [:reads => 5])
+        store = FrameMeasurementStore()
+        record_frame_measurements!(store; times = [:frame_time => 0.01],
+                                   counts = [:reads => 5])
         @test compute_frame_measurement_summary(store, :frame_time).unit === :second
         @test compute_frame_measurement_summary(store, :reads).unit === :count
-        @test [column.unit for column in collect_recent_frame_samples(store).columns] ==
-              [:second, :count]
+        columns = collect_recent_frame_measurements(store).columns
+        @test [column.unit for column in columns] == [:second, :count]
         # A name in the other group would mix two units in one column, and the
         # wrong call leaves the store as it was.
-        @test_throws ArgumentError record_frame_sample!(store;
+        @test_throws ArgumentError record_frame_measurements!(store;
                                                         counts = [:frame_time => 3])
         @test get_frame_count(store) == 1
     end
 
     @testset "the ring keeps the last frames" begin
-        store = FrameSampleStore(capacity = 3)
+        store = FrameMeasurementStore(capacity = 3)
         for value in 1:5
-            record_frame_sample!(store; counts = [:x => value], end_time = 10.0 + value)
+            record_frame_measurements!(store; counts = [:x => value],
+                                       end_time = 10.0 + value)
         end
         @test get_frame_count(store) == 5
-        samples = collect_recent_frame_samples(store)
-        @test samples.frames == [3, 4, 5]
-        @test samples.end_times == [13.0, 14.0, 15.0]
-        @test samples.columns[1].values == [3.0, 4.0, 5.0]
+        recent = collect_recent_frame_measurements(store)
+        @test recent.frames == [3, 4, 5]
+        @test recent.end_times == [13.0, 14.0, 15.0]
+        @test recent.columns[1].values == [3.0, 4.0, 5.0]
         summary = compute_frame_measurement_summary(store, :x)
         @test (summary.count, summary.minimum, summary.maximum) == (3, 3.0, 5.0)
     end
 
     @testset "a frame that did not measure a name holds no value for it" begin
-        store = FrameSampleStore(capacity = 4)
-        record_frame_sample!(store; counts = [:a => 1])
-        record_frame_sample!(store; counts = [:a => 2, :b => 10])
-        record_frame_sample!(store; counts = [:a => 3])
-        columns = collect_recent_frame_samples(store).columns
+        store = FrameMeasurementStore(capacity = 4)
+        record_frame_measurements!(store; counts = [:a => 1])
+        record_frame_measurements!(store; counts = [:a => 2, :b => 10])
+        record_frame_measurements!(store; counts = [:a => 3])
+        columns = collect_recent_frame_measurements(store).columns
         @test columns[1].values == [1.0, 2.0, 3.0]
         @test isequal(columns[2].values, [NaN, 10.0, NaN])
         @test compute_frame_measurement_summary(store, :b).count == 1
 
         # After the ring wraps, the slot of an old frame holds no old value.
-        store = FrameSampleStore(capacity = 2)
-        record_frame_sample!(store; counts = [:a => 1, :b => 5])
-        record_frame_sample!(store; counts = [:a => 2])
-        record_frame_sample!(store; counts = [:a => 3])
+        store = FrameMeasurementStore(capacity = 2)
+        record_frame_measurements!(store; counts = [:a => 1, :b => 5])
+        record_frame_measurements!(store; counts = [:a => 2])
+        record_frame_measurements!(store; counts = [:a => 3])
         summary = compute_frame_measurement_summary(store, :b)
         @test summary.count == 0
         @test isnan(summary.mean)
     end
 
     @testset "the frames are written as CSV, times in milliseconds" begin
-        store = FrameSampleStore(capacity = 3)
-        record_frame_sample!(store; times = [:frame_time => 0.010],
+        store = FrameMeasurementStore(capacity = 3)
+        record_frame_measurements!(store; times = [:frame_time => 0.010],
                              counts = [:reads => 5], end_time = 100.0)
-        record_frame_sample!(store; times = [:frame_time => 0.020], end_time = 100.5)
-        record_frame_sample!(store; times = [:frame_time => 0.0123456],
+        record_frame_measurements!(store; times = [:frame_time => 0.020],
+                                   end_time = 100.5)
+        record_frame_measurements!(store; times = [:frame_time => 0.0123456],
                              counts = [:reads => 7], end_time = 100.5160000001)
         io = IOBuffer()
-        @test write_frame_samples!(io, store) == 3
+        @test write_frame_measurements!(io, store) == 3
         # A time is rounded to a microsecond.
         @test String(take!(io)) == """
             frame,end_time_s,frame_time_ms,reads
@@ -121,10 +127,11 @@ function test_frame_samples()
     end
 
     @testset "the editor records its frame time as a time" begin
-        editor = Editor(HeadlessBackend(), FrameSampleProbe(),
-                        FrameSampleProbeProjection(), Device[])
-        record_frame_measurements!(editor, 0.016)
-        summary = compute_frame_measurement_summary(editor.frame_samples, :frame_time)
+        editor = Editor(HeadlessBackend(), FrameMeasurementProbe(),
+                        FrameMeasurementProbeProjection(), Device[])
+        record_frame_performance!(editor, 0.016)
+        summary = compute_frame_measurement_summary(editor.frame_measurements,
+                                                    :frame_time)
         @test summary.unit === :second
         @test summary.count == 1
         @test summary.total ≈ 0.016
@@ -132,14 +139,14 @@ function test_frame_samples()
 
     if PERFORMANCE_COUNTERS_ENABLED
         @testset "the editor records every counter, with its unit" begin
-            editor = Editor(HeadlessBackend(), FrameSampleProbe(),
-                            FrameSampleProbeProjection(), Device[])
+            editor = Editor(HeadlessBackend(), FrameMeasurementProbe(),
+                            FrameMeasurementProbeProjection(), Device[])
             # A time that no list names reaches the store all the same.
             with_performance_counters() do
                 @measure_performance_time :probe_time (1 + 2)
-                record_frame_measurements!(editor, 0.016)
+                record_frame_performance!(editor, 0.016)
             end
-            store = editor.frame_samples
+            store = editor.frame_measurements
             @test compute_frame_measurement_summary(store, :probe_time).unit === :second
             @test compute_frame_measurement_summary(store, :reads).unit === :count
         end

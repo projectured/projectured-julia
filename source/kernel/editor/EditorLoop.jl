@@ -170,7 +170,7 @@ function run_editor!(editor::Editor; mcp::Bool=false,
                 run_frame!(editor)
                 _run_barrier(editor, :report) do
                     perf!(editor)
-                    record_frame_measurements!(editor, Base.time() - frame_started)
+                    record_frame_performance!(editor, Base.time() - frame_started)
                 end
             end
         end

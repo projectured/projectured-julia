@@ -6,11 +6,11 @@
 
 ## How it works
 
-The kernel records each frame in a `FrameSampleStore` on the editor, `editor.frame_samples`. The store keeps the last 1000 frames in a ring: one column for each measurement name, and one column of frame end times. A frame that did not measure a name holds `NaN` for it. This package only reads that store.
+The kernel records each frame in a `FrameMeasurementStore` on the editor, `editor.frame_measurements`. The store keeps the last 1000 frames in a ring: one column for each measurement name, and one column of frame end times. A frame that did not measure a name holds `NaN` for it. This package only reads that store.
 
-**The producer gives the unit.** `record_frame_sample!` takes the times, in seconds, and the counts in two groups, and the store keeps the unit of each name: `:second` or `:count`. A summary and a column of the ring carry that unit, so no reader guesses a unit. A document holds times in seconds, and a view shows them in milliseconds.
+**The producer gives the unit.** `record_frame_measurements!` takes the times, in seconds, and the counts in two groups, and the store keeps the unit of each name: `:second` or `:count`. A summary and a column of the ring carry that unit, so no reader guesses a unit. A document holds times in seconds, and a view shows them in milliseconds.
 
-`FrameStatistics` holds `rows`, one `FrameMeasurement` for each measurement name, and `frame_count`, the number of frames since the start when the table last showed them. A row has its unit, the count, the minimum, the maximum, the mean, the standard deviation and the total over the frames that the ring holds. So the first frames, which include compilation, leave the table once 1000 newer frames arrive.
+`FrameStatistics` holds `rows`, one `FrameStatisticsRow` for each measurement name, and `frame_count`, the number of frames since the start when the table last showed them. A row has its unit, the count, the minimum, the maximum, the mean, the standard deviation and the total over the frames that the ring holds. So the first frames, which include compilation, leave the table once 1000 newer frames arrive.
 
 `FramePlot` holds the frame numbers of the ring, and one column in seconds for each time measurement. A column is one cell, for the same reason as a column of a chart series.
 
@@ -27,7 +27,7 @@ One table and one plot exist for each session, `get_session_frame_statistics()` 
 
 `FramePlotToChart` projects the plot onto a `Chart` with one line for each time measurement: the frame number on x, and the time in milliseconds on y. It builds the chart once. The list of lines derives from `names`, and the columns of each line derive from `frames` and `columns`, so a flush repaints the plot and prints nothing again.
 
-`write_frame_samples!(path, editor.frame_samples)` writes the frames of the ring as CSV, with a time in milliseconds in a column whose name ends in `_ms`. `collect_recent_frame_samples` gives the same frames as vectors.
+`write_frame_measurements!(path, editor.frame_measurements)` writes the frames of the ring as CSV, with a time in milliseconds in a column whose name ends in `_ms`. `collect_recent_frame_measurements` gives the same frames as vectors.
 
 ## How it fits
 
@@ -52,9 +52,9 @@ run_window_editor(document, projection, "Title"; backend = SdlBackend(),
                   feeds = Feed[FrameStatisticsFeed()])
 ```
 
-Then open a tab and type `statistics` or `frame plot`, or press the toolbar button. To keep the frames, evaluate `write_frame_samples!("frames.csv", editor.frame_samples)`. `example/projectured/FeedExamples.jl` builds the table view with `FrameStatisticsToSyntax()`.
+Then open a tab and type `statistics` or `frame plot`, or press the toolbar button. To keep the frames, evaluate `write_frame_measurements!("frames.csv", editor.frame_measurements)`. `example/projectured/FeedExamples.jl` builds the table view with `FrameStatisticsToSyntax()`.
 
-- Test: `test_frame_samples()` in `test/kernel/performance/FrameSampleTest.jl` covers the ring, the summary, the units and the CSV text. `test/projectured/editor/FrameStatisticsFeedTest.jl` covers the flush of both documents, the gate of each document, the text of the table and the lines of the plot, and `test_tool_views()` in `test/projectured/projection/ToolViewTest.jl` checks that a tab draws each document. The package has no suite of its own.
+- Test: `test_frame_measurements()` in `test/kernel/performance/FrameMeasurementTest.jl` covers the ring, the summary, the units and the CSV text. `test/projectured/editor/FrameStatisticsFeedTest.jl` covers the flush of both documents, the gate of each document, the text of the table and the lines of the plot, and `test_tool_views()` in `test/projectured/projection/ToolViewTest.jl` checks that a tab draws each document. The package has no suite of its own.
 
 ## Limits
 

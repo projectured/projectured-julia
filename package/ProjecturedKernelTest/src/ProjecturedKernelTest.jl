@@ -94,7 +94,7 @@ include("../../../test/kernel/editor/InboxTest.jl")
 include("../../../test/kernel/editor/FrameDrainTest.jl")
 include("../../../test/kernel/feed/FeedTest.jl")
 include("../../../test/kernel/editor/WaitTest.jl")
-include("../../../test/kernel/performance/FrameSampleTest.jl")
+include("../../../test/kernel/performance/FrameMeasurementTest.jl")
 
 include("../../../test/kernel/KernelSuite.jl")
 

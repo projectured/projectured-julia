@@ -8,7 +8,7 @@ and they differ by lifecycle:
   counters. `with_performance_counters(f)` binds a fresh counter store for the
   dynamic extent of `f`. `@count_performance` adds to its counts, and
   `@measure_performance_time` adds to its times.
-- [`FrameSample.jl`](FrameSample.jl) — the `FrameSampleStore`, one for each
+- [`FrameMeasurement.jl`](FrameMeasurement.jl) — the `FrameMeasurementStore`, one for each
   editor, which keeps the measurements of the last frames and summarizes them.
 
 Nothing here is a cell, and nothing here names a document. The module imports
@@ -20,12 +20,12 @@ using Base.ScopedValues: ScopedValue, with
 
 export PERFORMANCE_COUNTERS_ENABLED, with_performance_counters,
        @count_performance, @measure_performance_time, get_performance_counters
-export FrameSampleStore, record_frame_sample!,
+export FrameMeasurementStore, record_frame_measurements!,
        get_frame_count, get_frame_measurement_names,
        FrameMeasurementSummary, compute_frame_measurement_summary,
-       collect_recent_frame_samples, write_frame_samples!
+       collect_recent_frame_measurements, write_frame_measurements!
 
 include("PerformanceCounter.jl")
-include("FrameSample.jl")
+include("FrameMeasurement.jl")
 
 end # module

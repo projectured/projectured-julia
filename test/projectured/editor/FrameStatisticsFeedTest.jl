@@ -17,7 +17,7 @@ function test_frame_statistics_feed()
         feed = FrameStatisticsFeed(statistics = statistics, plot = FramePlot())
         editor = Editor(HeadlessBackend(), statistics, FrameStatisticsToSyntax(),
                         Device[]; feeds = Feed[feed])
-        EditorModule.record_frame_measurements!(editor, 0.016)
+        EditorModule.record_frame_performance!(editor, 0.016)
         @test compute_wake_deadline(feed, editor) === nothing
         @test drain_feeds!(editor) == 0
         @test length(statistics.rows) == 0
@@ -31,7 +31,7 @@ function test_frame_statistics_feed()
         # Subscribe the way a view does: read `frame_count` in a computation.
         view = ComputedCell(() -> statistics.frame_count)
         view[]
-        EditorModule.record_frame_measurements!(editor, 0.016)
+        EditorModule.record_frame_performance!(editor, 0.016)
         @test compute_wake_deadline(feed, editor) == 0.25
         @test drain_feeds!(editor) >= 1
         @test statistics.frame_count == 1
@@ -41,7 +41,7 @@ function test_frame_statistics_feed()
         @test compute_wake_deadline(feed, editor) === nothing
         @test drain_feeds!(editor) == 0
         # A second fold updates the row in place.
-        EditorModule.record_frame_measurements!(editor, 0.020)
+        EditorModule.record_frame_performance!(editor, 0.020)
         drain_feeds!(editor)
         @test statistics.rows[1].count == 2
         @test statistics.rows[1].maximum >= 0.020
@@ -52,9 +52,10 @@ function test_frame_statistics_feed()
     @testset "the printer shows times in milliseconds, with a unit" begin
         statistics = FrameStatistics()
         push!(statistics.rows,
-              FrameMeasurement("frame_time", :second, 3, 0.01, 0.03, 0.02, 0.01, 0.06))
+              FrameStatisticsRow("frame_time", :second, 3, 0.01, 0.03, 0.02, 0.01, 0.06))
         push!(statistics.rows,
-              FrameMeasurement("reads", :count, 3, 120.0, 5000.0, 812.3, 900.14, 2436.7))
+              FrameStatisticsRow("reads", :count, 3, 120.0, 5000.0, 812.3, 900.14,
+                                 2436.7))
         statistics.frame_count = 3
         lines = _get_frame_statistics_lines(statistics)
         @test lines[1] == "3 frames"
@@ -67,9 +68,9 @@ function test_frame_statistics_feed()
     end
 
     @testset "the table summarizes the recent frames" begin
-        store = FrameSampleStore(capacity = 2)
+        store = FrameMeasurementStore(capacity = 2)
         for seconds in (0.010, 0.020, 0.030)
-            record_frame_sample!(store; times = [:frame_time => seconds])
+            record_frame_measurements!(store; times = [:frame_time => seconds])
         end
         statistics = FrameStatistics()
         flush_frame_statistics!(statistics, store)
@@ -85,10 +86,10 @@ function test_frame_statistics_feed()
         p = FramePlotToChart()
         chart = print_document(p, p, plot, PrinterContext()).output
         @test length(chart.series) == 0
-        store = FrameSampleStore(capacity = 3)
-        record_frame_sample!(store; times = [:frame_time => 0.010],
+        store = FrameMeasurementStore(capacity = 3)
+        record_frame_measurements!(store; times = [:frame_time => 0.010],
                              counts = [:reads => 5])
-        record_frame_sample!(store; times = [:frame_time => 0.020],
+        record_frame_measurements!(store; times = [:frame_time => 0.020],
                              counts = [:reads => 7])
         @test flush_frame_plot!(plot, store) == 1
         @test length(chart.series) == 1
@@ -97,7 +98,7 @@ function test_frame_statistics_feed()
         @test series.x == [1.0, 2.0]
         @test series.y ≈ [10.0, 20.0]
         # A new frame gives the line new columns, and the line stays one object.
-        record_frame_sample!(store; times = [:frame_time => 0.030],
+        record_frame_measurements!(store; times = [:frame_time => 0.030],
                              counts = [:reads => 9])
         flush_frame_plot!(plot, store)
         @test chart.series[1] === series
@@ -113,7 +114,7 @@ function test_frame_statistics_feed()
         # Subscribe the way a plot view does: read `names` in a computation.
         view = ComputedCell(() -> length(plot.names))
         view[]
-        EditorModule.record_frame_measurements!(editor, 0.016)
+        EditorModule.record_frame_performance!(editor, 0.016)
         @test compute_wake_deadline(feed, editor) == 0.25
         @test drain_feeds!(editor) == 1
         @test plot.names == ["frame_time"]
@@ -130,7 +131,7 @@ function test_frame_statistics_feed()
                         Device[]; feeds = Feed[feed])
         table_view = ComputedCell(() -> statistics.frame_count)
         table_view[]
-        EditorModule.record_frame_measurements!(editor, 0.016)
+        EditorModule.record_frame_performance!(editor, 0.016)
         @test drain_feeds!(editor) == 1
         # The plot opens now, and no frame comes after it: the plot keeps its own
         # count, so it is due all the same.

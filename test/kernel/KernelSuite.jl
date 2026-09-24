@@ -77,7 +77,7 @@ function test_kernel()
         test_editor_frame_drain()
         test_editor_feeds()
         test_editor_wait()
-        test_frame_samples()
+        test_frame_measurements()
         test_agent_seam()
         test_declared_api()
         test_search_query()
@@ -92,8 +92,8 @@ export test_kernel, test_kernel_layering
 # layering guard (shared by base/visual/domain test packages)
 export check_layering, get_package_source_root, test_layering_checkers
 # kernel unit suites
-export test_fault_defaults, test_fault_record, test_fault_store, test_fault_report,
-       test_fault_barrier,
+export test_fault_defaults, test_fault_record, test_fault_store,
+       test_fault_report, test_fault_barrier,
        test_cell, test_cell_struct, test_struct_plan, test_performance_counter, test_clock,
        test_document_contract, test_document_macro,
        test_reference_builder, test_reference_evaluation, test_reference_rules, test_rerooting,
@@ -102,7 +102,7 @@ export test_fault_defaults, test_fault_record, test_fault_store, test_fault_repo
        test_declared_api, test_search_query, test_meaning_search, test_search_answer,
        test_code_execution,
        test_editor_inbox, test_editor_frame_drain, test_editor_feeds,
-       test_editor_wait, test_frame_samples
+       test_editor_wait, test_frame_measurements
 # generic drivers + walker internals reused by the higher test packages
 export WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
        walk_printer_output, test_printer,

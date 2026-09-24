@@ -33,7 +33,7 @@ At most this many seconds until this feed needs a frame, or `nothing` when it
 can wait forever. The editor sleeps at most the minimum deadline over its
 feeds. A feed that rate-limits its flush answers its interval while unflushed
 data exists — the editor is passed because the data may live on it, as the
-frame sample store does. The default answers `nothing`.
+frame measurement store does. The default answers `nothing`.
 """
 function compute_wake_deadline end
 

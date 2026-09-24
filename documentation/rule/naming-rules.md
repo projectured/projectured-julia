@@ -334,7 +334,7 @@ read of external state takes none, so `read_os_clipboard` has no `!`.
   change the meaning: `would_create_cycle` asks what adding an edge *would*
   do, and `is_creating_cycle` would ask something else.
 - **Mutating functions end with `!`**: `insert_row!`, `pop_gesture!`,
-  `record_frame_sample!`. A name ending in `!` is an action, so it
+  `record_frame_measurements!`. A name ending in `!` is an action, so it
   must start with a verb — a "mutating getter" like consuming a queue is a
   `pop_`/`take_`, not a noun.
 - **A qualifier that narrows the *result* is a suffix**:

@@ -67,7 +67,7 @@ while true
         drain_feeds!(editor)         # the inbox first, then every registered feed
         run_frame!(editor)           # read!/evaluate! up to MAX_OPERATIONS_PER_FRAME, then print!
         perf!(editor)                # log reactive counters
-        record_frame_measurements!(editor, …)  # record this frame in editor.frame_samples
+        record_frame_performance!(editor, …)  # record this frame in editor.frame_measurements
     end
 end
 ```
@@ -457,11 +457,11 @@ when an operation was applied. Use these to find unintentional
 recomputation: if a single keypress causes thousands of `computes`,
 something is reading more cells than necessary.
 
-The loop also records every frame in `editor.frame_samples`: the frame time
+The loop also records every frame in `editor.frame_measurements`: the frame time
 always, and the counters above when they are compiled in. The store keeps the
 last 1000 frames. The `FrameStatisticsFeed` shows their summaries as a table
 (open a tab and type `statistics`) and their times as a plot (type
-`frame plot`). `write_frame_samples!("frames.csv", editor.frame_samples)`
+`frame plot`). `write_frame_measurements!("frames.csv", editor.frame_measurements)`
 writes the frames as CSV.
 
 ## Adding new operations

@@ -3,7 +3,7 @@
 
 What the editor loop measures about itself, as documents a person opens like
 any other. The kernel keeps the measurements of the recent frames in the
-editor's `FrameSampleStore`. The [`FrameStatisticsFeed`](FrameStatisticsFeed.jl)
+editor's `FrameMeasurementStore`. The [`FrameStatisticsFeed`](FrameStatisticsFeed.jl)
 flushes them on its own deadline, and only while a view shows them, into two
 documents of [`FrameStatisticsDocument.jl`](FrameStatisticsDocument.jl):
 `FrameStatistics`, a table of one summary for each measurement, and
@@ -40,7 +40,7 @@ import ..FeedModule: drain_changes!, compute_wake_deadline
 import ..ProjectionModule: print_document
 import ..SerializationModule: pred_arguments
 
-export FrameMeasurement, FrameStatistics, get_session_frame_statistics,
+export FrameStatisticsRow, FrameStatistics, get_session_frame_statistics,
        flush_frame_statistics!
 export FramePlot, get_session_frame_plot, flush_frame_plot!
 export FrameStatisticsFeed

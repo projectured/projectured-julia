@@ -43,7 +43,7 @@ Holds the state for a read-eval-print loop:
                    from then on.
   - `wake_pending` — set by [`wake_editor!`](@ref) from any task; each frame
                    takes ownership of every wake posted before it (internal).
-  - `frame_samples` — the `FrameSampleStore` that keeps the measurements of
+  - `frame_measurements` — the `FrameMeasurementStore` that keeps the measurements of
                    the last frames: always the frame time, plus the performance
                    counters when they are compiled in. A statistics feed
                    flushes it into a document on its own deadline.
@@ -68,7 +68,7 @@ mutable struct Editor
     replaced_projection::Union{Projection, Nothing}
     feeds::Vector{Feed}
     wake_pending::Threads.Atomic{Bool}
-    frame_samples::FrameSampleStore
+    frame_measurements::FrameMeasurementStore
     loop_task::Union{Task, Nothing}
 end
 
@@ -90,7 +90,7 @@ function Editor(backend, document, projection, devices;
                     # first wait, so the editor paints once before anything
                     # has happened.
                     Feed[InboxFeed(); feeds], Threads.Atomic{Bool}(true),
-                    FrameSampleStore(), nothing)
+                    FrameMeasurementStore(), nothing)
     # Registration is the one moment a feed meets its editor. The callback is
     # the only handle a producer-side store gets: a store lives below the
     # editor layer and must not name `Editor`.
