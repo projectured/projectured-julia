@@ -1,8 +1,8 @@
 # Fragment of `CellModule` — the cell **contract**: the base type of the cell
 # kinds and the generics that form their protocol. Included before the kinds,
-# which subtype it and implement it. Nothing here carries a body; the bodies
-# (`unwrap_cell`'s default and `copy_cell_as`'s per-kind methods) live in the
-# sibling `CellDefaults.jl`.
+# which subtype it and implement it. Nothing here carries a body. The read, the
+# untracked read and `is_cell_up_to_date` live in the file of each kind, and the
+# bodies of the other generics live in the sibling `CellDefaults.jl`.
 
 """
     AbstractCell{T}
@@ -18,14 +18,12 @@ takes any of them.
 
     show_value(cell::AbstractCell) = println(cell[])
 
+Every kind has the read `c[]`, the untracked read `Base.peek(c)`, which records
+no dependency, and [`is_cell_up_to_date`](@ref). The writes, the computations
+and the dependency tracking belong to each kind.
+
 See also `ReactiveCell`, `MutableCell` and `ImmutableCell`, the three kinds, and
 `unwrap_cell`, for a slot that may hold a value instead of a cell.
-
-Base type of the cell kinds. `T` is the type of the held value. The shared
-protocol is the read `c[]`, the untracked read `Base.peek(c)` (a sample that
-registers no dependency), and [`is_cell_up_to_date`](@ref); everything else (writes,
-thunks, dependency tracking) is kind-specific. See [`ReactiveCell`](@ref),
-[`MutableCell`](@ref), [`ImmutableCell`](@ref).
 """
 abstract type AbstractCell{T} end
 
@@ -45,11 +43,9 @@ reached the cells that depend on it.
     total[]
     is_cell_up_to_date(total)       # true
 
-See also `set_cell_function!` and `ReactiveCell`.
+A kind that holds its value, and not a computation, is always up to date.
 
-Whether `cell` can be read without recomputing anything. A kind that holds its
-value outright is trivially up to date; a kind that holds a computed thunk
-answers with the validity of its cache.
+See also `set_cell_function!` and `ReactiveCell`.
 """
 function is_cell_up_to_date end
 
@@ -68,18 +64,6 @@ it makes the computation depend on the cell.
     width(box) = unwrap_cell(box.width) + unwrap_cell(box.padding)
 
 See also `peek`, for a read that depends on nothing, and `AbstractCell`.
-
-The cell-or-value accessor: read `x`'s value when it is a cell, pass it through
-unchanged when it is not.
-
-Any walk over a structure whose slots may hold *either* a raw value or a cell
-wrapping one needs this. It is one expression, but it has exactly one meaning and
-so exactly one home; open-coding it at each such walk is how it ends up written a
-dozen ways.
-
-The read is `x[]`, so unwrapping a `ReactiveCell` inside a cell computation
-**registers a dependency**, exactly as a direct read would. Use `peek` where an
-untracked sample is wanted instead.
 """
 function unwrap_cell end
 
@@ -94,13 +78,59 @@ not have to know which was which.
 
 # Example
 
-    copied = copy_cell_as(original.width, 120)
+    copied = copy_cell_as(getfield(original, :width), 120)
+
+The new cell has the kind and the declared value type of `c`.
 
 See also `AbstractCell` and `is_computed_cell`, which says whether the value
 came from a computation.
-
-A fresh cell of the same kind and declared value type as `c`, holding `v` — clone
-a cell without deciding its kind, since each kind supplies its own method keyed on
-the cell already there.
 """
 function copy_cell_as end
+
+"""
+    is_computed_cell(cell) -> Bool
+
+Whether a cell computes its value or stores one.
+
+Use it to tell a derived value from a written one before you copy, print or
+freeze a document: the value of a computed cell is one moment of a
+computation, and a cell that stores that moment stops following what the
+computation reads.
+
+# Example
+
+    is_computed_cell(Cell(3))                       # false
+    is_computed_cell(ComputedCell(() -> 3))         # true
+
+Only the reactive kind can compute, so the other kinds always return `false`.
+
+See also `set_cell_function!`, which makes a cell compute, and `copy_cell_as`.
+"""
+function is_computed_cell end
+
+"""
+    has_dependent_cells(cell) -> Bool
+
+Whether a live computed cell reads `cell`.
+
+Use it to skip work that nothing shows: a producer that fills a cell can call it
+first, and do nothing when no computation reads the cell.
+
+# Example
+
+    status = Cell("idle")
+    has_dependent_cells(status)            # false
+    shown = ComputedCell(() -> uppercase(status[]))
+    shown[]
+    has_dependent_cells(status)            # true
+
+A reactive cell holds its readers through a `WeakRef`. A reader that nothing
+else holds still counts until the collector sweeps it, so the answer can stay
+`true` for a short time after the last reader goes. That is the safe error: the
+caller can do work that nobody needs, but it never skips work that a reader
+needs. Only the reactive kind records readers, so the other kinds always return
+`false`.
+
+See also `is_cell_up_to_date`, and `peek`, a read that records no reader.
+"""
+function has_dependent_cells end

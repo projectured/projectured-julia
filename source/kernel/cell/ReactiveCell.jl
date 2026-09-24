@@ -346,25 +346,6 @@ function _detach_upstream!(c::ReactiveCell)
     empty!(c.dependencies)
 end
 
-"""
-    has_dependents(cell) -> Bool
-
-Does any live cell read `cell`? `true` when at least one downstream `WeakRef`
-still points at a cell. A cell kind without downstream edges — `MutableCell`,
-`ImmutableCell` — answers `false`.
-
-A `WeakRef` whose reader is unreachable but not yet swept can answer `true`.
-That reading is the safe one: the caller acts as if a subscriber exists, and
-the answer turns `false` after the collector runs.
-"""
-has_dependents(::AbstractCell) = false
-
-function has_dependents(c::ReactiveCell)
-    ds = c.dependents
-    ds === nothing && return false
-    any(reference -> reference.value !== nothing, ds)
-end
-
 # ── the downstream edge ────────────────────────────────────────────────────
 #
 # `dependents` exists to propagate INVALIDATION downstream. It must not keep the

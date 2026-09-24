@@ -192,28 +192,28 @@ end
     @test w[] == 42
 
     # a computation belongs to the one kind that can run it
-    @test_throws ErrorException ImmutableCell(Computed(f))
-    @test_throws ErrorException MutableCell(Computed(f))
+    @test_throws ArgumentError ImmutableCell(Computed(f))
+    @test_throws ArgumentError MutableCell(Computed(f))
     @test ImmutableCell(f)[] === f       # but a plain callable is fine in any kind
     @test MutableCell(f)[] === f
 end
 
-@testset "has_dependents" begin
+@testset "has_dependent_cells" begin
     source = Cell(1)
-    @test !has_dependents(source)        # nothing read it inside a computation
+    @test !has_dependent_cells(source)        # nothing read it inside a computation
 
     reader = ComputedCell(() -> source[] + 1)
     @test reader[] == 2                  # the read forms the downstream edge
-    @test has_dependents(source)
-    @test !has_dependents(reader)        # nothing reads the reader
+    @test has_dependent_cells(source)
+    @test !has_dependent_cells(reader)        # nothing reads the reader
 
-    @test !has_dependents(MutableCell(1))     # no downstream edges by kind
-    @test !has_dependents(ImmutableCell(1))
+    @test !has_dependent_cells(MutableCell(1))     # no downstream edges by kind
+    @test !has_dependent_cells(ImmutableCell(1))
 
     # A swept reader no longer counts. The WeakRef is cleared by hand here,
     # because a test must not depend on when the collector runs.
     getfield(source, :dependents)[1].value = nothing
-    @test !has_dependents(source)
+    @test !has_dependent_cells(source)
 end
 
 @testset "a MethodError in a chain of ten computed cells" begin

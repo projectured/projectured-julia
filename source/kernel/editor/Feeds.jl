@@ -33,7 +33,7 @@ subscriber the collector has not swept yet keeps the animation bound for a
 few more frames; each of them drains nothing and repaints nothing.
 """
 function compute_wait_timeout(editor::Editor)
-    timeout = has_dependents(getfield(editor.clock, :time)) ? FRAME_INTERVAL : Inf
+    timeout = has_dependent_cells(getfield(editor.clock, :time)) ? FRAME_INTERVAL : Inf
     for feed in editor.feeds
         deadline = compute_wake_deadline(feed, editor)
         deadline === nothing && continue

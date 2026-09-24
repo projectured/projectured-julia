@@ -16,7 +16,7 @@ module CellModule
 export Cell, AbstractCell, ReactiveCell, MutableCell, ImmutableCell,
        Computed, ComputedCell,
        set_cell_value!, set_cell_function!, is_cell_up_to_date, unwrap_cell,
-       copy_cell_as, is_computed_cell, has_dependents
+       copy_cell_as, is_computed_cell, has_dependent_cells
 
 include("CellInterface.jl")
 include("CellComputed.jl")

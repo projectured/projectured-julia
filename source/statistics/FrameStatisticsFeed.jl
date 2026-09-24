@@ -18,7 +18,7 @@ while a document is due. A document is due when the frame count that it last
 showed differs from the count of the store, and something shows the document.
 Each document keeps its own count, so the table and the plot flush apart, and a
 store that starts again at zero still refreshes a session document. The probe
-for a view is `has_dependents` on a cell that every view of the document reads:
+for a view is `has_dependent_cells` on a cell that every view of the document reads:
 `frame_count` of the table, and `names` of the plot. So a watched document
 refreshes at the flush interval, an unwatched editor records for free and
 flushes nothing, and a view that closes goes quiet once the collector sweeps its
@@ -37,11 +37,11 @@ FrameStatisticsFeed(; statistics::FrameStatistics = get_session_frame_statistics
 
 _is_frame_statistics_due(feed::FrameStatisticsFeed, store::FrameMeasurementStore) =
     feed.statistics.frame_count != get_frame_count(store) &&
-    has_dependents(getfield(feed.statistics, :frame_count))
+    has_dependent_cells(getfield(feed.statistics, :frame_count))
 
 _is_frame_plot_due(feed::FrameStatisticsFeed, store::FrameMeasurementStore) =
     _get_frame_plot_count(feed.plot) != get_frame_count(store) &&
-    has_dependents(getfield(feed.plot, :names))
+    has_dependent_cells(getfield(feed.plot, :names))
 
 function drain_changes!(feed::FrameStatisticsFeed, editor)
     store = editor.frame_measurements

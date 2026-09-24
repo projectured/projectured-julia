@@ -18,7 +18,7 @@ One table and one plot exist for each session, `get_session_frame_statistics()` 
 
 `FrameStatisticsFeed` moves the numbers into the two documents:
 
-- It flushes a document only when a view reads that document **and** the frame count that the document last showed differs from the count of the store. Each document keeps its own count: the table in `frame_count`, and the plot as the number of its last frame. So a plot opened after the table flushed gets its frames at once, with no new frame. The test for a view is `has_dependents` on a cell that every view reads: `frame_count` of the table, and `names` of the plot. So an editor with no statistics tab and no plot tab records the frames and formats nothing.
+- It flushes a document only when a view reads that document **and** the frame count that the document last showed differs from the count of the store. Each document keeps its own count: the table in `frame_count`, and the plot as the number of its last frame. So a plot opened after the table flushed gets its frames at once, with no new frame. The test for a view is `has_dependent_cells` on a cell that every view reads: `frame_count` of the table, and `names` of the plot. So an editor with no statistics tab and no plot tab records the frames and formats nothing.
 - It never wakes the editor. Its data comes only with frames, so a wake would make frames that feed themselves. Instead `compute_wake_deadline` returns the flush interval, 0.25 seconds by default, while a view is open.
 - `flush_frame_statistics!` updates a row field by field, and it writes a field only when its number changed. A cell write invalidates its readers even when the value is the same, so an unchanged number must not be written.
 - `flush_frame_plot!` writes new columns on each flush, and it writes the names only when they changed.
@@ -39,7 +39,7 @@ The package registers two natural rows. The syntax row `:statistics` draws a `Fr
 
 ## Design decisions
 
-- **A feed can ask whether anyone looks.** `has_dependents` on a cell of the target document answers it, so the feed needs no registry of tabs.
+- **A feed can ask whether anyone looks.** `has_dependent_cells` on a cell of the target document answers it, so the feed needs no registry of tabs.
 - **This feed has a deadline, not a wake.** The log feed wakes on each message; this feed would wake itself. [log.md](../log/log.md) is the other side of the comparison.
 - **The table summarizes the recent frames.** A summary since the start keeps the compile time of the first frames in its maximum for the whole session.
 - **The producer gives the unit.** The producer knows which values are times, so it gives them in a group of their own. A unit that a reader reads from the spelling of a name breaks when a measurement gets a name that does not follow the rule.

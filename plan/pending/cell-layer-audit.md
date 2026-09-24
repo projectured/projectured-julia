@@ -44,7 +44,7 @@ The question of `Computed` against `ComputedCell` is a plan of its own:
 - [x] 2. The engine: remove `invalidate!`, `is_cell_up_to_date(::Vector{Cell})`
   and `ReactiveCell(value)`; `_recompute!` calls `_detach_upstream!`; one
   invalidation walk; the private names of the decisions above.
-- [ ] 3. The contract: `CellInterface.jl` declares `is_computed_cell` and
+- [x] 3. The contract: `CellInterface.jl` declares `is_computed_cell` and
   `has_dependent_cells` and loses the four docstring halves that repeat the
   first half; `CellDefaults.jl` holds the methods of both; `has_dependents`
   becomes `has_dependent_cells` in the code, the tests and the guides;
