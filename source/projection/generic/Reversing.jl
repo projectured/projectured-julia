@@ -24,7 +24,7 @@ function print_document(p::ReversingProjection, recursion, input, ctx)
             make_child_context(ctx, ElementReferenceStep(i))))
     # Output is the reversed child outputs, derived reactively into a persistent
     # CellVector: the IoMap keeps its identity while the output tracks input edits.
-    output = ComputedCellVector(() -> reverse([im.output for im in child_iomaps[]]))
+    output = CellVector(Computed(() -> reverse([im.output for im in child_iomaps[]])))
     ChildrenIoMap(p, input, output, child_iomaps)
 end
 

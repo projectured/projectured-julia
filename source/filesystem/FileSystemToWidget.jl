@@ -94,7 +94,7 @@ function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDoc
     end))
     # The roots are a reactive thunk so structural file-system changes rebuild the
     # node tree without re-running `print_document`.
-    roots = ComputedCellVector(() -> Any[_fs_node(doc, p.open_file)])
+    roots = CellVector(Computed(() -> Any[_fs_node(doc, p.open_file)]))
     # Positional, so every declared field is named here in order and the
     # selection comes last: position, roots, visible, margin, border, padding,
     # style, hovered, collapsed, gestures, tooltip, selection.

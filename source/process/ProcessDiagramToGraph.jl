@@ -252,8 +252,8 @@ function print_document(p::ProcessDiagramToGraph, recursion,
     # are one construction and must never disagree about identity.
     flowchart = Cell(Computed(() -> _build_flowchart(model isa ProcessModel ? model : nothing)))
 
-    vertices = ComputedCellVector(() -> Any[v for v in flowchart[].vertices])
-    edges = ComputedCellVector(() -> Any[e for e in flowchart[].edges])
+    vertices = CellVector(Computed(() -> Any[v for v in flowchart[].vertices]))
+    edges = CellVector(Computed(() -> Any[e for e in flowchart[].edges]))
 
     # The live overlay. `session` is duck-typed on purpose: the diagram is
     # drawable with nothing attached, and the debug slice is what fills it in.

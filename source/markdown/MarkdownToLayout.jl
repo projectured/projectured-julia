@@ -45,7 +45,7 @@ function print_document(p::MarkdownRootToVerticalLayout, recursion, root::Markdo
     cards = IdDict{Any,Any}()
     block_of(element) = _is_carded_block(element) ?
         get!(() -> make_embed_card(element, get_filename(element)), cards, element) : element
-    children = ComputedCellVector(() -> Any[block_of(element) for element in elements])
+    children = CellVector(Computed(() -> Any[block_of(element) for element in elements]))
     out = VerticalLayout(children,
                          Cell(p.horizontal_align), Cell(p.gap),
                          Cell(Fill), Cell(nothing), sel)

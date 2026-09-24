@@ -63,7 +63,7 @@ function print_document(p::ReflectionToWidget, recursion, node, ctx)
     # Positional, so every declared field is named here in order: position,
     # roots, visible, margin, border, padding, style, hovered, collapsed,
     # gestures, tooltip.
-    output = WidgetTree(Cell(Point2D(0, 0)), ComputedCellVector(() -> Any[tree[].root]),
+    output = WidgetTree(Cell(Point2D(0, 0)), CellVector(Computed(() -> Any[tree[].root])),
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                         Cell(nothing), Cell(Computed(() -> tree[].collapsed)),
                         Cell(GestureBinding[]), Cell(nothing))

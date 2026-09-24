@@ -114,7 +114,7 @@ function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
         end
     end))
 
-    children_cv = ComputedCellVector(() -> begin
+    children_cv = CellVector(Computed(() -> begin
         author = b.author
         iomaps  = element_iomaps[]
         result  = SyntaxDocument[title_leaf]
@@ -129,7 +129,7 @@ function print_document(p::BookBookToSyntaxNode, recursion, b::BookBook, ctx)
             push!(result, im.output)
         end
         result
-    end)
+    end))
 
     # Flush-left prose blocks: indentation=0 drops the depth-based indent (an
     # indent before every chapter/paragraph is atypical for English text), while
@@ -293,14 +293,14 @@ function print_document(p::BookChapterToSyntaxNode, recursion, b::BookChapter, c
         end
     end))
 
-    children_cv = ComputedCellVector(() -> begin
+    children_cv = CellVector(Computed(() -> begin
         iomaps = element_iomaps[]
         result = SyntaxDocument[title_leaf]
         for im in iomaps
             push!(result, im.output)
         end
         result
-    end)
+    end))
 
     # Flush-left prose blocks: indentation=0 drops the depth-based indent (an
     # indent before every chapter/paragraph is atypical for English text), while
@@ -461,13 +461,13 @@ function print_document(p::BookListToSyntaxNode, recursion, b::BookList, ctx)
         end
     end))
 
-    children_cv = ComputedCellVector(() -> begin
+    children_cv = CellVector(Computed(() -> begin
         iomaps = element_iomaps[]
         SyntaxDocument[
             SyntaxDelimitation(im.output; opening_delimiter=TextString("• ", p.bullet))
             for im in iomaps
         ]
-    end)
+    end))
 
     output = SyntaxNode(children_cv; indentation=p.indentation, collapsed=b.collapsed, selection=sel)
     ChildrenIoMap(p, b, output, element_iomaps)

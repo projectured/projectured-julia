@@ -634,8 +634,8 @@ function print_document(p::ConversationComposerToWidget, recursion, d::Conversat
     # the same as a turn's parts in the transcript.
     iomap_ref = Ref{Any}(nothing)
     body = VerticalLayout(
-        ComputedCellVector(() -> (n = length(d.parts);
-                          Any[_make_draft_part_card(p, d, iomap_ref, i, d.parts[i].content, i == n) for i in 1:n])),
+        CellVector(Computed(() -> (n = length(d.parts);
+                          Any[_make_draft_part_card(p, d, iomap_ref, i, d.parts[i].content, i == n) for i in 1:n]))),
         Cell(:left), Cell(_GAP), Cell(Fill), Cell(Content), Cell(nothing))
     iomap = SimpleIoMap(p, d, body)
     iomap_ref[] = iomap

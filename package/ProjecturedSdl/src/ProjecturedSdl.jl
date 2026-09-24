@@ -38,7 +38,7 @@ import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, Graphic
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
                          get_canvas_content_bounds, _accumulate_bounds!, _bounds_elem!,
                          tessellate_spline, build_polyline_arrowhead
-import ProjecturedCollection.CollectionModule: ListNode, CellVector, ComputedCellVector
+import ProjecturedCollection.CollectionModule: ListNode, CellVector
 import ProjecturedStyle.StyleModule: AffineTransform, affine_identity, is_affine_axis_aligned
 import ProjecturedStyle.StyleModule: StyleColor
 import ProjecturedStyle.StyleModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,

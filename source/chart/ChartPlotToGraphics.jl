@@ -1195,7 +1195,7 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
         _layout(p, plot, w, h)
     end))
 
-    elements = ComputedCellVector(() -> begin
+    elements = CellVector(Computed(() -> begin
         g = geometry[]
         g === nothing && return _empty_elements(p, plot, ctx)
         out = Any[]
@@ -1219,7 +1219,7 @@ function print_document(p::ChartPlotToGraphicsCanvas, recursion, plot::ChartPlot
         # Last, so an inside legend sits over the series rather than under them.
         _legend_elements!(out, g)
         out
-    end)
+    end))
 
     # Width and height are computed rather than fixed so a resize reflows the
     # same canvas object instead of replacing it.

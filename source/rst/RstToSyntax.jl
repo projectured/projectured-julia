@@ -935,7 +935,7 @@ function ProjectionModule.print_document(p::RstStyledInline, recursion, doc, ctx
             with_property(make_child_context(ctx, FieldReferenceStep("content"), ElementReferenceStep(i)),
                           :rst_style, style))
         for (i, child) in enumerate(doc.content)]))
-    items = ComputedCellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]])
+    items = CellVector(Computed(() -> SyntaxDocument[im.output for im in child_iomaps[]]))
     iomap_cell = Cell(nothing)
     sel = Cell(Computed(() -> begin
         im = iomap_cell[]
@@ -1024,7 +1024,7 @@ function ProjectionModule.print_document(p::RstSectionToStyledNode, recursion, d
         maps
     end))
     title_count = Cell(Computed(() -> length(doc.title)))
-    items = ComputedCellVector(() -> begin
+    items = CellVector(Computed(() -> begin
         maps = child_iomaps[]
         n = title_count[]
         # A title child concatenates into the title line; every body block
@@ -1034,7 +1034,7 @@ function ProjectionModule.print_document(p::RstSectionToStyledNode, recursion, d
                      SyntaxNode(SyntaxDocument[maps[k].output];
                                 open=TextString("\n\n" * indent, p.style))
             for k in eachindex(maps)]
-    end)
+    end))
     node = SyntaxNode(items; sep=TextString(() -> "", p.style), indentation=0)
     ChildrenIoMap(p, doc, node, child_iomaps)
 end
@@ -1055,7 +1055,7 @@ function ProjectionModule.print_document(p::RstEnumeratedListToStyledNode, recur
         print_child(recursion, item,
                     make_child_context(ctx, FieldReferenceStep("items"), ElementReferenceStep(i)))
         for (i, item) in enumerate(doc.items)]))
-    items = ComputedCellVector(() -> begin
+    items = CellVector(Computed(() -> begin
         maps = child_iomaps[]
         first_number = doc.start
         SyntaxDocument[
@@ -1064,7 +1064,7 @@ function ProjectionModule.print_document(p::RstEnumeratedListToStyledNode, recur
                                                             string(first_number + k - 1) * ". ",
                                                             p.marker_style))
             for k in eachindex(maps)]
-    end)
+    end))
     iomap_cell = Cell(nothing)
     sel = Cell(Computed(() -> begin
         im = iomap_cell[]

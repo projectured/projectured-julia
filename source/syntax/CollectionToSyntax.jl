@@ -66,7 +66,7 @@ function print_document(p::CollectionCellVectorToSyntax, recursion, cv::CellVect
         map_reference_forward(p, im, path)
     end))
     node = SyntaxNode(
-        ComputedCellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
+        CellVector(Computed(() -> SyntaxDocument[im.output for im in child_iomaps[]]));
         open=TextString("[", p.delim),
         close=TextString("]", p.delim),
         sep=TextString(", ", p.sep),

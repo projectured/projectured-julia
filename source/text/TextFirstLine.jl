@@ -48,7 +48,7 @@ end
 
 function print_document(p::TextFirstLine, recursion, text::TextBlock, ctx)
     both = Cell(Computed(() -> _first_line(text)))
-    elements_cv = ComputedCellVector(() -> both[][1])
+    elements_cv = CellVector(Computed(() -> both[][1]))
     info_cell = Cell(Computed(() -> both[][2]))
     out_selection = Cell(Computed(() -> begin
         kept = TextBlock(elements_cv, Cell(nothing))

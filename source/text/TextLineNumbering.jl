@@ -21,7 +21,7 @@ TextLineNumbering(; width::Int = 0, separator::String = " | ", font=font_ubuntu_
 # (delimited by TextNewline elements) a TextString prefix is inserted before
 # the first span on that line.
 function print_document(p::TextLineNumbering, recursion, text::TextBlock, ctx)
-    elements_cv = ComputedCellVector(() -> begin
+    elements_cv = CellVector(Computed(() -> begin
         elems = text.elements
         n_newlines = 0
         for e in elems
@@ -59,7 +59,7 @@ function print_document(p::TextLineNumbering, recursion, text::TextBlock, ctx)
             end
         end
         result
-    end)
+    end))
     out_selection = Cell(Computed(() -> begin
         numbered = TextBlock(elements_cv, Cell(nothing))
         _map_selection_over_runs(_make_numbering_runs(text, numbered), text, text.selection)

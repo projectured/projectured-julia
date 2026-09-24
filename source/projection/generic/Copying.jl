@@ -39,7 +39,7 @@ function print_document(p::CopyingProjection, recursion, input::CellVector, ctx)
         () -> input,
         (i, x) -> print_child(recursion, x,
             make_child_context(ctx, ElementReferenceStep(i))))
-    output = ComputedCellVector(() -> [im.output for im in children[]])
+    output = CellVector(Computed(() -> [im.output for im in children[]]))
     set_cell_function!(getfield(output, :selection), () -> input.selection)
     CopyingIoMap(p, input, output, children, nothing, nothing, nothing)
 end

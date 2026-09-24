@@ -29,11 +29,11 @@ const _LEVEL_WIDTH = 7
     print_document(p::MessageLogToSyntax, recursion, log::MessageLog, ctx)
 
 One `SyntaxNode` per entry, joined by newlines. The children are derived, not
-copied: the outer node reads `log.entries` inside a `ComputedCellVector`, so an
+copied: the outer node reads `log.entries` inside a computed `CellVector`, so an
 append rebuilds the lines and the panel that shows them.
 """
 function print_document(p::MessageLogToSyntax, recursion, log::MessageLog, ctx::PrinterContext)
-    children = ComputedCellVector(function ()
+    children = CellVector(Computed(function ()
         entries = log.entries
         isempty(entries) && return SyntaxDocument[SyntaxLeaf(TextString("no message yet", p.empty))]
         lines = SyntaxDocument[]
@@ -41,7 +41,7 @@ function print_document(p::MessageLogToSyntax, recursion, log::MessageLog, ctx::
             push!(lines, _line(p, entries[index]))
         end
         lines
-    end)
+    end))
     SimpleIoMap(p, log, SyntaxNode(children; sep=TextString("\n")))
 end
 

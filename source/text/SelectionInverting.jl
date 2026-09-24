@@ -80,7 +80,7 @@ end
 
 function print_document(p::SelectionInverting, recursion, text::TextBlock, ctx)
     both = Cell(Computed(() -> _invert(p, text)))   # (elements, segs)
-    elements_cv = ComputedCellVector(() -> both[][1])
+    elements_cv = CellVector(Computed(() -> both[][1]))
     segs_cell = Cell(Computed(() -> both[][2]))
     out_selection = Cell(Computed(() -> _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection)))
     output = TextBlock(elements_cv, out_selection)

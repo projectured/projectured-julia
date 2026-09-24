@@ -26,12 +26,12 @@ const _NUMBER_WIDTH = 12
 
 One `SyntaxNode` for each line, joined by newlines. The lines are derived, not
 copied: the outer node reads `statistics.frame_count` and the row cells inside
-a `ComputedCellVector`, so a flush rebuilds exactly the lines whose numbers
+a computed `CellVector`, so a flush rebuilds exactly the lines whose numbers
 changed.
 """
 function print_document(p::FrameStatisticsToSyntax, recursion,
                         statistics::FrameStatistics, ctx::PrinterContext)
-    children = ComputedCellVector(function ()
+    children = CellVector(Computed(function ()
         rows = statistics.rows
         lines = SyntaxDocument[]
         push!(lines, SyntaxLeaf(TextString(_format_head_line(statistics), p.header)))
@@ -44,7 +44,7 @@ function print_document(p::FrameStatisticsToSyntax, recursion,
             push!(lines, _measurement_line(p, rows[index]))
         end
         lines
-    end)
+    end))
     SimpleIoMap(p, statistics, SyntaxNode(children; sep=TextString("\n")))
 end
 

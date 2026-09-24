@@ -110,7 +110,7 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
         map_reference_forward(p, im, path)
     end))
     node = SyntaxNode(
-        ComputedCellVector(() -> begin
+        CellVector(Computed(() -> begin
             mode = f.display_mode
             if mode === :code
                 SyntaxDocument[code_iomap[].output]
@@ -120,7 +120,7 @@ function print_document(p::FormulaFormulaToSyntaxNode, recursion, f::FormulaForm
                 SyntaxDocument[name_leaf, eq_leaf, code_iomap[].output,
                                arrow_leaf, result_leaf]
             end
-        end);
+        end));
         selection=sel)
     iomap = ChildrenIoMap(p, f, node, Cell(Computed(() -> IoMap[code_iomap[]])))
     iomap_cell[] = iomap
@@ -196,7 +196,7 @@ function print_document(p::FormulaEnvironmentToSyntaxNode, recursion, e::Formula
         map_reference_forward(p, im, path)
     end))
     node = SyntaxNode(
-        ComputedCellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
+        CellVector(Computed(() -> SyntaxDocument[im.output for im in child_iomaps[]]));
         sep=TextString("\n", p.font, color_default),
         selection=sel)
     iomap = ChildrenIoMap(p, e, node, child_iomaps)

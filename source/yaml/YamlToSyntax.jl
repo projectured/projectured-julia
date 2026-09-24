@@ -154,9 +154,9 @@ function print_document(p::YamlSequenceToBlockSyntaxNode, recursion, seq::YamlSe
                                     make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
                                for (i, elem) in enumerate(seq.elements)]))
 
-    items = ComputedCellVector(() -> SyntaxDocument[
+    items = CellVector(Computed(() -> SyntaxDocument[
         SyntaxDelimitation(im.output; opening_delimiter=TextString("- ", p.marker_style))
-        for im in child_iomaps[]])
+        for im in child_iomaps[]]))
 
     iomap_cell = Cell(nothing)
     sel = Cell(Computed(() -> begin

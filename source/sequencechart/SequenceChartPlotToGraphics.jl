@@ -871,7 +871,7 @@ function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
         _layout(p, plot, timeline[], w, h)
     end))
 
-    elements = ComputedCellVector(() -> begin
+    elements = CellVector(Computed(() -> begin
         g = geometry[]
         g === nothing && return _empty_elements(p, plot, ctx)
         out = Any[]
@@ -895,7 +895,7 @@ function print_document(p::SequenceChartPlotToGraphicsCanvas, recursion,
         push!(out, GraphicsViewport(round(Int, g.body_x), round(Int, g.body_y),
                                     round(Int, g.body_w), round(Int, g.body_h), content))
         out
-    end)
+    end))
 
     # Width and height are computed rather than fixed so a resize reflows the
     # same canvas object instead of replacing it.

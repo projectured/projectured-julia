@@ -32,10 +32,10 @@ A reactive vector stores `Vector{Cell}`. An immutable or mutable vector, made by
 
 ### A derived vector
 
-`ComputedCellVector(f)`, which is `CellVector(Computed(f))`, computes its whole element list from a thunk and puts each element in a new cell on each computation. A projection uses it for children that it builds from its input:
+`CellVector(Computed(f))` computes its whole element list from a thunk and puts each element in a new cell on each computation. A projection uses it for children that it builds from its input:
 
 ```julia
-SyntaxNode(ComputedCellVector(() -> [project_child(c) for c in input.children]); open = "[", close = "]")
+SyntaxNode(CellVector(Computed(() -> [project_child(c) for c in input.children])); open = "[", close = "]")
 ```
 
 `CellVector(f)` with a plain function is a vector of one element, the function. Only `Computed` derives the element list, as with `Cell(Computed(f))`.

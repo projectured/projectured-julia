@@ -27,10 +27,10 @@ struct FramePlotToChart <: Projection end
 
 function print_document(p::FramePlotToChart, recursion, plot::FramePlot,
                         ctx::PrinterContext)
-    series = ComputedCellVector(function ()
+    series = CellVector(Computed(function ()
         [_make_frame_time_series(plot, index, name)
          for (index, name) in enumerate(plot.names)]
-    end)
+    end))
     # The generated constructor, because the keyword form copies the series
     # into a new vector and the list would no longer derive from the plot.
     chart = Chart("Frame times", series,

@@ -75,8 +75,13 @@ CellVector(::UndefInitializer, n::Integer) = CellVector(Cell([Cell(nothing) for 
 # that inner ctor wants; construct a 2-*element* vector with the bracket form
 # `CellVector([a, b])`.
 CellVector(items...)                = CellVector(Cell[Cell(x) for x in items])
-# A `Computed` derives the whole element list: the thunk returns the elements, and each is
-# wrapped in its own slot cell on every recompute.
+"""
+    CellVector(Computed(f)) -> CellVector
+
+A `CellVector` whose elements are derived: `f` takes no argument and returns the
+element list, and each element gets a slot cell of its own on every computation.
+The counterpart of `Cell(Computed(f))` for a collection.
+"""
 function CellVector(computed::Computed)
     cv = CellVector(Cell(Cell[]), Cell(nothing))
     f = computed.thunk
@@ -85,15 +90,6 @@ function CellVector(computed::Computed)
 end
 # A `Function` needs no method of its own: it is an element like any other value, and the
 # variadic above makes it a one-element vector. Only a `Computed` derives the element list.
-
-"""
-    ComputedCellVector(f) -> CellVector
-
-A `CellVector` whose elements are derived — `CellVector(Computed(f))`, with `f` a
-zero-argument thunk returning the element list. The counterpart of
-`Cell(Computed(f))` for a collection.
-"""
-ComputedCellVector(f::Function) = CellVector(Computed(f))
 
 # Value-vector conveniences for the non-reactive kinds (the macro-emitted 2-arg
 # kind ctors remain the general form).
@@ -305,6 +301,6 @@ end
 # importing a base document type.
 
 make_children_container(cells::Vector) = CellVector(cells)
-make_children_container(thunk::Function) = ComputedCellVector(thunk)
+make_children_container(thunk::Function) = CellVector(Computed(thunk))
 get_children_container_type() = CellVector
 

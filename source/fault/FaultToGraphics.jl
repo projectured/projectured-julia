@@ -21,7 +21,7 @@ end
 
 function print_document(p::FaultToGraphics, recursion, report::FaultReport,
                         ctx::PrinterContext)
-    elements = ComputedCellVector(() ->
-        Any[GraphicsText(format_fault_label(report), 0, 0; font = p.font, color = p.color)])
+    elements = CellVector(Computed(() ->
+        Any[GraphicsText(format_fault_label(report), 0, 0; font = p.font, color = p.color)]))
     SimpleIoMap(p, report, GraphicsCanvas(elements, layout_none))
 end

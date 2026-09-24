@@ -322,7 +322,7 @@ function print_document(p::MarkdownStyledInline, recursion, doc, ctx)
         print_child(recursion, child,
             with_property(make_child_context(ctx, FieldReferenceStep("content"), ElementReferenceStep(i)), :md_style, style))
         for (i, child) in enumerate(doc.content)]))
-    items = ComputedCellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]])
+    items = CellVector(Computed(() -> SyntaxDocument[im.output for im in child_iomaps[]]))
     iomap_cell = Cell(nothing)
     sel = Cell(Computed(() -> begin
         im = iomap_cell[]
@@ -479,13 +479,13 @@ function print_document(p::MarkdownListToStyledNode, recursion, lst::MarkdownLis
     child_iomaps = Cell(Computed(() -> [print_child(recursion, item,
                                     make_child_context(ctx, FieldReferenceStep("items"), ElementReferenceStep(i)))
                                for (i, item) in enumerate(lst.items)]))
-    items = ComputedCellVector(() -> begin
+    items = CellVector(Computed(() -> begin
         ord = lst.ordered
         SyntaxDocument[
             SyntaxDelimitation(im.output;
                                opening_delimiter=TextString(_md_list_marker(ord, i), p.marker_style))
             for (i, im) in enumerate(child_iomaps[]) ]
-    end)
+    end))
     iomap_cell = Cell(nothing)
     sel = Cell(Computed(() -> begin
         im = iomap_cell[]

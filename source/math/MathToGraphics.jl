@@ -289,14 +289,14 @@ function _math_iomap(p, doc, build::Cell)
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                             _int32(() -> build[].width[]),
                             _int32(() -> build[].ascent[] + build[].descent[]),
-                            ComputedCellVector(function ()
+                            CellVector(Computed(function ()
                                 # The selection wash goes in front of the
                                 # content so a hit test finds the parts, and it
                                 # paints nothing while nothing is selected.
                                 elements = Any[_selection_element(p, doc, build)]
                                 append!(elements, build[].elements)
                                 elements
-                            end),
+                            end)),
                             layout_none, true, Cell(nothing))
     MathIoMap(p, doc, canvas,
               Cell(Computed(() -> build[].children)),
@@ -656,11 +656,11 @@ function _delimiter_box(c::MathConfig, style::Symbol, kind::Symbol, side::Symbol
     output = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                             _int32(() -> width[]),
                             _int32(() -> ascent[] + descent[]),
-                            ComputedCellVector(function ()
+                            CellVector(Computed(function ()
                                 isempty(glyph) && return Any[]
                                 tiled() ? _tiled_delimiter(c, style, pieces, half) :
                                           Any[_text_element(() -> glyph, scaled_font, c.ink)]
-                            end),
+                            end)),
                             layout_none, true, Cell(nothing))
     MathGlyphBox(output, width, ascent, descent)
 end
@@ -1543,7 +1543,7 @@ function _delimited(inner, kind::Symbol, c::MathConfig, style::Symbol)
         GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                        _int32(() -> inner.width[]),
                        _int32(() -> inner.ascent[] + inner.descent[]),
-                       ComputedCellVector(() -> inner.elements),
+                       CellVector(Computed(() -> inner.elements)),
                        layout_none, true, Cell(nothing)),
         inner.width, inner.ascent, inner.descent)
     # The row places the whole grid as one box; its children are inside that

@@ -143,8 +143,8 @@ function print_document(p::FaultLogOverlayProjection, recursion, input, ctx)
     # The panel joins the canvas only once something has failed. The read of
     # `log.entries` is what subscribes this list to the log, so the first fault
     # brings the panel in by itself.
-    children = ComputedCellVector(() ->
-        length(p.log.entries) == 0 ? Any[inner_output[]] : Any[inner_output[], panel])
+    children = CellVector(Computed(() ->
+        length(p.log.entries) == 0 ? Any[inner_output[]] : Any[inner_output[], panel]))
 
     # The inner output keeps the origin, so the coordinates the reader sees are
     # the coordinates the inner pipeline printed.

@@ -109,7 +109,7 @@ function print_document(p::FsmDiagramToGraph, recursion,
         nothing
     end
 
-    vertices = ComputedCellVector(() -> Any[v for (_, v) in vertex_cells[]])
+    vertices = CellVector(Computed(() -> Any[v for (_, v) in vertex_cells[]]))
 
     # One edge per transition that goes somewhere. A stay has no target, so it
     # has no edge; the label is the transition itself, held by identity.
@@ -131,7 +131,7 @@ function print_document(p::FsmDiagramToGraph, recursion,
         result
     end))
 
-    edges = ComputedCellVector(() -> Any[e for (_, e) in edge_cells[]])
+    edges = CellVector(Computed(() -> Any[e for (_, e) in edge_cells[]]))
 
     # The live overlay: two integers resolved to objects by identity. Reading
     # only these cells is what keeps a transition arriving mid-run from

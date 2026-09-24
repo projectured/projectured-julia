@@ -323,12 +323,12 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # Membership reads only the highlight-rect *count* (a caret / no selection → 0),
     # so a caret move that keeps the same row count reuses the exact rects. Evict rows
     # that no longer exist so the cache cannot grow unbounded across selections.
-    highlight_elements = ComputedCellVector(function ()
+    highlight_elements = CellVector(Computed(function ()
         n = length(overlay[].highlight)
         out = Any[get_highlight_rect(k) for k in 1:n]
         for k in collect(keys(hl_cache)); k <= n || delete!(hl_cache, k); end
         out
-    end)
+    end))
     highlight_canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
                                       highlight_elements, layout_none, false, Cell(nothing))
 
@@ -356,7 +356,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
             Cell(Computed(() -> Int32(prev.y[] + prev.h[])))
         end
         cache = Dict{Any,Any}()
-        segs = ComputedCellVector(function ()
+        segs = CellVector(Computed(function ()
             pls = line_layout[].spans
             out = Any[]
             live = Set{Any}()
@@ -372,7 +372,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
                 k in live || delete!(cache, k)
             end
             out
-        end)
+        end))
         sub = GraphicsCanvas(Cell(Int32(0)), line_y, Cell(Int32(0)), Cell(Int32(0)),
                              segs, layout_none, false, Cell(nothing))
         nt = (layout = line_layout, h = line_h, y = line_y, canvas = sub)
@@ -385,10 +385,10 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # no content is read here and the stack stays up to date across content edits.
     # `layout_vertical` + non-overlapping lets the dirty walk and renderer
     # early-stop past off-screen lines.
-    lines_stack_elements = ComputedCellVector(function ()
+    lines_stack_elements = CellVector(Computed(function ()
         n = length(lines_cell[])
         Any[get_line_cells(L).canvas for L in 1:n]
-    end)
+    end))
     lines_stack = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)), Cell(Int32(0)),
                                  lines_stack_elements, layout_vertical, false, Cell(nothing))
 

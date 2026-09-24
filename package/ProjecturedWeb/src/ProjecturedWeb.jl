@@ -27,7 +27,7 @@ import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, Graphic
                          GraphicsCircle, GraphicsPolyline, GraphicsPolygon, GraphicsSpline,
                          GraphicsViewport, GraphicsImage, GraphicsFence,
                          _bounds_elem!, _accumulate_bounds!, tessellate_spline
-import ProjecturedCollection.CollectionModule: ListNode, CellVector, ComputedCellVector
+import ProjecturedCollection.CollectionModule: ListNode, CellVector
 import ProjecturedStyle.StyleModule: StyleColor
 import ProjecturedStyle.StyleModule: AffineTransform, affine_identity
 import ProjecturedStyle.StyleModule: StyleFont, font_logical_size

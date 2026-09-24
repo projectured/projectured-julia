@@ -78,7 +78,7 @@ A tool, a driver or a script that must record its change wraps it with `make_und
 
 ### The history drawn
 
-`UndoBufferToSyntax` prints the buffer itself, not its content: one line for each step, with the newest at the top and a marker line where the document stands now. The lines above the marker can be put back, and the lines below it can be taken back. A barrier line says `stop` in its own colour. The lines come from a `ComputedCellVector` that reads both lists, so the panel changes with each step. The font is DejaVu Sans Mono, which has a glyph for the empty reference, so the columns stay aligned.
+`UndoBufferToSyntax` prints the buffer itself, not its content: one line for each step, with the newest at the top and a marker line where the document stands now. The lines above the marker can be put back, and the lines below it can be taken back. A barrier line says `stop` in its own colour. The lines come from a computed `CellVector` that reads both lists, so the panel changes with each step. The font is DejaVu Sans Mono, which has a glyph for the empty reference, so the columns stay aligned.
 
 ### A model takes a change back
 

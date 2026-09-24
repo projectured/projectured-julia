@@ -195,7 +195,7 @@ function _catalog_syntax_node(p, recursion, ctx, input_doc,
     # The keyword group holds the projected items directly and is the lazy /
     # collapsible unit. Collapsed until its child collection is materialized.
     keyword_node = SyntaxNode(
-        ComputedCellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
+        CellVector(Computed(() -> SyntaxDocument[im.output for im in child_iomaps[]]));
         open=TextString(" " * keyword, font_ubuntu_monospace_regular_20, color_default),
         indentation=-1,
         collapsed=Cell(!_children_realized(children)))

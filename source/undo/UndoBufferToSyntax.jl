@@ -36,11 +36,11 @@ One `SyntaxNode` per step, joined by newlines, with a marker line between what
 can be put back and what can be taken back.
 
 The children are derived, not copied: the outer node reads both lists inside a
-`ComputedCellVector`, so a step that is recorded, taken back or put back rebuilds
+computed `CellVector`, so a step that is recorded, taken back or put back rebuilds
 the lines and the panel that shows them.
 """
 function print_document(p::UndoBufferToSyntax, recursion, buffer::UndoBuffer, ctx::PrinterContext)
-    children = ComputedCellVector(function ()
+    children = CellVector(Computed(function ()
         undone = buffer.undo_entries
         redone = buffer.redo_entries
         lines = SyntaxDocument[]
@@ -58,7 +58,7 @@ function print_document(p::UndoBufferToSyntax, recursion, buffer::UndoBuffer, ct
         isempty(undone) && isempty(redone) &&
             push!(lines, SyntaxLeaf(TextString("nothing to take back yet", p.empty)))
         lines
-    end)
+    end))
     SimpleIoMap(p, buffer, SyntaxNode(children; sep = TextString("\n")))
 end
 

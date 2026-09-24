@@ -1184,7 +1184,7 @@ function _reactive_canvas_cell(x::Int, y::Int, build::Cell)
     GraphicsCanvas(Int32(x), Int32(y),
                    Cell(Computed(() -> Int32(build[].width))),
                    Cell(Computed(() -> Int32(build[].height))),
-                   ComputedCellVector(() -> build[].elements),
+                   CellVector(Computed(() -> build[].elements)),
                    layout_none, true, Cell(nothing))
 end
 
@@ -1229,7 +1229,7 @@ end
 # `cap` is an overlay's context: given one, the extent is capped by what the
 # parent offered rather than allowed to run past it.
 function _reactive_canvas_auto(x::Int, y::Int, elems_fn, measure; cap = nothing)
-    elems = ComputedCellVector(elems_fn)
+    elems = CellVector(Computed(elems_fn))
     bounds = Cell(Computed(() -> begin
         w = 0; h = 0
         for e in elems
@@ -3472,7 +3472,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     # and child wrappers re-flow reactively when slot sizes change. The
     # splitter's cross-axis extent tracks `outer_cross` so it spans exactly
     # the pane's cross dimension instead of overflowing on a fixed length.
-    outer_elements = ComputedCellVector(function ()
+    outer_elements = CellVector(Computed(function ()
         result = Any[]
         _push_box_parts!(result, box, colors, Int(inner_w_cell[]), Int(inner_h_cell[]))
         cross_extent = Int(outer_cross[])
@@ -3506,7 +3506,7 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             end
         end
         result
-    end)
+    end))
 
     outer_canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                                   outer_w_cell, outer_h_cell,
@@ -3959,7 +3959,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         i == 0 ? 1 : i
     end
 
-    selector_cv = ComputedCellVector(() -> begin
+    selector_cv = CellVector(Computed(() -> begin
         g = geom[]
         sel_pad, sel_h, tabs = g.pad, g.height, g.tabs
         active = _active_idx(get_stored_selection(w), length(tabs))
@@ -3993,7 +3993,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         g.new_w > 0 && _push_icon!(result, :plus, g.new_x + sel_pad, coy + sel_pad,
                                    g.new_w - 2 * sel_pad, _get_part_text(w, :tab_text, p.tab_text).color)
         result
-    end)
+    end))
 
     # Seed a reduced available extent for the tab content. The content lives
     # inside the pane's border (offset `cox`/`coy`) and below the tab strip,
@@ -4027,7 +4027,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     #
     # Per bounded axis. An axis the parent did not offer was never bounded, so there
     # is nothing to clip against and the page takes the content's own extent there.
-    content_cv = ComputedCellVector(() -> begin
+    content_cv = CellVector(Computed(() -> begin
         cims = all_cims[]
         sel_h = geom[][4]
         active = _active_idx(get_stored_selection(w), length(cims))
@@ -4049,11 +4049,11 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
                              Cell(affine_identity),
                              Cell(nothing)))
         result
-    end)
+    end))
 
     # The generic box (margin/border/padding/content, all transparent by
     # default) around the strip and the page together.
-    box_cv = ComputedCellVector(() -> begin
+    box_cv = CellVector(Computed(() -> begin
         cims = all_cims[]
         sel_h = geom[][4]
         active = _active_idx(get_stored_selection(w), length(cims))
@@ -4068,7 +4068,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         result = Any[]
         _push_box_parts!(result, box, colors, max(geom[][5], page_w), sel_h + page_h)
         result
-    end)
+    end))
 
     # Clip the selector row to the pane's own width so a tab strip wider than
     # the tabbed pane cannot overflow the widget. When the parent seeded an
@@ -5615,7 +5615,7 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     outer = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
                            Cell(Computed(() -> Int32(build[].w))),
                            Cell(Computed(() -> Int32(build[].h))),
-                           ComputedCellVector(() -> vcat(build[].elements, Any[ring])),
+                           CellVector(Computed(() -> vcat(build[].elements, Any[ring]))),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, w, outer, Cell(Computed(() -> build[].child_iomaps)))
 end
@@ -6411,14 +6411,14 @@ function print_document(p::WidgetHighlightToGraphicsCanvas, recursion, w::Widget
     y = Cell(Computed(() -> Int32(Int(position[].y[]))))
     width  = Cell(Computed(() -> Int32(shown() ? _resolve_width(ctx, max(0, _sc(Int(w.width)))) : 0)))
     height = Cell(Computed(() -> Int32(shown() ? _resolve_height(ctx, max(0, _sc(Int(w.height)))) : 0)))
-    elements = ComputedCellVector(() -> begin
+    elements = CellVector(Computed(() -> begin
         cw, ch = Int(width[]), Int(height[])
         (cw <= 0 || ch <= 0) && return Any[]
         content_color = _get_state_color(p, w, :content)
         border_stroke = _get_state_stroke(p, w, :border)
         Any[GraphicsRect(0, 0, cw, ch; color = content_color, radius = _sc(p.corner_radius),
                          border_width = _sc(border_stroke.width), border_color = border_stroke.color)]
-    end)
+    end))
     SimpleIoMap(p, w, GraphicsCanvas(x, y, width, height, elements,
                                      layout_none, true, Cell(nothing)))
 end
@@ -8044,7 +8044,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     set_cell_function!(getfield(hit_target, :w), () -> Int32(geometry[].total_w + inset_width))
     set_cell_function!(getfield(hit_target, :h), () -> Int32(geometry[].total_h + inset_height))
 
-    elements = ComputedCellVector(() -> begin
+    elements = CellVector(Computed(() -> begin
         geom = geometry[]
         gim = grid_iomap[]
         result = Any[]
@@ -8087,7 +8087,7 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
                                        color = divider_stroke.color))
         end
         result
-    end)
+    end))
 
     canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
                             Cell(Computed(() -> Int32(geometry[].total_w + inset_width))),
@@ -8729,7 +8729,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     set_cell_function!(getfield(hover_band, :h), () -> Int32(hover_yh[][2]))
     set_cell_function!(getfield(hover_band, :w), () -> Int32(geometry[].total_w))
 
-    elements = ComputedCellVector(() -> begin
+    elements = CellVector(Computed(() -> begin
         geom = geometry[]
         result = Any[]
         # 0. Invisible whole-canvas hit target (behind everything) so a nested tree
@@ -8763,7 +8763,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                                        font = label_style.font, color = label_style.color))
         end
         result
-    end)
+    end))
 
     canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
                             Cell(Computed(() -> Int32(geometry[].total_w + inset_width))),

@@ -102,7 +102,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
         (positions, routes, name)
     end))
 
-    vertex_layouts = ComputedCellVector(() -> begin
+    vertex_layouts = CellVector(Computed(() -> begin
         positions, _, _ = placed[]
         n = length(graph.vertices)
         out = Any[]
@@ -113,9 +113,9 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
             push!(out, VertexLayout(v, x, y, w, h))
         end
         out
-    end)
+    end))
 
-    edge_layouts = ComputedCellVector(() -> begin
+    edge_layouts = CellVector(Computed(() -> begin
         _, routes, _ = placed[]
         n = length(graph.edges)
         out = Any[]
@@ -126,7 +126,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
             push!(out, EdgeLayout(e, route))
         end
         out
-    end)
+    end))
 
     # The highlights pass through as derived cells. They are read by the
     # renderer only, so changing one repaints without disturbing `child_iomaps`

@@ -121,7 +121,7 @@ function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlS
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> begin
+        CellVector(Computed(() -> begin
             docs = SyntaxDocument[paren_node]
             if doc.alias !== nothing
                 push!(docs, _kw("AS", p.keyword))
@@ -130,7 +130,7 @@ function print_document(p::SqlSubqueryFromItemToSyntaxNode, recursion, doc::SqlS
                                p.identifier_font, color_default)))
             end
             docs
-        end);
+        end));
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -213,7 +213,7 @@ function print_document(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectI
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> begin
+        CellVector(Computed(() -> begin
             docs = SyntaxDocument[expr_im[].output]
             if doc.column_alias !== nothing
                 push!(docs, _kw("AS", p.keyword))
@@ -222,7 +222,7 @@ function print_document(p::SqlSelectItemToSyntaxNode, recursion, doc::SqlSelectI
                                p.alias_font, color_default)))
             end
             docs
-        end);
+        end));
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -290,12 +290,12 @@ function print_document(p::SqlSelectClauseToSyntaxNode, recursion, doc::SqlSelec
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> begin
+        CellVector(Computed(() -> begin
             kws = SyntaxDocument[_kw("SELECT", p.keyword)]
             doc.distinct !== nothing && push!(kws, _kw("DISTINCT", p.keyword))
             push!(kws, items_body)
             kws
-        end);
+        end));
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -382,11 +382,11 @@ function print_document(p::SqlJoinedFromItemToSyntaxNode, recursion, doc::SqlJoi
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> begin
+        CellVector(Computed(() -> begin
             jt, fi, cond_im = projected[]
             cond_im === nothing ? SyntaxDocument[jt.output, fi.output] :
                                   SyntaxDocument[jt.output, fi.output, cond_im.output]
-        end);
+        end));
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -481,7 +481,8 @@ function print_document(p::SqlJoinOnConditionToSyntaxNode, recursion, doc::SqlJo
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> SyntaxDocument[_kw("ON", p.keyword), expr_im[].output]);
+        CellVector(Computed(() -> SyntaxDocument[_kw("ON", p.keyword),
+                                                 expr_im[].output]));
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -578,11 +579,11 @@ function print_document(p::SqlFromItemToSyntaxNode, recursion, doc::SqlFromItem,
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> begin
+        CellVector(Computed(() -> begin
             base, joins = projected[]
             isempty(joins) ? SyntaxDocument[base.output] :
                              SyntaxDocument[base.output, joins_body]
-        end);
+        end));
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -671,7 +672,7 @@ function print_document(p::SqlFromClauseToSyntaxNode, recursion, doc::SqlFromCla
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> SyntaxDocument[_kw("FROM", p.keyword), items_body]);
+        CellVector(Computed(() -> SyntaxDocument[_kw("FROM", p.keyword), items_body]));
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -817,7 +818,7 @@ function print_document(p::SqlWhereClauseToSyntaxNode, recursion, doc::SqlWhereC
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> SyntaxDocument[_kw("WHERE", p.keyword), cond_body]);
+        CellVector(Computed(() -> SyntaxDocument[_kw("WHERE", p.keyword), cond_body]));
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -970,10 +971,10 @@ function print_document(p::SqlComparisonToSyntaxNode, recursion, doc::SqlCompari
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> begin
+        CellVector(Computed(() -> begin
             left, right = projected[]
             SyntaxDocument[left.output, _kw(doc.operator, p.keyword), right.output]
-        end);
+        end));
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -1059,10 +1060,10 @@ function print_document(p::SqlBooleanBinaryToSyntaxNode, recursion, doc, ctx)
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> begin
+        CellVector(Computed(() -> begin
             left, right = projected[]
             SyntaxDocument[left.output, _kw(p.keyword, p.keyword_style), right.output]
-        end);
+        end));
         open=TextString("(", p.keyword_style.font, color_default),
         close=TextString(")", p.keyword_style.font, color_default),
         sep=TextString(" ", p.keyword_style.font, color_default),
@@ -1142,8 +1143,8 @@ function print_document(p::SqlNotToSyntaxNode, recursion, doc::SqlNot, ctx)
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() ->
-            SyntaxDocument[_kw("NOT", p.keyword), expr_im[].output]);
+        CellVector(Computed(() ->
+            SyntaxDocument[_kw("NOT", p.keyword), expr_im[].output]));
         open=TextString("(", p.keyword.font, color_default),
         close=TextString(")", p.keyword.font, color_default),
         sep=TextString(" ", p.keyword.font, color_default),
@@ -1220,7 +1221,7 @@ function print_document(p::SqlSelectStatementToSyntaxNode, recursion, stmt::SqlS
                        make_child_context(ctx, FieldReferenceStep(name)))
         for name in _get_printed_select_clauses(stmt)]))
 
-    children = ComputedCellVector(() -> SyntaxDocument[im.output for im in child_iomaps_cell[]])
+    children = CellVector(Computed(() -> SyntaxDocument[im.output for im in child_iomaps_cell[]]))
 
     iomap_cell = Cell(nothing)
     sel = Cell(Computed(() -> begin
@@ -1341,7 +1342,7 @@ function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlI
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> begin
+        CellVector(Computed(() -> begin
             _, col_ims, _ = projected[]
             docs = SyntaxDocument[_kw("INSERT", p.keyword),
                                   _kw("INTO", p.keyword),
@@ -1350,7 +1351,7 @@ function print_document(p::SqlInsertStatementToSyntaxNode, recursion, stmt::SqlI
             push!(docs, _kw("VALUES", p.keyword))
             push!(docs, values_paren)
             docs
-        end);
+        end));
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -1470,10 +1471,10 @@ function print_document(p::SqlUpdateAssignmentToSyntaxNode, recursion, doc::SqlU
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> begin
+        CellVector(Computed(() -> begin
             col_im, val_im = projected[]
             SyntaxDocument[col_im.output, _kw("=", p.keyword), val_im.output]
-        end);
+        end));
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -1576,7 +1577,7 @@ function print_document(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlU
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> begin
+        CellVector(Computed(() -> begin
             table_im, _, where_im = projected[]
             docs = SyntaxDocument[_kw("UPDATE", p.keyword),
                                   table_im.output,
@@ -1587,7 +1588,7 @@ function print_document(p::SqlUpdateStatementToSyntaxNode, recursion, stmt::SqlU
                 push!(docs, where_im.output)
             end
             docs
-        end);
+        end));
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
 
@@ -1696,9 +1697,9 @@ function print_document(p::SqlColumnDefinitionToSyntaxNode, recursion, doc::SqlC
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> SyntaxDocument[
+        CellVector(Computed(() -> SyntaxDocument[
             col_im[].output,
-            SyntaxLeaf(TextString(() -> doc.data_type, p.type))]);
+            SyntaxLeaf(TextString(() -> doc.data_type, p.type))]));
         sep=TextString(" ", p.type.font, color_default),
         selection=sel)
 
@@ -1787,13 +1788,13 @@ function print_document(p::SqlCreateTableStatementToSyntaxNode, recursion, stmt:
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> begin
+        CellVector(Computed(() -> begin
             table_im, _ = projected[]
             SyntaxDocument[_kw("CREATE", p.keyword),
                            _kw("TABLE", p.keyword),
                            table_im.output,
                            columns_body]
-        end);
+        end));
         close=TextString(";", p.keyword.font, color_default),
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
@@ -1883,10 +1884,10 @@ function print_document(p::SqlCreateSchemaStatementToSyntaxNode, recursion, stmt
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> SyntaxDocument[
+        CellVector(Computed(() -> SyntaxDocument[
             _kw("CREATE", p.keyword),
             _kw("SCHEMA", p.keyword),
-            SyntaxLeaf(TextString(() -> stmt.schema_name, p.identifier_font, color_solarized_green))]);
+            SyntaxLeaf(TextString(() -> stmt.schema_name, p.identifier_font, color_solarized_green))]));
         close=TextString(";", p.keyword.font, color_default),
         sep=TextString(" ", p.keyword.font, color_default),
         selection=sel)
@@ -1962,7 +1963,7 @@ function print_document(p::SqlStatementListToSyntaxNode, recursion, doc::SqlStat
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> SyntaxDocument[_close_statement(p, im) for im in stmt_ims[]]);
+        CellVector(Computed(() -> SyntaxDocument[_close_statement(p, im) for im in stmt_ims[]]));
         sep=TextString("\n\n", p.font, color_default),
         selection=sel)
 

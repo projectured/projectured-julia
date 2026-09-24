@@ -42,11 +42,11 @@ function print_document(p::SortingProjection, recursion, input::CellVector, ctx)
         (i, x) -> print_child(recursion, x,
             make_child_context(ctx, ElementReferenceStep(i))))
     index_map = Cell(Computed(() -> sortperm(1:length(input); by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)))
-    output = ComputedCellVector(() -> begin
+    output = CellVector(Computed(() -> begin
         cs = child_iomaps[]
         perm = index_map[]
         [cs[perm[j]].output for j in 1:length(perm)]
-    end)
+    end))
     set_cell_function!(getfield(output, :selection), () -> input.selection)
     SortingIoMap(p, input, output, index_map, child_iomaps)
 end

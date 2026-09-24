@@ -147,7 +147,7 @@ function print_document(p::MathBinaryOperationToSyntaxNode, recursion, m::MathBi
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> SyntaxDocument[left_iomap[].output, op_leaf, right_iomap[].output]);
+        CellVector(Computed(() -> SyntaxDocument[left_iomap[].output, op_leaf, right_iomap[].output]));
         sep=TextString(" ", p.op.font, color_default),
         selection=sel)
     ChildrenIoMap(p, m, node, Cell(Computed(() -> [left_iomap[], right_iomap[]])))
@@ -214,7 +214,7 @@ function print_document(p::MathParenthesizedToSyntaxNode, recursion, m::MathPare
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> SyntaxDocument[content_iomap[].output]);
+        CellVector(Computed(() -> SyntaxDocument[content_iomap[].output]));
         open=TextString(() -> get_math_delimiter_strings(m.kind)[1], p.delim),
         close=TextString(() -> get_math_delimiter_strings(m.kind)[2], p.delim),
         selection=sel)
@@ -311,7 +311,7 @@ function print_document(p::MathAssignmentToSyntaxNode, recursion, m::MathAssignm
     end))
 
     node = SyntaxNode(
-        ComputedCellVector(() -> SyntaxDocument[target_iomap[].output, eq_leaf, value_iomap[].output]);
+        CellVector(Computed(() -> SyntaxDocument[target_iomap[].output, eq_leaf, value_iomap[].output]));
         sep=TextString(" ", p.eq.font, color_default),
         selection=sel)
     ChildrenIoMap(p, m, node, Cell(Computed(() -> [target_iomap[], value_iomap[]])))

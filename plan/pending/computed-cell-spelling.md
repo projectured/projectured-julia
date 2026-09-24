@@ -29,10 +29,10 @@ Counted on 2026-09-24:
 One sealed file changes: the example in `CellInterface.jl`. The owner gave
 permission for that file in the same conversation.
 
-## Open question
+## `ComputedCellVector`
 
-`ComputedCellVector(f)` in the collection layer is `CellVector(Computed(f))` in
-the same way. The owner decides whether it goes with `ComputedCell`.
+`ComputedCellVector(f)` in the collection layer was `CellVector(Computed(f))` in
+the same way. The owner chose on 2026-09-24 to remove it too, as step 5.
 
 ## Steps
 
@@ -72,3 +72,13 @@ the same way. The owner decides whether it goes with `ComputedCell`.
   - inet-julia: one call and one import list.
   - Both repositories reach projectured-julia by a relative `[sources]` path to
     its main checkout, so they must land right after projectured-julia does.
+- [x] 5. The same removal for `ComputedCellVector`, with the same script and the
+  name and the replacement as constants.
+  - projectured-julia: 121 calls in 59 files, 6 import lists, 7 prose
+    mentions, 6 Markdown mentions and one line rewrapped. The docstring moves
+    onto the `CellVector(computed::Computed)` method.
+  - `ComputedCellVector` came from `CollectionModule`, but `Computed` comes
+    from `CellModule`. A file that imported only some names of `CellModule` can
+    miss `Computed` now: `DatabaseInstanceToDbCatalog.jl` imports it
+    explicitly, and a check at run time looks for every module that sees
+    `CellVector` and not `Computed`.

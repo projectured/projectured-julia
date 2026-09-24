@@ -278,7 +278,7 @@ function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
         c = _leaf_cursor(leaf)                          # leaf-domain path → flat offset
         c < 0 ? nothing : _flat_to_text_elem_path(_leaf_spans(leaf), c)   # flat offset → TextBlock path
     end)))
-    SimpleIoMap(p, leaf, TextBlock(ComputedCellVector(() -> _leaf_spans(leaf)), sel))
+    SimpleIoMap(p, leaf, TextBlock(CellVector(Computed(() -> _leaf_spans(leaf))), sel))
 end
 ```
 

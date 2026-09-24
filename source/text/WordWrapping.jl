@@ -62,7 +62,7 @@ function print_document(p::WordWrapping, recursion, text::TextBlock, ctx)
     wrap_w_cell = _wrap_width_cell(p, ctx)
     measure_fn = p.measure
     both = Cell(Computed(() -> _wrap(text, Int(wrap_w_cell[]), measure_fn)))
-    elements_cv = ComputedCellVector(() -> both[][1])
+    elements_cv = CellVector(Computed(() -> both[][1]))
     segs_cell = Cell(Computed(() -> both[][2]))
     out_selection = Cell(Computed(() -> _forward_wrapped(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)),
                                                          text.selection)))

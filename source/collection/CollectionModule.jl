@@ -34,7 +34,7 @@ import ..DocumentModule: copy_document, sync_document!, has_document_duplicate,
 import ..OperationModule: child_reference_steps, get_slot_at
 import ..ProjectionModule: make_children_container, get_children_container_type
 
-export CollectionDocument, CellVector, ComputedCellVector, CellMatrix, CellTable, ListNode,
+export CollectionDocument, CellVector, CellMatrix, CellTable, ListNode,
        get_left_tail, get_right_tail, get_cell_at, take_first, insert_row!,
        insert_column!, delete_row!, delete_column!
 

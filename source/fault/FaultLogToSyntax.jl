@@ -47,7 +47,7 @@ const _SITE_WIDTH = 9
 
 function print_document(p::FaultLogToSyntax, recursion, log::FaultLog,
                         ctx::PrinterContext)
-    children = ComputedCellVector(function ()
+    children = CellVector(Computed(function ()
         entries = log.entries
         isempty(entries) &&
             return SyntaxDocument[SyntaxLeaf(TextString("no fault", p.empty))]
@@ -56,7 +56,7 @@ function print_document(p::FaultLogToSyntax, recursion, log::FaultLog,
             push!(lines, _fault_line(p, entries[index]))
         end
         lines
-    end)
+    end))
     SimpleIoMap(p, log, SyntaxNode(children; sep = TextString("\n")))
 end
 

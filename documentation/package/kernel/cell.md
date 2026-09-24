@@ -142,7 +142,7 @@ below; the full field-wrapping mechanics live in [the macros guide](macros.md).
   only that slot, which is how the editor avoids re-rendering siblings.
 - **`set_cell_function!(getfield(obj, :field), () -> …)`** — used to lazily attach a
   computation to a field after construction; common in
-  `ComputedCellVector(f)` and child-element generators.
+  `CellVector(Computed(f))` and child-element generators.
 
 ## Best practices
 

@@ -1,7 +1,7 @@
 # Fragment of `OdbcModule`.
 #
 import ProjecturedKernel.CellModule: Cell, Computed
-import ProjecturedCollection.CollectionModule: CellVector, ComputedCellVector, CellTable
+import ProjecturedCollection.CollectionModule: CellVector, CellTable
 import ProjecturedKernel.ProjectionModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
 import ProjecturedSql.SqlModule: SqlSelectStatement
@@ -31,12 +31,12 @@ function print_document(p::SqlToCellTable, recursion, stmt::SqlSelectStatement, 
             execute_db_raw(adapter, sql, RawDatabaseResult)
         end
     end))
-    rows = ComputedCellVector(() -> begin
+    rows = CellVector(Computed(() -> begin
         r = raw[]
         header = CellVector(r.columns)               # row 1: column names
         data   = [CellVector(row) for row in r.rows]  # rows 2..n: data rows
         vcat([header], data)
-    end)
+    end))
     SimpleIoMap(p, stmt, CellTable(rows, Cell(nothing)))
 end
 

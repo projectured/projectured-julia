@@ -62,7 +62,7 @@ function print_document(p::SearchingProjection, recursion, input, ctx)
         _walk(p, input, EmptyReference(), acc, Base.IdSet{Any}())
         acc
     end))
-    output = ComputedCellVector(() -> [obj for (_, obj) in matches[]])
+    output = CellVector(Computed(() -> [obj for (_, obj) in matches[]]))
     match_paths = Cell(Computed(() -> Reference[path for (path, _) in matches[]]))
     iomap = SearchingIoMap(p, input, output, match_paths)
 

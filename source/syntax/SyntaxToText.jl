@@ -114,7 +114,7 @@ function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
         c = _leaf_cursor(leaf)
         c < 0 ? nothing : _flat_to_text_elem_path(_leaf_spans(leaf), c)
     end)))
-    SimpleIoMap(p, leaf, TextBlock(ComputedCellVector(() -> _leaf_spans(leaf)), sel))
+    SimpleIoMap(p, leaf, TextBlock(CellVector(Computed(() -> _leaf_spans(leaf))), sel))
 end
 
 function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceSelectionOperation)
@@ -558,7 +558,7 @@ function print_document(p::SyntaxCompoundToText, recursion, node::SyntaxCompound
     # forward-reference break, as in CollectionToSyntax/BookToSyntax).
     iomap_cell = Cell(nothing)
     output = TextBlock(
-        ComputedCellVector(() -> spans[].elements),
+        CellVector(Computed(() -> spans[].elements)),
         # The bit rides from input to output. `map_selection_forward` hands the
         # stored path to the composer and gives the image back carrying the node's
         # own live/dormant state, so a dormant caret stays dormant all the way to

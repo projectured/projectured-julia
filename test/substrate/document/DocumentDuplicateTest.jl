@@ -113,7 +113,7 @@ end
 
 @testset "a computed list refuses" begin
     source = PrimitiveString("x")
-    list = ComputedCellVector(() -> Any[source])
+    list = CellVector(Computed(() -> Any[source]))
     @test occursin("computes", _refusal(list))
 end
 

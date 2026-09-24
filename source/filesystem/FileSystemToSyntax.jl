@@ -103,7 +103,7 @@ function print_document(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSy
         selection=d.selection)
 
     body_node = SyntaxNode(
-        ComputedCellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]]);
+        CellVector(Computed(() -> SyntaxDocument[im.output for im in child_iomaps[]]));
         indentation=2)
 
     # Wire the output selection canonically: map d.selection forward through this

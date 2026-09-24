@@ -223,7 +223,7 @@ TextBlock(spans::Vector{<:TextDocument}) =
 TextBlock(spans::TextDocument...) =
     TextBlock(CellVector(Cell[Cell(s) for s in spans]), Cell(nothing))
 
-TextBlock(f::Function) = TextBlock(ComputedCellVector(f), Cell(nothing))
+TextBlock(f::Function) = TextBlock(CellVector(Computed(f)), Cell(nothing))
 
 # ── TextLine ───────────────────────────────────────────────────────────
 
@@ -260,7 +260,7 @@ TextLine(spans::TextDocument...; indentation::Integer = 0) =
     TextLine(collect(TextDocument, spans); indentation)
 
 TextLine(f::Function; indentation::Integer = 0) =
-    TextLine(ComputedCellVector(f), Cell(Int(indentation)), Cell(nothing))
+    TextLine(CellVector(Computed(f)), Cell(Int(indentation)), Cell(nothing))
 
 # A lone line is not a document — it is a part of a block. Both of its fields are
 # defaulted, so unlike the span types (each has a required field, and so no

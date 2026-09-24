@@ -41,7 +41,7 @@ function print_document(p::RstRootToVerticalLayout, recursion, root::RstRoot, ct
     # card, built once for the block (see `_rst_block`).
     elements = root.elements::CellVector
     cards = IdDict{Any,Any}()
-    children = ComputedCellVector(() -> Any[_rst_block(element, cards) for element in elements])
+    children = CellVector(Computed(() -> Any[_rst_block(element, cards) for element in elements]))
     out = VerticalLayout(children,
                          Cell(p.horizontal_align), Cell(p.gap),
                          Cell(nothing), Cell(nothing), sel)
@@ -75,11 +75,11 @@ function print_document(p::RstSectionToVerticalLayout, recursion, section::RstSe
     # each block renders in its own domain and an embed reaches the widget
     # renderer. The title is rebuilt reactively: editing it re-renders the line.
     cards = IdDict{Any,Any}()
-    children = ComputedCellVector(() -> begin
+    children = CellVector(Computed(() -> begin
         stack = Any[_title_block(section)]
         append!(stack, [_rst_block(element, cards) for element in section.elements])
         stack
-    end)
+    end))
     out = VerticalLayout(children, Cell(p.horizontal_align), Cell(p.gap),
                          Cell(nothing), Cell(nothing), sel)
     iomap = SimpleIoMap(p, section, out)

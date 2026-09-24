@@ -827,7 +827,7 @@ function print_document(p::HorizontalLayoutToGraphicsCanvas,
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(Computed(() -> Int32(build[].w[]))),
                            Cell(Computed(() -> Int32(build[].h[]))),
-                           ComputedCellVector(() -> vcat(build[].wrapped, Any[ring])),
+                           CellVector(Computed(() -> vcat(build[].wrapped, Any[ring]))),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, Cell(Computed(() -> build[].entries)))
 end
@@ -996,7 +996,7 @@ function print_document(p::VerticalLayoutToGraphicsCanvas,
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(Computed(() -> Int32(build[].w[]))),
                            Cell(Computed(() -> Int32(build[].h[]))),
-                           ComputedCellVector(() -> vcat(build[].wrapped, Any[ring])),
+                           CellVector(Computed(() -> vcat(build[].wrapped, Any[ring]))),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, Cell(Computed(() -> build[].entries)))
 end
@@ -1502,7 +1502,7 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(Computed(() -> Int32(build[].w[]))),
                            Cell(Computed(() -> Int32(build[].h[]))),
-                           ComputedCellVector(() -> vcat(build[].wrapped, Any[ring])),
+                           CellVector(Computed(() -> vcat(build[].wrapped, Any[ring]))),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, Cell(Computed(() -> build[].entries)))
 end
@@ -1638,7 +1638,7 @@ function print_document(p::StackLayoutToGraphicsCanvas,
          [_sl_child_y_cell(i, cims, outer_h, valign) for i in 1:n])
     end))
 
-    elements_cv = ComputedCellVector(() -> begin
+    elements_cv = CellVector(Computed(() -> begin
         (n, cims) = build[]
         (cx, cy) = positions[]
         out = Any[]
@@ -1647,7 +1647,7 @@ function print_document(p::StackLayoutToGraphicsCanvas,
             c isa GraphicsCanvas && push!(out, _wrap_child(c, cx[i], cy[i]))
         end
         out
-    end)
+    end))
 
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(Computed(() -> Int32(outer_w[]))),
@@ -1845,7 +1845,7 @@ function print_document(p::ConstraintLayoutToGraphicsCanvas,
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(Computed(() -> Int32(build[].w[]))),
                            Cell(Computed(() -> Int32(build[].h[]))),
-                           ComputedCellVector(() -> vcat(build[].wrapped, Any[ring])),
+                           CellVector(Computed(() -> vcat(build[].wrapped, Any[ring]))),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, Cell(Computed(() -> build[].entries)))
 end
@@ -1991,7 +1991,7 @@ function print_document(p::AnchoredLayoutToGraphicsCanvas, recursion,
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                            Cell(Computed(() -> Int32(build[].w[]))),
                            Cell(Computed(() -> Int32(build[].h[]))),
-                           ComputedCellVector(() -> vcat(build[].wrapped, Any[ring])),
+                           CellVector(Computed(() -> vcat(build[].wrapped, Any[ring]))),
                            layout_none, true, Cell(nothing))
     ChildrenIoMap(p, doc, outer, Cell(Computed(() -> build[].entries)))
 end

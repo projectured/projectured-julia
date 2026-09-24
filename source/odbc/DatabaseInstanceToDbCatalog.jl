@@ -1,6 +1,6 @@
 # Fragment of `OdbcModule`.
 #
-import ProjecturedCollection.CollectionModule: CellVector, ComputedCellVector
+import ProjecturedCollection.CollectionModule: CellVector
 import ProjecturedDatabase.DatabaseModule: DatabaseInstance, DatabaseCredentials
 import ProjecturedDbCatalog.DbCatalogModule: DbCatalogRdbms, DbCatalogDatabase,
                                   DbCatalogSchema, DbCatalogTable, DbCatalogColumn
@@ -9,7 +9,7 @@ import ProjecturedDatabase.DatabaseModule: get_db_catalog_databases, get_db_cata
 import ProjecturedKernel.IoMapModule: SimpleIoMap
 import ProjecturedKernel.ProjectionModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ProjecturedKernel.CellModule: set_cell_function!
+import ProjecturedKernel.CellModule: Computed, set_cell_function!
 import ProjecturedKernel.ReferenceModule: EmptyReference
 import ProjecturedKernel.ReferenceModule: var"@reference_case"
 import ProjecturedKernel.ReferenceModule: var"@reference"
@@ -31,42 +31,42 @@ _make_database_instance(instance::DatabaseInstance, database::String) =
                                                        password = instance.credentials.password))
 
 function _build_columns(pool, inst, schema_name::String, table_name::String)
-    ComputedCellVector(() -> begin
+    CellVector(Computed(() -> begin
         cols = with_connection(pool, inst) do adapter
             get_db_catalog_columns(adapter, schema_name, table_name)
         end
         DbCatalogColumn[DbCatalogColumn(c.name, c.data_type) for c in cols]
-    end)
+    end))
 end
 
 function _build_tables(pool, inst, schema_name::String)
-    ComputedCellVector(() -> begin
+    CellVector(Computed(() -> begin
         names = with_connection(pool, inst) do adapter
             get_db_catalog_tables(adapter, schema_name)
         end
         DbCatalogTable[DbCatalogTable(n, _build_columns(pool, inst, schema_name, n))
                        for n in names]
-    end)
+    end))
 end
 
 function _build_schemas(pool, inst, database_name::String)
-    ComputedCellVector(() -> begin
+    CellVector(Computed(() -> begin
         names = with_connection(pool, inst) do adapter
             get_db_catalog_schemas(adapter, database_name)
         end
         DbCatalogSchema[DbCatalogSchema(n, _build_tables(pool, inst, n))
                         for n in names]
-    end)
+    end))
 end
 
 function _build_databases(pool, inst)
-    ComputedCellVector(() -> begin
+    CellVector(Computed(() -> begin
         names = with_connection(pool, inst) do adapter
             get_db_catalog_databases(adapter)
         end
         DbCatalogDatabase[DbCatalogDatabase(n, _build_schemas(pool, _make_database_instance(inst, n), n))
                           for n in names]
-    end)
+    end))
 end
 
 # ── DatabaseInstanceToDbCatalog ─────────────────────────────────────────────────

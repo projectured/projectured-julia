@@ -161,7 +161,7 @@ function _wtl_row(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx
         maximum((_wtl_child_h(entry[3]) for entry in entries); init = 0)))
     height = Cell(Computed(() -> Int32(bw + pad_y + Int(row_h[]) + pad_y)))
     divider_stroke = _get_state_stroke(p, w, :divider)
-    elements = ComputedCellVector(() -> begin
+    elements = CellVector(Computed(() -> begin
         total_w = Int(st.total_w[])
         edges = st.columns[]
         out = Any[]
@@ -186,7 +186,7 @@ function _wtl_row(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx
             push!(out, GraphicsRect(edge, 0, bw, Int(height[]); color = divider_stroke.color))
         end
         out
-    end)
+    end))
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
                             Cell(Computed(() -> Int32(Int(st.total_w[])))), height,
                             elements, layout_none, true, Cell(nothing))
@@ -315,7 +315,7 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
         header_h = Cell(Computed(() -> maximum((_wtl_child_h(entry[3]) for entry in st.header_entries); init = 0)))
         strip_h = Cell(Computed(() -> bw + pad_y + Int(header_h[]) + pad_y))
         set_cell_function!(st.header_height, () -> content_y + Int(strip_h[]))
-        header_elements = ComputedCellVector(() -> begin
+        header_elements = CellVector(Computed(() -> begin
             out = Any[GraphicsRect(0, 0, Int(total_w[]), Int(strip_h[]); color = header_row_color)]
             for c in 1:ncols
                 (x_cell, y_cell, cim) = st.header_entries[c]
@@ -333,7 +333,7 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
                 push!(out, GraphicsRect(edge, 0, bw, Int(strip_h[]); color = divider_stroke.color))
             end
             out
-        end)
+        end))
         header_canvas = GraphicsCanvas(Cell(Int32(content_x)), Cell(Int32(content_y)),
                                        Cell(Computed(() -> Int32(Int(total_w[])))),
                                        Cell(Computed(() -> Int32(Int(strip_h[])))),

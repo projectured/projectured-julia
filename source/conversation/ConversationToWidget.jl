@@ -176,7 +176,7 @@ function print_document(projection::ConversationConversationToWidgetComposite,
         for i in eachindex(c.turns)
     ]))
     # Every turn fills the width it is given and grows with what it holds.
-    layout = VerticalLayout(ComputedCellVector(() -> Any[im.output for im in ioms[]]),
+    layout = VerticalLayout(CellVector(Computed(() -> Any[im.output for im in ioms[]])),
                             Cell(:left), Cell(_TURN_GAP),
                             Cell(Fill), Cell(Content), Cell(nothing))
     iomap = ChildrenIoMap(projection, c, layout, ioms)
@@ -194,7 +194,7 @@ function print_document(projection::ConversationTurnToWidgetComposite,
         for i in eachindex(t.parts)
     ]))
     # And so does every part inside a turn.
-    body = VerticalLayout(ComputedCellVector(() -> Any[im.output for im in ioms[]]),
+    body = VerticalLayout(CellVector(Computed(() -> Any[im.output for im in ioms[]])),
                           Cell(:left), Cell(_GAP),
                           Cell(Fill), Cell(Content), Cell(nothing))
     # A turn is a band and not a box. The user's band is tinted and the model's

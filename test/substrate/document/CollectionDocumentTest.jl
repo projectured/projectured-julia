@@ -338,7 +338,7 @@ end # @testset "ReactiveCollection"
 
         # deriving the element list is what the marker is for
         src = Cell(2)
-        derived = ComputedCellVector(() -> [10i for i in 1:src[]])
+        derived = CellVector(Computed(() -> [10i for i in 1:src[]]))
         @test [x for x in derived] == [10, 20]
         src[] = 3
         @test [x for x in derived] == [10, 20, 30]   # re-derives on upstream change

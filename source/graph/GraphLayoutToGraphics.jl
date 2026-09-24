@@ -174,7 +174,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
         (result, node_at)
     end))
 
-    elements = ComputedCellVector(() -> drawn[][1])
+    elements = CellVector(Computed(() -> drawn[][1]))
     node_elements = Cell(Computed(() -> drawn[][2]))
 
     # How much room the graph needs, read off the layout that placed it.
