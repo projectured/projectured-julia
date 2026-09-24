@@ -291,10 +291,16 @@ end
     @test _et_flatten(form.result) == "phase_q (generic function with 1 method)"
 end
 
+@testset "a form becomes Julia with its lambda, its keywords and its short definitions" begin
+    for code in ("map(x -> x^2, [1, 2])", "sum([1, 2]; init = 0)", "twice_q(x) = 2 * x")
+        @test !(evaluated_form(code).form isa PrimitiveString)
+    end
+end
+
 @testset "a form whose parse would change more than spacing keeps its string" begin
-    # A comment has no place in the Julia document, and the print gives a lambda
-    # parentheses that were not typed: both forms keep what was typed.
-    for code in ("x = 1 + 2  # three", "map(x -> x^2, [1, 2])")
+    # A comment has no place in the Julia document, and the print writes a
+    # juxtaposed product with `*`: both forms keep what was typed.
+    for code in ("x = 1 + 2  # three", "y = 2x + 1")
         form = evaluated_form(code)
         @test form.form isa PrimitiveString
         @test form.form.value == code

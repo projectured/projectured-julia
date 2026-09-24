@@ -144,5 +144,16 @@ The owner's answers to the three questions of 2026-09-24:
       projections copy that table and append their own rows after it, so the
       catch-all row wins: a formula reference draws `⟨FormulaReference⟩`, a
       component `⟨FsmComponent⟩`.
+- [x] Step 4c: a lambda keeps its parentheses as the code wrote them. The new
+      forms need a helper, `draw!(elements...) = foreach(element -> …, elements)`,
+      and the domain printed `element -> …` as `(element) -> …`, so the form kept
+      its string. `JuliaLambda` has `parenthesized` (default `true`), which the
+      parser sets from the shape Julia gives, `(x) -> …` or `x -> …`. The
+      evaluator test that named `map(x -> x^2, [1, 2])` as a form that keeps its
+      string now names `y = 2x + 1`, and a new check says that a lambda, a
+      keyword after `;` and a short definition become Julia.
+      `test_evaluator_toplevel` 213, `test_julia` 133, the Julia navigation with
+      the same 28 unreached positions. All 13 forms of the new take become Julia
+      documents (`build/suites/s1/probe_forms.jl`).
 - [ ] Step 5: the script: items 1, 5, 6 and 9, and the forms of item 3.
 - [ ] Step 6: record S1 again and give it to the owner.

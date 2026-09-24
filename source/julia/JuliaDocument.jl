@@ -239,6 +239,9 @@ documents (empty for `() -> …`); `body` is the returned expression.
 @document struct JuliaLambda <: JuliaDocument
     parameters::CellVector
     body::Document
+    # Whether the parameters stand in parentheses, as the code wrote them:
+    # `(x) -> x` and `() -> 1` do, `x -> x` does not.
+    parenthesized::Bool = true
 end
 
 """

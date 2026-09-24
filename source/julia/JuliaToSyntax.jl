@@ -516,8 +516,12 @@ end
 
 @projection_template JuliaLambdaToSyntaxNode JuliaLambda (p, l) ->
     SyntaxConcatenation([ SyntaxNode(collection(:parameters);
-                                     open=TextString("(", p.delim),
-                                     close=TextString(") -> ", p.arrow),
+                                     open=TextString(ComputedCell(() -> l.parenthesized ? "(" : ""),
+                                                     Cell(p.delim.font), Cell(p.delim.color),
+                                                     Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing)),
+                                     close=TextString(ComputedCell(() -> l.parenthesized ? ") -> " : " -> "),
+                                                      Cell(p.arrow.font), Cell(p.arrow.color),
+                                                      Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing)),
                                      sep=TextString(", ", p.delim)),
                           project(:body) ])
 

@@ -309,7 +309,8 @@ function _convert_head(::Val{:->}, x::Expr)
     else
         convert_expr(b)
     end
-    JuliaLambda(JuliaDocument[convert_expr(p) for p in params], body)
+    JuliaLambda(JuliaDocument[convert_expr(p) for p in params], body,
+                a isa Expr && a.head in (:tuple, :block))
 end
 
 # ── Compound expressions ─────────────────────────────────────────────────────
