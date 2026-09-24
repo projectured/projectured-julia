@@ -50,6 +50,7 @@ function test_kernel()
         test_kernel_layering()
         test_layering_checkers()
         test_fault_defaults()
+        test_fault_record()
         test_cell()
         test_cell_struct()
         test_struct_plan()
@@ -88,7 +89,7 @@ export test_kernel, test_kernel_layering
 # layering guard (shared by base/visual/domain test packages)
 export check_layering, get_package_source_root, test_layering_checkers
 # kernel unit suites
-export test_fault_defaults,
+export test_fault_defaults, test_fault_record,
        test_cell, test_cell_struct, test_struct_plan, test_performance_counter, test_clock,
        test_document_contract, test_document_macro,
        test_reference_builder, test_reference_evaluation, test_reference_rules, test_rerooting,

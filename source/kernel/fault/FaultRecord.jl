@@ -65,7 +65,8 @@ compute_fault_key(site::Symbol, origin::Symbol, exception_type::Symbol) =
 """
     format_fault_message(exception; maximum_length = 400) -> String
 
-The message of `exception`, as one line, truncated.
+The message of `exception`, as one line, truncated to `maximum_length`
+characters.
 
 It never throws. An exception whose own `showerror` fails answers its type name,
 because a report that can not be written is worse than a report that is short.
@@ -77,7 +78,7 @@ function format_fault_message(exception; maximum_length::Integer = 400)
         string(nameof(typeof(exception)))
     end
     text = replace(text, '\n' => ' ')
-    length(text) > maximum_length ? text[1:maximum_length] * "…" : text
+    length(text) > maximum_length ? first(text, maximum_length) * "…" : text
 end
 
 """
