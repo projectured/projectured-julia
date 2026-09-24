@@ -75,7 +75,7 @@ _make_shown_content(content::Union{AbstractString, Document}) = content
 _make_shown_content(content) = string(content)
 
 _make_shown_cell(content::Cell) = content
-_make_shown_cell(content::Function) = ComputedCell(() -> _make_shown_content(content()))
+_make_shown_cell(content::Function) = Cell(@computation _make_shown_content(content()))
 _make_shown_cell(content) = Cell(content)
 
 function WidgetLabel(content; position::Point2D=Point2D(0, 0),
@@ -1655,7 +1655,7 @@ in one word.
 end
 _make_share_cell(value::Real) = Cell(Float64(value))
 _make_share_cell(value::Cell) = value
-_make_share_cell(value::Function) = ComputedCell(() -> Float64(value()))
+_make_share_cell(value::Function) = Cell(@computation Float64(value()))
 
 WidgetProgress(value::Union{Real, Cell, Function}; position::Point2D=Point2D(0, 0), width::Integer=240, visible::Bool=true,
                margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing) =

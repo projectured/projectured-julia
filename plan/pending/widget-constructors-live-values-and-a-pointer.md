@@ -68,7 +68,7 @@ and before:
   `build/suites/s4/probe_forms.jl` shows that each proposed form of §3.6 becomes a
   Julia document. A string that interpolates a bare name, `"a $x b"`, prints as
   `"a $(x) b"` and stays a string; S4 does not use it.
-- `Cell(f)` holds a function as a plain value; only `ComputedCell(f)` follows it.
+- `Cell(f)` holds a function as a plain value; only a computed cell, `Cell(@computation f())`, follows it.
   So `WidgetLabel(position, () -> …)` draws the function (A2).
 
 ## 3. The design
@@ -114,7 +114,8 @@ land.
 ### 3.3 A function where a widget shows a value
 
 The same rule as the graphics of S1: a value, a cell, or a function of no
-arguments, and a function becomes a `ComputedCell` that follows what it reads.
+arguments, and a function becomes a computed cell, `Cell(@computation f())`,
+that follows what it reads.
 
 - `WidgetLabel(content)`: a string, a document, a cell or a function. An answer
   that is neither a string nor a document shows as `string(answer)`.
@@ -175,7 +176,7 @@ sealed).
 
 - A cell shows as its constructor makes it, as `MutableCell(0)`,
   `ImmutableCell(0)` and `Clock(time = 12.5)` already do: `Cell(0)`. A computed
-  cell shows as `ComputedCell(…)` with its value now, and `<invalid>` when it
+  cell shows as `Cell(@computation …)` with its value now, and `<invalid>` when it
   has none yet; the display computes nothing and subscribes to nothing.
 - When the value of a form is a `ReactiveCell`, its result is a text whose
   content is a computed cell: it reads the cell and gives its display, so the
@@ -229,9 +230,9 @@ sealed).
       `ProjecturedStatistics`. The branch lands right after projectured-julia.
 - [x] Step 3: the live values of §3.3, with tests. **Done.** A label takes a
       cell as it is (no caller passed one before) and makes a function a
-      `ComputedCell` whose answer shows as it is when it is a string or a
+      computed cell whose answer shows as it is when it is a string or a
       document, and as its text otherwise. A progress bar makes a function a
-      `ComputedCell` of a `Float64`. `_table_cell_doc` makes a function a live
+      computed cell of a `Float64`. `_table_cell_doc` makes a function a live
       label. `test_widget_live_values()` checks the text that the printed canvas
       draws before and after the cell changes: 14 of 14.
 - [x] Step 4: the pointer of §3.4, with a test. **Done.** `VideoBackend` and
