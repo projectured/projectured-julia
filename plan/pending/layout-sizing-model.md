@@ -218,10 +218,14 @@ extent of the stack on this axis = B when S ≠ ∅, else maxᵢ eᵢ
 child in a column):
 
 ```
-an unweighted child i (wᵢ = 0):
+a Fixed child i (prefᵢ = minᵢ = maxᵢ = k):
+    sᵢ = k      lᵢ = k                           ← new on this axis: today only the cross axis tells it
+
+an unweighted child i (wᵢ = 0, not Fixed):
     sᵢ = ∅
     lᵢ = B − g·(n−1) − Σ(j < i, wⱼ = 0) eⱼ − Σ(j > i, wⱼ = 0) minⱼ − Σ(wⱼ > 0) minⱼ     ← new
          (∅ when B = ∅)
+    lᵢ = min(lᵢ, maxᵢ)  when the placement gives maxᵢ
 
 a weighted child i (wᵢ > 0), when S ≠ ∅:
     a  = allocate_axis(S − ins; min, max, pref, w, g), with prefⱼ = eⱼ for every unweighted j
