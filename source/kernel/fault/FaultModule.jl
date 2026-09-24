@@ -35,15 +35,14 @@ The module lives in seven fragments that share this namespace:
 """
 module FaultModule
 
-export FaultRecord, FaultStore, FaultPolicy,
-       make_fault_record,
-       record_fault!, drain_faults!, attach_fault_target!, attach_fault_wake!,
-       get_consecutive_fault_count, reset_consecutive_fault_count!,
-       get_fault_records,
-       append_fault!, play_fault_sound!, is_passthrough_exception,
-       get_fault_store, make_safe_mode_projection,
-       report_fault!, run_fault_barrier,
-       make_strict_fault_policy
+export append_fault!, play_fault_sound!, get_fault_store, make_safe_mode_projection,
+       is_passthrough_exception
+export FaultRecord, make_fault_record
+export FaultStore, record_fault!, drain_faults!, get_fault_records,
+       attach_fault_target!, attach_fault_wake!,
+       get_consecutive_fault_count, reset_consecutive_fault_count!
+export FaultPolicy, make_strict_fault_policy
+export report_fault!, run_fault_barrier
 
 include("FaultInterface.jl")   # the open seams (declaration-only)
 include("FaultDefaults.jl")    # what each seam answers on its own

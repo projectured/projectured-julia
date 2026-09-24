@@ -18,12 +18,12 @@ module PerformanceModule
 
 using Base.ScopedValues: ScopedValue, with
 
-export with_performance_counters, get_performance_counters,
-       @count_performance, @measure_performance_time, PERFORMANCE_COUNTERS_ENABLED
-export FrameMeasurementSummary, FrameSampleStore, record_frame_sample!,
+export PERFORMANCE_COUNTERS_ENABLED, with_performance_counters,
+       @count_performance, @measure_performance_time, get_performance_counters
+export FrameSampleStore, record_frame_sample!,
        get_frame_count, get_frame_measurement_names,
-       compute_frame_measurement_summary, collect_recent_frame_samples,
-       write_frame_samples!
+       FrameMeasurementSummary, compute_frame_measurement_summary,
+       collect_recent_frame_samples, write_frame_samples!
 
 include("PerformanceCounter.jl")
 include("FrameSample.jl")
