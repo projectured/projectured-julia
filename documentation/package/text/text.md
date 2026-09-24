@@ -73,7 +73,7 @@ A decorator is a projection from `TextBlock` to `TextBlock`. You put it before `
 
 | Projection | What it does |
 | --- | --- |
-| `WordWrapping(; max_width, measure)` | breaks lines at word boundaries, at `ctx.available_width` when the context has one |
+| `WordWrapping(; max_width, measure)` | breaks lines at word boundaries, at the maximum of the range on the width (`ctx.maximum_width`), exact or bounded, and at `max_width` when the context gives no edge |
 | `TextLineNumbering(; width, separator, font)` | puts a number span before each line |
 | `TextFiltering(pattern; invert)` | keeps only the lines that match the pattern |
 | `TextHighlighting(pattern; color)` | sets `fill_color` on each match |

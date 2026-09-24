@@ -1095,46 +1095,52 @@ end
 
 # ── Width resolution (content-aware + layout-aware) ─────────────────────────
 
-# The sizing rule, once, for both axes.
+# The sizing rule, once, for both axes. The parent gives each axis a range, a
+# minimum and a maximum (`PrinterContext`); the widget draws
+# `max(minimum, content)`, or its authored size.
 #
-#   - when the parent offered an extent on this axis, take it (so the widget
-#     participates in automatic layout);
-#   - otherwise fall back to the authored `intrinsic`;
-#   - never go under `content_min` — the measured content plus its padding — so
-#     content is never clipped.
+#   - an exact range (the minimum is the maximum) stretches the widget to it, so
+#     the widget takes its slot in a layout;
+#   - a bounded or a free range has no minimum, so the widget draws its content;
+#   - the widget never goes under its content — the measured content plus its
+#     padding — so content is never lost; the container clips what passes the
+#     maximum.
 #
-# `content_min` defaults to 0 for widgets with no measurable content (progress,
-# slider, skeleton), which then size purely from the offer or the authored value.
+# A widget with no measurable content (progress, slider, skeleton) has a content
+# of 0 and sizes from the minimum or from its authored value.
 #
 # The two axes are the same rule with a different field. Whether a widget fills
-# on an axis is decided by whether its parent offered anything there, which is the
-# parent's business and not the widget's.
+# on an axis is decided by the range its parent gave there, which is the parent's
+# business and not the widget's.
 # An overlay — a tooltip, a menu, a context menu — sizes to its content and to any
-# size its caller asked for, and is then CAPPED by what the parent offered rather
-# than stretched to it. A tooltip that filled its window would be a panel.
+# size its caller asked for, and is then CAPPED at the maximum of the range rather
+# than stretched to the minimum. A tooltip that filled its window would be a panel.
 function _resolve_overlay(ctx, axis::Symbol, authored::Int, content::Int)
-    base  = max(authored, content)
-    avail = ctx === nothing ? nothing :
-            axis === :x ? ctx.available_width : ctx.available_height
-    avail === nothing ? base : min(base, max(0, Int(avail[])))
+    base = max(authored, content)
+    edge = ctx === nothing ? nothing :
+           axis === :x ? ctx.maximum_width : ctx.maximum_height
+    edge === nothing ? base : min(base, max(0, Int(edge[])))
 end
 
-# A widget's extent on one axis. `authored` is the size the widget was given —
-# `w.width`, `w.height`, a row count — and `content` is what it drew.
+# A widget's extent on one axis: `max(minimum, content)`, or the authored size.
+# `authored` is the size the widget was given — `w.width`, `w.height`, a row
+# count — and `content` is what it drew.
 #
-# An authored size is `Fixed`: a caller that wrote a number meant it, and an offer
-# that overrode it would take that away. `0` means the widget authored nothing,
-# and it is then `Content`: it fills an offer that is present and is its content
-# when there is none.
+# An authored size is `Fixed`: a caller that wrote a number meant it, and a range
+# that overrode it would take that away. `0` means the widget authored nothing.
+# The widget then takes the minimum of the range its parent gave when its
+# content is smaller: an exact range stretches it to the slot, and a bounded or
+# a free range, whose minimum is 0, leaves it at its content.
 #
-# The content is a floor under the offer, never under an authored size. A widget
-# told to be 40 wide draws 40 and lets its content overflow, because that is what
-# being told a size means.
+# The content is a floor under the minimum, never under an authored size. A
+# widget told to be 40 wide draws 40 and lets its content overflow, because that
+# is what being told a size means. The maximum does not cut the widget: the
+# container clips what passes it.
 function _resolve_size(ctx, axis::Symbol, authored::Int, content::Int=0)
     authored > 0 && return authored
-    avail = ctx === nothing ? nothing :
-            axis === :x ? ctx.available_width : ctx.available_height
-    avail === nothing ? content : max(0, Int(avail[]), content)
+    minimum = ctx === nothing ? nothing :
+              axis === :x ? ctx.minimum_width : ctx.minimum_height
+    minimum === nothing ? content : max(0, Int(minimum[]), content)
 end
 
 _resolve_width(ctx, authored::Int, content::Int=0) =

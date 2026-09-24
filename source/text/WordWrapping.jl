@@ -2,9 +2,10 @@
 #
 # Text → Text projection. Pixel-accurate word wrapping: splits a TextString into
 # sub-spans at word boundaries and inserts `TextNewline` elements where a word
-# would push the column past the wrap width. The wrap width is taken from
-# `ctx.available_width` when present (so a resize re-wraps reactively), falling
-# back to the projection's `max_width`.
+# would push the column past the wrap width. The wrap width is the maximum of
+# the range the parent gives on the width, `ctx.maximum_width`, exact or bounded
+# (so a resize re-wraps reactively), falling back to the projection's
+# `max_width` when the parent gives no edge.
 #
 # Character preservation: the projection is structural only — every character of
 # the input survives in the output, exactly once and in order. A space that
@@ -18,8 +19,8 @@
 
 Pixel-based word-wrap projection. `measure(text, font) -> (width, height)`
 matches the downstream `TextToGraphics` measurer so wrap points line up with
-layout. `max_width` is the pixel fallback used when no `available_width` is
-present on the context.
+layout. `max_width` is the pixel fallback used when the context has no
+`maximum_width`.
 """
 struct WordWrapping <: Projection
     max_width::Int
@@ -70,12 +71,14 @@ function print_document(p::WordWrapping, recursion, text::TextBlock, ctx)
     WordWrappingIoMap(p, text, output, segs_cell)
 end
 
+# The width a line wraps at: the maximum of the range the parent gave, exact or
+# bounded, and `p.max_width` when the parent gave no edge.
 function _wrap_width_cell(p::WordWrapping, ctx)
-    if ctx isa PrinterContext && ctx.available_width !== nothing
-        aw = ctx.available_width
+    if ctx isa PrinterContext && ctx.maximum_width !== nothing
+        edge = ctx.maximum_width
         fallback = p.max_width
         return Cell(@computation begin
-            v = aw[]
+            v = edge[]
             v isa Integer ? max(1, Int(v)) : fallback
         end)
     end

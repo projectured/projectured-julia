@@ -1436,10 +1436,11 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
     # extent + membership derive from `build[]` (PAR-STABLE-IOMAP-IDENTITY).
     # A flow's children are their content on both axes — a line is as tall as
     # its tallest child and holds as many as fit — so neither extent is offered
-    # to them. The flow breaks its lines at `max_width`, or at the width it was
-    # offered when that is less: a flow in a card breaks at the card's edge.
+    # to them. The flow breaks its lines at `max_width`, or at the edge of the
+    # range it was given when that is less: a flow in a card breaks at the card's
+    # edge.
     child_ctx = ctx === nothing ? nothing : withhold_offer(withhold_offer(ctx, :x), :y)
-    avail_w = ctx === nothing ? nothing : ctx.available_width
+    edge_w = ctx === nothing ? nothing : ctx.maximum_width
     build = Cell(@computation begin
         n = length(doc.children)
         child_iomaps = Any[]
@@ -1449,8 +1450,8 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
             push!(child_iomaps, cim)
         end
         authored_w = getfield(doc, :max_width)
-        max_w_cell = avail_w === nothing ? authored_w :
-                     Cell(@computation min(Int(authored_w[]), max(0, Int(avail_w[]))))
+        max_w_cell = edge_w === nothing ? authored_w :
+                     Cell(@computation min(Int(authored_w[]), max(0, Int(edge_w[]))))
         hgap_cell  = getfield(doc, :horizontal_gap)
         vgap_cell  = getfield(doc, :vertical_gap)
         halign     = getfield(doc, :horizontal_align)

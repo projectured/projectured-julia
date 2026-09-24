@@ -344,18 +344,26 @@ Step 0 takes the baseline.
       difference between two harnesses (496490 and 497468 passes). So the
       step changes no behaviour of an example.
 
-- [ ] **Step 2: the child rule.** `_resolve_size` becomes `max(m, C(M))`;
-      `_resolve_overlay` caps at `M`; `WordWrapping` wraps at `M` and loses its
-      800; `FlowLayout` breaks at `min(max_width, M)` and its `max_width` is
-      `nothing` by default. No container gives a bounded range yet, so the only
-      change a user sees is text that has no edge: it no longer wraps at 800.
+- [x] **Step 2: the child rule.** `_resolve_size` becomes `max(m, C(M))`;
+      `_resolve_overlay` caps at `M`; `WordWrapping` wraps at `M`; `FlowLayout`
+      breaks at `min(max_width, M)`. No container gives a bounded range yet, so
+      no behaviour changes.
       - Tests: the child rule in each of the four states of §4.3, for a rigid
         widget, a wrapped text, an overlay and a flow, asserting the drawn
         extent.
       - Documents: `documentation/package/text/text.md` (the wrap width);
         `documentation/package/widget/widget.md` (how a widget sizes itself);
-        `documentation/rule/layout-rules.md` §1 (the rule) and §3b (who
-        clips).
+        `documentation/rule/layout-rules.md` §1 (the rule).
+      **Decision (2026-09-24):** the 800 of `WordWrapping` and the 400 of
+      `FlowLayout` stay until Step 5. Until Steps 3 and 4 give bounded ranges,
+      most text has no edge, so without the fallback it would draw on one line
+      and wrap again only after Step 4. They go in Step 5 with the other
+      patches. `layout-rules.md` §3b (clipping at the maximum) moves to Step 3,
+      the first step that gives a maximum without a slot.
+      **Done.** `test_size_range_child_rule()` passes 17 of 17, and its bounded
+      cases fail on the code before the step. `test_all()` differs from Step 1
+      only by those 17 passes: the same 649 failures, 11 errors and 1114 broken
+      tests, at the same places, and the same count of `Catalog`.
 
 - [ ] **Step 3: the containers and the cross axis.** The root, the viewports,
       the shell, the split, the tab page, the pane tree and the card give exact
@@ -366,8 +374,8 @@ Step 0 takes the baseline.
         coordinates at two widths; a render test that fails on the code before
         the step.
       - Documents: `documentation/package/layout/layout.md` ("The size that a
-        parent offers"); `layout-rules.md` §2 (where a policy lives) and §3
-        (what a container offers).
+        parent offers"); `layout-rules.md` §2 (where a policy lives), §3
+        (what a container offers) and §3b (who clips: at the maximum).
 
 - [ ] **Step 4: the main axis of the stacks.** The formula of §4.3 for the
       unweighted children, `Fixed` on the main axis, and a weighted child in a
@@ -378,7 +386,9 @@ Step 0 takes the baseline.
         worked case), with example 3 and its rule for two children that
         reflow.
 
-- [ ] **Step 5: the patches go, and the old names.** The toolbar gives its
+- [ ] **Step 5: the patches go, and the old names.** The 800 of
+      `WordWrapping` and the 400 of `FlowLayout` go: text with no edge does not
+      wrap, and a flow with no edge and no `max_width` does not break. The toolbar gives its
       items a bounded range instead of withholding the width; the table list
       and the card lose their own text widths; `_resolve_overlay` is the
       overlay form of the child rule; the evaluator rows go back to `Content`.

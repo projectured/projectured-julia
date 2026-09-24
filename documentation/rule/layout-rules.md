@@ -7,10 +7,34 @@ exceptions and no constants.
 
 ## 1. The rule
 
+A parent gives each child, on each axis, a **range**: a minimum `m` and a
+maximum `M` (`PrinterContext`: `minimum_width`, `maximum_width`,
+`minimum_height`, `maximum_height`). The child draws
+
 ```
-size(axis) = clamp( policy(axis) resolved against the parent's offer,
-                    min(axis), max(axis) )
+e = A                  when the child authored the size A
+e = max(m, C(M))       otherwise
 ```
+
+where `C(x)` is the child's content when it may use the extent `x`. Rigid
+content (a button, a one-line label) has the same extent for every `x`;
+reflowing content (wrapped text, a flow) is laid out at `x`. A `nothing`
+minimum is 0, and a `nothing` maximum is no edge.
+
+An axis is in one of three states:
+
+| State | Range | The child |
+| --- | --- | --- |
+| exact | `(s, s)` | takes `s`: it stretches to it, and text wraps at it |
+| bounded | `(0, l)` | draws its content, laid out up to `l` |
+| free | `(0, ∅)` | draws its content, with no edge |
+
+An overlay (a tooltip, a menu, a context menu) caps instead of stretching:
+`e = min(max(A, C(M)), M)`.
+
+A container gives an exact range to a child that it sizes (§3, §4), and a free
+range to any other child; `with_exact_size`, `with_bounded_size` and
+`withhold_offer` make the three states.
 
 Four policies say everything:
 
