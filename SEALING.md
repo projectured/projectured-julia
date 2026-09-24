@@ -71,9 +71,9 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `cell/ImmutableCell.jl`
   - 🔒 `cell/CellDefaults.jl`
 - **Layer 4 — struct** (`struct/`)
-  - 🔒 `struct/CellStructModule.jl`
-  - 🔒 `struct/CellStructPlan.jl`
-  - 🔒 `struct/CellStruct.jl`
+  - ⬜ `struct/CellStructModule.jl`
+  - ⬜ `struct/CellStructPlan.jl`
+  - ⬜ `struct/CellStruct.jl`
 - **Layer 5 — clock** (`clock/`)
   - 🔒 `clock/ClockModule.jl`
   - 🔒 `clock/Clock.jl`
