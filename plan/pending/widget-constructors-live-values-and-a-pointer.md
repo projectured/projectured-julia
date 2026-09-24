@@ -212,4 +212,25 @@ name.content = "Ada Lovelace"
       arrow, 5 of 5.
 - [ ] Step 5: `find_form_document` and the check in the scripts (§3.5); S4 with
       the forms and the order of §3.6, recorded and given to the owner.
+      **In progress.** Written: `find_form_document` (the evaluator's
+      `_parse_evaluated_form!` calls it), `tool/video/julia_forms.jl` with
+      `check_julia_forms`, which the scripts of S1 and S4 call before a take, the
+      forms of S4 in `tool/video/s4_forms.jl`, and the script in moments, with a
+      probe mode. Facts from the probes (`build/video/widget_tool_probe.mp4`):
+      - In video time the backend fires one entry a frame, so keys held 0.01 s
+        slip the schedule; the probe types one key a frame, and its video is
+        exactly as long as its schedule (59.8 s).
+      - In video time the gesture recognizer measured a click with the wall
+        clock, so the first Alt+click, slow to compile, was no click. The
+        recorder now gives the recognizer the clock of the frames in video time
+        (`editor.recognizer.clock`, a parameter the recognizer already has).
+      - The smaller button stands one form higher: the Alt+click is at
+        (336, 285).
+      - A press or a drag in the tool's pane leaves the focus and the caret in
+        the evaluator, so no key brings the caret back after them; a
+        Ctrl+Alt+Left there moved the focus to the navigator.
+      - Open for the owner: a widget that is the whole result of a form fills
+        its row (the button of `button = …`, the field of `name = …`), because
+        the result row gives its document `Fill` so that text wraps at the edge
+        of the pane; and `presses = Cell(0)` shows `Cell(primitive, 0)`.
 - [ ] Step 6: the landing of both repositories, when the owner says so.

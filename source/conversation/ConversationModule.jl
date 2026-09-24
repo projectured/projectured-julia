@@ -51,7 +51,7 @@ import ..OperationModule: evaluate_operation
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
-export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label,
+export EvaluatorDocument, make_evaluator_result_text, get_evaluation_kind_label, find_form_document,
        get_evaluation_title, get_evaluation_section_labels, make_evaluator_arguments_text,
        ToggleEvaluatorSectionOperation, EvaluateSelectedFormOperation,
        ToggleEvaluatorOptionOperation,

@@ -37,6 +37,7 @@ _type(text) = make_typein_gestures(text; hold = 0.06, jitter = 0.5)    # a fast 
 _press(x, y; hold = 0.6, kwargs...) = [(event = MouseMove(x, y, :none, ModifierKeys()), hold = 0.4),
                                        (event = MousePress(:left, x, y, ModifierKeys(; kwargs...)), hold = hold)]
 
+include(joinpath(@__DIR__, "julia_forms.jl"))
 include(joinpath(@__DIR__, "s1_forms.jl"))
 
 # How long the window stays still after a form runs. A form that changes the
@@ -86,6 +87,7 @@ function make_timeline()
 end
 
 function main()
+    check_julia_forms(vcat(FIRST_FORMS, LATER_FORMS))
     warm_up = joinpath(dirname(OUTPUT), "rotating_vector_warm_up.mp4")
     println("warm-up: ", record_application_video([joinpath(PROJECT, "README.md")], make_warm_up_timeline(),
                                                   warm_up; width = 1280, height = 720, fps = 30,

@@ -437,23 +437,40 @@ function _make_nothing_result()
     end
 end
 
-# The code of an evaluated form becomes a Julia document when the document prints
-# back as the same tokens on the same lines as the code; the spaces between them
-# may change.
-# Otherwise the form keeps its string: code with a comment, code that the print
-# would change in another way, code that does not parse, or code that no loaded
-# domain reads as Julia. A parser throws for a construct it does not support,
-# and that is an answer here, not a fault.
-function _parse_evaluated_form!(element::EvaluatorForm)
-    _is_text_form(element.form) || return nothing
+"""
+    find_form_document(code) -> document or nothing
+
+The Julia document that the evaluator makes of `code` when it evaluates it as a
+form, or `nothing` when the form keeps its string.
+
+A form becomes a Julia document when the document prints back as the same tokens
+on the same lines as the code; the spaces between them may change. Otherwise the
+form keeps its string: code with a comment, code that the print would change in
+another way (a `;` between two statements prints as a block of lines), code that
+does not parse, or code that no loaded domain reads as Julia. Use it to check
+the forms of a script before they are typed.
+
+# Example
+
+    find_form_document("add!(WidgetLabel(\"Go\"))")    # a JuliaCall
+    find_form_document("a; b")                          # nothing
+"""
+function find_form_document(code::AbstractString)
     has_natural_parser(:jl) || return nothing
-    code = strip(something(element.form.value, ""))
-    parsed = try
-        document = parse_natural_text(:jl, code)
-        _has_same_tokens(print_natural_text(document), code) ? document : nothing
+    text = strip(code)
+    # A parser throws for a construct it does not support, and that is an answer
+    # here, not a fault.
+    try
+        document = parse_natural_text(:jl, text)
+        _has_same_tokens(print_natural_text(document), text) ? document : nothing
     catch
         nothing
     end
+end
+
+function _parse_evaluated_form!(element::EvaluatorForm)
+    _is_text_form(element.form) || return nothing
+    parsed = find_form_document(something(element.form.value, ""))
     parsed === nothing || (element.form = parsed)
     nothing
 end

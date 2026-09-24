@@ -80,6 +80,10 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                          measure = measure),
                                  screen_wrap = make_popup_screen_wrap())
             backend.editor = editor
+            # In video time a click is judged by video time too: the gesture
+            # recognizer measures the gap between a down and its up with the
+            # clock of the frames, and not with the wall clock.
+            video_time && (editor.recognizer.clock = () -> get_frame_clock_time(backend, time()))
             start(editor)
             start_application!(editor, false, assistant, model)
             run_editor!(editor)
