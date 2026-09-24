@@ -6,11 +6,11 @@
 
 What an editor does with a fault. One per editor.
 
-- `is_barrier_enabled` — whether a barrier catches at all. **A test editor sets
-  it false.** A barrier that swallows under test turns a real bug into a passing
-  run, which is the one way this whole feature can make the program worse. With
-  it false, `run_fault_barrier` re-raises and a broken projection fails its test
-  exactly as it does today.
+- `is_barrier_enabled` — whether a barrier catches at all. **An editor that a
+  test makes has it false.** A barrier that swallows under test turns a real bug
+  into a passing run, which is the one way this whole feature can make the
+  program worse. With it false, `run_fault_barrier` re-raises and a broken
+  projection fails its test.
 - `is_console_enabled` — whether a new fault is written to the log stream.
 - `is_sound_enabled` — whether the last audible tier may play.
 - `device_failure_limit` — how many times in a row a backend seam may fail
@@ -51,8 +51,8 @@ than be survived.
 
 # Example
 
-    editor = Editor(backend, document, projection, devices)
-    editor.fault_policy = make_strict_fault_policy()
+    editor = make_editor(backend, projection, document;
+                         fault_policy = make_strict_fault_policy())
 
 See also [`FaultPolicy`](@ref).
 """

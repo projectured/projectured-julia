@@ -28,7 +28,8 @@ The module lives in seven fragments that share this namespace:
   reactive graph.
 - [`FaultPolicy.jl`](FaultPolicy.jl) — which tiers are open, and the limits.
 - [`FaultCascade.jl`](FaultCascade.jl) — `report_fault!` and its five tiers.
-- [`FaultBarrier.jl`](FaultBarrier.jl) — `run_fault_barrier`, the one catch.
+- [`FaultBarrier.jl`](FaultBarrier.jl) — `run_fault_barrier`, the barrier around one
+  stage of work.
 """
 module FaultModule
 

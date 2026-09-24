@@ -4,15 +4,16 @@
 """
     FaultRecord
 
-One fault, as a plain value. It is not a `Document`: the kernel holds no
-concrete document, and a record is what a document above it shows.
+One fault, as a plain value. It is not a `Document`, because this layer sits
+below the layer that defines documents. A record is what a document above it
+shows.
 
-- `key` — what makes two faults the same one. See [`compute_fault_key`](@ref).
-- `site` — which barrier caught it: `:print`, `:read`, `:map`, `:evaluate`,
-  `:device` or `:tool`.
+- `key` — what makes two faults the same one: the site, the origin and the
+  exception type.
+- `site` — which barrier caught it, for example `:print`, `:device` or `:tool`.
 - `origin` — the name of the type or the function whose code failed.
 - `exception_type` — the name of the exception type.
-- `message` — the message of the FIRST occurrence, formatted once.
+- `message` — the message of the first occurrence, formatted once.
 - `traceback` — the traceback of the first occurrence, truncated.
 - `first_reference` — where in the document the first occurrence was, or
   `nothing` where the site knows no place.
@@ -21,7 +22,8 @@ concrete document, and a record is what a document above it shows.
 
 # Example
 
-    record = make_fault_record(:print; origin = JsonToSyntax, reference, exception, traceback)
+    record = make_fault_record(:print; origin = JsonToSyntax, reference,
+                               exception, traceback)
 
 See also [`record_fault!`](@ref), which is what a barrier calls.
 """
@@ -43,12 +45,13 @@ end
 What makes two faults the same one.
 
 **The key holds no reference and no message, and that decision carries the
-design.** A chain bounds how far a fault spreads downward — four stages at most.
-Nothing bounds how far it spreads sideways: one bug in one projection fails at
-every leaf of one kind, which in a large document is thousands of nodes. With
-the reference in the key those become thousands of keys, the store fills, and
-the report is a wall of near-identical lines. Without it they become one record
-with a count of three thousand and one place kept as an example.
+design.** A chain bounds how far a fault spreads downward, to one record per
+stage. Nothing bounds how far it spreads sideways: one bug in one projection
+fails at every leaf of one kind, which in a large document is thousands of
+nodes. With the reference in the key those become thousands of keys, the store
+fills, and the report is thousands of lines that differ only in the place.
+Without it they become one record with a count of three thousand and one place
+kept as an example.
 
 The message is left out for the same reason. Two `BoundsError`s at index 4 and
 index 7 carry different messages and the same bug.
@@ -87,8 +90,8 @@ end
 The traceback of `exception`, truncated to the frames nearest the failure.
 
 It never throws, and it answers `""` where no traceback was taken. Formatting a
-traceback is expensive, so a barrier takes one only for a key the store has not
-seen.
+traceback is expensive, so `record_fault!` formats one only for a key the store
+has not seen.
 """
 function format_fault_traceback(exception, traceback; maximum_lines::Integer = 12)
     traceback === nothing && return ""
@@ -113,7 +116,8 @@ One fault as a value, with its key computed and its message formatted.
 
 # Example
 
-    record = make_fault_record(:read; origin = p.inner, exception, traceback = catch_backtrace())
+    record = make_fault_record(:read; origin = p.inner, exception,
+                               traceback = catch_backtrace())
 
 See also [`record_fault!`](@ref), which makes one only when the key is new.
 """

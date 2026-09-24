@@ -964,13 +964,12 @@ conflict PAR-PER-EDITOR-STATE targets.
 ### PAR-REPORT-NEVER-THROWS
 
 **A fault report never throws, and a barrier never swallows a fault in
-silence.** `report_fault!` is the one function in the system that may not raise:
-it runs when everything else has already failed, and an exception from it turns
-one broken frame into a dead editor. It reports at the first tier that works — a
-mark in the document, the message log, the console, a sound, nothing — and each
-tier falls to the next. A store that throws, a log target that throws and a
-backend that throws, all at once, still answer a tier. A test asserts exactly
-that.
+silence.** `report_fault!` may not raise: it runs when everything else has
+already failed, and an exception from it turns one broken frame into a dead
+editor. It reports at the first tier that works — a mark in the document, the
+message log, the console, a sound, nothing — and each tier falls to the next. A
+store that throws and a backend that throws, both at once, still answer a tier,
+and a log target that throws does not stop the drain. Tests assert both.
 
 The second half is what keeps the first half honest. **A barrier that catches
 must record**, so no fault is lost, and the policy that governs the barriers

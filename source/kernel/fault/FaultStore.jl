@@ -23,16 +23,20 @@ The editor loop then calls [`drain_faults!`](@ref) once per frame, on its own
 task, outside every thunk. That call may write cells, and it is what puts a
 fault into a log document.
 
+A store has no lock, so all code that writes it must run on the thread of the
+editor task. A task that the editor task starts with `@async` runs on that
+thread.
+
 `capacity` bounds the number of distinct keys. A new key that does not fit is
 counted in `dropped` rather than kept: the first faults are the ones that name
-the cause, so the store keeps those and refuses the rest.
+the cause, so the store keeps those.
 
 # Example
 
     store = FaultStore()
     attach_fault_target!(store, log)
     record_fault!(store, :print; origin = JsonToSyntax, reference, exception,
-                  traceback = backtrace)
+                  traceback = catch_backtrace())
     drain_faults!(store)
 
 See also [`record_fault!`](@ref), [`drain_faults!`](@ref) and
@@ -87,7 +91,7 @@ attach_fault_target!(::Nothing, target) = nothing
 Hand the store the wake function of its editor. `record_fault!` calls it the
 moment a record is queued for the drain — a new key, or a count that grew by
 an order of magnitude — and not on a plain count bump, so a fault that
-repeats cannot keep the editor spinning.
+repeats does not wake the editor at each occurrence.
 """
 attach_fault_wake!(store::FaultStore, wake) = (store.wake = wake; store)
 
@@ -108,7 +112,7 @@ end
 
 # How many times a count has to grow before it is worth showing again. A fault
 # at three thousand places would otherwise write the log three thousand times,
-# and a log that rewrites itself every frame is a busy loop with a nice name.
+# and a write in every frame makes the editor draw again in every frame.
 # One bucket per power of ten writes it four times instead, and the number a
 # person reads is right to an order of magnitude.
 _get_fault_count_bucket(count::Integer) = count <= 0 ? 0 : floor(Int, log10(count))
@@ -148,7 +152,7 @@ function record_fault!(store::FaultStore, site::Symbol; origin, reference = noth
                             known.message, known.traceback, known.first_reference,
                             known.first_time, known.count + 1)
         store.records[key] = grown
-        # Compare against the count that was last QUEUED, not the one that was
+        # Compare against the count that was last queued, not the one that was
         # last drained. Comparing against the drained count re-queues the key on
         # every occurrence above the first bucket, which is the busy loop this
         # rule exists to stop.
@@ -217,30 +221,31 @@ end
 drain_faults!(::Nothing) = FaultRecord[]
 
 """
-    get_consecutive_fault_count(store, site) -> Int
+    get_consecutive_fault_count(store, counter) -> Int
 
-How many times in a row the barrier at `site` caught without a success between.
+How many times in a row the barriers that count on `counter` caught, with no
+success between. A barrier counts on its site, or on the counter it was given.
 
 A circuit breaker reads it: a backend seam that fails every frame is worse to
 call than to leave alone, and a printer that fails every frame is what the safe
 mode answers.
 """
-get_consecutive_fault_count(store::FaultStore, site::Symbol) =
-    get(store.consecutive, site, 0)
+get_consecutive_fault_count(store::FaultStore, counter::Symbol) =
+    get(store.consecutive, counter, 0)
 
-get_consecutive_fault_count(::Nothing, site::Symbol) = 0
+get_consecutive_fault_count(::Nothing, counter::Symbol) = 0
 
 """
-    reset_consecutive_fault_count!(store, site) -> store
+    reset_consecutive_fault_count!(store, counter) -> store
 
-Say that the barrier at `site` ran without a fault.
+Say that a barrier that counts on `counter` ran without a fault.
 """
-function reset_consecutive_fault_count!(store::FaultStore, site::Symbol)
-    get(store.consecutive, site, 0) == 0 || (store.consecutive[site] = 0)
+function reset_consecutive_fault_count!(store::FaultStore, counter::Symbol)
+    get(store.consecutive, counter, 0) == 0 || (store.consecutive[counter] = 0)
     store
 end
 
-reset_consecutive_fault_count!(::Nothing, site::Symbol) = nothing
+reset_consecutive_fault_count!(::Nothing, counter::Symbol) = nothing
 
 """
     clear_fault_store!(store) -> store

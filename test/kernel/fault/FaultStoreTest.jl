@@ -23,6 +23,9 @@ FaultModule.append_fault!(::AngryTarget, record) = error("this target refuses re
 struct AngryBackend end
 FaultModule.play_fault_sound!(::AngryBackend) = error("this backend has no sound")
 
+# A store that throws at its first use, because it has no method of a store.
+struct AngryStore end
+
 _quiet_policy() = FaultPolicy(is_console_enabled = false, is_sound_enabled = false)
 
 function test_fault_store()
@@ -135,11 +138,12 @@ function test_fault_report()
 
     @testset "report_fault! never throws, whatever is broken" begin
         store = FaultStore()
-        attach_fault_target!(store, AngryTarget())
         record = record_fault!(store, :device; origin = :AngryBackend,
                                exception = ErrorException("the screen is gone"))
-        # Every tier above tier 5 is broken at once: the target throws and the
+        # Every tier above tier 5 is broken at once: the store throws and the
         # backend throws. The cascade must still answer a tier.
+        @test report_fault!(AngryStore(), record; policy = FaultPolicy(),
+                            backend = AngryBackend()) === :swallowed
         @test report_fault!(store, record; policy = FaultPolicy(),
                             backend = AngryBackend()) isa Symbol
         @test report_fault!(store, record; policy = _quiet_policy(),

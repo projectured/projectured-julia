@@ -20,18 +20,17 @@
 Report `record` at the first tier that works, and answer the tier it reached:
 `:console`, `:sound` or `:swallowed`.
 
-**This function never throws.** It is the one function in the system with that
-contract, because it is the last thing that runs when everything else failed —
-including, sometimes, the thing that was meant to report. A test asserts it
-against a store that throws, a target that throws and a backend that throws, all
-at once.
+**This function never throws.** It is the last thing that runs when everything
+else failed, and sometimes that includes the code that was meant to report. A
+test asserts it against a store that throws and a backend that throws, both at
+once.
 
 A fault raised while a fault is reported does not recurse: the store carries a
 depth, and a nested call goes straight to the console and stops.
 
-The sound plays when the console tier failed, and also when the fault came from
-a device, because a screen that draws nothing is exactly the case where a person
-has nothing else to notice.
+The sound plays when the console tier failed or is off, and also when the fault
+came from a device, because a screen that draws nothing is exactly the case
+where a person has nothing else to notice.
 
 # Example
 
@@ -42,7 +41,6 @@ See also [`run_fault_barrier`](@ref), which is what calls it.
 """
 function report_fault!(store, record; policy::FaultPolicy, backend)
     try
-        record === nothing && return :swallowed
         depth = _enter_fault_report!(store)
         try
             depth > 1 && return _report_on_console(policy, record) ? :console : :swallowed
@@ -70,12 +68,15 @@ _enter_fault_report!(::Nothing) = 1
 _leave_fault_report!(store::FaultStore) = (store.depth -= 1; nothing)
 _leave_fault_report!(::Nothing) = nothing
 
-# Tier 3. The logger, never a raw write: `execute_julia_code` redirects the
-# global streams while it runs, and a raw write can land in a closed pipe.
+# Tier 3. Through the logger and not a raw write, so the fields of the record
+# reach every logger that the process installed.
 function _report_on_console(policy::FaultPolicy, record::FaultRecord)
     policy.is_console_enabled || return false
     try
-        @error "[fault] $(record.site) in $(record.origin): $(record.message)" _module = nothing _file = nothing key = record.key count = record.count reference = record.first_reference traceback = record.traceback
+        @error("[fault] $(record.site) in $(record.origin): $(record.message)",
+               _module = nothing, _file = nothing, key = record.key,
+               count = record.count, reference = record.first_reference,
+               traceback = record.traceback)
         true
     catch
         false
@@ -96,7 +97,8 @@ end
 # and it must not be allowed to raise from inside the drain either.
 function _log_fault_report_failure(target, exception)
     try
-        @error "[fault] a fault target refused a record" target = typeof(target) exception = exception
+        @error("[fault] a fault target refused a record",
+               target = typeof(target), exception = exception)
     catch
     end
     nothing

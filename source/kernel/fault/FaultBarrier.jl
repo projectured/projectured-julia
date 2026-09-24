@@ -1,5 +1,5 @@
-# Fragment of `FaultModule` — the one catch. Everything that survives a fault
-# survives it here.
+# Fragment of `FaultModule` — the barrier around one stage of work. It catches a
+# fault, records it and answers a fallback.
 
 """
     run_fault_barrier(body, store; policy, backend, site, counter, origin, reference,
@@ -31,9 +31,9 @@ What it does, in order:
    per new fault. A barrier given no store has no drain behind it, so that one
    reports for itself.
 
-**`policy.is_barrier_enabled` false means it catches nothing.** A test editor
-sets it false, so a broken projection fails its test rather than passing quietly.
-That switch is the reason this whole feature can not make the suite lie.
+**`policy.is_barrier_enabled` false means it catches nothing.** An editor that a
+test makes has it false, so a broken projection fails its test rather than
+passing quietly.
 
 # Example
 
@@ -68,7 +68,7 @@ function run_fault_barrier(body, store; policy::FaultPolicy, backend, site::Symb
     end
 end
 
-_count_fault!(store::FaultStore, site::Symbol) =
-    (store.consecutive[site] = get(store.consecutive, site, 0) + 1)
+_count_fault!(store::FaultStore, counter::Symbol) =
+    (store.consecutive[counter] = get(store.consecutive, counter, 0) + 1)
 
-_count_fault!(::Nothing, site::Symbol) = 0
+_count_fault!(::Nothing, counter::Symbol) = 0
