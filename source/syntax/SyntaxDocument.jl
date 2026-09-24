@@ -297,7 +297,7 @@ SyntaxConcatenation(children::Vector{<:SyntaxDocument}) =
 # cell-wrapping thunk, and those markers would never be resolved. A hand-written
 # projection that wants reactive children says so explicitly:
 # `SyntaxConcatenation(ComputedCellVector(f))`.
-SyntaxConcatenation(thunk::Function) = SyntaxConcatenation(ComputedCell(thunk), nothing)
+SyntaxConcatenation(thunk::Function) = SyntaxConcatenation(Cell(Computed(thunk)), nothing)
 
 # A concatenation answers the compound contract with the defaults throughout: it
 # has children, and nothing else. Every `nothing` here is a span the printer does

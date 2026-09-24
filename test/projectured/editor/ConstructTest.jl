@@ -31,7 +31,7 @@ using ProjecturedKernel.EventModule: KeyPress, KeyDown, ModifierKeys
 using ProjecturedKernel.GestureBindingModule: get_document_gesture_bindings
 using ProjecturedKernel.EventModule: EventPattern
 using ProjecturedKernel.ProjectionModule: print_document, read_intent
-using ProjecturedKernel.CellModule: Cell, ComputedCell
+using ProjecturedKernel.CellModule: Cell, Computed
 using ProjecturedProjection.ProjectionAlgebraModule: ChainingProjection
 using ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
 using ProjecturedText.TextModule: TextToString

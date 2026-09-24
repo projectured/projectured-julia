@@ -141,16 +141,16 @@ function clip_child_to_slot(child::GraphicsDocument, cim; x_cell::Cell, y_cell::
                             clip_x::Bool, clip_y::Bool)
     vx = clip_x ? slot_x : x_cell
     vy = clip_y ? slot_y : y_cell
-    vw = clip_x ? slot_w : ComputedCell(() -> _child_w(cim))
-    vh = clip_y ? slot_h : ComputedCell(() -> _child_h(cim))
-    inner = GraphicsCanvas(ComputedCell(() -> Int32(Int(x_cell[]) - Int(vx[]))),
-                           ComputedCell(() -> Int32(Int(y_cell[]) - Int(vy[]))),
+    vw = clip_x ? slot_w : Cell(Computed(() -> _child_w(cim)))
+    vh = clip_y ? slot_h : Cell(Computed(() -> _child_h(cim)))
+    inner = GraphicsCanvas(Cell(Computed(() -> Int32(Int(x_cell[]) - Int(vx[])))),
+                           Cell(Computed(() -> Int32(Int(y_cell[]) - Int(vy[])))),
                            Cell(Int32(0)), Cell(Int32(0)),
                            CellVector(Cell[Cell(child)]),
                            layout_none, true, Cell(nothing))
-    GraphicsViewport(ComputedCell(() -> Int32(Int(vx[]))), ComputedCell(() -> Int32(Int(vy[]))),
-                     ComputedCell(() -> Int32(max(0, Int(vw[])))),
-                     ComputedCell(() -> Int32(max(0, Int(vh[])))),
+    GraphicsViewport(Cell(Computed(() -> Int32(Int(vx[])))), Cell(Computed(() -> Int32(Int(vy[])))),
+                     Cell(Computed(() -> Int32(max(0, Int(vw[]))))),
+                     Cell(Computed(() -> Int32(max(0, Int(vh[]))))),
                      Cell(inner))
 end
 
@@ -457,7 +457,7 @@ constraint field read via `getproperty`.
 function _alloc_cell(available_cell::Cell, child_iomaps::Vector, child_docs::Vector,
                      gap_cell::Cell, axis::Symbol)
     n = length(child_iomaps)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         avail = Int(available_cell[])
         mins  = Vector{Int}(undef, n)
         maxs  = Vector{Int}(undef, n)
@@ -473,7 +473,7 @@ function _alloc_cell(available_cell::Cell, child_iomaps::Vector, child_docs::Vec
         end
         gap = Int(gap_cell[])
         allocate_axis(avail; mins, maxs, prefs, weights = wts, gap, n)
-    end)
+    end))
 end
 
 # ── LayoutConstraint projection (trivial forwarder) ───────────────────────
@@ -639,39 +639,39 @@ _children_backward(iomap::_LayoutChildrenIoMap, reference,
 # ── Per-cell helpers (a comprehension body cannot hold a begin/end block) ──
 
 function _hl_child_x_cell(i::Int, child_iomaps::Vector, gap_cell::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         x = 0
         for j in 1:(i-1)
             x += _child_w(child_iomaps[j]) + gap_cell[]
         end
         Int32(x)
-    end)
+    end))
 end
 
 """Position helper for the main axis when extrinsic allocation is in effect."""
 function _hl_alloc_child_x_cell(i::Int, actual_w_cells::Vector{Cell}, gap_cell::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         x = 0
         for j in 1:(i-1)
             x += Int(actual_w_cells[j][]) + gap_cell[]
         end
         Int32(x)
-    end)
+    end))
 end
 
 """Position helper for the main axis (y) of a VerticalLayout under extrinsic allocation."""
 function _vl_alloc_child_y_cell(i::Int, actual_h_cells::Vector{Cell}, gap_cell::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         y = 0
         for j in 1:(i-1)
             y += Int(actual_h_cells[j][]) + gap_cell[]
         end
         Int32(y)
-    end)
+    end))
 end
 
 function _hl_child_y_cell(i::Int, child_iomaps::Vector, outer_h::Cell, align_cell::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         ch = _child_h(child_iomaps[i])
         oh = outer_h[]
         a  = align_cell[]
@@ -679,21 +679,21 @@ function _hl_child_y_cell(i::Int, child_iomaps::Vector, outer_h::Cell, align_cel
             a === :bottom ? oh - ch         :
                             0
         Int32(y)
-    end)
+    end))
 end
 
 function _vl_child_y_cell(i::Int, child_iomaps::Vector, gap_cell::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         y = 0
         for j in 1:(i-1)
             y += _child_h(child_iomaps[j]) + gap_cell[]
         end
         Int32(y)
-    end)
+    end))
 end
 
 function _vl_child_x_cell(i::Int, child_iomaps::Vector, outer_w::Cell, align_cell::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         cw = _child_w(child_iomaps[i])
         ow = outer_w[]
         a  = align_cell[]
@@ -701,7 +701,7 @@ function _vl_child_x_cell(i::Int, child_iomaps::Vector, outer_w::Cell, align_cel
             a === :right  ? ow - cw         :
                             0
         Int32(x)
-    end)
+    end))
 end
 
 # ── HorizontalLayout ───────────────────────────────────────────────────────
@@ -736,9 +736,9 @@ function _hl_build(recursion, doc, ctx)
     slot_w = Cell[]
     if filling
         for i in 1:n
-            push!(slot_w, ComputedCell(() -> begin
+            push!(slot_w, Cell(Computed(() -> begin
                 v = alloc_cell[]; v === nothing ? 0 : Int32(v[i])
-            end))
+            end)))
         end
     end
 
@@ -778,17 +778,17 @@ function _hl_build(recursion, doc, ctx)
         end)
     end
 
-    outer_h = ComputedCell(function ()
+    outer_h = Cell(Computed(function ()
         h = 0
         for cim in child_iomaps
             ch = _child_h(cim)
             ch > h && (h = ch)
         end
         h
-    end)
+    end))
 
     # Distributing an offer means occupying it.
-    outer_w = filling ? ComputedCell(() -> Int(avail_w[])) : ComputedCell(function ()
+    outer_w = filling ? Cell(Computed(() -> Int(avail_w[]))) : Cell(Computed(function ()
         n2 = length(child_iomaps)
         n2 == 0 && return 0
         total = 0
@@ -796,7 +796,7 @@ function _hl_build(recursion, doc, ctx)
             total += _child_w(cim)
         end
         total + (n2 - 1) * gap_cell[]
-    end)
+    end))
 
     child_x = Cell[]
     child_y = Cell[]
@@ -822,14 +822,14 @@ end
 
 function print_document(p::HorizontalLayoutToGraphicsCanvas,
                           recursion, doc::HorizontalLayout, ctx)
-    build = ComputedCell(() -> _hl_build(recursion, doc, ctx))
+    build = Cell(Computed(() -> _hl_build(recursion, doc, ctx)))
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           ComputedCell(() -> Int32(build[].w[])),
-                           ComputedCell(() -> Int32(build[].h[])),
+                           Cell(Computed(() -> Int32(build[].w[]))),
+                           Cell(Computed(() -> Int32(build[].h[]))),
                            ComputedCellVector(() -> vcat(build[].wrapped, Any[ring])),
                            layout_none, true, Cell(nothing))
-    ChildrenIoMap(p, doc, outer, ComputedCell(() -> build[].entries))
+    ChildrenIoMap(p, doc, outer, Cell(Computed(() -> build[].entries)))
 end
 
 function map_reference_forward(::HorizontalLayoutToGraphicsCanvas, iomap, reference)
@@ -899,9 +899,9 @@ function _vl_build(recursion, doc, ctx)
     slot_h = Cell[]
     if filling
         for i in 1:n
-            push!(slot_h, ComputedCell(() -> begin
+            push!(slot_h, Cell(Computed(() -> begin
                 v = alloc_cell[]; v === nothing ? 0 : Int32(v[i])
-            end))
+            end)))
         end
     end
 
@@ -943,17 +943,17 @@ function _vl_build(recursion, doc, ctx)
         end)
     end
 
-    outer_w = ComputedCell(function ()
+    outer_w = Cell(Computed(function ()
         w = 0
         for cim in child_iomaps
             cw = _child_w(cim)
             cw > w && (w = cw)
         end
         w
-    end)
+    end))
 
     # Distributing an offer means occupying it.
-    outer_h = filling ? ComputedCell(() -> Int(avail_h[])) : ComputedCell(function ()
+    outer_h = filling ? Cell(Computed(() -> Int(avail_h[]))) : Cell(Computed(function ()
         n2 = length(child_iomaps)
         n2 == 0 && return 0
         total = 0
@@ -961,7 +961,7 @@ function _vl_build(recursion, doc, ctx)
             total += _child_h(cim)
         end
         total + (n2 - 1) * gap_cell[]
-    end)
+    end))
 
     child_x = Cell[]
     child_y = Cell[]
@@ -991,14 +991,14 @@ function print_document(p::VerticalLayoutToGraphicsCanvas,
     # changes. The output canvas, its element list, and the child-routing
     # entries are all derived reactively from it, so adding/removing a child
     # repaints without reprinting the projection (and without `iomap = nothing`).
-    build = ComputedCell(() -> _vl_build(recursion, doc, ctx))
+    build = Cell(Computed(() -> _vl_build(recursion, doc, ctx)))
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           ComputedCell(() -> Int32(build[].w[])),
-                           ComputedCell(() -> Int32(build[].h[])),
+                           Cell(Computed(() -> Int32(build[].w[]))),
+                           Cell(Computed(() -> Int32(build[].h[]))),
                            ComputedCellVector(() -> vcat(build[].wrapped, Any[ring])),
                            layout_none, true, Cell(nothing))
-    ChildrenIoMap(p, doc, outer, ComputedCell(() -> build[].entries))
+    ChildrenIoMap(p, doc, outer, Cell(Computed(() -> build[].entries)))
 end
 
 function map_reference_forward(::VerticalLayoutToGraphicsCanvas, iomap, reference)
@@ -1018,7 +1018,7 @@ _grid_row(i::Int, c::Int) = div(i - 1, c) + 1
 _grid_col(i::Int, c::Int) = mod(i - 1, c) + 1
 
 function _gl_col_w_cell(col::Int, n::Int, child_iomaps::Vector, cols_cell::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         c = cols_cell[]
         col > c && return 0
         w = 0
@@ -1029,11 +1029,11 @@ function _gl_col_w_cell(col::Int, n::Int, child_iomaps::Vector, cols_cell::Cell)
             end
         end
         w
-    end)
+    end))
 end
 
 function _gl_row_h_cell(row::Int, n::Int, child_iomaps::Vector, cols_cell::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         c = cols_cell[]
         nrows = div(n + c - 1, c)
         row > nrows && return 0
@@ -1045,17 +1045,17 @@ function _gl_row_h_cell(row::Int, n::Int, child_iomaps::Vector, cols_cell::Cell)
             end
         end
         h
-    end)
+    end))
 end
 
 # The edge of column `col` and of row `row`: the shared sum over the extents
 # before it, read reactively so an earlier extent that grows moves the edge.
 function _gl_col_x_cell(col::Int, col_w::Vector{Cell}, hgap::Cell)
-    ComputedCell(() -> last(compute_axis_offsets(Int[Int(col_w[cc][]) for cc in 1:(col-1)], Int(hgap[]))))
+    Cell(Computed(() -> last(compute_axis_offsets(Int[Int(col_w[cc][]) for cc in 1:(col-1)], Int(hgap[])))))
 end
 
 function _gl_row_y_cell(row::Int, row_h::Vector{Cell}, vgap::Cell)
-    ComputedCell(() -> last(compute_axis_offsets(Int[Int(row_h[rr][]) for rr in 1:(row-1)], Int(vgap[]))))
+    Cell(Computed(() -> last(compute_axis_offsets(Int[Int(row_h[rr][]) for rr in 1:(row-1)], Int(vgap[])))))
 end
 
 # Per-column alignment. An empty vector falls back to the single
@@ -1109,7 +1109,7 @@ _gl_offers(p::SizePolicy) =
 # `allocate_axis` is the same allocator the stacks and the split use.
 function _gl_extents_cell(count_cell, policy_of, content::Vector{Cell},
                           gap::Cell, avail; reads = k -> !_gl_offers(policy_of(k)))
-    ComputedCell(function ()
+    Cell(Computed(function ()
         c = count_cell[]
         c <= 0 && return Int[]
         c = min(c, length(content))
@@ -1125,23 +1125,23 @@ function _gl_extents_cell(count_cell, policy_of, content::Vector{Cell},
         end
         (avail === nothing || !weighted) && return prefs
         allocate_axis(Int(avail[]); mins, maxs, prefs, weights = wts, gap = gap[], n = c)
-    end)
+    end))
 end
 
 # An offer is carried as an `Int32` cell, the way every other seeded extent is.
-_gl_int32_cell(extent::Cell) = ComputedCell(() -> Int32(max(0, extent[])))
+_gl_int32_cell(extent::Cell) = Cell(Computed(() -> Int32(max(0, extent[]))))
 
 # One entry of what `_gl_extents_cell` allocated.
 _gl_extent_cell(extents, k::Int) =
-    ComputedCell(function ()
+    Cell(Computed(function ()
         e = extents[]
         k <= length(e) ? e[k] : 0
-    end)
+    end))
 
 function _gl_child_x(i::Int, child_iomaps::Vector,
                     cols_cell::Cell, col_w::Vector{Cell}, col_x::Vector{Cell},
                     halign::Cell, column_align_cell::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         c = cols_cell[]
         cw = _child_w(child_iomaps[i])
         col = _grid_col(i, c)
@@ -1151,13 +1151,13 @@ function _gl_child_x(i::Int, child_iomaps::Vector,
               a === :right  ? cellw - cw         :
                               0
         Int32(col_x[col][] + off)
-    end)
+    end))
 end
 
 function _gl_child_y(i::Int, child_iomaps::Vector,
                     cols_cell::Cell, row_h::Vector{Cell}, row_y::Vector{Cell},
                     valign::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         c = cols_cell[]
         ch = _child_h(child_iomaps[i])
         row = _grid_row(i, c)
@@ -1167,7 +1167,7 @@ function _gl_child_y(i::Int, child_iomaps::Vector,
               a === :bottom ? cellh - ch         :
                               0
         Int32(row_y[row][] + off)
-    end)
+    end))
 end
 
 function print_document(p::GridLayoutToGraphicsCanvas,
@@ -1212,10 +1212,10 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     # offers its slot to the cells in it. They read `child_iomaps` lazily, and the
     # loop below fills that vector; nothing forces an extent while it runs.
     child_iomaps = Any[]
-    row_count_cell = ComputedCell(function ()
+    row_count_cell = Cell(Computed(function ()
         c = cols_cell[]
         c <= 0 ? 0 : div(n + c - 1, c)
-    end)
+    end))
     content_col_w = Cell[]
     content_row_h = Cell[]
     for k in 1:n
@@ -1263,16 +1263,16 @@ function print_document(p::GridLayoutToGraphicsCanvas,
         push!(child_y, _gl_child_y(i, child_iomaps, cols_cell, row_h, row_y, valign))
     end
 
-    outer_w = ComputedCell(function ()
+    outer_w = Cell(Computed(function ()
         c = cols_cell[]
         total = 0
         for cc in 1:c
             total += col_w[cc][]
         end
         total + max(0, c - 1) * hgap[]
-    end)
+    end))
 
-    outer_h = ComputedCell(function ()
+    outer_h = Cell(Computed(function ()
         c = cols_cell[]
         nrows = div(n + c - 1, c)
         total = 0
@@ -1280,7 +1280,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
             total += row_h[rr][]
         end
         total + max(0, nrows - 1) * vgap[]
-    end)
+    end))
 
     # A child in a column or a row whose extent was given is drawn inside that
     # slot; every other child is drawn where the alignment put it and reaches as
@@ -1306,8 +1306,8 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     end
 
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           ComputedCell(() -> Int32(outer_w[])),
-                           ComputedCell(() -> Int32(outer_h[])),
+                           Cell(Computed(() -> Int32(outer_w[]))),
+                           Cell(Computed(() -> Int32(outer_h[]))),
                            CellVector(Cell[Cell(e) for e in wrapped]),
                            layout_none, true, Cell(nothing))
 
@@ -1322,7 +1322,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     GridLayoutIoMap(p, doc, outer, Cell(entries),
                     col_x, row_y, col_w, row_h,
                     cols_cell, row_count, hgap, vgap,
-                    ComputedCell(() -> Int32(outer_w[])), ComputedCell(() -> Int32(outer_h[])))
+                    Cell(Computed(() -> Int32(outer_w[]))), Cell(Computed(() -> Int32(outer_h[]))))
 end
 
 function map_reference_forward(::GridLayoutToGraphicsCanvas, iomap, reference)
@@ -1339,7 +1339,7 @@ end
 # ── FlowLayout ─────────────────────────────────────────────────────────────
 
 function _fl_line_plan(n::Int, child_iomaps::Vector, max_w_cell::Cell, hgap_cell::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         mw = max_w_cell[]
         hg = hgap_cell[]
         plan = Tuple{Int,Int}[]
@@ -1358,11 +1358,11 @@ function _fl_line_plan(n::Int, child_iomaps::Vector, max_w_cell::Cell, hgap_cell
             cursor = next_cursor
         end
         plan
-    end)
+    end))
 end
 
 function _fl_line_h(ln::Int, n::Int, child_iomaps::Vector, line_plan::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         h = 0
         plan = line_plan[]
         for k in 1:n
@@ -1371,21 +1371,21 @@ function _fl_line_h(ln::Int, n::Int, child_iomaps::Vector, line_plan::Cell)
             ch > h && (h = ch)
         end
         h
-    end)
+    end))
 end
 
 function _fl_line_y(ln::Int, line_h::Vector{Cell}, vgap::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         y = 0
         for ll in 1:(ln-1)
             y += line_h[ll][] + vgap[]
         end
         y
-    end)
+    end))
 end
 
 function _fl_line_w(ln::Int, n::Int, child_iomaps::Vector, line_plan::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         w = 0
         plan = line_plan[]
         for k in 1:n
@@ -1396,12 +1396,12 @@ function _fl_line_w(ln::Int, n::Int, child_iomaps::Vector, line_plan::Cell)
             right > w && (w = right)
         end
         w
-    end)
+    end))
 end
 
 function _fl_child_x(i::Int, line_plan::Cell, max_w_cell::Cell,
                     line_w::Vector{Cell}, halign::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         plan = line_plan[]
         ln, x_in_line = plan[i]
         mw = max_w_cell[]
@@ -1411,12 +1411,12 @@ function _fl_child_x(i::Int, line_plan::Cell, max_w_cell::Cell,
               a === :right  ? mw - lw          :
                               0
         Int32(x_in_line + off)
-    end)
+    end))
 end
 
 function _fl_child_y(i::Int, child_iomaps::Vector, line_plan::Cell,
                     line_h::Vector{Cell}, line_y::Vector{Cell}, valign::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         plan = line_plan[]
         ln, _ = plan[i]
         lh = line_h[ln][]
@@ -1426,7 +1426,7 @@ function _fl_child_y(i::Int, child_iomaps::Vector, line_plan::Cell,
               a === :bottom ? lh - ch         :
                               0
         Int32(line_y[ln][] + off)
-    end)
+    end))
 end
 
 function print_document(p::FlowLayoutToGraphicsCanvas,
@@ -1440,7 +1440,7 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
     # offered when that is less: a flow in a card breaks at the card's edge.
     child_ctx = ctx === nothing ? nothing : withhold_offer(withhold_offer(ctx, :x), :y)
     avail_w = ctx === nothing ? nothing : ctx.available_width
-    build = ComputedCell(() -> begin
+    build = Cell(Computed(() -> begin
         n = length(doc.children)
         child_iomaps = Any[]
         for i in 1:n
@@ -1450,16 +1450,16 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
         end
         authored_w = getfield(doc, :max_width)
         max_w_cell = avail_w === nothing ? authored_w :
-                     ComputedCell(() -> min(Int(authored_w[]), max(0, Int(avail_w[]))))
+                     Cell(Computed(() -> min(Int(authored_w[]), max(0, Int(avail_w[])))))
         hgap_cell  = getfield(doc, :horizontal_gap)
         vgap_cell  = getfield(doc, :vertical_gap)
         halign     = getfield(doc, :horizontal_align)
         valign     = getfield(doc, :vertical_align)
         line_plan = _fl_line_plan(n, child_iomaps, max_w_cell, hgap_cell)
-        line_count = ComputedCell(function ()
+        line_count = Cell(Computed(function ()
             plan = line_plan[]
             isempty(plan) ? 0 : plan[end][1]
-        end)
+        end))
         line_h = Cell[]
         line_w = Cell[]
         for ln in 1:n
@@ -1476,8 +1476,8 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
             push!(child_x, _fl_child_x(i, line_plan, max_w_cell, line_w, halign))
             push!(child_y, _fl_child_y(i, child_iomaps, line_plan, line_h, line_y, valign))
         end
-        outer_w = ComputedCell(() -> max_w_cell[])
-        outer_h = ComputedCell(function ()
+        outer_w = Cell(Computed(() -> max_w_cell[]))
+        outer_h = Cell(Computed(function ()
             lc = line_count[]
             lc == 0 && return 0
             total = 0
@@ -1485,7 +1485,7 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
                 total += line_h[ln][]
             end
             total + max(0, lc - 1) * vgap_cell[]
-        end)
+        end))
         wrapped = Any[]
         for i in 1:n
             c = child_iomaps[i].output
@@ -1497,14 +1497,14 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
             push!(entries, (child_x[i], child_y[i], child_iomaps[i]))
         end
         (wrapped = wrapped, w = outer_w, h = outer_h, entries = entries)
-    end)
+    end))
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           ComputedCell(() -> Int32(build[].w[])),
-                           ComputedCell(() -> Int32(build[].h[])),
+                           Cell(Computed(() -> Int32(build[].w[]))),
+                           Cell(Computed(() -> Int32(build[].h[]))),
                            ComputedCellVector(() -> vcat(build[].wrapped, Any[ring])),
                            layout_none, true, Cell(nothing))
-    ChildrenIoMap(p, doc, outer, ComputedCell(() -> build[].entries))
+    ChildrenIoMap(p, doc, outer, Cell(Computed(() -> build[].entries)))
 end
 
 function map_reference_forward(::FlowLayoutToGraphicsCanvas, iomap, reference)
@@ -1521,7 +1521,7 @@ end
 # ── StackLayout ───────────────────────────────────────────────────────────
 
 function _sl_child_x_cell(i::Int, child_iomaps::Vector, outer_w::Cell, halign::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         cw = _child_w(child_iomaps[i])
         ow = outer_w[]
         a  = halign[]
@@ -1529,11 +1529,11 @@ function _sl_child_x_cell(i::Int, child_iomaps::Vector, outer_w::Cell, halign::C
             a === :right  ? ow - cw         :
                             0
         Int32(x)
-    end)
+    end))
 end
 
 function _sl_child_y_cell(i::Int, child_iomaps::Vector, outer_h::Cell, valign::Cell)
-    ComputedCell(function ()
+    Cell(Computed(function ()
         ch = _child_h(child_iomaps[i])
         oh = outer_h[]
         a  = valign[]
@@ -1541,7 +1541,7 @@ function _sl_child_y_cell(i::Int, child_iomaps::Vector, outer_h::Cell, valign::C
             a === :bottom ? oh - ch         :
                             0
         Int32(y)
-    end)
+    end))
 end
 
 """Reverse-order hit-test: iterate children from last (top) to first (bottom)."""
@@ -1599,7 +1599,7 @@ function print_document(p::StackLayoutToGraphicsCanvas,
     # Rebuild the child iomaps on a structural edit to `doc.children` (a stack's
     # pages can be added/removed), so a child add/remove reflows. `active` /
     # child-size changes flow through the cells below without re-entering this.
-    build = ComputedCell(() -> begin
+    build = Cell(Computed(() -> begin
         n = length(doc.children)
         cims = Any[]
         for i in 1:n
@@ -1609,34 +1609,34 @@ function print_document(p::StackLayoutToGraphicsCanvas,
             push!(cims, _recurse_child(recursion, doc.children[i], cctx))
         end
         (n, cims)
-    end)
+    end))
 
     # `active` (Stage 6 page container): 0 ⇒ z-stack (all children); i ⇒ only page i
     # (a QStackedWidget). Visible pages drive the extent, elements and event routing.
-    outer_w = ComputedCell(function ()
+    outer_w = Cell(Computed(function ()
         (n, cims) = build[]
         w = 0
         for i in _visible(active_cell[], n)
             cw = _child_w(cims[i]); cw > w && (w = cw)
         end
         w
-    end)
-    outer_h = ComputedCell(function ()
+    end))
+    outer_h = Cell(Computed(function ()
         (n, cims) = build[]
         h = 0
         for i in _visible(active_cell[], n)
             ch = _child_h(cims[i]); ch > h && (h = ch)
         end
         h
-    end)
+    end))
 
     # Per-child position cells; rebuilt only on a structural change (they capture
     # `outer_w`/`outer_h` rather than reading them, so `active` does not churn them).
-    positions = ComputedCell(() -> begin
+    positions = Cell(Computed(() -> begin
         (n, cims) = build[]
         ([_sl_child_x_cell(i, cims, outer_w, halign) for i in 1:n],
          [_sl_child_y_cell(i, cims, outer_h, valign) for i in 1:n])
-    end)
+    end))
 
     elements_cv = ComputedCellVector(() -> begin
         (n, cims) = build[]
@@ -1650,12 +1650,12 @@ function print_document(p::StackLayoutToGraphicsCanvas,
     end)
 
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           ComputedCell(() -> Int32(outer_w[])),
-                           ComputedCell(() -> Int32(outer_h[])),
+                           Cell(Computed(() -> Int32(outer_w[]))),
+                           Cell(Computed(() -> Int32(outer_h[]))),
                            elements_cv,
                            layout_none, true, Cell(nothing))
 
-    entries_cell = ComputedCell(() -> begin
+    entries_cell = Cell(Computed(() -> begin
         (n, cims) = build[]
         (cx, cy) = positions[]
         out = Tuple{Cell,Cell,Any}[]
@@ -1663,7 +1663,7 @@ function print_document(p::StackLayoutToGraphicsCanvas,
             push!(out, (cx[i], cy[i], cims[i]))
         end
         out
-    end)
+    end))
 
     ChildrenIoMap(p, doc, outer, entries_cell)
 end
@@ -1702,8 +1702,8 @@ function _solver_relations(relations_cv)
     rels
 end
 
-_cl_pos_cell(solve::Cell, i::Int, k::Int)  = ComputedCell(() -> Int32(solve[][i][k]))  # k = 1 (x) / 2 (y)
-_cl_size_cell(solve::Cell, i::Int, k::Int) = ComputedCell(() -> solve[][i][k])         # k = 3 (w) / 4 (h), Int
+_cl_pos_cell(solve::Cell, i::Int, k::Int)  = Cell(Computed(() -> Int32(solve[][i][k])))  # k = 1 (x) / 2 (y)
+_cl_size_cell(solve::Cell, i::Int, k::Int) = Cell(Computed(() -> solve[][i][k]))         # k = 3 (w) / 4 (h), Int
 
 # Which children have a size axis *explicitly* constrained by some relation, so
 # the layout should own that dimension (size-override) rather than leave it
@@ -1757,12 +1757,12 @@ function _cl_build(solver, recursion, doc, ctx)
 
     # One reactive cell wrapping the whole LP solve. Re-runs lazily when any
     # child intrinsic extent, any relation, or a bounding dimension changes.
-    solve = ComputedCell(function ()
+    solve = Cell(Computed(function ()
         iw = Int[_child_w(cim) for cim in measure_iomaps]
         ih = Int[_child_h(cim) for cim in measure_iomaps]
         rels = _solver_relations(relations_cv)
         solve_constraint_layout(solver, n, iw, ih, rels, Int(bw_cell[]), Int(bh_cell[]))
-    end)
+    end))
 
     child_x = Cell[]
     child_y = Cell[]
@@ -1798,7 +1798,7 @@ function _cl_build(solver, recursion, doc, ctx)
 
     # The container is extrinsically sized when bounding dims are given;
     # otherwise it falls back to the max solved child extent.
-    outer_w = ComputedCell(function ()
+    outer_w = Cell(Computed(function ()
         bw = Int(bw_cell[])
         bw > 0 && return bw
         s = solve[]
@@ -1808,9 +1808,9 @@ function _cl_build(solver, recursion, doc, ctx)
             right > w && (w = right)
         end
         w
-    end)
+    end))
 
-    outer_h = ComputedCell(function ()
+    outer_h = Cell(Computed(function ()
         bh = Int(bh_cell[])
         bh > 0 && return bh
         s = solve[]
@@ -1820,7 +1820,7 @@ function _cl_build(solver, recursion, doc, ctx)
             bottom > h && (h = bottom)
         end
         h
-    end)
+    end))
 
     wrapped = Any[]
     for i in 1:n
@@ -1840,14 +1840,14 @@ end
 function print_document(p::ConstraintLayoutToGraphicsCanvas,
                           recursion, doc::ConstraintLayout, ctx)
     solver = p.solver
-    build = ComputedCell(() -> _cl_build(solver, recursion, doc, ctx))
+    build = Cell(Computed(() -> _cl_build(solver, recursion, doc, ctx)))
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           ComputedCell(() -> Int32(build[].w[])),
-                           ComputedCell(() -> Int32(build[].h[])),
+                           Cell(Computed(() -> Int32(build[].w[]))),
+                           Cell(Computed(() -> Int32(build[].h[]))),
                            ComputedCellVector(() -> vcat(build[].wrapped, Any[ring])),
                            layout_none, true, Cell(nothing))
-    ChildrenIoMap(p, doc, outer, ComputedCell(() -> build[].entries))
+    ChildrenIoMap(p, doc, outer, Cell(Computed(() -> build[].entries)))
 end
 
 function map_reference_forward(::ConstraintLayoutToGraphicsCanvas, iomap, reference)
@@ -1937,7 +1937,7 @@ function _al_build(recursion, doc::AnchoredLayout, ctx)
     # One cell over the whole placement: it re-runs when a target moves, a child
     # resizes, or the region changes — and NOT when the content merely redraws,
     # because the content's geometry is not a function of these children.
-    placed = ComputedCell(function ()
+    placed = Cell(Computed(function ()
         entries = Tuple{Int,Int,Symbol,Int,Int}[]
         targets = Any[]
         for i in 1:n
@@ -1950,10 +1950,10 @@ function _al_build(recursion, doc::AnchoredLayout, ctx)
         compute_anchored_positions(entries, targets; bounding_w = Int(doc.bounding_width),
                                    bounding_h = Int(doc.bounding_height),
                                    stacking_gap = Int(doc.stacking_gap))
-    end)
+    end))
 
-    child_x = Cell[ComputedCell(() -> Int32(placed[][i][1])) for i in 1:n]
-    child_y = Cell[ComputedCell(() -> Int32(placed[][i][2])) for i in 1:n]
+    child_x = Cell[Cell(Computed(() -> Int32(placed[][i][1]))) for i in 1:n]
+    child_y = Cell[Cell(Computed(() -> Int32(placed[][i][2]))) for i in 1:n]
 
     # The content first, the anchored children over it, in the order given.
     wrapped = Any[]
@@ -1967,14 +1967,14 @@ function _al_build(recursion, doc::AnchoredLayout, ctx)
 
     # The region is what was asked for, else what the content needs — an
     # annotation hanging off the edge does not grow the diagram.
-    outer_w = ComputedCell(function ()
+    outer_w = Cell(Computed(function ()
         bw = Int(doc.bounding_width)
         bw > 0 ? bw : _child_w(content_iomap)
-    end)
-    outer_h = ComputedCell(function ()
+    end))
+    outer_h = Cell(Computed(function ()
         bh = Int(doc.bounding_height)
         bh > 0 ? bh : _child_h(content_iomap)
-    end)
+    end))
 
     entries = Tuple{Cell,Cell,Any}[]
     push!(entries, (Cell(Int32(0)), Cell(Int32(0)), content_iomap))
@@ -1986,14 +1986,14 @@ end
 
 function print_document(p::AnchoredLayoutToGraphicsCanvas, recursion,
                         doc::AnchoredLayout, ctx)
-    build = ComputedCell(() -> _al_build(recursion, doc, ctx))
+    build = Cell(Computed(() -> _al_build(recursion, doc, ctx)))
     ring = make_layout_selection_ring(doc, () -> build[].entries, p.selection_ring_stroke)
     outer = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                           ComputedCell(() -> Int32(build[].w[])),
-                           ComputedCell(() -> Int32(build[].h[])),
+                           Cell(Computed(() -> Int32(build[].w[]))),
+                           Cell(Computed(() -> Int32(build[].h[]))),
                            ComputedCellVector(() -> vcat(build[].wrapped, Any[ring])),
                            layout_none, true, Cell(nothing))
-    ChildrenIoMap(p, doc, outer, ComputedCell(() -> build[].entries))
+    ChildrenIoMap(p, doc, outer, Cell(Computed(() -> build[].entries)))
 end
 
 # Child 1 of the IoMap is the content; the anchored children follow it, so a

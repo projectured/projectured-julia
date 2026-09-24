@@ -529,7 +529,7 @@ function _editable_body(c::DocumentInsertion)
     # completion hint span — the same feedback the syntax-leaf insertion shows.
     # font_color is driven by `set_cell_function!` below, so it must be a reactive Cell,
     # not the immutable default — pass it explicitly. font stays immutable (authored).
-    value_span = TextString(ComputedCell(() -> _value(c)), _FONT, Cell(color_default),
+    value_span = TextString(Cell(Computed(() -> _value(c))), _FONT, Cell(color_default),
                             nothing, nothing, nothing)
     set_cell_function!(getfield(value_span, :font_color), function ()
         state = name_completion(c).state
@@ -549,7 +549,7 @@ end
 function _editable_body(c)
     show() = (v = _value(c); isempty(v) ? _PLACEHOLDER : v)
     # reactive font_color (set below); font stays immutable.
-    ts = TextString(ComputedCell(show), _FONT, Cell(color_default), nothing, nothing, nothing)
+    ts = TextString(Cell(Computed(show)), _FONT, Cell(color_default), nothing, nothing, nothing)
     set_cell_function!(getfield(ts, :font_color),
            () -> isempty(_value(c)) ? color_solarized_gray : color_default)
     TextBlock(ts)

@@ -277,15 +277,15 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # The block's prevailing font sizes a blank line that has no font of its own
     # (an empty `TextLine`). It lives in its own cell because only such a line
     # reads it: a font edit still re-lays out just the lines that render glyphs.
-    block_font = ComputedCell(() -> _block_font(styled))
+    block_font = Cell(Computed(() -> _block_font(styled)))
     # The overlay is laid out from the **stored** selection, live or dormant, so a
     # dormant caret still has a place on the screen. `is_live` decides only how it
     # is painted. Reading the raw cell is what makes a dormant selection visible at
     # all: the property answers `nothing` for one, which is the default that keeps
     # every other reader correct.
     selection_cell = getfield(styled, :selection)
-    overlay = ComputedCell(() -> _layout_overlay(p, styled, _get_stored_path(selection_cell[]), block_font))
-    is_live = ComputedCell(() -> _is_live_selection(selection_cell[]))
+    overlay = Cell(Computed(() -> _layout_overlay(p, styled, _get_stored_path(selection_cell[]), block_font)))
+    is_live = Cell(Computed(() -> _is_live_selection(selection_cell[])))
 
     # Persistent overlay elements. Their geometry cells read the selection-
     # dependent `overlay`; a zero width hides them when inactive (the renderer
@@ -335,7 +335,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # The block resolved into visual lines (see `_line_groups`). Reads only the
     # element structure, the element types and a line's indentation — never a span's
     # `.content` — so it is invariant under content edits.
-    lines_cell = ComputedCell(() -> _line_groups(styled))
+    lines_cell = Cell(Computed(() -> _line_groups(styled)))
 
     # Per-line reactive cells, built once per line index and reused. A line's
     # `layout` reads only that line's spans' content; its `y` chains off the
@@ -347,13 +347,13 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     line_cells = Dict{Int,NamedTuple}()
     function get_line_cells(L::Int)
         haskey(line_cells, L) && return line_cells[L]
-        line_layout = ComputedCell(() -> _layout_group(p, lines_cell[][L], 0, nothing, true, block_font))
-        line_h = ComputedCell(() -> Int32(line_layout[].height))
+        line_layout = Cell(Computed(() -> _layout_group(p, lines_cell[][L], 0, nothing, true, block_font)))
+        line_h = Cell(Computed(() -> Int32(line_layout[].height)))
         line_y = if L == 1
             Cell(Int32(0))
         else
             prev = get_line_cells(L - 1)
-            ComputedCell(() -> Int32(prev.y[] + prev.h[]))
+            Cell(Computed(() -> Int32(prev.y[] + prev.h[])))
         end
         cache = Dict{Any,Any}()
         segs = ComputedCellVector(function ()
@@ -401,7 +401,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # coord_map (reader-only — not in the rendered tree) assembled from the per-line
     # layouts, shifted into absolute coordinates by each line's y-offset so clicks
     # and key-navigation see exactly the same SegCoords as before.
-    char_to_coord = ComputedCell(function ()
+    char_to_coord = Cell(Computed(function ()
         out = SegmentCoordinate[]
         n = length(lines_cell[])
         for L in 1:n
@@ -413,7 +413,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
             end
         end
         out
-    end)
+    end))
     # `highlight_offset` keeps its value of 1 — the rasterized-image click
     # path (`_translate_click`) indexes the coord_map past the single leading
     # highlight element (now the highlight sub-canvas, holding the per-row rects).
@@ -422,17 +422,17 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # and line sub-canvases), so the bare text examples use the MousePress/coord_map
     # reader instead, but the value is preserved for the rasterized-image path.
     highlight_offset = Cell(1)
-    canvas_w = ComputedCell(function ()
+    canvas_w = Cell(Computed(function ()
         w = 0
         for L in 1:length(lines_cell[])
             w = max(w, get_line_cells(L).layout[].width)
         end
         Int32(w)
-    end)
-    canvas_h = ComputedCell(function ()
+    end))
+    canvas_h = Cell(Computed(function ()
         n = length(lines_cell[])
         n == 0 ? Int32(0) : (lc = get_line_cells(n); Int32(lc.y[] + lc.h[]))
-    end)
+    end))
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)), canvas_w, canvas_h,
                             top_elements, layout_none, true, Cell(nothing))
     TextToGraphicsIoMap(p, styled, canvas, char_to_coord, highlight_offset)

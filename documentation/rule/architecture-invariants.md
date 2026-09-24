@@ -190,7 +190,7 @@ requirement; the rule is its own lead sentence.
 ### PAR-PURE-THUNK
 
 **Every reactive computation must be a pure function of the cells it reads.** A
-`ComputedCell(() -> …)` thunk (and the parts of `print_document` that build them) must
+`Cell(Computed(() -> …))` thunk (and the parts of `print_document` that build them) must
 have no side effects and must depend only on the cells it reads — no clocks,
 RNG, or external mutable state. A thunk may run zero, one, or many times per
 logical change and its cached result is reused until invalidation, so impurity
@@ -298,7 +298,7 @@ cell closure, observed by no other node) is the correct way to key reuse.
 wiring is complete.** Express derived values as computed cells so the system
 can invalidate them, rather than caching them by hand. During construction of a
 struct whose iomap wiring is not yet finished, defer the read with
-`ComputedCell(() -> …)` (the deferred-iomap trick) instead of reading the cell
+`Cell(Computed(() -> …))` (the deferred-iomap trick) instead of reading the cell
 eagerly.
 
 ### PAR-FINEST-GRANULARITY
@@ -538,8 +538,8 @@ does this — do not special-case nested editing.
 reactive cell and returns a `ChildrenIoMap`.** Store the per-child IoMaps in a
 single `child_iomaps::Cell` (not inline across two separate cells, which would
 instantiate different output objects and break the identity invariant), project
-the selection reactively (`ComputedCell(() -> map_reference_forward(p, iomap,
-node.selection))` with the deferred-iomap trick), and use `ChildrenIoMap` so
+the selection reactively (`Cell(Computed(() -> map_reference_forward(p, iomap,
+node.selection)))` with the deferred-iomap trick), and use `ChildrenIoMap` so
 the reader and both mappers can locate the correct child IoMap when translating
 backward.
 
@@ -688,8 +688,8 @@ stored path still fits. Do not build checkpoint *steps* by hand — the
 ### PAR-REACTIVE-OUTPUT-SELECTION
 
 **Wire the output selection reactively; focus is the selection.** In
-`print_document`, set `output.selection = ComputedCell(() -> map_reference_forward(p,
-iomap, input.selection))` so the mapping lives in one place (a compound
+`print_document`, set `output.selection = Cell(Computed(() -> map_reference_forward(p,
+iomap, input.selection)))` so the mapping lives in one place (a compound
 projection that introduces structural nodes with no input counterpart wires
 those nodes' selection cells explicitly; a leaf-to-leaf projection with
 identical formats may instead *share* the same `selection::Cell`). There is no

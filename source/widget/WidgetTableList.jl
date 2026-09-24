@@ -95,7 +95,7 @@ end
 # told its height, and neither comes from the cell.
 function _wtl_cell_context(ctx, w::WidgetTable, c::Int, widths::Cell)
     offered = _wt_column_cell_policy(w, c) === :wrap
-    ctx = offered ? with_available_size(ctx; width = ComputedCell(() -> Int32(widths[][c]))) :
+    ctx = offered ? with_available_size(ctx; width = Cell(Computed(() -> Int32(widths[][c])))) :
                     withhold_offer(ctx, :x)
     withhold_offer(ctx, :y)
 end
@@ -110,7 +110,7 @@ _wtl_child_h(cim) = (cim !== nothing && cim.output isa GraphicsCanvas) ? Int(cim
 # the rect reads the document itself, so a caret move rebuilds no row.
 function _wtl_band(p::WidgetTableToGraphicsCanvas, w::WidgetTable, k::Int, st::WidgetTableListState,
                    height::Cell, kind::Symbol)
-    bounds = ComputedCell(() -> begin
+    bounds = Cell(Computed(() -> begin
         reference = kind === :hover ? w.hovered : w.selection
         named = _wtl_named(reference)
         named === nothing && return (0, 0)
@@ -120,7 +120,7 @@ function _wtl_band(p::WidgetTableToGraphicsCanvas, w::WidgetTable, k::Int, st::W
         edges = st.columns[]
         (1 <= column <= length(edges) - 1) || return (0, 0)
         (edges[column], edges[column + 1] - edges[column])
-    end)
+    end))
     color = kind === :hover ? p.layer_hovered_color : _get_state_color(p, w, :row; state = :selected)
     rect = GraphicsRect(0, 0, 0, 0; color, radius = _WT_ROW_RADIUS)
     set_cell_function!(getfield(rect, :x), () -> Int32(bounds[][1]))
@@ -153,13 +153,13 @@ function _wtl_row(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx
                                   (@reference_step [c]))
         cctx = _wtl_cell_context(cctx, w, c, st.widths)
         cim = document === nothing ? nothing : print_child(recursion, document, cctx)
-        x_cell = ComputedCell(() -> Int32(st.columns[][c] + bw + pad_x))
+        x_cell = Cell(Computed(() -> Int32(st.columns[][c] + bw + pad_x)))
         y_cell = Cell(Int32(bw + pad_y))
         push!(entries, (x_cell, y_cell, cim))
     end
-    row_h = ComputedCell(() -> st.row_extent !== nothing ? st.row_extent :
-        maximum((_wtl_child_h(entry[3]) for entry in entries); init = 0))
-    height = ComputedCell(() -> Int32(bw + pad_y + Int(row_h[]) + pad_y))
+    row_h = Cell(Computed(() -> st.row_extent !== nothing ? st.row_extent :
+        maximum((_wtl_child_h(entry[3]) for entry in entries); init = 0)))
+    height = Cell(Computed(() -> Int32(bw + pad_y + Int(row_h[]) + pad_y)))
     divider_stroke = _get_state_stroke(p, w, :divider)
     elements = ComputedCellVector(() -> begin
         total_w = Int(st.total_w[])
@@ -175,8 +175,8 @@ function _wtl_row(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx
             cim === nothing && continue
             child = cim.output
             child isa GraphicsDocument || continue
-            slot_w = ComputedCell(() -> Int32(st.widths[][c]))
-            slot_h = ComputedCell(() -> Int32(Int(row_h[])))
+            slot_w = Cell(Computed(() -> Int32(st.widths[][c])))
+            slot_h = Cell(Computed(() -> Int32(Int(row_h[]))))
             push!(out, clip_child_to_slot(child, cim; x_cell, y_cell, slot_x = x_cell,
                                           slot_y = y_cell, slot_w, slot_h, clip_x = true,
                                           clip_y = st.row_extent !== nothing))
@@ -188,7 +188,7 @@ function _wtl_row(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx
         out
     end)
     canvas = GraphicsCanvas(Cell(Int32(0)), Cell(Int32(0)),
-                            ComputedCell(() -> Int32(Int(st.total_w[]))), height,
+                            Cell(Computed(() -> Int32(Int(st.total_w[])))), height,
                             elements, layout_none, true, Cell(nothing))
     (canvas, entries)
 end
@@ -284,11 +284,12 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
         floor = _wtl_child_w(st.header_entries[c][3])
         SizePolicy(floor, max(floor, something(policy.preferred, 0)), policy.max, policy.weight)
     end
-    widths = ComputedCell(() -> compute_axis_extents(
+    widths = Cell(Computed(() -> compute_axis_extents(
         SizePolicy[header_floor(c, _wtl_column_policy(w, c)) for c in 1:ncols], hgap,
-        avail_w === nothing ? nothing : max(0, Int(avail_w[]) - hgap - bw - inset_width)))
-    columns = ComputedCell(() -> compute_axis_offsets(widths[], hgap))
-    total_w = ComputedCell(() -> last(columns[]) + bw)
+        avail_w === nothing ? nothing :
+            max(0, Int(avail_w[]) - hgap - bw - inset_width))))
+    columns = Cell(Computed(() -> compute_axis_offsets(widths[], hgap)))
+    total_w = Cell(Computed(() -> last(columns[]) + bw))
     row_policy = w.row_policy::SizePolicy
     row_extent = row_policy.preferred === nothing ? nothing : Int(row_policy.preferred)
     # `header_height` is the body's y from the table's own origin, which is
@@ -307,12 +308,12 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
             cctx = make_child_context(ctx, w, (@reference_step column_headers), (@reference_step [c]))
             cctx = _wtl_cell_context(cctx, w, c, widths)
             cim = document === nothing ? nothing : print_child(recursion, document, cctx)
-            x_cell = ComputedCell(() -> Int32(columns[][c] + bw + pad_x))
+            x_cell = Cell(Computed(() -> Int32(columns[][c] + bw + pad_x)))
             y_cell = Cell(Int32(bw + pad_y))
             push!(st.header_entries, (x_cell, y_cell, cim))
         end
-        header_h = ComputedCell(() -> maximum((_wtl_child_h(entry[3]) for entry in st.header_entries); init = 0))
-        strip_h = ComputedCell(() -> bw + pad_y + Int(header_h[]) + pad_y)
+        header_h = Cell(Computed(() -> maximum((_wtl_child_h(entry[3]) for entry in st.header_entries); init = 0)))
+        strip_h = Cell(Computed(() -> bw + pad_y + Int(header_h[]) + pad_y))
         set_cell_function!(st.header_height, () -> content_y + Int(strip_h[]))
         header_elements = ComputedCellVector(() -> begin
             out = Any[GraphicsRect(0, 0, Int(total_w[]), Int(strip_h[]); color = header_row_color)]
@@ -321,8 +322,8 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
                 cim === nothing && continue
                 child = cim.output
                 child isa GraphicsDocument || continue
-                slot_w = ComputedCell(() -> Int32(widths[][c]))
-                slot_h = ComputedCell(() -> Int32(Int(header_h[])))
+                slot_w = Cell(Computed(() -> Int32(widths[][c])))
+                slot_h = Cell(Computed(() -> Int32(Int(header_h[]))))
                 push!(out, clip_child_to_slot(child, cim; x_cell, y_cell, slot_x = x_cell,
                                               slot_y = y_cell, slot_w, slot_h,
                                               clip_x = true, clip_y = false))
@@ -334,8 +335,8 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
             out
         end)
         header_canvas = GraphicsCanvas(Cell(Int32(content_x)), Cell(Int32(content_y)),
-                                       ComputedCell(() -> Int32(Int(total_w[]))),
-                                       ComputedCell(() -> Int32(Int(strip_h[]))),
+                                       Cell(Computed(() -> Int32(Int(total_w[])))),
+                                       Cell(Computed(() -> Int32(Int(strip_h[])))),
                                        header_elements, layout_none, true, Cell(nothing))
     end
 
@@ -347,23 +348,23 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
         empty!(st.built)
         rows isa ListNode ? _wtl_node(p, recursion, w, ctx, st, 1, rows, nothing, nothing) : nothing
     end)
-    body_elements = ComputedCell(() -> begin
+    body_elements = Cell(Computed(() -> begin
         head = st.head[]
         head === nothing ? CellVector() : head
-    end)
-    body = GraphicsCanvas(Cell(Int32(content_x)), ComputedCell(() -> Int32(Int(st.header_height[]))),
-                          ComputedCell(() -> Int32(Int(total_w[]))), Cell(Int32(0)),
+    end))
+    body = GraphicsCanvas(Cell(Int32(content_x)), Cell(Computed(() -> Int32(Int(st.header_height[])))),
+                          Cell(Computed(() -> Int32(Int(total_w[])))), Cell(Int32(0)),
                           body_elements, layout_vertical, false, Cell(nothing))
     ox, oy = _origin(w.position::Point2D)
     elements = CellVector(Cell[Cell(e) for e in (has_header ? Any[header_canvas, body] : Any[body])])
     canvas = GraphicsCanvas(Cell(Int32(ox)), Cell(Int32(oy)),
-                            ComputedCell(() -> Int32(Int(total_w[]) + inset_width)), Cell(Int32(0)),
+                            Cell(Computed(() -> Int32(Int(total_w[]) + inset_width))), Cell(Int32(0)),
                             elements, layout_none, true, Cell(nothing))
     WidgetTableListIoMap(p, w, canvas, st)
 end
 
 get_frozen_extent(iomap::WidgetTableListIoMap) =
-    ComputedCell(() -> (0, Int(iomap.state.header_height[])))
+    Cell(Computed(() -> (0, Int(iomap.state.header_height[]))))
 
 # ── References ───────────────────────────────────────────────────────────────
 

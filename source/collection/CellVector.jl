@@ -91,7 +91,7 @@ end
 
 A `CellVector` whose elements are derived — `CellVector(Computed(f))`, with `f` a
 zero-argument thunk returning the element list. The counterpart of
-[`ComputedCell`](@ref) for a collection.
+`Cell(Computed(f))` for a collection.
 """
 ComputedCellVector(f::Function) = CellVector(Computed(f))
 

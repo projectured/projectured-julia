@@ -7,24 +7,27 @@
 The marker that makes a cell compute: the cell runs `thunk` to get its value,
 and does not store `thunk` as its value.
 
-Use it to give a computation to a cell where a value goes: to a typed cell, to a
-write into a cell that exists, or to a field of a document. `thunk` takes no
-argument. A cell stores every other value as it is, a function too, so a cell
-can hold a callback or a predicate as data.
+Use it to state a derived value where it belongs, beside the thing that has it,
+instead of computing it again at every place that needs it. `Cell(Computed(f))`
+is a cell whose value `f` computes, the first time it is read and after anything
+it read has changed. The marker also goes where any other value goes: to a typed
+cell, to a write into a cell that exists, or to a field of a document. `thunk`
+takes no argument, and a cell stores every other value as it is, a function too.
 
 # Example
 
-    width = Cell(80)
-    label = ReactiveCell{String}(Computed(() -> "width " * string(width[])))
-    label[]                              # "width 80"
-    label[] = Computed(() -> "fixed")    # the cell computes something else now
+    rows = Cell(["a", "b"])
+    count = Cell(Computed(() -> length(rows[])))
+    count[]                                   # 2
+    double = ReactiveCell{Int}(Computed(() -> 2 * count[]))
+    count[] = Computed(() -> 0)               # the cell computes something else now
 
 The cell keeps the thunk and not the marker. Only a `ReactiveCell` can compute,
 so a `MutableCell` or an `ImmutableCell` throws an `ArgumentError` when it gets a
 `Computed`.
 
-See also `ComputedCell`, which makes an untyped computed cell, and
-`set_cell_function!`.
+See also `Cell`, which holds a value, and `set_cell_function!`, which makes a
+cell that holds a value compute.
 """
 struct Computed
     thunk::Function

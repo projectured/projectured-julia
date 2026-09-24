@@ -40,7 +40,7 @@ end
 
 function print_document(p::WidgetPopupResolverProjection, recursion, input, ctx)
     child_iomap = print_document(p.inner, recursion, input, ctx)
-    WidgetPopupResolverIoMap(p, input, ComputedCell(() -> child_iomap.output), child_iomap)
+    WidgetPopupResolverIoMap(p, input, Cell(Computed(() -> child_iomap.output)), child_iomap)
 end
 
 # ── Reader ────────────────────────────────────────────────────────────────

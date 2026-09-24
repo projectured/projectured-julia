@@ -29,13 +29,13 @@ function print_document(p::FileSystemFileToSyntaxLeaf, recursion, f::FileSystemF
     # trick, as in FileSystemDirectoryToSyntaxNode), unwrapping our introduced caret
     # back into the leaf's own `.value{k}` span.
     iomap_cell = Cell(nothing)
-    sel = ComputedCell(() -> begin
+    sel = Cell(Computed(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = f.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end)
+    end))
     leaf = SyntaxLeaf(TextString(() -> " " * basename(f.pathname), p.style); selection=sel)
     iomap = SimpleIoMap(p, f, leaf)
     iomap_cell[] = iomap
@@ -94,9 +94,9 @@ end
 
 
 function print_document(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSystemDirectory, ctx)
-    child_iomaps = ComputedCell(() -> [print_child(recursion, elem,
-                                   make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
-                               for (i, elem) in enumerate(d.elements)])
+    child_iomaps = Cell(Computed(() -> [print_child(recursion, elem,
+                                    make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
+                               for (i, elem) in enumerate(d.elements)]))
 
     name_leaf = SyntaxLeaf(
         TextString(() -> " " * _dir_name(d.pathname), p.name);
@@ -111,13 +111,13 @@ function print_document(p::FileSystemDirectoryToSyntaxNode, recursion, d::FileSy
     # child_iomaps). The not-yet-built iomap is supplied via the deferred-iomap
     # trick (iomap_cell), as in JsonArrayToSyntaxNode / CopyingProjection.
     iomap_cell = Cell(nothing)
-    sel = ComputedCell(() -> begin
+    sel = Cell(Computed(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = d.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end)
+    end))
 
     node = SyntaxNode(
         CellVector(Cell[Cell(name_leaf), Cell(body_node)]);

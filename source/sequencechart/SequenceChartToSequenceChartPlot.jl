@@ -38,9 +38,9 @@ function print_document(p::SequenceChartToSequenceChartPlot, recursion,
         Cell(chart),
         Cell(nothing), Cell(false), Cell(0),
         Cell(nothing), Cell(nothing),
-        ComputedCell(() -> let im = iomap_cell[]
+        Cell(Computed(() -> let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, chart.selection)
-        end))
+        end)))
     iomap = SequenceChartToSequenceChartPlotIoMap(p, chart, plot)
     iomap_cell[] = iomap
     iomap

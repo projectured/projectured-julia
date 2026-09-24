@@ -11,7 +11,7 @@
 Three packages add an editor feature with the same parts, and add no code to the editor loop:
 
 - **A document** holds the state: `GestureLog` here, `FaultLog` in `ProjecturedFault`, `GestureMap` and `CommandPalette` in `ProjecturedGestureHelp`. A view of it follows a change as the view of any other document does.
-- **A transparent decorator** wraps a projection. Its printer returns the inner output through a `ComputedCell`, so the IoMap keeps its identity while the inner projection prints again. Its reader calls the inner reader first. On the way it records the result, catches a fault, or uses one gesture that the inner reader returned no operation for.
+- **A transparent decorator** wraps a projection. Its printer returns the inner output through a computed cell, so the IoMap keeps its identity while the inner projection prints again. Its reader calls the inner reader first. On the way it records the result, catches a fault, or uses one gesture that the inner reader returned no operation for.
 - **A panel** draws the document. The document goes through a chain of its own, from `…ToSyntax` through `SyntaxToText` to `TextToGraphics`, and an overlay decorator puts the result in a corner of the window canvas. The overlay reader gives every gesture to the inner projection, so a click on the panel reaches the content below it.
 
 The document also opens in a tab: a natural syntax row draws it, and its insertion alias gives the one instance of the session. [fault.md](../fault/fault.md) and [gesturehelp.md](../gesturehelp/gesturehelp.md) say how the two other packages vary the shape.

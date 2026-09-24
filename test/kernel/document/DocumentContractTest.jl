@@ -14,7 +14,7 @@ Covers:
 
 using Test
 using ProjecturedKernel.DocumentModule
-using ProjecturedKernel.CellModule: Cell, ComputedCell, ImmutableCell, ReactiveCell,
+using ProjecturedKernel.CellModule: Cell, Computed, ImmutableCell, ReactiveCell,
                                     AbstractCell, is_cell_up_to_date
 # The reference layer supplies the type our test-local selection field carries.
 # Non-cell/document imports are allowed only to build the fixture; the contract
@@ -168,7 +168,8 @@ function test_document_contract()
 
         # The point of the shadow: a reader of it runs again when the source moves.
         # A native child would read correctly here and never invalidate.
-        seen = ComputedCell(() -> shadow.content === nothing ? "" : shadow.content.label)
+        seen = Cell(Computed(() -> shadow.content === nothing ? "" :
+                                   shadow.content.label))
         @test seen[] == "first"
         source.content.label = "second"
         sync_document!(shadow, source)

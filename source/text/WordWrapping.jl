@@ -61,11 +61,11 @@ end
 function print_document(p::WordWrapping, recursion, text::TextBlock, ctx)
     wrap_w_cell = _wrap_width_cell(p, ctx)
     measure_fn = p.measure
-    both = ComputedCell(() -> _wrap(text, Int(wrap_w_cell[]), measure_fn))
+    both = Cell(Computed(() -> _wrap(text, Int(wrap_w_cell[]), measure_fn)))
     elements_cv = ComputedCellVector(() -> both[][1])
-    segs_cell = ComputedCell(() -> both[][2])
-    out_selection = ComputedCell(() -> _forward_wrapped(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)),
-                                                        text.selection))
+    segs_cell = Cell(Computed(() -> both[][2]))
+    out_selection = Cell(Computed(() -> _forward_wrapped(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)),
+                                                         text.selection)))
     output = TextBlock(elements_cv, out_selection)
     WordWrappingIoMap(p, text, output, segs_cell)
 end
@@ -74,10 +74,10 @@ function _wrap_width_cell(p::WordWrapping, ctx)
     if ctx isa PrinterContext && ctx.available_width !== nothing
         aw = ctx.available_width
         fallback = p.max_width
-        return ComputedCell(() -> begin
+        return Cell(Computed(() -> begin
             v = aw[]
             v isa Integer ? max(1, Int(v)) : fallback
-        end)
+        end))
     end
     Cell(p.max_width)
 end

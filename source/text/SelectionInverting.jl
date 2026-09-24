@@ -79,10 +79,10 @@ end
 # ── Print ───────────────────────────────────────────────────────────────────
 
 function print_document(p::SelectionInverting, recursion, text::TextBlock, ctx)
-    both = ComputedCell(() -> _invert(p, text))   # (elements, segs)
+    both = Cell(Computed(() -> _invert(p, text)))   # (elements, segs)
     elements_cv = ComputedCellVector(() -> both[][1])
-    segs_cell = ComputedCell(() -> both[][2])
-    out_selection = ComputedCell(() -> _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection))
+    segs_cell = Cell(Computed(() -> both[][2]))
+    out_selection = Cell(Computed(() -> _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection)))
     output = TextBlock(elements_cv, out_selection)
     SelectionInvertingIoMap(p, text, output, segs_cell)
 end

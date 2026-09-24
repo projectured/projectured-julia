@@ -5,7 +5,7 @@
 # click answered, and what a reference maps to, against the eager table over
 # the same data — the one test that says the two forms did not fork.
 
-using ProjecturedKernel.CellModule: Cell, ComputedCell, set_cell_function!, set_cell_value!
+using ProjecturedKernel.CellModule: Cell, Computed, set_cell_function!, set_cell_value!
 using ProjecturedCollection.CollectionModule: ListNode
 using ProjecturedWidget.WidgetModule: _wtl_row_node
 

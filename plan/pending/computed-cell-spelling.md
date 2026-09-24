@@ -36,10 +36,27 @@ the same way. The owner decides whether it goes with `ComputedCell`.
 
 ## Steps
 
-- [ ] 1. A script that parses each file and rewrites each call
+- [x] 1. A script that parses each file and rewrites each call
   `ComputedCell(x)` as `Cell(Computed(x))`. A text substitution can not find the
-  closing parenthesis.
-- [ ] 2. Rewrap every line that the rewrite takes over 90 characters.
-- [ ] 3. Remove `ComputedCell` from `ReactiveCell.jl` and from the exports, and
+  closing parenthesis. The script is a one-off and is not in the repository:
+  - It walks the syntax tree of `Base.JuliaSyntax`. A call with a `do` block
+    becomes `Cell(Computed() do ... end)`, so the block stays the argument of
+    `Computed`.
+  - `Cell(Computed(` is one character longer than `ComputedCell(`, so a
+    continuation line aligned to a column inside the parentheses moves one
+    column to the right. A line indented less than that is a block, and stays.
+  - It leaves a definition, an import, an export, a value reference and every
+    mention in a string or a comment alone, and lists each of them.
+  - It rewrote 723 calls in 105 files of projectured-julia.
+- [x] 2. Rewrap every line that the rewrite takes over 90 characters. Each call
+  grows by 2 characters, not by the 10 that the first estimate said: 13 lines
+  in 8 files went over the limit, and each is rewrapped.
+- [x] 3. Remove `ComputedCell` from `ReactiveCell.jl` and from the exports, and
   update the docstrings and the guides that name it.
+  - The 16 import lists that named `ComputedCell` next to `Cell` name
+    `Computed`.
+  - The "Use it to" text of `ComputedCell` moves to the docstring of
+    `Computed`, so a search by description still finds a derived value.
+  - Prose that named "a `ComputedCell`" says "a computed cell". Plans keep the
+    old name, because they are history.
 - [ ] 4. The same rewrite in omnet-julia and inet-julia.

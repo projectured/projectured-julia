@@ -70,10 +70,10 @@ function print_document(p::TextHighlighting, recursion, text::TextBlock, ctx)
     pattern_cell = p.pattern
     ci_cell = p.case_insensitive
     color = p.color
-    both = ComputedCell(() -> _highlight(text, _effective_pattern(pattern_cell[], ci_cell[]), color))   # (elements, segs)
+    both = Cell(Computed(() -> _highlight(text, _effective_pattern(pattern_cell[], ci_cell[]), color)))   # (elements, segs)
     elements_cv = ComputedCellVector(() -> both[][1])
-    segs_cell = ComputedCell(() -> both[][2])
-    out_selection = ComputedCell(() -> _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection))
+    segs_cell = Cell(Computed(() -> both[][2]))
+    out_selection = Cell(Computed(() -> _forward_map(segs_cell[], text, TextBlock(elements_cv, Cell(nothing)), text.selection)))
     output = TextBlock(elements_cv, out_selection)
     TextHighlightingIoMap(p, text, output, segs_cell)
 end

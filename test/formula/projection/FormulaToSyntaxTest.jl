@@ -30,7 +30,7 @@ end
     f2s = RecursiveProjection(FormulaToSyntax())
 
     out = print_document(f2s, ref).output
-    rendered = ComputedCell(() -> render(out))
+    rendered = Cell(Computed(() -> render(out)))
     @test rendered[] == "A1"
 
     # Renaming the target updates every reference reactively (no rewrite).

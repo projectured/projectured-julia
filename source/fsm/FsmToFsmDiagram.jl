@@ -35,9 +35,9 @@ function print_document(p::FsmToFsmDiagram, recursion,
     iomap_cell = Cell(nothing)
     diagram = FsmDiagram(
         Cell(machine), Cell(0), Cell(0), Cell(0),
-        ComputedCell(() -> let im = iomap_cell[]
+        Cell(Computed(() -> let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, machine.selection)
-        end))
+        end)))
     iomap = FsmToFsmDiagramIoMap(p, machine, diagram)
     iomap_cell[] = iomap
     iomap

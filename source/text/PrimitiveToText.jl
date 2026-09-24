@@ -98,7 +98,7 @@ map_reference_backward(::PrimitiveBoolToText, iomap::SimpleIoMap, reference) =
 function print_document(p::PrimitiveBoolToText, recursion, b::PrimitiveBool, ctx)
     span = TextString(() -> string(b.value), p.style)
     out = TextBlock(ComputedCellVector(() -> TextDocument[span]),
-                   ComputedCell(() -> _value_selection_to_text(b)))
+                   Cell(Computed(() -> _value_selection_to_text(b))))
     SimpleIoMap(p, b, out)
 end
 
@@ -122,7 +122,7 @@ map_reference_backward(::PrimitiveNumberToText, iomap::SimpleIoMap, reference) =
 function print_document(p::PrimitiveNumberToText, recursion, n::PrimitiveNumber, ctx)
     span = TextString(() -> string(something(n.value, "")), p.style)
     out = TextBlock(ComputedCellVector(() -> TextDocument[span]),
-                   ComputedCell(() -> _value_selection_to_text(n)))
+                   Cell(Computed(() -> _value_selection_to_text(n))))
     SimpleIoMap(p, n, out)
 end
 
@@ -159,7 +159,7 @@ function print_document(p::PrimitiveStringToTextBlock, recursion, s::PrimitiveSt
     placeholder_span = TextString(p.placeholder, p.placeholder_style)
     show_placeholder() = !isempty(p.placeholder) && isempty(something(s.value, ""))
     out = TextBlock(ComputedCellVector(() -> TextDocument[show_placeholder() ? placeholder_span : value_span]),
-                   ComputedCell(() -> _value_selection_to_text(s)))
+                   Cell(Computed(() -> _value_selection_to_text(s))))
     SimpleIoMap(p, s, out)
 end
 

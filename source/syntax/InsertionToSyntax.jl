@@ -144,18 +144,18 @@ end
 
 function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
     iomap_cell = Cell(nothing)
-    typed = TextString(ComputedCell(() -> something(ins.value, "")),
+    typed = TextString(Cell(Computed(() -> something(ins.value, ""))),
                        Cell(p.value.font),
-                       ComputedCell(() -> _typed_color(p, p.completion(ins).state)),
+                       Cell(Computed(() -> _typed_color(p, p.completion(ins).state))),
                        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     # An empty buffer with a placeholder shows the placeholder alone: it stands in
     # the span of the completion hint, and the frame of the label is empty.
     shows_placeholder() = p.placeholder !== nothing && isempty(something(ins.value, ""))
-    hint = TextString(ComputedCell(() -> shows_placeholder() ? p.placeholder : p.completion(ins).hint),
+    hint = TextString(Cell(Computed(() -> shows_placeholder() ? p.placeholder : p.completion(ins).hint)),
                       Cell(p.hint.font),
-                      ComputedCell(() -> shows_placeholder() ? p.label.color : p.hint.color),
+                      Cell(Computed(() -> shows_placeholder() ? p.label.color : p.hint.color)),
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
-    frame(text) = TextString(ComputedCell(() -> shows_placeholder() ? "" : text),
+    frame(text) = TextString(Cell(Computed(() -> shows_placeholder() ? "" : text)),
                              Cell(p.label.font), Cell(p.label.color),
                              Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     # **The rendered selection is the FORWARD IMAGE of the insertion's own, not a
@@ -168,18 +168,18 @@ function print_document(p::InsertionToSyntaxLeaf, recursion, ins, ctx)
     #
     # The wrapper takes the whole image, and the leaf inside it takes the image
     # without the `content` step that leads to the leaf.
-    node_selection = ComputedCell(() -> begin
+    node_selection = Cell(Computed(() -> begin
         path = getfield(ins, :selection)[]
         path isa ConcreteReference || return nothing
         is_introduced_reference(path) && return path
         map_reference_forward(p, iomap_cell[], path)
-    end)
-    leaf_selection = ComputedCell(() -> begin
+    end))
+    leaf_selection = Cell(Computed(() -> begin
         whole = node_selection[]
         whole isa ConcreteReference || return nothing
         is_introduced_reference(whole) && return whole
         whole.tail
-    end)
+    end))
     leaf = SyntaxLeaf(typed; close=hint, selection=leaf_selection)
     io = SimpleIoMap(p, ins, SyntaxDelimitation(leaf;
         opening_delimiter=frame(p.prefix),
@@ -419,10 +419,10 @@ InsertionNothingToSyntaxLeaf() =
 function print_document(p::InsertionNothingToSyntaxLeaf, recursion, doc, ctx)
     iomap_cell = Cell(nothing)
     leaf = SyntaxLeaf(TextString(_nothing_label(doc), p.style);
-        selection = ComputedCell(() -> begin
+        selection = Cell(Computed(() -> begin
             s = getfield(doc, :selection)[]
             s === nothing ? nothing : map_reference_forward(p, iomap_cell[], s)
-        end))
+        end)))
     io = SimpleIoMap(p, doc, leaf)
     iomap_cell[] = io
     io

@@ -966,7 +966,7 @@ function WidgetStatusBar(segments::Vector;
                          margin=nothing, border=nothing, padding=nothing,
                          style=nothing, tooltip=nothing)
     # A segment given as a cell is kept as it is, so a band can say something
-    # that follows the window: `ComputedCell(() -> …)` re-derives when what it
+    # that follows the window: `Cell(Computed(() -> …))` re-derives when what it
     # read changes, where `Cell(value)` would freeze what it was given.
     WidgetStatusBar(CellVector(Cell[x isa Cell ? x : Cell(x) for x in segments]),
                     Cell(visible), Cell(margin), Cell(border), Cell(padding),

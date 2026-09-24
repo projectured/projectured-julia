@@ -7,7 +7,7 @@
 # selection, so they are coordinate-space-agnostic. Here we drive the WidgetTree
 # projection directly with a deterministic text measure so row geometry is exact.
 
-using ProjecturedKernel.CellModule: Cell, ComputedCell
+using ProjecturedKernel.CellModule: Cell, Computed
 
 function test_widget_tree()
 @testset "WidgetTree hover + collapse" begin

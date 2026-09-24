@@ -23,8 +23,8 @@ function print_document(p::FaultToWidget, recursion, report::FaultReport,
     # drawn as is what a person points at, and a widget answers with its own
     # `tooltip`.
     alert = WidgetAlert(Point2D(0, 0),
-                        ComputedCell(() -> String(report.origin)),
-                        ComputedCell(() -> report.message);
+                        Cell(Computed(() -> String(report.origin))),
+                        Cell(Computed(() -> report.message));
                         icon = :warning, variant = :destructive, width = p.width,
                         tooltip = format_fault_report_message(report))
     SimpleIoMap(p, report, alert)

@@ -304,8 +304,8 @@ say where the person was when the window opened and never again.
 A window that holds no pane tree says nothing about a tab it does not have.
 """
 make_window_status_bar(document; extra = String[]) =
-    WidgetStatusBar(Any[ComputedCell(() -> _window_status_title(document)),
-                        ComputedCell(() -> _window_status_selection(document)),
+    WidgetStatusBar(Any[Cell(Computed(() -> _window_status_title(document))),
+                        Cell(Computed(() -> _window_status_selection(document))),
                         extra...];
                     # Room around the text, so the line does not touch the
                     # window's edges or the panes above it.

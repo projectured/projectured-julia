@@ -25,11 +25,11 @@ end
 
 function print_document(p::MarkdownRootToVerticalLayout, recursion, root::MarkdownRoot, ctx)
     iomap_cell = Cell(nothing)
-    sel = ComputedCell(() -> begin
+    sel = Cell(Computed(() -> begin
         iomap = iomap_cell[]
         iomap === nothing && return nothing
         map_reference_forward(p, iomap, root.selection)
-    end)
+    end))
     # The page's own element cells are reused, not copied: the layout's
     # children share the root's element storage (only the selection cell is
     # the layout's own), and the layout renderer recurses each element.

@@ -28,7 +28,7 @@ Both maps of the projection return `nothing`. A click in the panel names a place
 | `SelectionInspector(() -> get_selection(other))` | what the function returns, computed again when it changes |
 | `SelectionInspector(other)` | the selection of the document `other` |
 
-A function becomes the thunk of a `ComputedCell` in the `source` field. So a read of `source` runs the function again when a cell that it read changed, and the view follows another document with no cell in the printer.
+A function becomes the thunk of a computed cell in the `source` field. So a read of `source` runs the function again when a cell that it read changed, and the view follows another document with no cell in the printer.
 
 `SelectionInspectorToText` holds a `ReferenceInspectorToText` and gives it all the rendering. Its computed text reads `source`, makes a `ReferenceInspector` with `find_inspected_selection(source, root)` and `get_inspected_document(source, root)`, and prints that. `root` is the document of the editor, which the editor puts into the printer context under `:root`. A `nothing` source falls back to `root`, and a reference is read against `root`. So the words of a step are written in one place.
 

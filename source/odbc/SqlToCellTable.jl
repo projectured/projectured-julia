@@ -1,6 +1,6 @@
 # Fragment of `OdbcModule`.
 #
-import ProjecturedKernel.CellModule: Cell, ComputedCell
+import ProjecturedKernel.CellModule: Cell, Computed
 import ProjecturedCollection.CollectionModule: CellVector, ComputedCellVector, CellTable
 import ProjecturedKernel.ProjectionModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
@@ -21,7 +21,7 @@ struct SqlToCellTable <: Projection
 end
 
 function print_document(p::SqlToCellTable, recursion, stmt::SqlSelectStatement, ctx)
-    raw = ComputedCell(() -> begin
+    raw = Cell(Computed(() -> begin
         pipe = ChainingProjection(
             RecursiveProjection(SqlToSyntax()),
             RecursiveProjection(SyntaxToText()),
@@ -30,7 +30,7 @@ function print_document(p::SqlToCellTable, recursion, stmt::SqlSelectStatement, 
         with_connection(p.pool, p.instance) do adapter
             execute_db_raw(adapter, sql, RawDatabaseResult)
         end
-    end)
+    end))
     rows = ComputedCellVector(() -> begin
         r = raw[]
         header = CellVector(r.columns)               # row 1: column names

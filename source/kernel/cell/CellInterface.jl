@@ -38,7 +38,7 @@ reached the cells that depend on it.
 
 # Example
 
-    total = ComputedCell(() -> length(rows[]))
+    total = Cell(Computed(() -> length(rows[])))
     is_cell_up_to_date(total)       # false until the first read
     total[]
     is_cell_up_to_date(total)       # true
@@ -100,7 +100,7 @@ computation reads.
 # Example
 
     is_computed_cell(Cell(3))                       # false
-    is_computed_cell(ComputedCell(() -> 3))         # true
+    is_computed_cell(Cell(Computed(() -> 3)))       # true
 
 Only the reactive kind can compute, so the other kinds always return `false`.
 
@@ -120,7 +120,7 @@ first, and do nothing when no computation reads the cell.
 
     status = Cell("idle")
     has_dependent_cells(status)            # false
-    shown = ComputedCell(() -> uppercase(status[]))
+    shown = Cell(Computed(() -> uppercase(status[])))
     shown[]
     has_dependent_cells(status)            # true
 

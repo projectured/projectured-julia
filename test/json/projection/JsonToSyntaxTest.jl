@@ -21,7 +21,7 @@ rendered_obj = render(print_document(j2s, jo).output)
 # incremental: value change propagates through syntax tree
 jdoc = JsonObject("x" => JsonNumber(10))
 jtree = print_document(j2s, jdoc).output
-jout = ComputedCell(() -> render(jtree))
+jout = Cell(Computed(() -> render(jtree)))
 @test occursin("10", jout[])
 
 jdoc["x"].value = 99

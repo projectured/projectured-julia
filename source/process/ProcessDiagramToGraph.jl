@@ -38,7 +38,7 @@
 #
 # ## The live overlay
 #
-# `highlight_vertex` and `highlight_edge` are `ComputedCell`s over the diagram's
+# `highlight_vertex` and `highlight_edge` are computed cells over the diagram's
 # debug session: the node it names resolves to a vertex by identity, and the
 # `(previous, current)` pair resolves to the edge between them. Deriving the stroked arrow from the
 # node *pair* is what keeps edges picture-only — the document has no edge to
@@ -250,21 +250,21 @@ function print_document(p::ProcessDiagramToGraph, recursion,
 
     # One cell holds the whole walk: vertices, edges and the node → vertex map
     # are one construction and must never disagree about identity.
-    flowchart = ComputedCell(() -> _build_flowchart(model isa ProcessModel ? model : nothing))
+    flowchart = Cell(Computed(() -> _build_flowchart(model isa ProcessModel ? model : nothing)))
 
     vertices = ComputedCellVector(() -> Any[v for v in flowchart[].vertices])
     edges = ComputedCellVector(() -> Any[e for e in flowchart[].edges])
 
     # The live overlay. `session` is duck-typed on purpose: the diagram is
     # drawable with nothing attached, and the debug slice is what fills it in.
-    highlight_vertex = ComputedCell(() -> begin
+    highlight_vertex = Cell(Computed(() -> begin
         diagram isa ProcessDiagram || return nothing
         session = diagram.session
         session === nothing && return nothing
         _vertex_of(flowchart[], session.current)
-    end)
+    end))
 
-    highlight_edge = ComputedCell(() -> begin
+    highlight_edge = Cell(Computed(() -> begin
         diagram isa ProcessDiagram || return nothing
         session = diagram.session
         session === nothing && return nothing
@@ -275,12 +275,12 @@ function print_document(p::ProcessDiagramToGraph, recursion,
             e.source === from && e.target === to && return e
         end
         nothing
-    end)
+    end))
 
     graph = GraphGraph(vertices, edges, highlight_vertex, highlight_edge,
-        ComputedCell(() -> let im = iomap_cell[]
+        Cell(Computed(() -> let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, diagram.selection)
-        end))
+        end)))
 
     iomap = ProcessDiagramToGraphIoMap(p, diagram, graph)
     iomap_cell[] = iomap

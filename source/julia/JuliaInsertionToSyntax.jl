@@ -142,9 +142,9 @@ _julia_typed_color(p::JuliaInsertionToSyntaxLeaf, value::AbstractString) = begin
 end
 
 function print_document(p::JuliaInsertionToSyntaxLeaf, recursion, ins::JuliaInsertion, ctx)
-    typed = TextString(ComputedCell(() -> something(ins.value, "")),
+    typed = TextString(Cell(Computed(() -> something(ins.value, ""))),
                        Cell(p.value.font),
-                       ComputedCell(() -> _julia_typed_color(p, something(ins.value, ""))),
+                       Cell(Computed(() -> _julia_typed_color(p, something(ins.value, "")))),
                        Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     SimpleIoMap(p, ins, SyntaxLeaf(typed;
         close=TextString(() -> get_julia_completion(something(ins.value, "")), p.completion),

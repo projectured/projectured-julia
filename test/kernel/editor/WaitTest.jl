@@ -104,7 +104,7 @@ function test_editor_wait()
 
     @testset "a clock subscriber bounds the wait to the animation" begin
         editor = _wait_editor(ProbeWaitBackend())
-        subscriber = ComputedCell(() -> get_reactive_clock_time(editor.clock))
+        subscriber = Cell(Computed(() -> get_reactive_clock_time(editor.clock)))
         subscriber[]                      # the read forms the downstream edge
         @test compute_wait_timeout(editor) == FRAME_INTERVAL
         # Keep the subscriber alive across the assertion.

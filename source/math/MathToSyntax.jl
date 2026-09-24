@@ -28,7 +28,8 @@
 end
 
 function print_document(p::MathInsertionToSyntaxLeaf, recursion, m::MathInsertion, ctx)
-    output_selection = ComputedCell(() -> map_reference_forward(p, nothing, m.selection))
+    output_selection =
+        Cell(Computed(() -> map_reference_forward(p, nothing, m.selection)))
     SimpleIoMap(p, m, SyntaxLeaf(TextString("⌷", p.style); selection=output_selection))
 end
 
@@ -116,12 +117,12 @@ end
 function print_document(p::MathBinaryOperationToSyntaxNode, recursion, m::MathBinaryOperation, ctx)
     left_ctx  = make_child_context(ctx, m, @reference_step left)
     right_ctx = make_child_context(ctx, m, @reference_step right)
-    left_iomap = ComputedCell(() -> print_child(recursion, m.left, left_ctx))
-    right_iomap = ComputedCell(() -> print_child(recursion, m.right, right_ctx))
+    left_iomap = Cell(Computed(() -> print_child(recursion, m.left, left_ctx)))
+    right_iomap = Cell(Computed(() -> print_child(recursion, m.right, right_ctx)))
 
     op_leaf = SyntaxLeaf(TextString(() -> _operator_string(m.operator), p.op))
 
-    sel = ComputedCell(() -> begin
+    sel = Cell(Computed(() -> begin
         path = m.selection
         path isa ConcreteReference || return nothing
         h = path.head
@@ -143,13 +144,13 @@ function print_document(p::MathBinaryOperationToSyntaxNode, recursion, m::MathBi
             return path
         end
         return nothing
-    end)
+    end))
 
     node = SyntaxNode(
         ComputedCellVector(() -> SyntaxDocument[left_iomap[].output, op_leaf, right_iomap[].output]);
         sep=TextString(" ", p.op.font, color_default),
         selection=sel)
-    ChildrenIoMap(p, m, node, ComputedCell(() -> [left_iomap[], right_iomap[]]))
+    ChildrenIoMap(p, m, node, Cell(Computed(() -> [left_iomap[], right_iomap[]])))
 end
 
 function read_intent(p::MathBinaryOperationToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)
@@ -194,9 +195,9 @@ end
 
 function print_document(p::MathParenthesizedToSyntaxNode, recursion, m::MathParenthesized, ctx)
     content_ctx = make_child_context(ctx, m, @reference_step content)
-    content_iomap = ComputedCell(() -> print_child(recursion, m.content, content_ctx))
+    content_iomap = Cell(Computed(() -> print_child(recursion, m.content, content_ctx)))
 
-    sel = ComputedCell(() -> begin
+    sel = Cell(Computed(() -> begin
         path = m.selection
         path isa ConcreteReference || return nothing
         h = path.head
@@ -210,7 +211,7 @@ function print_document(p::MathParenthesizedToSyntaxNode, recursion, m::MathPare
             return path
         end
         return nothing
-    end)
+    end))
 
     node = SyntaxNode(
         ComputedCellVector(() -> SyntaxDocument[content_iomap[].output]);
@@ -280,12 +281,12 @@ end
 function print_document(p::MathAssignmentToSyntaxNode, recursion, m::MathAssignment, ctx)
     target_ctx = make_child_context(ctx, m, @reference_step target)
     value_ctx  = make_child_context(ctx, m, @reference_step value)
-    target_iomap = ComputedCell(() -> print_child(recursion, m.target, target_ctx))
-    value_iomap = ComputedCell(() -> print_child(recursion, m.value, value_ctx))
+    target_iomap = Cell(Computed(() -> print_child(recursion, m.target, target_ctx)))
+    value_iomap = Cell(Computed(() -> print_child(recursion, m.value, value_ctx)))
 
     eq_leaf = SyntaxLeaf(TextString("=", p.eq))
 
-    sel = ComputedCell(() -> begin
+    sel = Cell(Computed(() -> begin
         path = m.selection
         path isa ConcreteReference || return nothing
         h = path.head
@@ -307,13 +308,13 @@ function print_document(p::MathAssignmentToSyntaxNode, recursion, m::MathAssignm
             return path
         end
         return nothing
-    end)
+    end))
 
     node = SyntaxNode(
         ComputedCellVector(() -> SyntaxDocument[target_iomap[].output, eq_leaf, value_iomap[].output]);
         sep=TextString(" ", p.eq.font, color_default),
         selection=sel)
-    ChildrenIoMap(p, m, node, ComputedCell(() -> [target_iomap[], value_iomap[]]))
+    ChildrenIoMap(p, m, node, Cell(Computed(() -> [target_iomap[], value_iomap[]])))
 end
 
 function read_intent(p::MathAssignmentToSyntaxNode, iomap::ChildrenIoMap, op::ReplaceSelectionOperation)

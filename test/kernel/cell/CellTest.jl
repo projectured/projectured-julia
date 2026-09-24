@@ -20,7 +20,7 @@ b = Cell(2)
 @test is_cell_up_to_date(b)
 
 # computed cell
-c = ComputedCell(() -> a[] + b[])
+c = Cell(Computed(() -> a[] + b[]))
 @test !is_cell_up_to_date(c)
 @test c[] == 3
 @test is_cell_up_to_date(c)
@@ -32,7 +32,7 @@ a[] = 10
 @test c[] == 12
 
 # deep chain
-d = ComputedCell(() -> c[] * 2)
+d = Cell(Computed(() -> c[] * 2))
 @test d[] == 24
 b[] = 3
 @test !is_cell_up_to_date(c)
@@ -61,7 +61,7 @@ a[] = 2
 flag = Cell(true)
 x = Cell(10)
 y = Cell(20)
-cond = ComputedCell(() -> flag[] ? x[] : y[])
+cond = Cell(Computed(() -> flag[] ? x[] : y[]))
 @test cond[] == 10
 flag[] = false
 @test cond[] == 20
@@ -86,7 +86,7 @@ x[] = 999          # x is no longer a dep after last eval
     # collected mid-build — otherwise the count is at the mercy of GC scheduling. A
     # `WeakRef` to the first one lets us later ask whether it
     # was collected once every strong reference is dropped.
-    cells = [(c = ComputedCell(() -> source[] + 1); c[]; c) for _ in 1:100]
+    cells = [(c = Cell(Computed(() -> source[] + 1)); c[]; c) for _ in 1:100]
     @test live(source) == 100                     # all 100 registered
     discarded = WeakRef(cells[1])
     empty!(cells); cells = nothing                # drop every strong reference to them
@@ -99,7 +99,7 @@ x[] = 999          # x is no longer a dep after last eval
 
     # The emptied slots are pruned by the next scan, which registration is doing anyway,
     # so dead `WeakRef`s never accumulate: no slot is left without a live reader in it.
-    keep = ComputedCell(() -> source[] + 1)
+    keep = Cell(Computed(() -> source[] + 1))
     keep[]
     @test length(getfield(source, :dependents)) == live(source)
 
@@ -139,7 +139,7 @@ end
     @test peek(m) == 2
     # no reactive bookkeeping: a thunk reading a MutableCell registers nothing,
     # so a later write does NOT invalidate the computed cell (by design)
-    obs = ComputedCell(() -> m[] * 10)
+    obs = Cell(Computed(() -> m[] * 10))
     @test obs[] == 20
     m[] = 5
     @test is_cell_up_to_date(obs)                 # unaware of the write
@@ -166,9 +166,9 @@ end
     @test c[]() == 42                    # still callable through the cell
     @test is_cell_up_to_date(c)          # a value cell, not an invalid computed one
 
-    cc = ComputedCell(f)                 # the marker is what makes a cell compute
+    cc = Cell(Computed(f))                 # the marker is what makes a cell compute
     @test cc[] == 42
-    @test !is_cell_up_to_date(ComputedCell(f))
+    @test !is_cell_up_to_date(Cell(Computed(f)))
 
     @test ReactiveCell{Function}(f)[] === f
     @test ReactiveCell{Int}(Computed(f))[] == 42
@@ -194,7 +194,7 @@ end
     source = Cell(1)
     @test !has_dependent_cells(source)        # nothing read it inside a computation
 
-    reader = ComputedCell(() -> source[] + 1)
+    reader = Cell(Computed(() -> source[] + 1))
     @test reader[] == 2                  # the read forms the downstream edge
     @test has_dependent_cells(source)
     @test !has_dependent_cells(reader)        # nothing reads the reader
@@ -210,10 +210,10 @@ end
 
 @testset "a MethodError in a chain of ten computed cells" begin
     runs = Ref(0)
-    top = ComputedCell(() -> (runs[] += 1; throw(MethodError(identity, ()))))
+    top = Cell(Computed(() -> (runs[] += 1; throw(MethodError(identity, ())))))
     for _ in 2:10
         below = top
-        top = ComputedCell(() -> below[])
+        top = Cell(Computed(() -> below[]))
     end
     # In the latest world, no thunk retries.
     @test_throws MethodError Base.invokelatest(getindex, top)
@@ -228,7 +228,7 @@ end
 
     # A thunk that calls a method newer than the world of its reader gets its
     # value through the retry.
-    newer = ComputedCell(() -> _get_cell_test_newer_value())
+    newer = Cell(Computed(() -> _get_cell_test_newer_value()))
     @test Base.invoke_in_world(world, getindex, newer) == 42
 end
 

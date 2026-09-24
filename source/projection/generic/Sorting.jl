@@ -41,7 +41,7 @@ function print_document(p::SortingProjection, recursion, input::CellVector, ctx)
         () -> input,
         (i, x) -> print_child(recursion, x,
             make_child_context(ctx, ElementReferenceStep(i))))
-    index_map = ComputedCell(() -> sortperm(1:length(input); by = i -> p.by(input[i]), lt=p.lt, rev=p.rev))
+    index_map = Cell(Computed(() -> sortperm(1:length(input); by = i -> p.by(input[i]), lt=p.lt, rev=p.rev)))
     output = ComputedCellVector(() -> begin
         cs = child_iomaps[]
         perm = index_map[]

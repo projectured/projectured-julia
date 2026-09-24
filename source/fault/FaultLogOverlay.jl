@@ -118,8 +118,8 @@ function print_document(p::FaultLogOverlayProjection, recursion, input, ctx)
     # must not inherit the layout space of the content.
     log_iomap = print_document(p.content, nothing, p.log, PrinterContext())
 
-    inner_output = ComputedCell(() -> _force_fault_cell(inner_iomap.output))
-    log_output = ComputedCell(() -> _force_fault_cell(log_iomap.output))
+    inner_output = Cell(Computed(() -> _force_fault_cell(inner_iomap.output)))
+    log_output = Cell(Computed(() -> _force_fault_cell(log_iomap.output)))
 
     body_width() = _fault_width(log_output[])
     body_height() = _fault_height(log_output[])

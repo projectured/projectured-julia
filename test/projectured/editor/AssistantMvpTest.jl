@@ -32,7 +32,7 @@ import ProjecturedKernel.LlmModule: stream_turn,
     LlmEvent, LlmTextStart, LlmTextDelta, LlmTextStop,
     LlmToolUse, LlmToolUseStart, LlmToolInputDelta, LlmToolUseStop,
     LlmTurnEnd
-import ProjecturedKernel.CellModule: Cell, ComputedCell
+import ProjecturedKernel.CellModule: Cell, Computed
 
 # The multi-round scripted backend `ScriptedLlm` (each `stream_turn` consumes the
 # next round of SSE events) is a test double, so it lives in

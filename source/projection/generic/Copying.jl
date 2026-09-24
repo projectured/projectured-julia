@@ -104,13 +104,13 @@ function print_document(p::CopyingProjection, recursion, input, ctx)
     for nm in all_names
         fv = getfield(input, nm)
         if nm == :selection
-            push!(field_vals, ComputedCell(() -> begin
+            push!(field_vals, Cell(Computed(() -> begin
                 im = iomap_cell[]
                 im === nothing && return nothing
                 sel = hasproperty(input, :selection) ? input.selection : nothing
                 sel === nothing && return nothing
                 map_reference_forward(p, im, sel)
-            end))
+            end)))
         elseif _is_doc_field(fv)
             child_ctx = make_child_context(ctx, FieldReferenceStep(string(nm)))
             im = print_child(recursion, _unwrap(fv), child_ctx)

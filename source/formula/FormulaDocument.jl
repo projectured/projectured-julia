@@ -26,8 +26,8 @@ end
 A named formula: `name` (display name — a `String` or a derived thunk `Cell`),
 `code` (a `JuliaDocument` that may contain `FormulaReference`s), `result` (the
 computed result document), `display_mode` (`:code`/`:result`/`:both`).
-`result` is wired to `ComputedCell(() -> evaluate_formula(self, env))` once placed in an
-environment; see [`wire_result!`](@ref).
+`result` is wired to `Cell(Computed(() -> evaluate_formula(self, env)))` once placed
+in an environment; see [`wire_result!`](@ref).
 """
 @document struct FormulaFormula <: FormulaDocument
     name::String

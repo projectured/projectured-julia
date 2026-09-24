@@ -66,7 +66,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
 
     # Recurse each vertex's content to measure its intrinsic size. Reactive: a
     # content edit that changes w/h re-runs the layout cell below.
-    child_iomaps = ComputedCell(() -> begin
+    child_iomaps = Cell(Computed(() -> begin
         n = length(graph.vertices)
         ims = Any[]
         for i in 1:n
@@ -79,12 +79,12 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
             end
         end
         ims
-    end)
+    end))
 
     # Run the engine (keyed on the live sizes + topology + constraints). Held in
     # one cell so it re-runs only when a size, the vertex/edge list or a
     # constraint changes.
-    placed = ComputedCell(() -> begin
+    placed = Cell(Computed(() -> begin
         ims = child_iomaps[]
         n = length(graph.vertices)
         sizes = Dict{UInt,Tuple{Int,Int}}()
@@ -100,7 +100,7 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
         # that defers its choice reads the vertex count to make it.
         name = layout_engine_name(resolve_layout_engine(p.engine, length(sizes)))
         (positions, routes, name)
-    end)
+    end))
 
     vertex_layouts = ComputedCellVector(() -> begin
         positions, _, _ = placed[]
@@ -133,12 +133,12 @@ function print_document(p::GraphGraphToGraphLayout, recursion, graph::GraphGraph
     # or `placed` — the expensive engine run stays cached across a highlight
     # change, which is what makes a live current-state marker affordable.
     layout = GraphLayout(vertex_layouts, edge_layouts, Cell(:tb), Cell(40), Cell(60),
-        ComputedCell(() -> graph.highlight_vertex),
-        ComputedCell(() -> graph.highlight_edge),
-        ComputedCell(() -> placed[][3]),
-        ComputedCell(() -> let im = iomap_cell[]
+        Cell(Computed(() -> graph.highlight_vertex)),
+        Cell(Computed(() -> graph.highlight_edge)),
+        Cell(Computed(() -> placed[][3])),
+        Cell(Computed(() -> let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, graph.selection)
-        end))
+        end)))
 
     iomap = GraphGraphToGraphLayoutIoMap(p, graph, layout, child_iomaps)
     iomap_cell[] = iomap

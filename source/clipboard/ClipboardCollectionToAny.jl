@@ -54,9 +54,9 @@ function print_document(p::ClipboardCollectionToAnyProjection, recursion, input:
             make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i))))
     # Reactive output (see the slice printer): a derived cell over the display flag,
     # re-pulled by the reactive ChainingProjection — no `editor.iomap` drop.
-    output = ComputedCell(() -> p.display_collection[] ?
+    output = Cell(Computed(() -> p.display_collection[] ?
         CellVector(Cell[Cell(im.output) for im in element_iomaps[]]) :
-        content_iomap.output)
+        content_iomap.output))
     ClipboardCollectionToAnyIoMap(p, input, output, content_iomap, element_iomaps)
 end
 

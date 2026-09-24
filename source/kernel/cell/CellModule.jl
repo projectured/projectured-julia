@@ -31,7 +31,7 @@ using ..PerformanceModule
 export AbstractCell, is_cell_up_to_date, unwrap_cell, copy_cell_as,
        is_computed_cell, has_dependent_cells
 export Computed
-export ReactiveCell, Cell, ComputedCell, set_cell_value!, set_cell_function!
+export ReactiveCell, Cell, set_cell_value!, set_cell_function!
 export MutableCell
 export ImmutableCell
 

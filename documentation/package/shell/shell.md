@@ -63,7 +63,7 @@ So a host adds a command and needs no widget package of its own.
 
 **An item goes on a band only when its callback does the work.** `WidgetShell` fires a menu shortcut before the focused widget gets the key. So an item with a shortcut that it can not perform takes the key away from the widget that could answer it. The callback calls the verb of the slice that owns the command, so the menu is a second way to one implementation. The gesture log records the `InvokeActionOperation` of the item, and not the pane operation that the callback applies.
 
-**A status bar must be reactive.** `make_window_status_bar(document)` makes each segment a `ComputedCell` over the document of the window: the title of the focused tab and the selection. A band built from strings would show the state of the window when it opened, and never change.
+**A status bar must be reactive.** `make_window_status_bar(document)` makes each segment a computed cell over the document of the window: the title of the focused tab and the selection. A band built from strings would show the state of the window when it opened, and never change.
 
 ### The toolbar opens the tools
 

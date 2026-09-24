@@ -32,11 +32,11 @@ end
 
 function print_document(p::RstRootToVerticalLayout, recursion, root::RstRoot, ctx)
     iomap_cell = Cell(nothing)
-    sel = ComputedCell(() -> begin
+    sel = Cell(Computed(() -> begin
         iomap = iomap_cell[]
         iomap === nothing && return nothing
         map_reference_forward(p, iomap, root.selection)
-    end)
+    end))
     # The page's blocks, each in its own domain; an embedded file stands in a
     # card, built once for the block (see `_rst_block`).
     elements = root.elements::CellVector
@@ -66,11 +66,11 @@ end
 
 function print_document(p::RstSectionToVerticalLayout, recursion, section::RstSection, ctx)
     iomap_cell = Cell(nothing)
-    sel = ComputedCell(() -> begin
+    sel = Cell(Computed(() -> begin
         iomap = iomap_cell[]
         iomap === nothing && return nothing
         map_reference_forward(p, iomap, section.selection)
-    end)
+    end))
     # The title line, then the section's own blocks — which keep their cells, so
     # each block renders in its own domain and an embed reaches the widget
     # renderer. The title is rebuilt reactively: editing it re-renders the line.

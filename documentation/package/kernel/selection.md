@@ -272,12 +272,12 @@ the projection from a `SyntaxLeaf` to a `TextBlock`):
 ```julia
 # The printer is always 4-arg: print_document(projection, recursion, input, ctx::PrinterContext)
 function print_document(p::SyntaxLeafToText, recursion, leaf::SyntaxLeaf, ctx)
-    sel = ComputedCell(() -> map_selection_forward(leaf, path -> begin
+    sel = Cell(Computed(() -> map_selection_forward(leaf, path -> begin
         leaf_sel = strip_reference_types(path)
         leaf_sel isa EmptyReference && return @reference()
         c = _leaf_cursor(leaf)                          # leaf-domain path → flat offset
         c < 0 ? nothing : _flat_to_text_elem_path(_leaf_spans(leaf), c)   # flat offset → TextBlock path
-    end))
+    end)))
     SimpleIoMap(p, leaf, TextBlock(ComputedCellVector(() -> _leaf_spans(leaf)), sel))
 end
 ```
@@ -394,9 +394,9 @@ the input suffix directly:
 **Step 1 — Recurse first, collect child IO maps.**
 
 ```julia
-child_iomaps = ComputedCell(() -> [print_child(recursion, child,
-                                       make_child_context(ctx, ElementReferenceStep(i)))
-                           for (i, child) in enumerate(elements)])
+child_iomaps = Cell(Computed(() -> [print_child(recursion, child,
+                                        make_child_context(ctx, ElementReferenceStep(i)))
+                            for (i, child) in enumerate(elements)]))
 ```
 
 **Step 2 — Find the child pointed to by the input selection.**
@@ -406,7 +406,7 @@ input selection designates. Strip the projection-owned prefix steps.
 **Step 3 — Extend the child's output selection.**
 
 ```julia
-sel = ComputedCell(() -> begin
+sel = Cell(Computed(() -> begin
     path = input.selection[]
     # strip projection-owned prefix steps → extract child index i
     iomaps = child_iomaps[]
@@ -414,14 +414,14 @@ sel = ComputedCell(() -> begin
     child_sel = iomaps[i + 1].output.selection[]
     child_sel === nothing && return nothing
     ConcreteReference(ElementReferenceStep(i), child_sel)
-end)
+end))
 ```
 
 **Why the naïve approach is wrong.** A naïve implementation strips the
 projection's prefix and passes the remaining tail as the output selection:
 
 ```julia
-sel = ComputedCell(() -> input.selection[].tail[])   # ← WRONG
+sel = Cell(Computed(() -> input.selection[].tail[]))   # ← WRONG
 ```
 
 This is incorrect because the tail is a path in the **input domain** (e.g. `{3}`

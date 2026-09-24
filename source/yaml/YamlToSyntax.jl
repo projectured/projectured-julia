@@ -150,22 +150,22 @@ end
 end
 
 function print_document(p::YamlSequenceToBlockSyntaxNode, recursion, seq::YamlSequence, ctx)
-    child_iomaps = ComputedCell(() -> [print_child(recursion, elem,
-                                   make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
-                               for (i, elem) in enumerate(seq.elements)])
+    child_iomaps = Cell(Computed(() -> [print_child(recursion, elem,
+                                    make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i)))
+                               for (i, elem) in enumerate(seq.elements)]))
 
     items = ComputedCellVector(() -> SyntaxDocument[
         SyntaxDelimitation(im.output; opening_delimiter=TextString("- ", p.marker_style))
         for im in child_iomaps[]])
 
     iomap_cell = Cell(nothing)
-    sel = ComputedCell(() -> begin
+    sel = Cell(Computed(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = seq.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end)
+    end))
 
     # indentation=-1: block layout (one item per indented line) without the
     # trailing newline, so a nested sequence leaves no blank line after its items.

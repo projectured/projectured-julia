@@ -60,10 +60,10 @@ function print_document(p::TextLineNumbering, recursion, text::TextBlock, ctx)
         end
         result
     end)
-    out_selection = ComputedCell(() -> begin
+    out_selection = Cell(Computed(() -> begin
         numbered = TextBlock(elements_cv, Cell(nothing))
         _map_selection_over_runs(_make_numbering_runs(text, numbered), text, text.selection)
-    end)
+    end))
     SimpleIoMap(p, text, TextBlock(elements_cv, out_selection))
 end
 

@@ -188,7 +188,7 @@ end
                                      open=TextString("(", p.delim),
                                      sep=TextString(", ", p.delim)),
                           SyntaxNode(collection(:keyword_arguments);
-                                     open=TextString(ComputedCell(() -> isempty(c.keyword_arguments) ? "" : "; "),
+                                     open=TextString(Cell(Computed(() -> isempty(c.keyword_arguments) ? "" : "; ")),
                                                      Cell(p.delim.font), Cell(p.delim.color),
                                                      Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing)),
                                      close=TextString(")", p.delim),
@@ -516,10 +516,10 @@ end
 
 @projection_template JuliaLambdaToSyntaxNode JuliaLambda (p, l) ->
     SyntaxConcatenation([ SyntaxNode(collection(:parameters);
-                                     open=TextString(ComputedCell(() -> l.parenthesized ? "(" : ""),
+                                     open=TextString(Cell(Computed(() -> l.parenthesized ? "(" : "")),
                                                      Cell(p.delim.font), Cell(p.delim.color),
                                                      Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing)),
-                                     close=TextString(ComputedCell(() -> l.parenthesized ? ") -> " : " -> "),
+                                     close=TextString(Cell(Computed(() -> l.parenthesized ? ") -> " : " -> ")),
                                                       Cell(p.arrow.font), Cell(p.arrow.color),
                                                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing)),
                                      sep=TextString(", ", p.delim)),
@@ -866,8 +866,8 @@ the object is selected whole.
 end
 
 function print_document(p::JuliaObjectToSyntaxLeaf, recursion, object, ctx)
-    selection = ComputedCell(() -> getfield(object, :selection)[] isa EmptyReference ?
-                                   EmptyReference() : nothing)
+    selection = Cell(Computed(() -> getfield(object, :selection)[] isa EmptyReference ?
+                                    EmptyReference() : nothing))
     SimpleIoMap(p, object, SyntaxLeaf(TextString(_get_julia_object_label(object), p.label);
                                       selection))
 end

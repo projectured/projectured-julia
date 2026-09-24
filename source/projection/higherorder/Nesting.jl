@@ -45,10 +45,10 @@ function print_document(np::NestingProjection, recursion, input, ctx)
     if !isempty(np.elements)
         inner = NestingProjection(np.elements[2:end], effective)
         child = print_document(np.elements[1], inner, input, ctx)
-        NestingIoMap(np, input, ComputedCell(() -> child.output), child)
+        NestingIoMap(np, input, Cell(Computed(() -> child.output)), child)
     else
         child = print_document(effective, recursion, input, ctx)
-        NestingIoMap(np, input, ComputedCell(() -> child.output), child)
+        NestingIoMap(np, input, Cell(Computed(() -> child.output)), child)
     end
 end
 

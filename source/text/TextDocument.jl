@@ -140,7 +140,7 @@ TextString(content::AbstractString) =
     TextString(Cell(content), font_ubuntu_monospace_regular_20, color_default, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
 TextString(content::Function, font::StyleFont, font_color::StyleColor) =
-    TextString(ComputedCell(content), font, font_color, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    TextString(Cell(Computed(content)), font, font_color, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
 # StyleText bridge: a projection holding a merged (font, color) style value can
 # build a run without unpacking it. The document model itself is unchanged —
@@ -153,9 +153,9 @@ TextString(content::Function,      style::StyleText) = TextString(content, style
 function make_hinted_text(content_thunk; empty_thunk, placeholder::AbstractString,
                           style::StyleText)
     TextString(
-        ComputedCell(() -> empty_thunk() ? placeholder : content_thunk()),
+        Cell(Computed(() -> empty_thunk() ? placeholder : content_thunk())),
         style.font,                                                        # immutable (authored font)
-        ComputedCell(() -> empty_thunk() ? color_solarized_gray : style.color),   # reactive (hint colour)
+        Cell(Computed(() -> empty_thunk() ? color_solarized_gray : style.color)),   # reactive (hint colour)
         Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 end
 

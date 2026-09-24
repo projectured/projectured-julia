@@ -13,7 +13,7 @@
 # full notation would inline its whole transition list into the node box, and for
 # a self-loop would not terminate.
 #
-# The highlights are `ComputedCell`s over `diagram.live_state` /
+# The highlights are computed cells over `diagram.live_state` /
 # `diagram.live_transition`, resolved to the `GraphVertex` / `GraphEdge` by
 # identity. A live driver writing those two integers repaints the overlay without
 # touching any vertex content, so the layout engine is never re-run mid-run.
@@ -94,13 +94,13 @@ function print_document(p::FsmDiagramToGraph, recursion,
     # One vertex per state, rebuilt when the state list changes. The vertex
     # objects are what the highlight and the edges point at, so both read this
     # same cell rather than rebuilding their own.
-    vertex_cells = ComputedCell(() -> begin
+    vertex_cells = Cell(Computed(() -> begin
         pairs = Pair{FsmState,Any}[]
         for s in _states()
             push!(pairs, s => GraphVertex(Cell(s), Cell(nothing)))
         end
         pairs
-    end)
+    end))
 
     _vertex_for(state) = begin
         for (s, v) in vertex_cells[]
@@ -113,7 +113,7 @@ function print_document(p::FsmDiagramToGraph, recursion,
 
     # One edge per transition that goes somewhere. A stay has no target, so it
     # has no edge; the label is the transition itself, held by identity.
-    edge_cells = ComputedCell(() -> begin
+    edge_cells = Cell(Computed(() -> begin
         result = Any[]
         machine isa FsmMachine || return result
         for s in _states()
@@ -129,22 +129,22 @@ function print_document(p::FsmDiagramToGraph, recursion,
             end
         end
         result
-    end)
+    end))
 
     edges = ComputedCellVector(() -> Any[e for (_, e) in edge_cells[]])
 
     # The live overlay: two integers resolved to objects by identity. Reading
     # only these cells is what keeps a transition arriving mid-run from
     # invalidating anything the layout engine depends on.
-    highlight_vertex = ComputedCell(() -> begin
+    highlight_vertex = Cell(Computed(() -> begin
         diagram isa FsmDiagram || return nothing
         index = diagram.live_state
         states = _states()
         (index < 1 || index > length(states)) && return nothing
         _vertex_for(states[index])
-    end)
+    end))
 
-    highlight_edge = ComputedCell(() -> begin
+    highlight_edge = Cell(Computed(() -> begin
         diagram isa FsmDiagram || return nothing
         index = diagram.live_transition
         machine isa FsmMachine || return nothing
@@ -155,12 +155,12 @@ function print_document(p::FsmDiagramToGraph, recursion,
             t === transition && return e
         end
         nothing
-    end)
+    end))
 
     graph = GraphGraph(vertices, edges, highlight_vertex, highlight_edge,
-        ComputedCell(() -> let im = iomap_cell[]
+        Cell(Computed(() -> let im = iomap_cell[]
             im === nothing ? nothing : map_reference_forward(p, im, diagram.selection)
-        end))
+        end)))
 
     iomap = FsmDiagramToGraphIoMap(p, diagram, graph)
     iomap_cell[] = iomap

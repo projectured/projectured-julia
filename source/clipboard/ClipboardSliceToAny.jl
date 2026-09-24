@@ -111,8 +111,8 @@ function print_document(p::ClipboardSliceToAnyProjection, recursion, input::Clip
     # ChainingProjection re-pulls this through its own per-stage cells, so
     # flipping `display_slice` switches the exposed child with no `editor.iomap`
     # drop — only the downstream stages re-print.
-    output = ComputedCell(() -> (p.display_slice[] && slice_iomap !== nothing) ?
-                            slice_iomap.output : content_iomap.output)
+    output = Cell(Computed(() -> (p.display_slice[] && slice_iomap !== nothing) ?
+                             slice_iomap.output : content_iomap.output))
     ClipboardSliceToAnyIoMap(p, input, output, content_iomap, slice_iomap)
 end
 

@@ -100,7 +100,7 @@ end
 
 function print_document(p::GestureHelpDecoratorProjection, recursion, input, ctx)
     inner_iomap = print_document(p.inner, recursion, input, ctx)
-    GestureHelpDecoratorIoMap(p, input, ComputedCell(() -> inner_iomap.output), inner_iomap)
+    GestureHelpDecoratorIoMap(p, input, Cell(Computed(() -> inner_iomap.output)), inner_iomap)
 end
 
 # ── Reader ─────────────────────────────────────────────────────────────────

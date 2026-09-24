@@ -75,10 +75,10 @@ becomes an upstream dependency. A write marks all downstream dependents invalid.
 Nothing recomputes until somebody reads it.
 
 ```julia
-c = Cell(42)                            # primitive: holds a value
-c = ComputedCell(() -> upstream[] + 1)  # computed: holds a thunk
-c[]                                     # read (recomputes when invalid)
-c[] = 7                                 # write (invalidates the dependents)
+c = Cell(42)                              # primitive: holds a value
+c = Cell(Computed(() -> upstream[] + 1))  # computed: holds a thunk
+c[]                                       # read (recomputes when invalid)
+c[] = 7                                   # write (invalidates the dependents)
 ```
 
 Three kinds exist: `ReactiveCell` (tracks dependencies), `MutableCell` (a plain

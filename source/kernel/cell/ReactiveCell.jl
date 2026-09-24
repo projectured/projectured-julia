@@ -19,7 +19,7 @@ touched and no more.
 # Example
 
     width = Cell(80)
-    label = ComputedCell(() -> "the width is " * string(width[]))
+    label = Cell(Computed(() -> "the width is " * string(width[])))
     label[]            # "the width is 80"
     width[] = 120
     label[]            # "the width is 120", computed again on this read
@@ -31,7 +31,7 @@ and the guide `kernel/cell`.
 # Construction
 
     Cell(value)                     # an untyped cell that holds `value`
-    ComputedCell(f)                 # an untyped cell that computes `f()`
+    Cell(Computed(f))               # an untyped cell that computes `f()`
     ReactiveCell{T}(value)          # a typed cell that holds `value`
     ReactiveCell{T}(Computed(f))    # a typed cell that computes `f()`
 
@@ -98,8 +98,8 @@ writes.
 
 Use it to make one field, one parameter or one result reactive without saying
 what type it holds. `Cell(3)` holds a number, `Cell("a")` a string, and
-`ComputedCell(f)` a computation. A cell of a stated type, which reads without a
-conversion, is `ReactiveCell{T}`.
+`Cell(Computed(f))` a computation. A cell of a stated type, which reads without
+a conversion, is `ReactiveCell{T}`.
 
 # Example
 
@@ -116,27 +116,6 @@ kind" tests `isa AbstractCell`; code that means "a reactive cell of any value
 type" tests `isa ReactiveCell`.
 """
 const Cell = ReactiveCell{Any}
-
-"""
-    ComputedCell(f) -> Cell
-
-A cell whose value is computed by `f`, the first time it is read and after
-anything it read has changed.
-
-Use it to state a derived value where it belongs, beside the thing that has it,
-instead of computing it again at every place that needs it. `f` takes no
-argument. A cell of a stated type is `ReactiveCell{T}(Computed(f))`.
-
-# Example
-
-    rows = Cell(["a", "b"])
-    count = ComputedCell(() -> length(rows[]))
-    count[]            # 2
-
-See also `Cell`, which holds a value, and `set_cell_function!`, which turns one
-into the other.
-"""
-ComputedCell(f::Function) = ReactiveCell{Any}(Computed(f))
 
 # ── the computing stack ──────────────────────────────────────────────────────
 
@@ -248,7 +227,7 @@ read.
 
 # Example
 
-    width = ComputedCell(() -> 2 * margin[])
+    width = Cell(Computed(() -> 2 * margin[]))
     set_cell_value!(width, 80)      # a number now, and no computation
 
 See also `set_cell_function!`, for the other direction, and `unwrap_cell`.
@@ -276,8 +255,8 @@ Dependents are invalidated immediately. The previous value stays cached in the
 `nothing` placeholder; when `T` admits `nothing` the value is cleared eagerly so
 the old object is released.
 
-See also `set_cell_value!`, for the other direction, `ComputedCell`, which
-builds such a cell, and the guide `kernel/cell`.
+See also `set_cell_value!`, for the other direction, `Computed`, which makes a
+new cell compute, and the guide `kernel/cell`.
 """
 function set_cell_function!(c::ReactiveCell{T}, thunk::Function) where {T}
     _detach_upstream!(c)
@@ -314,10 +293,10 @@ the computation depend on the cell; this one does not.
 
 # Example
 
-    drawn = ComputedCell(() -> begin
+    drawn = Cell(Computed(() -> begin
         count = peek(frames)        # looked at, not depended on
         "frame " * string(count) * " of " * title[]
-    end)
+    end))
 
 See also `Cell` and the guide `kernel/cell`.
 """

@@ -876,11 +876,11 @@ end
 
 function ProjectionModule.print_document(p::RstStyledTextToSyntaxLeaf, recursion, t::RstText, ctx)
     style = get_property(ctx, :rst_style, p.style)
-    sel = ComputedCell(() -> begin
+    sel = Cell(Computed(() -> begin
         s = t.selection
         is_introduced_reference(s) && return s
         map_reference_forward(p, nothing, s)
-    end)
+    end))
     SimpleIoMap(p, t, SyntaxLeaf(TextString(() -> t.content, style); selection=sel))
 end
 
@@ -930,20 +930,20 @@ _mode(::RstEmphasisToStyledNode) = :italic
 function ProjectionModule.print_document(p::RstStyledInline, recursion, doc, ctx)
     ambient = get_property(ctx, :rst_style, _BODY)
     style = _mode_style(_mode(p), ambient, doc)
-    child_iomaps = ComputedCell(() -> [
+    child_iomaps = Cell(Computed(() -> [
         print_child(recursion, child,
             with_property(make_child_context(ctx, FieldReferenceStep("content"), ElementReferenceStep(i)),
                           :rst_style, style))
-        for (i, child) in enumerate(doc.content)])
+        for (i, child) in enumerate(doc.content)]))
     items = ComputedCellVector(() -> SyntaxDocument[im.output for im in child_iomaps[]])
     iomap_cell = Cell(nothing)
-    sel = ComputedCell(() -> begin
+    sel = Cell(Computed(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end)
+    end))
     node = SyntaxNode(items; indentation=0, selection=sel)
     iomap = ChildrenIoMap(p, doc, node, child_iomaps)
     iomap_cell[] = iomap
@@ -994,8 +994,8 @@ end
 
 @rst_flat RstRoleToStyledLeaf RstRole (prj, doc, indent) ->
     SyntaxLeaf(bound(:content, String,
-                     TextString(ComputedCell(() -> doc.content),
-                                Cell(_MONO), ComputedCell(() -> _role_color(doc.name)),
+                     TextString(Cell(Computed(() -> doc.content)),
+                                Cell(_MONO), Cell(Computed(() -> _role_color(doc.name))),
                                 Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))))
 
 # ── RstSectionToStyledNode (rendered section; a large title, no adornment) ────
@@ -1010,7 +1010,7 @@ end
 function ProjectionModule.print_document(p::RstSectionToStyledNode, recursion, doc::RstSection, ctx)
     indent = _ambient(ctx)
     title_style = StyleText(_title_font(doc.level), _TITLE_COLOR)
-    child_iomaps = ComputedCell(() -> begin
+    child_iomaps = Cell(Computed(() -> begin
         maps = Any[]
         for (i, child) in enumerate(doc.title)
             push!(maps, print_child(recursion, child,
@@ -1022,8 +1022,8 @@ function ProjectionModule.print_document(p::RstSectionToStyledNode, recursion, d
                 make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i))))
         end
         maps
-    end)
-    title_count = ComputedCell(() -> length(doc.title))
+    end))
+    title_count = Cell(Computed(() -> length(doc.title)))
     items = ComputedCellVector(() -> begin
         maps = child_iomaps[]
         n = title_count[]
@@ -1051,10 +1051,10 @@ end
 
 function ProjectionModule.print_document(p::RstEnumeratedListToStyledNode, recursion, doc::RstEnumeratedList, ctx)
     indent = _ambient(ctx)
-    child_iomaps = ComputedCell(() -> [
+    child_iomaps = Cell(Computed(() -> [
         print_child(recursion, item,
                     make_child_context(ctx, FieldReferenceStep("items"), ElementReferenceStep(i)))
-        for (i, item) in enumerate(doc.items)])
+        for (i, item) in enumerate(doc.items)]))
     items = ComputedCellVector(() -> begin
         maps = child_iomaps[]
         first_number = doc.start
@@ -1066,13 +1066,13 @@ function ProjectionModule.print_document(p::RstEnumeratedListToStyledNode, recur
             for k in eachindex(maps)]
     end)
     iomap_cell = Cell(nothing)
-    sel = ComputedCell(() -> begin
+    sel = Cell(Computed(() -> begin
         im = iomap_cell[]
         im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
         map_reference_forward(p, im, path)
-    end)
+    end))
     node = SyntaxNode(items; indentation=0, selection=sel)
     iomap = ChildrenIoMap(p, doc, node, child_iomaps)
     iomap_cell[] = iomap
@@ -1137,11 +1137,11 @@ function _rst_picture(path, style::StyleText, placeholder::StyleText; max_w::Int
         raw = getfield(image, :raw)
         set_cell_function!(raw, () -> (try decode_image(file) catch; nothing end))
         natural(i, fallback) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fallback)
-        width  = ComputedCell(() -> Int32(min(natural(2, 720), max_w)))
-        height = ComputedCell(() -> begin
+        width  = Cell(Computed(() -> Int32(min(natural(2, 720), max_w))))
+        height = Cell(Computed(() -> begin
             w = min(natural(2, 720), max_w)
             Int32(round(Int, natural(3, 460) * w / natural(2, 720)))
-        end)
+        end))
         return TextGraphics(Cell(image), width, height, Cell(style.font), Cell(""),
                             Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     end

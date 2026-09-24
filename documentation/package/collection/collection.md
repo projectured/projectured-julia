@@ -38,7 +38,7 @@ A reactive vector stores `Vector{Cell}`. An immutable or mutable vector, made by
 SyntaxNode(ComputedCellVector(() -> [project_child(c) for c in input.children]); open = "[", close = "]")
 ```
 
-`CellVector(f)` with a plain function is a vector of one element, the function. Only `Computed` derives the element list, as with `ComputedCell`.
+`CellVector(f)` with a plain function is a vector of one element, the function. Only `Computed` derives the element list, as with `Cell(Computed(f))`.
 
 ### The list
 

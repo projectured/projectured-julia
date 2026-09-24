@@ -105,8 +105,8 @@ function print_document(p::GestureLogOverlayProjection, recursion, input, ctx)
     # must not inherit the layout space of the content.
     log_iomap = print_document(p.content, nothing, p.log, PrinterContext())
 
-    inner_output = ComputedCell(() -> _force(inner_iomap.output))
-    log_output = ComputedCell(() -> _force(log_iomap.output))
+    inner_output = Cell(Computed(() -> _force(inner_iomap.output)))
+    log_output = Cell(Computed(() -> _force(log_iomap.output)))
 
     body_width() = _width(log_output[])
     body_height() = _height(log_output[])

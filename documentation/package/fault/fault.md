@@ -71,7 +71,7 @@ The editor reports a fault at the first tier that works. A tier that fails falls
 
 A printer does not throw when `print_document` runs. It builds a graph of thunks and returns. It throws later, inside a thunk, while the renderer pulls the output, one frame later or a hundred. So a `try` around `print_document` catches almost nothing.
 
-`FaultCatchingProjection` catches in both places: around `print_document` of the inner projection, and inside the `ComputedCell` that reads the inner output. Its catch returns a value, the mark, and not an exception. The reactive engine then does three things with no more code:
+`FaultCatchingProjection` catches in both places: around `print_document` of the inner projection, and inside the computed cell that reads the inner output. Its catch returns a value, the mark, and not an exception. The reactive engine then does three things with no more code:
 
 - **The repeat stops.** The engine caches the mark, so the thunk does not run and throw again on every frame.
 - **The node heals.** The mark has the dependencies that the real value had. When the input that caused the fault changes, the thunk runs again and the real output comes back.

@@ -10,7 +10,7 @@
 # This probe module deliberately does NOT import `print_document`.
 module _ProjectionTemplateHygieneProbe
     import ProjecturedKernel.DocumentModule: Document, var"@document"
-    import ProjecturedKernel.CellModule: Cell, ComputedCell
+    import ProjecturedKernel.CellModule: Cell, Computed
     import ProjecturedKernel.ReferenceModule: Reference
     import ProjecturedKernel.ProjectionModule: Projection
     import ProjecturedKernel.ProjectionModule: var"@projection"
@@ -49,7 +49,7 @@ end
 # unresolved (it reads `.content` off a `Bound` and dies).
 module _FixedChildrenBlueprintProbe
     import ProjecturedKernel.DocumentModule: Document, var"@document"
-    import ProjecturedKernel.CellModule: Cell, ComputedCell
+    import ProjecturedKernel.CellModule: Cell, Computed
     import ProjecturedKernel.ReferenceModule: Reference
     import ProjecturedKernel.ProjectionModule: Projection, print_document
     import ProjecturedKernel.ProjectionModule: var"@projection"
