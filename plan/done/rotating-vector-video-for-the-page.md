@@ -1,6 +1,6 @@
 # The rotating vector video, for the web page
 
-> **Status:** in progress. Written 2026-09-24.
+> **Status:** done. Written and implemented 2026-09-24, on the branch `feature-videos`.
 
 The take of S1 of 2026-09-24 (`feature-video-screenplays.md`, §5 and Stage 4b)
 is not yet good enough for the web page: it starts frozen, it is too long, and
@@ -161,7 +161,7 @@ The owner's answers to the three questions of 2026-09-24:
       `draw!` is a name of the graph layout port (`LcgRandom.jl`), which the
       evaluator sees. `build/suites/s1/probe_evaluate.jl` evaluates the forms
       headless before a take: all 13 are Julia documents, and none fails.
-- [ ] Step 6: record S1 again and give it to the owner.
+- [x] Step 6: record S1 again and give it to the owner.
       The take of 2026-09-24 (`build/video/rotating_vector_v3.mp4`, 220.2 s,
       3.8 MB), on `main` at c6da5faf: the evaluator opens at 1 s, every form has
       the colors of the Julia notation, each `add!` answers `nothing`, and the
@@ -189,3 +189,8 @@ The owner's answers to the three questions of 2026-09-24:
       - The take of 2026-09-24 at 2 (`build/video/rotating_vector_v4.mp4`,
         113.8 s, 2.0 MB, 3413 frames at 30 per second, the animation at the full
         rate).
+      The owner accepted this take for the web page (2026-09-24): it is the second
+      video of the Videos section of `projectured.github.io` (commit 41a726b
+      there), and the JSON video there links `JsonDocument.jl` and
+      `JsonToSyntax.jl`. The JSON take was drawn at 2 already (`record_video`
+      defaults to 2), so it was not recorded again.

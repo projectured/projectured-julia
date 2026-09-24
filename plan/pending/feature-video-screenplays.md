@@ -539,10 +539,12 @@ Important before less important, and within the same importance, easy before har
 
 **Stage 4b: S1 on the web site (2026-09-24).** The take of 2026-09-24 is not yet good enough for the page. The four fixes proposed under S1 (§5) wait for the owner's choice.
 
-- [ ] F8: a warm-up in the script, and maybe the recorder change.
-- [ ] V7 through A1: shorter forms, or fewer parts of the picture.
-- [ ] V6: readable results of a function and of a clock.
-- [ ] Record S1 again and give it to the owner for the page.
+- [x] F8: a warm-up in the script; the recorder change was skipped by the owner.
+- [x] V7 through A1: the live graphics constructors, and faster typing.
+- [x] V6: readable results of a function and of a clock.
+- [x] Record S1 again and give it to the owner for the page. Done in
+      `plan/done/rotating-vector-video-for-the-page.md`: 113.8 s, drawn at 2,
+      on the web page since 2026-09-24.
 
 **Stage 5: the videos that wait for the stages before.**
 
