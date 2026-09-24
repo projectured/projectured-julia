@@ -5,28 +5,21 @@
 # own method, and until one does a record lives in the store alone.
 append_fault!(target, record) = nothing
 
-# The one stream a fault may be written to. `execute_julia_code` redirects the
-# global stdout and stderr to a pipe while it runs, and that pipe is closed by
-# the time a later frame writes to it, so a raw write to the live global stream
-# can land in a closed pipe and end the process. The logger holds the stream as
-# it was at start, and this is the same stream.
 const _BELL = '\a'
 
+# The live global stream, read at each call. A redirect of the global streams
+# takes the BEL too, and a write that throws does not stop the report, because
+# `report_fault!` catches it.
 _get_fault_sound_stream() = Base.stderr
 
-"""
-    play_fault_sound!(backend)
-
-Write the BEL character. Every backend that adds no method of its own gets this.
-"""
 play_fault_sound!(backend) = (print(_get_fault_sound_stream(), _BELL); nothing)
 
 # Most things keep no faults of their own, and an editor is what does.
 get_fault_store(target) = nothing
 get_fault_policy(target) = make_strict_fault_policy()
 
-# Nothing in the kernel can draw a fault, so the kernel offers no safe mode. A
-# package that can draw one answers this.
+# Nothing in the kernel can draw a fault, so the kernel has no safe mode
+# projection of its own. A package that can draw one answers this.
 make_safe_mode_projection(store) = nothing
 
 # An ordinary exception is one a barrier may catch. The exceptions that mean

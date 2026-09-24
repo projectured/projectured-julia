@@ -1,4 +1,4 @@
-# Fragment of `FaultModule` — the contract: the two seams a package above
+# Fragment of `FaultModule` — the contract: the open seams that code above
 # answers, and the predicate that says which exceptions a barrier must never
 # catch. Nothing here carries a body; `FaultDefaults.jl` holds what each one
 # answers on its own.
@@ -32,8 +32,8 @@ Use it through [`report_fault!`](@ref) rather than directly. It is the tier
 below the console, for the case where nothing a person looks at can carry the
 report.
 
-The kernel answers with the BEL character on the stream the logger captured at
-start. A backend package adds its own method where it can do better.
+The kernel answers with the BEL character on `stderr`. A backend package adds
+its own method where it can do better.
 
 # Example
 
@@ -48,11 +48,11 @@ function play_fault_sound! end
 
 The store that collects the faults of `target`, or `nothing` where it keeps none.
 
-Use it where code holds something an editor owns but may not name the editor
-itself. The kernel's agent layer is the case: it drives a tool against a target
-it only knows as `Any`, and a tool that throws is a fault like any other.
+Use it where code holds a target only as `Any` and must record a fault for it.
+A tool that throws while it acts on its target is such a fault. The code then
+records it and does not name the type that holds the store.
 
-The default is `nothing`. The editor layer answers it for `Editor`.
+The default is `nothing`. A type that holds a store adds a method for itself.
 
 # Example
 
@@ -67,19 +67,19 @@ function get_fault_store end
 
 A projection that shows the faults in `store` and nothing else.
 
-Use it when the printer has failed so many times in a row that there is nothing
-left to draw. The editor swaps its projection for this one, so it still shows
-something, and at worst it shows the list of what went wrong.
+Use it when the printer failed so many times in a row that it draws nothing.
+The projection it answers replaces the one that fails, so the screen still
+shows something: at worst, the list of what went wrong.
 
-The default is `nothing`, which means the editor stays as it is and keeps the
-frame before. `ProjecturedFault` answers it, so the kernel names neither a log
-document nor a projection.
+The default is `nothing`. Then nothing replaces the projection, and the frame
+before stays on the screen. A package that can draw a fault answers it, so this
+layer names neither a log document nor a projection.
 
 # Example
 
     projection = make_safe_mode_projection(editor.faults)
 
-See also `is_editor_in_safe_mode` and `enter_safe_mode!` in the editor layer.
+See also [`FaultStore`](@ref), the store that it shows.
 """
 function make_safe_mode_projection end
 
@@ -101,8 +101,9 @@ on: a request to quit, an interrupt, a stack that ran out, a heap that ran out.
 Catching one of those turns a clean stop into a hang, or hides a state no
 barrier can repair.
 
-The default is `false`. A layer above adds a method for the control-flow
-exception it owns, exactly as it adds a `reroot_operation` method.
+The default is `false`, except for an interrupt, a stack overflow and an
+out-of-memory error. A layer above that owns a control-flow exception adds a
+method for it.
 
 # Example
 

@@ -7,23 +7,21 @@ can not take it.
 A fault is an exception that a barrier caught instead of letting it end the
 editor. This module holds the record of one, the per-editor store that collects
 them, the policy that says which report tiers are open, the barrier that catches,
-and the cascade that reports. It holds no document and no projection: what a
-fault *looks like* belongs to `ProjecturedFault`, and what a fault *is* belongs
-here.
+and the cascade that reports. It holds no document and no projection. This
+module says what a fault is, and code above it says what a fault looks like.
 
-The layer is the first of the kernel and it imports nothing. That is deliberate.
-Every layer above can report a fault, the cell engine and the backend seam
-included, and none of them could if this sat higher.
+The layer imports nothing, so it can sit below every other layer, and every
+layer above can report a fault.
 
-The two seams keep it that way. `append_fault!` hands a record to something that
-shows it, and its default does nothing, so the kernel never names a log
-document. `play_fault_sound!` makes the last audible tier, and its default writes
-the BEL character, so the kernel never names a backend.
+Its open seams keep it that way. Each is a generic that code above answers, and
+each default here names nothing above. For example, the default of
+`append_fault!` does nothing, so this layer names no log document. The default
+of `play_fault_sound!` writes the BEL character, so this layer names no backend.
 
 The module lives in seven fragments that share this namespace:
 
-- [`FaultInterface.jl`](FaultInterface.jl) — the two open seams and the
-  passthrough predicate.
+- [`FaultInterface.jl`](FaultInterface.jl) — the open seams and the passthrough
+  predicate.
 - [`FaultDefaults.jl`](FaultDefaults.jl) — the answer each seam supplies itself.
 - [`FaultRecord.jl`](FaultRecord.jl) — one fault as a value.
 - [`FaultStore.jl`](FaultStore.jl) — the per-editor collection, outside the
