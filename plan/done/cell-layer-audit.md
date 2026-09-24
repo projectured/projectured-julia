@@ -10,7 +10,7 @@ approved every item on 2026-09-24, gave permission to change the sealed file
 `has_dependents`.
 
 The question of `Computed` against `ComputedCell` is a plan of its own:
-[computed-cell-spelling.md](../pending/computed-cell-spelling.md).
+[computed-cell-spelling.md](computed-cell-spelling.md).
 
 ## Decisions
 
