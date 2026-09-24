@@ -1,6 +1,9 @@
 # The fault policy keeps only what the fault layer reads
 
-> **Status (2026-09-24): IN PROGRESS.** Steps 1 and 2 are done.
+> **Status (2026-09-24): DONE.** `FaultPolicy` holds only the switches that the
+> fault layer reads, the editor layer holds the limit of each counter, and
+> `FaultModule` exports 19 names. The three files are unsealed until the owner
+> seals them again.
 
 `FaultPolicy` in the kernel fault layer holds `device_failure_limit` and
 `print_failure_limit`. The fault layer never reads them. Only
@@ -66,4 +69,7 @@ Audit the three files again. Move this plan to `plan/done/`.
     pairs with `get_consecutive_fault_count(store, counter)`. The safe-mode test
     reads the print limit through it.
   - `fault.md` says where the limits are now.
-- [ ] Step 3
+- [x] Step 3 — the audit of `FaultPolicy.jl`, `FaultModule.jl` and
+  `FaultRecord.jl` found one sentence of the module docstring that said the
+  policy only opens report tiers; it now also says that the policy decides
+  whether the barriers catch. Nothing more.
