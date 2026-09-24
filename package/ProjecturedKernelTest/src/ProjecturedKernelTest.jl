@@ -54,6 +54,7 @@ using ProjecturedKernel.ProjectionModule: print_document, read_intent
 include("../../../test/kernel/layering/CheckLayering.jl")
 
 # ── kernel unit tests (one suite per kernel layer) ──────────────────────────
+include("../../../test/kernel/fault/FaultDefaultsTest.jl")
 include("../../../test/kernel/cell/CellTest.jl")
 include("../../../test/kernel/struct/CellStructTest.jl")
 include("../../../test/kernel/struct/CellStructPlanTest.jl")
