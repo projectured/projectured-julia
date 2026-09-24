@@ -55,6 +55,6 @@ The question of `Computed` against `ComputedCell` is a plan of its own:
 - [x] 5. `CellModule.jl`: the docstring in the writing rules, the `using` of
   `PerformanceModule` moved from `ReactiveCell.jl`, and the exports grouped by
   fragment.
-- [ ] 6. Outside the layer: the guide `cell.md`, the two engine names in
+- [x] 6. Outside the layer: the guide `cell.md`, the two engine names in
   `architecture-invariants.md`, and the read of the `valid` field in
   `DbCatalogToSyntax.jl`.

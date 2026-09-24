@@ -257,8 +257,8 @@ once, with backpressure.
 
 ### PAR-ACYCLIC-CELLS
 
-**The cell dependency graph must stay acyclic.** `recompute!` evaluates a thunk
-while its cell is on the `_computing` stack; a cell that transitively reads
+**The cell dependency graph must stay acyclic.** `_recompute!` evaluates a thunk
+while its cell is on the computing stack; a cell that transitively reads
 itself recurses forever. The engine only skips a *direct* self-edge — it does
 not detect multi-cell cycles — so a computed cell must never depend on itself
 through any chain.
@@ -267,7 +267,7 @@ through any chain.
 
 **Never hand-set `valid` and never partially invalidate.** Invalidation is
 monotone (an invalid cell implies all its transitive dependents are already
-invalid), and the engine's early-stop walk relies on it. `recompute!` is the
+invalid), and the engine's early-stop walk relies on it. `_recompute!` is the
 only thing that re-validates a cell. Setting `valid` by hand, or invalidating
 only a subset of dependents, breaks the early-stop and leaves cells stale
 forever.
@@ -917,7 +917,7 @@ editor loop, the devices, and the backends it drives — a backend or device tha
 must hold per-connection state holds it on its own instance (one per editor),
 never in a global registry. State that belongs to a single *evaluation* rather
 than to an editor is instead task-local (its natural scope): the reactive
-engine's `_computing` dependency-tracking stack has been migrated from a module
+engine's computing stack, which tracks dependencies, has been migrated from a module
 global to task-local storage, so concurrent evaluations never cross-register
 dependencies. `PerformanceModule` was likewise migrated off its
 process-global `_perf` dict onto a task-local `with_performance_counters`

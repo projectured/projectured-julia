@@ -4,10 +4,10 @@
 
 The reactive cell system is the foundation of ProjecturEd's incrementality. It is a
 lightweight pull-based reactive engine that replaces the original Common Lisp
-ProjecturEd's `hu.dwim.computed-class`. It is **layer 2 of the kernel**. It imports no other kernel layer, and the layers
-above it are built on it. The engine lives in
-[CellModule.jl](../../../source/kernel/cell/CellModule.jl); every other layer
-is built on top of it.
+ProjecturEd's `hu.dwim.computed-class`. It is a layer of the kernel. It imports
+only the performance layer, which counts its reads and writes, and every layer
+above it builds on it. The engine lives in
+[CellModule.jl](../../../source/kernel/cell/CellModule.jl).
 
 This guide leads with the concepts and how-to (what a cell is, how tracking and
 invalidation work, the invariants, and the idioms you will meet) and then describes
@@ -33,8 +33,8 @@ data. `Computed` is cell vocabulary rather than a value: it is consumed by the
 cell it is handed to, and the non-reactive kinds reject it (only a
 `ReactiveCell` has anything to run it with).
 
-The struct also tracks `valid`, the set of cells it reads from (`deps`), and the
-set of cells that read it (`dependents`).
+The struct also tracks `valid`, the set of cells it reads from (`dependencies`),
+and the set of cells that read it (`dependents`).
 
 ### Reading and writing
 
@@ -42,8 +42,8 @@ set of cells that read it (`dependents`).
 c[]               # read  — triggers recompute if invalid; returns the value
 c[] = v           # write — converts c to a primitive, invalidates dependents
 set_cell_value!(c, v)     # same as c[] = v
-set_cell_function!(c, thunk)  # switch c to a computed cell; previous deps detached
-is_cell_up_to_date(c)     # has the cached value been invalidated since last compute?
+set_cell_function!(c, thunk)  # switch c to a computed cell; the old dependencies detached
+is_cell_up_to_date(c)     # can the next read return the value with no computation?
 ```
 
 `peek(c)` is an **untracked** read — it returns the value without registering a
@@ -52,8 +52,8 @@ clock uses to *sample* time rather than subscribe to it.
 
 ## Dependency tracking
 
-Tracking is automatic via a per-task `_computing` stack (task-local, so
-concurrent evaluations never share it):
+Tracking is automatic. Each task has its own computing stack, so concurrent
+evaluations never share it:
 
 1. When a computed cell starts evaluating, it pushes itself onto the stack.
 2. Every `c[]` that happens during evaluation registers an edge `observer ← c`
@@ -69,11 +69,11 @@ Invalidation propagates eagerly, recomputation is lazy:
 
 - `c[] = v` or `set_cell_function!(c, f)` walks the transitive set of `c.dependents` and
   marks them invalid (`valid = false`). The actual recomputation does NOT run.
-- The next `c[]` on an invalid cell calls `recompute!(c)`, which detaches old
+- The next `c[]` on an invalid cell calls `_recompute!(c)`, which detaches old
   upstream links, evaluates the thunk under tracking, and refreshes the value.
 
 This is the pull-based / lazy strategy. It is essential to how the projection
-printer stays incremental: invisible parts of the output don't recompute even
+printer stays incremental: invisible parts of the output do not recompute even
 when their inputs change, because nothing pulls on them.
 
 ## Invariants the engine relies on
@@ -81,16 +81,16 @@ when their inputs change, because nothing pulls on them.
 These hold by construction in the current code, but nothing checks them — break
 one and you get a hang, a stale render, or a stack overflow rather than an error.
 
-- **The dependency graph must be acyclic.** `recompute!` evaluates a thunk while
-  its cell sits on the `_computing` stack; if that thunk (transitively) reads its
+- **The dependency graph must be acyclic.** `_recompute!` evaluates a thunk while
+  its cell sits on the computing stack; if that thunk (transitively) reads its
   own cell, recomputation recurses forever. The engine only skips a *direct*
   self-edge (`observer !== c`). It does **not** detect multi-cell cycles. A
   computed cell must never depend on itself through any chain.
 - **Invalidation is monotone: invalid ⟹ all transitive dependents are already
-  invalid.** `_invalidate_walk!` stops descending the moment it meets an
+  invalid.** `_invalidate_dependents!` stops descending the moment it meets an
   already-invalid dependent, trusting that that cell propagated its own
   invalidation when it first became invalid. This holds only because every write
-  walks the *full* transitive closure and `recompute!` is the only thing that
+  walks the *full* transitive closure and `_recompute!` is the only thing that
   re-validates. Never hand-set `valid`, and never partially invalidate a subset
   of dependents — either breaks the early-stop and leaves cells stale forever.
 - **Propagation is write-driven, not value-driven.** Writing a cell invalidates
@@ -109,7 +109,12 @@ one and you get a hang, a stale render, or a stack overflow rather than an error
 - **Invalidation recurses on the call stack**, so its depth is bounded by the
   longest dependency chain (≈ document tree depth). Pathologically deep documents
   can overflow the stack; in practice trees stay shallow enough that this is a
-  theoretical limit, noted here so it isn't a surprise.
+  theoretical limit, noted here so it is not a surprise.
+- **A thunk retries only in an older world.** A thunk that calls a method newer
+  than the world of the task that reads it throws a `MethodError`, and then it
+  runs once more through `Base.invokelatest`. In the latest world a
+  `MethodError` is real, so no thunk retries, and each thunk of a chain runs
+  once.
 
 ## How the cell appears in the rest of the codebase
 
@@ -144,42 +149,43 @@ below; the full field-wrapping mechanics live in [the macros guide](macros.md).
 - Wrap document fields in Cells via the `@document` macro rather than hand-rolling.
 - Use computed cells for derived state so the system can invalidate it.
 - Never side-effect inside a thunk — the thunk may run zero, one, or many times.
-- Don't read a cell during construction of a struct that hasn't finished its
+- Do not read a cell during construction of a struct that has not finished its
   iomap wiring — use `ComputedCell(() -> ...)` to defer the read.
 
 ## Layer structure
 
-The layer lives in [source/kernel/cell/](../../../source/kernel/cell/):
-the instrumentation counter module, the cell engine, and the transparent-cell
-struct codegen, loaded in this order:
+The layer is the folder [source/kernel/cell/](../../../source/kernel/cell/), and
+`CellModule` is its one module. One layer sits on each side of it: the
+performance layer below, whose `@count_performance` the engine counts with, and
+the struct layer above, whose `@cell_struct` builds structs of cells. This guide
+describes both of them too, in the sections below.
 
 ```
-PerformanceModule.jl (PerformanceModule) — instrumentation
-        │  @count_performance imported by ↓
-CellModule.jl            (CellModule)                 — the cell kinds, one file each:
-        ├─ CellInterface.jl   — the AbstractCell{T} base + shared protocol
-        ├─ CellComputed.jl    — the Computed marker: marks a thunk as a cell's computation, not its value
-        ├─ ReactiveCell.jl    — the pull-based reactive engine (bumps via @count_performance)
-        ├─ MutableCell.jl     — plain mutable box, no reactive bookkeeping
-        ├─ ImmutableCell.jl   — read-only, zero-cost wrapper
-        └─ CellDefaults.jl    — unwrap_cell body: reading a slot that may hold a cell
-        │  Cell / AbstractCell used by ↓
-CellStructModule.jl      (CellStructModule)           — transparent-Cell struct codegen:
-        ├─ CellStructPlan.jl      — the struct-definition parse the struct macros share
-        └─ CellStruct.jl      — @cell_struct + its expr-builders
+performance/PerformanceModule.jl  (PerformanceModule) — the counters
+        │  @count_performance, used by ↓
+cell/CellModule.jl                (CellModule)        — the cell kinds, one file each:
+        ├─ CellInterface.jl   — AbstractCell{T} and the generics that every kind answers
+        ├─ CellComputed.jl    — the Computed marker: a thunk is a computation, not a value
+        ├─ ReactiveCell.jl    — the pull-based reactive engine
+        ├─ MutableCell.jl     — a plain mutable box, with no reactive bookkeeping
+        ├─ ImmutableCell.jl   — a read-only box
+        └─ CellDefaults.jl    — the bodies of the other generics, one method for each kind
+        │  Cell and AbstractCell, used by ↓
+struct/CellStructModule.jl        (CellStructModule)  — the transparent-cell struct codegen:
+        ├─ CellStructPlan.jl  — the parse of a struct definition that the struct macros share
+        └─ CellStruct.jl      — @cell_struct and its expression builders
 ```
 
-`CellInterface.jl` is the layer's **interface file**: it declares the contract and
-nothing else (PAR-INTERFACE-DECLARES-ONLY). The default body for `unwrap_cell`
-therefore sits in the sibling `CellDefaults.jl`. It has a body, and a body is
-implementation.
+`CellInterface.jl` is the **interface file** of the layer: it declares the
+contract and nothing else. The read `c[]`, the untracked read `peek` and
+`is_cell_up_to_date` have their bodies in the file of each kind. The bodies of
+`unwrap_cell`, `copy_cell_as`, `is_computed_cell` and `has_dependent_cells` are
+in the sibling `CellDefaults.jl`.
 
-The layer bundles everything at **cell dependency height**: `PerformanceCounter`
-is a store the engine calls (so it loads first), and `CellStructModule` is
-codegen *over* `Cell`. The animation clock is a `@cell_struct` that is a *client*
-of the engine rather than part of it. It is **its own layer directly above** (layer
-2, `clock/ClockModule.jl`); it imports `CellModule`/`CellStructModule` and nothing
-else, and its `ClockModule` docstring carries the full API.
+The animation clock is a `@cell_struct` that is a *client* of the engine rather
+than part of it. It is its own layer, `clock/ClockModule.jl`, above the struct
+layer. It imports `CellModule` and `CellStructModule` and nothing else, and its
+`ClockModule` docstring carries the full API.
 
 The load order is the dependency order the include-order guard checks.
 
@@ -194,9 +200,11 @@ incrementality substrate the whole projection pipeline depends on. `MutableCell{
 and `ImmutableCell{T}` are non-reactive boxes for values that do not need the graph:
 a mutable one for high-frequency state, a read-only one for derived content.
 
-Public surface: `Cell`, `AbstractCell`, `ReactiveCell`, `MutableCell`,
-`ImmutableCell`, `set_cell_value!`, `set_cell_function!`, `is_cell_up_to_date`, `unwrap_cell`,
-and `peek` (an untracked read extending `Base.peek`).
+Public surface: `AbstractCell`, `is_cell_up_to_date`, `unwrap_cell`,
+`copy_cell_as`, `is_computed_cell`, `has_dependent_cells`, `Computed`,
+`ReactiveCell`, `Cell`, `ComputedCell`, `set_cell_value!`, `set_cell_function!`,
+`MutableCell` and `ImmutableCell`. `peek` is an untracked read, a method of
+`Base.peek`.
 
 ## CellStructModule — the transparent-Cell struct codegen
 
@@ -248,8 +256,8 @@ The active store is a **task-local dynamic binding** (`ScopedValue`):
 and everything that runs inside counts into it. Outside any such scope the binding
 is `nothing`, so an unscoped cell operation counts nothing and shares no state.
 That is what lets many editors run in one process without their counters
-colliding (PAR-PER-EDITOR-STATE). This module loads **first** so `ReactiveCell` can import the
-bump macro.
+colliding (PAR-PER-EDITOR-STATE). This layer loads before the cell layer, because
+`CellModule` uses it.
 
 Counting is **compiled out by default**. `PERFORMANCE_COUNTERS_ENABLED` is
 seeded at precompile from `PROJECTURED_PERFORMANCE_COUNTERS` and defaults off, so
@@ -267,6 +275,6 @@ binds a fresh store and reports it every frame (see
 [EditorModule.run_editor!](../../../source/kernel/editor/EditorModule.jl)), which is the
 easiest way to profile what work a particular edit triggered.
 
-Animation clock: `ClockModule` is its own kernel layer (layer 3, `clock/`),
-directly above this one. See `clock/ClockModule.jl` for the API (`Clock`,
+Animation clock: `ClockModule` is its own kernel layer (`clock/`), above the
+struct layer. See `clock/ClockModule.jl` for the API (`Clock`,
 `get_reactive_clock_time`, `get_clock_time`, `set_clock_time!`, `get_wall_clock`).

@@ -196,7 +196,7 @@ the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
   (a frozen value). `Cell` is the constructor that picks the kind. `@cell_struct`
   generates structs whose fields are transparently cell-backed.
 - **Pull-based lazy evaluation:** computed cells evaluate only on read (`c[]`).
-- **Automatic dependency tracking:** a per-task (task-local) `_computing` stack
+- **Automatic dependency tracking:** a per-task (task-local) computing stack
   registers every cell read during a computation as an upstream dependency.
 - **Invalidation:** writing a primitive cell (`c[] = v`) marks all transitive
   downstream dependents invalid; they recompute lazily on next read.
