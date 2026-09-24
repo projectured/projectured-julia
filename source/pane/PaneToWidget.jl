@@ -145,14 +145,16 @@ function _index_prefix(selection)
 end
 
 # Wire a widget's selection cell to the forward image of `source`'s selection.
-function _forward_selection!(widget, source, projection, iomap)
+# `get_routing` answers the part of the selection that the widget needs, which is
+# the routing prefix unless the caller says more.
+function _forward_selection!(widget, source, projection, iomap, get_routing = _index_prefix)
     source_selection = getfield(source, :selection)
     set_cell_function!(getfield(widget, :selection), () -> begin
         # The stored path, live or dormant: a group that lost the focus still shows
         # the tab it was showing, so its widget image must name that tab.
         selection = _get_stored_selection_value(source_selection[])
         selection === nothing && return nothing
-        map_reference_forward(projection, iomap, _index_prefix(selection))
+        map_reference_forward(projection, iomap, get_routing(selection))
     end)
 end
 
@@ -368,8 +370,29 @@ function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGr
     end)
 
     iomap = PaneGroupToWidgetTabbedPaneIoMap(p, group, pane, content_iomaps)
-    _forward_selection!(pane, group, p, iomap)
+    _forward_selection!(pane, group, p, iomap, selection -> _get_group_routing(group, selection))
     iomap
+end
+
+# The part of a group's selection that its tabbed pane needs. A live caret in the
+# name of a tab passes whole, because the tab bar draws it; everything else is the
+# routing prefix. A group that lost the focus shows no caret in a name.
+_get_group_routing(group::PaneGroup, selection) =
+    (is_live_selection(group) && _is_title_caret(selection)) ? selection : _index_prefix(selection)
+
+_is_title_caret(selection) = (@reference_case selection begin
+    ::PaneGroup.tabs[i].rest... => _find_title_caret_position(rest) !== nothing
+end) === true
+
+# The caret position in the name of a tab, or `nothing` when the path below the
+# tab is not a caret in its name.
+_find_title_caret_position(rest) = @reference_case rest begin
+    ::PaneTab.title.value{k} => k
+end
+
+# The caret position in the name that a tab page of the widget holds.
+_find_selector_caret_position(rest) = @reference_case rest begin
+    ::WidgetTabPage.selector{k} => k
 end
 
 function map_reference_forward(::PaneGroupToWidgetTabbedPane,
@@ -378,6 +401,10 @@ function map_reference_forward(::PaneGroupToWidgetTabbedPane,
         ::PaneGroup.tabs[i].rest... => begin
             entries = iomap.content_iomaps
             (1 <= i <= length(entries)) || return nothing
+            # A caret in the name is a caret in the name the tab page holds.
+            k = _find_title_caret_position(rest)
+            k === nothing ||
+                return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.selector::String{k}::Position
             inner = _tab_forward(entries[i].iomap, rest)
             # The node at `[i]` is the tab's own content widget, whose type differs
             # from tab to tab, so the checkpoint is read off the document rather
@@ -389,9 +416,9 @@ function map_reference_forward(::PaneGroupToWidgetTabbedPane,
     end
 end
 
-# The widget image of a selection inside a tab. Only the content has one: a
-# selection that names the tab whole, or its title, has no image of its own — the
-# strip draws the title as text, not as a widget.
+# The widget image of a selection inside a tab. Only the content has one here: a
+# selection that names the tab whole, or its title whole, has no image of its own.
+# A caret in the title is mapped before this, to the name of the tab page.
 function _tab_forward(content_iomap, rest)
     image = @reference_case rest begin
         ::PaneTab.content.inner... => _child_forward(content_iomap, inner)
@@ -410,6 +437,9 @@ function map_reference_backward(::PaneGroupToWidgetTabbedPane,
             # tab and nothing in it.
             tab = @reference ::PaneGroup.tabs::CellVector[i]::PaneTab
             rest isa EmptyReference && return tab
+            k = _find_selector_caret_position(rest)
+            k === nothing ||
+                return @reference ::PaneGroup.tabs::CellVector[i]::PaneTab.title::PrimitiveString.value::String{k}::Position
             # `concat_references`, not the `^` splice of `@reference`: the splice
             # hoists the spliced path's leading type onto the node before it, so a
             # content path that starts at its own checkpoint would overwrite

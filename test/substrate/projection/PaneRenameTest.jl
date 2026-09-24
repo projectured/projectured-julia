@@ -98,6 +98,28 @@ end
     @test get_pane_tab_title_string(group.tabs[1]) == "readme"
 end
 
+# The tabbed pane of a tree of one group: the pane layer is the first element of
+# the composite that the tree prints as.
+_tab_bar(iomap) = iomap.step_iomaps[1][].output.elements[1]
+_steps(reference) = reference === nothing ? nothing :
+                    get_reference_steps(strip_reference_types(reference))
+
+@testset "the tab bar holds the caret in the name" begin
+    tree, group, editor = _seeded()
+    _press!(editor, KeyDown(:f2, ModifierKeys()))
+    caret() = _steps(get_stored_selection(_tab_bar(print_document(_chain(), editor.document))))
+    steps = caret()
+    @test steps[1:3] == [FieldReferenceStep("selector_element_pairs"), ElementReferenceStep(1),
+                         FieldReferenceStep("selector")]
+    @test (steps[4].start, steps[4].stop) == (5, 5)
+    # The caret follows the typing.
+    _type!(editor, "!")
+    @test (caret()[4].start, caret()[4].stop) == (6, 6)
+    # Out of the name, the tab bar names the tab and holds no caret.
+    _press!(editor, KeyDown(:escape, ModifierKeys()))
+    @test caret() == [FieldReferenceStep("selector_element_pairs"), ElementReferenceStep(1)]
+end
+
 @testset "F2 on an empty group does nothing" begin
     group = PaneGroup(PaneTab[])
     tree = PaneTree(group)
