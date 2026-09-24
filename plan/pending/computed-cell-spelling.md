@@ -45,6 +45,11 @@ the same way. The owner decides whether it goes with `ComputedCell`.
   - `Cell(Computed(` is one character longer than `ComputedCell(`, so a
     continuation line aligned to a column inside the parentheses moves one
     column to the right. A line indented less than that is a block, and stays.
+  - The realignment stops at the first line of the call that is indented as a
+    block. A line below a block line aligns to that line, which does not
+    move. The first version of the script moved such lines too, inside the
+    `begin` block of a thunk, and a merge of the difference between the two
+    versions put 10 files right after the fact.
   - It leaves a definition, an import, an export, a value reference and every
     mention in a string or a comment alone, and lists each of them.
   - It rewrote 723 calls in 105 files of projectured-julia.
@@ -59,4 +64,11 @@ the same way. The owner decides whether it goes with `ComputedCell`.
     `Computed`, so a search by description still finds a derived value.
   - Prose that named "a `ComputedCell`" says "a computed cell". Plans keep the
     old name, because they are history.
-- [ ] 4. The same rewrite in omnet-julia and inet-julia.
+- [x] 4. The same rewrite in omnet-julia and inet-julia, each on a branch
+  `computed-cell-spelling` in a worktree of its own.
+  - omnet-julia: 40 calls in 18 files, 38 import lists, six prose mentions, a
+    call inside the code string of `demo/recording/Mm1kLive.jl`, one Markdown
+    sample, and one line rewrapped.
+  - inet-julia: one call and one import list.
+  - Both repositories reach projectured-julia by a relative `[sources]` path to
+    its main checkout, so they must land right after projectured-julia does.
