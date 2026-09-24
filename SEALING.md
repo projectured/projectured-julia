@@ -65,7 +65,7 @@ include order — the source files state their dependencies, never their index.
 - **Layer 3 — cell** (`cell/`)
   - ⬜ `cell/CellModule.jl`
   - 🔒 `cell/CellInterface.jl`
-  - ⬜ `cell/CellComputed.jl`
+  - ⬜ `cell/CellComputation.jl`
   - ⬜ `cell/ReactiveCell.jl`
   - ⬜ `cell/MutableCell.jl`
   - ⬜ `cell/ImmutableCell.jl`

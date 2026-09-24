@@ -20,7 +20,7 @@ b = Cell(2)
 @test is_cell_up_to_date(b)
 
 # computed cell
-c = Cell(Computed(() -> a[] + b[]))
+c = Cell(@computation a[] + b[])
 @test !is_cell_up_to_date(c)
 @test c[] == 3
 @test is_cell_up_to_date(c)
@@ -32,14 +32,14 @@ a[] = 10
 @test c[] == 12
 
 # deep chain
-d = Cell(Computed(() -> c[] * 2))
+d = Cell(@computation c[] * 2)
 @test d[] == 24
 b[] = 3
 @test !is_cell_up_to_date(c)
 @test !is_cell_up_to_date(d)
 @test d[] == 26  # (10+3)*2
 
-# switch computed → primitive
+# switch computation → value
 c[] = 99
 @test c[] == 99
 @test is_cell_up_to_date(c)
@@ -47,12 +47,12 @@ a[] = 50
 @test is_cell_up_to_date(c)  # no longer depends on a
 @test c[] == 99
 
-# switch primitive → computed
-set_cell_function!(c, () -> a[] * b[])
+# switch value → computation
+set_cell_computation!(c, () -> a[] * b[])
 @test !is_cell_up_to_date(c)
 @test c[] == 150  # 50*3
 
-# re-tracking after set_cell_function!
+# re-tracking after set_cell_computation!
 a[] = 2
 @test !is_cell_up_to_date(c)
 @test c[] == 6   # 2*3
@@ -61,7 +61,7 @@ a[] = 2
 flag = Cell(true)
 x = Cell(10)
 y = Cell(20)
-cond = Cell(Computed(() -> flag[] ? x[] : y[]))
+cond = Cell(@computation flag[] ? x[] : y[])
 @test cond[] == 10
 flag[] = false
 @test cond[] == 20
@@ -86,7 +86,7 @@ x[] = 999          # x is no longer a dep after last eval
     # collected mid-build — otherwise the count is at the mercy of GC scheduling. A
     # `WeakRef` to the first one lets us later ask whether it
     # was collected once every strong reference is dropped.
-    cells = [(c = Cell(Computed(() -> source[] + 1)); c[]; c) for _ in 1:100]
+    cells = [(c = Cell(@computation source[] + 1); c[]; c) for _ in 1:100]
     @test live(source) == 100                     # all 100 registered
     discarded = WeakRef(cells[1])
     empty!(cells); cells = nothing                # drop every strong reference to them
@@ -99,7 +99,7 @@ x[] = 999          # x is no longer a dep after last eval
 
     # The emptied slots are pruned by the next scan, which registration is doing anyway,
     # so dead `WeakRef`s never accumulate: no slot is left without a live reader in it.
-    keep = Cell(Computed(() -> source[] + 1))
+    keep = Cell(@computation source[] + 1)
     keep[]
     @test length(getfield(source, :dependents)) == live(source)
 
@@ -118,13 +118,13 @@ end
     t[] = 2.0                             # converts to the field type
     @test t[] === 2
     @test_throws InexactError t[] = 2.5
-    tc = ReactiveCell{Int}(Computed(() -> t[] + 1)) # computed: value starts undefined
+    tc = ReactiveCell{Int}(@computation t[] + 1) # computed: value starts undefined
     @test !is_cell_up_to_date(tc)
     @test (@inferred tc[]) == 3
     t[] = 10
     @test !is_cell_up_to_date(tc)
     @test tc[] == 11
-    set_cell_function!(tc, () -> t[] * 2)      # typed set_cell_function! keeps the stale value slot
+    set_cell_computation!(tc, () -> t[] * 2)   # typed: keeps the stale value slot
     @test tc[] == 20
 end
 
@@ -137,9 +137,9 @@ end
     @test m[] == 2
     @test is_cell_up_to_date(m)                   # trivially: nothing to recompute
     @test peek(m) == 2
-    # no reactive bookkeeping: a thunk reading a MutableCell registers nothing,
+    # no reactive bookkeeping: a computation reading a MutableCell registers nothing,
     # so a later write does NOT invalidate the computed cell (by design)
-    obs = Cell(Computed(() -> m[] * 10))
+    obs = Cell(@computation m[] * 10)
     @test obs[] == 20
     m[] = 5
     @test is_cell_up_to_date(obs)                 # unaware of the write
@@ -166,12 +166,12 @@ end
     @test c[]() == 42                    # still callable through the cell
     @test is_cell_up_to_date(c)          # a value cell, not an invalid computed one
 
-    cc = Cell(Computed(f))                 # the marker is what makes a cell compute
+    cc = Cell(Computation(f))              # the marker is what makes a cell compute
     @test cc[] == 42
-    @test !is_cell_up_to_date(Cell(Computed(f)))
+    @test !is_cell_up_to_date(Cell(Computation(f)))
 
     @test ReactiveCell{Function}(f)[] === f
-    @test ReactiveCell{Int}(Computed(f))[] == 42
+    @test ReactiveCell{Int}(Computation(f))[] == 42
 
     # copy_cell_as makes the copy through the constructor, and the copy of a cell
     # that holds a function must hold the function, not compute with it.
@@ -180,12 +180,12 @@ end
     w = Cell(1)                          # the write side agrees with construction
     w[] = f
     @test w[] === f
-    w[] = Computed(f)
+    w[] = Computation(f)
     @test w[] == 42
 
     # a computation belongs to the one kind that can run it
-    @test_throws ArgumentError ImmutableCell(Computed(f))
-    @test_throws ArgumentError MutableCell(Computed(f))
+    @test_throws ArgumentError ImmutableCell(Computation(f))
+    @test_throws ArgumentError MutableCell(Computation(f))
     @test ImmutableCell(f)[] === f       # but a plain callable is fine in any kind
     @test MutableCell(f)[] === f
 end
@@ -194,7 +194,7 @@ end
     source = Cell(1)
     @test !has_dependent_cells(source)        # nothing read it inside a computation
 
-    reader = Cell(Computed(() -> source[] + 1))
+    reader = Cell(@computation source[] + 1)
     @test reader[] == 2                  # the read forms the downstream edge
     @test has_dependent_cells(source)
     @test !has_dependent_cells(reader)        # nothing reads the reader
@@ -208,14 +208,46 @@ end
     @test !has_dependent_cells(source)
 end
 
+@testset "@computation and Computation" begin
+    a = Cell(1)
+    # The plain form, the parenthesized form in an argument list, and a block.
+    plain = Cell(@computation a[] + 1)
+    both = (@computation(a[] * 10), 7)
+    block = Cell(@computation begin
+        b = a[] + 1
+        b * 2
+    end)
+    @test plain[] == 2
+    @test Cell(both[1])[] == 10
+    @test both[2] == 7
+    @test block[] == 4
+    a[] = 2
+    @test (plain[], block[]) == (3, 6)
+
+    # A typed cell, and a write.
+    typed = ReactiveCell{Int}(@computation a[] * 3)
+    @test (@inferred typed[]) == 6
+    written = Cell(0)
+    written[] = @computation a[] - 1
+    @test written[] == 1
+    @test is_computed_cell(written)
+
+    # The macro makes the marker, and the marker of a named function runs it.
+    @test (@computation 1) isa Computation
+    doubled() = 2 * a[]
+    @test Cell(Computation(doubled))[] == 4
+    # `@computation f` computes the function as a value, and does not call it.
+    @test Cell(@computation doubled)[] === doubled
+end
+
 @testset "a MethodError in a chain of ten computed cells" begin
     runs = Ref(0)
-    top = Cell(Computed(() -> (runs[] += 1; throw(MethodError(identity, ())))))
+    top = Cell(@computation (runs[] += 1; throw(MethodError(identity, ()))))
     for _ in 2:10
         below = top
-        top = Cell(Computed(() -> below[]))
+        top = Cell(@computation below[])
     end
-    # In the latest world, no thunk retries.
+    # In the latest world, no computation retries.
     @test_throws MethodError Base.invokelatest(getindex, top)
     @test runs[] == 1
 
@@ -226,9 +258,9 @@ end
     @test_throws MethodError Base.invoke_in_world(world, getindex, top)
     @test runs[] == 11
 
-    # A thunk that calls a method newer than the world of its reader gets its
+    # A computation that calls a method newer than the world of its reader gets its
     # value through the retry.
-    newer = Cell(Computed(() -> _get_cell_test_newer_value()))
+    newer = Cell(@computation _get_cell_test_newer_value())
     @test Base.invoke_in_world(world, getindex, newer) == 42
 end
 

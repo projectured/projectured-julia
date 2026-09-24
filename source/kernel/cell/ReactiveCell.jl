@@ -20,21 +20,21 @@ touched and no more.
 # Example
 
     width = Cell(80)
-    label = Cell(Computed(() -> "the width is " * string(width[])))
+    label = Cell(@computation "the width is " * string(width[]))
     label[]            # "the width is 80"
     width[] = 120
     label[]            # "the width is 120", computed again on this read
 
-See also `set_cell_function!` and `set_cell_value!`, which change what a cell
+See also `set_cell_computation!` and `set_cell_value!`, which change what a cell
 holds; `ImmutableCell` and `MutableCell`, which hold a value and record no
 reader; and the guide `kernel/cell`.
 
 # Construction
 
-    Cell(value)                     # an untyped cell that holds `value`
-    Cell(Computed(f))               # an untyped cell that computes `f()`
-    ReactiveCell{T}(value)          # a typed cell that holds `value`
-    ReactiveCell{T}(Computed(f))    # a typed cell that computes `f()`
+    Cell(value)                          # an untyped cell that holds `value`
+    Cell(@computation expr)              # an untyped cell that computes `expr`
+    ReactiveCell{T}(value)               # a typed cell that holds `value`
+    ReactiveCell{T}(@computation expr)   # a typed cell that computes `expr`
 
 `Cell` is `ReactiveCell{Any}`. A typed cell reads its value with no conversion.
 
@@ -42,13 +42,13 @@ reader; and the guide `kernel/cell`.
 
     c[]                             # read, and compute first if the cell is invalid
     c[] = value                     # hold `value`, and invalidate the readers
-    c[] = Computed(f)               # compute `f()`, and invalidate the readers
+    c[] = @computation expr         # compute `expr`, and invalidate the readers
     set_cell_value!(c, value)       # the same as `c[] = value`
-    set_cell_function!(c, f)        # the same as `c[] = Computed(f)`
+    set_cell_computation!(c, f)     # the same as `c[] = Computation(f)`
 """
 mutable struct ReactiveCell{T} <: AbstractCell{T}
     value::T
-    thunk::Union{Nothing, Function}
+    computation::Union{Nothing, Function}
     valid::Bool
     # The cells that the last computation read. The edges are strong, so a cell
     # keeps alive the cells that it computes from.
@@ -59,19 +59,19 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
 
     ReactiveCell{T}(value) where {T} =
         new{T}(value, nothing, true, nothing, nothing)
-    # With a `Computed`, `value` stays undefined, because a typed field can not
+    # With a `Computation`, `value` stays undefined, because a typed field can not
     # hold a placeholder. `valid = false` makes `_recompute!` assign it before any
     # read returns.
-    function ReactiveCell{T}(computed::Computed) where {T}
+    function ReactiveCell{T}(marker::Computation) where {T}
         c = new{T}()
-        c.thunk = computed.thunk
+        c.computation = marker.computation
         c.valid = false
         c.dependencies = nothing
         c.dependents = nothing
         return c
     end
     # A `Function` needs no method of its own: it is a value like any other, and the
-    # constructor above stores it. Only a `Computed` argument makes a cell compute.
+    # constructor above stores it. Only a `Computation` makes a cell compute.
 end
 
 # Both edge sets are `nothing` until the first edge forms, and these two make them
@@ -99,7 +99,7 @@ writes.
 
 Use it to make one field, one parameter or one result reactive without saying
 what type it holds. `Cell(3)` holds a number, `Cell("a")` a string, and
-`Cell(Computed(f))` a computation. A cell of a stated type, which reads without
+`Cell(@computation expr)` a computation. A cell of a stated type, which reads without
 a conversion, is `ReactiveCell{T}`.
 
 # Example
@@ -107,7 +107,7 @@ a conversion, is `ReactiveCell{T}`.
     jobs = Cell(4)
     jobs[] = 8         # everything that read `jobs` computes again when read
 
-See also `ReactiveCell`, which this names, and `set_cell_function!`.
+See also `ReactiveCell`, which this names, and `@computation`.
 
 `Cell` is a `const` alias for the **concrete** type `ReactiveCell{Any}`. It is
 concrete and not abstract, so `Vector{Cell}`, `Set{Cell}` and a field of type
@@ -119,7 +119,7 @@ const Cell = ReactiveCell{Any}
 
 # ── the computing stack ──────────────────────────────────────────────────────
 
-# The cells whose thunks run now on this task, the innermost last. A read records
+# The cells whose computations run now on this task, the innermost last. A read records
 # the innermost cell as its reader. The stack is task-local, so two evaluations on
 # two tasks never record a reader for each other.
 _get_computing_stack() =
@@ -144,13 +144,13 @@ function Base.getindex(c::ReactiveCell)
     return c.value
 end
 
-# Run the thunk of a computed cell. A thunk that calls a method newer than the
-# world of the task that reads it throws a `MethodError`, so the thunk then runs
-# once more through `Base.invokelatest`. The retry happens only in an older world.
-# Code inside `invokelatest` runs in the latest world, so a nested cell does not
-# retry, and a real `MethodError` runs each thunk of a chain once. A thunk is pure,
-# so a second run is safe.
-function _force_thunk(@nospecialize(f))
+# Run the computation of a cell. A computation that calls a method newer than the
+# world of the task that reads it throws a `MethodError`, so the computation then
+# runs once more through `Base.invokelatest`. The retry happens only in an older
+# world. Code inside `invokelatest` runs in the latest world, so a nested cell does
+# not retry, and a real `MethodError` runs each computation of a chain once. A
+# computation is pure, so a second run is safe.
+function _run_computation(@nospecialize(f))
     try
         return f()
     catch exception
@@ -161,7 +161,7 @@ function _force_thunk(@nospecialize(f))
 end
 
 function _recompute!(c::ReactiveCell)
-    if c.thunk === nothing
+    if c.computation === nothing
         c.valid = true
         return
     end
@@ -169,7 +169,7 @@ function _recompute!(c::ReactiveCell)
     stack = _get_computing_stack()
     push!(stack, c)
     try
-        c.value = _force_thunk(c.thunk)
+        c.value = _run_computation(c.computation)
     finally
         pop!(stack)
     end
@@ -208,7 +208,7 @@ that read those. If `c` held a computation, it holds `value` in its place.
 function Base.setindex!(c::ReactiveCell, value)
     @count_performance :writes
     _detach_upstream!(c)
-    c.thunk = nothing
+    c.computation = nothing
     c.value = value
     c.valid = true
     _invalidate_dependents!(c)
@@ -227,27 +227,28 @@ read.
 
 # Example
 
-    width = Cell(Computed(() -> 2 * margin[]))
+    width = Cell(@computation 2 * margin[])
     set_cell_value!(width, 80)      # a number now, and no computation
 
-See also `set_cell_function!`, for the other direction, and `unwrap_cell`.
+See also `set_cell_computation!`, for the other direction, and `unwrap_cell`.
 """
 set_cell_value!(c::ReactiveCell, value) = (c[] = value)
 
 """
-    set_cell_function!(c, thunk::Function)
+    set_cell_computation!(c, computation::Function)
 
 Make a cell compute its value, instead of holding one.
 
 Use it to derive one value from others after the thing that holds it was built:
 a title that follows a name, a width that follows a margin, a list that follows
-a filter. `thunk` takes no argument and is called on the first read after a
-write, not before; every cell it reads becomes one the cell depends on.
+a filter. `computation` takes no argument, and it runs on the first read after
+the write, not before. Every cell that it reads becomes a cell that `c`
+depends on. For an expression, `c[] = @computation expr` does the same.
 
 # Example
 
     total = Cell(0)
-    set_cell_function!(total, () -> length(rows[]))
+    set_cell_computation!(total, () -> length(rows[]))
     total[]            # counted now, and again after `rows` changes
 
 The call invalidates the dependents at once. The cell keeps its old value until
@@ -255,12 +256,12 @@ the first read replaces it, because a typed cell can not hold `nothing` as a
 placeholder. When `T` admits `nothing`, the call clears the value at once, so
 the old object can be collected.
 
-See also `set_cell_value!`, for the other direction, `Computed`, which makes a
-new cell compute, and the guide `kernel/cell`.
+See also `set_cell_value!`, for the other direction, `@computation`, which makes
+the computation of an expression, and the guide `kernel/cell`.
 """
-function set_cell_function!(c::ReactiveCell{T}, thunk::Function) where {T}
+function set_cell_computation!(c::ReactiveCell{T}, computation::Function) where {T}
     _detach_upstream!(c)
-    c.thunk = thunk
+    c.computation = computation
     nothing isa T && (c.value = nothing)
     c.valid = false
     _invalidate_dependents!(c)
@@ -268,14 +269,15 @@ function set_cell_function!(c::ReactiveCell{T}, thunk::Function) where {T}
 end
 
 """
-    c[] = Computed(f)
+    c[] = Computation(f)
+    c[] = @computation expr
 
-The write syntax for [`set_cell_function!`](@ref). With `c[] = value` beside it,
-one write syntax gives a cell either a value or a computation.
+The write syntax for [`set_cell_computation!`](@ref). With `c[] = value` beside
+it, one write syntax gives a cell either a value or a computation.
 """
-function Base.setindex!(c::ReactiveCell, computed::Computed)
-    set_cell_function!(c, computed.thunk)
-    return computed
+function Base.setindex!(c::ReactiveCell, marker::Computation)
+    set_cell_computation!(c, marker.computation)
+    return marker
 end
 
 is_cell_up_to_date(c::ReactiveCell) = c.valid
@@ -293,10 +295,10 @@ the computation depend on the cell; this one does not.
 
 # Example
 
-    drawn = Cell(Computed(() -> begin
+    drawn = Cell(@computation begin
         count = peek(frames)        # looked at, not depended on
         "frame " * string(count) * " of " * title[]
-    end))
+    end)
 
 See also `Cell` and the guide `kernel/cell`.
 """
@@ -381,7 +383,7 @@ end
 # ── display ──────────────────────────────────────────────────────────────────
 
 function Base.show(io::IO, c::ReactiveCell)
-    kind = c.thunk === nothing ? "primitive" : "computed"
+    kind = c.computation === nothing ? "value" : "computation"
     print(io, "Cell(", kind, ", ")
     # The value is shown into the same `io`, not through `repr`, which makes a new
     # buffer. So the depth and limit keys that a caller set on `io` still hold

@@ -38,14 +38,14 @@ reached the cells that depend on it.
 
 # Example
 
-    total = Cell(Computed(() -> length(rows[])))
+    total = Cell(@computation length(rows[]))
     is_cell_up_to_date(total)       # false until the first read
     total[]
     is_cell_up_to_date(total)       # true
 
 A kind that holds its value, and not a computation, is always up to date.
 
-See also `set_cell_function!` and `ReactiveCell`.
+See also `set_cell_computation!` and `ReactiveCell`.
 """
 function is_cell_up_to_date end
 
@@ -100,11 +100,11 @@ computation reads.
 # Example
 
     is_computed_cell(Cell(3))                       # false
-    is_computed_cell(Cell(Computed(() -> 3)))       # true
+    is_computed_cell(Cell(@computation 3))          # true
 
 Only the reactive kind can compute, so the other kinds always return `false`.
 
-See also `set_cell_function!`, which makes a cell compute, and `copy_cell_as`.
+See also `set_cell_computation!`, which makes a cell compute, and `copy_cell_as`.
 """
 function is_computed_cell end
 
@@ -120,7 +120,7 @@ first, and do nothing when no computation reads the cell.
 
     status = Cell("idle")
     has_dependent_cells(status)            # false
-    shown = Cell(Computed(() -> uppercase(status[])))
+    shown = Cell(@computation uppercase(status[]))
     shown[]
     has_dependent_cells(status)            # true
 
