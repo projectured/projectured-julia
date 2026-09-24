@@ -45,10 +45,10 @@ end
 """
     record_frame_measurements!(editor, frame_seconds) -> Nothing
 
-Fold what this frame measured into `editor.frame_samples`: the frame time
+Record what this frame measured in `editor.frame_samples`: the frame time
 always, and the performance counters when they are compiled in. Runs at the
 end of each frame of `run_editor!`, inside the counter scope, so the counter
-keys of this frame are still bound. Times fold in seconds.
+keys of this frame are still bound. Times are in seconds.
 """
 function record_frame_measurements!(editor::Editor, frame_seconds::Float64)
     measurements = Pair{Symbol, Float64}[:frame_time => frame_seconds]

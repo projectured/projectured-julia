@@ -1,6 +1,6 @@
 # Frame measurements: frame names, a window of recent frames, milliseconds and a plot
 
-> **Status (2026-09-24): IN PROGRESS.** Step 1 is done.
+> **Status (2026-09-24): IN PROGRESS.** Steps 1 and 2 are done.
 
 The editor measures each frame into `editor.frame_samples`, a `FrameSampleStore`
 of the kernel performance layer. The store keeps only running summaries since
@@ -132,7 +132,19 @@ unsealed files of the layer again. Move this plan to `plan/done/`.
 - [x] Step 1 — renamed with `julia-rename.jl`; `test_frame_samples()` 16 pass,
   `test_performance_counter()` 3 pass, `test_kernel_layering()` 10 pass. The
   two fold tests call the store, because the fold helper is private now.
-- [ ] Step 2
+- [x] Step 2 — `test_frame_samples()` 29 pass, `test_kernel_layering()` 10 pass,
+  `test_declared_api()` 111 pass. Decisions made while implementing:
+  - The reader of the window is `collect_recent_frame_samples`, not
+    `get_recent_frame_samples`: it builds new columns with a loop, and the
+    naming law gives `get_` only to a value at a known place.
+  - `compute_frame_measurement_summary` answers a summary with a count of zero
+    for a name that no frame measured, not `nothing`.
+  - `write_frame_samples!` also takes a path, so one call from the evaluator
+    writes a file.
+  - The flush of the table had to call the new summary in this step, so the
+    table summarizes the window from this step on. The flush now writes a field
+    only when its number changed: a cell write invalidates its readers even
+    when the value is the same, so the old docstring claim was not true.
 - [ ] Step 3
 - [ ] Step 4
 - [ ] Step 5

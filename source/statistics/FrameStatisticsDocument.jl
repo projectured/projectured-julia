@@ -15,10 +15,10 @@ end
 """
     FrameStatistics()
 
-The table. One [`FrameMeasurement`](@ref) row per measurement, in the
-first-seen order of the editor's sample store, and the number of frames the
-summaries cover. Times are in seconds, over every frame since the editor
-started.
+The table. One [`FrameMeasurement`](@ref) row for each measurement, in the
+first-seen order of the editor's sample store. A row summarizes the recent
+frames that the store keeps, and its `count` says how many. `frame_count` is
+the number of frames since the editor started. Times are in seconds.
 """
 @document struct FrameStatistics
     rows::CellVector = CellVector()
@@ -36,39 +36,44 @@ pred_arguments(::FrameStatistics) = (), Pair{Symbol, Any}[]
 """
     flush_frame_statistics!(statistics, store) -> Int
 
-Write every summary of `store` into the document and answer how many rows it
-covers. A row whose measurement the table already shows is updated field by
-field, so only the cells whose numbers changed invalidate; a measurement the
-table has not seen appends a row. Row order is the store's first-seen order,
-and the store only appends names, so the index alignment holds.
+Write the summary of the recent frames of `store` into the document, for each
+measurement, and answer how many rows it covers. A row whose measurement the
+table already shows gets only the fields whose numbers changed, so the other
+cells keep their readers valid. A measurement the table has not seen appends a
+row. Row order is the store's first-seen order, and the store only appends
+names, so the index alignment holds.
 
-Runs on the editor task only — it writes cells.
+Runs on the editor task only, because it writes cells.
 """
 function flush_frame_statistics!(statistics::FrameStatistics, store::FrameSampleStore)
     names = get_frame_measurement_names(store)
     rows = statistics.rows
     for (index, name) in enumerate(names)
-        summary = find_frame_measurement_summary(store, name)
-        summary === nothing && continue
+        summary = compute_frame_measurement_summary(store, name)
         deviation = compute_frame_standard_deviation(summary)
         if index <= length(rows)
             row = rows[index]
-            row.count = summary.count
-            row.minimum = summary.minimum
-            row.maximum = summary.maximum
-            row.mean = summary.mean
-            row.standard_deviation = deviation
-            row.total = summary.total
+            _write_changed_field!(row, :count, summary.count)
+            _write_changed_field!(row, :minimum, summary.minimum)
+            _write_changed_field!(row, :maximum, summary.maximum)
+            _write_changed_field!(row, :mean, summary.mean)
+            _write_changed_field!(row, :standard_deviation, deviation)
+            _write_changed_field!(row, :total, summary.total)
         else
             push!(rows, FrameMeasurement(string(name), summary.count,
                                          summary.minimum, summary.maximum,
                                          summary.mean, deviation, summary.total))
         end
     end
-    frame_time = find_frame_measurement_summary(store, :frame_time)
-    frame_time === nothing || (statistics.frame_count = frame_time.count)
+    _write_changed_field!(statistics, :frame_count, get_frame_count(store))
     length(names)
 end
+
+# A write invalidates the readers of a cell even when the value is the same, so
+# a field is written only when its number changed.
+_write_changed_field!(document, field::Symbol, value) =
+    isequal(getproperty(document, field), value) ||
+        setproperty!(document, field, value)
 
 # ── The session's statistics ─────────────────────────────────────────────────
 
