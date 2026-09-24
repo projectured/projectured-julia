@@ -6065,6 +6065,11 @@ _slider_value(track_width::Int, x::Real) =
 # whose whole point is the drag — a press-only slider would answer a click on the
 # track and ignore the gesture a person actually makes.
 #
+# The knob is taken on the raw `MouseDown`. The gesture recognizer makes a
+# `MousePress` only after the `MouseUp`, and only when the up is near the down,
+# which a drag never is. A `MousePress` sets the value and takes nothing: it is
+# the click a script sends, and after a real click the knob already has its value.
+#
 # The value write names the slider's `target` when it has one, so a control that
 # is *for* something says so in the operation itself.
 function read_intent(p::WidgetSliderToGraphicsCanvas,
@@ -6074,25 +6079,33 @@ function read_intent(p::WidgetSliderToGraphicsCanvas,
     canvas = iomap.output
     width  = Int(iomap.track_width)
     content_x, _ = _content_offset(p, w)
+    resolve_write_at(x) = resolve_slider_write(w, _slider_value(width, x - Int(canvas.x[]) - content_x))
     @event_case evt begin
-        MousePress(button, x, y) => begin
+        MouseDown(button, x, y) => begin
             button === :left || return nothing
             _outside_widget(iomap, evt) && return nothing
-            document, field, value =
-                resolve_slider_write(w, _slider_value(width, x - Int(canvas.x[]) - content_x))
+            document, field, value = resolve_write_at(x)
             # Taking the knob is a second write, and it is on the slider itself
             # rather than on the target: what is held is a property of the
             # control, not of the value it stands for.
             CompoundOperation(Any[_write_view_state(w, "dragging", true),
                                   ReplaceReferencedValueOperation(document, field, value)])
         end
+        MousePress(button, x, y) => begin
+            button === :left || return nothing
+            _outside_widget(iomap, evt) && return nothing
+            document, field, value = resolve_write_at(x)
+            # A value the knob already has is not written again, so a real
+            # click leaves one step in the history; the press is still taken.
+            Float64(w.value) == value && return _write_view_state(w, "dragging", false)
+            ReplaceReferencedValueOperation(document, field, value)
+        end
         MouseMove(x, y) => begin
             # Deliberately NOT gated on the pointer being inside: a drag that
             # wanders off the control still moves it, which is the whole
             # difference between a slider and a row of buttons.
             w.dragging === true || return nothing
-            document, field, value =
-                resolve_slider_write(w, _slider_value(width, x - Int(canvas.x[]) - content_x))
+            document, field, value = resolve_write_at(x)
             Float64(w.value) == value && return nothing
             ReplaceReferencedValueOperation(document, field, value)
         end
