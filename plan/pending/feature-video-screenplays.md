@@ -127,7 +127,7 @@ The `json_build` recording of Step 0 produced a file of the right length, which 
 | # | Question | My recommendation |
 | --- | --- | --- |
 | Q1 | **Answered on 2026-09-22: yes.** See D11. The study runs in the omnet-julia application. Decision D9 of `documentation-rewrite.md` keeps that application out of every public document, and the old hero video of the web site was removed for that reason. Can the main video of a public post show it? | Show it. The caption says that the study runs in an application built on ProjecturEd, with the OMNeT++ simulator, and it does not name the private product. The post must then say that the code of the study is not in the public repository. |
-| Q2 | **Deferred by the owner on 2026-09-22: decide it when the takes exist and their length is known.** Where do the videos live? | The short ones go in `projectured.github.io/assets/video/`, and the web site and the README link them. A long main video goes to YouTube, because a forum shows a YouTube link as a player and a file of that length is too large to upload. |
+| Q2 | **Deferred by the owner on 2026-09-22: decide it when the takes exist and their length is known.** Partly answered on 2026-09-24: "the last video is good enough to be added to the projectured.github.io, this will be one of the several videos, the hero will be the MM1K when it's ready". S3 is in `projectured.github.io/assets/videos/` (548 KB), shown in a new Videos section of the page (commit `f024f46` there, not pushed). The hero of the page becomes S0 when it exists. Where do the videos live? | The short ones go in `projectured.github.io/assets/video/`, and the web site and the README link them. A long main video goes to YouTube, because a forum shows a YouTube link as a player and a file of that length is too large to upload. |
 | Q3 | **Answered on 2026-09-22: no time lapse.** See D12. On the CPU a turn takes minutes. Is a time lapse acceptable, or is there a faster machine for the takes? | Superseded by D12. Every wait runs at its real speed, and the main video is as long as the session. |
 | Q4 | Which videos come before the post? | Tier 1 (§5): S0 to S4. Tier 2 can follow the post. |
 
@@ -429,6 +429,7 @@ The number of the frames follows the wall clock, so one second of the session is
 ### Step 9: publish and close
 
 - [ ] Give the owner the length and the size of each take, and ask Q2 then. Put the videos where the answer says.
+  - [x] S3, the take with the gesture panel (31.9 s, 548 KB): the Videos section of `projectured.github.io` (2026-09-24), one of several videos. The hero stays the picture of the assistant until S0 is ready.
 - [ ] Put the videos in place of the placeholder of the post, and link them from the README and the web site.
 - [ ] Mark the video item of Step 9 of `documentation-rewrite.md` as moved to this plan.
 - [ ] Move this plan to `plan/done/`.
