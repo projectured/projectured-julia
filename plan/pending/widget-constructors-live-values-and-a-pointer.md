@@ -38,6 +38,10 @@ and before:
 6. **S4 shows each widget at work when it is added**: the presses after the label
    that counts them, the drag after the label that reads the slider.
 7. **Every typed form becomes a Julia document.**
+8. **A cell that is the result of a form is shown live** (2026-09-24): "for the
+   cell I vote for option 2", "add option 2 for the cell to the plan". The
+   result row of `presses = Cell(0)` shows `Cell(0)` and follows the cell, so it
+   counts up with the presses of the button.
 
 ## 2. What exists
 
@@ -161,6 +165,26 @@ name.content = "Ada Lovelace"
       # one more press and a short drag, and the table follows
 ```
 
+### 3.7 A cell that is a result follows the cell
+
+Today the evaluator keeps a result that is a `Document`, which renders live, and
+makes any other value a text snapshot of its display (`Evaluator.jl`,
+`evaluate_operation(::EvaluateSelectedFormOperation)`). A cell displays as
+`Cell(primitive, 0)` (`Base.show(::ReactiveCell)`, `ReactiveCell.jl`, not
+sealed).
+
+- A cell shows as its constructor makes it, as `MutableCell(0)`,
+  `ImmutableCell(0)` and `Clock(time = 12.5)` already do: `Cell(0)`. A computed
+  cell shows as `ComputedCell(…)` with its value now, and `<invalid>` when it
+  has none yet; the display computes nothing and subscribes to nothing.
+- When the value of a form is a `ReactiveCell`, its result is a text whose
+  content is a computed cell: it reads the cell and gives its display, so the
+  row prints again at each write. The result is one document object for the
+  life of the form, so undo and a new evaluation of the form work as they do
+  for any result.
+- A test evaluates `c = Cell(1)`, writes `c[] = 2`, and checks the text that the
+  printed row draws.
+
 ## 4. Steps
 
 - [x] Step 0: the baseline. Run the suites of the packages whose files the
@@ -245,4 +269,5 @@ name.content = "Ada Lovelace"
         its row (the button of `button = …`, the field of `name = …`), because
         the result row gives its document `Fill` so that text wraps at the edge
         of the pane; and `presses = Cell(0)` shows `Cell(primitive, 0)`.
-- [ ] Step 6: the landing of both repositories, when the owner says so.
+- [ ] Step 6: a cell that is a result follows the cell (§3.7), with a test.
+- [ ] Step 7: the landing of both repositories, when the owner says so.
