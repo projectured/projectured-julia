@@ -172,3 +172,20 @@ The owner's answers to the three questions of 2026-09-24:
          evaluator or everywhere, is a design choice.
       2. **The length.** 220 s, over the 3 min of D5.
       3. **The time of the clock** has all its digits: `Clock(time = 39.41121697425842)`.
+
+      The owner on the take: "the video looks perfectly fine, no need to deal with
+      too long Julia lines", "the video length should be shortened by faster
+      typing", and asked why the circle and the curves are not anti-aliased.
+
+      - **Faster typing:** `hold = 0.06, jitter = 0.5` in place of the rhythm of
+        D13. The take lasts 113.8 s.
+      - **Anti-aliasing:** the SDL backend draws every shape without it and gets
+        smooth edges from supersampling: it draws the frame larger and scales it
+        down. A live window supersamples at 2 (`PROJECTURED_SUPERSAMPLE`), but
+        `record_application_video` defaulted to 1, so S1, S2 and S4 were drawn
+        at 1 and their curves were jagged. Its default is 2 now, as a live
+        window's; the test of the recorder passes 1 for speed. A small step stays
+        on a curve, because the points of a polyline are whole pixels.
+      - The take of 2026-09-24 at 2 (`build/video/rotating_vector_v4.mp4`,
+        113.8 s, 2.0 MB, 3413 frames at 30 per second, the animation at the full
+        rate).

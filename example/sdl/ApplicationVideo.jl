@@ -13,7 +13,7 @@
     record_application_video(paths, timeline, filename; width=1280, height=720,
                              fps=30, assistant=:none, model="", context=0,
                              root=pwd(), initial_hold=0.5, final_hold=1.0,
-                             supersample=1, scale=1,
+                             supersample=2, scale=1,
                              measure=measure_truetype_text) -> String
 
 Record the application window of [`run_application`](@ref) — built the same
@@ -34,6 +34,10 @@ nobody knows in advance. Entries fire on the wall-clock schedule `initial_hold`/
 seconds after the timeline's own last hold runs out, which ends the loop the
 same way the window-close button does.
 
+Each frame is drawn at `supersample` times its size and scaled down, which is
+what makes a circle and a curve smooth. The default, 2, is the default of a live
+window, so the video draws what the window draws.
+
 The frames land in a temporary directory the backend owns and are encoded with
 the same `ffmpeg` call [`record_video`](@ref) uses
 (`ProjecturedVideo._encode_frames_to_video!`), then discarded.
@@ -45,7 +49,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   model::AbstractString = "", context::Integer = 0,
                                   root::AbstractString = pwd(),
                                   initial_hold::Real = 0.5, final_hold::Real = 1.0,
-                                  supersample::Integer = 1, scale::Real = 1,
+                                  supersample::Integer = 2, scale::Real = 1,
                                   measure = measure_truetype_text)
     lowercase(splitext(filename)[2]) == ".mp4" ||
         error("record_application_video: only .mp4 output is supported (got \"$filename\")")
