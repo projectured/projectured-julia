@@ -174,6 +174,13 @@ end
 _is_slot_assigned(obj::Array, i::Integer) = isassigned(obj, i)
 _is_slot_assigned(obj, i::Integer) = true
 
+# PAR-NO-NESTED-CELL exception: this projection prints any value, and a cell that
+# `CellToSyntax` does not take is a value here too. The input of an IO map is a
+# reactive field, which does not take a cell of another kind, so that cell goes
+# into a `Cell` of its own and the IO map reads back the cell.
+_get_object_input(obj::AbstractCell) = obj isa Cell ? obj : Cell(obj)
+_get_object_input(obj) = obj
+
 function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     T = typeof(obj)
 
@@ -187,7 +194,7 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     if ismutable(obj)
         visited = get_property(ctx, :objects_seen, nothing)
         if visited !== nothing && haskey(visited, obj)
-            return SimpleIoMap(p, obj, _type_leaf(p, "⟨cycle: $(nameof(T))⟩"))
+            return SimpleIoMap(p, _get_object_input(obj), _type_leaf(p, "⟨cycle: $(nameof(T))⟩"))
         end
         new_visited = visited === nothing ? IdDict{Any,Bool}() : copy(visited)
         new_visited[obj] = true
@@ -212,7 +219,7 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
             (i, x) -> print_child(recursion, x, make_child_context(ctx, ElementReferenceStep(i))))
         output = Cell(@computation(SyntaxNode(SyntaxDocument[im.output for im in elem_ims[]];
             open = p.open_delimiter, close = p.close_delimiter, sep = " ", indentation = ind)))
-        return SimpleIoMap(p, obj, output)
+        return SimpleIoMap(p, _get_object_input(obj), output)
     end
 
     # Struct: render as `TypeName { field … }` — the type name labels the
@@ -224,7 +231,7 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
     end
     type_leaf = _type_leaf(p, string(nameof(T)))
     # No fields → just the type name, no empty braces.
-    isempty(fnames) && return SimpleIoMap(p, obj, type_leaf)
+    isempty(fnames) && return SimpleIoMap(p, _get_object_input(obj), type_leaf)
     # Field structure (which fields) is stable; build each field's entry once, then
     # assemble the node in a computed cell that reads each field's (reactive) value.
     entries = [_field_entry(p, recursion, obj, ctx, fn) for fn in fnames]
@@ -236,7 +243,7 @@ function print_document(p::ObjectNodeToSyntaxNode, recursion, obj, ctx)
             close = p.close_delimiter, sep = " ", indentation = ind)
         SyntaxNode(SyntaxDocument[type_leaf, fields_block]; sep = " ")
     end)
-    SimpleIoMap(p, obj, output)
+    SimpleIoMap(p, _get_object_input(obj), output)
 end
 
 # ── Compound convenience constructor ────────────────────────────────────────

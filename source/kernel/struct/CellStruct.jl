@@ -15,16 +15,14 @@ build_cell_struct_field_type(kind, value_type) =
     kind === ReactiveCell ? Cell : Expr(:curly, kind, value_type)
 
 # The inner constructor `T(values…)`, or `T{A…}(values…) where {A…}` for a struct
-# with type parameters. A reactive field stores a `Cell` as its cell and wraps any
-# other value in a new `Cell`, also a cell of another type. An immutable or a
-# mutable field stores any cell as its cell, and `new` throws a `MethodError` when
-# the cell does not have the type of the field. Every other value goes into a new
-# cell of the type of the field.
-function _build_cell_struct_autowrap_ctor(plan, kinds, field_types)
+# with type parameters. Each field stores a cell argument as its cell, and `new`
+# throws a `MethodError` when the cell does not have the type of the field, so a
+# field never holds a cell as its value. Every other value goes into a new cell of
+# the type of the field.
+function _build_cell_struct_autowrap_ctor(plan, field_types)
     arguments = [gensym(name) for name in plan.field_names]
     values = map(enumerate(arguments)) do (i, argument)
-        stored = kinds[i] === ReactiveCell ? Cell : AbstractCell
-        :($argument isa $stored ? $argument : $(field_types[i])($argument))
+        :($argument isa $(AbstractCell) ? $argument : $(field_types[i])($argument))
     end
     names = get_cell_struct_parameter_names(plan)
     isempty(names) && return Expr(:function, :($(plan.name)($(arguments...))),
@@ -160,7 +158,7 @@ function build_cell_struct_exprs(definition; default = ReactiveCell)
                       for i in eachindex(kinds)]
     retype_cell_struct_fields!(plan, field_types)
     push!(plan.definition.args[3].args,
-          _build_cell_struct_autowrap_ctor(plan, kinds, field_types))
+          _build_cell_struct_autowrap_ctor(plan, field_types))
     inferring = _build_cell_struct_inferring_ctor(plan)
     parts = Any[:(Base.@__doc__ $(plan.definition))]
     inferring === nothing || push!(parts, inferring)
@@ -221,7 +219,8 @@ declared type.
 The macro generates these parts:
 
 - The inner constructor `T(values…)`. It stores a cell of the type of the field as
-  the cell of that field, and it wraps every other value in a new cell.
+  the cell of that field, and it wraps every other value in a new cell. A cell of
+  another type throws a `MethodError`, so a field never holds a cell as its value.
 - `getproperty` and `setproperty!`. `object.f` reads the value of the cell, and
   `object.f = v` writes it. `getfield(object, :f)` returns the cell.
 - A keyword constructor, when a field has a default `f = value`. A field with a

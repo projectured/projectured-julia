@@ -64,6 +64,11 @@ function test_cell_struct()
     q = CsPlain(c, 2)
     @test getfield(q, :a) === c
     @test q.a == 7
+
+    # A cell of another type does not fit a reactive field, so the field never
+    # holds a cell as its value.
+    @test_throws MethodError CsPlain(ImmutableCell{Int}(1), 2)
+    @test_throws MethodError CsPlain(ReactiveCell{Int}(1), 2)
 end
 
 @testset "transparent read/write through the cells" begin

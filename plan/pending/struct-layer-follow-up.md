@@ -19,15 +19,25 @@ left two items for the owner. On 2026-09-24 the owner approved both.
 
 ## Steps
 
-- [ ] 1. Find the code that gives a cell of another type to a reactive field. A
-  temporary probe keeps the old behavior, records each struct, field and cell
+- [x] 1. Find the code that gives a cell of another type to a reactive field. A
+  temporary probe kept the old behavior, recorded each struct, field and cell
   type, and `test_all()` of projectured-julia and `test_omnet()` of omnet-julia
-  run with it.
-- [ ] 2. The inner constructor passes every cell to `new`, with a test, and the
-  code that the probe found changes.
+  ran with it. Both found one site: `ObjectNodeToSyntaxNode.print_document` gives
+  the object that it prints to `SimpleIoMap` as the input, and that object is an
+  `ImmutableCell` when the projection prints a field of an immutable document.
+- [x] 2. The inner constructor passes every cell to `new`, with a test. The one
+  site gives its input through `_get_object_input`, which puts a cell of another
+  kind into a `Cell` of its own, so the projection shows what it showed before.
+  A comment marks this place as an exception to PAR-NO-NESTED-CELL.
 - [x] 3. The layer lists and the numbers in the guides.
 - [ ] 4. Verification, and the move of this plan to `plan/done/`.
 
 ## Verification
 
-To fill in.
+- `test_cell_struct()` 53 pass, `test_cell_struct_plan()` 47 pass,
+  `test_document_macro()` 84 pass with the 5 known failures of Rule C.
+- Both environments precompile with the change.
+- Open: `test_all()` and `test_omnet()` with the change, compared with the run
+  with the probe, which had the old behavior: projectured-julia 1049850 pass,
+  649 fail, 11 error, 1114 broken; omnet-julia 10942 pass, 26 fail, 67 error,
+  1 broken. The owner asked to wait with the full run.

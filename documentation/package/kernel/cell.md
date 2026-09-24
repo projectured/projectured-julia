@@ -221,7 +221,8 @@ three parts:
 
 - An inner constructor `T(values…)`. It wraps each value in a cell of the kind of
   its field. A cell of the type of the field is the cell of the field, so two
-  structs can share one cell.
+  structs can share one cell. A cell of another type throws a `MethodError`, so a
+  field never holds a cell as its value.
 - `getproperty` and `setproperty!`. `obj.f` reads the value of the cell,
   `obj.f = v` writes it, and `getfield(obj, :f)` returns the cell.
 - A keyword constructor, when a field has a default `f = value`. It has the

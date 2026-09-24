@@ -351,8 +351,9 @@ assuming only fully-formed values ever occur (see PAR-DOMAIN-OWNS-EDITS).
 
 **A macro-wrapped field may never hold a `Cell` or a `Computation` as its logical
 value.** Both are cell vocabulary, and the auto-wrapping constructor consumes
-them rather than storing them: a `Cell` is passed through as the field's own
-cell (so the field's value becomes whatever that cell holds), and a `Computation`
+them rather than storing them: a cell of the field's type is passed through as
+the field's own cell (so the field's value becomes whatever that cell holds), a
+cell of another type is a `MethodError`, and a `Computation`
 becomes the field's *derivation*, making it a computed cell. To hold either as
 data, box it (a one-element tuple or wrapper struct) or use a plain hand-rolled
 `struct` (as `SyntaxCompoundToText` does). Any convenience constructor must be
