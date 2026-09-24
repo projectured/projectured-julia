@@ -141,4 +141,3 @@ end
 # being able to name its type reaches them. The kernel's agent layer drives a
 # tool against a target it knows only as `Any`.
 FaultModule.get_fault_store(editor::Editor) = editor.faults
-FaultModule.get_fault_policy(editor::Editor) = editor.fault_policy

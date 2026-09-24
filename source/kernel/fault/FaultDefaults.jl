@@ -16,7 +16,6 @@ play_fault_sound!(backend) = (print(_get_fault_sound_stream(), _BELL); nothing)
 
 # Most things keep no faults of their own, and an editor is what does.
 get_fault_store(target) = nothing
-get_fault_policy(target) = make_strict_fault_policy()
 
 # Nothing in the kernel can draw a fault, so the kernel has no safe mode
 # projection of its own. A package that can draw one answers this.

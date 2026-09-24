@@ -58,7 +58,7 @@ The default is `nothing`. A type that holds a store adds a method for itself.
 
     record_fault!(get_fault_store(target), :tool; origin = name, exception, traceback)
 
-See also [`get_fault_policy`](@ref).
+See also [`record_fault!`](@ref), which records a fault in the store.
 """
 function get_fault_store end
 
@@ -82,14 +82,6 @@ layer names neither a log document nor a projection.
 See also [`FaultStore`](@ref), the store that it shows.
 """
 function make_safe_mode_projection end
-
-"""
-    get_fault_policy(target) -> FaultPolicy
-
-What `target` does with a fault. The default is the strict policy, so anything
-that answers nothing of its own catches nothing of its own.
-"""
-function get_fault_policy end
 
 """
     is_passthrough_exception(exception) -> Bool
