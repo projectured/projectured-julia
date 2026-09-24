@@ -16,13 +16,16 @@ function test_fault_record()
     @testset "a multi-byte character at the cut does not throw" begin
         # `∅` takes bytes 399 to 401, so a cut at byte 400 falls inside it.
         text = repeat("a", 398) * "∅" * repeat("b", 50)
-        message = format_fault_message(ErrorException(text))
+        message = make_fault_record(:print; origin = :test,
+                                    exception = ErrorException(text)).message
         @test length(message) == 401
         @test endswith(message, "∅b…")
     end
 
     @testset "a short message is kept whole, as one line" begin
-        @test format_fault_message(ErrorException("one\ntwo")) == "one two"
+        record = make_fault_record(:print; origin = :test,
+                                   exception = ErrorException("one\ntwo"))
+        @test record.message == "one two"
     end
 
 end

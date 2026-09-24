@@ -12,7 +12,7 @@ The kernel's `FaultModule` holds the record, the store, the policy, the barrier 
 
 | Where | What |
 | --- | --- |
-| `source/kernel/fault/FaultRecord.jl` | `FaultRecord`, `make_fault_record`, `format_fault_message` |
+| `source/kernel/fault/FaultRecord.jl` | `FaultRecord`, `make_fault_record` |
 | `source/kernel/fault/FaultStore.jl` | `FaultStore`, `record_fault!`, `drain_faults!`, `attach_fault_target!` |
 | `source/kernel/fault/FaultPolicy.jl` | `FaultPolicy`, `make_strict_fault_policy` |
 | `source/kernel/fault/FaultBarrier.jl` | `run_fault_barrier`, the catch of the editor loop |
@@ -110,7 +110,7 @@ A chain limits how far a fault spreads downward. Nothing limits how far it sprea
 | eight device faults in a row | stops calling that half of the backend |
 | four print faults in a row | enters the safe mode |
 
-`FaultPolicy` holds the two limits. In the safe mode the editor puts its projection aside and prints `make_safe_mode_projection(store)`, which this package answers with a `FaultSafeModeProjection`. It ignores its input, draws a new log filled from the store, and returns no operation for any gesture. Escape leaves the safe mode and puts the projection back. A substitute that itself throws is not caught a second time. Its exception reaches the frame barrier of the editor, and the print-failure count climbs until the safe mode starts.
+The editor layer holds one limit for each counter, and `get_consecutive_fault_limit(counter)` reads it: `:print`, `:device_read` and `:device_write`. `FaultPolicy` holds only the switches that the fault layer reads. In the safe mode the editor puts its projection aside and prints `make_safe_mode_projection(store)`, which this package answers with a `FaultSafeModeProjection`. It ignores its input, draws a new log filled from the store, and returns no operation for any gesture. Escape leaves the safe mode and puts the projection back. A substitute that itself throws is not caught a second time. Its exception reaches the frame barrier of the editor, and the print-failure count climbs until the safe mode starts.
 
 ## How it fits
 

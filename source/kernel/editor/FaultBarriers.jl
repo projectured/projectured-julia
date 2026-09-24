@@ -38,6 +38,21 @@ function report_frame_faults!(editor::Editor)
     length(records)
 end
 
+const _CONSECUTIVE_FAULT_LIMITS = (print = 4, device_read = 8, device_write = 8)
+
+"""
+    get_consecutive_fault_limit(counter) -> Int
+
+How many faults in a row the work counted under `counter` takes before the
+editor stops it: `:print` before the editor enters the safe mode, and
+`:device_read` or `:device_write` before the editor stops calling that half of
+the device seam. An unknown counter is an error.
+
+See also [`is_editor_degraded`](@ref), which compares the count with it.
+"""
+get_consecutive_fault_limit(counter::Symbol) =
+    getfield(_CONSECUTIVE_FAULT_LIMITS, counter)
+
 """
     is_editor_degraded(editor, counter) -> Bool
 
@@ -53,9 +68,8 @@ that works resets the count a write that failed just raised, and nothing ever
 trips.
 """
 function is_editor_degraded(editor::Editor, counter::Symbol)
-    limit = counter === :print ? editor.fault_policy.print_failure_limit :
-                                 editor.fault_policy.device_failure_limit
-    get_consecutive_fault_count(editor.faults, counter) >= limit
+    count = get_consecutive_fault_count(editor.faults, counter)
+    count >= get_consecutive_fault_limit(counter)
 end
 
 # The input half of the device seam. A backend that throws here throws again on

@@ -31,7 +31,7 @@ function test_fault_safe_mode()
     @testset "a printer that always fails takes the editor into the safe mode" begin
         editor = _failing_editor()
         @test !is_editor_in_safe_mode(editor)
-        for _ in 1:editor.fault_policy.print_failure_limit
+        for _ in 1:get_consecutive_fault_limit(:print)
             run_frame!(editor)
         end
         @test is_editor_in_safe_mode(editor)
@@ -41,7 +41,7 @@ function test_fault_safe_mode()
 
     @testset "the safe mode draws, where the projection it replaced could not" begin
         editor = _failing_editor()
-        for _ in 1:editor.fault_policy.print_failure_limit
+        for _ in 1:get_consecutive_fault_limit(:print)
             run_frame!(editor)
         end
         # The frame after it entered paints the list rather than nothing.
@@ -52,7 +52,7 @@ function test_fault_safe_mode()
 
     @testset "the safe mode shows the fault that caused it" begin
         editor = _failing_editor()
-        for _ in 1:editor.fault_policy.print_failure_limit
+        for _ in 1:get_consecutive_fault_limit(:print)
             run_frame!(editor)
         end
         log = editor.projection.log
@@ -62,7 +62,7 @@ function test_fault_safe_mode()
 
     @testset "Escape leaves the safe mode rather than quitting" begin
         editor = _failing_editor()
-        for _ in 1:editor.fault_policy.print_failure_limit
+        for _ in 1:get_consecutive_fault_limit(:print)
             run_frame!(editor)
         end
         @test is_editor_in_safe_mode(editor)

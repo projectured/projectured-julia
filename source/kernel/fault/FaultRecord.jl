@@ -66,7 +66,7 @@ _compute_fault_key(site::Symbol, origin::Symbol, exception_type::Symbol) =
     hash((site, origin, exception_type))
 
 """
-    format_fault_message(exception; maximum_length = 400) -> String
+    _format_fault_message(exception; maximum_length = 400) -> String
 
 The message of `exception`, as one line, truncated to `maximum_length`
 characters.
@@ -74,7 +74,7 @@ characters.
 It never throws. An exception whose own `showerror` fails answers its type name,
 because a report that can not be written is worse than a report that is short.
 """
-function format_fault_message(exception; maximum_length::Integer = 400)
+function _format_fault_message(exception; maximum_length::Integer = 400)
     text = try
         sprint(showerror, exception)
     catch
@@ -127,7 +127,7 @@ function make_fault_record(site::Symbol; origin, reference = nothing, exception,
     exception_name = _get_fault_exception_name(exception)
     FaultRecord(_compute_fault_key(site, origin_name, exception_name),
                 site, origin_name, exception_name,
-                format_fault_message(exception),
+                _format_fault_message(exception),
                 _format_fault_traceback(exception, traceback),
                 reference, time(), 1)
 end

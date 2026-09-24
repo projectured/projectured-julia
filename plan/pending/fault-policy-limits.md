@@ -1,6 +1,6 @@
 # The fault policy keeps only what the fault layer reads
 
-> **Status (2026-09-24): IN PROGRESS.** Step 1 is done.
+> **Status (2026-09-24): IN PROGRESS.** Steps 1 and 2 are done.
 
 `FaultPolicy` in the kernel fault layer holds `device_failure_limit` and
 `print_failure_limit`. The fault layer never reads them. Only
@@ -53,5 +53,17 @@ Audit the three files again. Move this plan to `plan/done/`.
 ## Progress
 
 - [x] Step 1
-- [ ] Step 2
+- [x] Step 2 — `test_fault()` 73 pass, `test_fault_record()` 3,
+  `test_fault_barrier()` 18, `test_fault_store()` 25, `test_fault_report()` 5,
+  `test_fault_defaults()` 10, `test_kernel_layering()` 10, `test_declared_api()`
+  111; `test_naming()`, `test_arguments()`, `test_documentation()` and
+  `test_export_collisions()` pass. Decisions made while implementing:
+  - The limits are one constant table and not a setting of each editor: no
+    code set a limit other than the default.
+  - The table is a `NamedTuple`, so it is immutable, and an unknown counter is
+    an error.
+  - `get_consecutive_fault_limit(counter)` is exported by `EditorModule`, and
+    pairs with `get_consecutive_fault_count(store, counter)`. The safe-mode test
+    reads the print limit through it.
+  - `fault.md` says where the limits are now.
 - [ ] Step 3
