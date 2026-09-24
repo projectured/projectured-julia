@@ -93,8 +93,16 @@ Markdown: 19 files in projectured-julia and 2 in omnet-julia name `Computed`,
   Then a pass over the prose, because the tool skips strings and comments.
 - [x] 4. The import lists that name `Computed` name `Computation` and, where
   the file uses the macro, `@computation`.
-- [ ] 5. The guides and the rules: `cell.md`, `macros.md`,
-  `architecture-invariants.md` and the other Markdown files.
+- [x] 5. The guides and the rules: `cell.md`, `macros.md`,
+  `architecture-invariants.md` and the other Markdown files. 23 lambdas in
+  Markdown became `@computation`. "Thunk" became "computation" where it names
+  the computation of a cell, and "primitive cell" became a cell that holds a
+  value. "Thunk" stays where it names something else: the `tokens(thunk)` of
+  the template and the operation thunks of playback. "Primitive" stays where it
+  means a basic building block or the Primitive domain.
+  - **Follow-up, not in this plan:** comments and docstrings in other layers
+    say "thunk" 103 times in 51 files, in several senses, and one of the files,
+    `kernel/fault/FaultStore.jl`, is sealed. They need a pass of their own.
 - [ ] 6. omnet-julia and inet-julia: steps 2 to 5, each on a branch in a
   worktree of its own. They land right after projectured-julia, because their
   `[sources]` reach its main checkout.

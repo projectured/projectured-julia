@@ -70,15 +70,15 @@ matters most about it.
 
 ### 2.1 Cell — the reactive box
 
-A `Cell` holds a value or a thunk. When a thunk runs, every cell it reads
+A `Cell` holds a value or a computation. When a computation runs, every cell it reads
 becomes an upstream dependency. A write marks all downstream dependents invalid.
 Nothing recomputes until somebody reads it.
 
 ```julia
-c = Cell(42)                              # primitive: holds a value
-c = Cell(Computed(() -> upstream[] + 1))  # computed: holds a thunk
-c[]                                       # read (recomputes when invalid)
-c[] = 7                                   # write (invalidates the dependents)
+c = Cell(42)                           # holds a value
+c = Cell(@computation upstream[] + 1)  # holds a computation
+c[]                                    # read (recomputes when invalid)
+c[] = 7                                # write (invalidates the dependents)
 ```
 
 Three kinds exist: `ReactiveCell` (tracks dependencies), `MutableCell` (a plain

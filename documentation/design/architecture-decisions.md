@@ -47,7 +47,7 @@ All domain types wrap every field in a `Cell`, even fields that rarely change
 
 - Keeps the type hierarchy simple — no separate "static" vs "reactive" variants.
 - Allows any field to become computed later without changing the type definition.
-- Enables projections to be expressed as simple thunks that read upstream cells.
+- Enables projections to be expressed as simple computations that read upstream cells.
 - Makes the `@document` macro straightforward: it just intercepts
   `getproperty` / `setproperty!` to unwrap/wrap the `Cell` transparently.
 
@@ -161,7 +161,7 @@ the same events, and projection reader code stays unchanged.
 
 ## 10. Propagation is write-driven, not value-driven
 
-When a primitive cell is written, the engine invalidates its transitive
+When a cell that holds a value is written, the engine invalidates its transitive
 dependents **unconditionally** — there is no `old == new` short-circuit, and a
 computed cell that recomputes to an unchanged value does not stop propagation.
 The engine is deliberately *not* glitch-free or value-stabilising.
@@ -208,7 +208,7 @@ every frame pays to recompute the whole subtree that reads it. See
 | Aspect | Original (Lisp) | Julia reimplementation |
 |---|---|---|
 | Language | Common Lisp, CLOS | Julia, multiple dispatch |
-| Reactivity | `computed-class` MOP slots | Explicit `Cell` with manual thunks |
+| Reactivity | `computed-class` MOP slots | Explicit `Cell` with `@computation` |
 | Struct magic | Computed slots via metaclass | `@document` macro + `Cell` wrapping |
 | Projections | CLOS generic functions | Lightweight structs + `print_document` dispatch |
 | Selection cells | Shared by reference | Shared by reference (same approach) |

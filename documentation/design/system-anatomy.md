@@ -198,7 +198,7 @@ the Anthropic HTTP client are in the opt-in `Mcp`/`Llm`.
 - **Pull-based lazy evaluation:** computed cells evaluate only on read (`c[]`).
 - **Automatic dependency tracking:** a per-task (task-local) computing stack
   registers every cell read during a computation as an upstream dependency.
-- **Invalidation:** writing a primitive cell (`c[] = v`) marks all transitive
+- **Invalidation:** writing a cell (`c[] = v`) marks all transitive
   downstream dependents invalid; they recompute lazily on next read.
 - **Performance counters:** `with_performance_counters()` binds a per-frame store and
   `get_performance_counters()` reads it — per-frame read/compute/write tallies, with no
@@ -354,7 +354,7 @@ In include order, each importing only layers above it in this list — the order
 includes them in:
 
 ```
- 1 fault       the FaultRecord, the FaultStore a thunk may write, the FaultPolicy,
+ 1 fault       the FaultRecord, the FaultStore a computation may write, the FaultPolicy,
                run_fault_barrier and the report_fault! cascade. It imports nothing,
                which is why it comes first: every layer above can report.
  2 cell        AbstractCell + the ReactiveCell / MutableCell / ImmutableCell kinds,

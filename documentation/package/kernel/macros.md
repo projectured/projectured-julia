@@ -224,7 +224,7 @@ typed kind ctors, not by the type system.
 The uniformity matters:
 
 1. Any field can be wired into a reactive computation later by calling
-   `set_cell_function!(getfield(obj, :field), thunk)` — without changing types.
+   `set_cell_computation!(getfield(obj, :field), computation)` — without changing types.
 2. Projections can read any field as if it were the source of truth and the
    reactive engine will invalidate the projection automatically.
 3. One printer/reader body serves every kind, because access goes through the
@@ -233,7 +233,7 @@ The uniformity matters:
 ### Escape hatch
 
 When you genuinely need the raw cell (for example to share it between two
-documents or pass it to `set_cell_function!`), use `getfield(obj, :field)`. The
+documents or pass it to `set_cell_computation!`), use `getfield(obj, :field)`. The
 projection layer does this often, e.g. to make the `selection` field of a
 `SyntaxLeaf` the same Cell as the upstream `JsonString.selection`.
 Since the stem is immutable, such sharing must be established at
@@ -478,26 +478,26 @@ kind stores every field as `Any`. So the rule is:
 
 The only time you would annotate `::Cell` directly is when the field really
 *is* the cell itself (e.g. when sharing a cell between two structs, or when
-the cell holds a thunk rather than a value).
+the cell holds a computation rather than a value).
 
 ## Gotchas these macros impose
 
 All three macros (`@document`, `@projection`, `@iomap`) share the same generated
 machinery, and with it the same three gotchas:
 
-- **A macro-wrapped field can never hold a `Cell` — or a `Computed` — as its
+- **A macro-wrapped field can never hold a `Cell` — or a `Computation` — as its
   logical value.** The auto-wrapping inner constructor runs `x isa Cell ? x : Cell(x)`
   on every argument, so a value that *is* a `Cell` is stored unwrapped and read back
   transparently. There is no way to have a field whose value is itself a `Cell`. A
-  `Computed` is consumed the same way: it becomes the field's *derivation*, making it a
-  computed cell, which is what `output = Computed(() -> …)` is for. If you genuinely
+  `Computation` is consumed the same way: it becomes the field's *derivation*, making it a
+  computed cell, which is what `output = @computation …` is for. If you genuinely
   need to store either *as a value*, box it (e.g. in a one-element tuple or a wrapper
   struct), or keep it in a plain hand-rolled struct instead.
 
   A **`Function` is an ordinary value** and needs none of this: a field may hold a
   callback, predicate, or factory, and reading it returns the function uncalled. So a
   config field like `marker_eligible::Any = some_predicate` is fine. Computedness is
-  stated with `Computed`, never inferred from the value's type.
+  stated with `Computation`, never inferred from the value's type.
 - **The macro emits the *only inner* constructor.** Any convenience constructor
   you write must therefore be an **outer** constructor (`Foo(args...) = Foo(...)`
   outside the `@document struct` body); an inner one would collide with the
@@ -532,4 +532,4 @@ machinery, and with it the same three gotchas:
 
 The result is that domain and projection code reads like Julia you would write
 without any framework. The reactivity is invisible until you reach for
-`Cell`, `set_cell_function!`, or `getfield` explicitly.
+`Cell`, `set_cell_computation!`, or `getfield` explicitly.

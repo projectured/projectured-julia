@@ -111,8 +111,8 @@ timeline that interleaves its own work between frames.
 ### The inbox
 
 A frame reads the document, evaluates against it and paints it, so anything
-that writes it from another task races the frame — and a reactive thunk cannot
-write at all. `post_operation!(editor, operation)` is the one door in:
+that writes it from another task races the frame — and a computation of a cell can
+not write at all. `post_operation!(editor, operation)` is the one door in:
 
 ```julia
 post_operation!(editor, ReplaceSelectionOperation(path))   # from any task

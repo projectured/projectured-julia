@@ -190,15 +190,15 @@ requirement; the rule is its own lead sentence.
 ### PAR-PURE-THUNK
 
 **Every reactive computation must be a pure function of the cells it reads.** A
-`Cell(Computed(() -> …))` thunk (and the parts of `print_document` that build them) must
+computation, `@computation …`, and the parts of `print_document` that build one must
 have no side effects and must depend only on the cells it reads — no clocks,
-RNG, or external mutable state. A thunk may run zero, one, or many times per
+RNG, or external mutable state. A computation may run zero, one, or many times per
 logical change and its cached result is reused until invalidation, so impurity
 produces a wrong cache, not just a style smell. This is a correctness
 requirement.
 
 **Accepted carve-out — an idempotent write to a collector outside the graph.**
-The requirement is that the *cached result* be right: a thunk that runs many
+The requirement is that the *cached result* be right: a computation that runs many
 times for one logical change must leave the same value behind. A write whose
 effect is keyed and idempotent, to an object the graph does not contain, changes
 no result and can not be observed through any cell. `PAR-NO-WRITE-IN-THUNK`
@@ -209,12 +209,12 @@ forbidden.
 
 ### PAR-NO-WRITE-IN-THUNK
 
-**A thunk must never write another cell or mutate shared document state.**
+**A computation must never write another cell or mutate shared document state.**
 Writing `other_cell[] = v` from inside a cell computation invalidates that
 cell's consumers *mid-computation*, making recomputation order-dependent and
 the graph inconsistent (graphics-domain cells do have consumers, e.g.
 `GraphicsCaching`). To preserve output-object identity across recomputes, reuse
-a *persistent* object whose fields are `set_cell_function!` cells that **derive**
+a *persistent* object whose fields are `set_cell_computation!` cells that **derive**
 from the upstream layout cell — do not rebuild objects, and do not
 reuse-then-mutate them with imperative cell writes.
 
@@ -222,29 +222,29 @@ reuse-then-mutate them with imperative cell writes.
 protects one thing: a write in the middle of a computation invalidates that
 cell's consumers mid-computation, so recomputation becomes order-dependent and
 the graph inconsistent. An object that is not a cell and has no dependents can
-not do that, so a thunk may write one. The fault store
+not do that, so a computation may write one. The fault store
 (`source/kernel/fault/FaultStore.jl`) is the case the carve-out was written for,
 and it exists because of this rule rather than in spite of it: a printer throws
-inside the thunk that derives its output, not inside `print_document`, so the
-barrier has to catch inside the thunk — and the message log it reports to is a
-document made of cells, which the thunk may not write. It writes the store
+inside the computation that derives its output, not inside `print_document`, so the
+barrier has to catch inside the computation — and the message log it reports to is a
+document made of cells, which the computation may not write. It writes the store
 instead, and the editor's frame drains the store into the log afterwards, on its
-own task, outside every thunk. Two properties make it safe, and a collector that
+own task, outside every computation. Two properties make it safe, and a collector that
 lacks either does not qualify: it is **outside the reactive graph**, so no
 consumer can be invalidated half way; and its write is **idempotent**, keyed by
-identity, so a thunk that runs ten times for one logical event leaves one entry.
+identity, so a computation that runs ten times for one logical event leaves one entry.
 
 The editor's other feed stores — the inbox, the message log store, the frame
 measurement store — share the shape but do not need the carve-out: their producers
-run on ordinary tasks, outside every thunk, so this ban is not in play for
-them. Only a store a thunk itself writes must have the two properties above,
+run on ordinary tasks, outside every computation, so this ban is not in play for
+them. Only a store a computation itself writes must have the two properties above,
 and the fault store is the one that does.
 
 ### PAR-STORE-THEN-DRAIN
 
 **Data enters a running editor through a store and a drain, never through a
 direct write.** A producer on any task — a logger, a simulation driver, a
-barrier inside a thunk — writes a plain store outside the reactive graph; the
+barrier inside a computation — writes a plain store outside the reactive graph; the
 write never blocks and never touches a cell. The editor drains the store into
 the target document on its own task, once per frame, before `read!`
 (`drain_feeds!`; the fault report at the top of `run_frame!` is the same
@@ -257,7 +257,7 @@ once, with backpressure.
 
 ### PAR-ACYCLIC-CELLS
 
-**The cell dependency graph must stay acyclic.** `_recompute!` evaluates a thunk
+**The cell dependency graph must stay acyclic.** `_recompute!` evaluates a computation
 while its cell is on the computing stack; a cell that transitively reads
 itself recurses forever. The engine only skips a *direct* self-edge — it does
 not detect multi-cell cycles — so a computed cell must never depend on itself
@@ -276,7 +276,7 @@ forever.
 
 **Treat propagation as write-driven, not value-driven.** Writing a cell
 invalidates its dependents unconditionally — there is no `old == new`
-short-circuit, and a thunk that recomputes to an unchanged value does not stop
+short-circuit, and a computation that returns an unchanged value does not stop
 propagation. Consequently `c[] = c[]` is not free: a printer that rewrites
 `selection` (or any cell) every frame pays to recompute the whole subtree that
 reads it. Write a cell only when its value actually needs to change.
@@ -298,7 +298,7 @@ cell closure, observed by no other node) is the correct way to key reuse.
 wiring is complete.** Express derived values as computed cells so the system
 can invalidate them, rather than caching them by hand. During construction of a
 struct whose iomap wiring is not yet finished, defer the read with
-`Cell(Computed(() -> …))` (the deferred-iomap trick) instead of reading the cell
+`Cell(@computation …)` (the deferred-iomap trick) instead of reading the cell
 eagerly.
 
 ### PAR-FINEST-GRANULARITY
@@ -322,7 +322,7 @@ struct); the macro wraps every field in a `Cell` and generates
 `getproperty`/`setproperty!` so `doc.field` and `doc.field = v` read and write
 the underlying cell. Do not hand-roll cell wrapping, and do not reach for the
 raw cell via `getfield(obj, :field)` unless you are deliberately bypassing
-reactivity (sharing a cell, or attaching a thunk) — and comment it when you do.
+reactivity (sharing a cell, or attaching a computation) — and comment it when you do.
 Wrap sub-collections in `CellVector` so length changes invalidate downstream.
 
 ### PAR-FIELD-NAMES-ARE-API
@@ -349,10 +349,10 @@ assuming only fully-formed values ever occur (see PAR-DOMAIN-OWNS-EDITS).
 
 ### PAR-NO-NESTED-CELL
 
-**A macro-wrapped field may never hold a `Cell` or a `Computed` as its logical
+**A macro-wrapped field may never hold a `Cell` or a `Computation` as its logical
 value.** Both are cell vocabulary, and the auto-wrapping constructor consumes
 them rather than storing them: a `Cell` is passed through as the field's own
-cell (so the field's value becomes whatever that cell holds), and a `Computed`
+cell (so the field's value becomes whatever that cell holds), and a `Computation`
 becomes the field's *derivation*, making it a computed cell. To hold either as
 data, box it (a one-element tuple or wrapper struct) or use a plain hand-rolled
 `struct` (as `SyntaxCompoundToText` does). Any convenience constructor must be
@@ -360,7 +360,7 @@ an *outer* constructor — the macro emits the only inner one.
 
 A `Function`, by contrast, is an ordinary value and needs no ceremony: a field
 may hold a callback, predicate, or factory, and `field` reads it back
-uncalled. Computedness is stated, never inferred — `Computed(f)` is what makes
+uncalled. Computedness is stated, never inferred — `Computation(f)` is what makes
 a field a derivation, so a bare `f` is always data.
 
 ### PAR-DOCUMENT-IDENTITY
@@ -538,7 +538,7 @@ does this — do not special-case nested editing.
 reactive cell and returns a `ChildrenIoMap`.** Store the per-child IoMaps in a
 single `child_iomaps::Cell` (not inline across two separate cells, which would
 instantiate different output objects and break the identity invariant), project
-the selection reactively (`Cell(Computed(() -> map_reference_forward(p, iomap,
+the selection reactively (`Cell(@computation(map_reference_forward(p, iomap,
 node.selection)))` with the deferred-iomap trick), and use `ChildrenIoMap` so
 the reader and both mappers can locate the correct child IoMap when translating
 backward.
@@ -559,7 +559,7 @@ generalization, from "a compound projection should" to "every projection must,"
 of three rules it subsumes: PAR-REACTIVE-OUTPUT-SELECTION (wire the output
 selection as a cell), PAR-SHARED-CHILDREN-IOMAP (child IoMaps in one shared
 reactive cell), and PAR-NO-WRITE-IN-THUNK (reuse a persistent output object whose
-fields are `set_cell_function!` cells, rather than rebuilding it). The failure it
+fields are `set_cell_computation!` cells, rather than rebuilding it). The failure it
 forbids is the eager capture: `output = f(input)` stored in a plain field has no
 reactive edge, so a later change to what `f` read — a parameter the projection
 navigates by, an upstream object it re-exposes — leaves a stale render and a
@@ -688,7 +688,7 @@ stored path still fits. Do not build checkpoint *steps* by hand — the
 ### PAR-REACTIVE-OUTPUT-SELECTION
 
 **Wire the output selection reactively; focus is the selection.** In
-`print_document`, set `output.selection = Cell(Computed(() -> map_reference_forward(p,
+`print_document`, set `output.selection = Cell(@computation(map_reference_forward(p,
 iomap, input.selection)))` so the mapping lives in one place (a compound
 projection that introduces structural nodes with no input counterpart wires
 those nodes' selection cells explicitly; a leaf-to-leaf projection with
@@ -738,7 +738,7 @@ write.
 **A projection's output structure is reactive, not re-printed.** When what the
 output *contains* depends on domain state — which children a layout holds, which
 of them are disclosed — that dependency is a derived cell over persistent widget
-objects, wired with `set_cell_function!`. Do not rebuild the output by asking the
+objects, wired with `set_cell_computation!`. Do not rebuild the output by asking the
 editor to drop its IoMap.
 
 `invalidate_projection!` exists for a change the reactive pipeline genuinely
@@ -755,7 +755,7 @@ The failure it masks is silent. A `Vector` passed to a layout constructor is
 frozen into constant `Cell`s, so a printer that builds `children` conditionally
 produces output that is correct on the first frame and never changes again — it
 does not error, it just stops growing. If output structure varies with domain
-state, bind the container's `elements` to a thunk and let the graph do it.
+state, bind the container's `elements` to a computation and let the graph do it.
 
 ### PAR-PREFER-REPLACE-VALUE
 

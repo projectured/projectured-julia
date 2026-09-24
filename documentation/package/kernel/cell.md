@@ -15,35 +15,42 @@ the *structure* of the cell layer: its modules and how they fit together.
 
 ## Cell
 
-A `Cell` is the only reactive primitive. It is either *primitive* (holds a value)
-or *computed* (holds a zero-arg thunk):
+A `Cell` is the only reactive primitive. A cell holds a *value* or a
+*computation*: a function with no argument that computes its value.
 
 ```julia
-c = Cell(42)                              # primitive
-c = Cell(Computed(() -> upstream[] + 1))  # computed
-c = Cell(f)                               # primitive holding the function f AS a value
-c = ReactiveCell{Int}(Computed(f))        # the typed computed form
+c = Cell(42)                                # holds a value
+c = Cell(@computation upstream[] + 1)       # holds a computation
+c = Cell(f)                                 # holds the function f as a value
+c = ReactiveCell{Int}(@computation 2 * n[])  # a typed cell that holds a computation
 ```
 
-Which of the two a cell is depends on the *spelling*, never on what the value
-happens to be: `Computed(f)`, as in `Cell(Computed(f))`, is the only thing that
-makes a cell compute. Every other argument is stored,
-callables included, so a cell can hold a callback or a predicate as ordinary
-data. `Computed` is cell vocabulary rather than a value: it is consumed by the
-cell it is handed to, and the non-reactive kinds reject it (only a
-`ReactiveCell` has anything to run it with).
+Which of the two a cell holds depends on the *spelling*, never on what the value
+happens to be. A `Computation` is the only thing that makes a cell compute:
+`@computation expr` makes one for an expression, and `Computation(f)` makes one
+for a function `f` that exists already. Every other argument is stored,
+callables included, so a cell can hold a callback or a predicate as data. A
+`Computation` is cell vocabulary rather than a value: the cell that gets it
+keeps the function and drops the marker. The non-reactive kinds reject it,
+because only a `ReactiveCell` can run a computation.
+
+Inside an argument list, a macro call without parentheses takes every argument
+after it. Where an argument follows, write `@computation(expr)`, as in
+`pair(@computation(a[] + 1), b)`. `@computation f` computes the function `f` as
+a value, and does not call it; write `Computation(f)` for that.
 
 The struct also tracks `valid`, the set of cells it reads from (`dependencies`),
 and the set of cells that read it (`dependents`).
 
-### Reading and writing
+### Read and write
 
 ```julia
-c[]               # read  — triggers recompute if invalid; returns the value
-c[] = v           # write — converts c to a primitive, invalidates dependents
-set_cell_value!(c, v)     # same as c[] = v
-set_cell_function!(c, thunk)  # switch c to a computed cell; the old dependencies detached
-is_cell_up_to_date(c)     # can the next read return the value with no computation?
+c[]                           # read: compute first if invalid, and return the value
+c[] = v                       # write a value, and invalidate the dependents
+c[] = @computation expr       # write a computation, and invalidate the dependents
+set_cell_value!(c, v)         # the same as c[] = v
+set_cell_computation!(c, f)   # the same as c[] = Computation(f)
+is_cell_up_to_date(c)         # can the next read return the value with no computation?
 ```
 
 `peek(c)` is an **untracked** read — it returns the value without registering a
@@ -58,7 +65,7 @@ evaluations never share it:
 1. When a computed cell starts evaluating, it pushes itself onto the stack.
 2. Every `c[]` that happens during evaluation registers an edge `observer ← c`
    (the observing computed cell becomes a downstream dependent of `c`).
-3. When the thunk returns, the cell pops off the stack and is marked valid.
+3. When the computation returns, the cell pops off the stack and is marked valid.
 
 Therefore, no part of the code needs to declare dependencies explicitly — they
 arise as a side effect of reading.
@@ -67,10 +74,10 @@ arise as a side effect of reading.
 
 Invalidation propagates eagerly, recomputation is lazy:
 
-- `c[] = v` or `set_cell_function!(c, f)` walks the transitive set of `c.dependents` and
+- `c[] = v` or `set_cell_computation!(c, f)` walks the transitive set of `c.dependents` and
   marks them invalid (`valid = false`). The actual recomputation does NOT run.
 - The next `c[]` on an invalid cell calls `_recompute!(c)`, which detaches old
-  upstream links, evaluates the thunk under tracking, and refreshes the value.
+  upstream links, runs the computation under tracking, and refreshes the value.
 
 This is the pull-based / lazy strategy. It is essential to how the projection
 printer stays incremental: invisible parts of the output do not recompute even
@@ -81,8 +88,8 @@ when their inputs change, because nothing pulls on them.
 These hold by construction in the current code, but nothing checks them — break
 one and you get a hang, a stale render, or a stack overflow rather than an error.
 
-- **The dependency graph must be acyclic.** `_recompute!` evaluates a thunk while
-  its cell sits on the computing stack; if that thunk (transitively) reads its
+- **The dependency graph must be acyclic.** `_recompute!` runs a computation while
+  its cell sits on the computing stack; if that computation (transitively) reads its
   own cell, recomputation recurses forever. The engine only skips a *direct*
   self-edge (`observer !== c`). It does **not** detect multi-cell cycles. A
   computed cell must never depend on itself through any chain.
@@ -95,12 +102,12 @@ one and you get a hang, a stale render, or a stack overflow rather than an error
   of dependents — either breaks the early-stop and leaves cells stale forever.
 - **Propagation is write-driven, not value-driven.** Writing a cell invalidates
   its dependents unconditionally, with **no equality check** — setting a cell to
-  the value it already holds still recomputes everything downstream, and a thunk
-  that recomputes to an unchanged value does *not* stop propagation (the engine
+  the value it already holds still recomputes everything downstream, and a
+  computation that returns an unchanged value does *not* stop propagation (the engine
   is not glitch-free / not value-stabilising). So `c[] = c[]` is not free; a
   printer that rewrites `selection` every frame pays for the whole subtree it
   feeds. See [the design-decisions note](../../design/architecture-decisions.md#10-propagation-is-write-driven-not-value-driven).
-- **Thunks must be pure and deterministic in their cell inputs.** A thunk may run
+- **Computations must be pure and deterministic in their cell inputs.** A computation may run
   zero, one, or many times for a single logical change, and its cached result is
   reused until invalidation. It must therefore have no side effects and depend
   only on the cells it reads (no clocks, RNG, or external mutable state).
@@ -110,11 +117,11 @@ one and you get a hang, a stale render, or a stack overflow rather than an error
   longest dependency chain (≈ document tree depth). Pathologically deep documents
   can overflow the stack; in practice trees stay shallow enough that this is a
   theoretical limit, noted here so it is not a surprise.
-- **A thunk retries only in an older world.** A thunk that calls a method newer
-  than the world of the task that reads it throws a `MethodError`, and then it
-  runs once more through `Base.invokelatest`. In the latest world a
-  `MethodError` is real, so no thunk retries, and each thunk of a chain runs
-  once.
+- **A computation retries only in an older world.** A computation that calls a
+  method newer than the world of the task that reads it throws a `MethodError`,
+  and then it runs once more through `Base.invokelatest`. In the latest world a
+  `MethodError` is real, so no computation retries, and each computation of a
+  chain runs once.
 
 ## How the cell appears in the rest of the codebase
 
@@ -129,28 +136,28 @@ below; the full field-wrapping mechanics live in [the macros guide](macros.md).
 
 ## Idioms you will encounter
 
-- **Computed cell sharing a primitive cell** — selection cells are passed
+- **A computed cell that shares a value cell** — selection cells are passed
   through unchanged between domain and projection (e.g. `JsonString.selection`
   is the very same Cell as the produced `SyntaxLeaf.selection`), so a single
   write at the document level instantly invalidates the rendered cursor.
-- **`Cell(Computed(() -> ...))` for derived values** — projections wire a computed cell
+- **`Cell(@computation ...)` for derived values** — projections wire a computed cell
   that reads upstream cells, often to translate a path from one domain to
   another (e.g. `map_reference_forward(p, nothing, j.selection)`).
 - **`Cell(Cell[...])` inside `CellVector`** — the outer cell tracks the
   *structure* (the vector itself); each inner cell tracks one *element*. A
   structural change invalidates the outer cell; a value change invalidates
   only that slot, which is how the editor avoids re-rendering siblings.
-- **`set_cell_function!(getfield(obj, :field), () -> …)`** — used to lazily attach a
+- **`set_cell_computation!(getfield(obj, :field), () -> …)`** — used to lazily attach a
   computation to a field after construction; common in
-  `CellVector(Computed(f))` and child-element generators.
+  `CellVector(Computation(f))` and child-element generators.
 
 ## Best practices
 
 - Wrap document fields in Cells via the `@document` macro rather than hand-rolling.
 - Use computed cells for derived state so the system can invalidate it.
-- Never side-effect inside a thunk — the thunk may run zero, one, or many times.
+- Never cause a side effect inside a computation: it may run zero, one or many times.
 - Do not read a cell during construction of a struct that has not finished its
-  iomap wiring — use `Cell(Computed(() -> ...))` to defer the read.
+  iomap wiring — use `Cell(@computation ...)` to defer the read.
 
 ## Layer structure
 
@@ -165,7 +172,7 @@ performance/PerformanceModule.jl  (PerformanceModule) — the counters
         │  @count_performance, used by ↓
 cell/CellModule.jl                (CellModule)        — the cell kinds, one file each:
         ├─ CellInterface.jl   — AbstractCell{T} and the generics that every kind answers
-        ├─ CellComputed.jl    — the Computed marker: a thunk is a computation, not a value
+        ├─ CellComputation.jl — Computation and @computation: a function is a computation, not a value
         ├─ ReactiveCell.jl    — the pull-based reactive engine
         ├─ MutableCell.jl     — a plain mutable box, with no reactive bookkeeping
         ├─ ImmutableCell.jl   — a read-only box
@@ -192,17 +199,17 @@ The load order is the dependency order the include-order guard checks.
 ## CellModule — the cell kinds
 
 A cell is a typed box `AbstractCell{T}`; the kind determines its behavior. `Cell` is
-`ReactiveCell{Any}`, the pull-based reactive graph described above: a cell is either
-*primitive* (a value) or *computed* (a zero-arg thunk); reading a cell inside another
-cell's thunk records a dependency edge; writing a cell eagerly invalidates its
+`ReactiveCell{Any}`, the pull-based reactive graph described above: a cell holds
+a *value* or a *computation*; reading a cell inside the computation of another
+cell records a dependency edge; writing a cell eagerly invalidates its
 transitive dependents, and recomputation is lazy (on the next read). This is the
 incrementality substrate the whole projection pipeline depends on. `MutableCell{T}`
 and `ImmutableCell{T}` are non-reactive boxes for values that do not need the graph:
 a mutable one for high-frequency state, a read-only one for derived content.
 
 Public surface: `AbstractCell`, `is_cell_up_to_date`, `unwrap_cell`,
-`copy_cell_as`, `is_computed_cell`, `has_dependent_cells`, `Computed`,
-`ReactiveCell`, `Cell`, `set_cell_value!`, `set_cell_function!`,
+`copy_cell_as`, `is_computed_cell`, `has_dependent_cells`, `Computation`, `@computation`,
+`ReactiveCell`, `Cell`, `set_cell_value!`, `set_cell_computation!`,
 `MutableCell` and `ImmutableCell`. `peek` is an untracked read, a method of
 `Base.peek`.
 

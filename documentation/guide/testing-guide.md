@@ -459,7 +459,7 @@ fail reports zero whether or not anything is wrong:
 - `test_reactive_surface()` — includes the orphaning case, where a projection
   re-derives its whole output and every cell of the old tree is untouched.
 - `test_structural_property()` — children built once into constant cells must be
-  called frozen; the same shape as a thunk must pass.
+  called frozen; the same shape as a computation must pass.
 
 `test_verdict_stability(names)` additionally requires that the same leaves
 measured forward, forward again and backward give identical counts.
