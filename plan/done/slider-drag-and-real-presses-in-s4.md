@@ -1,6 +1,6 @@
 # A real drag moves the slider, and S4 uses the widgets
 
-> **Status:** in progress. Written 2026-09-24.
+> **Status:** done. Written and done 2026-09-24.
 
 ## 1. The owner's decision (2026-09-24)
 
@@ -56,5 +56,11 @@ not.
       first real click on the button is still lost, because it is the first
       click after the typing and it takes longer than 0.3 s; the second and the
       third count.
-- [ ] Step 2: S4 with real presses and a real drag, recorded and given to the
-      owner.
+- [x] Step 2: S4 with real presses and a real drag, recorded and given to the
+      owner. **Done.** `build/video/widget_tool_v2.mp4`: 91.2 s, exactly its
+      schedule, 1.2 MB, wall clock. The warm-up clicks and drags too, so the first
+      click of the take counts: the last frame says "Pressed 3 times", the knob
+      is at 0.8, and the table shows 3, 0.8 and "Ada Lovelace". The drag moves
+      4 px a frame, and the slider area changes on each frame from 84.73 s to
+      85.70 s. The take of 2026-09-23 was 166.9 s; the faster typing of S1
+      makes the difference.

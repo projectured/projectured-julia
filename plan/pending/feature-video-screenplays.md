@@ -97,9 +97,10 @@ Module 'PaneModule' not found.        # from list_functions("PaneModule"), a mod
 - A real click on the track sets the value (0.5125 at x = 900) and then takes the knob, after the button is already up. The knob stays held (`dragging = true`): a move with no button moves it to 0.93, until the next `MouseUp`.
 - A press that the script makes (`MousePress`, moves, `MouseUp`) works, and that is why the old take could press the button.
 - A real click on the button counts, except the first one of the probe. The recognizer measures a click with the wall clock, and the first down in the pane took longer than 0.3 s, which is the time of the compilation. A warm-up before the take compiles that path. A live window can lose its first click in the same way; recorded, not fixed.
-- Not checked: a character in the text field.
+- Not checked: a character in the text field. The owner keeps the write of the name from the evaluator (2026-09-24).
+- Not fixed: a layout (`_route_layout_event`, `source/layout/LayoutToGraphics.jl`) routes a `MouseDown`, a `MouseMove` and a `MouseUp` only to the child under the pointer. A drag that leaves the slider loses its moves, and an up off the slider leaves the knob held. A composite offers a drag event to each child when none is under the pointer; a layout does not.
 
-The fix proposed to the owner: the slider takes the knob on `MouseDown`, moves while it is held, and lets go on `MouseUp` (`read_intent` of `WidgetSliderToGraphicsCanvas`, `source/widget/WidgetToGraphics.jl`, not sealed).
+**Fixed 2026-09-24** (`plan/done/slider-drag-and-real-presses-in-s4.md`, commit b4466777): the slider takes the knob on `MouseDown`, moves while it is held, and lets go on `MouseUp`. A `MousePress` sets the value and takes nothing.
 
 The `json_build` recording of Step 0 produced a file of the right length, which is why the baseline called it good. The file shows a document that stops after one entry. §7 Step 0 says so now.
 
@@ -422,7 +423,7 @@ The number of the frames follows the wall clock, so one second of the session is
 - [x] Write the real forms of the beats, test each one in the evaluator of the application, and record them in §5.
 - [x] Check the click, the drag and the type-in. The click routes and the action never runs (F4), so the take writes the cells from the evaluator instead.
 - [x] Write the timeline, record, and give the video to the owner: 166 s, 2026-09-22.
-- [ ] When F4 is fixed, record again with the pointer beats.
+- [x] When F4 is fixed, record again with the pointer beats. Done 2026-09-24 (`plan/done/slider-drag-and-real-presses-in-s4.md`): `build/video/widget_tool_v2.mp4`, 91.2 s. Every click is a real mouse down and up, three presses of the button count, a real drag moves the slider from 0.3 to 0.8, and the form `slider.value = 0.8` is gone. The name is still written from the evaluator, as the owner decided.
 
 ### Step 5: the real model in a take
 
