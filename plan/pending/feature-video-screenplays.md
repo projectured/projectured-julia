@@ -174,6 +174,13 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
   - **A frozen start.** For 11 s the window shows the README, then the Evaluator button stays pressed for 5 s while the evaluator compiles. The keys that fall due in that pause arrive in one burst, so the first form is half typed when the tab appears (F8).
   - **The length.** 256.6 s, where D5 allows 3 min and the section of the page says "short sessions". The long positional constructors of the graphics are most of it.
   - **Internal text in two results.** `phase()` shows `Main.ToolScratch.var"#phase"()`, and `clock` shows the raw fields of the clock.
+  - **A frame in the paste.** While the pasted canvas becomes the tab `untitled`, one frame draws its close button and the new-tab button over each other.
+
+  **The fixes proposed on 2026-09-24, waiting for the owner.** The owner said: "write all the findings up in the plan, we will get back to it".
+  1. **A warm-up before the recording (F8, the start).** The script runs the first steps once without recording, in the same process, so the evaluator is compiled before the first frame. Only the script changes.
+  2. **The recorder times each key from the previous one (F8, every take).** Each hold is measured from the moment the previous key was handled and drawn, not from the start of the timeline, so a pause of the program no longer fires the waiting keys in one burst. It changes `VideoBackend`, so it is a mechanism change for the owner.
+  3. **Shorter forms (A1, the length).** The graphics constructors take a cell or a function by keyword. It is an API change for the owner. It cuts the typing and makes the forms easier to read. A smaller way: leave out a part of the picture, such as the dashed links, which saves about 40 s.
+  4. **Readable results (V6).** The evaluator prints a function as the Julia REPL does, `phase (generic function with 1 method)`, and a clock by its type.
 
 - **The refinements the owner asked for, to do before the video is published:**
   - **The typing rhythm.** The take typed with `hold = 0.045` and `jitter = 0.5`, which is faster than a person. Use the rhythm of `make_typein_gestures` itself (`hold = 0.15`, `jitter = 0.6`, `example/kernel/Harness.jl:118`), which is what the owner means by the human one. The forms hold about 1200 characters, so this rhythm adds about two minutes, and the forms must get shorter to stay inside D5.
@@ -482,6 +489,10 @@ Everything the three recorded videos still lack, and everything the work on them
 | V4 | The assistant pane is off, so the window is narrower than the real one | S1, S3, S4 | C | S |
 | V5 | S4 lasts 163 s, near the limit of 3 min (D5) | S4 | C | S |
 | P1 | The post names a Julia function with an XML body, and no example makes that document now (G5) | the post | B | M |
+| F8 | After a slow start the recorder fires the keys that fell due in one burst, and the holds after it are lost; S1 opens frozen for 16 s (§2.4) | S1, every take of the application | A | M |
+| V6 | Two results of S1 show internal text: `Main.ToolScratch.var"#phase"()`, and the raw fields of the clock | S1 | B | S |
+| V7 | S1 lasts 256.6 s, over D5 (3 min), and the page calls its videos short sessions | S1 on the web site | A | M, through A1 |
+| F9 | The truetype measure and the SDL renderer disagree for a font with a fractional advance (§2.4) | the gesture panel | C | M |
 
 ### 8.2 The stages
 
@@ -525,6 +536,13 @@ Important before less important, and within the same importance, easy before har
 - [ ] A5, A6, A7, A8: the small ones.
 - [ ] P1: the example of the web page, a Julia function with an XML body, made again.
 - [ ] V4, V5: the assistant pane in the takes, and a shorter S4.
+
+**Stage 4b: S1 on the web site (2026-09-24).** The take of 2026-09-24 is not yet good enough for the page. The four fixes proposed under S1 (§5) wait for the owner's choice.
+
+- [ ] F8: a warm-up in the script, and maybe the recorder change.
+- [ ] V7 through A1: shorter forms, or fewer parts of the picture.
+- [ ] V6: readable results of a function and of a clock.
+- [ ] Record S1 again and give it to the owner for the page.
 
 **Stage 5: the videos that wait for the stages before.**
 
