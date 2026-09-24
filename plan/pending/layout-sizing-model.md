@@ -309,11 +309,17 @@ Each step: the code, its tests, **the documents it makes wrong**, a baseline
 diff of the suites it touches against the counts before the step, and a commit.
 Step 0 takes the baseline.
 
-- [ ] **Step 0: the baseline.** `test_all()` of projectured-julia, and the
+- [x] **Step 0: the baseline.** `test_all()` of projectured-julia, and the
       omnet-julia suites of `plan/pending/widget-constructors-live-values-and-a-pointer.md`
       Step 2, before any change. The places of the failures are kept.
+      **Done** (2026-09-24, main f954f90e): `test_all()` 1049796 pass, 649 fail,
+      11 error, 1114 broken, 31 minutes; the places of the failures are in
+      `/var/tmp/layout_step1/main.fails`. 448 of the failures are the `"text"`
+      example of `test_position_navigations_complete()`, which fails the same way
+      on main before the widget landing (baf99900: 449). The omnet-julia suites
+      are those of the widget landing (`o_main3.log`).
 
-- [ ] **Step 1: the range in the context.** `PrinterContext` gets the four
+- [x] **Step 1: the range in the context.** `PrinterContext` gets the four
       values; `with_exact_size`, `with_bounded_size` and `withhold_offer` make
       them. `available_width` and `available_height` stay readable, as the
       maximum of an exact range and `nothing` otherwise, so that every reader
@@ -322,6 +328,21 @@ Step 0 takes the baseline.
       - Documents: the docstring of `PrinterContext`;
         `documentation/package/kernel/projection-system.md` (the context);
         `documentation/rule/naming-rules.md` (the `with_…` example).
+      **Done** (commit ec9c8d54, branch `layout-range`). `PrinterContext` holds
+      the four values; `ctx.available_width` is a `getproperty` that answers the
+      extent of an exact range (the same cell as minimum and maximum) and
+      `nothing` otherwise; the root constructors `PrinterContext(reference,
+      width, height, properties[, clock])` make exact ranges; a private
+      `_KeepRange` default keeps an axis that a helper is not given.
+      `test_printer_context_range()` passes 23 of 23. `test_all()` gives the
+      same failures at the same places as Step 0 (649, 11, 1114), and 3213 more
+      passes: 23 are the new test, and the rest are in `Catalog`, in the
+      syntax variants of some examples. Each of those examples counts the same
+      at both commits when it runs alone (`book/book/syntax`: printer 44,
+      reader 225, repl 225); the difference comes from the state that earlier
+      examples leave in the process, and main shows the same kind of
+      difference between two harnesses (496490 and 497468 passes). So the
+      step changes no behaviour of an example.
 
 - [ ] **Step 2: the child rule.** `_resolve_size` becomes `max(m, C(M))`;
       `_resolve_overlay` caps at `M`; `WordWrapping` wraps at `M` and loses its
