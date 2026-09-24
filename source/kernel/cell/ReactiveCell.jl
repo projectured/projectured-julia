@@ -9,8 +9,9 @@
 A box that holds a value, or a computation of one that runs when the value is
 read.
 
-Use it to keep a value that others depend on: a cell remembers who read it, so
-a write tells them, and each of them computes again the next time it is read.
+Use it to keep a value that others depend on: a cell records the cells that read
+it, and a write invalidates them, so each of them computes again the next time
+it is read.
 Nothing recomputes until it is read, and nothing recomputes that did not depend
 on what changed. Unless its declaration names another kind, a document keeps
 its fields in these, which is how an edit redraws the part of the screen it
@@ -25,8 +26,8 @@ touched and no more.
     label[]            # "the width is 120", computed again on this read
 
 See also `set_cell_function!` and `set_cell_value!`, which change what a cell
-holds; `ImmutableCell` and `MutableCell`, which hold a value and tell nobody;
-and the guide `kernel/cell`.
+holds; `ImmutableCell` and `MutableCell`, which hold a value and record no
+reader; and the guide `kernel/cell`.
 
 # Construction
 
@@ -108,12 +109,11 @@ a conversion, is `ReactiveCell{T}`.
 
 See also `ReactiveCell`, which this names, and `set_cell_function!`.
 
-`Cell` is a `const` alias for the **concrete** `ReactiveCell{Any}` — the untyped
-reactive cell. It is deliberately concrete (not an abstract alias) so
-`Vector{Cell}`, `Set{Cell}` and `::Cell` struct fields stay concretely typed,
-which dispatch across the machinery depends on. Code that means "a cell of any
-kind" tests `isa AbstractCell`; code that means "a reactive cell of any value
-type" tests `isa ReactiveCell`.
+`Cell` is a `const` alias for the **concrete** type `ReactiveCell{Any}`. It is
+concrete and not abstract, so `Vector{Cell}`, `Set{Cell}` and a field of type
+`Cell` stay concrete, and dispatch depends on that. To test for a cell of any
+kind, test `isa AbstractCell`. To test for a reactive cell of any value type,
+test `isa ReactiveCell`.
 """
 const Cell = ReactiveCell{Any}
 
@@ -218,7 +218,7 @@ end
 """
     set_cell_value!(c, value)
 
-Put a value into a cell, and let everything that read it know.
+Put a value into a cell, and invalidate every cell that read it.
 
 Use it to write a cell that held a computation and must now hold a value, or to
 write one from code that reads better with a verb than with `c[] = value`,
@@ -250,10 +250,10 @@ write, not before; every cell it reads becomes one the cell depends on.
     set_cell_function!(total, () -> length(rows[]))
     total[]            # counted now, and again after `rows` changes
 
-Dependents are invalidated immediately. The previous value stays cached in the
-(now invalid) cell until the first read replaces it — a typed cell cannot hold a
-`nothing` placeholder; when `T` admits `nothing` the value is cleared eagerly so
-the old object is released.
+The call invalidates the dependents at once. The cell keeps its old value until
+the first read replaces it, because a typed cell can not hold `nothing` as a
+placeholder. When `T` admits `nothing`, the call clears the value at once, so
+the old object can be collected.
 
 See also `set_cell_value!`, for the other direction, `Computed`, which makes a
 new cell compute, and the guide `kernel/cell`.
@@ -270,8 +270,8 @@ end
 """
     c[] = Computed(f)
 
-Write syntax for [`set_cell_function!`](@ref) — the counterpart of `c[] = value`,
-so a single write path reaches both a value and a computation.
+The write syntax for [`set_cell_function!`](@ref). With `c[] = value` beside it,
+one write syntax gives a cell either a value or a computation.
 """
 function Base.setindex!(c::ReactiveCell, computed::Computed)
     set_cell_function!(c, computed.thunk)
@@ -285,7 +285,7 @@ is_cell_up_to_date(c::ReactiveCell) = c.valid
 """
     peek(c::ReactiveCell)
 
-Read a cell without becoming one of the things it tells.
+Read a cell, and record no dependency on it.
 
 Use it to look at a value from inside a computation that must not depend on it:
 a counter, a clock, a cache of the last answer. An ordinary read, `c[]`, makes
@@ -383,9 +383,9 @@ end
 function Base.show(io::IO, c::ReactiveCell)
     kind = c.thunk === nothing ? "primitive" : "computed"
     print(io, "Cell(", kind, ", ")
-    # Forward `io` (rather than `repr`, which would build a fresh buffer) so the
-    # value is shown in the same IOContext — any depth/limit keys a caller set on
-    # `io` stay in effect across Cell-wrapped subtrees.
+    # The value is shown into the same `io`, not through `repr`, which makes a new
+    # buffer. So the depth and limit keys that a caller set on `io` still hold
+    # inside a value in a cell.
     c.valid ? show(io, c.value) : print(io, "<invalid>")
     print(io, ")")
 end

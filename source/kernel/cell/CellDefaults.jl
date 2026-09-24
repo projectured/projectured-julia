@@ -10,7 +10,7 @@ copy_cell_as(c::MutableCell{T},   v) where {T} = MutableCell{T}(v)
 copy_cell_as(c::ImmutableCell{T}, v) where {T} = ImmutableCell{T}(v)
 
 is_computed_cell(::AbstractCell) = false
-is_computed_cell(c::ReactiveCell) = getfield(c, :thunk) !== nothing
+is_computed_cell(c::ReactiveCell) = c.thunk !== nothing
 
 has_dependent_cells(::AbstractCell) = false
 

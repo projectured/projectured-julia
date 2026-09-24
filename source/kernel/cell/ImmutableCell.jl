@@ -1,6 +1,8 @@
 # Fragment of `CellModule` — the read-only, zero-cost cell kind.
 
-# NOTE: as with MutableCell, the `ImmutableCell(v)` ctor is auto-generated.
+# Julia generates the constructor `ImmutableCell(value::T) where T`, which infers
+# `T` from the value. A second definition by hand overwrites it and stops the
+# precompilation.
 """
     ImmutableCell{T}
 
@@ -16,24 +18,19 @@ an immutable field of a known type lives inside the thing that holds it.
     frozen[]                 # reads
     frozen[] = "other"       # a MethodError, by contract
 
-See also `MutableCell`, which can be written, and `ReactiveCell`, which is
-written and tells its readers.
+See also `MutableCell`, which can be written, and `ReactiveCell`, whose write
+invalidates its readers.
 
-A plain immutable wrapper: `c[]` reads; there is no write (`c[] = v` is a
-`MethodError`, which is the contract). Zero-cost: an immutable struct with a
-concrete field type inlines into its parent. `ImmutableCell(v)` infers
-`T = typeof(v)`; pass `ImmutableCell{T}(v)` for a wider field type.
+`ImmutableCell(v)` infers `T` from `v`. Write `ImmutableCell{T}(v)` for a wider
+type.
 """
 struct ImmutableCell{T} <: AbstractCell{T}
     value::T
 end
 
-# Read-only: `c[]` reads; there is deliberately no `setindex!` (a write is a
-# `MethodError`, which is the contract).
+# There is no `setindex!`: a write is a `MethodError`, and that is the contract.
 Base.getindex(c::ImmutableCell) = c.value
 
-# The value is held outright: nothing can be stale, and an untracked read is the
-# plain read (there is no dependency to register in the first place).
 is_cell_up_to_date(::ImmutableCell) = true
 Base.peek(c::ImmutableCell) = c[]
 

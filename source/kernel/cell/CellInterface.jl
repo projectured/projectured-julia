@@ -10,9 +10,9 @@
 What every kind of cell is: a box that holds one value, of type `T`.
 
 Use it to say that something holds a value without saying how it holds it. A
-reactive cell tells its readers when it changes, a mutable one keeps a value and
-tells nobody, an immutable one cannot be written at all. Code that only reads
-takes any of them.
+write to a reactive cell invalidates the cells that read it, a write to a
+mutable one invalidates nothing, and an immutable one can not be written. Code
+that only reads takes any of them.
 
 # Example
 

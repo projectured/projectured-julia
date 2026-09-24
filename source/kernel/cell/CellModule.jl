@@ -2,8 +2,8 @@
     CellModule
 
 The reactive cell and its kinds. A cell is a box of type `AbstractCell{T}` that
-holds one value of type `T`, and the kind of the cell decides what a read and a
-write do. A reactive cell records the cells that read it, and a write makes them
+holds one value of type `T`. What a read and a write do depends on the kind of
+the cell. A reactive cell records the cells that read it, and a write makes them
 compute again on their next read. A cell computes only when it gets a
 `Computed`, and it stores every other value as it is, a function too.
 
