@@ -1,7 +1,5 @@
-# Fragment of `PerformanceModule` — the conditionally-compiled instrumentation counters.
-#
-# Conditionally-compiled instrumentation counters, seeded with `:reads`,
-# `:computes`, `:invalidations`, `:writes`.
+# Fragment of `PerformanceModule` — the conditionally-compiled instrumentation
+# counters, seeded with `:reads`, `:computes`, `:invalidations` and `:writes`.
 #
 # Counting is off unless `PERFORMANCE_COUNTERS_ENABLED` is set (via the
 # `PROJECTURED_PERFORMANCE_COUNTERS` environment variable, read once at precompile
@@ -17,11 +15,9 @@
 # which is what lets many editors run in one process without their counters
 # colliding.
 
-# Compile-time switch, seeded from the environment at precompile time. Counting
-# is off by default, so a normal build carries no instrumentation: the counter
-# macros below expand to `nothing` and no call site is instrumented. Set
-# PROJECTURED_PERFORMANCE_COUNTERS=true and recompile to compile the counters in
-# (e.g. to profile an edit, or to run the count-based demos/tests).
+# The compile-time switch. Set PROJECTURED_PERFORMANCE_COUNTERS=true and
+# recompile to compile the counters in, for example to profile an edit or to run
+# the tests that count.
 const PERFORMANCE_COUNTERS_ENABLED =
     get(ENV, "PROJECTURED_PERFORMANCE_COUNTERS", "false") == "true"
 
