@@ -26,6 +26,6 @@ function print_document(p::FaultToWidget, recursion, report::FaultReport,
                         ComputedCell(() -> String(report.origin)),
                         ComputedCell(() -> report.message);
                         icon = :warning, variant = :destructive, width = p.width,
-                        tooltip = format_fault_message(report))
+                        tooltip = format_fault_report_message(report))
     SimpleIoMap(p, report, alert)
 end

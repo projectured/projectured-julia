@@ -69,7 +69,7 @@ import ..ProjectionModule: print_document, read_intent,
                            map_reference_forward, map_reference_backward
 
 export FaultReport, FaultLog, FaultLogEntry, get_session_fault_log,
-       format_fault_label, format_fault_message, clear_fault_log!,
+       format_fault_label, format_fault_report_message, clear_fault_log!,
        FaultCatchingProjection, FaultCatchingIoMap,
        FaultToSyntax, FaultToText, FaultToWidget, FaultToGraphics,
        FaultLogToSyntax, FaultLogOverlayProjection, FaultLogOverlayIoMap,
