@@ -534,16 +534,16 @@ SyntaxNode(children; open=nothing, close=nothing, sep=nothing, kwargs...) =
 
 # ── Unparse (render to string) ──────────────────────────────────────────
 
+# An absent delimiter contributes nothing to the rendered string.
+_delimiter_content(::Nothing) = ""
+_delimiter_content(t::TextString) = t.content
+
 """
     render(tree::SyntaxDocument) -> String
 
 Recursively render the tree into a string. Reading cells during rendering
 registers reactive dependencies automatically.
 """
-# An absent delimiter contributes nothing to the rendered string.
-_delimiter_content(::Nothing) = ""
-_delimiter_content(t::TextString) = t.content
-
 function render(leaf::SyntaxLeaf)
     string(_delimiter_content(leaf.open), leaf.value.content, _delimiter_content(leaf.close))
 end

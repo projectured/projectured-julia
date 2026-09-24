@@ -2171,20 +2171,6 @@ BackendModule.render_canvas(canvas::GraphicsCanvas) = render_sdl_canvas(canvas)
 # Offscreen rendering / write_image
 # ════════════════════════════════════════════════════════════════════════
 
-"""
-    write_image(canvas::GraphicsCanvas, filename::AbstractString;
-                width::Integer = 800, height::Integer = 600,
-                background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff)) -> ImageFile
-
-Low-level overload. Render `canvas` to an offscreen SDL2 software renderer and
-save the result to `filename`. Returns an `ImageFile` document.
-No window is required; SDL2 + SDL_ttf are initialized lazily.
-
-Supported extensions (case-insensitive): `.bmp` (via `SDL_SaveBMP_RW`) and
-`.png` (via `IMG_SavePNG` from SDL2_image).
-
-Most callers should use `write_image(document, projection, filename)` instead.
-"""
 # Box-downsample a 32-bit ARGB software `big` surface (S× oversized) into a fresh
 # `width × height` surface by averaging each S×S block — true anti-aliasing,
 # independent of SDL's software scaler. Returns the new surface (caller frees).
@@ -2290,6 +2276,20 @@ function _close_offscreen_renderer(off)
     nothing
 end
 
+"""
+    write_image(canvas::GraphicsCanvas, filename::AbstractString;
+                width::Integer = 800, height::Integer = 600,
+                background::NTuple{4,UInt8} = (0xfd, 0xf6, 0xe3, 0xff)) -> ImageFile
+
+Low-level overload. Render `canvas` to an offscreen SDL2 software renderer and
+save the result to `filename`. Returns an `ImageFile` document.
+No window is required; SDL2 + SDL_ttf are initialized lazily.
+
+Supported extensions (case-insensitive): `.bmp` (via `SDL_SaveBMP_RW`) and
+`.png` (via `IMG_SavePNG` from SDL2_image).
+
+Most callers should use `write_image(document, projection, filename)` instead.
+"""
 function BackendModule.write_image(canvas::GraphicsCanvas, filename::AbstractString;
                      width::Integer = 800,
                      height::Integer = 600,

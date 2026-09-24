@@ -755,26 +755,3 @@ function record_assistant_conversation_video(filename::AbstractString = tempname
                  width=width, height=height, fps=fps, final_hold=final_hold,
                  wait_for = () -> assistant.status === :idle, kwargs...)
 end
-
-"""
-    generate_example_screenshots(; filter=nothing, max_width=1920, max_height=1080,
-                                 image_dir=joinpath(@__DIR__, "..", "..", "asset", "image", "example"))
-
-Generate a PNG screenshot for every example in `examples` into `image_dir`.
-Filename pattern: `{example-name-with-hyphens}.png`. One failure does not
-abort the batch.
-
-Each screenshot is sized to its content, capped at `max_width`/`max_height`, so
-compact examples (e.g. individual widgets) produce small images rather than a
-fixed full-screen canvas.
-
-Pass `filter` (a `Regex` or string compiled to one with `occursin`) to restrict
-generation to examples whose name matches, e.g. `filter=r"^widget"` regenerates
-only the widget screenshots.
-"""
-# Export scale for generated screenshots: PNGs are rendered at this many device
-# pixels per logical pixel so they stay crisp on HiDPI displays (e.g. GitHub
-# viewed on a retina screen) independent of the machine that generates them.
-# Guide embeds pin the *displayed* width to the logical size (png width ÷ this)
-# via `<img width>`, so the on-page size is unchanged while the extra pixels are
-# available for sharp rendering.

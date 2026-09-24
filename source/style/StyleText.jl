@@ -8,6 +8,11 @@
 # `StyleColor` / `StyleFont`.
 # ── Document ──────────────────────────────────────────────────────────────────
 
+# A value-document. `[DC]` binds the bare name to the default spelling, so
+# `StyleText` is concrete and inlines in a config cell — which is what 455 uses of
+# `ImmutableCell{StyleText}` ask for. It is not isbits, because it carries a font
+# `String`; neither was the plain form, so that is neutral. `ACStyleText` names the
+# cell layout, and `RCStyleText` is its reactive, selectable, editable spelling.
 """
     StyleText(font, color)
 
@@ -26,11 +31,6 @@ See also `StyleFont`, `StyleColor` and `GraphicsText`.
 
 A text style value: the `font` to draw with and the `color` to draw in.
 """
-# A value-document. `[DC]` binds the bare name to the default spelling, so
-# `StyleText` is concrete and inlines in a config cell — which is what 455 uses of
-# `ImmutableCell{StyleText}` ask for. It is not isbits, because it carries a font
-# `String`; neither was the plain form, so that is neutral. `ACStyleText` names the
-# cell layout, and `RCStyleText` is its reactive, selectable, editable spelling.
 @document ImmutableCell [DC] struct StyleText
     font::StyleFont
     color::StyleColor

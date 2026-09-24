@@ -9,18 +9,6 @@
 # Guides
 # ═══════════════════════════════════════════════════════════════════════
 
-"""
-    _guide_roots() -> Vector{Tuple{String,String}}
-
-The directories scanned for guide documentation, each paired with the prefix
-prepended to the guide names found under it. The top-level `documentation/` tree
-keeps bare names (`concepts`, `getting-started`, …); each slice's folder under
-`documentation/package/` is namespaced by slice (`kernel/reference`,
-`widget/widget`, …) so two slices may both have a guide of one name.
-
-The bare walk skips `documentation/package/`, which its own roots cover. Without
-that, every slice guide would be listed twice under two names.
-"""
 # The roots an application added, in the order it added them. A window built on
 # this editor has guides of its own — how to run a simulation, what a result
 # frame holds — and without them the only documentation a model can read is the
@@ -70,6 +58,18 @@ function _get_documentation_directory(bundle = _get_bundle_directory())
     isdir(bundled) ? bundled : normpath(joinpath(@__DIR__, "..", "..", "..", "documentation"))
 end
 
+"""
+    _guide_roots() -> Vector{Tuple{String,String}}
+
+The directories scanned for guide documentation, each paired with the prefix
+prepended to the guide names found under it. The top-level `documentation/` tree
+keeps bare names (`concepts`, `getting-started`, …); each slice's folder under
+`documentation/package/` is namespaced by slice (`kernel/reference`,
+`widget/widget`, …) so two slices may both have a guide of one name.
+
+The bare walk skips `documentation/package/`, which its own roots cover. Without
+that, every slice guide would be listed twice under two names.
+"""
 function _guide_roots()
     documentation = _get_documentation_directory()
     roots = Tuple{String,String}[(documentation, "")]

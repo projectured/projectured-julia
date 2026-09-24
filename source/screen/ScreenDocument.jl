@@ -16,6 +16,10 @@ ScreenDocument(windows::CellVector) = ScreenDocument(windows, Cell(nothing))
 
 const DEFAULT_BG = (UInt8(253), UInt8(246), UInt8(227), UInt8(255))
 
+# The defaults live on the fields, so `WindowDocument(; content = doc, …)` is the
+# macro's keyword constructor. `content` is the one field without a default, and
+# is therefore a *required* keyword — which is exactly the old hand-written
+# signature.
 """
     WindowDocument(; id, title, x, y, width, height, bg, style, content)
 
@@ -44,10 +48,6 @@ projected.
   projection: any domain document. After projection: typically a
   `GraphicsCanvas`.
 """
-# The defaults live on the fields, so `WindowDocument(; content = doc, …)` is the
-# macro's keyword constructor. `content` is the one field without a default, and
-# is therefore a *required* keyword — which is exactly the old hand-written
-# signature.
 @document struct WindowDocument
     id::Symbol = :default
     title::String = "ProjecturEd"

@@ -1,33 +1,3 @@
-"""
-    test_file_project()
-
-A file reference is a fact about storage, not a node in the document. These
-tests state what saving and loading must do once that holds. They are written
-before the code, and the names they use are the API the plan adopts:
-
-- `FileProject(base_dir, files)` — the save and load context: an ordered set
-  of file documents and the directory they live in.
-- `save_project!(project) -> Bool` — cut, print, write. Returns `false` and
-  logs an error when a node has no file to be written into; writes nothing then.
-- `load_project(base_dir, filenames) -> FileProject` — parse every file, then
-  splice each reference leaf into the node it names.
-- `save_file!(file, base_dir) -> Bool` — one file, no context, so no reference
-  can be written: the content must be a pure tree of the file's domain, or the
-  save logs why and returns `false`. `load_file(base_dir, filename)` is its
-  inverse; a marker in it stays a leaf.
-
-A reference to a whole file is `<<file("b.xml")>>`. A reference to a node
-inside a file is `<<node(file("b.xml"), "children[1]")>>`, where the path is
-the reference DSL's text form.
-
-- `PredFile(filename, document)` — a `.pred` file: any registered document,
-  written as its own constructor and read by the marker interpreter.
-  `register_pred_type!(T)` is the gate.
-
-The documents are built by hand, the way a user builds them in the editor:
-no marker, no stub, foreign nodes held directly.
-"""
-
 using Test
 using ProjecturedSerialization.SerializationModule
 using ProjecturedJson.JsonModule
@@ -114,6 +84,35 @@ SerializationModule.make_pred_document(::Type{<:TestWindow}, positional, keyword
 
 # ── The tests ────────────────────────────────────────────────────────────────
 
+"""
+    test_file_project()
+
+A file reference is a fact about storage, not a node in the document. These
+tests state what saving and loading must do once that holds. They are written
+before the code, and the names they use are the API the plan adopts:
+
+- `FileProject(base_dir, files)` — the save and load context: an ordered set
+  of file documents and the directory they live in.
+- `save_project!(project) -> Bool` — cut, print, write. Returns `false` and
+  logs an error when a node has no file to be written into; writes nothing then.
+- `load_project(base_dir, filenames) -> FileProject` — parse every file, then
+  splice each reference leaf into the node it names.
+- `save_file!(file, base_dir) -> Bool` — one file, no context, so no reference
+  can be written: the content must be a pure tree of the file's domain, or the
+  save logs why and returns `false`. `load_file(base_dir, filename)` is its
+  inverse; a marker in it stays a leaf.
+
+A reference to a whole file is `<<file("b.xml")>>`. A reference to a node
+inside a file is `<<node(file("b.xml"), "children[1]")>>`, where the path is
+the reference DSL's text form.
+
+- `PredFile(filename, document)` — a `.pred` file: any registered document,
+  written as its own constructor and read by the marker interpreter.
+  `register_pred_type!(T)` is the gate.
+
+The documents are built by hand, the way a user builds them in the editor:
+no marker, no stub, foreign nodes held directly.
+"""
 function test_file_project()
 @testset "FileProject: a file reference is not a node" begin
 

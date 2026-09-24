@@ -95,6 +95,10 @@ end
 
 # ── Click round-trip ───────────────────────────────────────────────────────
 
+# `broken`, when given, is a tuple of error-signature substrings this example is
+# known to fail with: if every collected error matches one, the single
+# `@test isempty(errors)` is recorded `@test_broken` instead of `@test`, so a
+# *new* (unrecognised) click error still surfaces as an unmarked `Fail`.
 """
     test_click_roundtrip(label, document, projection)
 
@@ -104,10 +108,6 @@ re-appear close to the click. "Close" allows up to one line of vertical
 slack to absorb the end-of-line / start-of-next-line cursor-rendering
 ambiguity at segment boundaries.
 """
-# `broken`, when given, is a tuple of error-signature substrings this example is
-# known to fail with: if every collected error matches one, the single
-# `@test isempty(errors)` is recorded `@test_broken` instead of `@test`, so a
-# *new* (unrecognised) click error still surfaces as an unmarked `Fail`.
 function test_click_roundtrip(label, document, projection; broken=nothing)
     @testset "$label" begin
         clear_selection!(document)

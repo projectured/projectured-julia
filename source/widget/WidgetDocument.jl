@@ -2673,14 +2673,14 @@ has_dormant_selection(::WidgetSplitPane) = true
 
 # ── Operation evaluation ───────────────────────────────────────────────────
 
+# The four strip reports are inert when nothing claimed them. A press on a close
+# button with no projection above to say what closing means must do nothing — the
+# report reached the editor because no one answered it, which is not an error.
 """
     evaluate_operation(op)
 
 Apply a widget operation.
 """
-# The four strip reports are inert when nothing claimed them. A press on a close
-# button with no projection above to say what closing means must do nothing — the
-# report reached the editor because no one answered it, which is not an error.
 evaluate_operation(editor, op::CloseTabOperation) = nothing
 evaluate_operation(editor, op::OpenTabOperation) = nothing
 evaluate_operation(editor, op::DragTabOperation) = nothing

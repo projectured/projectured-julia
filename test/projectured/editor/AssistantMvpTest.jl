@@ -337,12 +337,6 @@ function _mvp_test_turn_writes_on_editor_task()
     end
 end
 
-"""
-    test_assistant_mvp()
-
-Run the Assistant MVP test suite: the four scripted scenes
-plus the reactive-thunk probe. No SDL, no network.
-"""
 # A projection that draws any document as an empty canvas. The width test below
 # asks where the two halves of the card are, not what they hold.
 struct _BlankToGraphics <: ProjectionModule.Projection end
@@ -392,6 +386,12 @@ function _mvp_test_card_fills_its_page()
     end
 end
 
+"""
+    test_assistant_mvp()
+
+Run the Assistant MVP test suite: the four scripted scenes
+plus the reactive-thunk probe. No SDL, no network.
+"""
 function test_assistant_mvp()
     @testset "Assistant MVP" begin
         _mvp_test_card_fills_its_page()

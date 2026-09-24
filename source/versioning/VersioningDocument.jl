@@ -6,6 +6,8 @@ abstract type VersioningDocument <: Document end
 
 # ── VersionProperties ─────────────────────────────────────────────────────────
 
+# Every field defaults, so `VersionProperties()` and `VersionProperties(; author=…)`
+# are both the macro's keyword constructor.
 """
     VersionProperties(; timestamp=nothing, author=nothing, origin=nothing, label=nothing, selection=nothing)
 
@@ -17,8 +19,6 @@ All fields optional — a version can be anonymous.
 - `origin` — where it came from (host, file, session, `nothing`).
 - `label` — optional human name / tag for the version.
 """
-# Every field defaults, so `VersionProperties()` and `VersionProperties(; author=…)`
-# are both the macro's keyword constructor.
 @document struct VersionProperties <: VersioningDocument
     timestamp::Any = nothing   # e.g. DateTime, or nothing
     author::Any    = nothing   # who created it (string / user object / nothing)

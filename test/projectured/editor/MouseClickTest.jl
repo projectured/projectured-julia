@@ -179,6 +179,10 @@ end
 
 # ── Main test function ─────────────────────────────────────────────────────
 
+# `broken`, when given, is a tuple of error-signature substrings this example is
+# known to fail its click round-trip with: if every collected error matches one,
+# the final `@test isempty(errors)` is recorded `@test_broken`, so a *new*
+# (unrecognised) error still surfaces as an unmarked `Fail`.
 """
     test_mouse_click_roundtrip(label, document, projection; tolerance=20)
 
@@ -191,10 +195,6 @@ For each sample click position:
 The tolerance parameter (default 20 pixels) allows for reasonable positioning
 differences due to font rendering and layout.
 """
-# `broken`, when given, is a tuple of error-signature substrings this example is
-# known to fail its click round-trip with: if every collected error matches one,
-# the final `@test isempty(errors)` is recorded `@test_broken`, so a *new*
-# (unrecognised) error still surfaces as an unmarked `Fail`.
 function test_mouse_click_roundtrip(label, document, projection; tolerance=100, broken=nothing)
     @testset "$label" begin
         errors = String[]

@@ -782,16 +782,6 @@ end
 # Reader: gesture → composer operation, dispatched on the active part's state
 # ═══════════════════════════════════════════════════════════════════════
 
-"""
-    read_composer_gesture(draft, event) -> Operation | nothing
-
-Map a key gesture to a composer operation on `draft`, dispatching on the active
-(last) part's state. Shared by the composer projection and the assistant card.
-`ENTER` on a plain text typein yields a `ComposerSubmitOperation`; the assistant
-intercepts that to submit the draft into the conversation instead of merely
-normalizing it. The text keys are not here: the text layer of the active part
-answers them.
-"""
 # The composer's gesture table, reified as `GestureBinding`s and dispatched on the
 # **active** (last) part's mode, so the very set that fires (`read_composer_gesture`, shared
 # with the assistant card) is the set the gesture-help window shows
@@ -879,6 +869,16 @@ end
 # composer projection and the live assistant panel (both route input keys to the draft);
 # a non-`ConversationDraft` first argument has no composer gestures. The draft carries
 # no selection of its own, so the precondition gets `nothing` for one.
+"""
+    read_composer_gesture(draft, event) -> Operation | nothing
+
+Map a key gesture to a composer operation on `draft`, dispatching on the active
+(last) part's state. Shared by the composer projection and the assistant card.
+`ENTER` on a plain text typein yields a `ComposerSubmitOperation`; the assistant
+intercepts that to submit the draft into the conversation instead of merely
+normalizing it. The text keys are not here: the text layer of the active part
+answers them.
+"""
 read_composer_gesture(draft::ConversationDraft, evt) =
     fire_gesture_bindings(_composer_bindings(draft), draft, evt; selection = nothing)
 

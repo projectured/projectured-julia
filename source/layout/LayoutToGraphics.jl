@@ -422,16 +422,16 @@ function _recurse_child(recursion, child, ref)
     return print_child(recursion, child, ref)
 end
 
-"""
-Read `w` from a child iomap's output. Returns 0 when the output isn't
-a `GraphicsCanvas` (defensive — the layout still works, just collapses
-to the children that are canvases).
-"""
 # A child's intrinsic extent. A laid-out child is normally a `GraphicsCanvas`
 # (its `w`/`h` are the authored size). A bare graphics primitive
 # (`GraphicsCircle`, `GraphicsLine`, …) reports its size generically via
 # `get_graphics_size`, so it can be a layout child directly without being wrapped in
 # a sized canvas.
+"""
+Read `w` from a child iomap's output. Returns 0 when the output isn't
+a `GraphicsCanvas` (defensive — the layout still works, just collapses
+to the children that are canvases).
+"""
 function _child_w(cim)
     c = cim.output
     c isa GraphicsCanvas && return Int(c.w[])

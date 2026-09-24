@@ -213,6 +213,7 @@ function read_intent(p::Projection, recursion, change::Intent, iomap)
     return Intent(change.gesture, op)
 end
 
+# @positional: the arity of the reader of the projection protocol, which it calls.
 """
     read_routed_intent(projection, recursion, change, iomap) -> Intent
 
@@ -222,7 +223,6 @@ the child's input is the place of the operation: the child is not read, and the
 answer is the operation that `change` carries, with no route. Otherwise the
 child reads `change` with `read_intent`.
 """
-# @positional: the arity of the reader of the projection protocol, which it calls.
 function read_routed_intent(projection, recursion, change::Intent, iomap)
     change.route isa EmptyReference || return read_intent(projection, recursion, change, iomap)
     Intent(change.gesture, change.operation, change.description, change.domain)

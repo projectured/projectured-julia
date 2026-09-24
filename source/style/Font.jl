@@ -4,6 +4,9 @@
 # file path and a point size.
 # ── Document ──────────────────────────────────────────────────────────────────
 
+# A value-document: `filename`/`size` are immutable by default; the selection is
+# typed `Nothing` (non-selectable, so `StyleFont` — the bare form — inlines in a
+# config cell). `RCStyleFont` gives a reactive, selectable, editable font.
 """
     StyleFont(filename, size)
 
@@ -19,9 +22,6 @@ words with it.
 
 See also `StyleText`, which pairs a font with a colour, and `GraphicsText`.
 """
-# A value-document: `filename`/`size` are immutable by default; the selection is
-# typed `Nothing` (non-selectable, so `StyleFont` — the bare form — inlines in a
-# config cell). `RCStyleFont` gives a reactive, selectable, editable font.
 @document ImmutableCell [DC] struct StyleFont
     filename::String
     size::Int
