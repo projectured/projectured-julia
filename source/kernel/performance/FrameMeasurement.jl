@@ -60,7 +60,7 @@ function FrameMeasurementStore(; capacity::Integer = 1000)
     capacity >= 1 ||
         throw(ArgumentError("a frame measurement store holds at least one frame"))
     FrameMeasurementStore(Int(capacity), Symbol[], Dict{Symbol, Symbol}(),
-                     Dict{Symbol, Vector{Float64}}(), fill(NaN, capacity), 0)
+                          Dict{Symbol, Vector{Float64}}(), fill(NaN, capacity), 0)
 end
 
 # The slot of the ring that holds the frame with the number `frame`.
@@ -83,7 +83,7 @@ A name keeps the unit of the group that first gave it. A name given later in
 the other group is an error, because its column would mix two units.
 """
 function record_frame_measurements!(store::FrameMeasurementStore; times = (), counts = (),
-                              end_time::Real = time())
+                                    end_time::Real = time())
     _check_frame_units(store, times, :second)
     _check_frame_units(store, counts, :count)
     store.frame_count += 1

@@ -48,7 +48,7 @@ include("FaultInterface.jl")   # the open seams (declaration-only)
 include("FaultDefaults.jl")    # what each seam answers on its own
 include("FaultRecord.jl")      # one fault as a value
 include("FaultStore.jl")       # the per-editor collection
-include("FaultPolicy.jl")      # which tiers are open
+include("FaultPolicy.jl")      # whether the barriers catch, and the tiers
 include("FaultCascade.jl")     # report_fault! and the tiers
 include("FaultBarrier.jl")     # run_fault_barrier
 

@@ -43,10 +43,11 @@ Holds the state for a read-eval-print loop:
                    from then on.
   - `wake_pending` — set by [`wake_editor!`](@ref) from any task; each frame
                    takes ownership of every wake posted before it (internal).
-  - `frame_measurements` — the `FrameMeasurementStore` that keeps the measurements of
-                   the last frames: always the frame time, plus the performance
-                   counters when they are compiled in. A statistics feed
-                   flushes it into a document on its own deadline.
+  - `frame_measurements` — the `FrameMeasurementStore` that keeps the
+                   measurements of the last frames: always the frame time,
+                   plus the performance counters when they are compiled in. A
+                   statistics feed flushes it into a document on its own
+                   deadline.
   - `loop_task`  — the task that runs [`run_editor!`](@ref), or `nothing` while
                    no loop runs. [`run_on_editor_task!`](@ref) reads it to
                    know whether a call from another task must wait for a frame

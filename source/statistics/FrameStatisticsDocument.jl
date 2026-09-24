@@ -65,9 +65,9 @@ function flush_frame_statistics!(statistics::FrameStatistics,
             _write_changed_field!(row, :total, summary.total)
         else
             push!(rows, FrameStatisticsRow(string(name), summary.unit, summary.count,
-                                         summary.minimum, summary.maximum,
-                                         summary.mean, summary.standard_deviation,
-                                         summary.total))
+                                           summary.minimum, summary.maximum,
+                                           summary.mean, summary.standard_deviation,
+                                           summary.total))
         end
     end
     _write_changed_field!(statistics, :frame_count, get_frame_count(store))

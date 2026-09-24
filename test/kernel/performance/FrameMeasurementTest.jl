@@ -68,7 +68,7 @@ function test_frame_measurements()
         # A name in the other group would mix two units in one column, and the
         # wrong call leaves the store as it was.
         @test_throws ArgumentError record_frame_measurements!(store;
-                                                        counts = [:frame_time => 3])
+                                                              counts = [:frame_time => 3])
         @test get_frame_count(store) == 1
     end
 
@@ -110,11 +110,11 @@ function test_frame_measurements()
     @testset "the frames are written as CSV, times in milliseconds" begin
         store = FrameMeasurementStore(capacity = 3)
         record_frame_measurements!(store; times = [:frame_time => 0.010],
-                             counts = [:reads => 5], end_time = 100.0)
+                                   counts = [:reads => 5], end_time = 100.0)
         record_frame_measurements!(store; times = [:frame_time => 0.020],
                                    end_time = 100.5)
         record_frame_measurements!(store; times = [:frame_time => 0.0123456],
-                             counts = [:reads => 7], end_time = 100.5160000001)
+                                   counts = [:reads => 7], end_time = 100.5160000001)
         io = IOBuffer()
         @test write_frame_measurements!(io, store) == 3
         # A time is rounded to a microsecond.

@@ -88,9 +88,9 @@ function test_frame_statistics_feed()
         @test length(chart.series) == 0
         store = FrameMeasurementStore(capacity = 3)
         record_frame_measurements!(store; times = [:frame_time => 0.010],
-                             counts = [:reads => 5])
+                                   counts = [:reads => 5])
         record_frame_measurements!(store; times = [:frame_time => 0.020],
-                             counts = [:reads => 7])
+                                   counts = [:reads => 7])
         @test flush_frame_plot!(plot, store) == 1
         @test length(chart.series) == 1
         series = chart.series[1]
@@ -99,7 +99,7 @@ function test_frame_statistics_feed()
         @test series.y ≈ [10.0, 20.0]
         # A new frame gives the line new columns, and the line stays one object.
         record_frame_measurements!(store; times = [:frame_time => 0.030],
-                             counts = [:reads => 9])
+                                   counts = [:reads => 9])
         flush_frame_plot!(plot, store)
         @test chart.series[1] === series
         @test series.y ≈ [10.0, 20.0, 30.0]
