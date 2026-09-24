@@ -1,6 +1,8 @@
 # The frame sample API: units as data, one summary, no flush counter
 
-> **Status (2026-09-24): IN PROGRESS.** Step 1 is done.
+> **Status (2026-09-24): DONE.** The store takes the unit from the producer, a
+> summary is one immutable answer, and each document keeps its own frame count.
+> The frame part of the layer exports 8 names, down from 12.
 
 The frame sample store of the kernel performance layer exports 12 names. Three
 of its shapes are weak:
@@ -78,4 +80,6 @@ Update `statistics.md` and `editor.md`. Audit `PerformanceModule.jl` and
     of zero and `NaN` for the minimum, the maximum and the mean.
   - A document is due when its frame count differs from the store's, not when
     it is smaller: a session document outlives a store that starts again.
-- [ ] Step 2
+- [x] Step 2 — `statistics.md` describes the units and the gate of each
+  document; `editor.md` names none of the removed functions. The second audit
+  of `PerformanceModule.jl` and `FrameSample.jl` finds nothing.

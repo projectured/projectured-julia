@@ -8,9 +8,9 @@
 
 The kernel records each frame in a `FrameSampleStore` on the editor, `editor.frame_samples`. The store keeps the last 1000 frames in a ring: one column for each measurement name, and one column of frame end times. A frame that did not measure a name holds `NaN` for it. This package only reads that store.
 
-**The unit follows the name.** A measurement whose name ends in `_time` is a time in seconds, and every other measurement is a count. `is_frame_time_measurement` is the one place that says so. A document holds times in seconds, and a view shows them in milliseconds.
+**The producer gives the unit.** `record_frame_sample!` takes the times, in seconds, and the counts in two groups, and the store keeps the unit of each name: `:second` or `:count`. A summary and a column of the ring carry that unit, so no reader guesses a unit. A document holds times in seconds, and a view shows them in milliseconds.
 
-`FrameStatistics` holds `rows`, one `FrameMeasurement` for each measurement name, and `frame_count`, the number of frames since the start. A row has the count, the minimum, the maximum, the mean, the standard deviation and the total over the frames that the ring holds. So the first frames, which include compilation, leave the table once 1000 newer frames arrive.
+`FrameStatistics` holds `rows`, one `FrameMeasurement` for each measurement name, and `frame_count`, the number of frames since the start when the table last showed them. A row has its unit, the count, the minimum, the maximum, the mean, the standard deviation and the total over the frames that the ring holds. So the first frames, which include compilation, leave the table once 1000 newer frames arrive.
 
 `FramePlot` holds the frame numbers of the ring, and one column in seconds for each time measurement. A column is one cell, for the same reason as a column of a chart series.
 
@@ -18,7 +18,7 @@ One table and one plot exist for each session, `get_session_frame_statistics()` 
 
 `FrameStatisticsFeed` moves the numbers into the two documents:
 
-- It flushes a document only when the store has new frames **and** a view reads that document. The test for a view is `has_dependents` on a cell that every view reads: `frame_count` of the table, and `names` of the plot. So an editor with no statistics tab and no plot tab records the frames and formats nothing.
+- It flushes a document only when a view reads that document **and** the frame count that the document last showed differs from the count of the store. Each document keeps its own count: the table in `frame_count`, and the plot as the number of its last frame. So a plot opened after the table flushed gets its frames at once, with no new frame. The test for a view is `has_dependents` on a cell that every view reads: `frame_count` of the table, and `names` of the plot. So an editor with no statistics tab and no plot tab records the frames and formats nothing.
 - It never wakes the editor. Its data comes only with frames, so a wake would make frames that feed themselves. Instead `compute_wake_deadline` returns the flush interval, 0.25 seconds by default, while a view is open.
 - `flush_frame_statistics!` updates a row field by field, and it writes a field only when its number changed. A cell write invalidates its readers even when the value is the same, so an unchanged number must not be written.
 - `flush_frame_plot!` writes new columns on each flush, and it writes the names only when they changed.
@@ -42,7 +42,7 @@ The package registers two natural rows. The syntax row `:statistics` draws a `Fr
 - **A feed can ask whether anyone looks.** `has_dependents` on a cell of the target document answers it, so the feed needs no registry of tabs.
 - **This feed has a deadline, not a wake.** The log feed wakes on each message; this feed would wake itself. [log.md](../log/log.md) is the other side of the comparison.
 - **The table summarizes the recent frames.** A summary since the start keeps the compile time of the first frames in its maximum for the whole session.
-- **The unit follows the name.** The four time measurements, `frame_time`, `read_time`, `evaluate_time` and `print_time`, all end in `_time`, so no unit travels with a value.
+- **The producer gives the unit.** The producer knows which values are times, so it gives them in a group of their own. A unit that a reader reads from the spelling of a name breaks when a measurement gets a name that does not follow the rule.
 - **The plot is a projection into the chart domain.** `FramePlot` holds no chart. `FramePlotToChart` is the edge between the two domains, as `PAR-DOMAINS-INDEPENDENT` asks.
 
 ## Usage
@@ -54,7 +54,7 @@ run_window_editor(document, projection, "Title"; backend = SdlBackend(),
 
 Then open a tab and type `statistics` or `frame plot`, or press the toolbar button. To keep the frames, evaluate `write_frame_samples!("frames.csv", editor.frame_samples)`. `example/projectured/FeedExamples.jl` builds the table view with `FrameStatisticsToSyntax()`.
 
-- Test: `test_frame_samples()` in `test/kernel/performance/FrameSampleTest.jl` covers the ring, the summary, the unit rule and the CSV text. `test/projectured/editor/FrameStatisticsFeedTest.jl` covers the flush of both documents, the gate, the text of the table and the lines of the plot, and `test_tool_views()` in `test/projectured/projection/ToolViewTest.jl` checks that a tab draws each document. The package has no suite of its own.
+- Test: `test_frame_samples()` in `test/kernel/performance/FrameSampleTest.jl` covers the ring, the summary, the units and the CSV text. `test/projectured/editor/FrameStatisticsFeedTest.jl` covers the flush of both documents, the gate of each document, the text of the table and the lines of the plot, and `test_tool_views()` in `test/projectured/projection/ToolViewTest.jl` checks that a tab draws each document. The package has no suite of its own.
 
 ## Limits
 
