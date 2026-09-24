@@ -3,11 +3,10 @@
 
 The suite of `ProjecturedFault`, aggregated by `test_fault()`.
 
-It tests two things that no other suite can. The first is containment: a printer
-that fails on one node must cost that node and nothing else, and the failure is
-raised from inside the output cell rather than from `print_document`, because
-that is where a real printer fails. The second is that the report never lies —
-a store, a log target and a backend that all throw at once still answer a tier.
+It tests containment, which no other suite can: a printer that fails on one
+node must cost that node and nothing else, and the failure is raised from inside
+the output cell rather than from `print_document`, because that is where a real
+printer fails.
 """
 module ProjecturedFaultTest
 
@@ -40,7 +39,6 @@ using ProjecturedFault.OperationModule
 
 import ProjecturedKernel.EditorModule: read!
 
-include("../../../test/fault/FaultStoreTest.jl")
 include("../../../test/fault/FaultCatchingTest.jl")
 include("../../../test/fault/FaultSafeModeTest.jl")
 include("../../../test/fault/FaultSuite.jl")

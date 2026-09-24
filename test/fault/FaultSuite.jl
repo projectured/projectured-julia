@@ -18,20 +18,17 @@ end
 """
     test_fault()
 
-Run this package's whole suite: the layering guard, the kernel's store and
-report cascade, the barrier inside a pipeline, the safe mode, and the one call a
-program makes to wire it all up.
+Run this package's whole suite: the layering guard, the barrier inside a
+pipeline, the safe mode, and the one call a program makes to wire it all up.
 """
 function test_fault()
     @testset "ProjecturedFault" begin
         test_fault_layering()
-        test_fault_store()
-        test_fault_report()
         test_fault_catching()
         test_fault_safe_mode()
         test_fault_tolerant_projection()
     end
 end
 
-export test_fault, test_fault_layering, test_fault_store, test_fault_report,
-       test_fault_catching, test_fault_safe_mode, test_fault_tolerant_projection
+export test_fault, test_fault_layering, test_fault_catching, test_fault_safe_mode,
+       test_fault_tolerant_projection

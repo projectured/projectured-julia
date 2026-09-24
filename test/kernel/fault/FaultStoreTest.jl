@@ -10,6 +10,8 @@
 #   • the drain hands a record over once per power of ten, so a fault that
 #     repeats every frame does not rewrite the log every frame.
 
+using Test
+using ProjecturedKernel.FaultModule
 
 struct AngryTarget end
 struct QuietTarget
