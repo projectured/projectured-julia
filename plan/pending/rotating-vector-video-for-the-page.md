@@ -40,6 +40,18 @@ And the things the owner noticed:
 | 8 | A result of `nothing` | Shows `nothing` as the Julia domain prints it, not `Done.`. |
 | 9 | Colors | Predefined constants: `StyleColor(0.0, 0.0, 0.0, 0.0)` is `color_transparent` (its alpha is 0, so it is not black). |
 
+The owner's answers to the three questions of 2026-09-24:
+
+> for 1, I agree and extend it to other graphics domain constructors
+> for 2, yes, agreed
+> for 3, yes
+
+| # | Decision |
+| --- | --- |
+| A | The API of item 3, for every constructor of the graphics domain: a geometric argument takes a number, a cell or a function of no arguments, and no optional positional argument stands beside a keyword. |
+| B | The Julia domain keeps the keyword arguments of a call after `;` (a new field of `JuliaCall`), and prints a short function definition on one line. |
+| C | `source/kernel/clock/Clock.jl` (sealed) may get a display, `Clock(time = 12.3)`. The permission is for this change of that file only. |
+
 ## 2. Steps
 
 - [x] Step 1: item 4 for a function, and item 8.
@@ -51,8 +63,8 @@ And the things the owner noticed:
       (`parse_natural_text(:jl, "nothing")`, a `JuliaNothing` in bold magenta);
       the tool keeps "Done." for a model. `test_code_execution()` and
       `test_evaluator_toplevel()` pass 233.
-- [ ] Step 2: item 4 for the clock. `source/kernel/clock/Clock.jl` is sealed, so
-      it waits for the owner's permission for that file.
+- [ ] Step 2: item 4 for the clock, in the sealed `Clock.jl` with the owner's
+      permission (decision C).
 - [x] Step 3: item 7, find which forms stay strings and why.
       `build/suites/s1/probe_forms.jl` parses each form as the evaluator does and
       compares the print with the typed code, token by token. Four reasons:
@@ -68,7 +80,8 @@ And the things the owner noticed:
       already. A candidate form of the new API, such as
       `GraphicsPolyline(() -> [(170 + i, 90 - 60 * sin(phase() - i / 50)) for i in 0:120]; …)`,
       differs only by the `;`.
-- [ ] Step 4: item 3, the API proposal, shown to the owner (2026-09-24).
+- [x] Step 4: item 3, the API proposal, shown to the owner (2026-09-24), and
+      approved with decision A.
       Under §4 of `code-quality-rules.md`:
 
       ```julia
@@ -91,5 +104,8 @@ And the things the owner noticed:
       The forms then read, for example:
       `dot = GraphicsCircle(() -> 90 + 60 * cos(phase()), () -> 90 - 60 * sin(phase()), 5; color = color_solarized_magenta)`.
       The four axes of the example are four `GraphicsLine`s of numbers.
+- [ ] Step 4a: decision A, the constructors of the graphics domain.
+- [ ] Step 4b: decision B, the keyword arguments after `;` and the short function
+      definition in the Julia domain.
 - [ ] Step 5: the script: items 1, 5, 6 and 9, and the forms of item 3.
 - [ ] Step 6: record S1 again and give it to the owner.
