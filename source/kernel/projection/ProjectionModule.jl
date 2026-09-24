@@ -61,7 +61,7 @@ for the selection mechanism.
 | Fragment | Contract |
 |---|---|
 | [`ChildrenContainer.jl`](ChildrenContainer.jl) | the open generics for the children container a template rule holds |
-| [`PrinterContext.jl`](PrinterContext.jl) | `PrinterContext` — the size, the clock and the properties a printer carries down the tree |
+| [`PrinterContext.jl`](PrinterContext.jl) | `PrinterContext` — the range of each axis, the clock and the properties a printer carries down the tree |
 | [`ProjectionReferenceStep.jl`](ProjectionReferenceStep.jl) | `ProjectionReferenceStep` — a reference step pointing at an element a projection introduced |
 | [`ProjectionInterface.jl`](ProjectionInterface.jl) | the `Projection` supertype and the four open generics |
 | [`ProjectionDefaults.jl`](ProjectionDefaults.jl) | the fallback method of each generic |
@@ -88,8 +88,8 @@ export Projection, print_document, print_child, print_document_pure, print_child
 export @projection, print_pure
 export ProjectionReferenceStep, make_introduced_reference, is_introduced_reference,
        normalize_named_node_reference
-export PrinterContext, make_child_context, with_available_size, withhold_offer,
-       with_clock, with_property, get_property
+export PrinterContext, make_child_context, with_exact_size, with_bounded_size, with_available_size,
+       withhold_offer, with_clock, with_property, get_property
 export make_children_container, get_children_container_type
 export get_projection_gesture_bindings, read_projection_gesture
 export RuleIoMap, var"@projection_template"

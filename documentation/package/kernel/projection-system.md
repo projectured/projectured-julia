@@ -95,8 +95,10 @@ The two extra arguments are essential:
   [§ Recursion across projections](#recursion-across-projections).
 - **`context`** is a [`PrinterContext`](../../../source/kernel/projection/PrinterContext.jl):
   a downward-flowing, extensible struct carrying the `reference` path from the
-  editor's document root to the *current* input, plus optional layout extent
-  (`available_width`/`available_height`) and an open `properties` Dict. Each
+  editor's document root to the *current* input, plus the range that the
+  parent gives on each axis (`minimum_width`/`maximum_width`,
+  `minimum_height`/`maximum_height`: exact, bounded or free) and an open
+  `properties` Dict. Each
   projection extends the reference before recursing into a child by calling
   `make_child_context(ctx, step…)` (or `make_child_context(ctx, full_path)`), so every
   projection's context carries where it sits in the original document. This is

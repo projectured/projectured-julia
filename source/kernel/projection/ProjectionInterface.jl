@@ -75,8 +75,8 @@ arbitrary projections purely via this dispatch.
   `nothing`.
 - `context::PrinterContext` — downward-flowing per-invocation data: a
   `reference` path locating `input` relative to the document root, plus
-  optional layout extent (`available_width`/`available_height`) and an
-  extensible `properties` Dict. Extend it for a child with
+  the range of each axis (`minimum_width`/`maximum_width`,
+  `minimum_height`/`maximum_height`) and an extensible `properties` Dict. Extend it for a child with
   `make_child_context(ctx, step…)` (or `make_child_context(ctx, full_path)`) before
   recursing; the top level passes a fresh `PrinterContext()`.
 

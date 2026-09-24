@@ -302,7 +302,7 @@ read of external state takes none, so `read_os_clipboard` has no `!`.
   `get_selection` / `set_selection!`, `get_property`, `get_iomap_input`,
   `get_display_size`.
 - **Derived copies are `with_<stem>`**: `with_property`, `with_selection`,
-  `with_available_size` — return a copy with one aspect changed. Together
+  `with_exact_size` — return a copy with one aspect changed. Together
   with the getter this forms the read / derive / mutate trio:
   `get_property` / `with_property` / `set_property!`.
 - **Protocol functions are verb + the unit that flows in**, dispatch
