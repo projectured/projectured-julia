@@ -71,18 +71,11 @@ x[] = 999          # x is no longer a dep after last eval
 # ── the dependency edge must not own the reader ─────────────────────────
 
 @testset "an upstream cell does not retain a discarded downstream cell" begin
-    # `dependents` exists to propagate INVALIDATION downstream. It must not keep the
-    # downstream cell ALIVE — an upstream cell has no business owning its readers.
-    #
-    # It used to: `dependents` was a strong `Set{ReactiveCell}`, and the only place an
-    # edge was ever removed is `recompute!`, which detaches a cell's own upstream links
-    # before re-evaluating. A cell that is simply *discarded* never recomputes again, so
-    # its edges were never removed and the upstream cell pinned it for ever. A document
-    # thus held on to every pipeline it had ever been printed through (~690 MB per caret
-    # walk of the `json` example), and to every span a printer shed while recomputing
-    # (~100 kB per structural edit, for ever). See plan/pending/reactive-dependents-leak.md.
-    #
-    # The edge is now a `Vector{WeakRef}`, so a discarded reader is collectable.
+    # `dependents` carries invalidation down to the readers. It must not keep a
+    # reader alive. A reader removes its edges only when it computes again or is
+    # written, and a discarded cell never does either, so a strong edge would keep
+    # every discarded reader for ever: about 690 MB for one caret walk of the `json`
+    # example. The measurements are in plan/done/reactive-dependents-leak.md.
     source = Cell(1)
     # `dependents` is allocated lazily — `nothing` until first read (no live readers).
     live(c) = (d = getfield(c, :dependents); d === nothing ? 0 : count(w -> w.value !== nothing, d))
@@ -90,9 +83,8 @@ x[] = 999          # x is no longer a dep after last eval
 
     # A throwaway "pipeline": computed cells that read `source` and are forced once.
     # They are kept in a vector while we assert the registration count, so nothing is
-    # collected mid-build — otherwise the count is at the mercy of GC scheduling (the
-    # edge containers are now allocated lazily, so a build allocates less and GC fires
-    # at different points). A `WeakRef` to the first one lets us later ask whether it
+    # collected mid-build — otherwise the count is at the mercy of GC scheduling. A
+    # `WeakRef` to the first one lets us later ask whether it
     # was collected once every strong reference is dropped.
     cells = [(c = ComputedCell(() -> source[] + 1); c[]; c) for _ in 1:100]
     @test live(source) == 100                     # all 100 registered
@@ -181,8 +173,8 @@ end
     @test ReactiveCell{Function}(f)[] === f
     @test ReactiveCell{Int}(Computed(f))[] == 42
 
-    # copy_cell_as re-boxes through the constructor, so a function-valued cell used to
-    # come back as a thunk — and a copied document would call its own callbacks.
+    # copy_cell_as makes the copy through the constructor, and the copy of a cell
+    # that holds a function must hold the function, not compute with it.
     @test copy_cell_as(c, c[])[] === f
 
     w = Cell(1)                          # the write side agrees with construction

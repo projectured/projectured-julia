@@ -4,7 +4,7 @@
 using ..PerformanceModule
 
 """
-    ReactiveCell{T}   (alias: `Cell`; `Cell(v)` ≡ `ReactiveCell{Any}(v)`)
+    ReactiveCell{T}
 
 A box that holds a value, or a computation of one that runs when the value is
 read.
@@ -12,8 +12,9 @@ read.
 Use it to keep a value that others depend on: a cell remembers who read it, so
 a write tells them, and each of them computes again the next time it is read.
 Nothing recomputes until it is read, and nothing recomputes that did not depend
-on what changed. Every field of a document is one of these, which is how an
-edit redraws the part of the screen it touched and no more.
+on what changed. Unless its declaration names another kind, a document keeps
+its fields in these, which is how an edit redraws the part of the screen it
+touched and no more.
 
 # Example
 
@@ -29,38 +30,37 @@ and the guide `kernel/cell`.
 
 # Construction
 
-    Cell(value)                       # untyped primitive cell (T = Any)
-    ComputedCell(f)                   # untyped computed cell – f is the thunk (zero args)
-    ReactiveCell{T}(value)            # typed primitive cell (type-stable reads)
-    ReactiveCell{T}(Computed(f))      # typed computed cell (f is the thunk)
+    Cell(value)                     # an untyped cell that holds `value`
+    ComputedCell(f)                 # an untyped cell that computes `f()`
+    ReactiveCell{T}(value)          # a typed cell that holds `value`
+    ReactiveCell{T}(Computed(f))    # a typed cell that computes `f()`
 
-# Reading and writing
+`Cell` is `ReactiveCell{Any}`. A typed cell reads its value with no conversion.
 
-    c[]           # read (triggers computation if invalid)
-    c[] = v       # set a primitive value, invalidating dependents
-    c[] = Computed(f)         # switch to a computed cell with thunk `f`
-    set_cell_function!(c, f)  # switch to a computed cell with thunk `f`
-    set_cell_value!(c, v) # switch to a primitive cell with value `v`
+# Read and write
+
+    c[]                             # read, and compute first if the cell is invalid
+    c[] = value                     # hold `value`, and invalidate the readers
+    c[] = Computed(f)               # compute `f()`, and invalidate the readers
+    set_cell_value!(c, value)       # the same as `c[] = value`
+    set_cell_function!(c, f)        # the same as `c[] = Computed(f)`
 """
 mutable struct ReactiveCell{T} <: AbstractCell{T}
     value::T
     thunk::Union{Nothing, Function}
     valid::Bool
-    # Upstream (cells I read, STRONG) and downstream (cells that read me, WEAK)
-    # edges, allocated LAZILY — `nothing` until the first edge forms. The
-    # overwhelming majority of cells are primitive leaves that read nothing and,
-    # until a projection observes them, are read by nothing; the eager empty `Set` +
-    # `Vector` was ~90% of a ReactiveCell's construction cost (measured ~168 B vs a
-    # MutableCell's 24 B). Every access below treats `nothing` as empty, and
-    # `_get_dependencies!` / `_get_dependents!` allocate on demand.
-    dependencies::Union{Nothing, Set{ReactiveCell}}       # cells I read from  (upstream, STRONG)
-    dependents::Union{Nothing, Vector{WeakRef}}   # cells that read me  (downstream, WEAK)
+    # The cells that the last computation read. The edges are strong, so a cell
+    # keeps alive the cells that it computes from.
+    dependencies::Union{Nothing, Set{ReactiveCell}}
+    # The cells that read this one. The edges are weak, so a cell does not keep
+    # its readers alive.
+    dependents::Union{Nothing, Vector{WeakRef}}
 
     ReactiveCell{T}(value) where {T} =
         new{T}(value, nothing, true, nothing, nothing)
-    # A `Computed` argument carries the cell's *thunk*: `value` starts *undefined* (a
-    # typed field cannot hold a placeholder) and `valid = false` guarantees
-    # `_recompute!` assigns it before any read returns.
+    # With a `Computed`, `value` stays undefined, because a typed field can not
+    # hold a placeholder. `valid = false` makes `_recompute!` assign it before any
+    # read returns.
     function ReactiveCell{T}(computed::Computed) where {T}
         c = new{T}()
         c.thunk = computed.thunk
@@ -73,17 +73,18 @@ mutable struct ReactiveCell{T} <: AbstractCell{T}
     # constructor above stores it. Only a `Computed` argument makes a cell compute.
 end
 
-# Lazily allocate the edge containers on first use. A cell that never reads another
-# keeps `deps === nothing`; one never read inside a computation keeps
-# `dependents === nothing` — and pays for neither.
+# Both edge sets are `nothing` until the first edge forms, and these two make them
+# on first use. Most cells are values that read nothing, and nothing reads them
+# until a projection shows them. An empty `Set` and an empty `Vector` in every
+# cell would be about 90% of the cost to make one: about 168 bytes, against 24
+# bytes for a `MutableCell`.
 #
-# `@nospecialize` ON THE CELL, because the cell that arrives here is often a
-# `ReactiveCell{T} where T` and not one concrete cell: `deps` is a
-# `Set{ReactiveCell}` and the computing stack a `Vector{ReactiveCell}`, so
-# whatever comes out of either carries a free parameter. Neither body reads `T`,
-# so one compiled body serves every cell — and a free parameter is the one shape
-# an ahead-of-time build cannot enumerate, which is what made these calls
-# unresolvable and put them in a seal file.
+# `@nospecialize` is on the cell, because the cell that arrives here is often a
+# `ReactiveCell{T} where T`: it comes out of `dependencies`, a
+# `Set{ReactiveCell}`, or out of the computing stack, a `Vector{ReactiveCell}`.
+# Neither body reads `T`, so one compiled body serves every cell. An ahead-of-time
+# build can not enumerate a free parameter, so a body specialized on `T` would
+# leave these calls unresolved.
 @inline _get_dependencies!(@nospecialize(c::ReactiveCell)) =
     (d = c.dependencies; d === nothing ? (c.dependencies = Set{ReactiveCell}()) : d)
 @inline _get_dependents!(@nospecialize(c::ReactiveCell)) =
@@ -137,27 +138,19 @@ into the other.
 """
 ComputedCell(f::Function) = ReactiveCell{Any}(Computed(f))
 
-# ── per-task tracking stack ────────────────────────────────────────────────
-# While a ReactiveCell's thunk is running, that cell sits on the current task's
-# stack so any ReactiveCell read during evaluation can register itself as a
-# dependency. The stack is task-local, not a module global: concurrent
-# evaluations (e.g. separate editors on separate tasks) each get their own, so
-# their dependency tracking never crosses.
+# ── the computing stack ──────────────────────────────────────────────────────
+
+# The cells whose thunks run now on this task, the innermost last. A read records
+# the innermost cell as its reader. The stack is task-local, so two evaluations on
+# two tasks never record a reader for each other.
 _get_computing_stack() =
     get!(() -> ReactiveCell[], task_local_storage(),
          :projectured_reactive_computing)::Vector{ReactiveCell}
 
-# The reactive hot path bumps the performance counters via `@count_performance`
-# (imported at the top of this file). The macro lives in `PerformanceModule`
-# (cell/PerformanceCounter.jl); it expands to a bump into the task-local counter
-# store when counting is compiled in, and to `nothing` when it is not — so these
-# call sites cost nothing in a normal build.
-
-# ── reading ──────────────────────────────────────────────────────────────
+# ── read ─────────────────────────────────────────────────────────────────────
 
 function Base.getindex(c::ReactiveCell)
     @count_performance :reads
-    # register dependency if inside a computation
     stack = _get_computing_stack()
     if !isempty(stack)
         observer = stack[end]
@@ -205,14 +198,17 @@ function _recompute!(c::ReactiveCell)
     @count_performance :computes
 end
 
-# ── invalidation ─────────────────────────────────────────────────────────
+# ── invalidation ─────────────────────────────────────────────────────────────
 
+# Mark every valid reader of `c` invalid, then the readers of each, and so on. A
+# reader that is invalid already stops the walk: its own readers became invalid
+# with it.
 function _invalidate_dependents!(c::ReactiveCell)
     ds = c.dependents
     ds === nothing && return
     for i in eachindex(ds)
         d = ds[i].value
-        d === nothing && continue      # reader already collected — nothing to invalidate
+        d === nothing && continue      # the reader was collected
         dd = d::ReactiveCell
         if dd.valid
             dd.valid = false
@@ -222,13 +218,13 @@ function _invalidate_dependents!(c::ReactiveCell)
     end
 end
 
-# ── writing ──────────────────────────────────────────────────────────────
+# ── write ────────────────────────────────────────────────────────────────────
 
 """
     c[] = value
 
-Set `c` to a primitive value, invalidating all downstream dependents
-(reactive kind), or store the value with no propagation (mutable kind).
+Make `c` hold `value`, and invalidate every cell that reads `c`, and the cells
+that read those. If `c` held a computation, it holds `value` in its place.
 """
 function Base.setindex!(c::ReactiveCell, value)
     @count_performance :writes
@@ -305,7 +301,7 @@ end
 
 is_cell_up_to_date(c::ReactiveCell) = c.valid
 
-# ── untracked read ─────────────────────────────────────────────────────────
+# ── untracked read ───────────────────────────────────────────────────────────
 
 """
     peek(c::ReactiveCell)
@@ -324,19 +320,13 @@ the computation depend on the cell; this one does not.
     end)
 
 See also `Cell` and the guide `kernel/cell`.
-
-Read a cell's value **without** registering a dependency (an untracked read).
-Unlike `c[]`, calling this inside a computed thunk does not make the thunk a
-dependent of `c`. A generic reactive primitive (cf. Solid's `untrack`, MobX's
-`untracked`) — for callers that want to *sample* a cell's current value rather
-than subscribe to it.
 """
 function Base.peek(c::ReactiveCell)
     c.valid || _recompute!(c)
     return c.value
 end
 
-# ── helpers ──────────────────────────────────────────────────────────────
+# ── the upstream edge ────────────────────────────────────────────────────────
 
 function _detach_upstream!(c::ReactiveCell)
     c.dependencies === nothing && return
@@ -346,26 +336,28 @@ function _detach_upstream!(c::ReactiveCell)
     empty!(c.dependencies)
 end
 
-# ── the downstream edge ────────────────────────────────────────────────────
+# ── the downstream edge ──────────────────────────────────────────────────────
 #
-# `dependents` exists to propagate INVALIDATION downstream. It must not keep the
-# reader ALIVE, so it holds `WeakRef`s. A strong set here meant that every cell a
-# document was ever read by — every projection pipeline ever printed from it, and
-# every span a printer shed while recomputing — was pinned for ever, because the only
-# place an edge was removed was `recompute!`, and a discarded cell never recomputes.
+# `dependents` carries invalidation down to the readers, and it must not keep a
+# reader alive, so it holds `WeakRef`s. With strong edges, a cell would keep alive
+# every cell that ever read it: every projection printed from a document, and
+# every span that a printer drops when it computes again. A reader removes its
+# edges only when it computes again or is written, and a cell that nothing holds
+# never does either.
 #
-# A `Vector` with a linear identity scan, not a hash set: the set is *tiny* (across a
-# live pipeline, mean 0.85, median 1, p99 3, max 40 — one cell in 4173 exceeds 16), and
-# at that size hashing is pure overhead. Measured, this is ~3x faster than the `Set` it
-# replaces on the hot path, 1.4x faster to detach and 4-10x faster to invalidate. A
-# `WeakKeyDict` — the obvious choice — is 7x SLOWER, because its lock dominates.
-# See plan/pending/reactive-dependents-leak.md.
+# The edges are in a `Vector`, which a linear scan by identity searches, and not
+# in a hash set, because the set is small. Across a live pipeline the mean size is
+# 0.85, the median 1, the 99th percentile 3 and the largest 40, and one cell in
+# 4173 has more than 16. Against a `Set`, the vector is about 3 times faster to
+# register a reader, 1.4 times faster to detach one and 4 to 10 times faster to
+# invalidate. A `WeakKeyDict` is 7 times slower than the `Set`, because its lock
+# costs the most. The measurements are in plan/done/reactive-dependents-leak.md.
 #
-# Both helpers prune entries whose reader has been collected, in the scan they are
-# already doing, so dead `WeakRef`s never accumulate.
+# Both helpers remove the entries of collected readers in the scan that they do
+# anyway, so dead `WeakRef`s do not collect in the vector.
 
-# `@nospecialize` on both: `observer` reaches here from the computing stack and
-# `c` from another cell's `deps`, and both of those hold `ReactiveCell` with a
+# `@nospecialize` on both: `observer` comes from the computing stack and `c` from
+# the `dependencies` of another cell, and both of those hold `ReactiveCell` with a
 # free parameter. The body walks a `Vector{WeakRef}` and compares with `===`; it
 # never reads `T`.
 function _register_dependent!(@nospecialize(c::ReactiveCell),
@@ -375,7 +367,9 @@ function _register_dependent!(@nospecialize(c::ReactiveCell),
     @inbounds while i <= n
         v = ds[i].value
         if v === nothing
-            ds[i] = ds[n]; pop!(ds); n -= 1     # collected: swap-remove, re-examine slot i
+            # The reader was collected: move the last entry here, and look at
+            # slot `i` again.
+            ds[i] = ds[n]; pop!(ds); n -= 1
         elseif v === observer
             return nothing                      # already registered
         else
@@ -386,8 +380,9 @@ function _register_dependent!(@nospecialize(c::ReactiveCell),
     return nothing
 end
 
-# The mirror of `_register_dependent!`, and `c` is the one that arrives with a
-# free parameter here: `recompute!` iterates `c.deps`, a `Set{ReactiveCell}`.
+# The mirror of `_register_dependent!`. Here `c` is the one with a free
+# parameter: `_detach_upstream!` takes it out of `dependencies`, a
+# `Set{ReactiveCell}`.
 function _unregister_dependent!(@nospecialize(c::ReactiveCell),
                                 @nospecialize(observer::ReactiveCell))
     ds = c.dependents
@@ -404,7 +399,7 @@ function _unregister_dependent!(@nospecialize(c::ReactiveCell),
     return nothing
 end
 
-# ── display ──────────────────────────────────────────────────────────────
+# ── display ──────────────────────────────────────────────────────────────────
 
 function Base.show(io::IO, c::ReactiveCell)
     kind = c.thunk === nothing ? "primitive" : "computed"

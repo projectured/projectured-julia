@@ -1,22 +1,30 @@
-# Fragment of `CellModule` — the computed marker. Included before the cell kinds:
-# the reactive kind's constructor dispatches on it.
+# Fragment of `CellModule` — the marker of a computation. The constructor of the
+# reactive kind dispatches on it, so this file comes before the kinds.
 
 """
     Computed(thunk::Function)
 
-Marks `thunk` as a cell's **computation** rather than its value.
-`ReactiveCell{T}(Computed(f))` (spelled `ComputedCell(f)` for the untyped case)
-builds a computed cell whose thunk is `f`; every other argument — a `Function`
-included — is stored as the cell's value.
+The marker that makes a cell compute: the cell runs `thunk` to get its value,
+and does not store `thunk` as its value.
 
-Computedness is thus decided at the write site by a distinct type, never inferred
-from what the value happens to be. That is what lets a cell hold a callable — a
-callback, a predicate, a factory — as ordinary data: the only function a cell ever
-calls is one that arrived inside this marker.
+Use it to give a computation to a cell where a value goes: to a typed cell, to a
+write into a cell that exists, or to a field of a document. `thunk` takes no
+argument. A cell stores every other value as it is, a function too, so a cell
+can hold a callback or a predicate as data.
 
-A `Computed` is cell vocabulary, not a value. It is consumed by the cell it is
-handed to and never stored in one; and only the reactive kind has a computation to
-hold, so handing it to another kind is an error rather than a silent box.
+# Example
+
+    width = Cell(80)
+    label = ReactiveCell{String}(Computed(() -> "width " * string(width[])))
+    label[]                              # "width 80"
+    label[] = Computed(() -> "fixed")    # the cell computes something else now
+
+The cell keeps the thunk and not the marker. Only a `ReactiveCell` can compute,
+so a `MutableCell` or an `ImmutableCell` throws an `ArgumentError` when it gets a
+`Computed`.
+
+See also `ComputedCell`, which makes an untyped computed cell, and
+`set_cell_function!`.
 """
 struct Computed
     thunk::Function

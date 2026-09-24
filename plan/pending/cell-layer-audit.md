@@ -49,7 +49,7 @@ The question of `Computed` against `ComputedCell` is a plan of its own:
   first half; `CellDefaults.jl` holds the methods of both; `has_dependents`
   becomes `has_dependent_cells` in the code, the tests and the guides;
   `_reject_computation` throws an `ArgumentError`.
-- [ ] 4. The comments and docstrings of `ReactiveCell.jl`, `CellDefaults.jl` and
+- [x] 4. The comments and docstrings of `ReactiveCell.jl`, `CellDefaults.jl` and
   `CellComputed.jl`: no history, no first person, no repeated half, no false
   claim, no line over 90 characters.
 - [ ] 5. `CellModule.jl`: the docstring in the writing rules, the `using` of
