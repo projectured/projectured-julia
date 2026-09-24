@@ -63,23 +63,52 @@ New exported names: `get_cell_struct_parameter_names`,
 ## Steps
 
 - [x] 1. Unseal the layer in `SEALING.md`, and add this plan.
-- [ ] 2. The plan fragment. The field names, the parameter names and slots, the
-  rejection of an inner constructor, `ArgumentError` for a bad argument, the
-  kinds as types, the private names, and the docstrings and comments. The
-  callers in `CellStruct.jl` and `DocumentMacro.jl` follow, and the bounded
-  parameter works in every emitter of `DocumentMacro.jl`. Tests.
-- [ ] 3. The code generation fragment. `build_cell_struct_positional_ctors`
-  moves here. `build_cell_struct_field_type`, `get_cell_value_type`, `Cell` as an
-  object, type parameters, the private names, the argument parse, no branch for
-  a field that is not a cell, and the docstrings and comments. `DocumentMacro.jl`
-  uses the shared functions. Tests.
-- [ ] 4. The module file: the docstring, and the export block in the order of the
+- [x] 2. Both fragments, their callers and their tests, in one commit. The two
+  fragments change their callers together, so a split would add code that the
+  next step removes.
+  - The plan fragment: the field names, the parameter names and slots, the
+    rejection of an inner constructor, `ArgumentError` for a bad argument, the
+    kinds as types, the private names, the docstrings and the comments.
+  - The code generation fragment: `build_cell_struct_positional_ctors` moves here;
+    `build_cell_struct_field_type`, `get_cell_value_type`, `Cell` as an object,
+    type parameters, the private names, the argument parse, one-line property
+    methods with no branch for each field, the docstrings and the comments.
+  - `DocumentMacro.jl`: the new field names, the kinds as types, the shared
+    functions in place of `_default_cell_type` and `_document_param_type`, and the
+    parameter names in every type application.
+  - Tests: 51 in `test_cell_struct`, 47 in `test_cell_struct_plan`, and a bounded
+    parameter in `test_document_macro`.
+- [x] 3. The module file: the docstring, and the export block in the order of the
   export rule. `CellStructModule` leaves `EXPORT_UNMIGRATED`.
-- [ ] 5. Outside the layer: the docstrings of the two test files, the import of
+- [ ] 4. Outside the layer: the docstrings of the two test files, the import of
   `get_cell_struct_kind` from its owner in `ProjecturedSubstrateTest`, and the
   guides `cell.md`, `macros.md`, `testing-guide.md` and
   `architecture-invariants.md`.
-- [ ] 6. Verification, and the move of this plan to `plan/done/`.
+- [ ] 5. Verification, and the move of this plan to `plan/done/`.
+
+## What the implementation found
+
+- The docstrings of `CellStructPlan` and `make_cell_struct_plan` said that the
+  parse removes each default from the body. The body keeps the default until
+  `retype_cell_struct_fields!` writes the slot of the field. The docstrings say
+  that now.
+- The bounded parameter broke six places, not four: the positional
+  constructors of this layer, and in `DocumentMacro.jl` the inner constructor,
+  the right side of the spelling aliases, the kind constructors, the method of
+  `_declared_value_types` and `_emit_collection_ctor_at`. The struct head, the
+  native struct head and the left side of an alias take the declarations, and
+  they were right.
+- `_emit_collection_ctor_at` in `DocumentMacro.jl` had its own copy of the rule
+  for the parameters. It asks `find_cell_struct_parameter_slots` now.
+- A field docstring is a plain `String` in the body of a quoted struct, so the
+  parse skips it.
+- A reactive field stores only a `Cell` as its cell. It wraps a cell of another
+  type, such as a `ReactiveCell{Int}` or an `ImmutableCell`, in a new `Cell`, and
+  that makes a nested cell. The docstring states this. A change needs a decision
+  of the owner, so it is not part of this plan.
+- `test_document_macro` gives 3 fails and 2 errors in Rule C on `main` and in the
+  worktree. The collection trait lives in a package above the kernel test
+  package, so Rule C does not run there.
 
 ## Verification
 

@@ -1,21 +1,14 @@
 # Fragment of `DocumentModule` — the `@document` codegen.
 #
 # The macro is a parse followed by six emitters. It reads the struct definition
-# into a `CellStructPlan` (the cell layer's shared parse), appends the `selection`
+# into a `CellStructPlan` (the struct layer's parse), appends the `selection`
 # field every document must carry, and then each emitter below is a pure function
 # of that plan producing one piece of the expansion. Rule Y — positional
 # constructors filling a trailing run of defaults — is not document-specific and
-# lives with the other constructor builders in the cell layer.
+# lives with the other constructor builders in the struct layer.
 
 # The reactive default a bare `Foo(…)` wraps a raw value in: the untyped `Cell`.
 const _REACTIVE_ANY = ReactiveCell{Any}
-
-# The value a cell holds, or the value itself when it is not one. A document's own
-# type parameter names a field's VALUE type, and the auto-wrapping constructor may
-# be handed either form for that field, so binding the parameter has to see through
-# a cell.
-_document_param_type(x) = typeof(x)
-_document_param_type(::AbstractCell{T}) where {T} = T
 
 # ── The layout list ───────────────────────────────────────────────────────────
 # `@document [C, M] struct Foo … end` says which layouts the schema emits, and its
@@ -37,7 +30,7 @@ const _KNOWN_LAYOUTS   = (:C, :DC, :M, :I)
     _take_layout_list(args) -> (layouts::Tuple{Vararg{Symbol}}, rest)
 
 Pull the layout list out of a `@document` argument list, wherever it sits, and
-return it with the remaining arguments for [`parse_cell_struct_macro_default`](@ref).
+return it with the remaining arguments for [`parse_cell_struct_macro_arguments`](@ref).
 The canonical order writes the field-kind marker first
 (`@document ImmutableCell [C] struct …`), but a list is recognised in any leading
 position, so no spelling of it is rejected.
@@ -67,14 +60,6 @@ function _take_layout_list(args)
     codes = :DC in codes && !(:C in codes) ? [codes..., :C] : codes
     (Tuple(codes), args[[j for j in eachindex(args) if j != i]])
 end
-
-# The default cell TYPE a field wraps a raw value in, from its declared kind. Reactive
-# keeps the untyped `ReactiveCell{Any}` (loose bound); immutable/mutable use
-# the typed cell so it inlines — the same typed cells the `ICFoo`/`MCFoo` aliases build.
-_default_cell_type(kind, vt) =
-    kind === :immutable ? Expr(:curly, ImmutableCell, vt) :
-    kind === :mutable   ? Expr(:curly, MutableCell,  vt) :
-    _REACTIVE_ANY
 
 # The NAME of a declared field type, for asking a seam keyed on `Val{name}`:
 # `:Vector` for both `Vector{T}` and a bare `Vector`, and `nothing` for anything
@@ -121,11 +106,11 @@ function _emit_stem!(plan)
     # The programmer's OWN type parameters come first, then one cell parameter per
     # field. A layout restores the struct the programmer would have written, so
     # `struct Foo{A}` has to stay `Foo{A, …}` and not become `Foo{A}{…}`.
-    plan.structdef.args[2] = Expr(:(<:),
-        Expr(:curly, plan.name, plan.params...,
+    plan.definition.args[2] = Expr(:(<:),
+        Expr(:curly, plan.name, plan.parameters...,
              [Expr(:(<:), C, AbstractCell) for C in Cs]...),
         plan.supertype)
-    plan.structdef
+    plan.definition
 end
 
 """
@@ -143,36 +128,30 @@ args already `ReactiveCell{Any}` (machinery reconstruction, cell-sharing ctors,
 same-kind `copy_document`) and no arg a cell at all (parsers, bulk building). Only
 genuinely mixed / typed-cell construction pays the generic path.
 """
-function _emit_autowrap_ctor(plan, arg_names; default::Symbol = :reactive)
+function _emit_autowrap_ctor(plan, arg_names; default = ReactiveCell)
     n = length(plan.field_names)
     # Per-field default kind and value type. `def_types[i]` is the cell type a raw
     # value in field i defaults to; `default` is the struct-level default (from a
     # leading macro kind) for any field that does not name its own kind — the injected
     # `selection` field is such a field, so it follows `default` too. With no leading
-    # kind (`default = :reactive`) and nothing annotated these are all `ReactiveCell{Any}`
-    # and every path below reduces to the plain untyped-cell codegen.
+    # kind (`default = ReactiveCell`) and nothing annotated these are all
+    # `ReactiveCell{Any}` and every path below reduces to the plain untyped-cell codegen.
     kinds     = get_cell_struct_field_kinds(plan; default = default)
     vts       = get_cell_struct_value_types(plan)
-    def_types = Any[_default_cell_type(kinds[i], vts[i]) for i in 1:n]
-    raw_wrap(i) = kinds[i] === :reactive ? :($(_REACTIVE_ANY)($(arg_names[i]))) :
-                                           :($(def_types[i])($(arg_names[i])))
+    def_types = Any[build_cell_struct_field_type(kinds[i], vts[i]) for i in 1:n]
+    raw_wrap(i) = :($(def_types[i])($(arg_names[i])))
     rc_any   = fill(_REACTIVE_ANY, n)
-    # A programmer's parameter names a field's value type, so it is bound from the
-    # argument for the FIRST field whose declared type is exactly that parameter.
-    # A parameter used only inside a larger type expression (`Vector{A}`) cannot be
-    # recovered this way and is refused, rather than silently bound to `Any`.
-    # A parameter that IS some field's declared type can be bound from that
-    # argument, and the inferring outer constructor below is emitted. One that only
-    # appears inside a larger expression (`EventHeap{A}`) cannot, so that schema
-    # gets the explicit spelling `Foo{A}(…)` and no inferring form — which is
-    # honest, rather than binding it to `Any` behind the programmer's back.
-    pidx = [findfirst(==(P), plan.field_types) for P in plan.params]
-    inferrable = !isempty(plan.params) && all(!isnothing, pidx)
+    # A parameter binds from the argument that `find_cell_struct_parameter_slots`
+    # gives, and the inferring outer constructor below is emitted. A schema with a
+    # parameter that binds from no argument gets only the explicit `Foo{A}(…)`.
+    names = get_cell_struct_parameter_names(plan)
+    slots = find_cell_struct_parameter_slots(plan)
+    inferrable = !isempty(names) && slots !== nothing
     # All args are `ReactiveCell{Any}`, so every value type IS `Any` — a constant,
     # which is what keeps this path free of a runtime `apply_type`.
     # With explicit parameters the three paths all splice the parameter NAMES; the
     # inferring outer form computes them once and delegates here.
-    up = Any[plan.params...]
+    up = Any[names...]
     up_rc = up_raw = up_mixed = up
     all_rc   = mapreduce(a -> :($a isa $(_REACTIVE_ANY)), (x, y) -> :($x && $y), arg_names)
     any_cell = mapreduce(a -> :($a isa $(AbstractCell)),   (x, y) -> :($x || $y), arg_names)
@@ -182,9 +161,9 @@ function _emit_autowrap_ctor(plan, arg_names; default::Symbol = :reactive)
                   for i in 1:n]
     # The head carries the programmer's parameters when there are any, so `new{…}`
     # can name them; a schema with none keeps exactly the constructor it had.
-    head = isempty(plan.params) ? :($(plan.name)($(arg_names...))) :
-           Expr(:where, :($(Expr(:curly, plan.name, plan.params...))($(arg_names...))),
-                plan.params...)
+    head = isempty(names) ? :($(plan.name)($(arg_names...))) :
+           Expr(:where, :($(Expr(:curly, plan.name, names...))($(arg_names...))),
+                plan.parameters...)
     body = quote
         if $all_rc
             return $(Expr(:call, Expr(:curly, :new, up_rc..., rc_any...), arg_names...))
@@ -203,7 +182,8 @@ function _emit_autowrap_ctor(plan, arg_names; default::Symbol = :reactive)
     outer = inferrable ?
         :($(plan.name)($(arg_names...)) =
               $(Expr(:curly, plan.name,
-                     [:($(_document_param_type)($(arg_names[i]))) for i in pidx]...))($(arg_names...))) :
+                     [:($(get_cell_value_type)($(arg_names[i]))) for i in slots]...))(
+                  $(arg_names...))) :
         nothing
     (inner, outer)
 end
@@ -247,8 +227,9 @@ combination); `RCFoo` / `ICFoo` / `MCFoo` wrap every field in one kind's *typed*
 cells, so a fully-conforming node inhabits its alias.
 """
 function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
-                            default::Symbol = :reactive)
+                            default = ReactiveCell)
     n     = length(plan.field_names)
+    names = get_cell_struct_parameter_names(plan)
     # The CELL layout's value types, with any registered substitution applied.
     Tvals = _cell_value_types(plan)
     kinds = get_cell_struct_field_kinds(plan; default = default)
@@ -261,8 +242,8 @@ function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
     # programmer declared parameters: the cell parameters of a parametric stem
     # mention `A`, so the alias cannot close over it.
     alias(nm, cellparams) = Expr(:const, Expr(:(=),
-        isempty(plan.params) ? nm : Expr(:curly, nm, plan.params...),
-        Expr(:curly, plan.name, plan.params..., cellparams...)))
+        isempty(names) ? nm : Expr(:curly, nm, plan.parameters...),
+        Expr(:curly, plan.name, names..., cellparams...)))
     # `DCFoo` names the concrete **default combination** the bare `Foo(raw…)` ctor
     # builds — each field in its default kind (`ReactiveCell{Any}`, or the struct
     # default from a leading macro kind). For a value-document (immutable default,
@@ -272,7 +253,7 @@ function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
         alias(r_name, fill(_REACTIVE_ANY, n)),
         alias(i_name, [Expr(:curly, ImmutableCell, T) for T in Tvals]),
         alias(m_name, [Expr(:curly, MutableCell,  T) for T in Tvals]),
-        alias(d_name, [_default_cell_type(kinds[i], Tvals[i]) for i in 1:n]),
+        alias(d_name, [build_cell_struct_field_type(kinds[i], Tvals[i]) for i in 1:n]),
     ]
 
     # A kind constructor names the DECLARED field types, and those mention the
@@ -281,11 +262,11 @@ function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
     # and the body names it, exactly as the bare constructor above does:
     # `ICFoo{A}(raw…)`. A schema with no parameter keeps the constructor it had.
     kind_ctor(kname, K) = Expr(:(=),
-        isempty(plan.params) ? :($(kname)($(arg_names...))) :
-            Expr(:where, :($(Expr(:curly, kname, plan.params...))($(arg_names...))),
-                 plan.params...),
-        Expr(:call, isempty(plan.params) ? plan.name :
-                    Expr(:curly, plan.name, plan.params...),
+        isempty(names) ? :($(kname)($(arg_names...))) :
+            Expr(:where, :($(Expr(:curly, kname, names...))($(arg_names...))),
+                 plan.parameters...),
+        Expr(:call, isempty(names) ? plan.name :
+                    Expr(:curly, plan.name, names...),
             [:($a isa $(AbstractCell) ? $a : $(Expr(:curly, K, Tvals[i]))($a))
              for (i, a) in enumerate(arg_names)]...))
 
@@ -300,13 +281,13 @@ function _emit_kind_aliases(plan, arg_names; schema::Symbol = plan.name,
     # the default `nothing`, so the copy reads the source's own field types
     # instead. The types are not knowable without the parameters, and saying so
     # is what the default means.
-    dvt = isempty(plan.params) ?
+    dvt = isempty(names) ?
         :((::typeof($(_declared_value_types)))(::Type{<:$(plan.name)}) = ($(Tvals...),)) :
         Expr(:(=),
              Expr(:where,
                   :((::typeof($(_declared_value_types)))(
-                        ::Type{<:$(Expr(:curly, plan.name, plan.params...))})),
-                  plan.params...),
+                        ::Type{<:$(Expr(:curly, plan.name, names...))})),
+                  plan.parameters...),
              Expr(:tuple, Tvals...))
 
     # The cell layout and its spelling aliases are all generated API, so the macro
@@ -337,7 +318,7 @@ selection, so there is no hand-written constructor to protect and `Foo()` must
 come from somewhere, which Rule Y cannot supply (`get_cell_struct_required_count == 0`).
 """
 function _emit_keyword_ctors(plan; schema::Symbol = plan.name)
-    (plan.n_programmer_defaults > 0 || plan.n_declared == 0) || return Any[]
+    (plan.programmer_default_count > 0 || plan.declared_field_count == 0) || return Any[]
     kw_params = build_cell_struct_keyword_parameters(plan.field_names, plan.defaults)
     # The unprefixed one goes on the cell layout's own type name, not on the bare
     # name. When the bare name is bound to a spelling it reaches this method through
@@ -383,11 +364,13 @@ function _emit_collection_ctor_at(plan, k)
     # Named the way Rule Y names it: a parameter that no field's declared type
     # is takes its place at the call, and one that a field's type is comes from
     # the argument.
-    needs_parameters = !isempty(plan.params) &&
-                       !all(P -> P in plan.field_types, plan.params)
-    named    = needs_parameters ? Expr(:curly, plan.name, plan.params...) : plan.name
+    needs_parameters = !isempty(plan.parameters) &&
+                       find_cell_struct_parameter_slots(plan) === nothing
+    named    = needs_parameters ?
+               Expr(:curly, plan.name, get_cell_struct_parameter_names(plan)...) :
+               plan.name
     head     = needs_parameters ?
-               Expr(:where, :($(named)($(params...))), plan.params...) :
+               Expr(:where, :($(named)($(params...))), plan.parameters...) :
                :($(plan.name)($(params...)))
     (Expr(:(=), head, Expr(:block, Expr(:call, named, callargs..., filled...))),)
 end
@@ -450,7 +433,7 @@ function _emit_native(plan, family, native; mutable::Bool)
     # parameters and nothing else — no cell parameters, because it holds no cells.
     # The family stays unparameterized, so `MFoo{A} <: AFoo` and every signature
     # written against the family keeps working.
-    head = isempty(plan.params) ? native : Expr(:curly, native, plan.params...)
+    head = isempty(plan.parameters) ? native : Expr(:curly, native, plan.parameters...)
     Expr(:struct, mutable, Expr(:(<:), head, family), Expr(:block, fields...))
 end
 
@@ -571,7 +554,7 @@ function _document_expr(args)
     args = isempty(args) ? args :
            (map(_bare_kind, args[1:end-1])..., args[end])
     layouts, rest = _take_layout_list(args)
-    default, structdef = parse_cell_struct_macro_default(rest)
+    default, structdef = parse_cell_struct_macro_arguments(rest)
     structdef.head === :struct || error("@document expects a struct definition")
     plan = make_cell_struct_plan(structdef)
 
@@ -643,9 +626,10 @@ function _document_expr(args)
     # (transitive). It also takes `cell_name`, which is the programmer's own name
     # unless the bare name was bound elsewhere. From here `plan.name` is the cell
     # layout's *type* name, and `schema` is what coded names are built from.
-    plan = CellStructPlan(plan.structdef, cell_name, plan.params, family, plan.field_names,
-                      plan.field_types, plan.field_slots, plan.defaults,
-                      plan.n_declared, plan.n_programmer_defaults)
+    plan = CellStructPlan(plan.definition, cell_name, plan.parameters, family,
+                          plan.field_names, plan.field_types, plan.field_slots,
+                          plan.defaults, plan.declared_field_count,
+                          plan.programmer_default_count)
 
     # One gensym'd argument list, shared by the inner ctor and the kind ctors.
     arg_names = [gensym(f) for f in plan.field_names]
@@ -680,7 +664,7 @@ function _document_expr(args)
         native_def = _emit_native(plan, family, native; mutable = native_mutable)
         push!(native_parts, binding in (:M, :I) ? :(Base.@__doc__ $native_def) : native_def)
         append!(native_parts, build_cell_struct_positional_ctors(plan, native))
-        if plan.n_programmer_defaults > 0 || plan.n_declared == 0
+        if plan.programmer_default_count > 0 || plan.declared_field_count == 0
             push!(native_parts, build_cell_struct_keyword_constructor(native, plan.field_names,
                                 build_cell_struct_keyword_parameters(plan.field_names, plan.defaults)))
         end
@@ -726,7 +710,7 @@ function _document_expr(args)
              _emit_kind_aliases(plan, arg_names; schema = schema, default = default)...,
              binding_parts...,
              _emit_keyword_ctors(plan; schema = schema)...,
-             # Rule Y (the cell layer's, generic over any cell struct), each arity
+             # Rule Y (the struct layer's, generic over any cell struct), each arity
              # followed by its Rule C companion; then Rule C's element-sugar tail.
              build_cell_struct_positional_ctors(plan, plan.name;
                                           each_arity = k -> _emit_collection_ctor_at(plan, k))...,

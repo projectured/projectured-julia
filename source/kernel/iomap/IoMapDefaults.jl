@@ -24,7 +24,7 @@ re-derive. Keeping the IoMap's identity while its fields re-derive is what lets 
 sit in a chain and have other projections wire to it.
 """
 macro iomap(args...)
-    default, structdef = parse_cell_struct_macro_default(args)
+    default, structdef = parse_cell_struct_macro_arguments(args)
     structdef.head === :struct || error("@iomap expects a struct definition")
     name_expr = structdef.args[2]
     if !(name_expr isa Expr && name_expr.head === :(<:))

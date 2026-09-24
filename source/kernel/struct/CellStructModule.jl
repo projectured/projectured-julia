@@ -1,34 +1,38 @@
 """
     CellStructModule
 
-The transparent-cell **struct toolkit** for a `struct` whose fields are
-transparent `Cell`s. The compile-time codegen is two pieces, each documented at
-its own definition:
+A struct whose fields are cells, and the code generation that makes one.
+`@cell_struct` writes each field as a cell, and generates a constructor that wraps
+a value in a cell and property methods that read and write the value of a cell.
+The builders of that code are public, so a macro that makes a struct of cells with
+parts of its own starts from them.
 
-  - the **struct plan** ([`CellStructPlan`](@ref) and its builders) — the parse of a
-    `struct` definition (field names, declared types, defaults, cell kinds) a
-    transparent-cell macro performs before it can emit code; and
-  - the [`@cell_struct`](@ref) **codegen** ([`build_cell_struct_exprs`](@ref) and its
-    expr-builders) — which rewrites every field to a `::Cell`, adds the
-    auto-wrapping inner constructor and the transparent property accessors, and
-    forms a reusable composition seam.
+A kind is one of the types `ReactiveCell`, `ImmutableCell` and `MutableCell` of
+[`CellModule`](@ref), when a macro expands and at run time. The guide
+`kernel/cell` explains the struct of cells with the cell engine.
 
-At runtime, [`get_cell_struct_kind`](@ref) reads back the cell kind a generated
-struct is built from, off its first field.
+The module lives in two fragments that share this namespace:
 
-Built on [`CellModule`](@ref): the codegen wraps field values in the cell kinds
-that module defines. [cell.md](../../doc/cell.md) covers the mechanics and
-examples.
+- [`CellStructPlan.jl`](CellStructPlan.jl) — `CellStructPlan`, the parse of a
+  `struct` definition, and the questions about the fields and the type parameters
+  that a builder asks it.
+- [`CellStruct.jl`](CellStruct.jl) — `@cell_struct`, the builders that return its
+  parts as expressions, and the two functions that read a struct of cells at run
+  time.
 """
 module CellStructModule
 
 using ..CellModule
 
-export var"@cell_struct", build_cell_struct_exprs, build_cell_struct_keyword_parameters, build_cell_struct_keyword_constructor,
-       build_cell_struct_positional_ctors, parse_cell_struct_macro_default
-export CellStructPlan, make_cell_struct_plan, add_cell_struct_field!, retype_cell_struct_fields!,
-       get_cell_struct_value_types, get_cell_struct_field_kinds, get_cell_kind, get_cell_struct_required_count, get_cell_struct_trailing_default_count,
-       get_cell_struct_kind
+export CellStructPlan, make_cell_struct_plan, add_cell_struct_field!,
+       retype_cell_struct_fields!, get_cell_struct_value_types,
+       get_cell_struct_field_kinds, get_cell_struct_parameter_names,
+       find_cell_struct_parameter_slots, get_cell_struct_trailing_default_count,
+       get_cell_struct_required_count
+export build_cell_struct_field_type, build_cell_struct_keyword_parameters,
+       build_cell_struct_keyword_constructor, build_cell_struct_positional_ctors,
+       build_cell_struct_exprs, parse_cell_struct_macro_arguments, @cell_struct,
+       get_cell_value_type, get_cell_struct_kind
 
 include("CellStructPlan.jl")
 include("CellStruct.jl")

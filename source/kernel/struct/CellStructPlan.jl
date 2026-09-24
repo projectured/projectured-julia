@@ -1,107 +1,112 @@
-# Fragment of `CellStructModule` — the **struct plan**: what a macro needs to know
-# about a `struct` definition before it can emit code for it, parsed once.
-#
-# A `struct` definition uses the same three field forms — bare `f`, typed
-# `f::T`, defaulted `f[::T] = v`. The plan reads all three, strips the defaults
-# out of the body (a `struct` cannot carry them), and remembers them for the
-# constructors. That parse is the same wherever it is needed, so it is written
-# here, once — a caller takes a `CellStructPlan` instead of re-walking the AST.
-#
-# The plan keeps each field's *slot* — its index in the struct body — rather than
-# rebuilding the body, because the body's `LineNumberNode`s are what give a field a
-# source location in errors and docs. `retype_cell_struct_fields!` overwrites the slots in
-# place and leaves those nodes where they are.
+# Fragment of `CellStructModule` — the parse of a `struct` definition into a
+# `CellStructPlan`, and the questions about the fields and the type parameters that
+# a builder asks the plan.
 
 """
     CellStructPlan
 
-The parsed form of a `struct` definition: its name, supertype, fields (names,
-declared types, and the slot each occupies in the body), and the `@kwdef`-style
-defaults stripped out of it.
+A `struct` definition, parsed: the name, the type parameters, the supertype, the
+fields and the defaults. Every builder of the struct layer reads it.
 
-`n_declared` and `n_programmer_defaults` record the counts **as the programmer
-wrote them**, before any field is appended — a caller that appends a field needs
-to tell the programmer's defaults apart from its own.
-
-`params` holds the type parameters of `struct Foo{A, B}` as the programmer wrote
-them, and is empty for a struct that declares none. A layout is a RESTORATION of
-the struct the programmer would have written by hand, so every layout has to
-reproduce those parameters; only the cell layout appends its own per-field cell
-parameters after them.
+- `definition` is the `struct` expression. The builders change it in place.
+- `parameters` holds each type parameter as the programmer wrote it, such as
+  `A<:Real`. It is empty when the struct has none.
+- `supertype` is the supertype expression, or `nothing` when none is written.
+- `field_types` holds the declared type of each field, or `nothing` for a field
+  without one.
+- `field_slots` holds the index of each field in the body of `definition`.
+- `defaults` maps the name of a field to its default expression.
+- `declared_field_count` and `programmer_default_count` count the fields and the
+  defaults of the source. A field that `add_cell_struct_field!` adds does not
+  change them.
 """
 struct CellStructPlan
-    structdef             :: Expr
-    name                  :: Symbol
-    params                :: Vector{Any}    # the programmer's OWN type parameters
-    supertype             :: Any            # expr / symbol, or `nothing` if unwritten
-    field_names           :: Vector{Symbol}
-    field_types           :: Vector{Any}    # declared type expr, or `nothing` if untyped
-    field_slots           :: Vector{Int}    # index of each field's expr in the body
-    defaults              :: Dict{Symbol,Any}
-    n_declared            :: Int
-    n_programmer_defaults :: Int
+    definition               :: Expr
+    name                     :: Symbol
+    parameters               :: Vector{Any}
+    supertype                :: Any
+    field_names              :: Vector{Symbol}
+    field_types              :: Vector{Any}
+    field_slots              :: Vector{Int}
+    defaults                 :: Dict{Symbol,Any}
+    declared_field_count     :: Int
+    programmer_default_count :: Int
 end
 
 """
-    make_cell_struct_plan(structdef) -> CellStructPlan
+    make_cell_struct_plan(definition) -> CellStructPlan
 
-Parse a `struct` definition. Handles the three field forms (`f`, `f::T`,
-`f[::T] = v`) and strips each default out of the body into the plan — the declared
-type is kept, since it still feeds typed constructors and aliases.
+Parse a `struct` definition. A field is `f`, `f::T`, `f = v` or `f::T = v`. The
+plan holds each default, and the body keeps it until `retype_cell_struct_fields!`
+writes the slot of the field.
+
+An inner constructor in the body is an error, because the builders generate the
+only inner constructor. Define the constructor outside the struct.
 """
-function make_cell_struct_plan(structdef)
-    structdef isa Expr && structdef.head === :struct ||
-        error("make_cell_struct_plan expects a struct definition")
-    name_expr = structdef.args[2]
-    has_super = name_expr isa Expr && name_expr.head === :(<:)
-    head      = has_super ? name_expr.args[1] : name_expr
-    supertype = has_super ? name_expr.args[2] : nothing
-    # `struct Foo{A, B}` — the head is a `:curly` and the name is inside it. Taking
-    # the head whole was what made a parametric document unwritable: the name went
-    # on to be wrapped in a `:curly` of per-field cell parameters, so `Foo{A}`
-    # emitted `Foo{A}{C1, …}`, which is not a type.
-    has_params = head isa Expr && head.head === :curly
-    name       = has_params ? head.args[1] : head
-    params     = has_params ? Any[head.args[2:end]...] : Any[]
-    name isa Symbol ||
-        error("make_cell_struct_plan: a struct name must be a symbol, got $(name)")
-    body      = structdef.args[3]
+function make_cell_struct_plan(definition)
+    definition isa Expr && definition.head === :struct ||
+        throw(ArgumentError("make_cell_struct_plan expects a struct definition"))
+    name_expr      = definition.args[2]
+    has_supertype  = name_expr isa Expr && name_expr.head === :(<:)
+    head           = has_supertype ? name_expr.args[1] : name_expr
+    supertype      = has_supertype ? name_expr.args[2] : nothing
+    has_parameters = head isa Expr && head.head === :curly
+    name           = has_parameters ? head.args[1] : head
+    parameters     = has_parameters ? Any[head.args[2:end]...] : Any[]
+    name isa Symbol || throw(ArgumentError(
+        "make_cell_struct_plan: the name of a struct must be a symbol, got `$(name)`"))
 
     field_names = Symbol[]
     field_types = Any[]
     field_slots = Int[]
-    defaults    = Pair{Symbol,Any}[]        # declaration order
-
-    for (i, ex) in enumerate(body.args)
-        if ex isa Symbol                                        # f
-            fname, ftype = ex, nothing
-        elseif ex isa Expr && ex.head === :(::) && length(ex.args) == 2   # f::T
-            fname, ftype = ex.args[1], ex.args[2]
-        elseif ex isa Expr && ex.head === :(=) && length(ex.args) == 2     # f[::T] = v
-            lhs = ex.args[1]
-            fname, ftype = lhs isa Symbol ? (lhs, nothing) : (lhs.args[1], lhs.args[2])
-            push!(defaults, fname => ex.args[2])
+    defaults    = Pair{Symbol,Any}[]
+    for (slot, expression) in enumerate(definition.args[3].args)
+        if expression isa Symbol                                      # f
+            field_name, field_type = expression, nothing
+        elseif _is_field_declaration(expression)                      # f::T
+            field_name, field_type = expression.args
+        elseif expression isa Expr && expression.head === :(=)        # f = v, f::T = v
+            left = expression.args[1]
+            if left isa Symbol
+                field_name, field_type = left, nothing
+            elseif _is_field_declaration(left)
+                field_name, field_type = left.args
+            else
+                _reject_inner_constructor(name, left)
+            end
+            push!(defaults, field_name => expression.args[2])
+        elseif expression isa Expr && expression.head === :function
+            _reject_inner_constructor(name, expression.args[1])
         else
-            continue                                            # LineNumberNode, etc.
+            continue                                    # a line number, a docstring
         end
-        push!(field_names, fname)
-        push!(field_types, ftype)
-        push!(field_slots, i)
+        push!(field_names, field_name)
+        push!(field_types, field_type)
+        push!(field_slots, slot)
     end
 
-    CellStructPlan(structdef, name, params, supertype, field_names, field_types, field_slots,
-               Dict(defaults), length(field_names), length(defaults))
+    CellStructPlan(definition, name, parameters, supertype, field_names, field_types,
+                   field_slots, Dict(defaults), length(field_names), length(defaults))
 end
+
+_is_field_declaration(expression) =
+    expression isa Expr && expression.head === :(::) &&
+    length(expression.args) == 2 && expression.args[1] isa Symbol
+
+_reject_inner_constructor(name, signature) = throw(ArgumentError(
+    "make_cell_struct_plan: `$(signature)` in the body of `$(name)` is an inner " *
+    "constructor. The builders generate the only inner constructor, so define " *
+    "this one outside the struct."))
 
 """
     add_cell_struct_field!(plan, name; type, default) -> CellStructPlan
 
-Append a field the caller supplies rather than one written in the source `struct`
-— it lands last, in the body and in the plan alike. The body slot is a
-placeholder; `retype_cell_struct_fields!` writes the field's real cell type into it.
+Add a field after the last field, in the plan and in the body of the definition.
+The field has the declared type `type` and the default `default`. Its slot holds
+`name::Any` until `retype_cell_struct_fields!` writes it.
 """
 function add_cell_struct_field!(plan::CellStructPlan, name::Symbol; type, default)
-    body = plan.structdef.args[3]
+    body = plan.definition.args[3]
     push!(body.args, :($(name)::Any))
     push!(plan.field_names, name)
     push!(plan.field_types, type)
@@ -111,141 +116,122 @@ function add_cell_struct_field!(plan::CellStructPlan, name::Symbol; type, defaul
 end
 
 """
-    retype_cell_struct_fields!(plan, cell_types) -> plan
+    retype_cell_struct_fields!(plan, types) -> CellStructPlan
 
-Rewrite every field in the struct body to `name::cell_types[i]` — in place, so the
-body's `LineNumberNode`s (and with them each field's source location) survive.
+Write `name::types[i]` into the slot of each field, which also removes the default
+of the field from the body. The function writes the slots in place, so each
+`LineNumberNode` of the body stays, and an error or a docstring still gives the
+source line of a field.
 """
-function retype_cell_struct_fields!(plan::CellStructPlan, cell_types)
-    body = plan.structdef.args[3]
+function retype_cell_struct_fields!(plan::CellStructPlan, types)
+    body = plan.definition.args[3]
     for (i, slot) in enumerate(plan.field_slots)
-        body.args[slot] = :($(plan.field_names[i])::$(cell_types[i]))
+        body.args[slot] = :($(plan.field_names[i])::$(types[i]))
     end
     plan
 end
 
-# A field's declared type may name a cell **kind** — `ImmutableCell{T}`,
-# `MutableCell{T}`, `ReactiveCell{T}`, or bare `Cell` — carrying the value type as
-# its parameter, or a plain value type (which means the reactive default). Detection
-# is syntactic on the reserved kind names (no resolved types exist at expansion
-# time); those names are reserved cell vocabulary, so the check is safe.
-_cell_kind_name(s::Symbol) =
-    s === :ImmutableCell ? :immutable :
-    s === :MutableCell   ? :mutable   :
-    (s === :ReactiveCell || s === :Cell) ? :reactive : nothing
+# The kind that a name in a field type or in a macro argument names, or `nothing`.
+# The check is on the name, because no type exists yet when a macro expands.
+_find_cell_kind(name::Symbol) =
+    name === :ImmutableCell ? ImmutableCell :
+    name === :MutableCell   ? MutableCell   :
+    name === :ReactiveCell || name === :Cell ? ReactiveCell : nothing
 
-"""
-    get_cell_kind(sym) -> :reactive | :immutable | :mutable | nothing
-
-Map a cell-kind **name** (`:ImmutableCell`, `:MutableCell`, `:ReactiveCell`, `:Cell`) to its kind,
-or `nothing` when `sym` names no kind. Used to read a leading struct-level default
-kind (`ImmutableCell struct …`).
-"""
-get_cell_kind(s::Symbol) = _cell_kind_name(s)
-
-# `(kind, value_type, explicit)` for one declared field type (`nothing` = untyped field).
-# `explicit` is true iff the type NAMES a cell kind; an unannotated (`f`) or plain-typed (`f::T`)
-# field reads as `:reactive` but is NOT explicit, so a struct-level default may override it.
-function _field_kind_type(ftype)
-    ftype === nothing && return (:reactive, :Any, false)
-    if ftype isa Symbol
-        k = _cell_kind_name(ftype)
-        return k === nothing ? (:reactive, ftype, false) : (k, :Any, true)
+# The kind that a declared field type names, or `nothing`, and the value type.
+# `ImmutableCell{Int}` gives `(ImmutableCell, :Int)`, `Int` gives `(nothing, :Int)`,
+# and a field without a type gives `(nothing, :Any)`.
+function _parse_field_type(field_type)
+    field_type === nothing && return (nothing, :Any)
+    if field_type isa Symbol
+        kind = _find_cell_kind(field_type)
+        return kind === nothing ? (nothing, field_type) : (kind, :Any)
     end
-    if ftype isa Expr && ftype.head === :curly && ftype.args[1] isa Symbol
-        k = _cell_kind_name(ftype.args[1])
-        k === nothing || return (k, length(ftype.args) ≥ 2 ? ftype.args[2] : :Any, true)
+    if field_type isa Expr && field_type.head === :curly && field_type.args[1] isa Symbol
+        kind = _find_cell_kind(field_type.args[1])
+        kind === nothing ||
+            return (kind, length(field_type.args) ≥ 2 ? field_type.args[2] : :Any)
     end
-    (:reactive, ftype, false)
+    (nothing, field_type)
 end
 
 """
     get_cell_struct_value_types(plan) -> Vector
 
-Each field's declared **value** type as an expr, with `Any` standing in for an
-untyped field. A field that names a cell kind (`ImmutableCell{T}`, …) contributes
-its parameter `T` — the kind wrapper is stripped, since this is the value-type
-vocabulary the typed (immutable / mutable) constructors and aliases are written in.
+The value type of each field, as an expression. A field `f::T` gives `T`, a field
+`f::ImmutableCell{T}` gives `T`, and a field without a type gives `Any`.
 """
 get_cell_struct_value_types(plan::CellStructPlan) =
-    Any[_field_kind_type(t)[2] for t in plan.field_types]
+    Any[last(_parse_field_type(type)) for type in plan.field_types]
 
 """
-    get_cell_struct_field_kinds(plan; default = :reactive) -> Vector{Symbol}
+    get_cell_struct_field_kinds(plan; default = ReactiveCell) -> Vector
 
-Each field's cell kind — `:reactive` / `:immutable` / `:mutable`. A field that **names** a kind
-(`f::ImmutableCell{T}`) keeps it; every other field (bare `f`, plain `f::T`) takes `default`, the
-struct-level default the caller passes from a leading kind argument. `default = :reactive` (no
-leading kind) leaves the result exactly as before.
+The kind of each field: `ReactiveCell`, `ImmutableCell` or `MutableCell`. A field
+whose type names a kind, such as `f::ImmutableCell{T}`, has that kind. Every other
+field has the kind `default`.
 """
-function get_cell_struct_field_kinds(plan::CellStructPlan; default::Symbol = :reactive)
-    kinds = Symbol[]
-    for t in plan.field_types
-        k, _, explicit = _field_kind_type(t)
-        push!(kinds, explicit ? k : default)
+get_cell_struct_field_kinds(plan::CellStructPlan; default = ReactiveCell) =
+    Any[something(first(_parse_field_type(type)), default) for type in plan.field_types]
+
+"""
+    get_cell_struct_parameter_names(plan) -> Vector{Symbol}
+
+The name of each type parameter: `A` for `A`, `A<:Real`, `A>:Int` and
+`Int<:A<:Real`. A type application such as `T{A}` takes the names, and a `where`
+clause or the head of a struct takes `plan.parameters`.
+"""
+get_cell_struct_parameter_names(plan::CellStructPlan) =
+    Symbol[_get_parameter_name(parameter) for parameter in plan.parameters]
+
+_get_parameter_name(parameter::Symbol) = parameter
+function _get_parameter_name(parameter::Expr)
+    parameter.head in (:(<:), :(>:)) && return parameter.args[1]
+    parameter.head === :comparison && return parameter.args[3]
+    throw(ArgumentError("`$(parameter)` is not a type parameter"))
+end
+
+"""
+    find_cell_struct_parameter_slots(plan) -> Vector{Int} | nothing
+
+For each type parameter, the index of the first field whose value type is that
+parameter. A constructor that names no parameter, `T(values…)`, binds each
+parameter from the argument at that index. The function returns `nothing` when a
+parameter is the value type of no field, such as `A` in `f::Vector{A}`. A caller
+then writes `T{A}(values…)`.
+"""
+function find_cell_struct_parameter_slots(plan::CellStructPlan)
+    value_types = get_cell_struct_value_types(plan)
+    slots = Int[]
+    for name in get_cell_struct_parameter_names(plan)
+        slot = findfirst(==(name), value_types)
+        slot === nothing && return nothing
+        push!(slots, slot)
     end
-    kinds
+    slots
 end
 
 """
     get_cell_struct_trailing_default_count(plan) -> Int
 
-How many fields at the **end** of the declaration run all the way to the last one
-with a default — the suffix a positional constructor may omit.
+The number of fields at the end of the declaration that have a default, counted
+back from the last field to the first field without one. A positional constructor
+can leave out these fields.
 """
 function get_cell_struct_trailing_default_count(plan::CellStructPlan)
-    n = 0
-    for fname in Iterators.reverse(plan.field_names)
-        haskey(plan.defaults, fname) || break
-        n += 1
+    trailing = 0
+    for field_name in Iterators.reverse(plan.field_names)
+        haskey(plan.defaults, field_name) || break
+        trailing += 1
     end
-    n
+    trailing
 end
 
 """
     get_cell_struct_required_count(plan) -> Int
 
-How many leading fields a positional constructor must be given: every field before
-the trailing run of defaulted ones.
+The number of fields that a positional constructor must get: every field before
+the fields that `get_cell_struct_trailing_default_count` counts.
 """
-get_cell_struct_required_count(plan::CellStructPlan) = length(plan.field_names) - get_cell_struct_trailing_default_count(plan)
-
-"""
-    build_cell_struct_positional_ctors(plan, target_name; each_arity = _ -> ()) -> Vector
-
-**Rule Y** — the positional analog of `@kwdef`: for a trailing run of defaulted
-fields, constructors `T(f₁..f_k)` that fill the omitted suffix with its defaults.
-
-Emitted only when at least one leading field is *required* (`get_cell_struct_required_count ≥ 1`),
-so a zero-argument form is never generated — that signature belongs to the keyword
-constructor, and a struct whose fields all default is left to it.
-
-`each_arity(k)` is called after the arity-`k` constructor and its result appended,
-so a caller can emit a companion constructor for the same arity. A caller whose
-companion *only* makes sense next to a Rule Y form gets the `get_cell_struct_required_count ≥ 1`
-gate for free this way, rather than re-deriving it and getting it wrong.
-"""
-function build_cell_struct_positional_ctors(plan::CellStructPlan, target_name; each_arity = _ -> ())
-    n   = length(plan.field_names)
-    req = get_cell_struct_required_count(plan)
-    ctors = Any[]
-    req ≥ 1 || return ctors
-    # A parameter of the programmer's own that IS some field's declared type is
-    # bound from that argument by the schema's own inferring constructor, so the
-    # bare name stays callable and these keep the form they had. One that only
-    # appears inside a larger type (`EventHeap{A}`) is not, so there the head
-    # carries the parameters and the call names them: `Foo{A}(kept…) where {A}`.
-    needs_parameters = !isempty(plan.params) &&
-                       !all(P -> P in plan.field_types, plan.params)
-    named    = needs_parameters ? Expr(:curly, target_name, plan.params...) : target_name
-    for k in req:(n - 1)
-        kept   = plan.field_names[1:k]
-        filled = Any[plan.defaults[plan.field_names[j]] for j in (k + 1):n]
-        head   = needs_parameters ?
-                 Expr(:where, :($(named)($(kept...))), plan.params...) :
-                 :($(target_name)($(kept...)))
-        push!(ctors, Expr(:(=), head, Expr(:block, Expr(:call, named, kept..., filled...))))
-        append!(ctors, each_arity(k))
-    end
-    ctors
-end
+get_cell_struct_required_count(plan::CellStructPlan) =
+    length(plan.field_names) - get_cell_struct_trailing_default_count(plan)

@@ -65,7 +65,6 @@ const EXPORT_UNMIGRATED = Set(String[
     "source/kernel/projection/ProjectionModule.jl",
     "source/kernel/reference/ReferenceModule.jl",
     "source/kernel/selection/SelectionModule.jl",
-    "source/kernel/struct/CellStructModule.jl",
     "source/kernel/tool/ToolModule.jl",
     "source/layout/LayoutModule.jl",
     "source/log/MessageLogModule.jl",

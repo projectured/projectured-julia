@@ -30,7 +30,7 @@ IoMaps as computed cells reading the parameters/input; a plain struct is fine on
 for a projection with no reactive parameters (see `@iomap`).
 """
 macro projection(args...)
-    default, structdef = parse_cell_struct_macro_default(args)
+    default, structdef = parse_cell_struct_macro_arguments(args)
     structdef.head === :struct || error("@projection expects a struct definition")
     name_expr = structdef.args[2]
     if !(name_expr isa Expr && name_expr.head === :(<:))

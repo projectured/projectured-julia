@@ -121,6 +121,15 @@ end
     box::Tuple{A}
 end
 
+# The same two shapes with a bound on the parameter. A `where` clause and a struct
+# head take `A<:Real`, and a type application takes `A` alone.
+@document struct DmBounded{A<:Real}
+    value::A
+end
+@document struct DmBoundedNested{A<:Real}
+    box::Tuple{A}
+end
+
 # How many methods of `T` take exactly `n` positional arguments, of which the one
 # in `slot` is an `AbstractVector`? Rule C's bracketed form for a struct whose
 # collection sits at field `slot` has exactly this shape, and the duplicate-method
@@ -232,6 +241,16 @@ end
     @test node isa ICDmNested{Int} && node.box === (3,)
     short = DmNested{Int}((3,))
     @test short.box === (3,) && short.selection === nothing
+end
+
+@testset "a bounded parameter works in every constructor" begin
+    short = DmBounded(2.0)
+    @test short isa DmBounded{Float64} && short.selection === nothing
+    @test ICDmBounded{Int}(3, nothing).value == 3
+    @test MDmBounded(2.0) isa MDmBounded{Float64}
+    @test_throws TypeError DmBounded("text")
+    nested = DmBoundedNested{Int}((3,))
+    @test nested.box === (3,) && nested.selection === nothing
 end
 
 @testset "the layout registry answers for every variant" begin
