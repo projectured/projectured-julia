@@ -1,59 +1,29 @@
 # Fragment of `PerformanceModule` — the measurements of the recent frames. The
-# store keeps the last frames in a ring of fixed size, one column for each
-# measurement name, and computes a summary from the ring when a reader asks. It
-# is a plain object outside the reactive graph, and one frame costs one store
-# for each measurement.
+# store keeps the last frames in a ring of fixed size, one column and one unit
+# for each measurement name, and computes a summary from the ring when a reader
+# asks. It is a plain object outside the reactive graph, and one frame costs
+# one store for each measurement.
 
 """
-    FrameMeasurementSummary()
+    FrameMeasurementSummary
 
-The summary of one frame measurement: how many values it saw, their minimum,
-maximum, mean and sum, and the running sum of squared deviations that
-[`compute_frame_standard_deviation`](@ref) reads. The fold is Welford's method:
-one pass, and no value is stored.
+The summary of one measurement over the frames that a store holds: its `unit`,
+`:second` or `:count`; the `count` of frames that measured it; and the
+`minimum`, `maximum`, `mean`, `standard_deviation` and `total` of their values.
+With no value, the minimum, the maximum and the mean are `NaN`. Below two
+values, the standard deviation is `0.0`.
+
+See also [`compute_frame_measurement_summary`](@ref), which makes one.
 """
-mutable struct FrameMeasurementSummary
+struct FrameMeasurementSummary
+    unit::Symbol
     count::Int
     minimum::Float64
     maximum::Float64
     mean::Float64
-    squared_deviation_sum::Float64
+    standard_deviation::Float64
     total::Float64
 end
-
-FrameMeasurementSummary() = FrameMeasurementSummary(0, Inf, -Inf, 0.0, 0.0, 0.0)
-
-# Fold one value into the summary.
-function _record_frame_measurement!(summary::FrameMeasurementSummary, value::Real)
-    sample = Float64(value)
-    summary.count += 1
-    sample < summary.minimum && (summary.minimum = sample)
-    sample > summary.maximum && (summary.maximum = sample)
-    delta = sample - summary.mean
-    summary.mean += delta / summary.count
-    summary.squared_deviation_sum += delta * (sample - summary.mean)
-    summary.total += sample
-    summary
-end
-
-"""
-    compute_frame_standard_deviation(summary) -> Float64
-
-The sample standard deviation of every value the summary saw, and `0.0` below
-two values.
-"""
-compute_frame_standard_deviation(summary::FrameMeasurementSummary) =
-    summary.count < 2 ? 0.0 :
-    sqrt(summary.squared_deviation_sum / (summary.count - 1))
-
-"""
-    is_frame_time_measurement(name) -> Bool
-
-Whether the measurement `name` is a time. A name that ends in `_time` is a time
-in seconds, and every other measurement is a count. A view that shows a
-measurement reads its unit here.
-"""
-is_frame_time_measurement(name::Symbol) = endswith(String(name), "_time")
 
 """
     FrameSampleStore(; capacity = 1000)
@@ -62,15 +32,16 @@ The measurements of the last `capacity` frames.
 
 The store keeps a ring of `capacity` slots: one column of values for each
 measurement name, in first-seen order, and one column of frame end times. A
-frame that did not measure a name holds `NaN` in the column of that name. The
-store also counts the frames since the start, and the frames since the last
-flush. A store belongs to one editor, and only the task of that editor writes
-it, so it needs no lock.
+frame that did not measure a name holds `NaN` in the column of that name. Each
+name has a unit, `:second` for a time and `:count` for a count, from the group
+that first gave it. The store also counts the frames since the start. A store
+belongs to one editor, and only the task of that editor writes it, so it needs
+no lock.
 
 # Example
 
     store = FrameSampleStore()
-    record_frame_sample!(store, [:frame_time => 0.016])
+    record_frame_sample!(store; times = [:frame_time => 0.016])
     summary = compute_frame_measurement_summary(store, :frame_time)
 
 See also [`collect_recent_frame_samples`](@ref) and
@@ -79,16 +50,16 @@ See also [`collect_recent_frame_samples`](@ref) and
 mutable struct FrameSampleStore
     capacity::Int
     names::Vector{Symbol}
+    units::Dict{Symbol, Symbol}
     columns::Dict{Symbol, Vector{Float64}}
     end_times::Vector{Float64}
     frame_count::Int
-    unflushed::Int
 end
 
 function FrameSampleStore(; capacity::Integer = 1000)
     capacity >= 1 || throw(ArgumentError("a frame sample store holds at least one frame"))
-    FrameSampleStore(Int(capacity), Symbol[], Dict{Symbol, Vector{Float64}}(),
-                     fill(NaN, capacity), 0, 0)
+    FrameSampleStore(Int(capacity), Symbol[], Dict{Symbol, Symbol}(),
+                     Dict{Symbol, Vector{Float64}}(), fill(NaN, capacity), 0)
 end
 
 # The slot of the ring that holds the frame with the number `frame`.
@@ -99,49 +70,89 @@ _get_frame_window(store::FrameSampleStore) =
     max(1, store.frame_count - store.capacity + 1):store.frame_count
 
 """
-    record_frame_sample!(store, measurements; end_time = time()) -> store
+    record_frame_sample!(store; times = (), counts = (), end_time = time()) -> store
 
-Record the measurements of one frame, an iterable of `name => value` pairs, in
-the next slot of the ring, and count the frame as not flushed. `end_time` is
-the time at which the frame ended, in seconds.
+Record the measurements of one frame in the next slot of the ring. `times` and
+`counts` are iterables of `name => value` pairs: a time is in seconds, and a
+count is a number of things. `end_time` is the time at which the frame ended,
+in seconds.
+
+A name keeps the unit of the group that first gave it. A name given later in
+the other group is an error, because its column would mix two units.
 """
-function record_frame_sample!(store::FrameSampleStore, measurements;
+function record_frame_sample!(store::FrameSampleStore; times = (), counts = (),
                               end_time::Real = time())
+    _check_frame_units(store, times, :second)
+    _check_frame_units(store, counts, :count)
     store.frame_count += 1
     slot = _get_frame_slot(store, store.frame_count)
     for name in store.names
         store.columns[name][slot] = NaN
     end
+    _record_frame_values!(store, slot, times, :second)
+    _record_frame_values!(store, slot, counts, :count)
+    store.end_times[slot] = Float64(end_time)
+    store
+end
+
+# A name keeps its unit. The check runs before the frame changes the store, so a
+# wrong call leaves the store as it was.
+function _check_frame_units(store::FrameSampleStore, measurements, unit::Symbol)
+    for (name, _) in measurements
+        known = get(store.units, name, unit)
+        known === unit ||
+            throw(ArgumentError("the frame measurement $(name) has the unit $(known), " *
+                                "not $(unit)"))
+    end
+end
+
+function _record_frame_values!(store::FrameSampleStore, slot::Int, measurements,
+                               unit::Symbol)
     for (name, value) in measurements
         column = get(store.columns, name, nothing)
         if column === nothing
             column = fill(NaN, store.capacity)
             store.columns[name] = column
+            store.units[name] = unit
             push!(store.names, name)
+        elseif store.units[name] !== unit
+            # One call gave the name in both groups.
+            throw(ArgumentError("the frame measurement $(name) is in both groups"))
         end
         column[slot] = Float64(value)
     end
-    store.end_times[slot] = Float64(end_time)
-    store.unflushed += 1
-    store
 end
 
 """
     compute_frame_measurement_summary(store, name) -> FrameMeasurementSummary
 
 The summary of the measurement `name` over the frames that the ring holds. A
-frame that did not measure `name` does not count. A name that no frame measured
-gives a summary with a count of zero.
+frame that did not measure `name` does not count. The store must know `name`.
 """
 function compute_frame_measurement_summary(store::FrameSampleStore, name::Symbol)
-    summary = FrameMeasurementSummary()
-    column = get(store.columns, name, nothing)
-    column === nothing && return summary
+    column = store.columns[name]
+    unit = store.units[name]
+    count = 0
+    smallest = Inf
+    largest = -Inf
+    mean = 0.0
+    squared_deviation_sum = 0.0
+    total = 0.0
+    # Welford's method: one pass, and no value is stored.
     for frame in _get_frame_window(store)
         value = column[_get_frame_slot(store, frame)]
-        isnan(value) || _record_frame_measurement!(summary, value)
+        isnan(value) && continue
+        count += 1
+        smallest = min(smallest, value)
+        largest = max(largest, value)
+        delta = value - mean
+        mean += delta / count
+        squared_deviation_sum += delta * (value - mean)
+        total += value
     end
-    summary
+    count == 0 && return FrameMeasurementSummary(unit, 0, NaN, NaN, NaN, 0.0, 0.0)
+    deviation = count < 2 ? 0.0 : sqrt(squared_deviation_sum / (count - 1))
+    FrameMeasurementSummary(unit, count, smallest, largest, mean, deviation, total)
 end
 
 """
@@ -156,7 +167,8 @@ get_frame_measurement_names(store::FrameSampleStore) = copy(store.names)
     get_frame_count(store) -> Int
 
 How many frames the store recorded since the start. The ring holds the last
-`capacity` of them.
+`capacity` of them. A reader that shows the frames can keep the count that it
+last showed, and show them again when this count is larger.
 """
 get_frame_count(store::FrameSampleStore) = store.frame_count
 
@@ -164,8 +176,9 @@ get_frame_count(store::FrameSampleStore) = store.frame_count
     collect_recent_frame_samples(store) -> (; frames, end_times, columns)
 
 The frames that the ring holds, oldest first, as new vectors: the frame numbers,
-the end times in seconds, and one `name => values` column for each measurement,
-in first-seen order. A value is `NaN` where a frame did not measure the name.
+the end times in seconds, and one `(; name, unit, values)` column for each
+measurement, in first-seen order. A value is `NaN` where a frame did not
+measure the name.
 
 Use it to look at single frames: to find a slow one, to write the frames to a
 file, or to draw them.
@@ -173,7 +186,7 @@ file, or to draw them.
 # Example
 
     samples = collect_recent_frame_samples(editor.frame_samples)
-    slowest = samples.frames[argmax(last(samples.columns[1]))]
+    slowest = samples.frames[argmax(samples.columns[1].values)]
 
 See also [`write_frame_samples!`](@ref), which writes the same frames as CSV.
 """
@@ -182,7 +195,8 @@ function collect_recent_frame_samples(store::FrameSampleStore)
     slots = [_get_frame_slot(store, frame) for frame in frames]
     (frames = frames,
      end_times = store.end_times[slots],
-     columns = [name => store.columns[name][slots] for name in store.names])
+     columns = [(name = name, unit = store.units[name],
+                 values = store.columns[name][slots]) for name in store.names])
 end
 
 # One CSV field: nothing for `NaN`, and otherwise the number rounded to `digits`
@@ -219,18 +233,20 @@ vectors.
 function write_frame_samples!(io::IO, store::FrameSampleStore)
     samples = collect_recent_frame_samples(store)
     headers = ["frame", "end_time_s"]
-    for (name, _) in samples.columns
-        push!(headers, is_frame_time_measurement(name) ? "$(name)_ms" : String(name))
+    for column in samples.columns
+        name = String(column.name)
+        push!(headers, column.unit === :second ? "$(name)_ms" : name)
     end
     println(io, join(headers, ","))
     start = isempty(samples.end_times) ? 0.0 : first(samples.end_times)
     for (index, frame) in enumerate(samples.frames)
         seconds = samples.end_times[index] - start
         fields = [string(frame), _format_frame_sample_field(seconds; digits = 6)]
-        for (name, values) in samples.columns
-            push!(fields, is_frame_time_measurement(name) ?
-                          _format_frame_sample_field(1000 * values[index]; digits = 3) :
-                          _format_frame_sample_field(values[index]; digits = 6))
+        for column in samples.columns
+            value = column.values[index]
+            push!(fields, column.unit === :second ?
+                          _format_frame_sample_field(1000 * value; digits = 3) :
+                          _format_frame_sample_field(value; digits = 6))
         end
         println(io, join(fields, ","))
     end
@@ -239,18 +255,3 @@ end
 
 write_frame_samples!(path::AbstractString, store::FrameSampleStore) =
     open(io -> write_frame_samples!(io, store), path, "w")
-
-"""
-    count_unflushed_frame_samples(store) -> Int
-
-How many frames were recorded since [`mark_frame_samples_flushed!`](@ref).
-"""
-count_unflushed_frame_samples(store::FrameSampleStore) = store.unflushed
-
-"""
-    mark_frame_samples_flushed!(store) -> store
-
-Say that a flush showed everything recorded so far. The ring keeps its frames,
-and only the count of frames that are not flushed resets.
-"""
-mark_frame_samples_flushed!(store::FrameSampleStore) = (store.unflushed = 0; store)

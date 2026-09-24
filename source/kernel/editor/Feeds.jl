@@ -51,17 +51,18 @@ end of each frame of `run_editor!`, inside the counter scope, so the counter
 keys of this frame are still bound. Times are in seconds.
 """
 function record_frame_measurements!(editor::Editor, frame_seconds::Float64)
-    measurements = Pair{Symbol, Float64}[:frame_time => frame_seconds]
+    times = Pair{Symbol, Float64}[:frame_time => frame_seconds]
+    counts = Pair{Symbol, Float64}[]
     if PERFORMANCE_COUNTERS_ENABLED
         counters = get_performance_counters()
         for key in (:reads, :computes, :invalidations, :writes)
-            push!(measurements, key => Float64(get(counters, key, 0)))
+            push!(counts, key => Float64(get(counters, key, 0)))
         end
         for key in (:read_time, :evaluate_time, :print_time)
-            push!(measurements, key => get(counters, key, 0) / 1e9)
+            push!(times, key => get(counters, key, 0) / 1e9)
         end
     end
-    record_frame_sample!(editor.frame_samples, measurements)
+    record_frame_sample!(editor.frame_samples; times, counts)
     nothing
 end
 

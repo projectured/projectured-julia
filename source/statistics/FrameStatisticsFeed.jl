@@ -14,11 +14,14 @@ frame plot tab show the loop's numbers live.
 
 The feed never wakes the editor: its data arrives only with frames, so a wake
 would make frames feed themselves. It answers a deadline instead, and only
-while something shows one of its documents. The probe is `has_dependents` on
-a cell that every view of the document reads: `frame_count` of the table, and
-`names` of the plot. So a watched document refreshes at the flush interval, an
-unwatched editor records for free and flushes nothing, and a view that closes
-goes quiet once the collector sweeps its subscription.
+while a document is due. A document is due when the frame count that it last
+showed differs from the count of the store, and something shows the document.
+Each document keeps its own count, so the table and the plot flush apart, and a
+store that starts again at zero still refreshes a session document. The probe for a view is `has_dependents` on a cell that every
+view of the document reads: `frame_count` of the table, and `names` of the
+plot. So a watched document refreshes at the flush interval, an unwatched
+editor records for free and flushes nothing, and a view that closes goes quiet
+once the collector sweeps its subscription.
 """
 struct FrameStatisticsFeed <: Feed
     statistics::FrameStatistics
@@ -31,26 +34,23 @@ FrameStatisticsFeed(; statistics::FrameStatistics = get_session_frame_statistics
                       flush_interval::Real = 0.25) =
     FrameStatisticsFeed(statistics, plot, Float64(flush_interval))
 
-_is_frame_statistics_watched(feed::FrameStatisticsFeed) =
+_is_frame_statistics_due(feed::FrameStatisticsFeed, store::FrameSampleStore) =
+    feed.statistics.frame_count != get_frame_count(store) &&
     has_dependents(getfield(feed.statistics, :frame_count))
 
-_is_frame_plot_watched(feed::FrameStatisticsFeed) =
+_is_frame_plot_due(feed::FrameStatisticsFeed, store::FrameSampleStore) =
+    _get_frame_plot_count(feed.plot) != get_frame_count(store) &&
     has_dependents(getfield(feed.plot, :names))
 
 function drain_changes!(feed::FrameStatisticsFeed, editor)
     store = editor.frame_samples
-    count_unflushed_frame_samples(store) > 0 || return 0
-    statistics_watched = _is_frame_statistics_watched(feed)
-    plot_watched = _is_frame_plot_watched(feed)
-    statistics_watched || plot_watched || return 0
     written = 0
-    statistics_watched && (written += flush_frame_statistics!(feed.statistics, store))
-    plot_watched && (written += flush_frame_plot!(feed.plot, store))
-    mark_frame_samples_flushed!(store)
+    _is_frame_statistics_due(feed, store) &&
+        (written += flush_frame_statistics!(feed.statistics, store))
+    _is_frame_plot_due(feed, store) && (written += flush_frame_plot!(feed.plot, store))
     written
 end
 
 compute_wake_deadline(feed::FrameStatisticsFeed, editor) =
-    count_unflushed_frame_samples(editor.frame_samples) > 0 &&
-    (_is_frame_statistics_watched(feed) || _is_frame_plot_watched(feed)) ?
-        feed.flush_interval : nothing
+    _is_frame_statistics_due(feed, editor.frame_samples) ||
+    _is_frame_plot_due(feed, editor.frame_samples) ? feed.flush_interval : nothing

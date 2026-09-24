@@ -1,6 +1,6 @@
 # The frame sample API: units as data, one summary, no flush counter
 
-> **Status (2026-09-24): IN PROGRESS.** No step is done yet.
+> **Status (2026-09-24): IN PROGRESS.** Step 1 is done.
 
 The frame sample store of the kernel performance layer exports 12 names. Three
 of its shapes are weak:
@@ -65,5 +65,17 @@ Update `statistics.md` and `editor.md`. Audit `PerformanceModule.jl` and
 
 ## Progress
 
-- [ ] Step 1
+- [x] Step 1 — `test_frame_samples()` 32 pass, `test_frame_statistics_feed()` 41
+  pass, `test_tool_views()` 19 pass, `test_kernel_layering()` 10 pass,
+  `test_declared_api()` 111 pass, `test_export_collisions()`, `test_naming()`,
+  `test_arguments()` and `test_documentation()` pass. Decisions made while
+  implementing:
+  - The units are checked before the frame changes the store, so a wrong call
+    leaves the store as it was. A name in both groups of one call is an error
+    too.
+  - `compute_frame_measurement_summary` throws `KeyError` for a name that the
+    store does not know. A known name with no value in the ring gives a count
+    of zero and `NaN` for the minimum, the maximum and the mean.
+  - A document is due when its frame count differs from the store's, not when
+    it is smaller: a session document outlives a store that starts again.
 - [ ] Step 2

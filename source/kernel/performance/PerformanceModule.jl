@@ -20,12 +20,10 @@ using Base.ScopedValues: ScopedValue, with
 
 export with_performance_counters, get_performance_counters, record_performance!,
        @performance_time, @count_performance, PERFORMANCE_COUNTERS_ENABLED
-export FrameMeasurementSummary, FrameSampleStore,
-       record_frame_sample!, compute_frame_standard_deviation,
-       compute_frame_measurement_summary, get_frame_measurement_names,
-       get_frame_count, is_frame_time_measurement,
-       collect_recent_frame_samples, write_frame_samples!,
-       count_unflushed_frame_samples, mark_frame_samples_flushed!
+export FrameMeasurementSummary, FrameSampleStore, record_frame_sample!,
+       get_frame_count, get_frame_measurement_names,
+       compute_frame_measurement_summary, collect_recent_frame_samples,
+       write_frame_samples!
 
 include("PerformanceCounter.jl")
 include("FrameSample.jl")

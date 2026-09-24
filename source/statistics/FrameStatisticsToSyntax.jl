@@ -68,7 +68,7 @@ end
 
 # One line: "frame_time      ms          1000        2.13       45.02 …".
 function _measurement_line(p::FrameStatisticsToSyntax, row::FrameMeasurement)
-    unit = is_frame_time_measurement(Symbol(row.name)) ? "ms" : ""
+    unit = row.unit === :second ? "ms" : ""
     columns = rpad(row.name, _NAME_WIDTH) * rpad(unit, _UNIT_WIDTH) *
               lpad(string(row.count), _NUMBER_WIDTH) *
               join(lpad(text, _NUMBER_WIDTH) for text in _format_measurement_values(row))
@@ -81,7 +81,7 @@ end
 # decimal. A row that no recent frame measured shows a dash.
 function _format_measurement_values(row::FrameMeasurement)
     row.count == 0 && return fill("-", 5)
-    if is_frame_time_measurement(Symbol(row.name))
+    if row.unit === :second
         return [@sprintf("%.2f", row.minimum * 1000),
                 @sprintf("%.2f", row.maximum * 1000),
                 @sprintf("%.2f", row.mean * 1000),

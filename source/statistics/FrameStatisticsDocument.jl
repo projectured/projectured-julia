@@ -5,6 +5,7 @@
 
 @document struct FrameMeasurement
     name::String
+    unit::Symbol
     count::Int
     minimum::Float64
     maximum::Float64
@@ -18,8 +19,10 @@ end
 
 The table. One [`FrameMeasurement`](@ref) row for each measurement, in the
 first-seen order of the editor's sample store. A row summarizes the recent
-frames that the store keeps, and its `count` says how many. `frame_count` is
-the number of frames since the editor started. Times are in seconds.
+frames that the store keeps, and its `count` says how many. Its `unit` is
+`:second` for a time, which the row holds in seconds, or `:count`.
+`frame_count` is the number of frames since the editor started, as the table
+last showed them.
 """
 @document struct FrameStatistics
     rows::CellVector = CellVector()
@@ -51,19 +54,19 @@ function flush_frame_statistics!(statistics::FrameStatistics, store::FrameSample
     rows = statistics.rows
     for (index, name) in enumerate(names)
         summary = compute_frame_measurement_summary(store, name)
-        deviation = compute_frame_standard_deviation(summary)
         if index <= length(rows)
             row = rows[index]
             _write_changed_field!(row, :count, summary.count)
             _write_changed_field!(row, :minimum, summary.minimum)
             _write_changed_field!(row, :maximum, summary.maximum)
             _write_changed_field!(row, :mean, summary.mean)
-            _write_changed_field!(row, :standard_deviation, deviation)
+            _write_changed_field!(row, :standard_deviation, summary.standard_deviation)
             _write_changed_field!(row, :total, summary.total)
         else
-            push!(rows, FrameMeasurement(string(name), summary.count,
+            push!(rows, FrameMeasurement(string(name), summary.unit, summary.count,
                                          summary.minimum, summary.maximum,
-                                         summary.mean, deviation, summary.total))
+                                         summary.mean, summary.standard_deviation,
+                                         summary.total))
         end
     end
     _write_changed_field!(statistics, :frame_count, get_frame_count(store))
@@ -133,15 +136,22 @@ function flush_frame_plot!(plot::FramePlot, store::FrameSampleStore)
     samples = collect_recent_frame_samples(store)
     names = String[]
     columns = Vector{Float64}[]
-    for (name, values) in samples.columns
-        is_frame_time_measurement(name) || continue
-        push!(names, String(name))
-        push!(columns, values)
+    for column in samples.columns
+        column.unit === :second || continue
+        push!(names, String(column.name))
+        push!(columns, column.values)
     end
     _write_changed_field!(plot, :names, names)
     plot.frames = Float64.(samples.frames)
     plot.columns = columns
     length(names)
+end
+
+# The number of the last frame that the plot shows, and 0 before its first
+# flush. The frame numbers are the plot's own record of what it showed.
+function _get_frame_plot_count(plot::FramePlot)
+    frames = plot.frames
+    isempty(frames) ? 0 : Int(last(frames))
 end
 
 # One plot for the session, for the same reason as the one table above.
