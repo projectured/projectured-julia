@@ -16,7 +16,7 @@
 #      routes nested-hole input and reroots the resulting edits.
 # ═══════════════════════════════════════════════════════════════════════════
 
-using ProjecturedKernel.CellModule: Cell, Computed
+using ProjecturedKernel.CellModule: Cell, Computation
 using ProjecturedJuliaExample: make_julia_document_example
 
 const _JT_M      = JuliaModule

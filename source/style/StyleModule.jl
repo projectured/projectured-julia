@@ -11,7 +11,7 @@ using ..DocumentModule
 using ..ReferenceModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..CellModule: set_cell_function!
+import ..CellModule: set_cell_computation!
 
 export StyleColor, make_style_color,
        is_color_equal, is_color_transparent, color_interpolate, color_lighten, color_darken,
@@ -112,7 +112,7 @@ export Inset, Point2D, inset_default,
        inset_top_left, inset_top_right, inset_bottom_left, inset_bottom_right,
        AffineTransform, affine_identity, make_affine_translate, make_affine_scale,
        apply_affine_transform, compute_affine_inverse, is_affine_axis_aligned
-export ImageDocument, set_cell_function!
+export ImageDocument, set_cell_computation!
 export StyleStroke, make_style_stroke
 export StyleText, make_style_text
 export TrueTypeFont, load_truetype_font, get_glyph_id, get_glyph_advance_1000,

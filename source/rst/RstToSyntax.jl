@@ -1135,7 +1135,7 @@ function _rst_picture(path, style::StyleText, placeholder::StyleText; max_w::Int
         file = String(path)
         image = ImageFile(file)
         raw = getfield(image, :raw)
-        set_cell_function!(raw, () -> (try decode_image(file) catch; nothing end))
+        set_cell_computation!(raw, () -> (try decode_image(file) catch; nothing end))
         natural(i, fallback) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fallback)
         width  = Cell(@computation Int32(min(natural(2, 720), max_w)))
         height = Cell(@computation begin

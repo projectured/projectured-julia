@@ -69,7 +69,7 @@ function print_document(p::SearchingProjection, recursion, input, ctx)
     # Forward-project the input selection so the cursor lands on the matching
     # result when it points inside one. Lazy so the not-yet-needed `iomap`
     # closure is fine, and reactive on the input selection.
-    set_cell_function!(getfield(output, :selection), () -> begin
+    set_cell_computation!(getfield(output, :selection), () -> begin
         sel = hasfield(typeof(input), :selection) ? input.selection : nothing
         sel === nothing && return nothing
         map_reference_forward(p, iomap, sel)

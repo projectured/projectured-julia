@@ -44,7 +44,7 @@ end
 # plain `Cell` would store the function as a value, and the view would show
 # nothing at all, because a function is not a reference.
 SelectionInspector(source::Function) =
-    SelectionInspector(; source = Cell(Computed(source)))
+    SelectionInspector(; source = Cell(Computation(source)))
 SelectionInspector(source) = SelectionInspector(; source = source)
 
 # The name the tab calls itself, and the name a person types into an empty tab

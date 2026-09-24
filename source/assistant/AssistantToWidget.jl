@@ -73,7 +73,7 @@ function print_document(projection::AssistantToWidgetSplitPane,
     iomap = SimpleIoMap(projection, a, column)
     # A key is routed by selection: the split pane sends it to the pane that the
     # assistant's selection names.
-    set_cell_function!(getfield(column, :selection),
+    set_cell_computation!(getfield(column, :selection),
                        () -> map_reference_forward(projection, iomap, getfield(a, :selection)[]))
     iomap
 end
@@ -115,9 +115,9 @@ function print_document(p::AssistantToWidgetCard,
         steps = get_reference_steps(r)
         length(steps) > n ? _steps_to_reference(steps[(n + 1):end]) : nothing
     end
-    set_cell_function!(getfield(column, :selection), full)
-    set_cell_function!(getfield(card, :selection), suffix(2))
-    set_cell_function!(getfield(card.content, :selection), suffix(3))
+    set_cell_computation!(getfield(column, :selection), full)
+    set_cell_computation!(getfield(card, :selection), suffix(2))
+    set_cell_computation!(getfield(card.content, :selection), suffix(3))
     # Only the pane the path names carries a selection. Both panes sit at the
     # same depth, so a bare suffix would tell each of them it held the caret.
     pane_suffix(i) = () -> begin
@@ -129,8 +129,8 @@ function print_document(p::AssistantToWidgetCard,
         (step isa RangeReferenceStep && step.start + 1 == i) || return nothing
         _steps_to_reference(steps[6:end])
     end
-    set_cell_function!(getfield(transcript, :selection), pane_suffix(1))
-    set_cell_function!(getfield(cell, :selection), pane_suffix(2))
+    set_cell_computation!(getfield(transcript, :selection), pane_suffix(1))
+    set_cell_computation!(getfield(cell, :selection), pane_suffix(2))
     iomap
 end
 

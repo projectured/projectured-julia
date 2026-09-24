@@ -21,7 +21,7 @@ node1 = ListNode(PrimitiveNumber(10))
 # Helper to create a lazy node with thunk for next direction
 function lazy_node(value, next_thunk::Function)
     node = ListNode(value)
-    set_cell_function!(getfield(node, :next), next_thunk)
+    set_cell_computation!(getfield(node, :next), next_thunk)
     node
 end
 
@@ -134,7 +134,7 @@ first_5_from_100 = take_first(inf_ints_100, 5, :next)
     set_cell_value!(getfield(before, :next), middle)
     set_cell_value!(getfield(middle, :prev), before)
     # The node after the middle one is built when it is read.
-    set_cell_function!(getfield(middle, :next), () -> ListNode(PrimitiveNumber(3)))
+    set_cell_computation!(getfield(middle, :next), () -> ListNode(PrimitiveNumber(3)))
     copied = copy_document(middle)
     @test copied !== middle
     @test copied.value.value == 2 && copied.value !== middle.value
@@ -153,7 +153,7 @@ end
     reads = Threads.Atomic{Int}(0)
     function make_endless_node(i)
         node = ListNode(PrimitiveNumber(i))
-        set_cell_function!(getfield(node, :next), () -> begin
+        set_cell_computation!(getfield(node, :next), () -> begin
             Threads.atomic_add!(reads, 1)
             sleep(0.001)
             stop[] ? nothing : make_endless_node(i + 1)
@@ -186,7 +186,7 @@ end
         before = ListNode(PrimitiveNumber(1))
         set_cell_value!(getfield(before, :next), middle)
         set_cell_value!(getfield(middle, :prev), before)
-        set_cell_function!(getfield(middle, :next), () -> (reads[] += 1; ListNode(PrimitiveNumber(3))))
+        set_cell_computation!(getfield(middle, :next), () -> (reads[] += 1; ListNode(PrimitiveNumber(3))))
         middle
     end
     function test_links(copied, middle)
@@ -275,7 +275,7 @@ end
         reads = Ref(0)
         function make_endless_node(i)
             node = ListNode(PrimitiveNumber(i))
-            set_cell_function!(getfield(node, :next), () -> (reads[] += 1; make_endless_node(i + 1)))
+            set_cell_computation!(getfield(node, :next), () -> (reads[] += 1; make_endless_node(i + 1)))
             node
         end
         head = make_endless_node(1)

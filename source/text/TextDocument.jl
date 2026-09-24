@@ -140,7 +140,7 @@ TextString(content::AbstractString) =
     TextString(Cell(content), font_ubuntu_monospace_regular_20, color_default, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
 TextString(content::Function, font::StyleFont, font_color::StyleColor) =
-    TextString(Cell(Computed(content)), font, font_color, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+    TextString(Cell(Computation(content)), font, font_color, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
 
 # StyleText bridge: a projection holding a merged (font, color) style value can
 # build a run without unpacking it. The document model itself is unchanged —
@@ -223,7 +223,7 @@ TextBlock(spans::Vector{<:TextDocument}) =
 TextBlock(spans::TextDocument...) =
     TextBlock(CellVector(Cell[Cell(s) for s in spans]), Cell(nothing))
 
-TextBlock(f::Function) = TextBlock(CellVector(Computed(f)), Cell(nothing))
+TextBlock(f::Function) = TextBlock(CellVector(Computation(f)), Cell(nothing))
 
 # ── TextLine ───────────────────────────────────────────────────────────
 
@@ -260,7 +260,7 @@ TextLine(spans::TextDocument...; indentation::Integer = 0) =
     TextLine(collect(TextDocument, spans); indentation)
 
 TextLine(f::Function; indentation::Integer = 0) =
-    TextLine(CellVector(Computed(f)), Cell(Int(indentation)), Cell(nothing))
+    TextLine(CellVector(Computation(f)), Cell(Int(indentation)), Cell(nothing))
 
 # A lone line is not a document — it is a part of a block. Both of its fields are
 # defaulted, so unlike the span types (each has a required field, and so no
@@ -766,10 +766,10 @@ function is_structural_selection(sel)
          (sel.head isa TextSpanReferenceStep || sel.head isa TextColumnReferenceStep))
 end
 
-# ── set_cell_function! delegation ───────────────────────────────────────────────
+# ── set_cell_computation! delegation ────────────────────────────────────────────
 
-set_cell_function!(s::TextString, f::Function) = (set_cell_function!(getfield(s, :content), f); s)
-set_cell_function!(st::TextBlock, f::Function) = (set_cell_function!(getfield(st.elements, :elements), () -> Cell[Cell(x) for x in f()]); st)
+set_cell_computation!(s::TextString, f::Function) = (set_cell_computation!(getfield(s, :content), f); s)
+set_cell_computation!(st::TextBlock, f::Function) = (set_cell_computation!(getfield(st.elements, :elements), () -> Cell[Cell(x) for x in f()]); st)
 
 # ── Selection → flat character range ───────────────────────────────
 #

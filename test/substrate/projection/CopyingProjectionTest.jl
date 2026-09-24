@@ -78,7 +78,7 @@ function make_lazy_chain(n::Int)
     node = ListNode(PrimitiveNumber(1))
     counter[] += 1
     if n > 1
-        set_cell_function!(getfield(node, :next), () -> begin
+        set_cell_computation!(getfield(node, :next), () -> begin
             make_lazy_chain(n - 1)
         end)
     end

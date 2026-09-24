@@ -47,7 +47,7 @@ function print_document(p::SortingProjection, recursion, input::CellVector, ctx)
         perm = index_map[]
         [cs[perm[j]].output for j in 1:length(perm)]
     end)
-    set_cell_function!(getfield(output, :selection), () -> input.selection)
+    set_cell_computation!(getfield(output, :selection), () -> input.selection)
     SortingIoMap(p, input, output, index_map, child_iomaps)
 end
 

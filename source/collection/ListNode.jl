@@ -106,7 +106,7 @@ end
 # Makes `link` of `copied` a cell that copies the node that `link` of `original`
 # holds, when it is read.
 _set_list_link_lazily!(copy_node, original::ListNode, copied::ListNode, link::Symbol, back::Symbol) =
-    set_cell_function!(getfield(copied, link),
+    set_cell_computation!(getfield(copied, link),
                        () -> _copy_list_link(copy_node, original, copied, link, back))
 
 # The copy of the node that `link` of `original` holds, with its `back` link set

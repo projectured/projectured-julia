@@ -5,7 +5,8 @@
 # click answered, and what a reference maps to, against the eager table over
 # the same data — the one test that says the two forms did not fork.
 
-using ProjecturedKernel.CellModule: Cell, Computed, set_cell_function!, set_cell_value!
+using ProjecturedKernel.CellModule: Cell, Computation, set_cell_computation!,
+                                    set_cell_value!
 using ProjecturedCollection.CollectionModule: ListNode
 using ProjecturedWidget.WidgetModule: _wtl_row_node
 
@@ -57,7 +58,7 @@ function make_list(count::Int, cell; built = Ref(0), from::Int = 1)
     function make_node(i)
         built[] += 1
         node = ListNode(make_widget_table_row(Any[cell(i, c) for c in 1:2]))
-        set_cell_function!(getfield(node, :next), () -> begin
+        set_cell_computation!(getfield(node, :next), () -> begin
             i < count || return nothing
             following = make_node(i + 1)
             set_cell_value!(getfield(following, :prev), node)

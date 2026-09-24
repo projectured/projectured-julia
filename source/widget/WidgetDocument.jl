@@ -70,7 +70,7 @@ function WidgetLabel(position::Point2D, content;
                 Cell(style), Cell(tooltip), Cell(nothing))
 end
 
-set_cell_function!(w::WidgetLabel, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
+set_cell_computation!(w::WidgetLabel, f::Function) = (set_cell_computation!(getfield(w, :content), f); w)
 
 # ── WidgetText ─────────────────────────────────────────────────────────────
 
@@ -122,7 +122,7 @@ function WidgetText(position::Point2D, content;
                Cell(style), Cell(tooltip), Cell(nothing))
 end
 
-set_cell_function!(w::WidgetText, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
+set_cell_computation!(w::WidgetText, f::Function) = (set_cell_computation!(getfield(w, :content), f); w)
 
 """
     make_numeric_validator(; integer=false, allow_negative=true) -> (String) -> Bool
@@ -327,7 +327,7 @@ function WidgetCheckbox(position::Point2D, content;
                    Cell(style), Cell(gestures), Cell(tooltip))
 end
 
-set_cell_function!(w::WidgetCheckbox, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
+set_cell_computation!(w::WidgetCheckbox, f::Function) = (set_cell_computation!(getfield(w, :content), f); w)
 get_instance_gesture_bindings(w::WidgetCheckbox) = w.gestures
 
 # ── WidgetButton ───────────────────────────────────────────────────────────
@@ -436,7 +436,7 @@ end
 # on the button's `Action` — for a sugar-built button that action is fresh, so
 # the write is local; on a button bound to a SHARED action this renames the
 # command in every view of it, deliberately.
-set_cell_function!(w::WidgetButton, f::Function) = (set_cell_function!(getfield(w.action, :label), f); w)
+set_cell_computation!(w::WidgetButton, f::Function) = (set_cell_computation!(getfield(w.action, :label), f); w)
 
 # Per-instance gesture bindings (see `get_instance_gesture_bindings` / `read_bound_gesture`).
 get_instance_gesture_bindings(w::WidgetButton) = w.gestures
@@ -479,7 +479,7 @@ function WidgetTooltip(position::Point2D, size::Point2D, content;
                   Cell(style), Cell(tooltip), Cell(nothing))
 end
 
-set_cell_function!(w::WidgetTooltip, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
+set_cell_computation!(w::WidgetTooltip, f::Function) = (set_cell_computation!(getfield(w, :content), f); w)
 
 # ── WidgetContextMenu ──────────────────────────────────────────────────────
 
@@ -516,7 +516,7 @@ function WidgetContextMenu(child, menu;
                       Cell(style), Cell(tooltip), Cell(nothing))
 end
 
-set_cell_function!(w::WidgetContextMenu, f::Function) = (set_cell_function!(getfield(w, :child), f); w)
+set_cell_computation!(w::WidgetContextMenu, f::Function) = (set_cell_computation!(getfield(w, :child), f); w)
 
 # ── WidgetDialog ───────────────────────────────────────────────────────────
 
@@ -557,7 +557,7 @@ function WidgetDialog(title, content, buttons::Vector;
                  Cell(style), Cell(tooltip), Cell(nothing))
 end
 
-set_cell_function!(w::WidgetDialog, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
+set_cell_computation!(w::WidgetDialog, f::Function) = (set_cell_computation!(getfield(w, :content), f); w)
 
 """
     WidgetMessageBox(title, message; buttons=["OK"], popup_id=:widget_dialog)
@@ -617,7 +617,7 @@ function WidgetMenu(elements::Vector;
                Cell(style), Cell(tooltip), Cell(nothing))
 end
 
-set_cell_function!(w::WidgetMenu, f::Function) = (set_cell_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
+set_cell_computation!(w::WidgetMenu, f::Function) = (set_cell_computation!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
 # ── WidgetMenuItem ─────────────────────────────────────────────────────────
 
@@ -670,7 +670,7 @@ end
 get_instance_gesture_bindings(w::WidgetMenuItem) = w.gestures
 
 # See the `WidgetButton` method: the label lives on the item's `Action`.
-set_cell_function!(w::WidgetMenuItem, f::Function) = (set_cell_function!(getfield(w.action, :label), f); w)
+set_cell_computation!(w::WidgetMenuItem, f::Function) = (set_cell_computation!(getfield(w.action, :label), f); w)
 
 # ── WidgetToolbarItem ──────────────────────────────────────────────────────
 
@@ -719,7 +719,7 @@ end
 get_instance_gesture_bindings(w::WidgetToolbarItem) = w.gestures
 
 # See the `WidgetButton` method: the label lives on the item's `Action`.
-set_cell_function!(w::WidgetToolbarItem, f::Function) = (set_cell_function!(getfield(w.action, :label), f); w)
+set_cell_computation!(w::WidgetToolbarItem, f::Function) = (set_cell_computation!(getfield(w.action, :label), f); w)
 
 # ── WidgetComposite ────────────────────────────────────────────────────────
 
@@ -760,7 +760,7 @@ function WidgetComposite(position::Point2D, elements::Vector;
                     Cell(style), Cell(tooltip), Cell(nothing))
 end
 
-set_cell_function!(w::WidgetComposite, f::Function) = (set_cell_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
+set_cell_computation!(w::WidgetComposite, f::Function) = (set_cell_computation!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
 # ── WidgetToolbar ──────────────────────────────────────────────────────────
 
@@ -789,8 +789,8 @@ function WidgetToolbar(elements::Vector;
                   Cell(style), Cell(tooltip), Cell(nothing))
 end
 
-set_cell_function!(w::WidgetToolbar, f::Function) =
-    (set_cell_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
+set_cell_computation!(w::WidgetToolbar, f::Function) =
+    (set_cell_computation!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
 """
     make_pager_widget(; from, total, page, move, button_size) -> WidgetToolbar
@@ -840,7 +840,7 @@ function make_pager_widget(; from, total, page::Integer, move,
     button(label, where) =
         WidgetButton(Point2D(0, 0), button_size, label; action = go(where))
     where_label = WidgetLabel(Point2D(0, 0), "")
-    set_cell_function!(getfield(where_label, :content), () -> begin
+    set_cell_computation!(getfield(where_label, :content), () -> begin
         count = total()
         count <= 0 && return "empty"
         first_row = clamp(from(), 1, count)
@@ -932,7 +932,7 @@ function make_column_chooser_widget(; columns, is_shown, choose,
     # have no U+25CF, so a filled circle draws as a box in the one place the
     # reader is trying to read a state.
     bar = HorizontalLayout(Any[]; gap = 4)
-    set_cell_function!(getfield(bar, :children), () -> Any[
+    set_cell_computation!(getfield(bar, :children), () -> Any[
         WidgetLabel(Point2D(0, 0), "columns");
         [WidgetButton(Point2D(0, 0), button_size,
                       (is_shown(name) ? "[x] " : "[ ] ") * label;
@@ -966,15 +966,15 @@ function WidgetStatusBar(segments::Vector;
                          margin=nothing, border=nothing, padding=nothing,
                          style=nothing, tooltip=nothing)
     # A segment given as a cell is kept as it is, so a band can say something
-    # that follows the window: `Cell(Computed(() -> …))` re-derives when what it
+    # that follows the window: `Cell(@computation …)` re-derives when what it
     # read changes, where `Cell(value)` would freeze what it was given.
     WidgetStatusBar(CellVector(Cell[x isa Cell ? x : Cell(x) for x in segments]),
                     Cell(visible), Cell(margin), Cell(border), Cell(padding),
                     Cell(style), Cell(tooltip), Cell(nothing))
 end
 
-set_cell_function!(w::WidgetStatusBar, f::Function) =
-    (set_cell_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
+set_cell_computation!(w::WidgetStatusBar, f::Function) =
+    (set_cell_computation!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
 # ── WidgetShell ────────────────────────────────────────────────────────────
 
@@ -1017,7 +1017,7 @@ function WidgetShell(content;
                 Cell(style), Cell(tooltip), Cell(nothing))
 end
 
-set_cell_function!(w::WidgetShell, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
+set_cell_computation!(w::WidgetShell, f::Function) = (set_cell_computation!(getfield(w, :content), f); w)
 
 # ── WidgetTitlePane ────────────────────────────────────────────────────────
 
@@ -1058,7 +1058,7 @@ function WidgetTitlePane(title, content;
                     Cell(style), Cell(tooltip), Cell(nothing))
 end
 
-set_cell_function!(w::WidgetTitlePane, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
+set_cell_computation!(w::WidgetTitlePane, f::Function) = (set_cell_computation!(getfield(w, :content), f); w)
 
 # ── WidgetSplitPane ────────────────────────────────────────────────────────
 
@@ -1123,7 +1123,7 @@ end
 WidgetSplitPane(elements::Vector; kwargs...) =
     WidgetSplitPane(:horizontal, elements; kwargs...)
 
-set_cell_function!(w::WidgetSplitPane, f::Function) = (set_cell_function!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
+set_cell_computation!(w::WidgetSplitPane, f::Function) = (set_cell_computation!(getfield(w.elements, :elements), () -> Cell[Cell(x) for x in f()]); w)
 
 # ── WidgetTabbedPane ───────────────────────────────────────────────────────
 
@@ -1225,7 +1225,7 @@ end
 # takes — `(selector, element)` / `(selector, element, icon)` tuples or `WidgetTabPage`s
 # — each wrapped via `_as_tab_page` (so it stays consistent with the eager ctor above,
 # which the reader relies on: `selector_element_pairs[i]` is always a `WidgetTabPage`).
-set_cell_function!(w::WidgetTabbedPane, f::Function) = (set_cell_function!(getfield(w.selector_element_pairs, :elements), () -> Cell[Cell(_as_tab_page(x)) for x in f()]); w)
+set_cell_computation!(w::WidgetTabbedPane, f::Function) = (set_cell_computation!(getfield(w.selector_element_pairs, :elements), () -> Cell[Cell(_as_tab_page(x)) for x in f()]); w)
 
 # ── WidgetScrollPane ───────────────────────────────────────────────────────
 
@@ -1285,7 +1285,7 @@ function WidgetScrollPane(content;
                      Cell(style), Cell(tooltip), Cell(nothing))
 end
 
-set_cell_function!(w::WidgetScrollPane, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
+set_cell_computation!(w::WidgetScrollPane, f::Function) = (set_cell_computation!(getfield(w, :content), f); w)
 
 # ── WidgetTransformPane ──────────────────────────────────────────────────────
 
@@ -1330,7 +1330,7 @@ function WidgetTransformPane(content;
                         Cell(style), Cell(tooltip), Cell(nothing))
 end
 
-set_cell_function!(w::WidgetTransformPane, f::Function) = (set_cell_function!(getfield(w, :content), f); w)
+set_cell_computation!(w::WidgetTransformPane, f::Function) = (set_cell_computation!(getfield(w, :content), f); w)
 
 # ── WidgetScrollBar ────────────────────────────────────────────────────────
 

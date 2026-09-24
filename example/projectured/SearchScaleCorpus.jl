@@ -75,7 +75,7 @@ const SCALE_SEARCH_QUESTIONS = ScaleQuestion[
     (sentence = "a value that is computed again when what it reads changes",
      expected = "Cell", kind = :api),
     (sentence = "make a field of a document computed",
-     expected = "set_cell_function!", kind = :api),
+     expected = "set_cell_computation!", kind = :api),
     (sentence = "turn a document into what the screen shows",
      expected = "print_document", kind = :api),
     (sentence = "turn a key press into an edit of the document",

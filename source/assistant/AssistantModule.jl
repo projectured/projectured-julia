@@ -38,7 +38,7 @@ using ..ToolModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..CellModule: set_cell_function!
+import ..CellModule: set_cell_computation!
 import ..DocumentModule: copy_document, get_document_title, has_document_duplicate
 import ..DomainModule: accepts_pasted_document, accepts_opened_file
 import ..OperationModule: evaluate_operation

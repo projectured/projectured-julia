@@ -71,7 +71,7 @@ _make_prompt(text, style) =
     LayoutConstraint(WidgetLabel(Point2D(0, 0), text; text_style = style); width = Content)
 
 _make_prompt_row(children::Function) =
-    HorizontalLayout(CellVector(Computed(children)), Cell(:top), Cell(_PROMPT_GAP),
+    HorizontalLayout(CellVector(Computation(children)), Cell(:top), Cell(_PROMPT_GAP),
                      Cell(Fill), Cell(nothing), Cell(nothing))
 
 _has_result(form::EvaluatorForm) = !(form.result isa TextBlock && isempty(form.result.elements))
@@ -179,7 +179,7 @@ function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol)
                               bind(KeyDownPattern(:space; modifiers = Symbol[])),
                               bind(KeyDownPattern(:return; modifiers = Symbol[]))]
     box = WidgetCheckbox(Point2D(0, 0), getproperty(t, option) === true; gestures)
-    set_cell_function!(box, () -> getproperty(t, option) === true)
+    set_cell_computation!(box, () -> getproperty(t, option) === true)
 end
 
 # A key that a layer inside the toplevel already answered, as the hole of a

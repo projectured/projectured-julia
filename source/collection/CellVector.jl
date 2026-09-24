@@ -76,20 +76,20 @@ CellVector(::UndefInitializer, n::Integer) = CellVector(Cell([Cell(nothing) for 
 # `CellVector([a, b])`.
 CellVector(items...)                = CellVector(Cell[Cell(x) for x in items])
 """
-    CellVector(Computed(f)) -> CellVector
+    CellVector(@computation expr) -> CellVector
 
-A `CellVector` whose elements are derived: `f` takes no argument and returns the
-element list, and each element gets a slot cell of its own on every computation.
-The counterpart of `Cell(Computed(f))` for a collection.
+A `CellVector` whose elements are derived: `expr` computes the element list, and
+each element gets a slot cell of its own on every computation. The counterpart
+of `Cell(@computation expr)` for a collection.
 """
-function CellVector(computed::Computed)
+function CellVector(marker::Computation)
     cv = CellVector(Cell(Cell[]), Cell(nothing))
-    f = computed.thunk
-    set_cell_function!(getfield(cv, :elements), () -> Cell[Cell(x) for x in f()])
+    f = marker.computation
+    set_cell_computation!(getfield(cv, :elements), () -> Cell[Cell(x) for x in f()])
     cv
 end
 # A `Function` needs no method of its own: it is an element like any other value, and the
-# variadic above makes it a one-element vector. Only a `Computed` derives the element list.
+# variadic above makes it a one-element vector. Only a `Computation` derives the element list.
 
 # Value-vector conveniences for the non-reactive kinds (the macro-emitted 2-arg
 # kind ctors remain the general form).
@@ -151,7 +151,7 @@ it came from.
 # Example
 
     cell = get_cell_at(rows, 2)
-    set_cell_function!(cell, () -> uppercase(title[]))
+    set_cell_computation!(cell, () -> uppercase(title[]))
 
 See also `CellVector`, `CellTable` and `CellMatrix`.
 """
@@ -301,6 +301,6 @@ end
 # importing a base document type.
 
 make_children_container(cells::Vector) = CellVector(cells)
-make_children_container(thunk::Function) = CellVector(Computed(thunk))
+make_children_container(thunk::Function) = CellVector(Computation(thunk))
 get_children_container_type() = CellVector
 

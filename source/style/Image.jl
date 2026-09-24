@@ -45,7 +45,7 @@ directly (e.g. a decoded pixel buffer).
     raw::Any
 end
 
-# ── set_cell_function! delegation ──────────────────────────────────────────────────────
+# ── set_cell_computation! delegation ───────────────────────────────────────────────────
 
-set_cell_function!(img::ImageFile,   f::Function) = (set_cell_function!(getfield(img, :raw), f); img)
-set_cell_function!(img::ImageMemory, f::Function) = (set_cell_function!(getfield(img, :raw), f); img)
+set_cell_computation!(img::ImageFile,   f::Function) = (set_cell_computation!(getfield(img, :raw), f); img)
+set_cell_computation!(img::ImageMemory, f::Function) = (set_cell_computation!(getfield(img, :raw), f); img)

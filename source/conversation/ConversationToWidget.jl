@@ -140,7 +140,7 @@ _role_header(role::Symbol) =
 # handler flips the flag there; the card only shows it. `read_flag` answers the
 # flag, and a flag that was never set reads as open.
 function _follow_fold!(card::WidgetCard, read_flag::Function)
-    set_cell_function!(getfield(card, :collapsed), () -> read_flag() === true)
+    set_cell_computation!(getfield(card, :collapsed), () -> read_flag() === true)
     card
 end
 
@@ -150,7 +150,7 @@ end
 # not pass through the widget. A container draws its selection ring from that
 # cell. `lead` are those steps, without node types.
 function _follow_selection!(widget, node, projection, iomap, lead::Vector)
-    set_cell_function!(getfield(widget, :selection), () -> begin
+    set_cell_computation!(getfield(widget, :selection), () -> begin
         selection = node.selection
         selection === nothing && return nothing
         image = map_reference_forward(projection, iomap, selection)

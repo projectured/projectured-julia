@@ -46,12 +46,12 @@ using ..TextModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..CellModule: set_cell_function!, set_cell_value!
+import ..CellModule: set_cell_computation!, set_cell_value!
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: emit_text, get_document_section,
                               get_file_domain, make_reference_leaf, find_reference_marker, parse_file_content
 
-export RstDocument, set_cell_function!
+export RstDocument, set_cell_computation!
 export parse_rst, parse_rst_file
 export RstInsertionToSyntaxLeaf, RstTextToSyntaxLeaf, RstLiteralToSyntaxLeaf,
        RstEmphasisToSyntaxNode, RstStrongToSyntaxNode, RstRoleToSyntaxNode,

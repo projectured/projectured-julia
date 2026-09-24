@@ -405,7 +405,7 @@ function _md_image_value(url, style::StyleText, placeholder::StyleText; max_w::I
         path = String(url)
         img  = ImageFile(path)
         raw  = getfield(img, :raw)
-        set_cell_function!(raw, () -> (try decode_image(path) catch; nothing end))
+        set_cell_computation!(raw, () -> (try decode_image(path) catch; nothing end))
         _nat(i, fb) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fb)
         dw = Cell(@computation Int32(min(_nat(2, 720), max_w)))
         dh = Cell(@computation begin w = min(_nat(2, 720), max_w); Int32(round(Int, _nat(3, 460) * w / _nat(2, 720))) end)

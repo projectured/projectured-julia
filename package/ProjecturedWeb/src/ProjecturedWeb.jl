@@ -31,7 +31,7 @@ import ProjecturedCollection.CollectionModule: ListNode, CellVector
 import ProjecturedStyle.StyleModule: StyleColor
 import ProjecturedStyle.StyleModule: AffineTransform, affine_identity
 import ProjecturedStyle.StyleModule: StyleFont, font_logical_size
-import ProjecturedKernel.CellModule: Cell, Computed, is_cell_up_to_date
+import ProjecturedKernel.CellModule: Cell, Computation, is_cell_up_to_date
 import ProjecturedKernel.EventModule: WindowInput, ModifierKeys,
                                WindowQuit, WindowClose, WindowResize, WindowDefocus
 import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument

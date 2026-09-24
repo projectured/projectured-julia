@@ -296,8 +296,9 @@ SyntaxConcatenation(children::Vector{<:SyntaxDocument}) =
 # field directly. Coercing it into a `CellVector` would interpose a per-element
 # cell-wrapping thunk, and those markers would never be resolved. A hand-written
 # projection that wants reactive children says so explicitly:
-# `SyntaxConcatenation(CellVector(Computed(f)))`.
-SyntaxConcatenation(thunk::Function) = SyntaxConcatenation(Cell(Computed(thunk)), nothing)
+# `SyntaxConcatenation(CellVector(Computation(f)))`.
+SyntaxConcatenation(computation::Function) =
+    SyntaxConcatenation(Cell(Computation(computation)), nothing)
 
 # A concatenation answers the compound contract with the defaults throughout: it
 # has children, and nothing else. Every `nothing` here is a span the printer does
@@ -394,7 +395,7 @@ _text(::Nothing) = nothing
 _children(c::CellVector) = c
 _children(c::Vector{Cell}) = CellVector(c)
 _children(c::AbstractVector) = CellVector(Cell[Cell(x) for x in c])
-_children(f::Function) = CellVector(Computed(f))
+_children(f::Function) = CellVector(Computation(f))
 _children(c) = c
 
 # ── Leaf ─────────────────────────────────────────────────────────────────
@@ -561,10 +562,10 @@ function render(c::SyntaxCompound)
            _delimiter_content(_span_of(get_closing_delimiter(c))))
 end
 
-# ── set_cell_function! delegation ───────────────────────────────────────────────────
+# ── set_cell_computation! delegation ────────────────────────────────────────────────
 
-set_cell_function!(t::SyntaxLeaf, f::Function) = (set_cell_function!(getfield(t.value, :content), f); t)
-set_cell_function!(n::SyntaxSequence, f::Function) = (set_cell_function!(getfield(n.children, :elements), () -> Cell[Cell(x) for x in f()]); n)
+set_cell_computation!(t::SyntaxLeaf, f::Function) = (set_cell_computation!(getfield(t.value, :content), f); t)
+set_cell_computation!(n::SyntaxSequence, f::Function) = (set_cell_computation!(getfield(n.children, :elements), () -> Cell[Cell(x) for x in f()]); n)
 
 # ── read_gesture via reified @gestures: geometry-free tree navigation ─────
 #

@@ -7,7 +7,7 @@ The active counter store is a task-local binding established by
 
 using Test
 using ProjecturedKernel.PerformanceModule
-using ProjecturedKernel.CellModule: Cell, Computed
+using ProjecturedKernel.CellModule: Cell, Computation, @computation
 
 function test_performance_counter()
 @testset "PerformanceCounter" begin

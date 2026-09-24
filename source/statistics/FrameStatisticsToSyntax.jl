@@ -31,7 +31,7 @@ changed.
 """
 function print_document(p::FrameStatisticsToSyntax, recursion,
                         statistics::FrameStatistics, ctx::PrinterContext)
-    children = CellVector(Computed(function ()
+    children = CellVector(Computation(function ()
         rows = statistics.rows
         lines = SyntaxDocument[]
         push!(lines, SyntaxLeaf(TextString(_format_head_line(statistics), p.header)))

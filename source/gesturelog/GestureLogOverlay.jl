@@ -118,25 +118,27 @@ function print_document(p::GestureLogOverlayProjection, recursion, input, ctx)
 
     # The body sits inside the panel, one padding from the corner of the panel.
     body = GraphicsCanvas(CellVector(Cell[log_output]); x = p.padding, y = p.padding)
-    set_cell_function!(getfield(body, :w), () -> Int32(body_width()))
-    set_cell_function!(getfield(body, :h), () -> Int32(body_height()))
+    set_cell_computation!(getfield(body, :w), () -> Int32(body_width()))
+    set_cell_computation!(getfield(body, :h), () -> Int32(body_height()))
 
     background = GraphicsRect(0, 0, 0, 0; color = p.background, radius = 4)
-    set_cell_function!(getfield(background, :w), () -> Int32(panel_width()))
-    set_cell_function!(getfield(background, :h), () -> Int32(panel_height()))
+    set_cell_computation!(getfield(background, :w), () -> Int32(panel_width()))
+    set_cell_computation!(getfield(background, :h), () -> Int32(panel_height()))
 
     panel = GraphicsCanvas(CellVector(Cell[Cell(background), Cell(body)]))
-    set_cell_function!(getfield(panel, :x), () -> Int32(_panel_x(p, ctx, panel_width())))
-    set_cell_function!(getfield(panel, :y), () -> Int32(_panel_y(p, ctx, panel_height())))
-    set_cell_function!(getfield(panel, :w), () -> Int32(panel_width()))
-    set_cell_function!(getfield(panel, :h), () -> Int32(panel_height()))
+    set_cell_computation!(getfield(panel, :x),
+                          () -> Int32(_panel_x(p, ctx, panel_width())))
+    set_cell_computation!(getfield(panel, :y),
+                          () -> Int32(_panel_y(p, ctx, panel_height())))
+    set_cell_computation!(getfield(panel, :w), () -> Int32(panel_width()))
+    set_cell_computation!(getfield(panel, :h), () -> Int32(panel_height()))
 
     # The inner output keeps the origin, so the coordinates the reader sees are
     # the coordinates the inner pipeline printed.
     output = GraphicsCanvas(CellVector(Cell[inner_output, Cell(panel)]))
-    set_cell_function!(getfield(output, :w),
+    set_cell_computation!(getfield(output, :w),
                        () -> Int32(max(_width(inner_output[]), panel.x + panel_width())))
-    set_cell_function!(getfield(output, :h),
+    set_cell_computation!(getfield(output, :h),
                        () -> Int32(max(_height(inner_output[]), panel.y + panel_height())))
 
     GestureLogOverlayIoMap(p, input, output, inner_iomap, log_iomap)

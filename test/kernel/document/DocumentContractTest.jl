@@ -14,8 +14,8 @@ Covers:
 
 using Test
 using ProjecturedKernel.DocumentModule
-using ProjecturedKernel.CellModule: Cell, Computed, ImmutableCell, ReactiveCell,
-                                    AbstractCell, is_cell_up_to_date
+using ProjecturedKernel.CellModule: Cell, Computation, @computation, ImmutableCell,
+                                    ReactiveCell, AbstractCell, is_cell_up_to_date
 # The reference layer supplies the type our test-local selection field carries.
 # Non-cell/document imports are allowed only to build the fixture; the contract
 # tests below still exercise DocumentModule generics.
@@ -240,7 +240,7 @@ function test_document_contract()
 
         @testset "a cell that computes is the policy's to copy" begin
             node = ToyNode("", nothing, nothing)
-            set_cell_function!(getfield(node, :label), () -> "computed")
+            set_cell_computation!(getfield(node, :label), () -> "computed")
             @test is_computed_cell(getfield(node, :label))
             # The plain copy keeps a moment of it, in a cell that stores.
             clone = copy_document(node)
@@ -297,7 +297,7 @@ function test_document_contract()
         @testset "a selection that a projection computes is copied as it is now" begin
             path = extend_reference(EmptyReference(), FieldReferenceStep("label"))
             node = ToyNode("root", nothing, nothing)
-            set_cell_function!(getfield(node, :selection), () -> path)
+            set_cell_computation!(getfield(node, :selection), () -> path)
             @test is_computed_cell(getfield(node, :selection))
             duplicate = make_document_duplicate(node)
             @test !is_computed_cell(getfield(duplicate, :selection))
@@ -317,7 +317,7 @@ function test_document_contract()
 
         @testset "what the duplicate can not own refuses it" begin
             computed = ToyNode("", nothing, nothing)
-            set_cell_function!(getfield(computed, :label), () -> "computed")
+            set_cell_computation!(getfield(computed, :label), () -> "computed")
             @test occursin("computes", refusal(computed))
             @test occursin("action", refusal(ToyNode(() -> "called", nothing, nothing)))
             @test occursin("action", refusal(ContractPair(Ref{Any}(1), nothing, nothing)))

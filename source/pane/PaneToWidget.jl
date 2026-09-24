@@ -149,7 +149,7 @@ end
 # the routing prefix unless the caller says more.
 function _forward_selection!(widget, source, projection, iomap, get_routing = _index_prefix)
     source_selection = getfield(source, :selection)
-    set_cell_function!(getfield(widget, :selection), () -> begin
+    set_cell_computation!(getfield(widget, :selection), () -> begin
         # The stored path, live or dormant: a group that lost the focus still shows
         # the tab it was showing, so its widget image must name that tab.
         selection = _get_stored_selection_value(source_selection[])
@@ -178,7 +178,7 @@ function print_document(p::PaneTreeToWidget, recursion, tree::PaneTree, ctx)
     # their intrinsic sizes.)
     indicator = _drop_indicator(tree, available)
     composite = WidgetComposite(Point2D(0, 0), Any[])
-    set_cell_function!(getfield(composite.elements, :elements),
+    set_cell_computation!(getfield(composite.elements, :elements),
                        () -> Cell[Cell(root_iomap[].output), Cell(indicator)])
     iomap = PaneTreeToWidgetIoMap(p, tree, composite, root_iomap, available)
     # The pane layer is slot 1, and the indicator never takes a keystroke. A key
@@ -187,7 +187,7 @@ function print_document(p::PaneTreeToWidget, recursion, tree::PaneTree, ctx)
     # as a whole — and rings it — only when the tree's root is selected whole;
     # otherwise its selection is the image of the step the root takes, which is
     # all the routing reads and all the forward maps below take.
-    set_cell_function!(getfield(composite, :selection), () -> begin
+    set_cell_computation!(getfield(composite, :selection), () -> begin
         selection = get_selection(tree)
         selection isa ConcreteReference || return nothing
         rest = _after_field(selection, "root")
@@ -211,15 +211,15 @@ const _PANE_LAYER = @reference ::WidgetComposite.elements::CellVector[1]::Widget
 function _drop_indicator(tree::PaneTree, available)
     indicator = WidgetHighlight(Point2D(0, 0); visible = false)
     rectangle() = _drop_indicator_rectangle(tree, available)
-    set_cell_function!(getfield(indicator, :position), () -> begin
+    set_cell_computation!(getfield(indicator, :position), () -> begin
         r = rectangle()
         r === nothing ? Point2D(0, 0) : Point2D(r[1], r[2])
     end)
-    set_cell_function!(getfield(indicator, :width),
+    set_cell_computation!(getfield(indicator, :width),
                        () -> (r = rectangle(); r === nothing ? 0 : r[3]))
-    set_cell_function!(getfield(indicator, :height),
+    set_cell_computation!(getfield(indicator, :height),
                        () -> (r = rectangle(); r === nothing ? 0 : r[4]))
-    set_cell_function!(getfield(indicator, :visible), () -> rectangle() !== nothing)
+    set_cell_computation!(getfield(indicator, :visible), () -> rectangle() !== nothing)
     indicator
 end
 
@@ -288,7 +288,7 @@ function print_document(p::PaneSplitToWidgetSplitPane, recursion, split::PaneSpl
     preferred = available === nothing ? nothing : 0
 
     pane = WidgetSplitPane(axis, Any[])
-    set_cell_function!(pane, () -> begin
+    set_cell_computation!(pane, () -> begin
         iomaps = element_iomaps[]
         weights = get_pane_normalized_weights(get_pane_weights(split))
         Any[_constrain(iomaps[i].output, horizontal,
@@ -361,7 +361,7 @@ function print_document(p::PaneGroupToWidgetTabbedPane, recursion, group::PaneGr
     # the type of the content, so the strip reads no cell of the content to ask it.
     pane = WidgetTabbedPane(Any[]; closable = true, new_tab = true, draggable = true,
                             duplicable = true, border = _PANE_BORDER)
-    set_cell_function!(pane, () -> begin
+    set_cell_computation!(pane, () -> begin
         entries = content_iomaps[]
         tabs = group.tabs
         Any[(get_pane_tab_title_string(tabs[i]), entries[i].pane, nothing,

@@ -141,7 +141,7 @@ node.next = node2
 node2.prev = node
 
 node3 = ListNode(TextString("Para 2", font_ubuntu_monospace_regular_20, color_white))
-set_cell_function!(getfield(node2, :next), () -> begin
+set_cell_computation!(getfield(node2, :next), () -> begin
     counter[] += 1
     node3.prev = node2
     node3

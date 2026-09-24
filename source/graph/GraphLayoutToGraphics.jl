@@ -196,7 +196,7 @@ function print_document(p::GraphLayoutToGraphicsCanvas, recursion, layout::Graph
     # Read from the layout rather than by walking the drawn elements: the
     # placement is what decides the size, and measuring elements would need a
     # text-measuring function this stage has no business holding.
-    extent = Cell(Computed(function ()
+    extent = Cell(Computation(function ()
         right = bottom = 0
         for vertex_layout in layout.vertex_layouts
             vertex_layout isa VertexLayout || continue

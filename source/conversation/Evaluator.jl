@@ -203,8 +203,8 @@ EvaluatorToplevel(elements::Vector) =
     EvaluatorToplevel(CellVector(Cell[Cell(e) for e in elements]), Cell(true),
                       Cell(0), Cell(""), Cell(""), Cell(true), Cell(false), Cell(nothing))
 
-set_cell_function!(t::EvaluatorToplevel, f::Function) =
-    (set_cell_function!(getfield(t.elements, :elements), () -> Cell[Cell(x) for x in f()]); t)
+set_cell_computation!(t::EvaluatorToplevel, f::Function) =
+    (set_cell_computation!(getfield(t.elements, :elements), () -> Cell[Cell(x) for x in f()]); t)
 
 # A person points at the part that holds an evaluation, or at the evaluation's
 # form or result, never at the evaluation between them: the Alt + arrow walk

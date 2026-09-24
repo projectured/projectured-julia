@@ -33,7 +33,7 @@ copied: the outer node reads `log.entries` inside a computed `CellVector`, so an
 append rebuilds the lines and the panel that shows them.
 """
 function print_document(p::MessageLogToSyntax, recursion, log::MessageLog, ctx::PrinterContext)
-    children = CellVector(Computed(function ()
+    children = CellVector(Computation(function ()
         entries = log.entries
         isempty(entries) && return SyntaxDocument[SyntaxLeaf(TextString("no message yet", p.empty))]
         lines = SyntaxDocument[]

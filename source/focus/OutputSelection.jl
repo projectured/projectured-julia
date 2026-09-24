@@ -84,7 +84,7 @@ function _follow_output!(node, prefix::Tuple, forward, is_followed, seen)
     (haskey(seen, node) || !is_followed(node)) && return
     seen[node] = true
     if hasproperty(node, :selection) && getfield(node, :selection) isa ReactiveCell
-        set_cell_function!(getfield(node, :selection),
+        set_cell_computation!(getfield(node, :selection),
                            () -> _get_output_part(forward(), prefix))
     end
     for (steps, child) in _child_document_refs(node)

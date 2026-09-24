@@ -33,7 +33,7 @@ using ..StyleModule
 using ..TextModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..CellModule: set_cell_function!
+import ..CellModule: set_cell_computation!
 import ..DocumentModule: has_document_duplicate, get_wrapped_document
 import ..DomainModule: compute_tooltip, compute_context_menu
 import ..SerializationModule: pred_arguments
@@ -49,7 +49,7 @@ export Inset, Point2D, WidgetDocument, WidgetToolButton, WidgetMessageBox, Widge
        InvokeActionOperation, resolve_action,
        make_numeric_validator, evaluate_operation, inset_default, inset_size,
        inset_width, inset_height, inset_top_left, inset_top_right, inset_bottom_left,
-       inset_bottom_right, set_cell_function!, make_pager_widget, make_filter_bar_widget, make_column_chooser_widget,
+       inset_bottom_right, set_cell_computation!, make_pager_widget, make_filter_bar_widget, make_column_chooser_widget,
        make_widget_list_selection, get_widget_list_selected,
        make_widget_table_row_selection, get_widget_table_selected_row,
        resolve_toggle_group_write, resolve_slider_write

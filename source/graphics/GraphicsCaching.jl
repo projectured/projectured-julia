@@ -100,7 +100,7 @@ function print_document(p::GraphicsCanvasToGraphicsImage, recursion, canvas::Gra
     orig_cv = canvas.elements::CellVector
     orig_elements_cell = getfield(orig_cv, :elements)
     output_cv = CellVector(Cell(Cell[]), Cell(nothing))
-    set_cell_function!(getfield(output_cv, :elements), () -> begin
+    set_cell_computation!(getfield(output_cv, :elements), () -> begin
         orig_cells = orig_elements_cell[]::Vector{Cell}
         vcat(bg_rects, orig_cells)
     end)

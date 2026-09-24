@@ -1077,7 +1077,7 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion, ctx, cache::
     set_cell_value!(getfield(cur_out, :next), nl_node)
     set_cell_value!(getfield(nl_node, :prev), cur_out)
 
-    set_cell_function!(getfield(nl_node, :next), () -> begin
+    set_cell_computation!(getfield(nl_node, :next), () -> begin
         input_next = input_node.next
         input_next === nothing && return nothing
         next_first = _syntax_list_to_text_node(input_next, recursion, ctx, cache)
@@ -1085,7 +1085,7 @@ function _syntax_list_to_text_node(input_node::ListNode, recursion, ctx, cache::
         next_first
     end)
 
-    set_cell_function!(getfield(first_out, :prev), () -> begin
+    set_cell_computation!(getfield(first_out, :prev), () -> begin
         input_prev = input_node.prev
         input_prev === nothing && return nothing
         prev_first = _syntax_list_to_text_node(input_prev, recursion, ctx, cache)

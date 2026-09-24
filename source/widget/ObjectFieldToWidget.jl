@@ -107,7 +107,8 @@ end
 
 function _checkbox(p::ObjectFieldToWidget, field::ObjectField)
     control = WidgetCheckbox(Point2D(0, 0), get_object_field_value(field))
-    set_cell_function!(getfield(control, :content), () -> get_object_field_value(field))
+    set_cell_computation!(getfield(control, :content),
+                          () -> get_object_field_value(field))
     control
 end
 
@@ -123,9 +124,10 @@ end
 # nobody has clicked wants it and what `ObjectToWidget` pins it to.
 function _text_control(p::ObjectFieldToWidget, field::ObjectField)
     ts = TextString("", p.style)
-    set_cell_function!(getfield(ts, :content), () -> _as_string(get_object_field_value(field)))
+    set_cell_computation!(getfield(ts, :content),
+                          () -> _as_string(get_object_field_value(field)))
     tt = TextBlock(ts)
-    set_cell_function!(getfield(tt, :selection), () -> begin
+    set_cell_computation!(getfield(tt, :selection), () -> begin
         inside = _caret_in_content(getfield(field, :selection)[])
         inside === nothing ?
             _end_cursor(length(_as_string(get_object_field_value(field)))) : inside
@@ -152,7 +154,7 @@ end
 
 function _read_only_label(p::ObjectFieldToWidget, field::ObjectField)
     control = WidgetLabel(Point2D(0, 0), _as_string(get_object_field_value(field)))
-    set_cell_function!(getfield(control, :content),
+    set_cell_computation!(getfield(control, :content),
                        () -> _as_string(get_object_field_value(field)))
     control
 end

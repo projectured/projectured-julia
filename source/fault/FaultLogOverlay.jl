@@ -127,18 +127,18 @@ function print_document(p::FaultLogOverlayProjection, recursion, input, ctx)
     panel_height() = body_height() + 2 * p.padding
 
     body = GraphicsCanvas(CellVector(Cell[log_output]); x = p.padding, y = p.padding)
-    set_cell_function!(getfield(body, :w), () -> Int32(body_width()))
-    set_cell_function!(getfield(body, :h), () -> Int32(body_height()))
+    set_cell_computation!(getfield(body, :w), () -> Int32(body_width()))
+    set_cell_computation!(getfield(body, :h), () -> Int32(body_height()))
 
     background = GraphicsRect(0, 0, 0, 0; color = p.background, radius = 4)
-    set_cell_function!(getfield(background, :w), () -> Int32(panel_width()))
-    set_cell_function!(getfield(background, :h), () -> Int32(panel_height()))
+    set_cell_computation!(getfield(background, :w), () -> Int32(panel_width()))
+    set_cell_computation!(getfield(background, :h), () -> Int32(panel_height()))
 
     panel = GraphicsCanvas(CellVector(Cell[Cell(background), Cell(body)]))
-    set_cell_function!(getfield(panel, :x), () -> Int32(_fault_panel_x(p, ctx, panel_width())))
-    set_cell_function!(getfield(panel, :y), () -> Int32(_fault_panel_y(p, ctx, panel_height())))
-    set_cell_function!(getfield(panel, :w), () -> Int32(panel_width()))
-    set_cell_function!(getfield(panel, :h), () -> Int32(panel_height()))
+    set_cell_computation!(getfield(panel, :x), () -> Int32(_fault_panel_x(p, ctx, panel_width())))
+    set_cell_computation!(getfield(panel, :y), () -> Int32(_fault_panel_y(p, ctx, panel_height())))
+    set_cell_computation!(getfield(panel, :w), () -> Int32(panel_width()))
+    set_cell_computation!(getfield(panel, :h), () -> Int32(panel_height()))
 
     # The panel joins the canvas only once something has failed. The read of
     # `log.entries` is what subscribes this list to the log, so the first fault
@@ -149,11 +149,11 @@ function print_document(p::FaultLogOverlayProjection, recursion, input, ctx)
     # The inner output keeps the origin, so the coordinates the reader sees are
     # the coordinates the inner pipeline printed.
     output = GraphicsCanvas(children)
-    set_cell_function!(getfield(output, :w), function ()
+    set_cell_computation!(getfield(output, :w), function ()
         length(p.log.entries) == 0 && return Int32(_fault_width(inner_output[]))
         Int32(max(_fault_width(inner_output[]), panel.x + panel_width()))
     end)
-    set_cell_function!(getfield(output, :h), function ()
+    set_cell_computation!(getfield(output, :h), function ()
         length(p.log.entries) == 0 && return Int32(_fault_height(inner_output[]))
         Int32(max(_fault_height(inner_output[]), panel.y + panel_height()))
     end)

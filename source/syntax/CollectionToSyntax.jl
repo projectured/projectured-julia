@@ -133,7 +133,7 @@ function _map_listnode(recursion, input_node::ListNode, ctx, index::Int)
     out_node = ListNode(child_iomap.output)
 
     # Lazy next
-    set_cell_function!(getfield(out_node, :next), () -> begin
+    set_cell_computation!(getfield(out_node, :next), () -> begin
         input_next = input_node.next
         input_next === nothing && return nothing
         next_out = _map_listnode(recursion, input_next, ctx, index + 1)
@@ -142,7 +142,7 @@ function _map_listnode(recursion, input_node::ListNode, ctx, index::Int)
     end)
 
     # Lazy prev
-    set_cell_function!(getfield(out_node, :prev), () -> begin
+    set_cell_computation!(getfield(out_node, :prev), () -> begin
         input_prev = input_node.prev
         input_prev === nothing && return nothing
         prev_out = _map_listnode(recursion, input_prev, ctx, index - 1)

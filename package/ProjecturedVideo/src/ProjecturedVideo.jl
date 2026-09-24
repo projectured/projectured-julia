@@ -36,7 +36,7 @@ import ProjecturedKernel.ProjectionModule: print_document, read_intent
 import ProjecturedKernel.OperationModule: evaluate_operation
 import ProjecturedKernel.SelectionModule: clear_selection!, set_selection!
 import ProjecturedKernel.ProjectionModule: PrinterContext
-import ProjecturedKernel.CellModule: Cell, Computed
+import ProjecturedKernel.CellModule: Cell, Computation
 import ProjecturedKernel.ClockModule: Clock, set_clock_time!
 import ProjecturedKernel.EditorModule: get_frame_clock_time
 import ProjecturedKernel.ReferenceModule: EmptyReference

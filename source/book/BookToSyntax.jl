@@ -561,7 +561,7 @@ function _picture_leaf_value(content, style::StyleText, placeholder::StyleText; 
         path = String(content)
         img  = ImageFile(path)
         raw  = getfield(img, :raw)
-        set_cell_function!(raw, () -> (try decode_image(path) catch; nothing end))
+        set_cell_computation!(raw, () -> (try decode_image(path) catch; nothing end))
         _nat(i, fb) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fb)
         dw = Cell(@computation Int32(min(_nat(2, 720), max_w)))
         dh = Cell(@computation begin w = min(_nat(2, 720), max_w); Int32(round(Int, _nat(3, 460) * w / _nat(2, 720))) end)

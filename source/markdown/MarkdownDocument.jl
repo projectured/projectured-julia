@@ -25,7 +25,7 @@ end
 
 Base.getindex(t::MarkdownText) = t.content::String
 Base.setindex!(t::MarkdownText, v::AbstractString) = (t.content = String(v))
-set_cell_function!(t::MarkdownText, f::Function) = (set_cell_function!(getfield(t, :content), f); t)
+set_cell_computation!(t::MarkdownText, f::Function) = (set_cell_computation!(getfield(t, :content), f); t)
 set_cell_value!(t::MarkdownText, v::AbstractString) = (set_cell_value!(getfield(t, :content), String(v)); t)
 
 """
@@ -37,7 +37,7 @@ end
 
 Base.getindex(c::MarkdownCode) = c.content::String
 Base.setindex!(c::MarkdownCode, v::AbstractString) = (c.content = String(v))
-set_cell_function!(c::MarkdownCode, f::Function) = (set_cell_function!(getfield(c, :content), f); c)
+set_cell_computation!(c::MarkdownCode, f::Function) = (set_cell_computation!(getfield(c, :content), f); c)
 set_cell_value!(c::MarkdownCode, v::AbstractString) = (set_cell_value!(getfield(c, :content), String(v)); c)
 
 """

@@ -1,6 +1,6 @@
 # Fragment of `OdbcModule`.
 #
-import ProjecturedKernel.CellModule: Cell, Computed
+import ProjecturedKernel.CellModule: Cell, Computation, @computation
 import ProjecturedCollection.CollectionModule: CellVector, CellTable
 import ProjecturedKernel.ProjectionModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection

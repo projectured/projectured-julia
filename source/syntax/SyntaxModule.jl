@@ -47,12 +47,12 @@ using ..StyleModule
 using ..TextModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..CellModule: set_cell_function!
+import ..CellModule: set_cell_computation!
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
 export SyntaxDocument, SyntaxCompound, SyntaxSequence, SyntaxWrapper,
-       render, set_cell_function!,
+       render, set_cell_computation!,
        get_syntax_children, get_opening_delimiter, get_closing_delimiter, get_separator,
        is_on_closing_delimiter,
        get_indentation, is_syntax_collapsed, is_syntax_collapsible,

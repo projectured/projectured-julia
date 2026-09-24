@@ -88,10 +88,10 @@ Markdown: 19 files in projectured-julia and 2 in omnet-julia name `Computed`,
     lists it.
   - Each continuation line aligned inside the old call moves with it, by the
     rule that the `ComputedCell` script used.
-- [ ] 3. The renames with `julia-rename.jl`: every other `Computed` becomes
+- [x] 3. The renames with `julia-rename.jl`: every other `Computed` becomes
   `Computation`, and `set_cell_function!` becomes `set_cell_computation!`.
   Then a pass over the prose, because the tool skips strings and comments.
-- [ ] 4. The import lists that name `Computed` name `Computation` and, where
+- [x] 4. The import lists that name `Computed` name `Computation` and, where
   the file uses the macro, `@computation`.
 - [ ] 5. The guides and the rules: `cell.md`, `macros.md`,
   `architecture-invariants.md` and the other Markdown files.

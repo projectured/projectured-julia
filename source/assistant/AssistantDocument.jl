@@ -125,7 +125,7 @@ function Assistant(; conversation::ConversationConversation = ConversationConver
     a
 end
 
-set_cell_function!(a::Assistant, f::Function) = (set_cell_function!(getfield(a, :conversation), f); a)
+set_cell_computation!(a::Assistant, f::Function) = (set_cell_computation!(getfield(a, :conversation), f); a)
 
 # A key must never be written to a file, so `api_key` is not one of the
 # arguments a `.pred` file writes. A live connection is not data either: `llm`

@@ -138,16 +138,16 @@ has_document_duplicate(::ConversationDocument) = true
 copy_document(policy::DuplicatePolicy, draft::ConversationDraft) =
     copy_document_fields(policy, draft; assistant = draft.assistant)
 
-set_cell_function!(d::ConversationDraft, f::Function) =
-    (set_cell_function!(getfield(d.parts, :elements), () -> Cell[Cell(x) for x in f()]); d)
+set_cell_computation!(d::ConversationDraft, f::Function) =
+    (set_cell_computation!(getfield(d.parts, :elements), () -> Cell[Cell(x) for x in f()]); d)
 
-# ── set_cell_function! delegation ──────────────────────────────────────────
+# ── set_cell_computation! delegation ───────────────────────────────────────
 
-set_cell_function!(c::ConversationConversation, f::Function) =
-    (set_cell_function!(getfield(c.turns, :elements), () -> Cell[Cell(x) for x in f()]); c)
+set_cell_computation!(c::ConversationConversation, f::Function) =
+    (set_cell_computation!(getfield(c.turns, :elements), () -> Cell[Cell(x) for x in f()]); c)
 
-set_cell_function!(t::ConversationTurn, f::Function) =
-    (set_cell_function!(getfield(t.parts, :elements), () -> Cell[Cell(x) for x in f()]); t)
+set_cell_computation!(t::ConversationTurn, f::Function) =
+    (set_cell_computation!(getfield(t.parts, :elements), () -> Cell[Cell(x) for x in f()]); t)
 
 # The history of a conversation is a record of what was said. A paste replaces
 # nothing in it, and puts no text into it.

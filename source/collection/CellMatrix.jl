@@ -38,7 +38,7 @@ CellMatrix(items::AbstractMatrix) =
 
 function CellMatrix(f::Function)
     cm = CellMatrix(Cell(Matrix{Cell}(undef, 0, 0)), Cell(nothing))
-    set_cell_function!(getfield(cm, :elements), () -> [Cell(x) for x in f()])
+    set_cell_computation!(getfield(cm, :elements), () -> [Cell(x) for x in f()])
     cm
 end
 

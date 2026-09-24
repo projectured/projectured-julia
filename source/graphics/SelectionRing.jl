@@ -25,10 +25,10 @@ function make_selection_ring(bounds::Function; color::StyleColor = SELECTION_RIN
     ring = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius = 3,
                         border_width = width, border_color = color)
     box = Cell(@computation something(bounds(), (0, 0, 0, 0)))
-    set_cell_function!(getfield(ring, :border_width), () -> Int32(box[][3] > 0 ? width : 0))
-    set_cell_function!(getfield(ring, :x), () -> Int32(box[][1]))
-    set_cell_function!(getfield(ring, :y), () -> Int32(box[][2]))
-    set_cell_function!(getfield(ring, :w), () -> Int32(box[][3]))
-    set_cell_function!(getfield(ring, :h), () -> Int32(box[][4]))
+    set_cell_computation!(getfield(ring, :border_width), () -> Int32(box[][3] > 0 ? width : 0))
+    set_cell_computation!(getfield(ring, :x), () -> Int32(box[][1]))
+    set_cell_computation!(getfield(ring, :y), () -> Int32(box[][2]))
+    set_cell_computation!(getfield(ring, :w), () -> Int32(box[][3]))
+    set_cell_computation!(getfield(ring, :h), () -> Int32(box[][4]))
     ring
 end

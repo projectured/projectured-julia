@@ -47,7 +47,7 @@ const _SITE_WIDTH = 9
 
 function print_document(p::FaultLogToSyntax, recursion, log::FaultLog,
                         ctx::PrinterContext)
-    children = CellVector(Computed(function ()
+    children = CellVector(Computation(function ()
         entries = log.entries
         isempty(entries) &&
             return SyntaxDocument[SyntaxLeaf(TextString("no fault", p.empty))]

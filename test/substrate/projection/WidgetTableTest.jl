@@ -7,7 +7,7 @@
 # synthesises. Must also work when the table is nested in a layout / tabbed pane /
 # shell (routed via the container crossing routing + the table's 3-arg bridge).
 
-using ProjecturedKernel.CellModule: Cell, Computed
+using ProjecturedKernel.CellModule: Cell, Computation
 
 function test_widget_table()
 @testset "WidgetTable hover" begin
@@ -234,7 +234,7 @@ function test_scroll_pane_axis_size()
     # An authored extent that is a computed cell is followed after the print.
     rows = Cell(100)
     size = Point2D(Cell(0), Cell(100))
-    set_cell_function!(getfield(size, :y), () -> rows[])
+    set_cell_computation!(getfield(size, :y), () -> rows[])
     ctx = with_available_size(PrinterContext(); width = Cell(Int32(400)), height = Cell(Int32(400)))
     out = print_document(rec, nothing, WidgetScrollPane(content(); size = size), ctx).output
     pane = only(e for e in out.elements if e isa GraphicsViewport)

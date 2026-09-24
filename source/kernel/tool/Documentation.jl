@@ -1044,7 +1044,7 @@ _compute_name_score(written, name::AbstractString, words::Vector{String},
 #
 # **At a hundred names a count was enough; at a thousand it is not.** Measured
 # 2026-09-18 on the corpus of 1,389 names: "make a field of a document computed"
-# never reached `set_cell_function!`, because "document" stands in hundreds of
+# never reached `set_cell_computation!`, because "document" stands in hundreds of
 # entries and counted as loudly as "computed", which stands in a few.
 const _WORD_SATURATION = 1.2
 const _LENGTH_WEIGHT = 0.75

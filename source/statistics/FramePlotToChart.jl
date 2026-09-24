@@ -27,7 +27,7 @@ struct FramePlotToChart <: Projection end
 
 function print_document(p::FramePlotToChart, recursion, plot::FramePlot,
                         ctx::PrinterContext)
-    series = CellVector(Computed(function ()
+    series = CellVector(Computation(function ()
         [_make_frame_time_series(plot, index, name)
          for (index, name) in enumerate(plot.names)]
     end))

@@ -261,7 +261,7 @@ followed(surface::ReactiveSurface) = !isempty(invalidated(surface))
 function _orphaning_fixture()
     source = Cell(1)
     iomap = SimpleIoMap(nothing, source, nothing)
-    set_cell_function!(getfield(iomap, :output), () -> source[] * 2)
+    set_cell_computation!(getfield(iomap, :output), () -> source[] * 2)
     node = IoMapNode(iomap, nothing, source, iomap.output, "fixture", 0)
     (source, node)
 end
@@ -636,7 +636,7 @@ end
 function _reactive_fixture()
     input = PrimitiveString("a")
     iomap = SimpleIoMap(nothing, input, nothing)
-    set_cell_function!(getfield(iomap, :output), () -> input.value * "!")
+    set_cell_computation!(getfield(iomap, :output), () -> input.value * "!")
     (input, IoMapNode(iomap, nothing, input, iomap.output, "reactive-fixture", 0))
 end
 
@@ -854,7 +854,7 @@ end
 function _reactive_collection_fixture()
     input = CellVector(Any[1, 2])
     output = CellVector(Cell[])
-    set_cell_function!(getfield(output, :elements),
+    set_cell_computation!(getfield(output, :elements),
                        () -> Cell[Cell(x) for x in input])
     iomap = SimpleIoMap(nothing, input, output)
     (input, IoMapNode(iomap, nothing, input, output, "reactive-collection", 0))

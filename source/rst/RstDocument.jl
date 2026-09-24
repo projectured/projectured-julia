@@ -31,7 +31,7 @@ end
 
 Base.getindex(t::RstText) = t.content::String
 Base.setindex!(t::RstText, v::AbstractString) = (t.content = String(v))
-set_cell_function!(t::RstText, f::Function) = (set_cell_function!(getfield(t, :content), f); t)
+set_cell_computation!(t::RstText, f::Function) = (set_cell_computation!(getfield(t, :content), f); t)
 set_cell_value!(t::RstText, v::AbstractString) = (set_cell_value!(getfield(t, :content), String(v)); t)
 
 """
@@ -43,7 +43,7 @@ end
 
 Base.getindex(l::RstLiteral) = l.content::String
 Base.setindex!(l::RstLiteral, v::AbstractString) = (l.content = String(v))
-set_cell_function!(l::RstLiteral, f::Function) = (set_cell_function!(getfield(l, :content), f); l)
+set_cell_computation!(l::RstLiteral, f::Function) = (set_cell_computation!(getfield(l, :content), f); l)
 set_cell_value!(l::RstLiteral, v::AbstractString) = (set_cell_value!(getfield(l, :content), String(v)); l)
 
 """

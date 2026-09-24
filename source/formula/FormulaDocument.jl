@@ -26,7 +26,7 @@ end
 A named formula: `name` (display name — a `String` or a derived thunk `Cell`),
 `code` (a `JuliaDocument` that may contain `FormulaReference`s), `result` (the
 computed result document), `display_mode` (`:code`/`:result`/`:both`).
-`result` is wired to `Cell(Computed(() -> evaluate_formula(self, env)))` once placed
+`result` is wired to `Cell(@computation evaluate_formula(self, env))` once placed
 in an environment; see [`wire_result!`](@ref).
 """
 @document struct FormulaFormula <: FormulaDocument
@@ -469,7 +469,8 @@ Wire `formula.result` to a reactive thunk that re-evaluates the body whenever an
 dependency's value changes. Idempotent.
 """
 function wire_result!(formula::FormulaFormula, env::FormulaEnvironment)
-    set_cell_function!(getfield(formula, :result), () -> evaluate_formula(formula, env))
+    set_cell_computation!(getfield(formula, :result),
+                          () -> evaluate_formula(formula, env))
     formula
 end
 

@@ -212,9 +212,9 @@ _vector_title(vec) = string(length(vec)) * (length(vec) == 1 ? " item" : " items
 # persistent cursor stored in the (projection-output) control bar.
 function _editable_text_control(p::ObjectToWidget, cell::Cell)
     ts = TextString("", p.style)
-    set_cell_function!(getfield(ts, :content), () -> _as_string(cell[]))
+    set_cell_computation!(getfield(ts, :content), () -> _as_string(cell[]))
     tt = TextBlock(ts)
-    set_cell_function!(getfield(tt, :selection), () -> _end_cursor(length(_as_string(cell[]))))
+    set_cell_computation!(getfield(tt, :selection), () -> _end_cursor(length(_as_string(cell[]))))
     WidgetText(Point2D(0, 0), tt)
 end
 

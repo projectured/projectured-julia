@@ -293,12 +293,12 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     cursor_rect = GraphicsRect(0, 0, 0, 0; color = color_black)
     # A dormant caret is drawn muted: the pane it belongs to still remembers where
     # the caret is, and shows it, but the keyboard is not on it.
-    set_cell_function!(getfield(cursor_rect, :color),
+    set_cell_computation!(getfield(cursor_rect, :color),
                        () -> is_live[] ? color_black : _DORMANT_CURSOR_COLOR)
-    set_cell_function!(getfield(cursor_rect, :x), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[1])))
-    set_cell_function!(getfield(cursor_rect, :y), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[2])))
-    set_cell_function!(getfield(cursor_rect, :w), () -> overlay[].cursor === nothing ? Int32(0) : Int32(2))
-    set_cell_function!(getfield(cursor_rect, :h), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(max(g[3], 1))))
+    set_cell_computation!(getfield(cursor_rect, :x), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[1])))
+    set_cell_computation!(getfield(cursor_rect, :y), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(g[2])))
+    set_cell_computation!(getfield(cursor_rect, :w), () -> overlay[].cursor === nothing ? Int32(0) : Int32(2))
+    set_cell_computation!(getfield(cursor_rect, :h), () -> (g = overlay[].cursor; g === nothing ? Int32(0) : Int32(max(g[3], 1))))
 
     # A structural selection hugs its content per visual row (see `_compute_span_rows`),
     # so the highlight is a *vector* of rects, not one box. They live in their own
@@ -312,18 +312,18 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     function get_highlight_rect(k::Int)
         haskey(hl_cache, k) && return hl_cache[k]
         r = GraphicsRect(0, 0, 0, 0; color = hl_color, radius = 4)
-        set_cell_function!(getfield(r, :color), () -> is_live[] ? hl_color : hl_color_dormant)
-        set_cell_function!(getfield(r, :x), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[1])))
-        set_cell_function!(getfield(r, :y), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[2])))
-        set_cell_function!(getfield(r, :w), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[3])))
-        set_cell_function!(getfield(r, :h), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[4])))
+        set_cell_computation!(getfield(r, :color), () -> is_live[] ? hl_color : hl_color_dormant)
+        set_cell_computation!(getfield(r, :x), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[1])))
+        set_cell_computation!(getfield(r, :y), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[2])))
+        set_cell_computation!(getfield(r, :w), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[3])))
+        set_cell_computation!(getfield(r, :h), () -> (g = _hl_geo(k); g === nothing ? Int32(0) : Int32(g[4])))
         hl_cache[k] = r
         r
     end
     # Membership reads only the highlight-rect *count* (a caret / no selection → 0),
     # so a caret move that keeps the same row count reuses the exact rects. Evict rows
     # that no longer exist so the cache cannot grow unbounded across selections.
-    highlight_elements = CellVector(Computed(function ()
+    highlight_elements = CellVector(Computation(function ()
         n = length(overlay[].highlight)
         out = Any[get_highlight_rect(k) for k in 1:n]
         for k in collect(keys(hl_cache)); k <= n || delete!(hl_cache, k); end
@@ -342,7 +342,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # cumulative height of the lines above (editing the last line moves nothing;
     # editing a middle line reflows the lines below — matching ListNode spines).
     # Each placement becomes a PERSISTENT GraphicsText/GraphicsRect reused across
-    # re-layouts, its fields `set_cell_function!` cells reading the placement back out of the
+    # re-layouts, its fields `set_cell_computation!` cells reading the placement back out of the
     # line's `layout` (printer locality — dimension C, now line-local).
     line_cells = Dict{Int,NamedTuple}()
     function get_line_cells(L::Int)
@@ -356,7 +356,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
             Cell(@computation Int32(prev.y[] + prev.h[]))
         end
         cache = Dict{Any,Any}()
-        segs = CellVector(Computed(function ()
+        segs = CellVector(Computation(function ()
             pls = line_layout[].spans
             out = Any[]
             live = Set{Any}()
@@ -385,7 +385,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # no content is read here and the stack stays up to date across content edits.
     # `layout_vertical` + non-overlapping lets the dirty walk and renderer
     # early-stop past off-screen lines.
-    lines_stack_elements = CellVector(Computed(function ()
+    lines_stack_elements = CellVector(Computation(function ()
         n = length(lines_cell[])
         Any[get_line_cells(L).canvas for L in 1:n]
     end))
@@ -401,7 +401,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # coord_map (reader-only — not in the rendered tree) assembled from the per-line
     # layouts, shifted into absolute coordinates by each line's y-offset so clicks
     # and key-navigation see exactly the same SegCoords as before.
-    char_to_coord = Cell(Computed(function ()
+    char_to_coord = Cell(Computation(function ()
         out = SegmentCoordinate[]
         n = length(lines_cell[])
         for L in 1:n
@@ -422,14 +422,14 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # and line sub-canvases), so the bare text examples use the MousePress/coord_map
     # reader instead, but the value is preserved for the rasterized-image path.
     highlight_offset = Cell(1)
-    canvas_w = Cell(Computed(function ()
+    canvas_w = Cell(Computation(function ()
         w = 0
         for L in 1:length(lines_cell[])
             w = max(w, get_line_cells(L).layout[].width)
         end
         Int32(w)
     end))
-    canvas_h = Cell(Computed(function ()
+    canvas_h = Cell(Computation(function ()
         n = length(lines_cell[])
         n == 0 ? Int32(0) : (lc = get_line_cells(n); Int32(lc.y[] + lc.h[]))
     end))
@@ -743,7 +743,7 @@ _has_text_span(styled::TextBlock) =
 # `_layout_group` emits a *placement* (a stable key + geometry/content values) per
 # text/fill segment instead of a graphic. The element builder turns each placement
 # into a GraphicsText/GraphicsRect that is created ONCE per key and reused across
-# re-layouts; its fields are `set_cell_function!` cells that read the placement back out of the
+# re-layouts; its fields are `set_cell_computation!` cells that read the placement back out of the
 # `layout` cell (via `by_key`). So a structural edit keeps the object identity of
 # every unchanged segment and only re-derives the cells of those whose placement
 # moved — the cursor/highlight overlay idiom, generalised to every span. No cell is
@@ -770,22 +770,22 @@ _persistent_graphic!(cache, layout, pl) =
 function _make_persistent_text(layout, pl0)
     key = pl0.key
     gt = GraphicsText(pl0.text, Int(pl0.x), Int(pl0.y); font = pl0.font, color = pl0.color)
-    set_cell_function!(getfield(gt, :text),  () -> (q = _plget(layout, key); q === nothing ? "" : q.text))
-    set_cell_function!(getfield(gt, :x),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.x)))
-    set_cell_function!(getfield(gt, :y),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
-    set_cell_function!(getfield(gt, :font),  () -> (q = _plget(layout, key); q === nothing ? pl0.font : q.font))
-    set_cell_function!(getfield(gt, :color), () -> (q = _plget(layout, key); q === nothing ? color_transparent : q.color))
+    set_cell_computation!(getfield(gt, :text),  () -> (q = _plget(layout, key); q === nothing ? "" : q.text))
+    set_cell_computation!(getfield(gt, :x),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.x)))
+    set_cell_computation!(getfield(gt, :y),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
+    set_cell_computation!(getfield(gt, :font),  () -> (q = _plget(layout, key); q === nothing ? pl0.font : q.font))
+    set_cell_computation!(getfield(gt, :color), () -> (q = _plget(layout, key); q === nothing ? color_transparent : q.color))
     gt
 end
 
 function _make_persistent_rect(layout, pl0)
     key = pl0.key
     rect = GraphicsRect(Int(pl0.x), Int(pl0.y), Int(pl0.w), Int(pl0.h); color = pl0.color)
-    set_cell_function!(getfield(rect, :x),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.x)))
-    set_cell_function!(getfield(rect, :y),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
-    set_cell_function!(getfield(rect, :w),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.w)))
-    set_cell_function!(getfield(rect, :h),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.h)))
-    set_cell_function!(getfield(rect, :color), () -> (q = _plget(layout, key); q === nothing ? color_transparent : q.color))
+    set_cell_computation!(getfield(rect, :x),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.x)))
+    set_cell_computation!(getfield(rect, :y),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.y)))
+    set_cell_computation!(getfield(rect, :w),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.w)))
+    set_cell_computation!(getfield(rect, :h),     () -> (q = _plget(layout, key); Int32(q === nothing ? 0 : q.h)))
+    set_cell_computation!(getfield(rect, :color), () -> (q = _plget(layout, key); q === nothing ? color_transparent : q.color))
     rect
 end
 
@@ -840,14 +840,14 @@ function _build_paragraph_node(p::TextToGraphics, input_node::ListNode, y_offset
     out_node = ListNode(sub_canvas)
 
     next_input = cur
-    set_cell_function!(getfield(out_node, :next), () -> begin
+    set_cell_computation!(getfield(out_node, :next), () -> begin
         next_input === nothing && return nothing
         next_out = _build_paragraph_node(p, next_input, y_offset + para_height)
         set_cell_value!(getfield(next_out, :prev), out_node)
         next_out
     end)
 
-    set_cell_function!(getfield(out_node, :prev), () -> begin
+    set_cell_computation!(getfield(out_node, :prev), () -> begin
         prev_start = input_node.prev
         prev_start === nothing && return nothing
         prev_out = _build_paragraph_node_prev(p, prev_start, y_offset)
@@ -896,7 +896,7 @@ function _build_paragraph_node_prev(p::TextToGraphics, input_node_prev, y_offset
     out_node = ListNode(sub_canvas)
 
     prev_boundary = cur
-    set_cell_function!(getfield(out_node, :prev), () -> begin
+    set_cell_computation!(getfield(out_node, :prev), () -> begin
         prev_boundary === nothing && return nothing
         prev_out = _build_paragraph_node_prev(p, prev_boundary, new_y_offset)
         prev_out === nothing && return nothing

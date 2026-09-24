@@ -60,7 +60,7 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
     # The animated elements use the cell-level positional constructor, which wraps
     # each argument in a `Cell`: a computed cell stays one, a plain value becomes a
     # static cell. So the reactive fields are derivations passed in place — no
-    # `set_cell_function!` — and they re-evaluate each frame because they read
+    # `set_cell_computation!` — and they re-evaluate each frame because they read
     # `get_reactive_clock_time(clock)`.
     #
     # Positional means EVERY field in order, `dash` included. Both polylines used

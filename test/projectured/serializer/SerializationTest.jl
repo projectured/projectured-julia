@@ -40,7 +40,7 @@ function test_serialization()
                 selcell = getfield(loaded, :selection)
                 @test (d = getfield(selcell, :dependencies); d === nothing || isempty(d))
                 @test (d = getfield(selcell, :dependents); d === nothing || isempty(d))
-                @test getfield(selcell, :thunk) === nothing
+                @test getfield(selcell, :computation) === nothing
 
                 # The detached document still projects through the real pipeline.
                 @test print_document(proj, loaded) !== nothing

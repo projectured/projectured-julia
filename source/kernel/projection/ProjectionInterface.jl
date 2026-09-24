@@ -92,7 +92,7 @@ arbitrary projections purely via this dispatch.
    the input selection forward through this projection's own mapper:
 
        output.selection =
-           Cell(Computed(() -> map_reference_forward(p, iomap, input.selection)))
+           Cell(@computation map_reference_forward(p, iomap, input.selection))
 
    making `map_reference_forward` the one definition of the path mapping.
    Two practical wrinkles:

@@ -81,7 +81,7 @@ end
 
 @testset "a list whose selection a projection computes is copied" begin
     list = CellVector(Any[PrimitiveString("a")])
-    set_cell_function!(getfield(list, :selection), () -> nothing)
+    set_cell_computation!(getfield(list, :selection), () -> nothing)
     duplicate = make_document_duplicate(list)
     @test duplicate isa CellVector
     @test !is_computed_cell(getfield(duplicate, :selection))

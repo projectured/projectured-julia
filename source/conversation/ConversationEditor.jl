@@ -527,11 +527,12 @@ function _editable_body(c::DocumentInsertion)
     # The value span carries the live commitability colour (green = names a
     # type, red = dead end, neutral while empty) and is followed by the pale
     # completion hint span — the same feedback the syntax-leaf insertion shows.
-    # font_color is driven by `set_cell_function!` below, so it must be a reactive Cell,
-    # not the immutable default — pass it explicitly. font stays immutable (authored).
+    # font_color is driven by `set_cell_computation!` below, so it must be a reactive
+    # Cell, not the immutable default — pass it explicitly. font stays immutable
+    # (authored).
     value_span = TextString(Cell(@computation _value(c)), _FONT, Cell(color_default),
                             nothing, nothing, nothing)
-    set_cell_function!(getfield(value_span, :font_color), function ()
+    set_cell_computation!(getfield(value_span, :font_color), function ()
         state = name_completion(c).state
         state === :invalid ? color_solarized_red :
         state === :empty   ? color_default      : color_solarized_green
@@ -549,8 +550,8 @@ end
 function _editable_body(c)
     show() = (v = _value(c); isempty(v) ? _PLACEHOLDER : v)
     # reactive font_color (set below); font stays immutable.
-    ts = TextString(Cell(Computed(show)), _FONT, Cell(color_default), nothing, nothing, nothing)
-    set_cell_function!(getfield(ts, :font_color),
+    ts = TextString(Cell(Computation(show)), _FONT, Cell(color_default), nothing, nothing, nothing)
+    set_cell_computation!(getfield(ts, :font_color),
            () -> isempty(_value(c)) ? color_solarized_gray : color_default)
     TextBlock(ts)
 end
@@ -581,7 +582,7 @@ function _follow_draft!(widget, d::ConversationDraft, p, iomap_ref::Ref, lead::V
         all(k -> steps[k] == lead[k], eachindex(lead)) || return nothing
         _from_steps(steps[(length(lead) + 1):end])
     end
-    set_cell_function!(getfield(widget, :selection), dormant ?
+    set_cell_computation!(getfield(widget, :selection), dormant ?
         (() -> map_selection_forward(d, image_of)) :
         (() -> (path = d.selection; path === nothing ? nothing : image_of(path))))
     widget
@@ -642,7 +643,7 @@ function print_document(p::ConversationComposerToWidget, recursion, d::Conversat
     # The selection, carried down. A key is routed by selection and stops at the
     # first container that has none, so the stack of part cards, the active card
     # and its body each say where the draft's selection is.
-    set_cell_function!(getfield(body, :selection),
+    set_cell_computation!(getfield(body, :selection),
                        () -> map_reference_forward(p, iomap, getfield(d, :selection)[]))
     iomap
 end

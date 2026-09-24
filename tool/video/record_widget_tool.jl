@@ -28,7 +28,7 @@ _press(x, y; hold = 0.6, kwargs...) = [(event = MouseMove(x, y, :none, ModifierK
 
 const FIRST_FORMS = [
     "presses = Cell(0)",
-    "live(text) = set_cell_function!(WidgetLabel(Point2D(0, 0), \"\"), text)",
+    "live(text) = set_cell_computation!(WidgetLabel(Point2D(0, 0), \"\"), text)",
     "button = WidgetButton(Point2D(0, 0), Point2D(160, 36), \"Press me\"; action = () -> presses[] += 1)",
     "tool = VerticalLayout(Any[button]; gap = 12)",
 ]

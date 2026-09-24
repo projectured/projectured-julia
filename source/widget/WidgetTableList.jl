@@ -123,10 +123,10 @@ function _wtl_band(p::WidgetTableToGraphicsCanvas, w::WidgetTable, k::Int, st::W
     end)
     color = kind === :hover ? p.layer_hovered_color : _get_state_color(p, w, :row; state = :selected)
     rect = GraphicsRect(0, 0, 0, 0; color, radius = _WT_ROW_RADIUS)
-    set_cell_function!(getfield(rect, :x), () -> Int32(bounds[][1]))
-    set_cell_function!(getfield(rect, :y), () -> Int32(st.bw))
-    set_cell_function!(getfield(rect, :w), () -> Int32(bounds[][2]))
-    set_cell_function!(getfield(rect, :h), () -> Int32(bounds[][2] == 0 ? 0 : max(0, Int(height[]) - st.bw)))
+    set_cell_computation!(getfield(rect, :x), () -> Int32(bounds[][1]))
+    set_cell_computation!(getfield(rect, :y), () -> Int32(st.bw))
+    set_cell_computation!(getfield(rect, :w), () -> Int32(bounds[][2]))
+    set_cell_computation!(getfield(rect, :h), () -> Int32(bounds[][2] == 0 ? 0 : max(0, Int(height[]) - st.bw)))
     rect
 end
 
@@ -205,21 +205,21 @@ function _wtl_node(p, recursion, w::WidgetTable, ctx, st::WidgetTableListState, 
     node = ListNode(canvas)
     if above !== nothing
         above_canvas = above.value
-        set_cell_function!(getfield(canvas, :y),
+        set_cell_computation!(getfield(canvas, :y),
                            () -> Int32(Int(above_canvas.y) + Int(above_canvas.h)))
     elseif below !== nothing
         below_canvas = below.value
-        set_cell_function!(getfield(canvas, :y),
+        set_cell_computation!(getfield(canvas, :y),
                            () -> Int32(Int(below_canvas.y) - Int(canvas.h)))
     end
-    set_cell_function!(getfield(node, :next), () -> begin
+    set_cell_computation!(getfield(node, :next), () -> begin
         following = document_node.next
         following === nothing && return nothing
         next_node = _wtl_node(p, recursion, w, ctx, st, k + 1, following, node, nothing)
         set_cell_value!(getfield(next_node, :prev), node)
         next_node
     end)
-    set_cell_function!(getfield(node, :prev), () -> begin
+    set_cell_computation!(getfield(node, :prev), () -> begin
         preceding = document_node.prev
         preceding === nothing && return nothing
         prev_node = _wtl_node(p, recursion, w, ctx, st, k - 1, preceding, nothing, node)
@@ -314,7 +314,7 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
         end
         header_h = Cell(@computation maximum((_wtl_child_h(entry[3]) for entry in st.header_entries); init = 0))
         strip_h = Cell(@computation bw + pad_y + Int(header_h[]) + pad_y)
-        set_cell_function!(st.header_height, () -> content_y + Int(strip_h[]))
+        set_cell_computation!(st.header_height, () -> content_y + Int(strip_h[]))
         header_elements = CellVector(@computation begin
             out = Any[GraphicsRect(0, 0, Int(total_w[]), Int(strip_h[]); color = header_row_color)]
             for c in 1:ncols
@@ -343,7 +343,7 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
     # The body: a canvas whose elements are the canvas list, built from the
     # head. A new head in `rows` drops every row built and starts again, and
     # no head — an empty vector — is no rows.
-    set_cell_function!(st.head, () -> begin
+    set_cell_computation!(st.head, () -> begin
         rows = w.rows
         empty!(st.built)
         rows isa ListNode ? _wtl_node(p, recursion, w, ctx, st, 1, rows, nothing, nothing) : nothing

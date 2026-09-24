@@ -9,7 +9,7 @@ import ProjecturedDatabase.DatabaseModule: get_db_catalog_databases, get_db_cata
 import ProjecturedKernel.IoMapModule: SimpleIoMap
 import ProjecturedKernel.ProjectionModule: print_document, read_intent,
                               map_reference_forward, map_reference_backward, Projection
-import ProjecturedKernel.CellModule: Computed, set_cell_function!
+import ProjecturedKernel.CellModule: Computation, @computation, set_cell_computation!
 import ProjecturedKernel.ReferenceModule: EmptyReference
 import ProjecturedKernel.ReferenceModule: var"@reference_case"
 import ProjecturedKernel.ReferenceModule: var"@reference"
@@ -83,7 +83,7 @@ function print_document(p::DatabaseInstanceToDbCatalog,
     # catalog tree so DbCatalogToSyntax can render a cursor after set_selection!.
     # The instance stores its selection in DbCatalog-domain coordinates wrapped
     # as proj(p, …) (see map_reference_backward); the forward map unwraps it.
-    set_cell_function!(getfield(rdbms, :selection), () -> begin
+    set_cell_computation!(getfield(rdbms, :selection), () -> begin
         sel = inst.selection
         sel === nothing && return nothing
         map_reference_forward(p, iomap, sel)

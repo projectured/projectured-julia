@@ -40,7 +40,7 @@ computed `CellVector`, so a step that is recorded, taken back or put back rebuil
 the lines and the panel that shows them.
 """
 function print_document(p::UndoBufferToSyntax, recursion, buffer::UndoBuffer, ctx::PrinterContext)
-    children = CellVector(Computed(function ()
+    children = CellVector(Computation(function ()
         undone = buffer.undo_entries
         redone = buffer.redo_entries
         lines = SyntaxDocument[]

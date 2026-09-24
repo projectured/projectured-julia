@@ -40,7 +40,7 @@ function print_document(p::CopyingProjection, recursion, input::CellVector, ctx)
         (i, x) -> print_child(recursion, x,
             make_child_context(ctx, ElementReferenceStep(i))))
     output = CellVector(@computation [im.output for im in children[]])
-    set_cell_function!(getfield(output, :selection), () -> input.selection)
+    set_cell_computation!(getfield(output, :selection), () -> input.selection)
     CopyingIoMap(p, input, output, children, nothing, nothing, nothing)
 end
 
@@ -60,7 +60,7 @@ function _map_node(p::CopyingProjection, input_node::ListNode, recursion, ctx, i
     out_node = ListNode(elem_iomap.output)
 
     # Lazy next
-    set_cell_function!(getfield(out_node, :next), () -> begin
+    set_cell_computation!(getfield(out_node, :next), () -> begin
         next_input = input_node.next
         next_input === nothing && return nothing
         next_out = _map_node(p, next_input, recursion, ctx, index + 1)
@@ -70,7 +70,7 @@ function _map_node(p::CopyingProjection, input_node::ListNode, recursion, ctx, i
     end)
 
     # Lazy prev
-    set_cell_function!(getfield(out_node, :prev), () -> begin
+    set_cell_computation!(getfield(out_node, :prev), () -> begin
         prev_input = input_node.prev
         prev_input === nothing && return nothing
         prev_out = _map_node(p, prev_input, recursion, ctx, index - 1)

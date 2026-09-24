@@ -12,7 +12,7 @@ Confirms:
 
 using Test
 using ProjecturedKernel.ClockModule
-using ProjecturedKernel.CellModule: Cell, Computed, is_cell_up_to_date
+using ProjecturedKernel.CellModule: Cell, Computation, @computation, is_cell_up_to_date
 
 function test_clock()
 @testset "Clock" begin
