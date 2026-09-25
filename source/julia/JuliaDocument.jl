@@ -4,6 +4,9 @@
 
 abstract type JuliaDocument <: Document end
 
+# Julia code is what a person typed, so its duplicate is a copy of it.
+has_document_duplicate(::JuliaDocument) = true
+
 # ── Insertion (editable Julia source being entered) ────────────────────────────
 
 """

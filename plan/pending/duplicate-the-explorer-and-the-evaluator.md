@@ -102,10 +102,15 @@ copy_document(policy::DuplicatePolicy, form::EvaluatorForm) =
 Work in the worktree `../projectured-julia-duplicate-tools`, on the branch
 `duplicate-tools`. Commit each step.
 
-- [ ] **Step 1. The Julia domain declares a duplicate.** `JuliaDocument.jl` and
+- [x] **Step 1. The Julia domain declares a duplicate.** `JuliaDocument.jl` and
   the import in `JuliaModule.jl`. A test in `test/julia/document/`: a parsed
   document and an insertion have a duplicate that prints the same text and
   shares no node.
+  - Done. `test_julia_duplicate()` sweeps every `make_julia_*_document_example`.
+    It compares `print_natural_text`, not the `Expr`: a fragment example such as
+    ` where {T}` becomes an `Expr` that holds a `ParseError`, and two
+    `ParseError` values are never `==`. `test_julia_layering()`,
+    `test_julia_duplicate()` and `test_julia_expression()` pass, 306 tests.
 - [ ] **Step 2. The explorer declares a duplicate.** `Workspace.jl` and the
   import in `FileSystemModule.jl`. A test in `test/filesystem/document/`: the
   folders are copied, and a change in the duplicate leaves the original.

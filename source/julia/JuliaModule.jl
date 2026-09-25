@@ -27,6 +27,7 @@ using ..TextModule
 using ..ReferenceModule   # `@document` injects the implicit `selection::Union{Nothing, Reference}` field
 
 # Imported to extend: this module adds a method to each of these.
+import ..DocumentModule: has_document_duplicate
 import ..DomainModule: compute_tooltip
 import ..FileFormatModule: make_document_seed
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
