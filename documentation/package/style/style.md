@@ -33,10 +33,10 @@ A font does not carry every glyph. `find_glyph_font_file(path, character)` finds
 
 The size of text on the screen comes from two separate settings:
 
-- **The display scale.** `_DISPLAY_SCALE` is the DPI scale of the display, which the SDL backend detects, times the uniform zoom of Ctrl+= and Ctrl+-. It is a plain `Ref`. Layout does not read it, so a change needs a repaint and no reactive update.
+- **The uniform zoom.** The zoom of Ctrl+= and Ctrl+- is the `zoom` of the `Display` of an editor, in the kernel. The backend multiplies it with the `scale` of the hardware into the device pixel ratio. Layout does not read it, so a change needs a repaint and no reactive update. Each editor has its own.
 - **The font zoom.** `_FONT_ZOOM` is the zoom of Ctrl+Alt+= and Ctrl+Alt+-. It is a `Cell`, because layout reads it through `font_logical_size(font)`. A change lays out the text again.
 
-`font_device_size(font)` combines the two, and only a backend reads it. Both settings step through the same table, from 0.5 to 3.0.
+`font_device_size(font, ratio)` combines the font zoom with the device pixel ratio, and only a backend reads it. Both settings step through the same table, from 0.5 to 3.0, with `step_zoom(zoom, delta)`.
 
 ## How it fits
 
@@ -46,7 +46,7 @@ The size of text on the screen comes from two separate settings:
 
 - **One colour type from the domain to the backend.** `GraphicsRect` and the other primitives take a `StyleColor`, not four bytes. The three backends each need a different byte format, so a byte form cached in the document would be wrong for two of them. See [plan/done/graphics-stylecolor-and-coordinate-normalization.md](../../../plan/done/graphics-stylecolor-and-coordinate-normalization.md).
 - **Font and colour travel as one `StyleText`.** A projection has one style field for each kind of text, not a font field and a colour field. A theme can then name a style: body, title, caption. See [plan/done/merge-style-text.md](../../../plan/done/merge-style-text.md).
-- **Logical pixels everywhere.** Layout works in logical pixels, and only the backend multiplies by the display scale. So a layout does not change when the window moves to another display. See [plan/done/global-display-scale.md](../../../plan/done/global-display-scale.md).
+- **Logical pixels everywhere.** Layout works in logical pixels, and only the backend multiplies by the device pixel ratio. So a layout does not change when the window moves to another display. See [plan/done/global-display-scale.md](../../../plan/done/global-display-scale.md).
 - **A default cell kind for the whole struct.** `@document ImmutableCell` sets the kind of every field at once. See [plan/done/struct-level-default-kind-and-style-documents.md](../../../plan/done/struct-level-default-kind-and-style-documents.md).
 
 ## Usage

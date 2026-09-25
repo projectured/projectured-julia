@@ -130,12 +130,13 @@ query rather than a file, and are named for what they query, such as
   A layer's primary module carries only its docstring, its export list, and its
   ordered `include`s (`DocumentModule.jl`, `BackendModule.jl`, `DeviceModule.jl`),
   so `<Concept>.jl` is free to be the contract fragment it includes first
-  (`Device.jl`). The rule above still reads in both directions —
+  (`Clock.jl`). The rule above still reads in both directions —
   the module is the file name, the `Module` suffix already spelled out. Where the
   bare concept name would be ambiguous with the type it declares, the contract
   fragment takes the prefix (`BackendInterface.jl`, `DocumentInterface.jl`,
-  `ReferenceInterface.jl`, `SelectionInterface.jl`); where the folder holds one
-  contract and the bare name reads cleanly, `Interface.jl` says it (`operation/`).
+  `ReferenceInterface.jl`, `SelectionInterface.jl`, `DeviceInterface.jl`); where
+  the folder holds one contract and the bare name reads cleanly, `Interface.jl`
+  says it (`operation/`).
 - **`Api` is a layer marker carried in the filename.** Every file in `api/`
   ends in `Api` (`DocumentApi.jl`, `BackendApi.jl`), so the rule above yields
   its `XApiModule` directly — no special case.

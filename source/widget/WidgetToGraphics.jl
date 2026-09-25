@@ -241,7 +241,7 @@ end
 # chose, in a place nobody looks. See documentation/rule/layout-rules.md.
 
 # All widget geometry — spacing, radii, insets, positions — is in logical
-# pixels. The single global `_DISPLAY_SCALE` is applied uniformly at the SDL
+# pixels. The device pixel ratio of the `Display` is applied uniformly at the SDL
 # render boundary, so the projection layer never scales: `_sc`/`_origin` are
 # identity markers that document "this number is a logical pixel measurement".
 _sc(px::Integer) = Int(px)

@@ -18,7 +18,7 @@ The editor calls `open_native_windows!` before the first print. It opens every w
 
 ### Measure and draw text
 
-`measure_text(::SdlBackend, text, font)` measures with SDL_ttf at the device size and divides by `_DISPLAY_SCALE`, so the result is in logical pixels. It splits the text into runs by font: a character that the font lacks goes to the file that `find_glyph_font_file` of `ProjecturedStyle` names, which is the file that `measure_truetype_text` uses too. `measure_sdl_text(text, font)` is the same measure as a plain function. It is exported because a projection takes its measure by value, as in `TextToGraphics(measure = measure_sdl_text)`, and a generic can not go there.
+`measure_text(backend::SdlBackend, text, font)` measures with SDL_ttf at the device size for the device pixel ratio of the `Display` of `backend`, and divides by that ratio, so the result is in logical pixels. It splits the text into runs by font: a character that the font lacks goes to the file that `find_glyph_font_file` of `ProjecturedStyle` names, which is the file that `measure_truetype_text` uses too. `measure_sdl_text(text, font)` is the same measure as a plain function, at the ratio 1, so its result does not depend on the display of the machine. It is exported because a projection takes its measure by value, as in `TextToGraphics(measure = measure_sdl_text)`, and a generic can not go there.
 
 Font handles are in a module cache keyed by file and size. A drawn text is a texture, and a second module cache keeps it by renderer, text, font, size and colour. Without it, a static document that scrolls rasterizes, uploads and destroys every span on every frame. The cache is emptied at 16384 entries, and the textures of a renderer go when the renderer is destroyed.
 
@@ -54,7 +54,7 @@ Escape is an ordinary `KeyDown`. The backend makes no `MousePress`: the `Gesture
 
 The editor recognises Ctrl+=, Ctrl+- and Ctrl+0 for the uniform zoom, and the same keys with Alt for the font zoom. This backend evaluates the two operations; [style.md](../style/style.md#two-zoom-settings) describes the two settings.
 
-- `AdjustZoomOperation` changes `_DISPLAY_SCALE` and scales the logical size of each window the other way. The native window keeps its device size, and the content lays out again through the available size, as on a resize.
+- `AdjustZoomOperation` steps the `zoom` of the `Display` of the backend, and scales the logical size of each window the other way. The native window keeps its device size, and the content lays out again through the available size, as on a resize.
 - `AdjustFontZoomOperation` writes `_FONT_ZOOM` and sets `editor.iomap` to `nothing`, so the editor prints again. The widgets measure while `print_document` runs and keep constant sizes, so only a new print fits them to the new text size.
 
 Both repaint every window in full.

@@ -376,7 +376,8 @@ projection examples.
 
 Measures at the font's *logical* (font-zoomed) size — [`font_logical_size`](@ref),
 which reads the reactive `_FONT_ZOOM` cell — exactly like `measure_sdl_text`
-(which rasterizes at `font_device_size` and divides back by `_DISPLAY_SCALE`).
+(which rasterizes at `font_device_size` and divides back by the device pixel
+ratio).
 This is what makes layout reflow with `Ctrl+Alt` font-zoom even on the SDL path.
 A no-op at the default zoom (`font_logical_size == size`).
 

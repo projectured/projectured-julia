@@ -8,7 +8,7 @@ Holds the state for a read-eval-print loop:
   - `backend`    — the display/input backend (e.g. SdlBackend)
   - `document`   — the reactive document being edited
   - `projection` — the projection (or a chaining projection)
-  - `devices`    — input/output devices (e.g. window, keyboard)
+  - `devices`    — input/output devices (e.g. display, keyboard)
   - `clock`      — this editor's private animation clock (fresh `Clock()` by
                    default); `run_editor!` ticks it once per frame from OS
                    time so subscribers reanimate, independently of any other

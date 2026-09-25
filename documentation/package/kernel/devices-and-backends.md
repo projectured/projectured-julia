@@ -24,14 +24,28 @@ projection pipeline, or domains changes.
 
 ## Devices
 
-| Device | Defined in | Purpose |
+| Device | Defined in | What it holds |
 |---|---|---|
-| `Screen` | `device/Screen.jl` | Output surface — native windows are reconciled on demand against the projection-output `ScreenDocument` |
-| `Keyboard` | `device/Keyboard.jl` | Input — polled for `KeyPress(char::Char)` (character input) and `KeyDown(key::Symbol, modifiers::ModifierKeys)` (navigation) events, defined in `event/KeyboardEvent.jl` |
-| `Mouse` | `device/Mouse.jl` | Input — polled for `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll` events, defined in `event/MouseEvent.jl` |
+| `Display` | `device/Display.jl` | The usable size in logical pixels, the `scale` of the hardware (the device pixels in one logical pixel), and the `zoom` of the editor |
+| `Keyboard` | `device/Keyboard.jl` | The `layout` of the keys |
+| `Mouse` | `device/Mouse.jl` | The `button_count`, and `has_scroll_wheel` |
 
-Each is a stateless singleton struct. The editor holds a `Vector{Device}`
-that is passed to every backend call.
+A device holds the physical properties of its hardware, and it has no
+behaviour. The editor holds a `Vector{Device}`. `make_editor` gives it to
+`configure_devices!`, which fills the properties that the backend can find. The
+events come from the backend, not from a device object: `KeyPress` and `KeyDown`
+are in `event/KeyboardEvent.jl`, and the `Mouse*` events are in
+`event/MouseEvent.jl`.
+
+### The device pixel ratio
+
+`get_device_pixel_ratio(display)` is `display.scale * display.zoom`: the number
+of device pixels that a backend draws for one logical pixel. Layout and events
+work in logical pixels. The SDL backend keeps the `Display` that
+`configure_devices!` gives it. It sizes its windows, rasterizes its text and
+converts its input coordinates with the ratio of that `Display`. Ctrl+= and
+Ctrl+- step the `zoom` of that `Display`, so each editor has its own zoom. The
+web and console backends leave the `Display` at its defaults.
 
 ### Backend-agnostic events
 
@@ -301,9 +315,10 @@ itself never sees the backend type.
 
 ## Adding a new device
 
-1. Subtype `Device` in `source/kernel/device/`.
-2. Add backend methods: `read_from_device(::SdlBackend, ::YourDevice)` and
-   if relevant `write_to_device(::SdlBackend, ::YourDevice, document)`.
+1. Subtype `Device` in `source/kernel/device/`. Make it a mutable struct with a
+   keyword constructor whose defaults describe common hardware.
+2. If a backend can find the properties of the hardware, fill them in its
+   `configure_devices!`.
 3. Add the device to the default `devices` of `make_editor(backend, projection,
    document)` in `editor/EditorLoop.jl` (`Device[Display(), Keyboard(), Mouse()]`).
 4. If it emits novel events, declare backend-agnostic event structs in
@@ -407,19 +422,20 @@ other package docs defer here rather than repeat it.)
 ## The device layer (layer 7)
 
 Layer 7 of the kernel — **the input/output devices**: `Display`, `Keyboard`,
-and `Mouse` under an abstract `Device`. Each carries its physical properties —
-a screen's resolution and HiDPI scale, a mouse's button count and scroll wheel,
-a keyboard's layout — but interprets nothing, so this layer names no document,
-no operation, and no backend type, and has no imports of its own.
+and `Mouse` under an abstract `Device`. Each holds its physical properties: the
+size, the scale and the zoom of a display, the buttons and the scroll wheel of a
+mouse, and the layout of a keyboard. A device interprets nothing, so this layer
+names no document, no operation and no backend type, and has no imports of its
+own. Its one function is `get_device_pixel_ratio`.
 
 The layer lives in [source/kernel/device/](../../../source/kernel/device/):
 
 ```
 DeviceModule.jl (DeviceModule) — the module: its docstring, exports, and fragments
-        ├─ Device.jl    — the Device abstract supertype
-        ├─ Keyboard.jl  — the Keyboard device
-        ├─ Mouse.jl     — the Mouse device
-        └─ Display.jl   — the Display device
+        ├─ DeviceInterface.jl — the Device abstract supertype
+        ├─ Keyboard.jl        — the Keyboard device
+        ├─ Mouse.jl           — the Mouse device
+        └─ Display.jl         — the Display device and get_device_pixel_ratio
 ```
 
 The devices carry their physical properties but no behaviour. The batch I/O
