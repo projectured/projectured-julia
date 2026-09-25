@@ -50,7 +50,7 @@ end
         # popup opens directly below the select in screen space.
         @test popup.x == 50
         @test popup.y > 40
-        @test popup.content isa VerticalLayout      # the option list
+        @test popup.content isa WidgetMenu          # the option list
     end
 end
 

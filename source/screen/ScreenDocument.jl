@@ -122,10 +122,12 @@ OpenWindowOperation(; id::Symbol,
                         style, auto_dismiss, modal, content)
 
 """
-    OpenPopupOperation(; id, x, y, width, height, auto_dismiss, content)
+    OpenPopupOperation(; id, x, y, width = 640, height = 800, auto_dismiss, content)
 
 Request a popup window whose top left is at `(x, y)` in the frame of the reader
-that holds the operation. The widget that opens a popup answers a position in
+that holds the operation. The window takes the extent of what its content
+draws, as a tooltip does, and `width` and `height` bound that extent; so no
+opener estimates the size of what it opens. The widget that opens a popup answers a position in
 its own frame, so "just below me" is `(0, height + gap)`. Each reader on the way
 up moves the position into its own frame with `map_operation_position`, by the
 place where it put the child that answered, and the layer of the window adds
@@ -147,7 +149,7 @@ struct OpenPopupOperation <: Operation
 end
 
 OpenPopupOperation(; id::Symbol, x::Integer = 0, y::Integer = 0,
-                     width::Integer = 0, height::Integer = 0,
+                     width::Integer = 640, height::Integer = 800,
                      auto_dismiss::Bool = true, content::Document) =
     OpenPopupOperation(id, Int(x), Int(y), Int(width), Int(height), auto_dismiss, content)
 

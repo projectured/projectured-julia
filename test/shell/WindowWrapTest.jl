@@ -137,20 +137,30 @@ end
     select = WidgetSelect("Apple"; options = ["Apple", "Banana"], width = 180)
     scene = make_window_scene(select, "shell"; width = 400, height = 300)
     content = make_layout_projection_example()
-    projection = make_window_scene_projection(content)
+    projection = make_window_scene_projection(content;
+        opened_window_projections = make_opened_window_projections(; gesture_help = false))
     iomap = print_document(projection, scene)
     press = Intent(WindowInput(:shell, MousePress(:left, 5, 5, ModifierKeys(); time = 0.0)))
     change = read_intent(projection, nothing, press, iomap)
     @test (change isa Intent ? change.operation : change) === nothing
     @test length(scene.windows) == 2
     window, popup = scene.windows[1], scene.windows[2]
-    @test popup.content isa VerticalLayout
+    @test popup.content isa WidgetMenu
     @test popup.style === :popup
     # Just below the select, which sits at the origin of the window's content, in
     # screen coordinates. The window offers the select its height, so the
     # select's height is the one the scene printed.
     height = _wrap_iomap_of(iomap, select).control_height
     @test (popup.x, popup.y) == (window.x, window.y + height + 4)
+    # The window takes the extent of what it draws, up to the bound of a popup. It
+    # offers the dropdown that bound, and the dropdown draws its two options on
+    # its surface, as wide as the select and no wider than the bound. The select
+    # fills its window, so its height is the window's and not a row's.
+    @test popup.maximum_size == (640, 800)
+    drawn = print_document(projection, scene).output.windows[2].content
+    drawn = drawn isa Cell ? drawn[] : drawn
+    @test 180 <= Int(drawn.w) < 640
+    @test 0 < Int(drawn.h) < 200
 end
 
 end # @testset

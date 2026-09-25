@@ -2016,16 +2016,14 @@ end
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
-    font::StyleFont    # measures the popup menu's row size
 end
 
 WidgetContextMenuToGraphicsCanvas(theme::WidgetTheme; measure,
                                   margin = inset_default, border = inset_default, padding = inset_default,
                                   margin_color = color_transparent, border_color = color_transparent,
-                                  padding_color = color_transparent, content_color = color_transparent,
-                                  font = theme.font) =
+                                  padding_color = color_transparent, content_color = color_transparent) =
     WidgetContextMenuToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
-                                      padding_color, content_color, font)
+                                      padding_color, content_color)
 
 # Carries the recursed child's iomap (for event routing + re-rooting).
 # @iomap so the reader reads child_iomap transparently; the child is reconciled
@@ -2083,7 +2081,7 @@ function read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextM
     w = iomap.input
     if evt isa MousePress && evt.button === :right
         (w.enabled === false || w.menu === nothing) && return nothing
-        return _open_context_menu(p, w.menu, iomap, evt.x, evt.y)
+        return _open_context_menu(w.menu, evt.x, evt.y)
     end
     child_iomap = iomap.child_iomap
     child_iomap === nothing && return nothing
@@ -2103,22 +2101,11 @@ function read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextM
     _retarget_op(p, iomap, op)
 end
 
-# Estimate the popup size from the menu's rows (it renders with the same font once
-# the popup window opens). Precise sizing is the popup window's job (Step 6).
-function _open_context_menu(p::WidgetContextMenuToGraphicsCanvas, menu, iomap, lx, ly)
-    items = collect(menu.elements)
-    _, row_h = p.measure("M", p.font)
-    width = 0
-    for it in items
-        it isa WidgetMenuItem && !(it.action.label isa WidgetDocument) || continue
-        tw, _ = _text_size(p.measure, p.font, string(it.action.label))
-        width = max(width, tw)
-    end
+# Open the menu at the point of the press. The popup window takes the extent of
+# what the menu draws.
+_open_context_menu(menu, lx, ly) =
     ReplaceViewStateOperation(
-        OpenPopupOperation(; id=:widget_popup, x=lx, y=ly, width=max(width, 1) + 16,
-                           height=max(1, length(items)) * row_h,
-                           auto_dismiss=true, content=menu))
-end
+        OpenPopupOperation(; id=:widget_popup, x=lx, y=ly, auto_dismiss=true, content=menu))
 
 # ── WidgetDialog ──────────────────────────────────────────────────────────────
 
@@ -2414,7 +2401,7 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
         # command) ⇒ inert.
         (evt.button === :left && _menu_item_enabled(w)) || return nothing
         submenu = w.submenu
-        submenu === nothing || return _open_submenu_popup(p, submenu, iomap)
+        submenu === nothing || return _open_submenu_popup(submenu, iomap)
         # The subtree wins over the callback here (unlike a button's dialog):
         # a menu-bar entry that opens a submenu is what the item IS.
         command = _menu_item_command(w)
@@ -2426,26 +2413,14 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
     _route_scroll_to_children(getfield(iomap, :child_iomaps)[]::Vector, evt)
 end
 
-# Open the item's `submenu` as a floating popup just below the item: a position in
+# Open the item's `submenu` as a popup just below the item: a position in
 # the item's own frame, which each reader above moves into its own frame, as the
-# `WidgetSelect` dropdown does. Size the popup to the submenu's rows (its items
-# share this item's row metrics); placement beyond "below" is left to
-# anchored-layout.md.
-function _open_submenu_popup(p::WidgetMenuItemToGraphicsCanvas, submenu,
-                             iomap::WidgetMenuItemToGraphicsCanvasIoMap)
-    items = collect(submenu.elements)
+# `WidgetSelect` dropdown does. The popup window takes the extent of what the
+# submenu draws; placement beyond "below" is left to anchored-layout.md.
+function _open_submenu_popup(submenu, iomap::WidgetMenuItemToGraphicsCanvasIoMap)
     gap = 4
-    row_h = iomap.control_height
-    width = iomap.control_width
-    for it in items
-        it isa WidgetMenuItem && !(it.action.label isa WidgetDocument) || continue
-        icox, _ = _content_offset(p, it)
-        tw, _ = _text_size(p.measure, p.label_text.font, string(it.action.label))
-        width = max(width, tw + 2icox)
-    end
     ReplaceViewStateOperation(
-        OpenPopupOperation(; id=:widget_popup, x=0, y=row_h + gap, width=width,
-                           height=max(1, length(items)) * row_h,
+        OpenPopupOperation(; id=:widget_popup, x=0, y=iomap.control_height + gap,
                            auto_dismiss=true, content=submenu))
 end
 
@@ -7091,9 +7066,10 @@ function read_intent(p::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraph
     end
 end
 
-# Build the dropdown: a `VerticalLayout` of `WidgetOption`s (one per selectable
-# value, each pointing back at this select for the value write) wrapped in an
-# `OpenPopupOperation` under the box. No options ⇒ nothing to open.
+# Build the dropdown: a vertical `WidgetMenu` of `WidgetOption`s (one per
+# selectable value, each pointing back at this select for the value write), so it
+# draws the popover of a menu, wrapped in an `OpenPopupOperation` under the box.
+# No options ⇒ nothing to open.
 function _open_select_popup(w::WidgetSelect, iomap::WidgetSelectToGraphicsCanvasIoMap)
     opts = collect(w.options)
     isempty(opts) && return nothing
@@ -7101,8 +7077,7 @@ function _open_select_popup(w::WidgetSelect, iomap::WidgetSelectToGraphicsCanvas
     items = Any[WidgetOption(w, opt; width=iomap.control_width) for opt in opts]
     ReplaceViewStateOperation(
         OpenPopupOperation(; id=:widget_popup, x=0, y=iomap.control_height + gap,
-                           width=iomap.control_width, height=length(opts) * iomap.control_height,
-                           auto_dismiss=true, content=VerticalLayout(items)))
+                           auto_dismiss=true, content=WidgetMenu(items)))
 end
 
 # ── WidgetOption ──────────────────────────────────────────────────────────────

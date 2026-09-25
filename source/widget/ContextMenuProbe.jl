@@ -12,13 +12,10 @@
 struct ContextMenuProbeProjection <: Projection
     inner::Projection
     compute_context_menu::Function  # (document) -> Document | Nothing
-    width::Int                      # the popup's width
-    row_height::Int                 # and one row of it, which sets the height
 end
 
 """
-    ContextMenuProbeProjection(; inner, compute_context_menu, width = 220,
-                                 row_height = 24)
+    ContextMenuProbeProjection(; inner, compute_context_menu)
 
 Wrap `inner`, the content projection of the window whose documents should offer
 their own menus.
@@ -28,17 +25,15 @@ generic of that name, which every document answers: a widget reads a field
 somebody set, and every other document computes what it offers, which is what
 makes the menu worth having.
 
-`width` and `row_height` size the popup. They are given rather than measured
-because this probe takes no `measure`: a `WidgetContextMenu`, which has one,
-measures its own and answers before this probe is asked.
+The popup window takes the extent of what the menu draws, so the probe needs no
+size and no `measure`.
 
 **The menu opens at the pointer.** The probe has the press point in its own
 frame, and each reader above it moves that point into its own frame, up to the
 window, which opens the menu there.
 """
-ContextMenuProbeProjection(; inner::Projection, compute_context_menu::Function,
-                             width::Integer = 220, row_height::Integer = 24) =
-    ContextMenuProbeProjection(inner, compute_context_menu, Int(width), Int(row_height))
+ContextMenuProbeProjection(; inner::Projection, compute_context_menu::Function) =
+    ContextMenuProbeProjection(inner, compute_context_menu)
 
 @iomap struct ContextMenuProbeIoMap
     projection::Any
@@ -80,10 +75,8 @@ function read_intent(p::ContextMenuProbeProjection, recursion, change::Intent,
     # same case.
     menu === nothing && (menu = p.compute_context_menu(iomap.input))
     menu === nothing && return inner_answer
-    rows = menu isa WidgetMenu ? max(1, length(menu.elements)) : 1
     popup = ReplaceViewStateOperation(
-        OpenPopupOperation(; id = :widget_popup, x = event.x, y = event.y,
-                             width = p.width, height = rows * p.row_height, content = menu))
+        OpenPopupOperation(; id = :widget_popup, x = event.x, y = event.y, content = menu))
     Intent(event, selection === nothing ? popup : CompoundOperation(Any[selection, popup]))
 end
 

@@ -216,7 +216,8 @@ end
 
 # A popup that the content of a window answers is in the frame of the window. It
 # opens as a `:popup` window of its own, which never takes the focus, at the
-# screen origin of this window plus its position. The mark that kept it out of a history is not needed above the
+# screen origin of this window plus its position, and it takes the extent of
+# what it draws, up to the size of the popup. The mark that kept it out of a history is not needed above the
 # window, so a popup inside `ReplaceViewStateOperation` opens bare, and the
 # window manager finds it.
 _open_popup_windows(op, window::WindowDocument) =
@@ -226,7 +227,8 @@ _open_popup_windows(op, window) = op
 _open_popup_window(op, x, y) = op
 _open_popup_window(op::OpenPopupOperation, x, y) =
     OpenWindowOperation(; id = op.id, x = x + op.x, y = y + op.y,
-                          width = op.width, height = op.height, style = :popup,
+                          width = op.width, height = op.height,
+                          maximum_size = (op.width, op.height), style = :popup,
                           auto_dismiss = op.auto_dismiss, content = op.content)
 function _open_popup_window(op::CompoundOperation, x, y)
     members = Any[_open_popup_window(member, x, y) for member in op.operations]

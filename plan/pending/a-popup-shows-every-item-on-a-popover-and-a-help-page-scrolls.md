@@ -101,11 +101,26 @@ landed, and reported three faults with a screenshot.
   never reads the drawn width of an item: one that it can not reach counts
   nothing and still draws what it needs. `test_window_wrap` checks the widths
   through that wrapper. `test_widget_menu` and `test_window_wrap`: 73 pass.
-- [ ] 3. **G2, the popup size.** A popup window has a `maximum_size`; the
+- [x] 3. **G2, the popup size.** A popup window has a `maximum_size`; the
   openers pass no estimate. Test: the popup window of the Help menu fits what it
   draws.
-- [ ] 4. **G2, the select dropdown** is a vertical menu. Tests: the select
+
+  Done. `OpenPopupOperation` takes `width = 640` and `height = 800` by default,
+  as the bound of the popup, and `ScreenToScreen` opens the window with that
+  `maximum_size`. The submenu of a menu item, `WidgetContextMenu`, the context
+  menu probe and the select pass no size. The estimates go, and with them the
+  `font` field of `WidgetContextMenuToGraphicsCanvas` and the `width` and
+  `row_height` fields of `ContextMenuProbeProjection`, which only served them.
+- [x] 4. **G2, the select dropdown** is a vertical menu. Tests: the select
   tests and the window wrap test.
+
+  Done, in the same commit as step 3, because both change the select opener.
+  The dropdown is `WidgetMenu(options)`. `test_window_wrap` now draws the popup
+  of the select with the rows of `make_opened_window_projections` and checks
+  that the window has the bound and the drawn dropdown is smaller than it. The
+  header of `WidgetSelectTest.jl` named the resolver that the last plan removed;
+  it describes the present now. The popup suites: 170 pass before the fix of
+  the window wrap test, and `test_window_wrap` 33 pass after it.
 - [ ] 5. **G3.** The help pages open inside a scroll pane. Test: in the
   application, a wheel over the Documents tab moves its rows, and a second press
   on "Documents" opens no second tab.

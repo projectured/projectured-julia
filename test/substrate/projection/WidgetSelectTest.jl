@@ -1,9 +1,8 @@
-# WidgetSelect dropdown (Stage 3, Step 3c). A click on the closed select emits an
-# anchor-relative `OpenPopupOperation` whose content is a `VerticalLayout` of
-# `WidgetOption`s; a content-root `WidgetPopupResolverProjection` maps the anchor
-# forward to graphics coordinates and turns it into an absolute
-# `OpenWindowOperation` (the window route). Clicking an option writes the value
-# back to the select and closes the popup in one `CompoundOperation`.
+# WidgetSelect dropdown. A click on the closed select answers an
+# `OpenPopupOperation` just below it, in its own frame, whose content is a
+# vertical `WidgetMenu` of `WidgetOption`s; each reader above moves the position
+# into its own frame. Clicking an option writes the value back to the select and
+# closes the popup in one `CompoundOperation`.
 
 mutable struct _SelectMockEditor
     document::Any
@@ -52,10 +51,10 @@ end
     # Opens just below the box, in the select's own frame.
     @test op.x == 0
     @test op.y == _select_iomap_of(iomap, select).control_height + 4
-    # Content is a column of one option per selectable value.
-    @test op.content isa VerticalLayout
-    @test length(op.content.children) == 3
-    first_opt = op.content.children[1]
+    # Content is a dropdown of one option per selectable value.
+    @test op.content isa WidgetMenu
+    @test length(op.content.elements) == 3
+    first_opt = op.content.elements[1]
     @test first_opt isa WidgetOption
     @test first_opt.value == "Apple"
     @test first_opt.select === select
@@ -111,12 +110,12 @@ end
                                transform = make_affine_scale(2.0, 2.0))
     iomap = print_document(proj, pane)
     # At twice the size, the select is drawn at twice its extent, and so is the
-    # place just below it; the size of the popup stays in screen pixels.
+    # place just below it; the bound of the popup stays in screen pixels.
     op = _select_popup(read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys(); time = 0.0)))
     @test op isa OpenPopupOperation
     @test op.x == 0
     @test op.y == 2 * (height + 4)
-    @test op.height == 2 * height
+    @test (op.width, op.height) == (640, 800)
 end
 
 @testset "clicking an option writes the value back and closes the popup" begin
