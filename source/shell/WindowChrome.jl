@@ -34,9 +34,49 @@ make_window_command(label, callback; icon = nothing, shortcut = nothing,
 const _WINDOW_MENU_PADDING = Inset(4, 4, 6, 6)
 
 """
+    make_window_file_menu() -> WidgetMenuItem
+
+The File menu: the name on the bar, and the menu that opens below it. Its
+commands open a tab in the focused group and close the focused tab.
+"""
+make_window_file_menu() =
+    WidgetMenuItem("File"; padding = _WINDOW_MENU_PADDING, submenu = WidgetMenu(Any[
+        make_window_command("New tab", _open_tab!;
+                            shortcut = Shortcut(:t; ctrl = true)),
+        make_window_command("Close tab", _close_tab!;
+                            shortcut = Shortcut(:w; ctrl = true)),
+    ]))
+
+"""
+    make_window_view_menu() -> WidgetMenuItem
+
+The View menu: the name on the bar, and the menu that opens below it. Its
+commands split the focused group, and open the gesture log.
+
+**Gesture log** opens the session's log in a tab. The recorder is always on, so
+the tab holds what happened before it opened, and a person opens it after a
+fault rather than before one.
+"""
+make_window_view_menu() =
+    WidgetMenuItem("View"; padding = _WINDOW_MENU_PADDING, submenu = WidgetMenu(Any[
+        make_window_command("Split vertically",
+                            editor -> _split!(editor, :vertical);
+                            shortcut = Shortcut(:backslash; ctrl = true)),
+        make_window_command("Split horizontally",
+                            editor -> _split!(editor, :horizontal);
+                            shortcut = Shortcut(:backslash; ctrl = true, shift = true)),
+        make_window_command("Gesture log",
+                            editor -> _reach_tool!(editor, GestureLog,
+                                                   _make_default_tool(GestureLog));
+                            tooltip = "Every gesture of this session, and what each one did"),
+    ]))
+
+"""
     make_window_menu_bar(; extra = []) -> WidgetMenu
 
-The menu bar both binaries share.
+The menu bar both binaries share: [`make_window_file_menu`](@ref), then
+[`make_window_view_menu`](@ref), then the menus of `extra`. A host that wants
+another bar builds a `WidgetMenu` from the menus it wants.
 
 **A menu item here performs its command.** `WidgetShell` fires a menu shortcut
 **before the focused widget sees the key**, so an item that carries a shortcut it
@@ -51,36 +91,13 @@ draw them, and the clipboard's five to the clipboard wrapper. Each needs a verb
 that reaches its owner through the editor. Until one has that, the key answers
 and the menu says nothing about it, which is the honest half of the two.
 
-**Gesture log** opens the session's log in a tab. The recorder is always on, so
-the tab holds what happened before it opened, and a person opens it after a
-fault rather than before one.
-
 A host adds its own menus with `extra`, and this package names none of them.
 They go after the shared ones, so the bar reads the same way in every binary
 until the host's own menus begin.
 """
 make_window_menu_bar(; extra = []) =
-    WidgetMenu(Any[
-        WidgetMenuItem("File"; padding = _WINDOW_MENU_PADDING, submenu = WidgetMenu(Any[
-            make_window_command("New tab", _open_tab!;
-                                shortcut = Shortcut(:t; ctrl = true)),
-            make_window_command("Close tab", _close_tab!;
-                                shortcut = Shortcut(:w; ctrl = true)),
-        ])),
-        WidgetMenuItem("View"; padding = _WINDOW_MENU_PADDING, submenu = WidgetMenu(Any[
-            make_window_command("Split vertically",
-                                editor -> _split!(editor, :vertical);
-                                shortcut = Shortcut(:backslash; ctrl = true)),
-            make_window_command("Split horizontally",
-                                editor -> _split!(editor, :horizontal);
-                                shortcut = Shortcut(:backslash; ctrl = true, shift = true)),
-            make_window_command("Gesture log",
-                                editor -> _reach_tool!(editor, GestureLog,
-                                                       _make_default_tool(GestureLog));
-                                tooltip = "Every gesture of this session, and what each one did"),
-        ])),
-        extra...,
-    ]; orientation = :horizontal, padding = Inset(2, 2, 2, 2))
+    WidgetMenu(Any[make_window_file_menu(), make_window_view_menu(), extra...];
+               orientation = :horizontal, padding = Inset(2, 2, 2, 2))
 
 """
     make_window_toolbar(; assistant = nothing, explorer = nothing, extra = []) -> WidgetToolbar

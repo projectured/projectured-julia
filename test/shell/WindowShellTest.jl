@@ -48,6 +48,19 @@ end
     @test !isempty(items)
 end
 
+@testset "the bar holds one menu of each make function, in order" begin
+    file, view = make_window_file_menu(), make_window_view_menu()
+    @test string(file.action.label) == "File"
+    @test _labels(file.submenu) == ["New tab", "Close tab"]
+    @test string(view.action.label) == "View"
+    @test _labels(view.submenu) == ["Split vertically", "Split horizontally", "Gesture log"]
+    # A host's own menus come after the shared ones.
+    extra = WidgetMenuItem("Run"; submenu = WidgetMenu(Any[make_window_command("Go", _ -> nothing)]))
+    bar = make_window_menu_bar(; extra = [extra])
+    @test _labels(bar) == ["File", "View", "Run"]
+    @test last(bar.elements) === extra
+end
+
 @testset "a menu command does what the key does" begin
     tree = PaneTree(PaneGroup(PaneTab[PaneTab("a", PrimitiveString("x"))]))
     apply_pane_operation!(tree, make_pane_focus_operation(tree, first(get_pane_groups(tree)), 1))

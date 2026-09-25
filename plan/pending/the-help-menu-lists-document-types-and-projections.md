@@ -1,6 +1,7 @@
 # The Help menu lists the document types and the projections
 
-> **Status (2026-09-25): pending.** Not started. A press on a menu name does
+> **Status (2026-09-25): in progress** on the branch `help-menu`, worktree
+> `projectured-julia-help-menu`. A press on a menu name does
 > not open the menu yet. That fault has its own plan,
 > [a-press-on-a-menu-name-opens-its-menu.md](a-press-on-a-menu-name-opens-its-menu.md),
 > which is deferred. Until it is done, a press on "Help" opens nothing, and the
@@ -109,7 +110,7 @@ version is a plain list. A later plan can group, filter or search it.
 
 ## Steps
 
-- [ ] 1. **One make function for each menu.** `make_window_file_menu` and
+- [x] 1. **One make function for each menu.** `make_window_file_menu` and
   `make_window_view_menu`, and `make_window_menu_bar` combines them. The bar
   looks and acts as before. Test: `test_window_shell()` has the same counts as
   `main`, and a new case checks that the bar holds the two menus in order.
