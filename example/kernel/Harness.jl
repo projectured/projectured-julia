@@ -16,8 +16,13 @@ struct Example
     name::String
     make_document
     make_projection
-    document
-    projection
+    # The document and the projection, built at the first read of `document` or
+    # `projection` and then kept. A `const` example is made while its package
+    # precompiles, and a document built then would be frozen into the package
+    # image: no task can start, so a clock in it stands still, and what it read
+    # from the machine is the state at build time.
+    built_document::Base.RefValue{Union{Nothing,Some{Any}}}
+    built_projection::Base.RefValue{Union{Nothing,Some{Any}}}
     # Optional presentation size for the screenshot harness. Most examples size
     # to their content; a few (e.g. the standalone assistant, which has no window
     # to fill) need a display width seeded so they render at a useful size. This
@@ -38,8 +43,33 @@ struct Example
     origin
     Example(name, make_document, make_projection; render_width=nothing, render_height=nothing,
             terminal=:abstract, origin=:manual) =
-        new(name, make_document, make_projection, make_document(), make_projection(),
+        new(name, make_document, make_projection,
+            Ref{Union{Nothing,Some{Any}}}(nothing),
+            Ref{Union{Nothing,Some{Any}}}(nothing),
             render_width, render_height, terminal, origin)
+end
+
+function Base.getproperty(example::Example, name::Symbol)
+    name === :document &&
+        return _get_or_build!(getfield(example, :built_document),
+                              getfield(example, :make_document))
+    name === :projection &&
+        return _get_or_build!(getfield(example, :built_projection),
+                              getfield(example, :make_projection))
+    getfield(example, name)
+end
+
+Base.propertynames(::Example, private::Bool = false) =
+    (:name, :make_document, :make_projection, :document, :projection,
+     :render_width, :render_height, :terminal, :origin)
+
+# The value in `cache`, which `make` builds at the first read.
+function _get_or_build!(cache, make)
+    built = cache[]
+    built === nothing || return something(built)
+    value = make()
+    cache[] = Some{Any}(value)
+    value
 end
 
 # ── Atomic documents: the hand-authored building blocks of the discovered catalog ──
