@@ -240,6 +240,14 @@ end
 # The right press asks the same document the same kind of question, and what it
 # answers opens through the popup route a menu already takes.
 
+# A projection whose reader answers every press with a selection, as a row of the
+# explorer answers a right press.
+struct _ContextSelecting <: Projection end
+ProjectionModule.print_document(::_ContextSelecting, recursion, input, ctx) =
+    SimpleIoMap(_ContextSelecting(), input, input)
+ProjectionModule.read_intent(::_ContextSelecting, iomap, event) =
+    event isa MousePress ? ReplaceSelectionOperation(EmptyReference()) : nothing
+
 function test_context_menu_probe()
 @testset "the context menu probe" begin
 
@@ -276,6 +284,23 @@ end
 # Whether an answer opens a popup: the popup comes marked as view state.
 _opens_popup(operation) = operation isa ReplaceViewStateOperation &&
                           get_wrapped_operation(operation) isa OpenPopupOperation
+
+@testset "a right press on a row selects it and opens the menu" begin
+    menu = WidgetMenu([WidgetMenuItem("Open")])
+    probe = ContextMenuProbeProjection(inner = _ContextSelecting(), compute_context_menu = _ -> menu)
+    iomap = print_document(probe, PrimitiveString("row"))
+    answer(button) = read_intent(probe, nothing,
+                                 Intent(MousePress(button, 7, 9, ModifierKeys())), iomap).operation
+    right = answer(:right)
+    @test right isa CompoundOperation
+    @test right.operations[1] isa ReplaceSelectionOperation
+    popup = get_wrapped_operation(right.operations[2])
+    @test popup isa OpenPopupOperation
+    @test (popup.x, popup.y) == (7, 9)
+    @test popup.content === menu
+    # A left press on the row only selects it.
+    @test answer(:left) isa ReplaceSelectionOperation
+end
 
 @testset "a document that offers none opens none" begin
     @test !_opens_popup(_read(WidgetShell(WidgetLabel("silent"); size = Point2D(200, 100))))

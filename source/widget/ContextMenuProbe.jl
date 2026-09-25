@@ -58,10 +58,14 @@ function read_intent(p::ContextMenuProbeProjection, recursion, change::Intent,
     inner_answer = read_intent(iomap.child_iomap.projection, recursion, change,
                                iomap.child_iomap)
     # A widget closer to the pointer answers first: a `WidgetContextMenu` gives
-    # one subtree a menu, and it wins over what the document says.
+    # one subtree a menu, and it wins over what the document says. A selection
+    # alone is not such an answer: a right press on a row selects the row and
+    # opens the menu, in one operation.
     operation = inner_answer isa Intent ? inner_answer.operation : inner_answer
-    operation === nothing || return inner_answer
-    (event isa MousePress && event.button === :right) || return inner_answer
+    is_right = event isa MousePress && event.button === :right
+    selection = is_right && _is_selection_only(operation) ? operation : nothing
+    operation === nothing || selection !== nothing || return inner_answer
+    is_right || return inner_answer
     # The same Alt press the tooltip probe uses, so both find the same document.
     press = MousePress(:left, event.x, event.y, ModifierKeys(alt = true))
     probe = read_intent(iomap.child_iomap.projection, recursion,
@@ -76,10 +80,18 @@ function read_intent(p::ContextMenuProbeProjection, recursion, change::Intent,
     menu === nothing && (menu = p.compute_context_menu(iomap.input))
     menu === nothing && return inner_answer
     rows = menu isa WidgetMenu ? max(1, length(menu.elements)) : 1
-    Intent(event, ReplaceViewStateOperation(
+    popup = ReplaceViewStateOperation(
         OpenPopupOperation(; id = :widget_popup, x = event.x, y = event.y,
-                             width = p.width, height = rows * p.row_height, content = menu)))
+                             width = p.width, height = rows * p.row_height, content = menu))
+    Intent(event, selection === nothing ? popup : CompoundOperation(Any[selection, popup]))
 end
+
+# Whether `operation` does nothing but move the selection, such as the answer a
+# row gives to a press.
+_is_selection_only(operation) = operation isa ReplaceSelectionOperation
+_is_selection_only(operation::WrappingOperation) = _is_selection_only(get_wrapped_operation(operation))
+_is_selection_only(operation::CompoundOperation) =
+    !isempty(operation.operations) && all(_is_selection_only, operation.operations)
 
 read_intent(p::ContextMenuProbeProjection, iomap::ContextMenuProbeIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation

@@ -283,9 +283,27 @@ to the readers.
   `test_window_wrap` 27 pass; `test_window_shell`, `test_tooltip_probe`,
   `test_widget_tooltip` and `test_application`: 493 pass with the one case of
   `test_window_wrap` that the fix of its reading made pass.
-- [ ] 5. **D10.** Test: a right press on a row of the
+- [x] 5. **D10.** Test: a right press on a row of the
   navigator selects it and opens the menu of the row; a right press in the JSON
   tab opens the menu of the window.
+
+  Done. `ContextMenuProbeProjection` treats an answer that only moves the
+  selection (`_is_selection_only`: a `ReplaceSelectionOperation`, a wrapper of
+  one, or a compound of only such) as no answer to a right press: it answers
+  the selection and the marked popup in one `CompoundOperation`. The window
+  manager opens the popup and passes the selection on.
+
+  **The application offers no context menu.** Only a `WidgetShell` answers
+  `compute_context_menu`, with its `context_menu` field, and the shell of the
+  application has none. So in the application window a right press opens
+  nothing, with or without these faults; the tests use a projection whose
+  reader answers every press with a selection, and the shell with a menu that
+  the probe test already has. A right press in the JSON tab now gives no
+  operation, where it gave the press itself (F4).
+
+  Tests: `test_context_menu_probe`, `test_tooltip_probe`,
+  `test_widget_tooltip`, `test_window_wrap` and `test_application`: 402 pass,
+  0 fail.
 - [ ] 6. **D9, the `content` step of the shell.** Test: the reference that a
   printer gets for a pane below the shell names `content`.
 - [ ] 7. **omnet-julia.** `IdeWindow.jl` imports `make_popup_screen_wrap`; the
