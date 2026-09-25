@@ -714,23 +714,27 @@ function _hl_build(recursion, doc, ctx)
     align_cell = getfield(doc, :vertical_align)
     n = length(doc.children)
 
-    # Symmetric to VerticalLayout: propagate the available extent on the CROSS
-    # axis (height) so children can fill the row's allocation, but strip it on
-    # the MAIN axis (width) — a horizontal row sizes its width from the sum of
-    # its children, so a child must not carry an `available_width` that
-    # ultimately reads this layout's own outer width (a feedback loop that
-    # stack-overflows). Keeping only the cross axis is cycle-free: `outer_h`
-    # reads child heights while each child reads the parent-supplied
-    # `available_height` cell, never `outer_h`.
+    # Symmetric to VerticalLayout: pass the range on the CROSS axis (height) so
+    # children can fill the row's allocation, but give no slot on the MAIN axis
+    # (width) — a horizontal row sizes its width from the sum of its children, so
+    # a child must not carry a slot that ultimately reads this layout's own outer
+    # width (a feedback loop that stack-overflows). A child gets the room the
+    # others leave as a bounded range instead (`_main_context`), which reads the
+    # parent's edge and the children before it, never `outer_w`. The cross axis
+    # is cycle-free: `outer_h` reads child heights while each child reads the
+    # parent-supplied edge, never `outer_h`.
     # The mirror of `_vl_build`: a child that carries a weight on the main axis
     # (width, here) asks for a share of this row's width, and can have one only
-    # when the row was offered a width itself. Only a weighted child is offered a
+    # when the row has an edge on that axis, exact or bounded. Only a weighted child is offered a
     # slot, so an unweighted child's width does not depend on the allocation and
     # is safe to read while computing it.
-    avail_w  = ctx.available_width
+    # The space a row divides is the edge of its range, exact or bounded: `Fill`
+    # takes all of what is offered, and the edge is what is offered.
+    avail_w  = ctx.maximum_width
     default  = getfield(doc, :child_width)[]
     weighted = [layout_weight(doc.children[i], :x; default) > 0 for i in 1:n]
     filling  = avail_w !== nothing && any(weighted)
+    slotted  = [filling && weighted[i] for i in 1:n]
 
     alloc_cell = Cell(nothing)
     slot_w = Cell[]
@@ -744,20 +748,20 @@ function _hl_build(recursion, doc, ctx)
 
 
     # The CROSS axis carries a policy too, and it is the same one. A child that
-    # carries a weight there asks to fill this layout's cross extent, and gets the
-    # offer. A child that declares a preferred cross extent gets that number. A
-    # child that declares nothing is `Content`, and the offer is withheld so the
-    # child sizes to what it draws — a badge in a column stays badge-shaped.
-    # This is what makes `child_width`/`child_height` mean something on the axis
-    # the layout does not divide.
+    # carries a weight there takes this layout's edge exactly. A child that
+    # declares a preferred cross extent gets that number. A child that declares
+    # nothing is `Content`, and it draws its content up to the edge — a badge in
+    # a column stays badge-shaped, and a paragraph wraps at the column
+    # (`_cross_context`). This is what makes `child_width`/`child_height` mean
+    # something on the axis the layout does not divide.
     cross_default = getfield(doc, :child_height)[]
 
     child_iomaps = Any[]
     for i in 1:n
         child = doc.children[i]
         cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
-        cctx = (filling && weighted[i]) ? with_available_size(cctx; width = slot_w[i]) :
-                                          withhold_offer(cctx, :x)
+        cctx = _main_context(cctx, i, doc.children, child_iomaps, slotted, slot_w, :x, default,
+                             gap_cell, ctx.maximum_width)
         cctx = _cross_context(cctx, child, :y, cross_default)
         push!(child_iomaps, _recurse_child(recursion, child, cctx))
     end
@@ -850,6 +854,43 @@ end
 # changes (a part is added/swapped) — that is what makes structure reactive. The
 # per-child size/position cells it constructs stay lazy, so a child merely
 # *growing* recomputes those cells without rebuilding the stack.
+# The range a stack gives a child on the axis it divides.
+#
+# A weighted child of a stack that distributes takes its slot exactly, and a
+# child with a declared preferred extent (`Fixed`) takes that number exactly. Any
+# other child — `Content`, or a weighted child of a stack that has no slot to
+# divide — draws its content up to the room the others leave: the stack's edge,
+# less the gaps, less what the children before it drew, less the minimums of the
+# children after it and of the slotted ones, cut at its placement maximum and
+# raised to its placement minimum. Each room reads only children that come before
+# it, and the allocation reads the unslotted children after they are drawn, so no
+# cell reads its own result.
+function _main_context(cctx, i::Int, children, child_iomaps, slotted::Vector{Bool},
+                       slots::Vector{Cell}, axis::Symbol, default, gap_cell, edge)
+    on_axis(range) = axis === :x ? (; width = range) : (; height = range)
+    slotted[i] && return with_exact_size(cctx; on_axis(slots[i])...)
+    child = children[i]
+    pref = layout_preferred(child, axis, 0; default)
+    pref > 0 && return with_exact_size(cctx; on_axis(Cell(Int32(pref)))...)
+    n = length(children)
+    room = edge === nothing ? nothing : Cell(@computation begin
+        r = Int(edge[]) - gap_cell[] * (n - 1)
+        for j in 1:n
+            j == i && continue
+            r -= (j < i && !slotted[j]) ?
+                 (axis === :x ? _child_w(child_iomaps[j]) : _child_h(child_iomaps[j])) :
+                 layout_min(children[j], axis, 0; default)
+        end
+        Int32(max(0, r))
+    end)
+    minimum = layout_min(child, axis, 0; default)
+    maximum = layout_max(child, axis, 0; default)
+    bound = maximum == typemax(Int) ? room :
+            room === nothing ? Cell(Int32(maximum)) :
+            Cell(@computation Int32(min(Int(room[]), maximum)))
+    with_size_range(cctx; on_axis((minimum > 0 ? Cell(Int32(minimum)) : nothing, bound))...)
+end
+
 # The range a stack gives a child on the axis it does NOT divide.
 #
 # The stack's own edge on that axis, `B`, is the maximum of the range it was
@@ -880,23 +921,28 @@ function _vl_build(recursion, doc, ctx)
     align_cell = getfield(doc, :horizontal_align)
     n = length(doc.children)
 
-    # Propagate the available extent on the CROSS axis (width) so children can
-    # fill the layout's allocation (responsive cards/text), but strip it on the
-    # MAIN axis (height): a vertical stack sizes its height from the sum of its
-    # children, so a child must not carry an `available_height` that ultimately
-    # reads this layout's own outer height — that closes a feedback loop and
-    # stack-overflows when the reactive cell evaluates. Keeping only the cross
-    # axis is cycle-free because `outer_w` (below) reads child widths while each
-    # child reads the *parent-supplied* `available_width` cell, never `outer_w`.
+    # Pass the range on the CROSS axis (width) so children can fill the layout's
+    # allocation or wrap at its edge (responsive cards/text), but give no slot on
+    # the MAIN axis (height): a vertical stack sizes its height from the sum of its
+    # children, so a child must not carry a slot that ultimately reads this
+    # layout's own outer height — that closes a feedback loop and stack-overflows
+    # when the reactive cell evaluates. A child gets the room the others leave as
+    # a bounded range instead (`_main_context`), which reads the parent's edge and
+    # the children before it, never `outer_h`. The cross axis is cycle-free
+    # because `outer_w` (below) reads child widths while each child reads the
+    # *parent-supplied* edge, never `outer_w`.
     # A child that carries a weight on the main axis is asking for a share of this
-    # layout's height. It can have one only when this layout was offered a height
-    # itself — a share of a sum of its own children is the reactive cycle the
-    # comment above describes. So the two conditions together decide, and nothing
+    # layout's height. It can have one only when this layout has an edge on that
+    # axis, exact or bounded — a share of a sum of its own children is the reactive
+    # cycle the comment above describes. So the two conditions together decide, and nothing
     # has to be declared on the layout.
-    avail_h  = ctx.available_height
+    # The space a column divides is the edge of its range, exact or bounded:
+    # `Fill` takes all of what is offered, and the edge is what is offered.
+    avail_h  = ctx.maximum_height
     default  = getfield(doc, :child_height)[]
     weighted = [layout_weight(doc.children[i], :y; default) > 0 for i in 1:n]
     filling  = avail_h !== nothing && any(weighted)
+    slotted  = [filling && weighted[i] for i in 1:n]
 
     # The allocation is forward-declared: a weighted child is offered its slot
     # before the slots can be computed, because computing them reads the
@@ -918,20 +964,20 @@ function _vl_build(recursion, doc, ctx)
 
 
     # The CROSS axis carries a policy too, and it is the same one. A child that
-    # carries a weight there asks to fill this layout's cross extent, and gets the
-    # offer. A child that declares a preferred cross extent gets that number. A
-    # child that declares nothing is `Content`, and the offer is withheld so the
-    # child sizes to what it draws — a badge in a column stays badge-shaped.
-    # This is what makes `child_width`/`child_height` mean something on the axis
-    # the layout does not divide.
+    # carries a weight there takes this layout's edge exactly. A child that
+    # declares a preferred cross extent gets that number. A child that declares
+    # nothing is `Content`, and it draws its content up to the edge — a badge in
+    # a column stays badge-shaped, and a paragraph wraps at the column
+    # (`_cross_context`). This is what makes `child_width`/`child_height` mean
+    # something on the axis the layout does not divide.
     cross_default = getfield(doc, :child_width)[]
 
     child_iomaps = Any[]
     for i in 1:n
         child = doc.children[i]
         cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
-        cctx = (filling && weighted[i]) ? with_available_size(cctx; height = slot_h[i]) :
-                                          withhold_offer(cctx, :y)
+        cctx = _main_context(cctx, i, doc.children, child_iomaps, slotted, slot_h, :y, default,
+                             gap_cell, ctx.maximum_height)
         cctx = _cross_context(cctx, child, :x, cross_default)
         push!(child_iomaps, _recurse_child(recursion, child, cctx))
     end
@@ -1239,18 +1285,42 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     col_w = Cell[_gl_extent_cell(col_extents, k) for k in 1:n]
     row_h = Cell[_gl_extent_cell(row_extents, k) for k in 1:n]
 
-    # What each cell is offered. A column or a row that may hand out its extent
-    # does; every other one keeps that axis withheld — §3, and §4's rule that
-    # only a weighted item is offered a slot.
+    # The edge of a `Content` column: the grid's edge, less the gaps, less what
+    # the `Content` columns before it drew, less the minimums of the other
+    # columns. It reads only columns that come before it, and nothing forces it
+    # while the cells are printed. A sized column that keeps its extent from its
+    # cells (`column_offers`) clips them instead, and gives them no edge.
+    is_content_column(k::Int) = !_gl_offers(policy_of_column(k))
+    edge_w = ctx === nothing ? nothing : ctx.maximum_width
+    function make_column_edge(col::Int)
+        edge_w === nothing && return nothing
+        Cell(@computation begin
+            c = cols_cell[]
+            r = Int(edge_w[]) - Int(hgap[]) * max(0, c - 1)
+            for k in 1:c
+                k == col && continue
+                r -= (k < col && is_content_column(k)) ? Int(content_col_w[k][]) :
+                     something(policy_of_column(k).min, 0)
+            end
+            Int32(max(0, r))
+        end)
+    end
+    column_edges = Union{Nothing,Cell}[make_column_edge(col) for col in 1:n]
+
+    # What each cell is given. A column or a row that may hand out its extent
+    # gives it exactly — §3, and §4's rule that only a weighted item is given a
+    # slot. A `Content` column gives its cells its edge, so a cell draws its
+    # content up to it; a row that does not hand out its extent keeps the height
+    # free, because no content reflows with its height.
     for i in 1:n
         c = cols_cell[]
         col = c > 0 ? _grid_col(i, c) : 1
         row = c > 0 ? _grid_row(i, c) : 1
         cctx = ctx
         if cctx !== nothing
-            cctx = offers_to_cells(col) ?
-                with_available_size(cctx; width = _gl_int32_cell(col_w[col])) :
-                withhold_offer(cctx, :x)
+            cctx = offers_to_cells(col) ? with_exact_size(cctx; width = _gl_int32_cell(col_w[col])) :
+                   is_content_column(col) ? with_bounded_size(cctx; width = column_edges[col]) :
+                   withhold_offer(cctx, :x)
             cctx = _gl_offers(policy_of_row(row)) ?
                 with_available_size(cctx; height = _gl_int32_cell(row_h[row])) :
                 withhold_offer(cctx, :y)

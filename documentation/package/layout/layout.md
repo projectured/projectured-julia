@@ -27,11 +27,11 @@ The whole placement is in one outer computed cell, which reads `doc.children`. S
 
 ### The size that a parent offers
 
-A layout sizes itself to its content by default. A parent gives a range on each axis through the printer context: an exact range, a slot (`with_exact_size`); a bounded range, an edge with no slot (`with_bounded_size`, or `with_size_range` with a minimum); or a free axis (`withhold_offer`). If a layout has a slot and at least one child has a weight, the layout divides the slot among the weighted children:
+A layout sizes itself to its content by default. A parent gives a range on each axis through the printer context: an exact range, a slot (`with_exact_size`); a bounded range, an edge with no slot (`with_bounded_size`, or `with_size_range` with a minimum); or a free axis (`withhold_offer`). If a layout has an edge on its main axis, exact or bounded, and at least one child has a weight, the layout divides the edge among the weighted children:
 
 - `SizePolicy(min, preferred, max, weight)` describes a child on one axis. The named forms are `Fixed(n)`, `Content` (the default), `Relative(w)` and `Fill`, which is `Relative(1.0)`.
 - `allocate_axis` is the one allocator for rows, columns, grids and flows. It gives each child its preferred size, then gives the rest to the weighted children in proportion to their weights, and repeats while a child reaches its minimum or maximum.
-- A child without a weight reads its own size, so no cell reads its own result.
+- A child without a weight gets the room the others leave, as a bounded range: the edge, less the gaps, less what the children before it drew, less the minimums of the others. It reads only children that come before it, so no cell reads its own result. So a child that reflows takes the room before the children after it; give it a weight to leave them their size.
 - On the cross axis, a weighted child gets the layout's edge exactly, a `Fixed` child its number, and a `Content` child a bounded range: its content, up to the layout's edge and its placement maximum, and at least its placement minimum. So a label keeps its size in a column, and a long text wraps at the column's edge.
 
 The policy is a property of the placement, not of the child: `child_width` and `child_height` on the layout, or a `LayoutConstraint` around one child. So the same card fills a column in one place and is as wide as its content in a toolbar.

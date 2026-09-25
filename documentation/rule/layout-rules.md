@@ -202,26 +202,44 @@ is a scissor rect, not a surface, and the alternative is a type test in the prin
 
 ## 4. When a stack distributes instead of summing
 
-A stack sums its children on its main axis and gives them none of it. It
-**distributes** instead when both of these hold:
+A stack sums its children on its main axis. It **distributes** its edge instead
+when both of these hold:
 
 ```
-the stack was offered a main-axis extent      (ctx.available_* !== nothing)
+the stack has an edge on its main axis        (ctx.maximum_* !== nothing, exact or bounded)
 and some child carries a weight on that axis  (Fill or Relative)
 ```
 
 Nothing is declared on the stack. A child asking for a share can only have one
 when the stack has something to share, and a share of a sum of its own children is
-the cycle of §3.
+the cycle of §3. The edge is what the stack is offered, so a row with a `Fill`
+child fills the room its parent gives it, even when that parent gives only an edge.
 
-**Only a weighted child is offered a slot.** Every other child keeps the withheld
-axis, so its extent does not depend on the allocation and is safe to read while
-computing it. `WidgetSplitPane` has always worked this way; the stacks do now too.
+**Only a weighted child gets a slot.** Every other child gets the room the others
+leave, as a bounded range, and draws its content up to it:
+
+```
+Fixed(k)       (k, k)
+unweighted i   (minᵢ, min(maxᵢ, room_i))
+room_i       = edge − gaps − Σ(j < i, unweighted) eⱼ − Σ(j > i or weighted) minⱼ
+```
+
+`eⱼ` is what child `j` drew. A room reads only the children before it, and the
+allocation reads the unweighted children after they are drawn, so no child's
+extent depends on the allocation or on itself. `WidgetSplitPane` works the same
+way.
+
+**The order decides between children that reflow.** A child that reflows — wrapped
+text, a flow — counts the children after it only by their minimums, so it takes
+the room before they are drawn: in a row `[long text, button]` the text wraps at
+the whole row and the button passes the edge. Give the text a weight, and it gets
+exactly what the button leaves; two texts side by side share the row by their
+weights. A text after a button needs nothing: it gets what the button left.
 
 `allocate_axis(available, mins, maxs, prefs, weights, gap, n)` is the one
 allocator, shared by the stacks and the split.
 
-**A container with no offer divides nothing.** `WidgetSplitPane` divides its main
+**A container with no edge divides nothing.** `WidgetSplitPane` divides its main
 axis, so with no offer on that axis it has nothing to divide. It then withholds
 that axis from its children and each slot is the child's own extent — a declared
 size, from `sizes` or a `LayoutConstraint`, or else what the child draws. Offering
@@ -247,6 +265,19 @@ WidgetShell(size = Point2D(300, 400))
 Without the wrapper the pane is offered no height, so it clips nothing: it takes
 the height of its content and the column grows with it. The `Fill` is what makes
 it a viewport in that column.
+
+A row with a label, a field that takes the rest, and a button, in 400 pixels with a
+gap of 8:
+
+```julia
+HorizontalLayout([WidgetLabel("Name:"),                          # 50 px
+                  LayoutConstraint(WidgetText(""); width = Fill),
+                  WidgetButton("Go")]; gap = 8)                  # 30 px
+```
+
+- the label's room is `400 − 16 − 0 − 0 = 384`, and it draws its 50;
+- the button's room is `400 − 16 − 50 − 0 = 334`, and it draws its 30;
+- the field gets the rest: `400 − 16 − 50 − 30 = 304`.
 
 ## 6. What this replaces
 

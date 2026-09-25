@@ -203,12 +203,12 @@ unweighted (wᵢ = 0)       mᵢ = minᵢ
                           Mᵢ = min(Mᵢ, maxᵢ)                                 ← new
                           (Mᵢ = ∅ when B = ∅)
 
-weighted, S ≠ ∅           a = allocate_axis(S; min, max, pref, w, g), with prefⱼ = eⱼ for the unweighted
-                          (mᵢ, Mᵢ) = (aᵢ, aᵢ)                                (today)
+weighted, B ≠ ∅           a = allocate_axis(B; min, max, pref, w, g), with prefⱼ = eⱼ for the unweighted
+                          (mᵢ, Mᵢ) = (aᵢ, aᵢ)                                (today with S; now with B)
 
-weighted, S = ∅           as unweighted                                      ← new
+weighted, B = ∅           as unweighted, free
 
-extent of the stack = S when it distributes, else Σ eᵢ + g·(n−1)
+extent of the stack = B when it distributes, else Σ eᵢ + g·(n−1)
 ```
 
 Every value reads only values computed before it: the unweighted children in
@@ -398,7 +398,20 @@ Step 0 takes the baseline.
       examples leave (Step 1): 496490 at main, 499680 at Steps 1 and 2, 496546
       here, with no failure, error or broken test.
 
-- [ ] **Step 4: the main axis of the stacks.** The formula of §4.3 for the
+- [x] **Step 4: the main axis of the stacks.** **Decisions (2026-09-25):**
+      a stack distributes over its edge `B`, exact or bounded, and not only over
+      a slot `S`: `Fill` takes all of what is offered, and the edge is what is
+      offered. The plan first placed a weighted child of a stack with no slot as
+      an unweighted one; then a row with a `Fill` child in a `Content` column
+      did not distribute (its column gives it an edge, not a slot), which also
+      disagreed with the cross axis, where a weighted child takes the edge
+      exactly. §4.3 shows the corrected formula. The weak point of example 3 is
+      wider than two texts: any child that reflows counts the children after it
+      only by their minimums, so in `[long text, button]` the text takes the
+      room and the button passes the edge; the placement gives the text a
+      weight (`layout-rules.md` §4). The `Content` columns of a grid are done
+      here (moved from Step 3); a row of a grid keeps its height free.
+      The original text of the step: The formula of §4.3 for the
       unweighted children, `Fixed` on the main axis, and a weighted child in a
       stack that is not exact.
       - Tests: examples 2 and 3 of §4.4; a test that a stack of stacks with
@@ -406,6 +419,15 @@ Step 0 takes the baseline.
       - Documents: `layout-rules.md` §4 (when a stack distributes) and §5 (the
         worked case), with example 3 and its rule for two children that
         reflow.
+      **Done.** `test_size_range_main_axis()` passes 11 of 11: example 2 gives
+      the field 304; example 3 and `[long text, button]` show the order rule,
+      and a weight fixes both; a `Fixed` child takes 90; nested rows in a
+      column fit and do not loop; a `Content` column of a grid gives its cells
+      its edge. `test_all()` has the same 660 failures at the same places as
+      Step 3, the 11 new passes, and 42 more passes in each of
+      `SubstrateExamples` and `Printers`: those testers assert once for each
+      reachable cell, and the rooms and the column edges are new cells.
+      `Catalog` has 500658 passes and no failure, error or broken test.
 
 - [ ] **Step 5: the patches go, and the old names.** The 800 of
       `WordWrapping` and the 400 of `FlowLayout` go: text with no edge does not
