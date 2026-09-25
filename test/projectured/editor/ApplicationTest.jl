@@ -1290,6 +1290,10 @@ function test_application()
                 names = readdir(dir)
                 next = names[findfirst(==("a.json"), names) + 1]
 
+                # The window opens on the root row, which is the folder as a whole.
+                @test endswith(path(), ".tabs[1].content.folders[1]")
+                @test isempty(ring())
+
                 (x, y) = first((x, y) for (text, x, y) in _app_drawn_at(window())
                                if text == "a.json" && x < 400)
                 @test press!(MousePress(:left, x + 3, y + 3, 1, ModifierKeys())) isa

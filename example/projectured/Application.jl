@@ -104,8 +104,10 @@ function _make_application_navigator(root::AbstractString)
 end
 
 # The navigator, the files and the assistant side by side. The focus starts
-# inside the first file, or inside the navigator when no file is open, so the
-# first key reaches that document and not the tab strip.
+# inside the first file, or on the root row of the navigator when no file is
+# open, so the first key reaches that document and not the tab strip. The root
+# row is the first folder of the workspace as a whole; the workspace itself is
+# not selected, so its page shows no ring.
 function _make_application_pane_tree(tabs, navigator, assistant)
     files = PaneGroup(PaneTab[PaneTab(get_document_title(tab), tab) for tab in tabs])
     places = PaneGroup(PaneTab[PaneTab("Files", navigator)])
@@ -118,7 +120,9 @@ function _make_application_pane_tree(tabs, navigator, assistant)
     tree = PaneTree(PaneSplit(:vertical, groups; weights = weights))
     if isempty(tabs)
         tab = get_pane_tab_reference(tree, places, 1)
-        set_selection!(tree, extend_reference(tab, FieldReferenceStep("content")))
+        set_selection!(tree, extend_reference(tab, FieldReferenceStep("content"),
+                                              FieldReferenceStep("folders"),
+                                              ElementReferenceStep(1)))
     else
         tab = get_pane_tab_reference(tree, files, 1)
         set_selection!(tree, extend_reference(tab, FieldReferenceStep("content"),

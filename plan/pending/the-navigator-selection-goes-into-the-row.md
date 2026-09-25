@@ -119,11 +119,40 @@ no ring shows.
     (commit `94d4fc6d` added "Frame plot" and did not update the test), and the
     position navigation of `filesystem_widget` and `navigator` fails 3313 and 328
     times. The branch changes none of these counts.
-- [ ] **Step 2.** D2 and D3: the row in the root path, the computed directory
+- [x] **Step 2.** D2 and D3: the row in the root path, the computed directory
   selection, the Alt+press, and the dependency. Test: a click on a row puts the
   row in the root path and no ring shows; `Down` moves it; Enter opens the file;
   Alt+click selects the `Workspace` and the ring shows.
-- [ ] **Step 3.** D4: the start selection. Test: the start path ends at
+
+  Done. What the work showed:
+  - `DatabaseInstanceToDbCatalog` does the same thing for a catalog row: its
+    backward map wraps the path as `proj(p, …)` on the instance, and the output's
+    `selection` is computed from the instance's. The folder needs no reference map
+    of its own: the defaults of `Projection` wrap and unwrap the step, and keep
+    `∅` as `∅`.
+  - `set_cell_computation!` runs on the first read, so the output computation sets
+    the directory's selection computation and still depends on the pathname
+    alone. A selection that moves does not read the disk again.
+  - Measured: the start path ends at `….content.folders[1]`; a click on `beta`
+    ends at `….folders[1]` and the step `‹.elements[2]›`; `Down` gives
+    `‹.elements[2].elements[1]›`; Alt+click ends at `….content`, and the folder
+    then holds no selection, because the editor's writer (`replace_selection!`)
+    clears the branch the selection leaves.
+  - A written image now shows the selected row. Before, `write_image` printed a
+    new directory and lost the private selection on it.
+  - The status bar printed the step in its long form. It now asks for the compact
+    form, as a short line should, and reads `::WorkspaceFolder‹.elements[2]›`.
+  - `FileSystemModule` uses `FocusModule`, `IntentModule` and `SelectionModule`.
+    `test_package_graph()` passes with `ProjecturedFocus` declared.
+- [x] **Step 3.** D4: the start selection. Test: the start path ends at
   `folders[1]`, and no ring shows.
+
+  Done. The root row is lit at the start, and the page draws no ring.
+
+  Tests after Steps 2 and 3: `test_application` 311 of 312 (the toolbar failure
+  of `main`), `test_filesystem` 36 of 36 with the new
+  `test_workspace_to_filesystem`, `test_package_graph` 661 of 661, the file
+  dialogs 11 of 11, `test_shell` 175 of 180 (the same five toolbar failures as
+  `main`), the two examples at the counts of `main`, and the naming guard.
 - [ ] **Step 4.** The guides: `documentation/package/filesystem/filesystem.md`
   and the dependency table in `documentation/rule/package-rules.md`.
