@@ -764,16 +764,42 @@ end
           cpath(FieldReferenceStep("content"), FieldReferenceStep("right"))
 end
 
-@testset "the wrapper helpers build the clipboard and its chain" begin
+@testset "the wrapper helpers build the clipboard and its dispatch" begin
     document = make_clipboard_document(PrimitiveString("x"))
     @test document isa ClipboardSlice
     @test make_clipboard_document(PrimitiveString("x"); collection = true) isa ClipboardCollection
     projection = make_clipboard_projection(IdentityProjection(); offered_gestures = (:copy,))
-    @test projection isa ChainingProjection
-    dispatch = projection.projections[1].child
-    clipboard = only(q for (t, q) in dispatch.dispatch if t === ClipboardSlice)
+    @test projection isa RecursiveProjection
+    clipboard = only(q for (t, q) in projection.child.dispatch if t === ClipboardSlice)
     @test clipboard isa ClipboardSliceToAnyProjection
     @test clipboard.offered_gestures == (:copy,)
+end
+
+@testset "the wrapper prints the child on display with its own step" begin
+    # The projection of the content records the reference it is printed with.
+    seen = String[]
+    recording = ReferenceDispatchingProjection(reference -> begin
+        push!(seen, repr(strip_reference_types(reference)))
+        IdentityProjection()
+    end)
+    content, stored = PrimitiveString("root"), PrimitiveString("stored")
+    projection = make_clipboard_projection(recording)
+    clipboard = only(q for (t, q) in projection.child.dispatch if t === ClipboardSlice)
+    iomap = print_document(projection, ClipboardSlice(content, stored))
+    # The content is printed at `content`, and the slice is not printed while it
+    # is not on display.
+    @test seen == [".content"]
+    @test iomap.output === content
+    # A toggle prints the slice at `slice`, and the output follows it.
+    clipboard.display_slice[] = true
+    @test iomap.output === stored
+    @test seen == [".content", ".slice"]
+    clipboard.display_slice[] = false
+    @test iomap.output === content
+    # A press that neither the clipboard nor the content answers gives no
+    # operation, and not the press itself.
+    change = read_intent(projection, nothing, Intent(MousePress(:right, 1, 1, ModifierKeys())), iomap)
+    @test change.operation === nothing
 end
 
 end # test_clipboard

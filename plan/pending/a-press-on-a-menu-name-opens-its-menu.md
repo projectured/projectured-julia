@@ -175,10 +175,32 @@ to the readers.
   `test_clipboard()`: 201 pass. `test_substrate()`: 80868 pass, 3 fail, 2 error,
   1 broken; `main` gives 80862 pass and the same failures (the splitter drags
   inside a tabbed pane and along the y axis), so the 6 more are the new test.
-- [ ] 2. **D8, the nesting clipboard.** First list every key that the clipboard
+- [x] 2. **D8, the nesting clipboard.** First list every key that the clipboard
   and a content both answer, and check each one against the new order. Tests:
   the clipboard suite, Ctrl+/ still switches the view, the slice prints only
   while it shows, and the application test.
+
+  Done. No gesture table outside the clipboard binds Ctrl+/, Ctrl+C,
+  Ctrl+Shift+C, Ctrl+X, Ctrl+N, Ctrl+V or Ctrl+Shift+V. The chain already let
+  the clipboard win for these keys: when a later stage answered, the chain
+  asked the clipboard with the gesture, and its own table replaced the answer.
+  So the new order changes the answer to no key.
+
+  The slice printer and the collection printer print the child on display
+  through `reconcile_child_iomap`, only while it is on display. The collection
+  draws its `elements` vector as one child, as stage 2 of the chain drew it; its
+  reference maps peel `elements` and delegate the rest to that child. Both
+  readers gained a branch for a routed intent, as `UndoBufferToAnyProjection`
+  has, because the chain did that work before and the menu commands send their
+  edits with a route. Both delegate every other gesture to the child on
+  display.
+
+  Tests: a new case in `ClipboardTest.jl` shows that the content prints at
+  `content`, that the slice prints at `slice` only after a toggle, and that an
+  unclaimed press gives no operation. `test_clipboard`, `test_text_clipboard`,
+  `test_command_palette`, `test_command_palette_decorator`,
+  `test_window_shell`, `test_window_wrap`, the two widget shell tests and
+  `test_application`: 783 pass, 0 fail.
 - [ ] 3. **D1 to D5, the position on the way up.** Find every place of D3 with a
   grep. Tests with real presses in the window of `make_application_window`:
   "File" opens a popup window at the position under the label; a

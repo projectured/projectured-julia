@@ -8,17 +8,18 @@
 # cut, note and paste gestures move the selected sub-document in and out of the
 # slice.
 #
-# It delegates every non-clipboard gesture into its `content` child reader and
-# re-roots the returned operation under the `content` field. That is the School-A
-# pattern: delegate through the stored child IoMap, never re-walk by document
-# type.
+# It prints the child on display through its recursion, with the context of that
+# child, and it reads its own gestures first. It delegates every other gesture to
+# the child on display and re-roots the returned operation under that child's
+# field. That is the School-A pattern: delegate through the stored child IoMap,
+# never re-walk by document type.
 #
 # ## Display toggling
 #
 # The display flag is a `Cell`, and the projection's `output` is a derived cell
-# over it. To flip the flag is a plain reactive cell write: the reactive
-# `ChainingProjection` re-pulls the changed output and re-prints only the
-# downstream stages, so the view switches with no `editor.iomap` drop.
+# over it. To flip the flag is a plain reactive cell write: the output cell
+# re-derives, and the stored slice is printed only while it is on display, so
+# the view switches with no `editor.iomap` drop.
 #
 # ## OS-clipboard bridge
 #
@@ -94,7 +95,7 @@ ClipboardSliceToAnyProjection(; display_slice::Bool=false, to_text=nothing, from
     input::Any              # ClipboardSlice
     output::Any             # content or slice child output
     content_iomap::Any
-    slice_iomap::Any        # iomap of the stored slice, or nothing
+    slice_iomap::Any        # iomap of the stored slice while it is on display, or nothing
 end
 
 # ── Printers ────────────────────────────────────────────────────────────────
@@ -102,17 +103,20 @@ end
 function print_document(p::ClipboardSliceToAnyProjection, recursion, input::ClipboardSlice, ctx)
     content_iomap = print_child(recursion, input.content,
                         make_child_context(ctx, FieldReferenceStep("content")))
-    slice_val = input.slice
-    slice_iomap = slice_val isa Document ?
-        print_child(recursion, slice_val,
-            make_child_context(ctx, FieldReferenceStep("slice"))) : nothing
-    # Reactive output: a derived cell over the display flag (the projection stays
-    # domain-generic — it still exposes the active child directly). The reactive
-    # ChainingProjection re-pulls this through its own per-stage cells, so
-    # flipping `display_slice` switches the exposed child with no `editor.iomap`
-    # drop — only the downstream stages re-print.
-    output = Cell(@computation((p.display_slice[] && slice_iomap !== nothing) ?
-                           slice_iomap.output : content_iomap.output))
+    # The stored slice is printed through the whole projection, so it is printed
+    # only while it is on display. The cell reads the flag and the slice, so a
+    # toggle or a new slice prints it again.
+    slice_iomap = reconcile_child_iomap(
+        () -> (p.display_slice[] && input.slice isa Document) ? input.slice : nothing,
+        slice -> slice === nothing ? nothing :
+            print_child(recursion, slice, make_child_context(ctx, FieldReferenceStep("slice"))))
+    # Reactive output: a derived cell over the display flag. The projection stays
+    # domain-generic — it exposes the output of the child on display directly —
+    # so flipping `display_slice` switches that output with no `editor.iomap` drop.
+    output = Cell(@computation begin
+        slice = slice_iomap[]
+        slice === nothing ? content_iomap.output : slice.output
+    end)
     ClipboardSliceToAnyIoMap(p, input, output, content_iomap, slice_iomap)
 end
 
@@ -122,10 +126,11 @@ end
 # clipboard field step and returns the child's output reference unwrapped;
 # backward delegates to the child and prepends the clipboard field step.
 
-# Active child for a slice projection: ("field-name", child-iomap).
+# Active child for a slice projection: ("field-name", child-iomap). The slice
+# iomap exists only while the slice is on display.
 function _slice_active(iomap::ClipboardSliceToAnyIoMap)
-    (iomap.projection.display_slice[] && iomap.slice_iomap !== nothing) ?
-        ("slice", iomap.slice_iomap) : ("content", iomap.content_iomap)
+    slice = iomap.slice_iomap
+    slice === nothing ? ("content", iomap.content_iomap) : ("slice", slice)
 end
 
 function map_reference_forward(::ClipboardSliceToAnyProjection, iomap::ClipboardSliceToAnyIoMap, reference)
@@ -477,21 +482,28 @@ end
 
 function read_intent(p::ClipboardSliceToAnyProjection, recursion, change::Intent,
                          iomap::ClipboardSliceToAnyIoMap)
+    name, child = _slice_active(iomap)
+    steps = (FieldReferenceStep(name),)
+    # An operation with a route goes to the child on display, when the route
+    # leads there.
+    if change.route !== nothing
+        routed = follow_intent_route(change, steps...)
+        routed === nothing && return Intent(change.gesture, nothing)
+        answer = read_routed_intent(child.projection, recursion, routed, child)
+        return Intent(change.gesture, reroot_operation(answer.operation, steps))
+    end
     own = read_projection_gesture(p, iomap, change.gesture)
     # Routing one gesture stops at the first answer; a collection takes both. The
-    # child's is prefixed with `content`, exactly as its operations are.
+    # child's is prefixed with the child's field, exactly as its operations are.
     if change.gesture isa CollectIntents
-        cim = iomap.content_iomap
-        child = cim === nothing ? nothing :
-                read_intent(cim.projection, recursion, change, cim).operation
+        inner = read_intent(child.projection, recursion, change, child).operation
         return Intent(change.gesture,
                       merge_collected_intents(_collected_intents(own),
-                                              _collected_intents(reroot_operation(child, (FieldReferenceStep("content"),)))))
+                                              _collected_intents(reroot_operation(inner, steps))))
     end
     own !== nothing && return Intent(change.gesture, own)
-    cim = iomap.content_iomap
-    inner = read_intent(cim.projection, recursion, change, cim)
-    Intent(change.gesture, reroot_operation(inner.operation, (FieldReferenceStep("content"),)))
+    inner = read_intent(child.projection, recursion, change, child)
+    Intent(change.gesture, reroot_operation(inner.operation, steps))
 end
 
 # 3-arg payload form (used by tests and any parent that hands a bare payload).

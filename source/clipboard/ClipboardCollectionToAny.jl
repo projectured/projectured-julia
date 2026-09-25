@@ -8,13 +8,16 @@
 # `Ctrl+*`. `Ctrl+=` adds the selected object to the collection and `Ctrl+-`
 # removes the selected element.
 #
-# It delegates every non-clipboard gesture into its `content` child reader and
-# re-roots the returned operation under the `content` field. That is the School-A
-# pattern: delegate through the stored child IoMap, never re-walk by document
-# type.
+# It prints the child on display through its recursion, with the context of that
+# child: the wrapped `content`, or the `elements` vector as one document, which
+# only a projection that draws a vector can render. It reads its own gestures
+# first, delegates every other gesture to the child on display, and re-roots the
+# returned operation under that child's field. That is the School-A pattern:
+# delegate through the stored child IoMap, never re-walk by document type.
 #
 # The display flag is a `Cell`, and the projection's `output` is a derived cell
-# over it, so to flip the flag re-prints only the downstream stages.
+# over it, so to flip the flag switches the output with no new print of the
+# content.
 
 # ── Projection ───────────────────────────────────────────────────────────
 
@@ -22,8 +25,8 @@
     ClipboardCollectionToAnyProjection(; display_collection=false)
 
 Projects a `ClipboardCollection`. When `display_collection` is `false` the output
-is the projection of `content`; when `true` it is a `CellVector` of the projected
-`elements`.
+is the projection of `content`; when `true` it is the projection of the
+`elements` vector.
 """
 mutable struct ClipboardCollectionToAnyProjection <: Projection
     display_collection::Cell   # reactive: flipping it switches content ↔ elements view
@@ -36,9 +39,9 @@ ClipboardCollectionToAnyProjection(; display_collection::Bool=false) =
 @iomap struct ClipboardCollectionToAnyIoMap
     projection::ClipboardCollectionToAnyProjection
     input::Any              # ClipboardCollection
-    output::Any             # content child output, or CellVector of element outputs
+    output::Any             # content child output, or the output of the elements vector
     content_iomap::Any
-    element_iomaps::Any     # Vector of per-element child iomaps
+    elements_iomap::Any     # iomap of the elements vector while it is on display, or nothing
 end
 
 # ── Printer ──────────────────────────────────────────────────────────────
@@ -46,64 +49,43 @@ end
 function print_document(p::ClipboardCollectionToAnyProjection, recursion, input::ClipboardCollection, ctx)
     content_iomap = print_child(recursion, input.content,
                         make_child_context(ctx, FieldReferenceStep("content")))
-    # Reconcile the element children by identity so a structural edit to
-    # `elements` reuses surviving child iomaps (PAR-STABLE-IOMAP-IDENTITY).
-    element_iomaps = reconcile_child_iomaps(
-        () -> input.elements,
-        (i, x) -> print_child(recursion, x,
-            make_child_context(ctx, FieldReferenceStep("elements"), ElementReferenceStep(i))))
-    # Reactive output (see the slice printer): a derived cell over the display flag,
-    # re-pulled by the reactive ChainingProjection — no `editor.iomap` drop.
-    output = Cell(@computation(p.display_collection[] ?
-        CellVector(Cell[Cell(im.output) for im in element_iomaps[]]) :
-        content_iomap.output))
-    ClipboardCollectionToAnyIoMap(p, input, output, content_iomap, element_iomaps)
+    # The elements vector is printed as one document, and only while it is on
+    # display. The cell reads the flag, so a toggle prints it.
+    elements_iomap = reconcile_child_iomap(
+        () -> p.display_collection[] ? input.elements : nothing,
+        elements -> elements === nothing ? nothing :
+            print_child(recursion, elements, make_child_context(ctx, FieldReferenceStep("elements"))))
+    # Reactive output (see the slice printer): a derived cell over the display
+    # flag, so a toggle switches the output with no `editor.iomap` drop.
+    output = Cell(@computation begin
+        elements = elements_iomap[]
+        elements === nothing ? content_iomap.output : elements.output
+    end)
+    ClipboardCollectionToAnyIoMap(p, input, output, content_iomap, elements_iomap)
 end
 
 # ── Reference mapping ────────────────────────────────────────────────────
 
+# Active child for a collection projection: ("field-name", child-iomap). The
+# elements iomap exists only while the elements are on display.
+function _collection_active(iomap::ClipboardCollectionToAnyIoMap)
+    elements = iomap.elements_iomap
+    elements === nothing ? ("content", iomap.content_iomap) : ("elements", elements)
+end
+
 function map_reference_forward(::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyIoMap, reference)
     reference isa ConcreteReference || return reference
-    if iomap.projection.display_collection[]
-        h = get_reference_head(reference)
-        (h isa FieldReferenceStep && h.name == "elements") || return nothing
-        rest = get_reference_tail(reference)
-        rest isa ConcreteReference || return nothing
-        e = get_reference_head(rest)
-        e isa RangeReferenceStep || return nothing
-        i = e.stop
-        ims = iomap.element_iomaps[]
-        (i < 1 || i > length(ims)) && return nothing
-        child = ims[i]
-        mapped = map_reference_forward(child.projection, child, get_reference_tail(rest))
-        mapped === nothing && return nothing
-        ConcreteReference(e, mapped)
-    else
-        h = get_reference_head(reference)
-        (h isa FieldReferenceStep && h.name == "content") || return nothing
-        child = iomap.content_iomap
-        map_reference_forward(child.projection, child, get_reference_tail(reference))
-    end
+    name, child = _collection_active(iomap)
+    h = get_reference_head(reference)
+    (h isa FieldReferenceStep && h.name == name) || return nothing
+    map_reference_forward(child.projection, child, get_reference_tail(reference))
 end
 
 function map_reference_backward(::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyIoMap, reference)
-    if iomap.projection.display_collection[]
-        reference isa ConcreteReference || return reference
-        e = get_reference_head(reference)
-        e isa RangeReferenceStep || return nothing
-        i = e.stop
-        ims = iomap.element_iomaps[]
-        (i < 1 || i > length(ims)) && return nothing
-        child = ims[i]
-        mapped = map_reference_backward(child.projection, child, get_reference_tail(reference))
-        mapped === nothing && return nothing
-        ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(e, mapped))
-    else
-        child = iomap.content_iomap
-        mapped = map_reference_backward(child.projection, child, reference)
-        mapped === nothing && return nothing
-        ConcreteReference(FieldReferenceStep("content"), mapped)
-    end
+    name, child = _collection_active(iomap)
+    mapped = map_reference_backward(child.projection, child, reference)
+    mapped === nothing && return nothing
+    ConcreteReference(FieldReferenceStep(name), mapped)
 end
 
 # ── Operations ───────────────────────────────────────────────────────────
@@ -174,21 +156,28 @@ end
 
 function read_intent(p::ClipboardCollectionToAnyProjection, recursion, change::Intent,
                          iomap::ClipboardCollectionToAnyIoMap)
+    name, child = _collection_active(iomap)
+    steps = (FieldReferenceStep(name),)
+    # An operation with a route goes to the child on display, when the route
+    # leads there.
+    if change.route !== nothing
+        routed = follow_intent_route(change, steps...)
+        routed === nothing && return Intent(change.gesture, nothing)
+        answer = read_routed_intent(child.projection, recursion, routed, child)
+        return Intent(change.gesture, reroot_operation(answer.operation, steps))
+    end
     own = read_projection_gesture(p, iomap, change.gesture)
     # Routing one gesture stops at the first answer; a collection takes both. The
-    # child's is prefixed with `content`, exactly as its operations are.
+    # child's is prefixed with the child's field, exactly as its operations are.
     if change.gesture isa CollectIntents
-        cim = iomap.content_iomap
-        child = cim === nothing ? nothing :
-                read_intent(cim.projection, recursion, change, cim).operation
+        inner = read_intent(child.projection, recursion, change, child).operation
         return Intent(change.gesture,
                       merge_collected_intents(_collected_intents(own),
-                                              _collected_intents(reroot_operation(child, (FieldReferenceStep("content"),)))))
+                                              _collected_intents(reroot_operation(inner, steps))))
     end
     own !== nothing && return Intent(change.gesture, own)
-    cim = iomap.content_iomap
-    inner = read_intent(cim.projection, recursion, change, cim)
-    Intent(change.gesture, reroot_operation(inner.operation, (FieldReferenceStep("content"),)))
+    inner = read_intent(child.projection, recursion, change, child)
+    Intent(change.gesture, reroot_operation(inner.operation, steps))
 end
 read_intent(p::ClipboardCollectionToAnyProjection, iomap::ClipboardCollectionToAnyIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
