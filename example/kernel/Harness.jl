@@ -136,7 +136,7 @@ end
     make_typein_gestures(text; hold=0.15, jitter=0.6) -> Vector
 
 Turn `text` into a list of timed `record_video` gestures: one
-`(event = KeyPress(char), hold = …)` per character, in order. Feed the result to
+`(event = KeyPress(char; time), hold = …)` per character, in order. Feed the result to
 `record_video`/`record_example_video` to record someone typing `text`. The
 recording needs an `initial_selection` (a text caret) for the keypresses to land.
 

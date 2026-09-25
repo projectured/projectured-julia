@@ -2711,10 +2711,10 @@ end
     read_from_devices(backend::SdlBackend, devices) -> WindowInput or nothing
 
 Poll the SDL event queue once and return an `WindowInput` wrapping a
-backend-agnostic inner event:
-- `SDL_QUIT`                           → `WindowInput(:none, WindowQuit())`
-- `SDL_WINDOWEVENT_CLOSE` for a window → `WindowInput(<id>, WindowClose())`
-- `SDL_WINDOWEVENT_RESIZED`            → `WindowInput(<id>, WindowResize(w, h))`
+backend-agnostic inner event, with the time that SDL stamped on it:
+- `SDL_QUIT`                           → `WindowInput(:none, WindowQuit(; time))`
+- `SDL_WINDOWEVENT_CLOSE` for a window → `WindowInput(<id>, WindowClose(; time))`
+- `SDL_WINDOWEVENT_RESIZED`            → `WindowInput(<id>, WindowResize(w, h; time))`
 - `SDL_KEYDOWN`                        → `WindowInput(<id>, KeyDown)` (Escape included)
 - `SDL_KEYUP`                          → `WindowInput(<id>, KeyUp)`
 - `SDL_TEXTINPUT`                      → `WindowInput(<id>, KeyPress)`

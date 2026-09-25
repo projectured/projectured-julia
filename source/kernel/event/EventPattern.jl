@@ -46,7 +46,7 @@ and to show the pattern to a person with `describe_event_pattern`.
 # Example
 
     pattern = EventPattern{KeyDown}((key = :period,), [:ctrl], nothing)
-    event = KeyDown(:period, ModifierKeys(ctrl = true))
+    event = KeyDown(:period, ModifierKeys(ctrl = true); time = time())
     matches_event_pattern(pattern, event)       # true
     describe_event_pattern(pattern)             # "Ctrl+."
 
@@ -71,7 +71,7 @@ Use it to find the pattern that an event fires, in a table of patterns.
 
 # Example
 
-    matches_event_pattern(KeyPressPattern('a'), KeyPress('a'))    # true
+    matches_event_pattern(KeyPressPattern('a'), KeyPress('a'; time = time()))   # true
 
 See also `describe_event_pattern`.
 """
@@ -477,7 +477,7 @@ A pattern is written like the constructor of its event.
   visible where the pattern is written, or one of `EventModule`. A bare name, such
   as `MouseScroll`, tests the type only.
 - A positional argument matches or binds a field of the event, in the declared
-  order of the fields, without `modifiers`: `KeyDown(key, repeat)`,
+  order of the fields, without `modifiers` and `time`: `KeyDown(key, repeat)`,
   `KeyPress(char, text)`, `MousePress(button, x, y, count)`, `MouseScroll(dx, dy, x,
   y)`. A literal, such as `:period`, `'a'` or `42`, must be equal to the field. A
   bare name, such as `k`, binds the field. `_` ignores the field. `^(expr)`, and any
