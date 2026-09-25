@@ -1378,8 +1378,14 @@ const _DRAG_MIN = 6          # a rubber band smaller than this is a click, not a
 _compound(a, b) = a === nothing ? b : b === nothing ? a :
                   CompoundOperation(Operation[a, b])
 
-_set_view(plot::ChartPlot, view) =
-    ReplaceReferencedValueOperation(plot, "view", view)
+# The window, the pointer and the rubber band are the state of the view, not of
+# the chart: a write of one is marked as view state, so a history does not record
+# a zoom, a hover or a drag. The visibility of a series is the chart's own, and a
+# legend click writes it as an edit.
+_write_view_state(plot::ChartPlot, field::AbstractString, value) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(plot, field, value))
+
+_set_view(plot::ChartPlot, view) = _write_view_state(plot, "view", view)
 
 # Scale a window about a fixed data point, so whatever is under the cursor stays
 # under the cursor.
@@ -1427,7 +1433,7 @@ end
 function _drag_start(g, plot::ChartPlot, event::MouseDown)
     _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) || return nothing
     mode = event.modifiers.shift ? :pan : :zoom
-    ReplaceReferencedValueOperation(plot, "drag_anchor",
+    _write_view_state(plot, "drag_anchor",
                                     (event.x, event.y, mode, resolve_view(plot)))
 end
 
@@ -1451,8 +1457,8 @@ function _drag_end(g, plot::ChartPlot, event::MouseUp)
     anchor === nothing && return nothing
     ax, ay, mode, _ = anchor
     clear = CompoundOperation(Operation[
-        ReplaceReferencedValueOperation(plot, "drag_anchor", nothing),
-        ReplaceReferencedValueOperation(plot, "drag_rect", nothing)])
+        _write_view_state(plot, "drag_anchor", nothing),
+        _write_view_state(plot, "drag_rect", nothing)])
     (mode === :zoom && abs(event.x - ax) >= _DRAG_MIN && abs(event.y - ay) >= _DRAG_MIN) || return clear
 
     x0, x1 = minmax(to_data(g.xs, ax), to_data(g.xs, event.x))
@@ -1462,13 +1468,13 @@ end
 
 _rect_op(plot::ChartPlot, rect) =
     isequal(plot.drag_rect, rect) ? nothing :
-    ReplaceReferencedValueOperation(plot, "drag_rect", rect)
+    _write_view_state(plot, "drag_rect", rect)
 
 function _cancel_drag(plot::ChartPlot)
     (plot.drag_anchor === nothing && plot.drag_rect === nothing) && return nothing
     CompoundOperation(Operation[
-        ReplaceReferencedValueOperation(plot, "drag_anchor", nothing),
-        ReplaceReferencedValueOperation(plot, "drag_rect", nothing)])
+        _write_view_state(plot, "drag_anchor", nothing),
+        _write_view_state(plot, "drag_rect", nothing)])
 end
 
 # Keyboard view control. This lives in the reader rather than in a `@gestures`
@@ -1509,12 +1515,12 @@ function _hover_intent(g, plot::ChartPlot, x::Integer, y::Integer)
     index = _legend_hit(g, x, y)
     hovered = index isa Int && index > 0 ? get_chart_series_reference(index, plot) : nothing
     isequal(plot.hovered, hovered) ||
-        push!(ops, ReplaceReferencedValueOperation(plot, "hovered", hovered))
+        push!(ops, _write_view_state(plot, "hovered", hovered))
 
     inside = _in_rect(x, y, g.plot_x, g.plot_y, g.plot_w, g.plot_h)
     cursor = inside ? (to_data(g.xs, x), to_data(g.ys, y)) : nothing
     isequal(plot.cursor, cursor) ||
-        push!(ops, ReplaceReferencedValueOperation(plot, "cursor", cursor))
+        push!(ops, _write_view_state(plot, "cursor", cursor))
 
     isempty(ops) ? nothing : length(ops) == 1 ? ops[1] : CompoundOperation(ops)
 end
@@ -1522,8 +1528,8 @@ end
 function _clear_hover(plot::ChartPlot)
     (plot.hovered === nothing && plot.cursor === nothing) && return nothing
     CompoundOperation(Operation[
-        ReplaceReferencedValueOperation(plot, "hovered", nothing),
-        ReplaceReferencedValueOperation(plot, "cursor", nothing)])
+        _write_view_state(plot, "hovered", nothing),
+        _write_view_state(plot, "cursor", nothing)])
 end
 
 # The series nearest a click inside the plot area. Line and scatter series are

@@ -1108,7 +1108,7 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
     # and the one people reach for without being told.
     if gesture.count >= 2 && _in_body(g, x, y)
         plot.view === nothing && return nothing
-        return ReplaceReferencedValueOperation(plot, "view", nothing)
+        return _write_view_state(plot, "view", nothing)
     end
 
     if _in_body(g, x, y)
@@ -1160,9 +1160,9 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
 
     operations = Any[]
     isequal(plot.hovered, hovered) ||
-        push!(operations, ReplaceReferencedValueOperation(plot, "hovered", hovered))
+        push!(operations, _write_view_state(plot, "hovered", hovered))
     isequal(plot.cursor, cursor) ||
-        push!(operations, ReplaceReferencedValueOperation(plot, "cursor", cursor))
+        push!(operations, _write_view_state(plot, "cursor", cursor))
     isempty(operations) && return nothing
     length(operations) == 1 ? operations[1] : CompoundOperation(operations)
 end
@@ -1172,9 +1172,15 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap, gesture::Mouse
     plot = iomap.input
     (plot.hovered === nothing && plot.cursor === nothing) && return nothing
     CompoundOperation(Any[
-        ReplaceReferencedValueOperation(plot, "hovered", nothing),
-        ReplaceReferencedValueOperation(plot, "cursor", nothing)])
+        _write_view_state(plot, "hovered", nothing),
+        _write_view_state(plot, "cursor", nothing)])
 end
+
+# The window, the lane offset and the pointer are the state of the view, not of
+# the trace: a write of one is marked as view state, so a history does not record
+# a zoom, a scroll of the lanes or a hover.
+_write_view_state(plot::SequenceChartPlot, field::AbstractString, value) =
+    ReplaceViewStateOperation(ReplaceReferencedValueOperation(plot, field, value))
 
 # The wheel zooms about the pointer, so whatever is under it stays under it —
 # the only zoom that lets someone drive toward a detail rather than hunt for it
@@ -1189,7 +1195,7 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap, gesture::Mouse
     steps == 0 && return nothing
 
     if _label_strip_lane(g, x, y) !== nothing
-        return ReplaceReferencedValueOperation(plot, "cross_offset",
+        return _write_view_state(plot, "cross_offset",
                                                max(plot.cross_offset - 20 * steps, 0))
     end
     _in_body(g, x, y) || return nothing
@@ -1218,5 +1224,5 @@ function _window_operation(g, plot::SequenceChartPlot, lo::Real, span::Real)
     span > 0 || return nothing
     anchor = clamp(searchsortedfirst(coordinates, Float64(lo)), 1, n)
     view = SequenceChartView(anchor, Float64(lo) - coordinates[anchor], Float64(span))
-    ReplaceReferencedValueOperation(plot, "view", view)
+    _write_view_state(plot, "view", view)
 end

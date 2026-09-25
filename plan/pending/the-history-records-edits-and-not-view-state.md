@@ -1,8 +1,8 @@
 # The history records edits, and not view state
 
 **Status (2026-09-25): IN PROGRESS** on the branch `history-view-state`, in the
-worktree `projectured-julia-history-view-state`. Steps 1 and 2 are done.
-Step 3 starts with a measurement. Steps 3 and 4 start with a design that the owner decides.
+worktree `projectured-julia-history-view-state`. Steps 1 to 3 are done.
+Step 4 is next. Steps 3 and 4 start with a design that the owner decides.
 
 **Goal:** the undo history holds the edits a person makes, and nothing else. A
 gesture that only changes what the window shows adds no step, and a run of typing
@@ -171,6 +171,31 @@ than the document it shows. So neither candidate is always the smaller walk.
 word for that run, in the measurement lane (`taskset -c 28,30,31`). The load was
 19 when the sizes were taken, so no time is taken yet.
 
+**Times, 2026-09-25** (the owner said to continue; the median of 200 searches that
+find nothing, `-t 1` in the measurement lane; the load was 9 before the run and
+17 after it, so the numbers are rough):
+
+| Candidate | Documents | Median |
+| --- | --- | --- |
+| 1, window history, small file | 37 | 0.045 ms |
+| 1, window history, with a 500-entry file | 3045 | 4.6 ms |
+| 2, syntax output, small file | 36 | 0.10 ms |
+| 2, syntax output, 500-entry file | 14512 | 68 ms |
+
+**Decision, 2026-09-25.** Neither candidate is built. Candidate 2 costs 68 ms for a
+fold in a large file, and candidate 1 costs 4.6 ms for each mouse move over a chart
+while a large file is open. The cases that **O** was for are each read by one
+reader that interprets them, which is the owner's rule of D1:
+
+- the chart and sequence chart readers mark `view`, `cursor`, `hovered`,
+  `drag_anchor`, `drag_rect` and `cross_offset` as view state (**R**);
+- `ToggleCollapseOperation` is the flip of a fold that a reader made of a chevron
+  click, so the filter drops it by its kind (**F**). Editing `collapsed` as data
+  is a plain value write, which the filter keeps.
+
+**O** as a safety net over every write is candidate 1. It is a new mechanism, so it
+waits for the owner.
+
 ### D5. What a run of typing is (Step 4, owner decides)
 
 **M** merges a run of steps into one. Questions for the owner:
@@ -224,8 +249,17 @@ word for that run, in the measurement lane (`taskset -c 28,30,31`). The load was
     window part fails with `("a folder closes and opens", (2, 0))`.
   - Result: 119 pass, 10 broken. `test_exports` fails on `main` in
     `source/help/HelpModule.jl`, which this branch does not touch.
-- [ ] **Step 3.** **O**: measure the two candidates of D4, record the numbers, ask
+- [x] **Step 3.** **O**: measure the two candidates of D4, record the numbers, ask
   the owner, then build the chosen one. The broken cases of Step 2 become `@test`.
+
+  Done as the decision under D4 says: **R** in the two chart readers and **F** for
+  `ToggleCollapseOperation`, and no **O**. The broken registry of the sweep is
+  gone, and the ten chart cases are `@test`. Tests: `test_undo` 95 of 95,
+  `test_chart` 345 of 345, `test_sequencechart` 279 of 279,
+  `test_collapse_roundtrip` 18 of 18, `test_history_sweep` 129 of 129,
+  `test_application` 324 of 324. `test_assistant_mvp` fails four times in "the
+  assistant card fills its page", a clip box one pixel off, with and without
+  this step.
 - [ ] **Step 4.** **M**: the owner answers D5, then the merge of runs in the undo
   package, and the copy rule of the window history. The sweep test gets a case
   that types 150 characters and asserts that the window history still holds a

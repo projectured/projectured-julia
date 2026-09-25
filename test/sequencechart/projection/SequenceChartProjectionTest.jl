@@ -375,7 +375,7 @@ function test_sequencechart_projection()
             press = MousePress(:left, round(Int, g.body_x + g.body_w / 2),
                                round(Int, g.body_y + g.body_h / 2), 2, _sc_no_modifier)
             op = read_intent(stage2.projection, stage2, press)
-            @test op isa ReplaceReferencedValueOperation
+            @test op isa ReplaceViewStateOperation      # a zoom is view state
             _sc_apply(plot, op)
             @test plot.view === nothing
         end
@@ -392,7 +392,7 @@ function test_sequencechart_projection()
             y = round(Int, g.body_y + g.body_h / 2)
             focus = to_data(g.scale, g.body_w / 2)
             op = read_intent(stage2.projection, stage2, MouseScroll(0, 1, x, y))
-            @test op isa ReplaceReferencedValueOperation
+            @test op isa ReplaceViewStateOperation
             _sc_apply(plot, op)
 
             zoomed = _geometry_of(iomap)

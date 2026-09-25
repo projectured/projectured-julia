@@ -136,12 +136,13 @@ end
 Whether this operation belongs in a history: the filter a buffer uses when
 nobody names another one.
 
-It drops the operations that change nothing, the selection moves and the writes
-of view state. A caret move follows almost every key and almost every click, and
-a history full of caret moves is one a person can not use. A hover or a held
-button is marked as view state by the reader that writes it, and is no edit at
-all. A compound that carries a write is kept; a compound of nothing but selection
-moves and view state is dropped.
+It drops the operations that change nothing, the selection moves, the folds and
+the writes of view state. A caret move follows almost every key and almost every
+click, and a history full of caret moves is one a person can not use. A hover or
+a held button is marked as view state by the reader that writes it, and is no
+edit at all. A `ToggleCollapseOperation` is the flip of a fold that a reader made
+of a click on a chevron, so it is view state by its kind. A compound that carries
+a write is kept; a compound of nothing but these is dropped.
 
 Pass `(gesture, operation) -> operation !== nothing` to a buffer to record the
 caret moves as well.
@@ -149,11 +150,12 @@ caret moves as well.
 is_undo_step(gesture, operation) = !(operation === nothing || _is_no_edit(operation))
 
 # An operation that edits no document: one that does nothing, a move of the
-# selection, a write of view state, and a compound of nothing else. A compound
-# that holds one real write is an edit.
+# selection, a fold, a write of view state, and a compound of nothing else. A
+# compound that holds one real write is an edit.
 _is_no_edit(operation) =
     operation isa Union{DoNothingOperation, ReplaceSelectionOperation,
-                        SelectNextInsertionOperation, ReplaceViewStateOperation} ||
+                        SelectNextInsertionOperation, ToggleCollapseOperation,
+                        ReplaceViewStateOperation} ||
     (operation isa CompoundOperation && !isempty(operation.operations) &&
      all(_is_no_edit, operation.operations))
 

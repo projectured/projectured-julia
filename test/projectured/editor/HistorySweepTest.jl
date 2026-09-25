@@ -6,17 +6,6 @@
 
 using Test
 
-# @broken registry for the example sweep, in the shape of `reader_broken`: `true`
-# for an example whose answers a history still records.
-function history_broken(name)
-    # @broken: a chart and a sequence chart write `cursor`, `hovered` and `view` on
-    # their output plot as plain edits, so a history above one records every mouse
-    # move. plan/pending/the-history-records-edits-and-not-view-state.md, Step 3.
-    name in ("chart_line", "chart_bar", "chart_histogram", "chart_scatter", "chart_strip",
-             "chart_inspector", "sequencechart", "sequencechart_vertical",
-             "sequencechart_linear", "sequencechart_inspector")
-end
-
 # What a history records of the answers to pointer moves over the whole of
 # `example` and a wheel turned in two places: one line for each recorded answer.
 # The answers are read and not applied, so each one answers the printed state.
@@ -124,12 +113,7 @@ function test_history_sweep()
 
         @testset "over every example" begin
             for example in examples
-                recorded = _history_recorded_answers(example)
-                if history_broken(example.name)
-                    @test_broken isempty(recorded)
-                else
-                    @test (example.name, recorded) == (example.name, String[])
-                end
+                @test (example.name, _history_recorded_answers(example)) == (example.name, String[])
             end
         end
     end

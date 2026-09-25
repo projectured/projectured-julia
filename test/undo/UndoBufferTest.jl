@@ -78,6 +78,8 @@ function test_undo_buffer()
             CompoundOperation(Any[DoNothingOperation(), ReplaceViewStateOperation(_write_first("y"))])]))
         # A move to the next hole is a move of the selection.
         @test !is_undo_step(nothing, SelectNextInsertionOperation(_ -> true))
+        # A fold is the view's own: a click on a chevron, read as a fold.
+        @test !is_undo_step(nothing, ToggleCollapseOperation())
     end
 
     @testset "an entry with no way back is a barrier" begin
