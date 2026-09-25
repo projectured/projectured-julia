@@ -85,13 +85,24 @@ file of the repository changed.
   "coordinates accumulate, paths stay paths". The palette always prepends
   `elements[1]`. `shift_child_image` in `LayoutToGraphics.jl` is how the shell
   and the layouts follow the rule.
+- **With both fixes in memory, the popup window opens.** A scratch script also
+  gave the palette option e below. `get_anchor_point` answers (102, 102): the
+  point (2, 2) of the menu plus the origin (100, 100) of the window. The
+  resolver answers `OpenWindowOperation(x = 102, y = 134, width = 109,
+  height = 56)`, and the window manager adds the window.
+- **The popup window draws nothing: a third fault.** Its content is the
+  `WidgetMenu` of the dropdown. `ScreenToScreen` draws the content of an opened
+  window with the rows of `make_opened_window_projections`, and the binary gives
+  it the rows of `make_application_content_projections`. No row names a widget,
+  so the output of the window is the `WidgetMenu` document itself, not a canvas.
+  The same holds for the test window, which gives no content rows.
 - **Not checked yet:** what changes when the clipboard reads its keys before the
   content; whether Ctrl+/ still switches the view; that the slice prints only
   when it shows; and every test suite.
 
 ## Options
 
-The menu opens only when both faults are fixed.
+The menu opens and shows its commands only when all three faults are fixed.
 
 ### Part 1: the place of the shell
 
@@ -122,6 +133,14 @@ The menu opens only when both faults are fixed.
 - f. `get_anchor_point` follows a path through the canvases to a point. The same
   docstring says not to add a second way to resolve a position, because every
   wrapper already composes `map_reference_forward`.
+
+### Part 3: a row that draws the dropdown
+
+- g. (recommended by the implementer) `make_opened_window_projections` gives a
+  row for a widget, `WidgetDocument => WidgetToGraphics(…)`, because the popups
+  that the shell opens hold widgets: a dropdown, a `WidgetSelect`, a context
+  menu. It is not checked which font and theme the row takes, or whether a host
+  gives the row itself instead.
 
 ## Test
 
