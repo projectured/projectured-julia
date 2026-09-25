@@ -107,14 +107,21 @@ end
     canvas = output.windows[2].content
     canvas = canvas isa Cell ? canvas[] : canvas
     @test canvas isa GraphicsCanvas
-    texts = String[]
-    walk(node) = begin
-        node = node isa Cell ? node[] : node
-        node isa GraphicsText && push!(texts, String(node.text isa Cell ? node.text[] : node.text))
-        node isa GraphicsCanvas && foreach(walk, node.elements)
+    value(x) = x isa Cell ? x[] : x
+    placed = Tuple{String,Int}[]
+    walk(node, oy) = begin
+        node = value(node)
+        if node isa GraphicsText
+            push!(placed, (String(value(node.text)), oy + Int(value(node.y))))
+        elseif node isa GraphicsCanvas
+            foreach(element -> walk(element, oy + Int(value(node.y))), value(node.elements))
+        end
     end
-    walk(canvas)
-    @test texts == ["New tab", "Close tab"]
+    walk(canvas, 0)
+    @test first.(placed) == ["New tab", "Close tab"]
+    # The window offers its height, and each item is as tall as its label and not
+    # as the window, so both items are drawn inside the window, one below the other.
+    @test placed[1][2] < placed[2][2] < 60 - 20
 end
 
 @testset "a select drops down as a window below the select" begin

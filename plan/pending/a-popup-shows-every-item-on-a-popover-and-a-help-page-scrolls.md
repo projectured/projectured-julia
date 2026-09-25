@@ -75,9 +75,14 @@ landed, and reported three faults with a screenshot.
 
 ## Steps
 
-- [ ] 1. **G1.** A vertical menu withholds the height offer from its items.
+- [x] 1. **G1.** A vertical menu withholds the height offer from its items.
   Test: the Help menu in its popup window draws all three items inside the
   window.
+
+  Done. `_menu_item_context` withholds the offer on the axis along which the
+  items follow each other. The popup test of `test_window_wrap` now asserts that
+  both items of its menu are drawn inside the window, one below the other: 28
+  pass.
 - [ ] 2. **G2, the width and the surface.** The natural width of an item, the
   row width of a vertical menu, and the surface fields. Test: every item of a
   vertical menu has one width; the surface draws the border and the fill of the

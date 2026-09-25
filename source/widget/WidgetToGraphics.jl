@@ -2496,11 +2496,13 @@ end
 # rendered width (its canvas is 0-sized — the size lives on the iomap); any other
 # widget carries it on its output canvas.
 # What a menu offers an item. A menu bar is as wide as its items together, so it
-# offers them no width and each takes its label's (`layout-rules.md` §3). The
-# items of a dropdown fill its width, which is what makes a row's highlight span
-# the menu.
+# offers them no width and each takes its label's (`layout-rules.md` §3). A
+# dropdown is as tall as its items together, so it offers them no height: an
+# item draws at least what it is offered, and one offered the height of the
+# window would push the others out of it. The items of a dropdown fill its
+# width, which is what makes a row's highlight span the menu.
 _menu_item_context(w::WidgetMenu, ctx) =
-    w.orientation === :horizontal ? withhold_offer(ctx, :x) : ctx
+    withhold_offer(ctx, w.orientation === :horizontal ? :x : :y)
 
 _menu_item_width(cim) =
     cim isa WidgetMenuItemToGraphicsCanvasIoMap ? cim.control_width :
