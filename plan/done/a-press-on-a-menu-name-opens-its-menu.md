@@ -1,10 +1,9 @@
 # A press on a menu name opens its menu, and every popup opens where its widget is
 
-> **Status (2026-09-25): in progress** on the branch `popup-position`, worktree
-> `projectured-julia-popup-position`. The owner chose the design below, in which
-> a popup carries a position that each reader moves into its own frame on the
-> way up, and took the three recommendations of "Decisions". Steps 1 to 8 are
-> landed; step 9 fixes F7, which the owner found in the live application.
+> **Status (2026-09-25): done.** The owner chose the design below, in which a
+> popup carries a position that each reader moves into its own frame on the way
+> up, and took the three recommendations of "Decisions". Steps 1 to 8 landed
+> first; step 9 fixes F7, which the owner found in the live application.
 
 A press on "File", "View" or "Help" in the menu bar of the application window
 does nothing, and no message says why. The same causes break the other popups:
@@ -386,8 +385,26 @@ to the readers.
 
   In omnet-julia, `test_campaign_hover` in `SimulationWindowTest.jl` passed the
   `Symbol` `:none` the same way; both now pass `MouseButtons`.
-- [ ] 10. Verification against a baseline of `main`, and the move of this plan to
+- [x] 10. Verification against a baseline of `main`, and the move of this plan to
   `plan/done/`.
+
+  Done. Steps 1 to 8, on the code that landed: `test_substrate` 80530 pass
+  with 3 fail and 2 errors, all in `SplitPaneDragTest.jl`, the known failures
+  of a clean main; `test_shell` 216, `test_undo` 110, `test_help` 41,
+  `test_package_graph` 668, the export collision checks 5 and 1,
+  `test_document_insertion` 123, `test_text_clipboard` 8, `test_command_palette`
+  39, `test_command_palette_decorator` 63, `test_application` 335, all pass.
+  Step 9, the same list with `test_sdl`: `test_substrate` 80539 (the 9 of the
+  new window manager case) with the same 5 known failures, `test_application`
+  340 (the 5 of the new case), `test_sdl` 153, the rest unchanged; after the
+  rebase onto `9b45cea5`, the tests of the changed files pass, 449. The naming
+  guard passes.
+
+  omnet-julia: `test_ide_window_wrap` and `test_ide_file_navigator` 41 pass;
+  `test_campaign_hover` 2 pass. The hover test had a second fault behind the
+  `MouseButtons` one: a hover write comes inside `ReplaceViewStateOperation`
+  since `6a5d5272`, and the test read `document` on the mark; it now reads the
+  operation that the mark holds.
 
 ## Decisions (owner, 2026-09-25)
 

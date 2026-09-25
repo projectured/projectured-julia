@@ -3,7 +3,7 @@
 > **Status (2026-09-25): done** on the branch `help-menu`, worktree
 > `projectured-julia-help-menu`, and on the branch `help-menu` of omnet-julia. A press on a menu name does
 > not open the menu yet. That fault has its own plan,
-> [a-press-on-a-menu-name-opens-its-menu.md](../pending/a-press-on-a-menu-name-opens-its-menu.md),
+> [a-press-on-a-menu-name-opens-its-menu.md](a-press-on-a-menu-name-opens-its-menu.md),
 > which is deferred. Until it is done, a press on "Help" opens nothing, and the
 > tests call the actions of the items.
 
@@ -154,7 +154,7 @@ version is a plain list. A later plan can group, filter or search it.
   with the menus of `extra` before Help, and each Help item opens its tab once.
   A test in `ApplicationTest.jl`: the action of "Documents" opens a tab that
   draws the name `JsonString`. The same test with a real press on "Help" waits
-  for [a-press-on-a-menu-name-opens-its-menu.md](../pending/a-press-on-a-menu-name-opens-its-menu.md).
+  for [a-press-on-a-menu-name-opens-its-menu.md](a-press-on-a-menu-name-opens-its-menu.md).
 
   Done. The application test looks for the heading and for `AboutPage`, the
   first entry, and not for `JsonString`: the tab shows the start of the list
@@ -223,7 +223,7 @@ version is a plain list. A later plan can group, filter or search it.
 ## Out of scope
 
 - The press on a menu name: see
-  [a-press-on-a-menu-name-opens-its-menu.md](../pending/a-press-on-a-menu-name-opens-its-menu.md).
+  [a-press-on-a-menu-name-opens-its-menu.md](a-press-on-a-menu-name-opens-its-menu.md).
 - A press on an entry that opens a new tab with that type.
 - Groups of projections (primitive, higher-order, by slice), a filter, and a
   search.
