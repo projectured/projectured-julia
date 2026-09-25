@@ -14,6 +14,8 @@ The backend has no call that opens or closes a window. `write_to_devices(backend
 
 **A window that the reconciler opens is painted before it is shown.** It is made with `SDL_WINDOW_HIDDEN`, painted, and then shown. A window shown before its first frame holds an undefined back buffer, which the compositor draws black, so a tooltip flashed black and filled in after. The paint that follows the show covers the whole window, because a driver is free to drop a present made while the window is hidden. `open_native_windows!` still opens the first window shown, because a hidden window gets no answer from the window manager about its size.
 
+**A popup never takes the focus.** A window of style `:popup` is made borderless, above the other windows, out of the taskbar, and with `SDL_WINDOW_POPUP_MENU`. On X11 the window manager then does not manage the window. A managed window gets the focus when it opens, and the window manager can take the focus back at once: on GNOME Shell a menu in a `:floating` window loses the focus in the same poll that gives it, and the loss of focus closes the menu. A `:tooltip` window is made with `SDL_WINDOW_TOOLTIP` for the same reason.
+
 The editor calls `open_native_windows!` before the first print. It opens every window, waits up to 250 ms until the size that the window manager grants holds still for 20 ms, and writes that size into the `WindowDocument`. So the document is laid out once, at the real size, and not again when the answer of the window manager arrives as a resize.
 
 ### Measure and draw text
