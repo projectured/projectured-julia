@@ -149,13 +149,17 @@ An `Action(label; icon, enabled, shortcut, callback)` is one command that a menu
 
 ### Popups and dialogs
 
-A popup is a window of its own, as a tooltip is. A trigger, such as `WidgetSelect`, a `WidgetMenuItem` with a submenu, or `WidgetContextMenu`, returns an `OpenPopupOperation(anchor, dx, dy, content, auto_dismiss)` of the screen package. `anchor` is the reference of the trigger, and the trigger does not compute a screen position. `WidgetPopupResolverProjection` sits at the root of the window content. It maps `anchor` forward with `get_anchor_point` and returns an `OpenWindowOperation` with `style = :floating`. The forward image of a widget is a `PointReferenceStep`, and each container adds the offset of the child to it, so the point is correct in the frame of the window.
+A popup is a window of its own, as a tooltip is. A trigger, such as `WidgetSelect`, a `WidgetMenuItem` with a submenu, or `WidgetContextMenu`, answers `ReplaceViewStateOperation(OpenPopupOperation(; id, x, y, width, height, auto_dismiss, content))` of the screen package, in its own frame. A submenu item and `WidgetSelect` answer a position just below themselves, and `WidgetContextMenu` answers the point of the press. `ReplaceViewStateOperation` marks the popup as not an edit, so a history does not record it.
+
+No trigger computes a screen position. Each reader that reads a child with a press shifts the popup that the child answers back into its own frame with `shift_operation_position(operation, dx, dy)`, by the offset at which it placed that child: a reader that read the child with a pointer event at `(lx, ly)` for its own `(x, y)` shifts the answer by `(x - lx, y - ly)`. `WidgetTransformPane` maps the position through its transform with `map_operation_position`, because its transform can scale it. [graphics.md](../graphics/graphics.md) describes the two functions.
+
+`WidgetShell` shifts the answer of each band by the offset where it placed that band. Each band prints with the reference step of its own field: `menu_bar`, `toolbar`, `status_bar`, `content` and `overlay`. The screen layer adds the origin of the window and turns the popup into an `OpenWindowOperation` with `style = :floating`; [screen.md](../screen/screen.md) describes that step.
 
 A popup closes on a `WindowClose` of its window, and on a `WindowDefocus` when `auto_dismiss` is set. A click on an option or a menu item writes its value and closes the popup in one `CompoundOperation`.
 
-`ContextMenuProbeProjection` wraps a window content. On a right press that nothing inside answers, it finds the document under the pointer with an Alt+press, calls `compute_context_menu` on it, and opens the menu with an `OpenPopupOperation`.
+`ContextMenuProbeProjection` wraps a window content. It answers the press point in its own frame, so it needs no anchor. On a right press it finds the document under the pointer with an Alt+press and calls `compute_context_menu` on it. When the closer answer inside only moves the selection, for example a row of a list that a press selects, the probe answers the selection and the popup together, in one `CompoundOperation`, so a right press on a row selects the row and opens its menu.
 
-A `WidgetDialog` opens as a window with `modal = true`. `WindowManagingProjection` then drops the input of every other window. Escape, a click on the scrim, or a button closes the dialog. [screen.md](../screen/screen.md) describes the windows, and [shell.md](../shell/shell.md) says where the resolver and the probe go in a window.
+A `WidgetDialog` opens as a window with `modal = true`. `WindowManagingProjection` then drops the input of every other window. Escape, a click on the scrim, or a button closes the dialog. [screen.md](../screen/screen.md) describes the windows, and [shell.md](../shell/shell.md) says which row draws the widgets a popup holds.
 
 ### From a domain to widgets
 

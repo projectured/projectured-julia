@@ -31,11 +31,7 @@
 - The **probes** are over the walk, because a probe reads the document that the walk selects in. They are under the help and the palette, because a probe must not answer for a window that one of those opened. **A probe passes every event on**: the tooltip probe only watches the pointer, and a tooltip opens when the pointer rests, at a deadline its `tooltip_feed` names in the loop. The host hands the same feed to `run_window_editor(feeds = …)`. [tooltip.md](../tooltip/tooltip.md) describes the rest.
 - The **recorder** is outermost, where it sees every operation of the window. It takes no keyword and writes into the log of the session, and **View → Gesture log** opens that log in a tab. So the tab holds what happened before it opened, and a person can open it after a fault.
 
-A wrapper that opens a window of its own needs `make_opened_window_projections()`, the value of the `opened_window_projections` keyword of `run_window_editor`. A host that turns the tooltip on passes the rows that draw its own documents as `content`, because a tooltip can hold a document of any domain.
-
-### The popup route
-
-`make_popup_screen_wrap()` is the value of the `screen_wrap` keyword of `run_window_editor`. It puts `WidgetPopupResolverProjection` on the window route, where the screen coordinates of a popup are known. It is not part of the fold, because the fold never sees the screen. Without it a `WidgetSelect` does not drop down, a submenu does not open, and a `WidgetContextMenu` takes the right press and shows nothing.
+A wrapper that opens a window of its own needs `make_opened_window_projections()`, the value of the `opened_window_projections` keyword of `run_window_editor`. A host that turns the tooltip on passes the rows that draw its own documents as `content`, because a tooltip can hold a document of any domain. **A popup holds widgets**: the menu of a menu bar or of a context menu, and the options of a `WidgetSelect`, in a layout. So `make_opened_window_projections` ends with the rows of `WidgetToGraphics`, one for each widget and each layout, in the font and the measure the shell draws its bands with; the rows of `content` come before them, so a host decides first. A popup needs no wrapper of its own: a trigger answers its position in its own frame, each reader on the way up moves the position into its own frame, and the window opens the popup at its screen position. [widget.md](../widget/widget.md) describes the popup operation and how a reader moves it.
 
 ### The chrome is a document
 
@@ -132,8 +128,7 @@ wrap = make_window_wrap(; shell = document -> (make_window_menu_bar(),
                                                make_window_status_bar(document), nothing, nothing))
 document, projection = wrap(document, projection)
 run_with_window_tools() do feeds, start
-    editor = make_editor(document, projection, "Title"; backend = SdlBackend(), feeds = feeds,
-                         screen_wrap = make_popup_screen_wrap())
+    editor = make_editor(document, projection, "Title"; backend = SdlBackend(), feeds = feeds)
     start(editor)
     run_editor!(editor)
 end

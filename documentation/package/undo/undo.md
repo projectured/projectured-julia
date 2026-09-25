@@ -89,6 +89,7 @@ A key with an empty list returns `nothing`, so the key goes on to the next reade
 ### What is not recorded
 
 - An operation that the editor makes itself, such as the zoom or the quit. The editor makes it after the chain returns nothing for the gesture, so no buffer sees it.
+- A popup that a widget opens. Its opener marks the `OpenPopupOperation` with `ReplaceViewStateOperation`, so `is_undo_step` drops it, as it drops a hover.
 - An operation from `post_operation!`. The inbox goes directly to `evaluate_operation`, so a driver that runs a simulation does not fill the history of the person who edits beside it.
 - An edit outside the buffer.
 - Code that a model runs through `execute_julia_code`. It changes the document as any code does.

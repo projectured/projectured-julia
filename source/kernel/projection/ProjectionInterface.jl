@@ -298,6 +298,11 @@ its docstring), so getting it right gives the forward cursor mapping for free.
   just by mapping its own one step. An element nests in any container and vice
   versa precisely because each step is self-contained — peel your step, delegate
   the tail, add only your own contribution.
+- **A popup is not placed by a reference.** The widget that opens one answers
+  its position in its own frame, and each reader that read the widget with a
+  press moves that position back into its own frame on the way up, with
+  `map_operation_position` of the graphics package. The reader that moved the
+  press down is the one that moves the popup up, so the two can not disagree.
 - If the input reference begins with `ProjectionReferenceStep(projection, output_path)`,
   strip that step and return `output_path` directly — it exists precisely to
   embed an already-translated output reference inside an input reference, and

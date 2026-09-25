@@ -34,8 +34,13 @@ struct IdentityProjection <: Projection end
 ```
 
 Pass-through. `print_document` returns `SimpleIoMap(p, input, input)` —
-the *same* object on both sides. `read_intent` and the reference maps
-are the identity. Useful as a no-op branch inside dispatchers (e.g.
+the *same* object on both sides. The reference maps are the identity.
+`read_intent` answers a `KeyPress`, a `KeyDown`, a `MousePress` and a
+`CollectIntents` with `read_gesture` of its input document, as the default
+leaf reader of the kernel does; it passes any `Operation` through unchanged;
+and it answers `nothing` for any other payload, such as a `MouseMove`. So a
+raw gesture that no layer below claims never comes back disguised as the
+operation of the read. Useful as a no-op branch inside dispatchers (e.g.
 "sort entries, preserve everything else").
 
 ## ConstantProjection

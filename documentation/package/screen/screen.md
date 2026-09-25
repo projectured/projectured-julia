@@ -6,7 +6,7 @@
 
 ## How it works
 
-`ScreenDocument` has one field, `windows`, a `CellVector` of `WindowDocument`. A `WindowDocument` has:
+`ScreenDocument` has one field, `windows`, a `CellVector` of `WindowDocument`. `OpenWindowOperation` and `OpenPopupOperation` request that a window opens, and their fields mirror those of `WindowDocument`. `OpenPopupOperation(; id, x, y, width, height, auto_dismiss, content)` carries `(x, y)`, the top left of the popup, in the frame of the reader that holds it. A reader on the way up moves that position into its own frame; [graphics.md](../graphics/graphics.md#moving-the-position-an-operation-carries) describes how. A `WindowDocument` has:
 
 - `id`, a `Symbol`. The backend keeps one native window for each id, from frame to frame.
 - `title`, `x`, `y`, `width`, `height`. A position of `-1` lets the backend choose, and a size of `0` sizes the window to its content.
@@ -24,16 +24,15 @@ The screen is data like any other document. To open a window, a program adds a `
 
 It keeps the IO map of each window by identity (`reconcile_child_iomaps`). So a window that opens or closes does not rebuild the other windows, and a new content in a window with the same id replaces the old content in place.
 
-Its reference map is where a window position becomes a screen position. A structural path gets the prefix `windows[i].content`. A `PointReferenceStep`, a pixel position inside the content, also gets the `x` and `y` of the window added. So a popup that is anchored to a widget opens at the right place on the screen, and the widget does not need to know its window.
+Its reference map is where a window position becomes a screen position. A structural path gets the prefix `windows[i].content`. A `PointReferenceStep`, a pixel position inside the content, also gets the `x` and `y` of the window added.
 
-Its reader routes a `WindowInput` event by the window id, not by the position in the list. It then adds the prefix `windows[i]` to the operation that comes back.
+Its reader routes a `WindowInput` event by the window id, not by the position in the list. It then adds the prefix `windows[i]` to the operation that comes back. When that operation is an `OpenPopupOperation` inside `ReplaceViewStateOperation`, it adds the window's own screen origin to the popup and turns it into an `OpenWindowOperation` with `style = :floating`, and drops the mark. The mark keeps a popup out of a history only above the window; below the window manager, a popup opens exactly as any other window does.
 
 ### WindowManagingProjection
 
 `WindowManagingProjection` wraps `ScreenToScreen` and applies the window operations:
 
-- `OpenWindowOperation` and `CloseWindowOperation` from any reader below, also inside a `CompoundOperation`. So the choice of an item in a menu can set a value and close the menu in one operation.
-- `OpenPopupOperation`, which carries a reference to its anchor and an offset. A resolver maps the anchor to a screen position.
+- `OpenWindowOperation` and `CloseWindowOperation` from any reader below, also inside a `CompoundOperation`. So the choice of an item in a menu can set a value and close the menu in one operation. `ScreenToScreen` already turned a popup into such an operation before it reaches here.
 - A native resize becomes a `ResizeWindowOperation`. It writes the `width` and `height` cells, and because those cells are the exact range of the content, the content lays out again with no new projection.
 - A native close removes the window. A loss of focus closes only a window with `auto_dismiss`.
 - While a `modal` window is open, an event for another window stops here.
@@ -42,7 +41,9 @@ The projection changes only the input screen. `ScreenToScreen` then updates the 
 
 ### One window on one document
 
-`make_window_scene(document, title)` makes a screen with one window. `make_window_scene_projection(projection)` makes the matching projection: the first window goes through your projection, and a window opened later goes through the projection of its content type, from `opened_window_projections`. `make_editor(document, projection, title; backend)` builds both, makes the editor and prints it once. `run_window_editor(document, projection, title; backend)` is `make_editor` and then `run_editor!(editor)`. A caller with work to do before the loop, such as a driver to start or a pane to focus, calls the two itself and does its work between them.
+`make_window_scene(document, title)` makes a screen with one window. `make_window_scene_projection(projection)` makes the matching projection, and it decides by the place of the content before its type: the content of the first window always goes through `projection`, and only the content of a window opened later goes through the projection of its content type, from `opened_window_projections`. So an entry of `opened_window_projections` for a type that the first window's content also has, such as a widget, draws only the windows that open later.
+
+`make_editor(document, projection, title; backend)` builds both, makes the editor and prints it once. `run_window_editor(document, projection, title; backend)` is `make_editor` and then `run_editor!(editor)`. A caller with work to do before the loop, such as a driver to start or a pane to focus, calls the two itself and does its work between them.
 
 ## How it fits
 

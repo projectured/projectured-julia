@@ -326,10 +326,17 @@ to the readers.
   Tested in a temporary environment that reaches both worktrees:
   `test_ide_window_wrap` and `test_ide_file_navigator`, 41 pass; the naming
   checks of omnet-julia find nothing. Land after projectured-julia.
-- [ ] 8. **The documents.** `widget.md`, `screen.md`, `shell.md`,
+- [x] 8. **The documents.** `widget.md`, `screen.md`, `shell.md`,
   `clipboard.md`, the note in the docstring of `map_reference_forward` that a
   popup position is not its job, and the anchored-layout document if it names
   the resolver.
+
+  Done: `widget.md`, `screen.md`, `shell.md`, `clipboard.md`, `graphics.md`
+  (the two functions), `undo.md` (a popup is not recorded),
+  `generic-projections.md` (the identity reader), `own-project-guide.md` and
+  the docstring of `map_reference_forward`. The anchored layout is
+  `AnchoredLayout`, a placement of layout children, and it never named the
+  resolver, so its document does not change.
 - [ ] 9. Verification against a baseline of `main`, and the move of this plan to
   `plan/done/`.
 

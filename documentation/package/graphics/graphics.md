@@ -51,6 +51,12 @@ A canvas with a `w` or `h` that is not zero first clips the point to its own box
 
 `GraphicsToGraphics()` is the natural projection of a graphics document: its output is its input. `NaturalToGraphics` uses it, so a shape that a person makes, for example in the evaluator, draws as the shape and not as a tree of its fields. Its reader forwards an operation and declines a gesture, because a shape answers no key and no press.
 
+### Moving the position an operation carries
+
+`map_operation_position(operation, move)` returns `operation` with every position it carries replaced by `move(x, y) -> (x, y)`. It moves each member of a `CompoundOperation` and the operation inside a `WrappingOperation`; an operation that carries no position, and `nothing`, come back unchanged. A package that defines an operation with a position, such as a popup that a widget opens, adds a method of `map_operation_position` for it, so a reader can apply the function to any answer it gets back.
+
+`shift_operation_position(operation, dx, dy)` is the common case: `operation` with every position moved by `(dx, dy)`. A reader that reads a child with a pointer event at `(lx, ly)` for its own `(x, y)` shifts the child's answer by `(x - lx, y - ly)`, the offset at which it placed that child. A reader whose placement scales its child, such as a zoom, calls `map_operation_position` with the scaling map instead. [screen.md](../screen/screen.md) and [widget.md](../widget/widget.md) show how a popup's position reaches the screen this way.
+
 ### Measuring
 
 This package calls no font backend. A function that needs the width of a text takes `measure(text, font) -> (width, height)` as an argument. `get_canvas_content_bounds(canvas, measure)` returns the box of everything that a canvas draws. `get_graphics_size(document, measure)` returns the size of one primitive. `measure_truetype_text` of [style.md](../style/style.md) needs no display, and `measure_sdl_text` of the SDL backend gives the same widths as the screen.

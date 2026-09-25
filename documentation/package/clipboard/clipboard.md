@@ -11,7 +11,9 @@ The clipboard is a wrapper document around the whole content of a window:
 - `ClipboardSlice` has `content` and `slice`, the one stored document.
 - `ClipboardCollection` has `content` and `elements`, a list of stored documents.
 
-`ClipboardSliceToAnyProjection` prints both the content and the slice. Its output is a computed cell that chooses one of them by the `display_slice` cell. So Ctrl+/ toggles the view with a plain cell write, and the chain prints again only the stages after the clipboard. The output has no node for the clipboard itself: a reference forward loses the `content` or `slice` step, and a reference backward gets it again.
+`make_clipboard_projection(projection)` builds a `RecursiveProjection` of a `TypeDispatchingProjection`: one arm for the clipboard document itself, `ClipboardSliceToAnyProjection` or `ClipboardCollectionToAnyProjection`, and `Any => NestingProjection(projection)` for every other document. So the clipboard is an arm of the recursive dispatch that draws the rest of the window, not a stage before it, and the recursion reaches every document under the clipboard exactly as it reaches every other document.
+
+`ClipboardSliceToAnyProjection` prints the content on display through the recursion, at the context of the clipboard's own `content` step, and prints the stored `slice` through the recursion too, only while `display_slice` is set. Its output is a computed cell that chooses the content's output or the slice's output by that cell. So Ctrl+/ toggles the view with a plain cell write, and only the child on display prints again. The output has no node for the clipboard itself: a reference forward loses the `content` or `slice` step, and a reference backward gets it again. `ClipboardCollectionToAnyProjection` prints its `elements` vector as one document the same way, only while `display_collection` is set, so only a projection that draws a vector can render it.
 
 The reader has seven gestures, in a gesture table of the projection:
 
@@ -63,7 +65,7 @@ With `text = true` over a `TextBlock` content, the clipboard copies and pastes c
 
 `ProjecturedClipboard` depends on `ProjecturedDomain` for the paste hooks, `ProjecturedText` for the text mode, `ProjecturedCollection` and `ProjecturedProjection`. `ProjecturedPane` depends on it. Its `__init__` registers the two wrappers as `.pred` types; `pred_arguments` saves only `content`, so a loaded window starts with an empty clipboard.
 
-`make_clipboard_projection` builds a chain of two stages: the clipboard, then your projection in a `NestingProjection`. The clipboard can not be the last stage of a chain, because its output is a cell.
+`make_clipboard_projection` builds a `RecursiveProjection`, so it can be the outermost projection of a window: the arm that dispatches on the clipboard document reads its own keys before a key reaches your projection, and the `Any` arm hands every other document to your projection through a `NestingProjection`.
 
 ## Design decisions
 
