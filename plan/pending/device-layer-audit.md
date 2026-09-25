@@ -183,44 +183,111 @@ finds the scale 2.
 
 Each step is a commit in a worktree.
 
-0. [ ] **The baseline on main.**
-   - Write a fixed set of canvases with `write_image`, at scale 1 and at scale 2.
-     Include text, a viewport and an image.
-   - Record the counts of `test_sdl()`, `test_substrate()` and the kernel tests of
-     the backend and the device.
-1. [ ] **The device layer.**
+0. [x] **The baseline on main.** Done at `25694efb`.
+   - `/var/tmp/device-audit/baseline.jl` writes 10 examples with `write_image`,
+     at scale 1 and at scale 2, in one process. It writes them one time before
+     the probe runs and one time after. The examples have text, viewports,
+     images, charts and widgets. It also records `measure_sdl_text` of four
+     texts.
+   - The images after the probe are the same as the images before it. The
+     measures change after the probe, for example from `(150, 23)` to
+     `(147, 22)` for `"iiiiiiiiii WWWWW"`, because the probe sets the global
+     scale to 2.
+   - The counts: `test_kernel()` 2301 pass, 3 fail and 3 error (the 6 known
+     failures), `test_sdl()` 117 pass, `test_video()` 34 pass.
+1. [x] **The device layer.**
    - Items 2, 3 and 5.
    - The `zoom` field and `get_device_pixel_ratio`.
-   - Item 6: `DeviceTest.jl` takes the device tests from `HeadlessBackendTest.jl`,
-     and adds tests for `zoom` and the ratio.
-2. [ ] **SDL uses the ratio of its `Display`.**
-   - The probe moves into `Sdl.jl`.
-   - The backend gets its `display` field, and `configure_devices!` sets it.
-   - The conversions and the render chain take the ratio.
-   - The offscreen render passes its scale, and the swap goes.
-   - The measure changes as the design says.
-3. [ ] **The zoom is on the `Display`.**
-   - The zoom operation uses the `Display`.
-   - Add `step_zoom`.
-   - The display-scale values go from the style package.
-4. [ ] **Tests.**
-   - Two backends with `Display(scale = 1.0)` and `Display(scale = 2.0)`
-     convert and measure each at its own ratio.
-   - A zoom on one backend leaves the other at its ratio.
+   - Item 6: `test/kernel/device/DeviceModuleTest.jl` takes the device tests from
+     `HeadlessBackendTest.jl`, and adds tests for `zoom` and the ratio. Its
+     function is `test_device_module`, as `test_event_module` is for the event
+     layer.
+2. [x] **SDL uses the ratio of its `Display`, and the zoom is on the
+   `Display`.** Steps 2 and 3 of the first version of this plan are one commit.
+   When SDL stops reading the global scale, the zoom must move to the `Display`
+   at the same time. Otherwise Ctrl+= does nothing in the commit between.
+   - The probe moves into `Sdl.jl` as `_PROBED_DISPLAY_SCALE`.
+     `_update_display_scale!` answers whether it found the scale. When it does,
+     `_open_native_window!` writes the scale into the `Display` of the backend.
+   - `SdlBackend` gets a `display` field. The constructor gives it a
+     `Display()`. `initialize_backend!` writes the probed scale into it.
+     `configure_devices!` fills the first `Display` in `devices` and puts it in
+     the field. A list with no `Display` leaves the field as it is.
+   - `SdlWindowResources` gets a `ratio` field: the ratio last applied to the
+     window, as `width` and `height` are the size last applied. The functions
+     that get the window record read it: the SSAA target, the window render,
+     the size of the native window and the dirty-rectangle walk.
+     `write_to_devices` gives the ratio of the `Display` to
+     `_update_window_geometry!`, which resizes the native window when the ratio
+     changes.
+   - The render chain below the window record takes the ratio as an argument:
+     `_render_canvas!`, `_dispatch_render_elem!`, `_render_viewport!`, the
+     `_render_element!` of a text, `_get_font`, `_font_runs` and `_glyph_font`.
+     `_render_elements!` had no caller, and it is removed.
+   - The input reads the ratio of the `Display` of the backend.
+   - The dirty-rectangle walk measures a text at the ratio of the window, not
+     at the ratio 1 of `measure_sdl_text`. At the scale 2 the two measures
+     differ by up to 3 pixels, and a bound that is too narrow leaves old pixels
+     on the screen.
+   - `_font_backend`, the global backend that `measure_sdl_text` used, is
+     removed.
+   - `evaluate_operation(editor, ::AdjustZoomOperation)` does nothing for a
+     backend that is not an `SdlBackend`. Before, it changed the global scale
+     and the window sizes of any editor.
+   - The style package loses `_DISPLAY_SCALE`, `_BASE_DISPLAY_SCALE`,
+     `_USER_ZOOM`, `recompute_display_scale!`, `adjust_user_zoom!` and
+     `font_scaled_size`. `_stepped_zoom` becomes `step_zoom`.
+3. [x] **Tests.** In `test/sdl/backend/DeviceConfigTest.jl`:
+   - `configure_devices!` puts the scale of the hardware in `scale`, leaves
+     `zoom` as it is, and makes the backend draw with that `Display`. A second
+     `Display` gets the scale and not the zoom of the first.
+   - Two backends with `Display(scale = 1.0)` and `Display(scale = 2.0)` each
+     measure at their own ratio. `measure_sdl_text` measures at the ratio 1.
+   - A zoom on one backend leaves the other.
+   - `step_zoom` walks the table.
    - `write_image` at scale 2 leaves the ratio of a backend as it is.
-   - `configure_devices!` puts the hardware scale in `scale` and leaves `zoom`
-     as it is.
-5. [ ] **Guides.**
-   - Item 7.
+   - `InputCoalescingTest.jl` gives its backend a `Display` with the scale 2,
+     so it also tests the conversion of the input.
+4. [x] **Guides.**
+   - Item 7. `naming-rules.md` also names `DeviceInterface.jl` among the
+     contract files with a prefix.
    - `style.md` and `sdl.md` on the scale.
-   - The devices section of `devices-and-backends.md`.
-6. [ ] **The check.**
-   - The exported images of step 0 must be the same, byte for byte, at scale 1
-     and at scale 2.
-   - The suite counts must be the same as the baseline, plus the new tests.
-   - The naming guard, the export guard and the layering guard must pass.
-   - omnet-julia must precompile in a scratch environment.
-   - A live window at the probed scale 2 must look as it does on main, and
-     Ctrl+= and Ctrl+- must zoom it.
-   - Then report the result, seal the five device files with the approval of the
-     owner, and land.
+   - The devices section of `devices-and-backends.md`, with a section on the
+     device pixel ratio.
+   - Three comments that named `_DISPLAY_SCALE`: `TrueType.jl`,
+     `WidgetToGraphics.jl` and `WidgetDocumentExample.jl`.
+5. [ ] **The check.**
+   - [x] The exported images are the same as on main, byte for byte: 10
+     examples, at scale 1 and at scale 2, before and after the probe, 40 images.
+     `measure_sdl_text` gives the same values before and after the probe, which
+     are the values of main before the probe.
+   - [x] The suite counts are the baseline plus the new tests, with the same 11
+     known failures at the same lines:
+     - `test_kernel()`: 2311 pass (+10, the device test), 3 fail, 3 error.
+     - `test_sdl()`: 138 pass (+21).
+     - `test_video()`: 34 pass.
+     - `test_substrate()`: 80850 pass, 3 fail, 2 error, 1 broken.
+   - [x] The naming guard passes. The export guard shows only the two known
+     violations of `HelpModule.jl`. The argument guard shows the same two
+     violations as main: `start_application!` and `Tool`. The layering guard of
+     the kernel runs inside `test_kernel()`, and passes.
+   - [x] `test_sdl()` does not call `test_sdl_layering()`, so it runs on its own:
+     7 pass.
+   - [x] omnet-julia precompiles in a scratch environment whose projectured
+     paths point at the worktree. `OmnetRepl` warns that 8711 of its 16008
+     recorded precompile statements are stale. The list is 10 days old, and only
+     24 of its statements name code that this branch changes, so the list was
+     stale before.
+   - [x] Live windows at the probed scale 2 are the same as on main.
+     `/var/tmp/device-audit/live.jl` opens four examples in real SDL windows,
+     runs frames, zooms in with `AdjustZoomOperation(1)` and resets with
+     `AdjustZoomOperation(0)`. After each of the three, it records the logical
+     size, the native size and the size of the render target of each window,
+     and a hash of the pixels of the render target. The records on main and on
+     the branch are the same. The check uses the operation, not a key press;
+     the key path that makes the operation does not change.
+   - [x] No open branch of another session adds a use of a changed name.
+     `feature-videos` and `videos-on-main` have 11 conflicts with main already,
+     and the branch adds none.
+   - [ ] Then report the result, seal the five device files with the approval of
+     the owner, and land.
