@@ -1,8 +1,9 @@
 # The navigator selection goes into the row, and the navigator scrolls
 
 **Status (2026-09-25): DONE** on the branch `navigator-selection`, in the
-worktree `projectured-julia-navigator-selection`. Nothing is on `main`. One open
-point outside this plan is under Step 1: a scroll goes into the window history.
+worktree `projectured-julia-navigator-selection`. Nothing is on `main`. Two open
+points: a scroll goes into the window history (under Step 1), and what the
+duplicate of a workspace selects (section 5).
 
 ## 1. The request and the rulings
 
@@ -162,3 +163,19 @@ no ring shows.
   pane, the recursive renderer, the new dependency, a design decision and two
   limits. `package-rules.md` lists only the packages of the substrate, so it has
   no row to change.
+
+## 5. Open points after the rebase onto `main` (2026-09-25)
+
+`main` gave the `Workspace` a duplicate (`2000d04d`). Its comment in
+`source/filesystem/Workspace.jl` says that a duplicate opens with no row
+selected, because the selected row belongs to the view. With this plan the row
+is in the workspace's selection, and `make_document_duplicate` takes the
+selection as it is now, as for every duplicate. Measured: after a click on a row
+and `duplicate_pane!`, the focus is on the copy, the root path ends at the same
+row in the copy, the original holds no selection, and no live selection is off
+the root path. So the comment is now wrong. Two ways, for the owner to choose:
+
+- keep the new behavior, which is the rule of every duplicate, and correct the
+  comment; or
+- give the `Workspace` a duplicate that drops the selection, and keep the
+  comment.
