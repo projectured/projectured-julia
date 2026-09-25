@@ -144,6 +144,12 @@ function test_document_insertion()
             end
             @test DS._collect_concrete!(Type[], JsonDocument, named) ==
                   collect_concrete_by_subtypes!(Type[], JsonDocument)
+            # The public walker gives the same answer, the same vector while no
+            # type or method is defined, and walks any root, not only a document.
+            @test DS.compute_concrete_subtypes(Document) == searched
+            @test DS.compute_concrete_subtypes(Document) === DS.compute_concrete_subtypes(Document)
+            @test ChainingProjection in DS.compute_concrete_subtypes(Projection)
+            @test !any(isabstracttype, DS.compute_concrete_subtypes(Projection))
         end
 
         @testset "@domain kit: *Nothing + Insert/Escape" begin

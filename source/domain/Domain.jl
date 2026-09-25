@@ -223,6 +223,28 @@ function _collect_concrete!(out::Vector{Type}, root::Type,
     out
 end
 
+const _CONCRETE_CACHE = Dict{Type, Tuple{UInt, Vector{Type}}}()
+
+"""
+    compute_concrete_subtypes(root::Type) -> Vector{Type}
+
+Every concrete type under `root` in the loaded modules and their submodules,
+depth first, each level in the order of its names. A type counts when it is
+bound under its own name in its own module.
+
+The walk reads every name of every loaded module, so the answer is memoized on
+`Base.get_world_counter()`: a new type or method makes the next call walk again.
+The answer is shared by every caller, so copy it before a change.
+"""
+function compute_concrete_subtypes(root::Type)
+    world = Base.get_world_counter()
+    cached = get(_CONCRETE_CACHE, root, nothing)
+    cached !== nothing && cached[1] == world && return cached[2]
+    result = _collect_concrete!(Type[], root, _collect_named_types(world))
+    _CONCRETE_CACHE[root] = (world, result)
+    result
+end
+
 # A type that *looks like* an insertion cursor (its name ends in "Insertion")
 # is only a candidate when it really is a domain's entry point — its
 # `get_insertion_root` names it back as that root's `get_domain_insertion`. This keeps
@@ -262,8 +284,8 @@ function get_insertion_candidates(root::Type)
     own = get_domain_insertion(root)
     # `insertable` goes last: it probes the constructor and compiles a method for
     # each type, and a layout variant or a stray insertion cursor needs neither.
-    result = filter!(T -> T !== own && !_is_layout_variant(T) && _is_domain_entry(T) && insertable(T),
-                     _collect_concrete!(Type[], root, _collect_named_types(world)))
+    result = filter(T -> T !== own && !_is_layout_variant(T) && _is_domain_entry(T) && insertable(T),
+                    compute_concrete_subtypes(root))
     _CANDIDATE_CACHE[root] = (world, result)
     result
 end

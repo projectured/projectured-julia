@@ -114,7 +114,7 @@ version is a plain list. A later plan can group, filter or search it.
   `make_window_view_menu`, and `make_window_menu_bar` combines them. The bar
   looks and acts as before. Test: `test_window_shell()` has the same counts as
   `main`, and a new case checks that the bar holds the two menus in order.
-- [ ] 2. **`compute_concrete_subtypes(root)`** in `DomainModule`, with a test,
+- [x] 2. **`compute_concrete_subtypes(root)`** in `DomainModule`, with a test,
   and `get_insertion_candidates` calls it. The narrowest test of `Domain.jl`
   and the naming guard pass.
 - [ ] 3. **The package `ProjecturedHelp`** and `ProjecturedHelpTest` with
