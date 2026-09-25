@@ -152,10 +152,47 @@ function _record_operation(p::UndoBufferToAnyProjection, iomap::UndoBufferToAnyI
     # A step a buffer below already recorded is recorded here whatever this
     # filter says. That buffer decided, and two levels that disagree lose the
     # order they share — which is what lets an outer step name an inner one.
-    operation isa RecordUndoOperation && return RecordUndoOperation(buffer, operation)
+    #
+    # A typed character joins a run in both buffers or in neither: this buffer's
+    # copy of the run is taken back by one undo of the buffer below. So when this
+    # buffer recorded something else since, the character begins a new run below
+    # as well.
+    if operation isa RecordUndoOperation
+        run = operation.run
+        (run === :continues && !_is_copy_of_last_step(buffer, operation.buffer)) && (run = :starts)
+        inner = run === operation.run ? operation :
+                RecordUndoOperation(operation.buffer, operation.operation, run)
+        return RecordUndoOperation(buffer, inner, run)
+    end
     # A buffer never records its own undo or redo.
     _is_own_history_step(buffer, operation) && return operation
-    p.filter(gesture, operation) ? RecordUndoOperation(buffer, operation) : operation
+    p.filter(gesture, operation) || return operation
+    RecordUndoOperation(buffer, operation, _compute_typing_run(buffer, gesture))
+end
+
+# Whether a step is typing, and whether it joins the run of the last step. A
+# `KeyPress` is a character; a key that is not one arrives as a `KeyDown`, and it
+# makes a step of its own.
+_compute_typing_run(buffer::UndoBuffer, gesture) =
+    !(gesture isa KeyPress) ? :none : _is_typing_run_open(buffer) ? :continues : :starts
+
+# A run is open while its last step is typing and has a way back, nothing was
+# taken back since, the caret is where the run left it, and the pause since is
+# shorter than `TYPING_PAUSE`.
+function _is_typing_run_open(buffer::UndoBuffer)
+    entries = buffer.undo_entries
+    (length(entries) > 0 && length(buffer.redo_entries) == 0) || return false
+    last = entries[end]
+    last.typing_caret !== nothing && !is_undo_barrier(last) &&
+        time() - last.time < TYPING_PAUSE && last.typing_caret == get_typing_caret(buffer)
+end
+
+# Whether the last step of `buffer` is its copy of a step of `inner`.
+function _is_copy_of_last_step(buffer::UndoBuffer, inner::UndoBuffer)
+    entries = buffer.undo_entries
+    (length(entries) > 0 && length(buffer.redo_entries) == 0) || return false
+    inverse = entries[end].inverse
+    inverse isa UndoOperation && inverse.buffer === inner
 end
 
 _is_own_history_step(buffer::UndoBuffer, operation::UndoOperation) = operation.buffer === buffer

@@ -254,6 +254,86 @@ function test_undo_buffer()
               get_reference_steps(before)
     end
 
+    # A run of typed characters is one step. A caret move, a key that is not a
+    # character, and a pause each end the run. The content is the identity, so a
+    # "typed character" is a `KeyPress` gesture answered with a write of the value.
+    @testset "a run of typed characters is one step" begin
+        list = _make_list(["", "b"])
+        buffer = UndoBuffer(list)
+        projection = UndoBufferToAnyProjection()
+        iomap = print_document(projection, IdentityProjection(), buffer, PrinterContext())
+        editor = _UndoEditor(buffer)
+        press!(gesture, text) = evaluate_operation(editor,
+            read_intent(projection, nothing, Intent(gesture, _write_first(text)), iomap).operation)
+        type!(text) = press!(KeyPress(last(text)), text)
+
+        type!("a"); type!("ab"); type!("abc")
+        @test length(buffer.undo_entries) == 1
+        evaluate_operation(editor, UndoOperation(buffer))
+        @test _texts(list) == ["", "b"]
+        evaluate_operation(editor, RedoOperation(buffer))
+        @test _texts(list) == ["abc", "b"]
+        @test length(buffer.undo_entries) == 1
+
+        # A step put back by a redo does not take more characters.
+        type!("abcd")
+        @test length(buffer.undo_entries) == 2
+
+        # A caret move ends the run.
+        replace_selection!(buffer, Reference(FieldReferenceStep("content"),
+                                             FieldReferenceStep("items"), RangeReferenceStep(1, 2)))
+        type!("abcde")
+        @test length(buffer.undo_entries) == 3
+
+        # A key that is not a character is a step of its own, and ends the run.
+        press!(KeyDown(:backspace, ModifierKeys()), "abcd")
+        type!("abcdx")
+        @test length(buffer.undo_entries) == 5
+
+        # A pause ends the run: the last step is made older than `TYPING_PAUSE`.
+        entry = buffer.undo_entries[end]
+        buffer.undo_entries[end] = UndoEntry(entry.label, entry.inverse, entry.selection,
+                                             entry.typing_caret, entry.time - 2 * TYPING_PAUSE)
+        type!("abcdxy")
+        @test length(buffer.undo_entries) == 6
+    end
+
+    # The window keeps a copy of each step of a file. A run joins in both buffers,
+    # so one outer undo takes back the whole run below; and when the outer buffer
+    # recorded something else since, the next character begins a run in both.
+    @testset "a run joins in the inner buffer and in its copy outside" begin
+        list = _make_list([""])
+        inner = UndoBuffer(list)
+        outer = UndoBuffer(inner)
+        projection = UndoBufferToAnyProjection()
+        inner_iomap = print_document(projection, IdentityProjection(), inner, PrinterContext())
+        outer_iomap = UndoBufferToAnyIoMap(projection, outer,
+                                           Cell(@computation inner_iomap.output), inner_iomap)
+        editor = _UndoEditor(outer)
+        type!(text) = evaluate_operation(editor,
+            read_intent(projection, nothing, Intent(KeyPress(last(text)), _write_first(text)),
+                        outer_iomap).operation)
+
+        type!("a"); type!("ab"); type!("abc")
+        @test (length(inner.undo_entries), length(outer.undo_entries)) == (1, 1)
+        evaluate_operation(editor, UndoOperation(outer))
+        @test _texts(list) == [""]
+        @test (length(inner.redo_entries), length(outer.redo_entries)) == (1, 1)
+        evaluate_operation(editor, RedoOperation(outer))
+        @test _texts(list) == ["abc"]
+
+        # A new run, and then a step of the outer buffer alone, such as a tab that
+        # opens. The inner run is still open, but the next character begins a new
+        # run in both buffers.
+        type!("abcd")
+        @test (length(inner.undo_entries), length(outer.undo_entries)) == (2, 2)
+        push_undo_entry!(outer, UndoEntry("a tab opens", DoNothingOperation(), nothing))
+        type!("abcde")
+        @test (length(inner.undo_entries), length(outer.undo_entries)) == (3, 4)
+        evaluate_operation(editor, UndoOperation(outer))
+        @test _texts(list) == ["abcd"]
+    end
+
     # Two buffers on one path. The inner one answers the key, and the outer one
     # records that it did — so an outer undo asks the inner buffer to redo rather
     # than repeating its work.

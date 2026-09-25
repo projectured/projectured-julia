@@ -1,8 +1,8 @@
 # The history records edits, and not view state
 
 **Status (2026-09-25): IN PROGRESS** on the branch `history-view-state`, in the
-worktree `projectured-julia-history-view-state`. Steps 1 to 3 are done.
-Step 4 is next. Steps 3 and 4 start with a design that the owner decides.
+worktree `projectured-julia-history-view-state`. Steps 1 to 4 are done.
+Step 5, the guides, is next. Steps 3 and 4 start with a design that the owner decides.
 
 **Goal:** the undo history holds the edits a person makes, and nothing else. A
 gesture that only changes what the window shows adds no step, and a run of typing
@@ -260,10 +260,36 @@ waits for the owner.
   `test_application` 324 of 324. `test_assistant_mvp` fails four times in "the
   assistant card fills its page", a clip box one pixel off, with and without
   this step.
-- [ ] **Step 4.** **M**: the owner answers D5, then the merge of runs in the undo
+- [x] **Step 4.** **M**: the owner answers D5, then the merge of runs in the undo
   package, and the copy rule of the window history. The sweep test gets a case
   that types 150 characters and asserts that the window history still holds a
   step made before them.
+
+  The owner's answer to D5 (2026-09-25): a caret move, a key that is not a
+  character, or a pause of one second ends a run.
+
+  Done. What the work showed:
+  - A run is recognized by its gesture: a `KeyPress` is a character, and a
+    `KeyPress` that makes a recorded step is typing. The undo package does not use
+    the primitive package, where `ReplaceStringRangeOperation` is, and it needs
+    not: a typed character that replaces a whole element joins the run too.
+  - `RecordUndoOperation` carries `run` (`:none`, `:starts`, `:continues`), which
+    the projection of the buffer decides when it reads the step. `UndoEntry`
+    carries `typing_caret`, the caret of the buffer after a typed step as text, and
+    `time`. A run is open while its last step is typing and no barrier, nothing
+    was taken back since, the caret is where the run left it, and less than
+    `TYPING_PAUSE` (1 s) passed. A joined run keeps the caret from before its
+    first character, and its way back takes back the newest character first.
+  - The window's copy joins with the file's run, and its way back stays one undo
+    of the file. When the window recorded a step of its own since, the reader of
+    the window turns the file's `:continues` into `:starts`, so both histories
+    keep the same number of steps. For the same reason a typed character with no
+    way back makes the joined run a barrier instead of a new step.
+  - Checked by a mutant: with runs that never join, 150 characters fill the file
+    and the window history to their capacity, `(100, 100)`.
+  - Tests: `test_undo` 110 of 110, `test_history_sweep` 132 of 132,
+    `test_undo_round_trip` 122 of 122, `test_application` 324 of 324,
+    `test_export_collisions`, `test_package_graph`, the naming guard.
 - [ ] **Step 5.** The guides: `documentation/package/undo/undo.md` (what the
   history records and why) and `documentation/package/widget/widget.md` (the list
   of view-state writes).

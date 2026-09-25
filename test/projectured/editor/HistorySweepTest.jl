@@ -116,5 +116,50 @@ function test_history_sweep()
                 @test (example.name, _history_recorded_answers(example)) == (example.name, String[])
             end
         end
+
+        # A run of typing is one step, in the file and in the window's copy of it,
+        # so 150 characters leave the step made before them in the window history.
+        @testset "a run of typing is one step" begin
+            mktempdir() do dir
+                json = joinpath(dir, "a.json")
+                write_document_file(parse_natural_text(:json, "{\"name\": \"Alice\"}"), json)
+                document, scene, composed, iomap =
+                    _app_make_scene([json], dir; assistant = Assistant(; llm = FakeLlm("ok")))
+                editor = _app_make_editor(scene, composed, iomap)
+                buffers = search_documents(scene, node -> node isa UndoBuffer)
+                window = only(buffer for buffer in buffers if buffer.content isa PaneTree)
+                file = only(buffer for buffer in buffers if buffer !== window)
+                steps() = (length(window.undo_entries), length(file.undo_entries))
+                press!(event) = begin
+                    operation = _app_fire(composed, editor.iomap, event)
+                    operation isa Operation && _app_apply!(editor, operation)
+                end
+                drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
+                click!(matches) = begin
+                    (x, y) = first((x, y) for (text, x, y) in drawn() if matches(text, x))
+                    press!(MousePress(:left, x + 3, y + 3, 1, ModifierKeys()))
+                end
+                text = first(repeat("typed text ", 14), 150)
+
+                # One character first: the first key compiles, and a compile longer
+                # than the pause would end the run.
+                click!((t, x) -> occursin("Alice", t) && 400 <= x < 1100)
+                press!(KeyPress('x'))
+                # A step of the window alone: a new tab in the navigator's group.
+                click!((t, x) -> t == "Files" && x < 400)
+                press!(KeyDown(:t, ModifierKeys(ctrl = true)))
+                opened = steps()
+                tab = window.undo_entries[end].label
+
+                click!((t, x) -> occursin("lice", t) && 400 <= x < 1100)
+                foreach(character -> press!(KeyPress(character)), text)
+                @test steps() == opened .+ (1, 1)
+                @test window.undo_entries[end - 1].label == tab
+
+                click!((t, x) -> t == "type here…" && x >= 1100)
+                foreach(character -> press!(KeyPress(character)), text)
+                @test steps() == opened .+ (2, 1)
+            end
+        end
     end
 end

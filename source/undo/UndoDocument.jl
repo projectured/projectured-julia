@@ -6,7 +6,7 @@ abstract type UndoDocument <: Document end
 # ── One step of the history ──────────────────────────────────────────────────
 
 """
-    UndoEntry(label, inverse, selection)
+    UndoEntry(label, inverse, selection[, typing_caret, time])
 
 One step that can be taken back.
 
@@ -18,6 +18,10 @@ One step that can be taken back.
 - `selection` — where the caret was before the step, or `nothing`. It is put
   back after the inverse runs, so undo returns the caret to the edit as well as
   the value.
+- `typing_caret` — for a step of typing, the caret of the buffer after the step,
+  written as text; `nothing` for any other step. A typed character that finds the
+  caret still there joins the step (see `RecordUndoOperation`).
+- `time` — when the step was made or last joined, in seconds of `time()`.
 
 An entry is a plain value and holds no cell: the buffer that keeps entries is
 the document, and an entry is one of the things it holds.
@@ -26,7 +30,11 @@ struct UndoEntry
     label::String
     inverse::Any
     selection::Any
+    typing_caret::Union{Nothing,String}
+    time::Float64
 end
+
+UndoEntry(label, inverse, selection) = UndoEntry(label, inverse, selection, nothing, 0.0)
 
 """
     is_undo_barrier(entry) -> Bool
@@ -162,7 +170,7 @@ _is_no_edit(operation) =
 # ── The three operations ─────────────────────────────────────────────────────
 
 """
-    RecordUndoOperation(buffer, operation)
+    RecordUndoOperation(buffer, operation[, run])
 
 Apply `operation` and put the way back on `buffer`.
 
@@ -174,14 +182,36 @@ the editor applies it.
 The way back is taken **before** the change is applied, because an inverse reads
 the state the change starts from. A change nobody could invert becomes a barrier
 entry, so the history stops there instead of lying about it.
+
+`run` says whether the step is typing. A run of typed characters is one step, so
+a history of a hundred steps is not filled by a hundred characters:
+
+- `:none` — any other step;
+- `:starts` — a typed character that begins a run;
+- `:continues` — a typed character that joins the run of the last step.
+
+A caret move, a key that is not a character and a pause of `TYPING_PAUSE`
+seconds end a run. The projection of a buffer decides it when it reads the
+step; see `UndoBufferToAnyProjection`.
 """
 struct RecordUndoOperation <: WrappingOperation
     buffer::UndoBuffer
     operation::Any
+    run::Symbol
 end
 
+RecordUndoOperation(buffer::UndoBuffer, operation) = RecordUndoOperation(buffer, operation, :none)
+
 get_wrapped_operation(op::RecordUndoOperation) = op.operation
-rewrap_operation(op::RecordUndoOperation, inner) = RecordUndoOperation(op.buffer, inner)
+rewrap_operation(op::RecordUndoOperation, inner) = RecordUndoOperation(op.buffer, inner, op.run)
+
+"""
+    TYPING_PAUSE
+
+The seconds without a typed character that end a run of typing, so that the next
+character begins a step of its own.
+"""
+const TYPING_PAUSE = 1.0
 
 """
     UndoOperation(buffer)
@@ -228,9 +258,41 @@ function evaluate_operation(editor, op::RecordUndoOperation)
     # A step whose way back is to do nothing changed no document — a file that was
     # written, a zoom. It is not a step, so the history does not grow for it.
     inverse isa DoNothingOperation && return nothing
-    push_undo_entry!(op.buffer, UndoEntry(label, inverse, before))
+    caret = op.run === :none ? nothing : get_typing_caret(op.buffer)
+    buffer = op.buffer
+    if op.run === :continues && _is_joinable(buffer)
+        # The run grows: its way back takes back this character first, and it keeps
+        # the caret from before its first character. A character with no way back
+        # makes the whole run a barrier, so a buffer above, whose copy joins too,
+        # keeps one step for it as well.
+        last = buffer.undo_entries[end]
+        joined = inverse === nothing ? nothing : _join_inverses(inverse, last.inverse)
+        buffer.undo_entries[end] = UndoEntry(last.label, joined, last.selection, caret, time())
+        _empty_entries!(buffer.redo_entries)
+    else
+        push_undo_entry!(buffer, UndoEntry(label, inverse, before, caret, time()))
+    end
     nothing
 end
+
+"""
+    get_typing_caret(buffer) -> String
+
+The caret of `buffer` as text: what a step of typing keeps, and what the next
+typed character is compared with.
+"""
+get_typing_caret(buffer::UndoBuffer) = repr(strip_reference_types(get_selection(buffer)))
+
+# Whether a step can join the last entry: there is one, and it is not a barrier.
+_is_joinable(buffer::UndoBuffer) =
+    length(buffer.undo_entries) > 0 && !is_undo_barrier(buffer.undo_entries[end])
+
+# The way back of a run that grows by one step. A copy of an inner buffer's step
+# is taken back by one undo of that buffer, which joined its own run too, so the
+# copy keeps its way back. Any other run takes back the new step first.
+_join_inverses(new::UndoOperation, old::UndoOperation) =
+    new.buffer === old.buffer ? old : CompoundOperation(Any[new, old])
+_join_inverses(new, old) = CompoundOperation(Any[new, old])
 
 evaluate_operation(editor, op::UndoOperation) =
     _step_undo_history!(editor, op.buffer.undo_entries, op.buffer.redo_entries)
