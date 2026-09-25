@@ -75,8 +75,8 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `struct/CellStructPlan.jl`
   - 🔒 `struct/CellStruct.jl`
 - **Layer 5 — clock** (`clock/`)
-  - ⬜ `clock/ClockModule.jl`
-  - ⬜ `clock/Clock.jl`
+  - 🔒 `clock/ClockModule.jl`
+  - 🔒 `clock/Clock.jl`
 - **Layer 6 — event** (`event/`)
   - 🔒 `event/EventModule.jl`
   - 🔒 `event/EventInterface.jl`
