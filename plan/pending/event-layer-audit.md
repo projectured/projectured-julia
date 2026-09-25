@@ -72,7 +72,7 @@ package and is not part of this plan.
 
 ## Steps
 
-- [ ] 1. Unseal the nine files, and add this plan.
+- [x] 1. Unseal the nine files, and add this plan.
 - [ ] 2. The pattern language: items 1, 3, 4, 5, 6, with tests.
 - [ ] 3. `MouseButtons` (item 11): the event layer, the SDL backend, the four tests
   of `:none`, and the 77 constructions.

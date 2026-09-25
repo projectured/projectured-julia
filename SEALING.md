@@ -78,15 +78,15 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `clock/ClockModule.jl`
   - 🔒 `clock/Clock.jl`
 - **Layer 6 — event** (`event/`)
-  - 🔒 `event/EventModule.jl`
-  - 🔒 `event/EventInterface.jl`
-  - 🔒 `event/ModifierKeys.jl`
-  - 🔒 `event/KeyboardEvent.jl`
-  - 🔒 `event/MouseEvent.jl`
-  - 🔒 `event/WindowEvent.jl`
-  - 🔒 `event/WindowInput.jl`
-  - 🔒 `event/EventDefaults.jl`
-  - 🔒 `event/EventPattern.jl`
+  - ⬜ `event/EventModule.jl`
+  - ⬜ `event/EventInterface.jl`
+  - ⬜ `event/ModifierKeys.jl`
+  - ⬜ `event/KeyboardEvent.jl`
+  - ⬜ `event/MouseEvent.jl`
+  - ⬜ `event/WindowEvent.jl`
+  - ⬜ `event/WindowInput.jl`
+  - ⬜ `event/EventDefaults.jl`
+  - ⬜ `event/EventPattern.jl`
 - **Layer 7 — device** (`device/`)
   - 🔒 `device/DeviceModule.jl`
   - 🔒 `device/DeviceInterface.jl`
