@@ -198,28 +198,32 @@ SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
 # Populated lazily by `_get_font`; freed by `quit_backend!`.
 const _font_cache = Dict{Tuple{String,Int}, Ptr{TTF_Font}}()
 
-# Module-level text-texture cache. Rendering a `GraphicsText` rasterizes the
-# string (`TTF_RenderUTF8_Blended`), uploads a GPU texture, draws it, then
-# destroys the texture — every span, every frame. When scrolling a static
-# document the spans never change, so the rasterize/upload/destroy churn is the
-# dominant render cost. We cache the uploaded texture (plus its device size, so
-# `SDL_QueryTexture` is skipped too) keyed by renderer + text + font + colour and
-# reuse it across frames. Textures are renderer-specific, so entries are evicted
-# when their renderer is destroyed (`_close_native_window!`,
+# Module-level text-texture cache. Rendering a `GraphicsText` rasterizes each
+# glyph of the string, composes the glyphs into one surface, uploads it as a GPU
+# texture and draws it. When scrolling a static document the spans never change,
+# so the rasterize/upload churn is the dominant render cost. We cache the
+# uploaded texture (plus its device size, so `SDL_QueryTexture` is skipped too)
+# keyed by renderer + text + font + colour and reuse it across frames. The font
+# is in the key at its logical size, where the layout places the glyphs, and at
+# its device size, where SDL rasterizes them. Textures are renderer-specific, so
+# entries are evicted when their renderer is destroyed (`_close_native_window!`,
 # `_close_offscreen_renderer`) and all are freed by `quit_backend!`.
 struct _TextTextureKey
     renderer::Ptr{SDL_Renderer}
     text::String
     filename::String
+    logical_size::Int
     size::Int
     color::NTuple{4,UInt8}
 end
 
 struct _TextTexture
     texture::Ptr{SDL_Texture}
-    dw::Int      # device px width  (the logical size follows at each draw, from the ratio)
-    dh::Int      # device px height
-    ascent::Int  # device px from the top of the texture down to its baseline
+    dw::Int          # device px width  (the logical size follows at each draw, from the ratio)
+    dh::Int          # device px height
+    left::Int        # device px from the left of the texture to the pen origin of the text
+    ascent::Int      # device px from the top of the texture down to its baseline
+    box_ascent::Int  # logical px from the `y` of the text down to its baseline (`compute_text_extent`)
 end
 
 const _text_texture_cache = Dict{_TextTextureKey, _TextTexture}()
@@ -748,9 +752,10 @@ end
 # SDL_ttf's `TTF_HINTING_LIGHT_SUBPIXEL`, which the generated binding lacks.
 const _TTF_HINTING_LIGHT_SUBPIXEL = Cint(4)
 
-# A font draws as the layout measures it (`FontFileMeasure`): the advances not
-# hinted, so a glyph stands at its real pen position, and the pairs of the `kern`
-# table kerned. Answers the handle.
+# A font draws as the layout measures it (`FontFileMeasure`). Light hinting fits
+# a glyph to the pixel rows only, so its ink keeps the width of the advance that
+# the layout gives it, and `_measure_sdl_text` kerns the pairs of the `kern` table
+# as the layout does. Answers the handle.
 function _set_layout_rendering!(f::Ptr{TTF_Font})
     TTF_SetFontHinting(f, _TTF_HINTING_LIGHT_SUBPIXEL)
     TTF_SetFontKerning(f, Cint(1))
@@ -760,11 +765,10 @@ end
 # ── Fallback fonts ─────────────────────────────────────────────────────
 #
 # SDL2_ttf draws a character only in the font it is given, and a font it lacks
-# draws as a `.notdef` box. So a text is split into runs, one per font, and
-# `find_glyph_font_file` says which font draws each character. The measurer
-# `measure_truetype_text` asks the same question, so a line is drawn as wide as
-# the layout measured it. The fallback fonts are monochrome, so every run draws
-# through the same blended path.
+# draws as a `.notdef` box. So `find_glyph_font_file` says which font draws each
+# character: `compute_placed_glyphs` asks it for a drawn text, and `_font_runs`
+# for a text that `_measure_sdl_text` measures. The fallback fonts are
+# monochrome, so every glyph draws through the same blended path.
 
 # Open (and cache) the font file at `path` at `size` device px. C_NULL when the
 # file is absent or fails to load, so a caller draws in the primary font.
@@ -819,45 +823,77 @@ function _font_runs(text::AbstractString, font::StyleFont, primary::Ptr{TTF_Font
     return runs
 end
 
-# Rasterize multi-font `runs` into one blended surface, laid out left-to-right and
-# aligned on the text baseline (each run's surface sits its glyphs on the baseline
-# at `TTF_FontAscent` from its top). Answers the surface and the row of its
-# baseline, or C_NULL and 0 if nothing rendered. The caller treats the surface
-# exactly like a single `TTF_RenderUTF8_Blended` one (upload, query size, free).
-function _render_runs_blended(runs::Vector{Tuple{Ptr{TTF_Font},String}}, color::NTuple{4,UInt8})
-    col = SDL_Color(color...)
-    pieces = Tuple{Ptr{SDL_Surface},Int,Int,Int}[]   # (surface, w, h, ascent)
-    total_w = 0; max_ascent = 0; max_below = 0
-    for (f, s) in runs
-        isempty(s) && continue
-        srf = TTF_RenderUTF8_Blended(f, s, col)
-        srf == C_NULL && continue
-        su = unsafe_load(srf)
-        asc = Int(TTF_FontAscent(f))
-        push!(pieces, (srf, Int(su.w), Int(su.h), asc))
-        total_w += Int(su.w)
-        max_ascent = max(max_ascent, asc)
-        max_below = max(max_below, Int(su.h) - asc)
+# SDL_ttf, for the functions of it that the generated binding lacks.
+const _SDL_TTF_LIBRARY = LibSDL2.libsdl2_ttf
+
+# The glyph of `character` in the font `handle`, rasterized in `color`: the
+# surface, the column of its pen origin and the row of its baseline, or
+# `nothing` when the glyph has no pixel. SDL_ttf lays a glyph out as a string of
+# one character: the pen starts at column 0, or right of the ink of a negative
+# left bearing, and the baseline is `TTF_FontAscent` rows down, or lower when the
+# ink rises above the ascent.
+function _render_glyph(handle::Ptr{TTF_Font}, character::Char, color::SDL_Color)
+    code = UInt32(character)
+    left, right, bottom, top, advance = (Ref{Cint}(0) for _ in 1:5)
+    status = ccall((:TTF_GlyphMetrics32, _SDL_TTF_LIBRARY), Cint,
+                   (Ptr{TTF_Font}, UInt32, Ref{Cint}, Ref{Cint}, Ref{Cint}, Ref{Cint}, Ref{Cint}),
+                   handle, code, left, right, bottom, top, advance)
+    status == 0 || return nothing
+    surface = ccall((:TTF_RenderGlyph32_Blended, _SDL_TTF_LIBRARY), Ptr{SDL_Surface},
+                    (Ptr{TTF_Font}, UInt32, SDL_Color), handle, code, color)
+    surface == C_NULL && return nothing
+    (surface, max(0, -Int(left[])), max(Int(TTF_FontAscent(handle)), Int(top[])))
+end
+
+# The surface of `text` in `font` at `ratio`, in `color`: each glyph in the font
+# file and at the pen position where the layout measures it
+# (`compute_placed_glyphs`), its pen origin on the device pixel nearest to that
+# position, so that no advance of SDL_ttf moves a glyph. Answers the surface, the
+# column of the pen origin of the text and the row of its baseline, or `nothing`
+# when no glyph has a pixel.
+function _render_text_surface(text::AbstractString, font::StyleFont, ratio::Float64,
+                              color::NTuple{4,UInt8})
+    primary = _get_font(font, ratio)
+    size = font_device_size(font, ratio)
+    sdl_color = SDL_Color(color...)
+    glyphs = Tuple{Ptr{SDL_Surface},Int,Int}[]   # (surface, column of its left edge from the pen origin, baseline row)
+    for placed in compute_placed_glyphs(text, font)
+        handle = placed.file == font.filename ? primary : _get_fallback_font(placed.file, size)
+        handle == C_NULL && (handle = primary)
+        rendered = _render_glyph(handle, placed.character, sdl_color)
+        rendered === nothing && continue
+        surface, origin, baseline = rendered
+        push!(glyphs, (surface, round(Int, placed.x * ratio) - origin, baseline))
     end
-    isempty(pieces) && return (Ptr{SDL_Surface}(C_NULL), 0)
-    height = max_ascent + max_below
-    combined = SDL_CreateRGBSurfaceWithFormat(UInt32(0), Cint(total_w), Cint(height),
+    isempty(glyphs) && return nothing
+    left = max(0, -minimum(x for (_, x, _) in glyphs))
+    ascent = maximum(baseline for (_, _, baseline) in glyphs)
+    width = 0
+    height = 0
+    for (surface, x, baseline) in glyphs
+        info = unsafe_load(surface)
+        width = max(width, left + x + Int(info.w))
+        height = max(height, ascent - baseline + Int(info.h))
+    end
+    combined = SDL_CreateRGBSurfaceWithFormat(UInt32(0), Cint(width), Cint(height),
                                               Cint(32), UInt32(SDL_PIXELFORMAT_ARGB8888))
     if combined == C_NULL
-        for (srf, _, _, _) in pieces
-            SDL_FreeSurface(srf)
-        end
-        return (Ptr{SDL_Surface}(C_NULL), 0)
+        foreach(glyph -> SDL_FreeSurface(glyph[1]), glyphs)
+        return nothing
     end
-    x = 0
-    for (srf, w, h, asc) in pieces
-        SDL_SetSurfaceBlendMode(srf, SDL_BLENDMODE_NONE)     # straight RGBA copy, no over-blend
-        dst = Ref(SDL_Rect(Cint(x), Cint(max_ascent - asc), Cint(w), Cint(h)))
-        SDL_BlitSurface(srf, C_NULL, combined, dst)
-        x += w
-        SDL_FreeSurface(srf)
+    # Every glyph has the colour of the text, so a surface of that colour with no
+    # alpha keeps the colour exact where two glyphs blend over each other.
+    red, green, blue, _ = color
+    SDL_FillRect(combined, C_NULL,
+                 SDL_MapRGBA(unsafe_load(combined).format, red, green, blue, UInt8(0)))
+    for (surface, x, baseline) in glyphs
+        info = unsafe_load(surface)
+        SDL_SetSurfaceBlendMode(surface, SDL_BLENDMODE_BLEND)
+        destination = Ref(SDL_Rect(Cint(left + x), Cint(ascent - baseline), info.w, info.h))
+        SDL_BlitSurface(surface, C_NULL, combined, destination)
+        SDL_FreeSurface(surface)
     end
-    return (combined, max_ascent)
+    (combined, left, ascent)
 end
 
 # Convert a domain `StyleColor` (Float64 RGBA in [0,1]) to SDL's device bytes.
@@ -875,38 +911,36 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
     font_style = elem.font::StyleFont
     color = _rgba8(elem.color)
     key = _TextTextureKey(renderer, String(text), font_style.filename,
-                          font_device_size(font_style, ratio), color)
+                          font_logical_size(font_style), font_device_size(font_style, ratio),
+                          color)
 
     # Reuse the uploaded texture for an unchanged (text, font, colour) span;
     # rasterize + upload only on a cache miss. The texture is rasterized at
     # device size and freed when its renderer is torn down.
     entry = get(_text_texture_cache, key, nothing)
     if entry === nothing
-        font = _get_font(font_style, ratio)
-        runs = _font_runs(text, font_style, font, ratio)
-        surface, ascent = length(runs) == 1 ?
-            (TTF_RenderUTF8_Blended(runs[1][1], runs[1][2], SDL_Color(color...)),
-             Int(TTF_FontAscent(runs[1][1]))) :
-            _render_runs_blended(runs, color)
-        surface == C_NULL && return
+        rendered = _render_text_surface(text, font_style, ratio, color)
+        rendered === nothing && return
+        surface, left, ascent = rendered
         texture = SDL_CreateTextureFromSurface(renderer, surface)
         w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
         SDL_QueryTexture(texture, C_NULL, C_NULL, w_ref, h_ref)
         SDL_FreeSurface(surface)
         length(_text_texture_cache) >= _TEXT_TEXTURE_CACHE_CAP && _clear_text_texture_cache!()
-        entry = _TextTexture(texture, Int(w_ref[]), Int(h_ref[]), ascent)
+        _, box_ascent, _ = compute_text_extent(text, font_style)
+        entry = _TextTexture(texture, Int(w_ref[]), Int(h_ref[]), left, ascent, box_ascent)
         _text_texture_cache[key] = entry
     end
 
-    # The baseline of the text is where the layout put it: the ascent of its box
-    # (`compute_text_extent`) below its `y`. The texture's own baseline is
-    # `entry.ascent` device pixels below its top, so its top goes that far above.
-    # The rect is in logical pixels as real numbers, and the renderer scale maps
-    # it to whole device pixels, so the texture lands 1:1 and stays crisp at any
-    # ratio.
-    _, ascent, _ = compute_text_extent(text, font_style)
-    baseline = Float64(elem.y + oy + ascent)
-    dest = Ref(SDL_FRect(Cfloat(elem.x + ox), Cfloat(baseline - entry.ascent / ratio),
+    # The pen origin of the text is its `x`, and its baseline is where the layout
+    # put it: the ascent of its box (`compute_text_extent`) below its `y`. The
+    # pen origin of the texture is `entry.left` device pixels right of its left
+    # edge, and its baseline `entry.ascent` device pixels below its top. The rect
+    # is in logical pixels as real numbers, and the renderer scale maps it to
+    # whole device pixels, so the texture lands 1:1 and stays crisp at any ratio.
+    baseline = Float64(elem.y + oy + entry.box_ascent)
+    dest = Ref(SDL_FRect(Cfloat(elem.x + ox - entry.left / ratio),
+                         Cfloat(baseline - entry.ascent / ratio),
                          Cfloat(entry.dw / ratio), Cfloat(entry.dh / ratio)))
     SDL_RenderCopyF(renderer, entry.texture, C_NULL, dest)
 end
@@ -2192,8 +2226,8 @@ function _measure_sdl_text(text::AbstractString, font::StyleFont, ratio::Float64
         TTF_SizeUTF8(f, s, w_ref, h_ref)
         return (_to_logical(Int(w_ref[]), ratio), _to_logical(Int(h_ref[]), ratio))
     end
-    # Mixed-font span: sum per-run widths and baseline-align heights, matching the
-    # composite produced by `_render_runs_blended`.
+    # Mixed-font span: sum per-run widths, and align the heights on the baseline
+    # by the font ascents.
     total_w = 0; max_ascent = 0; max_below = 0
     for (f, s) in runs
         isempty(s) && continue

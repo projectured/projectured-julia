@@ -48,10 +48,11 @@ import ProjecturedStyle.StyleModule: StyleFont, font_logical_size, font_device_s
 # fonts where they are now. The metrics reader resolves the same way, which is
 # what keeps SDL and it opening one file.
 import ProjecturedStyle.StyleModule: font_file
-# A character the font lacks draws in the font the style package names, which is
-# the font `measure_truetype_text` measures it in.
+# A character the font lacks draws in the font the style package names, and each
+# glyph draws where the layout measures it (`compute_placed_glyphs`).
 import ProjecturedStyle.StyleModule: load_truetype_font, find_glyph_font_file, has_font_glyph,
-                         is_presentation_selector, compute_text_extent
+                         is_presentation_selector, compute_text_extent,
+                         compute_placed_glyphs
 import ProjecturedKernel.EventModule: WindowQuit
 import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
 import ProjecturedKernel.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus

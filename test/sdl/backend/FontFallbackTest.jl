@@ -1,6 +1,7 @@
-# The SDL renderer draws a character that the font lacks in the font that the
-# style package names, and measures it in that font. The run helpers are internal
-# to the backend, so they are qualified.
+# A character that the font lacks is a run of its own, in the font that the style
+# package names, when SDL measures a text. The run helpers are internal to the
+# backend, so they are qualified. `test_sdl_text_pen_positions` tests where SDL
+# draws such a character.
 function test_sdl_font_fallback()
 @testset "SDL font fallback" begin
 
@@ -14,14 +15,6 @@ function test_sdl_font_fallback()
         @test runs[2][1] != primary
         @test runs[3][1] == primary
         @test ProjecturedSdl._font_runs("abc", font, primary, 1.0) == [(primary, "abc")]
-    end
-
-    @testset "SDL measures a line as the layout does" begin
-        # SDL rasterizes at the device size and divides back, so the two
-        # measurers can differ by the rounding of one pixel.
-        with_arrow = measure_sdl_text("a→b", font)[1]
-        @test abs(with_arrow - measure_truetype_text("a→b", font)[1]) <= 1
-        @test with_arrow > measure_sdl_text("abc", font)[1]
     end
 
 end

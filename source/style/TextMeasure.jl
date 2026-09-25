@@ -121,10 +121,10 @@ function _each_drawn_character(text, font::StyleFont)
     drawn
 end
 
-# The pen position before each character of `text`, and the files that draw it.
-# `offsets[i]` is where character `i` starts; `offsets[end]` is the width. The
-# kerning of a pair moves the second character, and only two characters that one
-# font draws kern.
+# The pen position before each character of `text`, and each character that
+# draws with the file that draws it (`_each_drawn_character`). `offsets[i]` is
+# where character `i` starts; `offsets[end]` is the width. The kerning of a pair
+# moves the second character, and only two characters that one font draws kern.
 function _compute_pen_positions(text, font::StyleFont)
     size = font_logical_size(font)
     characters = collect(String(text))
@@ -151,12 +151,12 @@ function _compute_pen_positions(text, font::StyleFont)
         previous = (file, glyph)
     end
     offsets[end] = pen
-    offsets, unique(file for (_, file) in drawn)
+    offsets, drawn
 end
 
 function measure_string(::FontFileMeasure, text, font::StyleFont)
-    offsets, files = _compute_pen_positions(text, font)
-    isempty(files) && (files = [font.filename])
+    offsets, drawn = _compute_pen_positions(text, font)
+    files = isempty(drawn) ? [font.filename] : unique(file for (_, file) in drawn)
     size = font_logical_size(font)
     ascent = descent = line_gap = 0.0
     for file in files
@@ -170,6 +170,34 @@ end
 
 compute_caret_offsets(::FontFileMeasure, text, font::StyleFont) =
     first(_compute_pen_positions(text, font))
+
+"""
+    PlacedGlyph(character, file, x)
+
+A character of a text where [`FontFileMeasure`](@ref) places it: the `file` of
+the font that draws it, and the pen position `x` where it starts, in logical
+pixels from the start of the text.
+"""
+struct PlacedGlyph
+    character::Char
+    file::String
+    x::Float64
+end
+
+"""
+    compute_placed_glyphs(text, font::StyleFont) -> Vector{PlacedGlyph}
+
+Each character of `text` that draws, in the font file and at the pen position
+where [`FontFileMeasure`](@ref) measures it. A backend that draws each glyph at
+its `x` in the font of its `file` draws the text as wide as the layout measured
+it, whatever the backend does to the advance of a glyph. A presentation selector
+draws nothing and is not in the answer.
+"""
+function compute_placed_glyphs(text, font::StyleFont)
+    characters = collect(String(text))
+    offsets, drawn = _compute_pen_positions(text, font)
+    [PlacedGlyph(characters[index], file, offsets[index]) for (index, file) in drawn]
+end
 
 # ── Fixed numbers, for a test ───────────────────────────────────────────────
 
