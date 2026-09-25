@@ -311,7 +311,7 @@ diff of the suites it touches against the counts before the step, and a commit.
 Step 0 takes the baseline.
 
 - [x] **Step 0: the baseline.** `test_all()` of projectured-julia, and the
-      omnet-julia suites of `plan/pending/widget-constructors-live-values-and-a-pointer.md`
+      omnet-julia suites of `plan/done/widget-constructors-live-values-and-a-pointer.md`
       Step 2, before any change. The places of the failures are kept.
       **Done** (2026-09-24, main f954f90e): `test_all()` 1049796 pass, 649 fail,
       11 error, 1114 broken, 31 minutes; the places of the failures are in
@@ -577,7 +577,7 @@ Step 0 takes the baseline.
 
 ## 8. The relation to the other plans
 
-`plan/pending/widget-constructors-live-values-and-a-pointer.md` records the
+`plan/done/widget-constructors-live-values-and-a-pointer.md` records the
 S4 take. A button that is the whole result of a form fills its row until Step 5
 of this plan puts the evaluator rows back to `Content`. The owner decides
 whether the real S4 take waits for Step 5.

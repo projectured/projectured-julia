@@ -305,7 +305,8 @@ sealed).
 - ~~[ ] Step 6: a cell that is a result follows the cell (§3.7), with a test.~~
       **Dropped (2026-09-25):** a result that is not a document stays a snapshot
       of `show`; §3.7 gives the reasons.
-- [ ] Step 7: the landing of both repositories, when the owner says so.
+- [x] Step 7: the landing of both repositories, when the owner says so.
+      The S4 fix of Step 5 landed on 2026-09-25, when the owner approved the take.
       **Landed, not pushed** (2026-09-24, "land in main first"): projectured-julia
       `main` f954f90e and omnet-julia `main` b532199b, by fast-forward. Both mains
       moved twice while the branches were tested (the cell renames
