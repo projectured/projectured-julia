@@ -123,5 +123,21 @@ end
     @test maximum(x + length(text) * 8 for (x, text) in texts) <= 400
 end
 
+@testset "a column sits where the delimiter row says" begin
+    renderer = NaturalToGraphics(measure = _measure)
+    context = with_exact_size(PrinterContext(); width = Cell(Int32(400)),
+                                                 height = Cell(Int32(800)))
+    chain = ChainingProjection(MarkdownRootToVerticalLayout(), VerticalLayoutToGraphicsCanvas())
+    lefts(source) = Dict(text => x for (x, text) in
+                         reverse(_table_texts(print_document(chain, renderer, parse_markdown(source), context).output)))
+    plain   = lefts("| a | b |\n|---|---|\n| x | y |\n")
+    aligned = lefts("| a | b |\n|:--|--:|\n| x | y |\n")
+    @test aligned["x"] == plain["x"]
+    @test aligned["y"] - plain["y"] > 100
+    @test aligned["b"] - plain["b"] > 100
+    page = parse_markdown("| a | b | c | d |\n|---|:--|:-:|--:|\n")
+    @test collect(layout_of(page).children)[1].column_align == [:left, :left, :center, :right]
+end
+
 end
 end # test_markdown_page_table

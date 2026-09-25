@@ -1,7 +1,8 @@
 # Documentation tool results drawn as Markdown documents
 
-> **Status:** in progress, in the worktree `projectured-julia-markdown-tool-results`
-> on the branch `markdown-tool-results`. Written 2026-09-25.
+> **Status:** Steps 0 to 5 and 7 landed on 2026-09-25 (`8ece1ad1`). Step 8 is
+> in progress in the worktree `projectured-julia-markdown-table-grid` on the branch
+> `markdown-table-grid`. The timing of Step 6 waits for the owner. Written 2026-09-25.
 
 The assistant pane draws the answer of a documentation tool as plain text. The
 answer is Markdown: a guide, a module, a type, a function, a list of search hits.
@@ -440,6 +441,45 @@ that file. All files of `tool/` are `⬜` on 2026-09-25.
   - Read the new names of the range: Step 5b of the layout plan removes
     `with_available_size`, which `MarkdownTableTest.jl` uses.
 
+  *The owner said the layout changes are on `main` (2026-09-25). Implemented:*
+  - *Step 5b of the layout plan renamed the call in `MarkdownTableTest.jl`
+    itself (`with_exact_size`).*
+  - *`WidgetTable` gets `column_align::Any` (a `Vector{Symbol}` of `:left`,
+    `:center` and `:right`; a column past its end is `:left`), after
+    `column_cell_policies`. The keyword constructor and the string shim take
+    `column_align = Symbol[]` and refuse any other side; the positional calls
+    (`CellTableToWidgetTable`, `_make_page_table`) pass one more cell. The grid
+    printer passes `_wt_grid_column_align` to its `GridLayout`, with the
+    row-header strip at the left. A table whose rows are a list places its cells
+    itself (`WidgetTableList.jl`), so it adds `_wt_align_offset` to the x of a
+    body cell and of a header cell; the field means the same in both forms.*
+  - *`_make_page_table` fills `column_align` from `alignments`, with `:default`
+    at the left (`_make_column_align`).*
+  - *The row of the chat pane is the one that Step 6 tried.*
+
+  *Tests (2026-09-25), against a baseline of `ae39586c` in
+  `/var/tmp/markdown-table-grid-baseline/`:* `test_widget_table_column_align()`
+  13 pass (both forms of a table, and a side that is none of the three);
+  `test_markdown()` 113 (109 on the base); `test_assistant_mvp()` 127 and the 4
+  fails of the base; `test_conversation_serialization()` 44; the other
+  `WidgetTable` tests as on the base; `test_example(assistant_example)` and
+  `test_example(conversation_widget_example)` with the fails of the base (2 and
+  1060, the same places). The Markdown catalog is 26692 against 27217: the order
+  of the two equal paths to `:syntax` changed again, now for the paragraph, the
+  list and the table as well (see the landing note above).
+
+  *Found in the check of the image: the bottom of a glyph is cut.* The TrueType
+  measure answers the em size as the height of a line, and a `GraphicsText`
+  box is `font_line_height`, the ascent and the descent, which is taller
+  (`source/style/TrueType.jl`, "Vertical metrics"). A container that cuts at the
+  measured height cuts the descenders of the last line: the grid of a
+  `WidgetTable` cuts each cell, so the entries of a table are cut on `main`
+  since the first landing, in a tab too ("Tvpe", "meanina"); and with the row
+  in the chat pane, the stack of the page cuts each block, so every paragraph of
+  the chat pane is cut, the prose of the model too. Without the row, the chat
+  pane draws a whole page as one tree and nothing is cut. The row is therefore
+  its own commit, and it lands only on the owner's word (§5, question 6).
+
 ## 5. The questions
 
 The owner took the recommendation of questions 1 to 4 on 2026-09-25 (§1,
@@ -468,6 +508,14 @@ decision 3). Question 5 came from Step 6, and the owner decided it on 2026-09-25
    `MarkdownRoot` to the renderer of the transcript; or add the row now with a
    fallback width for a table that is offered none. *Recommendation: wait,
    because the fallback is a number that the sizing plan removes.*
+
+6. **The row of the chat pane, while the text height is short** (found in
+   Step 8; not decided). The options: land the row now, and every paragraph in
+   the chat pane loses the bottom of its last line until the height is fixed;
+   or keep the row back, keep the tables of the chat pane as their source, and
+   fix the height first, as its own plan: the text reports
+   `font_line_height` and not the em size, a change of every text height in the
+   editor. *Recommendation: keep the row back, and plan the height.*
 
 ## 6. Limits
 

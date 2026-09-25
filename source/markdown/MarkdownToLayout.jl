@@ -121,7 +121,8 @@ end
 #
 # A table on the page is drawn as a `WidgetTable`, the one table of the widget
 # layer: a header strip, lines between the entries, and entries that break their
-# lines at the edge of their column. The columns share the width of the page.
+# lines at the edge of their column. The columns share the width of the page,
+# and each sits where the delimiter row of the table says.
 # The entries are the paragraphs of the table, not copies, so the page draws
 # each one as prose.
 function _make_page_table(table::MarkdownTable)
@@ -134,6 +135,7 @@ function _make_page_table(table::MarkdownTable)
                          Cell(Fill), Cell(Content),        # the columns share the width
                          Cell(Any[]), Cell(Any[]),         # and none of them differs
                          Cell(:wrap), Cell(Symbol[]),      # an entry breaks its lines at its column
+                         Cell(@computation _make_column_align(table.alignments)),
                          Cell(true),                       # visible
                          Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), # margin, border, padding, style
                          Cell(nothing),                    # hovered
@@ -144,6 +146,11 @@ function _make_page_table(table::MarkdownTable)
     end)
     widget
 end
+
+# Where the entries of each column sit, from the delimiter row: a column that
+# names no side sits at the left.
+_make_column_align(alignments) =
+    Symbol[alignment === :default ? :left : alignment for alignment in alignments]
 
 # A path inside a table, as a path inside its widget table: `header.elements[j]`
 # is `column_headers[j]`, and `rows[k].elements[j]` is `rows[k][j]`. The rest of
