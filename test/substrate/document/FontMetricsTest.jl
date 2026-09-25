@@ -26,6 +26,14 @@ function test_font_metrics()
         @test font_line_height(font) == 24
     end
 
+    @testset "the ascent and the descent are the box of a text in the font" begin
+        # Ubuntu at 14: the ascender 932 is 13.05 pixels and the descender 189 is
+        # 2.65. A backend draws the baseline at the ascent rounded up, 14.
+        ubuntu = StyleFont(font_ubuntu_regular_20.filename, 14)
+        @test font_ascent(ubuntu) == compute_text_extent("x", ubuntu)[2] == 14
+        @test font_descent(ubuntu) == compute_text_extent("x", ubuntu)[3] == 3
+    end
+
     @testset "the metrics scale with the size" begin
         small = font_dejavu_sans_regular_14
         large = font_dejavu_sans_regular_24

@@ -3,7 +3,7 @@
 > **Status:** in progress, in the worktree `projectured-julia-text-baseline` on
 > the branch `text-baseline`, from `c634a718`. Written 2026-09-25. The owner
 > decided the five questions of §5 on 2026-09-25, and asked on the same day to
-> start the work in a worktree. Steps 0 to 5 are done; Step 6 is next.
+> start the work in a worktree. Steps 0 to 5 and 7 are done; Step 6 waits for the owner.
 
 Text in the editor is laid out by the top of each run, measured with a height
 that is the em size, and drawn by backends that kern and hint as they like. This
@@ -649,10 +649,37 @@ projection holds its measure in one typed field, so the line model can not read 
 - [ ] **Step 6. The old contract goes.** `measure_truetype_text` as a pair,
   `measure_sdl_text`, `font_logical_size` as a height, and `measure_text` of the
   backends (question 5). The naming guard passes.
-- [ ] **Step 7. No ink is cut** (R6). A test walks a `WidgetTable` of text, a
+  *Part one, done:* the uses of the em size as a height go.
+  - `font_ascent` and `font_descent` are the box of a text in the font alone,
+    as `compute_text_extent("", font)` gives it: the rule of FreeType, rounded
+    up. They rounded the `hhea` values to the nearest pixel, so at Ubuntu 14
+    (13.05) the math put the baseline one pixel above where a backend draws it.
+  - The math typesetter takes the box of each text run and each glyph from the
+    text itself (`_get_text_ascent`), so a glyph that a fallback font draws sits
+    where a backend draws it.
+  - `GraphicsCaching` bounds a text by its box, where it took a width of 200
+    and the em size.
+  The suites of Step 0 fail as the base does. In the warm session,
+  `example_markdown` counts 4081 and `example_markdown_rendered` 3777; the
+  difference is in `test_typein`, and neither the old caching bounds nor the old
+  math metrics change it there. A fresh process on the branch counts 3911, as the
+  base does. So the typein count follows the history of the process, and a count
+  that moves must be measured in a fresh process, as the base was.
+  *Part two, waits for the owner:* `measure_text` is declared in
+  `BackendInterface.jl`, exported by `BackendModule.jl` and named in a comment of
+  `BackendDefaults.jl`. All three are sealed; the permission of §5 names only
+  the first. With it go `measure_truetype_text`, `measure_sdl_text` and the
+  run helpers of SDL, the `measure_text` methods of the SDL, web, video and
+  console backends, and their tests.
+- [x] **Step 7. No ink is cut** (R6). A test walks a `WidgetTable` of text, a
   card with a text body, a scroll pane with no height and a Markdown result in
   the chat pane, and asserts that the box of every text ends inside every
   viewport around it. It fails on the base commit.
+  *Done:* `test_text_ink_inside_viewports` (10) in
+  `test/projectured/projection/TextInkTest.jl`. It asserts that the walk sees
+  the texts of each case, and that it finds the cut of a viewport as high as
+  the em size. The test uses the new API, so it does not load on the base; the
+  probe of Step 0 found five cut texts in the same Markdown result there.
 - [ ] **Step 8. The suites of Step 0**, compared with the baseline. A moved pass
   count is explained before it is accepted.
 - [ ] **Step 9. The look, in a real window.** The application on `main` and on

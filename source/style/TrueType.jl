@@ -484,11 +484,10 @@ end
 # Vertical metrics
 # ════════════════════════════════════════════════════════════════════════
 #
-# A measurer answers `(width, height)`, and the two measurers answer different
-# heights: `measure_truetype_text` gives the em size, `measure_sdl_text` gives
-# the rasterized one. Neither says where the baseline sits, so a caller that
-# aligns boxes on a baseline — a math typesetter — reads the font's own table
-# instead. Every function below answers in *logical* pixels at
+# The metrics of a font in whole logical pixels, for a caller that places boxes
+# by their baseline, a math typesetter. The ascent and the descent are those of
+# the box of a text in the font alone (`compute_text_extent`), so a box placed by
+# them sits where a backend draws it. Every function below answers at
 # `font_logical_size(font)`, so a caller inside a computed cell reflows when the
 # user changes the font zoom.
 
@@ -498,24 +497,26 @@ _font_metric(font::StyleFont, units::Integer) =
 """
     font_ascent(font::StyleFont) -> Int
 
-Distance from the top of a text box down to its baseline, in logical pixels
-(the `hhea` ascender). A `GraphicsText` draws from the top of its box, so its
-baseline sits exactly this far below its `y`.
+The ascent of the box of a text in `font` alone, in whole logical pixels: the
+ascender by FreeType's rule, rounded up. A backend draws the baseline of such a
+text this far below its `y`. A glyph that a fallback font draws can make the box
+of a text taller: `compute_text_extent` gives the box of a given text.
 """
-font_ascent(font::StyleFont) = _font_metric(font, load_truetype_font(font.filename).ascent)
+font_ascent(font::StyleFont) = compute_text_extent("", font)[2]
 
 """
     font_descent(font::StyleFont) -> Int
 
-Distance from the baseline down to the bottom of a text box, in logical pixels.
-Positive, unlike the `hhea` descender it comes from.
+The descent of the box of a text in `font` alone, from the baseline down, in
+whole logical pixels: the descender by FreeType's rule, rounded up and positive.
 """
-font_descent(font::StyleFont) = _font_metric(font, -load_truetype_font(font.filename).descent)
+font_descent(font::StyleFont) = compute_text_extent("", font)[3]
 
 """
     font_line_height(font::StyleFont) -> Int
 
-The full height of a text box: the ascent plus the descent.
+The height of the box of a text in `font` alone: its ascent and its descent. A
+line of such a text also has the line gap of the font (`compute_line_box`).
 """
 font_line_height(font::StyleFont) = font_ascent(font) + font_descent(font)
 

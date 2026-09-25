@@ -105,7 +105,7 @@ function _box_ascent(b, m)
 end
 
 function _first_text_baseline(doc)
-    doc isa GraphicsText && return Int(doc.y[]) + font_ascent(doc.font)
+    doc isa GraphicsText && return Int(doc.y[]) + compute_text_extent(String(doc.text), doc.font)[2]
     doc isa GraphicsCanvas || return nothing
     for i in 1:length(doc.elements)
         inner = _first_text_baseline(doc.elements[i])
@@ -228,8 +228,8 @@ end
 _int32(f) = Cell(@computation Int32(f()))
 
 # One run of text. `x`/`y` are the top-left of its box, relative to the canvas
-# that holds it; a backend draws a glyph box from its top, so the baseline sits
-# `font_ascent` below `y`.
+# that holds it; a backend draws the baseline the ascent of that box below `y`
+# (`_get_text_ascent`).
 _text_element(text, font, color::StyleColor, x = () -> 0, y = () -> 0) =
     GraphicsText(Cell(Computation(text)), _int32(x), _int32(y), Cell(Computation(font)),
                  Cell(color), Cell(nothing))
@@ -247,6 +247,12 @@ _outline_element(x, y, w, h, color::StyleColor) =
                  Cell(Int32(2)), Cell(Int32(2)), Cell(Int32(2)), Cell(Int32(2)),
                  Cell(Int32(1)), Cell(color), Cell(nothing))
 
+# The distance from the `y` of a run of `text` in `font` down to its baseline,
+# where a backend draws it: the ascent of the box of the text. A fallback font
+# that draws the text can make it larger than the ascent of `font`.
+_get_text_ascent(c::MathConfig, text::AbstractString, font::StyleFont) =
+    compute_text_extent(c.measure, text, font)[2]
+
 # Put one already-built graphic at `(x, y)` inside its parent. The wrapper is
 # the same trick the layouts use: the child keeps its own coordinates at the
 # origin and the wrapper carries the position.
@@ -257,15 +263,16 @@ _place(child::GraphicsDocument, x::Cell, y::Cell) =
 """
     _glyph_box(config, text, font, color) -> MathGlyphBox
 
-A box holding one run of introduced text. Its width comes from the measurer and
-its ascent and descent from the font, so it sits on the same baseline as a leaf.
+A box holding one run of introduced text. Its width, ascent and descent are the
+box of the text as the measure gives it, so it sits on the same baseline as a
+leaf.
 """
 function _glyph_box(c::MathConfig, text::Function, font::Function,
                     color::StyleColor = c.ink)
     MathGlyphBox(_text_element(text, font, color),
-                 Cell(@computation first(compute_text_extent(c.measure, text(), font()))),
-                 Cell(@computation font_ascent(font())),
-                 Cell(@computation font_descent(font())))
+                 Cell(@computation compute_text_extent(c.measure, text(), font())[1]),
+                 Cell(@computation compute_text_extent(c.measure, text(), font())[2]),
+                 Cell(@computation compute_text_extent(c.measure, text(), font())[3]))
 end
 
 """
@@ -394,9 +401,9 @@ function _leaf_iomap(p, doc, text::Function, font::Function, color::StyleColor,
     build = Cell(Computation(function ()
         element = _text_element(text, font, color)
         _build(Any[element],
-               Cell(@computation first(compute_text_extent(c.measure, text(), font()))),
-               Cell(@computation font_ascent(font())),
-               Cell(@computation font_descent(font())),
+               Cell(@computation compute_text_extent(c.measure, text(), font())[1]),
+               Cell(@computation compute_text_extent(c.measure, text(), font())[2]),
+               Cell(@computation compute_text_extent(c.measure, text(), font())[3]),
                MathChild[])
     end))
     _math_iomap(p, doc, build)
@@ -666,13 +673,12 @@ function _delimiter_box(c::MathConfig, style::Symbol, kind::Symbol, side::Symbol
 end
 
 # Tile a delimiter out of its pieces. Each piece is placed by its *ink*: a
-# backend draws a glyph box from its top, so a piece whose ink top must land at
-# `top` is drawn at `top - ascent + ymax`.
+# backend draws the baseline of a piece the ascent of its box below its `y`, so a
+# piece whose ink top must land at `top` is drawn at `top - ascent + ymax`.
 function _tiled_delimiter(c::MathConfig, style::Symbol, pieces::NTuple{4, Char},
                           half::Function)
     m = compute_math_metrics(c, style)
     font = m.upright
-    ascent = font_ascent(font)
     height = 2 * half()
 
     top_piece, extension, bottom_piece, middle = pieces
@@ -687,7 +693,8 @@ function _tiled_delimiter(c::MathConfig, style::Symbol, pieces::NTuple{4, Char},
     elements = Any[]
     _draw(ch, ink_top, ymax) =
         push!(elements, _text_element(() -> string(ch), () -> font, c.ink,
-                                      () -> 0, () -> ink_top - ascent + ymax))
+                                      () -> 0,
+                                      () -> ink_top - _get_text_ascent(c, string(ch), font) + ymax))
 
     _draw(top_piece, 0, top_max)
     _draw(bottom_piece, height - bottom_h, bottom_max)
@@ -978,11 +985,11 @@ function print_document(p::MathRadicalToGraphics, recursion, doc::MathRadical, c
             m = metrics()
             Int32(ascent[] - _box_ascent(radicand, m) - 3 * m.rule)
         end))
-        # A glyph is drawn from the top of its box, so a sign whose ink top must
-        # land on the bar is drawn that far above it.
+        # A glyph is drawn with its baseline the ascent of its box below its `y`,
+        # so a sign whose ink top must land on the bar is drawn that far above it.
         sign_y = Cell(Computation(function ()
             font = sign_font()
-            Int32(bar_y[] - font_ascent(font) + font_glyph_bounds(font, '√')[2])
+            Int32(bar_y[] - _get_text_ascent(c, "√", font) + font_glyph_bounds(font, '√')[2])
         end))
         elements = Any[]
         push!(elements, _text_element(() -> "√", sign_font, c.ink,
@@ -1073,12 +1080,12 @@ function print_document(p::MathBigOperatorToGraphics, recursion, doc::MathBigOpe
         end))
         sign_reach_up = Cell(Computation(function ()
             m = metrics()
-            word && return font_ascent(sign_font())
+            word && return _get_text_ascent(c, glyph, sign_font())
             low, high = sign_ink[]
             (high - low) ÷ 2 + m.axis
         end))
         sign_reach_down = Cell(Computation(function ()
-            word && return font_descent(sign_font())
+            word && return compute_text_extent(c.measure, glyph, sign_font())[3]
             low, high = sign_ink[]
             (high - low) - sign_reach_up[]
         end))
@@ -1086,7 +1093,7 @@ function print_document(p::MathBigOperatorToGraphics, recursion, doc::MathBigOpe
         sign_y = Cell(Computation(function ()
             font = sign_font()
             word && return 0
-            font_glyph_bounds(font, first(glyph))[2] - font_ascent(font)
+            font_glyph_bounds(font, first(glyph))[2] - _get_text_ascent(c, glyph, font)
         end))
 
         limit_width = Cell(Computation(function ()
@@ -1449,7 +1456,7 @@ function print_document(p::MathAccentToGraphics, recursion, doc::MathAccent, ctx
             glyph_width = Cell(@computation first(compute_text_extent(c.measure, glyph, font())))
             push!(elements, _text_element(() -> glyph, font, c.ink,
                                           () -> (width[] - glyph_width[]) ÷ 2,
-                                          () -> -font_ascent(font()) +
+                                          () -> -_get_text_ascent(c, glyph, font()) +
                                                 font_ascent(metrics().upright) ÷ 4))
         end
         _build(elements, width, ascent, descent, children)

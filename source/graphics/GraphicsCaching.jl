@@ -59,11 +59,12 @@ function _compute_bounds(canvas::GraphicsCanvas)
     min_x, min_y, max_x, max_y = typemax(Int), typemax(Int), 0, 0
     for elem in canvas.elements
         if elem isa GraphicsText
-            x, y, fs = Int(elem.x), Int(elem.y), font_logical_size(elem.font)
+            x, y = Int(elem.x), Int(elem.y)
+            width, ascent, descent = compute_text_extent(elem.text, elem.font)
             min_x = min(min_x, x)
             min_y = min(min_y, y)
-            max_x = max(max_x, x + 200)  # approximate width
-            max_y = max(max_y, y + fs)
+            max_x = max(max_x, x + width)
+            max_y = max(max_y, y + ascent + descent)
         elseif elem isa GraphicsRect
             x, y, w, h = Int(elem.x), Int(elem.y), Int(elem.w), Int(elem.h)
             min_x = min(min_x, x)
@@ -138,8 +139,9 @@ function read_intent(::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, evt)
     best_x  = -1
     for (i, elem) in enumerate(elems)
         elem isa GraphicsText || continue
-        x, y, fs = Int(elem.x), Int(elem.y), font_logical_size(elem.font)
-        evt.y >= y && evt.y < y + fs || continue
+        x, y = Int(elem.x), Int(elem.y)
+        _, ascent, descent = compute_text_extent(elem.text, elem.font)
+        evt.y >= y && evt.y < y + ascent + descent || continue
         x <= evt.x && x > best_x || continue
         best_x = x
         best_i = i
