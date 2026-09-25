@@ -314,9 +314,18 @@ to the readers.
   right press that no layer claims gives no operation (F4).
   `test_window_shell`, the two widget shell tests, `test_window_wrap`,
   `test_context_menu_probe` and `test_application`: 496 pass, 0 fail.
-- [ ] 7. **omnet-julia.** `IdeWindow.jl` imports `make_popup_screen_wrap`; the
+- [x] 7. **omnet-julia.** `IdeWindow.jl` imports `make_popup_screen_wrap`; the
   import and the keyword go. Land after projectured-julia, and run
   `Pkg.resolve()` where a manifest names a changed package.
+
+  Done on the branch `popup-position` of omnet-julia. `IdeWindow.jl` imported
+  the wrap and never called it, so the IDE window had no popup wrap and its
+  popups never opened; with this design they need none. The IDE builds its
+  popup rows with `make_opened_window_projections`, so its popups draw too. No
+  package gains or loses a dependency, so the closure guards do not move.
+  Tested in a temporary environment that reaches both worktrees:
+  `test_ide_window_wrap` and `test_ide_file_navigator`, 41 pass; the naming
+  checks of omnet-julia find nothing. Land after projectured-julia.
 - [ ] 8. **The documents.** `widget.md`, `screen.md`, `shell.md`,
   `clipboard.md`, the note in the docstring of `map_reference_forward` that a
   popup position is not its job, and the anchored-layout document if it names
