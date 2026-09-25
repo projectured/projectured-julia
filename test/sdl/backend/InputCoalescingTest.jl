@@ -117,13 +117,21 @@ function test_input_coalescing()
         sleep(0.1)
         _push_button_up!(10, 10)
         sleep(0.5)
-        release = pop_gesture!(recognizer, source)
-        @test release.event isa MouseUp
-        press = pop_gesture!(recognizer, source)
-        @test press !== nothing && press.event isa MousePress
-        @test press !== nothing && press.event.count == 1
+        # Read what waits, for a bounded number of reads: an idle motion that the
+        # rate limit holds back can make a read answer nothing.
+        gestures = Any[]
+        for _ in 1:20
+            gesture = pop_gesture!(recognizer, source)
+            gesture === nothing ? sleep(0.01) : push!(gestures, gesture.event)
+            any(event -> event isa MousePress, gestures) && break
+        end
+        release = findfirst(event -> event isa MouseUp, gestures)
+        press = findfirst(event -> event isa MousePress, gestures)
+        @test release !== nothing
+        @test press !== nothing && gestures[press].count == 1
         # The events are 0.1 s apart, although the release was read 0.6 s later.
-        @test 0.05 < get_event_time(release.event) - get_event_time(down.event) < 0.3
+        @test release !== nothing &&
+              0.05 < get_event_time(gestures[release]) - get_event_time(down.event) < 0.3
         _reset_input!(backend)
     end
 

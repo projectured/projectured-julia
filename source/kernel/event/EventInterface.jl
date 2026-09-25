@@ -9,11 +9,12 @@ The supertype of every input event. An event reports what happened, and when. It
 carries no intent: the code that reads it gives it a meaning.
 
 Every concrete event holds `time`, the time of the input in seconds on the clock
-of `time()`, as its last field. The time is mandatory: each constructor takes it,
-the full constructor as its last argument and the short forms as the keyword
-`time`. A backend gives the time of the input from its own stamps. Code that
-makes an event from another event gives the time of that event. Code that makes
-an event with no input before it gives the time when it makes the event.
+of `time()`, as its last field; an event type of another package holds it too.
+The time is mandatory: each constructor takes it, the full constructor as its
+last argument and the short forms as the keyword `time`. A backend gives the time
+of the input from its own stamps. Code that makes an event from another event
+gives the time of that event. Code that makes an event with no input before it
+gives the time when it makes the event.
 """
 abstract type Event end
 

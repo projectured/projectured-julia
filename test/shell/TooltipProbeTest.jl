@@ -64,7 +64,7 @@ end
 
 _move(composed, scene, x, y) = _tooltip_read(composed, scene, MouseMove(x, y; time = 0.0))
 _rest(composed, scene, feed) =
-    _tooltip_read(composed, scene, PointerRest(feed.rest.x, feed.rest.y))
+    _tooltip_read(composed, scene, PointerRest(feed.rest.x, feed.rest.y; time = 0.0))
 
 # Whether an operation is, or holds, one of type `T`.
 _holds_operation(op, T) =

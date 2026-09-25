@@ -9,16 +9,21 @@
 # probe answers it; every other reader declines a gesture it does not know.
 
 """
-    PointerRest(x, y)
+    PointerRest(x, y; time)
+    PointerRest(x, y, time)
 
 The pointer has rested at `(x, y)`, in the frame of the window it is in, for as
 long as a tooltip waits. A [`TooltipFeed`](@ref) reads it through the editor's
-projection when its deadline passes, and a `TooltipProbeProjection` answers it.
+projection when its deadline passes, with the time of that moment, and a
+`TooltipProbeProjection` answers it.
 """
 struct PointerRest <: SyntheticEvent
     x::Int
     y::Int
+    time::Float64
 end
+
+PointerRest(x::Int, y::Int; time::Real) = PointerRest(x, y, Float64(time))
 
 """
     TooltipRest()
@@ -86,9 +91,9 @@ function drain_changes!(feed::TooltipFeed, editor)
     rest.moved_at = nothing
     editor.iomap === nothing && return 0
     window = something(feed.window, first(editor.document.windows).id)
+    gesture = PointerRest(rest.x, rest.y; time = time())
     change = read_intent(editor.projection, nothing,
-                         Intent(WindowInput(window, PointerRest(rest.x, rest.y)), nothing),
-                         editor.iomap)
+                         Intent(WindowInput(window, gesture), nothing), editor.iomap)
     operation = change isa Intent ? change.operation : change
     operation isa Operation || return 0
     post_operation!(editor, operation)

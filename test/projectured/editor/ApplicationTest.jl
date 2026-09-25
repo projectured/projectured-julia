@@ -1222,7 +1222,7 @@ function test_application()
                             print_document(composed, scene))
                 @test length(scene.windows) == before
                 read_intent(composed, nothing,
-                            Intent(WindowInput(:ProjecturEd, PointerRest(x, y))),
+                            Intent(WindowInput(:ProjecturEd, PointerRest(x, y; time = 0.0))),
                             print_document(composed, scene))
                 @test length(scene.windows) == before + 1
                 tip = last(scene.windows)

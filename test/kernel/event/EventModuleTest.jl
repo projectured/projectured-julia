@@ -11,6 +11,7 @@ using ProjecturedKernel.EventModule
 struct EmTestRestEvent <: SyntheticEvent
     x::Int
     y::Int
+    time::Float64
 end
 
 # The value of the result of `rule` for `value`, with the bound fields in scope: the
@@ -73,7 +74,7 @@ function test_event_module()
             EmTestRestEvent(x, y) => (x, y)
             _                     => nothing
         end
-        @test rest(EmTestRestEvent(3, 4)) == (3, 4)
+        @test rest(EmTestRestEvent(3, 4, 0.0)) == (3, 4)
         @test rest(KeyPress('a'; time = 0.0)) === nothing
         rule = parse_event_pattern_rule(:(EmTestRestEvent(x) => x); scope = @__MODULE__)
         @test rule.type === EmTestRestEvent
