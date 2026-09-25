@@ -94,7 +94,7 @@ end # @testset
 
 @testset "WidgetCheckbox click emits the toggle convention operation" begin
 
-    stub(t, f) = (length(t) * 10, 24)
+    stub = FixedMeasure(10, 18, 6, 0)
     font = font_ubuntu_monospace_regular_20
     w2g  = WidgetToGraphics(font; measure=stub)
     cb_proj = first(pr for (T, pr) in w2g.dispatch if T === WidgetCheckbox)
@@ -214,7 +214,7 @@ end # @testset
     # card's child entries.
     proj = RecursiveProjection(TypeDispatchingProjection(
         WidgetToGraphics(font_ubuntu_monospace_regular_20;
-                         measure = (t, f) -> (length(t) * 10, 24)).dispatch))
+                         measure = FixedMeasure(10, 18, 6, 0)).dispatch))
     button = WidgetButton("Go"; size = Point2D(120, 40))
     card = WidgetCard(; title="t", content=button, width=240)
     iomap = print_document(proj, nothing, card, PrinterContext())

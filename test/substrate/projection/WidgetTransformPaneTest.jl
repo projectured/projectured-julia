@@ -8,7 +8,7 @@ function test_widget_transform_pane()
     _written(op) = get_wrapped_operation(op).value
 
     # Deterministic measure: "M" → (10, 24), so the pan step (line height) is 24.
-    _stub(t, f) = (max(1, length(t)) * 10, 24)
+    _stub = FixedMeasure(10, 18, 6, 0)
     _proj() = make_widget_projection_example(measure=_stub)
 
     # A pane with no insets, so the content offset is (0, 0) and the cursor

@@ -121,7 +121,7 @@ function test_formula_math()
             FormulaFormula("p_{block}", parse_math("((1 - ρ) ρ^n)/(1 - ρ^(n + 1))")),
             FormulaFormula("twice", parse_julia("2 * rho")),
         ])
-        renderer = NaturalToGraphics(measure = measure_truetype_text)
+        renderer = NaturalToGraphics(measure = FontFileMeasure())
         context = with_exact_size(PrinterContext();
                                   width = Cell(Int32(800)), height = Cell(Int32(600)))
         canvas = print_document(renderer, nothing, sheet, context).output

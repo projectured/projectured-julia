@@ -20,7 +20,7 @@ mutable struct _ToolViewMockEditor; document::Any; end
 function test_tool_views()
 @testset "every tool view draws itself" begin
 
-_stub(t, f) = (max(1, length(t)) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 
 # Every word the canvas draws, joined.
 function drawn(node, depth = 0)
@@ -107,7 +107,7 @@ end
 function test_selection_inspector()
 @testset "the selection view follows what its source names" begin
 
-_stub(t, f) = (max(1, length(t)) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 
 function drawn(node, depth = 0)
     depth > 40 && return ""
@@ -183,7 +183,7 @@ end
 function test_gesture_log_in_tab()
 @testset "a gesture log in a tab fills" begin
 
-_stub(t, f) = (max(1, length(t)) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 
 log = get_session_gesture_log()
 clear_gesture_log!(log)
@@ -233,7 +233,7 @@ end
 function test_message_log()
 @testset "a log view captures log statements" begin
 
-_stub(t, f) = (max(1, length(t)) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 
 function drawn(node, depth = 0)
     depth > 40 && return ""

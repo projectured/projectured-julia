@@ -51,7 +51,7 @@ function make_window_shell_document(document; menu_bar = nothing, toolbar = noth
 end
 
 """
-    make_window_shell_projection(projection; measure = measure_truetype_text,
+    make_window_shell_projection(projection; measure::TextMeasure = FontFileMeasure(),
                                  font = font_ubuntu_regular_20) -> Projection
 
 How a window inside its chrome is drawn: the shell's own bands are widgets, and
@@ -60,7 +60,7 @@ exactly as it was before the shell.
 
 Pairs with [`make_window_shell_document`](@ref).
 """
-make_window_shell_projection(projection; measure = measure_truetype_text,
+make_window_shell_projection(projection; measure::TextMeasure = FontFileMeasure(),
                              font = font_ubuntu_regular_20) =
     RecursiveProjection(TypeDispatchingProjection(vcat(
         WidgetToGraphics(font; measure = measure).dispatch,

@@ -493,7 +493,7 @@ end
 # (and nothing above it) back through this dispatch, with the content's
 # reference being `windows[i].content` (the i-th window is an
 # `ElementReferenceStep`), which is how the target paths are built.
-function _multi_window_projection(projections::Vector; measure=measure_truetype_text)
+function _multi_window_projection(projections::Vector; measure=FontFileMeasure())
     n = length(projections)
     targets = Vector{Any}(undef, n)
     for i in 1:n
@@ -570,7 +570,7 @@ end
 # Same shape as `_multi_window_projection` but with the four extra type
 # entries needed for tooltip support, sitting in front of the existing
 # reference-based dispatch for example content.
-function _multi_window_projection_tooltipped(projections::Vector; measure=measure_truetype_text)
+function _multi_window_projection_tooltipped(projections::Vector; measure=FontFileMeasure())
     n = length(projections)
     targets = Vector{Any}(undef, n)
     for i in 1:n
@@ -613,7 +613,7 @@ end
 # `ReferenceInspector` type entry renders that window's content (compact +
 # human-readable reference) down to graphics. `pointer` is the global-mouse
 # closure used to make the follower window track the cursor.
-function _multi_window_projection_inspector(projections::Vector; measure=measure_truetype_text, pointer)
+function _multi_window_projection_inspector(projections::Vector; measure=FontFileMeasure(), pointer)
     n = length(projections)
     targets = Vector{Any}(undef, n)
     for i in 1:n

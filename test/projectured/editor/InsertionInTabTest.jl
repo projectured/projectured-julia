@@ -17,7 +17,7 @@ mutable struct _InsertTabMockEditor; document::Any; end
 function test_insertion_in_tab()
 @testset "A tab makes a document from the Insert key" begin
 
-_stub(t, f) = (max(1, length(t)) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 
 # The layout starts with one tab, not with an empty group. A group that was
 # printed with no tab does not draw the first tab that arrives — the standing

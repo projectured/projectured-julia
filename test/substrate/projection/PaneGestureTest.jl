@@ -14,7 +14,7 @@ PaneModule.get_document_title(content::_PaneTitledContent) = String(content.name
 function test_pane_gestures()
 @testset "PaneTree gestures" begin
 
-_stub(t, f) = (max(1, length(t)) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 _tab(name) = PaneTab(name, WidgetLabel(name))
 # The example projection, so a fresh tab's own content (an empty text document)
 # renders like it does in the real layout.

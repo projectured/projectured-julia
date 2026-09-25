@@ -7,7 +7,7 @@ end
 function test_pane_to_widget()
 @testset "PaneToWidget" begin
 
-_stub(t, f) = (max(1, length(t)) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 _tab(name) = PaneTab(name, WidgetLabel(name))
 _pane_stage() = RecursiveProjection(PaneToWidget())
 # The pane tree prints as an overlay composite: the layout in slot 1, the drop

@@ -61,7 +61,7 @@ end
     # A key with no rule gets no operation, and the gesture is never the answer.
     @test read_intent(proj, iomap, KeyDown(:tab, ModifierKeys(); time = 0.0)) === nothing
     # In a chain, the stage before the numbering then gets the key.
-    measure(text, font) = (max(1, length(text)) * 10, 24)
+    measure = FixedMeasure(10, 18, 6, 0)
     chain = ChainingProjection(TextLineNumbering(), TextToGraphics(measure = measure))
     chain_iomap = print_document(chain, input)
     @test read_intent(chain, chain_iomap, KeyDown(:tab, ModifierKeys(); time = 0.0)) === nothing

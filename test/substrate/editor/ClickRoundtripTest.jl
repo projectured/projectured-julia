@@ -73,11 +73,13 @@ function _pipeline_measure(projection)
     nothing
 end
 
-function _segment_x_at(sc::SegmentCoordinate, k::Int, measure)
+# The x of the character boundary `k` of a segment: the pen position where the
+# character after it starts, as the caret stands.
+function _segment_x_at(sc::SegmentCoordinate, k::Int, measure::TextMeasure)
     local_pos = k - sc.char_start
     local_pos <= 0 && return sc.x
-    prefix = first(sc.text, min(local_pos, length(sc.text)))
-    sc.x + measure(prefix, sc.font)[1]
+    offsets = compute_caret_offsets(measure, sc.text, sc.font)
+    sc.x + round(Int, offsets[min(local_pos, length(sc.text)) + 1])
 end
 
 # True if any step in `path` is a ProjectionReferenceStep. Such paths are valid

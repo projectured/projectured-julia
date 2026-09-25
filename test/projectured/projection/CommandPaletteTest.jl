@@ -155,7 +155,7 @@ function test_command_palette_decorator()
     # The real JSON pipeline, down to graphics — the decorator draws over graphics.
     mkarr() = (a = JsonArray([JsonNumber(1)]); set_selection!(a, EmptyReference()); a)
     mkpalette(state) = CommandPaletteDecoratorProjection(inner = make_json_projection_example(),
-                                                measure = measure_truetype_text, state = state)
+                                                measure = FontFileMeasure(), state = state)
 
     @testset "the summoning gesture opens the palette and toggles it shut" begin
         state = CommandPaletteState()
@@ -367,7 +367,7 @@ function test_command_palette_decorator()
         set_selection!(doc, EmptyReference())
         set_selection!(inner_json, EmptyReference())
         p = CommandPaletteDecoratorProjection(inner = make_clipboard_projection(make_json_projection_example()),
-                                     measure = measure_truetype_text)
+                                     measure = FontFileMeasure())
         iomap = print_document(p, doc)
         read_intent(p, iomap, summon)
         rows = p.state.palette.rows

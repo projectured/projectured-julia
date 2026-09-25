@@ -1,4 +1,4 @@
-function make_markdown_projection_example(; measure=measure_truetype_text)
+function make_markdown_projection_example(; measure=FontFileMeasure())
     ChainingProjection(
         RecursiveProjection(MarkdownToSyntax()),
         RecursiveProjection(SyntaxToText()),
@@ -10,7 +10,7 @@ end
 # headings, real bold/italic, plain inline code, `•` bullets, `▏` quote bars,
 # `───` rules, blue links. Word-wrapped like prose: at the edge of its range,
 # and at 800 px at most.
-function make_markdown_rendered_projection_example(; measure=measure_truetype_text)
+function make_markdown_rendered_projection_example(; measure=FontFileMeasure())
     ChainingProjection(
         RecursiveProjection(MarkdownToSyntax(; style=:rendered)),
         RecursiveProjection(SyntaxToText()),

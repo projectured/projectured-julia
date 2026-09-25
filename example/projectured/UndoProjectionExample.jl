@@ -12,7 +12,7 @@
 #   Ctrl+Z           take the last change back
 #   Ctrl+Y           put it back
 #   Ctrl+Shift+Z     put it back
-function make_undo_projection_example(; measure=measure_truetype_text)
+function make_undo_projection_example(; measure=FontFileMeasure())
     ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(
             UndoBuffer      => UndoBufferToAnyProjection(),
@@ -35,7 +35,7 @@ end
 # per step, newest at the top, with a marker for where the document stands now.
 # It is the other half of the pair — `make_undo_projection_example` draws the
 # document and the buffer is invisible; this one draws the buffer itself.
-function make_undo_history_projection_example(; measure=measure_truetype_text)
+function make_undo_history_projection_example(; measure=FontFileMeasure())
     ChainingProjection(
         UndoBufferToSyntax(),
         RecursiveProjection(SyntaxToText()),

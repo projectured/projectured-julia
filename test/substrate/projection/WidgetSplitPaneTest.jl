@@ -7,7 +7,7 @@
 function test_widget_split_pane()
 @testset "WidgetSplitPane reflow" begin
 
-_stub(t, f) = (max(1, length(t)) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 _proj() = make_widget_projection_example(measure = _stub)
 # The renderer without the chain around it, so a test can read the split pane's
 # own IoMap rather than the chain's.

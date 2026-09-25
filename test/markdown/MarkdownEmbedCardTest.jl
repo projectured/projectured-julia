@@ -7,7 +7,7 @@
 function test_markdown_embed_card()
 @testset "an embedded file wears a card titled with its name" begin
 
-_measure = (t, f) -> (length(t) * 8, 16)
+_measure = FixedMeasure(8, 12, 4, 0)
 
 function _texts(node, found = String[])
     if node isa GraphicsCanvas

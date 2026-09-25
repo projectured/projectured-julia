@@ -10,9 +10,9 @@
 # (arrow keys, home/end) and to translate downstream mouse-click selections
 # into character positions.
 #
-# Text measurement is provided via the mandatory `measure(text, font) -> (w, h)`
-# function parameter. Backends inject a real measurer (e.g. `measure_sdl_text`)
-# at construction time.
+# Text is measured by the mandatory `measure`, a `TextMeasure`: `FontFileMeasure()`
+# in the application and the exports, as every backend draws, and a `FixedMeasure`
+# in a test.
 """
     SegmentCoordinate(span_path, char_start, char_end, x, y, font, text, width, height)
 
@@ -57,12 +57,23 @@ end
 struct TextToGraphics <: Projection
     start_x::Int
     start_y::Int
-    measure::Function   # (text, font) -> (width, height)
+    measure::TextMeasure
 end
 
-function TextToGraphics(; start_x::Int=0, start_y::Int=0, measure::Function)
+function TextToGraphics(; start_x::Int=0, start_y::Int=0, measure::TextMeasure)
     TextToGraphics(start_x, start_y, measure)
 end
+
+# The width of `text` in `font` and the height of a line that holds it alone.
+function _compute_line_size(measure::TextMeasure, text::AbstractString, font::StyleFont)
+    line = compute_line_box(measure, text, font)
+    (line.width, line.height)
+end
+
+# The x of the character boundary `position` of `text` in `font`, from the start
+# of the text: the pen position where the character after it starts.
+_get_caret_x(measure::TextMeasure, text::AbstractString, font::StyleFont, position::Int) =
+    round(Int, compute_caret_offsets(measure, text, font)[position + 1])
 
 function map_reference_forward(::TextToGraphics, iomap, reference)
     return nothing
@@ -559,17 +570,17 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
             if li > 1
                 # A caret beside the '\n' can stand on a line with no glyph yet,
                 # so it is at least as tall as a line in the span's font.
-                row_h = max(line_h, p.measure(" ", sf)[2], 1)
+                row_h = max(line_h, _compute_line_size(p.measure, "", sf)[2], 1)
                 # caret BEFORE the '\n' (char_offset still points at it)
                 at_caret(char_offset) && (cursor = (cx, cy, row_h))
                 max_cx = max(max_cx, cx)   # fold this sub-line's extent in before the reset
                 cx = p.start_x
                 # An empty sub-line still keeps one row of height.
-                cy += line_h > 0 ? line_h : p.measure(" ", sf)[2]
+                cy += line_h > 0 ? line_h : _compute_line_size(p.measure, "", sf)[2]
                 line_h = 0
                 char_offset += 1           # count the '\n'
                 # caret AFTER the '\n' — now at the start of the next sub-line
-                at_caret(char_offset) && (cursor = (cx, cy, max(p.measure(" ", sf)[2], 1)))
+                at_caret(char_offset) && (cursor = (cx, cy, max(_compute_line_size(p.measure, "", sf)[2], 1)))
             end
 
             # An empty first sub-line is an empty span, or one that starts with
@@ -577,18 +588,18 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
             # takes the height of a line in the span's font.
             if isempty(line)
                 li == 1 && at_caret(char_offset) &&
-                    (cursor = (cx, cy, max(line_h, p.measure(" ", sf)[2], 1)))
+                    (cursor = (cx, cy, max(line_h, _compute_line_size(p.measure, "", sf)[2], 1)))
                 # An empty line draws no glyph, but it has a place: a zero-width
                 # coordinate where a caret on it stands, so a key moves the caret
                 # onto the line and off it. One on a line that draws a glyph is
                 # dropped below.
                 push!(coord_map, SegmentCoordinate(path, char_offset, char_offset, cx, cy,
-                                                   sf, "", 0, p.measure(" ", sf)[2]))
+                                                   sf, "", 0, _compute_line_size(p.measure, "", sf)[2]))
                 continue
             end
 
             # No wrap: emit the whole sub-line as a single segment.
-            seg_w, seg_h = p.measure(line, sf)
+            seg_w, seg_h = _compute_line_size(p.measure, line, sf)
             line_h = max(line_h, seg_h)
             seg_x = cx
             seg_char_start = char_offset
@@ -609,8 +620,7 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
             if cursor === nothing && cursor_pos !== nothing && cursor_pos.span == path &&
                seg_char_start <= cursor_pos.char <= seg_char_start + seg_len
                 local_pos = cursor_pos.char - seg_char_start
-                cursor = (seg_x + (local_pos > 0 ? p.measure(first(line, local_pos), sf)[1] : 0),
-                          cy, max(line_h, 1))
+                cursor = (seg_x + _get_caret_x(p.measure, line, sf, local_pos), cy, max(line_h, 1))
             end
             cx += seg_w
             char_offset += seg_len
@@ -630,7 +640,7 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
         # because a caret can stand in it. The empty group left behind by a
         # *trailing* newline is not a line at all, and keeps its zero height.
         font = _line_height_font(group, block_font)
-        height = font === nothing ? 0 : p.measure(" ", font)[2]
+        height = font === nothing ? 0 : _compute_line_size(p.measure, "", font)[2]
     end
     (spans = result, by_key = by_key, coord_map = coord_map,
      width = max_cx, height = height, cursor = cursor)
@@ -689,10 +699,10 @@ function _indent_width(p::TextToGraphics, group, block_font::Cell)
     group.indentation > 0 || return 0
     for (_, span) in group.spans
         font = _element_font(span)
-        font === nothing || return p.measure(" "^group.indentation, font)[1]
+        font === nothing || return first(compute_text_extent(p.measure, " "^group.indentation, font))
     end
     font = block_font[]
-    font === nothing ? 0 : p.measure(" "^group.indentation, font)[1]
+    font === nothing ? 0 : first(compute_text_extent(p.measure, " "^group.indentation, font))
 end
 
 # The font an empty line is sized with. A flat block carries it on the
@@ -927,7 +937,7 @@ function _layout_paragraph(p::TextToGraphics, spans::Vector, y_offset::Int)
 
         isempty(txt) && continue
 
-        seg_w, seg_h = p.measure(txt, sf)
+        seg_w, seg_h = _compute_line_size(p.measure, txt, sf)
         line_h = max(line_h, seg_h)
         _push_fill_rect!(result, span, cx, 0, seg_w, seg_h)
         push!(result, _make_sdl(txt, cx, 0, sf, col))
@@ -951,8 +961,7 @@ function _paragraph_height(p::TextToGraphics, spans::Vector)
         txt = span.content::AbstractString
         sf  = span.font::StyleFont
         isempty(txt) && continue
-        _, h = p.measure(txt, sf)
-        line_h = max(line_h, h)
+        line_h = max(line_h, _compute_line_size(p.measure, txt, sf)[2])
     end
     line_h
 end
@@ -982,16 +991,15 @@ end
 
 # ── Reader helpers ──────────────────────────────────────────────────────
 
-function _seg_cursor_x(sc::SegmentCoordinate, cursor_pos::Int, measure::Function)
+function _seg_cursor_x(sc::SegmentCoordinate, cursor_pos::Int, measure::TextMeasure)
     local_pos = cursor_pos - sc.char_start
     local_pos <= 0 && return sc.x
     # Image segment: char_end=1 means "after the image" → right edge at x+width.
     isempty(sc.text) && return sc.x + sc.width
-    prefix = first(sc.text, min(local_pos, length(sc.text)))
-    sc.x + measure(prefix, sc.font)[1]
+    sc.x + _get_caret_x(measure, sc.text, sc.font, min(local_pos, length(sc.text)))
 end
 
-function _char_position_at_x(sc::SegmentCoordinate, target_x::Int, measure::Function)
+function _char_position_at_x(sc::SegmentCoordinate, target_x::Int, measure::TextMeasure)
     txt = sc.text
     # Image segment: binary left/right half decision about the image box.
     if isempty(txt) && sc.char_start == 0 && sc.char_end == 1
@@ -1000,8 +1008,9 @@ function _char_position_at_x(sc::SegmentCoordinate, target_x::Int, measure::Func
     end
     best_k    = 0
     best_dist = abs(sc.x - target_x)
+    offsets = compute_caret_offsets(measure, txt, sc.font)
     for k in 1:length(txt)
-        xk = sc.x + measure(first(txt, k), sc.font)[1]
+        xk = sc.x + round(Int, offsets[k + 1])
         d  = abs(xk - target_x)
         if d < best_dist
             best_dist = d

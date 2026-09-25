@@ -59,10 +59,9 @@ const TIMELINE = vcat(
 # caret out of a container show too.
 _shows_in_overlay(gesture, operation) = !(operation === nothing || operation isa DoNothingOperation)
 
-# The video draws through SDL, whose hinted advances are whole pixels, so the
-# panel measures its text the same way: with the advances of the font file, a
-# long line draws wider than the panel. The check draws nothing and needs no SDL.
-function _with_gesture_overlay(projection; capacity = GESTURE_LINES, measure = measure_sdl_text)
+# The panel measures its text from the font files, where SDL draws each glyph,
+# so a long line fits the panel. The check draws nothing and needs no SDL.
+function _with_gesture_overlay(projection; capacity = GESTURE_LINES, measure = FontFileMeasure())
     log = GestureLog(; capacity = capacity)
     GestureLogRecordingProjection(
         inner = GestureLogOverlayProjection(inner = projection, log = log, anchor = :bottom_right,
@@ -80,7 +79,7 @@ function make_editor()
     document = make_seed()
     # The check keeps every line of the log, to show the longest one.
     projection = GESTURES ? _with_gesture_overlay(example.make_projection(); capacity = 1000,
-                                                  measure = measure_truetype_text) :
+                                                  measure = FontFileMeasure()) :
                             example.make_projection()
     set_selection!(document, EmptyReference())
     editor = Editor(ConsoleBackend(), document, projection, Device[Display(), Keyboard(), Mouse()])

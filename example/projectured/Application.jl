@@ -132,14 +132,14 @@ function _make_application_pane_tree(tabs, navigator, assistant)
 end
 
 """
-    make_application_content_projections(; measure = measure_truetype_text) -> Vector{Pair{Type,Any}}
+    make_application_content_projections(; measure = FontFileMeasure()) -> Vector{Pair{Type,Any}}
 
 How the application draws what a tab holds, in front of the defaults of
 `NaturalToGraphics`: the domains with an editor projection of their own, the
 assistant and its conversation, and plain text. The navigator draws through
 its own registered row.
 """
-function make_application_content_projections(; measure = measure_truetype_text)
+function make_application_content_projections(; measure = FontFileMeasure())
     text_to_graphics = ChainingProjection(WordWrapping(measure = measure),
                                           TextToGraphics(measure = measure))
     conversation_rows = Pair{Type,Any}[
@@ -182,7 +182,7 @@ function make_application_content_projections(; measure = measure_truetype_text)
 end
 
 """
-    make_application_projection(; measure = measure_truetype_text)
+    make_application_projection(; measure = FontFileMeasure())
 
 How the content of the application window is drawn: the pane tree or the
 workbench, and the domains inside it.
@@ -192,14 +192,14 @@ command palette, the walk and the clipboard — come from
 [`make_window_wrap`](@ref), which needs the document as well as the projection.
 [`make_application_window`](@ref) is where the two meet.
 """
-function make_application_projection(; measure = measure_truetype_text)
+function make_application_projection(; measure = FontFileMeasure())
     content = make_application_content_projections(measure = measure)
     _make_application_pane_projection(content, measure)
 end
 
 """
     make_application_window(paths; root = pwd(), assistant = nothing,
-                            pointer = nothing, measure = measure_truetype_text)
+                            pointer = nothing, measure = FontFileMeasure())
         -> (document, projection)
 
 The application window, wrappers and all: the document of
@@ -226,7 +226,7 @@ a cut would write into the record.
 function make_application_window(paths::AbstractVector;
                                  root::AbstractString = pwd(), assistant = nothing,
                                  pointer = nothing, tooltip_feed = nothing,
-                                 measure = measure_truetype_text)
+                                 measure = FontFileMeasure())
     document = make_application_document(paths; root = root, assistant = assistant)
     projection = make_application_projection(; measure = measure)
     make_window_wrap(; gesture_help = true, command_palette = true,
@@ -375,7 +375,7 @@ function run_application(paths::AbstractString...;
                          root::AbstractString = pwd(), context::Integer = 0,
                          width = nothing, height = nothing,
                          fault_policy::FaultPolicy = FaultPolicy(),
-                         measure = measure_truetype_text)
+                         measure = FontFileMeasure())
     chat = make_application_assistant(assistant; model = model, context = context)
     backend === nothing && (backend = default_backend())
     # The tooltip waits for the pointer to rest, and the loop is what keeps time,

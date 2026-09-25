@@ -51,7 +51,7 @@ and its own window dispatch into the same renderer, so its
 atoms compile through the projection its reader will actually meet.
 """
 function precompile_atoms(atoms;
-                          projection = NaturalToGraphics(measure = measure_truetype_text))
+                          projection = NaturalToGraphics(measure = FontFileMeasure()))
     context = PrinterContext(EmptyReference(),
                              Cell(1200),
                              Cell(800),

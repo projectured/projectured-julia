@@ -75,7 +75,7 @@ composed of what a session loaded and one that must carry everything.
 struct PhraseToGraphics <: Projection
     message::Any
     style::StyleText
-    measure::Any
+    measure::TextMeasure
 end
 
 function print_document(p::PhraseToGraphics, recursion, document, ctx)
@@ -93,8 +93,8 @@ _unsupported_message(document) =
         -> RecursiveProjection
 
 Build the natural projection: a recursive type-dispatching projection mapping
-almost any document to a `GraphicsCanvas`. `measure(text, font) -> (w, h)` is the
-text-measurement function (backend-supplied; e.g. `measure_truetype_text`).
+almost any document to a `GraphicsCanvas`. `measure` is the `TextMeasure` the
+layout measures text with (backend-supplied; e.g. `FontFileMeasure()`).
 
 - `font`    — base font for widget/text rendering.
 - `wrap`    — word-wrap prose (`TextDocument`). Structured syntax/code is always
@@ -105,7 +105,7 @@ text-measurement function (backend-supplied; e.g. `measure_truetype_text`).
               renderer for a structural document) without forking the table.
               First match wins, so `extra` beats the defaults.
 """
-function NaturalToGraphics(; measure::Function,
+function NaturalToGraphics(; measure::TextMeasure,
                            font = font_ubuntu_monospace_regular_20,
                            wrap::Bool = true,
                            extra = Pair{Type,Any}[])

@@ -135,7 +135,7 @@ end
 end
 
 @testset "a letter typed into a number through the text chain is ignored" begin
-    chain = ChainingProjection(PrimitiveToText(), TextToGraphics(measure = measure_truetype_text))
+    chain = ChainingProjection(PrimitiveToText(), TextToGraphics(measure = FontFileMeasure()))
     doc = PrimitiveNumber(42)
     set_selection!(doc, _value_range_ref(2, 2))
     op = read_intent(chain, print_document(chain, doc), KeyPress('a'; time = 0.0))
@@ -158,7 +158,7 @@ end
     evaluate_operation((document=doc,), ReplaceStringRangeOperation(_value_range_ref(0, 0), "a"))
     @test doc.value === nothing
     # Through the text chain.
-    chain = ChainingProjection(PrimitiveToText(), TextToGraphics(measure = measure_truetype_text))
+    chain = ChainingProjection(PrimitiveToText(), TextToGraphics(measure = FontFileMeasure()))
     doc = PrimitiveNumber(nothing)
     set_selection!(doc, _value_range_ref(0, 0))
     evaluate_operation((document=doc,), read_intent(chain, print_document(chain, doc), KeyPress('5'; time = 0.0)))

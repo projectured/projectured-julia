@@ -94,14 +94,14 @@ OperationModule.evaluate_operation(editor, ::ThrowFromEvaluationOperation) =
     error("broken on purpose (evaluate)")
 
 """
-    make_fault_demo_projection_example(site; measure = measure_truetype_text)
+    make_fault_demo_projection_example(site; measure = FontFileMeasure())
 
 The standard JSON pipeline with the broken stage at every node: the barrier
 and its `FaultToSyntax` substitute wrap `BrokenStageProjection` over
 `JsonToSyntax`, so a fault stands in one node's slot and the rest of the
 tree draws.
 """
-make_fault_demo_projection_example(site::Symbol; measure = measure_truetype_text) =
+make_fault_demo_projection_example(site::Symbol; measure = FontFileMeasure()) =
     ChainingProjection(
         RecursiveProjection(FaultCatchingProjection(
             inner = BrokenStageProjection(JsonToSyntax(), site),

@@ -15,7 +15,7 @@ function JsonXmlToSyntax()
     ))
 end
 
-function make_mixed_projection_example(; measure=measure_truetype_text)
+function make_mixed_projection_example(; measure=FontFileMeasure())
     ChainingProjection(
         JsonXmlToSyntax(),
         RecursiveProjection(SyntaxToText()),

@@ -7,7 +7,7 @@
 function test_markdown_page_table()
 @testset "a table on a page is a widget table" begin
 
-_measure = (t, f) -> (length(t) * 8, 16)
+_measure = FixedMeasure(8, 12, 4, 0)
 
 # Every text a canvas drew, as (left edge, content). A text a viewport cuts
 # away entirely is not drawn, so it is not found.

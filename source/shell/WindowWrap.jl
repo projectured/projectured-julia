@@ -7,7 +7,7 @@
                      clipboard_gestures = CLIPBOARD_GESTURES,
                      history = identity, tooltip = nothing, pointer = nothing,
                      tooltip_feed = nothing, context_menu = nothing, shell = nothing,
-                     measure = measure_truetype_text) -> Function
+                     measure::TextMeasure = FontFileMeasure()) -> Function
 
 The wrappers a window gets, as the fold `(document, projection) -> (document,
 projection)` that a window entry applies before it opens.
@@ -68,7 +68,7 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
                             history = identity,
                             tooltip = nothing, pointer = nothing, tooltip_feed = nothing,
                             context_menu = nothing, shell = nothing,
-                            measure = measure_truetype_text)
+                            measure::TextMeasure = FontFileMeasure())
     tooltip === nothing || pointer !== nothing ||
         error("make_window_wrap: a tooltip is placed beside the pointer, so it needs `pointer`")
     tooltip === nothing || tooltip_feed !== nothing ||
@@ -129,7 +129,7 @@ end
 
 """
     make_opened_window_projections(; gesture_help = true, content = [],
-                                   measure = measure_truetype_text) -> Vector
+                                   measure::TextMeasure = FontFileMeasure()) -> Vector
 
 What draws the content of a window that a wrapper of [`make_window_wrap`](@ref)
 opens. It is the value of the `opened_window_projections` keyword of
@@ -153,7 +153,7 @@ so a host decides first.
 """
 make_opened_window_projections(; gesture_help::Bool = true,
                                  content = Pair{Type,Any}[],
-                                 measure = measure_truetype_text) =
+                                 measure::TextMeasure = FontFileMeasure()) =
     vcat(gesture_help ?
              Pair{Type,Any}[GestureMap => make_gesture_map_projection(measure)] :
              Pair{Type,Any}[],

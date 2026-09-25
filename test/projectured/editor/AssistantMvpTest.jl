@@ -42,7 +42,7 @@ import ProjecturedKernel.CellModule: Cell, Computation
 
 # ── Test fixture ────────────────────────────────────────────────────────
 
-_mvp_measure(text, font) = (length(text) * 10, 20)
+_mvp_measure = FixedMeasure(10, 15, 5, 0)
 
 # Chain that exercises the PrimitiveString input. KeyPress events bubble
 # up the reader chain; PrimitiveStringToSyntaxLeaf catches them and emits
@@ -595,7 +595,7 @@ end
 
 function _render_conversation_widget(doc, ctx)
     proj = make_conversation_widget_projection_example(
-        measure = (t, _f) -> (length(t) * 10, 20))
+        measure = FixedMeasure(10, 15, 5, 0))
     print_document(proj, proj, doc, ctx).output
 end
 
@@ -688,7 +688,7 @@ end
 
 function _mvp_test_collapse_click()
     @testset "collapse on header click" begin
-        fake_measure(_text, _font) = (length(_text) * 10, 20)
+        fake_measure = FixedMeasure(10, 15, 5, 0)
         doc  = make_conversation_document_example()
         proj = make_conversation_widget_projection_example(measure = fake_measure)
         io   = print_document(proj, proj, doc, PrinterContext())

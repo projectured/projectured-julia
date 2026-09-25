@@ -235,11 +235,8 @@ end
 # there, or `nothing`.
 #
 # A child that is a canvas is hit where it drew an element. `bounded` also keeps
-# the hit inside the canvas's own box: `GraphicsText` carries no width (the
-# backend measures it at draw time), so `hit_element_at` leaves a text element's
-# right/bottom edge open, which in a row layout lets the leftmost child capture
-# every click to its right. The canvas's `w`/`h` give the missing bound, so each
-# child owns exactly its laid-out box.
+# the hit inside the canvas's own box, so each child owns exactly its laid-out
+# box, also where one of its elements draws past it.
 #
 # A bare graphics document, such as a circle laid out directly, is hit anywhere
 # in the box of its size, the box `_child_w` and `_child_h` gave it.

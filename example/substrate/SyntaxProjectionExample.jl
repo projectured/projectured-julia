@@ -1,4 +1,4 @@
-function make_syntax_projection_example(; measure=measure_truetype_text)
+function make_syntax_projection_example(; measure=FontFileMeasure())
     ChainingProjection(
         RecursiveProjection(SyntaxToText(
             expanded_marker  = TextString("▾", font_dejavu_monospace_regular_20, color_default),

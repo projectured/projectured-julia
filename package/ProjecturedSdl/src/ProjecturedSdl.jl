@@ -36,7 +36,7 @@ using ProjecturedKernel.DeviceModule
 import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, GraphicsRect, GraphicsLine, GraphicsCircle,
                          GraphicsPolyline, GraphicsPolygon, GraphicsSpline, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
-                         get_canvas_content_bounds, _accumulate_bounds!, _bounds_elem!,
+                         _bounds_elem!, _bounds_extend!,
                          tessellate_spline, build_polyline_arrowhead
 import ProjecturedCollection.CollectionModule: ListNode, CellVector
 import ProjecturedStyle.StyleModule: AffineTransform, affine_identity, is_affine_axis_aligned
@@ -52,7 +52,7 @@ import ProjecturedStyle.StyleModule: font_file
 # glyph draws where the layout measures it (`compute_placed_glyphs`).
 import ProjecturedStyle.StyleModule: load_truetype_font, find_glyph_font_file, has_font_glyph,
                          is_presentation_selector, compute_text_extent,
-                         compute_placed_glyphs
+                         compute_placed_glyphs, PlacedGlyph, FontFileMeasure
 import ProjecturedKernel.EventModule: WindowQuit
 import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
 import ProjecturedKernel.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus

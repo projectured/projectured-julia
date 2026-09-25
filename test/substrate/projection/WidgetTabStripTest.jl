@@ -8,7 +8,7 @@
 function test_widget_tab_strip()
 @testset "WidgetTabbedPane strip buttons" begin
 
-_stub(t, f) = (max(1, length(t)) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 _proj() = make_widget_projection_example(measure=_stub)
 
 function _pane(; kwargs...)

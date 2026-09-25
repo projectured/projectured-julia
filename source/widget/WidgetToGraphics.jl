@@ -505,7 +505,7 @@ _make_uniform_inset(width::Integer) = Inset(width, width, width, width)
 _make_control_padding(theme) = Inset(theme.pad_y, theme.pad_y, theme.pad_x, theme.pad_x)
 
 @projection struct WidgetLabelToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -526,7 +526,7 @@ WidgetLabelToGraphicsCanvas(theme::WidgetTheme; measure,
                                 padding_color, content_color, label_text, placeholder_color)
 
 @projection struct WidgetTextToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -598,7 +598,7 @@ WidgetCheckboxToGraphicsCanvas(theme::WidgetTheme;
                                    indicator_size, corner_radius)
 
 @projection struct WidgetButtonToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -640,7 +640,7 @@ WidgetButtonToGraphicsCanvas(theme::WidgetTheme; measure,
                                  placeholder_color, focus_ring_stroke, corner_radius)
 
 @projection struct WidgetTooltipToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -666,7 +666,7 @@ WidgetTooltipToGraphicsCanvas(theme::WidgetTheme; measure,
 # the surface of the bar that holds it. A dropdown is the variant `vertical`, and
 # it draws the popover surface of the theme, because it is a window of its own.
 @projection struct WidgetMenuToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -698,7 +698,7 @@ WidgetMenuToGraphicsCanvas(theme::WidgetTheme; measure,
                                vertical_content_color, font)
 
 @projection struct WidgetMenuItemToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -723,7 +723,7 @@ WidgetMenuItemToGraphicsCanvas(theme::WidgetTheme; measure,
                                    layer_hovered_color)
 
 @projection struct WidgetToolbarItemToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -767,7 +767,7 @@ WidgetCompositeToGraphicsCanvas(theme::WidgetTheme;
                                     content_color, selection_ring_stroke)
 
 @projection struct WidgetShellToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -791,7 +791,7 @@ WidgetShellToGraphicsCanvas(theme::WidgetTheme; measure,
                                 padding_color, content_color, font, band_gap, Ref{Any}(nothing))
 
 @projection struct WidgetTitlePaneToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -837,7 +837,7 @@ WidgetSplitPaneToGraphicsCanvas(theme::WidgetTheme;
                                     content_color, splitter_stroke)
 
 @projection struct WidgetTabbedPaneToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -886,7 +886,7 @@ WidgetTabbedPaneToGraphicsCanvas(theme::WidgetTheme; measure,
 # copies drifted — one translated every pointer event and the other only the
 # press, so a scrolled list's hover lagged the pointer by the scroll offset.
 @projection struct WidgetScrollPaneToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -905,7 +905,7 @@ WidgetScrollPaneToGraphicsCanvas(theme::WidgetTheme; measure, font = theme.font,
                                      content_color, font)
 
 @projection struct WidgetTransformPaneToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -924,7 +924,7 @@ WidgetTransformPaneToGraphicsCanvas(theme::WidgetTheme; measure, font = theme.fo
                                         content_color, font)
 
 @projection struct WidgetToolbarToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -986,9 +986,11 @@ end
 
 # ── Text helpers ───────────────────────────────────────────────────────────
 
-function _push_text!(elems::Vector, font::StyleFont, text::AbstractString,
+# Push `text` as one line whose line box has its top at `y`: the text sits on the
+# baseline of that line (`compute_line_box`).
+function _push_text!(elems::Vector, measure::TextMeasure, font::StyleFont, text::AbstractString,
                      x::Int, y::Int, fg::StyleColor)
-    push!(elems, GraphicsText(text, x, y; font, color = fg))
+    push!(elems, GraphicsText(text, x, y + compute_line_box(measure, text, font).text_y; font, color = fg))
 end
 
 # ── Text that must fit a width ──────────────────────────────────────────────
@@ -1031,24 +1033,17 @@ function _push_text_block!(elements::Vector, measure, style::StyleText,
     height = 0
     for line in _text_lines(measure, style.font, text, bound)
         line_width, line_height = _text_size(measure, style.font, line)
-        _push_text!(elements, style.font, line, x, y + height, style.color)
+        _push_text!(elements, measure, style.font, line, x, y + height, style.color)
         width = max(width, Int(line_width))
         height += Int(line_height)
     end
     (width, height)
 end
 
-# A callable wrapper so the backend text-measure function can be stored as a
-# plain *value* inside a `@projection` Cell — a bare `Function` would be taken as
-# a thunk (computed cell) and invoked with zero args. Call it exactly like the
-# underlying `measure(text, font)`.
-struct TextMeasurer
-    measure::Function
-end
-(measurer::TextMeasurer)(text, font) = measurer.measure(text, font)
-
-function _text_size(measure, font::StyleFont, text::AbstractString)
-    measure(text, font)
+# The width of `text` in `font` and the height of the line that holds it.
+function _text_size(measure::TextMeasure, font::StyleFont, text::AbstractString)
+    line = compute_line_box(measure, text, font)
+    (line.width, line.height)
 end
 
 # ── Image / polymorphic content helpers ─────────────────────────────────────
@@ -1091,7 +1086,7 @@ function _push_content!(elems::Vector, measure, label::StyleText, content,
             push!(elems, GraphicsImage(Int32(x), Int32(y), Int32(cw), Int32(ch), data))
         end
     else
-        _push_text!(elems, label.font, string(content), x, y, label.color)
+        _push_text!(elems, measure, label.font, string(content), x, y, label.color)
     end
 end
 
@@ -1481,7 +1476,7 @@ end
 # so there is nothing to map; like the sibling JsonInsertion handler it is a
 # projection-introduced placeholder and its reference maps are no-ops.
 @projection struct WidgetInsertionToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -1508,7 +1503,7 @@ function print_document(p::WidgetInsertionToGraphicsCanvas, recursion, w::Widget
     content_x, content_y = _content_offset(p, w)
     elements = Any[]
     _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
-    _push_text!(elements, label.font, content, content_x, content_y, label.color)
+    _push_text!(elements, p.measure, label.font, content, content_x, content_y, label.color)
     SimpleIoMap(p, w, _make_canvas(0, 0, content_width + inset_width, content_height + inset_height, elements))
 end
 
@@ -1554,7 +1549,7 @@ end
 
 function _print_plain_text_view(p, recursion, w, style::StyleText, ctx)
     view = _make_plain_text_view(w, style)
-    measure = p.measure isa TextMeasurer ? p.measure.measure : p.measure
+    measure = p.measure
     reconcile_child_iomap(() -> view,
                           v -> print_document(TextToGraphics(measure = measure), recursion, v, ctx))
 end
@@ -1969,7 +1964,7 @@ function print_document(p::WidgetTooltipToGraphicsCanvas, recursion, w::WidgetTo
         body = Any[]
         if content isa AbstractString
             cw, ch = _text_size(p.measure, label.font, content)
-            _push_text!(body, label.font, content, cox, coy, label.color)
+            _push_text!(body, p.measure, label.font, content, cox, coy, label.color)
         elseif content isa WidgetDocument
             cim = child_iomap[]
             inner = cim.output
@@ -2008,7 +2003,7 @@ end
 # ── WidgetContextMenu ─────────────────────────────────────────────────────────
 
 @projection struct WidgetContextMenuToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -2110,7 +2105,7 @@ _open_context_menu(menu, lx, ly) =
 # ── WidgetDialog ──────────────────────────────────────────────────────────────
 
 @projection struct WidgetDialogToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset                          # space around the card
     border::Inset
     padding::Inset
@@ -2209,7 +2204,7 @@ function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDia
     _push_box_parts!(box_elements, box, colors, inner_w, inner_h; radius)
     push!(elements, _make_canvas(card_x - margin_left, card_y - margin_top, box_elements))
     tx = card_x + border_left + padding_left; ty = card_y + border_top + padding_top
-    _push_text!(elements, title_text.font, title, tx, ty, title_text.color)
+    _push_text!(elements, p.measure, title_text.font, title, tx, ty, title_text.color)
     cursor_y = ty + title_h
 
     content_entry = nothing
@@ -2220,7 +2215,7 @@ function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDia
             push!(elements, _make_canvas(ox, oy, Any[content_iomap.output]))
             content_entry = (ox, oy, content_iomap)
         else
-            _push_text!(elements, body_text.font, string(content), tx, cursor_y, body_text.color)
+            _push_text!(elements, p.measure, body_text.font, string(content), tx, cursor_y, body_text.color)
         end
         cursor_y += content_h
     end
@@ -2340,7 +2335,7 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
             icon_w = icon_width(icon, ch)
             gap = icon_w > 0 ? _sc(6) : 0
             icon_w > 0 && _push_icon!(elems, icon, content_x, content_y, ch, label.color)
-            _push_text!(elems, label.font, text, content_x + icon_w + gap, content_y, label.color)
+            _push_text!(elems, p.measure, label.font, text, content_x + icon_w + gap, content_y, label.color)
             cw += icon_w + gap
         end
         (width = cw + inset_width, height = ch + inset_height, inset_width, inset_height,
@@ -2452,7 +2447,7 @@ function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::Widg
         else
             text = string(command.label)
             content_width, content_height = _text_size(p.measure, label.font, text)
-            _push_text!(elements, label.font, text, cox, coy, label.color)
+            _push_text!(elements, p.measure, label.font, text, cox, coy, label.color)
         end
         # As large as what it shows, on both axes. A band can offer the height of
         # the window, and an item that took it would take every press below it.
@@ -2580,7 +2575,7 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         variant = w.orientation
         content_x, content_y = _content_offset(p, w; variant)
         horizontal = w.orientation === :horizontal
-        _, item_h = p.measure("M", p.font)
+        _, item_h = _text_size(p.measure, p.font, "M")
         item_gap = horizontal ? 12 : 0
         child_iomaps = Any[]
         items = Any[]
@@ -3252,7 +3247,7 @@ function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::Widget
             push!(body_elems, _make_canvas(content_x, content_y, Any[inner]))
         elseif content isa AbstractString
             cw, ch = _text_size(p.measure, body_text.font, content)
-            _push_text!(body_elems, body_text.font, content, content_x, content_y, body_text.color)
+            _push_text!(body_elems, p.measure, body_text.font, content, content_x, content_y, body_text.color)
         end
         box_content_width = max(tw, cw)
         box_content_height = (content_y - content_y0) + ch
@@ -3262,7 +3257,7 @@ function print_document(p::WidgetTitlePaneToGraphicsCanvas, recursion, w::Widget
         title_bar_color = _get_part_color(w, :title_bar_color, p.title_bar_color)
         _push_panel!(elems, content_x, content_y0, box_content_width, th; fill = title_bar_color)
         # Card-like: bold title, body in the content style.
-        _push_text!(elems, title_text.font, title, content_x, content_y0, title_text.color)
+        _push_text!(elems, p.measure, title_text.font, title, content_x, content_y0, title_text.color)
         append!(elems, body_elems)
         (elements=elems, child_iomaps=child_iomaps)
     end)
@@ -4007,7 +4002,7 @@ function _print_tab_name_view(p, recursion, w::WidgetTabbedPane, caret::Cell, ct
         found = caret[]
         found === nothing ? nothing : make_flat_range_reference(found[2], found[2])
     end)
-    measure = p.measure isa TextMeasurer ? p.measure.measure : p.measure
+    measure = p.measure
     reconcile_child_iomap(() -> view,
                           v -> print_document(TextToGraphics(measure = measure), recursion, v, ctx))
 end
@@ -4061,7 +4056,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
             if found !== nothing && found[1] == i
                 push!(result, _make_canvas(name_x, name_y, Any[name_view[].output]))
             else
-                _push_text!(result, tab_text.font, label, name_x, name_y, fg)
+                _push_text!(result, p.measure, tab_text.font, label, name_x, name_y, fg)
             end
             # The button column sits at the tab's right edge, tinted like its label.
             _push_tab_buttons!(result, g, tabs[i], fg)
@@ -4775,7 +4770,7 @@ end
 function _self_scroll(p, iomap, canvas, evt)
     evt isa MouseScroll || return nothing
     hit_element_at(canvas, evt.x, evt.y) === nothing && return nothing
-    _, scroll_step = p.measure("M", p.font)
+    _, scroll_step = _text_size(p.measure, p.font, "M")
     dx, dy = (evt.dx != 0 && evt.dy == 0) ? (-evt.dx * scroll_step, 0) :
                                             (0, -evt.dy * scroll_step)
     w = iomap.input
@@ -5006,7 +5001,7 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
         # Plain wheel: pan. Vertical by `dy`, horizontal by `dx`, step = line height.
         MouseScroll(dx, dy, x, y) => begin
             hit_element_at(canvas, x, y) === nothing && return nothing
-            _, step = p.measure("M", p.font)
+            _, step = _text_size(p.measure, p.font, "M")
             return dx != 0 && dy == 0 ?
                 _write_view_state(w, "transform", _pan_by(M, dx * step, 0)) :
                 _write_view_state(w, "transform", _pan_by(M, 0, dy * step))
@@ -5091,7 +5086,7 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
     build = Cell(@computation begin
         content_x, content_y = _content_offset(p, w)
         item_gap = p.item_gap
-        _, item_h = p.measure("M", p.font)
+        _, item_h = _text_size(p.measure, p.font, "M")
         child_iomaps = Any[]
         items = Any[]
         x_cursor = 0
@@ -5101,7 +5096,7 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
             # Advance by the item's *rendered* width (includes a leading icon, Stage 5),
             # not just its text — otherwise an icon'd item overlaps the next one.
             iw = _menu_item_width(cim)
-            iw <= 0 && ((iw, _) = p.measure("    ", p.font))
+            iw <= 0 && (iw = first(compute_text_extent(p.measure, "    ", p.font)))
             x_cursor += iw + item_gap
         end
         content_width = max(0, x_cursor - item_gap)
@@ -5152,7 +5147,7 @@ end
 # muted surface, filling the available width when a parent seeded one.
 
 @projection struct WidgetStatusBarToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -5185,7 +5180,7 @@ function print_document(p::WidgetStatusBarToGraphicsCanvas, recursion, w::Widget
             s = string(seg)
             tw, th = _text_size(p.measure, label.font, s)
             i == 1 || (x += item_gap)
-            _push_text!(labels, label.font, s, content_x + x, content_y, label.color)
+            _push_text!(labels, p.measure, label.font, s, content_x + x, content_y, label.color)
             x += tw; text_h = max(text_h, th)
         end
         width  = _resolve_width(ctx, 0, x + inset_width)
@@ -5285,7 +5280,7 @@ end
 # ── WidgetBadge ─────────────────────────────────────────────────────────────
 
 @projection struct WidgetBadgeToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -5353,7 +5348,7 @@ function print_document(p::WidgetBadgeToGraphicsCanvas, recursion, w::WidgetBadg
         radius = border_box_height ÷ 2
         elements = Any[]
         _push_box_parts!(elements, box, colors, badge_width - inset_width, badge_height - inset_height; radius)
-        push!(elements, GraphicsText(text, content_x, content_y; font = label.font, color = label.color))
+        _push_text!(elements, p.measure, label.font, text, content_x, content_y, label.color)
         (width=badge_width, height=badge_height, elements=elements)
     end))
 end
@@ -5418,7 +5413,7 @@ end
 # ── WidgetCard ──────────────────────────────────────────────────────────────
 
 @projection struct WidgetCardToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -6186,7 +6181,7 @@ end
 # ── WidgetRadioGroup ────────────────────────────────────────────────────────
 
 @projection struct WidgetRadioGroupToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -6285,7 +6280,7 @@ function print_document(p::WidgetRadioGroupToGraphicsCanvas, recursion, w::Widge
                 dot_color = _get_state_color(p, w, :dot; state)
                 push!(elements, GraphicsCircle(cx, center_y, _sc(p.dot_radius); color = dot_color))
             end
-            _push_text!(elements, label.font, label_str, content_x + diameter + label_gap,
+            _push_text!(elements, p.measure, label.font, label_str, content_x + diameter + label_gap,
                        content_y + row_y + (row_height - label_height) ÷ 2, label.color)
             push!(row_bounds, (content_y + row_y, content_y + row_y + row_height))
         end
@@ -6341,7 +6336,7 @@ end
 # ── WidgetAvatar ────────────────────────────────────────────────────────────
 
 @projection struct WidgetAvatarToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -6378,8 +6373,8 @@ function print_document(p::WidgetAvatarToGraphicsCanvas, recursion, w::WidgetAva
         _push_box_parts!(elements, box, merge(colors, (content = color_transparent,)), size, size; radius)
         push!(elements, GraphicsCircle(content_x + radius, content_y + radius, radius; color = colors.content))
         initials_width, initials_height = _text_size(p.measure, label.font, initials)
-        push!(elements, GraphicsText(initials, content_x + radius - initials_width ÷ 2,
-                                     content_y + radius - initials_height ÷ 2; font = label.font, color = label.color))
+        _push_text!(elements, p.measure, label.font, initials, content_x + radius - initials_width ÷ 2,
+                    content_y + radius - initials_height ÷ 2, label.color)
         (width=size + inset_width, height=size + inset_height, elements=elements)
     end))
 end
@@ -6388,7 +6383,7 @@ end
 # ── WidgetAlert ─────────────────────────────────────────────────────────────
 
 @projection struct WidgetAlertToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -6438,13 +6433,13 @@ function print_document(p::WidgetAlertToGraphicsCanvas, recursion, w::WidgetAler
         icon_size = icon_width(w.icon, title_height)
         icon_gap = icon_size > 0 ? _sc(8) : 0
         icon_size > 0 && _push_icon!(elements, w.icon, content_x, y, icon_size, title.color)
-        _push_text!(elements, title.font, title_string, content_x + icon_size + icon_gap, y, title.color)
+        _push_text!(elements, p.measure, title.font, title_string, content_x + icon_size + icon_gap, y, title.color)
         max_content_width = max(max_content_width, icon_size + icon_gap + title_width); y += title_height
         if w.description !== nothing
             y += _sc(p.title_gap)
             description_string = string(w.description)
             description_width, description_height = _text_size(p.measure, description.font, description_string)
-            _push_text!(elements, description.font, description_string, content_x, y, description.color)
+            _push_text!(elements, p.measure, description.font, description_string, content_x, y, description.color)
             max_content_width = max(max_content_width, description_width); y += description_height
         end
         alert_width = _resolve_width(ctx, _sc(Int(w.width)), max_content_width + inset_width)
@@ -6694,7 +6689,7 @@ end
 # ── WidgetToggle ────────────────────────────────────────────────────────────
 
 @projection struct WidgetToggleToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -6753,8 +6748,8 @@ function print_document(p::WidgetToggleToGraphicsCanvas, recursion, w::WidgetTog
         radius = _sc(p.corner_radius)
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height; radius)
-        push!(elements, GraphicsText(text, content_x + (content_width - text_width) ÷ 2,
-                                     content_y + (content_height - text_height) ÷ 2; font = label.font, color = label.color))
+        _push_text!(elements, p.measure, label.font, text, content_x + (content_width - text_width) ÷ 2,
+                    content_y + (content_height - text_height) ÷ 2, label.color)
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, radius)
         (width=outer_width, height=outer_height, elements=elements)
     end))
@@ -6777,7 +6772,7 @@ end
 # ── WidgetToggleGroup ───────────────────────────────────────────────────────
 
 @projection struct WidgetToggleGroupToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -6884,8 +6879,8 @@ function print_document(p::WidgetToggleGroupToGraphicsCanvas, recursion, w::Widg
             label_state = !enabled ? :disabled : i == selected ? :selected : nothing
             label = _get_state_text(p, w, :label; state = label_state)
             text_width, segment_text_height = _text_size(p.measure, label.font, labels[i])
-            push!(elements, GraphicsText(labels[i], x + (segment_width - text_width) ÷ 2,
-                                         content_y + (content_height - segment_text_height) ÷ 2; font = label.font, color = label.color))
+            _push_text!(elements, p.measure, label.font, labels[i], x + (segment_width - text_width) ÷ 2,
+                        content_y + (content_height - segment_text_height) ÷ 2, label.color)
             x += segment_width
         end
         outer_width, outer_height = content_width + inset_width, content_height + inset_height
@@ -6958,7 +6953,7 @@ end
 # ── WidgetSelect ────────────────────────────────────────────────────────────
 
 @projection struct WidgetSelectToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -7030,7 +7025,7 @@ function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSel
         chevron_color = _get_state_color(p, w, :chevron; state)
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height; radius)
-        push!(elements, GraphicsText(text, content_x, content_y + (content_height - text_height) ÷ 2; font = label.font, color = label.color))
+        _push_text!(elements, p.measure, label.font, text, content_x, content_y + (content_height - text_height) ÷ 2, label.color)
         _push_chevron!(elements, content_x + content_width - chevron_size, content_y + content_height ÷ 2, chevron_size,
                        :down, chevron_color)
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, radius)
@@ -7085,7 +7080,7 @@ end
 # click writes the value back to the target select and dismisses the popup.
 
 @projection struct WidgetOptionToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -7123,7 +7118,7 @@ function print_document(p::WidgetOptionToGraphicsCanvas, recursion, w::WidgetOpt
         content_width, content_height = outer_width - inset_width, outer_height - inset_height
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height)
-        push!(elements, GraphicsText(label_str, content_x, content_y + (content_height - text_height) ÷ 2; font = label.font, color = label.color))
+        _push_text!(elements, p.measure, label.font, label_str, content_x, content_y + (content_height - text_height) ÷ 2, label.color)
         (width=outer_width, height=outer_height, elements=elements)
     end))
 end
@@ -7154,7 +7149,7 @@ end
 _spin_clamp(v, lo, hi) = (lo !== nothing && v < lo) ? lo : ((hi !== nothing && v > hi) ? hi : v)
 
 @projection struct WidgetSpinBoxToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -7230,7 +7225,7 @@ function print_document(p::WidgetSpinBoxToGraphicsCanvas, recursion, w::WidgetSp
         divider_stroke = _get_state_stroke(p, w, :divider; state)
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height; radius)
-        _push_text!(elements, label.font, text, content_x, content_y + (content_height - th) ÷ 2, label.color)
+        _push_text!(elements, p.measure, label.font, text, content_x, content_y + (content_height - th) ÷ 2, label.color)
         sx = content_x + content_width - stepper_w
         sy = content_y - padding_top
         dw = max(1, _sc(divider_stroke.width))
@@ -7276,7 +7271,7 @@ end
 # ── WidgetList (Stage 6) ──────────────────────────────────────────────────────
 
 @projection struct WidgetListToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -7354,7 +7349,7 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
             if i == sel
                 _push_panel!(elements, content_x, y, content_width, row_height; fill = row_selected_color)
             end
-            _push_text!(elements, label.font, string(it), content_x + row_pad_x, y + row_pad_y, label.color)
+            _push_text!(elements, p.measure, label.font, string(it), content_x + row_pad_x, y + row_pad_y, label.color)
         end
         (width=outer_width, height=outer_height, row_height=row_height, elements=elements)
     end)
@@ -7400,7 +7395,7 @@ end
 # ── WidgetTextarea ──────────────────────────────────────────────────────────
 
 @projection struct WidgetTextareaToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -7509,7 +7504,7 @@ end
 # ── WidgetAccordion ─────────────────────────────────────────────────────────
 
 @projection struct WidgetAccordionToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -7629,9 +7624,8 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
             _, title_height = size_of(titles[i], item.title, title_style.font)
             row_height = title_height + 2item_padding_y
             if titles[i] === nothing
-                push!(row_elements, GraphicsText(string(item.title), content_x + item_padding_x,
-                                                 content_y + y + item_padding_y;
-                                                 font = title_style.font, color = title_style.color))
+                _push_text!(row_elements, p.measure, title_style.font, string(item.title),
+                           content_x + item_padding_x, content_y + y + item_padding_y, title_style.color)
             else
                 push!(row_elements, _make_canvas(content_x + item_padding_x, content_y + y + item_padding_y,
                                                  Any[titles[i].output]))
@@ -7650,9 +7644,8 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
             elseif i == expanded && item.body !== nothing && !isempty(string(item.body))
                 body = string(item.body)
                 _, body_height = _text_size(p.measure, body_style.font, body)
-                push!(row_elements, GraphicsText(body, content_x + item_padding_x,
-                                                 content_y + y + _sc(p.body_gap);
-                                                 font = body_style.font, color = body_style.color))
+                _push_text!(row_elements, p.measure, body_style.font, body, content_x + item_padding_x,
+                           content_y + y + _sc(p.body_gap), body_style.color)
                 y += body_height + item_padding_y
             end
             push!(row_elements, GraphicsLine(content_x, content_y + y, content_x + content_width,
@@ -8613,7 +8606,7 @@ end
 # ── WidgetTree ──────────────────────────────────────────────────────────────
 
 @projection struct WidgetTreeToGraphicsCanvas
-    measure::Function
+    measure::TextMeasure
     margin::Inset
     border::Inset
     padding::Inset
@@ -8871,11 +8864,10 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                 _push_icon!(result, icon, x + chevron_column, y0 + pad, line_height, icon_style.color)
             elseif icon isa AbstractString && !isempty(icon)
                 # A literal glyph string (e.g. an emoji), drawn as text.
-                push!(result, GraphicsText(icon, x + chevron_column, y0 + pad;
-                                           font = icon_style.font, color = icon_style.color))
+                _push_text!(result, p.measure, icon_style.font, icon, x + chevron_column, y0 + pad, icon_style.color)
             end
-            push!(result, GraphicsText(row.label, x + chevron_column + geom.icon_column, y0 + pad;
-                                       font = label_style.font, color = label_style.color))
+            _push_text!(result, p.measure, label_style.font, row.label, x + chevron_column + geom.icon_column,
+                       y0 + pad, label_style.color)
         end
         result
     end)
@@ -9044,59 +9036,56 @@ end
     WidgetToGraphics(font; measure, theme=make_slate_light_theme(font=font))
 
 Build a recursive type-dispatching projection that maps any `WidgetDocument`
-subtree to a `GraphicsCanvas`. `measure(text, font) -> (width, height)` is
+subtree to a `GraphicsCanvas`. `measure` ([`TextMeasure`](@ref)) is
 used for all text sizing. The `theme` ([`WidgetTheme`](@ref)) is the single
 source of truth for colors, radius, and spacing. Defaults to the expressed
 slate/indigo light theme; the neutral zinc theme is `make_light_theme`.
 """
-function WidgetToGraphics(font::StyleFont; measure::Function,
+function WidgetToGraphics(font::StyleFont; measure::TextMeasure,
                           theme::WidgetTheme=make_slate_light_theme(font=font))
-    # Wrapped measure for the `@projection`-based widget projections, which store
-    # their fields in Cells (a bare Function would be read as a thunk).
-    measurer = TextMeasurer(measure)
     widgets = TypeDispatchingProjection(
-        WidgetInsertion  => WidgetInsertionToGraphicsCanvas(theme; measure = measurer),
-        WidgetLabel      => WidgetLabelToGraphicsCanvas(theme; measure = measurer),
-        WidgetText       => WidgetTextToGraphicsCanvas(theme; measure = measurer),
+        WidgetInsertion  => WidgetInsertionToGraphicsCanvas(theme; measure = measure),
+        WidgetLabel      => WidgetLabelToGraphicsCanvas(theme; measure = measure),
+        WidgetText       => WidgetTextToGraphicsCanvas(theme; measure = measure),
         WidgetCheckbox   => WidgetCheckboxToGraphicsCanvas(theme),
-        WidgetButton     => WidgetButtonToGraphicsCanvas(theme; measure = measurer),
-        WidgetTooltip    => WidgetTooltipToGraphicsCanvas(theme; measure = measurer),
-        WidgetContextMenu => WidgetContextMenuToGraphicsCanvas(theme; measure = measurer),
-        WidgetDialog     => WidgetDialogToGraphicsCanvas(theme; measure = measurer),
-        WidgetMenu       => WidgetMenuToGraphicsCanvas(theme; measure = measurer),
-        WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(theme; measure = measurer),
-        WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(theme; measure = measurer),
+        WidgetButton     => WidgetButtonToGraphicsCanvas(theme; measure = measure),
+        WidgetTooltip    => WidgetTooltipToGraphicsCanvas(theme; measure = measure),
+        WidgetContextMenu => WidgetContextMenuToGraphicsCanvas(theme; measure = measure),
+        WidgetDialog     => WidgetDialogToGraphicsCanvas(theme; measure = measure),
+        WidgetMenu       => WidgetMenuToGraphicsCanvas(theme; measure = measure),
+        WidgetMenuItem   => WidgetMenuItemToGraphicsCanvas(theme; measure = measure),
+        WidgetToolbarItem => WidgetToolbarItemToGraphicsCanvas(theme; measure = measure),
         WidgetComposite  => WidgetCompositeToGraphicsCanvas(theme),
-        WidgetShell      => WidgetShellToGraphicsCanvas(theme; measure = measurer),
-        WidgetTitlePane  => WidgetTitlePaneToGraphicsCanvas(theme; measure = measurer),
+        WidgetShell      => WidgetShellToGraphicsCanvas(theme; measure = measure),
+        WidgetTitlePane  => WidgetTitlePaneToGraphicsCanvas(theme; measure = measure),
         WidgetSplitPane  => WidgetSplitPaneToGraphicsCanvas(theme),
-        WidgetTabbedPane => WidgetTabbedPaneToGraphicsCanvas(theme; measure = measurer),
-        WidgetScrollPane => WidgetScrollPaneToGraphicsCanvas(theme; measure = measurer),
-        WidgetTransformPane => WidgetTransformPaneToGraphicsCanvas(theme; measure = measurer),
-        WidgetToolbar    => WidgetToolbarToGraphicsCanvas(theme; measure = measurer),
-        WidgetStatusBar  => WidgetStatusBarToGraphicsCanvas(theme; measure = measurer),
+        WidgetTabbedPane => WidgetTabbedPaneToGraphicsCanvas(theme; measure = measure),
+        WidgetScrollPane => WidgetScrollPaneToGraphicsCanvas(theme; measure = measure),
+        WidgetTransformPane => WidgetTransformPaneToGraphicsCanvas(theme; measure = measure),
+        WidgetToolbar    => WidgetToolbarToGraphicsCanvas(theme; measure = measure),
+        WidgetStatusBar  => WidgetStatusBarToGraphicsCanvas(theme; measure = measure),
         WidgetScrollBar  => WidgetScrollBarToGraphicsCanvas(theme),
-        WidgetBadge      => WidgetBadgeToGraphicsCanvas(theme; measure = measurer),
+        WidgetBadge      => WidgetBadgeToGraphicsCanvas(theme; measure = measure),
         WidgetSeparator  => WidgetSeparatorToGraphicsCanvas(theme),
-        WidgetCard       => WidgetCardToGraphicsCanvas(theme; measure = measurer),
+        WidgetCard       => WidgetCardToGraphicsCanvas(theme; measure = measure),
         WidgetSwitch     => WidgetSwitchToGraphicsCanvas(theme),
         WidgetProgress   => WidgetProgressToGraphicsCanvas(theme),
         WidgetSlider     => WidgetSliderToGraphicsCanvas(theme),
-        WidgetRadioGroup => WidgetRadioGroupToGraphicsCanvas(theme; measure = measurer),
-        WidgetAvatar     => WidgetAvatarToGraphicsCanvas(theme; measure = measurer),
-        WidgetAlert      => WidgetAlertToGraphicsCanvas(theme; measure = measurer),
+        WidgetRadioGroup => WidgetRadioGroupToGraphicsCanvas(theme; measure = measure),
+        WidgetAvatar     => WidgetAvatarToGraphicsCanvas(theme; measure = measure),
+        WidgetAlert      => WidgetAlertToGraphicsCanvas(theme; measure = measure),
         WidgetSkeleton   => WidgetSkeletonToGraphicsCanvas(theme),
         WidgetHighlight  => WidgetHighlightToGraphicsCanvas(theme),
-        WidgetToggle      => WidgetToggleToGraphicsCanvas(theme; measure = measurer),
-        WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(theme; measure = measurer),
-        WidgetSelect      => WidgetSelectToGraphicsCanvas(theme; measure = measurer),
-        WidgetSpinBox     => WidgetSpinBoxToGraphicsCanvas(theme; measure = measurer),
-        WidgetList        => WidgetListToGraphicsCanvas(theme; measure = measurer),
-        WidgetOption      => WidgetOptionToGraphicsCanvas(theme; measure = measurer),
-        WidgetTextarea    => WidgetTextareaToGraphicsCanvas(theme; measure = measurer),
-        WidgetAccordion   => WidgetAccordionToGraphicsCanvas(theme; measure = measurer),
+        WidgetToggle      => WidgetToggleToGraphicsCanvas(theme; measure = measure),
+        WidgetToggleGroup => WidgetToggleGroupToGraphicsCanvas(theme; measure = measure),
+        WidgetSelect      => WidgetSelectToGraphicsCanvas(theme; measure = measure),
+        WidgetSpinBox     => WidgetSpinBoxToGraphicsCanvas(theme; measure = measure),
+        WidgetList        => WidgetListToGraphicsCanvas(theme; measure = measure),
+        WidgetOption      => WidgetOptionToGraphicsCanvas(theme; measure = measure),
+        WidgetTextarea    => WidgetTextareaToGraphicsCanvas(theme; measure = measure),
+        WidgetAccordion   => WidgetAccordionToGraphicsCanvas(theme; measure = measure),
         WidgetTable       => WidgetTableToGraphicsCanvas(theme),
-        WidgetTree        => WidgetTreeToGraphicsCanvas(theme; measure = measurer),
+        WidgetTree        => WidgetTreeToGraphicsCanvas(theme; measure = measure),
     )
     # Widgets embed layouts (a composite or a table holds a GridLayout), so the
     # recursion renders an embedded layout without an outer layout dispatcher.

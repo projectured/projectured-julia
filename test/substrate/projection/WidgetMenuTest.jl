@@ -46,7 +46,7 @@ end
     # A menu bar is offered the width of its window. It is as wide as its items
     # together, so it offers them no width: an item that took the offer would be
     # as wide as the window, and the next item would start past its right edge.
-    det = (t, f) -> (length(t) * 8, 16)
+    det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch))
     bar = WidgetMenu(Any[WidgetMenuItem("File"), WidgetMenuItem("View"), WidgetMenuItem("Help")];

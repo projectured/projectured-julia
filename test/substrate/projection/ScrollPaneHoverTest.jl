@@ -14,7 +14,7 @@
 
 _scroll_pane_projection() = RecursiveProjection(TypeDispatchingProjection(
     WidgetToGraphics(font_ubuntu_monospace_regular_20;
-                     measure = measure_truetype_text).dispatch))
+                     measure = FontFileMeasure()).dispatch))
 
 _scroll_pane_list() =
     WidgetList(["row $i" for i in 1:40]; selected = 0, width = 200)

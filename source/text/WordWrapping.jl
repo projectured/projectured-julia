@@ -17,18 +17,17 @@
 """
     WordWrapping(; max_width=nothing, measure)
 
-Pixel-based word-wrap projection. `measure(text, font) -> (width, height)`
-matches the downstream `TextToGraphics` measurer so wrap points line up with
-layout. A line wraps at the edge of the range the parent gives
-(`ctx.maximum_width`), and at `max_width` when that is less. With neither, a line
-does not wrap.
+Pixel-based word-wrap projection. `measure::TextMeasure` matches the downstream
+`TextToGraphics` measurer so wrap points line up with layout. A line wraps at
+the edge of the range the parent gives (`ctx.maximum_width`), and at
+`max_width` when that is less. With neither, a line does not wrap.
 """
 struct WordWrapping <: Projection
     max_width::Union{Nothing, Int}
-    measure::Function
+    measure::TextMeasure
 end
 
-WordWrapping(; max_width::Union{Nothing, Integer} = nothing, measure::Function) =
+WordWrapping(; max_width::Union{Nothing, Integer} = nothing, measure::TextMeasure) =
     WordWrapping(max_width === nothing ? nothing : Int(max_width), measure)
 
 # ── Mapping table ───────────────────────────────────────────────────────────
@@ -87,7 +86,7 @@ function _wrap_width_cell(p::WordWrapping, ctx)
 end
 
 # Returns (output_elements::Vector{TextDocument}, segs::Vector{WrapSegment}).
-function _wrap(text::TextBlock, wrap_w::Int, measure_fn::Function)
+function _wrap(text::TextBlock, wrap_w::Int, measure_fn::TextMeasure)
     result = TextDocument[]
     segs = WrapSegment[]
     cx = 0
@@ -117,7 +116,7 @@ end
 # Returns the updated column offset.
 function _wrap_string!(result::Vector{TextDocument}, segs::Vector{WrapSegment},
                        original::TextString, in_span::Int,
-                       cx::Int, wrap_w::Int, measure_fn::Function)
+                       cx::Int, wrap_w::Int, measure_fn::TextMeasure)
     content = original.content::AbstractString
     if isempty(content)
         # An empty span stays one empty span, so a caret in it has a place to
@@ -148,7 +147,7 @@ function _wrap_string!(result::Vector{TextDocument}, segs::Vector{WrapSegment},
         for (wi, word) in enumerate(words)
             sep = wi == 1 ? "" : " "
             cand = sep * word
-            cand_w = first(measure_fn(cand, font))
+            cand_w = first(compute_text_extent(measure_fn, cand, font))
             if cx > 0 && wrap_w > 0 && cx + cand_w > wrap_w
                 # Wrap before this word. The leading space (if any) stays at
                 # the tail of the previous visual line so every input
@@ -163,7 +162,7 @@ function _wrap_string!(result::Vector{TextDocument}, segs::Vector{WrapSegment},
                 sub_start = in_char
                 print(buf, word)
                 in_char += length(word)
-                cx += first(measure_fn(word, font))
+                cx += first(compute_text_extent(measure_fn, word, font))
             else
                 print(buf, cand)
                 in_char += length(cand)

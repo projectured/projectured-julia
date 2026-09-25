@@ -74,7 +74,7 @@ end # @testset
 
 @testset "end-to-end: clicking a control-bar checkbox flips the inner field" begin
 
-    stub(t, f) = (length(t) * 10, 24)
+    stub = FixedMeasure(10, 18, 6, 0)
     font = font_ubuntu_monospace_regular_20
     fg   = (0xee, 0xee, 0xee, 0xff)
 
@@ -108,7 +108,7 @@ end # @testset
 
 @testset "end-to-end: typing edits the inner projection's pattern live" begin
 
-    stub(t, f) = (max(1, length(t)) * 10, 24)
+    stub = FixedMeasure(10, 18, 6, 0)
     font = font_ubuntu_monospace_regular_20
 
     inner = TextHighlighting("dolor")

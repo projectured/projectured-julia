@@ -13,7 +13,7 @@ using ProjecturedCollection.CollectionModule: ListNode
 function test_widget_table()
 @testset "WidgetTable hover" begin
 
-_det = (t, f) -> (length(t) * 8, 16)
+_det = FixedMeasure(8, 12, 4, 0)
 _w2g = WidgetToGraphics(font_ubuntu_regular_20; measure = _det)
 # A recursive dispatcher so the table's cell content is recursed (and so a nested
 # layout/tab/shell dispatches too), and reads reach the table's readers.
@@ -125,7 +125,7 @@ end # function
 # less those, and the table is no wider than what its container gave it.
 function test_widget_table_fills_offer()
 @testset "a table with a weighted column is as wide as its offer" begin
-    det = (t, f) -> (length(t) * 8, 16)
+    det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
@@ -147,7 +147,7 @@ end
 # without offering them its width. Wide, the table fills its offer.
 function test_widget_table_content_floor()
 @testset "a weighted column is at least as wide as its widest cell" begin
-    det = (t, f) -> (length(t) * 8, 16)
+    det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
@@ -177,7 +177,7 @@ end
 # would leave that pane drawing nothing.
 function test_shell_offers_only_its_size()
 @testset "a shell offers its size, else its parent's offer, and never 0" begin
-    det = (t, f) -> (length(t) * 8, 16)
+    det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
@@ -212,7 +212,7 @@ end
 # height and takes the width its parent offers, as a pane that authors no size.
 function test_scroll_pane_axis_size()
 @testset "a scroll pane with a width of 0 takes the offered width" begin
-    det = (t, f) -> (length(t) * 8, 16)
+    det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
@@ -250,7 +250,7 @@ end
 # list. A header cell sits as the cells of its column do.
 function test_widget_table_column_align()
 @testset "a table cell sits where its column aligns" begin
-    det = (t, f) -> (length(t) * 8, 16)
+    det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
@@ -304,7 +304,7 @@ end
 
 function test_widget_table_cell_policy()
 @testset "a table cell clips or wraps by policy" begin
-    det = (t, f) -> (length(t) * 8, 16)
+    det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
@@ -371,7 +371,7 @@ end
 function test_frozen_table_headers()
 @testset "a table's header strips do not scroll" begin
 
-_det = (t, f) -> (length(t) * 8, 16)
+_det = FixedMeasure(8, 12, 4, 0)
 _w2g = WidgetToGraphics(font_ubuntu_regular_20; measure = _det)
 _rec = RecursiveProjection(TypeDispatchingProjection(vcat(LayoutToGraphics().dispatch, _w2g.dispatch)))
 

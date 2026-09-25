@@ -9,11 +9,11 @@
 # demonstrates it. The fault store's wake shows in `fault_print_example`.
 
 """
-    make_message_log_feed_projection_example(; measure = measure_truetype_text)
+    make_message_log_feed_projection_example(; measure = FontFileMeasure())
 
 The `MessageLog` panel pipeline: the log as syntax, then text, then graphics.
 """
-make_message_log_feed_projection_example(; measure = measure_truetype_text) =
+make_message_log_feed_projection_example(; measure = FontFileMeasure()) =
     ChainingProjection(
         MessageLogToSyntax(),
         RecursiveProjection(SyntaxToText()),
@@ -47,12 +47,12 @@ function run_message_log_feed_example(; backend = nothing)
 end
 
 """
-    make_frame_statistics_feed_projection_example(; measure = measure_truetype_text)
+    make_frame_statistics_feed_projection_example(; measure = FontFileMeasure())
 
 The `FrameStatistics` table pipeline: the table as syntax, then text, then
 graphics.
 """
-make_frame_statistics_feed_projection_example(; measure = measure_truetype_text) =
+make_frame_statistics_feed_projection_example(; measure = FontFileMeasure()) =
     ChainingProjection(
         FrameStatisticsToSyntax(),
         RecursiveProjection(SyntaxToText()),

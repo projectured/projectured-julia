@@ -28,7 +28,7 @@ using ProjecturedKernel.ReferenceModule: var"@reference_case"
 using ProjecturedProjection.ProjectionAlgebraModule: RecursiveProjection
 using ProjecturedProjection.ProjectionAlgebraModule: TypeDispatchingProjection
 
-_al_measure(text, _font) = (length(text) * 10, 20)
+_al_measure = FixedMeasure(10, 15, 5, 0)
 
 _al_renderer() = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,

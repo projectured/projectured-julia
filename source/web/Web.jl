@@ -369,20 +369,20 @@ _extend!(a::_DAcc, b) = (a.minx = min(a.minx, b[1]); a.miny = min(a.miny, b[2]);
 
 function _bounds_of_elem(elem, ox::Int, oy::Int)
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int)); mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
-    _bounds_elem!(elem, ox, oy, measure_truetype_text, mnx, mny, mxx, mxy)
+    _bounds_elem!(elem, ox, oy, FontFileMeasure(), mnx, mny, mxx, mxy)
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
 
 function _bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int)
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int)); mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
-    _accumulate_bounds!(canvas, ox, oy, measure_truetype_text, mnx, mny, mxx, mxy)
+    _accumulate_bounds!(canvas, ox, oy, FontFileMeasure(), mnx, mny, mxx, mxy)
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
 
 function _bounds_of_listnode(head::ListNode, ox::Int, oy::Int)
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int)); mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
     for n in _list_nodes(head)
-        _bounds_elem!(n.value, ox, oy, measure_truetype_text, mnx, mny, mxx, mxy)
+        _bounds_elem!(n.value, ox, oy, FontFileMeasure(), mnx, mny, mxx, mxy)
     end
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
@@ -760,7 +760,7 @@ end
 # ════════════════════════════════════════════════════════════════════════
 
 function BackendModule.initialize_backend!(backend::WebBackend)
-    # Text metrics come from the pure-Julia TrueType measurer (measure_truetype_text),
+    # Text metrics come from the pure-Julia font file measure (FontFileMeasure),
     # so no SDL/SDL_ttf initialisation is needed — the web backend is SDL-free.
     backend.server = HTTP.listen!(backend.host, backend.port) do http
         if HTTP.WebSockets.isupgrade(http.message)

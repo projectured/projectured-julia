@@ -5,7 +5,7 @@
 # ignores the override. Each box part is drawn at the size of its inset, and a
 # transparent part adds no element.
 
-_color_test_measure(text, font) = (8 * length(text), 16)
+_color_test_measure = FixedMeasure(8, 12, 4, 0)
 
 # Every color that a canvas tree draws: the fills, the outlines, the lines and
 # the texts. A rect of no size draws nothing, so its colors do not count.

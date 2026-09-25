@@ -12,7 +12,7 @@ using Test
 function test_file_tab()
 @testset "a file tab draws its content and saves/reloads it" begin
 
-_stub(t, f) = (max(1, length(t)) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 
 # Every word the canvas draws, joined. Copied from
 # `test/projectured/projection/ToolViewTest.jl` rather than imported.

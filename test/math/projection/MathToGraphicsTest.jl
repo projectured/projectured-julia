@@ -4,13 +4,13 @@
 function test_math_to_graphics()
 @testset "MathToGraphics" begin
 
-_projection() = RecursiveProjection(MathToGraphics(measure = measure_truetype_text))
+_projection() = RecursiveProjection(MathToGraphics(measure = FontFileMeasure()))
 _print(doc) = print_document(_projection(), doc)
 
 # The metrics the rules are derived from, at the default face and size.
 _config() = MathConfig(font = font_dejavu_sans_regular_20,
                        slanted = font_dejavu_sans_italic_20,
-                       measure = measure_truetype_text)
+                       measure = FontFileMeasure())
 _metrics(style = :display) = compute_math_metrics(_config(), style)
 
 # Element 1 of every box is the selection wash, so the content starts at 2.
@@ -34,7 +34,7 @@ end
 @testset "a leaf is one text box on its own baseline" begin
     iomap = _print(MathVariable("x"))
     m = _metrics()
-    @test Int(iomap.width[]) == measure_truetype_text("x", m.slanted)[1]
+    @test Int(iomap.width[]) == first(compute_text_extent("x", m.slanted))
     @test Int(iomap.ascent[]) == font_ascent(m.slanted)
     @test Int(iomap.descent[]) == font_descent(m.slanted)
     @test Int(iomap.output.h[]) == Int(iomap.ascent[]) + Int(iomap.descent[])
@@ -46,7 +46,7 @@ end
 @testset "a row spaces its parts and shares one baseline" begin
     m = _metrics()
     row = _print(MathRow([MathVariable("k"), MathVariable("T")]))
-    first_width = measure_truetype_text("k", m.slanted)[1]
+    first_width = first(compute_text_extent("k", m.slanted))
     # The second element starts after the first plus one thin space.
     @test _at(row.output, 2)[1] == first_width + m.thin
     # One baseline: both boxes have the same top, because both are leaves of
@@ -58,7 +58,7 @@ end
     m = _metrics()
     plus = _print(MathBinaryOperation(:+, MathVariable("a"), MathVariable("b")))
     equal = _print(MathAssignment(MathVariable("a"), MathVariable("b")))
-    a_width = measure_truetype_text("a", m.slanted)[1]
+    a_width = first(compute_text_extent("a", m.slanted))
     # A binary operator gets the medium space, a relation the thick one.
     @test _at(plus.output, 2)[1] == a_width + m.medium
     @test _at(equal.output, 2)[1] == a_width + m.thick
@@ -77,7 +77,7 @@ end
     @test Int(rule.w[]) == Int(fraction.width[])
     # Both parts center on the rule.
     inner = compute_math_metrics(_config(), :text)
-    numerator_width = measure_truetype_text("1", inner.upright)[1]
+    numerator_width = first(compute_text_extent("1", inner.upright))
     @test _at(canvas, 1)[1] == (Int(fraction.width[]) - numerator_width) ÷ 2
     # The numerator sits above the rule and the denominator below it.
     @test _at(canvas, 1)[2] < Int(rule.y[])
@@ -102,7 +102,7 @@ end
     base_top = _at(subscript.output, 1)[2]
     @test (script_top + font_ascent(inner.slanted)) - (base_top + base_ascent) == down
     # A script starts where the base ends.
-    @test _at(subscript.output, 2)[1] == measure_truetype_text("P", m.slanted)[1]
+    @test _at(subscript.output, 2)[1] == first(compute_text_extent("P", m.slanted))
 end
 
 @testset "a script is set smaller, and a script inside one smaller again" begin

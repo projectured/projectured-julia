@@ -1,6 +1,6 @@
 # The natural notation pipeline: the process/julia merged dispatch table through
 # the shared Syntax → Text → Graphics tail every domain ends with.
-function make_process_projection_example(; measure=measure_truetype_text)
+function make_process_projection_example(; measure=FontFileMeasure())
     ChainingProjection(
         RecursiveProjection(ProcessToSyntax()),
         RecursiveProjection(SyntaxToText()),
@@ -18,7 +18,7 @@ end
 # placement with right-angled routing after that. A flowchart asks for
 # `orthogonal` because its arrows are read as flow — a diagonal between two
 # boxes reads as a relation instead of a direction.
-function make_process_diagram_projection_example(; measure=measure_truetype_text,
+function make_process_diagram_projection_example(; measure=FontFileMeasure(),
                                                  engine=make_deferred_layout_engine(orthogonal=true))
     label = ChainingProjection(
         RecursiveProjection(ProcessToSyntaxLabel()),

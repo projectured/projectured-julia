@@ -31,7 +31,7 @@ below stays readable, and the panel says at a glance that it is not chrome.
 const FAULT_LOG_BACKGROUND = StyleColor(0.18, 0.02, 0.02, 0.80)
 
 # Extra width of the panel, in pixels. It covers the small difference between
-# the measure function the printer used and the text metrics of the backend that
+# the measure the printer used and the text metrics of the backend that
 # draws. Without it the last characters of the longest line sit on the border.
 const _FAULT_WIDTH_SLACK = 8
 
@@ -48,13 +48,13 @@ make_fault_log_panel_syntax_projection() =
 
 """
     make_fault_log_content_projection(; syntax = FaultLogToSyntax(),
-                                        measure = measure_truetype_text)
+                                        measure::TextMeasure = FontFileMeasure())
 
 The chain that renders a `FaultLog` down to graphics. `syntax` is its first
 step. The default has the colors for a light background.
 """
 make_fault_log_content_projection(; syntax = FaultLogToSyntax(),
-                                    measure = measure_truetype_text) =
+                                    measure::TextMeasure = FontFileMeasure()) =
     ChainingProjection(syntax,
                        RecursiveProjection(SyntaxToText()),
                        TextToGraphics(measure = measure))
@@ -237,7 +237,7 @@ its own steps as well; the guide says why every one of them needs a
 """
 function make_fault_tolerant_projection(inner;
                                         log::FaultLog = FaultLog(),
-                                        measure = measure_truetype_text,
+                                        measure::TextMeasure = FontFileMeasure(),
                                         anchor::Symbol = :bottom_left)
     guarded = FaultCatchingProjection(inner = inner, substitute = FaultToGraphics())
     projection = FaultLogOverlayProjection(

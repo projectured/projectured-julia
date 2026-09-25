@@ -2,7 +2,7 @@ function make_graphics_caching(projection; render=render_canvas)
     ChainingProjection(projection, RecursiveProjection(GraphicsCaching(render=render)))
 end
 
-function make_scrolling_projection(projection; measure=measure_truetype_text,
+function make_scrolling_projection(projection; measure=FontFileMeasure(),
                                     font=font_ubuntu_monospace_regular_20)
     theme = make_slate_light_theme(font = font)
     NestingProjection(
@@ -23,7 +23,7 @@ end
 # widgets, and the content slot defers to the example's projection. This is the
 # introspection dispatch, with a shell in place of the tabbed pane. Pairs with
 # `make_shell_document`.
-function make_shell_projection(projection; measure=measure_truetype_text,
+function make_shell_projection(projection; measure=FontFileMeasure(),
                                font=font_ubuntu_regular_20)
     w2g = WidgetToGraphics(font; measure=measure)
     RecursiveProjection(TypeDispatchingProjection(vcat(
@@ -41,10 +41,10 @@ end
 # palette. The help window is a *sibling window* and can share one flag across
 # windows; the palette is drawn INTO its window, so a shared flag would draw it
 # over every window at once.
-make_command_palette_decorator_projection(projection; measure=measure_truetype_text) =
+make_command_palette_decorator_projection(projection; measure=FontFileMeasure()) =
     CommandPaletteDecoratorProjection(inner = projection, measure = measure)
 
-function make_introspection_projection(projection; measure=measure_truetype_text)
+function make_introspection_projection(projection; measure=FontFileMeasure())
     font = font_ubuntu_monospace_regular_20
     fg   = (0xee, 0xee, 0xee, 0xff)
     w2g  = WidgetToGraphics(font; measure=measure)
@@ -75,7 +75,7 @@ end
 # projected `TextBlock` slot through TextToGraphics — the introspection pattern.
 # Expects a TextBlock document (the text examples).
 function make_text_configuring_projection(inner_text_projection;
-                                          measure=measure_truetype_text,
+                                          measure=FontFileMeasure(),
                                           font=font_ubuntu_monospace_regular_20)
     fg  = (0x22, 0x22, 0x22, 0xff)   # dark text for the light example background
     w2g = WidgetToGraphics(font; measure=measure)

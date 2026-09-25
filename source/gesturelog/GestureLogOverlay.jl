@@ -41,14 +41,14 @@ make_gesture_log_panel_syntax_projection(; operation_width::Integer = typemax(In
                        operation_width = Int(operation_width))
 
 """
-    make_gesture_log_content_projection(; measure = measure_truetype_text,
+    make_gesture_log_content_projection(; measure::TextMeasure = FontFileMeasure(),
                                           operation_width = typemax(Int))
 
 The chain that renders a `GestureLog` down to graphics, with the colors of the
 panel. `operation_width` limits the operation of a line, and so the width of the
 panel, which follows its longest line.
 """
-make_gesture_log_content_projection(; measure = measure_truetype_text,
+make_gesture_log_content_projection(; measure::TextMeasure = FontFileMeasure(),
                                       operation_width::Integer = typemax(Int)) =
     ChainingProjection(make_gesture_log_panel_syntax_projection(; operation_width),
                        RecursiveProjection(SyntaxToText()),
@@ -110,8 +110,8 @@ function print_document(p::GestureLogOverlayProjection, recursion, input, ctx)
 
     body_width() = _width(log_output[])
     body_height() = _height(log_output[])
-    # The slack covers the small difference between the measure function that
-    # the printer used and the text metrics of the backend that draws. Without
+    # The slack covers the small difference between the measure that the
+    # printer used and the text metrics of the backend that draws. Without
     # it the last characters of the longest line sit on the panel border.
     panel_width() = body_width() + 2 * p.padding + _WIDTH_SLACK
     panel_height() = body_height() + 2 * p.padding

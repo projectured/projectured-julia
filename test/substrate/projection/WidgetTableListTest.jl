@@ -16,7 +16,7 @@ using ProjecturedWidget.WidgetModule: _wtl_row_node
 # scrolls.
 function test_widget_table_list_header_floor()
 @testset "a weighted column is at least as wide as its header" begin
-    det = (t, f) -> (length(t) * 8, 16)
+    det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
@@ -44,7 +44,7 @@ end
 function test_widget_table_list()
 @testset "a table whose rows are a list" begin
 
-det = (t, f) -> (length(t) * 8, 16)
+det = FixedMeasure(8, 12, 4, 0)
 rec = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
     WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))

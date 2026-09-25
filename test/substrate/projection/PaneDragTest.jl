@@ -9,7 +9,7 @@ end
 function test_pane_drag()
 @testset "PaneTree drag and drop" begin
 
-_stub(t, f) = (max(1, length(t)) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 _tab(name) = PaneTab(name, WidgetLabel(name))
 
 WIDTH = 400

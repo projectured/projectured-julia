@@ -156,7 +156,7 @@ function test_sql_to_syntax_selection()
                 "<>",
                 SqlScalarValue("X")))))
 
-    measure = (text, font) -> (length(text) * 10, 18)
+    measure = FixedMeasure(10, 14, 4, 0)
     proj = ChainingProjection(
         RecursiveProjection(SqlToSyntax()),
         RecursiveProjection(SyntaxToText()),

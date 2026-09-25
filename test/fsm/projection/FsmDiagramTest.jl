@@ -100,7 +100,7 @@ end
     @test graph.highlight_edge === nothing
 
     layout = print_document(GraphGraphToGraphLayout(GridEmbedding()),
-                            make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20)),
+                            make_mixed_projection_example(measure=FixedMeasure(10, 15, 5, 0)),
                             graph, PrinterContext()).output
     @test layout.highlight_vertex === nothing
     # The layout reads the graph's field reactively, so a producer can wire it

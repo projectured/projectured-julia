@@ -10,7 +10,7 @@ using ProjecturedKernel.CellModule: Cell, Computation
 function test_widget_toolbar()
 @testset "WidgetToolbar pointer routing" begin
 
-_det = (t, f) -> (length(t) * 8, 16)
+_det = FixedMeasure(8, 12, 4, 0)
 proj = make_widget_projection_example(measure = _det)
 _mods = ModifierKeys()
 _unwrap(el) = el isa Cell ? el[] : el

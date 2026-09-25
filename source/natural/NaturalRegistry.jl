@@ -21,8 +21,8 @@
 # - **to-syntax** — the domain has a `*ToSyntax` projection and the shared
 #   `Syntax → Text → Graphics` tail draws it. This is most domains.
 # - **to-graphics** — the domain draws itself, because a page of blocks or a
-#   diagram is not a syntax tree. These entries need the backend's text-measuring
-#   function, so a domain registers a factory rather than a pair.
+#   diagram is not a syntax tree. These entries need the backend's text measure,
+#   so a domain registers a factory rather than a pair.
 #
 # The third is the **fallback**: what to draw for a document no row claimed. It is
 # registered like the others and nothing registers it by default, so a renderer
@@ -86,8 +86,8 @@ end
 
 Teach the natural renderer how a domain becomes graphics **directly**, without
 the syntax tail — a page of blocks, a diagram, a typeset formula.
-`factory(; measure)` returns the domain's rows; `measure(text, font) -> (w, h)`
-is the backend's text-measuring function.
+`factory(; measure)` returns the domain's rows; `measure::TextMeasure` is the
+backend's text measure.
 """
 function register_natural_graphics!(key::Symbol, factory)
     any(e -> first(e) === key, _GRAPHICS_FACTORIES) && return nothing
@@ -137,7 +137,7 @@ end
 
 Every registered to-graphics row, built now against `measure`.
 """
-function get_natural_graphics_entries(; measure)
+function get_natural_graphics_entries(; measure::TextMeasure)
     out = Pair{Type,Any}[]
     for (_, factory) in _GRAPHICS_FACTORIES
         for pr in factory(; measure = measure)
@@ -153,7 +153,7 @@ end
 
 Every registered fallback row, built now. Empty when nothing registered one.
 """
-function get_natural_fallback_entries(; measure, font, wrap)
+function get_natural_fallback_entries(; measure::TextMeasure, font, wrap)
     out = Pair{Type,Any}[]
     for (_, factory) in _FALLBACK_FACTORIES
         for pr in factory(; measure = measure, font = font, wrap = wrap)

@@ -24,7 +24,7 @@ _tooltip_labels() = VerticalLayout(Any[
 # for its own documents.
 _tooltip_content() = Pair{Type,Any}[
     PrimitiveDocument => ChainingProjection(RecursiveProjection(PrimitiveToText()),
-                                            TextToGraphics(measure = measure_truetype_text))]
+                                            TextToGraphics(measure = FontFileMeasure()))]
 
 function _tooltip_scene(; tooltip = compute_tooltip, content = _tooltip_content(),
                           feed = make_tooltip_feed(now = () -> 0.0),

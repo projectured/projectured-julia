@@ -9,7 +9,7 @@ function test_markdown_page_wrap()
 @testset "a markdown page breaks its prose at the page edge" begin
 
 # Eight pixels a character and sixteen a line, so a bound is arithmetic.
-_measure = (t, f) -> (length(t) * 8, 16)
+_measure = FixedMeasure(8, 12, 4, 0)
 
 # Every text a canvas drew, as (right edge, content).
 function _spans(node, ox = 0, found = Tuple{Int,String}[])

@@ -3,7 +3,7 @@
 > **Status:** in progress, in the worktree `projectured-julia-text-baseline` on
 > the branch `text-baseline`, from `c634a718`. Written 2026-09-25. The owner
 > decided the five questions of §5 on 2026-09-25, and asked on the same day to
-> start the work in a worktree. Steps 0 to 3b are done; Step 5 is next.
+> start the work in a worktree. Steps 0 to 3b and 5 are done; Step 4 is next.
 
 Text in the editor is laid out by the top of each run, measured with a height
 that is the em size, and drawn by backends that kern and hint as they like. This
@@ -539,7 +539,7 @@ projection holds its measure in one typed field, so the line model can not read 
   spacing, the leading, contiguous selections, click bands, the caret of each
   font; and a test with the authority that a line of body text, code and an
   emoji has one baseline.
-- [ ] **Step 5. Every reader moves to the new contract** (§3.8, §3.9): the
+- [x] **Step 5. Every reader moves to the new contract** (§3.8, §3.9): the
   widgets, `_bounds_elem!` and the hit test, the charts, the fault and gesture
   overlays, the math widths, `WordWrapping`, the Markdown and syntax
   projections, and the test closures. The mechanical part of this step suits a
@@ -550,6 +550,60 @@ projection holds its measure in one typed field, so the line model can not read 
   font. The glyph metrics that `_render_text_surface` reads give that extent
   without a render. On the base, the bounds are the em size high, so a partial
   repaint does not cover the descenders.
+  *Decisions made in the step:*
+  - `compute_text_extent(measure, text, font)` is the rounded box of a text for
+    any measure; the form with no measure is the `FontFileMeasure` box that the
+    backends draw.
+  - The spacing types are `SingleSpacing`, `MultipleSpacing(factor)`,
+    `ExactSpacing(distance)` and `AtLeastSpacing(distance)` in
+    `source/style/LineSpacing.jl`, with `compute_line_distance` and
+    `compute_baseline_offset`. The short names of §3.4 (`Single`, `Exactly`)
+    are too general to export.
+  - A reader that places one text on a line of its own (a widget label, a chart
+    title, an overlay row) asks `compute_line_box(measure, text, font)`. It
+    answers the width, the height of the line box, the baseline and the `y` of
+    the text in the box. The baseline is the rounded offset of the model, but
+    never less than the rounded ascent of the text, so the ink never rises above
+    the line box. The height reaches the bottom of the box of the text when that
+    is below the line distance: Ubuntu Mono 20 has a line distance of 20 and a
+    line box of 21 (17 + 4).
+  - `_bounds_elem!`, `get_graphics_size` and `get_canvas_content_bounds` take a
+    `TextMeasure`, by default `FontFileMeasure()`. A bare text has its width in
+    `get_graphics_size`, where it had none.
+  - The hit test of a `GraphicsText` is its box, with a right edge.
+  - SDL finds its dirty rectangles and the size of `write_image` by its own walk
+    (`_extend_drawn_bounds!`), which adds the texture of each text.
+  - `write_pdf` has no `measure` keyword: the PDF writer draws from the font
+    files, so only `FontFileMeasure` can size its pages.
+  - The widgets lose `TextMeasurer`, the wrapper that kept a function out of a
+    cell: a `TextMeasure` is a value.
+  - A widget, a chart and an overlay place each text at the top of its line box
+    plus `text_y`. `_push_text!` of the widgets takes the measure for that.
+  - A test closure `(t, f) -> (length(t) * a, h)` became
+    `FixedMeasure(a, h - h ÷ 4, h ÷ 4, 0)`: its line is `h` high, as before.
+    The two tests of the window shell that sized a line by the em size take the
+    box of the font files.
+  - `TextToGraphics` measures its segments with `compute_line_box` and puts the
+    caret at the pen positions of `compute_caret_offsets`. Its line model waits
+    for Step 4.
+  - `asset/precompile/PrecompileStatements.jl` names `TextMeasurer` and
+    `measure_truetype_text` in old signatures. A replay skips an entry that does
+    not resolve, so the file needs a new recording, not an edit.
+
+  *Done.* The suites of Step 0 on the branch (`/var/tmp/text-baseline-step5/`)
+  have the same failures as the base, at the same lines. Four pass counts move,
+  and each has its cause:
+  - substrate +54: `test_line_spacing` 15, `test_text_measure` 24, and the font
+    metrics test 29 where the base has 14.
+  - sdl +537: the metrics agreement 519, the baseline ink 4 and the pen
+    positions 16, less the 2 assertions of the old fallback measure test.
+  - write_pdf +3: the tests of Step 3.
+  - catalog_markdown −102: `markdown/image/syntax` −41 and `markdown/link/syntax`
+    −61, all in the printer walk. Each atom has two paths of equal length to
+    syntax, one through the Julia dispatcher and one through the Markdown
+    dispatcher, and `path_sequences` orders them by a `Dict`. The new types move
+    the hash order, so the catalog takes the Julia path first. A fresh process on
+    the branch gives the same counts. This is not a change of behavior.
 - [ ] **Step 6. The old contract goes.** `measure_truetype_text` as a pair,
   `measure_sdl_text`, `font_logical_size` as a height, and `measure_text` of the
   backends (question 5). The naming guard passes.

@@ -5,7 +5,7 @@
 # `CopyingProjection` is what makes the walk work: it recurses a struct Document
 # field by field through `print_child`, so the dispatch meets each `ObjectField`
 # wherever the author put it, and the labels pass through untouched.
-function make_object_field_form_projection_example(; measure=measure_truetype_text)
+function make_object_field_form_projection_example(; measure=FontFileMeasure())
     font = font_ubuntu_monospace_regular_20
     w2g  = WidgetToGraphics(font; measure=measure)
     ChainingProjection(
@@ -26,7 +26,7 @@ end
 # of `ObjectToSyntax`'s own table, so the field is named rather than reflected:
 # without it the `Any` row would dispatch to `ObjectNodeToSyntaxNode` and dump the
 # whole object and its reference path.
-function make_object_field_syntax_projection_example(; measure=measure_truetype_text)
+function make_object_field_syntax_projection_example(; measure=FontFileMeasure())
     ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(vcat(
             Pair{Type,Any}[ObjectField => ObjectFieldToSyntax()],

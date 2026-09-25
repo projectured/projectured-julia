@@ -15,7 +15,7 @@ struct _PaneReaderGenericStage <: Projection end
 function test_pane_reader()
 @testset "PaneToWidget reader" begin
 
-_stub(t, f) = (max(1, length(t)) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 _tab(name) = PaneTab(name, WidgetLabel(name))
 _chain() = ChainingProjection(RecursiveProjection(PaneToWidget()),
                               make_widget_projection_example(measure = _stub))

@@ -3,7 +3,7 @@
 # `SqlToCellTable` over an ODBC `OdbcConnectionPool`. The static SQL→syntax
 # projections stay in the base example package.
 
-function make_sql_table_projection_example(; measure=measure_truetype_text,
+function make_sql_table_projection_example(; measure=FontFileMeasure(),
                                              pool=OdbcConnectionPool(),
                                              instance=make_database_instance_document_example())
     # The query result cells are base Primitive documents; render them through the

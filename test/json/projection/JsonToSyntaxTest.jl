@@ -115,7 +115,7 @@ end
 
     chain = ChainingProjection(RecursiveProjection(JsonToSyntax()),
                                RecursiveProjection(SyntaxToText()),
-                               TextToGraphics(measure = measure_truetype_text))
+                               TextToGraphics(measure = FontFileMeasure()))
     n = JsonNumber(42)
     set_selection!(n, @reference(n, value{1}))
     @test read_intent(chain, print_document(chain, n), KeyPress('5'; time = 0.0)) isa ReplaceNumberRangeOperation
@@ -124,7 +124,7 @@ end
 @testset "a letter typed into a number is ignored" begin
     chain = ChainingProjection(RecursiveProjection(JsonToSyntax()),
                                RecursiveProjection(SyntaxToText()),
-                               TextToGraphics(measure = measure_truetype_text))
+                               TextToGraphics(measure = FontFileMeasure()))
     # Type `key` at the caret `caret`, and evaluate what the chain reads.
     function type_key!(document, caret, key)
         set_selection!(document, caret)
@@ -156,7 +156,7 @@ end
 @testset "a digit typed into a cleared number in a container makes a number" begin
     chain = ChainingProjection(RecursiveProjection(JsonToSyntax()),
                                RecursiveProjection(SyntaxToText()),
-                               TextToGraphics(measure = measure_truetype_text))
+                               TextToGraphics(measure = FontFileMeasure()))
     function type_key!(document, caret, key)
         set_selection!(document, caret)
         op = read_intent(chain, print_document(chain, document), KeyPress(key; time = 0.0))

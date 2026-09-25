@@ -9,7 +9,7 @@ function test_widget_text_wrap()
 @testset "a widget breaks its own text to the box" begin
 
 # Eight pixels a character and sixteen a line, so a bound is arithmetic.
-_measure = (t, f) -> (length(t) * 8, 16)
+_measure = FixedMeasure(8, 12, 4, 0)
 _projection() = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
     WidgetToGraphics(font_ubuntu_regular_20; measure = _measure).dispatch)))

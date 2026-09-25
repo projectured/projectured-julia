@@ -6,28 +6,28 @@
 # foreign document. What it does need is a size: the fallback below applies when
 # no parent layout has allocated one.
 
-make_sequencechart_pipeline_example(; measure=measure_truetype_text,
+make_sequencechart_pipeline_example(; measure=FontFileMeasure(),
                                     width::Integer=900, height::Integer=520) =
     ChainingProjection(
         SequenceChartToSequenceChartPlot(),
         SequenceChartPlotToGraphicsCanvas(measure=measure, width=width, height=height))
 
-make_sequencechart_projection_example(; measure=measure_truetype_text) =
+make_sequencechart_projection_example(; measure=FontFileMeasure()) =
     make_sequencechart_pipeline_example(; measure=measure)
 
 # Time running downward wants a taller canvas than one running across.
-make_sequencechart_vertical_projection_example(; measure=measure_truetype_text) =
+make_sequencechart_vertical_projection_example(; measure=FontFileMeasure()) =
     make_sequencechart_pipeline_example(; measure=measure, width=620, height=700)
 
-make_sequencechart_linear_projection_example(; measure=measure_truetype_text) =
+make_sequencechart_linear_projection_example(; measure=FontFileMeasure()) =
     make_sequencechart_pipeline_example(; measure=measure)
 
-make_sequencechart_large_projection_example(; measure=measure_truetype_text) =
+make_sequencechart_large_projection_example(; measure=FontFileMeasure()) =
     make_sequencechart_pipeline_example(; measure=measure)
 
 # Embedding a sequence chart in anything that recurses its children takes one
 # dispatch entry — which is also all it takes to open one as a pane tab.
-function make_sequencechart_composite_projection_example(; measure=measure_truetype_text,
+function make_sequencechart_composite_projection_example(; measure=FontFileMeasure(),
                                                          width::Integer=880,
                                                          height::Integer=330)
     NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20,
@@ -36,14 +36,14 @@ function make_sequencechart_composite_projection_example(; measure=measure_truet
                                                                 width=width, height=height)])
 end
 
-make_sequencechart_pair_projection_example(; measure=measure_truetype_text) =
+make_sequencechart_pair_projection_example(; measure=FontFileMeasure()) =
     make_sequencechart_composite_projection_example(; measure=measure)
 
 # The inspector: the chart renders through its own pipeline, and the lane through
 # ObjectToWidget's reflection-driven form, whose controls write back to the
 # lane's own cells. Two projections over one document, which is what makes a
 # chart's properties editable without a bespoke property editor.
-function make_sequencechart_inspector_projection_example(; measure=measure_truetype_text)
+function make_sequencechart_inspector_projection_example(; measure=FontFileMeasure())
     font = font_ubuntu_monospace_regular_20
     w2g = WidgetToGraphics(font; measure=measure)
     form = ChainingProjection(

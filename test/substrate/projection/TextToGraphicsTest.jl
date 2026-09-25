@@ -1,5 +1,5 @@
 function test_text_to_graphics()
-_test_measure(cw, lh) = (text, font) -> (length(text) * cw, lh)
+_test_measure(cw, lh) = FixedMeasure(cw, lh - lh÷4, lh÷4, 0)
 
 # The TextToGraphics canvas carries a persistent highlight rect (behind the text)
 # and cursor rect (in front) so that moving the caret never regenerates the spans;
@@ -352,7 +352,7 @@ end # @testset "TextToGraphics lays out TextLine blocks"
 # Variant 2 (`TextColumnReferenceStep`) is reserved but has no producer yet; assert its
 # geometry function directly on a hand-built two-row coord map (monospace, 10px/glyph).
 _font = font_ubuntu_monospace_regular_20
-measure = (t, f) -> (length(t) * 10, 18)
+measure = FixedMeasure(10, 14, 4, 0)
 p = TextToGraphics(measure = measure)
 SC = TextModule.SegmentCoordinate
 coord_map = [SC([1], 0, 6, 0,  0, _font, "abcdef", 60, 18),
@@ -387,7 +387,7 @@ end # @testset "TextColumnReferenceStep column-box geometry"
 # JSON `address` shape (monospace, 10px/glyph): a first line at indent 0, an interior
 # line whose leading indent is a separate whitespace span, and a close line.
 _font = font_ubuntu_monospace_regular_20
-measure = (t, f) -> (length(t) * 10, 18)
+measure = FixedMeasure(10, 14, 4, 0)
 p = TextToGraphics(measure = measure)
 SC = TextModule.SegmentCoordinate
 fs = TextModule.font_logical_size(_font)

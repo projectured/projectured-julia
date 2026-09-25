@@ -54,7 +54,7 @@ end
 
 function test_text_range_selection()
 @testset "Shift selects a range where a projection maps it" begin
-    measure = measure_truetype_text
+    measure = FontFileMeasure()
     font = font_ubuntu_monospace_regular_20
 
     @testset "a plain string maps the range, and an edit replaces it" begin
@@ -66,7 +66,7 @@ function test_text_range_selection()
         (x, y, _) = only(_tr_texts(_tr_window(backend)))
         # A press between "hello" and " world".
         _tr_press!(editor, backend,
-                   MousePress(:left, x + first(measure("hello", font)), y + 8, _TR_NONE; time = 0.0))
+                   MousePress(:left, x + first(compute_text_extent("hello", font)), y + 8, _TR_NONE; time = 0.0))
         @test _tr_range(s) == (5, 5)
         caret_rects = _tr_rects(_tr_window(backend))
 
@@ -104,7 +104,7 @@ function test_text_range_selection()
         (editor, backend) = _tr_editor(s, projection)
         (x, y, _) = only(_tr_texts(_tr_window(backend)))
         _tr_press!(editor, backend,
-                   MousePress(:left, x + first(measure("abcd", font)), y + 8, _TR_NONE; time = 0.0))
+                   MousePress(:left, x + first(compute_text_extent("abcd", font)), y + 8, _TR_NONE; time = 0.0))
         _tr_press!(editor, backend, KeyDown(:left, _TR_SHIFT; time = 0.0))
         @test _tr_range(s) == (3, 4)
         _tr_press!(editor, backend, KeyDown(:left, _TR_NONE; time = 0.0))
@@ -117,7 +117,7 @@ function test_text_range_selection()
         texts = _tr_texts(_tr_window(backend))
         (x, y, _) = texts[findfirst(t -> t[3] == "name", texts)]
         _tr_press!(editor, backend,
-                   MousePress(:left, x + first(measure("na", font)), y + 8, _TR_NONE; time = 0.0))
+                   MousePress(:left, x + first(compute_text_extent("na", font)), y + 8, _TR_NONE; time = 0.0))
         # The path is a live value that changes in place, so its printed form is
         # what is kept.
         @test editor.document.selection !== nothing

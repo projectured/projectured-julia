@@ -16,7 +16,7 @@
 
 """
     make_value_viewer(value; tree = true, depth = 1, elements = 20,
-                      measure = measure_truetype_text) -> (document, projection)
+                      measure = FontFileMeasure()) -> (document, projection)
 
 The document and the projection of a window on `value`.
 
@@ -28,7 +28,7 @@ The document and the projection of a window on `value`.
   the next level.
 """
 function make_value_viewer(value; tree::Bool = true, depth::Integer = 1,
-                           elements::Integer = 20, measure = measure_truetype_text)
+                           elements::Integer = 20, measure = FontFileMeasure())
     tree || return (value, NaturalToGraphics(measure = measure))
     document = reflect_document(value, _make_value_viewer_policy(depth, elements))
     projection = ChainingProjection(ReflectionToWidget(),

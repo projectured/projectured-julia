@@ -113,7 +113,7 @@ _is_embeddable_font(ttf::TrueTypeFont) = ttf.glyf_off != 0
 
 # The registration of the font that draws `character` in a text set in the font
 # at `path`. It is the font that `find_glyph_font_file` names, which is the font
-# that `measure_truetype_text` measures the character in. A fallback font that
+# that `FontFileMeasure` measures the character in. A fallback font that
 # the writer can not embed is skipped, and the character is drawn in the font
 # of the text.
 function _register_glyph_font!(ctx::PageContext, primary::FontRegistration,
@@ -700,8 +700,7 @@ end
 """
     write_pdf(canvas::GraphicsCanvas, filename::AbstractString;
               width::Integer, height::Integer, paginate::Bool = false,
-              background::NTuple{4,UInt8} = (0xfd,0xf6,0xe3,0xff),
-              measure = measure_truetype_text) -> ImageFile
+              background::NTuple{4,UInt8} = (0xfd,0xf6,0xe3,0xff)) -> ImageFile
 
 Low-level overload. Emit `canvas` as a vector PDF where each page is
 `width × height` points (1 pt == 1 logical px). Shapes become PDF paths, text
@@ -710,19 +709,18 @@ becomes selectable glyphs in embedded fonts. Returns `ImageFile(filename)`.
 With `paginate = false` (default) the result is a single page; content taller
 than `height` overflows and is clipped. With `paginate = true`, content taller
 than `height` flows onto successive `width × height` pages, sliced into vertical
-bands; `measure` is used to find the content height.
+bands at the height of the content, as the font files measure its texts.
 """
 function write_pdf(canvas::GraphicsCanvas, filename::AbstractString;
                    width::Integer, height::Integer, paginate::Bool = false,
-                   background::NTuple{4,UInt8} = DEFAULT_BG,
-                   measure = measure_truetype_text)
+                   background::NTuple{4,UInt8} = DEFAULT_BG)
     ext = lowercase(splitext(filename)[2])
     ext == ".pdf" || error("write_pdf: unsupported format \"$ext\" (only .pdf is supported)")
 
     page_w = Int(width); page_h = Int(height)
     top = 0; npages = 1
     if paginate
-        _, miny, _, maxy = get_canvas_content_bounds(canvas, measure)
+        _, miny, _, maxy = get_canvas_content_bounds(canvas)
         top = min(0, miny)
         npages = max(1, cld(max(0, maxy - top), page_h))
     end
@@ -734,8 +732,7 @@ end
     write_pdf(document, projection, filename::AbstractString;
               width=nothing, height=nothing, paginate::Bool = false,
               max_width::Integer = 1200, max_height::Integer = 800,
-              background::NTuple{4,UInt8} = (0xfd,0xf6,0xe3,0xff),
-              measure = measure_truetype_text) -> ImageFile
+              background::NTuple{4,UInt8} = (0xfd,0xf6,0xe3,0xff)) -> ImageFile
 
 Run `print_document(projection, document)` to obtain a `GraphicsCanvas` and
 write the vector PDF. Throws if the projection output is not a `GraphicsCanvas`.
@@ -754,7 +751,7 @@ capped at `max_width`. `max_height` is ignored in this mode.
 proj = ChainingProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
-    TextToGraphics(measure=measure_sdl_text),
+    TextToGraphics(measure = FontFileMeasure()),
 )
 write_pdf(doc, proj, "snapshot.pdf")                       # one content-fit page
 write_pdf(doc, proj, "book.pdf"; paginate=true, height=792) # multi-page
@@ -766,8 +763,7 @@ function write_pdf(document, projection, filename::AbstractString;
                    paginate::Bool = false,
                    max_width::Integer = 1200,
                    max_height::Integer = 800,
-                   background::NTuple{4,UInt8} = DEFAULT_BG,
-                   measure = measure_truetype_text)
+                   background::NTuple{4,UInt8} = DEFAULT_BG)
     print_canvas = (aw, ah) -> begin
         ctx = PrinterContext(EmptyReference(), aw, ah, Dict{Symbol,Any}())
         iomap = print_document(projection, nothing, document, ctx)
@@ -783,20 +779,20 @@ function write_pdf(document, projection, filename::AbstractString;
         page_h = height === nothing ? 792 : Int(height)
         aw = width === nothing ? nothing : Cell(Int(width))
         canvas = print_canvas(aw, nothing)
-        _, _, nw, _ = get_canvas_content_bounds(canvas, measure)
+        _, _, nw, _ = get_canvas_content_bounds(canvas)
         if width === nothing && nw > max_width
             canvas = print_canvas(Cell(Int(max_width)), nothing)
-            _, _, nw, _ = get_canvas_content_bounds(canvas, measure)
+            _, _, nw, _ = get_canvas_content_bounds(canvas)
         end
         page_w = width === nothing ? clamp(nw, 1, Int(max_width)) : Int(width)
         return write_pdf(canvas, filename; width = page_w, height = page_h,
-                         paginate = true, background = background, measure = measure)
+                         paginate = true, background = background)
     end
 
     aw = width  === nothing ? nothing : Cell(Int(width))
     ah = height === nothing ? nothing : Cell(Int(height))
     canvas = print_canvas(aw, ah)
-    _, _, nw, nh = get_canvas_content_bounds(canvas, measure)
+    _, _, nw, nh = get_canvas_content_bounds(canvas)
 
     cap_w = width  === nothing && nw > max_width
     cap_h = height === nothing && nh > max_height
@@ -804,7 +800,7 @@ function write_pdf(document, projection, filename::AbstractString;
         aw2 = cap_w ? Cell(Int(max_width))  : aw
         ah2 = cap_h ? Cell(Int(max_height)) : ah
         canvas = print_canvas(aw2, ah2)
-        _, _, nw, nh = get_canvas_content_bounds(canvas, measure)
+        _, _, nw, nh = get_canvas_content_bounds(canvas)
     end
 
     out_w = width  === nothing ? clamp(nw, 1, Int(max_width))  : Int(width)

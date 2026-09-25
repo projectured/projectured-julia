@@ -1,4 +1,4 @@
-function make_reversing_projection_example(; measure=measure_truetype_text)
+function make_reversing_projection_example(; measure=FontFileMeasure())
     ChainingProjection(
         ReversingProjection(),
         NestingProjection(CollectionToSyntax(), PrimitiveStringToSyntaxLeaf()),

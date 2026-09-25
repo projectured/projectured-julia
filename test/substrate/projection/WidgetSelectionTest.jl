@@ -5,7 +5,7 @@
 # widget draws, and every assertion names the node the selection resolves to.
 
 _selection_font = font_ubuntu_monospace_regular_20
-_selection_measure(t, f) = (length(t) * 10, 24)
+_selection_measure = FixedMeasure(10, 18, 6, 0)
 _selection_projection() = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
     WidgetToGraphics(_selection_font; measure = _selection_measure).dispatch)))

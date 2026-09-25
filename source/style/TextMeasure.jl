@@ -240,18 +240,23 @@ compute_caret_offsets(measure::FixedMeasure, text, font::StyleFont) =
 # ── The integer box of a drawn text ─────────────────────────────────────────
 
 """
-    compute_text_extent(text, font::StyleFont) -> (width, ascent, descent)
+    compute_text_extent([measure::TextMeasure,] text, font::StyleFont) -> (width, ascent, descent)
 
-The box that a `GraphicsText` of `text` in `font` draws, in whole logical
-pixels, from the font files: the width rounded, and the ascent and the descent
-rounded up, so the box never ends inside the ink. The baseline of the text is
-`ascent` below its `y`. Every backend draws the baseline there, and a layout that
-places a text by its baseline sets `y` to the baseline minus this ascent.
+The box of `text` in `font` in whole logical pixels, as `measure` measures it:
+the width rounded, and the ascent and the descent rounded up, so the box never
+ends inside the ink. The baseline of the text is `ascent` below its `y`.
+
+With no `measure`, the box is the one that a `GraphicsText` draws, from the font
+files ([`FontFileMeasure`](@ref)). Every backend draws the baseline there, and a
+layout that places a text by its baseline sets `y` to the baseline minus this
+ascent.
 """
-function compute_text_extent(text, font::StyleFont)
-    box = measure_string(FontFileMeasure(), text, font)
-    (round(Int, box.width), _round_up(box.ascent), _round_up(box.descent))
-end
+compute_text_extent(measure::TextMeasure, text, font::StyleFont) =
+    _round_extent(measure_string(measure, text, font))
+
+compute_text_extent(text, font::StyleFont) = compute_text_extent(FontFileMeasure(), text, font)
+
+_round_extent(box::StringBox) = (round(Int, box.width), _round_up(box.ascent), _round_up(box.descent))
 
 # Up to the next whole pixel, without taking a float's last bit for a pixel:
 # 18.000000000000004 is 18.

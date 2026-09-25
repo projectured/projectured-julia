@@ -14,7 +14,7 @@
                              fps=30, assistant=:none, model="", context=0,
                              root=pwd(), initial_hold=0.5, final_hold=1.0,
                              supersample=2, scale=1, video_time=false, pointer=true,
-                             measure=measure_truetype_text) -> String
+                             measure=FontFileMeasure()) -> String
 
 Record the application window of [`run_application`](@ref) — built the same
 way, over `paths` and `root`, with the same `assistant`/`model`/`context` — and
@@ -58,7 +58,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   initial_hold::Real = 0.5, final_hold::Real = 1.0,
                                   supersample::Integer = 2, scale::Real = 1,
                                   video_time::Bool = false, pointer::Bool = true,
-                                  measure = measure_truetype_text)
+                                  measure = FontFileMeasure())
     lowercase(splitext(filename)[2]) == ".mp4" ||
         error("record_application_video: only .mp4 output is supported (got \"$filename\")")
     chat = make_application_assistant(assistant; model = model, context = context)

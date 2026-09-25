@@ -6,7 +6,7 @@
 # selection names, so a selection that could only say "somewhere in this
 # conversation" could only ever copy the whole conversation.
 
-_transcript_measure(text, _font) = (length(text) * 10, 20)
+_transcript_measure = FixedMeasure(10, 15, 5, 0)
 
 function _transcript_render()
     doc = ProjecturedConversationExample.make_conversation_document_example()

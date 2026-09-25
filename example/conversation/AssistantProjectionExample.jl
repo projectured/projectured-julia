@@ -1,30 +1,30 @@
 """
-    conversation_draft_entry(; measure=measure_truetype_text) -> Pair
+    conversation_draft_entry(; measure=FontFileMeasure()) -> Pair
 
 Dispatch entry rendering a `ConversationDraft` (the assistant panel's composer
 input): the composer produces a widget chat bubble, then `widget_graphics`
 renders it. Place **before** any `ConversationDocument` entry, since
 `ConversationDraft <: ConversationDocument`.
 """
-conversation_draft_entry(; measure=measure_truetype_text) =
+conversation_draft_entry(; measure=FontFileMeasure()) =
     ConversationDraft => ChainingProjection(
         RecursiveProjection(ConversationComposerToWidget()),
         _conversation_widget_graphics(measure=measure))
 
 """
-    conversation_widget_entry(; measure=measure_truetype_text) -> Pair
+    conversation_widget_entry(; measure=FontFileMeasure()) -> Pair
 
 Dispatch entry rendering the conversation history (`ConversationDocument`) as the
 Stage-2 widget chat bubbles (`ConversationToWidget → widget_graphics`). Shared by
 the assistant and the application, so both show the widget chat the same way.
 """
-conversation_widget_entry(; measure=measure_truetype_text) =
+conversation_widget_entry(; measure=FontFileMeasure()) =
     ConversationDocument => ChainingProjection(
         RecursiveProjection(ConversationToWidget()),
         _conversation_widget_graphics(measure=measure))
 
 """
-    make_assistant_projection_example(; measure=measure_truetype_text)
+    make_assistant_projection_example(; measure=FontFileMeasure())
 
 Build a projection chain that takes a `Assistant` to a
 `GraphicsCanvas` — the assistant alone, no tabs, no navigator, no editor.
@@ -37,7 +37,7 @@ two-stage chain `…ToWidget → widget_graphics`, where `widget_graphics` rende
 the widget tree (and the part-content documents it embeds — text, Julia, JSON,
 XML) to graphics.
 """
-function make_assistant_projection_example(; measure=measure_truetype_text)
+function make_assistant_projection_example(; measure=FontFileMeasure())
     font = font_ubuntu_monospace_regular_20
     w2g  = WidgetToGraphics(font; measure=measure)
     # Route the conversation history and the draft through their widget chains.

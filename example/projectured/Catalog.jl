@@ -24,8 +24,8 @@ atomic_documents() = AtomicDocument[substrate_atomic_documents; domain_atomic_do
 # so it is independently runnable via `print_document(bridge, doc)`. The text→graphics
 # tail is named so the derivation can chain it onto any text-reaching sequence.
 const _TEXT_TO_GRAPHICS = () -> ChainingProjection(
-    WordWrapping(measure = measure_truetype_text),
-    TextToGraphics(measure = measure_truetype_text))
+    WordWrapping(measure = FontFileMeasure()),
+    TextToGraphics(measure = FontFileMeasure()))
 
 const BRIDGES = Function[
     () -> RecursiveProjection(JsonToSyntax()),
@@ -39,7 +39,7 @@ const BRIDGES = Function[
     () -> RecursiveProjection(SqlToSyntax()),
     () -> RecursiveProjection(SyntaxToText()),
     # text → graphics: WordWrapping + TextToGraphics, measured with the headless
-    # `measure_truetype_text` (the same default `run_example` uses). Output is an
+    # `FontFileMeasure` (the same default `run_example` uses). Output is an
     # `RCGraphicsCanvas` (<: GraphicsDocument), so `:graphics` entries render via `run_example`.
     _TEXT_TO_GRAPHICS,
 ]

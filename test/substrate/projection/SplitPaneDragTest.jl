@@ -4,7 +4,7 @@
 function test_split_pane_drag()
 @testset "WidgetSplitPane drag-to-resize" begin
 
-_stub(t, f) = (max(1, length(t)) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 _proj() = make_widget_projection_example(measure=_stub)
 _szs(doc) = isempty(doc.sizes) ? Int[] : [Int(doc.sizes[i]) for i in 1:length(doc.sizes)]
 

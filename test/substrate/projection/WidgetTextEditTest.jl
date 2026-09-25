@@ -5,7 +5,7 @@ end
 function test_widget_text_editing()
 
 _font = font_ubuntu_monospace_regular_20
-_stub(t, f) = (length(t) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 
 # An editable WidgetText: content is a TextBlock recursed through the Text domain.
 function _doc()

@@ -371,7 +371,7 @@ end
 end
 
 @testset "the status line keeps its text off the edges" begin
-    measure = (text, font) -> (length(text) * 8, font_logical_size(font))
+    measure = FontFileMeasure()
     recursion = RecursiveProjection(TypeDispatchingProjection(
         WidgetToGraphics(font_ubuntu_regular_20; measure = measure).dispatch))
     bar = make_window_status_bar(PrimitiveString("x"); extra = ["ready"])
@@ -379,8 +379,8 @@ end
     value(v) = v isa Cell ? v[] : v
     texts = [value(e) for e in output.elements if value(e) isa GraphicsText]
     ready = only(t for t in texts if value(t.text) == "ready")
-    # The line is as tall as the font the bar draws its text with.
-    line = font_logical_size(value(ready.font))
+    # The line is the line box of the text in the font the bar draws it with.
+    line = compute_line_box(measure, "ready", value(ready.font)).height
     # Four pixels above and below the text, and eight before it.
     @test Int(value(ready.y)) == 4
     @test Int(value(ready.x)) >= 8

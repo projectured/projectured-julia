@@ -1,4 +1,4 @@
-function make_sorting_projection_example(; measure=measure_truetype_text)
+function make_sorting_projection_example(; measure=FontFileMeasure())
     ChainingProjection(
         SortingProjection(by = x -> x.value),
         NestingProjection(CollectionToSyntax(), PrimitiveStringToSyntaxLeaf()),

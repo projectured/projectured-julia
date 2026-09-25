@@ -23,15 +23,15 @@ function test_font_fallback()
     end
 
     @testset "a fallback glyph is measured in its own font" begin
-        plain = measure_truetype_text("ab", regular)[1]
-        dejavu_arrow = measure_truetype_text("→", font_dejavu_monospace_regular_20)[1]
+        plain = first(compute_text_extent("ab", regular))
+        dejavu_arrow = first(compute_text_extent("→", font_dejavu_monospace_regular_20))
         # Ubuntu Mono's box is as wide as a letter; DejaVu's arrow is wider.
         @test dejavu_arrow > plain ÷ 2
-        @test measure_truetype_text("a→b", regular)[1] == plain + dejavu_arrow
+        @test first(compute_text_extent("a→b", regular)) == plain + dejavu_arrow
         # A presentation selector has no width.
         @test measure_truetype_text("☀️", regular) == measure_truetype_text("☀", regular)
         # A text the font carries in full measures as it did.
-        @test measure_truetype_text("hello", regular)[1] == 5 * (plain ÷ 2)
+        @test first(compute_text_extent("hello", regular)) == 5 * (plain ÷ 2)
     end
 
 end

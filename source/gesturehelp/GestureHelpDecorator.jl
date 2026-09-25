@@ -81,7 +81,7 @@ What draws the help window's content: the gesture rows down to graphics, through
 the same stages the command palette uses. A screen that lets the decorator open
 its window names it for `GestureMap`.
 """
-make_gesture_map_projection(measure::Function) =
+make_gesture_map_projection(measure::TextMeasure) =
     ChainingProjection(GestureMapToSyntax(),
                        RecursiveProjection(SyntaxToText()),
                        WordWrapping(measure=measure),

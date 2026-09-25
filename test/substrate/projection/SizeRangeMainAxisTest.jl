@@ -2,7 +2,7 @@
 # draws, in order.
 function _range_layout_child_widths(layout, width)
     projection = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = (t, f) -> (length(t) * 10, 24)).dispatch))
+        WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
     ctx = PrinterContext(EmptyReference(), Cell(width), nothing, Dict{Symbol,Any}())
     iomap = print_document(projection, nothing, layout, ctx)
     [Int(last(entry).output.w[]) for entry in getfield(iomap, :child_iomaps)[]]

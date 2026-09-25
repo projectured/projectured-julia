@@ -153,7 +153,7 @@ function test_gesture_help()
     # caller names what draws the content of a window that a wrapper opens, and
     # the rows of the help window are drawn only when it does.
     @testset "the product window scene draws the help window its caller names" begin
-        entries = Pair{Type,Any}[GestureMap => make_gesture_map_projection(measure_truetype_text)]
+        entries = Pair{Type,Any}[GestureMap => make_gesture_map_projection(FontFileMeasure())]
         for (named, expected) in ((entries, true), (Pair{Type,Any}[], false))
             decorated = GestureHelpDecoratorProjection(inner = make_json_projection_example(),
                                                        state = GestureHelpState())

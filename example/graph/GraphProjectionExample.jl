@@ -7,7 +7,7 @@
 # (e.g. the native AdaptagramsLayout, see make_graph_adaptagrams_projection_example)
 # behind the same interface.
 
-function make_graph_projection_example(; measure=measure_truetype_text,
+function make_graph_projection_example(; measure=FontFileMeasure(),
                                        engine=GridEmbedding(),
                                        content=nothing)
     # A vertex's content can be any domain. Dispatch on the root content type to a

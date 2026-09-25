@@ -6,7 +6,7 @@
 #
 # So the second stage is what decides how a tab's content looks: this one knows
 # widgets, layouts, primitive documents, and the placeholder a fresh tab holds.
-function make_pane_projection_example(; measure=measure_truetype_text, new_tab=default_new_pane_tab)
+function make_pane_projection_example(; measure=FontFileMeasure(), new_tab=default_new_pane_tab)
     font = font_ubuntu_regular_20
     widget = WidgetToGraphics(font; measure=measure)
     primitive = ChainingProjection(RecursiveProjection(PrimitiveToText()),

@@ -826,23 +826,46 @@ end
 # SDL_ttf, for the functions of it that the generated binding lacks.
 const _SDL_TTF_LIBRARY = LibSDL2.libsdl2_ttf
 
-# The glyph of `character` in the font `handle`, rasterized in `color`: the
-# surface, the column of its pen origin and the row of its baseline, or
-# `nothing` when the glyph has no pixel. SDL_ttf lays a glyph out as a string of
-# one character: the pen starts at column 0, or right of the ink of a negative
-# left bearing, and the baseline is `TTF_FontAscent` rows down, or lower when the
-# ink rises above the ascent.
-function _render_glyph(handle::Ptr{TTF_Font}, character::Char, color::SDL_Color)
-    code = UInt32(character)
+# Where SDL_ttf puts the glyph of `character` in the font `handle`, in device
+# pixels: the column of its pen origin and the row of its baseline in the surface
+# of the glyph, and a width and a height that the surface never exceeds. SDL_ttf
+# lays a glyph out as a string of one character: the pen starts at column 0, or
+# right of the ink of a negative left bearing, and the baseline is
+# `TTF_FontAscent` rows down, or lower when the ink rises above the ascent.
+# `nothing` when the font has no metrics for the glyph.
+function _get_glyph_geometry(handle::Ptr{TTF_Font}, character::Char)
     left, right, bottom, top, advance = (Ref{Cint}(0) for _ in 1:5)
     status = ccall((:TTF_GlyphMetrics32, _SDL_TTF_LIBRARY), Cint,
                    (Ptr{TTF_Font}, UInt32, Ref{Cint}, Ref{Cint}, Ref{Cint}, Ref{Cint}, Ref{Cint}),
-                   handle, code, left, right, bottom, top, advance)
+                   handle, UInt32(character), left, right, bottom, top, advance)
     status == 0 || return nothing
+    ascent = Int(TTF_FontAscent(handle))
+    origin = max(0, -Int(left[]))
+    baseline = max(ascent, Int(top[]))
+    width = origin + max(Int(right[]), Int(advance[]))
+    height = baseline + max(Int(TTF_FontHeight(handle)) - ascent, -Int(bottom[]))
+    (origin, baseline, width, height)
+end
+
+# The glyph of `character` in the font `handle`, rasterized in `color`: the
+# surface, the column of its pen origin and the row of its baseline, or
+# `nothing` when the glyph has no pixel.
+function _render_glyph(handle::Ptr{TTF_Font}, character::Char, color::SDL_Color)
+    geometry = _get_glyph_geometry(handle, character)
+    geometry === nothing && return nothing
     surface = ccall((:TTF_RenderGlyph32_Blended, _SDL_TTF_LIBRARY), Ptr{SDL_Surface},
-                    (Ptr{TTF_Font}, UInt32, SDL_Color), handle, code, color)
+                    (Ptr{TTF_Font}, UInt32, SDL_Color), handle, UInt32(character), color)
     surface == C_NULL && return nothing
-    (surface, max(0, -Int(left[])), max(Int(TTF_FontAscent(handle)), Int(top[])))
+    origin, baseline, _, _ = geometry
+    (surface, origin, baseline)
+end
+
+# The font handle that draws `placed` in a text set in `font`, at the device size
+# `size`: the font itself, or the fallback font of the glyph when it opens.
+function _get_placed_font(placed::PlacedGlyph, font::StyleFont, primary::Ptr{TTF_Font}, size::Int)
+    placed.file == font.filename && return primary
+    handle = _get_fallback_font(placed.file, size)
+    handle == C_NULL ? primary : handle
 end
 
 # The surface of `text` in `font` at `ratio`, in `color`: each glyph in the font
@@ -858,8 +881,7 @@ function _render_text_surface(text::AbstractString, font::StyleFont, ratio::Floa
     sdl_color = SDL_Color(color...)
     glyphs = Tuple{Ptr{SDL_Surface},Int,Int}[]   # (surface, column of its left edge from the pen origin, baseline row)
     for placed in compute_placed_glyphs(text, font)
-        handle = placed.file == font.filename ? primary : _get_fallback_font(placed.file, size)
-        handle == C_NULL && (handle = primary)
+        handle = _get_placed_font(placed, font, primary, size)
         rendered = _render_glyph(handle, placed.character, sdl_color)
         rendered === nothing && continue
         surface, origin, baseline = rendered
@@ -894,6 +916,31 @@ function _render_text_surface(text::AbstractString, font::StyleFont, ratio::Floa
         SDL_FreeSurface(surface)
     end
     (combined, left, ascent)
+end
+
+# The rectangle that the texture of `text` in `font` covers when SDL draws it at
+# `ratio`, in logical pixels from the `x` and the `y` of the text, found from the
+# geometry of each glyph without a render: `(x0, y0, x1, y1)`, or `nothing` when
+# no glyph has metrics. The texture can reach past the box of the text: left of
+# `x` by a negative left bearing, and above its top by a glyph that rises above
+# the ascent of its font.
+function _compute_text_texture_box(text::AbstractString, font::StyleFont, ratio::Float64)
+    primary = _get_font(font, ratio)
+    size = font_device_size(font, ratio)
+    x0 = y0 = typemax(Int)
+    x1 = y1 = typemin(Int)
+    for placed in compute_placed_glyphs(text, font)
+        geometry = _get_glyph_geometry(_get_placed_font(placed, font, primary, size), placed.character)
+        geometry === nothing && continue
+        origin, baseline, width, height = geometry
+        left = round(Int, placed.x * ratio) - origin
+        x0 = min(x0, left); x1 = max(x1, left + width)
+        y0 = min(y0, -baseline); y1 = max(y1, height - baseline)
+    end
+    x0 == typemax(Int) && return nothing
+    _, ascent, _ = compute_text_extent(text, font)
+    (floor(Int, x0 / ratio), ascent + floor(Int, y0 / ratio),
+     ceil(Int, x1 / ratio), ascent + ceil(Int, y1 / ratio))
 end
 
 # Convert a domain `StyleColor` (Float64 RGBA in [0,1]) to SDL's device bytes.
@@ -1792,25 +1839,42 @@ end
 
 # Bounds of a single element / a whole canvas / a set of list-node values,
 # returned as an absolute logical `(x0,y0,x1,y1)` tuple or `nothing` if empty.
-# A text is measured at `ratio`, the ratio it is drawn at, so its bounds cover
-# every pixel that the render gives it.
-# These reuse the existing `_bounds_elem!` / `_accumulate_bounds!` machinery
-# (and so recompute the cells they read — exactly what we want, since the unit
-# is about to be repainted).
+# A text covers its box and the texture that SDL draws for it at `ratio`, the
+# ratio it is drawn at, so its bounds cover every pixel that the render gives
+# it. Every other element takes the bounds of `_bounds_elem!` (and so recomputes
+# the cells it reads — exactly what we want, since the unit is about to be
+# repainted).
 function _bounds_of_elem(elem, ox::Int, oy::Int, ratio::Float64)
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int))
     mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
-    measure = (text, font) -> _measure_sdl_text(text, font, ratio)
-    _bounds_elem!(elem, ox, oy, measure, mnx, mny, mxx, mxy)
+    _extend_drawn_bounds!(elem, ox, oy, ratio, mnx, mny, mxx, mxy)
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
 
 function _bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int, ratio::Float64)
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int))
     mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
-    measure = (text, font) -> _measure_sdl_text(text, font, ratio)
-    _accumulate_bounds!(canvas, ox, oy, measure, mnx, mny, mxx, mxy)
+    for elem in canvas.elements
+        _extend_drawn_bounds!(elem, ox, oy, ratio, mnx, mny, mxx, mxy)
+    end
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
+end
+
+# Extend the bounds by what SDL draws for `elem` at the content origin `(ox, oy)`.
+function _extend_drawn_bounds!(elem, ox::Int, oy::Int, ratio::Float64, mnx, mny, mxx, mxy)
+    if elem isa GraphicsText
+        _bounds_elem!(elem, ox, oy, FontFileMeasure(), mnx, mny, mxx, mxy)
+        texture = _compute_text_texture_box(elem.text, elem.font, ratio)
+        texture === nothing && return
+        x, y = ox + Int(elem.x), oy + Int(elem.y)
+        _bounds_extend!(mnx, mny, mxx, mxy, x + texture[1], y + texture[2], x + texture[3], y + texture[4])
+    elseif elem isa GraphicsCanvas
+        for child in elem.elements
+            _extend_drawn_bounds!(child, ox + Int(elem.x), oy + Int(elem.y), ratio, mnx, mny, mxx, mxy)
+        end
+    else
+        _bounds_elem!(elem, ox, oy, FontFileMeasure(), mnx, mny, mxx, mxy)
+    end
 end
 
 # Union a dirty unit's previous (cached) and new bounds into `acc`, then refresh
@@ -2424,9 +2488,15 @@ end
 
 # ── Content bounds ──────────────────────────────────────────────────────
 #
-# `get_canvas_content_bounds` / `_accumulate_bounds!` / `_bounds_elem!` now live in
-# `GraphicsModule` (pure geometry over a `measure` callback, no SDL), imported
-# above and shared with the PDF backend. `write_image` passes `measure_sdl_text`.
+# `write_image` sizes an image to the bounds of what SDL draws
+# (`_bounds_of_canvas`), at the scale that the glyphs rasterize at.
+
+# The bounds of what SDL draws for `canvas` at `ratio`, from the origin of the
+# canvas: `(minx, miny, maxx, maxy)`, all 0 for an empty canvas.
+function _get_drawn_content_bounds(canvas::GraphicsCanvas, ratio::Float64)
+    bounds = _bounds_of_canvas(canvas, 0, 0, ratio)
+    bounds === nothing ? (0, 0, 0, 0) : bounds
+end
 
 """
     write_image(document, projection, filename::AbstractString;
@@ -2454,7 +2524,7 @@ corresponding `max_*`.
 proj = ChainingProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
-    TextToGraphics(measure=measure_sdl_text),
+    TextToGraphics(measure = FontFileMeasure()),
 )
 write_image(doc, proj, "snapshot.png")                          # fits content ≤ 1200×800
 write_image(doc, proj, "snapshot.png"; width=1200, height=800)  # fixed 1200×800
@@ -2489,10 +2559,10 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
     aw = width  === nothing ? nothing : Cell(Int(width))
     ah = height === nothing ? nothing : Cell(Int(height))
     canvas = print_canvas(aw, ah)
-    # `get_canvas_content_bounds` returns (minx, miny, maxx, maxy). The natural size
+    # `_get_drawn_content_bounds` returns (minx, miny, maxx, maxy). The natural size
     # must span the full extent — including any content at negative coordinates —
     # so subtract a negative min rather than dropping it.
-    minx, miny, maxx, maxy = get_canvas_content_bounds(canvas, measure_sdl_text)
+    minx, miny, maxx, maxy = _get_drawn_content_bounds(canvas, Float64(scale))
     nw = maxx - min(minx, 0)
     nh = maxy - min(miny, 0)
 
@@ -2504,7 +2574,7 @@ function BackendModule.write_image(document, projection, filename::AbstractStrin
         aw2 = cap_w ? Cell(Int(max_width))  : aw
         ah2 = cap_h ? Cell(Int(max_height)) : ah
         canvas = print_canvas(aw2, ah2)
-        minx, miny, maxx, maxy = get_canvas_content_bounds(canvas, measure_sdl_text)
+        minx, miny, maxx, maxy = _get_drawn_content_bounds(canvas, Float64(scale))
         nw = maxx - min(minx, 0)
         nh = maxy - min(miny, 0)
     end
@@ -2539,7 +2609,7 @@ of the returned `SimpleIoMap` is an `ImageFile` document. Has no reader.
 proj = ChainingProjection(
     RecursiveProjection(JsonToSyntax()),
     RecursiveProjection(SyntaxToText()),
-    TextToGraphics(measure=measure_sdl_text),
+    TextToGraphics(measure = FontFileMeasure()),
     GraphicsCanvasToImageFile("output.bmp"; width=1200, height=800),
 )
 iomap = print_document(proj, doc)   # writes output.bmp

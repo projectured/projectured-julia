@@ -638,7 +638,7 @@ end
 Returns the 0-based offset of the first element in `canvas` whose bounding area
 contains `(x, y)`, or `nothing` if no element matches.
 Supports `GraphicsViewport` (rectangle bounds), `GraphicsRect` (rectangle
-bounds), and `GraphicsText` (vertical font-size band).
+bounds), and `GraphicsText` (the box of [`compute_text_extent`](@ref)).
 Skips `GraphicsFence` elements. For `ListNode`-backed canvases with a layout
 direction, stops early when the element position exceeds the click coordinate
 along the layout axis.
@@ -646,11 +646,9 @@ along the layout axis.
 function hit_element_at(canvas::GraphicsCanvas, x::Int, y::Int)
     layout = canvas.layout
     elements = canvas.elements
-    # A hit must fall within the canvas's own bounds. Some elements are unbounded
-    # on one side (a GraphicsText has no right edge — see `_hit_test_element`), so
-    # without this clip a canvas would claim hits in a sibling's column and
-    # misroute pointer events in horizontal composites. Guarded so auto-sized
-    # canvases (`w`/`h` == 0) keep their previous, unclipped behaviour.
+    # A hit must fall within the canvas's own bounds, so that an element drawn
+    # past the edge of the canvas never claims a hit in a sibling's box. An
+    # auto-sized canvas (`w` or `h` is 0) has no bound on that axis.
     cw = canvas.w; ch = canvas.h
     (cw > 0 && (x < 0 || x >= cw)) && return nothing
     (ch > 0 && (y < 0 || y >= ch)) && return nothing
@@ -730,8 +728,8 @@ function _hit_test_element(elem, x::Int, y::Int)
         _rect_hit(elem, x, y)
     elseif elem isa GraphicsText
         ex, ey = Int(elem.x), Int(elem.y)
-        fs = font_logical_size(elem.font)
-        x >= ex && y >= ey && y < ey + fs
+        width, ascent, descent = compute_text_extent(elem.text, elem.font)
+        ex <= x < ex + width && ey <= y < ey + ascent + descent
     elseif elem isa GraphicsCircle
         dx, dy = x - Int(elem.cx), y - Int(elem.cy)
         rad = Int(elem.radius)
@@ -768,11 +766,11 @@ _elem_y(elem) = hasproperty(elem, :y) ? Int(elem.y) : nothing
 # canvas would draw. Offsets accumulate through nested canvases exactly as the
 # backend renders them, so the result is the natural extent of the laid-out
 # content. Used to size an output (image/PDF) to the content when no explicit
-# width/height is requested. `measure(text, font)` returns the pixel
-# `(width, height)` of a text element — supplied by the caller so this stays
-# free of any backend (SDL, PDF) dependency.
+# width/height is requested. A text element covers its box, as `measure`
+# measures it (`compute_text_extent`); the default measures from the font files,
+# as every backend draws.
 
-function get_canvas_content_bounds(canvas::GraphicsCanvas, measure)
+function get_canvas_content_bounds(canvas::GraphicsCanvas, measure::TextMeasure = FontFileMeasure())
     minx = Ref(typemax(Int)); miny = Ref(typemax(Int))
     maxx = Ref(typemin(Int)); maxy = Ref(typemin(Int))
     _accumulate_bounds!(canvas, 0, 0, measure, minx, miny, maxx, maxy)
@@ -780,7 +778,7 @@ function get_canvas_content_bounds(canvas::GraphicsCanvas, measure)
     (minx[], miny[], maxx[], maxy[])
 end
 
-function _accumulate_bounds!(canvas::GraphicsCanvas, ox::Int, oy::Int, measure,
+function _accumulate_bounds!(canvas::GraphicsCanvas, ox::Int, oy::Int, measure::TextMeasure,
                              minx, miny, maxx, maxy)
     for elem in canvas.elements
         _bounds_elem!(elem, ox, oy, measure, minx, miny, maxx, maxy)
@@ -793,12 +791,11 @@ function _bounds_extend!(minx, miny, maxx, maxy, x0::Int, y0::Int, x1::Int, y1::
     nothing
 end
 
-function _bounds_elem!(elem, ox::Int, oy::Int, measure, minx, miny, maxx, maxy)
+function _bounds_elem!(elem, ox::Int, oy::Int, measure::TextMeasure, minx, miny, maxx, maxy)
     if elem isa GraphicsText
         x, y = ox + Int(elem.x), oy + Int(elem.y)
-        w, _ = measure(elem.text, elem.font)
-        h = font_logical_size(elem.font)
-        _bounds_extend!(minx, miny, maxx, maxy, x, y, x + Int(w), y + h)
+        width, ascent, descent = compute_text_extent(measure, elem.text, elem.font)
+        _bounds_extend!(minx, miny, maxx, maxy, x, y, x + width, y + ascent + descent)
     elseif elem isa GraphicsRect
         x, y = ox + Int(elem.x), oy + Int(elem.y)
         w, h = Int(elem.w), Int(elem.h)   # read both (validates computed cells)
@@ -846,10 +843,6 @@ function _bounds_elem!(elem, ox::Int, oy::Int, measure, minx, miny, maxx, maxy)
     # GraphicsFence and unknown types contribute nothing.
 end
 
-# Text-width fallback for `get_graphics_size`: this layer has no font backend, so a
-# bare `GraphicsText` contributes height (from its font) but no width.
-_zero_text_measure(_, _) = (0, 0)
-
 """
     get_graphics_size(doc::GraphicsDocument[, measure]) -> (w, h)
 
@@ -857,11 +850,11 @@ The natural pixel extent of any graphics document, measured from the origin —
 the maximum x / y its content reaches. This lets a layout place a bare primitive
 (a `GraphicsCircle`, `GraphicsLine`, …) directly, asking it for its size, instead
 of requiring it to be wrapped in a sized `GraphicsCanvas`. Shares the per-element
-extent logic with the content-bounds machinery. `measure(text, font) -> (w, h)`
-sizes a `GraphicsText`; the default ignores text width (no font backend here), so
-pass a real `measure` when laying out bare text.
+extent logic with the content-bounds machinery. A `GraphicsText` covers its box
+as `measure` measures it; the default measures from the font files, as every
+backend draws.
 """
-function get_graphics_size(doc::GraphicsDocument, measure = _zero_text_measure)
+function get_graphics_size(doc::GraphicsDocument, measure::TextMeasure = FontFileMeasure())
     minx = Ref(typemax(Int)); miny = Ref(typemax(Int))
     maxx = Ref(typemin(Int)); maxy = Ref(typemin(Int))
     _bounds_elem!(doc, 0, 0, measure, minx, miny, maxx, maxy)

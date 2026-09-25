@@ -1,6 +1,6 @@
 # The natural notation pipeline: the fsm/julia merged dispatch table through
 # the shared Syntax → Text → Graphics tail every domain ends with.
-function make_fsm_projection_example(; measure=measure_truetype_text)
+function make_fsm_projection_example(; measure=FontFileMeasure())
     ChainingProjection(
         RecursiveProjection(FsmToSyntax()),
         RecursiveProjection(SyntaxToText()),
@@ -13,7 +13,7 @@ end
 # and each edge's label (an `FsmTransition`) through the compact diagram label
 # projections; anything else falls back to the notation, so a machine that grows
 # a foreign content type still renders.
-function make_fsm_diagram_projection_example(; measure=measure_truetype_text,
+function make_fsm_diagram_projection_example(; measure=FontFileMeasure(),
                                              engine=GridEmbedding())
     label = ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(

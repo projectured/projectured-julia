@@ -74,8 +74,8 @@ CommandPaletteState() = CommandPaletteState(CommandPalette(), Cell(false))
 
 Decorator over `inner`, a content pipeline that prints down to graphics. The
 palette gesture opens a type-in field at `(x, y)` listing the commands available
-where the user is. `measure` is the text measurement function the palette's own
-rendering chain needs, the same one the content pipeline uses.
+where the user is. `measure` is the `TextMeasure` the palette's own rendering
+chain needs, the same one the content pipeline uses.
 
 Pass a shared `state` to keep one palette across the rebuilt decorators an example
 pipeline creates per dispatch.
@@ -94,13 +94,13 @@ end
 The palette's own rendering chain: the type-in lines down to graphics, through the
 same stages the help window uses.
 """
-make_command_palette_projection(measure::Function) =
+make_command_palette_projection(measure::TextMeasure) =
     ChainingProjection(CommandPaletteToSyntax(),
                        RecursiveProjection(SyntaxToText()),
                        WordWrapping(measure=measure),
                        TextToGraphics(measure=measure))
 
-CommandPaletteDecoratorProjection(; inner, measure::Function,
+CommandPaletteDecoratorProjection(; inner, measure::TextMeasure,
                            state::CommandPaletteState = CommandPaletteState(),
                            projection = make_command_palette_projection(measure),
                            x::Integer = 60, y::Integer = 60) =

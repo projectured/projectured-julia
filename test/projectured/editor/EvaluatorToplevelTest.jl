@@ -24,7 +24,7 @@ _et_flatten(d) = String(strip(print_natural_text(d)))
 function test_evaluator_toplevel()
 @testset "the evaluator toplevel is a persistent REPL" begin
 
-_stub(t, f) = (max(1, length(t)) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 
 # Every word the canvas draws, joined — the same walk `ToolViewTest.jl` uses.
 function drawn(node, depth = 0)

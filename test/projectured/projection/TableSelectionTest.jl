@@ -17,7 +17,7 @@
 # ═══════════════════════════════════════════════════════════════════════════
 
 # Synthetic monospace metric → deterministic geometry, no SDL fonts needed.
-_table_measure() = (text, font) -> (length(text) * 10, 20)
+_table_measure() = FixedMeasure(10, 15, 5, 0)
 
 # Reference builders in the WidgetTable vocabulary.
 _wt_row(r)     = ConcreteReference(FieldReferenceStep("rows"),

@@ -7,7 +7,7 @@ _range_between(m, l) = PrinterContext(EmptyReference(), Cell(m), Cell(l), nothin
                                       Dict{Symbol,Any}(), Clock())
 
 _range_widget_projection() = RecursiveProjection(TypeDispatchingProjection(
-    WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = (t, f) -> (length(t) * 10, 24)).dispatch))
+    WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = FixedMeasure(10, 18, 6, 0)).dispatch))
 
 # The width that `document` draws in the range `ctx`.
 _range_drawn_width(document, ctx) =
@@ -15,7 +15,7 @@ _range_drawn_width(document, ctx) =
 
 # The count of line breaks that wrapping inserts in `text` in the range `ctx`.
 function _range_wrap_breaks(text, ctx)
-    wrapped = print_document(WordWrapping(; measure = (t, f) -> (length(t) * 10, 18)), nothing,
+    wrapped = print_document(WordWrapping(; measure = FixedMeasure(10, 14, 4, 0)), nothing,
                              TextBlock(TextString(text, font_ubuntu_monospace_regular_20, color_default)), ctx).output
     count(element -> element isa TextNewline, wrapped.elements)
 end

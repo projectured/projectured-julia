@@ -1,5 +1,5 @@
 function test_word_wrapping()
-_test_measure(cw, lh) = (text, font) -> (length(text) * cw, lh)
+_test_measure(cw, lh) = FixedMeasure(cw, lh - lh÷4, lh÷4, 0)
 
 @testset "WordWrapping characters preserved" begin
 

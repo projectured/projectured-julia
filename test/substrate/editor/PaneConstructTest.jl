@@ -12,7 +12,7 @@ end
 function test_pane_construct()
 @testset "PaneTree built from empty" begin
 
-_stub(t, f) = (max(1, length(t)) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 WIDTH = 400
 HEIGHT = 300
 

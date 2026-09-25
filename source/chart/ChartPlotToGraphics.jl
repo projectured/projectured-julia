@@ -41,6 +41,12 @@ const _TICK_TARGET_PX = 70   # aim for roughly one tick per this many pixels
 
 _or(value, fallback) = value === nothing ? fallback : value
 
+# The width of `text` in `font` and the height of the line that holds it.
+function _get_text_size(measure::TextMeasure, text::AbstractString, font::StyleFont)
+    line = compute_line_box(measure, text, font)
+    (line.width, line.height)
+end
+
 # Hovering one series fades the others, so the one under the pointer reads
 # clearly without anything being hidden.
 const _VEIL = 0.25
@@ -58,23 +64,22 @@ end
 """
     ChartPlotToGraphicsCanvas(; measure, width=760, height=460)
 
-The chart renderer. `measure(text, font) -> (w, h)` is how tick and title text
-is sized; pass `measure_truetype_text` for a backend-free pipeline or
-`measure_sdl_text` when running against a live SDL window.
+The chart renderer. `measure::TextMeasure` is how tick and title text is sized:
+`FontFileMeasure()`, as every backend draws, or a `FixedMeasure` in a test.
 
 `width`/`height` are the fallback canvas size, used when the printer context
 carries no allocation from a parent layout.
 
-A plain struct rather than an `@projection`: `measure` is a `Function`, and a
-`Function` in a reactive field would be read as a thunk and called.
+A plain struct rather than an `@projection`: `measure` is fixed at
+construction and needs no reactive field.
 """
 struct ChartPlotToGraphicsCanvas <: Projection
-    measure::Function
+    measure::TextMeasure
     width::Int
     height::Int
 end
 
-ChartPlotToGraphicsCanvas(; measure::Function, width::Integer=760, height::Integer=460) =
+ChartPlotToGraphicsCanvas(; measure::TextMeasure, width::Integer=760, height::Integer=460) =
     ChartPlotToGraphicsCanvas(measure, Int(width), Int(height))
 
 @iomap struct ChartPlotToGraphicsCanvasIoMap
@@ -265,7 +270,7 @@ function _x_ticks_labels(p::ChartPlotToGraphicsCanvas, axis, view, span_px, font
         cats = axis.categories
         n = length(cats)
         (n == 0 || !axis.show_labels) && return (Float64[], String[])
-        widest = maximum((p.measure(String(c), font)[1] for c in cats); init=0)
+        widest = maximum((first(compute_text_extent(p.measure, String(c), font)) for c in cats); init=0)
         k = label_step(n, span_px, widest + _PAD)
         idx = [i for i in 1:k:n if view.x_min <= i <= view.x_max]
         (Float64.(idx), String[String(cats[i]) for i in idx])
@@ -350,7 +355,7 @@ function _legend_plan(p::ChartPlotToGraphicsCanvas, chart::Chart, series,
     isempty(items) && return nothing
     legend.sort && sort!(items; by = it -> it[2])
 
-    sizes = Tuple{Int,Int}[p.measure(it[2], font) for it in items]
+    sizes = Tuple{Int,Int}[_get_text_size(p.measure, it[2], font) for it in items]
     horizontal = legend.position in (:above, :below) ||
                  (legend.position === :inside && legend.anchor in (:north, :south))
     area_w = horizontal ? w - 2 * _PAD : w ÷ 3
@@ -438,8 +443,10 @@ function _legend_elements!(out, g)
             end
         end
         push!(out, GraphicsRect(x, cy - 4, _SWATCH, 8; color, radius = 2))
-        th = plan.sizes[k][2]
-        push!(out, GraphicsText(label, x + _SWATCH + _LEGEND_GAP, cy - th ÷ 2;
+        # `plan.font` is `axis_font`, the font `g.measure_label` is bound to.
+        line = g.measure_label(label)
+        th = line.height
+        push!(out, GraphicsText(label, x + _SWATCH + _LEGEND_GAP, cy - th ÷ 2 + line.text_y;
                                 font = plan.font, color = text_color))
     end
 
@@ -450,7 +457,9 @@ function _legend_elements!(out, g)
         row = box.shown % box.rows
         x = plan.x + 6 + col * (box.col_w + _LEGEND_GAP)
         y = plan.y + 6 + row * box.row_h
-        push!(out, GraphicsText("… and $hidden more", x, y; font = plan.font, color = text_color))
+        line = g.measure_label("… and $hidden more")
+        push!(out, GraphicsText("… and $hidden more", x, y + line.text_y;
+                                font = plan.font, color = text_color))
     end
     out
 end
@@ -469,12 +478,33 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
     series = _visible_series(chart)
 
     title = chart.title
-    title_h = isempty(title) ? 0 : p.measure(title, title_font)[2] + _PAD ÷ 2
+    if isempty(title)
+        title_h = 0
+        title_text_y = 0
+    else
+        title_line = compute_line_box(p.measure, title, title_font)
+        title_h = title_line.height + _PAD ÷ 2
+        title_text_y = title_line.text_y
+    end
 
     y_title = _axis_shows_title(y_axis) ? _axis_title(y_axis) : ""
-    y_title_h = isempty(y_title) ? 0 : p.measure(y_title, axis_font)[2] + 2
+    if isempty(y_title)
+        y_title_h = 0
+        y_title_text_y = 0
+    else
+        y_title_line = compute_line_box(p.measure, y_title, axis_font)
+        y_title_h = y_title_line.height + 2
+        y_title_text_y = y_title_line.text_y
+    end
     x_title = _axis_shows_title(x_axis) ? _axis_title(x_axis) : ""
-    x_title_h = isempty(x_title) ? 0 : p.measure(x_title, axis_font)[2] + 2
+    if isempty(x_title)
+        x_title_h = 0
+        x_title_text_y = 0
+    else
+        x_title_line = compute_line_box(p.measure, x_title, axis_font)
+        x_title_h = x_title_line.height + 2
+        x_title_text_y = x_title_line.text_y
+    end
 
     # Provisional plot extent, used only to pick a tick density. The ticks then
     # decide the real margins, and those give the final extent.
@@ -497,13 +527,13 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
     end
     xticks, xlabels = _x_ticks_labels(p, x_axis, view, prov_w, axis_font)
 
-    # Measure each label once, here, and carry the sizes forward — the frame
+    # Measure each label once, here, and carry the boxes forward — the frame
     # needs them again when it places the text.
-    ysizes = Tuple{Int,Int}[p.measure(l, axis_font) for l in ylabels]
-    xsizes = Tuple{Int,Int}[p.measure(l, axis_font) for l in xlabels]
-    label_h = p.measure("0", axis_font)[2]
-    ylabel_w = isempty(ysizes) ? 0 : maximum(sz[1] for sz in ysizes)
-    xlabel_last_w = isempty(xsizes) ? 0 : last(xsizes)[1]
+    ysizes = LineBox[compute_line_box(p.measure, l, axis_font) for l in ylabels]
+    xsizes = LineBox[compute_line_box(p.measure, l, axis_font) for l in xlabels]
+    label_h = compute_line_box(p.measure, "0", axis_font).height
+    ylabel_w = isempty(ysizes) ? 0 : maximum(sz.width for sz in ysizes)
+    xlabel_last_w = isempty(xsizes) ? 0 : last(xsizes).width
 
     left = _PAD + ylabel_w + (isempty(ylabels) ? 0 : _LABEL_GAP) + _TICK
     right = _PAD + xlabel_last_w ÷ 2
@@ -536,7 +566,7 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
     selected_part = get_chart_part_index(chart, chart.selection)
     whole_selected = chart.selection isa EmptyReference
 
-    measure_label = label -> p.measure(label, axis_font)
+    measure_label = label -> compute_line_box(p.measure, label, axis_font)
     # Decimated series geometry is wanted by the printer once per repaint and by
     # the reader on every pointer move, so it is memoized here — inside the
     # layout, which already dies and is rebuilt whenever the data, the window or
@@ -553,8 +583,8 @@ function _layout(p::ChartPlotToGraphicsCanvas, plot::ChartPlot, w::Int, h::Int)
        plot_x, plot_y, plot_w, plot_h, xs, ys,
        point_cache, strip_spans, strip_rows, strip_count, strip_only,
        xticks, yticks, xlabels, ylabels, xsizes, ysizes, label_h,
-       title, title_font, axis_font, title_h,
-       x_title, y_title, x_title_h, y_title_h)
+       title, title_font, axis_font, title_h, title_text_y,
+       x_title, y_title, x_title_h, y_title_h, x_title_text_y, y_title_text_y)
 end
 
 # ── Frame elements ───────────────────────────────────────────────────────
@@ -598,30 +628,32 @@ function _frame_elements!(out, g)
         y = round(Int, to_pixel(g.ys, g.yticks[i]))
         (py - 1 <= y <= py + ph + 1) || continue
         push!(out, GraphicsLine(px - _TICK, y, px, y; color = _AXIS))
-        tw, th = g.ysizes[i]
-        push!(out, GraphicsText(g.ylabels[i], px - _TICK - _LABEL_GAP - tw, y - th ÷ 2;
+        line = g.ysizes[i]
+        tw, th = line.width, line.height
+        push!(out, GraphicsText(g.ylabels[i], px - _TICK - _LABEL_GAP - tw, y - th ÷ 2 + line.text_y;
                                 font = g.axis_font, color = text_color))
     end
     for i in eachindex(g.xlabels)
         x = round(Int, to_pixel(g.xs, g.xticks[i]))
         (px - 1 <= x <= px + pw + 1) || continue
         push!(out, GraphicsLine(x, py + ph, x, py + ph + _TICK; color = _AXIS))
-        tw, _ = g.xsizes[i]
-        push!(out, GraphicsText(g.xlabels[i], x - tw ÷ 2, py + ph + _TICK + _LABEL_GAP;
+        line = g.xsizes[i]
+        push!(out, GraphicsText(g.xlabels[i], x - line.width ÷ 2, py + ph + _TICK + _LABEL_GAP + line.text_y;
                                 font = g.axis_font, color = text_color))
     end
 
     _selection_elements!(out, g)
 
     isempty(g.title) ||
-        push!(out, GraphicsText(g.title, px, _PAD; font = g.title_font, color = text_color))
+        push!(out, GraphicsText(g.title, px, _PAD + g.title_text_y; font = g.title_font, color = text_color))
     # No rotated text: the backends only honour the translate+scale subset of an
     # affine transform, so the y-axis title sits above the axis rather than
     # running up its side.
     isempty(g.y_title) ||
-        push!(out, GraphicsText(g.y_title, px, _PAD + g.title_h; font = g.axis_font, color = text_color))
+        push!(out, GraphicsText(g.y_title, px, _PAD + g.title_h + g.y_title_text_y;
+                                font = g.axis_font, color = text_color))
     isempty(g.x_title) ||
-        push!(out, GraphicsText(g.x_title, px + pw ÷ 2, g.h - _PAD - g.x_title_h + 2;
+        push!(out, GraphicsText(g.x_title, px + pw ÷ 2, g.h - _PAD - g.x_title_h + 2 + g.x_title_text_y;
                                 font = g.axis_font, color = text_color))
     out
 end
@@ -638,7 +670,8 @@ function _selection_elements!(out, g)
     end
     part = g.selected_part
     if part == 1 && !isempty(g.title)
-        tw, th = g.measure_label(g.title)
+        line = g.measure_label(g.title)
+        tw, th = line.width, line.height
         push!(out, GraphicsRect(px - 3, _PAD - 2, tw + 6, g.title_h + 2; color = _SELECTION, radius = 3))
     elseif part == 2
         push!(out, GraphicsRect(px, py + ph + _TICK, pw, g.h - (py + ph + _TICK) - _PAD ÷ 2;
@@ -1028,11 +1061,12 @@ function _strip_elements!(out, g, index::Int, s::ChartStripSeries)
         for (l, r, code) in spans
             name = strip_state_name(s, code)
             isempty(name) && continue
-            tw, th = g.measure_label(name)
+            line = g.measure_label(name)
+            tw, th = line.width, line.height
             (tw + 6 <= r - l && th + 2 <= height) || continue
             color = strip_state_color(s, code, cycle)
             push!(out, GraphicsText(name, l - ox + (r - l - tw) ÷ 2,
-                                    top - oy + (height - th) ÷ 2;
+                                    top - oy + (height - th) ÷ 2 + line.text_y;
                                     font = g.axis_font, color = _strip_label_color(color)))
         end
     end
@@ -1121,11 +1155,12 @@ function _overlay_elements!(out, g, plot::ChartPlot)
                    format_tick(to_data(g.ys, py + g.plot_y)))
     # Flip the readout to the other side of the cursor near the right edge so it
     # is never clipped away by the viewport.
-    tw, th = g.measure_label(label)
+    line = g.measure_label(label)
+    tw, th = line.width, line.height
     lx = px + tw + 12 > g.plot_w ? px - tw - 8 : px + 8
     push!(out, GraphicsRect(lx - 4, py - th - 8, tw + 8, th + 6;
                             color = _PLOT_BACKGROUND, radius = 3, border_width=1, border_color=_AXIS))
-    push!(out, GraphicsText(label, lx, py - th - 5; font = g.axis_font, color = text_color))
+    push!(out, GraphicsText(label, lx, py - th - 5 + line.text_y; font = g.axis_font, color = text_color))
     out
 end
 

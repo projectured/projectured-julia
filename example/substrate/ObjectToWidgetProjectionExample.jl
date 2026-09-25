@@ -3,7 +3,7 @@
 # the combined renderer draws the widget tree (widgets via WidgetToGraphics, the
 # editable text controls' TextBlock content via TextToGraphics). Editing a control
 # writes back to the object's field cell.
-function make_object_to_widget_projection_example(; measure=measure_truetype_text)
+function make_object_to_widget_projection_example(; measure=FontFileMeasure())
     font = font_ubuntu_monospace_regular_20
     fg   = (0x22, 0x22, 0x22, 0xff)
     w2g  = WidgetToGraphics(font; measure=measure)

@@ -9,7 +9,7 @@
 # through so the layout sizes/places it (the generic get_graphics_size seam); prose,
 # layouts, widgets, every other domain, and the `Any` backstop come from
 # `NaturalToGraphics`.
-_conversation_widget_graphics(; measure=measure_truetype_text) =
+_conversation_widget_graphics(; measure=FontFileMeasure()) =
     NaturalToGraphics(measure=measure, extra=Pair{Type,Any}[
         JuliaDocument    => make_julia_projection_example(measure=measure),
         JsonDocument     => make_json_projection_example(measure=measure),
@@ -33,7 +33,7 @@ _conversation_widget_graphics(; measure=measure_truetype_text) =
 # then the widget tree — and the part-content documents embedded in it — are
 # rendered to graphics by `_conversation_widget_graphics`, the shared
 # NaturalToGraphics-based content renderer (so a part can hold any document).
-make_conversation_widget_projection_example(; measure=measure_truetype_text) =
+make_conversation_widget_projection_example(; measure=FontFileMeasure()) =
     ChainingProjection(
         RecursiveProjection(ConversationToWidget()),
         _conversation_widget_graphics(measure=measure),
@@ -45,7 +45,7 @@ make_conversation_widget_projection_example(; measure=measure_truetype_text) =
 # cards and reads every gesture itself — then the widget tree is rendered to
 # graphics by the same `_conversation_widget_graphics` as the conversation and
 # assistant panels.
-make_conversation_editor_projection_example(; measure=measure_truetype_text) =
+make_conversation_editor_projection_example(; measure=FontFileMeasure()) =
     ChainingProjection(
         RecursiveProjection(ConversationComposerToWidget()),
         _conversation_widget_graphics(measure=measure),

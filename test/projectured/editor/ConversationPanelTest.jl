@@ -62,7 +62,7 @@ function test_assistant_composer_panel()
             a = Assistant(; llm = FakeLlm("ok"))
             # The chain a page draws an assistant with: the card, and the natural
             # renderer for what it holds, as the omnet catalog builds it.
-            measure = measure_truetype_text
+            measure = FontFileMeasure()
             base = Pair{Type,Any}[PrimitiveDocument => ChainingProjection(
                 RecursiveProjection(PrimitiveToText()), TextToGraphics(measure = measure))]
             natural(extra) = NaturalToGraphics(measure = measure,
@@ -128,7 +128,7 @@ function test_assistant_composer_panel()
             # A click inside the text lands where it was aimed.
             texts = _tr_texts(_tr_window(backend))
             (x, y, _) = texts[findfirst(t -> t[3] == "hel", texts)]
-            press(MousePress(:left, x + first(measure_truetype_text("h", font_ubuntu_monospace_regular_20)),
+            press(MousePress(:left, x + first(compute_text_extent("h", font_ubuntu_monospace_regular_20)),
                              y + 8, none; time = 0.0))
             at("hel\no", (1, 1))
 

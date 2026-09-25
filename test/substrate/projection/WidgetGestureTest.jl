@@ -16,7 +16,7 @@ _always(_doc, _sel) = true
 
 # ── WidgetButton ─────────────────────────────────────────────────────────────
 _bfont = font_ubuntu_monospace_regular_20
-_bstub(t, f) = (length(t) * 10, 24)
+_bstub = FixedMeasure(10, 18, 6, 0)
 _bproj() = ChainingProjection(
     WidgetHoverTrackingProjection(inner = RecursiveProjection(TypeDispatchingProjection(
         WidgetToGraphics(_bfont; measure = _bstub).dispatch))))
@@ -113,7 +113,7 @@ end
 # ── WidgetTree / WidgetTreeNode ──────────────────────────────────────────────
 # Drive the tree projection directly (as WidgetTreeTest does), with a deterministic
 # measure so row geometry is exact: row_height = 16 + 2*4 = 24, chevron column 18.
-_det = (t, f) -> (length(t) * 8, 16)
+_det = FixedMeasure(8, 12, 4, 0)
 _treeproj = let w2g = WidgetToGraphics(font_ubuntu_regular_20; measure = _det), pr = nothing
     for (T, p) in w2g.dispatch
         T === WidgetTree && (pr = p)

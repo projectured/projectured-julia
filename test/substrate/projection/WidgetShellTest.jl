@@ -28,11 +28,13 @@ end
 
 function test_widget_shell_layout()
 @testset "a shell lays out its bands in the room it is given" begin
-    # A line is as tall as its font, as a real measure makes it: the bounds of a
-    # drawn text take their height from the font, so a measure that answered less
-    # would leave every text a little taller than the line it sits in.
-    line = font_logical_size(font_ubuntu_regular_20)
-    det = (t, f) -> (length(t) * 8, line)
+    # A line is as tall as the box of a drawn text in its font: the bounds of a
+    # drawn text take their height from the font files, so a measure that
+    # answered less would leave every text a little taller than the line it sits
+    # in.
+    _, ascent, descent = compute_text_extent("", font_ubuntu_regular_20)
+    line = ascent + descent
+    det = FixedMeasure(8, ascent, descent, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
@@ -92,8 +94,9 @@ end
 # that band's frame, and a drag keeps the band it started in until the release.
 function test_widget_shell_pointer()
 @testset "a shell hands the pointer to its bands" begin
-    line = font_logical_size(font_ubuntu_regular_20)
-    det = (t, f) -> (length(t) * 8, line)
+    _, ascent, descent = compute_text_extent("", font_ubuntu_regular_20)
+    line = ascent + descent
+    det = FixedMeasure(8, ascent, descent, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))

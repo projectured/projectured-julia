@@ -11,7 +11,7 @@ _view_state_write(op) = op isa ReplaceViewStateOperation ? get_wrapped_operation
 function test_widget_button_behavior()
 
 _font = font_ubuntu_monospace_regular_20
-_stub(t, f) = (length(t) * 10, 24)
+_stub = FixedMeasure(10, 18, 6, 0)
 
 # Recursively scan a canvas's elements for a GraphicsImage (canvases nest other
 # canvases as elements).
@@ -519,7 +519,7 @@ end
         @test sum(widths) == 900 - 2 * (1 + 2)
         # Each is at least its own label and they grew together.
         @test all(w -> w > 0, widths)
-        @test maximum(widths) - minimum(widths) <= _stub("three", _font)[1] + 2
+        @test maximum(widths) - minimum(widths) <= first(compute_text_extent(_stub, "three", _font)) + 2
     end
 
     @testset "a press lands where the picture drew the segment" begin
@@ -550,7 +550,7 @@ end # test_widget_button_behavior
 # so a row with a Pause/Resume toggle does not move when the label changes.
 function test_widget_button_labels()
 @testset "a button is as wide as its widest label" begin
-    measure = (t, f) -> (length(t) * 10, 24)
+    measure = FixedMeasure(10, 18, 6, 0)
     projection = RecursiveProjection(TypeDispatchingProjection(
         WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = measure).dispatch))
     width_of(button) = Int(print_document(projection, nothing, button, PrinterContext()).output.w[])

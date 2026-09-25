@@ -1,4 +1,4 @@
-function make_searching_projection_example(; measure=measure_truetype_text)
+function make_searching_projection_example(; measure=FontFileMeasure())
     ChainingProjection(
         SearchingProjection(r"a"),
         NestingProjection(CollectionToSyntax(), PrimitiveStringToSyntaxLeaf()),

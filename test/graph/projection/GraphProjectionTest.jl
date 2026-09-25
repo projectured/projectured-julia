@@ -140,7 +140,7 @@ end
     # answer. It matters most for the engine that decides late.
     made = [GraphVertex(JsonString("v$i")) for i in 1:3]
     graph = GraphGraph(made, [GraphEdge(made[1], made[2])])
-    content = make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20))
+    content = make_mixed_projection_example(measure=FixedMeasure(10, 15, 5, 0))
 
     for (engine, name) in ((GridEmbedding(), :grid),
                            (SpringEmbedderLayout(), :spring_embedder),
@@ -586,7 +586,7 @@ end
     g = GraphGraph([v], GraphEdge[])
 
     # Content recursion: Json → Syntax → Text → Graphics (the mixed pipeline).
-    content = make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20))
+    content = make_mixed_projection_example(measure=FixedMeasure(10, 15, 5, 0))
     stage = GraphGraphToGraphLayout(GridEmbedding())
     iomap = print_document(stage, content, g, _gctx())
     layout = iomap.output
@@ -610,7 +610,7 @@ end
     v2 = GraphVertex(JsonString("b"))
     g = GraphGraph([v1, v2], [GraphEdge(v1, v2; directed=true)])
 
-    content = make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20))
+    content = make_mixed_projection_example(measure=FixedMeasure(10, 15, 5, 0))
     graph_stages = ChainingProjection(
         GraphGraphToGraphLayout(GridEmbedding()),
         GraphLayoutToGraphicsCanvas(),
@@ -636,7 +636,7 @@ end
     v1 = GraphVertex(JsonString("a"))
     v2 = GraphVertex(JsonString("b"))
     g = GraphGraph([v1, v2], [GraphEdge(v1, v2; directed=true)])
-    content = make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20))
+    content = make_mixed_projection_example(measure=FixedMeasure(10, 15, 5, 0))
 
     chain = GraphToGraphics()
     @test chain isa ChainingProjection
@@ -658,7 +658,7 @@ end
 
 @testset "selection descends into vertex content" begin
     g = make_graph_document_example()
-    proj = make_graph_projection_example(measure=(t, f) -> (length(t) * 10, 20))
+    proj = make_graph_projection_example(measure=FixedMeasure(10, 15, 5, 0))
     iomap = print_document(proj, g)
     @test iomap.output isa GraphicsCanvas
 
@@ -667,7 +667,7 @@ end
     set_selection!(g, @reference(g, vertices[1]))
     # Forward mapping of the stage-1 projection: vertices[i] ↔ vertex_layouts[i].vertex.
     stage = GraphGraphToGraphLayout(GridEmbedding())
-    content = make_mixed_projection_example(measure=(t, f) -> (length(t) * 10, 20))
+    content = make_mixed_projection_example(measure=FixedMeasure(10, 15, 5, 0))
     s1 = print_document(stage, content, g, _gctx())
     fwd = map_reference_forward(stage, s1, @reference(g, vertices[1]))
     @test fwd !== nothing
@@ -682,7 +682,7 @@ end
     # something has to be able to point at one, because that is what an
     # annotation anchored beside a node asks for.
     g = make_graph_document_example()
-    proj = make_graph_projection_example(measure=(t, f) -> (length(t) * 10, 20))
+    proj = make_graph_projection_example(measure=FixedMeasure(10, 15, 5, 0))
     iomap = print_document(proj, g)
 
     for i in 1:length(g.vertices)
@@ -709,7 +709,7 @@ end
     # renderer as their recursion, so a node may be anything the renderer knows —
     # here a widget column of an icon-less label pair, which is what a module in a
     # network diagram is.
-    renderer = NaturalToGraphics(measure = (text, _font) -> (length(text) * 10, 20))
+    renderer = NaturalToGraphics(measure = FixedMeasure(10, 15, 5, 0))
     node(name) = GraphVertex(VerticalLayout(Any[WidgetLabel(name)]; gap = 2))
     a, b = node("source"), node("sink")
     graph = GraphGraph(Any[a, b], Any[GraphEdge(a, b)])

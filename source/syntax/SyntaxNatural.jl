@@ -66,10 +66,10 @@ carries meaning: an indented line of code says which block it is in, and a
 break invented by a measurement would say something the document does not.
 Prose has no such layout, so a line that runs past the box is simply lost.
 
-`measure(text, font) -> (width, height)` is the backend's own, so the break
-points line up with what is drawn.
+`measure::TextMeasure` is the backend's own, so the break points line up with
+what is drawn.
 """
-make_natural_prose_graphics(; measure) = ChainingProjection(
+make_natural_prose_graphics(; measure::TextMeasure) = ChainingProjection(
     RecursiveProjection(TypeDispatchingProjection(make_natural_to_syntax_dispatch())),
     RecursiveProjection(SyntaxToText()),
     WordWrapping(measure = measure),
@@ -84,7 +84,7 @@ make_natural_prose_graphics(; measure) = ChainingProjection(
 # exact types, so the renderer takes them before its own abstract rows, and a
 # person who presses Insert in an empty tab sees the name buffer rather than a
 # reflected struct.
-function _fallback_rows(; measure, font, wrap)
+function _fallback_rows(; measure::TextMeasure, font, wrap)
     fabric = ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(make_natural_to_syntax_dispatch())),
         RecursiveProjection(SyntaxToText()),

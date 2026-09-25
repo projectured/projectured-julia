@@ -138,14 +138,14 @@ so a formula cannot end up half in one font and half in another.
 struct MathConfig
     font::StyleFont        # upright: numbers, operators, function names, symbols
     slanted::StyleFont     # oblique: variables
-    measure::Function      # (text, font) -> (width, height)
+    measure::TextMeasure
     ink::StyleColor
     hint::StyleColor
 end
 
 MathConfig(; font::StyleFont = font_dejavu_sans_regular_20,
              slanted::StyleFont = font_dejavu_sans_italic_20,
-             measure::Function = measure_truetype_text,
+             measure::TextMeasure = FontFileMeasure(),
              ink::StyleColor = color_default,
              hint::StyleColor = color_solarized_gray) =
     MathConfig(font, slanted, measure, ink, hint)
@@ -263,7 +263,7 @@ its ascent and descent from the font, so it sits on the same baseline as a leaf.
 function _glyph_box(c::MathConfig, text::Function, font::Function,
                     color::StyleColor = c.ink)
     MathGlyphBox(_text_element(text, font, color),
-                 Cell(@computation c.measure(text(), font())[1]),
+                 Cell(@computation first(compute_text_extent(c.measure, text(), font()))),
                  Cell(@computation font_ascent(font())),
                  Cell(@computation font_descent(font())))
 end
@@ -394,7 +394,7 @@ function _leaf_iomap(p, doc, text::Function, font::Function, color::StyleColor,
     build = Cell(Computation(function ()
         element = _text_element(text, font, color)
         _build(Any[element],
-               Cell(@computation c.measure(text(), font())[1]),
+               Cell(@computation first(compute_text_extent(c.measure, text(), font()))),
                Cell(@computation font_ascent(font())),
                Cell(@computation font_descent(font())),
                MathChild[])
@@ -647,8 +647,8 @@ function _delimiter_box(c::MathConfig, style::Symbol, kind::Symbol, side::Symbol
     width = Cell(Computation(function ()
         m = compute_math_metrics(c, style)
         isempty(glyph) && return 0
-        tiled() ? c.measure(string(pieces[1]), m.upright)[1] :
-                  c.measure(glyph, scaled_font())[1]
+        tiled() ? first(compute_text_extent(c.measure, string(pieces[1]), m.upright)) :
+                  first(compute_text_extent(c.measure, glyph, scaled_font()))
     end))
     ascent = Cell(@computation compute_math_metrics(c, style).axis + half())
     descent = Cell(@computation max(0, half() - compute_math_metrics(c, style).axis))
@@ -953,7 +953,7 @@ function print_document(p::MathRadicalToGraphics, recursion, doc::MathRadical, c
             wanted = ceil(Int, m.size * inner_height() / ink)
             _scaled(m.upright, clamp(wanted, m.size, round(Int, 2.2 * m.size)))
         end
-        sign_width = Cell(@computation c.measure("√", sign_font())[1])
+        sign_width = Cell(@computation first(compute_text_extent(c.measure, "√", sign_font())))
         index_width = Cell(Computation(function ()
             index === nothing && return 0
             # The index sits over the sign's left arm, so only its overhang adds
@@ -1060,7 +1060,7 @@ function print_document(p::MathBigOperatorToGraphics, recursion, doc::MathBigOpe
             word && return m.upright
             _scaled(m.upright, round(Int, m.size * (style === :display ? 1.8 : 1.2)))
         end
-        sign_width = Cell(@computation c.measure(glyph, sign_font())[1])
+        sign_width = Cell(@computation first(compute_text_extent(c.measure, glyph, sign_font())))
         # The sign centers on the axis, like every other tall thing — by its
         # *ink*, because a sign that is centered by its text box sits visibly
         # high. A word operator has no single ink to center, so it keeps its
@@ -1237,10 +1237,10 @@ function print_document(p::MathDerivativeToGraphics, recursion, doc::MathDerivat
         order_text = () -> doc.order == 1 ? "" : string(doc.order)
         sign = () -> _differential_glyph(doc.kind)
 
-        sign_width = Cell(@computation c.measure(sign(), inner_metrics().upright)[1])
+        sign_width = Cell(@computation first(compute_text_extent(c.measure, sign(), inner_metrics().upright)))
         order_width = Cell(Computation(function ()
             isempty(order_text()) && return 0
-            c.measure(order_text(), compute_math_metrics(c, :scriptscript).upright)[1]
+            first(compute_text_extent(c.measure, order_text(), compute_math_metrics(c, :scriptscript).upright))
         end))
 
         numerator_width = Cell(@computation(sign_width[] + order_width[] +
@@ -1442,11 +1442,11 @@ function print_document(p::MathAccentToGraphics, recursion, doc::MathAccent, ctx
             font = function ()
                 m = metrics()
                 wide || return m.upright
-                base_width = max(1, c.measure(glyph, m.upright)[1])
+                base_width = max(1, first(compute_text_extent(c.measure, glyph, m.upright)))
                 _scaled(m.upright, clamp(round(Int, m.size * width[] / base_width),
                                          m.size ÷ 2, 2 * m.size))
             end
-            glyph_width = Cell(@computation c.measure(glyph, font())[1])
+            glyph_width = Cell(@computation first(compute_text_extent(c.measure, glyph, font())))
             push!(elements, _text_element(() -> glyph, font, c.ink,
                                           () -> (width[] - glyph_width[]) ÷ 2,
                                           () -> -font_ascent(font()) +
@@ -1934,7 +1934,7 @@ the same wherever it appears.
 line (limits above and below a sum, a taller fraction) and `:text` sets it in a
 line of prose.
 """
-function MathToGraphics(; measure::Function = measure_truetype_text,
+function MathToGraphics(; measure::TextMeasure = FontFileMeasure(),
                         font::StyleFont = font_dejavu_sans_regular_20,
                         slanted::StyleFont = font_dejavu_sans_italic_20,
                         style::Symbol = :display,

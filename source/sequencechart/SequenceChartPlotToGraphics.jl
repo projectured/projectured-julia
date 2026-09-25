@@ -60,23 +60,23 @@ _or(value, fallback) = value === nothing ? fallback : value
 """
     SequenceChartPlotToGraphicsCanvas(; measure, width=900, height=520)
 
-The sequence chart renderer. `measure(text, font) -> (w, h)` is how tick, lane
-and arrow text is sized; pass `measure_truetype_text` for a backend-free
-pipeline or `measure_sdl_text` when running against a live SDL window.
+The sequence chart renderer. `measure::TextMeasure` is how tick, lane and arrow
+text is sized: `FontFileMeasure()`, as every backend draws, or a `FixedMeasure`
+in a test.
 
 `width`/`height` are the fallback canvas size, used when the printer context
 carries no allocation from a parent layout.
 
-A plain struct rather than an `@projection`: `measure` is a `Function`, and a
-`Function` in a reactive field would be read as a thunk and called.
+A plain struct rather than an `@projection`: `measure` is fixed at
+construction and needs no reactive field.
 """
 struct SequenceChartPlotToGraphicsCanvas <: Projection
-    measure::Function
+    measure::TextMeasure
     width::Int
     height::Int
 end
 
-SequenceChartPlotToGraphicsCanvas(; measure::Function, width::Integer=900,
+SequenceChartPlotToGraphicsCanvas(; measure::TextMeasure, width::Integer=900,
                                   height::Integer=520) =
     SequenceChartPlotToGraphicsCanvas(measure, Int(width), Int(height))
 
@@ -163,13 +163,13 @@ function _layout(p::SequenceChartPlotToGraphicsCanvas, plot::SequenceChartPlot,
     hi > lo || (hi = lo + 1.0)
 
     title = chart.title
-    title_h = isempty(title) ? 0 : p.measure(title, title_font)[2] + _PAD ÷ 2
+    title_h = isempty(title) ? 0 : compute_line_box(p.measure, title, title_font).height + _PAD ÷ 2
 
     order = get_axis_display_order(chart)
     labels = String[String(chart.axes[i].label) for i in order]
-    label_sizes = Tuple{Int,Int}[p.measure(l, axis_font) for l in labels]
-    label_w = isempty(label_sizes) ? 0 : maximum(sz[1] for sz in label_sizes)
-    label_h = p.measure("0", axis_font)[2]
+    label_sizes = LineBox[compute_line_box(p.measure, l, axis_font) for l in labels]
+    label_w = isempty(label_sizes) ? 0 : maximum(sz.width for sz in label_sizes)
+    label_h = compute_line_box(p.measure, "0", axis_font).height
 
     gutter = chart.gutter
     gutter_h = gutter.visible ? label_h + 2 * _GUTTER_PAD : 0
@@ -372,8 +372,11 @@ function _frame_elements!(out, g)
                             color = _BODY_BACKGROUND))
 
     text_color = _or(style.tick_color, _TEXT)
-    isempty(g.title) ||
-        push!(out, GraphicsText(g.title, _PAD, _PAD; font = g.title_font, color = text_color))
+    isempty(g.title) || begin
+        title_line = compute_line_box(g.measure, g.title, g.title_font)
+        push!(out, GraphicsText(g.title, _PAD, _PAD + title_line.text_y;
+                                font = g.title_font, color = text_color))
+    end
 
     _gutter_elements!(out, g)
     _lane_label_elements!(out, g)
@@ -397,9 +400,11 @@ function _gutter_elements!(out, g)
                                 color = background, border_width=1, border_color=_GUTTER_BORDER))
     end
 
-    isempty(g.prefix) ||
-        push!(out, GraphicsText(g.prefix, round(Int, g.body_x), _PAD + g.title_h;
+    isempty(g.prefix) || begin
+        prefix_line = compute_line_box(g.measure, g.prefix, g.axis_font)
+        push!(out, GraphicsText(g.prefix, round(Int, g.body_x), _PAD + g.title_h + prefix_line.text_y;
                                 font = g.axis_font, color = text_color))
+    end
 
     # Both strips carry the labels: a reader following an arrow across the chart
     # should not have to travel back to one edge to find out when it happened.
@@ -409,20 +414,20 @@ function _gutter_elements!(out, g)
         isempty(label) && continue
         text = isempty(g.prefix) ? label : string("+", label)
         flow = to_pixel(g.scale, coordinate)
-        size = g.measure(text, g.axis_font)
+        line = compute_line_box(g.measure, text, g.axis_font)
         if g.vertical
-            y = round(Int, flow + g.body_y - size[2] / 2)
-            push!(out, GraphicsText(text, round(Int, g.body_x - size[1] - _LABEL_GAP),
+            y = round(Int, flow + g.body_y - line.height / 2) + line.text_y
+            push!(out, GraphicsText(text, round(Int, g.body_x - line.width - _LABEL_GAP),
                                     y; font = g.axis_font, color = text_color))
             push!(out, GraphicsText(text, round(Int, g.body_x + g.body_w + _LABEL_GAP),
                                     y; font = g.axis_font, color = text_color))
         else
-            x = round(Int, flow + g.body_x - size[1] / 2)
+            x = round(Int, flow + g.body_x - line.width / 2)
             push!(out, GraphicsText(text, x,
-                                    round(Int, g.body_y - height + _GUTTER_PAD);
+                                    round(Int, g.body_y - height + _GUTTER_PAD) + line.text_y;
                                     font = g.axis_font, color = text_color))
             push!(out, GraphicsText(text, x,
-                                    round(Int, g.body_y + g.body_h + _GUTTER_PAD);
+                                    round(Int, g.body_y + g.body_h + _GUTTER_PAD) + line.text_y;
                                     font = g.axis_font, color = text_color))
         end
     end
@@ -449,15 +454,15 @@ function _lane_label_elements!(out, g)
         position <= length(g.lanes) || break
         label = g.labels[position]
         isempty(label) && continue
-        size = g.label_sizes[position]
+        line = g.label_sizes[position]
         cross = g.lanes[position]
         if g.vertical
-            push!(out, GraphicsText(label, round(Int, cross + g.body_x - size[1] / 2),
-                                    round(Int, g.body_y - g.label_h - _LABEL_GAP);
+            push!(out, GraphicsText(label, round(Int, cross + g.body_x - line.width / 2),
+                                    round(Int, g.body_y - g.label_h - _LABEL_GAP) + line.text_y;
                                     font = g.axis_font, color = text_color))
         else
-            push!(out, GraphicsText(label, round(Int, g.body_x - size[1] - _LABEL_GAP),
-                                    round(Int, cross + g.body_y - size[2] / 2);
+            push!(out, GraphicsText(label, round(Int, g.body_x - line.width - _LABEL_GAP),
+                                    round(Int, cross + g.body_y - line.height / 2) + line.text_y;
                                     font = g.axis_font, color = text_color))
         end
     end
@@ -542,10 +547,10 @@ function _band_elements!(out, g)
             g.style.band_labels || continue
             name = get_band_state_name(document, value)
             isempty(name) && continue
-            size = g.measure(name, g.axis_font)
-            size[1] + 6 <= w || continue
-            push!(out, GraphicsText(name, round(Int, x + (w - size[1]) / 2),
-                                    round(Int, y + (h - size[2]) / 2);
+            line = compute_line_box(g.measure, name, g.axis_font)
+            line.width + 6 <= w || continue
+            push!(out, GraphicsText(name, round(Int, x + (w - line.width) / 2),
+                                    round(Int, y + (h - line.height) / 2) + line.text_y;
                                     font = g.axis_font, color = _TEXT))
         end
     end
@@ -640,14 +645,14 @@ function _arrow_label!(out, g, shape, color)
     (label === nothing || isempty(label)) && return out
     mid_flow = (shape.f0 + shape.f1) / 2
     mid_cross = (shape.c0 + shape.c1) / 2
-    size = g.measure(label, g.axis_font)
+    line = compute_line_box(g.measure, label, g.axis_font)
     x, y = flow_point(g.frame, mid_flow, mid_cross)
     # An arrow can sit against an edge of the window while its label does not
     # fit there; nudging the text back inside keeps it readable rather than
     # letting the viewport cut it in half.
-    x = clamp(x - size[1] / 2, 0, max(g.body_w - size[1], 0))
-    y = clamp(y - size[2] - 3, 0, max(g.body_h - size[2], 0))
-    push!(out, GraphicsText(label, round(Int, x), round(Int, y); font = g.axis_font, color = _TEXT))
+    x = clamp(x - line.width / 2, 0, max(g.body_w - line.width, 0))
+    y = clamp(y - line.height - 3, 0, max(g.body_h - line.height, 0))
+    push!(out, GraphicsText(label, round(Int, x), round(Int, y) + line.text_y; font = g.axis_font, color = _TEXT))
     out
 end
 
@@ -672,7 +677,6 @@ function _event_elements!(out, g)
         style.event_labels || continue
         label = get_event_label(events, i)
         (label === nothing || isempty(label)) && continue
-        size = g.measure(label, g.axis_font)
         push!(out, GraphicsText(label, round(Int, x + radius + 2),
                                 round(Int, y + radius); font = g.axis_font, color = _TEXT))
     end
@@ -808,19 +812,19 @@ function _readout_elements!(out, g, plot)
 
     if gutter.cursor_readout && plot.cursor !== nothing
         text = get_honest_tick_label(plot.cursor, _cursor_neighbourhood(g))
-        size = g.measure(text, g.axis_font)
+        line = compute_line_box(g.measure, text, g.axis_font)
         flow = to_pixel(g.scale, time_to_coordinate(g.times, g.coordinates, plot.cursor))
         if g.vertical
-            y = round(Int, flow + g.body_y - size[2] / 2)
-            push!(out, GraphicsRect(round(Int, g.body_x - size[1] - _LABEL_GAP - 2), y - 1,
-                                    size[1] + 4, size[2] + 2; color = _SELECTION))
-            push!(out, GraphicsText(text, round(Int, g.body_x - size[1] - _LABEL_GAP),
-                                    y; font = g.axis_font, color = _BODY_BACKGROUND))
+            y = round(Int, flow + g.body_y - line.height / 2)
+            push!(out, GraphicsRect(round(Int, g.body_x - line.width - _LABEL_GAP - 2), y - 1,
+                                    line.width + 4, line.height + 2; color = _SELECTION))
+            push!(out, GraphicsText(text, round(Int, g.body_x - line.width - _LABEL_GAP),
+                                    y + line.text_y; font = g.axis_font, color = _BODY_BACKGROUND))
         else
-            x = round(Int, flow + g.body_x - size[1] / 2)
+            x = round(Int, flow + g.body_x - line.width / 2)
             y = round(Int, g.body_y - g.gutter_h + _GUTTER_PAD)
-            push!(out, GraphicsRect(x - 2, y - 1, size[1] + 4, size[2] + 2; color = _SELECTION))
-            push!(out, GraphicsText(text, x, y; font = g.axis_font, color = _BODY_BACKGROUND))
+            push!(out, GraphicsRect(x - 2, y - 1, line.width + 4, line.height + 2; color = _SELECTION))
+            push!(out, GraphicsText(text, x, y + line.text_y; font = g.axis_font, color = _BODY_BACKGROUND))
         end
     end
 
@@ -830,9 +834,9 @@ function _readout_elements!(out, g, plot)
         text = string(get_honest_tick_label(convert_coordinate_to_time(g.times, g.coordinates, g.lo),
                                         _cursor_neighbourhood(g)),
                       " … Δ", get_honest_tick_label(span, _cursor_neighbourhood(g)))
-        size = g.measure(text, g.axis_font)
-        push!(out, GraphicsText(text, round(Int, g.w - size[1] - _PAD),
-                                _PAD; font = g.axis_font, color = text_color))
+        line = compute_line_box(g.measure, text, g.axis_font)
+        push!(out, GraphicsText(text, round(Int, g.w - line.width - _PAD),
+                                _PAD + line.text_y; font = g.axis_font, color = text_color))
     end
     out
 end
