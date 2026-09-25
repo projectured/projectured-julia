@@ -42,7 +42,7 @@ package and is not part of this plan.
 13. Most of the pattern language has no test, and `EventModuleTest.jl` imports
     `EventModule` twice.
 
-## Proposed design (to confirm)
+## Design (confirmed by the owner on 2026-09-25)
 
 - **`MouseButtons`, like `ModifierKeys`.** An immutable struct of three flags,
   `left`, `middle` and `right`, with a keyword constructor and a constructor from
@@ -73,15 +73,48 @@ package and is not part of this plan.
 ## Steps
 
 - [x] 1. Unseal the nine files, and add this plan.
-- [ ] 2. The pattern language: items 1, 3, 4, 5, 6, with tests.
-- [ ] 3. `MouseButtons` (item 11): the event layer, the SDL backend, the four tests
+- [x] 2. The pattern language: items 1, 3, 4, 5, 6, with tests.
+- [x] 3. `MouseButtons` (item 11): the event layer, the SDL backend, the four tests
   of `:none`, and the 77 constructions.
-- [ ] 4. The texts: items 2, 7, 8, 9, 10, and the export block of item 12.
-- [ ] 5. The tests of item 13.
-- [ ] 6. Verification: `test_kernel`, `test_substrate`, the SDL tests that can run
+- [x] 4. The texts: items 2, 7, 8, 9, 10, and the export block of item 12.
+- [x] 5. The tests of item 13.
+- [x] 6. Verification: `test_kernel`, `test_substrate`, the SDL tests that can run
   here, the guards, a precompile of every package, and omnet-julia against the
   worktree.
 
+## What the implementation found
+
+- The web backend and its page also carried one button. `asset/web/client.js` sent
+  the first held button by name, and `Web.jl` made a `MouseMove` from that name.
+  The page now sends the button mask of the browser, and `Web.jl` makes
+  `MouseButtons` from it: 1 is the left, 2 the right and 4 the middle button.
+- `ProjecturedSdl` and `ProjecturedWeb` import the event names by a list, so
+  `MouseButtons` had to join both lists. A precompile did not show this: Julia
+  resolves a name in a function body only when the function runs. The SDL suite
+  showed it with five `UndefVarError`s.
+- The rewrite changed 81 constructions in 22 files: 73 by the pattern of the
+  plan, and 8 whose arguments hold parentheses, by hand.
+- `build_event_field_bindings` returns escaped names, which are valid only in the
+  expansion of a macro, so its test uses a small macro, as a caller does.
+- The private helpers of the pattern language start with a verb now, as in the
+  cell layer: `_match_modifiers`, `_get_modifier_prefix`, `_build_rule`.
+- The export guard reports two violations in `source/help/HelpModule.jl`, a module
+  of the Help package that came to `main` from another session. `main` reports the
+  same two, so they are not part of this plan.
+
 ## Verification
 
-To fill in.
+- Every package of `environment/all` precompiles.
+- `test_kernel()`: the six known failures; `EventModule` 48, `EventCase` 26,
+  `GestureBinding` 81, `GestureRecognizer` 49.
+- The same on the branch and on `main`: `test_substrate()` 80850 pass with the five
+  known failures of the split pane drag test, `test_chart()` 345, `test_shell()`
+  202, `test_projections()` 450 pass, 3 fail, 2 error, and `test_video()` 34.
+- `test_sdl()` 117 on the branch after the import fix, as on `main`.
+- `test_web_backend()` 31, with a test of a motion that holds two buttons.
+- The export guard passes for `EventModule`, and the naming guard reports nothing.
+- omnet-julia against the worktree: every package precompiles, and
+  `test_presentation()` gives 1694 pass, 12 fail, 2 error and 1 broken, with the same
+  failing tests as before the change. Its scratch environment needed a
+  `Pkg.resolve()`, because `ProjecturedFileSystem` now depends on
+  `ProjecturedFocus`.
