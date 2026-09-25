@@ -111,9 +111,13 @@ Work in the worktree `../projectured-julia-duplicate-tools`, on the branch
     ` where {T}` becomes an `Expr` that holds a `ParseError`, and two
     `ParseError` values are never `==`. `test_julia_layering()`,
     `test_julia_duplicate()` and `test_julia_expression()` pass, 306 tests.
-- [ ] **Step 2. The explorer declares a duplicate.** `Workspace.jl` and the
+- [x] **Step 2. The explorer declares a duplicate.** `Workspace.jl` and the
   import in `FileSystemModule.jl`. A test in `test/filesystem/document/`: the
   folders are copied, and a change in the duplicate leaves the original.
+  - Done. `test_workspace_duplicate()` also duplicates an explorer tab through
+    `make_pane_duplicate_tab_operation`: the duplicate is the next tab,
+    "Explorer (2)", with the focus. `test_filesystem_layering()` and
+    `test_workspace_duplicate()` pass, 25 tests.
 - [ ] **Step 3. The evaluator declares a duplicate, and a form shares its
   result.** `Evaluator.jl`. A test in `test/projectured/editor/`: after real
   evaluations the duplicate owns its forms, its code and its folds; it shares a

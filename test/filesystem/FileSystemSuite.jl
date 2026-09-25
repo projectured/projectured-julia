@@ -25,8 +25,9 @@ function test_filesystem()
         test_filesystem_layering()
         test_filesystem_to_syntax()
         test_filesystem_to_widget()
+        test_workspace_duplicate()
     end
 end
 
 export test_filesystem, test_filesystem_layering, test_filesystem_to_syntax,
-       test_filesystem_to_widget
+       test_filesystem_to_widget, test_workspace_duplicate

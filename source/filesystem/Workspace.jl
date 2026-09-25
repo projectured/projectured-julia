@@ -3,6 +3,11 @@
 
 abstract type WorkspaceDocument <: Document end
 
+# A workspace names the folders a person opened, so its duplicate is a copy of
+# them. The selected row and the closed folders belong to the view, not to the
+# workspace, so a duplicate opens with no row selected and every folder open.
+has_document_duplicate(::WorkspaceDocument) = true
+
 # ── WorkspaceFolder ──────────────────────────────────────────────────────────
 
 @document struct WorkspaceFolder <: WorkspaceDocument

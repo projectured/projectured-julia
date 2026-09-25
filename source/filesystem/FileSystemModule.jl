@@ -36,7 +36,7 @@ using ..TextModule
 using ..WidgetModule
 
 # Imported to extend: this module adds a method to each of these.
-import ..DocumentModule: get_document_title
+import ..DocumentModule: get_document_title, has_document_duplicate
 import ..DomainModule: get_insertion_aliases, make_insertion_document, accepts_opened_file
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
