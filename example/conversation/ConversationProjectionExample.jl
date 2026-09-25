@@ -16,7 +16,11 @@ _conversation_widget_graphics(; measure=measure_truetype_text) =
         YamlDocument     => make_yaml_projection_example(measure=measure),
         XmlDocument      => make_xml_projection_example(measure=measure),
         # Assistant chat shows *rendered* markdown; the model still receives the raw
-        # source (Assistant `_block_text`/`_doc_source` use the source chain).
+        # source (Assistant `_block_text`/`_doc_source` use the source chain). A
+        # page is a stack of its blocks, as in a tab, so a table on it is a widget
+        # table; each block of the page comes back to the row below it.
+        MarkdownRoot     => ChainingProjection(MarkdownRootToVerticalLayout(),
+                                               VerticalLayoutToGraphicsCanvas()),
         MarkdownDocument => make_markdown_rendered_projection_example(measure=measure),
         # Pass a graphics document straight through; the layout sizes/places it
         # via the generic get_graphics_size seam (so `GraphicsCircle(10,10,10)` shows).

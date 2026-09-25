@@ -409,6 +409,7 @@ function test_assistant_mvp()
         _mvp_test_evaluate_while_streaming()
         _mvp_test_turn_writes_on_editor_task()
         _mvp_test_markdown_tool_result()
+        _mvp_test_markdown_result_table()
     end
 end
 
@@ -458,6 +459,58 @@ function _mvp_test_markdown_tool_result()
         @test results[1].content == written
         @test results[2].content == written
         @test occursin("no page", results[3].content)
+    end
+end
+
+# ── A table in a Markdown result is a grid ─────────────────────────────
+#
+# The transcript draws a Markdown result as a page, so a table on it is a widget
+# table. The part passes its width on to the page, and the columns of the table
+# share it: each entry is drawn inside its column, and nothing leaves the width.
+
+# The left edge of every text a canvas drew, and the text. A text that a viewport
+# cuts away entirely is not drawn, so it is not found.
+function _mvp_text_lefts(node, ox = 0, clip = typemax(Int), found = Tuple{Int,String}[])
+    if node isa GraphicsCanvas
+        for element in node.elements
+            _mvp_text_lefts(element, ox + Int(node.x), clip, found)
+        end
+    elseif node isa GraphicsViewport
+        _mvp_text_lefts(node.content, ox + Int(node.x),
+                        min(clip, ox + Int(node.x) + Int(node.w)), found)
+    elseif node isa GraphicsText
+        left = ox + Int(node.x)
+        left < clip && push!(found, (left, string(node.text)))
+    end
+    found
+end
+
+function _mvp_test_markdown_result_table()
+    @testset "a table in a Markdown result is a grid that shares the width" begin
+        written = "| Type | Meaning |\n|---|--:|\n" *
+                  "| `JsonArray` | into element i, one based, and more words that break inside the column |\n" *
+                  "| `TextBlock` | k |\n"
+        conversation = ConversationConversation([
+            ConversationTurn(:user, [ConversationPart("look it up")]),
+            ConversationTurn(:assistant, [ConversationPart(
+                EvaluatorForm(TextBlock(TextString("uri: resource://guide/x"));
+                              tool_name = "read_resource",
+                              input = Dict{String,Any}("uri" => "resource://guide/x"),
+                              result = parse_markdown(written), output = written,
+                              tool_use_id = "tu_1"))])])
+        width = 900
+        context = with_exact_size(PrinterContext(); width = Cell(Int32(width)))
+        texts = _mvp_text_lefts(_render_conversation_widget(conversation, context))
+        left_of(word) = minimum(x for (x, text) in texts if occursin(word, text))
+        # The second column starts far from the first: the two share the width.
+        @test left_of("into") - left_of("JsonArray") > 200
+        # The long entry breaks into lines that start at the edge of its column.
+        @test count(((x, _),) -> x == left_of("into"), texts) > 1
+        # The second column aligns right, so a short entry sits at its right.
+        k_left = minimum(x for (x, text) in texts if strip(text) == "k")
+        @test k_left - left_of("into") > 200
+        # Nothing leaves the width of the transcript.
+        @test maximum(x + 10 * length(text) for (x, text) in texts) <= width
     end
 end
 
