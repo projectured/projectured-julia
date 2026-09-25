@@ -1,7 +1,7 @@
 # A line of text sits on one baseline
 
 > **Status:** pending. Written 2026-09-25. Nothing is implemented. The owner
-> decides the questions of §5 before Step 1.
+> decided the five questions of §5 on 2026-09-25.
 
 Text in the editor is laid out by the top of each run, measured with a height
 that is the em size, and drawn by backends that kern and hint as they like. This
@@ -420,29 +420,34 @@ The implementations:
 - Widget boxes that are sized by their text grow by the difference between the
   line box and the em size: 3 pixels for the body font, 0 for the code font.
 
-## 5. Questions for the owner
+## 5. The questions, decided
 
-Each has my recommendation; the decision is the owner's.
+The owner, 2026-09-25: "I agree with your recommendations". Each question
+below takes its recommendation.
 
 1. **Kerning.** (a) Kern with the `kern` table, the pairs that SDL_ttf draws
    today, in the layout, SDL, PDF and the web client. (b) Kern with the GPOS
    pair adjustments, the fuller table, which SDL_ttf without HarfBuzz does not
    draw: it needs HarfBuzz in SDL_ttf or positions for each glyph. (c) No
-   kerning anywhere. *Recommendation: (a) now, because it is correct in every
-   backend with the tables that exist, and (b) as a later plan.*
+   kerning anywhere. **Decided: (a) now, because it is correct in every
+   backend with the tables that exist, and (b) as a later plan.**
 2. **Where the leading goes.** (a) Half above the ink and half below, as CSS and
    the editors built on it do: the ink sits in the middle of its line box, and
    the caret and the selection look even. (b) All above the ink, as Microsoft
-   Word does with a multiple. *Recommendation: (a).*
+   Word does with a multiple. **Decided: (a).**
 3. **The default spacing.** `Single` for code and widgets. For prose: `Single`
    (22.98 for Ubuntu 20), or `Multiple(1.15)`, the default of current word
-   processors. *Recommendation: `Single` everywhere, and a theme value to change
-   it.*
-4. **The web client** in this plan, or after it. *Recommendation: in it,
-   because R5 names every backend.*
+   processors. **Decided: `Single` everywhere, and a theme value to change
+   it.**
+4. **The web client** in this plan, or after it. **Decided: in it,
+   because R5 names every backend.**
 5. **The sealed file.** `measure_text` in `BackendInterface.jl` either answers the
    authority's box (its contract changes) or goes. Both need permission for that
-   file. *Recommendation: it goes, because the layout does not ask a backend.*
+   file. **Decided: it goes, because the layout does not ask a backend.** The
+   owner's answer is the permission to change `backend/BackendInterface.jl` for
+   this one change, the removal of `measure_text`, and for nothing else in that
+   file. `SEALING.md` asks for the permission in the conversation that makes
+   the change, so the implementer confirms it with the owner before Step 6.
 
 ## 6. Steps
 
