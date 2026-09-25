@@ -1253,6 +1253,11 @@ function test_application()
                     drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
                     lowest() = maximum(y for (text, x, y) in drawn() if text == "file9.jl" && x < 400)
                     @test lowest() > 1000               # the last row is below the window
+                    history = document
+                    while !(history isa UndoBuffer) && hasproperty(history, :content)
+                        history = history.content
+                    end
+                    steps = length(history.undo_entries)
                     # A wheel turned towards the person moves the rows up.
                     for _ in 1:40
                         operation = _app_fire(composed, editor.iomap, MouseScroll(0, -3, 100, 500))
@@ -1260,6 +1265,8 @@ function test_application()
                     end
                     last_row = lowest()
                     @test last_row < 1000
+                    # A scroll is no edit, so the history of the window does not grow.
+                    @test length(history.undo_entries) == steps
                     # A double click opens the file drawn under the pointer.
                     opened = _app_fire(composed, editor.iomap,
                                        MousePress(:left, 100, last_row + 3, 2, ModifierKeys()))

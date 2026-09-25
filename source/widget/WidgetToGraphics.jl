@@ -4244,7 +4244,7 @@ function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, 
                     delta = evt.dx != 0 ? evt.dx : -evt.dy
                     s = _tab_scroll_offset(w, strip_w, view_w)
                     new_s = clamp(s + delta * step, 0, max_s)
-                    return ReplaceReferencedValueOperation(w, "tab_scroll", new_s)
+                    return _write_view_state(w, "tab_scroll", new_s)
                 end
             end
         end
@@ -4668,6 +4668,9 @@ end
 # scrolls its content clean out of its own viewport — a transcript that fits was
 # pushed 60 px above the top by one wheel notch — and answering `nothing` at the
 # end of the travel is also what lets an outer pane take over from an inner one.
+#
+# Every write of a scroll is view state, so a history never records it and
+# `Ctrl+Z` takes back an edit, not a scroll.
 function _scroll_by(sp, dx, dy, room = nothing)
     old = sp.scroll_position
     x = Int(old.x[]) + dx
@@ -4677,7 +4680,7 @@ function _scroll_by(sp, dx, dy, room = nothing)
         y = clamp(y, 0, room[2])
     end
     (x == Int(old.x[]) && y == Int(old.y[])) && return nothing
-    ReplaceReferencedValueOperation(sp, "scroll_position", Point2D(x, y))
+    _write_view_state(sp, "scroll_position", Point2D(x, y))
 end
 
 # Scroll this pane, if the wheel landed on it. Only reached once the content has
@@ -4705,15 +4708,15 @@ function _self_scroll(p, iomap, canvas, evt)
         x = clamp(Int(w.scroll_position.x[]) + dx, 0, room[1])
         y = clamp(room[2] + dy, 0, room[2])
         return CompoundOperation(Any[
-            ReplaceReferencedValueOperation(w, "follow_end", false),
-            ReplaceReferencedValueOperation(w, "scroll_position", Point2D(x, y))])
+            _write_view_state(w, "follow_end", false),
+            _write_view_state(w, "scroll_position", Point2D(x, y))])
     end
     op = _scroll_by(w, dx, dy, room)
     # Back at the end: follow again, so new turns stay in view.
     if op !== nothing && room !== nothing && room[2] > 0 &&
-       Int(op.value.y[]) == room[2] && getfield(w, :follow_end)[] === false
+       Int(get_wrapped_operation(op).value.y[]) == room[2] && getfield(w, :follow_end)[] === false
         return CompoundOperation(Any[op,
-            ReplaceReferencedValueOperation(w, "follow_end", true)])
+            _write_view_state(w, "follow_end", true)])
     end
     op
 end
@@ -4885,15 +4888,16 @@ _zoom_about(M::AffineTransform, factor, ax, ay) =
 _pan_by(M::AffineTransform, dx, dy) = make_affine_translate(dx, dy) ∘ M
 
 # One zoom step about `(ax, ay)`: `dir > 0` zooms in, `dir < 0` out. Returns the
-# `ReplaceReferencedValueOperation`, or `nothing` if the clamp leaves the scale unchanged
+# write of the transform, or `nothing` if the clamp leaves the scale unchanged
 # (already at `_ZOOM_MIN`/`_ZOOM_MAX`). Shared by the wheel and keyboard readers.
+# The transform is view state, so every write of it is one a history skips.
 function _zoom_op(w, M::AffineTransform, dir, ax, ay)
     cur = M.a == 0.0 ? 1.0 : M.a
     f = dir > 0 ? _ZOOM_STEP : 1.0 / _ZOOM_STEP
     new_scale = clamp(cur * f, _ZOOM_MIN, _ZOOM_MAX)
     f = new_scale / cur
     f == 1.0 && return nothing
-    ReplaceReferencedValueOperation(w, "transform", _zoom_about(M, f, ax, ay))
+    _write_view_state(w, "transform", _zoom_about(M, f, ax, ay))
 end
 
 function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransformPaneToGraphicsCanvasIoMap, evt)
@@ -4914,8 +4918,8 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
             hit_element_at(canvas, x, y) === nothing && return nothing
             _, step = p.measure("M", p.font)
             return dx != 0 && dy == 0 ?
-                ReplaceReferencedValueOperation(w, "transform", _pan_by(M, dx * step, 0)) :
-                ReplaceReferencedValueOperation(w, "transform", _pan_by(M, 0, dy * step))
+                _write_view_state(w, "transform", _pan_by(M, dx * step, 0)) :
+                _write_view_state(w, "transform", _pan_by(M, 0, dy * step))
         end
     end
     # Forward other events to the content, then re-root the result. Every pointer
@@ -4967,7 +4971,7 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
         KeyDown(:equals; ctrl) => return _zoom_op(w, M, 1, acx, acy)
         KeyDown(:minus; ctrl)  => return _zoom_op(w, M, -1, acx, acy)
         KeyDown(:zero; ctrl)   => return M === affine_identity ? nothing :
-                                         ReplaceReferencedValueOperation(w, "transform", affine_identity)
+                                         _write_view_state(w, "transform", affine_identity)
     end
     nothing
 end

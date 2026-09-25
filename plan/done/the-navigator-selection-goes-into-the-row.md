@@ -1,9 +1,8 @@
 # The navigator selection goes into the row, and the navigator scrolls
 
 **Status (2026-09-25): DONE** on the branch `navigator-selection`, in the
-worktree `projectured-julia-navigator-selection`. Nothing is on `main`. Two open
-points: a scroll goes into the window history (under Step 1), and what the
-duplicate of a workspace selects (section 5).
+worktree `projectured-julia-navigator-selection`. Nothing is on `main`. One open
+point: what the duplicate of a workspace selects (section 5).
 
 ## 1. The request and the rulings
 
@@ -113,10 +112,15 @@ no ring shows.
     `Application.jl`. All three are wrapped now. Inside the application the bare
     renderer borrowed the recursion of the outer renderer.
   - In this code a wheel event with a positive `dy` scrolls up.
-  - **Open point, not in this plan:** a scroll of any `WidgetScrollPane` is a plain
-    `ReplaceReferencedValueOperation`, so the window history records it and
-    `Ctrl+Z` takes it back. The transcript has the same fault. `_write_view_state`
-    is the view-state write that a history skips.
+  - A scroll of any `WidgetScrollPane` was a plain `ReplaceReferencedValueOperation`,
+    so the window history recorded it and `Ctrl+Z` took it back. The owner ruled
+    (2026-09-25): "a scroll should not go into the undo history". Every write of a
+    scroll in the widget layer is now `_write_view_state`, which a history skips:
+    `scroll_position` and `follow_end` of the scroll pane, `tab_scroll` of the tab
+    strip, and every write of `transform` in the transform pane, the keys that zoom
+    it too, because the field is view state. The wheel zoom of the two charts
+    writes the chart's `view`, a field of the chart document that keys and drags
+    change as well, so it is not changed here.
   - Baseline on `main`: `test_application` fails one assertion at the toolbar
     (commit `94d4fc6d` added "Frame plot" and did not update the test), and the
     position navigation of `filesystem_widget` and `navigator` fails 3313 and 328

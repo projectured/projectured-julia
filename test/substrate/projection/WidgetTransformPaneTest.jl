@@ -1,7 +1,11 @@
 # Reader-level tests for WidgetTransformPane: Ctrl+wheel zooms about the cursor,
-# a plain wheel pans, both as a `ReplaceReferencedValueOperation(pane, "transform", M')`.
+# a plain wheel pans, both as a write of `transform` marked as view state, so a
+# history never records a zoom or a pan.
 function test_widget_transform_pane()
 @testset "WidgetTransformPane zoom/pan" begin
+
+    # The transform an answer writes.
+    _written(op) = get_wrapped_operation(op).value
 
     # Deterministic measure: "M" → (10, 24), so the pan step (line height) is 24.
     _stub(t, f) = (max(1, length(t)) * 10, 24)
@@ -16,8 +20,8 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = print_document(proj, doc)
         op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true)))
-        @test op isa ReplaceReferencedValueOperation
-        M = op.value
+        @test op isa ReplaceViewStateOperation
+        M = _written(op)
         @test M isa AffineTransform
         @test M.a ≈ 1.1            # zoomed in by one step
         @test M.d ≈ 1.1
@@ -30,8 +34,8 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = print_document(proj, doc)
         op = read_intent(proj, iomap, MouseScroll(0, -1, 50, 50, ModifierKeys(ctrl=true)))
-        @test op isa ReplaceReferencedValueOperation
-        @test op.value.a ≈ 1.0 / 1.1
+        @test op isa ReplaceViewStateOperation
+        @test _written(op).a ≈ 1.0 / 1.1
     end
 
     @testset "zoom clamps at the maximum" begin
@@ -49,8 +53,8 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = print_document(proj, doc)
         op = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys()))
-        @test op isa ReplaceReferencedValueOperation
-        M = op.value
+        @test op isa ReplaceViewStateOperation
+        M = _written(op)
         @test M.a ≈ 1.0            # no scale change
         @test M.d ≈ 1.0
         @test M.f ≈ 24.0           # panned vertically by the line step
@@ -62,9 +66,9 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = print_document(proj, doc)
         op = read_intent(proj, iomap, MouseScroll(1, 0, 50, 50, ModifierKeys()))
-        @test op isa ReplaceReferencedValueOperation
-        @test op.value.e ≈ 24.0
-        @test op.value.f ≈ 0.0
+        @test op isa ReplaceViewStateOperation
+        @test _written(op).e ≈ 24.0
+        @test _written(op).f ≈ 0.0
     end
 
     @testset "successive zooms accumulate" begin
@@ -74,7 +78,7 @@ function test_widget_transform_pane()
         op1 = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true)))
         evaluate_operation(nothing, op1)
         op2 = read_intent(proj, iomap, MouseScroll(0, 1, 50, 50, ModifierKeys(ctrl=true)))
-        @test op2.value.a ≈ 1.1 * 1.1
+        @test _written(op2).a ≈ 1.1 * 1.1
     end
 
     @testset "Ctrl+= zooms in about the viewport centre" begin
@@ -82,9 +86,9 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = print_document(proj, doc)
         op = read_intent(proj, iomap, KeyDown(:equals, ModifierKeys(ctrl=true)))
-        @test op isa ReplaceReferencedValueOperation
-        @test op.value.a ≈ 1.1
-        @test all(apply_affine_transform(op.value, 100.0, 100.0) .≈ (100.0, 100.0))
+        @test op isa ReplaceViewStateOperation
+        @test _written(op).a ≈ 1.1
+        @test all(apply_affine_transform(_written(op), 100.0, 100.0) .≈ (100.0, 100.0))
     end
 
     @testset "Ctrl+- zooms out" begin
@@ -92,8 +96,8 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = print_document(proj, doc)
         op = read_intent(proj, iomap, KeyDown(:minus, ModifierKeys(ctrl=true)))
-        @test op isa ReplaceReferencedValueOperation
-        @test op.value.a ≈ 1.0 / 1.1
+        @test op isa ReplaceViewStateOperation
+        @test _written(op).a ≈ 1.0 / 1.1
     end
 
     @testset "Ctrl+0 resets to the identity" begin
@@ -102,8 +106,8 @@ function test_widget_transform_pane()
         proj  = _proj()
         iomap = print_document(proj, doc)
         op = read_intent(proj, iomap, KeyDown(:zero, ModifierKeys(ctrl=true)))
-        @test op isa ReplaceReferencedValueOperation
-        @test op.value == affine_identity
+        @test op isa ReplaceViewStateOperation
+        @test _written(op) == affine_identity
     end
 
     @testset "Ctrl+0 at the identity is a no-op" begin
