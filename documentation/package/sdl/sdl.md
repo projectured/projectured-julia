@@ -54,7 +54,7 @@ Escape is an ordinary `KeyDown`. The backend makes no `MousePress`: the `Gesture
 
 The editor recognises Ctrl+=, Ctrl+- and Ctrl+0 for the uniform zoom, and the same keys with Alt for the font zoom. This backend evaluates the two operations; [style.md](../style/style.md#two-zoom-settings) describes the two settings.
 
-- `AdjustZoomOperation` steps the `zoom` of the `Display` of the backend, and scales the logical size of each window the other way. The native window keeps its device size, and the content lays out again through the available size, as on a resize.
+- `AdjustZoomOperation` steps the `zoom` of the `Display` of the backend, and scales the logical size of each window the other way. The native window keeps its device size, and the content lays out again through the exact range that the window gives it, as on a resize.
 - `AdjustFontZoomOperation` writes `_FONT_ZOOM` and sets `editor.iomap` to `nothing`, so the editor prints again. The widgets measure while `print_document` runs and keep constant sizes, so only a new print fits them to the new text size.
 
 Both repaint every window in full.

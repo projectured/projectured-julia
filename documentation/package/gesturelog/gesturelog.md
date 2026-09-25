@@ -34,7 +34,7 @@ An entry holds text: the gesture, the operation and the name of the operation ty
 
 `GestureLogOverlayProjection(; inner, log, anchor = :top_right, margin, padding, background)` prints `inner`, and prints the log through `make_gesture_log_content_projection()`. The log chain gets a new `PrinterContext`, so the panel takes the space it needs and not the layout space of the content. The output is one canvas: the inner output at the origin, and the panel at the corner.
 
-The panel reads the available width and height of the printer context. They are cells, so the panel follows a resize of the window. With no available size, the panel stays at the top left. The panel is there also for an empty log, which shows `no gesture yet`.
+The panel reads the maximum width and height of the range in the printer context. They are cells, so the panel follows a resize of the window. With no maximum, the panel stays at the top left. The panel is there also for an empty log, which shows `no gesture yet`.
 
 `GestureLogToSyntax` prints one line for each entry, the newest first, so the newest line stays in one place. It uses DejaVu Sans Mono, which has the glyphs `←` and `∅`. A glyph from a fallback font has a width of its own, and the columns would not align. A line of a selection operation is muted. The panel is 8 pixels wider than its text, because the measure function of the printer and the text metrics of the backend differ a little.
 
@@ -52,7 +52,7 @@ Its `__init__` registers the natural row `:gesturelog` and the `.pred` type `Ges
 - **Two decorators share one log.** The complete record exists only at the root, and the panel needs a canvas, which only the chain of a window has.
 - **An entry holds text.** An operation holds a reference into the document, and the document changes when the operation runs. A live operation would print differently a moment later.
 - **The panel is an element of the window canvas.** The help window and the tooltip open a window of their own; the log stays over the content that it describes.
-- **The panel is a rectangle and a text canvas, not a `WidgetCard`.** A card stretches to the available width.
+- **The panel is a rectangle and a text canvas, not a `WidgetCard`.** A card stretches to the width that its parent gives.
 - **The shell records always.** A tab that opens the log must hold what happened before it opened. See [plan/done/the-gesture-log-opens-in-a-tab.md](../../../plan/done/the-gesture-log-opens-in-a-tab.md).
 
 ## Usage

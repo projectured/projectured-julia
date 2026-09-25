@@ -24,8 +24,8 @@ The export measures text with `measure_truetype_text` of `ProjecturedStyle`, whi
 
 One PDF point is one logical pixel. Without `paginate`, the page size comes from two passes, as in `write_image`:
 
-1. The printer runs with no available size on each axis that has no `width` or `height`, and `get_canvas_content_bounds` measures the result.
-2. When the content is larger than `max_width` or `max_height`, the printer runs again with that limit as the available size.
+1. The printer runs with a free range on each axis that has no `width` or `height`, and `get_canvas_content_bounds` measures the result.
+2. When the content is larger than `max_width` or `max_height`, the printer runs again with that limit as an exact range.
 
 With `paginate = true`, the layout gets an unbounded height, and the page width is `width` or else the width of the content, at most `max_width`. `height` is the page height, 792 by default, the height of US Letter at 72 dpi. The writer cuts the content into bands of that height and writes one page for each band. Each page clips to its media box, so an element across a border is cut between two pages. The painters skip an element that is outside the band of the page.
 

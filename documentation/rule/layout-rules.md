@@ -131,7 +131,8 @@ edge(axis) = the edge I was given, less my insets
 
 The second line is not taste. A child that reads an extent its parent computed
 from its children reads the parent's own outer size, and the reactive cell cycles
-and overflows the stack. `withhold_offer(ctx, axis)` is that rule, written once.
+and overflows the stack. `with_bounded_size` gives a child the edge and no slot,
+and `withhold_offer(ctx, axis)` gives it neither.
 
 The edge is a different value. It is the maximum of the range that the container
 was given, a cell of the container's own parent, and never the container's own
@@ -139,9 +140,10 @@ extent. So a stack whose extent on its cross axis comes from its children still
 gives each `Content` child the edge as a bounded range, and no cell reads its own
 result.
 
-So a `VerticalLayout` withholds height, a `HorizontalLayout` withholds width, a
-`WidgetCard` withholds height, a `WidgetToolbar` withholds width — each because
-its extent on that axis is the sum or the maximum of what it holds.
+So a `VerticalLayout` gives no slot on its height, a `HorizontalLayout` none on
+its width, a `WidgetCard` none on its height and a `WidgetToolbar` none on its
+width — each because its extent on that axis is the sum or the maximum of what
+it holds. Each still gives its edge.
 
 A **viewport** — `WidgetScrollPane`, `WidgetTransformPane` — gives an offer on
 every axis where it has an extent of its own, an authored size or the space
@@ -149,8 +151,8 @@ its parent gave.
 There its extent never comes from its content, which is what a viewport is.
 
 On an axis where it has neither, a viewport has nothing to clip against. It
-withholds the offer on that axis and takes the content's own extent, exactly as
-`Content` says. A pane therefore clips the axes it was given and follows its
+passes its own range on, less its insets, and takes the content's own extent,
+exactly as `Content` says. A pane therefore clips the axes it was given and follows its
 content on the rest, and nothing anywhere names an axis that "scrolls". This is
 what keeps a collapsed card body — clipped to `Fixed(30)` in height — as wide as
 its text.

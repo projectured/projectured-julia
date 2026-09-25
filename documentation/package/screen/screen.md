@@ -34,7 +34,7 @@ Its reader routes a `WindowInput` event by the window id, not by the position in
 
 - `OpenWindowOperation` and `CloseWindowOperation` from any reader below, also inside a `CompoundOperation`. So the choice of an item in a menu can set a value and close the menu in one operation.
 - `OpenPopupOperation`, which carries a reference to its anchor and an offset. A resolver maps the anchor to a screen position.
-- A native resize becomes a `ResizeWindowOperation`. It writes the `width` and `height` cells, and because those cells are the available size of the content, the content lays out again with no new projection.
+- A native resize becomes a `ResizeWindowOperation`. It writes the `width` and `height` cells, and because those cells are the exact range of the content, the content lays out again with no new projection.
 - A native close removes the window. A loss of focus closes only a window with `auto_dismiss`.
 - While a `modal` window is open, an event for another window stops here.
 

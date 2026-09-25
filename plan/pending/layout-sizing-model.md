@@ -493,10 +493,34 @@ Step 0 takes the baseline.
       - Documents: `widget.md` (the toolbar, the overlays, the table);
         `layout-rules.md` §6 (what this replaces).
 
-- [ ] **Step 6: omnet-julia.** The 19 files follow the names and the model on
+- [x] **Step 6: omnet-julia.** The 19 files follow the names and the model on
       a branch, with the baseline of Step 0 compared over both worktrees.
       - Documents: the two pending plans of omnet-julia that name
         `available_width` (`campaign-runner-run-table.md`, `qtenv-window.md`).
+      **Implementation (2026-09-25).** Before this step the projectured-julia
+      branch was rebased onto main (64 commits; two conflicts: the default
+      clock of a context is `Clock()` now, and the kernel suite renamed
+      `test_struct_plan`), and main's new `MarkdownTableTest.jl` follows the
+      names. omnet-julia works on its branch `layout-range` in the worktree
+      `omnet-julia-layout-range`: 21 files; 31 calls of `with_available_size`
+      are `with_exact_size`; the workbench shell, the catalog shell, the embed
+      shell and the timeline strip read `get_exact_width` and
+      `get_exact_height`; `OmnetWorkbenchToWidget` read the field with
+      `getfield(ctx, :available_width)`, which failed since Step 1;
+      `SimulationWorkflowToWidget` built a new root context from the two
+      extents to add one property, and calls `with_property` instead, so a
+      bounded range survives. The two scratch environments of
+      `/var/tmp/omnet_layout_env` (`base`: both mains; `change`: both
+      worktrees) run the suites of the widget landing, the campaign suites and
+      the two IDE suites.
+      **Done** (omnet-julia `layout-range` `7b1fd5a9`). The first run of
+      `change` found that the modules of the readers import each name, so
+      `get_exact_width` needed an import where the field access needed none.
+      After that, `change` has the failures of `base` at the same places; the
+      one difference is `test_legacy`, one pass and one NED error more in
+      `base`, from the untracked `mm1k/` of the main checkout, which the NED
+      walk reads. The sweep peaks at 7.5 GB in one process, under the 8 GB
+      cap.
 
 - [ ] **Step 7: the documentation, as a whole.** A search of both repositories
       for the old names and the old numbers (`available_width`,
@@ -509,6 +533,13 @@ Step 0 takes the baseline.
       none of them names the context. The documentation index
       (`documentation/README.md`) still names every document with what it
       answers.
+      **Findings (2026-09-25):** `layout-rules.md` §3 said that a toolbar
+      "withholds width" and that a viewport "withholds the offer" on an axis
+      with no slot; each gives its edge, and the text says so. `layout.md`
+      named flows among the users of `allocate_axis`; the split pane is the
+      fourth. `gesturelog.md`, `pdf.md`, `sdl.md` and `screen.md` named "the
+      available size"; they name the range now. The design documents name no
+      context.
 
 - [ ] **Step 8: the landing** of both repositories, when the owner says so.
 
