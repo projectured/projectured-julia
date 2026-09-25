@@ -390,7 +390,8 @@ _font = font_ubuntu_monospace_regular_20
 measure = FixedMeasure(10, 14, 4, 0)
 p = TextToGraphics(measure = measure)
 SC = TextModule.SegmentCoordinate
-fs = TextModule.font_logical_size(_font)
+# Each coordinate carries the line box of its row: the rows are 20 apart.
+line = 20
 #   row y=0 : "AB{"          flat 0..3   (node's first line, starts at x=0)
 #   break                    flat 3
 #   row y=20: "    " indent  flat 4..8   (blank — must NOT anchor the row)
@@ -398,17 +399,17 @@ fs = TextModule.font_logical_size(_font)
 #   break                    flat 10
 #   row y=40: "  " indent    flat 11..13 (blank)
 #   row y=40: "}"            flat 13..14 (the close, at x=20)
-coord_map = [SC([1], 0, 3,  0,  0, _font, "AB{",  30, 18),
-             SC([2], 0, 4,  0, 20, _font, "    ", 40, 18),
-             SC([3], 0, 2, 40, 20, _font, "CD",   20, 18),
-             SC([4], 0, 2,  0, 40, _font, "  ",   20, 18),
-             SC([5], 0, 1, 20, 40, _font, "}",    10, 18)]
+coord_map = [SC([1], 0, 3,  0,  0, _font, "AB{",  30, line),
+             SC([2], 0, 4,  0, 20, _font, "    ", 40, line),
+             SC([3], 0, 2, 40, 20, _font, "CD",   20, line),
+             SC([4], 0, 2,  0, 40, _font, "  ",   20, line),
+             SC([5], 0, 1, 20, 40, _font, "}",    10, line)]
 span_flat_offsets = Dict([1] => 0, [2] => 4, [3] => 8, [4] => 11, [5] => 13)
 
 rects = TextModule._compute_span_rows(coord_map, span_flat_offsets, 0, 14, p)
 @test length(rects) == 3                              # one rect per visual row
 @test [r[2] for r in rects] == [0, 20, 40]            # top to bottom
-@test all(r -> r[4] == fs, rects)                     # each the row's font height
+@test all(r -> r[4] == line, rects)                   # each the line box of its row
 # Row 1 hugs "AB{" — starts at the node's first char, ends at "{", NOT extended to
 # the wider interior line's right edge (x=60).
 @test (rects[1][1], rects[1][3]) == (0, 30)

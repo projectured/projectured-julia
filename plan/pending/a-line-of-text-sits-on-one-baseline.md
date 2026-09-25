@@ -3,7 +3,7 @@
 > **Status:** in progress, in the worktree `projectured-julia-text-baseline` on
 > the branch `text-baseline`, from `c634a718`. Written 2026-09-25. The owner
 > decided the five questions of §5 on 2026-09-25, and asked on the same day to
-> start the work in a worktree. Steps 0 to 3b and 5 are done; Step 4 is next.
+> start the work in a worktree. Steps 0 to 5 are done; Step 6 is next.
 
 Text in the editor is laid out by the top of each run, measured with a height
 that is the em size, and drawn by backends that kern and hint as they like. This
@@ -532,13 +532,55 @@ projection holds its measure in one typed field, so the line model can not read 
   and two logical sizes. The old test that compared `measure_sdl_text` with
   `measure_truetype_text` goes: no draw path uses them, and the pen test has a
   fallback glyph.
-- [ ] **Step 4. The line model** (§3.3 to §3.5, §3.7) in `TextToGraphics`: the
+- [x] **Step 4. The line model** (§3.3 to §3.5, §3.7) in `TextToGraphics`: the
   baseline, the line metrics, the line spacing, the blank line, the inline
   image, the caret, the selection, the click, and the line index of a segment.
   Tests with a `FixedMeasure` of two fonts: tops, baselines, line boxes, each
   spacing, the leading, contiguous selections, click bands, the caret of each
   font; and a test with the authority that a line of body text, code and an
   emoji has one baseline.
+  *Decisions made in the step:*
+  - A `SegmentCoordinate` carries the line box of its line in `y` and `height`,
+    not the box of its text. So every segment of a line has the same `y`, the
+    boxes of consecutive lines meet, a click picks a line by its box, and a
+    selection row is the line box. Home, End, Up and Down find a line by its
+    `y`, as before, so a segment needs no line index. The `y` of a drawn text is
+    its own: the baseline less the rounded ascent of its box.
+  - `_layout_group` collects the pieces of a visual line (texts, images, the
+    places of empty lines, the caret) and places them when the line closes,
+    because the baseline needs every box of the line. `_GroupLayout` holds the
+    state, so the layout stays free of boxed closures.
+  - A group returns the real sum of its line distances (`distance`) and the
+    lowest pixel of its ink (`height`). The line stack chains the real
+    distances and rounds each top once; the overlay does the same, so the caret
+    and the glyphs agree. A line inside a group rounds its top from the start
+    of the group, so the error stays under one pixel and does not add up.
+  - The paragraphs of the `ListNode` path chain their real line distances in
+    the same way.
+  - The empty line after a trailing '\n' adds no height, as on the base; its
+    caret stands where the next line begins. A group with no glyph that is a
+    line takes one line of `_line_height_font`, as on the base.
+  - An inline image sits on the baseline: its ascent is its height.
+  - The caret is `compute_text_extent(measure, "", font)` high, from the
+    baseline less its ascent, in the font of the span at its place.
+  - `TextToGraphics(; line_spacing = SingleSpacing())`. No theme reaches
+    `TextToGraphics` today: every builder passes only a measure. So a theme can
+    not choose the spacing yet (question 3). This is an open item for the owner:
+    where a theme of code, of prose and of a widget meets the text layout.
+
+  *Done.* `test_text_line_model` (21) tests the model with a `FixedMeasure` of
+  two fonts and with the font files. The suites of Step 0
+  (`/var/tmp/text-baseline-step4/`) fail as the base does. The substrate count is
+  that of Step 5 and the new test. `catalog_markdown` falls by 525 more, in the
+  printer walk of eleven `/syntax` atoms (`table` −146, `list` −64 and nine
+  others): the new types move the `Dict` order of Step 5 again, and these atoms
+  take the Julia object bridge too. Their reader and REPL counts do not move.
+  *Open item for the owner:* `path_sequences` takes its goal types from a
+  `Dict{DataType,Int}`, so a new type anywhere can change which projection the
+  catalog tests for a `/syntax` atom. On this branch 13 Markdown atoms test the
+  generic Julia bridge and no longer the Markdown syntax projection. A fix takes
+  the goal types in the order the search finds them; it is a change of the
+  catalog, outside this plan.
 - [x] **Step 5. Every reader moves to the new contract** (§3.8, §3.9): the
   widgets, `_bounds_elem!` and the hit test, the charts, the fault and gesture
   overlays, the math widths, `WordWrapping`, the Markdown and syntax

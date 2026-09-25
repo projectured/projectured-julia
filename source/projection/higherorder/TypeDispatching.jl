@@ -18,7 +18,7 @@ an abstract type, or a `Union` such as `Union{JsonNull,JsonBool}`.
     tdp = TypeDispatchingProjection(
         JsonDocument  => JsonToSyntax(),
         SyntaxDocument => SyntaxToText(),
-        TextBlock => TextToGraphics(),
+        TextBlock => TextToGraphics(measure = FontFileMeasure()),
     )
     result = print_document(tdp, some_json_doc)  # uses JsonToSyntax
 """

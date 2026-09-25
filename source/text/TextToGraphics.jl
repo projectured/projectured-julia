@@ -19,12 +19,14 @@
 One entry per emitted text segment. `span_path` is the segment's span as an index
 path into the input `TextBlock` (a `SpanPath`): `[i]` for a top-level span, `[i, j]`
 for span `j` of the `TextLine` at element `i`. `char_start`/`char_end` are
-0-based offsets local to that span (exclusive end). `(x, y)` are pixel
-coordinates of the segment's top-left. `width`/`height` are the segment's
-pixel box; for an inline image span (`TextGraphics` — empty `text`, range
-`[0, 1)`) they carry the image size so hit-testing splits on the real
-left/right halves, the cursor sits at `x + width`, and the clickable y-band
-covers the whole image.
+0-based offsets local to that span (exclusive end). `x` is the left edge of the
+segment and `width` its width. `y` and `height` are the line box of the visual
+line the segment is on: every segment of one line has the same `y`, and the
+boxes of consecutive lines meet, so a click picks a line by its box and a
+selection covers each line it spans without a gap. For an inline image span
+(`TextGraphics` — empty `text`, range `[0, 1)`) `width` is the image width, so
+hit-testing splits on the real left/right halves and the cursor sits at
+`x + width`.
 """
 struct SegmentCoordinate
     span_path::SpanPath
@@ -58,16 +60,12 @@ struct TextToGraphics <: Projection
     start_x::Int
     start_y::Int
     measure::TextMeasure
+    line_spacing::LineSpacing
 end
 
-function TextToGraphics(; start_x::Int=0, start_y::Int=0, measure::TextMeasure)
-    TextToGraphics(start_x, start_y, measure)
-end
-
-# The width of `text` in `font` and the height of a line that holds it alone.
-function _compute_line_size(measure::TextMeasure, text::AbstractString, font::StyleFont)
-    line = compute_line_box(measure, text, font)
-    (line.width, line.height)
+function TextToGraphics(; start_x::Int=0, start_y::Int=0, measure::TextMeasure,
+                        line_spacing::LineSpacing = SingleSpacing())
+    TextToGraphics(start_x, start_y, measure, line_spacing)
 end
 
 # The x of the character boundary `position` of `text` in `font`, from the start
@@ -350,8 +348,9 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
 
     # Per-line reactive cells, built once per line index and reused. A line's
     # `layout` reads only that line's spans' content; its `y` chains off the
-    # cumulative height of the lines above (editing the last line moves nothing;
-    # editing a middle line reflows the lines below — matching ListNode spines).
+    # real line distances of the lines above, rounded once, so a long text does
+    # not drift (editing the last line moves nothing; editing a middle line
+    # reflows the lines below — matching ListNode spines).
     # Each placement becomes a PERSISTENT GraphicsText/GraphicsRect reused across
     # re-layouts, its fields `set_cell_computation!` cells reading the placement back out of the
     # line's `layout` (printer locality — dimension C, now line-local).
@@ -360,12 +359,14 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         haskey(line_cells, L) && return line_cells[L]
         line_layout = Cell(@computation _layout_group(p, lines_cell[][L], 0, nothing, true, block_font))
         line_h = Cell(@computation Int32(line_layout[].height))
-        line_y = if L == 1
-            Cell(Int32(0))
+        line_distance = Cell(@computation line_layout[].distance)
+        line_offset = if L == 1
+            Cell(0.0)
         else
             prev = get_line_cells(L - 1)
-            Cell(@computation Int32(prev.y[] + prev.h[]))
+            Cell(@computation prev.offset[] + prev.distance[])
         end
+        line_y = Cell(@computation Int32(round(Int, line_offset[])))
         cache = Dict{Any,Any}()
         segs = CellVector(Computation(function ()
             pls = line_layout[].spans
@@ -386,7 +387,8 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         end))
         sub = GraphicsCanvas(Cell(Int32(0)), line_y, Cell(Int32(0)), Cell(Int32(0)),
                              segs, layout_none, false, Cell(nothing))
-        nt = (layout = line_layout, h = line_h, y = line_y, canvas = sub)
+        nt = (layout = line_layout, h = line_h, distance = line_distance, offset = line_offset,
+              y = line_y, canvas = sub)
         line_cells[L] = nt
         nt
     end
@@ -519,39 +521,43 @@ end
 # false` — it needs the geometry, not the glyphs). Sharing the loop is what keeps
 # the caret on the character it was placed against.
 #
+# A group is one visual line, or more when a span embeds '\n'. Each visual line
+# is set as a word processor sets a line: every box on it sits on one baseline,
+# its height comes from the largest ascent, descent and line gap of its boxes,
+# and `p.line_spacing` sets the distance to the next line. A piece of a line
+# waits until the line closes, because its baseline needs every box of the line.
+#
 # `cursor_pos` is a `(span::SpanPath, char)` caret, or `nothing`. The returned
-# `cursor` is `(x, y, h)` when it fell inside this group. An embedded '\n' inside a
-# span still breaks into sub-lines within the group (the renderer cannot draw a
-# multi-line glyph run); the group's `height` covers them all.
+# `cursor` is `(x, y, h)` when it fell inside this group: it stands on the
+# baseline and is as high as the font at its place. `distance` is the real sum of
+# the line distances of the group, where the next group starts, and `height`
+# reaches the lowest ink of the group.
 function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
                        collect_spans::Bool, block_font::Cell)
-    result = Any[]
-    by_key = Dict{Any,Any}()
+    start_x = p.start_x + _indent_width(p, group, block_font)
+    g = _GroupLayout(y0, start_x)
     occ = Dict{UInt64,Int}()   # per-span occurrence counter so a shared decorative
                                # span (one TextString at several flat positions)
                                # gets a distinct stable key per occurrence.
-    coord_map = SegmentCoordinate[]
-    cursor = nothing
-    cx = p.start_x + _indent_width(p, group, block_font)
-    cy = y0
-    max_cx = cx
-    line_h = 0
+    last_font = nothing        # the font of the last text span: it sizes an empty last line
+    is_caret_at(path, k) = cursor_pos !== nothing && g.cursor === nothing && g.caret === nothing &&
+                           cursor_pos.span == path && cursor_pos.char == k
 
     for (path, span) in group.spans
         if span isa TextGraphics
-            img_w = Int(span.width::Int32)
-            img_h = Int(span.height::Int32)
-            # Embed the span: a raster GraphicsImage for an image document, or a
-            # live nested canvas for a pre-projected GraphicsCanvas (widget etc.).
-            collect_spans && push!(result, _graphics_span_element(span, cx, cy, img_w, img_h))
-            # Record a SegmentCoordinate for hit-testing: atomic position (0..1)
-            push!(coord_map, SegmentCoordinate(path, 0, 1, cx, cy, span.font::StyleFont, "", img_w, img_h))
-            line_h = max(line_h, img_h)
-            if cursor === nothing && cursor_pos !== nothing && cursor_pos.span == path
+            width = Int(span.width::Int32)
+            height = Int(span.height::Int32)
+            x = round(Int, g.pen)
+            # An inline image sits on the baseline, as a picture in line with text
+            # does: its ascent is its height.
+            push!(g.boxes, FontMetrics(height, 0, 0))
+            push!(g.pieces, (kind = :image, path = path, span = span, x = x, width = width, height = height))
+            if cursor_pos !== nothing && g.cursor === nothing && g.caret === nothing && cursor_pos.span == path
                 # The caret sits before or after the image, never inside it.
-                cursor = (cursor_pos.char == 0 ? cx : cx + img_w, cy, max(line_h, 1))
+                g.caret = (cursor_pos.char == 0 ? x : x + width, span.font::StyleFont)
             end
-            cx += img_w
+            g.pen += width
+            g.max_x = max(g.max_x, round(Int, g.pen))
             continue
         end
         span isa TextString || continue
@@ -561,89 +567,167 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
         txt = span.content::AbstractString               # reads span content cell
         sf  = span.font::StyleFont                       # reads span font cell
         col = span.font_color::StyleColor                # reads span font_color cell
-        at_caret(k) = cursor === nothing && cursor_pos !== nothing &&
-                      cursor_pos.span == path && cursor_pos.char == k
+        last_font = sf
 
-        lines = split(txt, '\n')
-        for (li, line) in enumerate(lines)
+        for (li, line) in enumerate(split(txt, '\n'))
             # Hard newline embedded in the span content.
             if li > 1
-                # A caret beside the '\n' can stand on a line with no glyph yet,
-                # so it is at least as tall as a line in the span's font.
-                row_h = max(line_h, _compute_line_size(p.measure, "", sf)[2], 1)
                 # caret BEFORE the '\n' (char_offset still points at it)
-                at_caret(char_offset) && (cursor = (cx, cy, row_h))
-                max_cx = max(max_cx, cx)   # fold this sub-line's extent in before the reset
-                cx = p.start_x
-                # An empty sub-line still keeps one row of height.
-                cy += line_h > 0 ? line_h : _compute_line_size(p.measure, "", sf)[2]
-                line_h = 0
+                is_caret_at(path, char_offset) && (g.caret = (round(Int, g.pen), sf))
+                # A line with no glyph yet takes the height of the span's font.
+                _close_line!(g, p, sf, true, collect_spans)
+                g.pen = Float64(p.start_x)
                 char_offset += 1           # count the '\n'
-                # caret AFTER the '\n' — now at the start of the next sub-line
-                at_caret(char_offset) && (cursor = (cx, cy, max(_compute_line_size(p.measure, "", sf)[2], 1)))
+                # caret AFTER the '\n' — now at the start of the next line
+                is_caret_at(path, char_offset) && (g.caret = (round(Int, g.pen), sf))
             end
 
             # An empty first sub-line is an empty span, or one that starts with
             # '\n'. A caret at its start has no glyph to stand against, so it
-            # takes the height of a line in the span's font.
+            # takes the font of the span.
             if isempty(line)
-                li == 1 && at_caret(char_offset) &&
-                    (cursor = (cx, cy, max(line_h, _compute_line_size(p.measure, "", sf)[2], 1)))
+                li == 1 && is_caret_at(path, char_offset) && (g.caret = (round(Int, g.pen), sf))
                 # An empty line draws no glyph, but it has a place: a zero-width
                 # coordinate where a caret on it stands, so a key moves the caret
                 # onto the line and off it. One on a line that draws a glyph is
                 # dropped below.
-                push!(coord_map, SegmentCoordinate(path, char_offset, char_offset, cx, cy,
-                                                   sf, "", 0, _compute_line_size(p.measure, "", sf)[2]))
+                push!(g.pieces, (kind = :place, path = path, char = char_offset,
+                                 x = round(Int, g.pen), font = sf))
                 continue
             end
 
-            # No wrap: emit the whole sub-line as a single segment.
-            seg_w, seg_h = _compute_line_size(p.measure, line, sf)
-            line_h = max(line_h, seg_h)
-            seg_x = cx
-            seg_char_start = char_offset
+            # No wrap: emit the whole sub-line as a single segment, at the rounded
+            # real pen position, so a long line of many runs does not drift.
+            box = measure_string(p.measure, line, sf)
+            _, ascent, descent = compute_text_extent(box)
+            x = round(Int, g.pen)
+            g.pen += box.width
+            width = round(Int, g.pen) - x
+            push!(g.boxes, FontMetrics(box.ascent, box.descent, box.line_gap))
+            g.ink_descent = max(g.ink_descent, descent)
             seg_len = length(line)
-            if collect_spans
-                fpl = _fill_placement(span, (span_oid, span_occ, li, :fill), seg_x, cy, seg_w, seg_h)
-                if fpl !== nothing
-                    push!(result, fpl)
-                    by_key[fpl.key] = fpl
-                end
-                tpl = (kind = :text, key = (span_oid, span_occ, li),
-                       text = String(line), x = seg_x, y = cy, font = sf,
-                       color = col)
-                push!(result, tpl)
-                by_key[tpl.key] = tpl
+            push!(g.pieces, (kind = :text, key = (span_oid, span_occ, li), path = path,
+                             char_start = char_offset, char_end = char_offset + seg_len,
+                             span = span, text = String(line), x = x, width = width,
+                             ascent = ascent, descent = descent, font = sf, color = col))
+            if cursor_pos !== nothing && g.cursor === nothing && g.caret === nothing &&
+               cursor_pos.span == path && char_offset <= cursor_pos.char <= char_offset + seg_len
+                g.caret = (x + _get_caret_x(p.measure, line, sf, cursor_pos.char - char_offset), sf)
             end
-            push!(coord_map, SegmentCoordinate(path, seg_char_start, seg_char_start + seg_len, seg_x, cy, sf, line, seg_w, seg_h))
-            if cursor === nothing && cursor_pos !== nothing && cursor_pos.span == path &&
-               seg_char_start <= cursor_pos.char <= seg_char_start + seg_len
-                local_pos = cursor_pos.char - seg_char_start
-                cursor = (seg_x + _get_caret_x(p.measure, line, sf, local_pos), cy, max(line_h, 1))
-            end
-            cx += seg_w
+            g.max_x = max(g.max_x, round(Int, g.pen))
             char_offset += seg_len
         end
     end
 
-    # On a line that draws a glyph, the glyphs give every caret of the line its
-    # place, so a zero-width coordinate stays only on a line that draws none.
-    glyph_rows = Set(sc.y for sc in coord_map if _draws_glyph(sc))
-    filter!(sc -> _draws_glyph(sc) || !(sc.y in glyph_rows), coord_map)
-
-    max_cx = max(max_cx, cx)
-    height = cy + line_h - y0
-    if !any(_draws_glyph, coord_map) && (group.newline !== nothing || group.is_line || _has_text_span(group))
+    if !isempty(g.boxes)
+        _close_line!(g, p, last_font, true, collect_spans)
+    elseif g.closed == 0 && (group.newline !== nothing || group.is_line || _has_text_span(group))
         # A blank line still occupies one row, sized by the font it has no glyph to
         # take one from. A group that holds only an empty span is such a line,
-        # because a caret can stand in it. The empty group left behind by a
-        # *trailing* newline is not a line at all, and keeps its zero height.
-        font = _line_height_font(group, block_font)
-        height = font === nothing ? 0 : _compute_line_size(p.measure, "", font)[2]
+        # because a caret can stand in it.
+        _close_line!(g, p, _line_height_font(group, block_font), true, collect_spans)
+    else
+        # The empty line after a trailing '\n', and the empty group that a
+        # trailing newline leaves behind, are not lines: they add no height. A
+        # caret or a place on them still stands where the next line begins.
+        _close_line!(g, p, last_font, false, collect_spans)
     end
-    (spans = result, by_key = by_key, coord_map = coord_map,
-     width = max_cx, height = height, cursor = cursor)
+
+    # On a line that draws a glyph, the glyphs give every caret of the line its
+    # place, so a zero-width coordinate stays only on a line that draws none.
+    glyph_rows = Set(sc.y for sc in g.coord_map if _draws_glyph(sc))
+    filter!(sc -> _draws_glyph(sc) || !(sc.y in glyph_rows), g.coord_map)
+
+    (spans = g.result, by_key = g.by_key, coord_map = g.coord_map, width = g.max_x,
+     height = g.bottom - y0, distance = g.distance, cursor = g.cursor)
+end
+
+# The state of `_layout_group` while it lays out one group: the pen, the lines
+# closed so far, and the open line, whose pieces wait for its baseline.
+mutable struct _GroupLayout
+    y0::Int
+    pen::Float64                        # the real pen position on the open line
+    max_x::Int
+    distance::Float64                   # the real line distances of the lines closed so far
+    bottom::Int                         # the lowest pixel that a closed line reaches
+    closed::Int                         # the lines closed so far
+    boxes::Vector{FontMetrics}          # the boxes of the open line
+    ink_descent::Int                    # the rounded descent of the lowest box of the open line
+    pieces::Vector{Any}                 # the pieces of the open line
+    caret::Any                          # `(x, font)` of the caret on the open line, or `nothing`
+    cursor::Any                         # the caret `(x, y, h)` once placed, or `nothing`
+    result::Vector{Any}
+    by_key::Dict{Any,Any}
+    coord_map::Vector{SegmentCoordinate}
+end
+
+_GroupLayout(y0::Int, start_x::Int) =
+    _GroupLayout(y0, Float64(start_x), start_x, 0.0, y0, 0, FontMetrics[], 0, Any[],
+                 nothing, nothing, Any[], Dict{Any,Any}(), SegmentCoordinate[])
+
+# Close the open line of `g`: find its baseline, place its pieces on it, and move
+# the distance on. `font` sizes a line that has no box. A line that does not
+# `count` places its pieces where the next line begins and adds no height.
+function _close_line!(g::_GroupLayout, p::TextToGraphics, font, counts::Bool, collect_spans::Bool)
+    spacing = p.line_spacing
+    if !isempty(g.boxes)
+        metrics = compute_line_metrics(g.boxes)
+    elseif font !== nothing
+        metrics = get_font_metrics(p.measure, font)
+        g.ink_descent = compute_text_extent(p.measure, "", font)[3]
+    else
+        metrics = nothing
+    end
+    distance = metrics === nothing ? 0.0 : compute_line_distance(spacing, metrics)
+    top = g.y0 + round(Int, g.distance)
+    height = g.y0 + round(Int, g.distance + distance) - top
+    baseline = top + (metrics === nothing ? 0 : compute_line_baseline(spacing, metrics))
+    for piece in g.pieces
+        if piece.kind === :text
+            y = baseline - piece.ascent
+            if collect_spans
+                fill = _fill_placement(piece.span, (piece.key..., :fill), piece.x, y,
+                                       piece.width, piece.ascent + piece.descent)
+                if fill !== nothing
+                    push!(g.result, fill)
+                    g.by_key[fill.key] = fill
+                end
+                text = (kind = :text, key = piece.key, text = piece.text, x = piece.x, y = y,
+                        font = piece.font, color = piece.color)
+                push!(g.result, text)
+                g.by_key[text.key] = text
+            end
+            push!(g.coord_map, SegmentCoordinate(piece.path, piece.char_start, piece.char_end,
+                                                 piece.x, top, piece.font, piece.text, piece.width, height))
+        elseif piece.kind === :image
+            # Embed the span: a raster GraphicsImage for an image document, or a
+            # live nested canvas for a pre-projected GraphicsCanvas (widget etc.).
+            collect_spans && push!(g.result, _graphics_span_element(piece.span, piece.x,
+                                                                    baseline - piece.height,
+                                                                    piece.width, piece.height))
+            # Hit-testing takes an image as one atomic position (0..1).
+            push!(g.coord_map, SegmentCoordinate(piece.path, 0, 1, piece.x, top,
+                                                 piece.span.font::StyleFont, "", piece.width, height))
+        else
+            push!(g.coord_map, SegmentCoordinate(piece.path, piece.char, piece.char, piece.x, top,
+                                                 piece.font, "", 0, height))
+        end
+    end
+    if g.cursor === nothing && g.caret !== nothing
+        x, caret_font = g.caret
+        _, ascent, descent = compute_text_extent(p.measure, "", caret_font)
+        g.cursor = (x, baseline - ascent, max(ascent + descent, 1))
+    end
+    if counts
+        g.distance += distance
+        g.closed += 1
+        g.bottom = max(g.bottom, top + height, baseline + g.ink_descent)
+    end
+    empty!(g.boxes)
+    empty!(g.pieces)
+    g.ink_descent = 0
+    g.caret = nothing
+    nothing
 end
 
 # Locate the caret and the selection highlight over the whole block, in the same
@@ -661,7 +745,7 @@ function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::
     coord_map = SegmentCoordinate[]
     span_flat_offsets = Dict{SpanPath,Int}()
     cursor = nothing
-    y = p.start_y
+    offset = Float64(p.start_y)   # the real top of the next group
     flat = 0
 
     for group in _line_groups(styled)
@@ -671,10 +755,10 @@ function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::
             span_flat_offsets[path] = flat
             flat += _box_flat_length(span)
         end
-        laid = _layout_group(p, group, y, cursor_pos, false, block_font)
+        laid = _layout_group(p, group, round(Int, offset), cursor_pos, false, block_font)
         append!(coord_map, laid.coord_map)
         cursor === nothing && (cursor = laid.cursor)
-        y += laid.height
+        offset += laid.distance
     end
 
     highlight = NTuple{4,Int}[]
@@ -812,7 +896,7 @@ inside a paragraph is upstream's responsibility.
 """
 function _print_listnode(p::TextToGraphics, styled::TextBlock, ctx)
     head_node = styled.elements::ListNode
-    output_head = _build_paragraph_node(p, head_node, 0)
+    output_head = _build_paragraph_node(p, head_node, 0.0)
     canvas = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0), output_head, layout_vertical, false, Cell(nothing))
     TextToGraphicsIoMap(p, styled, canvas, Cell(SegmentCoordinate[]), Cell(0))
 end
@@ -822,10 +906,11 @@ end
 
 Starting from `input_node`, collect all spans until a `TextNewline` or
 end of list (one paragraph). Lay them out into a sub-`GraphicsCanvas`
-at position `(0, y_offset)`. Return a `ListNode` whose value is that
+at position `(0, y_offset)`, where `y_offset` is the real sum of the line
+distances above, rounded once. Return a `ListNode` whose value is that
 sub-canvas, with a lazy `next` thunk that builds the next paragraph.
 """
-function _build_paragraph_node(p::TextToGraphics, input_node::ListNode, y_offset::Int)
+function _build_paragraph_node(p::TextToGraphics, input_node::ListNode, y_offset::Float64)
     # Collect paragraph spans and find the node after the paragraph
     spans = Any[]
     cur = input_node
@@ -845,14 +930,14 @@ function _build_paragraph_node(p::TextToGraphics, input_node::ListNode, y_offset
     end
 
     sub_canvas = _layout_paragraph(p, spans, y_offset)
-    para_height = _paragraph_height(p, spans)
+    distance = _paragraph_distance(p, spans)
 
     out_node = ListNode(sub_canvas)
 
     next_input = cur
     set_cell_computation!(getfield(out_node, :next), () -> begin
         next_input === nothing && return nothing
-        next_out = _build_paragraph_node(p, next_input, y_offset + para_height)
+        next_out = _build_paragraph_node(p, next_input, y_offset + distance)
         set_cell_value!(getfield(next_out, :prev), out_node)
         next_out
     end)
@@ -877,7 +962,7 @@ traverse backward collecting spans until a `TextNewline` or nothing (one
 paragraph). Lay them out into a sub-`GraphicsCanvas` at a negative y-offset.
 Return a `ListNode` whose value is that sub-canvas, with a lazy `prev` thunk.
 """
-function _build_paragraph_node_prev(p::TextToGraphics, input_node_prev, y_offset::Int)
+function _build_paragraph_node_prev(p::TextToGraphics, input_node_prev, y_offset::Float64)
     cur = input_node_prev
     if cur !== nothing && cur.value isa TextNewline
         cur = cur.prev
@@ -898,8 +983,7 @@ function _build_paragraph_node_prev(p::TextToGraphics, input_node_prev, y_offset
 
     spans = reverse(spans_reversed)
 
-    para_height = _paragraph_height(p, spans)
-    new_y_offset = y_offset - para_height
+    new_y_offset = y_offset - _paragraph_distance(p, spans)
 
     sub_canvas = _layout_paragraph(p, spans, new_y_offset)
 
@@ -921,49 +1005,54 @@ end
     _layout_paragraph(p, spans, y_offset) -> GraphicsCanvas
 
 Lay out a list of `TextString` spans into `GraphicsText` elements within a
-sub-canvas positioned at `(0, y_offset)`. No wrap; each span goes down as a
-single segment, advancing the cursor on the line.
+sub-canvas positioned at `(0, y_offset)`, the real offset rounded. No wrap;
+each span goes down as a single segment on the baseline of the paragraph's one
+line.
 """
-function _layout_paragraph(p::TextToGraphics, spans::Vector, y_offset::Int)
+function _layout_paragraph(p::TextToGraphics, spans::Vector, y_offset::Float64)
     result = Any[]
-    cx = 0
-    line_h = 0
-
-    for span in spans
-        span isa TextString || continue
-        txt = span.content::AbstractString
-        sf  = span.font::StyleFont
-        col = span.font_color::StyleColor
-
-        isempty(txt) && continue
-
-        seg_w, seg_h = _compute_line_size(p.measure, txt, sf)
-        line_h = max(line_h, seg_h)
-        _push_fill_rect!(result, span, cx, 0, seg_w, seg_h)
-        push!(result, _make_sdl(txt, cx, 0, sf, col))
-        cx += seg_w
+    line = _compute_paragraph_line(p, spans)
+    for piece in line.pieces
+        y = line.baseline - piece.ascent
+        _push_fill_rect!(result, piece.span, piece.x, y, piece.width, piece.ascent + piece.descent)
+        push!(result, _make_sdl(piece.text, piece.x, y, piece.span.font::StyleFont,
+                                piece.span.font_color::StyleColor))
     end
-
-    GraphicsCanvas(Int32(0), Int32(y_offset), Int32(0), Int32(0), CellVector(Cell[Cell(e) for e in result]),
+    GraphicsCanvas(Int32(0), Int32(round(Int, y_offset)), Int32(0), Int32(0), CellVector(Cell[Cell(e) for e in result]),
                    layout_none, false, Cell(nothing))
 end
 
 """
-    _paragraph_height(p, spans) -> Int
+    _paragraph_distance(p, spans) -> Float64
 
-Pixel height a paragraph occupies. With wrapping removed, this is just the
-max span height (one visual line per paragraph).
+The real distance from the top of a paragraph to the top of the next one: the
+line distance of its one visual line, or 0 for a paragraph with no text.
 """
-function _paragraph_height(p::TextToGraphics, spans::Vector)
-    line_h = 0
+_paragraph_distance(p::TextToGraphics, spans::Vector) = _compute_paragraph_line(p, spans).distance
+
+# The one line of a paragraph of the list path: each span that draws, at its x
+# and with the rounded ascent and descent of its box, the baseline of the line
+# below its top, and the real distance to the next line.
+function _compute_paragraph_line(p::TextToGraphics, spans::Vector)
+    boxes = FontMetrics[]
+    pieces = Any[]
+    pen = 0.0
     for span in spans
         span isa TextString || continue
         txt = span.content::AbstractString
-        sf  = span.font::StyleFont
         isempty(txt) && continue
-        line_h = max(line_h, _compute_line_size(p.measure, txt, sf)[2])
+        box = measure_string(p.measure, txt, span.font::StyleFont)
+        _, ascent, descent = compute_text_extent(box)
+        x = round(Int, pen)
+        pen += box.width
+        push!(boxes, FontMetrics(box.ascent, box.descent, box.line_gap))
+        push!(pieces, (span = span, text = txt, x = x, width = round(Int, pen) - x,
+                       ascent = ascent, descent = descent))
     end
-    line_h
+    isempty(boxes) && return (pieces = pieces, baseline = 0, distance = 0.0)
+    metrics = compute_line_metrics(boxes)
+    (pieces = pieces, baseline = compute_line_baseline(p.line_spacing, metrics),
+     distance = compute_line_distance(p.line_spacing, metrics))
 end
 
 # ── Selection → cursor position ───────────────────────────────────────
@@ -1063,8 +1152,7 @@ end
 function _hit_segment(coord_map::Vector{SegmentCoordinate}, x::Int, y::Int)
     on_band = SegmentCoordinate[]
     for sc in coord_map
-        fs = _seg_band_height(sc)
-        if y >= sc.y && y < sc.y + fs
+        if y >= sc.y && y < sc.y + sc.height
             push!(on_band, sc)
         end
     end
@@ -1076,8 +1164,7 @@ function _hit_segment(coord_map::Vector{SegmentCoordinate}, x::Int, y::Int)
         best_dy = typemax(Int)
         best_y  = 0
         for sc in coord_map
-            fs = _seg_band_height(sc)
-            dy = y < sc.y ? sc.y - y : (y >= sc.y + fs ? y - (sc.y + fs - 1) : 0)
+            dy = y < sc.y ? sc.y - y : (y >= sc.y + sc.height ? y - (sc.y + sc.height - 1) : 0)
             if dy < best_dy
                 best_dy = dy
                 best_y  = sc.y
@@ -1190,12 +1277,11 @@ function _compute_span_rows(coord_map::Vector{SegmentCoordinate}, span_flat_offs
         _hl_piece_blank(sc, seg_hl_start, seg_hl_end) && continue
         px_left = _seg_cursor_x(sc, seg_hl_start, p.measure)
         px_right = _seg_cursor_x(sc, seg_hl_end, p.measure)
-        fs = font_logical_size(sc.font)
         if haskey(rows, sc.y)
             (l, r, t, b) = rows[sc.y]
-            rows[sc.y] = (min(l, px_left), max(r, px_right), min(t, sc.y), max(b, sc.y + fs))
+            rows[sc.y] = (min(l, px_left), max(r, px_right), min(t, sc.y), max(b, sc.y + sc.height))
         else
-            rows[sc.y] = (px_left, px_right, sc.y, sc.y + fs)
+            rows[sc.y] = (px_left, px_right, sc.y, sc.y + sc.height)
             push!(order, sc.y)
         end
     end
@@ -1233,8 +1319,7 @@ function _compute_column_geo(coord_map::Vector{SegmentCoordinate}, span_flat_off
             base = get(span_flat_offsets, sc.span_path, 0)
             (base + sc.char_start <= off <= base + sc.char_end) || continue
             x = _seg_cursor_x(sc, off - base, p.measure)
-            fs = font_logical_size(sc.font)
-            return (x, sc.y, sc.y + fs)
+            return (x, sc.y, sc.y + sc.height)
         end
         nothing
     end
@@ -1254,7 +1339,7 @@ function _compute_column_geo(coord_map::Vector{SegmentCoordinate}, span_flat_off
         (sc.y in seen) && continue
         (top <= sc.y < bottom) || continue
         push!(seen, sc.y)
-        push!(rects, (left, sc.y, w, font_logical_size(sc.font)))
+        push!(rects, (left, sc.y, w, sc.height))
     end
     sort!(rects, by = r -> r[2])
     rects
@@ -1307,21 +1392,3 @@ function _graphics_span_element(span::TextGraphics, x::Integer, y::Integer, w::I
     GraphicsImage(x, y, w, h, _extract_image_data(span))
 end
 
-"""
-    _is_image_seg(sc::SegmentCoordinate) -> Bool
-
-Returns true when the `SegmentCoordinate` represents an inline image (TextGraphics)
-rather than a text segment. Image segments have empty text and span [0,1).
-"""
-_is_image_seg(sc::SegmentCoordinate) = isempty(sc.text) && sc.char_start == 0 && sc.char_end == 1
-
-"""
-    _seg_band_height(sc::SegmentCoordinate) -> Int
-
-Vertical extent of a segment's clickable y-band. Text segments use the
-logical font size; an inline image extends its band over the whole image
-height so a click anywhere on a tall image still lands on it.
-"""
-_seg_band_height(sc::SegmentCoordinate) =
-    _is_image_seg(sc) ? max(font_logical_size(sc.font), sc.height) :
-                        font_logical_size(sc.font)

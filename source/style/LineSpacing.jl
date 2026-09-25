@@ -86,6 +86,33 @@ function compute_baseline_offset(spacing::LineSpacing, metrics::FontMetrics)
 end
 
 """
+    compute_line_metrics(boxes) -> FontMetrics
+
+The metrics of a line that holds `boxes`, each a [`StringBox`](@ref) or a
+[`FontMetrics`](@ref): the largest ascent, the largest descent and the largest
+line gap of them.
+"""
+function compute_line_metrics(boxes)
+    ascent = descent = line_gap = 0.0
+    for box in boxes
+        ascent = max(ascent, box.ascent)
+        descent = max(descent, box.descent)
+        line_gap = max(line_gap, box.line_gap)
+    end
+    FontMetrics(ascent, descent, line_gap)
+end
+
+"""
+    compute_line_baseline(spacing::LineSpacing, metrics::FontMetrics) -> Int
+
+The baseline of a line in whole pixels below the top of its line box: the
+offset of [`compute_baseline_offset`](@ref) rounded, and never less than the
+ascent rounded up, so the ink never rises above the line box.
+"""
+compute_line_baseline(spacing::LineSpacing, metrics::FontMetrics) =
+    max(round(Int, compute_baseline_offset(spacing, metrics)), _round_up(metrics.ascent))
+
+"""
     LineBox(width, height, baseline, text_y)
 
 A line that holds one text, in whole logical pixels from the top of its box:
@@ -108,17 +135,16 @@ end
     compute_line_box(measure::TextMeasure, text, font::StyleFont;
                      spacing::LineSpacing = SingleSpacing()) -> LineBox
 
-The box of a line that holds `text` alone, as a label or a title does. The
-baseline is the offset of [`compute_baseline_offset`](@ref) rounded, and never
-less than the ascent of the box of the text, so the ink never rises above the
-line box. An empty text is a line of `font` with no width.
+The box of a line that holds `text` alone, as a label or a title does, with
+its baseline at [`compute_line_baseline`](@ref). An empty text is a line of
+`font` with no width.
 """
 function compute_line_box(measure::TextMeasure, text, font::StyleFont;
                           spacing::LineSpacing = SingleSpacing())
     box = measure_string(measure, text, font)
-    metrics = FontMetrics(box.ascent, box.descent, box.line_gap)
-    width, ascent, descent = _round_extent(box)
-    baseline = max(round(Int, compute_baseline_offset(spacing, metrics)), ascent)
+    metrics = compute_line_metrics((box,))
+    width, ascent, descent = compute_text_extent(box)
+    baseline = compute_line_baseline(spacing, metrics)
     height = max(round(Int, compute_line_distance(spacing, metrics)), baseline + descent)
     LineBox(width, height, baseline, baseline - ascent)
 end

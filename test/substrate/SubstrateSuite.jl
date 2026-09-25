@@ -64,6 +64,7 @@ function test_substrate()
         test_syntax_to_text()
         test_primitive_to_text()
         test_text_to_graphics()
+        test_text_line_model()
         test_word_wrapping()
         test_text_filtering()
         test_text_first_line()
@@ -170,7 +171,7 @@ export test_syntax, test_text, test_graphics, test_affine_transform, test_font_m
        test_pane_rename, test_pane_construct, test_interface_api
 export test_projection_template_hygiene, test_projection_template_fixed_children
 export test_plot_geometry,
-       test_syntax_to_text, test_primitive_to_text, test_text_to_graphics,
+       test_syntax_to_text, test_primitive_to_text, test_text_to_graphics, test_text_line_model,
        test_word_wrapping, test_text_filtering, test_text_first_line, test_text_line_numbering,
        test_text_highlighting, test_selection_inverting
 export test_reflection_to_widget

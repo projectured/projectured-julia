@@ -42,7 +42,7 @@ source propagate through each layer only when (and as far as) needed.
     seq = ChainingProjection(
         JsonToSyntax(),
         SyntaxToText(),
-        TextToGraphics()
+        TextToGraphics(measure = FontFileMeasure())
     )
     sdl_texts = print_document(seq, json_doc)
 """
