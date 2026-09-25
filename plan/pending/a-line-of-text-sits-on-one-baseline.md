@@ -382,12 +382,12 @@ The implementations:
   line gap by FreeType's rule. It keeps the tables of a font once, and it can
   hold the font zoom of an editor, which is what
   [font-zoom-per-editor.md](font-zoom-per-editor.md) needs (§7).
-- **`FixedMeasure(advance, ascent, descent, line_gap)`** is the measure of a
-  test: every character is `advance` wide, every font has the same metrics, and
-  there is no kerning. It replaces the closures such as
-  `(t, f) -> (length(t) * 8, 16)`. A test of mixed fonts passes a
-  `FixedMeasure` for each font through a small table measure, so two fonts can
-  have different metrics in a test.
+- **`FixedMeasure(advance, ascent, descent, line_gap; fonts = Dict())`** is the
+  measure of a test: every character is `advance` wide, every font has the
+  metrics given, and there is no kerning. It replaces the closures such as
+  `(t, f) -> (length(t) * 8, 16)`. The optional `fonts` maps a `StyleFont` to
+  its own `FontMetrics`, so a test of mixed fonts gives two fonts different
+  metrics.
 - The function contract `(text, font) -> (width, height)` goes, with no shim
   that keeps both: two contracts are two truths. About 29 files in 20 packages
   pass a measure, about 13 test files write a closure, and omnet-julia and
