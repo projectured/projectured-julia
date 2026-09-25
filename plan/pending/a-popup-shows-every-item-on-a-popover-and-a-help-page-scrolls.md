@@ -83,10 +83,24 @@ landed, and reported three faults with a screenshot.
   items follow each other. The popup test of `test_window_wrap` now asserts that
   both items of its menu are drawn inside the window, one below the other: 28
   pass.
-- [ ] 2. **G2, the width and the surface.** The natural width of an item, the
+- [x] 2. **G2, the width and the surface.** The natural width of an item, the
   row width of a vertical menu, and the surface fields. Test: every item of a
   vertical menu has one width; the surface draws the border and the fill of the
   theme; the menu bar draws none.
+
+  Done. The item measures what it draws in a cell of its own (`measured`), and
+  its IO map carries `natural_width`; a widget label prints with the width
+  offer withheld. The dropdown offers each item `row_width`, a forward cell
+  installed with `set_cell_computation!` once the items exist.
+
+  **Found on the way:** the first version looped. In a window scene each item
+  comes inside a `ReferenceDispatchingIoMap`, so the row width read the drawn
+  width of the item, which reads the row width, and every read overflowed the
+  stack (360 000 warnings in one run). `_menu_row_width` now reaches the item
+  through the `inner_iomap` of a host wrapper (`_find_menu_item_iomap`), and it
+  never reads the drawn width of an item: one that it can not reach counts
+  nothing and still draws what it needs. `test_window_wrap` checks the widths
+  through that wrapper. `test_widget_menu` and `test_window_wrap`: 73 pass.
 - [ ] 3. **G2, the popup size.** A popup window has a `maximum_size`; the
   openers pass no estimate. Test: the popup window of the Help menu fits what it
   draws.

@@ -319,23 +319,27 @@ _get_box_colors(p, w; variant = nothing, state = nothing) =
 # ── The box ─────────────────────────────────────────────────────────────────
 # A widget with the box insets has four parts, from the outside in: the margin,
 # the border, the padding and the content. An inset of the document that is
-# `nothing` takes the inset of the projection with the same name.
+# `nothing` takes the inset of the projection with the same name, or in a
+# variant the field `<variant>_<name>` when the projection has one.
 
-function _get_inset(w, p, name::Symbol)
+function _get_inset(w, p, name::Symbol; variant = nothing)
     inset = getproperty(w, name)
-    (inset === nothing ? getproperty(p, name) : inset)::Inset
+    inset === nothing || return inset::Inset
+    varied = variant === nothing ? name : Symbol(variant, "_", name)
+    (hasproperty(p, varied) ? getproperty(p, varied) : getproperty(p, name))::Inset
 end
 
 _get_inset_sides(inset::Inset) =
     (_sc(Int(inset.left[])), _sc(Int(inset.top[])), _sc(Int(inset.right[])), _sc(Int(inset.bottom[])))
 
 # The resolved insets of `w`, each as `(left, top, right, bottom)`.
-_get_box_insets(p, w) = (margin  = _get_inset_sides(_get_inset(w, p, :margin)),
-                         border  = _get_inset_sides(_get_inset(w, p, :border)),
-                         padding = _get_inset_sides(_get_inset(w, p, :padding)))
+_get_box_insets(p, w; variant = nothing) =
+    (margin  = _get_inset_sides(_get_inset(w, p, :margin; variant)),
+     border  = _get_inset_sides(_get_inset(w, p, :border; variant)),
+     padding = _get_inset_sides(_get_inset(w, p, :padding; variant)))
 
-function _content_offset(p, w::WidgetDocument)
-    box = _get_box_insets(p, w)
+function _content_offset(p, w::WidgetDocument; variant = nothing)
+    box = _get_box_insets(p, w; variant)
     (box.margin[1] + box.border[1] + box.padding[1], box.margin[2] + box.border[2] + box.padding[2])
 end
 
@@ -658,25 +662,40 @@ WidgetTooltipToGraphicsCanvas(theme::WidgetTheme; measure,
     WidgetTooltipToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                   padding_color, content_color, label_text, corner_radius)
 
+# A menu bar is the variant `horizontal`, with no fields of its own: it draws on
+# the surface of the bar that holds it. A dropdown is the variant `vertical`, and
+# it draws the popover surface of the theme, because it is a window of its own.
 @projection struct WidgetMenuToGraphicsCanvas
     measure::Function
     margin::Inset
     border::Inset
     padding::Inset
+    vertical_border::Inset
+    vertical_padding::Inset
     margin_color::StyleColor
     border_color::StyleColor
     padding_color::StyleColor
     content_color::StyleColor
+    vertical_border_color::StyleColor
+    vertical_padding_color::StyleColor
+    vertical_content_color::StyleColor
     font::StyleFont             # used to measure the per-item row height
 end
 
 WidgetMenuToGraphicsCanvas(theme::WidgetTheme; measure,
                            margin = inset_default, border = inset_default, padding = inset_default,
+                           vertical_border = _make_uniform_inset(theme.border_width),
+                           vertical_padding = _make_uniform_inset(4),
                            margin_color = color_transparent, border_color = color_transparent,
                            padding_color = color_transparent, content_color = color_transparent,
+                           vertical_border_color = theme.border,
+                           vertical_padding_color = theme.popover,
+                           vertical_content_color = theme.popover,
                            font = theme.font) =
-    WidgetMenuToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
-                               padding_color, content_color, font)
+    WidgetMenuToGraphicsCanvas(measure, margin, border, padding, vertical_border, vertical_padding,
+                               margin_color, border_color, padding_color, content_color,
+                               vertical_border_color, vertical_padding_color,
+                               vertical_content_color, font)
 
 @projection struct WidgetMenuItemToGraphicsCanvas
     measure::Function
@@ -2273,6 +2292,8 @@ end
 # Carries the rendered item size, so a submenu-opener item can open its `submenu`
 # as a popup just below itself, in its own frame. `child_iomaps` keeps scroll
 # routing into embedded widget content working.
+# `natural_width` is the width the item needs, measured without its offer, so a
+# dropdown can offer each of its items the width of the widest one.
 # @iomap so the reader reads child_iomaps/control_width/control_height
 # transparently (all shared from the build cell); PAR-STABLE-IOMAP-IDENTITY.
 @iomap struct WidgetMenuItemToGraphicsCanvasIoMap
@@ -2280,6 +2301,7 @@ end
     input::Any
     output::Any
     child_iomaps::Any
+    natural_width::Any
     control_width::Any
     control_height::Any
 end
@@ -2294,9 +2316,14 @@ _menu_item_icon(w::WidgetMenuItem) = _menu_item_command(w).icon
 function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetMenuItem, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     # The child (a recursed widget content) is reconciled and forced only in the
-    # WidgetDocument branch.
-    child_iomap = reconcile_child_iomap(() -> w.action.label, c -> print_child(recursion, c, ctx))
-    build = Cell(@computation begin
+    # WidgetDocument branch. It is offered no width, so what the item needs does
+    # not depend on what the item is offered.
+    child_iomap = reconcile_child_iomap(() -> w.action.label,
+                                        c -> print_child(recursion, c, withhold_offer(ctx, :x)))
+    # What the item draws and the extent it needs. It reads the item and never the
+    # offer, because a dropdown reads the width each item needs to offer every item
+    # the widest.
+    measured = Cell(@computation begin
         content_x, content_y = _content_offset(p, w)
         inset_width, inset_height = _inset_total(p, w)
         command = _menu_item_command(w)
@@ -2329,18 +2356,24 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
             _push_text!(elems, label.font, text, content_x + icon_w + gap, content_y, label.color)
             cw += icon_w + gap
         end
-        control_w = _resolve_width(ctx, 0, cw + inset_width)
-        control_h = _resolve_height(ctx, 0, ch + inset_height)
+        (width = cw + inset_width, height = ch + inset_height, inset_width, inset_height,
+         hovered, elements = elems, child_iomaps)
+    end)
+    build = Cell(@computation begin
+        needed = measured[]
+        control_w = _resolve_width(ctx, 0, needed.width)
+        control_h = _resolve_height(ctx, 0, needed.height)
         # A clear surface over the whole item: a press or a crossing anywhere on
         # it hits the item, and not only on its label, also where the padding is.
         final = Any[GraphicsRect(0, 0, control_w, control_h; color = color_transparent, radius = 0)]
         _push_box_parts!(final, _get_box_insets(p, w), _get_box_colors(p, w),
-                         control_w - inset_width, control_h - inset_height)
+                         control_w - needed.inset_width, control_h - needed.inset_height)
         # The hover layer, only when hovered + enabled, drawn over the box and
         # under the content.
-        _push_state_layer!(final, hovered ? p.layer_hovered_color : nothing, 0, 0, control_w, control_h)
-        append!(final, elems)
-        (width=control_w, height=control_h, elements=final, child_iomaps=child_iomaps)
+        _push_state_layer!(final, needed.hovered ? p.layer_hovered_color : nothing,
+                           0, 0, control_w, control_h)
+        append!(final, needed.elements)
+        (width=control_w, height=control_h, elements=final, child_iomaps=needed.child_iomaps)
     end)
     # Bound the canvas to the item's own footprint so `hit_element_at` clips pointer
     # events to it. A `GraphicsText` has no right edge, so an auto-sized (w=h=0) item
@@ -2350,6 +2383,7 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
     # first button. See `hit_element_at` in document/Graphics.jl.
     WidgetMenuItemToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(0, 0, build),
                                         Cell(@computation build[].child_iomaps),
+                                        Cell(@computation measured[].width),
                                         Cell(@computation build[].width), Cell(@computation build[].height))
 end
 
@@ -2492,18 +2526,52 @@ end
 
 # ── WidgetMenu ──────────────────────────────────────────────────────────────
 
-# A laid-out item's advance along the main axis. A `WidgetMenuItem` knows its own
-# rendered width (its canvas is 0-sized — the size lives on the iomap); any other
-# widget carries it on its output canvas.
 # What a menu offers an item. A menu bar is as wide as its items together, so it
 # offers them no width and each takes its label's (`layout-rules.md` §3). A
 # dropdown is as tall as its items together, so it offers them no height: an
 # item draws at least what it is offered, and one offered the height of the
-# window would push the others out of it. The items of a dropdown fill its
-# width, which is what makes a row's highlight span the menu.
-_menu_item_context(w::WidgetMenu, ctx) =
-    withhold_offer(ctx, w.orientation === :horizontal ? :x : :y)
+# window would push the others out of it. Each `WidgetMenuItem` of a dropdown is
+# offered `row_width`, the width of the widest item, which is what makes a row's
+# highlight span the menu; any other widget in it keeps its own width.
+function _menu_item_context(w::WidgetMenu, ctx, item, row_width)
+    w.orientation === :horizontal && return withhold_offer(ctx, :x)
+    column = withhold_offer(ctx, :y)
+    item isa WidgetMenuItem ? with_exact_size(column; width = row_width) :
+                              withhold_offer(column, :x)
+end
 
+# The width of a row of a dropdown: what its widest element needs. An item says
+# what it needs without its offer, and any other widget is offered no width. The
+# drawn width of an item is never read here, because it depends on this width: an
+# item whose IO map a host wraps beyond reach counts nothing, and it still draws
+# at least what it needs.
+function _menu_row_width(child_iomaps)
+    width = 0
+    for cim in child_iomaps
+        cim === nothing && continue
+        if cim.input isa WidgetMenuItem
+            item = _find_menu_item_iomap(cim)
+            item === nothing || (width = max(width, Int(item.natural_width)))
+        else
+            width = max(width, _menu_item_width(cim))
+        end
+    end
+    width
+end
+
+# The IO map of a menu item below the transparent wrappers of a host, such as a
+# reference dispatch, which keep the IO map that they wrap in `inner_iomap`.
+function _find_menu_item_iomap(iomap)
+    while !(iomap isa WidgetMenuItemToGraphicsCanvasIoMap)
+        hasproperty(iomap, :inner_iomap) || return nothing
+        iomap = iomap.inner_iomap
+    end
+    iomap
+end
+
+# A laid-out item's advance along the main axis. A `WidgetMenuItem` knows its own
+# rendered width (its canvas is 0-sized — the size lives on the iomap); any other
+# widget carries it on its output canvas.
 _menu_item_width(cim) =
     cim isa WidgetMenuItemToGraphicsCanvasIoMap ? cim.control_width :
         (cim.output isa GraphicsCanvas ? Int(cim.output.w[]) : 0)
@@ -2520,15 +2588,22 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
     # context of an item names `…elements[i]` and its forward image maps back to
     # graphics coordinates (Step 4c). Non-widget slots reconcile to `nothing` and
     # are skipped when laying out.
+    #
+    # The row width of a dropdown is read from its items once they exist, so it
+    # is a forward cell that the items read and that is installed below.
+    row_width = Cell(nothing)
     child_cells = reconcile_child_iomaps(
         () -> w.elements,
         (i, item) -> item isa WidgetDocument ?
             print_child(recursion, item,
-                make_child_context(_menu_item_context(w, ctx), FieldReferenceStep("elements"),
-                                   RangeReferenceStep(i - 1, i))) :
+                make_child_context(_menu_item_context(w, ctx, item, row_width),
+                                   FieldReferenceStep("elements"), RangeReferenceStep(i - 1, i))) :
             nothing)
+    w.orientation === :horizontal ||
+        set_cell_computation!(row_width, () -> _menu_row_width(child_cells[]))
     build = Cell(@computation begin
-        content_x, content_y = _content_offset(p, w)
+        variant = w.orientation
+        content_x, content_y = _content_offset(p, w; variant)
         horizontal = w.orientation === :horizontal
         _, item_h = p.measure("M", p.font)
         item_gap = horizontal ? 12 : 0
@@ -2553,7 +2628,8 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         content_width = horizontal ? max(0, x_cursor - item_gap) : item_w
         content_height = horizontal ? row_h : y_cursor
         elems = Any[]
-        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
+        _push_box_parts!(elems, _get_box_insets(p, w; variant), _get_box_colors(p, w; variant),
+                         content_width, content_height)
         append!(elems, items)
         (elements=elems, child_iomaps=child_iomaps)
     end)

@@ -103,7 +103,8 @@ end
     menu = WidgetMenu(Any[WidgetMenuItem("New tab"), WidgetMenuItem("Close tab")])
     push!(scene.windows, Cell(WindowDocument(; id = :widget_popup, x = 10, y = 20, width = 120,
                                               height = 60, style = :popup, content = menu)))
-    output = print_document(projection, scene).output
+    shown = print_document(projection, scene)
+    output = shown.output
     canvas = output.windows[2].content
     canvas = canvas isa Cell ? canvas[] : canvas
     @test canvas isa GraphicsCanvas
@@ -122,6 +123,11 @@ end
     # The window offers its height, and each item is as tall as its label and not
     # as the window, so both items are drawn inside the window, one below the other.
     @test placed[1][2] < placed[2][2] < 60 - 20
+    # Both items are as wide as the wider one, also through the wrapper that the
+    # screen puts around each of them, so the highlight of a row spans the menu.
+    new_tab, close_tab = (_wrap_iomap_of(shown, item) for item in collect(menu.elements))
+    @test Int(close_tab.natural_width) > Int(new_tab.natural_width)
+    @test Int(new_tab.control_width) == Int(close_tab.control_width) == Int(close_tab.natural_width)
 end
 
 @testset "a select drops down as a window below the select" begin

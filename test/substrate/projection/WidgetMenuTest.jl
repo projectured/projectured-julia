@@ -63,6 +63,36 @@ end
     # Each step is one label and the gap between items, not the window.
     @test all(step -> step < 8 * 4 + 40, diff(xs))
     @test Int(output.w) < 1000
+    # A menu bar draws on the bar that holds it: no surface of its own.
+    first_element = output.elements[1]
+    first_element = first_element isa CellModule.Cell ? first_element[] : first_element
+    @test !(first_element isa GraphicsRect)
+end
+
+@testset "a dropdown draws the popover, and every item is as wide as the widest" begin
+    # A dropdown is offered the exact size of its window. It offers its items no
+    # height, and each item the width that the widest item needs, so a highlight
+    # spans the row and the menu is as large as its items, not as the window.
+    det = (t, f) -> (length(t) * 8, 16)
+    rec = RecursiveProjection(TypeDispatchingProjection(
+        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch))
+    menu = WidgetMenu(Any[WidgetMenuItem("Documents"), WidgetMenuItem("About")])
+    ctx = with_exact_size(PrinterContext(); width = Cell(Int32(640)), height = Cell(Int32(800)))
+    iomap = print_document(rec, nothing, menu, ctx)
+    items = [entry[3] for entry in iomap.child_iomaps]
+    @test Int(items[1].natural_width) > Int(items[2].natural_width)
+    @test Int(items[1].control_width) == Int(items[2].control_width) == Int(items[1].natural_width)
+    output = iomap.output
+    @test Int(output.w) < 640 && Int(output.h) < 800
+    # The popover of the theme: its fill and its hairline border, as large as the
+    # menu.
+    theme = make_slate_light_theme(font = font_ubuntu_regular_20)
+    panel = output.elements[1]
+    panel = panel isa CellModule.Cell ? panel[] : panel
+    @test panel isa GraphicsRect
+    @test is_color_equal(panel.color, theme.popover)
+    @test is_color_equal(panel.border_color, theme.border)
+    @test (Int(panel.w), Int(panel.h)) == (Int(output.w), Int(output.h))
 end
 
 @testset "a left click on an enabled item invokes its action and closes the popup" begin
