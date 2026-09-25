@@ -154,6 +154,7 @@ include("editor/MessageLogFeedTest.jl")
 include("editor/FrameStatisticsFeedTest.jl")
 include("editor/AssistantDuplicateTest.jl")
 include("editor/ApplicationTest.jl")
+include("editor/HistorySweepTest.jl")
 include("editor/InsertionInTabTest.jl")
 include("projection/ToolViewTest.jl")
 include("projection/FileTabTest.jl")
@@ -448,6 +449,8 @@ function test_all()
     # Every gesture that makes a recorded change is taken back, and the document
     # returns to the text it had.
     test_undo_round_trip()
+    # Every gesture that changes no document leaves the history as it was.
+    test_history_sweep()
     test_julia_typein()
     test_conversation_editor()
     test_assistant_mvp()
@@ -526,7 +529,7 @@ export test_tree_navigation, test_tree_navigations, test_tree_navigations_comple
 export test_assistant_mvp, make_assistant_mvp_setup, make_assistant_mvp_projection
 export test_conversation_editor, test_conversation_serialization, test_parse_markdown_blocks
 export test_undo_round_trip
-export test_application, test_insertion_in_tab,
+export test_application, test_history_sweep, test_insertion_in_tab,
        test_tool_views, test_selection_inspector, test_gesture_log_in_tab, test_message_log,
        test_file_tab, test_user_interface_file, test_evaluator_toplevel, test_evaluator_duplicate,
        test_value_viewer, test_builder,

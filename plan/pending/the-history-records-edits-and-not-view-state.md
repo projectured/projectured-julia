@@ -1,8 +1,8 @@
 # The history records edits, and not view state
 
 **Status (2026-09-25): IN PROGRESS** on the branch `history-view-state`, in the
-worktree `projectured-julia-history-view-state`. Step 1 is done. Step 2 is
-ready to start. Steps 3 and 4 start with a design that the owner decides.
+worktree `projectured-julia-history-view-state`. Steps 1 and 2 are done.
+Step 3 starts with a measurement. Steps 3 and 4 start with a design that the owner decides.
 
 **Goal:** the undo history holds the edits a person makes, and nothing else. A
 gesture that only changes what the window shows adds no step, and a run of typing
@@ -185,9 +185,25 @@ Step 3 measures both and records the numbers here. The owner then chooses.
     accordion folds 39 of 39, `test_projection_configuring` 16 of 16 and one
     broken case that was marked before, `test_application` 324 of 324, the naming
     guard.
-- [ ] **Step 2.** The sweep test of D3, in `ProjecturedTest`, beside
+- [x] **Step 2.** The sweep test of D3, in `ProjecturedTest`, beside
   `test_application`. The chart and sequence chart cases are `@test_broken` until
   Step 3.
+
+  Done: `test_history_sweep()` in `test/projectured/editor/HistorySweepTest.jl`,
+  run by `test_all` after `test_undo_round_trip`. What the work showed:
+  - The window part presses 24 gestures and passes. The example part reads the
+    answers to a grid of pointer moves and a wheel over each of the 105 examples.
+    Only ten record anything, all through `cursor`, `hovered` and `view`:
+    `chart_line`, `chart_bar`, `chart_histogram`, `chart_scatter`, `chart_strip`,
+    `chart_inspector`, `sequencechart`, `sequencechart_vertical`,
+    `sequencechart_linear`, `sequencechart_inspector`. They are in the broken
+    registry `history_broken`. The examples `chart` and `sequencechart_pair` record
+    nothing.
+  - The answers are read and not applied, so each one answers the printed state.
+  - Checked by a mutant: with the tree fold written as a plain edit again, the
+    window part fails with `("a folder closes and opens", (2, 0))`.
+  - Result: 119 pass, 10 broken. `test_exports` fails on `main` in
+    `source/help/HelpModule.jl`, which this branch does not touch.
 - [ ] **Step 3.** **O**: measure the two candidates of D4, record the numbers, ask
   the owner, then build the chosen one. The broken cases of Step 2 become `@test`.
 - [ ] **Step 4.** **M**: the owner answers D5, then the merge of runs in the undo
