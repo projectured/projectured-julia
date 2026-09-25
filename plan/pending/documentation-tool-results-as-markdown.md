@@ -415,6 +415,17 @@ that file. All files of `tool/` are `⬜` on 2026-09-25.
   the wire), and [transcript.md](../../documentation/package/conversation/transcript.md)
   if it names the kind of a result.
 
+- [x] **The landing (2026-09-25).** Rebased on `88b2fac9`. Every test of the
+  steps passes again, and `test_evaluator_duplicate()` (new on `main`) passes
+  31; the duplicate of a form copies `output` with the other fields
+  (`copy_document_fields`). The fails are the 14 of the base. The Markdown
+  catalog is 26692 on the branch and 23581 on `main`: the six table examples
+  add 3213, and `markdown/image/syntax` and `markdown/link/syntax` lose 102. The
+  loss is the order of two equally short paths to `:syntax` (bridge 4, the
+  one-leaf fallback of `JuliaToSyntax`, and bridge 5, `MarkdownToSyntax`), which
+  `path_sequences` in `example/projectured/Catalog.jl` collects by walking a
+  `Dict{DataType,Int}`: `main` lists the template first and the branch the leaf.
+  The drawing of an image or a link does not change.
 - [ ] **Step 8. The grid table in the transcript, and the alignment of a
   column.** After Step 5 of [layout-sizing-model.md](layout-sizing-model.md)
   lands, when the owner says so:
