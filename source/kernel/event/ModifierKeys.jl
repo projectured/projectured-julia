@@ -12,8 +12,8 @@ Use it to state or test the modifier keys of an event.
 
 # Example
 
-    ModifierKeys()                                                  # no modifier
-    has_ctrl_modifier_key(KeyDown(:c, ModifierKeys(ctrl = true)))   # true
+    ModifierKeys()                                                          # no modifier
+    has_ctrl_modifier_key(KeyDown(:c, ModifierKeys(ctrl = true); time = 0.0))   # true
 
 See also `get_modifier_keys`.
 """
