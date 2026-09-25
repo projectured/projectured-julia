@@ -1,8 +1,7 @@
 # Documentation tool results drawn as Markdown documents
 
-> **Status:** Steps 0 to 5 and 7 landed on 2026-09-25 (`8ece1ad1`). Step 8 is
-> in progress in the worktree `projectured-julia-markdown-table-grid` on the branch
-> `markdown-table-grid`. The timing of Step 6 waits for the owner. Written 2026-09-25.
+> **Status:** Steps 0 to 5 and 7 landed on 2026-09-25 (`8ece1ad1`), and Step 8
+> after them. The timing of Step 6 waits for the owner. Written 2026-09-25.
 
 The assistant pane draws the answer of a documentation tool as plain text. The
 answer is Markdown: a guide, a module, a type, a function, a list of search hits.
@@ -427,7 +426,7 @@ that file. All files of `tool/` are `⬜` on 2026-09-25.
   `path_sequences` in `example/projectured/Catalog.jl` collects by walking a
   `Dict{DataType,Int}`: `main` lists the template first and the branch the leaf.
   The drawing of an image or a link does not change.
-- [ ] **Step 8. The grid table in the transcript, and the alignment of a
+- [x] **Step 8. The grid table in the transcript, and the alignment of a
   column.** After Step 5 of [layout-sizing-model.md](layout-sizing-model.md)
   lands, when the owner says so:
   - Add `MarkdownRoot => ChainingProjection(MarkdownRootToVerticalLayout(),
@@ -510,7 +509,8 @@ decision 3). Question 5 came from Step 6, and the owner decided it on 2026-09-25
    because the fallback is a number that the sizing plan removes.*
 
 6. **The row of the chat pane, while the text height is short** (found in
-   Step 8; not decided). The options: land the row now, and every paragraph in
+   Step 8). **Decided by the owner on 2026-09-25: "land all commits on main".**
+   The row lands, and the short text height is its own work. The options: land the row now, and every paragraph in
    the chat pane loses the bottom of its last line until the height is fixed;
    or keep the row back, keep the tables of the chat pane as their source, and
    fix the height first, as its own plan: the text reports
@@ -518,6 +518,13 @@ decision 3). Question 5 came from Step 6, and the owner decided it on 2026-09-25
    editor. *Recommendation: keep the row back, and plan the height.*
 
 ## 6. Limits
+
+- The last line of a block of a page, and of a table entry, loses the part of
+  g, p and y below the baseline. `measure_truetype_text` answers 20 as the
+  height of any text of `font_ubuntu_regular_20`, the em size, while the text
+  it draws is `font_line_height`, 23 (an ascent of 19 and a descent of 4). The
+  page stack and the table grid cut each block at the height it reports. The
+  fix is a change of every text height, and it is not part of this plan.
 
 - `read_resource` declares one media type for every resource (§3.1).
 - An MCP client does not get the declaration (§3.1).
