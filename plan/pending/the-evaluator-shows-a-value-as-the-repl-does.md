@@ -114,13 +114,69 @@ it, and a commit. Work in a worktree of its own, from `main`.
       "a short value is unchanged" testset adds 2, and a new "the person's
       description shows the value as the REPL does" testset adds 5. No
       `Fail`/`Error` either run.
-- [ ] **Step 2: the evaluator and the composer use the person's description.**
+- [x] **Step 2: the evaluator and the composer use the person's description.**
       `Evaluator.jl:429` and `AssistantTurn.jl:222`. A test in
       `test/projectured/editor/EvaluatorToplevelTest.jl` evaluates a form whose value
       is long (for example `collect(1:1000)`) and checks that the result text shows
       the header line of the REPL and no note to the model. Test:
       `test_evaluator_toplevel()`, and `test_assistant_mvp()` for the composer.
-- [ ] **Step 3: the documents.** Every document that describes the answer of
+      **Done** (2026-09-26, commit `8253de60`). `AssistantTurn.jl`'s
+      `SubmitJuliaOperation` (the chat composer, ALT+ENTER / ENTER on a Julia
+      insertion) called `execute_julia_code` through `call_tool(set,
+      "execute_julia_code"; …)`, which dispatches to the handler
+      `register_default_tools!` registered — a closure fixed at registration
+      time with no `describe_value` override, shared with the model's own tool
+      calls. There is no way to pass a keyword through `call_tool`, so
+      `SubmitJuliaOperation` now calls `execute_julia_code` directly, matching
+      the pattern `Evaluator.jl` and `ConversationEditor.jl` already use; `target`
+      stays `editor` either way, so `test_assistant_editor_reference()` (which
+      guards a past bug in exactly that forwarding) still passes.
+      **Found, not fixed:** a third call site answers a person and was not named
+      in D3 or in this step: `ComposerEvaluateOperation` in
+      `source/conversation/ConversationEditor.jl:383` (documented at
+      `documentation/package/conversation/conversation.md:66`) — the plain
+      conversation composer's own ALT+ENTER evaluation, distinct from the
+      AI assistant's chat composer. It still calls `execute_julia_code(set,
+      editor, src)` with the default `describe_value`, so a long value there
+      keeps the model's trimmed form and note. Left unchanged because it is
+      outside what this step names; the owner should decide whether D1 covers
+      it too.
+      Test: the combined run (`test_evaluator_toplevel()` +
+      `test_assistant_mvp()` + `test_execute_julia_code()` +
+      `test_assistant_editor_reference()`, `ProjecturedTest`) gives 373 pass,
+      4 fail, 0 error — `test_evaluator_toplevel()` alone is 219/219, and the 4
+      fails are all in `test_assistant_mvp()`'s "the assistant card fills its
+      page" testset. That same 4-fail count reproduces identically on
+      unmodified main at commit `66f18230` (127 pass, 4 fail — checked in a
+      throwaway detached worktree) and after Step 1 alone, so it is a
+      pre-existing, environment-level failure, not a regression from this
+      step. **Baseline correction:** the task's stated baseline for
+      `test_assistant_mvp()`, "113 pass and 4 broken", does not match this
+      machine's current main — measured here as 127 pass, 4 fail (`Fail`, not
+      `Broken`); the stated number is stale.
+- [x] **Step 3: the documents.** Every document that describes the answer of
       `execute_julia_code` (search `documentation/` for "last value", "summary" and
       the tool name) says what D1 to D3 say.
+      **Done** (2026-09-26). Searched `documentation/` for "last value", "Print
+      the part", "summary(value)", "never cut in the middle", "described by
+      its" and "whole or described", together with every file that mentions
+      `execute_julia_code`. Two files described the answer's shape and needed a
+      rewrite: `documentation/package/kernel/agent.md` (the tool's own
+      paragraph — now states the `describe_value` keyword, the 600-character
+      trim, and a second paragraph for `describe_value_for_person`) and
+      `documentation/package/kernel/editor.md` (the MCP section, which said "It
+      returns the repr of the last value plus any captured stdout/stderr" —
+      wrong on the order even before this plan; now short/limited/trimmed).
+      Every other hit (`conversation.md`, `assistant.md`, `mcp.md`,
+      `mcp-guide.md`, `assistant-guide.md`, `architecture.md`,
+      `system-anatomy.md`, `engineer-tour.md`, `orientation.md`,
+      `testing-guide.md`, `architecture-decisions.md`,
+      `architecture-invariants.md`, `finding-and-selecting.md`, `operation.md`,
+      `undo.md`, `transcript.md`, `sdl.md`) names `execute_julia_code` for
+      something else (who calls it, what a `Document` result does, the
+      persistent scratch module, a test file) and stays true unchanged. Test:
+      `test_naming()` and `test_documentation()` (`ProjecturedTest`) — 2/2
+      pass, 0 fail, 0 error; `test_documentation()` counts these as a single
+      aggregate assertion each, so this is the whole repository's report, not
+      only the two changed files.
 - [ ] **Step 4: the landing,** when the owner says so.

@@ -140,15 +140,24 @@ re-exports, such as `Point2D` given through `WidgetModule`, is read by the same
 shape, `resource://type/<module>/<type>`. `list_resources` answers the kinds,
 each with its count and its shape, in six lines.
 
-**`execute_julia_code` answers what the code printed, whole, and the last value
-in one line.** What the code prints is what the model asked for, so it is never
-cut. The value of the last expression comes unasked — a `DataFrame` of thousands
-of rows, the `Text` a side-effect verb answers — so a short one is shown as it
-is and a long one is described by its `summary`, and the model prints the part
-it wants. `nothing` with nothing printed answers "Done.", because an empty
-answer reads as a broken tool. A name that is not defined answers with the
-nearest declared names: a call to `plot_results` returns `make_result_plot`,
-the search that starts from a guess, done where the guess fails.
+**`execute_julia_code` answers what the code printed, whole, then the value of
+the last statement on its own.** What the code prints is what the model asked
+for, so it is never cut. The value comes unasked — a `DataFrame` of thousands
+of rows, the `Text` a side-effect verb answers — so a `describe_value` function
+renders it: the default keeps a short value whole, limits a longer one as the
+Julia REPL would, and trims one still longer than that to its start and its end
+around one mark line, with a note that names `summary(value)` and how to read a
+part. `nothing` with nothing printed answers "Done.", because an empty answer
+reads as a broken tool. A name that is not defined answers with the nearest
+declared names: a call to `plot_results` returns `make_result_plot`, the search
+that starts from a guess, done where the guess fails.
+
+**A person reads the value as the Julia REPL shows it, with no note.** The
+evaluator and the chat composer call `execute_julia_code` with `describe_value
+= describe_value_for_person`, so what a person reads is `show` with
+`MIME"text/plain"()`, exactly as a terminal displays it — quotes on a string, `⋮`
+on a collection the display cuts short. The model's tool call, and an MCP
+client, keep the default.
 
 `execute_julia_expression(set, target, expression)` runs code that is already an
 `Expr`, as `make_julia_expression` gives it, and shares everything with

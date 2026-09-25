@@ -439,8 +439,10 @@ manipulate `editor.document` and `editor.projection` live.
 `execute_julia_code` runs each top-level statement in a **persistent scratch
 module**, so a variable assigned in one call (`paths = search_references(…)`)
 stays bound for the next — the caller can build up state incrementally instead
-of resending one large block. It returns the repr of the last value plus any
-captured stdout/stderr.
+of resending one large block. It returns what the code printed, then the value
+of the last statement: whole when it is short, limited as the Julia REPL would
+limit it otherwise, and trimmed to its start and its end with a note when even
+that is long.
 
 The server is stopped in the `finally` block of `run_editor!`.
 
