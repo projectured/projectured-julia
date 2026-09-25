@@ -88,11 +88,11 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `event/EventDefaults.jl`
   - 🔒 `event/EventPattern.jl`
 - **Layer 7 — device** (`device/`)
-  - ⬜ `device/DeviceModule.jl`
-  - ⬜ `device/DeviceInterface.jl`
-  - ⬜ `device/Keyboard.jl`
-  - ⬜ `device/Mouse.jl`
-  - ⬜ `device/Display.jl`
+  - 🔒 `device/DeviceModule.jl`
+  - 🔒 `device/DeviceInterface.jl`
+  - 🔒 `device/Keyboard.jl`
+  - 🔒 `device/Mouse.jl`
+  - 🔒 `device/Display.jl`
 - **Layer 8 — gesture** (`gesture/`)
   - 🔒 `gesture/GestureRecognizerModule.jl`
   - 🔒 `gesture/GestureRecognizer.jl`
