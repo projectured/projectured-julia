@@ -19,7 +19,7 @@ _RANGE_LONG = join(fill("word", 40), " ")    # 1990 px on one line
 A stack gives each child on the axis it divides the room the others leave: an
 unweighted child draws its content up to that room, a `Fixed` child its number,
 and a weighted child its share. A `Content` column of a grid gives its cells its
-edge. The worked examples 2 and 3 of `plan/pending/layout-sizing-model.md`.
+edge. The worked examples 2 and 3 of `plan/done/layout-sizing-model.md`.
 """
 function test_size_range_main_axis()
 @testset "a row gives the field what the label and the button leave (example 2)" begin
