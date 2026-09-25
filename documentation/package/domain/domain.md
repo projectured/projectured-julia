@@ -26,9 +26,11 @@
 
 `get_insertion_candidates(JsonDocument)` finds every concrete subtype of the root in the loaded modules. A type is a candidate when it is insertable: it has a zero-argument constructor, or an `@insertion` method. `get_insertion_names(T)` makes the names that a user can type: `JsonString`, `json string`, and inside the domain also `String` and `string`.
 
+`compute_concrete_subtypes(root)` is the walk that `get_insertion_candidates` builds on. It answers every concrete type under `root` in the loaded modules and their submodules, depth first, and it tests nothing about a type except that it sits under `root`. A caller that wants the type tree and not the insertable subset of it calls this function directly; `ProjecturedHelp`'s list of every projection calls `compute_concrete_subtypes(Projection)`, because a projection is drawn and never inserted. `get_insertion_candidates(root)` then filters that walk down to what a person can insert: it drops the scope's own insertion, a native layout variant of another document's schema, and an insertion cursor that is not its domain's entry point, and it keeps what `insertable` accepts.
+
 `complete_insertion(root, typed)` classifies what you typed as `:empty`, `:invalid`, `:unambiguous` or `:ambiguous`, and computes the common continuation. `resolve_insertion(root, typed)` returns the type to commit. An exact name wins over a prefix. The insertion leaf of `ProjecturedSyntax` shows this state as colours and a pale hint.
 
-The candidate list is cached for each world age of Julia. So a type is a candidate as soon as its `struct` is evaluated, and when nothing changed the cost is one dictionary lookup.
+Both `compute_concrete_subtypes` and `get_insertion_candidates` are cached for each world age of Julia, one cache per root. So a type is a candidate as soon as its `struct` is evaluated, and when nothing changed the cost is one dictionary lookup.
 
 ### The shared verbs
 

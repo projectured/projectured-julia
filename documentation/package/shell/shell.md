@@ -47,6 +47,14 @@ A wrapper that opens a window of its own needs `make_opened_window_projections()
 
 **What is saved is the window, and not the bands.** `WidgetShell` writes only its `content`. A menu bar belongs to the binary, and the fold makes the bands again at each start, so one binary never writes its menu into a file that another binary opens.
 
+### The menu bar
+
+Each menu of the bar has its own make function. `make_window_file_menu()` makes File, with the commands that open and close a tab. `make_window_view_menu()` makes View, with the commands that split the focused group and open the gesture log. `make_window_help_menu(; about)` makes Help, with the commands that open the list of document types, the list of projections and the page about the program.
+
+`make_window_menu_bar(; extra, about)` combines them: File, then View, then the menus of `extra`, then Help. Help is the last menu, as on a desktop, so a host's own menus go between View and Help.
+
+Each Help item opens its tab through `_reach_tool!`, [the same function the toolbar uses](#the-toolbar-opens-the-tools). A second use of a Help item focuses the tab that is already open, and does not open a second one. `about` makes the page of the host's own program, from the editor; the default makes the page of ProjecturEd.
+
 ### How a host adds a command
 
 Each band takes an `extra`, and `make_window_command(label, callback; icon, shortcut, tooltip)` makes one item:
@@ -103,7 +111,7 @@ The document under the pointer gives its tooltip and its context menu. `compute_
 
 ## How it fits
 
-`ProjecturedShell` depends on `ProjecturedClipboard`, `ProjecturedDomain`, `ProjecturedFileFormat`, `ProjecturedFileSystem`, `ProjecturedFocus`, `ProjecturedGestureHelp`, `ProjecturedGestureLog`, `ProjecturedPane`, `ProjecturedProjection`, `ProjecturedScreen`, `ProjecturedStyle`, `ProjecturedTooltip`, `ProjecturedWidget` and the kernel. Six more dependencies are there for the tools of the toolbar: `ProjecturedAssistant`, `ProjecturedConversation`, `ProjecturedFault`, `ProjecturedInspector`, `ProjecturedLog` and `ProjecturedStatistics`. None of them depends on the shell.
+`ProjecturedShell` depends on `ProjecturedClipboard`, `ProjecturedDomain`, `ProjecturedFileFormat`, `ProjecturedFileSystem`, `ProjecturedFocus`, `ProjecturedGestureHelp`, `ProjecturedGestureLog`, `ProjecturedHelp`, `ProjecturedPane`, `ProjecturedProjection`, `ProjecturedScreen`, `ProjecturedStyle`, `ProjecturedTooltip`, `ProjecturedWidget` and the kernel. `ProjecturedHelp` gives the Help menu its three documents; [help.md](../help/help.md) describes them. Six more dependencies are there for the tools of the toolbar: `ProjecturedAssistant`, `ProjecturedConversation`, `ProjecturedFault`, `ProjecturedInspector`, `ProjecturedLog` and `ProjecturedStatistics`. None of them depends on the shell.
 
 `example/projectured/Application.jl` builds its window with the fold, the chrome and `run_with_window_tools`, and a downstream window host uses the same toolbar. The package has no `__init__` and registers no row, file type or `.pred` type. A binary calls its functions.
 

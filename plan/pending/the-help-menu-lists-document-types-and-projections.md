@@ -163,15 +163,40 @@ version is a plain list. A later plan can group, filter or search it.
   failure of "Frame plot" stays. An offscreen image of the window shows "File",
   "View" and "Help" on the bar and the three tabs. A description longer than
   the tab runs past its right edge, because the tab does not wrap a line.
-- [ ] 8. **omnet-julia.** Each environment that has a `[sources]` line for
+- [x] 8. **omnet-julia.** Each environment that has a `[sources]` line for
   `ProjecturedShell` gets one for `ProjecturedHelp`. `_make_ide_shell` gives an
   `AboutPage` for the IDE. Run `Pkg.precompile()` and the IDE tests.
-- [ ] 9. **The documents.** A design document
+
+  Done on the branch `help-menu` of omnet-julia, worktree
+  `omnet-julia-help-menu`, commit 3122adb7. Only `OmnetIde` names
+  `ProjecturedShell`, and it reaches the dependencies of the shell through the
+  `[sources]` of the shell, so no environment needs a new line. `OmnetIde`
+  names `ProjecturedHelp` because `IdeWindow.jl` imports `AboutPage`. The page
+  says "OMNET-NG": the naming law of omnet-julia puts the release name in the
+  About box and in no identifier. `IdeClosureTest.jl` names `ProjecturedHelp`
+  and allows 51 names instead of 50.
+
+  Tested in a temporary environment whose paths reach the two worktrees:
+  `test_ide_window_wrap()`, `test_ide_file_navigator()` and three new
+  assertions give 43 pass and 1 failure, the toolbar list that does not name
+  "Frame plot", which `main` of projectured-julia causes. The closure test reads
+  the `main` checkout of projectured-julia, so it runs only after this branch
+  lands there. **The omnet-julia branch lands after the projectured-julia
+  branch**, and each omnet-julia manifest that names `ProjecturedShell` needs
+  `Pkg.resolve()` then.
+- [x] 9. **The documents.** A design document
   `documentation/package/help/help.md`, a row in the index of
   [documentation/README.md](../../documentation/README.md), a row in the table
   of [package-rules.md](../../documentation/rule/package-rules.md), the test
   functions in [testing-guide.md](../../documentation/guide/testing-guide.md),
   and the docstrings of the menu functions.
+
+  Done. The row is in the package index,
+  [documentation/package/README.md](../../documentation/package/README.md),
+  which lists every package document. `package-rules.md` has no table of the
+  application packages (log, statistics, undo, shell), so it has no row for
+  this one either. `shell.md` has a section on the menu bar, and `domain.md`
+  describes `compute_concrete_subtypes`.
 - [ ] 10. **Verification** against a baseline of `main`, and the move of this
   plan to `plan/done/`.
 

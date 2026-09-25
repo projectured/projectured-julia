@@ -62,6 +62,7 @@ The packages below every domain. [package-rules.md](../rule/package-rules.md) ha
 | `ProjecturedLog` | [log.md](log/log.md) | the message log of the session |
 | `ProjecturedStatistics` | [statistics.md](statistics/statistics.md) | the frame statistics of the editor loop |
 | `ProjecturedShell` | [shell.md](shell/shell.md) | the wrappers and the chrome of a window |
+| `ProjecturedHelp` | [help.md](help/help.md) | the document types, the projections and the page about the program that the Help menu opens |
 
 ## The packages with a third-party dependency
 
