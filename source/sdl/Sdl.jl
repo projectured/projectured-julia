@@ -143,8 +143,10 @@ events into `WindowInput`s. Both are reconciled by
 
 `pending_input` and `pending_motion` are the one-event buffers
 `read_from_devices` needs to collapse a run of pointer motion into its newest
-sample. They live on the backend rather than at module level, so two backends in
-one process never hand each other an event.
+sample, and `last_hover_motion` is the time of the rate limit of idle motion.
+They live on the backend rather than at module level, so two backends in one
+process never hand each other an event or a delay. `partial_render` and
+`debug_dirty` are read for each window of this backend alone.
 
 `display` is the `Display` that the backend draws on. Its device pixel ratio
 sizes the windows, rasterizes the text and converts the input coordinates. A new
@@ -156,8 +158,8 @@ mutable struct SdlBackend <: Backend
     # Multi-window reconciliation state.
     windows::Dict{Symbol, SdlWindowResources}
     window_ids::Dict{UInt32, Symbol}
-    # Render controls (diagnostics / benchmarking). `initialize_backend!` copies these into the
-    # `_PARTIAL_RENDER` / `_DEBUG_DIRTY` globals the render path reads:
+    # Render controls (diagnostics / benchmarking), which `_render_window!` reads
+    # for each window of this backend:
     #   partial_render — incremental dirty-rectangle repaint (false = full frame)
     #   debug_dirty    — outline the repainted region in red
     partial_render::Bool
@@ -165,8 +167,11 @@ mutable struct SdlBackend <: Backend
     # Input coalescing state (see `read_from_devices`):
     #   pending_input  — the event that arrived behind a held motion, owed next call
     #   pending_motion — the newest motion sample not yet delivered
+    #   last_hover_motion — when the last idle motion was delivered (`time()`),
+    #                       for the rate limit of idle motion
     pending_input::Union{WindowInput, Nothing}
     pending_motion::Union{WindowInput, Nothing}
+    last_hover_motion::Float64
     # The SDL user-event type `wake_backend!` pushes to end a wait in
     # progress. Zero until `initialize_backend!` registers one; a wake on an
     # uninitialized backend is a no-op.
@@ -186,7 +191,7 @@ SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
                Dict{UInt32, Symbol}(),
                partial_render === nothing ? _envflag("PROJECTURED_PARTIAL_RENDER", false) : partial_render,
                debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", false)    : debug_dirty,
-               nothing, nothing, UInt32(0), Display())
+               nothing, nothing, 0.0, UInt32(0), Display())
 
 # Module-level TTF font cache, keyed by (filename, scaled_size).
 # Shared by window rendering, offscreen image rendering, and text measurement.
@@ -230,15 +235,11 @@ const _TEXT_TEXTURE_CACHE_CAP = 16384
 # the canvas tree, find the smallest rectangle covering every invalidated
 # graphic, clip to it and repaint only that region into a retained target.
 #
-# `_PARTIAL_RENDER` — master switch (false forces the original full-frame
-#   repaint). `_DEBUG_DIRTY` — when on, outline the repainted region in red so it
-#   is visible which part of the screen was painted.
-#
-# These globals are the values the render path reads; `initialize_backend!` sets them from the
-# active `SdlBackend`'s `partial_render` / `debug_dirty` fields, which in turn
-# default to the PROJECTURED_PARTIAL_RENDER / PROJECTURED_DEBUG_DIRTY env vars.
-const _PARTIAL_RENDER = Ref(true)
-const _DEBUG_DIRTY = Ref(true)
+# `partial_render` of the backend is the master switch (false forces the
+# full-frame repaint). `debug_dirty` of the backend, when on, outlines the
+# repainted region in red so it is visible which part of the screen was painted.
+# Both default to the PROJECTURED_PARTIAL_RENDER / PROJECTURED_DEBUG_DIRTY env
+# vars, and `_render_window!` reads them from the backend of the window.
 
 # How many recent frames' damage rects to retain for the partial target→window
 # copy. The copy refreshes the union of the last `buffer age` of them; deeper
@@ -580,9 +581,9 @@ _to_logical(px, ratio::Float64) = round(Int, px / ratio)
 
 # Idle (no-button) mouse motion is forwarded for hover features (e.g. the
 # reference inspector) but rate-limited so a probe does not run on every pixel.
-# Button-held motion (drag) is never throttled.
+# Button-held motion (drag) is never throttled. Each backend keeps the time of
+# its last idle motion in `last_hover_motion`.
 const _HOVER_MOTION_INTERVAL = 0.03   # seconds (~33 Hz)
-const _LAST_HOVER_MOTION = Ref(0.0)
 
 """
     get_pointer_position(::SdlBackend) -> (x, y)
@@ -2023,7 +2024,10 @@ end
 # `damage_history` / `_back_buffer_age`) is copied to the window and presented.
 # Copying only the damage instead of the whole target keeps the scaled blit
 # proportional to the edit.
-function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
+function _render_window!(backend::SdlBackend, res::SdlWindowResources,
+                         canvas::GraphicsCanvas)
+    partial = backend.partial_render
+    debug = backend.debug_dirty
     bg = res.bg
     renderer = res.renderer
     scale = Float32(res.ratio)
@@ -2041,7 +2045,7 @@ function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
     end
 
     # Decide the region to repaint.
-    if !_PARTIAL_RENDER[]
+    if !partial
         dirty = (0, 0, res.width, res.height)
     else
         # Always walk: this seeds `res.dirty_bounds` with each unit's current
@@ -2087,7 +2091,7 @@ function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
     # little history all fall back to a full copy. This is correct for any
     # swap-chain depth (no fixed double-buffer assumption).
     age = _back_buffer_age()
-    if !_PARTIAL_RENDER[] || _DEBUG_DIRTY[] || age <= 0 || (age - 1) > length(res.damage_history)
+    if !partial || debug || age <= 0 || (age - 1) > length(res.damage_history)
         # Full copy. Under `debug_dirty` we always copy the whole target so the
         # previous frames' red outlines — drawn straight onto the window
         # back-buffer below, never retained in `res.target` nor recorded in
@@ -2110,7 +2114,7 @@ function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
     pushfirst!(res.damage_history, dirty)
     length(res.damage_history) > _DAMAGE_HISTORY_CAP && resize!(res.damage_history, _DAMAGE_HISTORY_CAP)
 
-    if _DEBUG_DIRTY[]
+    if debug
         # Outline this frame's repainted region on the window. The box is drawn
         # straight onto the back-buffer (not into `res.target`), so it would ghost
         # across frames; the forced full copy above repaints over the previous
@@ -2545,8 +2549,6 @@ function BackendModule.initialize_backend!(backend::SdlBackend)
     SDL_StartTextInput()   # enable SDL_TEXTINPUT events (explicit for portability)
     _detect_display_scale!()
     backend.display.scale = _PROBED_DISPLAY_SCALE[]
-    _PARTIAL_RENDER[] = backend.partial_render
-    _DEBUG_DIRTY[]    = backend.debug_dirty
     # Start with no input owed: a backend that is opened again must not answer
     # with an event left over from its last life.
     backend.pending_input = nothing
@@ -2652,7 +2654,7 @@ function BackendModule.wait_for_input(backend::SdlBackend, devices, timeout_seco
     backend.pending_input === nothing || return nothing
     timeout = Float64(timeout_seconds)
     if backend.pending_motion !== nothing
-        remaining = _HOVER_MOTION_INTERVAL - (time() - _LAST_HOVER_MOTION[])
+        remaining = _HOVER_MOTION_INTERVAL - (time() - backend.last_hover_motion)
         remaining <= 0 && return nothing
         timeout = min(timeout, remaining)
     end
@@ -2759,11 +2761,11 @@ function BackendModule.read_from_devices(backend::SdlBackend, devices)
     # A drag (a button held) is never rate-limited: it must track the pointer.
     if motion.event isa MouseMove && motion.event.buttons == MouseButtons()
         now = time()
-        if (now - _LAST_HOVER_MOTION[]) < _HOVER_MOTION_INTERVAL
+        if (now - backend.last_hover_motion) < _HOVER_MOTION_INTERVAL
             backend.pending_motion = motion       # hold it; answer on a later call
             return nothing
         end
-        _LAST_HOVER_MOTION[] = now
+        backend.last_hover_motion = now
     end
     motion
 end
@@ -3045,11 +3047,11 @@ function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Dev
             res = _open_native_window!(backend, w; hidden = true)
             backend.windows[w.id] = res
             backend.window_ids[res.sdl_id] = res.id
-            _show_painted_window!(res, w)
+            _show_painted_window!(backend, res, w)
         else
             _update_window_geometry!(res, w, ratio)
         end
-        _render_window!(res, canvas)
+        _render_window!(backend, res, canvas)
     end
 end
 
@@ -3149,9 +3151,10 @@ _is_native_window_shown(res::SdlWindowResources) =
 # The paint after the show is what the caller does next: a driver is free to
 # drop a present made while the window is hidden, so `first_paint` asks for the
 # whole window again instead of the rectangles that changed.
-function _show_painted_window!(res::SdlWindowResources, w::WindowDocument)
+function _show_painted_window!(backend::SdlBackend, res::SdlWindowResources,
+                               w::WindowDocument)
     canvas = w.content
-    canvas isa GraphicsCanvas && _render_window!(res, canvas)
+    canvas isa GraphicsCanvas && _render_window!(backend, res, canvas)
     SDL_ShowWindow(res.win)
     res.first_paint = true
 end

@@ -32,10 +32,10 @@ _push_button_down!(x, y) =
 
 # Start from an empty queue and an expired rate limit, so each case sees only
 # what it pushed.
-function _reset_input!()
+function _reset_input!(backend)
     _SDL.SDL_PumpEvents()
     _SDL.SDL_FlushEvents(UInt32(0), typemax(UInt32))
-    ProjecturedSdl._LAST_HOVER_MOTION[] = 0.0
+    backend.last_hover_motion = 0.0
 end
 
 # The `Display` of the backend below has the scale 2, so an event holds the half of
@@ -49,7 +49,7 @@ function test_input_coalescing()
     backend.display.scale = 2.0
 
     @testset "a run of motion answers with the newest sample" begin
-        _reset_input!()
+        _reset_input!(backend)
         for (x, y) in ((10, 10), (20, 20), (30, 30), (44, 55))
             _push_motion!(x, y)
         end
@@ -64,7 +64,7 @@ function test_input_coalescing()
     end
 
     @testset "an event behind a run does not overtake it" begin
-        _reset_input!()
+        _reset_input!(backend)
         _push_motion!(1, 1)
         _push_motion!(7, 9)
         _push_button_down!(7, 9)
@@ -77,17 +77,17 @@ function test_input_coalescing()
     end
 
     @testset "a sample the rate limit blocks is held, not dropped" begin
-        _reset_input!()
+        _reset_input!(backend)
         _push_motion!(12, 34)
         probe = read_from_devices(backend, Device[])
         @test probe.event isa MouseMove
         # The rate limit applies to idle motion only. A button held during the
         # run makes it a drag, which is never rate-limited; skip the case then.
         if probe.event.buttons == MouseButtons()
-            ProjecturedSdl._LAST_HOVER_MOTION[] = time()   # the limit is now active
+            backend.last_hover_motion = time()   # the limit is now active
             _push_motion!(60, 70)
             @test read_from_devices(backend, Device[]) === nothing   # held, not answered
-            ProjecturedSdl._LAST_HOVER_MOTION[] = 0.0     # the interval has passed
+            backend.last_hover_motion = 0.0     # the interval has passed
             held = read_from_devices(backend, Device[])   # the queue is empty by now
             @test held isa WindowInput
             @test held.event isa MouseMove
@@ -95,7 +95,30 @@ function test_input_coalescing()
             # leave the highlight one step behind for as long as it rests there.
             @test (held.event.x, held.event.y) == (_logical(60), _logical(70))
         end
-        _reset_input!()
+        _reset_input!(backend)
+    end
+
+    @testset "the rate limit of one backend leaves another" begin
+        # Each backend keeps the time of its own last idle motion, so a hover in
+        # the windows of one editor does not hold the motion of another.
+        other = SdlBackend()
+        other.display.scale = 2.0
+        _reset_input!(other)
+        _push_motion!(12, 34)
+        probe = read_from_devices(other, Device[])
+        @test probe.event isa MouseMove
+        # The rate limit applies to idle motion only; skip the case when a
+        # button is held.
+        if probe.event.buttons == MouseButtons()
+            backend.last_hover_motion = time()   # the limit of `backend` is active
+            other.last_hover_motion = 0.0        # the limit of `other` is not
+            _push_motion!(60, 70)
+            answered = read_from_devices(other, Device[])
+            @test answered isa WindowInput
+            @test (answered.event.x, answered.event.y) == (_logical(60), _logical(70))
+        end
+        _reset_input!(other)
+        _reset_input!(backend)
     end
 
 end

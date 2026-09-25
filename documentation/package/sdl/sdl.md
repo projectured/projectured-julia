@@ -78,7 +78,7 @@ Both repaint every window in full.
 - **The repaint follows the reactive graph.** The cells that a change invalidated say which graphics changed, so the backend compares no pixels. See [plan/done/optimize-rendering-dirty-rect.md](../../../plan/done/optimize-rendering-dirty-rect.md).
 - **The damage history follows the buffer age.** A swap chain of two or three buffers would otherwise show an old edit on the buffer that was not repainted.
 - **The two zooms take two routes.** The uniform zoom needs no new print; the font zoom prints again, because the widgets keep the sizes that they measured.
-- **The input state is on the backend.** Two backends in one process have separate queues.
+- **The state of an editor is on its backend.** The pending input, the time of the rate limit of idle motion, the switches `partial_render` and `debug_dirty`, and the `Display` are fields of the backend, so two backends in one process keep them apart. The SDL session is still one for each process: one event queue, and one set of open fonts.
 
 ## Usage
 

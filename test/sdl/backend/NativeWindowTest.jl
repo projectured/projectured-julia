@@ -64,7 +64,7 @@ end
         @test !SDL._is_native_window_shown(resource)
         # Painted, then shown. The paint that follows asks for the whole window,
         # because a driver is free to drop a present made while it is hidden.
-        SDL._show_painted_window!(resource, held)
+        SDL._show_painted_window!(backend, resource, held)
         @test SDL._is_native_window_shown(resource)
         @test resource.first_paint
         SDL._close_native_window!(resource)
@@ -83,6 +83,32 @@ end
 
     quit_backend!(backend)
 
+end
+
+@testset "each backend repaints with its own switches" begin
+    # Two backends in one process: one repaints the whole window at each frame,
+    # the other only what changed. A frame in which nothing changed adds a damage
+    # record to the first and none to the second.
+    full = SdlBackend(partial_render = false, debug_dirty = false)
+    partial = SdlBackend(partial_render = true, debug_dirty = false)
+    initialize_backend!(full)
+    initialize_backend!(partial)
+    for (backend, grows) in ((full, 1), (partial, 0))
+        id = Symbol("repaint_test_", backend.partial_render)
+        canvas = GraphicsCanvas(CellVector(Any[GraphicsRect(10, 10, 60, 20)]), layout_none)
+        window = WindowDocument(; id = id, title = String(id), x = 100, y = 100,
+                                  width = 200, height = 100, style = :tooltip,
+                                  content = canvas)
+        screen = ScreenDocument([window])
+        write_to_devices(backend, Device[Display()], screen)   # opens, paints, shows
+        write_to_devices(backend, Device[Display()], screen)   # the paint after the show
+        resource = backend.windows[id]
+        before = length(resource.damage_history)
+        write_to_devices(backend, Device[Display()], screen)   # nothing changed
+        @test length(resource.damage_history) == before + grows
+    end
+    quit_backend!(partial)
+    quit_backend!(full)
 end
 
 @testset "a window with a maximum fits what it printed" begin

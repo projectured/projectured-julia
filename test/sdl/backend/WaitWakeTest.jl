@@ -46,7 +46,7 @@ function test_sdl_wait_wake()
 
     @testset "the wait looks at the queue and consumes nothing" begin
         _drain_sdl_queue!()
-        ProjecturedSdl._LAST_HOVER_MOTION[] = 0.0
+        backend.last_hover_motion = 0.0
         _push_motion!(12, 34)
         elapsed = @elapsed wait_for_input(backend, Device[], 30.0)
         @test elapsed < _FAR_LESS

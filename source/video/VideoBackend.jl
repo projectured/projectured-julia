@@ -161,11 +161,10 @@ end
 
 quit_backend!(backend::VideoBackend) = (_close_offscreen_renderer(backend.off); nothing)
 
-# `SdlBackend`'s own method ignores its instance argument — the font metrics it
-# reads are process-global (the `_get_font` cache) — so a throwaway instance
-# reaches the same measurement `ProjecturedSdl` gives a real window.
-measure_text(::VideoBackend, text::AbstractString, font) =
-    measure_text(SdlBackend(), text, font)
+# The standalone SDL measure, at the device pixel ratio 1: the frames are laid
+# out in logical pixels, and the scale of the recording applies when a frame is
+# rendered.
+measure_text(::VideoBackend, text::AbstractString, font) = measure_sdl_text(text, font)
 
 get_pointer_position(backend::VideoBackend) = (backend.pointer_x, backend.pointer_y)
 

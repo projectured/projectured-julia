@@ -31,6 +31,7 @@ end
 "Run the whole SDL backend suite."
 function test_sdl()
     @testset "ProjecturedSdl" begin
+        test_sdl_layering()
         test_dirty_rect()
         test_sdl_keysym()
         test_device_config()
