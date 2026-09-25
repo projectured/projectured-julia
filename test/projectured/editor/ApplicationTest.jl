@@ -1293,6 +1293,18 @@ function test_application()
                                        MousePress(:left, 100, last_row + 3, 2, ModifierKeys()))
                     @test _app_plain(opened) isa OpenFileOperation
                     @test _app_plain(opened).path == joinpath(tall, "gamma", "file9.jl")
+                    # A folder that closes and opens again is view state too.
+                    rows() = count(item -> item[1] == "file1.jl" && item[2] < 400, drawn())
+                    @test rows() == 3
+                    # The chevron of `gamma`, read again after each click: a tree that
+                    # gets shorter scrolls back, and the row moves.
+                    chevron() = only(MousePress(:left, x - 34, y + 5, 1, ModifierKeys())
+                                     for (text, x, y) in drawn() if text == "gamma")
+                    _app_apply!(editor, _app_fire(composed, editor.iomap, chevron()))
+                    @test rows() == 2
+                    _app_apply!(editor, _app_fire(composed, editor.iomap, chevron()))
+                    @test rows() == 3
+                    @test length(history.undo_entries) == steps
                 end
             end
 

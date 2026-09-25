@@ -129,9 +129,11 @@ function test_widget_card_fold()
         press(x, y; button = :left) = read_intent(proj, iomap, MousePress(button, x, y, ModifierKeys()))
 
         # A press on the title of a closed item opens it, and the other one closes.
+        # It is view state, so a history does not record it.
         opened = press(second[1] + 2, second[2] + 2)
-        @test opened isa ReplaceReferencedValueOperation
-        @test opened.document === accordion && opened.value == 2
+        @test opened isa ReplaceViewStateOperation
+        @test get_wrapped_operation(opened).document === accordion &&
+              get_wrapped_operation(opened).value == 2
         evaluate_operation(nothing, opened)
         texts = _fold_texts(iomap.output)
         @test "the second body" in texts && !("the first body" in texts)
@@ -141,7 +143,7 @@ function test_widget_card_fold()
         right = Int(iomap.output.x) + Int(iomap.output.w) - 3
         second = _fold_text_positions(iomap.output)["Second"]
         closed = press(right, second[2] + 2)
-        @test closed isa ReplaceReferencedValueOperation && closed.value == 0
+        @test closed isa ReplaceViewStateOperation && get_wrapped_operation(closed).value == 0
         evaluate_operation(nothing, closed)
         texts = _fold_texts(iomap.output)
         @test !("the first body" in texts) && !("the second body" in texts)
@@ -187,8 +189,9 @@ function test_widget_card_fold()
         # A press on the header of the item still closes it.
         title = at["Document title"]
         closed = read_intent(proj, iomap, MousePress(:left, title[1] + 2, title[2] + 2, ModifierKeys()))
-        @test closed isa ReplaceReferencedValueOperation && closed.document === accordion &&
-              closed.value == 0
+        @test closed isa ReplaceViewStateOperation &&
+              get_wrapped_operation(closed).document === accordion &&
+              get_wrapped_operation(closed).value == 0
         evaluate_operation(nothing, closed)
         texts = _fold_texts(iomap.output)
         @test "Document title" in texts && !("inner body" in texts)

@@ -66,9 +66,18 @@ function test_undo_buffer()
             ReplaceViewStateOperation(_write_first("y"))]))
         @test is_undo_step(nothing, CompoundOperation(Any[
             ReplaceViewStateOperation(_write_first("x")), _write_first("y")]))
-        # A compound that carries a write is kept: only a bare caret move matches.
+        # A compound that carries a write is kept.
         @test is_undo_step(nothing, CompoundOperation(Any[_write_first("x"),
                                                           ReplaceSelectionOperation(EmptyReference())]))
+        # A compound of caret moves and view state changes no document.
+        @test !is_undo_step(nothing, CompoundOperation(Any[
+            ReplaceSelectionOperation(EmptyReference()),
+            ReplaceViewStateOperation(_write_first("x"))]))
+        @test !is_undo_step(nothing, CompoundOperation(Any[
+            ReplaceSelectionOperation(EmptyReference()),
+            CompoundOperation(Any[DoNothingOperation(), ReplaceViewStateOperation(_write_first("y"))])]))
+        # A move to the next hole is a move of the selection.
+        @test !is_undo_step(nothing, SelectNextInsertionOperation(_ -> true))
     end
 
     @testset "an entry with no way back is a barrier" begin

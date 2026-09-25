@@ -7584,10 +7584,12 @@ function read_intent(::WidgetAccordionToGraphicsCanvas,
                      iomap::WidgetAccordionToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
+    # A click on a header opens or closes a section of the view. It is view state,
+    # so a history does not record it.
     if evt isa MousePress && evt.button === :left
         item = _find_row_index(iomap.header_bounds, evt.y - Int(iomap.output.y))
         item === nothing ||
-            return ReplaceReferencedValueOperation(w, "expanded", item == Int(w.expanded) ? 0 : item)
+            return _write_view_state(w, "expanded", item == Int(w.expanded) ? 0 : item)
     end
     entry = iomap.body_entry
     entry === nothing && return nothing
@@ -8862,12 +8864,13 @@ function _wtree_mouse_press(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGr
 end
 
 # Toggle `path`'s membership in the tree's collapse set. Stores a *new* Set so the
-# backing cell invalidates and the geometry thunk re-flattens.
+# backing cell invalidates and the geometry thunk re-flattens. A folded row is
+# view state, so a history does not record it.
 function _wtree_toggle_collapse(iomap::WidgetTreeToGraphicsCanvasIoMap, path::Vector{Int})
     w = iomap.input
     next = copy(w.collapsed)
     path in next ? delete!(next, path) : push!(next, path)
-    ReplaceReferencedValueOperation(w, "collapsed", next)
+    _write_view_state(w, "collapsed", next)
 end
 
 # Set the hovered row to the one under (x, y), clamped from the margin, the

@@ -1,6 +1,7 @@
 # The history records edits, and not view state
 
-**Status (2026-09-25): PENDING.** Nothing is implemented. Steps 1 and 2 are
+**Status (2026-09-25): IN PROGRESS** on the branch `history-view-state`, in the
+worktree `projectured-julia-history-view-state`. Step 1 is done. Step 2 is
 ready to start. Steps 3 and 4 start with a design that the owner decides.
 
 **Goal:** the undo history holds the edits a person makes, and nothing else. A
@@ -163,7 +164,7 @@ Step 3 measures both and records the numbers here. The owner then chooses.
 
 ## 6. Steps
 
-- [ ] **Step 1.** **R** for category 5 and 6, and the gap of D2.
+- [x] **Step 1.** **R** for category 5 and 6, and the gap of D2.
   - `_wtree_toggle_collapse` and the accordion header write with `_write_view_state`.
   - `_toggle_operation` of `ProjectionConfiguring.jl` writes `visible` with a
     `ReplaceViewStateOperation`.
@@ -171,6 +172,19 @@ Step 3 measures both and records the numbers here. The owner then chooses.
     droppable.
   - Tests: `test_undo()` for the filter, the widget suites for the three readers,
     `test_application()` for the chevron of the navigator.
+
+  Done. What the work showed:
+  - `SelectNextInsertionOperation` (a Tab to the next hole of Julia code) only
+    moves the selection, but the filter recorded it. It is a selection change, so
+    the filter now drops it too. The filter is one function, `_is_no_edit`: a
+    do-nothing, a selection move, a view-state write, and a compound of nothing
+    else.
+  - A tree that gets shorter scrolls back, so a row moves after a fold; the
+    application test reads the chevron again after each click.
+  - Tests: `test_undo` 94 of 94, `test_widget_tree` 33 of 33, the card and
+    accordion folds 39 of 39, `test_projection_configuring` 16 of 16 and one
+    broken case that was marked before, `test_application` 324 of 324, the naming
+    guard.
 - [ ] **Step 2.** The sweep test of D3, in `ProjecturedTest`, beside
   `test_application`. The chart and sequence chart cases are `@test_broken` until
   Step 3.

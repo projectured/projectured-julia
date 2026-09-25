@@ -91,6 +91,9 @@ end
     # Chevron click on the parent → collapse (children hidden, flag set).
     op = _readop(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods))
     @test op isa ReplaceReferencedValueOperation
+    # A folded row is view state, so a history does not record the click.
+    @test _readop_marked(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods)) isa
+          ReplaceViewStateOperation
     getfield(w, :collapsed)[] = op.value
     @test [1] in w.collapsed
     g = io.geometry

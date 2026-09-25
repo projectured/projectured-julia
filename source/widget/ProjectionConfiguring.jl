@@ -15,7 +15,8 @@
 # - a `ReplaceReferencedValueOperation` produced by a control is handed to the control
 #   reader, which redirects it onto the inner projection's parameter cell;
 # - a show/hide gesture (`Ctrl+F` toggles, `Escape` hides) flips the control
-#   widget's `visible` cell via `ReplaceReferencedValueOperation(control_widget, "visible", …)`;
+#   widget's `visible` cell with a write marked as view state, so a history does
+#   not record it;
 # - everything else delegates to the inner projection's reader (document edits).
 #
 # Because the control edits the *same* parameter `Cell`s the inner projection
@@ -135,9 +136,9 @@ function _toggle_operation(gesture, control_widget)
     gesture isa KeyDown || return nothing
     hidden = control_widget.visible == false
     if gesture.key === :f && has_ctrl_modifier_key(gesture)
-        return ReplaceReferencedValueOperation(control_widget, "visible", hidden)
+        return _write_view_state(control_widget, "visible", hidden)
     elseif gesture.key === :escape
-        return hidden ? nothing : ReplaceReferencedValueOperation(control_widget, "visible", false)
+        return hidden ? nothing : _write_view_state(control_widget, "visible", false)
     end
     nothing
 end

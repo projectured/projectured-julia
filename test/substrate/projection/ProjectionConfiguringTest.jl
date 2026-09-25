@@ -51,21 +51,24 @@ end # @testset
     pcp = ProjectionConfiguringProjection(inner=TextHighlighting("dolor"))
     iomap = print_document(pcp, nothing, _input(), PrinterContext())
 
-    # Control starts visible → Ctrl+F hides it.
+    # Control starts visible → Ctrl+F hides it. Showing and hiding the bar is view
+    # state, so a history does not record it.
     ctrl_f = KeyDown(:f, ModifierKeys(ctrl=true))
-    op = read_intent(pcp, nothing, _mkchange(ctrl_f, nothing), iomap).operation
+    marked = read_intent(pcp, nothing, _mkchange(ctrl_f, nothing), iomap).operation
+    @test marked isa ReplaceViewStateOperation
+    op = get_wrapped_operation(marked)
     @test op isa ReplaceReferencedValueOperation && op.value == false   # hide = visible←false
     @test op.document === iomap.control_widget
 
     # Escape also hides while visible.
     esc = KeyDown(:escape, ModifierKeys())
     op_esc = read_intent(pcp, nothing, _mkchange(esc, nothing), iomap).operation
-    @test op_esc isa ReplaceReferencedValueOperation && op_esc.value == false
+    @test op_esc isa ReplaceViewStateOperation && get_wrapped_operation(op_esc).value == false
 
     # After hiding, Ctrl+F shows again.
     iomap.control_widget.visible = false
     op2 = read_intent(pcp, nothing, _mkchange(ctrl_f, nothing), iomap).operation
-    @test op2 isa ReplaceReferencedValueOperation && op2.value == true   # show = visible←true
+    @test op2 isa ReplaceViewStateOperation && get_wrapped_operation(op2).value == true   # show = visible←true
 
 end # @testset
 
