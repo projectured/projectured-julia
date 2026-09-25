@@ -8,6 +8,7 @@ const _SDL = ProjecturedSdl.SimpleDirectMediaLayer.LibSDL2
 
 const _SDL_MOUSEMOTION     = 0x00000400
 const _SDL_MOUSEBUTTONDOWN = 0x00000401
+const _SDL_MOUSEBUTTONUP   = 0x00000402
 const _SDL_BUTTON_LEFT     = 0x01
 
 # Write one event of type `T` into an `SDL_Event` blob and push it on the queue.
@@ -28,6 +29,11 @@ _push_motion!(x, y) =
 _push_button_down!(x, y) =
     _push_sdl_event!(_SDL.SDL_MouseButtonEvent(_SDL_MOUSEBUTTONDOWN, UInt32(0), UInt32(0),
                                                UInt32(0), _SDL_BUTTON_LEFT, UInt8(1),
+                                               UInt8(1), UInt8(0), Int32(x), Int32(y)))
+
+_push_button_up!(x, y) =
+    _push_sdl_event!(_SDL.SDL_MouseButtonEvent(_SDL_MOUSEBUTTONUP, UInt32(0), UInt32(0),
+                                               UInt32(0), _SDL_BUTTON_LEFT, UInt8(0),
                                                UInt8(1), UInt8(0), Int32(x), Int32(y)))
 
 # Start from an empty queue and an expired rate limit, so each case sees only
@@ -95,6 +101,29 @@ function test_input_coalescing()
             # leave the highlight one step behind for as long as it rests there.
             @test (held.event.x, held.event.y) == (_logical(60), _logical(70))
         end
+        _reset_input!(backend)
+    end
+
+    @testset "a click keeps the times that SDL stamps on its events" begin
+        # SDL stamps an event when it is pushed. The press is read at once, the
+        # release is pushed 0.1 s later and read after a slow frame of 0.5 s:
+        # the stamps are 0.1 s apart, so the recognizer makes a click.
+        _reset_input!(backend)
+        recognizer = GestureRecognizer()
+        source = () -> read_from_devices(backend, Device[])
+        _push_button_down!(10, 10)
+        down = pop_gesture!(recognizer, source)
+        @test down.event isa MouseDown
+        sleep(0.1)
+        _push_button_up!(10, 10)
+        sleep(0.5)
+        release = pop_gesture!(recognizer, source)
+        @test release.event isa MouseUp
+        press = pop_gesture!(recognizer, source)
+        @test press !== nothing && press.event isa MousePress
+        @test press !== nothing && press.event.count == 1
+        # The events are 0.1 s apart, although the release was read 0.6 s later.
+        @test 0.05 < get_event_time(release.event) - get_event_time(down.event) < 0.3
         _reset_input!(backend)
     end
 
