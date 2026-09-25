@@ -50,12 +50,20 @@ version?" Then: "write plan and do it".
   (The size is a first choice, not measured.)
 - **D2. A model gets a trimmed value and a note, not a note alone.** A value of at
   most 200 characters on one line is shown as it is, as now. A longer value is the
-  REPL display with `:limit => true` and 20 rows × 100 columns; when that is still
-  longer than 600 characters, the start and the end are kept and the middle becomes
-  one mark, "⋯ N characters left out ⋯". One line follows: "The value is trimmed;
-  whole, it prints N characters. Print a part, as `println(first(x, 10))` or
-  `println(names(x))`." A `Base.Text`, a `Function` and a long `AbstractString`
-  keep their present rules. (The numbers are first choices, not measured.)
+  REPL display with `:limit => true` and 20 rows × 100 columns; a display of at
+  most 600 characters is shown whole with no note — the REPL's own `⋮` already
+  says it was trimmed. A display still longer than 600 characters keeps its
+  start and its end (300 characters each, half of 600) and the middle becomes
+  one mark, "⋯ N characters left out ⋯", N counted on that *limited* display,
+  never on an unlimited print (a huge array would cost too much to even
+  measure). One line follows: "The value is trimmed: <summary(value)>. Print a
+  part, as `println(first(x, 10))` or `println(names(x))`." **Correction to the
+  line first written here** ("whole, it prints N characters"): that phrasing
+  implies an unlimited print to learn N, which the code must never compute: the
+  note uses `summary(value)` (`_summarize_value`, already in the file) instead.
+  A `Base.Text`, a `Function` and a long `AbstractString` keep their present
+  rules — both return before the new trimming branch runs. (The numbers are
+  first choices, not measured.)
   Reason: the start of a value often answers what the model needs, and a round
   spent on `println(first(x, 10))` is a round lost; S2 ran out of rounds (8) in
   every rehearsal of 2026-09-23.
@@ -74,7 +82,7 @@ version?" Then: "write plan and do it".
 Each step: a test first where one fits, the change, the narrowest test that covers
 it, and a commit. Work in a worktree of its own, from `main`.
 
-- [ ] **Step 1: the two descriptions in the tool.** In `CodeExecution.jl`: the
+- [x] **Step 1: the two descriptions in the tool.** In `CodeExecution.jl`: the
       keyword of D3 on both functions; `_run_expression` appends the description
       after the capture; the model's description of D2 and the person's of D1, as
       named functions that follow `documentation/rule/naming-rules.md`. The
@@ -83,6 +91,29 @@ it, and a commit. Work in a worktree of its own, from `main`.
       a long value, the unchanged form for a short one, and the person's form for
       a long vector (a header line and `⋮`). Test: `test_kernel()`'s code
       execution suite, or the file alone.
+      **Done** (2026-09-26, commit `ba5699b9`). Names chosen: the keyword is
+      `describe_value`; the model's default is the private `_describe_value_for_model`
+      (only ever used as that default, so it stays unexported); the person's is the
+      exported `describe_value_for_person` (D1's audience is cross-module: the
+      evaluator and the assistant composer both need to reach it). `_run_expression`
+      now collects `result` outside the `redirect_stdio` block and appends
+      `describe_value(result)` to `stdout_output * stderr_output` after the pipes
+      close, rather than `print`ing the description inside the block. Both
+      `describe_value_for_person` and the new 600-character branch of
+      `_describe_value_for_model` wrap their `sprint(show, MIME"text/plain"(), …)`
+      call in `Base.invokelatest`, mirroring the existing `Function` branch's use of
+      it — needed for a value whose type or method the evaluated code just defined
+      in a newer world; not stated in D1's formula, added for correctness, a value
+      that formula did not need to spell out. The `Function` and short-`repr`
+      branches run before the new branch and return early, so a `Function` value
+      never reaches it. Test: `test_code_execution()` — 23/23 pass before the
+      change (stashed and reverted after, to measure), 31/31 after: the trimmed-
+      value testset goes from 4 assertions to 5 (drops `!occursin("500", long)`,
+      which no longer holds any meaning once the text is the REPL display rather
+      than a summary line, adds the mark-line and note-text checks), a new
+      "a short value is unchanged" testset adds 2, and a new "the person's
+      description shows the value as the REPL does" testset adds 5. No
+      `Fail`/`Error` either run.
 - [ ] **Step 2: the evaluator and the composer use the person's description.**
       `Evaluator.jl:429` and `AssistantTurn.jl:222`. A test in
       `test/projectured/editor/EvaluatorToplevelTest.jl` evaluates a form whose value
