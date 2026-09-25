@@ -86,13 +86,24 @@ function test_clock()
         @test (@inferred get_reactive_clock_time(clock)) === 2.0
     end
 
-    @testset "a time that is not a Float64 throws at the read" begin
-        # The field of a `@cell_struct` takes any value, so the reads narrow.
+    @testset "a real time reads as a Float64" begin
+        @test get_clock_time(Clock(0)) === 0.0
+        @test get_clock_time(Clock(2)) === 2.0
+        @test get_clock_time(Clock(1//2)) === 0.5
+        # The keyword constructor and a write of the field store the value as it is,
+        # and the reads convert it.
+        @test get_clock_time(Clock(time = 3)) === 3.0
+        clock = Clock()
+        clock.time = 4
+        @test (@inferred get_reactive_clock_time(clock)) === 4.0
+    end
+
+    @testset "a time that is not a real number throws at the read" begin
         clock = Clock()
         clock.time = "text"
-        @test_throws TypeError get_clock_time(clock)
-        @test_throws TypeError get_reactive_clock_time(clock)
-        @test repr(clock) == "Clock(time = text)"   # the display does not narrow
+        @test_throws MethodError get_clock_time(clock)
+        @test_throws MethodError get_reactive_clock_time(clock)
+        @test repr(clock) == "Clock(time = text)"   # the display does not convert
     end
 
     @testset "start_wall_clock! moves a clock, and stop_wall_clock! ends it" begin
@@ -112,6 +123,21 @@ function test_clock()
         @test get_clock_time(clock) == stopped      # no more writes
         stop_wall_clock!(clock)                     # a second stop does nothing
         @test clock.heartbeat === nothing
+    end
+
+    @testset "a start continues from the time of the clock" begin
+        clock = Clock(100)
+        start_wall_clock!(clock)
+        @test get_clock_time(clock) >= 100.0
+        @test _wait_for_clock_condition(() -> get_clock_time(clock) > 100.0)
+        stop_wall_clock!(clock)
+        @test _wait_for_clock_condition(() -> clock.heartbeat === nothing)
+        sleep(0.03)                                 # the old task has ended
+        paused = get_clock_time(clock)
+        start_wall_clock!(clock)
+        @test _wait_for_clock_condition(() -> get_clock_time(clock) > paused)
+        @test get_clock_time(clock) < paused + 5.0  # continued, not set back
+        stop_wall_clock!(clock)
     end
 
     @testset "a stopped clock starts again" begin

@@ -14,8 +14,8 @@ A clock has two reads:
 - `get_clock_time(clock)` records nothing. Use it to take the start time of an
   animation, so the code that takes it does not run again on each write.
 
-A clock has one writer. An owner with a frame loop writes its clock once per
-frame with `set_clock_time!`. `start_wall_clock!(clock)` starts a heartbeat that
+A clock must have one writer. An owner with a frame loop writes its clock once
+per frame with `set_clock_time!`. `start_wall_clock!(clock)` starts a heartbeat that
 writes real time into a clock where no frame loop exists, and
 `stop_wall_clock!(clock)` ends it. The heartbeat runs on the thread of the task
 that starts it, so the owner starts it on the task that reads the clock.

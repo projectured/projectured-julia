@@ -2,6 +2,7 @@
 # heartbeat that writes real time into a clock.
 
 """
+    Clock(time = 0.0) -> Clock
     Clock(; time = 0.0) -> Clock
 
 A time in seconds, held in a reactive cell.
@@ -19,9 +20,10 @@ moves the animation writes the time with `set_clock_time!`.
 
 `Clock` is a `@cell_struct`. `clock.time` is the read that records a dependency,
 and `clock.time = t` is the write, but the field takes a value of any type. Write
-with `set_clock_time!`, which converts the time to `Float64`. The field
-`heartbeat` holds the task of `start_wall_clock!`, or `nothing`; leave it to
-`start_wall_clock!` and `stop_wall_clock!`.
+with `set_clock_time!`, which converts the time to `Float64`. The two reads
+convert any real number. The field `heartbeat` holds the task of
+`start_wall_clock!`, or `nothing`; leave it to `start_wall_clock!` and
+`stop_wall_clock!`.
 
 See also `get_clock_time`, the read that records nothing, and `start_wall_clock!`.
 """
@@ -29,6 +31,12 @@ See also `get_clock_time`, the read that records nothing, and `start_wall_clock!
     time::Float64 = 0.0
     heartbeat::MutableCell{Union{Nothing,Task}} = nothing
 end
+
+Clock(time::Real) = Clock(Float64(time), nothing)
+
+# The time as a `Float64`. The field takes any value, so a read converts a real
+# number, and the common `Float64` needs no call.
+_get_clock_seconds(time) = time isa Float64 ? time : convert(Float64, time)::Float64
 
 """
     get_reactive_clock_time(clock) -> Float64
@@ -43,11 +51,11 @@ animation.
 
     x = Cell(@computation 100 * get_reactive_clock_time(clock))
 
-A time that is not a `Float64` throws a `TypeError`.
+A time that is not a real number throws a `MethodError`.
 
 See also `get_clock_time`, the read that records nothing.
 """
-get_reactive_clock_time(clock::Clock) = clock.time::Float64
+get_reactive_clock_time(clock::Clock) = _get_clock_seconds(clock.time)
 
 """
     get_clock_time(clock) -> Float64
@@ -63,11 +71,11 @@ animation does not run again on each write of the time.
     start = get_clock_time(clock)
     elapsed = Cell(@computation get_reactive_clock_time(clock) - start)
 
-A time that is not a `Float64` throws a `TypeError`.
+A time that is not a real number throws a `MethodError`.
 
 See also `get_reactive_clock_time`.
 """
-get_clock_time(clock::Clock) = peek(getfield(clock, :time))::Float64
+get_clock_time(clock::Clock) = _get_clock_seconds(peek(getfield(clock, :time)))
 
 """
     set_clock_time!(clock, t) -> nothing
@@ -95,9 +103,10 @@ Base.show(io::IO, clock::Clock) =
 """
     start_wall_clock!(clock) -> clock
 
-Start a heartbeat that writes into `clock` the seconds since this call, every 10
-milliseconds, and return `clock`. A clock whose heartbeat runs keeps it, so a
-second call starts nothing.
+Start a heartbeat that moves `clock` forward with real time, from the time that
+it holds, every 10 milliseconds, and return `clock`. The time never goes back, so
+a stop and a later start act as a pause and a resume. A clock whose heartbeat runs
+keeps it, so a second call starts nothing.
 
 Use it to animate with real time where no frame loop writes the clock. An owner
 with a frame loop writes its clock once per frame with `set_clock_time!` instead.
@@ -126,7 +135,7 @@ function start_wall_clock!(clock::Clock)
     current = clock.heartbeat
     (current !== nothing && !istaskdone(current)) && return clock
     reference = WeakRef(clock)
-    start = Base.time()
+    start = Base.time() - get_clock_time(clock)
     clock.heartbeat = @async _run_wall_clock_heartbeat(reference, start)
     clock
 end
@@ -136,7 +145,8 @@ end
 
 End the heartbeat of `clock`. The heartbeat task ends at its next wake, within 10
 milliseconds, and the clock keeps its last time. A clock without a heartbeat stays
-as it is.
+as it is. Call it on the task that started the heartbeat, which is the condition
+of `start_wall_clock!` too.
 
 Use it when the owner of a clock no longer needs real time, so that its task ends.
 
@@ -153,9 +163,11 @@ end
 
 const _HEARTBEAT_INTERVAL = 0.01
 
-# The loop of a heartbeat. It holds its clock only between a read of `reference`
-# and the write, so the collector can free a clock that nobody stopped. It ends when
-# the clock is gone, or when the clock holds another heartbeat or none.
+# The loop of a heartbeat. It writes `Base.time() - start`, where `start` is the
+# real time at which the clock would have been at zero. It holds its clock only
+# between a read of `reference` and the write, so the collector can free a clock
+# that nobody stopped. It ends when the clock is gone, or when the clock holds
+# another heartbeat or none.
 function _run_wall_clock_heartbeat(reference::WeakRef, start::Float64)
     while true
         clock = reference.value

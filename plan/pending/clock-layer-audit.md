@@ -111,6 +111,27 @@ and stops.
   `system-anatomy.md`, `kernel/architecture.md` and `cell.md`.
 - [x] 11. Verification of items 1, 2 and 9.
 
+## The re-audit before the seal
+
+On 2026-09-25 the owner asked for a second review of the whole layer before the
+seal. It found four points, and the owner approved the fixes:
+
+- [x] A start set the time back: a clock at 100.0 went to 0.22, and a restart went
+  from 0.29 to 0.09. The heartbeat now continues from the time that the clock
+  holds, so a stop and a later start act as a pause and a resume.
+- [x] `Clock(0)` must work. `Clock(time::Real)` converts to `Float64`, and the two
+  reads convert any real number, with no call for a `Float64`. The keyword
+  constructor, which `@cell_struct` makes, stores the value as it is, so only the
+  reads cover every way to make a clock. A time that is not a real number throws
+  a `MethodError` at the read.
+- [x] `stop_wall_clock!` names the task to call it on.
+- [x] The module docstring says "A clock must have one writer", a rule that no code
+  enforces.
+
+After the fixes: `test_kernel()` 2253 pass and the six known failures, `Clock` 49
+assertions, the export and naming guards 0 violations, and the rotating vector
+still moves.
+
 ## What the implementation found
 
 - `show` must not narrow: a clock that holds another type must still show, so
