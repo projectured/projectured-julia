@@ -73,6 +73,6 @@ page     = parse_markdown("# Title\n\nSome **bold** text.\n")
 ## Limits
 
 - No test covers the syntax projection by itself.
-- A table entry loses the part of g, p and y below the baseline of its last line. A text reports the em size as its height (`measure_truetype_text` answers 20 for the body font), the text it draws is `font_line_height` (23), and each cell of the grid is a viewport of the height its text reports. In the chat pane, the viewport of the card body cuts the last line of a result in the same way. [plan/pending/a-text-reports-the-height-it-draws.md](../../../plan/pending/a-text-reports-the-height-it-draws.md) holds the fix.
+- A table entry loses the part of g, p and y below the baseline of its last line. A text reports the em size as its height (`measure_truetype_text` answers 20 for the body font), the text it draws is `font_line_height` (23), and each cell of the grid is a viewport of the height its text reports. In the chat pane, the viewport of the card body cuts the last line of a result in the same way. [plan/pending/a-line-of-text-sits-on-one-baseline.md](../../../plan/pending/a-line-of-text-sits-on-one-baseline.md) holds the fix.
 - The parser reads a flat list only: an indented list item is an item of the same list. It reads no hard line break, no HTML and no math, and an `<img …>` line is a paragraph of text.
 - No structural gestures exist: you can edit the text of a block but not insert a block with a key.
