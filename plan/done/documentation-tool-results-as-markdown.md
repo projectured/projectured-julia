@@ -481,6 +481,15 @@ that file. All files of `tool/` are `⬜` on 2026-09-25.
   pane draws a whole page as one tree and nothing is cut. The row is therefore
   its own commit, and it lands only on the owner's word (§5, question 6).
 
+  *Corrected on 2026-09-25, after a check of the graphics tree
+  (`/var/tmp/text-height/cut_texts.jl`):* the paragraphs in the middle of a page
+  are whole in both routes. What is cut is each table entry, by the viewport of
+  its grid cell, and the last line of a result, by the viewport of the card body,
+  in the old route as well. So the row added the cut table entries to the chat
+  pane, and not every paragraph. The plan
+  [a-text-reports-the-height-it-draws.md](../pending/a-text-reports-the-height-it-draws.md)
+  holds the fix.
+
 ## 5. The questions
 
 The owner took the recommendation of questions 1 to 4 on 2026-09-25 (§1,
@@ -521,12 +530,13 @@ decision 3). Question 5 came from Step 6, and the owner decided it on 2026-09-25
 
 ## 6. Limits
 
-- The last line of a block of a page, and of a table entry, loses the part of
-  g, p and y below the baseline. `measure_truetype_text` answers 20 as the
+- A table entry, and the last line of a result in the chat pane, lose the part
+  of g, p and y below the baseline. `measure_truetype_text` answers 20 as the
   height of any text of `font_ubuntu_regular_20`, the em size, while the text
   it draws is `font_line_height`, 23 (an ascent of 19 and a descent of 4). The
-  page stack and the table grid cut each block at the height it reports. The
-  fix is a change of every text height, and it is not part of this plan.
+  viewport of a grid cell and the viewport of a card body end at the height the
+  text reports. The fix is the plan
+  [a-text-reports-the-height-it-draws.md](../pending/a-text-reports-the-height-it-draws.md).
 
 - `read_resource` declares one media type for every resource (§3.1).
 - An MCP client does not get the declaration (§3.1).
