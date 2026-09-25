@@ -58,6 +58,19 @@ EvaluatorForm(form::Document;
                   Cell(String(source)), Cell(Dict{String,Any}(input)),
                   Cell(form_collapsed), Cell(result_collapsed), Cell(nothing))
 
+# ── The duplicate ────────────────────────────────────────────────────────────
+
+# The forms of an evaluator are what a person typed, and the folds are how they
+# read them, so the duplicate of an evaluator is a copy of its forms. It
+# evaluates in the namespace of its window, as every evaluator there does.
+has_document_duplicate(::EvaluatorDocument) = true
+
+# A result is what an evaluation answered, and it can be live: a list that
+# computes, or a widget that holds a function. The duplicate of a form shares
+# its result, and an evaluation in the duplicate puts a new result there.
+copy_document(policy::DuplicatePolicy, form::EvaluatorForm) =
+    copy_document_fields(policy, form; result = form.result)
+
 """
     get_evaluation_kind_label(name::AbstractString) -> "eval" | "resource" | "tool"
 

@@ -118,11 +118,20 @@ Work in the worktree `../projectured-julia-duplicate-tools`, on the branch
     `make_pane_duplicate_tab_operation`: the duplicate is the next tab,
     "Explorer (2)", with the focus. `test_filesystem_layering()` and
     `test_workspace_duplicate()` pass, 25 tests.
-- [ ] **Step 3. The evaluator declares a duplicate, and a form shares its
+- [x] **Step 3. The evaluator declares a duplicate, and a form shares its
   result.** `Evaluator.jl`. A test in `test/projectured/editor/`: after real
   evaluations the duplicate owns its forms, its code and its folds; it shares a
   live result; its bottom hole is its own; it evaluates alone in the shared
   namespace. Run `test_assistant_duplicate()` and `test_evaluator_toplevel()`.
+  - Done. `test_evaluator_duplicate()` also checks a tool call in a
+    conversation (the fork owns the form and shares the result), and duplicates
+    an evaluator tab through `make_pane_duplicate_tab_operation`: "Evaluator
+    (2)", with the focus. It passes 31 tests, `test_assistant_duplicate()` 29
+    and `test_evaluator_toplevel()` 213.
+  - `test_conversation_layering()` fails one test, on this branch and on `main`
+    at `8939434d` with the same message: "ConversationModule.jl imports
+    make_insertion_document from DomainModule and extends it nowhere". This plan
+    does not change `ConversationModule.jl`.
 - [ ] **Step 4. The guides.** `filesystem.md`, `conversation.md` and `julia.md`
   say that the kind has a duplicate and what it shares.
 - [ ] **Step 5. The narrow tests and the layering guards,** then move this plan
