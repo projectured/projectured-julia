@@ -12,7 +12,7 @@
 """
     record_application_video(paths, timeline, filename; width=1280, height=720,
                              fps=30, assistant=:none, model="", context=0,
-                             root=pwd(), initial_hold=0.5, final_hold=1.0,
+                             llm=nothing, root=pwd(), initial_hold=0.5, final_hold=1.0,
                              supersample=2, scale=1, video_time=false, pointer=true,
                              partial_render=false, debug_dirty=false, debug_dirty_hold=0,
                              status_bar=true, measure=FontFileMeasure()) -> String
@@ -52,6 +52,10 @@ that in red on the frames, and `debug_dirty_hold` keeps each outline that many
 seconds (see `VideoBackend`). `status_bar = false` leaves out the status bar
 of the window (see [`make_application_window`](@ref)).
 
+`llm` is the model of the assistant when it is given, as
+[`make_application_assistant`](@ref) takes it: a scripted model, or an
+`OllamaLlm` with the seed and the temperature of a take.
+
 The frames land in a temporary directory the backend owns and are encoded with
 the same `ffmpeg` call [`record_video`](@ref) uses
 (`ProjecturedVideo._encode_frames_to_video!`), then discarded.
@@ -61,7 +65,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   width::Integer = 1280, height::Integer = 720,
                                   fps::Integer = 30, assistant::Symbol = :none,
                                   model::AbstractString = "", context::Integer = 0,
-                                  root::AbstractString = pwd(),
+                                  llm = nothing, root::AbstractString = pwd(),
                                   initial_hold::Real = 0.5, final_hold::Real = 1.0,
                                   supersample::Integer = 2, scale::Real = 1,
                                   video_time::Bool = false, pointer::Bool = true,
@@ -70,7 +74,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   measure = FontFileMeasure())
     lowercase(splitext(filename)[2]) == ".mp4" ||
         error("record_application_video: only .mp4 output is supported (got \"$filename\")")
-    chat = make_application_assistant(assistant; model = model, context = context)
+    chat = make_application_assistant(assistant; model = model, context = context, llm = llm)
     document, projection = make_application_window(collect(String, paths);
                                                     root = root, assistant = chat,
                                                     status_bar = status_bar,

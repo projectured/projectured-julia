@@ -497,7 +497,8 @@ The number of the frames follows the wall clock, so one second of the session is
 
 ### Step 6: S2, the assistant arranges the window
 
-- [ ] Check that `Ctrl+Z` takes back a change of the panes that the assistant made. Record the result in §5.
+- [x] Check that `Ctrl+Z` takes back a change of the panes that the assistant made. Record the result in §5.
+  **Yes (2026-09-26).** `tool/video/check_assistant_undo.jl` records a take in which a scripted model (`ScriptedLlm`, through the new `llm` keyword of `record_application_video` and `make_application_assistant`) makes the tool call of S2: `open_pane!` with a card that holds a table. The tab "People" opens beside the assistant with the table, and one `Ctrl+Z` removes it and selects the assistant again. A second `Ctrl+Z` takes nothing back: the newest step is then the submission of the prompt. Two traps of the check, recorded so the next one does not fall in them: a take with no warm-up fires its entries in a burst after the slow start, so a frame read at a guessed time can show the window before a change; and `search_documents` from the root also finds the tabs that the undo buffer holds for a redo, so the check counts the tabs inside the pane tree.
 - [ ] Rehearse (Step 5), record, and give the video to the owner.
 
 ### Step 7: S0, the M/M/1/K study with the real model (in omnet-julia)

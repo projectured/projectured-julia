@@ -48,15 +48,18 @@ function get_application_greeting_text(backend::Symbol)
 end
 
 """
-    make_application_assistant(backend::Symbol; model = "") -> Assistant or nothing
+    make_application_assistant(backend::Symbol; model = "", context = 0, llm = nothing) -> Assistant or nothing
 
 The assistant pane of the application. `backend` is one of
 [`APPLICATION_ASSISTANTS`](@ref); `:none` answers `nothing`, and the window then
 has no assistant pane. An empty `model` means the default model of the backend,
-and a `context` of `0` means its default token window.
+and a `context` of `0` means its default token window. A given `llm` is the model
+that the assistant asks, in place of the one it builds from `backend`, `model` and
+`context`: a scripted model that stands in for the real one, or an `OllamaLlm`
+with a `seed` and a `temperature`.
 """
 function make_application_assistant(backend::Symbol; model::AbstractString = "",
-                                    context::Integer = 0)
+                                    context::Integer = 0, llm = nothing)
     backend in APPLICATION_ASSISTANTS ||
         error("make_application_assistant: the backend must be one of ",
               join(APPLICATION_ASSISTANTS, ", "), ", not ", repr(backend))
@@ -65,7 +68,7 @@ function make_application_assistant(backend::Symbol; model::AbstractString = "",
         ConversationTurn(:assistant, [ConversationPart(get_application_greeting_text(backend))])])
     Assistant(; conversation = greeting, backend = backend, model = String(model),
                 context = context, system = APPLICATION_SYSTEM,
-                api_key = get(ENV, "ANTHROPIC_API_KEY", ""))
+                api_key = get(ENV, "ANTHROPIC_API_KEY", ""), llm = llm)
 end
 
 """
