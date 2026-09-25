@@ -3,7 +3,7 @@
 > **Status:** in progress, in the worktree `projectured-julia-text-baseline` on
 > the branch `text-baseline`, from `c634a718`. Written 2026-09-25. The owner
 > decided the five questions of §5 on 2026-09-25, and asked on the same day to
-> start the work in a worktree.
+> start the work in a worktree. Steps 0 to 3 are done; Step 3b is next.
 
 Text in the editor is laid out by the top of each run, measured with a height
 that is the em size, and drawn by backends that kern and hint as they like. This
@@ -456,19 +456,33 @@ below takes its recommendation.
 Do the work in a git worktree. Commit each step. Before a kernel file changes,
 check [SEALING.md](../../SEALING.md) for it.
 
-- [ ] **Step 0. The baseline and the probes.** On the base commit, the counts of
+**The order is 0, 1, 2, 3, 5, 4, 6 to 11.** Step 5 comes before Step 4. Each
+projection holds its measure in one typed field, so the line model can not read a
+`TextMeasure` while the other readers of that field still pass a function.
+
+- [x] **Step 0. The baseline and the probes.** On the base commit, the counts of
   `test_substrate()`, `test_markdown()`, `test_chart()`,
   `test_sequencechart()`, `test_math()`, the shell and PDF tests, and the
   presentation tests of omnet-julia and inet-julia. Two probes kept as tools of
   the plan: the walk of `/var/tmp/text-height/cut_texts.jl` (ink against the
   viewports), and an ink probe that draws a line through SDL offscreen and
   reads where the ink of each run begins, ends and sits (its baseline row).
-- [ ] **Step 1. The metrics of a font** (§3.1). The parser reads the `hhea` line
+  *Done.* The counts are in `/var/tmp/text-baseline-base/test-counts.tsv`, the
+  failures of the base in `failures.txt`, the catalog counts in
+  `catalog-per-example.tsv`, and the cut texts in `cut_texts.log`. The base has
+  known failures: substrate 3 fail and 2 error (`SplitPaneDragTest`), formula 12
+  fail (`FormulaToSyntaxTest`), assistant_mvp 4 fail, `conversation_widget` 1060
+  fail, `assistant` 2 fail, `markdown_rendered` 8 fail.
+- [x] **Step 1. The metrics of a font** (§3.1). The parser reads the `hhea` line
   gap, the OS/2 typo and win metrics, `fsSelection`, and the `kern` table
   (question 1). A test compares ascent, descent and line gap with SDL_ttf for
   every bundled font at the size where a pixel is a font unit, and the kerning
   of a set of pairs with FreeType's.
-- [ ] **Step 2. The box of a string and the measure contract** (§3.2, §3.8).
+  *Done* in `c8f65f3a` (the test with SDL_ttf in `dd396eb0`). `get_kerning` and
+  `get_vertical_metrics` are in `TrueType.jl`. SDL_ttf agrees with the parser in
+  519 assertions. The generated binding lacks `TTF_GetFontKerningSizeGlyphs32`,
+  so the test calls it with `ccall`.
+- [x] **Step 2. The box of a string and the measure contract** (§3.2, §3.8).
   `TextMeasure`, `FontMetrics`, `StringBox`, `measure_string`,
   `get_font_metrics`, `compute_caret_offsets`, `FontFileMeasure`,
   `FixedMeasure`. A test compares the width of a set of strings (the strings of
@@ -478,13 +492,33 @@ check [SEALING.md](../../SEALING.md) for it.
   is the advance of its glyph plus the kerning with the next glyph of the same
   run, the last offset is the width, and the offset where each glyph starts
   matches the column where the ink probe of Step 0 finds that glyph drawn.
-- [ ] **Step 3. The backends draw where the layout says** (§3.6). The
+  *Done* in `c8f65f3a`, in `source/style/TextMeasure.jl`, with
+  `compute_text_extent`, the rounded box that every backend draws. The
+  comparison with the width that SDL draws moved to Step 3b: it found that SDL
+  does not draw at the pen positions of the layout.
+- [x] **Step 3. The backends draw where the layout says** (§3.6). The
   `GraphicsText` docstring; SDL: hinting, kerning, and the placement of the
   baseline in device pixels; PDF: the baseline and the `TJ` kerning; the web
   client: the baseline and the kerning (question 4). Tests: the ink probe finds
   the baseline row of a line of Ubuntu, Ubuntu Mono, a DejaVu marker and an
   emoji at one row, at ratio 1 and 2; the PDF test finds one baseline for every
   run.
+  *Done* in `dd396eb0` for the baseline. SDL renders with
+  `TTF_HINTING_LIGHT_SUBPIXEL` and kerning on, and places the baseline of each
+  texture at `y + ascent`. The web client draws each character at its pen
+  position. It is not run in a test, because the machine has no `node`.
+- [ ] **Step 3b. SDL draws each glyph at the pen position of the layout.** A
+  probe measured where SDL_ttf puts the pen: the width of a prefix and of the
+  prefix with a bar after it. With the same font, the same hinting and the same
+  kerning, SDL_ttf moves away from the layout by up to 1.38 device pixels
+  (Ubuntu 20, 24 characters) and 1.78 (DejaVu, "Type yj"). The advances of
+  SDL_ttf are those of the hinted glyphs, and the layout uses the advances of
+  the font file. Ubuntu Mono is exact. Thus SDL renders one glyph at a time, as the web
+  client does: each glyph texture is rendered once in white, cached by the
+  renderer, the font file, the device size and the code point, colored with a
+  color and an alpha modulation, and drawn at `x + offsets[i]` with its baseline
+  on the baseline of the text. A test finds the left edge of the ink of a bar
+  after each prefix within one device pixel of the offset of the layout.
 - [ ] **Step 4. The line model** (§3.3 to §3.5, §3.7) in `TextToGraphics`: the
   baseline, the line metrics, the line spacing, the blank line, the inline
   image, the caret, the selection, the click, and the line index of a segment.
