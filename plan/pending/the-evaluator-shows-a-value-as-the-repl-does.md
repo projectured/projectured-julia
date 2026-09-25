@@ -131,16 +131,13 @@ it, and a commit. Work in a worktree of its own, from `main`.
       the pattern `Evaluator.jl` and `ConversationEditor.jl` already use; `target`
       stays `editor` either way, so `test_assistant_editor_reference()` (which
       guards a past bug in exactly that forwarding) still passes.
-      **Found, not fixed:** a third call site answers a person and was not named
-      in D3 or in this step: `ComposerEvaluateOperation` in
+      **A third call site that answers a person:** `ComposerEvaluateOperation` in
       `source/conversation/ConversationEditor.jl:383` (documented at
-      `documentation/package/conversation/conversation.md:66`) — the plain
+      `documentation/package/conversation/conversation.md:66`), the plain
       conversation composer's own ALT+ENTER evaluation, distinct from the
-      AI assistant's chat composer. It still calls `execute_julia_code(set,
-      editor, src)` with the default `describe_value`, so a long value there
-      keeps the model's trimmed form and note. Left unchanged because it is
-      outside what this step names; the owner should decide whether D1 covers
-      it too.
+      assistant's chat composer. The implementing agent found it and left it; D1
+      covers it, because a person reads that result, so it passes
+      `describe_value_for_person` too (2026-09-26).
       Test: the combined run (`test_evaluator_toplevel()` +
       `test_assistant_mvp()` + `test_execute_julia_code()` +
       `test_assistant_editor_reference()`, `ProjecturedTest`) gives 373 pass,

@@ -380,7 +380,7 @@ function evaluate_operation(editor, op::ComposerEvaluateOperation)
     isempty(strip(src)) && return nothing
     set = editor.tools
     output = try
-        execute_julia_code(set, editor, src)
+        execute_julia_code(set, editor, src; describe_value = describe_value_for_person)
     catch e
         sprint(showerror, e, catch_backtrace())
     end
