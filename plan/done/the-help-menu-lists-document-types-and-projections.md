@@ -1,9 +1,9 @@
 # The Help menu lists the document types and the projections
 
-> **Status (2026-09-25): in progress** on the branch `help-menu`, worktree
-> `projectured-julia-help-menu`. A press on a menu name does
+> **Status (2026-09-25): done** on the branch `help-menu`, worktree
+> `projectured-julia-help-menu`, and on the branch `help-menu` of omnet-julia. A press on a menu name does
 > not open the menu yet. That fault has its own plan,
-> [a-press-on-a-menu-name-opens-its-menu.md](a-press-on-a-menu-name-opens-its-menu.md),
+> [a-press-on-a-menu-name-opens-its-menu.md](../pending/a-press-on-a-menu-name-opens-its-menu.md),
 > which is deferred. Until it is done, a press on "Help" opens nothing, and the
 > tests call the actions of the items.
 
@@ -53,7 +53,7 @@ version is a plain list. A later plan can group, filter or search it.
   [WindowChrome.jl](../../source/shell/WindowChrome.jl) focuses the tab that
   holds a `type`, or opens `make(editor)` in a new tab.
 - **The name "catalog" is taken.** `test_catalog()` and
-  [catalog-all-documents.md](catalog-all-documents.md) use it for the test
+  [catalog-all-documents.md](../pending/catalog-all-documents.md) use it for the test
   catalog of example documents.
 - **The toolbar tests fail on `main`.** Commit 94d4fc6d added the "Frame plot"
   button, and `test_window_shell()` (5 assertions) and `test_application()`
@@ -154,7 +154,7 @@ version is a plain list. A later plan can group, filter or search it.
   with the menus of `extra` before Help, and each Help item opens its tab once.
   A test in `ApplicationTest.jl`: the action of "Documents" opens a tab that
   draws the name `JsonString`. The same test with a real press on "Help" waits
-  for [a-press-on-a-menu-name-opens-its-menu.md](a-press-on-a-menu-name-opens-its-menu.md).
+  for [a-press-on-a-menu-name-opens-its-menu.md](../pending/a-press-on-a-menu-name-opens-its-menu.md).
 
   Done. The application test looks for the heading and for `AboutPage`, the
   first entry, and not for `JsonString`: the tab shows the start of the list
@@ -197,13 +197,33 @@ version is a plain list. A later plan can group, filter or search it.
   application packages (log, statistics, undo, shell), so it has no row for
   this one either. `shell.md` has a section on the menu bar, and `domain.md`
   describes `compute_concrete_subtypes`.
-- [ ] 10. **Verification** against a baseline of `main`, and the move of this
+- [x] 10. **Verification** against a baseline of `main`, and the move of this
   plan to `plan/done/`.
+
+  The branch is rebased on `main` at 88b2fac9. The naming guard passes. One
+  process ran the narrow tests of every change:
+
+  | Test | Pass | Fail |
+  | --- | --- | --- |
+  | `test_help()` | 41 | 0 |
+  | `test_window_shell()` | 98 | 5 |
+  | `test_window_wrap()` | 22 | 0 |
+  | `test_widget_menu()` | 37 | 0 |
+  | `test_anchor_point()` | 17 | 0 |
+  | `test_document_insertion()` | 123 | 0 |
+  | `test_package_graph()` | 668 | 0 |
+  | `test_export_collision_checker()` | 5 | 0 |
+  | `test_export_collisions()` | 1 | 0 |
+  | `test_application()` | 318 | 1 |
+
+  The 6 failures are the toolbar lists that do not name "Frame plot". `main`
+  has the same 5 failures in `test_window_shell()` and the same 1 in
+  `test_application()`.
 
 ## Out of scope
 
 - The press on a menu name: see
-  [a-press-on-a-menu-name-opens-its-menu.md](a-press-on-a-menu-name-opens-its-menu.md).
+  [a-press-on-a-menu-name-opens-its-menu.md](../pending/a-press-on-a-menu-name-opens-its-menu.md).
 - A press on an entry that opens a new tab with that type.
 - Groups of projections (primitive, higher-order, by slice), a filter, and a
   search.

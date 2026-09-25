@@ -60,7 +60,7 @@ nothing. The dropdown never opens, and no message says why.
 A real press on "File" in the window of `make_application_window` opens a popup
 window that draws "New tab", and a press on "New tab" opens a tab. The same for
 "Help" once
-[the-help-menu-lists-document-types-and-projections.md](the-help-menu-lists-document-types-and-projections.md)
+[the-help-menu-lists-document-types-and-projections.md](../done/the-help-menu-lists-document-types-and-projections.md)
 is done.
 
 ## Related faults, not in this plan
