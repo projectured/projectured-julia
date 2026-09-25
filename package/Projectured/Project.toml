@@ -26,6 +26,7 @@ ProjecturedGestureHelp = "d8e6961d-7c29-43d8-bf9a-3394cc5f023b"
 ProjecturedGestureLog = "4fa8205f-3512-4016-add3-a8e2144efbf1"
 ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
 ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
+ProjecturedHelp = "054ae1ca-906b-4e99-b707-58959c3973f3"
 ProjecturedInspector = "5159cf42-a4ae-453b-9ac3-8695502aad43"
 ProjecturedJson = "975d7430-285c-49f1-8705-4e3c002513ca"
 ProjecturedJulia = "8625b742-6071-4be0-bd92-d89876019251"
@@ -82,6 +83,7 @@ ProjecturedGestureHelp = {path = "../ProjecturedGestureHelp"}
 ProjecturedGestureLog = {path = "../ProjecturedGestureLog"}
 ProjecturedGraph = {path = "../ProjecturedGraph"}
 ProjecturedGraphics = {path = "../ProjecturedGraphics"}
+ProjecturedHelp = {path = "../ProjecturedHelp"}
 ProjecturedInspector = {path = "../ProjecturedInspector"}
 ProjecturedJson = {path = "../ProjecturedJson"}
 ProjecturedJulia = {path = "../ProjecturedJulia"}

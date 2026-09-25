@@ -34,13 +34,14 @@ using ProjecturedFsmTest
 using ProjecturedProcessTest
 using ProjecturedConversationTest
 using ProjecturedUndoTest
+using ProjecturedHelpTest
 # The builder's own suite is umbrella-only: it needs no domain and no editor,
 # but it is a repository-wide tool and this is where a repository-wide test runs.
 using ProjecturedBuilder
 
 # Re-export every lower tier's test functions, so `using ProjecturedTest` alone
 # gives a REPL `test_json()` and `test_substrate()` as well as `test_all()`.
-for _src in (ProjecturedBookTest, ProjecturedChartTest, ProjecturedConversationTest, ProjecturedDatabaseTest, ProjecturedDbCatalogTest, ProjecturedFileSystemTest, ProjecturedFormulaTest, ProjecturedFsmTest, ProjecturedGraphTest, ProjecturedJsonTest, ProjecturedJuliaTest, ProjecturedKernelTest, ProjecturedMarkdownTest, ProjecturedMathTest, ProjecturedProcessTest, ProjecturedRstTest, ProjecturedSequenceChartTest, ProjecturedShellTest, ProjecturedSqlTest, ProjecturedSubstrateTest, ProjecturedUndoTest, ProjecturedXmlTest, ProjecturedYamlTest)
+for _src in (ProjecturedBookTest, ProjecturedChartTest, ProjecturedConversationTest, ProjecturedDatabaseTest, ProjecturedDbCatalogTest, ProjecturedFileSystemTest, ProjecturedFormulaTest, ProjecturedFsmTest, ProjecturedGraphTest, ProjecturedHelpTest, ProjecturedJsonTest, ProjecturedJuliaTest, ProjecturedKernelTest, ProjecturedMarkdownTest, ProjecturedMathTest, ProjecturedProcessTest, ProjecturedRstTest, ProjecturedSequenceChartTest, ProjecturedShellTest, ProjecturedSqlTest, ProjecturedSubstrateTest, ProjecturedUndoTest, ProjecturedXmlTest, ProjecturedYamlTest)
     for _n in names(_src)
         _n === nameof(_src) && continue
         isdefined(_src, _n) || continue
@@ -402,6 +403,7 @@ function test_all()
     test_process()
     test_conversation()
     test_undo()
+    test_help()
     test_anthropic()
     test_ollama()
     # Every concrete-domain example through the printer.

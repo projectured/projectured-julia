@@ -49,6 +49,8 @@ ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
 ProjecturedGraphExample = "0de1adc3-7512-4c4a-bda3-e5e1bc893aff"
 ProjecturedGraphTest = "13deb21d-971d-427d-98f1-3c3c5c103438"
 ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
+ProjecturedHelp = "054ae1ca-906b-4e99-b707-58959c3973f3"
+ProjecturedHelpTest = "a0654011-4b42-4379-81eb-d14a16a55773"
 ProjecturedInspector = "5159cf42-a4ae-453b-9ac3-8695502aad43"
 ProjecturedJson = "975d7430-285c-49f1-8705-4e3c002513ca"
 ProjecturedJsonExample = "6cb86c1c-56e1-4bb3-a3ba-612b1e625b3f"
@@ -178,6 +180,8 @@ ProjecturedGraph = {path = "../../package/ProjecturedGraph"}
 ProjecturedGraphExample = {path = "../../package/ProjecturedGraphExample"}
 ProjecturedGraphTest = {path = "../../package/ProjecturedGraphTest"}
 ProjecturedGraphics = {path = "../../package/ProjecturedGraphics"}
+ProjecturedHelp = {path = "../../package/ProjecturedHelp"}
+ProjecturedHelpTest = {path = "../../package/ProjecturedHelpTest"}
 ProjecturedInspector = {path = "../../package/ProjecturedInspector"}
 ProjecturedJson = {path = "../../package/ProjecturedJson"}
 ProjecturedJsonExample = {path = "../../package/ProjecturedJsonExample"}

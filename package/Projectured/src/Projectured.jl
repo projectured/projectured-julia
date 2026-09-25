@@ -80,6 +80,7 @@ import ProjecturedProcess
 import ProjecturedConversation
 import ProjecturedAssistant
 import ProjecturedUndo
+import ProjecturedHelp
 
 include("../../../source/projectured/Projectured.jl")
 

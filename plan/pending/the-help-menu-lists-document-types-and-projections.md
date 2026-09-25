@@ -117,21 +117,37 @@ version is a plain list. A later plan can group, filter or search it.
 - [x] 2. **`compute_concrete_subtypes(root)`** in `DomainModule`, with a test,
   and `get_insertion_candidates` calls it. The narrowest test of `Domain.jl`
   and the naming guard pass.
-- [ ] 3. **The package `ProjecturedHelp`** and `ProjecturedHelpTest` with
+- [x] 3. **The package `ProjecturedHelp`** and `ProjecturedHelpTest` with
   `test_help()` and `test_help_layering()`. Add the package to the re-export
   loop of `Projectured` and to `environment/all/Project.toml`. Run the naming
   guard first, then `test_package_graph()`.
-- [ ] 4. **The description of a type**, with tests: a type with a docstring, a
+- [x] 4. **The description of a type**, with tests: a type with a docstring, a
   type with none, a docstring that starts with a signature block, and a
   docstring that has only a signature.
-- [ ] 5. **`DocumentTypeList`, `ProjectionList` and `HelpListToSyntax`**, with
+- [x] 5. **`DocumentTypeList`, `ProjectionList` and `HelpListToSyntax`**, with
   the two rows of `register_natural_syntax!`, `get_document_title` and
   `get_insertion_aliases`. The tests read the drawn text: the order is
   alphabetical, every insertion candidate is there, and the description of
   `MessageLog` and of `ChainingProjection` is the first paragraph of its
   docstring. Measure the first print of `ProjectionList`, because it reads
   about 600 docstrings.
-- [ ] 6. **`AboutPage` and `AboutPageToSyntax`**, with a test of the drawn text.
+- [x] 6. **`AboutPage` and `AboutPageToSyntax`**, with a test of the drawn text.
+
+  Steps 3 to 6 are one commit: `HelpModule.jl` includes every fragment, so the
+  package does not compile with a part of them. `test_help()`: 41 pass.
+  `test_package_graph()`: 668 pass. The package needs `ReferenceModule`,
+  because `@document` expands to code that names `Reference`, and it does not
+  need `ProjecturedCollection`, because the printers build plain vectors.
+
+  The measurement, with the packages of the application loaded: 170 document
+  types and 445 projections. The first `get_insertion_candidates(Document)` of a
+  session takes 3 to 5 s, and an empty tab pays the same cost. After it, the
+  first `compute_help_entries` of the document types took 10.4 s, and all but
+  0.2 s of it was compilation: a closure that held the type compiled once for
+  each of the 170 types. `_get_typed_names` does not specialize on the type
+  now, and the entries are sorted through `sortperm` of plain strings. The
+  first computation now takes 0.22 s, the next 0.01 s, and the projection list
+  0.06 s.
 - [ ] 7. **`make_window_help_menu(; about)`**, the last menu of
   `make_window_menu_bar`. `ProjecturedShell` depends on `ProjecturedHelp`.
   Tests in `WindowShellTest.jl`: the bar has File, View and Help in that order,
