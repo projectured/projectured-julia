@@ -14,6 +14,18 @@ using Test
 using ProjecturedKernel.ClockModule
 using ProjecturedKernel.CellModule: Cell, Computation, @computation, is_cell_up_to_date
 
+# Waits until `condition()` holds, for at most five seconds.
+function _wait_for_clock_condition(condition)
+    deadline = time() + 5.0
+    while !condition() && time() < deadline
+        sleep(0.01)
+    end
+    condition()
+end
+
+# Starts a heartbeat on a clock that nothing else holds, and returns its task.
+_start_and_drop_clock() = start_wall_clock!(Clock()).heartbeat
+
 function test_clock()
 @testset "Clock" begin
 
@@ -83,30 +95,51 @@ function test_clock()
         @test repr(clock) == "Clock(time = text)"   # the display does not narrow
     end
 
-    @testset "the wall clock is one clock, and its heartbeat moves it" begin
-        wall = get_wall_clock()
-        @test get_wall_clock() === wall
-        before = get_clock_time(wall)
-        deadline = time() + 5.0
-        while get_clock_time(wall) == before && time() < deadline
-            sleep(0.01)
-        end
-        @test get_clock_time(wall) > before
+    @testset "start_wall_clock! moves a clock, and stop_wall_clock! ends it" begin
+        clock = Clock()
+        @test clock.heartbeat === nothing
+        @test start_wall_clock!(clock) === clock
+        task = clock.heartbeat
+        @test task isa Task
+        start_wall_clock!(clock)                    # a running heartbeat stays
+        @test clock.heartbeat === task
+        @test _wait_for_clock_condition(() -> get_clock_time(clock) > 0.0)
+        @test stop_wall_clock!(clock) === nothing
+        @test clock.heartbeat === nothing
+        @test _wait_for_clock_condition(() -> istaskdone(task))
+        stopped = get_clock_time(clock)
+        sleep(0.05)
+        @test get_clock_time(clock) == stopped      # no more writes
+        stop_wall_clock!(clock)                     # a second stop does nothing
+        @test clock.heartbeat === nothing
     end
 
-    @testset "the heartbeat starts again after its task ends" begin
-        get_wall_clock()
-        old = ClockModule._HEARTBEAT_TASK[]
-        schedule(old, InterruptException(); error = true)
-        deadline = time() + 5.0
-        while !istaskdone(old) && time() < deadline
-            sleep(0.01)
-        end
-        @test istaskdone(old)
-        get_wall_clock()
-        new = ClockModule._HEARTBEAT_TASK[]
-        @test new !== old
-        @test !istaskdone(new)
+    @testset "a stopped clock starts again" begin
+        clock = start_wall_clock!(Clock())
+        first = clock.heartbeat
+        stop_wall_clock!(clock)
+        @test _wait_for_clock_condition(() -> istaskdone(first))
+        start_wall_clock!(clock)
+        @test clock.heartbeat !== first
+        @test !istaskdone(clock.heartbeat)
+        stop_wall_clock!(clock)
+    end
+
+    @testset "a heartbeat ends when its unstopped clock is freed" begin
+        task = _start_and_drop_clock()
+        @test _wait_for_clock_condition(() -> (GC.gc(); istaskdone(task)))
+    end
+
+    @testset "the heartbeat runs on the thread of the task that starts it" begin
+        threads = fetch(Threads.@spawn begin
+            clock = start_wall_clock!(Clock())
+            result = (Threads.threadid(), Threads.threadid(clock.heartbeat),
+                      current_task().sticky)
+            stop_wall_clock!(clock)
+            result
+        end)
+        @test threads[1] == threads[2]
+        @test threads[3]                            # the starter stays on its thread
     end
 
 end

@@ -1590,14 +1590,10 @@ it.
                                             WidgetSwitch(; checked = true)]; gap = 8);
                title = "Setting")
 
-When `duration` is greater than zero the knob *slides* between the off and on
-positions over `duration` milliseconds on each toggle; `duration = 0` (the
-default) snaps instantly. The slide is armed by the switch's reader (see
-`WidgetSwitchToGraphicsCanvas`): a toggle becomes a `CompoundOperation` that
-records `anim_from` (the knob fraction at the moment of the toggle) and
-`anim_t0` (the editor time when it started), then flips `checked`.
-`anim_from`/`anim_t0` are presentation state, not part of the logical on/off
-value.
+The knob snaps to its new position. `duration`, `anim_from` and `anim_t0` hold
+the state of a slide of the knob, but `WidgetSwitchToGraphicsCanvas` draws no
+slide: a slide needs a start time on the editor's clock, and the reader of the
+switch has no context that reaches that clock.
 
 See also `WidgetCheckbox` and `WidgetToggleGroup`.
 """
@@ -1610,9 +1606,9 @@ See also `WidgetCheckbox` and `WidgetToggleGroup`.
     border::Inset
     padding::Inset
     style::Any
-    duration::Int        # slide length in ms; 0 disables the animation
-    anim_from::Float64   # knob fraction [0,1] when the current slide began
-    anim_t0::Float64     # editor time (s) when the current slide began; NaN = idle
+    duration::Int        # slide length in ms; the projection draws no slide
+    anim_from::Float64   # knob fraction [0,1] when a slide began
+    anim_t0::Float64     # editor time (s) when a slide began; NaN = idle
     gestures::Any        # per-instance gesture bindings (see get_instance_gesture_bindings)
     tooltip::Any
 end

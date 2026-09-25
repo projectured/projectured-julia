@@ -19,9 +19,9 @@ Downward-flowing per-invocation context for `print_document`.
 - `properties` — open-ended `Dict{Symbol, Any}` for per-projection data
   (theme, focus, debug flags, …).
 - `clock` — the animation clock a printer subscribes to for animated
-  output. Defaults to the shared wall clock; a live editor loop mints its
-  root context with its own private `Clock` so per-editor invalidation falls
-  out for free.
+  output. The default is a new `Clock` that no code writes, so an animation
+  printed with it stays at time 0. A live editor loop gives its root context its
+  own `Clock`, which it writes once per frame.
 """
 struct PrinterContext
     reference::Reference
@@ -37,14 +37,14 @@ PrinterContext(reference::Reference,
                available_height::Union{Nothing, Cell},
                properties::Dict{Symbol, Any}) =
     PrinterContext(reference, available_width, available_height, properties,
-                   get_wall_clock())
+                   Clock())
 
 PrinterContext() =
     PrinterContext(EmptyReference(), nothing, nothing, Dict{Symbol,Any}(),
-                   get_wall_clock())
+                   Clock())
 
 PrinterContext(ref::Reference) =
-    PrinterContext(ref, nothing, nothing, Dict{Symbol,Any}(), get_wall_clock())
+    PrinterContext(ref, nothing, nothing, Dict{Symbol,Any}(), Clock())
 
 """
     make_child_context(ctx, steps...) -> PrinterContext

@@ -467,10 +467,8 @@ make_widget_collapsible_card_document_example() =
 # WidgetSwitch — on and off, stacked by a VerticalLayout.
 make_widget_switch_document_example() =
     VerticalLayout(Any[
-        # `duration` (ms) opts each switch into a knob-slide animation on toggle;
-        # the third snaps instantly (duration defaults to 0).
-        WidgetSwitch(;  checked = true, duration=200),
-        WidgetSwitch(; checked = false, duration=200),
+        WidgetSwitch(; checked = true),
+        WidgetSwitch(; checked = false),
         WidgetSwitch(; checked = false),
     ]; gap=12)
 

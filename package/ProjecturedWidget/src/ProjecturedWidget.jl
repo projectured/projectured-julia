@@ -34,7 +34,6 @@ const StyleModule = ProjecturedStyle.StyleModule
 const StyleModule = ProjecturedStyle.StyleModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const StyleModule = ProjecturedStyle.StyleModule
-const ClockModule = ProjecturedKernel.ClockModule
 const IntentModule = ProjecturedKernel.IntentModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const StyleModule = ProjecturedStyle.StyleModule

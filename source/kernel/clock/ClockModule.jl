@@ -14,11 +14,11 @@ A clock has two reads:
 - `get_clock_time(clock)` records nothing. Use it to take the start time of an
   animation, so the code that takes it does not run again on each write.
 
-`get_wall_clock()` returns one clock that the whole process shares. Its time is
-the number of seconds since the first call of `get_wall_clock()`. A heartbeat
-task that the first call starts writes it every 10 milliseconds, and no other
-code writes it. The time is the same for every editor, so PAR-PER-EDITOR-STATE
-accepts the shared clock as an exception.
+A clock has one writer. An owner with a frame loop writes its clock once per
+frame with `set_clock_time!`. `start_wall_clock!(clock)` starts a heartbeat that
+writes real time into a clock where no frame loop exists, and
+`stop_wall_clock!(clock)` ends it. The heartbeat runs on the thread of the task
+that starts it, so the owner starts it on the task that reads the clock.
 
 The module lives in one fragment, [`Clock.jl`](Clock.jl).
 """
@@ -27,7 +27,8 @@ module ClockModule
 using ..CellModule
 using ..CellStructModule
 
-export Clock, get_reactive_clock_time, get_clock_time, set_clock_time!, get_wall_clock
+export Clock, get_reactive_clock_time, get_clock_time, set_clock_time!,
+       start_wall_clock!, stop_wall_clock!
 
 include("Clock.jl")
 

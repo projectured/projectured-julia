@@ -12,9 +12,10 @@
 #
 # Pass the same `Clock` to both this constructor and the editor that hosts the
 # resulting document, and the animation is tied to that editor's private clock
-# — two editors in one process animate fully independently. The default is
-# `get_wall_clock()` (the ambient wall clock), suitable for one-shot renders
-# and reader-armed contexts.
+# — two editors in one process animate fully independently. The default is a
+# clock with a heartbeat of its own (`start_wall_clock!`), started on the task
+# that builds the document, so the document moves wherever it is shown. The
+# heartbeat ends when the collector frees the document and its clock.
 #
 # The scene is painted in the Solarized palette (https://ethanschoonover.com/solarized/)
 # on a light base3 background: the rotation path is an *unfilled* ring, only the
@@ -34,7 +35,7 @@ function make_rotating_vector_document(; w = 600, h = 600,   # canvas size
                                        n = 260,               # samples per chart window
                                        dt = 0.02,             # angle between adjacent samples
                                        gap = 20,              # gap between circle and charts
-                                       clock::Clock = get_wall_clock())
+                                       clock::Clock = start_wall_clock!(Clock()))
     phase0 = get_clock_time(clock)                  # SAMPLE: no subscription
     angle(t) = omega * (t - phase0)
 

@@ -5802,24 +5802,6 @@ WidgetSwitchToGraphicsCanvas(theme::WidgetTheme;
                                  content_color, track_size, knob_padding, track_color, track_checked_color,
                                  track_disabled_color, knob_color, knob_stroke, focus_ring_stroke)
 
-# Smoothstep easing on a normalised [0,1] progress.
-_switch_ease(u::Real) = (u = clamp(u, 0.0, 1.0); u * u * (3 - 2u))
-
-# The knob fraction (0 = off/left, 1 = on/right) the switch is *currently*
-# displaying at time `now`. Untracked — used by the reader to capture `anim_from`.
-# Mid-slide it returns the in-flight eased fraction (so interrupting a slide
-# resumes from where the knob visually is, with no jump).
-function _switch_fraction(w::WidgetSwitch, now::Float64)
-    target = (w.checked === true) ? 1.0 : 0.0
-    dur = w.duration
-    t0  = w.anim_t0
-    (dur <= 0 || isnan(t0)) && return target
-    t1 = t0 + dur / 1000
-    now >= t1 && return target
-    from = w.anim_from
-    from + (target - from) * _switch_ease((now - t0) / (t1 - t0))
-end
-
 function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwitch, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
@@ -5845,28 +5827,8 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
         knob_stroke = _get_state_stroke(p, w, :knob; state)
         knob = GraphicsCircle(on ? right_x : left_x, content_y + track_height ÷ 2, knob_radius; color = knob_color,
                               border_width=max(1, _sc(knob_stroke.width)), border_color=knob_stroke.color)
-        # The knob's x is a computed cell. It reads `checked` (so it tracks the
-        # logical state and snaps when there is no animation) and, while a slide is
-        # in flight, `get_reactive_clock_time(get_wall_clock())` (so it re-evaluates every
-        # frame). Once the slide is over it only *samples* the time
-        # (`get_clock_time(get_wall_clock())`), drops the time subscription, and holds
-        # the final position — settling with no registry. The wall clock is used
-        # on both sides because the reader (below) sees no `PrinterContext` and
-        # so can't reach the enclosing editor's private clock; a follow-up seam
-        # would let a reader receive a per-editor clock too.
-        clock = get_wall_clock()
-        set_cell_computation!(getfield(knob, :cx), () -> begin
-            target_x = (w.checked === true) ? right_x : left_x
-            dur = w.duration
-            t0  = w.anim_t0
-            (dur <= 0 || isnan(t0)) && return Int32(target_x)
-            t1 = t0 + dur / 1000
-            now = get_clock_time(clock)                # SAMPLE: decide done, no subscription
-            now >= t1 && return Int32(target_x)       # settled → stops animating
-            from_x = left_x + (right_x - left_x) * w.anim_from
-            t = get_reactive_clock_time(clock)         # SUBSCRIBE while sliding
-            Int32(round(from_x + (target_x - from_x) * _switch_ease((t - t0) / (t1 - t0))))
-        end)
+        # The knob snaps to its new position. A slide needs a start time on the
+        # editor's clock, and the reader of the switch has no context that reaches it.
         push!(elements, knob)
         outer_width, outer_height = track_width + inset_width, track_height + inset_height
         _push_focus_ring!(elements, w, outer_width, outer_height, p.focus_ring_stroke, track_height ÷ 2)
@@ -5874,27 +5836,11 @@ function print_document(p::WidgetSwitchToGraphicsCanvas, recursion, w::WidgetSwi
     end))
 end
 
-# A click (or Return/Space on the focused switch) toggles `checked`. When the
-# widget has a non-zero `duration`, the toggle is bundled into a
-# `CompoundOperation` that first arms the slide — recording the knob fraction the
-# switch is currently showing (`anim_from`) and the start time (`anim_t0`),
-# sampled now — and then flips `checked`. The printer's knob-cx cell reads those
-# fields, so the next frames animate. `anim_from`/`anim_t0` are written via
-# ordinary `ReplaceReferencedValueOperation`s on the carried widget; no new operation type
-# is needed because the time and current position are sampled here, in the reader.
-function _switch_toggle(w::WidgetSwitch)
-    new_checked = !(w.checked === true)
-    toggle = ReplaceReferencedValueOperation(w,
-        ConcreteReference(FieldReferenceStep("checked"), EmptyReference()), new_checked)
-    w.duration <= 0 && return toggle
-    now  = get_clock_time(get_wall_clock())
-    from = _switch_fraction(w, now)
-    CompoundOperation(Any[
-        ReplaceReferencedValueOperation(w, ConcreteReference(FieldReferenceStep("anim_from"), EmptyReference()), from),
-        ReplaceReferencedValueOperation(w, ConcreteReference(FieldReferenceStep("anim_t0"),   EmptyReference()), now),
-        toggle,
-    ])
-end
+# A click, or Return or Space on the focused switch, toggles `checked`.
+_switch_toggle(w::WidgetSwitch) =
+    ReplaceReferencedValueOperation(w,
+        ConcreteReference(FieldReferenceStep("checked"), EmptyReference()),
+        !(w.checked === true))
 
 function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
     _outside_widget(iomap, evt) && return nothing
