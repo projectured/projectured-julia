@@ -176,4 +176,4 @@ it, and a commit. Work in a worktree of its own, from `main`.
       pass, 0 fail, 0 error; `test_documentation()` counts these as a single
       aggregate assertion each, so this is the whole repository's report, not
       only the two changed files.
-- [ ] **Step 4: the landing,** when the owner says so.
+- [x] **Step 4: the landing,** when the owner says so. **Done** (2026-09-26): the owner said "Land it"; the branch was rebased onto main at 8441a948, and the code execution and evaluator suites passed again there before the fast-forward.
