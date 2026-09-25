@@ -40,5 +40,40 @@ function test_font_metrics()
         @test font_descent(font_dejavu_sans_italic_20) == font_descent(font)
     end
 
+    @testset "the parser reads every vertical metric of the tables" begin
+        # Ubuntu: hhea 932 / -189 / 28, OS/2 typo 776 / -185 / 56, win 932 / 189,
+        # unitsPerEm 1000, USE_TYPO_METRICS clear.
+        ubuntu = load_truetype_font(font_ubuntu_regular_20.filename)
+        @test (ubuntu.ascent, ubuntu.descent, ubuntu.line_gap) == (932, -189, 28)
+        @test (ubuntu.typo_ascent, ubuntu.typo_descent, ubuntu.typo_line_gap) == (776, -185, 56)
+        @test (ubuntu.win_ascent, ubuntu.win_descent) == (932, 189)
+        @test !ubuntu.use_typo_metrics
+        # FreeType takes the hhea metrics of a font that does not ask for the
+        # typographic ones.
+        @test get_vertical_metrics(ubuntu) == (932, -189, 28)
+        # Lucide sets USE_TYPO_METRICS, and FreeType takes its typographic
+        # metrics: 1000 / 0 / 90, where hhea says 1000 / 0 / 0.
+        lucide = load_truetype_font(font_lucide_icons_20.filename)
+        @test lucide.use_typo_metrics
+        @test get_vertical_metrics(lucide) == (1000, 0, 90)
+    end
+
+    @testset "the parser reads the kerning pairs of the kern table" begin
+        ubuntu = load_truetype_font(font_ubuntu_regular_20.filename)
+        pair(font, left, right) =
+            get_kerning(font, get_glyph_id(font, left), get_glyph_id(font, right))
+        # The pairs as the kern table of Ubuntu holds them, in font units.
+        @test pair(ubuntu, 'A', 'V') == -62
+        @test pair(ubuntu, 'T', 'o') == -55
+        @test pair(ubuntu, 'L', 'T') == -115
+        @test pair(ubuntu, 'W', 'W') == 12
+        @test pair(ubuntu, 'f', 'i') == 0
+        @test length(ubuntu.kern_pairs) == 5264
+        # A monospaced font has no kern table, so no pair moves.
+        mono = load_truetype_font(font_ubuntu_monospace_regular_20.filename)
+        @test isempty(mono.kern_pairs)
+        @test pair(mono, 'A', 'V') == 0
+    end
+
 end
 end

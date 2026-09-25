@@ -10,17 +10,6 @@
 # metrics, and every projection example defaults `measure=measure_truetype_text`.
 # It lives here next to `StyleModule` (which owns `StyleFont` and the font-zoom
 # sizing) rather than inside the PDF backend, which is only one of its consumers.
-#
-# A minimal read-only TrueType parser and the SDL-free text measurer built on it.
-# Reads advance widths straight from a font's own `hmtx` table (pure Julia — no
-# rasterizer, no display server, no SDL), so any projection pipeline can measure
-# text for layout without a live backend.
-#
-# This machinery is format-neutral: the PDF backend uses it for both measurement
-# and glyph embedding, the web backend uses `measure_truetype_text` for its
-# metrics, and every projection example defaults `measure=measure_truetype_text`.
-# It lives here next to `StyleModule` (which owns `StyleFont` and the font-zoom
-# sizing) rather than inside the PDF backend, which is only one of its consumers.
 # ════════════════════════════════════════════════════════════════════════
 # Big-endian byte readers over a font's raw bytes (0-based offsets)
 # ════════════════════════════════════════════════════════════════════════
@@ -43,6 +32,13 @@ mutable struct TrueTypeFont
     advances::Vector{Int}         # hmtx advanceWidth per glyph (font units)
     ascent::Int                   # hhea ascender (font units)
     descent::Int                  # hhea descender (font units, usually negative)
+    line_gap::Int                 # hhea lineGap (font units)
+    typo_ascent::Int              # OS/2 sTypoAscender, 0 without an OS/2 table
+    typo_descent::Int             # OS/2 sTypoDescender (usually negative)
+    typo_line_gap::Int            # OS/2 sTypoLineGap
+    win_ascent::Int               # OS/2 usWinAscent
+    win_descent::Int              # OS/2 usWinDescent (positive)
+    use_typo_metrics::Bool        # OS/2 fsSelection bit 7, USE_TYPO_METRICS
     bbox::NTuple{4,Int}           # head xMin,yMin,xMax,yMax (font units)
     cap_height::Int               # OS/2 sCapHeight if present, else ascent
     x_height::Int                 # OS/2 sxHeight if present, else half the cap height
@@ -54,6 +50,7 @@ mutable struct TrueTypeFont
     glyf_off::Int                 # byte offset of the glyf table, 0 if none (CFF)
     long_loca::Bool               # head indexToLocFormat: 32-bit loca entries
     gid_cache::Dict{UInt32,UInt16}
+    kern_pairs::Dict{UInt32,Int}  # kern table: (left glyph << 16) | right glyph => font units
 end
 
 const _TTF_CACHE = Dict{String,TrueTypeFont}()
@@ -139,9 +136,10 @@ function _parse_ttf(b::Vector{UInt8})
     bbox = (Int(_s16(b, head_off + 36)), Int(_s16(b, head_off + 38)),
             Int(_s16(b, head_off + 40)), Int(_s16(b, head_off + 42)))
     num_glyphs = Int(_u16(b, maxp_off + 4))
-    ascent  = Int(_s16(b, hhea_off + 4))
-    descent = Int(_s16(b, hhea_off + 6))
-    num_hm  = Int(_u16(b, hhea_off + 34))
+    ascent   = Int(_s16(b, hhea_off + 4))
+    descent  = Int(_s16(b, hhea_off + 6))
+    line_gap = Int(_s16(b, hhea_off + 8))
+    num_hm   = Int(_u16(b, hhea_off + 34))
 
     advances = Vector{Int}(undef, num_glyphs)
     last = 0
@@ -157,6 +155,15 @@ function _parse_ttf(b::Vector{UInt8})
     # version 2, so the same length gate covers both. Math needs the x height:
     # the axis a fraction bar sits on is half of it above the baseline.
     x_height = (os2_off != 0 && os2_len >= 96) ? Int(_s16(b, os2_off + 86)) : cap_height ÷ 2
+    # The typographic and the Windows metrics arrived with the first OS/2 table,
+    # at 78 bytes; `fsSelection` is in every version.
+    has_os2 = os2_off != 0 && os2_len >= 78
+    typo_ascent   = has_os2 ? Int(_s16(b, os2_off + 68)) : 0
+    typo_descent  = has_os2 ? Int(_s16(b, os2_off + 70)) : 0
+    typo_line_gap = has_os2 ? Int(_s16(b, os2_off + 72)) : 0
+    win_ascent    = has_os2 ? Int(_u16(b, os2_off + 74)) : 0
+    win_descent   = has_os2 ? Int(_u16(b, os2_off + 76)) : 0
+    use_typo      = has_os2 && (_u16(b, os2_off + 62) & 0x0080) != 0
     italic_angle = (post_off != 0 && post_len >= 8) ? _s32(b, post_off + 4) / 65536 : 0.0
     is_fixed = (post_off != 0 && post_len >= 16) ? _u32(b, post_off + 12) != 0 : false
 
@@ -164,10 +171,12 @@ function _parse_ttf(b::Vector{UInt8})
     glyf_off, _ = _find_table(b, "glyf")
     long_loca = _u16(b, head_off + 50) == 1
 
-    font = TrueTypeFont(b, units, num_glyphs, advances, ascent, descent, bbox,
+    font = TrueTypeFont(b, units, num_glyphs, advances, ascent, descent, line_gap,
+                        typo_ascent, typo_descent, typo_line_gap, win_ascent, win_descent,
+                        use_typo, bbox,
                         cap_height, x_height, italic_angle, is_fixed, cmap_sub, cmap_kind,
                         loca_off, glyf_off, long_loca,
-                        Dict{UInt32,UInt16}())
+                        Dict{UInt32,UInt16}(), _parse_kern(b))
 
     # DejaVu — the family math is set in — still ships an OS/2 **version 1**
     # table, which carries neither field, and the fallbacks above are poor: a
@@ -200,6 +209,68 @@ function _glyph_bounds(f::TrueTypeFont, ch::AbstractChar)
     stop  = f.long_loca ? Int(_u32(b, f.loca_off + 4gid + 4)) : 2 * Int(_u16(b, f.loca_off + 2gid + 2))
     stop <= start && return (0, 0)   # an empty glyph, e.g. a space
     (Int(_s16(b, f.glyf_off + start + 4)), Int(_s16(b, f.glyf_off + start + 8)))
+end
+
+# The pairs of the `kern` table, keyed by `(left glyph << 16) | right glyph`, in
+# font units. It reads the Microsoft table (version 0) and its format-0
+# subtables of horizontal kerning, as FreeType does, and FreeType is what draws
+# the text in SDL: a subtable of minimum values or of cross-stream kerning is
+# skipped, and one with the override bit replaces the value of a pair where
+# another adds to it. A font with no such table has no pairs.
+function _parse_kern(b::Vector{UInt8})
+    pairs = Dict{UInt32,Int}()
+    kern_off, kern_len = _find_table(b, "kern")
+    (kern_off == 0 || kern_len < 4 || _u16(b, kern_off) != 0) && return pairs
+    at = kern_off + 4
+    for _ in 1:Int(_u16(b, kern_off + 2))
+        at + 6 > kern_off + kern_len && break
+        length = Int(_u16(b, at + 2))
+        coverage = _u16(b, at + 4)
+        is_horizontal = (coverage & 0x0001) != 0
+        is_minimum = (coverage & 0x0002) != 0
+        is_cross_stream = (coverage & 0x0004) != 0
+        overrides = (coverage & 0x0008) != 0
+        if coverage >> 8 == 0 && is_horizontal && !is_minimum && !is_cross_stream
+            count = Int(_u16(b, at + 6))
+            for index in 0:(count - 1)
+                entry = at + 14 + 6 * index
+                key = (UInt32(_u16(b, entry)) << 16) | UInt32(_u16(b, entry + 2))
+                value = Int(_s16(b, entry + 4))
+                pairs[key] = overrides ? value : get(pairs, key, 0) + value
+            end
+        end
+        length == 0 && break
+        at += length
+    end
+    pairs
+end
+
+"""
+    get_kerning(font::TrueTypeFont, left::UInt16, right::UInt16) -> Int
+
+The kerning between two glyphs of `font`, in font units: negative when the pair
+moves together. 0 when the `kern` table has no entry for the pair.
+"""
+get_kerning(font::TrueTypeFont, left::UInt16, right::UInt16) =
+    get(font.kern_pairs, (UInt32(left) << 16) | UInt32(right), 0)
+
+"""
+    get_vertical_metrics(font::TrueTypeFont) -> (ascender, descender, line_gap)
+
+The vertical metrics of `font` in font units, by the rule FreeType applies, so
+they are the numbers SDL_ttf draws with: the OS/2 typographic metrics when the
+font sets USE_TYPO_METRICS, else the `hhea` metrics; and when the `hhea` ascender
+and descender are both 0, the typographic metrics if they are set, else the
+Windows metrics with no line gap. The descender is negative, as in the tables.
+"""
+function get_vertical_metrics(font::TrueTypeFont)
+    font.use_typo_metrics &&
+        return (font.typo_ascent, font.typo_descent, font.typo_line_gap)
+    (font.ascent != 0 || font.descent != 0) &&
+        return (font.ascent, font.descent, font.line_gap)
+    (font.typo_ascent != 0 || font.typo_descent != 0) &&
+        return (font.typo_ascent, font.typo_descent, font.typo_line_gap)
+    (font.win_ascent, -font.win_descent, 0)
 end
 
 # Pick the most capable Unicode cmap subtable; returns (subtable_offset, format).

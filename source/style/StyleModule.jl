@@ -114,13 +114,16 @@ export Inset, Point2D, inset_default,
 export ImageDocument, set_cell_computation!
 export StyleStroke, make_style_stroke
 export StyleText, make_style_text
+export TextMeasure, FontMetrics, StringBox, measure_string, get_font_metrics,
+       compute_caret_offsets, FontFileMeasure, FixedMeasure, compute_text_extent
 export TrueTypeFont, load_truetype_font, get_glyph_id, get_glyph_advance_1000,
-       get_ascent_pixels, measure_text_width
+       get_ascent_pixels, measure_text_width, get_kerning, get_vertical_metrics
 
 
 include("Color.jl")
 include("Font.jl")
 include("TrueType.jl")
+include("TextMeasure.jl")
 include("Geometry.jl")
 include("Image.jl")
 include("StyleStroke.jl")
