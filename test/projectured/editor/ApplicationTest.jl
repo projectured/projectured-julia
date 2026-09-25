@@ -728,7 +728,7 @@ function test_application()
                 drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
                 place() = only((x, y) for (text, x, y) in drawn() if text == "AboutPage")
                 (x, y) = place()
-                operation = _app_fire(composed, editor.iomap, MouseScroll(0, -3, x + 10, y + 5))
+                operation = _app_fire(composed, editor.iomap, MouseScroll(0, -3, x + 10, y + 5; time = 0.0))
                 @test operation isa Operation
                 _app_apply!(editor, operation)
                 # A wheel turned towards the person moves the rows up.
