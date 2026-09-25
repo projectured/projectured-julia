@@ -256,7 +256,7 @@ Each step is a commit in a worktree.
      device pixel ratio.
    - Three comments that named `_DISPLAY_SCALE`: `TrueType.jl`,
      `WidgetToGraphics.jl` and `WidgetDocumentExample.jl`.
-5. [ ] **The check.**
+5. [x] **The check.**
    - [x] The exported images are the same as on main, byte for byte: 10
      examples, at scale 1 and at scale 2, before and after the probe, 40 images.
      `measure_sdl_text` gives the same values before and after the probe, which
@@ -289,5 +289,6 @@ Each step is a commit in a worktree.
    - [x] No open branch of another session adds a use of a changed name.
      `feature-videos` and `videos-on-main` have 11 conflicts with main already,
      and the branch adds none.
-   - [ ] Then report the result, seal the five device files with the approval of
-     the owner, and land.
+   - [x] Then report the result, seal the five device files with the approval of
+     the owner, and land. The owner approved the seal and the landing on
+     2026-09-25.
