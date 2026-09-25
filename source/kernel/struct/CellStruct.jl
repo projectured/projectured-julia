@@ -42,7 +42,7 @@ function _build_cell_struct_inferring_ctor(plan)
     slots = find_cell_struct_parameter_slots(plan)
     slots === nothing && return nothing
     arguments = [gensym(name) for name in plan.field_names]
-    bound = [:($(get_cell_value_type)($(arguments[slot]))) for slot in slots]
+    bound = [:($(get_cell_struct_argument_type)($(arguments[slot]))) for slot in slots]
     :($(plan.name)($(arguments...)) =
           $(Expr(:curly, plan.name, bound...))($(arguments...)))
 end
@@ -240,22 +240,22 @@ macro cell_struct(arguments...)
 end
 
 """
-    get_cell_value_type(x) -> Type
+    get_cell_struct_argument_type(argument) -> Type
 
-The value type of `x`: `T` for a cell of the type `AbstractCell{T}`, and the type of
-`x` for any other value.
+The type that a constructor argument gives to a type parameter: `T` for a cell of
+the type `AbstractCell{T}`, and the type of `argument` for any other value.
 
-Use it to bind a type parameter from a constructor argument that can be a cell or a
-value.
+Use it in a constructor that binds a type parameter from its arguments, so that
+an argument can be a cell or a value.
 
 # Example
 
-    get_cell_value_type(1)                          # Int64
-    get_cell_value_type(ImmutableCell{Int}(1))      # Int64
-    get_cell_value_type(Cell(1))                    # Any
+    get_cell_struct_argument_type(1)                        # Int64
+    get_cell_struct_argument_type(ImmutableCell{Int}(1))    # Int64
+    get_cell_struct_argument_type(Cell(1))                  # Any
 """
-get_cell_value_type(x) = typeof(x)
-get_cell_value_type(::AbstractCell{T}) where {T} = T
+get_cell_struct_argument_type(argument) = typeof(argument)
+get_cell_struct_argument_type(::AbstractCell{T}) where {T} = T
 
 _get_cell_kind(::Type{<:ReactiveCell})  = ReactiveCell
 _get_cell_kind(::Type{<:MutableCell})   = MutableCell

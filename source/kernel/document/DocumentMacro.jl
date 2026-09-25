@@ -179,11 +179,11 @@ function _emit_autowrap_ctor(plan, arg_names; default = ReactiveCell)
     inner = Expr(:function, head, body)
     # `Foo(raw…)` for a schema whose every parameter is some field's declared type:
     # bind each from its argument, then hand over to the explicit form.
+    bound = inferrable ?
+        [:($(get_cell_struct_argument_type)($(arg_names[i]))) for i in slots] : Any[]
     outer = inferrable ?
         :($(plan.name)($(arg_names...)) =
-              $(Expr(:curly, plan.name,
-                     [:($(get_cell_value_type)($(arg_names[i]))) for i in slots]...))(
-                  $(arg_names...))) :
+              $(Expr(:curly, plan.name, bound...))($(arg_names...))) :
         nothing
     (inner, outer)
 end

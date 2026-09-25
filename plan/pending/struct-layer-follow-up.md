@@ -16,6 +16,10 @@ left two items for the owner. On 2026-09-24 the owner approved both.
   lists in `kernel/architecture.md` and `system-anatomy.md` had 18 layers, from
   before the split into one module for each layer. Seven guides used those
   numbers.
+- **`get_cell_value_type` is `get_cell_struct_argument_type`.** Every other
+  exported name of the struct layer contains `cell_struct`, and the function has
+  one job in this layer: the type that a constructor argument gives to a type
+  parameter. The owner chose this name over a move to the cell layer.
 
 ## Steps
 
@@ -30,6 +34,7 @@ left two items for the owner. On 2026-09-24 the owner approved both.
   kind into a `Cell` of its own, so the projection shows what it showed before.
   A comment marks this place as an exception to PAR-NO-NESTED-CELL.
 - [x] 3. The layer lists and the numbers in the guides.
+- [x] 3a. The rename of `get_cell_value_type`, in the code, the test and the guides.
 - [ ] 4. Verification, and the move of this plan to `plan/done/`.
 
 ## Verification

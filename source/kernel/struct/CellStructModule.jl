@@ -32,7 +32,7 @@ export CellStructPlan, make_cell_struct_plan, add_cell_struct_field!,
 export build_cell_struct_field_type, build_cell_struct_keyword_parameters,
        build_cell_struct_keyword_constructor, build_cell_struct_positional_ctors,
        build_cell_struct_exprs, parse_cell_struct_macro_arguments, @cell_struct,
-       get_cell_value_type, get_cell_struct_kind
+       get_cell_struct_argument_type, get_cell_struct_kind
 
 include("CellStructPlan.jl")
 include("CellStruct.jl")

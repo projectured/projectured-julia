@@ -253,8 +253,9 @@ own starts from them:
 
 [The macros guide](macros.md) says how `@iomap`, `@projection` and `@document`
 use them. At run time, `get_cell_struct_kind(x)` returns the kind of the cell in
-the first field of `x`, and `get_cell_value_type(x)` returns the value type of a
-cell or the type of any other value.
+the first field of `x`. A generated constructor calls
+`get_cell_struct_argument_type(argument)` to bind a type parameter: it returns the
+value type of a cell, or the type of any other value.
 
 Public surface: `CellStructPlan`, `make_cell_struct_plan`, `add_cell_struct_field!`,
 `retype_cell_struct_fields!`, `get_cell_struct_value_types`,
@@ -263,7 +264,7 @@ Public surface: `CellStructPlan`, `make_cell_struct_plan`, `add_cell_struct_fiel
 `get_cell_struct_required_count`, `build_cell_struct_field_type`,
 `build_cell_struct_keyword_parameters`, `build_cell_struct_keyword_constructor`,
 `build_cell_struct_positional_ctors`, `build_cell_struct_exprs`,
-`parse_cell_struct_macro_arguments`, `@cell_struct`, `get_cell_value_type` and
+`parse_cell_struct_macro_arguments`, `@cell_struct`, `get_cell_struct_argument_type` and
 `get_cell_struct_kind`.
 
 ## PerformanceModule — instrumentation

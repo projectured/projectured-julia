@@ -166,13 +166,13 @@ end
         (:ImmutableCell, :x, definition))
 end
 
-@testset "the type of a field and the value type of an argument" begin
+@testset "the type of a field and the type that an argument gives" begin
     @test build_cell_struct_field_type(ReactiveCell, :Int) === Cell
     @test build_cell_struct_field_type(ImmutableCell, :Int) ==
           Expr(:curly, ImmutableCell, :Int)
-    @test get_cell_value_type(1) === Int
-    @test get_cell_value_type(ImmutableCell{Int}(1)) === Int
-    @test get_cell_value_type(Cell(1)) === Any
+    @test get_cell_struct_argument_type(1) === Int
+    @test get_cell_struct_argument_type(ImmutableCell{Int}(1)) === Int
+    @test get_cell_struct_argument_type(Cell(1)) === Any
 end
 
 end

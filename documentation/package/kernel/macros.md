@@ -40,7 +40,7 @@ layer's codegen kit for everything that is not document-specific:
   `get_cell_struct_value_types`), and the declared type of a field of a kind
   (`build_cell_struct_field_type`);
 - the rule that binds a type parameter from a constructor argument
-  (`find_cell_struct_parameter_slots`, `get_cell_value_type`), and the names of
+  (`find_cell_struct_parameter_slots`, `get_cell_struct_argument_type`), and the names of
   the parameters for a type application (`get_cell_struct_parameter_names`);
 - the keyword-constructor builders (`build_cell_struct_keyword_parameters`,
   `build_cell_struct_keyword_constructor`), and **Rule Y**
