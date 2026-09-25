@@ -59,8 +59,8 @@ evaluate code into each other's namespace.
 *The one carve-out*, stated where it lives: the guide and API indexes, and the
 stores of meaning vectors, are process-global lazily-built caches. They are
 derived from source files that do not change while the process runs, and from
-the model a store is named for, so they are identical for every editor — the same
-principled exception PAR-PER-EDITOR-STATE grants the wall clock.
+the model a store is named for, so they are identical for every editor. That is
+the exception that PAR-PER-EDITOR-STATE grants.
 
 ### Three kinds of query
 

@@ -63,9 +63,21 @@ and stops.
     The editor replaces the default with `editor.clock` at once
     (`with_clock(PrinterContext(), editor.clock)`).
   - The rotating vector example starts its own wall clock, because its
-    projection is the identity and never sees a printer context. The gallery
-    must build it on the editor task, so the implementation checks where it is
-    built.
+    projection is the identity and never sees a printer context. It stays a
+    `GraphicsCanvas`: the owner wants the example to stay in the graphics domain.
+- **An example builds its document at first use (decided on 2026-09-25).** The
+  inner constructor of `Example` called `make_document()` and `make_projection()`,
+  and the examples are `const`s, so every document was built while its package
+  precompiled and was frozen into the package image. No task can start then, so
+  the rotating vector's clock would stand still in the gallery, which shows the
+  cached instance. `Example` now builds `document` and `projection` at their first
+  read, on the task that reads them, and keeps them. The owner had wanted to solve
+  this in any case.
+- **The heartbeat writes on every tick while it runs.** A heartbeat that skips its
+  writes while no computation reads the clock gives wrong reads: a sample read
+  never subscribes, so it gets an old time, and a new computation reads an old
+  time for one tick (the owner found this). A clock moves only while an owner
+  keeps it started: the owner stops it, or the `WeakRef` ends it with the clock.
   - The widget switch snaps to its new position and does not slide (the owner
     chose this over a clock owned by the switch projection). Its reader has no
     context that reaches its editor's clock, so it can not take a start time on
@@ -87,16 +99,17 @@ and stops.
 - [x] 3. Item 10: the tests.
 - [x] 4. The invariant text of item 4.
 - [x] 5. Verification of items 3 to 8 and 10.
-- [ ] 6. The reified wall clock: the `heartbeat` field, `start_wall_clock!` and
+- [x] 6. The reified wall clock: the `heartbeat` field, `start_wall_clock!` and
   `stop_wall_clock!`, no `get_wall_clock`, and the tests of start, stop, restart
   and the end by `WeakRef`.
-- [ ] 7. The default constructors of `PrinterContext` take a still `Clock()`.
-- [ ] 8. The rotating vector example starts its own wall clock, and the task that
-  builds it is the editor task.
-- [ ] 9. The widget switch snaps.
-- [ ] 10. The invariant text and the guides: PAR-PER-EDITOR-STATE, `agent.md`,
+- [x] 7. The default constructors of `PrinterContext` take a still `Clock()`.
+- [x] 8. `Example` builds its document and its projection at first use, and the
+  rotating vector example starts its own wall clock.
+- [x] 9. The widget switch snaps. Its slide helpers and its import of the clock
+  module go, because nothing else uses them.
+- [x] 10. The invariant text and the guides: PAR-PER-EDITOR-STATE, `agent.md`,
   `system-anatomy.md`, `kernel/architecture.md` and `cell.md`.
-- [ ] 11. Verification of items 1, 2 and 9.
+- [x] 11. Verification of items 1, 2 and 9.
 
 ## What the implementation found
 
@@ -116,3 +129,24 @@ and stops.
 - The export and naming guards: 0 violations.
 - The guard for precompilation has no test: a normal process can not run as a
   precompile process.
+
+Items 1, 2 and 9:
+
+- `test_kernel()`: 2243 pass, and the six known failures. `Clock` has 39
+  assertions: start and stop, a second start and a second stop, a restart, the end
+  of a heartbeat whose clock is freed, and a heartbeat on the thread of its
+  starter.
+- `test_substrate()`: 80862 pass, and the five known failures of the split pane
+  drag test, as before the change.
+- `test_printers()`: 194900 pass. The naming, export and documentation guards
+  pass; the argument guard reports only the known `start_application!`.
+- The rotating vector example: after the package loads, its document does not
+  exist; the first read builds it in 0.263 s, compilation included (one run, not
+  a measurement); a second read gives the same instance; the dot moves from
+  (280, 177) to (274, 206) in half a second.
+- omnet-julia, against the worktree: every package precompiles, and
+  `test_presentation()` gives 1694 pass, 12 fail, 2 error and 1 broken, with the
+  same failing tests as the run of `test_omnet()` with the old wall clock.
+  omnet-julia's own environment does not load on `main`, because its manifest
+  does not know that `ProjecturedFileSystem` now depends on `ProjecturedFocus`.
+

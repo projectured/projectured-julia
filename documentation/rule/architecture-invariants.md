@@ -926,33 +926,25 @@ binding (each editor frame binds its own store). The animation clock is a
 per-editor `Clock` (a `@cell_struct`, not a document — `clock/ClockModule.jl`);
 `run_editor!` advances `editor.clock`, and every animated cell subscribes to the
 clock the printer context carries, so two editors in one process never
-cross-invalidate each other's animation graph.
+cross-invalidate each other's animation graph. No clock is shared by the whole
+process: an owner without a frame loop starts a heartbeat on its own clock with
+`start_wall_clock!`, on the task that reads that clock.
 
 **Accepted carve-out — state that is identical for every editor.** Process-global
 state is permitted precisely when its value is the same for every editor in the
 process: no editor can observe another's writes through it, so there is no
 cross-editor divergence to create. This is the escape valve the rule's rationale
 leaves open — what PAR-PER-EDITOR-STATE forbids is one editor's state *conflicting
-with or leaking into* another's, which a genuine singleton cannot do. Two kinds
-qualify:
-
-- **An external truth every editor shares.** The `Clock` behind
-  `ClockModule.get_wall_clock()` is a process-global one whose time is the
-  seconds since the first `get_wall_clock()` call — exactly one writer (the
-  heartbeat task that the first call starts) and read-only for every editor,
-  representing the genuine singleton of real time.
-  Reader-armed animations (which see no `PrinterContext` and so cannot reach the
-  enclosing editor's private clock) read the wall clock; those animations
-  consequently move in step across editors — the trade-off until a reader-side
-  seam analogous to `PrinterContext` lands.
+with or leaking into* another's, which a genuine singleton cannot do. One kind
+qualifies:
 
 - **Read-only data derived from process-invariant sources.** A cache built once
   from inputs that do not change while the process runs and are the same for
   every editor — for example the documentation and API indexes behind
   `search_guides` / `search_api` (`tool/Documentation.jl`), built by
   reflection over the loaded code and the guide files on disk. Lazily populated,
-  read-only thereafter, and identical for all editors, so — like the wall clock —
-  it introduces no cross-editor write conflict; giving each editor its own copy
+  read-only thereafter, and identical for all editors, so it introduces no
+  cross-editor write conflict; giving each editor its own copy
   would only duplicate identical work. The stores of meaning vectors behind a
   search by description (`tool/MeaningSearch.jl`) are the same kind: a vector is
   derived from such a text and from the model its store is named for, so every

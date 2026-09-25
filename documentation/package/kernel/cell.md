@@ -302,4 +302,5 @@ easiest way to profile what work a particular edit triggered.
 
 Animation clock: `ClockModule` is its own kernel layer (`clock/`), above the
 struct layer. See `clock/ClockModule.jl` for the API (`Clock`,
-`get_reactive_clock_time`, `get_clock_time`, `set_clock_time!`, `get_wall_clock`).
+`get_reactive_clock_time`, `get_clock_time`, `set_clock_time!`, `start_wall_clock!`,
+`stop_wall_clock!`).

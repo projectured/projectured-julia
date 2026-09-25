@@ -37,7 +37,7 @@ Layer 1  — fault/       the fault record, the store, the barrier and the repor
 Layer 2  — performance/ the performance counters and the frame measurements of an editor
 Layer 3  — cell/        the Cell kinds — ReactiveCell/MutableCell/ImmutableCell, Computation and @computation
 Layer 4  — struct/      @cell_struct and the builders of a struct of cells (CellStructPlan)
-Layer 5  — clock/       the animation clock — Clock (a @cell_struct), get_reactive_clock_time/get_clock_time, set_clock_time!, the shared wall clock
+Layer 5  — clock/       the animation clock — Clock (a @cell_struct), get_reactive_clock_time/get_clock_time, set_clock_time!, start_wall_clock!/stop_wall_clock!
 Layer 6  — event/       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*) + WindowInput + the event pattern language (EventPattern, @event_case)
 Layer 7  — device/      Device abstract + the Keyboard/Mouse/Display devices (physical properties)
 Layer 8  — gesture/     event → gesture recognition (MousePress/KeyChord synthesis)
@@ -163,7 +163,7 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 | `performance/` | `PerformanceModule` — the per-frame performance counters (see [cell.md](cell.md)) |
 | `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds (see [cell.md](cell.md)) |
 | `struct/` | `CellStructModule` — `@cell_struct` and the builders of a struct of cells (see [cell.md](cell.md)) |
-| `clock/` | `ClockModule` — the animation `Clock` (a `@cell_struct`), `get_reactive_clock_time`/`get_clock_time`/`set_clock_time!`, the shared `get_wall_clock` singleton |
+| `clock/` | `ClockModule` — the animation `Clock` (a `@cell_struct`), `get_reactive_clock_time`/`get_clock_time`/`set_clock_time!`, and `start_wall_clock!`/`stop_wall_clock!`, the heartbeat that writes real time into a clock |
 | `event/` | the input event vocabulary — `EventModule` (ModifierKeys, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, WindowInput) and `EventModule` (`EventPattern`, `@event_case`) |
 | `device/` | `DeviceModule` — the `Device`, `Keyboard`, `Mouse`, `Display` device types (with physical properties) |
 | `gesture/` | `GestureRecognizerModule` — event → gesture recognition (MousePress/KeyChord synthesis) |
