@@ -9,15 +9,18 @@ function test_markdown_page_table()
 
 _measure = (t, f) -> (length(t) * 8, 16)
 
-function _table_texts(node, found = String[])
+# Every text a canvas drew, as (left edge, content). A text a viewport cuts
+# away entirely is not drawn, so it is not found.
+function _table_texts(node, ox = 0, clip = typemax(Int), found = Tuple{Int,String}[])
     if node isa GraphicsCanvas
         for element in node.elements
-            _table_texts(element, found)
+            _table_texts(element, ox + Int(node.x), clip, found)
         end
     elseif node isa GraphicsViewport
-        _table_texts(node.content, found)
+        _table_texts(node.content, ox + Int(node.x), min(clip, ox + Int(node.x) + Int(node.w)), found)
     elseif node isa GraphicsText
-        push!(found, string(node.text))
+        left = ox + Int(node.x)
+        left < clip && push!(found, (left, string(node.text)))
     end
     found
 end
@@ -104,12 +107,20 @@ end
                                                     height = Cell(Int32(800)))
     chain = ChainingProjection(MarkdownRootToVerticalLayout(), VerticalLayoutToGraphicsCanvas())
     texts = _table_texts(print_document(chain, renderer, page, context).output)
-    drawn = join(texts, " ")
+    drawn = join(last.(texts), " ")
     for word in ("Type", "meaning", "JsonArray", "SyntaxLeaf", "TextBlock", "concatenated")
         @test occursin(word, drawn)
     end
-    # No line of the table is wider than the page.
-    @test maximum(length(text) * 8 for text in texts) <= 400
+    left_of(word) = minimum(x for (x, text) in texts if occursin(word, text))
+    # The two columns share the page: the second, where the entry of `JsonArray`
+    # starts with the code span `[i] + <child path>`, starts near its middle.
+    second = left_of("[i] + <child path>")
+    @test 150 <= second - left_of("Type") <= 250
+    # A long entry breaks into lines that start at the edge of its column, and no
+    # line leaves the page.
+    @test left_of("concatenated") == second
+    @test count(((x, _),) -> x == second, texts) > 6
+    @test maximum(x + length(text) * 8 for (x, text) in texts) <= 400
 end
 
 end

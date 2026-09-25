@@ -24,7 +24,7 @@ projection, while the model goes on to get the text that the tool wrote.
 2. **Option B: a tool declares the format of its result.** The assistant does not
    keep a list of tool names. The rejected option A was a list of tool names in
    the assistant, as `get_evaluation_kind_label` keeps for its labels.
-3. **The four questions of §5 take the recommendation.** The owner, after the
+3. **Questions 1 to 4 of §5 take the recommendation.** The owner, after the
    plan: "I agree with your recommendation", "implement in worktree".
 
 ## 2. What exists
@@ -166,6 +166,24 @@ this in the real editor, with the width that the section card offers.
 
 A resource read starts folded (`_collapse_tool_default`), and a search result
 starts open, as now.
+
+*Found in Step 6.* The transcript does not reach the `:markdown_page` row. The
+renderer of the transcript (`_conversation_widget_graphics` in
+`example/conversation/ConversationProjectionExample.jl`) has an extra row,
+`MarkdownDocument => make_markdown_rendered_projection_example(…)`, which draws
+every Markdown document through the rendered syntax. So a result draws as
+rendered Markdown, as the prose of the model does, and a table draws as its
+source with pipes.
+
+A row `MarkdownRoot => MarkdownRootToVerticalLayout → VerticalLayoutToGraphicsCanvas`
+before it was tried, and removed. The table became a `WidgetTable`, but its
+columns got no width: the transcript offers the content of a part no width (a
+`Content` placement), a `Fill` column of a grid then gets 0 pixels, and the
+entries were cut away. The prose around it wrapped at the 800-pixel fallback
+of `WordWrapping`. A fallback width for the table would be a second number that
+nobody chose, which `layout-rules.md` §1 forbids, and `Content` columns would
+make a wide table leave the card. [layout-sizing-model.md](layout-sizing-model.md)
+gives the content its width; then the row can be added (§5, question 5).
 
 ### 3.5 The Markdown domain reads what the tools write
 
@@ -365,7 +383,16 @@ that file. All files of `tool/` are `⬜` on 2026-09-25.
   tool that declares `"text/markdown"`: the result is a `MarkdownRoot`, the
   history holds the text of the tool, an error result stays a `TextBlock`, and a
   tool that declares `"text/plain"` keeps a `TextBlock`.
-- [ ] **Step 6. Check in the real editor.** Run the application offscreen with
+- [~] **Step 6. Check in the real editor.** *The check of the drawing is done,
+  and the timing is not. A scripted model called `read_resource` for the
+  section of `kernel/selection` with the table, and `search_api` for
+  `evaluate_reference`, through `_run_agent_loop!`; the assistant row of
+  `make_application_content_projections()` drew the conversation, and
+  `write_image` wrote it. No real pointer pressed anything. Both results are
+  `MarkdownRoot`s, the resource read starts folded, and the heading, the
+  paragraphs, the code spans, the links and the search hit draw as rendered
+  Markdown. The table draws as its source (§3.4). The timing needs the owner's
+  word and an idle machine.* (The plan text:) Run the application offscreen with
   a scripted model that calls `read_resource` for a guide with a table and
   `search_api` with one clear hit. Read the scene and write an image. Check that
   the table draws as a grid and the page breaks its lines at the width of the
@@ -381,9 +408,10 @@ that file. All files of `tool/` are `⬜` on 2026-09-25.
   the wire), and [transcript.md](../../documentation/package/conversation/transcript.md)
   if it names the kind of a result.
 
-## 5. The four questions, decided
+## 5. The questions
 
-The owner took each recommendation on 2026-09-25 (§1, decision 3).
+The owner took the recommendation of questions 1 to 4 on 2026-09-25 (§1,
+decision 3). Question 5 came from Step 6 and is open.
 
 1. **An indented code block prints back fenced.** A `.md` file that a tab
    saves changes an indented block to a fenced one. 3 guides have one. A saved
@@ -401,10 +429,21 @@ The owner took each recommendation on 2026-09-25 (§1, decision 3).
    the left. **Decided: accept now, and draw it when `WidgetTable` gets
    an alignment for a column.**
 
+5. **A grid table in the transcript** (found in Step 6, §3.4; not decided).
+   The options: wait for [layout-sizing-model.md](layout-sizing-model.md) to
+   give the content of a part its width, then add the page row for
+   `MarkdownRoot` to the renderer of the transcript; or add the row now with a
+   fallback width for a table that is offered none. *Recommendation: wait,
+   because the fallback is a number that the sizing plan removes.*
+
 ## 6. Limits
 
 - `read_resource` declares one media type for every resource (§3.1).
 - An MCP client does not get the declaration (§3.1).
+- In the transcript, a table draws as its source with pipes, not as a grid
+  (§3.4). On a page that has a width, such as a guide in a tab, it is a grid.
+- The heading that `search_api` writes for one clear hit is a level-1 heading,
+  so the transcript draws it large.
 - The agent loop marks a result as an error by its text (`_is_error_output` in
   `AgentLoop.jl`: the text contains "Error" or "ERROR"). A tool that throws
   `error("…")` with a message that has neither word gives a result that is not
