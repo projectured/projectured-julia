@@ -205,6 +205,20 @@ gives its HTML as text: 29 guides start with an `<img …>` line.
    blocks, with the indent removed, so rule 2 does not read it as code
    (Question 2 of §5).
 
+*Implemented, and found on the way:*
+
+- A list marker comes before an indented code block, so an indented list line
+  after a blank line stays a list, as it was. A fence comes before both.
+- A line that `_is_block_start` took for a block start, but that no branch
+  read (a fence line with a backtick in its info string, as ```` ```a`b ````),
+  made an empty paragraph and did not move the parse on: the parse did not end.
+  The first line of a paragraph is now always taken.
+- A hit of `search_api` is a list item of two source lines, a signature and a
+  sentence. Markdown joins the two lines of one item with a space, so the page
+  draws them as one line of prose. That is the Markdown of the text as the tool
+  wrote it; a separate line needs a change of the tool text, which the model
+  also reads, and it is not part of this plan.
+
 **Part 2: the table.** Two new document types.
 
 ```julia
@@ -213,11 +227,17 @@ gives its HTML as text: 29 guides start with an `<img …>` line.
 end
 
 @document struct MarkdownTable <: MarkdownDocument
-    alignments::Vector{Symbol}  # :default, :left, :center or :right, one per column
+    alignments::Any             # Vector{Symbol}: :default, :left, :center or :right
     header::MarkdownTableRow
     rows::CellVector            # of MarkdownTableRow
 end
 ```
+
+*Implemented:* `alignments` is an `Any` field, as `GridLayout.column_align` and
+`WidgetTable.column_cell_policies` are. `@document` can put a reactive
+collection in place of a field declared `Vector{…}`
+(`get_cell_layout_field_type(Val(:Vector))`), and every walker would then see
+the alignments as children.
 
 - **A table entry is a `MarkdownParagraph`.** A paragraph already holds a run of
   inlines, and the page already draws a paragraph with line breaks at its width.
@@ -225,24 +245,37 @@ end
   `Cell` (Question 3 of §5).
 - **The parser.** A line with a pipe, followed by a delimiter row
   (`|---|:--:|`), starts a table. The rows end at a blank line or at a line
-  with no pipe. The entries split at each `|` that is not escaped (`\|`) and
-  not inside a code span. A table can interrupt a paragraph, as in GitHub
-  Markdown, so `_is_block_start` knows it.
+  with no pipe. The entries split at each `|` that is not escaped (`\|`). A
+  table can interrupt a paragraph, as in GitHub Markdown, so the check for a
+  continuation line knows it.
+  *Implemented:* a code span does not protect a `|`. GitHub Markdown splits the
+  row first and reads the inlines after, so a pipe inside a code span must be
+  escaped there too, and the parser does the same. A row with fewer entries gets
+  empty ones, and the entries past the last column are dropped.
 - **`:source`.** A `@projection_template` rule for each type: `| ` before each
   entry, ` |` at the end of a row, and the delimiter row made from
   `alignments` after the header.
 - **`:rendered` (syntax).** The `:source` rules, as the code block shares its
   rules now. The page route below is the one that draws a table as a grid.
-- **The page.** The `:markdown_page` row gets
-  `MarkdownTable => MarkdownTableToWidgetTable()`, chained to the widget
-  renderer. `WidgetTable` is the one table of the widget layer. Its
+- **The page.** *Implemented differently from the first design, which was a
+  `:markdown_page` row `MarkdownTable => MarkdownTableToWidgetTable()`.* The
+  renderer prints a block of the page as a child, and a child print does not
+  reduce the output of a projection to a fixpoint. So a row whose output is a
+  widget gives the page a widget, not graphics. `MarkdownRootToVerticalLayout`
+  already swaps a file block for an embed card, and the renderer then draws the
+  card; it swaps a table for a `WidgetTable` (`_make_page_table`) in the same
+  place, made once for the table and found again. `WidgetTable` is the one
+  table of the widget layer. Its
   `column_headers` are the entries of `header`, its `rows` are the `elements`
   of each row, and `cell_policy = :wrap`. The reference map moves the head
   only: `header.elements[j] + rest ↔ column_headers[j] + rest`, and
   `rows[i].elements[j] + rest ↔ rows[i][j] + rest`. The entry vectors are
   shared, not copied, as `MarkdownRootToVerticalLayout` shares the elements of
   a page. `WidgetTable` has no alignment for a column, so each column draws at
-  the left (Question 4 of §5).
+  the left (Question 4 of §5). *Implemented:* the columns are `Fill`, so they
+  share the width of the page equally, and `:wrap` breaks the lines of an entry
+  at the edge of its column. The selection of the widget table is the
+  selection of the table, mapped as the embed card maps its own.
 - **The examples.** `atomic_documents()` gets one small example for each new
   type, so `CatalogCoverageTest` and `test_example` cover them.
 
@@ -269,19 +302,34 @@ Do the work in a git worktree, not in the main checkout. Commit each step.
 Before a step changes a kernel file, check [SEALING.md](../../SEALING.md) for
 that file. All files of `tool/` are `⬜` on 2026-09-25.
 
-- [ ] **Step 0. The baseline.** On the base commit, run `test_markdown()`,
+- [x] **Step 0. The baseline.** *Done 2026-09-25 on `8939434d`, in the main
+  checkout: `/var/tmp/markdown-tool-results-baseline/` holds `test-counts.tsv`,
+  `failures.txt`, `guide-census.tsv` and the reusable `census.jl`. Three tests
+  fail on the base commit: `test_catalog_coverage` (2, 18 types with no catalog
+  entry), `test_example(markdown_rendered_example)` (8 in `TypeinTest.jl:555`, and
+  86 broken), and `test_assistant_mvp` (4, in "the assistant card fills its
+  page"). The census: 229 top-level paragraphs of the guides and the dumps start
+  with `|`.* On the base commit, run `test_markdown()`,
   `test_assistant_mvp()`, `test_conversation_serialization()`, the MCP tests of
   `McpTest.jl`, `test_search_answer()` and `test_example` for the Markdown
   examples. Also write the census of block types that `parse_markdown` makes
   for each guide under `documentation/`. Keep the counts and the census in
   `/var/tmp`. A test that counts the cells of a document changes its pass
   count when §3.3 adds a field.
-- [ ] **Step 1. `Tool.result_mime_type`** (§3.1). `Tool.jl`,
+- [x] **Step 1. `Tool.result_mime_type`** (§3.1). *Done: `test_search_answer()`
+  75 pass (68 on the base, and 7 new).* `Tool.jl`,
   `DefaultTools.jl`, the `Tool` section of
   [agent.md](../../documentation/package/kernel/agent.md). Test: a new
   assertion in the kernel tool tests that the five documentation tools declare
   `"text/markdown"` and `execute_julia_code` declares `"text/plain"`.
-- [ ] **Step 2. The Markdown parser, part 1** (§3.5): continuation lines,
+- [x] **Step 2. The Markdown parser, part 1** (§3.5). *Done with Step 3 in one
+  commit, because the table changes the continuation check that Step 2 adds.
+  `test_markdown_parser()` 40 pass. The census of the guides and the dumps
+  against the base: the 229 paragraphs of pipes are 229 tables; the lists are
+  533, not 840, because a continuation line no longer ends a list; one new
+  quote (the admonition of dump 08); two new code blocks (the `# Example` of
+  dump 07, and the indented `evaluate_reference` line of
+  `package/clipboard/clipboard.md`, which is a code block).* continuation lines,
   indented code blocks, admonitions. `MarkdownParser.jl`. Test: a new
   `MarkdownParserTest.jl` with `test_markdown_parser()`, called from
   `test_markdown()`. Its inputs are excerpts of the real outputs: a hit list of
@@ -289,7 +337,13 @@ that file. All files of `tool/` are `⬜` on 2026-09-25.
   `make_child_context`. Assert the block types and the text of each block. Also
   parse every guide under `documentation/`, compare the census of block types
   with the census on the base commit, and read each change.
-- [ ] **Step 3. The Markdown table, part 2** (§3.5). `MarkdownDocument.jl`,
+- [x] **Step 3. The Markdown table, part 2** (§3.5). *Done: `test_markdown()`
+  all pass (the page table test 27); `test_catalog(domain = :markdown)` 26812
+  pass, against 23912 on the base, with the two new examples;
+  `test_example(markdown_example)` 3911 pass as on the base; the rendered example
+  and `test_catalog_coverage` fail as on the base, with the same messages. The
+  table is drawn in `MarkdownRootToVerticalLayout`, not by a new projection;
+  §3.5 says why.* `MarkdownDocument.jl`,
   `MarkdownParser.jl`, `MarkdownToSyntax.jl`, a new
   `MarkdownTableToWidgetTable` in `MarkdownToLayout.jl` or its own file,
   `MarkdownModule.jl`, the examples. Tests: the table of
@@ -297,11 +351,16 @@ that file. All files of `tool/` are `⬜` on 2026-09-25.
   again gives the same tree; no guide under `documentation/` keeps a paragraph
   that starts with `|`; a table on a page draws a `WidgetTable` with the
   entries as its documents; `test_example` for the new examples.
-- [ ] **Step 4. `EvaluatorForm.output`** (§3.3). `Evaluator.jl`,
+- [x] **Step 4. `EvaluatorForm.output`** (§3.3). *Done with Step 5 in one
+  commit, because both change `AssistantTurn.jl`.
+  `test_conversation_serialization()` 44 pass (41 on the base, and 3 new).* `Evaluator.jl`,
   `AssistantTurn.jl`. Test in `ConversationSerializationTest.jl`: a form whose
   `result` is a `MarkdownRoot` and whose `output` holds a table gives
   `build_messages` a `tool_result` equal to `output`.
-- [ ] **Step 5. The assistant parses a Markdown result** (§3.2).
+- [x] **Step 5. The assistant parses a Markdown result** (§3.2). *Done:
+  `test_assistant_mvp()` 123 pass and the 4 fails of the base; the MCP tests of
+  `McpTest.jl` 694 pass; `test_declared_api()` 117 pass. The error case throws
+  an `ArgumentError`, because the loop marks an error by its text (§6).*
   `AssistantTurn.jl`. Test in `AssistantMvpTest.jl` with a scripted model and a
   tool that declares `"text/markdown"`: the result is a `MarkdownRoot`, the
   history holds the text of the tool, an error result stays a `TextBlock`, and a
@@ -312,7 +371,8 @@ that file. All files of `tool/` are `⬜` on 2026-09-25.
   the table draws as a grid and the page breaks its lines at the width of the
   section. Measure the drain and the first frame as §3.6 says, and give the
   numbers to the owner.
-- [ ] **Step 7. The documents.**
+- [x] **Step 7. The documents.** *Done: the five guides below. The naming
+  guard (`julia test/suite/naming.jl`) passes.*
   [assistant.md](../../documentation/package/assistant/assistant.md) (a turn,
   step 5, and the view),
   [markdown.md](../../documentation/package/markdown/markdown.md) (the new
@@ -345,6 +405,11 @@ The owner took each recommendation on 2026-09-25 (§1, decision 3).
 
 - `read_resource` declares one media type for every resource (§3.1).
 - An MCP client does not get the declaration (§3.1).
+- The agent loop marks a result as an error by its text (`_is_error_output` in
+  `AgentLoop.jl`: the text contains "Error" or "ERROR"). A tool that throws
+  `error("…")` with a message that has neither word gives a result that is not
+  an error, so a Markdown tool draws its stack trace as a page. The rule is the
+  kernel's, and this plan does not change it.
 - A guide read shows an `<img …>` line as text, because the tool output does
   not say where the guide is, and a relative image path needs that place.
 - The signature at the top of a docstring draws as prose, because the

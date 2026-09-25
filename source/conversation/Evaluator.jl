@@ -7,11 +7,13 @@ abstract type EvaluatorDocument <: Document end
 # ── EvaluatorForm ────────────────────────────────────────────────────────────
 
 """
-    EvaluatorForm(form; source, result, is_error, tool_use_id, tool_name, input,
+    EvaluatorForm(form; source, result, output, is_error, tool_use_id, tool_name, input,
                   form_collapsed, result_collapsed)
 
 A code form paired with its evaluation result. `form` is the code document
-(a `JuliaDocument`); `result` is the result document (`TextBlock` for now).
+(a `JuliaDocument`); `result` is the result document: a `TextBlock`, a live
+value that is a document, or a document of the result's own format, such as a
+Markdown page.
 
 `source` is the text the call was made with, **kept as it arrived**. The form is
 the *projection* of that text, and a projection is not reversible in general: a
@@ -22,6 +24,12 @@ caller that needs the original — a conversation replayed into a model's histor
 must not re-derive it from the document. It reads `source`.
 
 Empty `source` means the caller kept none, and a reader falls back to the form.
+
+`output` is the text the tool answered, **kept as it arrived**, for the same
+reason: `result` is a document made from that text, such as a Markdown page, and
+the page printed back is not the text the tool wrote. Empty `output` means the
+result is not made from a text, or the caller kept none, and a reader falls back
+to the result.
 
 `input` is the tool's whole input, kept as it arrived. It is what names a
 resource read (`uri`) or a search (`query`) in a transcript, and what a
@@ -39,6 +47,7 @@ is an error starts folded, and everything else starts open.
     tool_use_id::String
     tool_name::String
     source::String
+    output::String
     input::Dict{String,Any}
     form_collapsed::Bool
     result_collapsed::Bool
@@ -50,12 +59,13 @@ EvaluatorForm(form::Document;
               tool_use_id::AbstractString = "",
               tool_name::AbstractString = "execute_julia_code",
               source::AbstractString = "",
+              output::AbstractString = "",
               input::AbstractDict = Dict{String,Any}(),
               form_collapsed::Bool = false,
               result_collapsed::Bool = is_error) =
     EvaluatorForm(Cell(form), Cell(result), Cell(is_error),
                   Cell(String(tool_use_id)), Cell(String(tool_name)),
-                  Cell(String(source)), Cell(Dict{String,Any}(input)),
+                  Cell(String(source)), Cell(String(output)), Cell(Dict{String,Any}(input)),
                   Cell(form_collapsed), Cell(result_collapsed), Cell(nothing))
 
 # ── The duplicate ────────────────────────────────────────────────────────────

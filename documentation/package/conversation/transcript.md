@@ -55,6 +55,10 @@ small title and a fold of its own. `get_evaluation_section_labels` names them:
 tool, and `error` in the destructive color in place of `result` when the call
 failed. The arguments of a tool draw one `key: value` line each.
 
+A result draws through the projection of its own document. The answer of a
+documentation tool is Markdown, so its result is a Markdown page: headings,
+lists, code blocks, and tables drawn as widget tables. Any other answer is text.
+
 ## Folds
 
 Every card with a chrome folds: a turn, a code part, a thinking part, an

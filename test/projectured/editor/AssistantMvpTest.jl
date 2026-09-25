@@ -408,6 +408,56 @@ function test_assistant_mvp()
         _mvp_test_submit_while_streaming()
         _mvp_test_evaluate_while_streaming()
         _mvp_test_turn_writes_on_editor_task()
+        _mvp_test_markdown_tool_result()
+    end
+end
+
+# ── A Markdown result is a Markdown page ───────────────────────────────
+#
+# A tool that declares `"text/markdown"` has its answer drawn as a Markdown
+# page, and the model gets the text the tool wrote. An error stays text, and so
+# does the answer of a tool that declares plain text.
+
+function _mvp_test_markdown_tool_result()
+    @testset "a tool that answers Markdown gets a Markdown page" begin
+        written = "# Found\n\nOne line of the answer\nand the next line.\n\n" *
+                  "| a | b |\n|---|---|\n| 1 | 2 |\n"
+        tools = register_default_tools!(ToolSet())
+        register_tool!(tools, Tool("page", "Answers a page.", NamedTuple[],
+                                   (target, args) -> written; result_mime_type = "text/markdown"))
+        register_tool!(tools, Tool("plain", "Answers a text.", NamedTuple[],
+                                   (target, args) -> written))
+        # The loop marks a result as an error by its text, so the exception says
+        # "Error" in its name.
+        register_tool!(tools, Tool("broken_page", "Throws.", NamedTuple[],
+                                   (target, args) -> throw(ArgumentError("no page"));
+                                   result_mime_type = "text/markdown"))
+        llm = ScriptedLlm([
+            _tool_use_script("tu_1", "page", Dict{String,Any}()),
+            _tool_use_script("tu_2", "plain", Dict{String,Any}()),
+            _tool_use_script("tu_3", "broken_page", Dict{String,Any}()),
+            _final_text_script("Done."),
+        ])
+        a = Assistant(; llm = llm)
+        push!(a.conversation.turns, ConversationTurn(:user, [ConversationPart("look it up")]))
+        _run_agent_loop!((document = a, tools = tools), a)
+
+        forms = [part.content for turn in a.conversation.turns for part in turn.parts
+                 if part.content isa EvaluatorForm]
+        @test [form.tool_name for form in forms] == ["page", "plain", "broken_page"]
+        page, plain, broken = forms
+        @test page.result isa MarkdownRoot
+        @test any(block -> block isa MarkdownTable, page.result.elements)
+        @test page.output == written
+        @test plain.result isa TextBlock
+        @test broken.is_error
+        @test broken.result isa TextBlock
+        # The model gets the text of each tool as the tool wrote it.
+        results = [c for m in build_messages(a.conversation) for c in m.content
+                   if c isa LlmToolResult]
+        @test results[1].content == written
+        @test results[2].content == written
+        @test occursin("no page", results[3].content)
     end
 end
 

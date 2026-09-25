@@ -115,6 +115,24 @@ function test_conversation_serialization()
             @test occursin("# resource · resource://guide/orientation", text)
         end
 
+        @testset "a result drawn as a page replays as the text the tool wrote" begin
+            written = "# Selection\n\nA paragraph that the tool wrapped\nat its own width.\n\n" *
+                      "| Type | Meaning |\n|---|---|\n| `TextBlock` | `{k}` |\n"
+            page = parse_markdown(written)
+            convo = ConversationConversation([
+                ConversationTurn(:user, [ConversationPart("look it up")]),
+                ConversationTurn(:assistant, [ConversationPart(
+                    EvaluatorForm(TextBlock(TextString("uri: resource://guide/kernel/selection"));
+                                  tool_name = "read_resource",
+                                  input = Dict{String,Any}("uri" => "resource://guide/kernel/selection"),
+                                  result = page, output = written, tool_use_id = "tu_1"))])])
+            result = only([c for m in build_messages(convo) for c in m.content if c isa LlmToolResult])
+            @test result.content == written
+            @test occursin("wrapped\nat its own width", format_conversation(convo))
+            # The page printed back is another text, which is why the form keeps the text.
+            @test print_natural_text(page) != written
+        end
+
         @testset "thinking + tool_use round-trip: ordering + signature" begin
             convo = ConversationConversation([
                 ConversationTurn(:user, [ConversationPart("run it")]),

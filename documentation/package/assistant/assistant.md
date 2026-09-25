@@ -31,7 +31,7 @@ Return in the composer makes `SubmitDraftTurnOperation(assistant)`. While a turn
 2. It calls `bind_meaning_model!(editor.tools, llm)`, so a search by description in this turn ranks by meaning when the backend has a meaning model.
 3. It pushes an empty assistant turn, and calls `run_turn!` of the kernel with `Agent(llm, editor.tools; system, thinking = true)`.
 4. `messages` builds the messages with `build_messages(assistant.conversation)` at the start of every round. The tool results of a round are parts of the conversation, so the next round sends them with no second list.
-5. `on_event` turns each event into a part, so the reply draws while it streams. A text block becomes a text part, and `parse_markdown_blocks` reads it again when it ends. A fenced block becomes a document of its domain through the natural-format seam. Prose becomes a Markdown document when the Markdown parser is loaded. A thinking block becomes a thinking part. An `AgentToolResult` becomes an `EvaluatorForm` part that keeps the id, the name, the source and the input of the call.
+5. `on_event` turns each event into a part, so the reply draws while it streams. A text block becomes a text part, and `parse_markdown_blocks` reads it again when it ends. A fenced block becomes a document of its domain through the natural-format seam. Prose becomes a Markdown document when the Markdown parser is loaded. A thinking block becomes a thinking part. An `AgentToolResult` becomes an `EvaluatorForm` part that keeps the id, the name, the source and the input of the call, and the text of the tool in `output`. Its result is a document of the media type that the tool declares (`result_mime_type`): a `"text/markdown"` answer, such as a guide or a list of search hits, is a Markdown document when the Markdown parser is loaded, and the pane draws it as a page, with its tables as widget tables. Any other answer, an error, and a text that the parser refuses are text. A `Document` that `execute_julia_code` returns is the result itself, drawn live.
 
 At the end, the turn gets its stop reason, and an assistant turn with no parts is removed. When the task throws, `status` becomes `:error`, `record_fault!` writes the fault into the store of the editor, and an assistant turn shows the text of the error. So a failure shows in the chat and in the fault log. The loop itself, with its round limit and its tool dispatch, is the kernel's; [agent.md](../kernel/agent.md) describes it.
 
@@ -51,6 +51,7 @@ The model gets `list_tools(editor.tools)`, the tool set of the editor. The assis
 - A user turn becomes one text message, with its parts joined by a blank line. A code part is fenced with the name of its language, and a Markdown part is its source text. An evaluation that a person ran is written as text: "I ran the following Julia code: … Result: …".
 - Consecutive assistant turns become one. It is then split at each run of evaluations into an assistant message of thinking, text and `tool_use` blocks, followed by a user message of `tool_result` blocks. The thinking comes first, with its signature unchanged, because a changed signature makes the provider answer HTTP 400.
 - A form replays its own tool name and input. A form with no input replays as `execute_julia_code` with its code.
+- A tool result is the text in `output`, as the tool wrote it. A form with no output, such as a live value, sends its result printed as text.
 
 `format_conversation` and `write_conversation` write the history as plain text, for a log.
 
@@ -85,6 +86,7 @@ The package registers the natural row `:assistant`, `Assistant => AssistantToWid
 - **The conversation is the one source of the prompt.** `messages` is a function, and not a list that the loop keeps, so the prompt can not differ from the transcript. See [plan/done/kernel-agent-stack.md](../../../plan/done/kernel-agent-stack.md).
 - **An evaluation that a person ran goes to the model as text.** A `tool_use` block would put a call into the history that the model did not make.
 - **A tool gets the editor through `evaluate_operation(editor, operation)`.** The rejected options were an `editor` field on the assistant, an ambient `Ref`, task-local storage and a late-bound handler. See [plan/done/assistant-editor-reference.md](../../../plan/done/assistant-editor-reference.md).
+- **The pane draws a result, and the model reads the text.** A Markdown page printed back is not the text it was read from, so the form keeps the text in `output`, as it keeps the call in `source`. The tool declares its media type, so the assistant keeps no list of tool names. See [plan/pending/documentation-tool-results-as-markdown.md](../../../plan/pending/documentation-tool-results-as-markdown.md).
 - **A resource read starts folded, and an evaluation starts open.** A read is lookup work of the model and less important than the answer. See [plan/done/assistant-collapse-layout.md](../../../plan/done/assistant-collapse-layout.md).
 
 ## Usage

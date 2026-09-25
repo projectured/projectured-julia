@@ -162,7 +162,13 @@ _part_text(p::ConversationPart) = _content_to_string(p.content)
 # an older transcript holds — still answers from the document.
 _eval_code(ef::EvaluatorForm) =
     isempty(ef.source) ? _doc_source(ef.form) : String(ef.source)
-_eval_result(ef::EvaluatorForm) = _content_to_string(ef.result)
+# The text the tool answered, as it arrived, for the same reason: a result drawn
+# as a Markdown page prints back with the lines of each paragraph joined, so the
+# model would read a tool result it was never given. A form kept without an
+# output — a live value, one a person ran, one an older transcript holds — still
+# answers from the result.
+_eval_result(ef::EvaluatorForm) =
+    isempty(ef.output) ? _content_to_string(ef.result) : String(ef.output)
 
 # The call a form replays as. A form that kept its input replays the call as it
 # was made — its own tool, its own arguments. A form that kept none — one a
@@ -725,6 +731,26 @@ function _run_agent_loop!(editor, a::Assistant; observe::Union{Nothing,Function}
     nothing
 end
 
+# The natural format of the media type a tool declares for its result, or
+# `nothing` for a text that is only text.
+_find_result_format(mime_type::AbstractString) = mime_type == "text/markdown" ? :md : nothing
+
+# The document a tool's text becomes: a document of the format the tool declares,
+# when the session can read that format, and else the text. An error is a stack
+# trace and stays text, and so does a text the parser refuses.
+function _make_tool_result_document(tool, output::AbstractString, is_error::Bool)
+    format = tool === nothing || is_error ? nothing : _find_result_format(tool.result_mime_type)
+    if format !== nothing && has_natural_parser(format)
+        document = try
+            parse_natural_text(format, output)
+        catch
+            nothing
+        end
+        document === nothing || return document
+    end
+    make_evaluator_result_text(output)
+end
+
 # A tool the model asked for has run. Its code and result live together in one
 # `EvaluatorForm` part, and `tool_use_id` is what pairs the call with its
 # tool_use/tool_result blocks when `build_messages` re-serialises the conversation.
@@ -733,15 +759,18 @@ function _handle_agent_event!(ev::AgentToolResult, a, turn, state, set)
     is_evaluation = call.name == "execute_julia_code"
     code = is_evaluation ? String(get(call.input, "code", "")) : ""
     # For `execute_julia_code`, a `Document` return value is embedded as the live
-    # result and renders in place; other tools, and non-Document values, keep the
-    # text repr. (The model still sees the textual tool_result, which
-    # `build_messages` derives from this same result.)
+    # result and renders in place. Any other result is made from the text of the
+    # tool, in the format the tool declares, and `output` keeps that text: it is
+    # the tool_result `build_messages` sends the model in each later round.
     val = is_evaluation ? get_last_evaluated_value(set) : nothing
-    result = val isa Document ? val : make_evaluator_result_text(ev.output)
+    is_live = val isa Document
+    result = is_live ? val :
+             _make_tool_result_document(find_tool(set, call.name), ev.output, ev.is_error)
     push!(turn.parts, Cell(ConversationPart(
         EvaluatorForm(_eval_form_doc(call);
                       source      = code,
                       result      = result,
+                      output      = is_live ? "" : ev.output,
                       is_error    = ev.is_error,
                       tool_use_id = call.id,
                       tool_name   = call.name,
