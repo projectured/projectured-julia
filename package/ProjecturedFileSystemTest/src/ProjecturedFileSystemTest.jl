@@ -67,6 +67,7 @@ end
 include("../../../test/filesystem/projection/FileSystemToSyntaxTest.jl")
 include("../../../test/filesystem/projection/FileSystemToWidgetTest.jl")
 include("../../../test/filesystem/document/WorkspaceDuplicateTest.jl")
+include("../../../test/filesystem/projection/WorkspaceToFileSystemTest.jl")
 
 include("../../../test/filesystem/FileSystemSuite.jl")
 

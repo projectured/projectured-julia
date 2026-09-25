@@ -20,7 +20,9 @@ using ..DocumentModule
 using ..DomainModule
 using ..EventModule
 using ..FileFormatModule
+using ..FocusModule
 using ..GestureBindingModule
+using ..IntentModule
 using ..IoMapModule
 using ..NaturalModule
 using ..OperationModule
@@ -29,6 +31,7 @@ using ..PrimitiveModule
 using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..ReferenceModule
+using ..SelectionModule
 using ..SerializationModule
 using ..StyleModule
 using ..SyntaxModule

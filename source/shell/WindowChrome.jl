@@ -335,8 +335,10 @@ end
 
 # The reference as it is written, and not as a person would say it. Saying it
 # readably is `ReferenceToHumanReadableText`, which is a projection: it belongs
-# in what the band draws, not in a string built here.
+# in what the band draws, not in a string built here. The band is one short line,
+# so it asks for the compact form, in which a place a projection introduced reads
+# as its path between ‹ and ›.
 function _window_status_selection(document)
     selection = get_selection(document)
-    selection === nothing ? "" : string(selection)
+    selection === nothing ? "" : sprint(show, selection; context = :compact => true)
 end

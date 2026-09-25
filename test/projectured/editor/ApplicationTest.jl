@@ -213,6 +213,24 @@ function _app_drawn_carets(node, ox = 0, oy = 0, found = Tuple{Int,Int}[])
     found
 end
 
+# Every outline a printed window draws, a rectangle with a border and no fill,
+# as its box `(x, y, w, h)` in the window. A selection ring is one.
+function _app_drawn_outlines(node, ox = 0, oy = 0, found = NTuple{4,Int}[])
+    node = _app_value(node)
+    node === nothing && return found
+    x = hasproperty(node, :x) ? ox + Int(_app_value(node.x)) : ox
+    y = hasproperty(node, :y) ? oy + Int(_app_value(node.y)) : oy
+    if node isa GraphicsRect
+        _app_value(node.color) == color_transparent && _app_value(node.border_width) > 0 &&
+            push!(found, (x, y, Int(_app_value(node.w)), Int(_app_value(node.h))))
+    elseif hasproperty(node, :elements)
+        foreach(element -> _app_drawn_outlines(element, x, y, found), _app_value(node.elements))
+    elseif hasproperty(node, :content)
+        _app_drawn_outlines(node.content, x, y, found)
+    end
+    found
+end
+
 # The first height at which a double click on the navigator opens a file, and
 # the operation it makes. The navigator is the leftmost part of the window.
 function _app_find_file_row(composed, iomap)
@@ -1217,7 +1235,7 @@ function test_application()
 
                 # A single click selects the row, and Enter opens it.
                 selection = _app_fire(composed, iomap, MousePress(:left, 100, y, 1, ModifierKeys()))
-                @test _app_plain(selection) isa CompoundOperation
+                @test _app_plain(selection) isa ReplaceSelectionOperation
                 evaluate_operation(editor, selection)
                 opened = _app_fire(composed, iomap, KeyDown(:return, ModifierKeys()))
                 @test _app_plain(opened) isa OpenFileOperation
@@ -1248,6 +1266,45 @@ function test_application()
                     @test _app_plain(opened) isa OpenFileOperation
                     @test _app_plain(opened).path == joinpath(tall, "gamma", "file9.jl")
                 end
+            end
+
+            # The ring shows a selection that ends at the navigator. A row the
+            # person selects is inside it, so the ring is off.
+            @testset "a click selects a row inside the navigator, and Alt+click the navigator" begin
+                document, scene, composed, iomap = _app_make_scene(String[], dir)
+                editor = _app_make_editor(scene, composed, iomap)
+                press!(event) = begin
+                    operation = _app_fire(composed, editor.iomap, event)
+                    operation isa Operation && _app_apply!(editor, operation)
+                    _app_plain(operation)
+                end
+                window() = get_iomap_output(editor.iomap).windows[1].content
+                ring() = [box for box in _app_drawn_outlines(window()) if box[1] < 400 && box[4] > 500]
+                path() = repr(strip_reference_types(get_selection(scene)))
+                # The file the selected row names, read from the tree the row is in.
+                function selected_file()
+                    step = last(get_reference_steps(get_selection(scene)))
+                    step isa ProjectionReferenceStep || return nothing
+                    evaluate_reference(make_filesystem_pathname(dir), step.output_path).pathname
+                end
+                names = readdir(dir)
+                next = names[findfirst(==("a.json"), names) + 1]
+
+                (x, y) = first((x, y) for (text, x, y) in _app_drawn_at(window())
+                               if text == "a.json" && x < 400)
+                @test press!(MousePress(:left, x + 3, y + 3, 1, ModifierKeys())) isa
+                      ReplaceSelectionOperation
+                @test selected_file() == joinpath(dir, "a.json")
+                @test isempty(ring())
+                @test press!(KeyDown(:down, ModifierKeys())) isa ReplaceSelectionOperation
+                @test selected_file() == joinpath(dir, next)
+                opened = _app_fire(composed, editor.iomap, KeyDown(:return, ModifierKeys()))
+                @test _app_plain(opened).path == joinpath(dir, next)
+
+                @test press!(MousePress(:left, x + 3, y + 3, 1, ModifierKeys(alt = true))) isa
+                      ReplaceSelectionOperation
+                @test endswith(path(), ".tabs[1].content")
+                @test length(ring()) == 1
             end
         end
 
@@ -1384,7 +1441,7 @@ function test_application()
                       _app_drawn_at(get_iomap_output(w.editor.iomap).windows[1].content)
                       if text == "a.json"]
                 @test w.press!(MousePress(:left, first(at)[1] + 3, first(at)[2] + 3, 1,
-                                          ModifierKeys())) isa CompoundOperation
+                                          ModifierKeys())) isa ReplaceSelectionOperation
                 @test holds_one_path(w)
             end
         end

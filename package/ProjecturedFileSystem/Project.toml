@@ -9,6 +9,7 @@ authors = []
 ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
 ProjecturedDomain = "56e9f339-7147-459f-9ae1-7785cace5f24"
 ProjecturedFileFormat = "44b08bd6-3ef1-426c-9816-1b2d08d0c221"
+ProjecturedFocus = "14dfb0eb-5a11-4dd5-89b7-1137ba360c15"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedNatural = "09daa789-626e-40de-aeba-3b7256e1b478"
 ProjecturedPane = "6bac0b38-2033-4280-9d64-c7881579a7c3"
@@ -24,6 +25,7 @@ ProjecturedWidget = "5a37ff34-8f98-4fd0-b145-c68cb9790819"
 ProjecturedCollection = {path = "../ProjecturedCollection"}
 ProjecturedDomain = {path = "../ProjecturedDomain"}
 ProjecturedFileFormat = {path = "../ProjecturedFileFormat"}
+ProjecturedFocus = {path = "../ProjecturedFocus"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedNatural = {path = "../ProjecturedNatural"}
 ProjecturedPane = {path = "../ProjecturedPane"}
