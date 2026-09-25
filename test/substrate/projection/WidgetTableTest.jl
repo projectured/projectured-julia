@@ -8,6 +8,7 @@
 # shell (routed via the container crossing routing + the table's 3-arg bridge).
 
 using ProjecturedKernel.CellModule: Cell, Computation
+using ProjecturedCollection.CollectionModule: ListNode
 
 function test_widget_table()
 @testset "WidgetTable hover" begin
@@ -241,6 +242,63 @@ function test_scroll_pane_axis_size()
     @test Int(pane.h) == 100
     rows[] = 160
     @test Int(pane.h) == 160
+end
+end
+
+# A cell sits at the left, in the middle or at the right of its column, by
+# `column_align`, in a table whose rows are a vector and in one whose rows are a
+# list. A header cell sits as the cells of its column do.
+function test_widget_table_column_align()
+@testset "a table cell sits where its column aligns" begin
+    det = (t, f) -> (length(t) * 8, 16)
+    rec = RecursiveProjection(TypeDispatchingProjection(vcat(
+        LayoutToGraphics().dispatch,
+        WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
+    ctx = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(400)))
+    # The left edge of the first text a canvas drew with each content.
+    function lefts(node, ox = 0, found = Dict{String,Int}())
+        if node isa GraphicsCanvas
+            for element in node.elements
+                lefts(element, ox + Int(node.x), found)
+            end
+        elseif node isa GraphicsViewport
+            lefts(node.content, ox + Int(node.x), found)
+        elseif node isa GraphicsText
+            get!(found, string(node.text), ox + Int(node.x))
+        end
+        found
+    end
+    columns = Any[Fixed(120), Fixed(120), Fixed(120)]
+    vector(; kw...) = WidgetTable(Any["AA", "BB", "CC"], Any[Any["p", "q", "r"]];
+                                  column_policies = columns, kw...)
+    list(; kw...) = WidgetTable(; column_headers = Any["AA", "BB", "CC"],
+                                rows = ListNode(make_widget_table_row(Any["p", "q", "r"])),
+                                column_count = 3, column_policies = columns, kw...)
+    for (form, make) in (("rows in a vector", vector), ("rows in a list", list))
+        @testset "$form" begin
+            plain_io = print_document(rec, nothing, make(), ctx)
+            placed_io = print_document(rec, nothing,
+                                       make(; column_align = Symbol[:left, :center, :right]), ctx)
+            plain, placed = lefts(plain_io.output), lefts(placed_io.output)
+            # A list draws its rows as the viewport reaches them, so the x of a
+            # body cell is read from the row the table built first.
+            body_shift(c, text) = make === list ?
+                Int(placed_io.state.built[1][2][c][1][]) - Int(plain_io.state.built[1][2][c][1][]) :
+                placed[text] - plain[text]
+            # A cell 8 wide in a column 120 wide: none at the left, half the
+            # rest in the middle, all of it at the right.
+            @test body_shift(1, "p") == 0
+            @test body_shift(2, "q") == 56
+            @test body_shift(3, "r") == 112
+            # The header of each column, 16 wide, the same way.
+            @test placed["AA"] == plain["AA"]
+            @test placed["BB"] - plain["BB"] == 52
+            @test placed["CC"] - plain["CC"] == 104
+        end
+    end
+    @testset "a side that is none of the three is refused" begin
+        @test_throws ErrorException vector(; column_align = Symbol[:middle])
+    end
 end
 end
 

@@ -153,7 +153,8 @@ function _wtl_row(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, ctx
                                   (@reference_step [c]))
         cctx = _wtl_cell_context(cctx, w, c, st.widths)
         cim = document === nothing ? nothing : print_child(recursion, document, cctx)
-        x_cell = Cell(@computation Int32(st.columns[][c] + bw + pad_x))
+        x_cell = Cell(@computation Int32(st.columns[][c] + bw + pad_x +
+            _wt_align_offset(_wt_column_align(w, c), st.widths[][c], _wtl_child_w(cim))))
         y_cell = Cell(Int32(bw + pad_y))
         push!(entries, (x_cell, y_cell, cim))
     end
@@ -308,7 +309,8 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
             cctx = make_child_context(ctx, w, (@reference_step column_headers), (@reference_step [c]))
             cctx = _wtl_cell_context(cctx, w, c, widths)
             cim = document === nothing ? nothing : print_child(recursion, document, cctx)
-            x_cell = Cell(@computation Int32(columns[][c] + bw + pad_x))
+            x_cell = Cell(@computation Int32(columns[][c] + bw + pad_x +
+                _wt_align_offset(_wt_column_align(w, c), widths[][c], _wtl_child_w(cim))))
             y_cell = Cell(Int32(bw + pad_y))
             push!(st.header_entries, (x_cell, y_cell, cim))
         end

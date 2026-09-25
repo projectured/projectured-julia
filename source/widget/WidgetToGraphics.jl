@@ -7791,6 +7791,24 @@ function _wt_column_cell_policy(w::WidgetTable, c::Int)
     (policies isa AbstractVector && 1 <= c <= length(policies)) ? policies[c] : w.cell_policy
 end
 
+# Where a cell sits in body column `c`: the column's entry of `column_align`,
+# else the left.
+function _wt_column_align(w::WidgetTable, c::Int)
+    aligns = w.column_align
+    (aligns isa AbstractVector && 1 <= c <= length(aligns)) ? Symbol(aligns[c]) : :left
+end
+
+# The alignment of each grid column. The row-header strip, when there is one,
+# sits at the left, and a header cell sits as the cells of its column do.
+_wt_grid_column_align(w::WidgetTable, grid_cols::Int, col_offset::Int) =
+    Symbol[gc - col_offset < 1 ? :left : _wt_column_align(w, gc - col_offset)
+           for gc in 1:grid_cols]
+
+# How far a cell `content` wide sits from the left of a column `column` wide.
+_wt_align_offset(align::Symbol, column::Int, content::Int) =
+    align === :center ? max(0, div(column - content, 2)) :
+    align === :right  ? max(0, column - content) : 0
+
 # Whether each grid column hands its extent to its cells: a body column does
 # when its cells wrap and not when they clip, because a cell that is handed a
 # width breaks its lines there and a cell that is not draws one line for the
@@ -7985,7 +8003,8 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
                           column_policy = w.column_policy, row_policy = w.row_policy,
                           column_policies = _wt_shift(w.column_policies, col_offset),
                           row_policies = _wt_shift(w.row_policies, row_offset),
-                          column_offers = _wt_column_offers(w, grid_cols, col_offset))
+                          column_offers = _wt_column_offers(w, grid_cols, col_offset),
+                          column_align = _wt_grid_column_align(w, grid_cols, col_offset))
         # The grid is positioned at (grid_off_x, grid_off_y) inside the table's
         # content area; extend the context reference to the table's grid so
         # child contexts are rooted here.

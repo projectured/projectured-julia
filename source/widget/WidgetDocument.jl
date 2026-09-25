@@ -2199,6 +2199,9 @@ layout iomap ("layout is just layout").
   that is its content has no edge to cut at, and the policy does nothing there.
 - `column_cell_policies` — `Vector{Symbol}`, the body columns whose cell policy
   differs from the table's; a column past its end takes the table's.
+- `column_align` — `Vector{Symbol}`, where a cell sits in its body column:
+  `:left`, `:center` or `:right`; a column past its end is `:left`. A header
+  cell sits as the cells of its column do.
 - `visible::Bool` — standard Document field; `selection` is macro-injected.
 - `margin`, `border`, `padding` — the box around the frame and the grid, each
   `nothing` or an `Inset`; `nothing` takes the projection's default (transparent,
@@ -2224,6 +2227,7 @@ See also `make_result_table` and `WidgetList` for one column.
     row_policies::Any            # Vector{SizePolicy} — the body rows that differ
     cell_policy::Symbol          # :clip | :wrap — what every body column's cells do
     column_cell_policies::Any    # Vector{Symbol} — the body columns that differ
+    column_align::Any            # Vector{Symbol} — :left, :center or :right for each body column
     visible::Bool
     margin::Inset
     border::Inset
@@ -2265,7 +2269,7 @@ _table_rows(rows::ListNode) = Cell(rows)
                 border_width=1, visible=true,
                 column_policy=Content, row_policy=Content,
                 column_policies=Any[], row_policies=Any[],
-                cell_policy=:clip, column_cell_policies=Symbol[])
+                cell_policy=:clip, column_cell_policies=Symbol[], column_align=Symbol[])
 
 Document-cell constructor. `column_headers` and `row_headers` are `Vector`s of
 `Document`/`nothing`, and a table has no row headers unless it is given some.
@@ -2289,6 +2293,9 @@ over the strip itself.
 for every column and `column_cell_policies` for the ones that differ. A table
 is a data table until someone says otherwise, so the default is `:clip`: one
 line, cut at the column's edge.
+
+**A cell sits at the left of its column** unless `column_align` names `:center`
+or `:right` for that column, as a `GridLayout`'s `column_align` does.
 """
 function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Vector,
                      rows::Union{Vector,ListNode}, column_count::Integer,
@@ -2297,9 +2304,14 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Vector,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
                      cell_policy::Symbol=:clip, column_cell_policies=Symbol[],
+                     column_align=Symbol[],
                      margin=nothing, border=nothing, padding=nothing, style=nothing, tooltip=nothing)
     cell_policy in (:clip, :wrap) ||
         error("WidgetTable: cell_policy is :clip or :wrap, not ", repr(cell_policy))
+    for align in column_align
+        align in (:left, :center, :right) ||
+            error("WidgetTable: a column aligns :left, :center or :right, not ", repr(align))
+    end
     rows isa ListNode && !isempty(row_headers) &&
         error("WidgetTable: a table whose rows are a list draws no row headers")
     WidgetTable(Cell(position),
@@ -2310,6 +2322,7 @@ function WidgetTable(; position::Point2D=Point2D(0, 0), column_headers::Vector,
                 Cell(column_policy), Cell(row_policy),
                 Cell(collect(Any, column_policies)), Cell(collect(Any, row_policies)),
                 Cell(cell_policy), Cell(collect(Symbol, column_cell_policies)),
+                Cell(collect(Symbol, column_align)),
                 Cell(visible), Cell(margin), Cell(border), Cell(padding), Cell(style),
                 Cell(nothing), Cell(tooltip))
 end
@@ -2333,6 +2346,7 @@ function WidgetTable(headers::Vector, rows::Vector; position::Point2D=Point2D(0,
                      column_policy::SizePolicy=Content, row_policy::SizePolicy=Content,
                      column_policies=Any[], row_policies=Any[],
                      cell_policy::Symbol=:clip, column_cell_policies=Symbol[],
+                     column_align=Symbol[],
                      margin=nothing, border=nothing, padding=nothing, style=nothing,
                      tooltip=nothing)
     column_count = isempty(headers) ?
@@ -2343,6 +2357,7 @@ function WidgetTable(headers::Vector, rows::Vector; position::Point2D=Point2D(0,
                 column_policy=column_policy, row_policy=row_policy,
                 column_policies=column_policies, row_policies=row_policies,
                 cell_policy=cell_policy, column_cell_policies=column_cell_policies,
+                column_align=column_align,
                 margin=margin, border=border, padding=padding, style=style,
                 tooltip=tooltip)
 end
