@@ -522,7 +522,7 @@ Step 0 takes the baseline.
       walk reads. The sweep peaks at 7.5 GB in one process, under the 8 GB
       cap.
 
-- [ ] **Step 7: the documentation, as a whole.** A search of both repositories
+- [x] **Step 7: the documentation, as a whole.** A search of both repositories
       for the old names and the old numbers (`available_width`,
       `available_height`, `with_available_size`, `800`, the "no offer" wording
       of `Content`) finds none outside `plan/done/`. `layout-rules.md`,
@@ -539,7 +539,11 @@ Step 0 takes the baseline.
       named flows among the users of `allocate_axis`; the split pane is the
       fourth. `gesturelog.md`, `pdf.md`, `sdl.md` and `screen.md` named "the
       available size"; they name the range now. The design documents name no
-      context.
+      context. **Done** (2026-09-25): outside `plan/done/`, the old names are
+      left only in this plan, which names what it replaces, and in
+      `documentation-tool-results-as-markdown.md`, whose open item asks for
+      `MarkdownTableTest.jl` to follow the names; the rebase of Step 6 made
+      that change. `word-wrapping-projection.md` names the range.
 
 - [ ] **Step 8: the landing** of both repositories, when the owner says so.
 

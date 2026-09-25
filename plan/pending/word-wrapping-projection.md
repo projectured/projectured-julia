@@ -17,8 +17,8 @@ landed.
 
 Existing coverage in
 [`package/substrate/test/projection/WordWrappingTest.jl`](../../test/substrate/projection/WordWrappingTest.jl)
-covers character preservation, no-wrap, selection round-trip, and
-`available_width`-from-context. Still to add:
+covers character preservation, no-wrap, selection round-trip, and the
+maximum width from the context. Still to add:
 
 ### 1. Wrap parity ⏳
 
@@ -44,7 +44,7 @@ instrumentation").
 Using `perf_counters()` (see
 [package/kernel/doc/cell.md](../../documentation/package/kernel/cell.md), "PerformanceCounterModule — instrumentation"), assert:
 
-- Changing `:available_width` re-wraps and invalidates only the wrap /
+- Changing the maximum width of the context re-wraps and invalidates only the wrap /
   layout cells, not upstream syntax/text cells.
 - Editing a single input span re-wraps only the affected output portion.
 
@@ -75,9 +75,9 @@ needs it.
 
 ## Open questions (carry-over from the original plan)
 
-- **`:available_width` content vs. raw viewport width.** Today the scroll
-  pane already subtracts its padding before publishing
-  `:available_width`, so `WordWrapping` reads the content width. If a
+- **The content width vs. the raw viewport width.** Today the scroll
+  pane already subtracts its padding before it passes its range on
+  (`with_inner_size`), so `WordWrapping` reads the content width. If a
   consumer needs the raw viewport width too, we'd add a separate
   property; settle when the next layout-shape consumer shows up.
   See [widget-layout.md](../done/widget-layout.md).
