@@ -1,7 +1,7 @@
 # A popup shows every item on a popover, and a help page scrolls
 
-> **Status (2026-09-26): in progress** on the branch `popup-surface`, worktree
-> `projectured-julia-popup-surface`. The owner took fixes 1, 2 and 3a below.
+> **Status (2026-09-26): done** on the branch `popup-surface`. The owner took
+> fixes 1, 2 and 3a below.
 
 The owner opened the Help menu in the live application after
 [a-press-on-a-menu-name-opens-its-menu.md](../done/a-press-on-a-menu-name-opens-its-menu.md)
@@ -152,5 +152,22 @@ landed, and reported three faults with a screenshot.
   width, no size from a trigger, the two `.pred` types), `screen.md` (a popup
   fits what it draws, up to its bound) and `shell.md` (the lists open in a
   scroll pane).
-- [ ] 7. A live check on the display, the verification against `main`, and the
+- [x] 7. A live check on the display, the verification against `main`, and the
   move of this plan to `plan/done/`.
+
+  Done. The sweep: `test_substrate` 81207 pass with 3 fail and 2 errors, all in
+  `SplitPaneDragTest.jl`, the known failures of a clean main; `test_shell` 230,
+  `test_undo` 110, `test_help` 41, `test_package_graph` 668, the export
+  collision checks 5 and 1, `test_document_insertion` 123,
+  `test_text_clipboard` 8, `test_command_palette` 39,
+  `test_command_palette_decorator` 63, `test_application` 342, `test_sdl` 153,
+  `test_user_interface_file` 21, all pass. The naming guard passes. omnet-julia
+  names none of the changed functions and fields outside its precompile
+  statements.
+
+  The live run pushed SDL events into the application on GNOME Shell and read
+  the pixels of each native window: the Help menu opens as a popover with its
+  three items, each row as wide as the widest, and a press on "Documents" opens
+  the list in its scroll pane, titled "Documents". The backend of the run
+  reported a device pixel ratio of 1, where a run before the SDL change of main
+  reported 2, so the script takes the ratio from the backend.
