@@ -2333,7 +2333,9 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
         end
         control_w = _resolve_width(ctx, 0, cw + inset_width)
         control_h = _resolve_height(ctx, 0, ch + inset_height)
-        final = Any[]
+        # A clear surface over the whole item: a press or a crossing anywhere on
+        # it hits the item, and not only on its label, also where the padding is.
+        final = Any[GraphicsRect(0, 0, control_w, control_h; color = color_transparent, radius = 0)]
         _push_box_parts!(final, _get_box_insets(p, w), _get_box_colors(p, w),
                          control_w - inset_width, control_h - inset_height)
         # The hover layer, only when hovered + enabled, drawn over the box and
@@ -2506,6 +2508,12 @@ _menu_item_width(cim) =
     cim isa WidgetMenuItemToGraphicsCanvasIoMap ? cim.control_width :
         (cim.output isa GraphicsCanvas ? Int(cim.output.w[]) : 0)
 
+# The same item's extent across the main axis, so a padded item takes its whole
+# row and the next row starts below it.
+_menu_item_height(cim) =
+    cim isa WidgetMenuItemToGraphicsCanvasIoMap ? cim.control_height :
+        (cim.output isa GraphicsCanvas ? Int(cim.output.h[]) : 0)
+
 function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     # Reconcile every element by identity, keeping the ORIGINAL index so a nested
@@ -2529,19 +2537,21 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         x_cursor = 0
         y_cursor = 0
         item_w = 0
+        row_h = item_h
         for cim in child_cells[]
             cim === nothing && continue
             push!(child_iomaps, (content_x + x_cursor, content_y + y_cursor, cim))
             push!(items, _make_canvas(content_x + x_cursor, content_y + y_cursor, Any[cim.output]))
             if horizontal
                 x_cursor += _menu_item_width(cim) + item_gap
+                row_h = max(row_h, _menu_item_height(cim))
             else
                 item_w = max(item_w, _menu_item_width(cim))
-                y_cursor += item_h
+                y_cursor += max(item_h, _menu_item_height(cim))
             end
         end
         content_width = horizontal ? max(0, x_cursor - item_gap) : item_w
-        content_height = horizontal ? item_h : y_cursor
+        content_height = horizontal ? row_h : y_cursor
         elems = Any[]
         _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
         append!(elems, items)

@@ -23,7 +23,15 @@ make_window_command(label, callback; icon = nothing, shortcut = nothing,
                     tooltip = nothing) =
     WidgetMenuItem(label; action = Action(label; icon = icon, shortcut = shortcut,
                                           callback = callback),
-                          tooltip = tooltip)
+                          tooltip = tooltip,
+                          # Room around the label: the rows stand apart, and the
+                          # hover surface is larger than the words.
+                          padding = Inset(4, 4, 12, 12))
+
+# The room around the name of a menu on the bar. It is as tall as the room
+# around a command, so a row of the menu that opens below it is as tall as the
+# name.
+const _WINDOW_MENU_PADDING = Inset(4, 4, 6, 6)
 
 """
     make_window_menu_bar(; extra = []) -> WidgetMenu
@@ -53,13 +61,13 @@ until the host's own menus begin.
 """
 make_window_menu_bar(; extra = []) =
     WidgetMenu(Any[
-        WidgetMenuItem("File"; submenu = WidgetMenu(Any[
+        WidgetMenuItem("File"; padding = _WINDOW_MENU_PADDING, submenu = WidgetMenu(Any[
             make_window_command("New tab", _open_tab!;
                                 shortcut = Shortcut(:t; ctrl = true)),
             make_window_command("Close tab", _close_tab!;
                                 shortcut = Shortcut(:w; ctrl = true)),
         ])),
-        WidgetMenuItem("View"; submenu = WidgetMenu(Any[
+        WidgetMenuItem("View"; padding = _WINDOW_MENU_PADDING, submenu = WidgetMenu(Any[
             make_window_command("Split vertically",
                                 editor -> _split!(editor, :vertical);
                                 shortcut = Shortcut(:backslash; ctrl = true)),
@@ -72,7 +80,7 @@ make_window_menu_bar(; extra = []) =
                                 tooltip = "Every gesture of this session, and what each one did"),
         ])),
         extra...,
-    ]; orientation = :horizontal)
+    ]; orientation = :horizontal, padding = Inset(2, 2, 2, 2))
 
 """
     make_window_toolbar(; assistant = nothing, explorer = nothing, extra = []) -> WidgetToolbar
