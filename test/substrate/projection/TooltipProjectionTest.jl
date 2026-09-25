@@ -198,4 +198,55 @@ read_intent(projection, iomap, WindowInput(:ghost, WindowDefocus()))
 
 end # @testset
 
+@testset "a popup closes on a press elsewhere, on Escape, and when a window loses focus" begin
+
+# A `:popup` never takes the focus: the keyboard and the pointer stay in the
+# window under it, so the manager closes it for what happens there. A floating
+# window takes the focus, and closes on its own loss of focus.
+make_screen() = ScreenDocument([
+    WindowDocument(; id=:default, content=PrimitiveNumber(0)),
+    WindowDocument(; id=:popup, style=:popup, auto_dismiss=true, content=PrimitiveString("p")),
+    WindowDocument(; id=:floating, style=:floating, auto_dismiss=true, content=PrimitiveString("f")),
+])
+projection = RecursiveProjection(
+    TypeDispatchingProjection(
+        ScreenDocument => WindowManagingProjection(inner=ScreenToScreen()),
+        WindowDocument => ScreenToScreen(),
+        CellVector     => CopyingProjection(),
+        Any            => IdentityProjection(),
+    ),
+)
+ids(windows) = [w.id for w in windows]
+
+# The default window loses focus: the `:popup` closes, on input and output, and
+# the floating window stays.
+screen = make_screen()
+iomap = print_document(projection, screen)
+read_intent(projection, iomap, WindowInput(:default, WindowDefocus()))
+@test ids(screen.windows) == [:default, :floating]
+@test ids(iomap.output.windows) == [:default, :floating]
+
+# A press in a popup closes none; a press in the default window closes every popup.
+screen = make_screen()
+iomap = print_document(projection, screen)
+read_intent(projection, iomap, WindowInput(:popup, MouseDown(:left, 5, 5)))
+@test ids(screen.windows) == [:default, :popup, :floating]
+read_intent(projection, iomap, WindowInput(:default, MouseDown(:left, 10, 10)))
+@test ids(screen.windows) == [:default]
+
+# A bare Escape closes every popup and answers an operation, so it goes no
+# further: the editor quits on an Escape that no reader answers. A modified
+# Escape closes nothing, and with no popup open a bare Escape gets no answer.
+screen = make_screen()
+iomap = print_document(projection, screen)
+@test read_intent(projection, iomap,
+                  WindowInput(:default, KeyDown(:escape, ModifierKeys(; ctrl=true)))) === nothing
+@test length(screen.windows) == 3
+@test read_intent(projection, iomap,
+                  WindowInput(:default, KeyDown(:escape, ModifierKeys()))) isa DoNothingOperation
+@test ids(screen.windows) == [:default]
+@test read_intent(projection, iomap, WindowInput(:default, KeyDown(:escape, ModifierKeys()))) === nothing
+
+end # @testset
+
 end # function

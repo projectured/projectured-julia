@@ -102,7 +102,7 @@ end
     # A popup window with a menu draws the names of its items.
     menu = WidgetMenu(Any[WidgetMenuItem("New tab"), WidgetMenuItem("Close tab")])
     push!(scene.windows, Cell(WindowDocument(; id = :widget_popup, x = 10, y = 20, width = 120,
-                                              height = 60, style = :floating, content = menu)))
+                                              height = 60, style = :popup, content = menu)))
     output = print_document(projection, scene).output
     canvas = output.windows[2].content
     canvas = canvas isa Cell ? canvas[] : canvas
@@ -132,7 +132,7 @@ end
     @test length(scene.windows) == 2
     window, popup = scene.windows[1], scene.windows[2]
     @test popup.content isa VerticalLayout
-    @test popup.style === :floating
+    @test popup.style === :popup
     # Just below the select, which sits at the origin of the window's content, in
     # screen coordinates. The window offers the select its height, so the
     # select's height is the one the scene printed.

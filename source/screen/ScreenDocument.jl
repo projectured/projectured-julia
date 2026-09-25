@@ -38,12 +38,16 @@ projected.
   is printed at that maximum, and the backend gives it the extent of what it
   printed, clamped between the two.
 - `bg::NTuple{4,UInt8}` — background RGBA.
-- `style::Symbol` — `:normal`, `:tooltip`, `:floating`, … Backend
-  applies per-style behaviour (default `:normal`).
-- `auto_dismiss::Bool` — when `true`, the window closes itself on a
-  `WindowDefocus` (it is a transient popup: a dropdown/menu/context menu that
-  should vanish when the pointer acts elsewhere). The default window and tooltips
-  stay `false`, so losing focus to a popup never closes them. Default `false`.
+- `style::Symbol` — `:normal`, `:tooltip`, `:floating`, `:popup`, … Backend
+  applies per-style behaviour (default `:normal`). A `:popup` is a menu or a
+  dropdown list: a window that never takes the focus, so the keyboard stays in
+  the window under it.
+- `auto_dismiss::Bool` — when `true`, the window is a transient popup: a
+  dropdown, a menu or a context menu that closes when the pointer acts
+  elsewhere. `WindowManagingProjection` closes it on its own `WindowDefocus`, on
+  a `MouseDown` in another window, and on a bare Escape; a `:popup` also closes
+  when any window loses the focus. The default window and tooltips stay
+  `false`, so losing focus to a popup never closes them. Default `false`.
 - `content::Document` — the document tree this window displays. Before
   projection: any domain document. After projection: typically a
   `GraphicsCanvas`.

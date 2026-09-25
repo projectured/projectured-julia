@@ -450,9 +450,17 @@ const _WINDOW_FLAGS_TOOLTIP  = SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS |
                                SDL_WINDOW_TOOLTIP | SDL_WINDOW_ALLOW_HIGHDPI
 const _WINDOW_FLAGS_FLOATING = SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE |
                                SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_ALLOW_HIGHDPI
+# A popup, a menu or a dropdown list, never takes the focus. With
+# `SDL_WINDOW_POPUP_MENU` the window manager of X11 does not manage the window,
+# so it can not give the window the focus and take it back, as it does with a
+# managed window the moment it opens.
+const _WINDOW_FLAGS_POPUP    = SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS |
+                               SDL_WINDOW_ALWAYS_ON_TOP | SDL_WINDOW_SKIP_TASKBAR |
+                               SDL_WINDOW_POPUP_MENU | SDL_WINDOW_ALLOW_HIGHDPI
 
 function _window_flags(style::Symbol)
     style === :tooltip  && return _WINDOW_FLAGS_TOOLTIP
+    style === :popup    && return _WINDOW_FLAGS_POPUP
     style === :floating && return _WINDOW_FLAGS_FLOATING
     return _WINDOW_FLAGS_DEFAULT
 end

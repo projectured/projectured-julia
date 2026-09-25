@@ -79,11 +79,30 @@ function read_intent(p::WindowManagingProjection, recursion, change::Intent, iom
     end
     # Losing focus dismisses only a popup (`auto_dismiss`), so the pointer acting
     # elsewhere closes a dropdown/menu but never the default window or a tooltip.
+    # A `:popup` never holds the focus, which stays in the window under it, so a
+    # loss of focus of any other window closes every `:popup`.
     if window_input isa WindowInput && window_input.event isa WindowDefocus
         win = _find_window(iomap.input, window_input.window_id)
-        (win !== nothing && win.auto_dismiss === true) || return Intent(change.gesture, nothing)
-        _apply_close!(iomap, CloseWindowOperation(window_input.window_id))
+        if win !== nothing && win.auto_dismiss === true
+            _apply_close!(iomap, CloseWindowOperation(window_input.window_id))
+        else
+            _close_popup_windows!(iomap; style = :popup)
+        end
         return Intent(change.gesture, nothing)
+    end
+    # A press in a window that is not a popup closes every popup, and the press
+    # goes on to that window: a press on another menu name closes the open menu
+    # and opens its own.
+    if window_input isa WindowInput && window_input.event isa MouseDown
+        win = _find_window(iomap.input, window_input.window_id)
+        (win !== nothing && win.auto_dismiss === true) || _close_popup_windows!(iomap)
+    end
+    # A bare Escape closes the open popups and goes no further. The keyboard of a
+    # `:popup` stays in the window under it, and there an Escape that no reader
+    # claims closes the editor, so the answer is an operation that does nothing.
+    if window_input isa WindowInput && _is_bare_escape(window_input.event) &&
+       _close_popup_windows!(iomap)
+        return Intent(change.gesture, DoNothingOperation())
     end
 
     inner = read_intent(p.inner, recursion, change, iomap.inner_iomap)
@@ -187,6 +206,25 @@ function _apply_close!(iomap::WindowManagingIoMap, op::CloseWindowOperation)
         return
     end
 end
+
+# Close every window that dismisses itself (`auto_dismiss`), or only those of
+# `style` when it is given, and answer whether one closed.
+function _close_popup_windows!(iomap::WindowManagingIoMap; style::Union{Symbol,Nothing} = nothing)
+    input = iomap.input
+    input isa ScreenDocument || return false
+    ids = Symbol[w.id for w in input.windows
+                 if w isa WindowDocument && w.auto_dismiss === true &&
+                    (style === nothing || w.style === style)]
+    for id in ids
+        _apply_close!(iomap, CloseWindowOperation(id))
+    end
+    !isempty(ids)
+end
+
+_is_bare_escape(event) = false
+_is_bare_escape(event::KeyDown) =
+    event.key === :escape &&
+    !(event.modifiers.ctrl || event.modifiers.shift || event.modifiers.alt || event.modifiers.meta)
 
 # Find the WindowDocument with the given id on the manager's input screen.
 function _find_window(screen, id::Symbol)

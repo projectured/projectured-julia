@@ -56,7 +56,7 @@ end
     # A window the reconciler opens is made hidden. A window shown before it is
     # painted holds an undefined back buffer, and the compositor draws that
     # black.
-    for style in (:default, :tooltip, :floating)
+    for style in (:default, :tooltip, :floating, :popup)
         held = WindowDocument(; id = :held_window_test, title = "held_window_test",
                                 x = 100, y = 100, width = 200, height = 100,
                                 style = style, content = "content")

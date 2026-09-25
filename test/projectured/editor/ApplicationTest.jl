@@ -629,7 +629,7 @@ function test_application()
                 @test length(scene.windows) == 2
                 window, popup = scene.windows[1], scene.windows[2]
                 @test popup.content isa WidgetMenu
-                @test popup.style === :floating
+                @test popup.style === :popup
                 # The item has 6 pixels of room left of its name and 4 above it, and
                 # the menu opens 4 pixels below the item, at its left edge.
                 item_height = print_document(make_window_shell_projection(IdentityProjection()),
@@ -643,6 +643,29 @@ function test_application()
                 # stage of a clipboard chain, and a context menu then never opened.
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 @test _app_fire(composed, iomap, MousePress(:right, 900, 300, 1, ModifierKeys())) === nothing
+            end
+
+            @testset "a press on another menu name closes the open menu and opens its own, and Escape closes it" begin
+                # A popup never takes the focus, so what closes it happens in the
+                # window under it: a press there, or an Escape, which must not reach
+                # the rule of the editor that quits.
+                document, scene, composed, _ = _app_make_scene(paths[1:1], dir)
+                fire(event) = _app_fire(composed, print_document(composed, scene), event)
+                drawn = _app_drawn_at(print_document(composed, scene).output.windows[1].content)
+                (fx, fy) = only((x, y) for (text, x, y) in drawn if text == "File")
+                (vx, vy) = only((x, y) for (text, x, y) in drawn if text == "View")
+                labels(menu) = [string(item.action.label) for item in menu.elements]
+                view = only(item for item in make_window_menu_bar().elements
+                            if string(item.action.label) == "View")
+                fire(MousePress(:left, fx + 2, fy + 2, 1, ModifierKeys()))
+                @test labels(scene.windows[2].content) == ["New tab", "Close tab"]
+                # The press goes down first, and closes the menu of File.
+                fire(MouseDown(:left, vx + 2, vy + 2))
+                @test length(scene.windows) == 1
+                fire(MousePress(:left, vx + 2, vy + 2, 1, ModifierKeys()))
+                @test labels(scene.windows[2].content) == labels(view.submenu)
+                @test fire(KeyDown(:escape, ModifierKeys())) isa DoNothingOperation
+                @test length(scene.windows) == 1
             end
 
             @testset "the menu of a menu name draws its commands, and a press on one runs it" begin

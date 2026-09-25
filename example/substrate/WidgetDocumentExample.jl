@@ -395,10 +395,10 @@ function make_widget_popup_document_example(; width=520, height=360)
 
     main = WindowDocument(; id=:widget_popup_main, title="Widget popup",
                           x=0, y=0, width=width, height=height, content=content)
-    # A pre-opened floating popup so a static sweep/screenshot shows the window route.
+    # A pre-opened popup window so a static sweep/screenshot shows the window route.
     popup_menu = WidgetMenu([WidgetMenuItem("New"), WidgetMenuItem("Open"), WidgetMenuItem("Save")])
     popup = WindowDocument(; id=:widget_popup, title="", x=24, y=130,
-                           width=160, height=120, style=:floating, auto_dismiss=true,
+                           width=160, height=120, style=:popup, auto_dismiss=true,
                            content=popup_menu)
     ScreenDocument([main, popup])
 end
