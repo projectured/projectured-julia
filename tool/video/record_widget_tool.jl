@@ -30,9 +30,9 @@ const PROBE = get(ARGS, 2, "") == "probe"
 
 # Read off the window at 1280×720 with no assistant pane.
 const EVALUATOR_BUTTON = (50, 38)
-const BUTTON_IN_ROW = (336, 285)      # the button in the result row of the tool
-const BUTTON_IN_PANE = (827, 105)     # the same button in the tool's own pane
-const SLIDER_TRACK = (777, 184, 240)  # the left end, the height and the width of its track
+const BUTTON_IN_ROW = (336, 295)      # the button in the result row of the tool
+const BUTTON_IN_PANE = (831, 123)     # the same button in the tool's own pane
+const SLIDER_TRACK = (777, 198, 240)  # the left end, the height and the width of its track
 
 include(joinpath(@__DIR__, "julia_forms.jl"))
 include(joinpath(@__DIR__, "s4_forms.jl"))

@@ -266,9 +266,15 @@ sealed).
       navigator shows its name), and finds the pixels that differ in the last
       frames: they start at the place of the last mouse event and fit in the
       arrow, 5 of 5.
-- [ ] Step 5: `find_form_document` and the check in the scripts (§3.5); S4 with
+- [x] Step 5: `find_form_document` and the check in the scripts (§3.5); S4 with
       the forms and the order of §3.6, recorded and given to the owner.
-      **In progress.** Written: `find_form_document` (the evaluator's
+      **Done** (2026-09-25): the take is `widget_tool.mp4`, 74.9 s against a
+      schedule of 75.0 s. The layout range moved the tool's widgets, so a probe
+      found the places again: the button in the result row at (336, 295), the
+      button in the pane at (831, 123), and the slider's track at y 198, where
+      the drags at y 184 had missed it. In the take the tool counts 3 presses
+      and then 4, the slider goes to 0.8 and then to 0.55, and both tables
+      follow. The history of the step: Written: `find_form_document` (the evaluator's
       `_parse_evaluated_form!` calls it), `tool/video/julia_forms.jl` with
       `check_julia_forms`, which the scripts of S1 and S4 call before a take, the
       forms of S4 in `tool/video/s4_forms.jl`, and the script in moments, with a
