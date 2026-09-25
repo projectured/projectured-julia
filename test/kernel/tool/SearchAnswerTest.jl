@@ -205,5 +205,18 @@ function test_search_answer()
         @test !occursin("Classes:", listed)
     end
 
+    @testset "a documentation tool says that its answer is Markdown" begin
+        set = register_default_tools!(ToolSet())
+        mime_type = name -> find_tool(set, name).result_mime_type
+        for name in ("list_resources", "read_resource", "search_guides", "search_api",
+                     "read_function_documentation")
+            @test mime_type(name) == "text/markdown"
+        end
+        @test mime_type("execute_julia_code") == "text/plain"
+        # A tool that names no media type answers plain text.
+        plain = Tool("plain", "Answers a word.", NamedTuple[], (target, args) -> "word")
+        @test plain.result_mime_type == "text/plain"
+    end
+
 end
 end # test_search_answer

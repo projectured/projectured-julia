@@ -1,7 +1,7 @@
 # Fragment of `ToolModule` — the three types the capability surface is made of.
 
 """
-    Tool(name, description, parameters, handler)
+    Tool(name, description, parameters, handler; result_mime_type = "text/plain")
 
 An action the editor can be asked to perform.
 
@@ -14,13 +14,21 @@ An action the editor can be asked to perform.
   result. `args` keys are strings matching the parameter names; `target` is
   whatever the caller is acting on (the `Editor`, in practice) and is passed
   through untouched.
+- `result_mime_type` is the media type of the text the handler returns, as a
+  `Resource` names its own: `"text/markdown"` for a page of documentation. A
+  front end that shows a result reads it to choose how to draw the text; the
+  text itself is the same for every front end.
 """
 struct Tool
     name::String
     description::String
     parameters::Vector{NamedTuple}
     handler::Function
+    result_mime_type::String
 end
+
+Tool(name, description, parameters, handler; result_mime_type::AbstractString = "text/plain") =
+    Tool(name, description, parameters, handler, result_mime_type)
 
 """
     Resource(uri, name; description, provider, mime_type = "text/markdown")

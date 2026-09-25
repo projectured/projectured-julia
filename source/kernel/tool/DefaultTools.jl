@@ -107,6 +107,10 @@ const _DETAIL_PARAMETER = (name = "detail", type = "string",
 const _LIMIT_PARAMETER = (name = "limit", type = "number",
     description = "How many hits; the detail decides when absent.", required = false)
 
+# What the documentation tools answer: a guide is a Markdown file, a docstring is
+# Markdown, and a list of hits is written as Markdown around them.
+const _DOCUMENTATION_MIME_TYPE = "text/markdown"
+
 """
     register_default_tools!(set) -> set
 
@@ -146,7 +150,8 @@ function register_default_tools!(set::ToolSet)
         (target, args) -> search_guides(set, _get_query_argument(args);
                                         mode = get(args, "mode", nothing),
                                         detail = get(args, "detail", nothing),
-                                        limit = _arg_limit(get(args, "limit", nothing))),
+                                        limit = _arg_limit(get(args, "limit", nothing)));
+        result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
 
     register_tool!(set, Tool(
@@ -167,7 +172,8 @@ function register_default_tools!(set::ToolSet)
                                      mode   = get(args, "mode", nothing),
                                      detail = get(args, "detail", nothing),
                                      kind   = _arg_kind(get(args, "kind", nothing)),
-                                     limit  = _arg_limit(get(args, "limit", nothing))),
+                                     limit  = _arg_limit(get(args, "limit", nothing)));
+        result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
 
     # A function's docstring is reachable *as a tool*, and it is the one piece of
@@ -198,7 +204,8 @@ function register_default_tools!(set::ToolSet)
             get(args, "module_name", ""),
             get(args, "function_name", ""),
             get(args, "type_name", nothing);
-            api = set.api),
+            api = set.api);
+        result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
 
     # The resource list is reachable *as a tool*, not only as a protocol concept:
@@ -210,7 +217,8 @@ function register_default_tools!(set::ToolSet)
         "addressed: the catalogues, the guides and their sections, the modules, the " *
         "types, and a function.",
         NamedTuple[],
-        (target, args) -> describe_resources(set),
+        (target, args) -> describe_resources(set);
+        result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
 
     register_tool!(set, Tool(
@@ -222,7 +230,8 @@ function register_default_tools!(set::ToolSet)
             (name = "uri", type = "string",
              description = "Resource URI from `list_resources`", required = true),
         ],
-        (target, args) -> read_resource(set, String(get(args, "uri", ""))),
+        (target, args) -> read_resource(set, String(get(args, "uri", "")));
+        result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
 
     # **The guides are offered whatever the declaration says.** A declaration

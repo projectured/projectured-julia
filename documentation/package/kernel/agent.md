@@ -41,6 +41,15 @@ A `Tool` is a name, a description, abstractly-described parameters, and a handle
 Anthropic's `input_schema` is `ProjecturedAnthropic`'s job, rendering it into MCP's
 parameter list is `ProjecturedMcp`'s, and neither is the tool's business.
 
+A `Tool` also names the media type of the text its handler returns,
+`result_mime_type`, as a `Resource` names its own with `mime_type`. It is
+`"text/plain"` unless the constructor gets the keyword. The five documentation
+tools (`list_resources`, `read_resource`, `search_guides`, `search_api` and
+`read_function_documentation`) say `"text/markdown"`. The text is the same for
+every front end: the assistant pane reads the media type to draw a Markdown
+answer as a Markdown document, and the MCP server sends the text as it is,
+because an MCP text content has no media type.
+
 **One `ToolSet` per editor** ([PAR-PER-EDITOR-STATE](../../rule/architecture-invariants.md#par-per-editor-state)).
 `Editor` owns one. Nothing here is process-global: not the tool list, not the
 resource list, not the scratch module `execute_julia_code` evaluates into, not its
