@@ -174,8 +174,17 @@ end
 function _serialize_node(elem)
     if elem isa GraphicsText
         font = elem.font::StyleFont
-        return Dict("t" => "text", "x" => Int(elem.x), "y" => Int(elem.y),
-                    "s" => elem.text, "f" => _font_family(font.filename),
+        text = elem.text
+        # The browser draws what the layout measured: each character at its pen
+        # position, on the baseline of the text's box, in the fallback order of
+        # the font. So its own kerning and ligatures, which neither the layout nor
+        # the other backends apply, never move a glyph.
+        _, ascent, _ = compute_text_extent(text, font)
+        offsets = compute_caret_offsets(FontFileMeasure(), text, font)
+        families = [_font_family(font.filename);
+                    [_font_family(file) for file in get_fallback_font_files(font.filename)]]
+        return Dict("t" => "text", "x" => Int(elem.x), "y" => Int(elem.y), "b" => ascent,
+                    "s" => text, "o" => round.(offsets; digits = 2), "f" => families,
                     "sz" => font_logical_size(font), "c" => _rgba(elem.color))
     elseif elem isa GraphicsRect
         return Dict("t" => "rect", "x" => Int(elem.x), "y" => Int(elem.y),

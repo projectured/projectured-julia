@@ -126,11 +126,11 @@ function _register_glyph_font!(ctx::PageContext, primary::FontRegistration,
 end
 
 # Split `text` into runs of consecutive characters that one font draws. Each run
-# is the registration of its font and the glyph identifiers in hexadecimal. A
-# presentation selector has no width, and the measurer skips it, so it is dropped.
+# is the registration of its font and its glyph identifiers. A presentation
+# selector has no width, and the measurer skips it, so it is dropped.
 function _split_font_runs!(ctx::PageContext, text::AbstractString, path::AbstractString)
     primary = register_font!(ctx, path)
-    runs = Tuple{FontRegistration,IOBuffer}[]
+    runs = Tuple{FontRegistration,Vector{UInt16}}[]
     for c in text
         character = UInt32(c)
         is_presentation_selector(character) && continue
@@ -138,10 +138,28 @@ function _split_font_runs!(ctx::PageContext, text::AbstractString, path::Abstrac
         gid = get_glyph_id(reg.ttf, character)
         push!(reg.used, gid)
         get!(reg.gid_to_uni, gid, character)
-        (isempty(runs) || runs[end][1] !== reg) && push!(runs, (reg, IOBuffer()))
-        print(runs[end][2], string(gid, base = 16, pad = 4))
+        (isempty(runs) || runs[end][1] !== reg) && push!(runs, (reg, UInt16[]))
+        push!(runs[end][2], gid)
     end
-    [(reg, String(take!(io))) for (reg, io) in runs]
+    runs
+end
+
+# The operand of a `TJ` for one run: its glyphs in hexadecimal, and between two
+# glyphs that kern the adjustment, in thousandths of the font size. A positive
+# adjustment moves the next glyph left, so a pair that moves together (a
+# negative kerning) is written as a positive number.
+function _make_kerned_glyphs(reg::FontRegistration, glyphs::Vector{UInt16})
+    io = IOBuffer()
+    print(io, "[<")
+    for (index, glyph) in enumerate(glyphs)
+        if index > 1
+            kerning = get_kerning(reg.ttf, glyphs[index - 1], glyph)
+            kerning == 0 || print(io, "> ", n2(-kerning * 1000 / reg.ttf.units_per_em), " <")
+        end
+        print(io, string(glyph, base = 16, pad = 4))
+    end
+    print(io, ">]")
+    String(take!(io))
 end
 
 gs_for!(ctx::PageContext, a::UInt8) = get!(() -> "GS$(length(ctx.gstates) + 1)", ctx.gstates, a)
@@ -382,25 +400,27 @@ function paint_spline!(ctx, sp, ox, oy)
 end
 
 # The text is written at the size that the layout measured it at, which
-# follows the font zoom. Each run of one font is a `Tf` and a `Tj` in one text
-# object. A `Tj` moves the text position by the advances of its glyphs, so a
-# run starts where the run before it ends, on the baseline of the text's font.
+# follows the font zoom. Each run of one font is a `Tf` and a `TJ` in one text
+# object. A `TJ` moves the text position by the advances of its glyphs and by the
+# kerning between them, so a run starts where the run before it ends. Every run
+# sits on the baseline of the text, the ascent of its box (`compute_text_extent`)
+# below its `y`.
 # @positional: one of the painters of the PDF backend: one family of one shape, called from one dispatch table.
 function paint_text!(ctx, t, ox, oy)
     (isempty(t.text) || t.color.alpha == 0) && return
     tr, tg, tb, ta = _rgba8(t.color)
     gy = oy + Int(t.y)
     size = font_logical_size(t.font)
-    _on_page(ctx, gy, gy + size) || return
+    _, ascent, descent = compute_text_extent(t.text, t.font)
+    _on_page(ctx, gy, gy + ascent + descent) || return
     runs = _split_font_runs!(ctx, t.text, t.font.filename)
     isempty(runs) && return
-    ttf = register_font!(ctx, t.font.filename).ttf
-    baseline = _flip(ctx, gy + get_ascent_pixels(ttf, size))
+    baseline = _flip(ctx, gy + ascent)
     print(ctx.buf, "/", gs_for!(ctx, ta), " gs ",
           c01(tr), " ", c01(tg), " ", c01(tb), " rg BT 1 0 0 1 ",
           n2(ox + Int(t.x)), " ", n2(baseline), " Tm")
-    for (reg, hex) in runs
-        print(ctx.buf, " /", reg.resname, " ", n2(size), " Tf <", hex, "> Tj")
+    for (reg, glyphs) in runs
+        print(ctx.buf, " /", reg.resname, " ", n2(size), " Tf ", _make_kerned_glyphs(reg, glyphs), " TJ")
     end
     print(ctx.buf, " ET\n")
 end

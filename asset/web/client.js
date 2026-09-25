@@ -347,12 +347,22 @@
     }
   }
 
+  // A text is drawn as the layout measured it: each character at its pen
+  // position (e.o, one per code point) on the baseline e.b below the top of the
+  // box, with the fallback fonts in the server's order. Drawing each character
+  // alone keeps the browser's kerning and ligatures out of the positions.
   function drawText(ctx, e) {
     if (!e.s) return;
-    ctx.font = `${e.sz}px "${e.f}"`;
-    ctx.textBaseline = "top";
+    ctx.font = `${e.sz}px ${e.f.map((family) => `"${family}"`).join(", ")}`;
+    ctx.textBaseline = "alphabetic";
     ctx.fillStyle = col(e.c);
-    ctx.fillText(e.s, e.x, e.y);
+    const characters = Array.from(e.s);
+    const baseline = e.y + e.b;
+    for (let i = 0; i < characters.length; i++) {
+      const character = characters[i];
+      if (character === "\uFE0E" || character === "\uFE0F") continue;
+      ctx.fillText(character, e.x + e.o[i], baseline);
+    }
   }
 
   function roundRectPath(ctx, x, y, w, h, rtl, rtr, rbr, rbl) {

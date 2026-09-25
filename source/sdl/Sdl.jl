@@ -217,8 +217,9 @@ end
 
 struct _TextTexture
     texture::Ptr{SDL_Texture}
-    dw::Int   # device px width  (the logical size follows at each draw, from the ratio)
-    dh::Int   # device px height
+    dw::Int      # device px width  (the logical size follows at each draw, from the ratio)
+    dh::Int      # device px height
+    ascent::Int  # device px from the top of the texture down to its baseline
 end
 
 const _text_texture_cache = Dict{_TextTextureKey, _TextTexture}()
@@ -740,8 +741,20 @@ function _get_font(font::StyleFont, ratio::Float64)
         path = font_file(font.filename)
         f = TTF_OpenFont(path, size)
         @assert f != C_NULL "Font load failed: $path@$(size)"
-        f
+        _set_layout_rendering!(f)
     end
+end
+
+# SDL_ttf's `TTF_HINTING_LIGHT_SUBPIXEL`, which the generated binding lacks.
+const _TTF_HINTING_LIGHT_SUBPIXEL = Cint(4)
+
+# A font draws as the layout measures it (`FontFileMeasure`): the advances not
+# hinted, so a glyph stands at its real pen position, and the pairs of the `kern`
+# table kerned. Answers the handle.
+function _set_layout_rendering!(f::Ptr{TTF_Font})
+    TTF_SetFontHinting(f, _TTF_HINTING_LIGHT_SUBPIXEL)
+    TTF_SetFontKerning(f, Cint(1))
+    f
 end
 
 # ── Fallback fonts ─────────────────────────────────────────────────────
@@ -759,7 +772,8 @@ function _get_fallback_font(path::String, size::Int)
     key = (path, size)
     get!(_font_cache, key) do
         file = font_file(path)
-        isfile(file) ? TTF_OpenFont(file, size) : Ptr{TTF_Font}(C_NULL)
+        f = isfile(file) ? TTF_OpenFont(file, size) : Ptr{TTF_Font}(C_NULL)
+        f == C_NULL ? f : _set_layout_rendering!(f)
     end
 end
 
@@ -807,9 +821,9 @@ end
 
 # Rasterize multi-font `runs` into one blended surface, laid out left-to-right and
 # aligned on the text baseline (each run's surface sits its glyphs on the baseline
-# at `TTF_FontAscent` from its top). Returns C_NULL if nothing rendered. The
-# caller treats the result exactly like a single `TTF_RenderUTF8_Blended` surface
-# (upload, query size, free).
+# at `TTF_FontAscent` from its top). Answers the surface and the row of its
+# baseline, or C_NULL and 0 if nothing rendered. The caller treats the surface
+# exactly like a single `TTF_RenderUTF8_Blended` one (upload, query size, free).
 function _render_runs_blended(runs::Vector{Tuple{Ptr{TTF_Font},String}}, color::NTuple{4,UInt8})
     col = SDL_Color(color...)
     pieces = Tuple{Ptr{SDL_Surface},Int,Int,Int}[]   # (surface, w, h, ascent)
@@ -825,7 +839,7 @@ function _render_runs_blended(runs::Vector{Tuple{Ptr{TTF_Font},String}}, color::
         max_ascent = max(max_ascent, asc)
         max_below = max(max_below, Int(su.h) - asc)
     end
-    isempty(pieces) && return Ptr{SDL_Surface}(C_NULL)
+    isempty(pieces) && return (Ptr{SDL_Surface}(C_NULL), 0)
     height = max_ascent + max_below
     combined = SDL_CreateRGBSurfaceWithFormat(UInt32(0), Cint(total_w), Cint(height),
                                               Cint(32), UInt32(SDL_PIXELFORMAT_ARGB8888))
@@ -833,7 +847,7 @@ function _render_runs_blended(runs::Vector{Tuple{Ptr{TTF_Font},String}}, color::
         for (srf, _, _, _) in pieces
             SDL_FreeSurface(srf)
         end
-        return Ptr{SDL_Surface}(C_NULL)
+        return (Ptr{SDL_Surface}(C_NULL), 0)
     end
     x = 0
     for (srf, w, h, asc) in pieces
@@ -843,7 +857,7 @@ function _render_runs_blended(runs::Vector{Tuple{Ptr{TTF_Font},String}}, color::
         x += w
         SDL_FreeSurface(srf)
     end
-    return combined
+    return (combined, max_ascent)
 end
 
 # Convert a domain `StyleColor` (Float64 RGBA in [0,1]) to SDL's device bytes.
@@ -870,8 +884,9 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
     if entry === nothing
         font = _get_font(font_style, ratio)
         runs = _font_runs(text, font_style, font, ratio)
-        surface = length(runs) == 1 ?
-            TTF_RenderUTF8_Blended(runs[1][1], runs[1][2], SDL_Color(color...)) :
+        surface, ascent = length(runs) == 1 ?
+            (TTF_RenderUTF8_Blended(runs[1][1], runs[1][2], SDL_Color(color...)),
+             Int(TTF_FontAscent(runs[1][1]))) :
             _render_runs_blended(runs, color)
         surface == C_NULL && return
         texture = SDL_CreateTextureFromSurface(renderer, surface)
@@ -879,17 +894,21 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
         SDL_QueryTexture(texture, C_NULL, C_NULL, w_ref, h_ref)
         SDL_FreeSurface(surface)
         length(_text_texture_cache) >= _TEXT_TEXTURE_CACHE_CAP && _clear_text_texture_cache!()
-        entry = _TextTexture(texture, Int(w_ref[]), Int(h_ref[]))
+        entry = _TextTexture(texture, Int(w_ref[]), Int(h_ref[]), ascent)
         _text_texture_cache[key] = entry
     end
 
-    # The destination rect is in logical pixels (= device size ÷ ratio). The
-    # renderer scale then maps it back to device pixels, so the texture lands
-    # 1:1 and stays crisp.
-    dest = Ref(SDL_Rect(elem.x + ox, elem.y + oy,
-                        Int32(_to_logical(entry.dw, ratio)),
-                        Int32(_to_logical(entry.dh, ratio))))
-    SDL_RenderCopy(renderer, entry.texture, C_NULL, dest)
+    # The baseline of the text is where the layout put it: the ascent of its box
+    # (`compute_text_extent`) below its `y`. The texture's own baseline is
+    # `entry.ascent` device pixels below its top, so its top goes that far above.
+    # The rect is in logical pixels as real numbers, and the renderer scale maps
+    # it to whole device pixels, so the texture lands 1:1 and stays crisp at any
+    # ratio.
+    _, ascent, _ = compute_text_extent(text, font_style)
+    baseline = Float64(elem.y + oy + ascent)
+    dest = Ref(SDL_FRect(Cfloat(elem.x + ox), Cfloat(baseline - entry.ascent / ratio),
+                         Cfloat(entry.dw / ratio), Cfloat(entry.dh / ratio)))
+    SDL_RenderCopyF(renderer, entry.texture, C_NULL, dest)
 end
 
 # ── Render a GraphicsViewport element ────────────────────────────────

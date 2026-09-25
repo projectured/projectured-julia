@@ -30,7 +30,8 @@ import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, Graphic
 import ProjecturedCollection.CollectionModule: ListNode, CellVector
 import ProjecturedStyle.StyleModule: StyleColor
 import ProjecturedStyle.StyleModule: AffineTransform, affine_identity
-import ProjecturedStyle.StyleModule: StyleFont, font_logical_size
+import ProjecturedStyle.StyleModule: StyleFont, font_logical_size, compute_text_extent,
+                                    compute_caret_offsets, FontFileMeasure, get_fallback_font_files
 import ProjecturedKernel.CellModule: Cell, Computation, is_cell_up_to_date
 import ProjecturedKernel.EventModule: WindowInput, ModifierKeys,
                                WindowQuit, WindowClose, WindowResize, WindowDefocus

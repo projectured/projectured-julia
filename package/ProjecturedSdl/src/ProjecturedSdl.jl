@@ -51,7 +51,7 @@ import ProjecturedStyle.StyleModule: font_file
 # A character the font lacks draws in the font the style package names, which is
 # the font `measure_truetype_text` measures it in.
 import ProjecturedStyle.StyleModule: load_truetype_font, find_glyph_font_file, has_font_glyph,
-                         is_presentation_selector
+                         is_presentation_selector, compute_text_extent
 import ProjecturedKernel.EventModule: WindowQuit
 import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
 import ProjecturedKernel.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus

@@ -166,14 +166,46 @@ end
         write_pdf(canvas, filename; width=200, height=80)
         content = _first_content_stream(filename)
         @test [parse(Int, m.captures[1]) for m in eachmatch(r"/F\d+ (\d+) Tf", content)] == [size]
-        # The baseline sits the ascent at that size below the top of the text.
+        # The baseline sits the ascent of the text's box at that size below the
+        # top of the text, the same whole pixel every backend draws it at.
         m = match(r"1 0 0 1 ([\d.]+) ([\d.]+) Tm", content)
-        ascent = get_ascent_pixels(load_truetype_font(font.filename), size)
+        _, ascent, _ = compute_text_extent("zoom", font)
         @test parse(Float64, m.captures[2]) ≈ 80 - (10 + ascent) atol=0.01
     finally
         adjust_font_zoom!(0)
         rm(filename; force=true)
     end
+end
+
+@testset "a kerned pair is written with its kerning" begin
+    # A–V is −62 font units in Ubuntu, so the V moves 62 thousandths of the size
+    # to the left: a positive adjustment in the `TJ` array.
+    font = StyleModule.font_ubuntu_regular_20
+    ttf = load_truetype_font(font.filename)
+    canvas = GraphicsCanvas([GraphicsText("AV", 10, 10; font, color = color_black)])
+    filename = tempname() * ".pdf"
+    write_pdf(canvas, filename; width=200, height=80)
+    content = _first_content_stream(filename)
+    glyph(c) = string(get_glyph_id(ttf, UInt32(c)), base=16, pad=4)
+    @test occursin("[<$(glyph('A'))> 62 <$(glyph('V'))>] TJ", content)
+    rm(filename)
+end
+
+@testset "texts of different fonts share a baseline in the file" begin
+    # Two texts placed by the contract of `GraphicsText`: each `y` is the common
+    # baseline minus that text's ascent. The file then has one baseline for both.
+    baseline = 50
+    texts = map((StyleModule.font_ubuntu_regular_20, StyleModule.font_ubuntu_monospace_regular_20)) do font
+        _, ascent, _ = compute_text_extent("x", font)
+        GraphicsText("x", 10, baseline - ascent; font, color = color_black)
+    end
+    filename = tempname() * ".pdf"
+    write_pdf(GraphicsCanvas(collect(texts)), filename; width=200, height=80)
+    content = _first_content_stream(filename)
+    ys = [parse(Float64, m.captures[1]) for m in eachmatch(r"1 0 0 1 [\d.]+ ([\d.]+) Tm", content)]
+    @test length(ys) == 2
+    @test ys[1] ≈ ys[2] ≈ 80 - baseline
+    rm(filename)
 end
 
 @testset "a character that the font lacks is drawn in the font that has it" begin
@@ -191,7 +223,7 @@ end
     # The file with each byte outside ASCII replaced, so a regular expression can read it.
     text = String(map(b -> b < 0x80 ? b : UInt8('?'), read(filename)))
     content = _first_content_stream(filename)
-    runs = [(m.captures[1], m.captures[2]) for m in eachmatch(r"/(F\d+) \d+ Tf <([0-9a-f]+)> Tj", content)]
+    runs = [(m.captures[1], m.captures[2]) for m in eachmatch(r"/(F\d+) \d+ Tf \[<([0-9a-f]+)>\] TJ", content)]
     glyphs(ttf, s) = join(string(get_glyph_id(ttf, UInt32(c)), base=16, pad=4) for c in s)
     @test length(runs) == 2
     @test runs[1][2] == glyphs(primary, "ok ")

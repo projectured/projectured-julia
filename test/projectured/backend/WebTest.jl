@@ -19,6 +19,24 @@ end
 function test_web_backend()
 @testset "WebBackend" begin
 
+    @testset "a text goes to the browser as the layout measured it" begin
+        # The browser draws each character at its pen position on the baseline,
+        # so the node carries the ascent of the box, one offset per character,
+        # and the fonts in the order the other backends fall back in.
+        font = StyleModule.font_ubuntu_regular_20
+        node = _WEB._serialize_node(GraphicsText("AV→", 10, 20; font, color = color_black))
+        _, ascent, _ = compute_text_extent("AV→", font)
+        @test node["b"] == ascent
+        offsets = compute_caret_offsets(FontFileMeasure(), "AV→", font)
+        @test node["o"] ≈ offsets atol = 0.01
+        @test length(node["o"]) == 4
+        # The kerning of A–V moves the V: it starts before the advance of A alone.
+        @test node["o"][2] < measure_string(FontFileMeasure(), "A", font).width
+        @test node["f"][1] == "Ubuntu-R"
+        @test node["f"][2:end] == [splitext(basename(file))[1]
+                                   for file in get_fallback_font_files(font.filename)]
+    end
+
     @testset "a decoded message is read from the queue" begin
         backend = WebBackend(port = 0)
         @test backend.server === nothing

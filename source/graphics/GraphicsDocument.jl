@@ -68,6 +68,14 @@ and a backend paints them.
 
 See also `GraphicsCanvas`, which holds what is drawn, and `GraphicsRect`.
 
+**The box.** `x` is where the pen of the first glyph starts, and `y` is the top
+of the text's box. [`compute_text_extent`](@ref) gives the box from the font
+files: `(width, ascent, descent)` in whole logical pixels. The baseline is
+`ascent` below `y`, and the box is `ascent + descent` high, so it holds the ink.
+Every backend draws the baseline there, and a layout that puts texts of
+different fonts on one baseline sets each `y` to the baseline minus that text's
+ascent.
+
 A reactive text element for rendering.
 Each field is a `Cell`, so changes to any property are tracked
 and can trigger incremental redraws. `color` is a [`StyleColor`](@ref); each
