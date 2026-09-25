@@ -26,6 +26,13 @@ projection, while the model goes on to get the text that the tool wrote.
    the assistant, as `get_evaluation_kind_label` keeps for its labels.
 3. **Questions 1 to 4 of §5 take the recommendation.** The owner, after the
    plan: "I agree with your recommendation", "implement in worktree".
+4. **The branch lands before the layout range, and the grid in the transcript
+   waits for it** (2026-09-25, after Step 6): "I agree with you, land now,
+   I'll notify when they are done". The plan
+   [layout-sizing-model.md](layout-sizing-model.md) is in progress on the branch
+   `layout-range`; its Step 5a makes a card pass its range on to its content,
+   which is the width a table in the transcript needs. Step 8 below follows
+   when the owner says that plan is done.
 
 ## 2. What exists
 
@@ -408,10 +415,24 @@ that file. All files of `tool/` are `⬜` on 2026-09-25.
   the wire), and [transcript.md](../../documentation/package/conversation/transcript.md)
   if it names the kind of a result.
 
+- [ ] **Step 8. The grid table in the transcript, and the alignment of a
+  column.** After Step 5 of [layout-sizing-model.md](layout-sizing-model.md)
+  lands, when the owner says so:
+  - Add `MarkdownRoot => ChainingProjection(MarkdownRootToVerticalLayout(),
+    VerticalLayoutToGraphicsCanvas())` before the `MarkdownDocument` row of
+    `_conversation_widget_graphics`, and draw the Step 6 image again: the table
+    is a grid whose columns share the width of the section.
+  - Pass `column_align` through `WidgetTable` to its `GridLayout`, moved by one
+    column for a row-header strip as the policies are, and fill it from
+    `MarkdownTable.alignments`. The `WidgetTable` printer is the function that
+    Step 5a of the layout plan changes, so this waits for it.
+  - Read the new names of the range: Step 5b of the layout plan removes
+    `with_available_size`, which `MarkdownTableTest.jl` uses.
+
 ## 5. The questions
 
 The owner took the recommendation of questions 1 to 4 on 2026-09-25 (§1,
-decision 3). Question 5 came from Step 6 and is open.
+decision 3). Question 5 came from Step 6, and the owner decided it on 2026-09-25.
 
 1. **An indented code block prints back fenced.** A `.md` file that a tab
    saves changes an indented block to a fenced one. 3 guides have one. A saved
@@ -429,7 +450,8 @@ decision 3). Question 5 came from Step 6 and is open.
    the left. **Decided: accept now, and draw it when `WidgetTable` gets
    an alignment for a column.**
 
-5. **A grid table in the transcript** (found in Step 6, §3.4; not decided).
+5. **A grid table in the transcript** (found in Step 6, §3.4). **Decided: wait
+   for the layout range (§1, decision 4), then Step 8.**
    The options: wait for [layout-sizing-model.md](layout-sizing-model.md) to
    give the content of a part its width, then add the page row for
    `MarkdownRoot` to the renderer of the transcript; or add the row now with a
