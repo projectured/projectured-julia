@@ -1,22 +1,32 @@
 # Fragment of `DeviceModule` — the display device.
 
 """
-    Display(; width=1280, height=800, scale=1.0)
+    Display(; width = 1280, height = 800, scale = 1.0, zoom = 1.0)
 
-A display output device. It carries the physical properties of the display it
-renders to — `width`×`height` in pixels and the HiDPI `scale` factor —
-defaulting to a display-free fallback until the real display is queried. It
-carries no per-window state: the live windows are reconciled on demand against
-the output it is asked to render.
+A display. `width` and `height` give its usable size in logical pixels. `scale`
+is the number of device pixels in one logical pixel of the hardware: `2.0` on a
+display with twice the usual pixel density. `zoom` is the uniform zoom of the
+editor that draws on the display.
 
-Multi-monitor support would express each physical display as its own `Display`
-(not implemented yet).
+A backend draws each logical pixel as `get_device_pixel_ratio(display)` device
+pixels. Layout works in logical pixels, so a change of `scale` or `zoom` changes
+the size on the screen and not the layout.
 """
 mutable struct Display <: Device
     width::Int
     height::Int
     scale::Float64
+    zoom::Float64
 end
 
-Display(; width::Int=1280, height::Int=800, scale::Real=1.0) =
-    Display(width, height, Float64(scale))
+Display(; width::Integer = 1280, height::Integer = 800, scale::Real = 1.0,
+        zoom::Real = 1.0) =
+    Display(width, height, Float64(scale), Float64(zoom))
+
+"""
+    get_device_pixel_ratio(display::Display) -> Float64
+
+The number of device pixels that a backend draws for one logical pixel: the
+`scale` of the hardware times the `zoom` of the editor.
+"""
+get_device_pixel_ratio(display::Display) = display.scale * display.zoom

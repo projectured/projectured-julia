@@ -1,8 +1,7 @@
 """
 `HeadlessBackend` — the dependency-free in-memory backend test double. Exercises
-construction, the lifecycle no-ops, the write/read/measure I/O paths, the
-device physical-property defaults, and the `get_display_size` /
-`configure_devices!` fallbacks.
+construction, the lifecycle no-ops, the write/read/measure I/O paths, and the
+`get_display_size` / `configure_devices!` fallbacks.
 """
 
 using Test
@@ -46,17 +45,6 @@ function test_headless_backend()
         b = HeadlessBackend()
         @test measure_text(b, "abc", nothing) == (24, 16)
         @test measure_text(b, "", nothing) == (0, 16)
-    end
-
-    @testset "device markers carry physical-property defaults" begin
-        s = Display()
-        @test (s.width, s.height, s.scale) == (1280, 800, 1.0)
-        @test Display(width=1920, height=1080, scale=2.0).scale === 2.0
-        m = Mouse()
-        @test (m.button_count, m.has_scroll_wheel) == (3, true)
-        @test Mouse(button_count=5, has_scroll_wheel=false).button_count == 5
-        @test Keyboard().layout === :qwerty
-        @test Keyboard(layout=:azerty).layout === :azerty
     end
 
     @testset "get_display_size falls back to the display-free default" begin

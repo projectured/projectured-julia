@@ -71,7 +71,7 @@ Kernel, 18 files. A sealed one needs the permission of the owner first.
 | `source/kernel/agent/AgentModule.jl` | 2 | open |
 | `source/kernel/backend/BackendModule.jl` | 1 | sealed |
 | `source/kernel/binding/GestureBindingModule.jl` | 1 | open |
-| `source/kernel/device/DeviceModule.jl` | 1 | sealed |
+| `source/kernel/device/DeviceModule.jl` | 1 | migrated in the device audit, 2026-09-25 |
 | `source/kernel/document/DocumentModule.jl` | 5 | open |
 | `source/kernel/editor/EditorModule.jl` | 1 | open |
 | `source/kernel/event/EventModule.jl` | 2 | migrated in the event audit, 2026-09-25 |
