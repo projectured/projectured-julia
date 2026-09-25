@@ -1,52 +1,61 @@
-# Fragment of `GestureRecognizerModule` — the recognizer itself: the per-editor state and the event → gesture folding.
+# Fragment of `GestureRecognizerModule` — the recognizer: the state of one editor,
+# and the fold of input events into gestures.
+
+# Where and when a `MouseDown` of one button was: the start of a click.
+struct _ButtonPress
+    window_id::Symbol
+    x::Int
+    y::Int
+    time::Float64
+end
+
+# The last click: the start of a double click.
+struct _Click
+    window_id::Symbol
+    button::Symbol
+    x::Int
+    y::Int
+    time::Float64
+    count::Int
+end
 
 """
     GestureRecognizer(; clock = time, chords = Vector{Vector{KeyDown}}(),
                         click_max_displacement = 5, click_max_duration = 0.3,
                         multi_click_max_displacement = 5, multi_click_max_interval = 0.3)
 
-Stateful event → gesture recogniser. Holds the pending queue of synthesised gesture
-window inputs (drained before new input is read), the last-MouseDown and last-click
-state used to recognise clicks and multi-clicks, and the chord table plus its
-in-progress buffer.
+The state of the recognition of gestures for one editor: the gestures that wait
+for delivery, the press of each mouse button, the last click, the chord table
+and the keys of a chord that is not complete yet.
 
-`clock` is the time source used for the click windows; it defaults to `time` and is
-injectable so tests can drive recognition deterministically.
+`clock` gives the time in seconds for the click windows. It is `time` by
+default, and a test gives a clock of its own.
 
-`chords` is the chord table: a list of recognised `KeyDown` sequences (each a
-`Vector{KeyDown}`; only `key` + modifiers are compared, the `repeat` flag is
-ignored). It defaults to **empty**, so no chords are recognised and every key passes
-straight through — chord recognition is opt-in, configured per recogniser. The table
-says only *which* sequences are a chord, not what they mean.
+`chords` is the chord table: each entry is a sequence of `KeyDown`s. A step
+matches a key on its `key` and its modifiers, and its `repeat` flag does not
+count. The table is empty by default, so every key passes through. It says only
+which sequences are a chord, not what they mean.
 
-The click windows tune recognition, defaulting to the usual desktop values: a
-`MouseUp` is a click when within `click_max_displacement` px and `click_max_duration`
-s of its `MouseDown`, and a following click becomes a multi-click (higher `count`)
-when within `multi_click_max_displacement` px and `multi_click_max_interval` s of the
-previous one.
+The click windows have the usual values of a desktop by default. A `MouseUp` is
+a click when it is less than `click_max_displacement` pixels and
+`click_max_duration` seconds away from the `MouseDown` of its button in the same
+window. A click is the next click of a double or triple click when it is less
+than `multi_click_max_displacement` pixels and `multi_click_max_interval` seconds
+away from the click before it, with the same button in the same window.
 """
 mutable struct GestureRecognizer
-    # Synthesised gesture window inputs awaiting delivery (e.g. a recognised click),
-    # drained before the next raw event is pulled.
+    # The gestures that wait for delivery, before the next input event.
     pending::Vector{WindowInput}
-    # Last MouseDown, for click recognition.
-    last_down_button::Symbol
-    last_down_x::Int
-    last_down_y::Int
-    last_down_time::Float64
-    # Last recognised click, for multi-click counting.
-    last_click_button::Symbol
-    last_click_x::Int
-    last_click_y::Int
-    last_click_time::Float64
-    last_click_count::Int
-    # Chord recognition: the table of recognised sequences and the keys buffered
-    # so far towards a (still incomplete) chord.
+    # The last `MouseDown` of each button, until its `MouseUp`.
+    presses::Dict{Symbol,_ButtonPress}
+    # The last click, for the count of a double or triple click.
+    last_click::Union{_Click,Nothing}
+    # The chord table, and the keys of a chord that is not complete yet.
     chords::Vector{Vector{KeyDown}}
     chord_buffer::Vector{WindowInput}
-    # Time source (injectable for tests).
+    # The source of the time (a test gives its own).
     clock::Function
-    # Recognition windows (see the constructor).
+    # The click windows (see the docstring).
     click_max_displacement::Int
     click_max_duration::Float64
     multi_click_max_displacement::Int
@@ -55,58 +64,53 @@ end
 
 GestureRecognizer(; clock::Function = time,
                     chords::Vector{Vector{KeyDown}} = Vector{Vector{KeyDown}}(),
-                    click_max_displacement::Int = 5, click_max_duration::Real = 0.3,
-                    multi_click_max_displacement::Int = 5, multi_click_max_interval::Real = 0.3) =
-    GestureRecognizer(WindowInput[],
-                      :none, 0, 0, 0.0,
-                      :none, 0, 0, 0.0, 0,
+                    click_max_displacement::Integer = 5, click_max_duration::Real = 0.3,
+                    multi_click_max_displacement::Integer = 5,
+                    multi_click_max_interval::Real = 0.3) =
+    GestureRecognizer(WindowInput[], Dict{Symbol,_ButtonPress}(), nothing,
                       chords, WindowInput[],
                       clock,
                       click_max_displacement, Float64(click_max_duration),
                       multi_click_max_displacement, Float64(multi_click_max_interval))
 
 """
-    recognize_gesture!(recognizer::GestureRecognizer, window_input::WindowInput) -> WindowInput or nothing
+    recognize_gesture!(recognizer::GestureRecognizer, window_input::WindowInput)
+        -> WindowInput or nothing
 
-Feed one raw input window input through the recogniser. Updates recognition state and,
-when an event *completes* a composite gesture, either enqueues the synthesised
-gesture on `recognizer.pending` for later delivery (clicks) or returns it directly
-(chords). Returns the window input to forward for this event now, or `nothing` when the
-event is *absorbed* (the first key of a not-yet-complete chord) — `pop_gesture!`
-skips over such absorbed events.
+Give one input event to the recognizer, and answer what to deliver now: the
+input itself, a gesture that it completes, or `nothing` when the recognizer
+keeps the input. A gesture that follows its input waits in `recognizer.pending`.
 
-Recognised today:
-
-- `MouseDown` — records the press position/time as the start of a potential click.
-- `MouseUp` — if it lands within the recogniser's click window
-  (`click_max_displacement` px, `click_max_duration` s) of the matching-button
-  `MouseDown`, enqueues a `MousePress` carrying the up position, modifiers,
-  originating window id, and a multi-click `count` (2/3/… within the multi-click
-  window `multi_click_max_displacement` px / `multi_click_max_interval` s of the
-  previous click).
-- `KeyDown` — if the chord table is non-empty, advances chord recognition: buffers a
-  key that is a prefix of some configured sequence (absorbed → returns `nothing`),
-  emits a `KeyChord` when a sequence completes, or flushes the buffered keys back as
-  ordinary events when a key breaks the in-progress chord.
+- A `MouseDown` starts a possible click of its button.
+- A `MouseUp` answers itself. When it is inside the click window of the
+  `MouseDown` of its button in the same window, a `MousePress` follows it in
+  `pending`, at the place of the `MouseUp`, with its modifiers, its window and
+  the `count` of a double or triple click.
+- A `KeyDown`, when the chord table is not empty, goes to the chord in progress.
+  The recognizer keeps a key that continues a sequence of the table and answers
+  `nothing`. The key that completes a sequence answers a `KeyChord`. A key that
+  breaks the chord in progress answers the kept keys and itself, in order, as
+  ordinary keys, and it does not start a new chord.
+- Any other event answers itself.
 """
 function recognize_gesture!(recognizer::GestureRecognizer, window_input::WindowInput)
     event = window_input.event
     if event isa MouseDown
-        recognizer.last_down_button = event.button
-        recognizer.last_down_x = event.x
-        recognizer.last_down_y = event.y
-        recognizer.last_down_time = recognizer.clock()
+        recognizer.presses[event.button] =
+            _ButtonPress(window_input.window_id, event.x, event.y, recognizer.clock())
         return window_input
     elseif event isa MouseUp
-        now = recognizer.clock()
-        if event.button == recognizer.last_down_button &&
-           abs(event.x - recognizer.last_down_x) < recognizer.click_max_displacement &&
-           abs(event.y - recognizer.last_down_y) < recognizer.click_max_displacement &&
-           (now - recognizer.last_down_time) < recognizer.click_max_duration
-            count = _click_count!(recognizer, event, now)
+        press = pop!(recognizer.presses, event.button, nothing)
+        now = Float64(recognizer.clock())
+        if press !== nothing && press.window_id === window_input.window_id &&
+           abs(event.x - press.x) < recognizer.click_max_displacement &&
+           abs(event.y - press.y) < recognizer.click_max_displacement &&
+           (now - press.time) < recognizer.click_max_duration
+            count = _count_click!(recognizer, window_input.window_id, event, now)
             push!(recognizer.pending,
                   WindowInput(window_input.window_id,
-                                MousePress(event.button, event.x, event.y, count, event.modifiers)))
+                              MousePress(event.button, event.x, event.y, count,
+                                         event.modifiers)))
         end
         return window_input
     elseif event isa KeyDown
@@ -116,93 +120,93 @@ function recognize_gesture!(recognizer::GestureRecognizer, window_input::WindowI
     end
 end
 
-# Compute and record the multi-click count for a click that just completed at
-# `event` (time `now`). A click continues the previous one — same button, within the
-# multi-click window/displacement — incrementing the count; otherwise it resets to 1.
-function _click_count!(recognizer::GestureRecognizer, event::MouseUp, now::Float64)
-    if event.button == recognizer.last_click_button &&
-       abs(event.x - recognizer.last_click_x) < recognizer.multi_click_max_displacement &&
-       abs(event.y - recognizer.last_click_y) < recognizer.multi_click_max_displacement &&
-       (now - recognizer.last_click_time) < recognizer.multi_click_max_interval
-        count = recognizer.last_click_count + 1
+# The count of the click that `event` completes at the time `now`, which the
+# recognizer records as its last click. A click continues the last click, with a
+# count one higher, when it has the same button and window and is inside the
+# double-click window of it; otherwise its count is 1.
+function _count_click!(recognizer::GestureRecognizer, window_id::Symbol, event::MouseUp,
+                       now::Float64)
+    last = recognizer.last_click
+    count = if last !== nothing && last.window_id === window_id &&
+               last.button === event.button &&
+               abs(event.x - last.x) < recognizer.multi_click_max_displacement &&
+               abs(event.y - last.y) < recognizer.multi_click_max_displacement &&
+               (now - last.time) < recognizer.multi_click_max_interval
+        last.count + 1
     else
-        count = 1
+        1
     end
-    recognizer.last_click_button = event.button
-    recognizer.last_click_x = event.x
-    recognizer.last_click_y = event.y
-    recognizer.last_click_time = now
-    recognizer.last_click_count = count
-    return count
+    recognizer.last_click = _Click(window_id, event.button, event.x, event.y, now, count)
+    count
 end
 
-# Advance chord recognition for one KeyDown. Returns the window input to forward now, or
-# `nothing` when the key is absorbed into an in-progress chord.
-function _recognize_key!(recognizer::GestureRecognizer, window_input::WindowInput, event::KeyDown)
-    # Chords disabled (the common case): every key passes straight through.
+# One `KeyDown` of the chord in progress: answers the input to deliver now, or
+# `nothing` when the recognizer keeps the key.
+function _recognize_key!(recognizer::GestureRecognizer, window_input::WindowInput,
+                         event::KeyDown)
+    # With no chord table, every key passes through.
     isempty(recognizer.chords) && return window_input
-    # Auto-repeat never starts or extends a chord; ignore it while buffering.
+    # A repeated key neither starts nor continues a chord, and the recognizer
+    # drops it while it keeps the keys of a chord.
     if event.repeat
         return isempty(recognizer.chord_buffer) ? window_input : nothing
     end
     push!(recognizer.chord_buffer, window_input)
-    if any(c -> _chord_is_prefix(recognizer.chord_buffer, c), recognizer.chords)
-        if any(c -> _chord_is_complete(recognizer.chord_buffer, c), recognizer.chords)
-            keys = KeyDown[b.event for b in recognizer.chord_buffer]
+    if any(chord -> _is_chord_prefix(recognizer.chord_buffer, chord), recognizer.chords)
+        if any(chord -> _is_chord_complete(recognizer.chord_buffer, chord),
+               recognizer.chords)
+            keys = KeyDown[kept.event for kept in recognizer.chord_buffer]
             window_id = recognizer.chord_buffer[1].window_id
             empty!(recognizer.chord_buffer)
             return WindowInput(window_id, KeyChord(keys))
         end
-        return nothing                       # valid prefix, still waiting
+        return nothing
     end
-    # This key breaks the in-progress chord. Flush the buffered prefix and this key as
-    # ordinary events, in order (the breaking key is emitted raw and does not itself
-    # start a new chord — a deliberate simplification).
-    pop!(recognizer.chord_buffer)             # remove the just-added breaking key
-    flushed = recognizer.chord_buffer
+    # The key breaks the chord in progress: the kept keys and this key go out as
+    # ordinary keys, in order, and this key does not start a new chord.
+    pop!(recognizer.chord_buffer)
+    kept = recognizer.chord_buffer
     recognizer.chord_buffer = WindowInput[]
-    isempty(flushed) && return window_input   # no prefix was pending
-    append!(recognizer.pending, flushed[2:end])
+    isempty(kept) && return window_input
+    append!(recognizer.pending, kept[2:end])
     push!(recognizer.pending, window_input)
-    return flushed[1]
+    return kept[1]
 end
 
-# Does `buffer` match the first `length(buffer)` steps of chord `chord`?
-function _chord_is_prefix(buffer::Vector{WindowInput}, chord::Vector{KeyDown})
+# Whether the keys of `buffer` are the first steps of `chord`.
+function _is_chord_prefix(buffer::Vector{WindowInput}, chord::Vector{KeyDown})
     length(buffer) <= length(chord) || return false
     for i in eachindex(buffer)
-        _keydown_matches(chord[i], buffer[i].event) || return false
+        _is_chord_step(chord[i], buffer[i].event) || return false
     end
     return true
 end
 
-_chord_is_complete(buffer::Vector{WindowInput}, chord::Vector{KeyDown}) =
-    length(buffer) == length(chord) && _chord_is_prefix(buffer, chord)
+_is_chord_complete(buffer::Vector{WindowInput}, chord::Vector{KeyDown}) =
+    length(buffer) == length(chord) && _is_chord_prefix(buffer, chord)
 
-# A chord step matches a key on `key` + modifiers; the `repeat` flag is ignored.
-_keydown_matches(spec::KeyDown, e::KeyDown) =
-    spec.key == e.key &&
-    spec.modifiers.ctrl  == e.modifiers.ctrl  &&
-    spec.modifiers.shift == e.modifiers.shift &&
-    spec.modifiers.alt   == e.modifiers.alt   &&
-    spec.modifiers.meta  == e.modifiers.meta
+# Whether `event` is the step `step` of a chord: the same key and modifiers. The
+# `repeat` flag does not count.
+_is_chord_step(step::KeyDown, event::KeyDown) =
+    step.key == event.key && step.modifiers == event.modifiers
 
 """
     pop_gesture!(recognizer::GestureRecognizer, source) -> WindowInput or nothing
 
-Pull the next gesture window input to feed the consumer. `source` is a 0-arg callable
-returning the next raw `WindowInput` (or `nothing` when the input queue is empty)
-— a caller polling devices passes a closure over that poll, a test passes a scripted
-source.
+The next gesture for the reader. `source` is a function with no argument that
+answers the next input of a backend, a `WindowInput`, or `nothing` when no input
+waits. The editor gives a function over `read_from_devices`, and a test gives a
+scripted source.
 
-Previously-synthesised gestures (in `recognizer.pending`) are delivered first, ahead
-of new raw input, so the order a consumer observes (e.g. `MouseUp` then the
-synthesised `MousePress`) is preserved. New raw input is then run through
-`recognize_gesture!`; an *absorbed* event (a buffered chord prefix, for which
-`recognize_gesture!` returns `nothing`) is skipped and the next event pulled, so a
-partial chord never surfaces as the "input exhausted" `nothing`. A `nothing` from
-`source` (genuine exhaustion) is propagated. Non-window-input payloads, should any arise,
-pass through untouched.
+The gestures that wait in `recognizer.pending` come first, before a new input,
+so the reader sees the order of the input: a `MouseUp`, then its `MousePress`.
+A new input then goes through `recognize_gesture!`. An input that the recognizer
+keeps, such as the first key of a chord, does not end the pull: the next input
+follows, so a chord in progress never looks like the end of the input. A
+`nothing` from `source` is the end of the input, and the answer is `nothing`.
+
+A value from `source` that is not a `WindowInput` passes through unchanged.
+The tests of the frame loop push such values through the editor.
 """
 function pop_gesture!(recognizer::GestureRecognizer, source)
     while true
@@ -211,7 +215,7 @@ function pop_gesture!(recognizer::GestureRecognizer, source)
         window_input === nothing && return nothing
         window_input isa WindowInput || return window_input
         gesture = recognize_gesture!(recognizer, window_input)
-        gesture === nothing && continue       # absorbed (e.g. chord prefix)
+        gesture === nothing && continue
         return gesture
     end
 end

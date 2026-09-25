@@ -1,37 +1,37 @@
 """
     GestureRecognizerModule
 
-The **event → gesture** transformation stage. It sits between the raw device-event
-stream and whoever consumes it, and is the place where *combinations and sequences
-of raw events* are recognised as a single gesture.
+The recognition of gestures: the stage between the input events of a backend and
+the readers, where a combination or a sequence of events becomes one synthetic
+event. A reader receives the output of this stage, and each value of it is a
+gesture.
 
-## Why a separate stage
+Most events pass through unchanged: `KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`,
+`MouseUp`, `MouseMove`, `MouseScroll` and the window events. Two gestures exist
+only across several events:
 
-An event source emits low-level, backend-agnostic input events (`KeyDown`,
-`KeyPress`, `MouseDown`, `MouseUp`, `MouseMove`, `MouseScroll`). Most of these are
-already meaningful on their own and pass straight through — they *are* the
-normalized gesture vocabulary. But some gestures only exist as a *combination* of
-several events:
+- a click, `MousePress`, is a `MouseDown` and a `MouseUp` of the same button in
+  the same window, near each other in place and in time. A click soon after a
+  click at the same place is a double or a triple click, and `count` says which;
+- a key chord, `KeyChord`, is a sequence of `KeyDown`s from the chord table of
+  the recognizer, for example Ctrl+C Ctrl+K.
 
-- a **click** (`MousePress`) is a `MouseDown` followed by a `MouseUp` at
-  approximately the same place within a short time window;
-- a **double/triple-click** is several clicks in quick succession — the recognised
-  `MousePress` carries a `count`;
-- a **key chord** (`KeyChord`) is a recognised *sequence* of `KeyDown`s, e.g.
-  `Ctrl-C Ctrl-K`;
-- (future) a **drag** (down → move… → up).
+A drag is not a gesture of this stage: the readers that follow a drag read its
+`MouseDown`, its `MouseMove`s and its `MouseUp` themselves.
 
-Recognising these requires state that spans several events, which a pull-based
-reactive pipeline cannot hold. So recognition lives here, in a small stateful
-component driven once per input event.
+The recognition needs state that spans several events, and a reactive pipeline
+that the reader pulls cannot hold it. So the recognition happens here, once for
+each input event. A gesture carries no intent: this stage never decides what a
+click or a chord means. It needs no backend and no display, so a test drives it
+with a scripted source.
 
-A gesture is *only* a combination of events — it carries no intent. The recogniser
-never decides what a click or a chord *means*. Recognising here rather than inside
-a backend makes it backend-agnostic and unit-testable without a display, and gives
-composite gestures a single home.
+The recognizer holds all of its state on its own instance, so one process can
+run any number of them.
 
-The recogniser holds all of its state on its own instance, so one process can run
-any number of them independently.
+The module lives in one fragment:
+
+- [`GestureRecognizer.jl`](GestureRecognizer.jl) — `GestureRecognizer`, its state
+  for one editor, `recognize_gesture!` and `pop_gesture!`.
 """
 module GestureRecognizerModule
 

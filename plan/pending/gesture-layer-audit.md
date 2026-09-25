@@ -117,12 +117,32 @@ Files that are not sealed: `Sdl.jl`, `Web.jl`, `client.js`, `Console.jl`,
 
 Each step is a commit in this worktree.
 
-0. [ ] The baseline on main: `test_kernel()`, `test_substrate()`, `test_sdl()`,
-   `test_web_backend()`, `test_console_backend()` and `test_video()`, and the
-   live-window check with a click and a double click (the note
-   `live-window-pixel-compare`).
-1. [ ] Items 6 to 9: the text of the gesture layer, its test file, and the guide.
-2. [ ] Items 2 and 3: the same window, and one press for each button.
+0. [x] The baseline on main at `ae39586c`:
+
+   | Suite | Pass | Fail | Error | Broken |
+   | --- | --- | --- | --- | --- |
+   | `test_kernel()` | 2333 | 3 | 3 | 0 |
+   | `test_sdl()` | 150 | 0 | 0 | 0 |
+   | `test_video()` | 34 | 0 | 0 | 0 |
+   | `test_web_backend()` | 30 | 1 | 0 | 0 |
+   | `test_console_backend()` | 83 | 0 | 0 | 0 |
+   | `test_substrate()` | 80530 | 3 | 2 | 1 |
+
+   The 12 failures are known: 5 in `DocumentMacroTest.jl`, 1 in
+   `ReferenceEvalTest.jl`, 5 in `SplitPaneDragTest.jl`, and the bound of 5 s in
+   `WebTest.jl:110`, which the load of the machine breaks.
+1. [x] Items 6 to 9: the text of the gesture layer, its test file, and the guide.
+2. [x] Items 2 and 3: the same window, and one press for each button. Steps 1
+   and 2 are one commit, because the new text describes the new behaviour.
+   - The recognizer keeps a `_ButtonPress` for each button in `presses`, and
+     the last click as a `_Click`. A `MouseUp` takes its press out of
+     `presses`, so a second release without a press makes no click.
+   - A click and the next click of a double click need the same window.
+   - New tests: two windows; two buttons held at the same time; a release
+     that consumes its press; a key repeat during a chord; the order of a
+     flush of two kept keys; a value that is not a `WindowInput`.
+   - The suites give the baseline, with the kernel at 2335 passes (2 more) and
+     the same 12 failures at the same lines.
 3. [ ] Item 1, after the owner confirms D1 to D5: the time field, the backends,
    and the recognizer on the event time (item 5 with it).
 4. [ ] Item 4, after the owner confirms D6: the `chords` keyword and the

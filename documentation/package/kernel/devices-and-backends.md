@@ -447,28 +447,27 @@ independent siblings, bound only by a concrete implementation.
 
 ## The gesture layer (layer 8)
 
-Layer 8 of the kernel — **recognising gestures in the event stream**:
-combinations and sequences that only exist across several events (a click, a
-multi-click, a key chord) become one synthesised event. Recognition is an
-endofunction on the event stream — events in, events out — so this layer
-names no document and no operation; what a gesture *means* is decided by
-whoever binds it, in the `binding/` layer far above.
+Layer 8 of the kernel — **the recognition of gestures in the event stream**: a
+combination or a sequence that exists only across several events (a click, a
+double click, a key chord) becomes one synthetic event. The recognition takes
+events and gives events, so this layer names no document and no operation. What
+a gesture means is decided where it is bound, in the `binding/` layer far above.
 
-The layer lives in [source/kernel/gesture/](../../../source/kernel/gesture/) as
-one module:
+The layer lives in [source/kernel/gesture/](../../../source/kernel/gesture/):
 
 ```
-GestureRecognizerModule.jl (GestureRecognizerModule) — MousePress + KeyChord synthesis
+GestureRecognizerModule.jl (GestureRecognizerModule) — the module: its docstring, exports, and fragment
+        └─ GestureRecognizer.jl — the recognizer, recognize_gesture! and pop_gesture!
 ```
 
-`GestureRecognizer` is a stateful event → gesture recogniser:
-`recognize_gesture!` consumes one `WindowInput`, updating click/multi-click
-and chord-buffer state, and either returns the window input to forward, enqueues
-a synthesised one (a completed click), or absorbs the event (a chord prefix,
-still incomplete); `pop_gesture!` is the consumer-facing pull, draining any
-pending synthesised gestures ahead of new raw input. A gesture is *only* a
-combination of events — it carries no intent. Its only import is
-`EventModule`.
+`GestureRecognizer` holds the state of the recognition for one editor.
+`recognize_gesture!` takes one `WindowInput` and answers what to deliver now:
+the input itself, a gesture that it completes (a `KeyChord`), or `nothing` when
+the recognizer keeps the input (the first key of a chord). A `MousePress` follows
+its `MouseUp` in the queue of the recognizer. `pop_gesture!` is the pull of the
+editor: it delivers the queue first, then the next input. A click needs the
+press and the release of the same button in the same window. A gesture carries
+no intent. The only import of the layer is `EventModule`.
 
 ## The backend layer (layer 9)
 
