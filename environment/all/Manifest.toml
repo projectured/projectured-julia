@@ -1414,13 +1414,13 @@ uuid = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
 version = "0.1.0"
 
 [[deps.ProjecturedShell]]
-deps = ["ProjecturedAssistant", "ProjecturedClipboard", "ProjecturedConversation", "ProjecturedDomain", "ProjecturedFault", "ProjecturedFileFormat", "ProjecturedFileSystem", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedInspector", "ProjecturedKernel", "ProjecturedLog", "ProjecturedPane", "ProjecturedProjection", "ProjecturedScreen", "ProjecturedStatistics", "ProjecturedStyle", "ProjecturedTooltip", "ProjecturedWidget"]
+deps = ["ProjecturedAssistant", "ProjecturedClipboard", "ProjecturedConversation", "ProjecturedDomain", "ProjecturedFault", "ProjecturedFileFormat", "ProjecturedFileSystem", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedHelp", "ProjecturedInspector", "ProjecturedKernel", "ProjecturedLog", "ProjecturedPane", "ProjecturedProjection", "ProjecturedScreen", "ProjecturedStatistics", "ProjecturedStyle", "ProjecturedTooltip", "ProjecturedWidget"]
 path = "../../package/ProjecturedShell"
 uuid = "6a0c2129-78cc-4dfb-a683-9b93dbf5d518"
 version = "0.1.0"
 
 [[deps.ProjecturedShellTest]]
-deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedShell", "ProjecturedStyle", "ProjecturedSubstrateExample", "ProjecturedSubstrateTest", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "Test"]
+deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGraphics", "ProjecturedHelp", "ProjecturedInspector", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedKernelTest", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedShell", "ProjecturedStyle", "ProjecturedSubstrateExample", "ProjecturedSubstrateTest", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "Test"]
 path = "../../package/ProjecturedShellTest"
 uuid = "b74f1b3e-5d2a-41c8-93ae-0c7f2c1d9a56"
 version = "0.1.0"

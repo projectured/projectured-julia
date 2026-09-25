@@ -21,6 +21,7 @@ ProjecturedFileSystem = "d20df666-2dae-4a0b-8892-08ed6c45272c"
 ProjecturedFocus = "14dfb0eb-5a11-4dd5-89b7-1137ba360c15"
 ProjecturedGestureHelp = "d8e6961d-7c29-43d8-bf9a-3394cc5f023b"
 ProjecturedGestureLog = "4fa8205f-3512-4016-add3-a8e2144efbf1"
+ProjecturedHelp = "054ae1ca-906b-4e99-b707-58959c3973f3"
 ProjecturedInspector = "5159cf42-a4ae-453b-9ac3-8695502aad43"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedLog = "afbb0e85-b78b-48af-ad63-1ba46eea4377"
@@ -43,6 +44,7 @@ ProjecturedFileSystem = {path = "../ProjecturedFileSystem"}
 ProjecturedFocus = {path = "../ProjecturedFocus"}
 ProjecturedGestureHelp = {path = "../ProjecturedGestureHelp"}
 ProjecturedGestureLog = {path = "../ProjecturedGestureLog"}
+ProjecturedHelp = {path = "../ProjecturedHelp"}
 ProjecturedInspector = {path = "../ProjecturedInspector"}
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedLog = {path = "../ProjecturedLog"}

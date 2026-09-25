@@ -49,16 +49,43 @@ end
 end
 
 @testset "the bar holds one menu of each make function, in order" begin
-    file, view = make_window_file_menu(), make_window_view_menu()
+    file, view, help = make_window_file_menu(), make_window_view_menu(), make_window_help_menu()
     @test string(file.action.label) == "File"
     @test _labels(file.submenu) == ["New tab", "Close tab"]
     @test string(view.action.label) == "View"
     @test _labels(view.submenu) == ["Split vertically", "Split horizontally", "Gesture log"]
-    # A host's own menus come after the shared ones.
+    @test string(help.action.label) == "Help"
+    @test _labels(help.submenu) == ["Documents", "Projections", "About"]
+    @test _labels(make_window_menu_bar()) == ["File", "View", "Help"]
+    # A host's own menus come after File and View, and Help is the last menu.
     extra = WidgetMenuItem("Run"; submenu = WidgetMenu(Any[make_window_command("Go", _ -> nothing)]))
     bar = make_window_menu_bar(; extra = [extra])
-    @test _labels(bar) == ["File", "View", "Run"]
-    @test last(bar.elements) === extra
+    @test _labels(bar) == ["File", "View", "Run", "Help"]
+    @test bar.elements[3] === extra
+end
+
+@testset "each Help item opens its tab, and a second use opens no other" begin
+    tree = PaneTree(PaneGroup(PaneTab[PaneTab("a", PrimitiveString("x"))]))
+    group = first(get_pane_groups(tree))
+    first_tab() = apply_pane_operation!(tree, make_pane_focus_operation(tree, group, 1))
+    first_tab()
+    editor = _ShellFakeEditor(tree)
+    # A host gives the page of its own program.
+    page = AboutPage(; name = "Host", version = "2.0")
+    help = make_window_help_menu(; about = _ -> page)
+    holding(type) = [get_wrapped_document(tab.content) for tab in group.tabs
+                     if get_wrapped_document(tab.content) isa type]
+    for (item, type) in zip(help.submenu.elements, [DocumentTypeList, ProjectionList, AboutPage])
+        evaluate_operation(editor, InvokeActionOperation(item.action))
+        @test length(holding(type)) == 1
+        first_tab()
+        evaluate_operation(editor, InvokeActionOperation(item.action))
+        @test length(holding(type)) == 1
+        @test _is_focused_at(tree, group, findfirst(tab -> get_wrapped_document(tab.content) isa type,
+                                                     collect(group.tabs)))
+    end
+    @test only(holding(AboutPage)) === page
+    @test length(group.tabs) == 4
 end
 
 @testset "a menu command does what the key does" begin

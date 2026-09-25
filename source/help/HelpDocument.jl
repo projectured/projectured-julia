@@ -36,7 +36,7 @@ field.
 """
 @document struct AboutPage
     name::String = "ProjecturEd"
-    summary::String = "A generic-purpose projectional editor: a document is structured data, a person sees it through projections that combine, and an edit of a view goes back to the document."
+    summary::String = "A generic-purpose projectional editor: a document is structured data, edited through its views."
     version::String = _get_package_version()
     homepage::String = "https://projectured.org"
 end

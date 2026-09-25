@@ -621,6 +621,27 @@ function test_application()
                 @test any(text -> occursin("Gestures", text), drawn())
             end
 
+            @testset "Help opens the document types and the page about the program in tabs, and the window draws them" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                editor = _app_make_editor(scene, composed, iomap)
+                drawn() = _app_drawn_strings(print_document(composed, scene).output.windows[1].content)
+                help = only(item for item in make_window_menu_bar().elements
+                            if string(item.action.label) == "Help")
+                action(label) = only(item.action for item in help.submenu.elements
+                                     if string(item.action.label) == label)
+                @test !any(text -> occursin("document types", text), drawn())
+                _app_apply!(editor, InvokeActionOperation(action("Documents")))
+                tabs() = [tab for group in get_pane_groups(_app_window(document)) for tab in group.tabs]
+                @test count(tab -> get_wrapped_document(tab.content) isa DocumentTypeList, tabs()) == 1
+                # The heading and the first entry of the list, which the tab shows
+                # without a scroll.
+                @test any(text -> occursin("document types", text), drawn())
+                @test "AboutPage" in drawn()
+                _app_apply!(editor, InvokeActionOperation(action("About")))
+                @test count(tab -> get_wrapped_document(tab.content) isa AboutPage, tabs()) == 1
+                @test "ProjecturEd" in drawn()
+            end
+
             @testset "the toolbar holds the tools, and draws no word" begin
                 document, scene, composed, _ = _app_make_scene(paths[1:1], dir)
                 toolbar = only(search_documents(document, node -> node isa WidgetToolbar))

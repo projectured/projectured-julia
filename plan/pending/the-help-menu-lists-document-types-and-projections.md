@@ -148,13 +148,21 @@ version is a plain list. A later plan can group, filter or search it.
   now, and the entries are sorted through `sortperm` of plain strings. The
   first computation now takes 0.22 s, the next 0.01 s, and the projection list
   0.06 s.
-- [ ] 7. **`make_window_help_menu(; about)`**, the last menu of
+- [x] 7. **`make_window_help_menu(; about)`**, the last menu of
   `make_window_menu_bar`. `ProjecturedShell` depends on `ProjecturedHelp`.
   Tests in `WindowShellTest.jl`: the bar has File, View and Help in that order,
   with the menus of `extra` before Help, and each Help item opens its tab once.
   A test in `ApplicationTest.jl`: the action of "Documents" opens a tab that
   draws the name `JsonString`. The same test with a real press on "Help" waits
   for [a-press-on-a-menu-name-opens-its-menu.md](a-press-on-a-menu-name-opens-its-menu.md).
+
+  Done. The application test looks for the heading and for `AboutPage`, the
+  first entry, and not for `JsonString`: the tab shows the start of the list
+  without a scroll. `test_window_shell()`: 98 pass and the 5 known failures of
+  "Frame plot". `test_application()`: the new case passes, and the 1 known
+  failure of "Frame plot" stays. An offscreen image of the window shows "File",
+  "View" and "Help" on the bar and the three tabs. A description longer than
+  the tab runs past its right edge, because the tab does not wrap a line.
 - [ ] 8. **omnet-julia.** Each environment that has a `[sources]` line for
   `ProjecturedShell` gets one for `ProjecturedHelp`. `_make_ide_shell` gives an
   `AboutPage` for the IDE. Run `Pkg.precompile()` and the IDE tests.

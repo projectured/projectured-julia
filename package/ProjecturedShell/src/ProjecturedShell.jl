@@ -14,6 +14,7 @@ using ProjecturedDomain
 using ProjecturedFocus
 using ProjecturedGestureHelp
 using ProjecturedGestureLog
+using ProjecturedHelp
 using ProjecturedKernel
 using ProjecturedFileFormat
 using ProjecturedFileSystem
@@ -48,6 +49,7 @@ const SelectionModule = ProjecturedKernel.SelectionModule
 const FocusModule = ProjecturedFocus.FocusModule
 const GestureHelpModule = ProjecturedGestureHelp.GestureHelpModule
 const GestureLogModule = ProjecturedGestureLog.GestureLogModule
+const HelpModule = ProjecturedHelp.HelpModule
 const StyleModule = ProjecturedStyle.StyleModule
 const TooltipModule = ProjecturedTooltip.TooltipModule
 const WidgetModule = ProjecturedWidget.WidgetModule

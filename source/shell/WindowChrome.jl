@@ -72,11 +72,39 @@ make_window_view_menu() =
     ]))
 
 """
-    make_window_menu_bar(; extra = []) -> WidgetMenu
+    make_window_help_menu(; about = _ -> AboutPage()) -> WidgetMenuItem
+
+The Help menu: the name on the bar, and the menu that opens below it. Its
+commands open a tab with every document type that an empty tab can make, a tab
+with every projection, and the page about the program. Each reaches the tab
+that already shows one, and opens one only when there is none.
+
+`about` makes the page of the program that the window runs, from the editor.
+The default page describes ProjecturEd; a window of another program gives its
+own.
+"""
+make_window_help_menu(; about = _ -> AboutPage()) =
+    WidgetMenuItem("Help"; padding = _WINDOW_MENU_PADDING, submenu = WidgetMenu(Any[
+        make_window_command("Documents",
+                            editor -> _reach_tool!(editor, DocumentTypeList,
+                                                   _make_default_tool(DocumentTypeList));
+                            tooltip = "Every document type that an empty tab can make"),
+        make_window_command("Projections",
+                            editor -> _reach_tool!(editor, ProjectionList,
+                                                   _make_default_tool(ProjectionList));
+                            tooltip = "Every projection: the views of a document, and the projections that combine them"),
+        make_window_command("About", editor -> _reach_tool!(editor, AboutPage, about);
+                            tooltip = "What this program is, and its version"),
+    ]))
+
+"""
+    make_window_menu_bar(; extra = [], about = _ -> AboutPage()) -> WidgetMenu
 
 The menu bar both binaries share: [`make_window_file_menu`](@ref), then
-[`make_window_view_menu`](@ref), then the menus of `extra`. A host that wants
-another bar builds a `WidgetMenu` from the menus it wants.
+[`make_window_view_menu`](@ref), then the menus of `extra`, then
+[`make_window_help_menu`](@ref), which takes `about`. Help is the last menu, as
+on a desktop. A host that wants another bar builds a `WidgetMenu` from the menus
+it wants.
 
 **A menu item here performs its command.** `WidgetShell` fires a menu shortcut
 **before the focused widget sees the key**, so an item that carries a shortcut it
@@ -92,11 +120,12 @@ that reaches its owner through the editor. Until one has that, the key answers
 and the menu says nothing about it, which is the honest half of the two.
 
 A host adds its own menus with `extra`, and this package names none of them.
-They go after the shared ones, so the bar reads the same way in every binary
-until the host's own menus begin.
+They go after File and View and before Help, so the bar reads the same way in
+every binary until the host's own menus begin.
 """
-make_window_menu_bar(; extra = []) =
-    WidgetMenu(Any[make_window_file_menu(), make_window_view_menu(), extra...];
+make_window_menu_bar(; extra = [], about = _ -> AboutPage()) =
+    WidgetMenu(Any[make_window_file_menu(), make_window_view_menu(), extra...,
+                   make_window_help_menu(; about = about)];
                orientation = :horizontal, padding = Inset(2, 2, 2, 2))
 
 """
