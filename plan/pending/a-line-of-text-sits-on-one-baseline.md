@@ -25,6 +25,10 @@ owner rejected it on 2026-09-25:
 >
 > Lay out a correct plan, not a punt
 
+The owner, after the rewrite: "I like the plan". Asked where the measure goes and
+what it returns, the owner took the interface of §3.8, with the caret offsets, on
+2026-09-25.
+
 The requirements this plan meets:
 
 - **R1. The box of a string is measured as it is drawn.** Its width is the sum
@@ -275,12 +279,15 @@ processors do:
 
 - **The caret** stands on the baseline and is as high as the font at its place:
   from `baseline − ascent` to `baseline + descent` of the run it is in, as in a
-  word processor. On a blank line it takes the line's font.
+  word processor. On a blank line it takes the line's font. Its x is the caret
+  offset of its character boundary (§3.8), not the width of the text before it.
 - **A selection** covers the full line box of each line it spans, so the
-  rectangles of consecutive lines meet with no gap and no overlap.
-- **A click** picks the line whose box holds its `y`, then the character by its
-  `x`. A segment knows its line by an index, not by an equal `y`, because
-  segments of one line now have different tops.
+  rectangles of consecutive lines meet with no gap and no overlap. Its left and
+  right edges are caret offsets.
+- **A click** picks the line whose box holds its `y`, then the character boundary
+  whose caret offset is nearest to its `x`. A segment knows its line by an
+  index, not by an equal `y`, because segments of one line now have different
+  tops.
 
 ### 3.6 The contract of `GraphicsText`
 
@@ -317,17 +324,70 @@ Positions in the graphics are integer logical pixels (`Int32`).
 
 ### 3.8 The measure contract
 
-The layout needs a box, not a pair.
+The layout needs a box, not a pair, and the caret needs the pen positions.
 
-- **`TextMeasure`** (style package) is the interface:
-  `measure_string(measure, text, font) -> StringBox` with `width`, `ascent`,
-  `descent`, `line_gap` as real numbers, and `get_font_metrics(measure, font)` for
-  a blank line.
-- **`FontFileMeasure`** is the authority of §3.1, the one the application,
-  the backends and the exports use.
+**Where it lives.** A new file, `source/style/TextMeasure.jl`, in the style
+package (`StyleModule`), beside the font parser (`TrueType.jl`) and `StyleFont`.
+Every package that lays out or draws text already depends on the style package.
+`TrueType.jl` keeps the font tables and gains the line gap, the OS/2 metrics and
+the `kern` table. Each projection that lays out text holds a measure object in
+its `measure` field, where it holds a function today: `TextToGraphics`,
+`WordWrapping`, `WidgetToGraphics`, `NaturalToGraphics`, the charts, the math
+typesetter. The application and the exports pass `FontFileMeasure()`, and a test
+passes a `FixedMeasure`.
+
+**What it returns.** All values are real numbers in logical pixels, and nothing
+here rounds; the layout rounds a position once (§3.7).
+
+```julia
+abstract type TextMeasure end
+
+struct FontMetrics
+    ascent::Float64           # baseline up to the top of the box
+    descent::Float64          # baseline down to the bottom, positive
+    line_gap::Float64         # the extra line distance the font asks for
+end
+
+struct StringBox
+    width::Float64            # advances plus kerning, fallback runs included
+    ascent::Float64           # the largest of the fonts that draw its glyphs
+    descent::Float64
+    line_gap::Float64
+end
+
+measure_string(measure::TextMeasure, text, font::StyleFont) -> StringBox
+get_font_metrics(measure::TextMeasure, font::StyleFont) -> FontMetrics
+compute_caret_offsets(measure::TextMeasure, text, font::StyleFont) -> Vector{Float64}
+```
+
+- **`measure_string`** gives the box of a string. The line places the string on
+  its baseline with it and computes its `A`, `D` and `G` from it.
+  `WordWrapping` reads only its `width`.
+- **`get_font_metrics`** gives the metrics of a font with no text: a blank line,
+  and a caret on an empty place.
+- **`compute_caret_offsets`** gives the x of each character boundary of the
+  text: `length(text) + 1` values, the first 0 and the last the width. Each is the
+  pen position where the next glyph starts. With kerning, the width of a prefix
+  is not that position: the caret after "A" in "AV" stands where "V" starts,
+  after the kerning of the pair A–V, and the prefix "A" alone does not hold that
+  kerning. The caret, a click and the edges of a selection read these offsets
+  (§3.5). A boundary between two runs of different fonts has no kerning.
+
+The implementations:
+
+- **`FontFileMeasure`** is the authority of §3.1, the one the application, the
+  exports and every backend's layout use. It answers from the font file: the
+  `hmtx` advances, the `kern` pairs inside a run of one font (question 1), the
+  fallback font of each glyph that the font lacks, and the ascent, descent and
+  line gap by FreeType's rule. It keeps the tables of a font once, and it can
+  hold the font zoom of an editor, which is what
+  [font-zoom-per-editor.md](font-zoom-per-editor.md) needs (§7).
 - **`FixedMeasure(advance, ascent, descent, line_gap)`** is the measure of a
-  test: a fixed advance for each character and fixed metrics, in place of the
-  closures such as `(t, f) -> (length(t) * 8, 16)`.
+  test: every character is `advance` wide, every font has the same metrics, and
+  there is no kerning. It replaces the closures such as
+  `(t, f) -> (length(t) * 8, 16)`. A test of mixed fonts passes a
+  `FixedMeasure` for each font through a small table measure, so two fonts can
+  have different metrics in a test.
 - The function contract `(text, font) -> (width, height)` goes, with no shim
   that keeps both: two contracts are two truths. About 29 files in 20 packages
   pass a measure, about 13 test files write a closure, and omnet-julia and
@@ -402,11 +462,15 @@ check [SEALING.md](../../SEALING.md) for it.
   every bundled font at the size where a pixel is a font unit, and the kerning
   of a set of pairs with FreeType's.
 - [ ] **Step 2. The box of a string and the measure contract** (§3.2, §3.8).
-  `TextMeasure`, `FontFileMeasure`, `FixedMeasure`, `StringBox`. A test compares
-  the width of a set of strings (the strings of §2.1, pairs, fallback glyphs)
-  with the width SDL draws after Step 3, for Ubuntu, Ubuntu Bold, Ubuntu Mono and
-  DejaVu at 14, 20 and 36 pixels and ratios 1 and 2: equal within one device
-  pixel.
+  `TextMeasure`, `FontMetrics`, `StringBox`, `measure_string`,
+  `get_font_metrics`, `compute_caret_offsets`, `FontFileMeasure`,
+  `FixedMeasure`. A test compares the width of a set of strings (the strings of
+  §2.1, pairs, fallback glyphs) with the width SDL draws after Step 3, for
+  Ubuntu, Ubuntu Bold, Ubuntu Mono and DejaVu at 14, 20 and 36 pixels and ratios
+  1 and 2: equal within one device pixel. A test of the caret offsets: each step
+  is the advance of its glyph plus the kerning with the next glyph of the same
+  run, the last offset is the width, and the offset where each glyph starts
+  matches the column where the ink probe of Step 0 finds that glyph drawn.
 - [ ] **Step 3. The backends draw where the layout says** (§3.6). The
   `GraphicsText` docstring; SDL: hinting, kerning, and the placement of the
   baseline in device pixels; PDF: the baseline and the `TJ` kerning; the web
