@@ -14,8 +14,8 @@ A kind is one of the types `ReactiveCell`, `ImmutableCell` and `MutableCell` of
 The module lives in two fragments that share this namespace:
 
 - [`CellStructPlan.jl`](CellStructPlan.jl) — `CellStructPlan`, the parse of a
-  `struct` definition, and the questions about the fields and the type parameters
-  that a builder asks it.
+  `struct` definition, and the functions that give the builders the kinds, the
+  value types and the type parameters of its fields.
 - [`CellStruct.jl`](CellStruct.jl) — `@cell_struct`, the builders that return its
   parts as expressions, and the two functions that read a struct of cells at run
   time.

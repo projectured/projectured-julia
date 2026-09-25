@@ -1,6 +1,6 @@
 # Fragment of `CellStructModule` — the parse of a `struct` definition into a
-# `CellStructPlan`, and the questions about the fields and the type parameters that
-# a builder asks the plan.
+# `CellStructPlan`, and the functions that give the builders the kinds, the value
+# types and the type parameters of its fields.
 
 """
     CellStructPlan

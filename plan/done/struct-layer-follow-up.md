@@ -44,14 +44,27 @@ left two items for the owner. On 2026-09-24 the owner approved both.
   it. `get_cell_struct_argument_type` calls it for a cell, and the clipboard slice
   uses it instead of its private `_get_cell_value_type`. The owner gave permission
   to unseal the three cell files and to seal them again after the change.
-- [ ] 4. Verification, and the move of this plan to `plan/done/`.
+- [x] 4. Verification, the seal of the struct layer, and the move of this plan to
+  `plan/done/`.
 
 ## Verification
 
-- `test_cell_struct()` 53 pass, `test_cell_struct_plan()` 47 pass,
-  `test_document_macro()` 84 pass with the 5 known failures of Rule C.
-- Both environments precompile with the change.
-- Open: `test_all()` and `test_omnet()` with the change, compared with the run
-  with the probe, which had the old behavior: projectured-julia 1049850 pass,
-  649 fail, 11 error, 1114 broken; omnet-julia 10942 pass, 26 fail, 67 error,
-  1 broken. The owner asked to wait with the full run.
+- `test_all()` of projectured-julia with the change (`82c4ec96`): 1052635 pass,
+  649 fail, 11 error, 1114 broken. `main` (`8ca390ea`) gave 1049850 pass and the
+  same fail, error and broken counts, and so did the run with the probe.
+- The 2785 more passes: 2 are the new assertions of `CellStruct`, and 2783 are in
+  `Catalog`. Run alone, `Catalog` gives 496490 passes on `main` and on the final
+  branch, the same for each of the 902 examples, with the same display scale.
+  The cause of the 2783 in that one full run is not found.
+- `test_omnet()` of omnet-julia with the change: 10942 pass, 26 fail, 67 error,
+  1 broken, the same as the run with the probe.
+- The final branch: `test_cell` 100, `test_cell_struct` 53,
+  `test_cell_struct_plan` 47, `test_declared_api` 117, the layering guard 10 of 10,
+  `test_clipboard` 201, the export and naming guards 0 violations, and
+  `test_document_macro` with only the 5 known failures of Rule C.
+- The full run of the final branch did not finish: the kernel stopped it at its
+  memory cap of 8 GB while it loaded, when other sessions used the machine. The
+  owner chose to seal the struct layer and to land without it.
+- A machine restart on 2026-09-25 cleared `/tmp`, and with it the log of the run
+  with the probe and the scratch environments. The later logs are in
+  `/var/tmp/struct-follow-up/`.
