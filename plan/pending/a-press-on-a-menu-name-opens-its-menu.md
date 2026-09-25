@@ -258,9 +258,31 @@ to the readers.
   `test_window_wrap`, `test_window_shell`, `test_clipboard`, `test_identity`
   and `test_application`: 863 pass, 0 fail.
 
-- [ ] 4. **D6, the row.** Test: the popup window of "File" draws "New tab" and
+- [x] 4. **D6, the row.** Test: the popup window of "File" draws "New tab" and
   "Close tab", and a press on "New tab" opens a tab and closes the popup. The
   same for "Help" and "Documents".
+
+  Done. `make_opened_window_projections` ends with the rows of
+  `WidgetToGraphics(font_ubuntu_regular_20; measure).dispatch`, one for each
+  widget and each layout, after the rows of the host. It names no abstract type,
+  so the shell needs no dependency on `ProjecturedLayout` for `LayoutDocument`.
+
+  **The place decides before the type.** In `make_window_scene_projection`, the
+  rows by type came before the reference dispatch that gives the first window's
+  content to the host projection. A row for `WidgetShell` would then draw a
+  window whose content is a shell, as a window without the clipboard has. The
+  projection is now a `ReferenceDispatchingProjection` under the
+  `RecursiveProjection`: the screen goes to the manager, the first window's
+  content to the host, and every other place to the rows by type.
+
+  Tests: a popup window with a `WidgetMenu` draws "New tab" and "Close tab"; a
+  first window whose content is a `WidgetShell` is printed by its host
+  projection; in the application window a press on "File" opens a popup window
+  that draws "New tab" and "Close tab", and a press on "New tab" in that window
+  closes it and opens a tab. The press on "Help" follows the same path.
+  `test_window_wrap` 27 pass; `test_window_shell`, `test_tooltip_probe`,
+  `test_widget_tooltip` and `test_application`: 493 pass with the one case of
+  `test_window_wrap` that the fix of its reading made pass.
 - [ ] 5. **D10.** Test: a right press on a row of the
   navigator selects it and opens the menu of the row; a right press in the JSON
   tab opens the menu of the window.

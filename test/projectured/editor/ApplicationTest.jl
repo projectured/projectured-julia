@@ -638,6 +638,29 @@ function test_application()
                 @test popup.y == window.y + y - 4 + item_height + 4
             end
 
+            @testset "the menu of a menu name draws its commands, and a press on one runs it" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                editor = _app_make_editor(scene, composed, iomap)
+                drawn = _app_drawn_at(print_document(composed, scene).output.windows[1].content)
+                (x, y) = only((x, y) for (text, x, y) in drawn if text == "File")
+                _app_fire(composed, iomap, MousePress(:left, x + 2, y + 2, 1, ModifierKeys()))
+                @test length(scene.windows) == 2
+                # The popup window draws the commands of the menu, in its own frame.
+                shown = print_document(composed, scene)
+                items = _app_drawn_at(get_iomap_output(shown).windows[2].content)
+                @test [text for (text, _, _) in items] == ["New tab", "Close tab"]
+                # A press on a command in the popup window runs it and closes the popup.
+                (nx, ny) = only((x, y) for (text, x, y) in items if text == "New tab")
+                before = _app_count_tabs(_app_window(document))
+                change = read_intent(composed, nothing,
+                                     Intent(WindowInput(:widget_popup,
+                                                        MousePress(:left, nx + 2, ny + 2, 1, ModifierKeys()))),
+                                     shown)
+                @test length(scene.windows) == 1
+                _app_apply!(editor, change.operation)
+                @test _app_count_tabs(_app_window(document)) == before + 1
+            end
+
             @testset "Help opens the document types and the page about the program in tabs, and the window draws them" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = _app_make_editor(scene, composed, iomap)

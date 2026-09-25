@@ -65,33 +65,35 @@ a window is an ordinary document and the screen must not project it as one.
 `opened_window_projections` draws the content of a window that a wrapper opens
 later. Each entry is `ContentType => projection`, for example
 `GestureMap => make_gesture_map_projection(measure)` for the window that F1 opens.
+The content of the first window is chosen by its place before any entry by type,
+so an entry for a type that the first window's content also has, such as a
+widget, draws only the windows opened later.
 
 `screen_wrap` wraps the screen printer, inside the manager. It is how a caller
-puts a reader on the window route without this package naming that reader: a
-popup is placed in screen coordinates, so the projection that resolves one has
-to map through the screen printer, and only a caller that knows the widget layer
-can name it. The default changes nothing.
+puts a reader on the window route without this package naming that reader. The
+default changes nothing.
 """
 function make_window_scene_projection(projection;
                                       opened_window_projections = Pair{Type,Any}[],
                                       screen_wrap = identity)
     target = @reference ::ScreenDocument.windows::CellVector[1]::WindowDocument.content::Document
-    dispatch = ReferenceDispatchingProjection(reference -> begin
+    # A window carries a `WindowDocument` of its own, and it recurses through
+    # `ScreenToScreen`. The content of a window opened later is drawn by the entry
+    # that names the content's type.
+    opened = TypeDispatchingProjection(
+        WindowDocument => ScreenToScreen(),
+        opened_window_projections...,
+        Any            => IdentityProjection())
+    # The place decides first: the screen goes to the manager, and the content of
+    # the first window to `projection`, whatever its type.
+    RecursiveProjection(ReferenceDispatchingProjection(reference -> begin
         is_reference_equal(strip_reference_types(reference),
                                            strip_reference_types(target)) &&
             return NestingProjection(projection; recursion = IdentityProjection())
         reference isa EmptyReference &&
             return WindowManagingProjection(inner = screen_wrap(ScreenToScreen()))
-        IdentityProjection()
-    end)
-    # A window opened later carries a `WindowDocument` of its own, and it
-    # recurses through `ScreenToScreen` rather than through the reference above,
-    # which names the first window alone. Its content is drawn by the entry that
-    # names the content's type.
-    RecursiveProjection(TypeDispatchingProjection(
-        WindowDocument => ScreenToScreen(),
-        opened_window_projections...,
-        Any            => dispatch))
+        opened
+    end))
 end
 
 """

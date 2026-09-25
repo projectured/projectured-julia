@@ -75,10 +75,46 @@ end
     @test palette.inner isa GestureHelpDecoratorProjection
 end
 
-@testset "the help window is drawn only when the help is on" begin
-    @test length(make_opened_window_projections(; gesture_help = true)) == 1
-    @test first(make_opened_window_projections(; gesture_help = true)).first === GestureMap
-    @test isempty(make_opened_window_projections(; gesture_help = false))
+@testset "the help window is drawn only when the help is on, and a popup always" begin
+    types(rows) = [row.first for row in rows]
+    @test first(types(make_opened_window_projections(; gesture_help = true))) === GestureMap
+    @test !(GestureMap in types(make_opened_window_projections(; gesture_help = false)))
+    # The rows of a host come before the rows of the widgets a popup holds.
+    rows = types(make_opened_window_projections(; gesture_help = false,
+                                                content = Pair{Type,Any}[PrimitiveString => IdentityProjection()]))
+    @test first(rows) === PrimitiveString
+    @test WidgetMenu in rows && VerticalLayout in rows
+end
+
+@testset "a popup window draws the widgets it holds, and the first window keeps its projection" begin
+    # The first window holds a widget, and the rows of a popup name widgets too:
+    # the place of the first window's content decides before its type.
+    shell = WidgetShell(WidgetLabel("content"); size = Point2D(400, 300))
+    scene = make_window_scene(shell, "shell"; width = 400, height = 300)
+    marker = Ref(0)
+    counting = ReferenceDispatchingProjection(reference -> (marker[] += 1; make_layout_projection_example()))
+    projection = make_window_scene_projection(counting;
+        opened_window_projections = make_opened_window_projections(; gesture_help = false))
+    # The screen prints a window when its output is read.
+    first_content = print_document(projection, scene).output.windows[1].content
+    @test (first_content isa Cell ? first_content[] : first_content) isa GraphicsCanvas
+    @test marker[] == 1
+    # A popup window with a menu draws the names of its items.
+    menu = WidgetMenu(Any[WidgetMenuItem("New tab"), WidgetMenuItem("Close tab")])
+    push!(scene.windows, Cell(WindowDocument(; id = :widget_popup, x = 10, y = 20, width = 120,
+                                              height = 60, style = :floating, content = menu)))
+    output = print_document(projection, scene).output
+    canvas = output.windows[2].content
+    canvas = canvas isa Cell ? canvas[] : canvas
+    @test canvas isa GraphicsCanvas
+    texts = String[]
+    walk(node) = begin
+        node = node isa Cell ? node[] : node
+        node isa GraphicsText && push!(texts, String(node.text isa Cell ? node.text[] : node.text))
+        node isa GraphicsCanvas && foreach(walk, node.elements)
+    end
+    walk(canvas)
+    @test texts == ["New tab", "Close tab"]
 end
 
 @testset "a select drops down as a window below the select" begin

@@ -144,6 +144,12 @@ already draws a pane's content with.
 
 The help window holds a `GestureMap`. The palette and the log draw into the
 window they wrap and open none.
+
+**A popup holds widgets**: the menu of a menu bar or of a context menu, and the
+options of a `WidgetSelect`, in a layout. So the rows end with the rows of
+`WidgetToGraphics`, one for each widget and each layout, in the font and the
+measure the shell draws its bands with. The rows of `content` come before them,
+so a host decides first.
 """
 make_opened_window_projections(; gesture_help::Bool = true,
                                  content = Pair{Type,Any}[],
@@ -151,4 +157,5 @@ make_opened_window_projections(; gesture_help::Bool = true,
     vcat(gesture_help ?
              Pair{Type,Any}[GestureMap => make_gesture_map_projection(measure)] :
              Pair{Type,Any}[],
-         Pair{Type,Any}[content...])
+         Pair{Type,Any}[content...],
+         Pair{Type,Any}[WidgetToGraphics(font_ubuntu_regular_20; measure = measure).dispatch...])
