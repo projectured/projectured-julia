@@ -190,7 +190,10 @@ end
     sub  = WidgetMenu([WidgetMenuItem("Leaf")])
     item = WidgetMenuItem("File"; action = (_e) -> error("must not fire"), submenu = sub)
     iio  = print_document(proj, item)
-    @test read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys())) isa OpenPopupOperation
+    # To open a popup is not an edit, so the popup comes marked as view state.
+    answer = read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys()))
+    @test answer isa ReplaceViewStateOperation
+    @test get_wrapped_operation(answer) isa OpenPopupOperation
 end
 
 @testset "WidgetStatusBar renders its segments as a bottom band" begin

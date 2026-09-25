@@ -378,9 +378,9 @@ end
 # The default window holds a horizontal menu bar, a select dropdown, and a right-click
 # context-menu target; a pre-opened floating popup window shows an open menu so the
 # window route renders in a static sweep. Project it with the screen-route
-# make_widget_popup_projection_example (WindowManager + WidgetPopupResolver +
-# ScreenToScreen), which turns a trigger's OpenPopupOperation into a real popup
-# window anchored at the trigger's screen position.
+# make_widget_popup_projection_example (WindowManager + ScreenToScreen), which
+# turns a trigger's OpenPopupOperation into a real popup window at the trigger's
+# screen position.
 function make_widget_popup_document_example(; width=520, height=360)
     select = WidgetSelect("Apple";
                           options=["Apple", "Banana", "Cherry"], width=200)

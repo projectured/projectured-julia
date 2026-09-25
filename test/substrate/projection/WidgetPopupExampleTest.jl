@@ -1,9 +1,8 @@
 # widget_popup example end-to-end (Stage 3, Step 6). The window-route projection
-# (WindowManager + WidgetPopupResolver + ScreenToScreen) turns a trigger's
-# `OpenPopupOperation` into a real popup window: ScreenToScreen forward-maps the
-# trigger's screen-rooted anchor to absolute screen coordinates (shifting by each
-# window's origin), the resolver adds the trigger-baked offset and emits an
-# `OpenWindowOperation`, and WindowManager opens the window. Driven exactly like the
+# (WindowManager + ScreenToScreen) turns a trigger's `OpenPopupOperation` into a
+# real popup window: each reader moves the popup's position into its own frame,
+# ScreenToScreen adds the window's origin and emits an `OpenWindowOperation`, and
+# WindowManager opens the window. Driven exactly like the
 # HoverProbe pipeline test (an `WindowInput` routed in grows the screen's window
 # list).
 

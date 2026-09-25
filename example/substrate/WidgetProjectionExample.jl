@@ -20,21 +20,18 @@ function make_widget_projection_example(; measure=measure_truetype_text)
 end
 
 # Window-route projection for the widget popup example (Stage 3 Step 6). Composites
-# the `ScreenDocument` through `WindowManager` + `ScreenToScreen`, with a
-# `WidgetPopupResolverProjection` between them: a trigger's `OpenPopupOperation`
-# bubbles up out of the window content; the resolver forward-maps its (screen-rooted)
-# anchor to absolute screen coordinates via ScreenToScreen's coordinate-image
-# forwarding, adds the trigger-baked offset, and emits an `OpenWindowOperation` that
-# `WindowManager` turns into a real popup window. Each window's content renders
-# through the standard widget projection.
+# the `ScreenDocument` through `WindowManager` + `ScreenToScreen`: a trigger's
+# `OpenPopupOperation` bubbles up out of the window content, each reader moves its
+# position into its own frame, and `ScreenToScreen` adds the window's origin and
+# emits an `OpenWindowOperation` that `WindowManager` turns into a real popup
+# window. Each window's content renders through the standard widget projection.
 function make_widget_popup_projection_example(; measure=measure_truetype_text)
     widget_proj = make_widget_projection_example(; measure=measure)
     ref_dispatch = ReferenceDispatchingProjection(ref -> begin
         _is_window_content(ref) &&
             return NestingProjection(widget_proj; recursion=IdentityProjection())
         ref isa EmptyReference &&
-            return WindowManagingProjection(
-                inner = WidgetPopupResolverProjection(inner = ScreenToScreen()))
+            return WindowManagingProjection(inner = ScreenToScreen())
         return IdentityProjection()
     end)
     RecursiveProjection(
