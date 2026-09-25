@@ -937,9 +937,10 @@ with or leaking into* another's, which a genuine singleton cannot do. Two kinds
 qualify:
 
 - **An external truth every editor shares.** The `Clock` behind
-  `ClockModule.get_wall_clock()` is a process-global one reflecting OS time —
-  exactly one writer (the `_start_wall_clock_heartbeat!` background task) and
-  read-only for every editor, representing the genuine singleton of real time.
+  `ClockModule.get_wall_clock()` is a process-global one whose time is the
+  seconds since the first `get_wall_clock()` call — exactly one writer (the
+  heartbeat task that the first call starts) and read-only for every editor,
+  representing the genuine singleton of real time.
   Reader-armed animations (which see no `PrinterContext` and so cannot reach the
   enclosing editor's private clock) read the wall clock; those animations
   consequently move in step across editors — the trade-off until a reader-side

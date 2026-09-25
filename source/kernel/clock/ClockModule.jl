@@ -1,30 +1,26 @@
 """
     ClockModule
 
-The animation clock, modelled as a `Clock` (a `@cell_struct`) with a reactive
-`time` field. Every `Clock` instance is independent: writing one instance's `time`
-invalidates only its own subscribers, so a process holding many concurrent
-clocks never cross-invalidates them — the property that lets many editors run
-side by side without their animation graphs colliding.
+The animation clock. A `Clock` holds a time in seconds in a reactive cell, and a
+computation that reads the time computes again after each write of it. Each
+`Clock` is independent: a write invalidates only the cells that read that clock,
+so one process can run many editors at once.
 
-Two ways to read a clock, named for intent:
+A clock has two reads:
 
-  • `get_reactive_clock_time(clock)` — SUBSCRIBE. A tracked read; the calling
-    cell becomes a dependent and re-runs on every tick. Use inside an animated
-    thunk. The `reactive_` prefix is the loud one: calling it makes you
-    reactive.
+- `get_reactive_clock_time(clock)` records the read, so the computation that
+  reads the time computes again after the next write. Use it in a computation
+  that animates.
+- `get_clock_time(clock)` records nothing. Use it to take the start time of an
+  animation, so the code that takes it does not run again on each write.
 
-  • `get_clock_time(clock)` — SAMPLE. An untracked read that registers no
-    dependency. Use to *arm* an animation (capture a start instant) without
-    the arming code itself re-running every frame.
+`get_wall_clock()` returns one clock that the whole process shares. Its time is
+the number of seconds since the first call of `get_wall_clock()`. A heartbeat
+task that the first call starts writes it every 10 milliseconds, and no other
+code writes it. The time is the same for every editor, so PAR-PER-EDITOR-STATE
+accepts the shared clock as an exception.
 
-A single wall clock — exposed by `get_wall_clock()` — tracks OS time. It is
-the ambient default for one-shot renders and any context that holds no clock
-of its own to subscribe against. One background task started at module load
-writes `Base.time()` into it on an interval; every other consumer only
-reads. A shared read of one real external truth is a principled
-PAR-PER-EDITOR-STATE carve-out — nothing else ever *writes* conflicting
-elapsed values into it.
+The module lives in one fragment, [`Clock.jl`](Clock.jl).
 """
 module ClockModule
 

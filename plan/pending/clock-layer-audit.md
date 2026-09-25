@@ -42,11 +42,26 @@ On 2026-09-25 the owner approved items 2 to 10 and gave permission to unseal
 ## Steps
 
 - [x] 1. Unseal `ClockModule.jl` and `Clock.jl`, and add this plan.
-- [ ] 2. Items 3 to 8: the reads, the docstrings, the comments and the text.
-- [ ] 3. Item 10: the tests.
-- [ ] 4. The invariant text of item 4.
-- [ ] 5. Verification.
+- [x] 2. Items 3 to 8: the reads, the docstrings, the comments and the text.
+- [x] 3. Item 10: the tests.
+- [x] 4. The invariant text of item 4.
+- [x] 5. Verification of items 3 to 8 and 10.
+
+## What the implementation found
+
+- `show` must not narrow: a clock that holds another type must still show, so
+  the display reads the cell without the type assertion.
+- No code writes the field of a clock directly; every writer calls
+  `set_clock_time!`, and `Feeds.jl` only asks whether the time cell has readers.
 
 ## Verification
 
-To fill in.
+- `test_kernel()`: 2232 pass, and the six known failures (five of Rule C, one of
+  `MEvalBranch`). `Clock` has 28 assertions: `@inferred` reads, the `TypeError`
+  of a time that is not a `Float64`, one wall clock, a heartbeat that moves it,
+  and a heartbeat that starts again after its task ends.
+- `test_substrate()`: 80862 pass, and the five known failures of the split pane
+  drag test.
+- The export and naming guards: 0 violations.
+- The guard for precompilation has no test: a normal process can not run as a
+  precompile process.

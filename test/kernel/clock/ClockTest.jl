@@ -66,5 +66,48 @@ function test_clock()
         @test repr(clock) == "Clock(time = 12.5)"
     end
 
+    @testset "set_clock_time! writes a Float64 and returns nothing" begin
+        clock = Clock()
+        @test set_clock_time!(clock, 2) === nothing
+        @test get_clock_time(clock) === 2.0
+        @test (@inferred get_clock_time(clock)) === 2.0
+        @test (@inferred get_reactive_clock_time(clock)) === 2.0
+    end
+
+    @testset "a time that is not a Float64 throws at the read" begin
+        # The field of a `@cell_struct` takes any value, so the reads narrow.
+        clock = Clock()
+        clock.time = "text"
+        @test_throws TypeError get_clock_time(clock)
+        @test_throws TypeError get_reactive_clock_time(clock)
+        @test repr(clock) == "Clock(time = text)"   # the display does not narrow
+    end
+
+    @testset "the wall clock is one clock, and its heartbeat moves it" begin
+        wall = get_wall_clock()
+        @test get_wall_clock() === wall
+        before = get_clock_time(wall)
+        deadline = time() + 5.0
+        while get_clock_time(wall) == before && time() < deadline
+            sleep(0.01)
+        end
+        @test get_clock_time(wall) > before
+    end
+
+    @testset "the heartbeat starts again after its task ends" begin
+        get_wall_clock()
+        old = ClockModule._HEARTBEAT_TASK[]
+        schedule(old, InterruptException(); error = true)
+        deadline = time() + 5.0
+        while !istaskdone(old) && time() < deadline
+            sleep(0.01)
+        end
+        @test istaskdone(old)
+        get_wall_clock()
+        new = ClockModule._HEARTBEAT_TASK[]
+        @test new !== old
+        @test !istaskdone(new)
+    end
+
 end
 end # test_clock
