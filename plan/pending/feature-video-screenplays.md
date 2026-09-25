@@ -58,7 +58,7 @@ Four faults of the editor, and one thing that is not proven, came out of the wor
 
 **F1. A file tab of the application takes no character.** Open `person.json` in `bin/projectured`, with content or empty. The pane focus is on the tab, the JSON draws, and no key reaches the document: `x`, `,` and `{` each answer no operation. `Alt+Down`, `Tab` and `Alt+click` answer a `ReplaceSelectionOperation`, so the selection moves, but a key after them still answers nothing. A plain click on the text answers nothing at all. The evaluator tab is the control: in the same window `Ctrl+T`, `Insert`, `repl`, Enter and then `1+2` Enter draw `= 3`. So the window, the reader and the loop work, and what fails is the seat of the selection inside a file tab.
 
-What F1 blocks: every screenplay whose keys go into a file tab, which is S3 in the window, and S5 to S8. It does not block S1, S2 and S4, which type into a tool tab: the evaluator and the assistant.
+What F1 blocks: every screenplay whose keys go into a file tab, which is S5 to S8. S3 stays a single-document take by the owner's decision (2026-09-25). It does not block S1, S2 and S4, which type into a tool tab: the evaluator and the assistant.
 
 **F2. After a string value, `Right` then `,` inserts nothing.** This is the rule the `json_build` live example is built on. A replay of its timeline today: 192 of its 210 keys answer no operation, and the document stops at `{"name": "Alice"}`. `Alt+Up` in place of the `Right` works, and the same build then runs with no dead key.
 
@@ -247,7 +247,7 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 
 - **Feature:** a structural editor. A key makes a typed element, not a character: `{`, `[`, `"`, `,` and Tab.
 - **Claim:** edits are typed operations on the data, and F1 and the command palette list what works where you are.
-- **Setup:** the single-document recorder (`record_live_example`), 900×720. The application window is not possible while F1 stands, so this video has no menu bar, no toolbar and no tabs.
+- **Setup:** the single-document recorder (`record_live_example`), 900×720, with no menu bar, no toolbar and no tabs. The owner keeps it so (2026-09-25): the take shows the editor called with one document and one projection.
 - **The take of 2026-09-22.** Recorded: 900×720, 767 frames, 25.6 s, 92 KB, with the human rhythm of D13. The build is `{"name": "Alice", "age": 30, "city": "Wonderland", "address": {"street": "12 Rabbit Lane", "zip": "12345"}}`, and every one of its 84 keys answers an operation, which the script checks headless before it records.
 
   **The take of 2026-09-23, caret only.** With F2 and F3 fixed (`plan/done/structural-keys-from-the-caret.md`), on the branch rebased on `main` at cc041a4f: 900×720, 1014 frames, 33.8 s, 134 KB, `build/video/json_from_nothing_caret.mp4`. The build is `{"name": "Alice", "age": 30, "city": "Wonderland", "address": {"street": "12 Rabbit Lane", "zip": "12345"}, "tags": ["admin", "editor"], "active": true}`, and all 123 keys answer an operation. No key selects structure: `Right` leaves a string, a `,` after a number adds the next entry at once, and five presses of `Right` carry the caret from the last string of `"address"` and of `"tags"` past the closing `}` or `]`, where the `,` adds the next root entry. A bool comes last, because the caret can not leave a bool (F7).
@@ -416,7 +416,8 @@ The number of the frames follows the wall clock, so one second of the session is
 - [x] Find a build that works today, and check it headless before recording. F2 and F3 rule the shape: `Alt+Up` leaves a value, and a nested object comes last.
 - [x] Record it: 25.6 s, 900×720, 84 keys, none of them dead (2026-09-22).
 - [x] Record it again with the caret only, after F2 and F3: 33.8 s, 900×720, 123 keys, none of them dead (2026-09-23).
-- [ ] When F1 is fixed, move the video into the application window and add the beats of F1, the command palette and Ctrl+Z.
+- ~~[ ] When F1 is fixed, move the video into the application window and add the beats of F1, the command palette and Ctrl+Z.~~
+  **Dropped (2026-09-25, the owner's decision):** S3 stays a single-document take. It also shows how to call the editor with a simple document and a projection, which the page gives under the video (`run_example` with a `JsonNothing` and a chain of projections).
 
 ### Step 4: S4, a tool window from widgets
 
