@@ -16,9 +16,8 @@ function _history_recorded_answers(example)
     output isa GraphicsDocument || return String[]
     width, height = Int.(get_graphics_size(output))
     width, height = clamp(width, 100, 1600), clamp(height, 100, 1200)
-    none = ModifierKeys()
-    events = Any[MouseMove(x, y, :none, none) for x in 5:max(20, width ÷ 20):width
-                                               for y in 5:max(20, height ÷ 15):height]
+    events = Any[MouseMove(x, y) for x in 5:max(20, width ÷ 20):width
+                                  for y in 5:max(20, height ÷ 15):height]
     append!(events, [MouseScroll(0, turn, x, y) for turn in (-1, 1)
                      for (x, y) in ((width ÷ 2, height ÷ 2), (width ÷ 4, height ÷ 4))])
     recorded = String[]
@@ -71,7 +70,7 @@ function test_history_sweep()
                 # it can move what it points at.
                 gestures = Pair{String,Function}[
                     "the pointer moves over the window" =>
-                        () -> [MouseMove(x, y, :none, none) for x in 20:120:1580 for y in 20:120:980],
+                        () -> [MouseMove(x, y) for x in 20:120:1580 for y in 20:120:980],
                     "a click on a row of the navigator" => () -> click(place("alpha", left)),
                     "Down and Up in the navigator" => () -> key_downs(:down, :up),
                     "Alt+click on a row" => () -> click(place("beta", left); modifiers = alt),
