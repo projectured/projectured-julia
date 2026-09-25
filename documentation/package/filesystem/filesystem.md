@@ -33,6 +33,10 @@ Enter on a row, or a double click, makes an `OpenFileOperation(path; wrap)`. The
 
 `FileSystemChooser` is the document of the open and save dialogs of `ProjecturedShell`. In the chooser, the open gesture of a row makes a `WriteChosenNameOperation` instead of an `OpenFileOperation`: Enter or a double click writes the name of the file into the `name` field. `get_chosen_path` joins the directory and the name. The shell turns the chosen path into an open or a save.
 
+### Duplicate the Explorer
+
+`has_document_duplicate` is `true` for every `WorkspaceDocument`, so the tab of the Explorer shows a `+` above its `x`. The duplicate is a copy of the folders; see [document.md](../kernel/document.md#the-duplicate). The selected row and the closed folders are not in the workspace. The reader writes the row selection on the computed `FileSystemDirectory`, and the closed folders are a cell of the `WidgetTree`. So a duplicate opens with no row selected and every folder open.
+
 ## How it fits
 
 `ProjecturedFileSystem` depends on `ProjecturedFileFormat` and `ProjecturedPane` for the open, and on `ProjecturedWidget` for the tree. `ProjecturedShell` uses it for the dialogs and for the Explorer button of the toolbar.

@@ -48,6 +48,10 @@ The leaves are opaque: they have no `bound` marker. So a caret selects an identi
 
 A `JuliaFunction` gives its call signature as its tooltip, and a `JuliaDocstring` gives the signature and the text.
 
+### The duplicate
+
+`has_document_duplicate` is `true` for every `JuliaDocument`, because Julia code is what a person typed. A duplicated pane copies the code into nodes of its own, and an edit in one pane does not change the other. The code of an evaluator form is a Julia document, so a duplicated evaluator does not type into the original. See [document.md](../kernel/document.md#the-duplicate).
+
 ## How it fits
 
 `ProjecturedJulia` depends only on the engine and the substrate. The domains that embed Julia code depend on it: `ProjecturedFsm`, `ProjecturedProcess`, `ProjecturedFormula` and `ProjecturedConversation`. `ProjecturedFormula` copies the dispatch table of `JuliaToSyntax()` and adds its own rules, so one recursion prints a tree that mixes Julia and formula nodes.

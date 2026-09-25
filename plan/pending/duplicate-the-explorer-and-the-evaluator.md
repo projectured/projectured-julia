@@ -132,7 +132,7 @@ Work in the worktree `../projectured-julia-duplicate-tools`, on the branch
     at `8939434d` with the same message: "ConversationModule.jl imports
     make_insertion_document from DomainModule and extends it nowhere". This plan
     does not change `ConversationModule.jl`.
-- [ ] **Step 4. The guides.** `filesystem.md`, `conversation.md` and `julia.md`
+- [x] **Step 4. The guides.** `filesystem.md`, `conversation.md` and `julia.md`
   say that the kind has a duplicate and what it shares.
 - [ ] **Step 5. The narrow tests and the layering guards,** then move this plan
   to `plan/done/`.

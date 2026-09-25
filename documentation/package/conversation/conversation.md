@@ -75,6 +75,8 @@ After an evaluation, a form keeps its code as typed in `source`. When the `parse
 
 `is_selection_walk_stop(::EvaluatorForm)` is `false`, so the Alt+arrow walk passes from a part directly to its form or its result.
 
+**The duplicate.** `has_document_duplicate` is `true` for every `EvaluatorDocument`, so the tab of the evaluator shows a `+` above its `x`. The duplicate copies the forms, their code, their folds, the caret and the history state; see [document.md](../kernel/document.md#the-duplicate). `copy_document(::DuplicatePolicy, ::EvaluatorForm)` shares the result of each form. A result can be live, such as a list that computes or a widget that holds a function, and a copy of a live value is refused. An evaluation in the duplicate puts a new result in the form of the duplicate. The duplicate evaluates in the namespace of its window, as every evaluator of the window does, so a name that the original binds is defined in the duplicate. A tool call in the transcript of an assistant is an `EvaluatorForm` too, so the fork of an assistant has tool calls of its own and shares their results.
+
 ## How it fits
 
 `ProjecturedConversation` depends on `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedFocus`, `ProjecturedNatural`, `ProjecturedLayout`, `ProjecturedPrimitive`, `ProjecturedProjection`, `ProjecturedStyle`, `ProjecturedText`, `ProjecturedWidget` and the kernel. It calls `execute_julia_code` of the `tool` layer of the kernel to evaluate a form.
