@@ -348,7 +348,7 @@ to the readers.
   the docstring of `map_reference_forward`. The anchored layout is
   `AnchoredLayout`, a placement of layout children, and it never named the
   resolver, so its document does not change.
-- [ ] 9. **F7, a popup is a window that never takes the focus.** The owner
+- [x] 9. **F7, a popup is a window that never takes the focus.** The owner
   chose this design after F7 was found:
   - A new window style `:popup`. The SDL backend opens it borderless, above the
     other windows, not in the taskbar, and with `SDL_WINDOW_POPUP_MENU`, so the
@@ -365,6 +365,27 @@ to the readers.
     goes on. The owner accepted this limit.
   - omnet-julia: `IdeWindowWrapTest.jl` passes a `Symbol` as the buttons of a
     `MouseMove`; the kernel takes `MouseButtons` since `6b411294`.
+
+  Done. `_WINDOW_FLAGS_POPUP` in `Sdl.jl`; `ScreenToScreen` opens a popup as
+  `:popup`; `WindowManagingProjection` has the three rules, with
+  `_close_popup_windows!(iomap; style)`. The Escape answers
+  `DoNothingOperation`, not `nothing`: `read!` of the editor quits on a bare
+  Escape that the pipeline gives no operation for. The pre-opened popup of
+  `WidgetDocumentExample.jl` is a `:popup` too. `test_tooltip` has a case for
+  each rule, and `test_application` a case where a press on "View" closes the
+  menu of File and opens its own, and Escape closes it with
+  `DoNothingOperation`: 449 pass with `test_window_wrap`, `test_native_window`
+  and the rest of `test_application`.
+
+  A live run on GNOME Shell (X11), with SDL events pushed into the real
+  application, confirmed the order: the File menu opens and stays; a press on
+  "New tab" in the popup window runs it (one tab more) and closes the popup;
+  Escape closes the popup and the application stays open; a loss of focus of
+  the main window closes the popup. A pushed event does not pass through the
+  X server, so a real click is the check that remains.
+
+  In omnet-julia, `test_campaign_hover` in `SimulationWindowTest.jl` passed the
+  `Symbol` `:none` the same way; both now pass `MouseButtons`.
 - [ ] 10. Verification against a baseline of `main`, and the move of this plan to
   `plan/done/`.
 
