@@ -124,11 +124,46 @@ the decision.
 
 Each step is a commit in a worktree.
 
-0. [ ] The baseline on main: `test_sdl()`, `test_video()`, and the live-window
-   check of the device audit (the note `live-window-pixel-compare`).
-1. [ ] Part 1, items 1 to 4, with their tests.
-2. [ ] The check: the suites as on main plus the new tests, and the
-   live-window check.
+0. [x] The baseline on main at `984e8968`.
+   - `test_sdl()` 138 pass and `test_video()` 34 pass, from the device audit;
+     main has not changed since.
+   - The live-window check (`/var/tmp/sdl-state/live.jl`) opens four examples
+     with `partial_render` off and on, runs frames, zooms in and resets, and
+     records the sizes and a hash of the pixels of each window: 24 records.
+     With the switch off, the records are the same as in the device audit.
+     With it on, the pixels are the same as with it off.
+   - `test_web_backend()` for the comment in `Web.jl`.
+1. [x] Part 1, items 1 to 4, with their tests. Commit `8b5223d9`.
+   - `SdlBackend` gets `last_hover_motion::Float64`, after `pending_motion`.
+   - `_render_window!(backend, res, canvas)` and
+     `_show_painted_window!(backend, res, w)` take the backend first.
+   - The comment of `VideoBackend.measure_text` said that the SDL measure
+     ignores its backend. That is false since the device audit, and the comment
+     goes with the call.
+   - New tests: the rate limit of one backend leaves the idle motion of another
+     (`InputCoalescingTest.jl`); two backends repaint with their own switches,
+     so after a frame with no change the backend with full repaint records one
+     more damage rectangle and the backend with partial repaint none
+     (`NativeWindowTest.jl`).
+   - `sdl.md` said that two backends have separate queues. The pending input
+     is separate, but the SDL event queue is one for each process, and the
+     guide now says so.
+   - `sdl.md` says that `test_sdl()` runs the layering guard, and it did not.
+     `test_sdl()` now calls `test_sdl_layering()`, as the suites of the other
+     packages call theirs.
+2. [x] The check.
+   - `test_sdl()`: 150 pass. That is 138, plus 5 new tests, plus the 7 of the
+     layering guard that it now calls.
+   - `test_video()`: 34 pass, as on main.
+   - The live-window check: the 24 records are the same as on main, with
+     `partial_render` off and on.
+   - `test_web_backend()`: 30 pass and 1 fail, on the branch and on main alike.
+     The failure is the bound of 5 s on the first wait for a client, which
+     took 5.7 to 5.8 s while the load average of the machine was 70. An
+     earlier run on main, at a lower load, passed 31 of 31. The branch changes
+     only a comment in `Web.jl`.
+   - The naming guard passes. The argument and export guards show the same
+     two violations each as main.
 
 Part 2 needs a plan step of its own when the owner takes it up again. Its check
 is a test that runs two SDL backends in one process: each gets only the input of
