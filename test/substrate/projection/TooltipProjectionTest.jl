@@ -222,16 +222,16 @@ ids(windows) = [w.id for w in windows]
 # the floating window stays.
 screen = make_screen()
 iomap = print_document(projection, screen)
-read_intent(projection, iomap, WindowInput(:default, WindowDefocus()))
+read_intent(projection, iomap, WindowInput(:default, WindowDefocus(; time = 0.0)))
 @test ids(screen.windows) == [:default, :floating]
 @test ids(iomap.output.windows) == [:default, :floating]
 
 # A press in a popup closes none; a press in the default window closes every popup.
 screen = make_screen()
 iomap = print_document(projection, screen)
-read_intent(projection, iomap, WindowInput(:popup, MouseDown(:left, 5, 5)))
+read_intent(projection, iomap, WindowInput(:popup, MouseDown(:left, 5, 5; time = 0.0)))
 @test ids(screen.windows) == [:default, :popup, :floating]
-read_intent(projection, iomap, WindowInput(:default, MouseDown(:left, 10, 10)))
+read_intent(projection, iomap, WindowInput(:default, MouseDown(:left, 10, 10; time = 0.0)))
 @test ids(screen.windows) == [:default]
 
 # A bare Escape closes every popup and answers an operation, so it goes no
@@ -240,12 +240,12 @@ read_intent(projection, iomap, WindowInput(:default, MouseDown(:left, 10, 10)))
 screen = make_screen()
 iomap = print_document(projection, screen)
 @test read_intent(projection, iomap,
-                  WindowInput(:default, KeyDown(:escape, ModifierKeys(; ctrl=true)))) === nothing
+                  WindowInput(:default, KeyDown(:escape, ModifierKeys(; ctrl=true); time = 0.0))) === nothing
 @test length(screen.windows) == 3
 @test read_intent(projection, iomap,
-                  WindowInput(:default, KeyDown(:escape, ModifierKeys()))) isa DoNothingOperation
+                  WindowInput(:default, KeyDown(:escape, ModifierKeys(); time = 0.0))) isa DoNothingOperation
 @test ids(screen.windows) == [:default]
-@test read_intent(projection, iomap, WindowInput(:default, KeyDown(:escape, ModifierKeys()))) === nothing
+@test read_intent(projection, iomap, WindowInput(:default, KeyDown(:escape, ModifierKeys(); time = 0.0))) === nothing
 
 end # @testset
 

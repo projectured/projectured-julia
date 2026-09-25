@@ -657,14 +657,14 @@ function test_application()
                 labels(menu) = [string(item.action.label) for item in menu.elements]
                 view = only(item for item in make_window_menu_bar().elements
                             if string(item.action.label) == "View")
-                fire(MousePress(:left, fx + 2, fy + 2, 1, ModifierKeys()))
+                fire(MousePress(:left, fx + 2, fy + 2, 1, ModifierKeys(); time = 0.0))
                 @test labels(scene.windows[2].content) == ["New tab", "Close tab"]
                 # The press goes down first, and closes the menu of File.
-                fire(MouseDown(:left, vx + 2, vy + 2))
+                fire(MouseDown(:left, vx + 2, vy + 2; time = 0.0))
                 @test length(scene.windows) == 1
-                fire(MousePress(:left, vx + 2, vy + 2, 1, ModifierKeys()))
+                fire(MousePress(:left, vx + 2, vy + 2, 1, ModifierKeys(); time = 0.0))
                 @test labels(scene.windows[2].content) == labels(view.submenu)
-                @test fire(KeyDown(:escape, ModifierKeys())) isa DoNothingOperation
+                @test fire(KeyDown(:escape, ModifierKeys(); time = 0.0)) isa DoNothingOperation
                 @test length(scene.windows) == 1
             end
 
