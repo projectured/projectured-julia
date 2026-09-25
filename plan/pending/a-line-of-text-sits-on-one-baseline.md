@@ -3,7 +3,7 @@
 > **Status:** in progress, in the worktree `projectured-julia-text-baseline` on
 > the branch `text-baseline`, from `c634a718`. Written 2026-09-25. The owner
 > decided the five questions of §5 on 2026-09-25, and asked on the same day to
-> start the work in a worktree. Steps 0 to 3 are done; Step 3b is next.
+> start the work in a worktree. Steps 0 to 3b are done; Step 5 is next.
 
 Text in the editor is laid out by the top of each run, measured with a height
 that is the em size, and drawn by backends that kern and hint as they like. This
@@ -507,18 +507,31 @@ projection holds its measure in one typed field, so the line model can not read 
   `TTF_HINTING_LIGHT_SUBPIXEL` and kerning on, and places the baseline of each
   texture at `y + ascent`. The web client draws each character at its pen
   position. It is not run in a test, because the machine has no `node`.
-- [ ] **Step 3b. SDL draws each glyph at the pen position of the layout.** A
+- [x] **Step 3b. SDL draws each glyph at the pen position of the layout.** A
   probe measured where SDL_ttf puts the pen: the width of a prefix and of the
   prefix with a bar after it. With the same font, the same hinting and the same
   kerning, SDL_ttf moves away from the layout by up to 1.38 device pixels
   (Ubuntu 20, 24 characters) and 1.78 (DejaVu, "Type yj"). The advances of
   SDL_ttf are those of the hinted glyphs, and the layout uses the advances of
-  the font file. Ubuntu Mono is exact. Thus SDL renders one glyph at a time, as the web
-  client does: each glyph texture is rendered once in white, cached by the
-  renderer, the font file, the device size and the code point, colored with a
-  color and an alpha modulation, and drawn at `x + offsets[i]` with its baseline
-  on the baseline of the text. A test finds the left edge of the ink of a bar
-  after each prefix within one device pixel of the offset of the layout.
+  the font file. Ubuntu Mono is exact. Thus SDL renders one glyph at a time, as
+  the web client does. A test finds the left edge of the ink of a bar after each
+  prefix within one device pixel of the offset of the layout.
+  *Done* in `684bba42`, with a change of the design: SDL does not draw one
+  texture for each glyph in each frame. On a miss of the text texture cache,
+  `_render_text_surface` rasterizes each glyph that `compute_placed_glyphs`
+  names, in its font file and in the color of the text, and composes the glyphs
+  into one surface. The draw path stays one texture for each text, so the cost
+  of a frame does not change. The pen origin of each glyph goes on the device
+  pixel nearest to its pen position, so the error is the rounding of that pixel:
+  0.48 device pixels at most, for every case at ratio 1 and 2. SDL_ttf lays a
+  glyph out as a string of one character, with the pen origin at column
+  `max(0, -minx)` and the baseline at row `max(ascent, maxy)`, from
+  `TTF_GlyphMetrics32`. The binding lacks it and `TTF_RenderGlyph32_Blended`,
+  so SDL calls them with `ccall`. The cache key holds the logical size of the
+  font as well as the device size, because two zooms can give one device size
+  and two logical sizes. The old test that compared `measure_sdl_text` with
+  `measure_truetype_text` goes: no draw path uses them, and the pen test has a
+  fallback glyph.
 - [ ] **Step 4. The line model** (§3.3 to §3.5, §3.7) in `TextToGraphics`: the
   baseline, the line metrics, the line spacing, the blank line, the inline
   image, the caret, the selection, the click, and the line index of a segment.
@@ -530,7 +543,13 @@ projection holds its measure in one typed field, so the line model can not read 
   widgets, `_bounds_elem!` and the hit test, the charts, the fault and gesture
   overlays, the math widths, `WordWrapping`, the Markdown and syntax
   projections, and the test closures. The mechanical part of this step suits a
-  delegated agent, and its result is checked file by file.
+  delegated agent, and its result is checked file by file. The dirty rectangle
+  of a text in SDL (`_bounds_of_elem`, `_bounds_of_canvas`) must cover the
+  texture: its left edge is left of `x` by the ink of a negative left bearing,
+  and its top is above the box when a glyph rises above the ascent of the
+  font. The glyph metrics that `_render_text_surface` reads give that extent
+  without a render. On the base, the bounds are the em size high, so a partial
+  repaint does not cover the descenders.
 - [ ] **Step 6. The old contract goes.** `measure_truetype_text` as a pair,
   `measure_sdl_text`, `font_logical_size` as a height, and `measure_text` of the
   backends (question 5). The naming guard passes.
