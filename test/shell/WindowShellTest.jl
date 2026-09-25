@@ -88,6 +88,18 @@ end
     @test length(group.tabs) == 4
 end
 
+@testset "the shell prints what it holds with the step of its field" begin
+    seen = String[]
+    recording = ReferenceDispatchingProjection(reference -> begin
+        push!(seen, repr(strip_reference_types(reference)))
+        IdentityProjection()
+    end)
+    shell = WidgetShell(PrimitiveString("x"); size = Point2D(200, 100))
+    iomap = print_document(make_window_shell_projection(recording), shell)
+    collect(iomap.output.elements)     # the shell prints its bands when it draws
+    @test seen == [".content"]
+end
+
 @testset "a menu command does what the key does" begin
     tree = PaneTree(PaneGroup(PaneTab[PaneTab("a", PrimitiveString("x"))]))
     apply_pane_operation!(tree, make_pane_focus_operation(tree, first(get_pane_groups(tree)), 1))

@@ -638,6 +638,13 @@ function test_application()
                 @test popup.y == window.y + y - 4 + item_height + 4
             end
 
+            @testset "a press that no layer claims gives no operation" begin
+                # The press itself came back as the operation, from the identity
+                # stage of a clipboard chain, and a context menu then never opened.
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                @test _app_fire(composed, iomap, MousePress(:right, 900, 300, 1, ModifierKeys())) === nothing
+            end
+
             @testset "the menu of a menu name draws its commands, and a press on one runs it" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 editor = _app_make_editor(scene, composed, iomap)

@@ -2810,14 +2810,17 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
     band_ctx = with_exact_size(ctx; width = has_width ? avail_w_cell : nothing,
                                     height = nothing)
     # Each named slot is reconciled by its field value and forced only in the
-    # branch that renders it (a nil slot never re-projects). The menu bar's
-    # reference is extended into `menu_bar`, so a reference inside the bar
-    # forward-maps back through the shell.
+    # branch that renders it (a nil slot never re-projects). Each slot's reference
+    # is extended into its field, so a reference inside a slot names the shell's
+    # field and forward-maps back through the shell.
     mb_cell = reconcile_child_iomap(() -> w.menu_bar,
         c -> print_child(recursion, c, make_child_context(band_ctx, FieldReferenceStep("menu_bar"))))
-    tb_cell = reconcile_child_iomap(() -> w.toolbar, c -> print_child(recursion, c, band_ctx))
-    sb_cell = reconcile_child_iomap(() -> w.status_bar, c -> print_child(recursion, c, band_ctx))
-    tt_cell = reconcile_child_iomap(() -> w.overlay, c -> print_child(recursion, c, ctx))
+    tb_cell = reconcile_child_iomap(() -> w.toolbar,
+        c -> print_child(recursion, c, make_child_context(band_ctx, FieldReferenceStep("toolbar"))))
+    sb_cell = reconcile_child_iomap(() -> w.status_bar,
+        c -> print_child(recursion, c, make_child_context(band_ctx, FieldReferenceStep("status_bar"))))
+    tt_cell = reconcile_child_iomap(() -> w.overlay,
+        c -> print_child(recursion, c, make_child_context(ctx, FieldReferenceStep("overlay"))))
     # Where the bands sit, from the height each one draws. A band's height comes
     # from what it holds, never from the shell, so reading it closes no cycle.
     bands = Cell(@computation begin
@@ -2840,7 +2843,8 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
     # a shell never offers 0.
     content_ctx = with_exact_size(ctx; width = has_width ? avail_w_cell : nothing,
                                        height = has_height ? avail_h_cell : nothing)
-    content_cell = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, content_ctx))
+    content_cell = reconcile_child_iomap(() -> w.content,
+        c -> print_child(recursion, c, make_child_context(content_ctx, FieldReferenceStep("content"))))
     build = Cell(@computation begin
         b = bands[]
         cox, coy = b.cox, b.coy
@@ -2900,7 +2904,7 @@ end
 _shell_band_height(cim) = cim.output isa GraphicsCanvas ? Int(cim.output.h[]) : 0
 
 # A shell renders several field-addressed children (`menu_bar`, `toolbar`,
-# `content`, `tooltip`), each wrapped at its band offset. Descend the leading
+# `status_bar`, `content`, `overlay`), each wrapped at its band offset. Descend the leading
 # field step to the matching child (found by identity, since the bands are
 # positional/conditional) and shift a coordinate image by that placement; paths
 # and unknown fields pass through with no image, and the menu-bar path maps an
@@ -2908,6 +2912,7 @@ _shell_band_height(cim) = cim.output isa GraphicsCanvas ? Int(cim.output.h[]) : 
 _shell_field(w, name) =
     name == "menu_bar" ? w.menu_bar :
     name == "toolbar"  ? w.toolbar  :
+    name == "status_bar" ? w.status_bar :
     name == "content"  ? w.content  :
     name == "overlay"  ? w.overlay  : nothing
 

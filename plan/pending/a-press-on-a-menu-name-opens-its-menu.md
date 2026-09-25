@@ -304,8 +304,16 @@ to the readers.
   Tests: `test_context_menu_probe`, `test_tooltip_probe`,
   `test_widget_tooltip`, `test_window_wrap` and `test_application`: 402 pass,
   0 fail.
-- [ ] 6. **D9, the `content` step of the shell.** Test: the reference that a
+- [x] 6. **D9, the `content` step of the shell.** Test: the reference that a
   printer gets for a pane below the shell names `content`.
+
+  Done. Every band of `WidgetShellToGraphicsCanvas` prints with the step of its
+  field: `menu_bar` as before, and now `toolbar`, `status_bar`, `content` and
+  `overlay`. The forward map of the shell (`_shell_field`) names the status bar
+  too. Tests: a shell prints its content at `.content`, and in the application a
+  right press that no layer claims gives no operation (F4).
+  `test_window_shell`, the two widget shell tests, `test_window_wrap`,
+  `test_context_menu_probe` and `test_application`: 496 pass, 0 fail.
 - [ ] 7. **omnet-julia.** `IdeWindow.jl` imports `make_popup_screen_wrap`; the
   import and the keyword go. Land after projectured-julia, and run
   `Pkg.resolve()` where a manifest names a changed package.
