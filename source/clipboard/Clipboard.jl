@@ -216,10 +216,8 @@ function _is_slot_accepting(parent, step, value)
     cell = getfield(parent, name)
     cell isa AbstractCell || return true
     cell isa ImmutableCell && return false
-    value isa _get_cell_value_type(cell)
+    value isa get_cell_value_type(cell)
 end
-
-_get_cell_value_type(::AbstractCell{T}) where {T} = T
 
 # ── Text targets ──────────────────────────────────────────────────────────────
 #
@@ -280,7 +278,7 @@ function _find_text_kind(document, name::Symbol, value)
     value === nothing || return nothing
     document isa PrimitiveNumber && return :number
     cell = getfield(document, name)
-    T = cell isa AbstractCell ? _get_cell_value_type(cell) : Any
+    T = cell isa AbstractCell ? get_cell_value_type(cell) : Any
     String <: T ? :text : Int <: T ? :number : nothing
 end
 

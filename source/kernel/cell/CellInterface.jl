@@ -68,6 +68,27 @@ See also `peek`, for a read that depends on nothing, and `AbstractCell`.
 function unwrap_cell end
 
 """
+    get_cell_value_type(cell) -> Type
+
+The type of the value that a cell holds: `T` for a cell of the type
+`AbstractCell{T}`.
+
+Use it to ask whether a value fits a cell before you write it, or to bind a type
+parameter from a cell. The answer comes from the type of the cell, so it reads no
+value, and no computation depends on the cell because of it.
+
+# Example
+
+    get_cell_value_type(ImmutableCell{Int}(1))      # Int64
+    get_cell_value_type(Cell(1))                    # Any
+
+A `Cell` is a `ReactiveCell{Any}`, so its value type is `Any`.
+
+See also `unwrap_cell`, which reads the value.
+"""
+function get_cell_value_type end
+
+"""
     copy_cell_as(c::AbstractCell, v) -> AbstractCell
 
 Make a new cell like this one, holding another value.

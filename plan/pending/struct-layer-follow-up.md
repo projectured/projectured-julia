@@ -20,6 +20,10 @@ left two items for the owner. On 2026-09-24 the owner approved both.
   exported name of the struct layer contains `cell_struct`, and the function has
   one job in this layer: the type that a constructor argument gives to a type
   parameter. The owner chose this name over a move to the cell layer.
+- **The cell layer has `get_cell_value_type(cell)`, for a cell only.** The clipboard
+  slice had its own copy, which showed a second use outside a constructor. The
+  function takes only a cell: with a fallback for any value, it would do the job
+  of `get_cell_struct_argument_type` under a second name.
 
 ## Steps
 
@@ -35,6 +39,11 @@ left two items for the owner. On 2026-09-24 the owner approved both.
   A comment marks this place as an exception to PAR-NO-NESTED-CELL.
 - [x] 3. The layer lists and the numbers in the guides.
 - [x] 3a. The rename of `get_cell_value_type`, in the code, the test and the guides.
+- [x] 3b. `get_cell_value_type(cell)` in the cell layer. `CellInterface.jl`
+  declares it, `CellDefaults.jl` holds its one method, and `CellModule.jl` exports
+  it. `get_cell_struct_argument_type` calls it for a cell, and the clipboard slice
+  uses it instead of its private `_get_cell_value_type`. The owner gave permission
+  to unseal the three cell files and to seal them again after the change.
 - [ ] 4. Verification, and the move of this plan to `plan/done/`.
 
 ## Verification

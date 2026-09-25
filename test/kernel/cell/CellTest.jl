@@ -159,6 +159,17 @@ end
     @test isbitstype(typeof(ImmutableCell(1)).types[1]) # zero-cost wrapper: field inlines
 end
 
+@testset "get_cell_value_type" begin
+    @test get_cell_value_type(ImmutableCell{Int}(1)) === Int
+    @test get_cell_value_type(MutableCell{String}("a")) === String
+    @test get_cell_value_type(ReactiveCell{Float64}(1.0)) === Float64
+    @test get_cell_value_type(Cell(1)) === Any
+    # The answer comes from the type, so a computed cell does not compute.
+    computed = Cell(@computation error("computed"))
+    @test get_cell_value_type(computed) === Any
+    @test !is_cell_up_to_date(computed)
+end
+
 @testset "a function is a value" begin
     f() = 42
     c = Cell(f)

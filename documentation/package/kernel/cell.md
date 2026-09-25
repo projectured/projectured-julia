@@ -186,8 +186,8 @@ struct/CellStructModule.jl        (CellStructModule)  — the struct of cells:
 `CellInterface.jl` is the **interface file** of the layer: it declares the
 contract and nothing else. The read `c[]`, the untracked read `peek` and
 `is_cell_up_to_date` have their bodies in the file of each kind. The bodies of
-`unwrap_cell`, `copy_cell_as`, `is_computed_cell` and `has_dependent_cells` are
-in the sibling `CellDefaults.jl`.
+`unwrap_cell`, `get_cell_value_type`, `copy_cell_as`, `is_computed_cell` and
+`has_dependent_cells` are in the sibling `CellDefaults.jl`.
 
 The animation clock is a `@cell_struct` that is a *client* of the engine rather
 than part of it. It is its own layer, `clock/ClockModule.jl`, above the struct
@@ -208,10 +208,10 @@ and `ImmutableCell{T}` are non-reactive boxes for values that do not need the gr
 a mutable one for high-frequency state, a read-only one for derived content.
 
 Public surface: `AbstractCell`, `is_cell_up_to_date`, `unwrap_cell`,
-`copy_cell_as`, `is_computed_cell`, `has_dependent_cells`, `Computation`, `@computation`,
-`ReactiveCell`, `Cell`, `set_cell_value!`, `set_cell_computation!`,
-`MutableCell` and `ImmutableCell`. `peek` is an untracked read, a method of
-`Base.peek`.
+`get_cell_value_type`, `copy_cell_as`, `is_computed_cell`, `has_dependent_cells`,
+`Computation`, `@computation`, `ReactiveCell`, `Cell`, `set_cell_value!`,
+`set_cell_computation!`, `MutableCell` and `ImmutableCell`. `peek` is an untracked
+read, a method of `Base.peek`.
 
 ## CellStructModule — the struct of cells
 

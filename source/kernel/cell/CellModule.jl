@@ -29,8 +29,8 @@ module CellModule
 
 using ..PerformanceModule
 
-export AbstractCell, is_cell_up_to_date, unwrap_cell, copy_cell_as,
-       is_computed_cell, has_dependent_cells
+export AbstractCell, is_cell_up_to_date, unwrap_cell, get_cell_value_type,
+       copy_cell_as, is_computed_cell, has_dependent_cells
 export Computation, @computation
 export ReactiveCell, Cell, set_cell_value!, set_cell_computation!
 export MutableCell

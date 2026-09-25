@@ -242,8 +242,8 @@ end
 """
     get_cell_struct_argument_type(argument) -> Type
 
-The type that a constructor argument gives to a type parameter: `T` for a cell of
-the type `AbstractCell{T}`, and the type of `argument` for any other value.
+The type that a constructor argument gives to a type parameter: the value type of
+a cell, from `get_cell_value_type`, and the type of `argument` for any other value.
 
 Use it in a constructor that binds a type parameter from its arguments, so that
 an argument can be a cell or a value.
@@ -255,7 +255,7 @@ an argument can be a cell or a value.
     get_cell_struct_argument_type(Cell(1))                  # Any
 """
 get_cell_struct_argument_type(argument) = typeof(argument)
-get_cell_struct_argument_type(::AbstractCell{T}) where {T} = T
+get_cell_struct_argument_type(cell::AbstractCell) = get_cell_value_type(cell)
 
 _get_cell_kind(::Type{<:ReactiveCell})  = ReactiveCell
 _get_cell_kind(::Type{<:MutableCell})   = MutableCell
