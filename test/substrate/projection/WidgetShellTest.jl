@@ -136,7 +136,7 @@ function test_widget_shell_pointer()
         evaluate_operation(nothing, operation)
         # The pointer moves on over the status line with the button held: the
         # divider still follows, and the release still ends the drag.
-        moved = read_intent(rec, iomap, MouseMove(x + 40, 600 - line ÷ 2, :left, ModifierKeys()))
+        moved = read_intent(rec, iomap, MouseMove(x + 40, 600 - line ÷ 2, MouseButtons(:left), ModifierKeys()))
         @test _unmark(moved) isa ResizeSplitPaneOperation
         released = read_intent(rec, iomap, MouseUp(:left, x + 40, 600 - line ÷ 2))
         @test _unmark(released) isa EndSplitterDragOperation

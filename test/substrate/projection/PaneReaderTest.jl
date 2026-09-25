@@ -254,7 +254,7 @@ end
 
     # The weight write comes back marked as view state, as the widget marked the
     # resize it answers, so a history records no part of the drag.
-    move = read_intent(proj, iomap, MouseMove(300, 150, :left, ModifierKeys()))
+    move = read_intent(proj, iomap, MouseMove(300, 150, MouseButtons(:left), ModifierKeys()))
     @test move isa ReplaceViewStateOperation
     @test get_wrapped_operation(move) isa ReplaceReferencedValueOperation
     _apply!(editor, move)
@@ -293,7 +293,7 @@ end
             break
         end
         grabbed || return false
-        _apply!(editor, read_intent(proj, iomap, MouseMove(to, 150, :left, ModifierKeys())))
+        _apply!(editor, read_intent(proj, iomap, MouseMove(to, 150, MouseButtons(:left), ModifierKeys())))
         _apply!(editor, read_intent(proj, iomap, MouseUp(:left, to, 150, ModifierKeys())))
         true
     end
@@ -332,7 +332,7 @@ end
     grabbed === nothing && return
     y = (100:200)[grabbed]
     _apply!(editor, read_intent(proj, iomap, MouseDown(:left, 340, y, ModifierKeys())))
-    _apply!(editor, read_intent(proj, iomap, MouseMove(340, y + 60, :left, ModifierKeys())))
+    _apply!(editor, read_intent(proj, iomap, MouseMove(340, y + 60, MouseButtons(:left), ModifierKeys())))
     _apply!(editor, read_intent(proj, iomap, MouseUp(:left, 340, y + 60, ModifierKeys())))
     @test get_pane_weights(inner)[1] > 0.6              # the top pane took the space
     @test get_pane_weights(tree.root) == [0.5, 0.5]     # and the outer split is untouched

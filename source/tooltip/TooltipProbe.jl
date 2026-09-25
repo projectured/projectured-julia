@@ -112,7 +112,7 @@ read_intent(p::TooltipProbeProjection, iomap::TooltipProbeIoMap, payload) =
 function _follow_pointer!(p::TooltipProbeProjection, event)
     rest = p.rest
     if event isa MouseMove
-        if event.buttons === :none
+        if event.buttons == MouseButtons()
             rest.x = event.x
             rest.y = event.y
             rest.moved_at = p.now()

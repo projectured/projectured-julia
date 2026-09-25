@@ -166,7 +166,7 @@ end
     @test grab !== nothing
     (x, operation) = grab
     evaluate_operation(nothing, operation)
-    moved = _tooltip_read(composed, scene, MouseMove(x + 30, 100, :left, ModifierKeys()))
+    moved = _tooltip_read(composed, scene, MouseMove(x + 30, 100, MouseButtons(:left), ModifierKeys()))
     @test _holds_operation(moved, ResizeSplitPaneOperation)
 end
 

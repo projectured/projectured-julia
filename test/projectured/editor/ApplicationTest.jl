@@ -1197,7 +1197,7 @@ function test_application()
                 end
                 steps() = length(history.undo_entries)
                 tree = _app_window(document)
-                held(x, y) = MouseMove(x, y, :left, ModifierKeys())
+                held(x, y) = MouseMove(x, y, MouseButtons(:left), ModifierKeys())
 
                 # A row of the navigator lights up, and the history does not grow.
                 y, _ = _app_find_file_row(composed, io)

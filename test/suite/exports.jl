@@ -55,7 +55,6 @@ const EXPORT_UNMIGRATED = Set(String[
     "source/kernel/device/DeviceModule.jl",
     "source/kernel/document/DocumentModule.jl",
     "source/kernel/editor/EditorModule.jl",
-    "source/kernel/event/EventModule.jl",
     "source/kernel/fault/FaultModule.jl",
     "source/kernel/intent/IntentModule.jl",
     "source/kernel/iomap/IoMapModule.jl",

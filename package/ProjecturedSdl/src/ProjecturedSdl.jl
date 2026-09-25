@@ -58,7 +58,8 @@ import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
 import ProjecturedKernel.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus
 import ProjecturedKernel.EventModule: ModifierKeys
 import ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
-import ProjecturedKernel.EventModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+import ProjecturedKernel.EventModule: MouseButtons, MouseDown, MouseUp, MousePress, MouseMove,
+    MouseScroll
 import ProjecturedStyle.StyleModule: ImageFile
 import ProjecturedKernel.ProjectionModule: print_document, read_intent, Projection
 import ProjecturedKernel.OperationModule: Operation, evaluate_operation

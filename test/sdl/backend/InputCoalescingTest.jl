@@ -80,7 +80,7 @@ function test_input_coalescing()
         @test probe.event isa MouseMove
         # The rate limit applies to idle motion only. A button held during the
         # run makes it a drag, which is never rate-limited; skip the case then.
-        if probe.event.buttons === :none
+        if probe.event.buttons == MouseButtons()
             ProjecturedSdl._LAST_HOVER_MOTION[] = time()   # the limit is now active
             _push_motion!(60, 70)
             @test read_from_devices(backend, Device[]) === nothing   # held, not answered

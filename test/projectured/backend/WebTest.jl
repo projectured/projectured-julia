@@ -30,6 +30,20 @@ function test_web_backend()
         @test read_from_devices(backend, Device[]) === nothing
     end
 
+    @testset "a motion holds every button that the mask of the browser holds" begin
+        backend = WebBackend(port = 0)
+        # In the mask of a browser, 1 is the left, 2 the right and 4 the middle button.
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"mousemove","window":"main","x":5,"y":6,"buttons":3}""")
+        move = read_from_devices(backend, Device[]).event
+        @test move isa MouseMove
+        @test move.buttons == MouseButtons(:left, :right)
+        # A motion with no button held is not sent on.
+        _WEB._decode_and_enqueue!(backend,
+            """{"type":"mousemove","window":"main","x":5,"y":6,"buttons":0}""")
+        @test read_from_devices(backend, Device[]) === nothing
+    end
+
     # Timing assertions are one-sided and generous: a bound says "far less
     # than the full timeout", never "exactly this fast".
     @testset "wait and wake" begin

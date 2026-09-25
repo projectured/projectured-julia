@@ -171,7 +171,7 @@ end
     iomap = print_document(proj, menu)
     xy = _first_text_xy(iomap.output)
     # The menu routes the crossing to the hit item, which flips `hovered`.
-    op = read_intent(proj, iomap, MouseEnter(xy[1] + 2, xy[2] + 2, :none, ModifierKeys()))
+    op = read_intent(proj, iomap, MouseEnter(xy[1] + 2, xy[2] + 2, MouseButtons(), ModifierKeys()))
     @test _view_state_write(op) isa ReplaceReferencedValueOperation
     @test _view_state_write(op).value === true
 

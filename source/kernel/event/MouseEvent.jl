@@ -1,15 +1,51 @@
-# Fragment of `EventModule` — the mouse events.
+# Fragment of `EventModule` — the mouse events, and the set of mouse buttons that a
+# pointer event holds.
 #
-# `MouseDown`, `MouseUp`, `MouseMove` and `MouseScroll` are reported by an
-# event source polling the pointer. `MousePress` (a completed click) is synthesised
-# from a down/up pair, and `MouseEnter`/`MouseLeave` from motion crossing a
-# region boundary; both kinds are matched the same way by whoever reads them.
+# An event source that reads the pointer reports `MouseDown`, `MouseUp`, `MouseMove`
+# and `MouseScroll`. `MousePress`, a completed click, comes from a down and up pair,
+# and `MouseEnter` and `MouseLeave` come from motion across the edge of a region.
+
+"""
+    MouseButtons(left, middle, right)
+    MouseButtons(; left = false, middle = false, right = false)
+    MouseButtons(names::Symbol...)
+
+The mouse buttons that are held: one flag for each of `left`, `middle` and `right`.
+A person can hold more than one button at the same time.
+
+Use it to state or test which buttons a pointer event holds.
+
+# Example
+
+    MouseButtons()                  # no button
+    MouseButtons(:left)             # the left button
+    MouseButtons(:left, :right)     # the left and the right button
+    MouseMove(10, 20, MouseButtons(:left), ModifierKeys()).buttons.left   # true
+
+See also `MouseMove`, `MouseEnter` and `MouseLeave`, which hold one.
+"""
+struct MouseButtons
+    left::Bool
+    middle::Bool
+    right::Bool
+end
+
+MouseButtons(; left::Bool = false, middle::Bool = false, right::Bool = false) =
+    MouseButtons(left, middle, right)
+
+function MouseButtons(names::Symbol...)
+    for name in names
+        name in (:left, :middle, :right) || throw(ArgumentError(
+            "a mouse button is :left, :middle or :right, got :$name"))
+    end
+    MouseButtons(:left in names, :middle in names, :right in names)
+end
 
 """
     MouseDown(button, x, y[, modifiers])
 
-Raw button-down event. `button` is `:left`, `:middle`, or `:right`.
-`x`/`y` are pixel coordinates relative to the window.
+A mouse button went down. `button` is `:left`, `:middle` or `:right`, and `x` and
+`y` are the pixel coordinates in the window.
 """
 struct MouseDown <: DeviceEvent
     button::Symbol
@@ -23,7 +59,7 @@ MouseDown(button::Symbol, x::Int, y::Int) = MouseDown(button, x, y, ModifierKeys
 """
     MouseUp(button, x, y[, modifiers])
 
-Raw button-up event. Same fields as `MouseDown`.
+A mouse button went up. It has the fields of `MouseDown`.
 """
 struct MouseUp <: DeviceEvent
     button::Symbol
@@ -35,17 +71,17 @@ end
 MouseUp(button::Symbol, x::Int, y::Int) = MouseUp(button, x, y, ModifierKeys())
 
 """
-    MousePress(button, x, y[, count][, modifiers])
+    MousePress(button, x, y)
+    MousePress(button, x, y, modifiers)
+    MousePress(button, x, y, count, modifiers)
 
-Synthesised click event: a `MouseUp` that landed at approximately the same
-position as the preceding `MouseDown` for the same button, within a short time
-window. A consumer that wants "select on click" semantics matches `MousePress`
-rather than `MouseDown`.
+A click: a `MouseUp` near the position of the `MouseDown` before it, for the same
+button, within a short time. A pattern that must fire on a click matches
+`MousePress`, not `MouseDown`.
 
-`count` is the consecutive-click count for multi-click recognition: `1` for a
-single click, `2` for a double-click, `3` for a triple-click, … It defaults to
-`1`, so a plain `MousePress(:left, x, y)` is an ordinary single click and a
-consumer that ignores `count` matches every click.
+`count` is the number of clicks in a row: `1` for a single click, `2` for a double
+click, `3` for a triple click. The forms without `count` give `1`, so a pattern
+that does not name `count` matches every click.
 """
 struct MousePress <: SyntheticEvent
     button::Symbol
@@ -55,8 +91,6 @@ struct MousePress <: SyntheticEvent
     modifiers::ModifierKeys
 end
 
-# Convenience constructors default the multi-click count to 1. The `::ModifierKeys`
-# form disambiguates from the 5-arg primary by argument type.
 # @positional: the four of a mouse event, in the order every backend sends them.
 MousePress(button::Symbol, x::Int, y::Int, modifiers::ModifierKeys) =
     MousePress(button, x, y, 1, modifiers)
@@ -66,55 +100,53 @@ MousePress(button::Symbol, x::Int, y::Int) =
 """
     MouseMove(x, y[, buttons, modifiers])
 
-Cursor-motion event. `buttons` is the currently-held button (`:none`, `:left`,
-`:middle`, or `:right`; first held button wins when several are pressed).
-`x`/`y` are pixel coordinates relative to the window.
+The pointer moved. `x` and `y` are the pixel coordinates in the window, and
+`buttons` is the `MouseButtons` that are held.
 """
 struct MouseMove <: DeviceEvent
     x::Int
     y::Int
-    buttons::Symbol
+    buttons::MouseButtons
     modifiers::ModifierKeys
 end
 
-MouseMove(x::Int, y::Int) = MouseMove(x, y, :none, ModifierKeys())
+MouseMove(x::Int, y::Int) = MouseMove(x, y, MouseButtons(), ModifierKeys())
 
 """
     MouseEnter(x, y[, buttons, modifiers])
 
-Pointer-enter event: the pointer crossed into a region. Same fields as
-`MouseMove`. Synthesised from motion by whoever tracks the region, not reported
-by an event source.
+The pointer crossed into a region. It has the fields of `MouseMove`. The code that
+tracks the region makes it from the motion; an event source does not report it.
 """
 struct MouseEnter <: SyntheticEvent
     x::Int
     y::Int
-    buttons::Symbol
+    buttons::MouseButtons
     modifiers::ModifierKeys
 end
 
-MouseEnter(x::Int, y::Int) = MouseEnter(x, y, :none, ModifierKeys())
+MouseEnter(x::Int, y::Int) = MouseEnter(x, y, MouseButtons(), ModifierKeys())
 
 """
     MouseLeave(x, y[, buttons, modifiers])
 
-Pointer-leave event: the pointer crossed out of a region. Same fields as
-`MouseMove`; `x`/`y` are the last position that was inside the region being left.
+The pointer crossed out of a region. It has the fields of `MouseMove`, and `x` and
+`y` are the last position inside the region.
 """
 struct MouseLeave <: SyntheticEvent
     x::Int
     y::Int
-    buttons::Symbol
+    buttons::MouseButtons
     modifiers::ModifierKeys
 end
 
-MouseLeave(x::Int, y::Int) = MouseLeave(x, y, :none, ModifierKeys())
+MouseLeave(x::Int, y::Int) = MouseLeave(x, y, MouseButtons(), ModifierKeys())
 
 """
     MouseScroll(dx, dy, x, y[, modifiers])
 
-Mouse-wheel event. `dx`/`dy` are scroll deltas (positive = right/down).
-`x`/`y` are the cursor position at the time of the scroll.
+The mouse wheel turned. `dx` and `dy` are the amounts, positive to the right and
+down, and `x` and `y` are the position of the pointer.
 """
 struct MouseScroll <: DeviceEvent
     dx::Int
@@ -128,4 +160,4 @@ end
 MouseScroll(dx::Int, dy::Int, x::Int, y::Int) = MouseScroll(dx, dy, x, y, ModifierKeys())
 
 get_modifier_keys(event::Union{MouseDown,MouseUp,MousePress,MouseMove,
-                           MouseEnter,MouseLeave,MouseScroll}) = event.modifiers
+                               MouseEnter,MouseLeave,MouseScroll}) = event.modifiers

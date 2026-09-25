@@ -1,18 +1,21 @@
-# Fragment of `EventModule` — the modifier-key state shared by keyboard and
-# mouse events.
+# Fragment of `EventModule` — the modifier keys that keyboard and mouse events hold.
 
 """
     ModifierKeys(ctrl, shift, alt, meta)
+    ModifierKeys(; ctrl = false, shift = false, alt = false, meta = false)
 
-Immutable struct carrying the state of the four common modifier keys.
-- `ctrl`  — either Ctrl key
-- `shift` — either Shift key
-- `alt`   — either Alt/Option key
-- `meta`  — Super/Windows/Command key
+The modifier keys that are held: one flag for each of `ctrl`, `shift`, `alt` and
+`meta`. `ctrl`, `shift` and `alt` are either key of that name, the Option key too for
+`alt`, and `meta` is the Super, Windows or Command key.
 
-Convenience constructors:
-- `ModifierKeys()` — all false (no modifier held)
-- `ModifierKeys(ctrl=true)` — keyword form; unspecified fields default to false
+Use it to state or test the modifier keys of an event.
+
+# Example
+
+    ModifierKeys()                                                  # no modifier
+    has_ctrl_modifier_key(KeyDown(:c, ModifierKeys(ctrl = true)))   # true
+
+See also `get_modifier_keys`.
 """
 struct ModifierKeys
     ctrl::Bool
@@ -21,6 +24,5 @@ struct ModifierKeys
     meta::Bool
 end
 
-# Keyword constructor — any subset of fields, all defaulting to false.
 ModifierKeys(; ctrl::Bool=false, shift::Bool=false, alt::Bool=false, meta::Bool=false) =
     ModifierKeys(ctrl, shift, alt, meta)

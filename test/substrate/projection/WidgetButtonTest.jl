@@ -56,7 +56,7 @@ end
     # A crossing is the container saying the pointer arrived or left, and a
     # leave is outside by definition — judging it would suppress the very event
     # that clears the hover.
-    @test read_intent(proj, iomap, MouseLeave(900, 500, :none, ModifierKeys())) !== nothing
+    @test read_intent(proj, iomap, MouseLeave(900, 500, MouseButtons(), ModifierKeys())) !== nothing
 end
 
 @testset "button click invokes its action via InvokeActionOperation" begin
@@ -105,7 +105,7 @@ end
     button, _ = _button_doc()
     proj = _proj()
     iomap = print_document(proj, nothing, button, PrinterContext())
-    op = read_intent(proj, iomap, MouseMove(10, 10, :none, ModifierKeys()))
+    op = read_intent(proj, iomap, MouseMove(10, 10, MouseButtons(), ModifierKeys()))
     @test _view_state_write(op) isa ReplaceReferencedValueOperation
     @test _view_state_write(op).document === button && _view_state_write(op).value == true
     evaluate_operation(_WidgetButtonMockEditor(button), op)
@@ -121,14 +121,14 @@ end
     ed = _WidgetButtonMockEditor(composite)
 
     iomap = print_document(proj, nothing, composite, PrinterContext())
-    op_a = read_intent(proj, iomap, MouseMove(10, 10, :none, ModifierKeys()))
+    op_a = read_intent(proj, iomap, MouseMove(10, 10, MouseButtons(), ModifierKeys()))
     @test _view_state_write(op_a) isa ReplaceReferencedValueOperation && _view_state_write(op_a).document === a
     evaluate_operation(ed, op_a)
     @test a.hovered == true
 
     # Move onto B: the tracker clears A (hover + press) and sets B.
     iomap2 = print_document(proj, nothing, composite, PrinterContext())
-    op_b = read_intent(proj, iomap2, MouseMove(130, 10, :none, ModifierKeys()))
+    op_b = read_intent(proj, iomap2, MouseMove(130, 10, MouseButtons(), ModifierKeys()))
     @test op_b isa CompoundOperation
     evaluate_operation(ed, op_b)
     @test a.hovered == false
@@ -136,7 +136,7 @@ end
 
     # Move into dead space: B clears, nothing new hovered.
     iomap3 = print_document(proj, nothing, composite, PrinterContext())
-    op_void = read_intent(proj, iomap3, MouseMove(300, 300, :none, ModifierKeys()))
+    op_void = read_intent(proj, iomap3, MouseMove(300, 300, MouseButtons(), ModifierKeys()))
     evaluate_operation(ed, op_void)
     @test b.hovered == false
 end
@@ -206,7 +206,7 @@ end
     @test iomap.output isa GraphicsCanvas                      # disabled still renders
     @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys())) === nothing
     @test read_intent(proj, iomap, MouseDown(:left, 10, 10, ModifierKeys())) === nothing
-    @test read_intent(proj, iomap, MouseMove(10, 10, :none, ModifierKeys())) === nothing
+    @test read_intent(proj, iomap, MouseMove(10, 10, MouseButtons(), ModifierKeys())) === nothing
     @test fired[] == false
     @test btn.hovered == false && btn.pressed == false
 end
@@ -482,7 +482,7 @@ end
     @test bw > 0 && bh > 0                                        # the button was found
     cx = bx + bw ÷ 2; cy = by + bh ÷ 2
 
-    hov = read_intent(proj, iomap, MouseEnter(cx, cy, :none, ModifierKeys()))
+    hov = read_intent(proj, iomap, MouseEnter(cx, cy, MouseButtons(), ModifierKeys()))
     @test _view_state_write(hov) isa ReplaceReferencedValueOperation && _view_state_write(hov).document === button && _view_state_write(hov).value == true
     dn = read_intent(proj, iomap, MouseDown(:left, cx, cy, ModifierKeys()))
     @test _view_state_write(dn) isa ReplaceReferencedValueOperation && _view_state_write(dn).document === button && _view_state_write(dn).value == true

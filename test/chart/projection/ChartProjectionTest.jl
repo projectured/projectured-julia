@@ -662,7 +662,7 @@ function test_chart_projection()
             plot = iomap.step_iomaps[1][].output
             hover = read_intent(proj, iomap,
                                 MouseMove(value_row[2] + 2, value_row[3] + value_row[5] ÷ 2,
-                                          :none, ModifierKeys()))
+                                          MouseButtons(), ModifierKeys()))
             hover === nothing || evaluate_operation(nothing, hover)
             @test plot.hovered === nothing
 
@@ -774,7 +774,7 @@ function test_chart_projection()
             @test op.value == false
 
             # Hovering one names it, so the frame can veil the others.
-            op = read_intent(proj, iomap, MouseMove(ix + 2, iy + ih ÷ 2, :none, ModifierKeys()))
+            op = read_intent(proj, iomap, MouseMove(ix + 2, iy + ih ÷ 2, MouseButtons(), ModifierKeys()))
             @test op !== nothing
             evaluate_operation(nothing, op)
             @test plot.hovered !== nothing
@@ -782,7 +782,7 @@ function test_chart_projection()
             @test veiled[1].color.alpha != veiled[2].color.alpha
 
             # Leaving clears both hover fields.
-            op = read_intent(proj, iomap, MouseLeave(0, 0, :none, ModifierKeys()))
+            op = read_intent(proj, iomap, MouseLeave(0, 0, MouseButtons(), ModifierKeys()))
             @test op !== nothing
             evaluate_operation(nothing, op)
             @test plot.hovered === nothing && plot.cursor === nothing
@@ -1017,7 +1017,7 @@ function test_chart_projection()
             evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys())))
             @test plot.drag_anchor !== nothing
 
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x1, y1, :left, ModifierKeys())))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x1, y1, MouseButtons(:left), ModifierKeys())))
             @test plot.drag_rect !== nothing
             # While the band is up it is drawn over the series.
             @test _count_kind(_series_elements(iomap.output), GraphicsRect) >= 1
@@ -1037,8 +1037,8 @@ function test_chart_projection()
 
             # Leaving mid-drag abandons it rather than committing halfway.
             evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys())))
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x1, y1, :left, ModifierKeys())))
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseLeave(0, 0, :none, ModifierKeys())))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x1, y1, MouseButtons(:left), ModifierKeys())))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseLeave(0, 0, MouseButtons(), ModifierKeys())))
             @test plot.drag_anchor === nothing && plot.drag_rect === nothing
             @test plot.view === nothing
 
@@ -1046,7 +1046,7 @@ function test_chart_projection()
             evaluate_operation(nothing, read_intent(proj, iomap,
                 MouseDown(:left, x1, y1, ModifierKeys(; shift=true))))
             evaluate_operation(nothing, read_intent(proj, iomap,
-                MouseMove(x1 - 40, y1, :left, ModifierKeys(; shift=true))))
+                MouseMove(x1 - 40, y1, MouseButtons(:left), ModifierKeys(; shift=true))))
             @test plot.drag_rect === nothing
             @test plot.view !== nothing
             evaluate_operation(nothing, read_intent(proj, iomap, MouseUp(:left, x1 - 40, y1, ModifierKeys())))
@@ -1062,7 +1062,7 @@ function test_chart_projection()
 
             plain = length(_series_elements(iomap.output))
             evaluate_operation(nothing, read_intent(proj, iomap,
-                MouseMove(g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2, :none, ModifierKeys())))
+                MouseMove(g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2, MouseButtons(), ModifierKeys())))
             @test plot.cursor !== nothing
             els = _series_elements(iomap.output)
             @test length(els) > plain

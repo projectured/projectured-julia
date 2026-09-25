@@ -34,7 +34,7 @@ const PROJECT = normpath(joinpath(@__DIR__, "..", "..", "example", "filesystem",
 
 _key(key; hold = 0.4, kwargs...) = (event = KeyDown(key, ModifierKeys(; kwargs...)), hold = hold)
 _type(text) = make_typein_gestures(text; hold = 0.06, jitter = 0.5)    # a fast typist
-_press(x, y; hold = 0.6, kwargs...) = [(event = MouseMove(x, y, :none, ModifierKeys()), hold = 0.4),
+_press(x, y; hold = 0.6, kwargs...) = [(event = MouseMove(x, y, MouseButtons(), ModifierKeys()), hold = 0.4),
                                        (event = MousePress(:left, x, y, ModifierKeys(; kwargs...)), hold = hold)]
 
 include(joinpath(@__DIR__, "julia_forms.jl"))

@@ -166,7 +166,7 @@ end
     press!(DragTabOperation(widget_of(source), 1))
     @test tree.drag !== nothing
     x, y = point(target, 0.5, 0.5)
-    press!(MouseMove(x, y, :left, ModifierKeys()))
+    press!(MouseMove(x, y, MouseButtons(:left), ModifierKeys()))
     @test tree.drag.target === target
     press!(MouseUp(:left, x, y, ModifierKeys()))
 

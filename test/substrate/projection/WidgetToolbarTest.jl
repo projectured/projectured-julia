@@ -39,7 +39,7 @@ end
     # doesn't hard-code the item's vertical padding.
     hovered_at(c) = begin
         for dy in (4, 6, 8, 10, 12)
-            g = MouseEnter(Int(c.x) + 6, Int(c.y) + dy, :none, _mods)
+            g = MouseEnter(Int(c.x) + 6, Int(c.y) + dy, MouseButtons(), _mods)
             ch = read_intent(proj, nothing, Intent(g, nothing), io)
             op = ch isa Intent ? ch.operation : ch
             _view_state_write(op) isa ReplaceReferencedValueOperation && return _view_state_write(op).document.action.label
@@ -106,7 +106,7 @@ end
     @test length(items) == length(labels)
     for (i, c) in enumerate(items)
         x, y = _centre(c)
-        crossing = read_intent(proj, nothing, Intent(MouseEnter(x, y, :none, _mods), nothing), io)
+        crossing = read_intent(proj, nothing, Intent(MouseEnter(x, y, MouseButtons(), _mods), nothing), io)
         op = crossing isa Intent ? crossing.operation : crossing
         @test _view_state_write(op) isa ReplaceReferencedValueOperation && _view_state_write(op).document.action.label == labels[i]
         # A left press invokes the action of that item, and only reads it: the

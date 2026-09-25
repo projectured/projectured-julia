@@ -34,12 +34,12 @@ function test_widget_slider_drag()
     start = slider.value
     @test 0.0 < start < 0.3
     # 120 px along a track of 240 px is half of it.
-    _read_slider_event!(slider, projection, iomap, MouseMove(160, y, :left, ModifierKeys()))
+    _read_slider_event!(slider, projection, iomap, MouseMove(160, y, MouseButtons(:left), ModifierKeys()))
     @test slider.value ≈ start + 0.5
     _read_slider_event!(slider, projection, iomap, MouseUp(:left, 160, y, ModifierKeys()))
     @test slider.dragging === false
     # With the knob let go, a move is only a move.
-    @test read_intent(projection, iomap, MouseMove(200, y, :none, ModifierKeys())) === nothing
+    @test read_intent(projection, iomap, MouseMove(200, y, MouseButtons(), ModifierKeys())) === nothing
     @test slider.value ≈ start + 0.5
 end
 
@@ -54,7 +54,7 @@ end
     press = _read_slider_event!(slider, projection, iomap, MousePress(:left, 100, y, ModifierKeys()))
     @test press isa ReplaceViewStateOperation
     @test slider.dragging === false
-    @test read_intent(projection, iomap, MouseMove(200, y, :none, ModifierKeys())) === nothing
+    @test read_intent(projection, iomap, MouseMove(200, y, MouseButtons(), ModifierKeys())) === nothing
     @test slider.value == clicked
 end
 

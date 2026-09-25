@@ -36,13 +36,13 @@ end
     @test doc.drag_anchor !== nothing
 
     # Grow the left slot by 50px; the right slot gives back exactly 50px.
-    move = _feed(proj, iomap, MouseMove(350, 50, :left, ModifierKeys()))
+    move = _feed(proj, iomap, MouseMove(350, 50, MouseButtons(:left), ModifierKeys()))
     @test move isa ResizeSplitPaneOperation
     @test _szs(doc) == [350, 250]
     @test sum(_szs(doc)) == 600
 
     # A second move resizes relative to the grab origin, not cumulatively.
-    _feed(proj, iomap, MouseMove(270, 50, :left, ModifierKeys()))
+    _feed(proj, iomap, MouseMove(270, 50, MouseButtons(:left), ModifierKeys()))
     @test _szs(doc) == [270, 330]
     @test sum(_szs(doc)) == 600
 
@@ -66,7 +66,7 @@ end
     doc   = make_widget_split_pane_document_example()
     proj  = _proj()
     iomap = print_document(proj, doc)
-    op = _unmark(read_intent(proj, iomap, MouseMove(350, 50, :left, ModifierKeys())))
+    op = _unmark(read_intent(proj, iomap, MouseMove(350, 50, MouseButtons(:left), ModifierKeys())))
     @test !(op isa ResizeSplitPaneOperation)
     @test _szs(doc) == [300, 300]
 end
@@ -81,7 +81,7 @@ end
     # Splitter band is in the gap before the second child (y≈200).
     down = _feed(proj, iomap, MouseDown(:left, 40, 200, ModifierKeys()))
     @test down isa StartSplitterDragOperation
-    _feed(proj, iomap, MouseMove(40, 240, :left, ModifierKeys()))
+    _feed(proj, iomap, MouseMove(40, 240, MouseButtons(:left), ModifierKeys()))
     @test _szs(doc) == [240, 160]
     @test sum(_szs(doc)) == 400
     _feed(proj, iomap, MouseUp(:left, 40, 240, ModifierKeys()))
@@ -97,7 +97,7 @@ end
     iomap = print_document(proj, nothing, doc, ctx)
 
     _feed(proj, iomap, MouseDown(:left, 300, 50, ModifierKeys()))
-    _feed(proj, iomap, MouseMove(380, 50, :left, ModifierKeys()))
+    _feed(proj, iomap, MouseMove(380, 50, MouseButtons(:left), ModifierKeys()))
     _feed(proj, iomap, MouseUp(:left, 380, 50, ModifierKeys()))
 
     @test _szs(doc) == [380, 220]
@@ -139,7 +139,7 @@ end
     gy = (first(starts) + last(starts)) ÷ 2
     _feed(proj, iomap, MouseDown(:left, 40, gy, ModifierKeys()))
     @test split.active_splitter == 1
-    _feed(proj, iomap, MouseMove(40, gy + 40, :left, ModifierKeys()))
+    _feed(proj, iomap, MouseMove(40, gy + 40, MouseButtons(:left), ModifierKeys()))
     @test [Int(split.sizes[i]) for i in 1:length(split.sizes)] == [190, 110]
     _feed(proj, iomap, MouseUp(:left, 40, gy + 40, ModifierKeys()))
     @test split.active_splitter == 0

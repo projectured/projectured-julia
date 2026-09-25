@@ -57,7 +57,7 @@ function test_dragging()
         @test proj.state.phase === :pending
 
         # A move past the 5px threshold activates the drag, still absorbed.
-        @test _feed(proj, iomap, MouseMove(120, 100, :left, ModifierKeys())) === nothing
+        @test _feed(proj, iomap, MouseMove(120, 100, MouseButtons(:left), ModifierKeys())) === nothing
         @test proj.state.phase === :dragging
 
         # MouseUp hit-tests the drop point (x=300 → element 4): element 2 moves there.
@@ -91,7 +91,7 @@ function test_dragging()
         proj, iomap = _drag_setup(content, hit)
 
         _feed(proj, iomap, MouseDown(:left, 100, 100, ModifierKeys()))
-        _feed(proj, iomap, MouseMove(120, 100, :left, ModifierKeys()))
+        _feed(proj, iomap, MouseMove(120, 100, MouseButtons(:left), ModifierKeys()))
         op = _feed(proj, iomap, MouseUp(:left, 999, 100, ModifierKeys()))
         @test !(op isa MoveRangeOperation)
         @test [Int(content.elements[i].value) for i in 1:2] == [10, 20]
@@ -110,7 +110,7 @@ function test_dragging()
 
         @test _feed(proj, iomap, MouseDown(:left, 24, 24, ModifierKeys())) === nothing   # grab element 1
         @test proj.state.phase === :pending
-        _feed(proj, iomap, MouseMove(24, 48, :left, ModifierKeys()))                     # cross threshold
+        _feed(proj, iomap, MouseMove(24, 48, MouseButtons(:left), ModifierKeys()))                     # cross threshold
         @test proj.state.phase === :dragging
         op = _feed(proj, iomap, MouseUp(:left, 24, 72, ModifierKeys()))                  # drop at element 3
         @test op isa MoveRangeOperation

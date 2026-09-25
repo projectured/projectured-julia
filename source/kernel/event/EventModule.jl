@@ -1,39 +1,49 @@
 """
     EventModule
 
-The **input event vocabulary**: the backend-agnostic values an input source
-produces. The fragments:
+The input events: the values that an input source makes, for any backend, and a
+pattern language that matches them. An event is plain data. Its fields hold
+symbols, numbers, characters and modifier keys, and it holds no reference to the
+source that made it.
 
-- [`EventInterface.jl`](EventInterface.jl) — the `Event`/`DeviceEvent`/`SyntheticEvent`
-  types and the `get_modifier_keys` generic every event answers.
-- [`ModifierKeys.jl`](ModifierKeys.jl) — the Ctrl/Shift/Alt/Meta state an event carries.
-- [`KeyboardEvent.jl`](KeyboardEvent.jl) — `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord`.
-- [`MouseEvent.jl`](MouseEvent.jl) — `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`,
-  `MouseEnter`, `MouseLeave`, `MouseScroll`.
-- [`WindowEvent.jl`](WindowEvent.jl) — `WindowQuit`, `WindowClose`, `WindowResize`,
-  `WindowDefocus`.
-- [`WindowInput.jl`](WindowInput.jl) — an event plus the id of the window it came from.
-- [`EventDefaults.jl`](EventDefaults.jl) — the `get_modifier_keys` fallback and the
-  `has_ctrl_modifier_key`/`has_shift_modifier_key`/`has_alt_modifier_key`/`has_meta_modifier_key` predicates derived over it.
+The module lives in eight fragments that share this namespace:
 
-An event is pure data: it knows neither the device that produced it nor the
-document it will end up changing.
+- [`EventInterface.jl`](EventInterface.jl) — `Event`, `DeviceEvent` and
+  `SyntheticEvent`, and `get_modifier_keys`, the generic that every event answers.
+- [`ModifierKeys.jl`](ModifierKeys.jl) — the Ctrl, Shift, Alt and Meta keys that an
+  event holds.
+- [`KeyboardEvent.jl`](KeyboardEvent.jl) — `KeyDown`, `KeyUp`, `KeyPress` and
+  `KeyChord`.
+- [`MouseEvent.jl`](MouseEvent.jl) — `MouseButtons`, and the mouse events
+  `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseEnter`, `MouseLeave` and
+  `MouseScroll`.
+- [`WindowEvent.jl`](WindowEvent.jl) — `WindowQuit`, `WindowClose`, `WindowResize`
+  and `WindowDefocus`.
+- [`WindowInput.jl`](WindowInput.jl) — an event and the id of the window that it
+  came from.
+- [`EventDefaults.jl`](EventDefaults.jl) — the fallback of `get_modifier_keys`, and
+  the predicates `has_ctrl_modifier_key`, `has_shift_modifier_key`,
+  `has_alt_modifier_key` and `has_meta_modifier_key`.
+- [`EventPattern.jl`](EventPattern.jl) — the pattern language: `EventPattern`, its
+  parser, and `@event_case`, whose docstring documents the syntax.
 """
 module EventModule
 
-export Event, DeviceEvent, SyntheticEvent,
-       ModifierKeys, get_modifier_keys, has_ctrl_modifier_key, has_shift_modifier_key, has_alt_modifier_key, has_meta_modifier_key,
-       KeyDown, KeyUp, KeyPress, KeyChord,
-       MouseDown, MouseUp, MousePress, MouseMove, MouseEnter, MouseLeave, MouseScroll,
-       WindowQuit, WindowClose, WindowResize, WindowDefocus,
-       WindowInput
-export EventPattern,
+export Event, DeviceEvent, SyntheticEvent, get_modifier_keys
+export ModifierKeys
+export KeyDown, KeyUp, KeyPress, KeyChord
+export MouseButtons, MouseDown, MouseUp, MousePress, MouseMove, MouseEnter, MouseLeave,
+       MouseScroll
+export WindowQuit, WindowClose, WindowResize, WindowDefocus
+export WindowInput
+export has_ctrl_modifier_key, has_shift_modifier_key, has_alt_modifier_key,
+       has_meta_modifier_key
+export EventPattern, matches_event_pattern,
        KeyPressPattern, KeyDownPattern, KeyUpPattern,
        MouseDownPattern, MouseUpPattern, MousePressPattern,
        MouseMovePattern, MouseEnterPattern, MouseLeavePattern, MouseScrollPattern,
-       matches_event_pattern, describe_event_pattern,
-       EventPatternRule, parse_event_pattern_rule, build_event_pattern_expr, build_event_field_bindings,
-       var"@event_case"
+       describe_event_pattern, EventPatternRule, parse_event_pattern_rule,
+       build_event_pattern_expr, build_event_field_bindings, @event_case
 
 include("EventInterface.jl")
 include("ModifierKeys.jl")

@@ -3140,7 +3140,7 @@ end
 
 function _route_shell_move(p::WidgetShellToGraphicsCanvas, shell, child_iomaps::Vector,
                            evt::MouseMove)
-    if evt.buttons !== :none
+    if evt.buttons != MouseButtons()
         entry = _find_captured_band(p, shell, child_iomaps)
         entry === nothing || return _read_band_event(entry, evt)
     end

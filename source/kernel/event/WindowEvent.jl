@@ -1,31 +1,29 @@
-# Fragment of `EventModule` — the window events.
-#
-# All four report something the user did to a window. Which window is not part of
-# the event: it is the `WindowInput`'s `window_id`, so a window event names no
-# window type and stays pure input vocabulary.
+# Fragment of `EventModule` — the window events. Each reports what the user did to a
+# window. The window is not in the event but in the `window_id` of the
+# `WindowInput` that holds it, so a window event names no window type.
 
 """
     WindowQuit()
 
-The user requested to quit the entire application. It is a *request* the
-application may refuse.
+The user asked to quit the whole application. It is a request, and the application
+can ignore it.
 """
 struct WindowQuit <: DeviceEvent end
 
 """
     WindowClose()
 
-The user requested to close one window (its native close button). A *request*
-the application may refuse — the event reports what the user did, not what must
-happen. The window it refers to is the enclosing `WindowInput`'s `window_id`.
+The user asked to close one window, with its close button. It is a request, and the
+application can ignore it: the event reports what the user did, not what must
+happen. The window is the `window_id` of the `WindowInput` that holds the event.
 """
 struct WindowClose <: DeviceEvent end
 
 """
     WindowResize(width, height)
 
-The user resized a window's native frame. `width`/`height` are the new pixel size
-of the window's content area.
+The user changed the size of a window. `width` and `height` are the new size of its
+content area, in pixels.
 """
 struct WindowResize <: DeviceEvent
     width::Int

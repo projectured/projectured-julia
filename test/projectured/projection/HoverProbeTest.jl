@@ -116,7 +116,7 @@ function test_hover_probe()
         hpio = print_document(hp, doc)
 
         # Hover → OpenWindowOperation carrying a ReferenceInspector.
-        mv = read_intent(hp, hpio, MouseMove(cx, cy, :none, ModifierKeys()))
+        mv = read_intent(hp, hpio, MouseMove(cx, cy, MouseButtons(), ModifierKeys()))
         @test mv isa OpenWindowOperation
         if mv isa OpenWindowOperation
             @test mv.id === :inspector
@@ -177,7 +177,7 @@ function test_hover_probe_pipeline()
         iomap = print_document(composed, screen)
 
         nbefore = length(screen.windows)
-        window_input = WindowInput(:json, MouseMove(cx, cy, :none, ModifierKeys()))
+        window_input = WindowInput(:json, MouseMove(cx, cy, MouseButtons(), ModifierKeys()))
         read_intent(composed, nothing, Intent(window_input, nothing), iomap)
 
         @test length(screen.windows) == nbefore + 1

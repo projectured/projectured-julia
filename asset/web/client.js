@@ -567,12 +567,6 @@
 
   function mods(ev) { return { ctrl: ev.ctrlKey, shift: ev.shiftKey, alt: ev.altKey, meta: ev.metaKey }; }
   function buttonSym(b) { return b === 1 ? "middle" : b === 2 ? "right" : "left"; }
-  function heldSym(buttons) {
-    if (buttons & 1) return "left";
-    if (buttons & 2) return "right";
-    if (buttons & 4) return "middle";
-    return "none";
-  }
   function pos(ev, canvas) {
     const r = canvas.getBoundingClientRect();
     return { x: Math.round(ev.clientX - r.left), y: Math.round(ev.clientY - r.top) };
@@ -598,10 +592,9 @@
       send({ type: "mouseup", window: idFn(), button: buttonSym(ev.button), x, y, mods: mods(ev) });
     });
     canvas.addEventListener("mousemove", (ev) => {
-      const held = heldSym(ev.buttons);
-      if (held === "none") return;             // only forward motion while held
+      if (ev.buttons === 0) return;            // only forward motion while held
       const { x, y } = pos(ev, canvas);
-      send({ type: "mousemove", window: idFn(), x, y, buttons: held, mods: mods(ev) });
+      send({ type: "mousemove", window: idFn(), x, y, buttons: ev.buttons, mods: mods(ev) });
     });
     canvas.addEventListener("wheel", (ev) => {
       ev.preventDefault();

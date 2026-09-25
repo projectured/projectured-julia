@@ -140,7 +140,7 @@ end
 
 @testset "the pointer is drawn where the last mouse event left it" begin
     width, height = 480, 360
-    timeline = Any[(event = MouseMove(300, 200, :none, ModifierKeys()), hold = 0.5)]
+    timeline = Any[(event = MouseMove(300, 200, MouseButtons(), ModifierKeys()), hold = 0.5)]
     # One folder for both takes: the navigator shows its name.
     root = mktempdir()
     frames = map((true, false)) do pointer

@@ -412,13 +412,11 @@ end
 # Map SDL button byte → Symbol.
 _sdl_button_sym(b::UInt8) = b == 0x01 ? :left : b == 0x02 ? :middle : :right
 
-# Map SDL_GetMouseState bitmask → currently-held button symbol.
-function _held_button(bstate::UInt32)::Symbol
-    (bstate & UInt32(0x01)) != UInt32(0) && return :left
-    (bstate & UInt32(0x02)) != UInt32(0) && return :middle
-    (bstate & UInt32(0x04)) != UInt32(0) && return :right
-    :none
-end
+# The buttons that the mask of `SDL_GetMouseState` holds.
+_get_held_mouse_buttons(bstate::UInt32) =
+    MouseButtons((bstate & UInt32(0x01)) != UInt32(0),
+                 (bstate & UInt32(0x02)) != UInt32(0),
+                 (bstate & UInt32(0x04)) != UInt32(0))
 
 # ════════════════════════════════════════════════════════════════════════
 # Native window lifecycle (internal helpers; driven by the reconciler in
@@ -2727,7 +2725,7 @@ function BackendModule.read_from_devices(backend::SdlBackend, devices)
     end
     motion === nothing && return nothing
     # A drag (a button held) is never rate-limited: it must track the pointer.
-    if motion.event isa MouseMove && motion.event.buttons == :none
+    if motion.event isa MouseMove && motion.event.buttons == MouseButtons()
         now = time()
         if (now - _LAST_HOVER_MOTION[]) < _HOVER_MOTION_INTERVAL
             backend.pending_motion = motion       # hold it; answer on a later call
@@ -2822,7 +2820,7 @@ function _poll_window_input(backend::SdlBackend)
         elseif t == 0x00000400  # SDL_MOUSEMOTION
             mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
             bstate = UInt32(SDL_GetMouseState(mx_ref, my_ref))
-            buttons = _held_button(bstate)
+            buttons = _get_held_mouse_buttons(bstate)
             mods = _current_modifiers()
             wid = _lookup_window_id(backend, evt.motion.windowID)
             # The motion slot of the pair. The caller keeps only the newest of a

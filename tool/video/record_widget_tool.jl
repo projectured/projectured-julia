@@ -41,7 +41,7 @@ _key(key; hold = 0.4, kwargs...) = (event = KeyDown(key, ModifierKeys(; kwargs..
 _type(text) = make_typein_gestures(text; hold = 0.06, jitter = 0.5)    # a fast typist
 _type_fast(text) = [(event = KeyPress(c), hold = 0.01) for c in text]
 _type_by_frame(text) = [(event = KeyPress(c), hold = 1 / 30) for c in text]    # one key a frame
-_press(x, y; hold = 0.6, kwargs...) = [(event = MouseMove(x, y, :none, ModifierKeys()), hold = 0.4),
+_press(x, y; hold = 0.6, kwargs...) = [(event = MouseMove(x, y, MouseButtons(), ModifierKeys()), hold = 0.4),
                                        (event = MouseDown(:left, x, y, ModifierKeys(; kwargs...)), hold = 0.1),
                                        (event = MouseUp(:left, x, y, ModifierKeys(; kwargs...)), hold = hold)]
 
@@ -50,9 +50,9 @@ function _drag_slider(from, to; hold = 1.5)
     left, y, width = SLIDER_TRACK
     x0, x1 = round(Int, left + from * width), round(Int, left + to * width)
     step = x1 >= x0 ? 4 : -4
-    vcat([(event = MouseMove(x0, y, :none, ModifierKeys()), hold = 0.5),
+    vcat([(event = MouseMove(x0, y, MouseButtons(), ModifierKeys()), hold = 0.5),
           (event = MouseDown(:left, x0, y, ModifierKeys()), hold = 0.3)],
-         [(event = MouseMove(x, y, :left, ModifierKeys()), hold = 1 / 30) for x in x0 + step:step:x1],
+         [(event = MouseMove(x, y, MouseButtons(:left), ModifierKeys()), hold = 1 / 30) for x in x0 + step:step:x1],
          [(event = MouseUp(:left, x1, y, ModifierKeys()), hold = hold)])
 end
 
