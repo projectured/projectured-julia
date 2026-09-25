@@ -107,9 +107,9 @@ It has no `__init__` and registers nothing: no natural row, no file type, no par
 
 ## Design decisions
 
-- **The code is Julia documents, not strings.** What the author sees in the notation is exactly what runs, with no parse and no rewrite between them. See `plan/done/state-machine-domain.md`.
+- **The code is Julia documents, not strings.** What the author sees in the notation is exactly what runs, with no parse and no rewrite between them. See [plan/done/state-machine-domain.md](../../../plan/done/state-machine-domain.md).
 - **The generator is a function, not a projection.** The component is the source and the `.jl` file is output; a hand-edited file does not go back into the machine. The output is a document, so the editor can show it through the Julia chain.
-- **The diagram reuses the graph domain.** The domain adds a stage that builds a `GraphGraph` and two label rules, and no code that draws. See `plan/done/state-machine-domain.md`.
+- **The diagram reuses the graph domain.** The domain adds a stage that builds a `GraphGraph` and two label rules, and no code that draws. See [plan/done/state-machine-domain.md](../../../plan/done/state-machine-domain.md).
 - **The live position is on the diagram, and it bypasses the layout.** A running machine is not part of the machine, and a layout for each transition would cost too much.
 - **The deferred queue drains a copy.** A live drain of one shared queue lets a nested dispatch take the pending call of a sibling, as PLCA `COMMIT_TO` shows. This follows `executeDelayedActions` of `FSMA`.
 - **A stay is followed by re-evaluation, as a transition is.** This is simpler than the partial fall-through of `FSMA`, and no reference machine mixes stays with condition-only transitions in one state.

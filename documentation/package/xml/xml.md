@@ -65,11 +65,11 @@ The mixed example puts XML inside JSON: `JsonXmlToSyntax()` in `example/xml/` is
 
 ## Design decisions
 
-- **An attribute is a document.** A selection can then reach an attribute value as it reaches a child, and the attribute can be inserted and replaced. See `plan/done/xml-attribute-insertable.md`.
-- **The authoring edits are `@gestures` on the document types.** The projection keeps only the printer and the caret mapping. The edits are splices through `ReplaceReferencedValueOperation`, so XML defines no operation type. See `plan/done/xml-authoring-gestures.md` and `plan/done/xml-to-syntax-template.md`.
+- **An attribute is a document.** A selection can then reach an attribute value as it reaches a child, and the attribute can be inserted and replaced. See [plan/done/xml-attribute-insertable.md](../../../plan/done/xml-attribute-insertable.md).
+- **The authoring edits are `@gestures` on the document types.** The projection keeps only the printer and the caret mapping. The edits are splices through `ReplaceReferencedValueOperation`, so XML defines no operation type. See [plan/done/xml-authoring-gestures.md](../../../plan/done/xml-authoring-gestures.md) and [plan/done/xml-to-syntax-template.md](../../../plan/done/xml-to-syntax-template.md).
 - **A caret on the chrome is a flat offset.** It is the one part that the template does not supply for XML. The reason is in the comment above `read_intent` in `source/xml/XmlToSyntax.jl`.
 - **`<`, `"` and `=` override the text stage.** Neither `<` nor `"` can occur in a tag name, so the keys can mean "insert a child" with the caret in the name. `=` can not occur in an attribute name, so it moves the caret to the value.
-- **The reference marker is an element.** JSON and YAML use a string, Markdown a fence: each format spells a reference with its own opaque unit. See `plan/done/document-file-storage.md`.
+- **The reference marker is an element.** JSON and YAML use a string, Markdown a fence: each format spells a reference with its own opaque unit. See [plan/done/document-file-storage.md](../../../plan/done/document-file-storage.md).
 
 ## Usage
 
@@ -103,7 +103,7 @@ The paths use `[i]` for the i-th item, from 1, and `{k}` for the caret at bounda
 
 ## Limits
 
-- An empty text, tag, attribute name or attribute value shows no hint. JSON and YAML show one with `make_hinted_text`. The four hints "enter xml text", "enter xml element name", "enter xml attribute name" and "enter xml attribute value" are phase 5 of `plan/pending/xml-to-syntax-lisp-parity.md`.
-- No projection reads `collapsed`. `XmlToSyntax` does not give it to the output, and `SyntaxConcatenation` has no `collapsed` field. `plan/pending/collapse-expand-syntax-nodes.md` holds the open step.
+- An empty text, tag, attribute name or attribute value shows no hint. JSON and YAML show one with `make_hinted_text`. The four hints "enter xml text", "enter xml element name", "enter xml attribute name" and "enter xml attribute value" are phase 5 of [plan/pending/xml-to-syntax-lisp-parity.md](../../../plan/pending/xml-to-syntax-lisp-parity.md).
+- No projection reads `collapsed`. `XmlToSyntax` does not give it to the output, and `SyntaxConcatenation` has no `collapsed` field. [plan/pending/collapse-expand-syntax-nodes.md](../../../plan/pending/collapse-expand-syntax-nodes.md) holds the open step.
 - An element with no children prints as `<tag></tag>`, never as `<tag/>`.
 - The parser raises an error on a CDATA section.

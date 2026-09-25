@@ -92,7 +92,7 @@ It registers nothing at load time. The keys are a `get_projection_gesture_bindin
 
 ## Design decisions
 
-- **A history is a document node, not a field of the editor.** A window can then have one history and each file another. See `plan/done/undo-and-redo.md`.
+- **A history is a document node, not a field of the editor.** A window can then have one history and each file another. See [plan/done/undo-and-redo.md](../../../plan/done/undo-and-redo.md).
 - **The evaluation records, the reader does not.** A reader that changes state is invisible to undo, playback and scripting, so recording is an operation.
 - **The inverse is taken before the change.** It must read the state that the change starts from, and a compound is inverted member by member for the same reason.
 - **A barrier stops the history.** Stepping over a step that has no inverse would make a state that never existed.

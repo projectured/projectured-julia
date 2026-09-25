@@ -47,7 +47,7 @@ So a file written by ProjecturEd is Markdown source, and a page in a tab is the 
 
 ## Design decisions
 
-- **The presentation is a parameter of the projection.** The source and the rendered view are two projections of the same document, as the block and flow styles of YAML are. See `plan/done/markdown-rendered-projection.md`.
+- **The presentation is a parameter of the projection.** The source and the rendered view are two projections of the same document, as the block and flow styles of YAML are. See [plan/done/markdown-rendered-projection.md](../../../plan/done/markdown-rendered-projection.md).
 - **A page is a stack of blocks, not only a syntax tree.** A block of another domain, or a live widget, then keeps its own projection and its own reader. The reason is in the header of `source/markdown/MarkdownToLayout.jl`.
 - **A section is addressed by the words of its heading.** A section keeps its address when it moves, and a rename makes the address fail with an error instead of pointing at the wrong section.
 - **The reference marker is a fence.** XML uses an element and JSON a string for the same reason: each format spells a reference with its own opaque unit.

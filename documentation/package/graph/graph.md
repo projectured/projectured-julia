@@ -91,13 +91,13 @@ The `__init__` in `GraphLayoutToGraphics.jl` calls `register_natural_graphics!(:
 
 ## Design decisions
 
-- **The geometry is a separate document.** `GraphLayout` holds the positions outside `GraphGraph`, so a saved graph holds no coordinates and two views can place one graph in two ways. See `plan/done/graph-domain.md`.
-- **A vertex holds any document.** The content prints through the recursion of the caller, so a table, a card or another graph can be a node with no code in this package. See `plan/done/graph-domain.md`.
-- **An engine throws on a constraint that it does not implement.** A picture does not show whether a pin was kept or dropped, so a silent drop is the worst answer. See `plan/done/graph-layout-engines.md`.
-- **The pure-Julia engines are ports.** They must draw the picture that the C++ original draws, so each C++ file has one Julia file with the same name and order. See `plan/done/graph-layout-engines.md`.
-- **The engine is chosen when the layout runs.** A projection that chose at construction would keep the fallback engine for the whole session. See `plan/done/graph-layout-engines.md`.
-- **A highlight goes around the layout cell.** A running state machine moves its marker many times a second, and a force-directed layout for each move costs too much. See `plan/done/state-machine-domain.md`.
-- **The native engine is a separate package.** Its native dependency stays out of every other package. See `plan/done/graph-domain.md`.
+- **The geometry is a separate document.** `GraphLayout` holds the positions outside `GraphGraph`, so a saved graph holds no coordinates and two views can place one graph in two ways. See [plan/done/graph-domain.md](../../../plan/done/graph-domain.md).
+- **A vertex holds any document.** The content prints through the recursion of the caller, so a table, a card or another graph can be a node with no code in this package. See [plan/done/graph-domain.md](../../../plan/done/graph-domain.md).
+- **An engine throws on a constraint that it does not implement.** A picture does not show whether a pin was kept or dropped, so a silent drop is the worst answer. See [plan/done/graph-layout-engines.md](../../../plan/done/graph-layout-engines.md).
+- **The pure-Julia engines are ports.** They must draw the picture that the C++ original draws, so each C++ file has one Julia file with the same name and order. See [plan/done/graph-layout-engines.md](../../../plan/done/graph-layout-engines.md).
+- **The engine is chosen when the layout runs.** A projection that chose at construction would keep the fallback engine for the whole session. See [plan/done/graph-layout-engines.md](../../../plan/done/graph-layout-engines.md).
+- **A highlight goes around the layout cell.** A running state machine moves its marker many times a second, and a force-directed layout for each move costs too much. See [plan/done/state-machine-domain.md](../../../plan/done/state-machine-domain.md).
+- **The native engine is a separate package.** Its native dependency stays out of every other package. See [plan/done/graph-domain.md](../../../plan/done/graph-domain.md).
 
 ## Usage
 
@@ -114,7 +114,7 @@ run_example(graph, projection; name = "graph")
 
 ## Limits
 
-- Edges and labels are not selectable. No gesture adds or removes a vertex or an edge, and a vertex can not be dragged. `plan/done/graph-domain.md` lists these as future work.
+- Edges and labels are not selectable. No gesture adds or removes a vertex or an edge, and a vertex can not be dragged. [plan/done/graph-domain.md](../../../plan/done/graph-domain.md) lists these as future work.
 - `GraphLayout.direction`, `node_sep`, `rank_sep`, `VertexLayout.pinned` and the ports of `EdgeLayout` are fields that no stage reads. The first stage writes constants into them.
 - With a pure-Julia engine, a self-loop edge gets a route of two equal points at the centre of its box, so it does not show.
 - The registered factory is not a cell, so the layout cell does not depend on it. A graph that is drawn before `ProjecturedAdaptagrams` loads keeps its layout until its vertices, edges, sizes or constraints change.

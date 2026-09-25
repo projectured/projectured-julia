@@ -122,7 +122,7 @@ The package registers the natural row `:fault` for `FaultLog`, the title `Faults
 
 ## Design decisions
 
-- **The name is fault, not error.** `Error` and `Exception` are words of Julia itself, and `Fault` composes into `FaultRecord` and `FaultStore` with no collision. See `plan/done/the-editor-survives-a-fault.md`.
+- **The name is fault, not error.** `Error` and `Exception` are words of Julia itself, and `Fault` composes into `FaultRecord` and `FaultStore` with no collision. See [plan/done/the-editor-survives-a-fault.md](../../../plan/done/the-editor-survives-a-fault.md).
 - **The kernel records and the package shows.** The kernel names no document or projection, so the view of a fault must live above it.
 - **The catch returns a value.** The reactive engine then caches, heals and contains the fault; a catch that only logs would throw again on every frame.
 - **The store is outside the reactive graph.** A computation may write it, and the frame drains it into the log.

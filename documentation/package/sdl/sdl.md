@@ -74,8 +74,8 @@ Both repaint every window in full.
 ## Design decisions
 
 - **The generic is the surface.** A caller reaches the backend through the generics of `BackendModule`: `render_canvas`, `decode_image`, `get_display_size`. The helpers stay inside; `measure_sdl_text` is the one exported helper, because it goes by value.
-- **The windows open before the first print.** A document laid out first is laid out at a size that the window never has. See `plan/done/native-window-size.md`.
-- **The repaint follows the reactive graph.** The cells that a change invalidated say which graphics changed, so the backend compares no pixels. See `plan/done/optimize-rendering-dirty-rect.md`.
+- **The windows open before the first print.** A document laid out first is laid out at a size that the window never has. See [plan/done/native-window-size.md](../../../plan/done/native-window-size.md).
+- **The repaint follows the reactive graph.** The cells that a change invalidated say which graphics changed, so the backend compares no pixels. See [plan/done/optimize-rendering-dirty-rect.md](../../../plan/done/optimize-rendering-dirty-rect.md).
 - **The damage history follows the buffer age.** A swap chain of two or three buffers would otherwise show an old edit on the buffer that was not repainted.
 - **The two zooms take two routes.** The uniform zoom needs no new print; the font zoom prints again, because the widgets keep the sizes that they measured.
 - **The input state is on the backend.** Two backends in one process have separate queues.

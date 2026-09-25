@@ -67,11 +67,11 @@ With `text = true` over a `TextBlock` content, the clipboard copies and pastes c
 
 ## Design decisions
 
-- **The wrapper is not in the view.** The view of a wrapped document is the view of the document, so a test or a later stage sees no difference. See `plan/done/clipboard-to-t.md`.
+- **The wrapper is not in the view.** The view of a wrapped document is the view of the document, so a test or a later stage sees no difference. See [plan/done/clipboard-to-t.md](../../../plan/done/clipboard-to-t.md).
 - **The toggle is a cell write.** It needs no new print of the stages before it. `ProjecturedVersioning` uses the same pattern; see [versioning.md](../versioning/versioning.md).
 - **Copy and note are two gestures.** A copy can go anywhere without an alias; a note keeps the live object, for example a tool.
-- **The paste rules come from the documents.** A domain blocks a paste with a method of `ProjecturedDomain`; the clipboard has no list of types. See `plan/pending/select-a-widget-and-paste-it-into-a-tab.md`, whose clipboard steps are done.
-- **The bridge calls a command.** `InteractiveUtils.clipboard` also calls a command, and a new dependency on `InteractiveUtils` would change the manifests of the whole workspace. See `plan/done/clipboard-os-bridge-and-run-example-wrapper.md`.
+- **The paste rules come from the documents.** A domain blocks a paste with a method of `ProjecturedDomain`; the clipboard has no list of types. See [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md), whose clipboard steps are done.
+- **The bridge calls a command.** `InteractiveUtils.clipboard` also calls a command, and a new dependency on `InteractiveUtils` would change the manifests of the whole workspace. See [plan/done/clipboard-os-bridge-and-run-example-wrapper.md](../../../plan/done/clipboard-os-bridge-and-run-example-wrapper.md).
 
 ## Usage
 

@@ -49,7 +49,7 @@ Its `__init__` registers:
 
 - **An open names the file, not the place.** The file system package has no reference to tabs or panes. The pane tree chooses the place of a file.
 - **A chooser only chooses.** The dialog document holds a path. The shell acts on it.
-- **The tree is read, not watched.** A computed cell must not read the disk as a side effect of a print, so a live view of the disk needs a synchronizer outside the cells. `plan/tentative/filesystem-file-content-projection.md` discusses one.
+- **The tree is read, not watched.** A computed cell must not read the disk as a side effect of a print, so a live view of the disk needs a synchronizer outside the cells. [plan/tentative/filesystem-file-content-projection.md](../../../plan/tentative/filesystem-file-content-projection.md) discusses one.
 
 ## Usage
 

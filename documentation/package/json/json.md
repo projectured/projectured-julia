@@ -60,8 +60,8 @@ Its `__init__` in `source/json/JsonModule.jl` registers the natural row with the
 
 ## Design decisions
 
-- **An object entry is a document of its own.** It has a projection rule, so it can be selected, printed and replaced as one unit. See `plan/pending/catalog-all-documents.md`.
-- **A structural key reaches JSON through the chain.** When the text and syntax stages return no operation for a key, the chain gives the raw gesture to the JSON stage. The same happens when the JSON stage can not carry the text edit that the text stage made of the key: a `,` after the closing quote of a string or inside a number is no text edit of the document. So `,` with the caret on a delimiter or in a number inserts a sibling, and a retype key works on a placeholder, with no switch to a structural selection first. See `plan/done/json-contextual-gestures.md` and `plan/done/structural-keys-from-the-caret.md`.
+- **An object entry is a document of its own.** It has a projection rule, so it can be selected, printed and replaced as one unit. See [plan/pending/catalog-all-documents.md](../../../plan/pending/catalog-all-documents.md).
+- **A structural key reaches JSON through the chain.** When the text and syntax stages return no operation for a key, the chain gives the raw gesture to the JSON stage. The same happens when the JSON stage can not carry the text edit that the text stage made of the key: a `,` after the closing quote of a string or inside a number is no text edit of the document. So `,` with the caret on a delimiter or in a number inserts a sibling, and a retype key works on a placeholder, with no switch to a structural selection first. See [plan/done/json-contextual-gestures.md](../../../plan/done/json-contextual-gestures.md) and [plan/done/structural-keys-from-the-caret.md](../../../plan/done/structural-keys-from-the-caret.md).
 - **A caret on a delimiter belongs to the node that printed the delimiter.** The caret after `"x"` in `{"a": {"b": "x"}}` is a projection step of the nested object, so a `,` there adds an entry to the nested object. On the closing `}` or `]` of a container, the `,` rules decline (`is_on_closing_delimiter` of the syntax slice), and the parent container adds the entry. The caret thus leaves a nested container with `Right`, past its closing delimiter.
 - **An entry is retyped through its value.** A retype of the pair would lose the key. `_json_replaceable` holds the rule.
 - **The sort and the move back to the key have no key.** Tab and the printable keys already have a meaning in an entry. The command palette reaches the two rules by name.
@@ -146,7 +146,7 @@ Each document also has a `selection` field, which `@document` adds. It holds a `
 
 ## Limits
 
-- No projection reads `collapsed`. The field exists on `JsonArray`, `JsonObject` and `JsonObjectEntry`, but `JsonToSyntax` does not give it to the `SyntaxNode`, so a value set to `true` still prints expanded. `plan/pending/collapse-expand-syntax-nodes.md` holds the open step.
+- No projection reads `collapsed`. The field exists on `JsonArray`, `JsonObject` and `JsonObjectEntry`, but `JsonToSyntax` does not give it to the `SyntaxNode`, so a value set to `true` still prints expanded. [plan/pending/collapse-expand-syntax-nodes.md](../../../plan/pending/collapse-expand-syntax-nodes.md) holds the open step.
 - `,` appends at the end of the container, not after the selected element.
 - The parser is not a conformance parser. An unknown escape gives the escaped character.
 - An integer that does not fit in an `Int` becomes a `Float64`. A number prints with `string`, so `1e3` prints as `1000.0`.

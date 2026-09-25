@@ -110,13 +110,13 @@ It registers no file type and no natural row. `@domain Text` makes the placehold
 
 ## Design decisions
 
-- **The caret is a flat offset.** A caret anchored to a span has two names at a span boundary, one for each direction of travel; a flat offset has one. See `plan/done/text-range-reference-flat-cursor.md`.
+- **The caret is a flat offset.** A caret anchored to a span has two names at a span boundary, one for each direction of travel; a flat offset has one. See [plan/done/text-range-reference-flat-cursor.md](../../../plan/done/text-range-reference-flat-cursor.md).
 - **A box selection and a caret are two step types.** They hold the same data, but a motion key moves a caret and does not move a box. One type for both would make a selected element act as an editable caret.
 - **The reader is split by what it reads.** What needs only the spans is a `@gestures` table on `TextBlock`, and the gesture help lists that same table. What needs pixels stays in `TextToGraphics`. See [projection-system.md](../kernel/projection-system.md).
 - **A key without a rule goes on.** The gesture table matches modifiers exactly, so a key that it does not bind gets `nothing` with no extra rule that returns it.
-- **A line is a document, not a span with a `'\n'`.** A block of lines has no empty last line, and no caret lands in the indentation. `SyntaxToText` does not make lines yet; see `plan/pending/text-domain-kit.md`.
+- **A line is a document, not a span with a `'\n'`.** A block of lines has no empty last line, and no caret lands in the indentation. `SyntaxToText` does not make lines yet; see [plan/pending/text-domain-kit.md](../../../plan/pending/text-domain-kit.md).
 - **Wrapping is a separate stage.** `TextToGraphics` only places spans, and `WordWrapping` before it changes the spans. A view without wrapping leaves the stage out.
-- **Text has its own package.** It is not in one package with graphics and the backends. See `plan/done/extract-graphics-text-packages.md`.
+- **Text has its own package.** It is not in one package with graphics and the backends. See [plan/done/extract-graphics-text-packages.md](../../../plan/done/extract-graphics-text-packages.md).
 
 ## Usage
 
@@ -141,5 +141,5 @@ projection = ChainingProjection(WordWrapping(measure = measure_truetype_text),
 - An edit over a range that crosses two spans does nothing.
 - `TextColumnReferenceStep` has no gesture that makes it.
 - No code in `source/` or `example/` uses `TextFirstLine`.
-- In `text` and `text_with_image`, a walk with Left does not reach the start of the text. It also takes a different number of steps than a walk with Right. `formula` and `markdown_rendered` have the same fault. `NAV_LEFT_WALK_STALLS` in `test/projectured/editor/ExampleSweeps.jl` marks the four as broken; see `plan/pending/left-motion-stalls-on-introduced-text.md`.
-- `run_example` with `text_filtering = true` or `text_highlighting = true` replaces the whole projection of the example. See `plan/pending/fix-text-configuring-run-example.md` and `plan/pending/text-projection-config-into-document.md`.
+- In `text` and `text_with_image`, a walk with Left does not reach the start of the text. It also takes a different number of steps than a walk with Right. `formula` and `markdown_rendered` have the same fault. `NAV_LEFT_WALK_STALLS` in `test/projectured/editor/ExampleSweeps.jl` marks the four as broken; see [plan/pending/left-motion-stalls-on-introduced-text.md](../../../plan/pending/left-motion-stalls-on-introduced-text.md).
+- `run_example` with `text_filtering = true` or `text_highlighting = true` replaces the whole projection of the example. See [plan/pending/fix-text-configuring-run-example.md](../../../plan/pending/fix-text-configuring-run-example.md) and [plan/pending/text-projection-config-into-document.md](../../../plan/pending/text-projection-config-into-document.md).

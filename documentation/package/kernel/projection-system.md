@@ -73,7 +73,7 @@ recurses via `recursion` ([§ Recursion across projections](#recursion-across-pr
 and the reader and both mappers recurse via the stored child IoMaps
 ([§ Mapping references when the printer recurses](#mapping-references-when-the-printer-recurses)).
 Every projection in the tree honours it, including `SyntaxCompoundToText` and
-`SyntaxListToText`. See `plan/done/syntaxtotext-delegation.md` for a worked
+`SyntaxListToText`. See [plan/done/syntaxtotext-delegation.md](../../../plan/done/syntaxtotext-delegation.md) for a worked
 before/after example of this contract.
 
 ## The four functions

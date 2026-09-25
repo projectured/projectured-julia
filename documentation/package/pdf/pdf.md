@@ -54,12 +54,12 @@ The writer itself, `PdfWriter`, is a small PDF 1.7 writer: it numbers the object
 
 ## Design decisions
 
-- **Vector, not raster.** A PDF of a document must stay sharp at any zoom, and its text must be selectable. An image of the page embedded in a PDF was left as an option and not built. See `plan/done/write-pdf.md`.
+- **Vector, not raster.** A PDF of a document must stay sharp at any zoom, and its text must be selectable. An image of the page embedded in a PDF was left as an option and not built. See [plan/done/write-pdf.md](../../../plan/done/write-pdf.md).
 - **No new dependency.** Cairo was rejected: it adds a large native library, and it selects a font by a fontconfig name, not by the file path that `StyleFont` holds. A compression library was rejected too, so the streams stay uncompressed.
 - **Composite fonts with `Identity-H`.** A simple PDF font covers only 256 characters, and the editor uses more.
 - **The whole font file is embedded.** The editor uses a few fonts, and each file is embedded once. Subsetting would make the file smaller and was left for later.
 - **The page size comes from the same bounds as `write_image`.** `get_canvas_content_bounds` is in `ProjecturedGraphics`, so both exports use one walk.
-- **Pages cut one layout into bands.** The layout runs once at the page width, and pagination does not lay out each page again. See `plan/done/pdf-pagination.md`.
+- **Pages cut one layout into bands.** The layout runs once at the page width, and pagination does not lay out each page again. See [plan/done/pdf-pagination.md](../../../plan/done/pdf-pagination.md).
 
 ## Usage
 

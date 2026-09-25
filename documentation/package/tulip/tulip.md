@@ -24,7 +24,7 @@ If the solve is not optimal, has no feasible point, or raises an error, the solv
 
 ## Design decisions
 
-- **A linear program, not a port of Cassowary.** No maintained Julia binding of Cassowary or kiwi exists. Tulip is pure Julia, so it adds no native library, and MathOptInterface keeps the cost of each small solve low. See `plan/done/constraint-layout.md`.
+- **A linear program, not a port of Cassowary.** No maintained Julia binding of Cassowary or kiwi exists. Tulip is pure Julia, so it adds no native library, and MathOptInterface keeps the cost of each small solve low. See [plan/done/constraint-layout.md](../../../plan/done/constraint-layout.md).
 - **One weighted solve, not a solve for each strength.** The weights are far apart, and the plan found this enough for layout.
 - **The optimizer is a field.** `optimizer = HiGHS.Optimizer` changes the solver in one line; the package does not depend on HiGHS.
 - **The solver is opt-in.** `ProjecturedLayout` keeps no dependency on a solver.

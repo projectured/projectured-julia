@@ -409,7 +409,7 @@ good template if you need to dump every reachable cell of a tree.
 ## Generating all screenshots
 
 To regenerate every example screenshot in `image/` and re-inject the image
-references into the guides and `README.md`:
+references into the guides and [README.md](../../README.md):
 
 ```julia
 julia> using ProjecturedExample

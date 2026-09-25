@@ -56,10 +56,10 @@ Its `__init__` registers the natural notation (format `:jl`, extension `.jl`, pa
 
 ## Design decisions
 
-- **The parser of Julia itself.** A hand-written grammar would drift from the language. `Meta.parseall` is in Base, so it adds no dependency. See `plan/done/julia-parser.md`.
-- **One document type for one `Expr` shape.** The document can not keep a difference that the `Expr` tree does not keep. See `plan/done/julia-basic-language-support.md`.
-- **Type-in is a gesture table on the document.** The insertion leaf has no reader of its own, as `@gestures PrimitiveString` does for a string. See `plan/done/julia-typein-operations.md`.
-- **Every rule is a template.** A set of hand-written reference maps was tried, and it left the structural tokens without a caret. The template rules give every token a caret. See `plan/pending/julia-syntax-navigation.md`.
+- **The parser of Julia itself.** A hand-written grammar would drift from the language. `Meta.parseall` is in Base, so it adds no dependency. See [plan/done/julia-parser.md](../../../plan/done/julia-parser.md).
+- **One document type for one `Expr` shape.** The document can not keep a difference that the `Expr` tree does not keep. See [plan/done/julia-basic-language-support.md](../../../plan/done/julia-basic-language-support.md).
+- **Type-in is a gesture table on the document.** The insertion leaf has no reader of its own, as `@gestures PrimitiveString` does for a string. See [plan/done/julia-typein-operations.md](../../../plan/done/julia-typein-operations.md).
+- **Every rule is a template.** A set of hand-written reference maps was tried, and it left the structural tokens without a caret. The template rules give every token a caret. See [plan/pending/julia-syntax-navigation.md](../../../plan/pending/julia-syntax-navigation.md).
 
 ## Usage
 
@@ -76,5 +76,5 @@ run_example("julia")
 
 ## Limits
 
-- A caret does not go into the characters of a leaf. `test_position_navigation(julia_example; check_reaches_all = true)` has 28 failures for this reason. `plan/pending/julia-syntax-navigation.md` tracks it.
+- A caret does not go into the characters of a leaf. `test_position_navigation(julia_example; check_reaches_all = true)` has 28 failures for this reason. [plan/pending/julia-syntax-navigation.md](../../../plan/pending/julia-syntax-navigation.md) tracks it.
 - A formula evaluates only a subset of the Julia types; see [formula.md](../formula/formula.md).

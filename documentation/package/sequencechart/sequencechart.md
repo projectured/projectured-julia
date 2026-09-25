@@ -101,8 +101,8 @@ It has no `__init__` and registers nothing. A caller builds the chain, or adds `
 
 ## Design decisions
 
-- **A strict boundary with the domains upstream.** The chart holds lanes, events, arrows, bands, kinds and a timeline. A feature that needs to know what a trace means goes upstream and must be expressible without a change to this domain. See `plan/done/sequence-chart-domain.md`.
-- **The timeline mapping is a choice.** A proportional axis can not show a microsecond and ten seconds on one screen. See `plan/done/sequence-chart-domain.md`.
+- **A strict boundary with the domains upstream.** The chart holds lanes, events, arrows, bands, kinds and a timeline. A feature that needs to know what a trace means goes upstream and must be expressible without a change to this domain. See [plan/done/sequence-chart-domain.md](../../../plan/done/sequence-chart-domain.md).
+- **The timeline mapping is a choice.** A proportional axis can not show a microsecond and ten seconds on one screen. See [plan/done/sequence-chart-domain.md](../../../plan/done/sequence-chart-domain.md).
 - **The window names an occurrence, not a time.** Inside a zero-time burst, a pair of times can not name a sub-window.
 - **Columnar tables.** A hundred thousand occurrences do not become a hundred thousand cells. A row is a reference step, not a child.
 - **Identity order and display order are separate.** A reorder of the lanes writes `axis_order` and leaves the event table alone.
@@ -133,6 +133,6 @@ projection = ChainingProjection(SequenceChartToSequenceChartPlot(),
 
 ## Limits
 
-- Not built: call and return brackets with activation regions, transmission-duration parallelograms, a legend of the kinds, labels that avoid each other, and a rubber-band zoom. The brackets and the parallelograms need more anchor columns on the arrow table. `plan/done/sequence-chart-domain.md` lists them as deferred.
+- Not built: call and return brackets with activation regions, transmission-duration parallelograms, a legend of the kinds, labels that avoid each other, and a rubber-band zoom. The brackets and the parallelograms need more anchor columns on the arrow table. [plan/done/sequence-chart-domain.md](../../../plan/done/sequence-chart-domain.md) lists them as deferred.
 - `SequenceChartPlot.drag_anchor` and `drag_rect` are fields that no reader writes.
 - An arrow drawn as two stubs shows no angle, and a long arrow label can cover another one.

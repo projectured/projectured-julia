@@ -78,7 +78,7 @@ It registers nothing at load time. The methods in the table above are what conne
 - **A cell for each element, not one cell for the vector.** A write to one element must reach only the readers of that element.
 - **A structural change assigns the same vector again.** The container cell then fires without a copy of the vector.
 - **The storage depends on the cell kind.** A cell for each element of a vector that never changes costs memory and time. A branch on the storage at run time made the reactive read about two times slower, so each method dispatches on the kind.
-- **The collection logic is in the collection types.** A document holds its children in a collection field, and a caller indexes that field: `node.children[i]`. The collection wraps a plain value in a cell, so no document writes its own `push!` or `getindex`. See `plan/done/fold-collection-methods.md`. A domain can still give a node the vector methods of its field with `@forward_vector_protocol` of the kernel; JSON, YAML, Markdown and RST do.
+- **The collection logic is in the collection types.** A document holds its children in a collection field, and a caller indexes that field: `node.children[i]`. The collection wraps a plain value in a cell, so no document writes its own `push!` or `getindex`. See [plan/done/fold-collection-methods.md](../../../plan/done/fold-collection-methods.md). A domain can still give a node the vector methods of its field with `@forward_vector_protocol` of the kernel; JSON, YAML, Markdown and RST do.
 - **The list is symmetric.** Both tails can be computed, so a reader walks either way from the held node and no end is the start.
 
 ## Usage

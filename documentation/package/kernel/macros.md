@@ -464,7 +464,7 @@ its own beyond the injected `selection` (e.g. `JsonNull`) is the exception: `Foo
 has to come from somewhere, so it gets the generated keyword constructor too. Why
 `Base.@kwdef` cannot simply be stacked on these macros (macro-ordering and the
 dueling inner constructors), and why the defaults must be stripped out of the
-struct body, is spelled out in `plan/done/macro-default-field-values.md`.
+struct body, is spelled out in [plan/done/macro-default-field-values.md](../../../plan/done/macro-default-field-values.md).
 
 ## When to declare a field as `::Cell` vs. let the macro wrap it
 

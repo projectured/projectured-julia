@@ -71,11 +71,11 @@ The router roots the operation of a child under `children[i]` and adds the type 
 
 ## Design decisions
 
-- **The cells are the layout cache.** A layout adds no cache of its own on top of the reactive engine. See `plan/done/layout-documents.md`.
-- **The container sets the size of a child.** A `SizePolicy` states a relation between a container and a child, so it is on the layout. See `plan/done/widget-layout.md` and [layout-rules.md](../../rule/layout-rules.md).
-- **A container that bounds a child clips it.** On the axis of the offer the slot clips the child; on the other axis the child sets the size. `clip_child_to_slot` holds the rule. See `plan/done/widget-sizing-rules.md`.
-- **An annotation does not move what it annotates.** The anchored layout never feeds its children back into the layout of the content. See `plan/done/anchored-layout.md`.
-- **The solver is a separate package.** Tulip through MathOptInterface solves the relations as goal programming with a slack variable for each relation, weighted by its strength. No maintained Julia binding of Cassowary exists, and Tulip is pure Julia. The core layout package keeps no solver dependency. See `plan/done/constraint-layout.md`.
+- **The cells are the layout cache.** A layout adds no cache of its own on top of the reactive engine. See [plan/done/layout-documents.md](../../../plan/done/layout-documents.md).
+- **The container sets the size of a child.** A `SizePolicy` states a relation between a container and a child, so it is on the layout. See [plan/done/widget-layout.md](../../../plan/done/widget-layout.md) and [layout-rules.md](../../rule/layout-rules.md).
+- **A container that bounds a child clips it.** On the axis of the offer the slot clips the child; on the other axis the child sets the size. `clip_child_to_slot` holds the rule. See [plan/done/widget-sizing-rules.md](../../../plan/done/widget-sizing-rules.md).
+- **An annotation does not move what it annotates.** The anchored layout never feeds its children back into the layout of the content. See [plan/done/anchored-layout.md](../../../plan/done/anchored-layout.md).
+- **The solver is a separate package.** Tulip through MathOptInterface solves the relations as goal programming with a slack variable for each relation, weighted by its strength. No maintained Julia binding of Cassowary exists, and Tulip is pure Julia. The core layout package keeps no solver dependency. See [plan/done/constraint-layout.md](../../../plan/done/constraint-layout.md).
 
 ## Usage
 
@@ -97,4 +97,4 @@ projection = RecursiveProjection(LayoutToGraphics())
 - A `ConstraintLayout` with the default solver ignores its relations. Pass `ConstraintLayoutToGraphicsCanvas(solver = TulipConstraintSolver())` to solve them.
 - The anchored layout maps no reference back: its `map_reference_backward` returns `nothing`.
 - `StackLayout.active` is a field for the caller. The printer draws every child.
-- The widget and table projections still place their parts with their own arithmetic instead of these layouts. `plan/tentative/layout-extensions.md` lists this.
+- The widget and table projections still place their parts with their own arithmetic instead of these layouts. [plan/tentative/layout-extensions.md](../../../plan/tentative/layout-extensions.md) lists this.

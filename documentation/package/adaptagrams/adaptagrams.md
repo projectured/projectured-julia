@@ -62,12 +62,12 @@ Its `__init__` calls `register_layout_engine!((; orthogonal) -> AdaptagramsLayou
 
 ## Design decisions
 
-- **A separate package for the native dependency.** No other package needs Adaptagrams to load or to draw a graph. See `plan/done/graph-domain.md`.
+- **A separate package for the native dependency.** No other package needs Adaptagrams to load or to draw a graph. See [plan/done/graph-domain.md](../../../plan/done/graph-domain.md).
 - **A fixed shim path and a check at each call.** A generated `deps.jl` would put a stale path into the precompile image.
 - **A missing shim gives the pure-Julia engine and a warning.** A fresh checkout has no shim, and an error on each layout would stop every drawing of a graph. The layout records the engine that ran, so the substitution is visible.
 - **The edge length and the margin grow with the box size.** A fixed length puts large card nodes almost on top of each other and hides the edges between them.
 - **A pin is applied after the native run.** Pins in libcola need a wider C interface.
-- **The registration writes a factory from `__init__`.** A second method of the choice function would be a fatal overwrite during precompilation. See `plan/done/graph-layout-engines.md`.
+- **The registration writes a factory from `__init__`.** A second method of the choice function would be a fatal overwrite during precompilation. See [plan/done/graph-layout-engines.md](../../../plan/done/graph-layout-engines.md).
 
 ## Usage
 

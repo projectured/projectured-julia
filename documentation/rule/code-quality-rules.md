@@ -19,7 +19,7 @@ about a document, [writing-rules.md](writing-rules.md) is.
 | What the code must do | [architecture-invariants.md](architecture-invariants.md) |
 | The words for the divisions and the pipeline | [division-terminology.md](division-terminology.md) |
 
-`naming.md` is the authority on every name. This document starts where a name
+[naming-rules.md](naming-rules.md) is the authority on every name. This document starts where a name
 ends.
 
 ## 1. The shape of a file
@@ -200,7 +200,7 @@ template gives the reader and keeps the pair in step. A hand-written pair needs
 a reason.
 
 **Use the macros.** `@document`, `@projection`, `@iomap`, and `@reference_case`
-declare a schema once. `naming.md` states that none of the coded prefixes is
+declare a schema once. [naming-rules.md](naming-rules.md) states that none of the coded prefixes is
 ever hand-rolled.
 
 **A sealed file is frozen.** [`SEALING.md`](../../SEALING.md) holds the list. A quality fix is not a

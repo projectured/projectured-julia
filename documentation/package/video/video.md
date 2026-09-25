@@ -53,8 +53,8 @@ The loop over the entries does not yield, so a task that a gesture started, such
 
 ## Design decisions
 
-- **A package for one dependency.** `ProjecturedVideo` is the only package that loads FFMPEG, so a user of the editor and of `write_image` does not load it. See `plan/done/extract-video-package.md`.
-- **Video time, not wall-clock time.** The video is the same on every run, and the rendering can be slower or faster than real time. See `plan/done/headless-video-recording.md`.
+- **A package for one dependency.** `ProjecturedVideo` is the only package that loads FFMPEG, so a user of the editor and of `write_image` does not load it. See [plan/done/extract-video-package.md](../../../plan/done/extract-video-package.md).
+- **Video time, not wall-clock time.** The video is the same on every run, and the rendering can be slower or faster than real time. See [plan/done/headless-video-recording.md](../../../plan/done/headless-video-recording.md).
 - **Print once, render each frame.** The reactive cells bring each change into the kept canvas, and no frame allocates a new tree.
 - **The offscreen renderer of SDL.** A frame looks like a screenshot from `write_image`, and no second rasterizer exists.
 - **A failure raises an error.** A caller gets an error and not a partial video.

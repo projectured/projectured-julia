@@ -57,7 +57,7 @@ The package registers nothing. It adds methods to the three open functions of th
 
 ## Design decisions
 
-- **The sync is bounded, not the projection.** A lazy projection leaves the whole sync in place and then discards its result. A bounded sync costs what is on the screen. See `plan/done/bounded-document-sync.md`.
+- **The sync is bounded, not the projection.** A lazy projection leaves the whole sync in place and then discards its result. A bounded sync costs what is on the screen. See [plan/done/bounded-document-sync.md](../../../plan/done/bounded-document-sync.md).
 - **One walk, in the kernel.** A second, bounded walk in this package would repeat the kernel walk line for line and would need internals of the kernel, which the module boundary forbids. See [bounded-sync.md](bounded-sync.md#where-the-walk-lives).
 - **The open state is the marker.** A side table of open nodes can disagree with the shadow; a marker can not.
 - **A collapse is immediate, and an expand is a request.** A click does not start a deep walk, and a close only drops data.

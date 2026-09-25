@@ -80,12 +80,12 @@ The package registers the natural row `:assistant`, `Assistant => AssistantToWid
 
 ## Design decisions
 
-- **A person names the backend, and a local model is the default.** Nothing guesses a backend, because a guess is right only while one backend exists. See `plan/done/ollama-backend.md`.
+- **A person names the backend, and a local model is the default.** Nothing guesses a backend, because a guess is right only while one backend exists. See [plan/done/ollama-backend.md](../../../plan/done/ollama-backend.md).
 - **The backend is built at each turn.** A document is built into a constant during precompilation, when no key exists, and a cached backend would keep the first model after a person changed `model`. The reasons are in the docstring of `Assistant` and in the comment on `_build_llm`.
-- **The conversation is the one source of the prompt.** `messages` is a function, and not a list that the loop keeps, so the prompt can not differ from the transcript. See `plan/done/kernel-agent-stack.md`.
+- **The conversation is the one source of the prompt.** `messages` is a function, and not a list that the loop keeps, so the prompt can not differ from the transcript. See [plan/done/kernel-agent-stack.md](../../../plan/done/kernel-agent-stack.md).
 - **An evaluation that a person ran goes to the model as text.** A `tool_use` block would put a call into the history that the model did not make.
-- **A tool gets the editor through `evaluate_operation(editor, operation)`.** The rejected options were an `editor` field on the assistant, an ambient `Ref`, task-local storage and a late-bound handler. See `plan/done/assistant-editor-reference.md`.
-- **A resource read starts folded, and an evaluation starts open.** A read is lookup work of the model and less important than the answer. See `plan/done/assistant-collapse-layout.md`.
+- **A tool gets the editor through `evaluate_operation(editor, operation)`.** The rejected options were an `editor` field on the assistant, an ambient `Ref`, task-local storage and a late-bound handler. See [plan/done/assistant-editor-reference.md](../../../plan/done/assistant-editor-reference.md).
+- **A resource read starts folded, and an evaluation starts open.** A read is lookup work of the model and less important than the answer. See [plan/done/assistant-collapse-layout.md](../../../plan/done/assistant-collapse-layout.md).
 
 ## Usage
 
@@ -106,6 +106,6 @@ run_assistant_example(; backend = :ollama)                   # the example with 
 - No view draws `status`. A person sees a running turn only by the parts that arrive.
 - `input`, `SubmitProseOperation`, `SubmitJuliaOperation`, `ClearInputOperation` and `ResetConversationOperation` are exported, but no printer shows `input` and no reader makes these operations. Only the tests call two of them. `SubmitProseOperation` does nothing while a turn streams, as Return does.
 - The natural row gives a pane tab a widget and not graphics. A host that shows an assistant in a tab chains `AssistantToWidgetSplitPane` to `NaturalToGraphics` with the rows of the conversation, as `make_application_content_projections` in `example/projectured/Application.jl` does.
-- The draft has no frame, no focus ring and no hint line. Stage 4 of `plan/pending/conversation-flat-transcript.md` puts them on this pane, and they are not done.
-- `DEFAULT_ASSISTANT_SYSTEM` is written for Claude and is long. A small local model can follow it less well, and `plan/done/ollama-backend.md` keeps this as an open question.
+- The draft has no frame, no focus ring and no hint line. Stage 4 of [plan/pending/conversation-flat-transcript.md](../../../plan/pending/conversation-flat-transcript.md) puts them on this pane, and they are not done.
+- `DEFAULT_ASSISTANT_SYSTEM` is written for Claude and is long. A small local model can follow it less well, and [plan/done/ollama-backend.md](../../../plan/done/ollama-backend.md) keeps this as an open question.
 - No test is marked `@test_broken`.

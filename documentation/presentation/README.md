@@ -54,7 +54,7 @@ Slides are separated by `---`. To add one, append a new block:
 <span class="muted">relevant/source/path.jl</span>
 ```
 
-Conventions used in `projectured-overview.md`, reusable as you grow it:
+Conventions used in [projectured-overview.md](projectured-overview.md), reusable as you grow it:
 
 - A centered **section divider** slide before a topic uses `<!-- _class: lead -->`.
 - `<span class="tag">…</span>` — a pill caption under the heading.

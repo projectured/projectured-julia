@@ -96,7 +96,7 @@ Two constructors cover the name insertions. `DocumentInsertionToSyntaxLeaf()` re
 
 **A typed key on the placeholder runs the create gesture of the document type.** The text stage turns the key into an insert on the label, which arrives as a `ReplaceStringRangeOperation`. The reader gives it back to `read_gesture` on the placeholder as a `KeyPress`. So `{` on "empty json" makes a `JsonObject`, from any caret and without a whole-element selection first. A key with no create rule does nothing, and a delete does nothing. The Insert key goes through the fallback to the placeholder table and opens the insertion buffer.
 
-`SyntaxNothing` does not exist. `SyntaxInsertion` is declared, but no projection prints it and no code makes one; see `plan/pending/simplest-syntax-document.md`.
+`SyntaxNothing` does not exist. `SyntaxInsertion` is declared, but no projection prints it and no code makes one; see [plan/pending/simplest-syntax-document.md](../../../plan/pending/simplest-syntax-document.md).
 
 ### The bridges
 
@@ -115,11 +115,11 @@ Its `__init__` calls `register_syntax_fallback!()`. That registers the reflectio
 
 ## Design decisions
 
-- **A compound prints only its own level.** A printer that walks the whole subtree prints every node again for one edit and loses the identity of each child output. The splice keeps the output of an unchanged child. See `plan/done/syntaxtotext-delegation.md`.
+- **A compound prints only its own level.** A printer that walks the whole subtree prints every node again for one edit and loses the identity of each child output. The splice keeps the output of an unchanged child. See [plan/done/syntaxtotext-delegation.md](../../../plan/done/syntaxtotext-delegation.md).
 - **The depth adds up level by level.** An indenting ancestor widens the indentation spans that its children report, which gives the same width as `depth * indent_size`. No compound needs its absolute depth.
 - **The printer records where each span went.** With optional delimiters no position identifies the opening or the closing span, so `own_spans` holds the field of each one.
-- **The contract is five functions, not one type with five fields.** A wrapper adds one thing to any document and is a real level of the tree. `SyntaxConcatenation` and `SyntaxSeparation` can not get a delimiter by accident. See `plan/pending/simplest-syntax-document.md`, whose first two phases are done.
-- **Content is positional and chrome is a keyword.** `SyntaxLeaf(value; open, close)` and `SyntaxNode(children; open, close, sep)` put the content first. See `plan/done/syntax-constructor-keywords.md`.
+- **The contract is five functions, not one type with five fields.** A wrapper adds one thing to any document and is a real level of the tree. `SyntaxConcatenation` and `SyntaxSeparation` can not get a delimiter by accident. See [plan/pending/simplest-syntax-document.md](../../../plan/pending/simplest-syntax-document.md), whose first two phases are done.
+- **Content is positional and chrome is a keyword.** `SyntaxLeaf(value; open, close)` and `SyntaxNode(children; open, close, sep)` put the content first. See [plan/done/syntax-constructor-keywords.md](../../../plan/done/syntax-constructor-keywords.md).
 - **A placeholder key is a create gesture, not a text edit.** The label is a prompt, so a typed key goes to the document table and not into the label.
 - **Completion is reflection.** No list of names exists; a new document type is a candidate as soon as Julia evaluates its `struct`.
 
@@ -145,6 +145,6 @@ A path into a leaf is `.open{k}`, `.value{k}` or `.close{k}`. A path into a comp
 
 - `SyntaxLeaf` has `indentation` and `collapsed` fields, but the compound contract is not defined for a leaf and `SyntaxLeafToText` reads neither.
 - A `@projection_template` node with a fixed list of children must use the positional seven-argument `SyntaxNode` form. The keyword form stores a `CellVector`, and the template engine then does not find the markers inside it.
-- JSON and XML do not pass `collapsed` to their nodes, so their containers do not fold. See `plan/pending/collapse-expand-syntax-nodes.md`.
-- A selection of a range of siblings, such as `.children[2..4]`, does not exist. See `plan/pending/syntax-tree-selection.md`.
-- `SyntaxToText` makes no `TextLine` and keeps its own indentation spans. See `plan/pending/text-domain-kit.md`.
+- JSON and XML do not pass `collapsed` to their nodes, so their containers do not fold. See [plan/pending/collapse-expand-syntax-nodes.md](../../../plan/pending/collapse-expand-syntax-nodes.md).
+- A selection of a range of siblings, such as `.children[2..4]`, does not exist. See [plan/pending/syntax-tree-selection.md](../../../plan/pending/syntax-tree-selection.md).
+- `SyntaxToText` makes no `TextLine` and keeps its own indentation spans. See [plan/pending/text-domain-kit.md](../../../plan/pending/text-domain-kit.md).

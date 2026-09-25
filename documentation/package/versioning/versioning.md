@@ -65,7 +65,7 @@ It registers nothing at load time; the two keys belong to the projection.
 
 ## Design decisions
 
-- **Versions are values in the document, not a log of operations.** A version can then be inspected, printed, edited, copied, saved and versioned again with the machinery that exists. A log that replays inverse operations can not express a branch or a version of one subtree. The undo buffer is that other model, and the two exist side by side. See `plan/pending/object-versioning.md`.
+- **Versions are values in the document, not a log of operations.** A version can then be inspected, printed, edited, copied, saved and versioned again with the machinery that exists. A log that replays inverse operations can not express a branch or a version of one subtree. The undo buffer is that other model, and the two exist side by side. See [plan/pending/object-versioning.md](../../../plan/pending/object-versioning.md).
 - **Two levels, not two parallel arrays.** A `values` array beside a `metadata` array falls out of step on an insert or a delete. The properties of a version could then not be selected as one document. `ObjectVersion` keeps the value and its properties together.
 - **The criterion is a type with subtypes.** A new way to select is a new subtype, with no `if` chain in the projection.
 - **Wrapping turns versioning on.** The projection matches only `VersionedObject`, so no global switch exists.
@@ -89,7 +89,7 @@ projection = TypeDispatchingProjection(VersionedObject => VersioningToAnyProject
 
 ## Limits
 
-- No view shows all versions of an object at once, to browse or compare them. It is step 5 of `plan/pending/object-versioning.md` and is open.
+- No view shows all versions of an object at once, to browse or compare them. It is step 5 of [plan/pending/object-versioning.md](../../../plan/pending/object-versioning.md) and is open.
 - An edit always changes the selected version. To edit another version, you change the criterion first.
 - No key changes the criterion. `SetVersionCriterionOperation` comes from code.
 - A new version goes to the front, so `VersionCriterionIndex(i)` then selects a different version than before.

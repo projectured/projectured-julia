@@ -26,7 +26,7 @@ The library of the MCP server installs a logger of its own when its server start
 
 ## Design decisions
 
-- **No task writes a document cell except the editor task.** A write from the logging task raced the frame. The store is the only shared state, and the drain is the only writer. See `plan/done/the-editor-waits-for-events.md` and the invariant `PAR-STORE-THEN-DRAIN`.
+- **No task writes a document cell except the editor task.** A write from the logging task raced the frame. The store is the only shared state, and the drain is the only writer. See [plan/done/the-editor-waits-for-events.md](../../../plan/done/the-editor-waits-for-events.md) and the invariant `PAR-STORE-THEN-DRAIN`.
 - **A lost line is reported, not hidden.** The warning entry shows that the ring was full.
 - **One log for the session.** A second log document would never fill, because the one capture writes the one store.
 

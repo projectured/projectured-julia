@@ -56,7 +56,7 @@ A build is incremental by default: it compiles on top of the image of the runnin
 
 ## Design decisions
 
-- **The core names no program.** A downstream program reuses it with a `BuildContext` and a build function of its own. See `plan/done/application-and-build.md`.
+- **The core names no program.** A downstream program reuses it with a `BuildContext` and a build function of its own. See [plan/done/application-and-build.md](../../../plan/done/application-and-build.md).
 - **The app package is written, not committed.** What a binary holds is a choice of the build, and a `Project.toml` written once can not hold a choice.
 - **`main` is an expression.** A syntax error stops the build function at once, not a compile of several minutes.
 - **A build value is a preference.** A change then compiles again, and a stale image can not keep an old value.

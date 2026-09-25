@@ -56,11 +56,11 @@ Each package depends on the kernel, `HTTP` and `JSON3`. The third-party dependen
 
 ## Design decisions
 
-- **A backend registers by a method of `make_llm`.** No dictionary must stay in step, and nothing runs at load time. `make_agent_server` for the MCP server has the same shape. See `plan/done/ollama-backend.md`.
-- **The provider name marks the adapter.** The kernel keeps the neutral names `Llm` and `LlmModule`, and each adapter package carries the name of its provider. See `plan/done/ollama-backend.md`.
+- **A backend registers by a method of `make_llm`.** No dictionary must stay in step, and nothing runs at load time. `make_agent_server` for the MCP server has the same shape. See [plan/done/ollama-backend.md](../../../plan/done/ollama-backend.md).
+- **The provider name marks the adapter.** The kernel keeps the neutral names `Llm` and `LlmModule`, and each adapter package carries the name of its provider. See [plan/done/ollama-backend.md](../../../plan/done/ollama-backend.md).
 - **A backend takes the three keywords and uses the ones that apply to it.** A caller can then build a backend with no provider in mind. Each adapter says in its docstring which keyword it ignores.
-- **The Ollama adapter reads the capabilities of the model, and the Anthropic adapter uses the model name.** Ollama answers HTTP 400 to the whole request when a model that can not reason gets a request to reason. So a guess from the name could stop the turn. See `plan/done/ollama-backend.md`.
-- **The meaning model is a keyword of `OllamaLlm`, and not a fourth keyword of the seam.** It belongs to one provider. See `plan/done/three-kinds-of-search.md`.
+- **The Ollama adapter reads the capabilities of the model, and the Anthropic adapter uses the model name.** Ollama answers HTTP 400 to the whole request when a model that can not reason gets a request to reason. So a guess from the name could stop the turn. See [plan/done/ollama-backend.md](../../../plan/done/ollama-backend.md).
+- **The meaning model is a keyword of `OllamaLlm`, and not a fourth keyword of the seam.** It belongs to one provider. See [plan/done/three-kinds-of-search.md](../../../plan/done/three-kinds-of-search.md).
 - **The Anthropic default model is read once in a process.** The list changes when Anthropic releases a model, not during a session, so a request for each turn gives nothing.
 
 ## Usage

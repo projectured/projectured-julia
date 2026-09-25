@@ -121,8 +121,8 @@ Its `__init__` makes four calls:
 ## Design decisions
 
 - **The tree is the structure only.** One tree serves a text line to save and a typeset picture, and neither projection owns the model.
-- **The printer is the grammar of the reader.** `test_math_parser()` checks that every formula of the corpus prints, reads and prints the same line. See `plan/pending/math-linear-form-reader.md`.
-- **The domain sets its own boxes.** An IO map that publishes a baseline is the one thing a formula needs that the generic layouts do not have. See `plan/done/math-formula-layout.md`.
+- **The printer is the grammar of the reader.** `test_math_parser()` checks that every formula of the corpus prints, reads and prints the same line. See [plan/pending/math-linear-form-reader.md](../../../plan/pending/math-linear-form-reader.md).
+- **The domain sets its own boxes.** An IO map that publishes a baseline is the one thing a formula needs that the generic layouts do not have. See [plan/done/math-formula-layout.md](../../../plan/done/math-formula-layout.md).
 - **A selection in two dimensions is a whole node.** A caret has no position in a fraction, so the keys move between nodes and build around the selected node.
 - **A delimiter is tiled, not scaled.** The radical has no extension pieces in DejaVu, so its sign stops at 2.2 times the base size. A real math font is the fix, not a wider glyph.
 
@@ -143,5 +143,5 @@ boxes = MathToGraphics(measure = measure_truetype_text)
 ## Limits
 
 - **`math_display_example` is not in the `examples` registry.** `test_typein` types a character at every rendered caret, and a two-dimensional formula has none, so every position would report a failure. Run it with `run_example(math_display_example)`.
-- **No key types a symbol.** `\lambda` needs a text buffer that lives across keystrokes, which is an insertion type of its own. Step 5 of `plan/pending/math-linear-form-reader.md`, type-in of the linear form, is open.
+- **No key types a symbol.** `\lambda` needs a text buffer that lives across keystrokes, which is an insertion type of its own. Step 5 of [plan/pending/math-linear-form-reader.md](../../../plan/pending/math-linear-form-reader.md), type-in of the linear form, is open.
 - **The radical sign stops growing at 2.2 times the base size.** Past that, the bar continues above a sign that does not follow it.

@@ -134,13 +134,13 @@ It has no `__init__` and registers nothing: no natural row, no file type, no par
 
 ## Design decisions
 
-- **A tree, not a list of nodes and edges.** The flowchart comes from the nesting, so a copy needs no table of aliases, and the domain has no identity references. See `plan/done/process-domain.md`.
-- **The same fields as the Julia control flow.** Realization is then a walk from node to node. See `plan/done/process-domain.md`.
+- **A tree, not a list of nodes and edges.** The flowchart comes from the nesting, so a copy needs no table of aliases, and the domain has no identity references. See [plan/done/process-domain.md](../../../plan/done/process-domain.md).
+- **The same fields as the Julia control flow.** Realization is then a walk from node to node. See [plan/done/process-domain.md](../../../plan/done/process-domain.md).
 - **An unrefined node realizes to an error.** A process that skipped its unwritten steps would not do what it shows.
 - **A probe is one statement, never a rewrite.** The debugger must not change what the program does, and a test compares the two.
 - **One bridge, from the refresh hook.** One writer of cells means no locks, at the cost of one refresh of latency.
 - **Breakpoints are nodes in the session, not fields of a step.** A breakpoint is debug state, not content, and a node survives an edit that renumbers the tree.
-- **Not modeled on purpose.** Waiting is the job of `fsm`. There is no fork and no join: one token runs to the end. A call of another process is a step with a Julia call, because a `ProcessCall` node would bring back identity references. See `plan/done/process-domain.md`.
+- **Not modeled on purpose.** Waiting is the job of `fsm`. There is no fork and no join: one token runs to the end. A call of another process is a step with a Julia call, because a `ProcessCall` node would bring back identity references. See [plan/done/process-domain.md](../../../plan/done/process-domain.md).
 
 ## Usage
 
@@ -162,7 +162,7 @@ sync_process_debug!(session, handle.trace, model)      # from the refresh hook
 
 ## Limits
 
-- No gesture writes `session.command` or toggles a breakpoint. `toggle_breakpoint!`, the command cell and the bridge work and have tests, but a caller must call them in code. `plan/done/process-domain.md` defers the gestures to the work on the editor surface.
+- No gesture writes `session.command` or toggles a breakpoint. `toggle_breakpoint!`, the command cell and the bridge work and have tests, but a caller must call them in code. [plan/done/process-domain.md](../../../plan/done/process-domain.md) defers the gestures to the work on the editor surface.
 - A selection lights a box only when it names the node exactly. A caret inside the action of a step does not light its box. An edge is not clickable.
 - The flowchart does not always read from top to bottom. A layout computed from the tree, with a sequence as a column, a decision that opens two columns and the back edge of a loop in a margin lane, would give that. It is an idea, and no plan holds it yet.
 - No screenshot of a process example exists.

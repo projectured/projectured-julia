@@ -109,11 +109,11 @@ The document under the pointer gives its tooltip and its context menu. `compute_
 
 ## Design decisions
 
-- **The order of the wrappers is fixed by what each one reads.** The reasons are in [the fold](#the-fold). See `plan/done/both-binaries-offer-one-interface.md`.
-- **The chrome is a document.** A shell inside a printer could not be selected, saved or reached by a verb. See `plan/done/both-binaries-offer-one-interface.md`.
-- **The shell takes the available size of its parent.** The rejected alternative was a shell that gives its content no available size when it has no authored `size`. That shell draws the panes only as wide as their content, and draws no status bar. See `plan/done/the-shell-fills-its-window.md`, and [layout-rules.md](../../rule/layout-rules.md), which names the shell.
-- **A press reaches a tool, and never opens a second one.** One rejected option was a press that always opens a new tab: three presses give three message logs with the same lines. The other was a second press that closes the tool, which loses the conversation of an assistant. See `plan/done/the-toolbar-opens-the-tools.md`.
-- **The shell names the tools.** The rejected options were a button that each tool slice registers in its `__init__`, and a table in `Application.jl`. A slice can not have the setup of the window, such as the backend of the assistant or the folder of the explorer, and a second window host can not reach a table in the application. The cost is six more dependencies. See `plan/done/the-toolbar-opens-the-tools.md`.
+- **The order of the wrappers is fixed by what each one reads.** The reasons are in [the fold](#the-fold). See [plan/done/both-binaries-offer-one-interface.md](../../../plan/done/both-binaries-offer-one-interface.md).
+- **The chrome is a document.** A shell inside a printer could not be selected, saved or reached by a verb. See [plan/done/both-binaries-offer-one-interface.md](../../../plan/done/both-binaries-offer-one-interface.md).
+- **The shell takes the available size of its parent.** The rejected alternative was a shell that gives its content no available size when it has no authored `size`. That shell draws the panes only as wide as their content, and draws no status bar. See [plan/done/the-shell-fills-its-window.md](../../../plan/done/the-shell-fills-its-window.md), and [layout-rules.md](../../rule/layout-rules.md), which names the shell.
+- **A press reaches a tool, and never opens a second one.** One rejected option was a press that always opens a new tab: three presses give three message logs with the same lines. The other was a second press that closes the tool, which loses the conversation of an assistant. See [plan/done/the-toolbar-opens-the-tools.md](../../../plan/done/the-toolbar-opens-the-tools.md).
+- **The shell names the tools.** The rejected options were a button that each tool slice registers in its `__init__`, and a table in `Application.jl`. A slice can not have the setup of the window, such as the backend of the assistant or the folder of the explorer, and a second window host can not reach a table in the application. The cost is six more dependencies. See [plan/done/the-toolbar-opens-the-tools.md](../../../plan/done/the-toolbar-opens-the-tools.md).
 - **The gesture log is always recorded.** The tab that shows it must hold what happened before it opened.
 
 ## Usage

@@ -44,10 +44,10 @@ The size of text on the screen comes from two separate settings:
 
 ## Design decisions
 
-- **One colour type from the domain to the backend.** `GraphicsRect` and the other primitives take a `StyleColor`, not four bytes. The three backends each need a different byte format, so a byte form cached in the document would be wrong for two of them. See `plan/done/graphics-stylecolor-and-coordinate-normalization.md`.
-- **Font and colour travel as one `StyleText`.** A projection has one style field for each kind of text, not a font field and a colour field. A theme can then name a style: body, title, caption. See `plan/done/merge-style-text.md`.
-- **Logical pixels everywhere.** Layout works in logical pixels, and only the backend multiplies by the display scale. So a layout does not change when the window moves to another display. See `plan/done/global-display-scale.md`.
-- **A default cell kind for the whole struct.** `@document ImmutableCell` sets the kind of every field at once. See `plan/done/struct-level-default-kind-and-style-documents.md`.
+- **One colour type from the domain to the backend.** `GraphicsRect` and the other primitives take a `StyleColor`, not four bytes. The three backends each need a different byte format, so a byte form cached in the document would be wrong for two of them. See [plan/done/graphics-stylecolor-and-coordinate-normalization.md](../../../plan/done/graphics-stylecolor-and-coordinate-normalization.md).
+- **Font and colour travel as one `StyleText`.** A projection has one style field for each kind of text, not a font field and a colour field. A theme can then name a style: body, title, caption. See [plan/done/merge-style-text.md](../../../plan/done/merge-style-text.md).
+- **Logical pixels everywhere.** Layout works in logical pixels, and only the backend multiplies by the display scale. So a layout does not change when the window moves to another display. See [plan/done/global-display-scale.md](../../../plan/done/global-display-scale.md).
+- **A default cell kind for the whole struct.** `@document ImmutableCell` sets the kind of every field at once. See [plan/done/struct-level-default-kind-and-style-documents.md](../../../plan/done/struct-level-default-kind-and-style-documents.md).
 
 ## Usage
 

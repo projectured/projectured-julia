@@ -40,16 +40,16 @@ Each line names the plan that carries it.
 
 | What | How far |
 | --- | --- |
-| Select any widget and paste it into a tab (`select-a-widget-and-paste-it-into-a-tab.md`) | twelve steps of thirteen |
-| Character type-in in every domain (`live-example-construction.md`, `simplest-syntax-document.md`) | JSON, YAML and XML rebuild from an empty document; SQL, Julia, text and graph do not |
-| XML parity with the reference reader (`xml-to-syntax-lisp-parity.md`) | five phases of six |
-| Excel-style formulas (`excel-julia-formulas.md`) | the formulas compute; the operations and the host embedding are open |
-| A version history view (`object-versioning.md`) | the overlay works; the history view is open |
-| Every document type in the catalogue (`catalog-all-documents.md`) | three workstreams of four, with fourteen faults marked in the catalogue |
-| Cheaper reactive cells (`cheap-reactive-cells.md`) | four phases of five |
-| The template engine behind the printers (`projection-template-engine.md`) | XML and Julia are converted, math in part, two domains not at all |
-| A faster start (`faster-executable-startup.md`) | one tier of five |
-| The suite to green (`test-suite-green.md`) | eight items of fourteen |
+| Select any widget and paste it into a tab ([select-a-widget-and-paste-it-into-a-tab.md](../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md)) | twelve steps of thirteen |
+| Character type-in in every domain ([live-example-construction.md](../../plan/pending/live-example-construction.md), [simplest-syntax-document.md](../../plan/pending/simplest-syntax-document.md)) | JSON, YAML and XML rebuild from an empty document; SQL, Julia, text and graph do not |
+| XML parity with the reference reader ([xml-to-syntax-lisp-parity.md](../../plan/pending/xml-to-syntax-lisp-parity.md)) | five phases of six |
+| Excel-style formulas ([excel-julia-formulas.md](../../plan/pending/excel-julia-formulas.md)) | the formulas compute; the operations and the host embedding are open |
+| A version history view ([object-versioning.md](../../plan/pending/object-versioning.md)) | the overlay works; the history view is open |
+| Every document type in the catalogue ([catalog-all-documents.md](../../plan/pending/catalog-all-documents.md)) | three workstreams of four, with fourteen faults marked in the catalogue |
+| Cheaper reactive cells ([cheap-reactive-cells.md](../../plan/pending/cheap-reactive-cells.md)) | four phases of five |
+| The template engine behind the printers ([projection-template-engine.md](../../plan/pending/projection-template-engine.md)) | XML and Julia are converted, math in part, two domains not at all |
+| A faster start ([faster-executable-startup.md](../../plan/pending/faster-executable-startup.md)) | one tier of five |
+| The suite to green ([test-suite-green.md](../../plan/pending/test-suite-green.md)) | eight items of fourteen |
 
 ## Next
 
@@ -57,13 +57,13 @@ Each line names the plan that carries it.
 
 - **Editable tables.** A table renders and navigates; a cell does not take an edit.
 - **A click that selects in every view.** A click works where a projection wires it, and elsewhere it does nothing.
-- **Links between documents** (`document-link-feature.md`, `document-locator.md`). A reference from one document to another does not exist yet.
-- **Richer SQL** (`bound-sql-statement.md`, `sql-select-aggregation-support.md`, `dbcatalog-index-support.md`).
+- **Links between documents** ([document-link-feature.md](../../plan/pending/document-link-feature.md), [document-locator.md](../../plan/pending/document-locator.md)). A reference from one document to another does not exist yet.
+- **Richer SQL** ([bound-sql-statement.md](../../plan/pending/bound-sql-statement.md), [sql-select-aggregation-support.md](../../plan/pending/sql-select-aggregation-support.md), [dbcatalog-index-support.md](../../plan/pending/dbcatalog-index-support.md)).
 
 **A developer sees these.**
 
-- Another backend (`cairo-glfw-backend.md`), a parallel projection (`parallel-projection.md`), an animation timeline (`chase-animation.md`).
-- A configuration view for the projections (`configuration-overlay-widget.md`).
+- Another backend ([cairo-glfw-backend.md](../../plan/pending/cairo-glfw-backend.md)), a parallel projection ([parallel-projection.md](../../plan/pending/parallel-projection.md)), an animation timeline ([chase-animation.md](../../plan/pending/chase-animation.md)).
+- A configuration view for the projections ([configuration-overlay-widget.md](../../plan/pending/configuration-overlay-widget.md)).
 
 **Further out.** Live collaboration between two people, a plugin loaded into a running editor, an annotation domain over any document, and ProjecturEd editing its own source.
 

@@ -87,7 +87,7 @@ Every document starts with one block-quote line under its title:
 **A slide deck is exempt.** A file under `presentation/` that Marp renders is a
 rendered artifact, not a reference page: its first lines are YAML front matter,
 and a block-quote placed after them appears as text on the first slide. The
-folder's own `README.md` carries the header and says what each deck is.
+folder's own [README.md](presentation/README.md) carries the header and says what each deck is.
 
 **Kind** is one of:
 

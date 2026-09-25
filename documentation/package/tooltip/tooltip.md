@@ -33,7 +33,7 @@ Both mechanisms make ordinary window operations. `WindowManagingProjection` adds
 
 ## Design decisions
 
-- **A tooltip is a window.** A tooltip can extend past the edge of the window it describes, and it needs no drawing layer inside the window. See the invariant `PAR-MANY-WINDOWS` and `plan/done/tooltip.md`.
+- **A tooltip is a window.** A tooltip can extend past the edge of the window it describes, and it needs no drawing layer inside the window. See the invariant `PAR-MANY-WINDOWS` and [plan/done/tooltip.md](../../../plan/done/tooltip.md).
 - **The document computes its tooltip.** The probe needs no wrapper around each node, so every document can have a tooltip without a change of its tree. The wrapper is the older mechanism, and it stays for a tooltip with its own trigger.
 - **The state is on the projection.** The open window and the last document are not data of the document, as for a drag.
 
@@ -57,4 +57,4 @@ run_window_editor(document, probe, "Title"; backend = backend, feeds = Feed[feed
 ## Limits
 
 - The default `position` of the wrapper is a fixed rectangle at the corner. A caller must give a position function.
-- `plan/pending/tooltip.md` lists the open steps of the wrapper: the window flags of the `:tooltip` style in the SDL backend, and more examples and tests.
+- [plan/pending/tooltip.md](../../../plan/pending/tooltip.md) lists the open steps of the wrapper: the window flags of the `:tooltip` style in the SDL backend, and more examples and tests.

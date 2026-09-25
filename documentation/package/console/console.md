@@ -82,7 +82,7 @@ Structural navigation works: the arrows move between nodes once a whole element 
 
 ## Design decisions
 
-- **The pipeline stops at the text domain.** The spans of `SyntaxToText` are already the flat sequence that a terminal needs. See `plan/done/console-backend.md`.
+- **The pipeline stops at the text domain.** The spans of `SyntaxToText` are already the flat sequence that a terminal needs. See [plan/done/console-backend.md](../../../plan/done/console-backend.md).
 - **The colours are kept.** Every span carries its colours, and the backend writes them as SGR codes.
 - **The selection is in the colours.** `SelectionInverting` paints it, so the backend has no code for it.
 - **A wrong pipeline raises an error.** The error names the step to drop, so a wrong pipeline does not print a wrong picture.

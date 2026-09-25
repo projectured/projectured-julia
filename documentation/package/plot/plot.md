@@ -35,7 +35,7 @@ The package registers nothing.
 
 - **A framework below two domains.** The chart and the sequence chart both need the arithmetic, so neither of them owns it. [domain-inventory.md](../../design/domain-inventory.md#what-is-not-a-domain-package) states the rule: two domains that need the same thing make a framework.
 - **Pure functions, no cells.** The functions stay testable without an editor, and a caller keeps a result in a computed cell of its own. `layout_graph` of [graph.md](../graph/graph.md) has the same split.
-- **The decimation is exact.** `decimate_minmax` draws the same pixels as the full series. A chart is then correct at every zoom, and the cost depends on the width of the plot and not on the length of the data. See `plan/done/chart-domain.md`.
+- **The decimation is exact.** `decimate_minmax` draws the same pixels as the full series. A chart is then correct at every zoom, and the cost depends on the width of the plot and not on the length of the data. See [plan/done/chart-domain.md](../../../plan/done/chart-domain.md).
 
 ## Usage
 

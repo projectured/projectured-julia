@@ -39,7 +39,7 @@ Four higher-order projections live in other packages, because each one needs a p
 
 ## Design decisions
 
-- **The framework is in the kernel, and the algebra is a package.** The kernel holds machinery and interfaces only, and no concrete projection. See `plan/done/projections-kernel-to-base.md`.
+- **The framework is in the kernel, and the algebra is a package.** The kernel holds machinery and interfaces only, and no concrete projection. See [plan/done/projections-kernel-to-base.md](../../../plan/done/projections-kernel-to-base.md).
 - **Compose, do not add a combinator.** `ApplyAtProjection` is a combination of four projections, not a new type. A new need is first tried as a combination.
 
 ## Usage
@@ -58,4 +58,4 @@ choice = SwitchingProjection([JsonToSyntax(), XmlToSyntax()], Cell(1))
 
 ## Limits
 
-- `plan/pending/parallel-projection.md` describes a `ParallelProjection`. It does not exist.
+- [plan/pending/parallel-projection.md](../../../plan/pending/parallel-projection.md) describes a `ParallelProjection`. It does not exist.

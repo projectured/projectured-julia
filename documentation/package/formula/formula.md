@@ -49,13 +49,13 @@ Its `__init__` registers `FormulaFormula` and `FormulaEnvironment` as `.pred` ty
 
 ## Design decisions
 
-The decisions are in `plan/pending/excel-julia-formulas.md`, whose first phases are done.
+The decisions are in [plan/pending/excel-julia-formulas.md](../../../plan/pending/excel-julia-formulas.md), whose first phases are done.
 
 - **The code language is Julia.** The domain reuses the parser, the printer and the editing of the Julia domain. The only new leaf is the reference.
 - **A reference points by identity and shows by name.** A rename needs no pass over the other formulas.
-- **The scope is a document.** A `FormulaEnvironment` is a value, not a global registry. So two sheets can exist at the same time, and a sheet has a view. The link design of `plan/pending/document-link-feature.md` uses a global registry; the formula design does not.
+- **The scope is a document.** A `FormulaEnvironment` is a value, not a global registry. So two sheets can exist at the same time, and a sheet has a view. The link design of [plan/pending/document-link-feature.md](../../../plan/pending/document-link-feature.md) uses a global registry; the formula design does not.
 - **An error is a value.** A spreadsheet shows `#ERROR!` in the cell. A reactive cell that raises would stop every view that reads it.
-- **Math notation is a second way to write code.** `plan/pending/formula-with-math-code.md` holds its design. The list of math nodes with no value is a fixed limit, not a gap.
+- **Math notation is a second way to write code.** [plan/pending/formula-with-math-code.md](../../../plan/pending/formula-with-math-code.md) holds its design. The list of math nodes with no value is a fixed limit, not a gap.
 
 ## Usage
 

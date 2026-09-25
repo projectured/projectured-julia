@@ -185,14 +185,14 @@ The `__init__` registers `WidgetShell` as a `.pred` type. The widgets register n
 
 ## Design decisions
 
-- **A key goes only where the selection is.** A default child or a broadcast gives a key to a widget that the person did not choose. See `plan/done/widget-focus-traversal.md`.
-- **One theme for every widget.** A widget with its own colors can not follow a change of the palette. See `plan/done/widget-shadcn-styling.md`.
-- **A popup is a real window.** An overlay layer inside the window was rejected. The close of a popup is a focus event of its window, which the window manager already sends for the tooltip. See `plan/done/widget-popup-overlay.md`.
-- **A drag of a divider keeps its state in the document.** The size of a slot is data that must survive the next print. See `plan/done/split-pane-drag-resize.md`.
-- **An instance can have its own gestures.** `WidgetButton`, `WidgetCheckbox`, `WidgetSwitch`, `WidgetMenuItem`, `WidgetToolbarItem`, `WidgetTree` and `WidgetTreeNode` have a `gestures` field. `read_bound_gesture` reads it before the table of the type, so one instance can add, replace or remove a gesture with no new widget type. See `plan/done/widget-per-instance-gestures.md`.
-- **The tracker detects the crossing; the widget sets its state.** A new widget reacts to hover with no change of the tracker. See `plan/done/widget-button-hover-press-feedback.md`.
-- **One pane for scroll and zoom.** A zoom viewport inside a scroll viewport clips at a fixed box, and its clip conflicts with the pan of the outer one. See `plan/done/widget-transform-pane.md`.
-- **One table widget, eager or lazy.** A second, lazy table widget and a separate table domain would each repeat the placement of the grid. See `plan/done/one-table-widget.md` and `plan/done/converge-table-on-widgettable.md`.
+- **A key goes only where the selection is.** A default child or a broadcast gives a key to a widget that the person did not choose. See [plan/done/widget-focus-traversal.md](../../../plan/done/widget-focus-traversal.md).
+- **One theme for every widget.** A widget with its own colors can not follow a change of the palette. See [plan/done/widget-shadcn-styling.md](../../../plan/done/widget-shadcn-styling.md).
+- **A popup is a real window.** An overlay layer inside the window was rejected. The close of a popup is a focus event of its window, which the window manager already sends for the tooltip. See [plan/done/widget-popup-overlay.md](../../../plan/done/widget-popup-overlay.md).
+- **A drag of a divider keeps its state in the document.** The size of a slot is data that must survive the next print. See [plan/done/split-pane-drag-resize.md](../../../plan/done/split-pane-drag-resize.md).
+- **An instance can have its own gestures.** `WidgetButton`, `WidgetCheckbox`, `WidgetSwitch`, `WidgetMenuItem`, `WidgetToolbarItem`, `WidgetTree` and `WidgetTreeNode` have a `gestures` field. `read_bound_gesture` reads it before the table of the type, so one instance can add, replace or remove a gesture with no new widget type. See [plan/done/widget-per-instance-gestures.md](../../../plan/done/widget-per-instance-gestures.md).
+- **The tracker detects the crossing; the widget sets its state.** A new widget reacts to hover with no change of the tracker. See [plan/done/widget-button-hover-press-feedback.md](../../../plan/done/widget-button-hover-press-feedback.md).
+- **One pane for scroll and zoom.** A zoom viewport inside a scroll viewport clips at a fixed box, and its clip conflicts with the pan of the outer one. See [plan/done/widget-transform-pane.md](../../../plan/done/widget-transform-pane.md).
+- **One table widget, eager or lazy.** A second, lazy table widget and a separate table domain would each repeat the placement of the grid. See [plan/done/one-table-widget.md](../../../plan/done/one-table-widget.md) and [plan/done/converge-table-on-widgettable.md](../../../plan/done/converge-table-on-widgettable.md).
 
 ## Usage
 
@@ -220,4 +220,4 @@ write_example_image(widget_tree_example, "tree.png")
 - A path whose last step is a range writes a vector value as a splice. So an `ObjectField` whose value is a vector can not be replaced as one value.
 - The backends draw only the translation and the scale of a transform. Rotation and shear are dropped.
 - The scrim of a `WidgetDialog` fills the window of the dialog, not the screen. `ScreenDocument` has no size of the screen to center against.
-- `ProjectionConfiguringProjection` has a fixed Ctrl+F and a split pane. `plan/pending/configuration-overlay-widget.md` replaces them with an overlay and is not started. Its test has one `@test_broken`: a key does not reach the only control of the bar, because nothing selects it first.
+- `ProjectionConfiguringProjection` has a fixed Ctrl+F and a split pane. [plan/pending/configuration-overlay-widget.md](../../../plan/pending/configuration-overlay-widget.md) replaces them with an overlay and is not started. Its test has one `@test_broken`: a key does not reach the only control of the bar, because nothing selects it first.

@@ -99,7 +99,7 @@ Its `__init__` makes four calls:
 
 ## Design decisions
 
-- **The document is a tree of sections.** A section can then be moved as a unit and named by its title. The adornment stays in the document, so a save keeps the convention of the file. See `plan/done/rst-domain.md`.
+- **The document is a tree of sections.** A section can then be moved as a unit and named by its title. The adornment stays in the document, so a save keeps the convention of the file. See [plan/done/rst-domain.md](../../../plan/done/rst-domain.md).
 - **A directive is typed only where the rendered view reads its fields.** The alternative is a search of the option list by name on each read. The generic `RstDirective` holds the rest.
 - **The indent is written into the text.** The `indentation` field of a compound costs one pipeline level, and RST needs the three-space body indent that `.. ` has.
 - **An opaque body is not splice-editable.** An editable body would need offsets that account for the indent of each line; the domain keeps the offsets of `bound` exact instead.
@@ -125,7 +125,7 @@ print_natural_text(doc)                     # the RST source
 
 ### The round-trip criterion is AST idempotence
 
-`parse_rst(print_natural_text(parse_rst(text)))` must equal `parse_rst(text)`. Byte equality is not required and is not reached: a paragraph is joined onto one line, an adornment is drawn again at the width of the title, and a directive body is indented to three spaces. What must hold is that a read of a saved file gives back the document that it came from. `plan/done/rst-domain.md` records that every file of the documentation tree that the domain was built for meets this criterion.
+`parse_rst(print_natural_text(parse_rst(text)))` must equal `parse_rst(text)`. Byte equality is not required and is not reached: a paragraph is joined onto one line, an adornment is drawn again at the width of the title, and a directive body is indented to three spaces. What must hold is that a read of a saved file gives back the document that it came from. [plan/done/rst-domain.md](../../../plan/done/rst-domain.md) records that every file of the documentation tree that the domain was built for meets this criterion.
 
 ## Limits
 

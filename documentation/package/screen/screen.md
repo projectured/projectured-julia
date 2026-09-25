@@ -50,10 +50,10 @@ The projection changes only the input screen. `ScreenToScreen` then updates the 
 
 ## Design decisions
 
-- **A window is a document.** The generic projections work on the window list, and only the window-specific parts are written by hand. See `plan/done/multiple-windows.md`.
-- **The window model is not in the kernel.** The kernel keeps the screen device, which is an input and output channel. The document of windows is drawing, so it is a package above graphics. See `plan/done/kernel-layered-architecture.md`.
-- **A resize writes cells.** The size cells are the available size of the content, so the write is the layout. See `plan/done/window-resize-relayout.md`.
-- **A popup is a real window, not a layer inside a window.** An overlay layer was the first design and was dropped. See `plan/done/widget-popup-overlay.md`.
+- **A window is a document.** The generic projections work on the window list, and only the window-specific parts are written by hand. See [plan/done/multiple-windows.md](../../../plan/done/multiple-windows.md).
+- **The window model is not in the kernel.** The kernel keeps the screen device, which is an input and output channel. The document of windows is drawing, so it is a package above graphics. See [plan/done/kernel-layered-architecture.md](../../../plan/done/kernel-layered-architecture.md).
+- **A resize writes cells.** The size cells are the available size of the content, so the write is the layout. See [plan/done/window-resize-relayout.md](../../../plan/done/window-resize-relayout.md).
+- **A popup is a real window, not a layer inside a window.** An overlay layer was the first design and was dropped. See [plan/done/widget-popup-overlay.md](../../../plan/done/widget-popup-overlay.md).
 - **Modality is routing.** A modal window stops input by the window id, so no widget needs a modal check.
 
 ## Usage

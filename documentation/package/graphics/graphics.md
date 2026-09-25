@@ -82,7 +82,7 @@ It registers nothing and has no `__init__`.
 
 ## Design decisions
 
-- **A colour is a `StyleColor`, not four bytes.** SDL, PDF and the web backend each need a different device encoding, so each backend converts at draw time. A converted cache in the document would fit only one of them. See `plan/done/graphics-stylecolor-and-coordinate-normalization.md`.
+- **A colour is a `StyleColor`, not four bytes.** SDL, PDF and the web backend each need a different device encoding, so each backend converts at draw time. A converted cache in the document would fit only one of them. See [plan/done/graphics-stylecolor-and-coordinate-normalization.md](../../../plan/done/graphics-stylecolor-and-coordinate-normalization.md).
 - **Every coordinate is `Int32`.** The canvas uses the same type as the primitives. The same plan holds the change.
 - **The measure is an argument.** The package and `TextToGraphics` above it then need neither SDL nor a PDF library, and a test measures with `measure_truetype_text`.
 - **A fence is an element, not a flag.** No primitive needs an extra field, and the renderer and the hit test skip it with one `isa` check.

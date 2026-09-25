@@ -48,7 +48,7 @@ Nothing depends on `ProjecturedRepl`, and nothing may load after it. The session
 
 ## Design decisions
 
-- **The level is a preference.** A change then builds the image again. See `plan/done/recorded-precompile-workload.md`.
+- **The level is a preference.** A change then builds the image again. See [plan/done/recorded-precompile-workload.md](../../../plan/done/recorded-precompile-workload.md).
 - **The default replays a recording.** A workload compiles only what somebody wrote down to run, and nobody wrote a read. A recording compiles what an editor that is driven had to compile.
 - **A statement resolves in a module of this package.** `StatementScope` holds the bindings. A binding in the module of a dependency would be one build that writes into the image of another package.
 - **A stale statement is skipped, not an error.** The list stays usable while the code moves, and the skip count is the signal to record again.

@@ -102,13 +102,13 @@ NaturalToGraphics(measure = measure_truetype_text,
 
 ## Design decisions
 
-- **Every visual property is a typed field.** The tool that the chart follows keeps its properties in a bag of strings. Here each one is a field of a document, so a selection and the inspector edit it. See `plan/done/chart-domain.md`.
-- **The presentation state is on `ChartPlot`.** A saved chart has no view state, and two views of one chart zoom apart. `GraphLayout` makes the same split. See `plan/done/chart-domain.md`.
-- **One cell for each column, not for each sample.** A cell for each of a million samples costs memory and gives no place for a caret. See `plan/done/chart-domain.md`.
-- **A sample is a reference step, not a child.** The selection reaches one sample and no sample needs a cell. See `plan/done/chart-polygon-and-point-selection.md`.
+- **Every visual property is a typed field.** The tool that the chart follows keeps its properties in a bag of strings. Here each one is a field of a document, so a selection and the inspector edit it. See [plan/done/chart-domain.md](../../../plan/done/chart-domain.md).
+- **The presentation state is on `ChartPlot`.** A saved chart has no view state, and two views of one chart zoom apart. `GraphLayout` makes the same split. See [plan/done/chart-domain.md](../../../plan/done/chart-domain.md).
+- **One cell for each column, not for each sample.** A cell for each of a million samples costs memory and gives no place for a caret. See [plan/done/chart-domain.md](../../../plan/done/chart-domain.md).
+- **A sample is a reference step, not a child.** The selection reaches one sample and no sample needs a cell. See [plan/done/chart-polygon-and-point-selection.md](../../../plan/done/chart-polygon-and-point-selection.md).
 - **The keyboard stops at the parts.** The navigation sweeps of the tests walk every reachable selection breadth first. Samples on the keyboard would make the state space of a chart as large as its data. A pointer reaches a sample.
-- **Strips are rows in one plot, and the y axis names them.** A `ChartCategoryAxis` on y would change the whole numeric path of the y axis for what a tick-label mode already says. See `plan/done/chart-colored-strips.md`.
-- **The colour cycle is indexed by the code.** The tool that the chart follows indexes its colour map by position, so a sparse enumeration such as `A=1, C=5` takes the last colour. Here a code indexes the cycle directly. See `plan/done/chart-colored-strips.md`.
+- **Strips are rows in one plot, and the y axis names them.** A `ChartCategoryAxis` on y would change the whole numeric path of the y axis for what a tick-label mode already says. See [plan/done/chart-colored-strips.md](../../../plan/done/chart-colored-strips.md).
+- **The colour cycle is indexed by the code.** The tool that the chart follows indexes its colour map by position, so a sparse enumeration such as `A=1, C=5` takes the last colour. Here a code indexes the cycle directly. See [plan/done/chart-colored-strips.md](../../../plan/done/chart-colored-strips.md).
 
 ## Usage
 

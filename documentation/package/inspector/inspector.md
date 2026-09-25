@@ -55,7 +55,7 @@ Both documents have a title, "Reference" and "Selection", and an insertion name,
 
 ## Design decisions
 
-- **The panel shows what a click would select, not the selection.** A person sees the reference before the click, and the probe does not change the document or its selection. See `plan/done/hover-click-reference-inspector.md`.
+- **The panel shows what a click would select, not the selection.** A person sees the reference before the click, and the probe does not change the document or its selection. See [plan/done/hover-click-reference-inspector.md](../../../plan/done/hover-click-reference-inspector.md).
 - **Two forms, one rendering.** `ReferenceInspectorToText` prints both forms, and `SelectionInspectorToText` only chooses the reference. So a change of the words of a step is made in one place.
 - **A source can be a function.** The view then follows any selection with no cell of its own. The cost is that the function is not saved; a view that must follow a document after a load takes the document form.
 - **The probe is a window.** The panel can extend past the window that it describes, as a tooltip does. See [tooltip.md](../tooltip/tooltip.md).

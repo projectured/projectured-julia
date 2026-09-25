@@ -58,9 +58,9 @@ The package registers nothing: no natural row, no `.pred` type and no insertion 
 
 ## Design decisions
 
-- **The lists are projections over the live chain.** A list written by hand goes stale when a projection changes. The rows come from the same gesture tables that fire, so what a list shows is what a key does. See `plan/done/reified-gesture-bindings.md`.
+- **The lists are projections over the live chain.** A list written by hand goes stale when a projection changes. The rows come from the same gesture tables that fire, so what a list shows is what a key does. See [plan/done/reified-gesture-bindings.md](../../../plan/done/reified-gesture-bindings.md).
 - **Applicability is the built operation.** A row runs when its rule built an operation. No predicate exists that could disagree with the rule.
-- **The palette is an overlay in the chain of the window, not a window.** `ScreenToScreen` roots every operation that leaves a window under `windows[i].content`. An operation from a palette window would carry the path of the palette window and apply in the wrong place. See `plan/done/command-palette.md`.
+- **The palette is an overlay in the chain of the window, not a window.** `ScreenToScreen` roots every operation that leaves a window under `windows[i].content`. An operation from a palette window would carry the path of the palette window and apply in the wrong place. See [plan/done/command-palette.md](../../../plan/done/command-palette.md).
 - **The help map is a snapshot.** The rows are built once, when F1 is pressed. A map that follows the selection was left for later; press F1 twice to see the list of a new place.
 - **A query matches words, not letters.** A match of the query as a subsequence of letters was tried first. It listed almost every row: the letters of `sort` appear in order in `Select the root node`. The ranking put the right row first, but the list did not get shorter.
 - **The state is outside the projection.** A pipeline can build the decorator again for each dispatch, and only an object that the caller holds keeps the open flag.

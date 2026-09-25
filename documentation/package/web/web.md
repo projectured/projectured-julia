@@ -61,9 +61,9 @@ The socket handler decodes each JSON message and puts a `WindowInput` into the c
 
 ## Design decisions
 
-- **The server keeps everything but the paint.** The backend touches no projection and no domain: it reads the same `ScreenDocument` and writes the same events as the SDL backend. See `plan/done/web-backend.md`.
+- **The server keeps everything but the paint.** The backend touches no projection and no domain: it reads the same `ScreenDocument` and writes the same events as the SDL backend. See [plan/done/web-backend.md](../../../plan/done/web-backend.md).
 - **The key map is on the server.** One table maps both the SDL and the browser keys to one vocabulary, so the two can not drift.
-- **The first window is in the page.** A browser opens a window only inside a user action. A first window of its own would need a click before the editor shows anything. See `plan/done/web-main-window-in-tab.md`.
+- **The first window is in the page.** A browser opens a window only inside a user action. A first window of its own would need a click before the editor shows anything. See [plan/done/web-main-window-in-tab.md](../../../plan/done/web-main-window-in-tab.md).
 - **A window of the editor is a window of the browser.** The client does not fold a second window into the page, as on the SDL backend.
 - **The measure is SDL-free.** The server measures with the font files that the browser draws with.
 
@@ -83,4 +83,4 @@ run_example(["json", "xml"]; backend = WebBackend())       # the first in the pa
 
 - No test covers the draw list or the patches.
 - The client sends pointer motion only while a button is held. A hover effect and a tooltip, which need motion with no button, do not happen in the browser.
-- One client for each editor, and the transport is JSON in both directions. `plan/done/web-backend.md` holds both as the choices of the first version.
+- One client for each editor, and the transport is JSON in both directions. [plan/done/web-backend.md](../../../plan/done/web-backend.md) holds both as the choices of the first version.

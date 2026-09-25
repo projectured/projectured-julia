@@ -53,9 +53,9 @@ The tool `execute_julia_code` runs Julia in the process of the editor, with `edi
 
 ## Design decisions
 
-- **The editor names the server by a symbol.** The kernel reaches the server through `make_agent_server`, `start_agent_server!` and `stop_agent_server!`, and never names `McpServer`, so the protocol and its HTTP dependency stay in an opt-in package. `make_llm` has the same shape. See `plan/done/kernel-agent-stack.md`.
+- **The editor names the server by a symbol.** The kernel reaches the server through `make_agent_server`, `start_agent_server!` and `stop_agent_server!`, and never names `McpServer`, so the protocol and its HTTP dependency stay in an opt-in package. `make_llm` has the same shape. See [plan/done/kernel-agent-stack.md](../../../plan/done/kernel-agent-stack.md).
 - **One tool set serves the assistant and an external client.** Two sets would answer the same question in two ways, and a model would work in the window and fail over MCP. The cost is that each client gets the union of the tools that either one needs. See section 12 of [architecture-decisions.md](../../design/architecture-decisions.md).
-- **The fault barrier is in this package.** The handler is the one place that can both answer the client and write the fault, so the server does not depend on the library for its barrier. See `plan/done/the-editor-survives-a-fault.md`, phase 6.
+- **The fault barrier is in this package.** The handler is the one place that can both answer the client and write the fault, so the server does not depend on the library for its barrier. See [plan/done/the-editor-survives-a-fault.md](../../../plan/done/the-editor-survives-a-fault.md), phase 6.
 - **A change goes through `evaluate_operation`.** A client has no second way to change a document, so a change from a client is the same kind of change as a key press.
 - **The whole tool call runs on the editor task.** A tool is any code, `execute_julia_code` above all, so the server can not tell which call writes a document. The cost is that the editor draws no frame while a tool runs.
 

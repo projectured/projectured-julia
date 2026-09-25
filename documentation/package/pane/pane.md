@@ -207,13 +207,13 @@ A path to a node that the tree does not hold is not fully typed, and every verb 
 
 ## Design decisions
 
-- **No node stores the focus.** The selection names the focused tab, and a dormant selection keeps the tab of each group. A second field would have to agree with the selection after every edit. See `plan/done/pane-layout.md`.
-- **The surgery returns generic operations.** A pane tree then works inside any other document, and no projection above it needs a pane operation type. See `plan/done/pane-layout.md`.
+- **No node stores the focus.** The selection names the focused tab, and a dormant selection keeps the tab of each group. A second field would have to agree with the selection after every edit. See [plan/done/pane-layout.md](../../../plan/done/pane-layout.md).
+- **The surgery returns generic operations.** A pane tree then works inside any other document, and no projection above it needs a pane operation type. See [plan/done/pane-layout.md](../../../plan/done/pane-layout.md).
 - **The widget layer reports; the pane makes the edit.** A tab strip holds no data about what a close means for the document behind it. Any other owner of tabs can answer the same reports.
 - **A program writes values at references.** A layout is a document, and a reference names any part of it, so one write verb covers every level. `source/pane/PaneProgram.jl` states the rule in its header.
-- **A model sees a list of names, not whole modules.** The measured surface of 10 names against 122 is the reason. See `plan/done/declared-api-is-a-list-of-names.md`.
-- **A duplicate follows three ownership rules.** A copy that shares a running process gives two panes one process, and a copy that owns what it reads multiplies the data. See `plan/done/duplicate-a-pane.md`.
-- **A new tab is filled by a paste.** The placeholder is selected as a whole, so the paste of the clipboard package fills it. The package needs no fill operation of its own. See `plan/pending/select-a-widget-and-paste-it-into-a-tab.md`.
+- **A model sees a list of names, not whole modules.** The measured surface of 10 names against 122 is the reason. See [plan/done/declared-api-is-a-list-of-names.md](../../../plan/done/declared-api-is-a-list-of-names.md).
+- **A duplicate follows three ownership rules.** A copy that shares a running process gives two panes one process, and a copy that owns what it reads multiplies the data. See [plan/done/duplicate-a-pane.md](../../../plan/done/duplicate-a-pane.md).
+- **A new tab is filled by a paste.** The placeholder is selected as a whole, so the paste of the clipboard package fills it. The package needs no fill operation of its own. See [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md).
 
 ## Usage
 
@@ -240,5 +240,5 @@ save_user_interface(editor, "session.pred")
 ## Limits
 
 - The strip prints a title as a label, so the name changes as a person types it, but the strip draws no caret.
-- An Alt+click on the tab title of a group without the focus brings back the selection that the tab kept. The kernel revives a dormant selection on a write that ends at its keeper. The fix needs a change of a sealed kernel file. `plan/pending/select-a-widget-and-paste-it-into-a-tab.md` holds the item.
+- An Alt+click on the tab title of a group without the focus brings back the selection that the tab kept. The kernel revives a dormant selection on a write that ends at its keeper. The fix needs a change of a sealed kernel file. [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md) holds the item.
 - The geometry is proportional. It is not a model of the pixels of the drawing.

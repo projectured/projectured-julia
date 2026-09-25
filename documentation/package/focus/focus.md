@@ -61,10 +61,10 @@ The four files of `source/focus/` hold the parts above: `Focus.jl` the Tab walk 
 
 ## Design decisions
 
-- **Focus is the selection.** A second focus field would have to agree with the selection after every edit, and a key would have two places to go. See `plan/done/widget-focus-traversal.md`.
+- **Focus is the selection.** A second focus field would have to agree with the selection after every edit, and a key would have two places to go. See [plan/done/widget-focus-traversal.md](../../../plan/done/widget-focus-traversal.md).
 - **The walk names no widget type.** A domain opts in with one method, so a layout and a widget container share one walk.
 - **The focus moves on the down, and the action on the press.** A focus that rode with the action in one `CompoundOperation` would fail as a whole where a projection maps the action and not the selection, and a press on a control of such a projection would stop acting.
-- **An Alt+press selects; a plain press acts.** A plain press already has a meaning in each widget. Alt+press is the whole-element gesture of the syntax domain, and it is free in every widget. See `plan/pending/select-a-widget-and-paste-it-into-a-tab.md`, whose steps for this are done.
+- **An Alt+press selects; a plain press acts.** A plain press already has a meaning in each widget. Alt+press is the whole-element gesture of the syntax domain, and it is free in every widget. See [plan/pending/select-a-widget-and-paste-it-into-a-tab.md](../../../plan/pending/select-a-widget-and-paste-it-into-a-tab.md), whose steps for this are done.
 - **The walk guards cycles by identity, not by depth.** A depth limit stops early on a deep tree and still walks a long cycle many times. The set of visited nodes stops exactly at the cycle.
 - **A drawn widget is named by a step that holds it.** A field of the domain for each drawn widget would put view state into the data. The step reaches the widget only from its owner, so a paste can not write through it.
 

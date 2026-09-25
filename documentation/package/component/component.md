@@ -26,8 +26,8 @@ The planned place of a component is between a domain document and the widgets: a
 
 ## Design decisions
 
-- **A component is a document.** A component can then be embedded, saved and driven by cells as any other document, and a helper function that builds widgets can do none of these. See `plan/pending/component-document.md`.
-- **The master-detail view is one component, not a family of types.** Two larger designs with their own resolver and a cache of detail documents were not built. See `plan/obsolete/master-detail-document.md` and `plan/obsolete/master-detail-editable.md`.
+- **A component is a document.** A component can then be embedded, saved and driven by cells as any other document, and a helper function that builds widgets can do none of these. See [plan/pending/component-document.md](../../../plan/pending/component-document.md).
+- **The master-detail view is one component, not a family of types.** Two larger designs with their own resolver and a cache of detail documents were not built. See [plan/obsolete/master-detail-document.md](../../../plan/obsolete/master-detail-document.md) and [plan/obsolete/master-detail-editable.md](../../../plan/obsolete/master-detail-editable.md).
 
 ## Usage
 
@@ -44,4 +44,4 @@ view = ComponentModule.ComponentMasterDetail(master_document, detail_document;
 ## Limits
 
 - A `ComponentMasterDetail` can not be drawn or edited, because `ComponentToWidget` does not exist.
-- `plan/pending/component-document.md` holds the open work: `ComponentToWidget`, and a database catalog browser built on the master-detail view. It also names further components: a form, a tree inspector, a dashboard, a wizard and a searchable list.
+- [plan/pending/component-document.md](../../../plan/pending/component-document.md) holds the open work: `ComponentToWidget`, and a database catalog browser built on the master-detail view. It also names further components: a form, a tree inspector, a dashboard, a wizard and a searchable list.
