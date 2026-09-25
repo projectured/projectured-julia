@@ -83,7 +83,7 @@ function test_gesture_binding()
         @test !matches_event_pattern(p, KeyPress('x'))
         @test !matches_event_pattern(p, KeyDown(:n, ModifierKeys()))
 
-        digit = KeyPressPattern(nothing, e -> isdigit(e.char), "0-9")
+        digit = KeyPressPattern(nothing; guard = e -> isdigit(e.char), label = "0-9")
         @test matches_event_pattern(digit, KeyPress('5'))
         @test !matches_event_pattern(digit, KeyPress('z'))
     end

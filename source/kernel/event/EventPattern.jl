@@ -1,95 +1,55 @@
-# Fragment of `EventModule` — the event pattern language.
-#
-# The **event pattern language**: one surface syntax for saying "this kind of event,
-# with these field values and these modifiers held", and two ways to use it.
-#
-# - Reified — an [`EventPattern`](@ref) is *data* that answers two questions about an
-#   event: [`matches_event_pattern`](@ref)`(pattern, event)` (would this event fire it?) and
-#   [`describe_event_pattern`](@ref)`(pattern)` (how is it written for a human, e.g. `"Ctrl+."`).
-#   A pattern that can be shown is a pattern that can be listed, so whatever is
-#   matched can also be documented.
-# - Compiled — [`@event_case`](@ref) compiles a table of `pattern => result` rules to
-#   plain `isa`/field tests, first match wins, falling through to `nothing`.
-#
-# Both ride on one parser, exported here as a reusable macro-authoring API
-# ([`parse_event_pattern_rule`](@ref), [`build_event_pattern_expr`](@ref),
-# [`build_event_field_bindings`](@ref)) — the surface syntax defined in one place
-# rather than re-implemented.
-#
-# Every event type is matchable, and the field table is *derived* from the event
-# structs themselves — a new event needs no entry here, and no pattern can go stale
-# against the struct it matches.
-#
-# # Pattern syntax
-#
-# Patterns mirror the event constructors:
-#
-# - The constructor name selects the event type: any concrete `Event` — `KeyDown`,
-#   `KeyPress`, `MousePress`, `MouseScroll`, `WindowClose`, … A bare type name
-#   (`MouseScroll`) is a type-only match.
-# - Positional args match or bind the struct's **non-modifier** fields, in declared
-#   order: a literal (`:period`, `'a'`, `42`) is an equality test, a bare identifier
-#   (`k`, `x`) binds that field, `_` ignores it, and `^(expr)` (or any other
-#   expression) is compared `==` to the runtime value.
-# - Modifier flags after `;` (`ctrl`, `shift`, `alt`, `meta`) are matched **exactly**:
-#   every listed flag must be held and every unlisted flag must be absent. Omitting
-#   the `;` block leaves modifiers unconstrained, so `KeyPress(c)` still matches a
-#   shifted capital letter.
-# - `when(pattern, condition)` adds a boolean guard; bound variables are in scope in
-#   the condition.
-# - `_` on its own is the catch-all (`@event_case` only).
-#
-# Positional slots are the event struct's fields, minus `modifiers` (always given via
-# `;`, never positionally): `KeyDown(key, repeat)`, `KeyPress(char, text)`,
-# `MousePress(button, x, y, count)`, `MouseScroll(dx, dy, x, y)`, and so on.
+# Fragment of `EventModule` — the event pattern language: the reified
+# `EventPattern`, the parser of the pattern syntax, and `@event_case`. The syntax is
+# documented on `@event_case`.
 
-# ─────────────────────────────────────────────────────────────────────────
-# The event table
-#
-# Every concrete event type in `EventModule`, reflected off its exports and mapped
-# to the ordered list of fields a positional pattern argument may bind or match.
-# `modifiers` is never positional — it is written after the `;` — so it is excluded.
-#
-# Deriving rather than declaring is what keeps a pattern from going stale against
-# the struct it matches: an event type is matchable the moment the event layer
-# exports it, with the fields it actually has.
-# ─────────────────────────────────────────────────────────────────────────
-
-# The concrete event types, read off `EventModule`'s exports.
-function _concrete_event_types()
-    types = Type[]
-    for name in names(EventModule)
-        isdefined(EventModule, name) || continue
-        value = getproperty(EventModule, name)
-        value isa Type && value <: Event && isconcretetype(value) && push!(types, value)
+# The event type that `name` names: first in `scope`, the module where the pattern
+# is written, and then in `EventModule`. The result is `nothing` for a name that is
+# no concrete event type there.
+function _find_event_type(name::Symbol, scope::Module)
+    for candidate in (scope, EventModule)
+        isdefined(candidate, name) || continue
+        value = getfield(candidate, name)
+        value isa Type && value <: Event && isconcretetype(value) && return value
     end
-    types
+    nothing
 end
 
-const _EVENT_TYPES = Dict{Symbol,Tuple{Type,Vector{Symbol}}}(
-    nameof(T) => (T, Symbol[f for f in fieldnames(T) if f !== :modifiers])
-    for T in _concrete_event_types())
+# The fields of `type` that a positional pattern argument binds or matches, in the
+# declared order. `modifiers` is written after the `;`, so it is not one of them.
+_get_positional_event_fields(type::Type) =
+    Symbol[field for field in fieldnames(type) if field !== :modifiers]
 
 const _MODIFIER_FLAGS = (:ctrl, :shift, :alt, :meta)
 
-# ─────────────────────────────────────────────────────────────────────────
-# The reified pattern
-# ─────────────────────────────────────────────────────────────────────────
+# ── The reified pattern ─────────────────────────────────────────────────────
 
 """
-    EventPattern{E<:Event}(fields, modifiers, guard)
+    EventPattern{E<:Event}(fields, modifiers, guard[, label])
 
-A reified input pattern: an event type `E`, the subset of its fields that are
-*constrained* to a value (a `NamedTuple`; an absent field matches anything), the
-modifier constraint (`nothing` = unconstrained, or a `Vector{Symbol}` matched
-exactly — every listed flag held, every unlisted flag absent), an optional
-`guard(event) -> Bool` for a condition the fields cannot express, and an optional
-`label` overriding how the pattern is written for a human (a guard has no rendering
-of its own: a digits-only `KeyPress` reads better as `"0-9"` than as `"character"`).
+A pattern as data: an event type `E`, the fields that must hold a value, the
+modifiers, a guard and a label.
 
-It answers [`matches_event_pattern`](@ref) and [`describe_event_pattern`](@ref). One type covers every event:
-the per-event constructors below (`KeyDownPattern`, `MousePressPattern`, …) are
-conveniences that name the type and its first field.
+- `fields` is a `NamedTuple` of the fields that must be equal to a value. A field
+  that is not in it matches any value.
+- `modifiers` is `nothing`, which matches any modifiers, or a `Vector{Symbol}` that
+  must match exactly: every listed flag held, and every other flag not held.
+- `guard` is `nothing` or a function `event -> Bool` for a condition that the
+  fields can not state.
+- `label` is `nothing` or the text that `describe_event_pattern` returns. A guard has
+  no text of its own, so a pattern for the digits reads better as `"0-9"` than as
+  `"character"`.
+
+Use it to keep a pattern as a value: to test an event with `matches_event_pattern`,
+and to show the pattern to a person with `describe_event_pattern`.
+
+# Example
+
+    pattern = EventPattern{KeyDown}((key = :period,), [:ctrl], nothing)
+    event = KeyDown(:period, ModifierKeys(ctrl = true))
+    matches_event_pattern(pattern, event)       # true
+    describe_event_pattern(pattern)             # "Ctrl+."
+
+See also `KeyDownPattern` and the other constructors for one event type.
 """
 struct EventPattern{E<:Event}
     fields::NamedTuple
@@ -103,21 +63,28 @@ EventPattern{E}(fields, modifiers, guard) where {E<:Event} =
 """
     matches_event_pattern(pattern::EventPattern, event) -> Bool
 
-Would `event` fire `pattern`? The event must be of the pattern's type, every
-constrained field must be equal, the modifiers must match, and the guard (if any)
-must hold. An unconstrained field matches any value.
+Whether `event` matches `pattern`: the event has the type of the pattern, every field
+of the pattern is equal, the modifiers match, and the guard, if any, holds.
+
+Use it to find the pattern that an event fires, in a table of patterns.
+
+# Example
+
+    matches_event_pattern(KeyPressPattern('a'), KeyPress('a'))    # true
+
+See also `describe_event_pattern`.
 """
 function matches_event_pattern(pattern::EventPattern{E}, event) where {E}
     event isa E || return false
     for (name, value) in pairs(pattern.fields)
         getfield(event, name) == value || return false
     end
-    _mods_match(pattern.modifiers, get_modifier_keys(event)) || return false
-    return pattern.guard === nothing || pattern.guard(event)
+    _match_modifiers(pattern.modifiers, get_modifier_keys(event)) || return false
+    return pattern.guard === nothing || pattern.guard(event)::Bool
 end
 
-# Exact modifier test. `nothing` = don't care.
-function _mods_match(modifiers::Union{Vector{Symbol},Nothing}, held::ModifierKeys)
+# The exact modifier test. `nothing` matches any modifiers.
+function _match_modifiers(modifiers::Union{Vector{Symbol},Nothing}, held::ModifierKeys)
     modifiers === nothing && return true
     for flag in _MODIFIER_FLAGS
         (getfield(held, flag) === (flag in modifiers)) || return false
@@ -125,56 +92,88 @@ function _mods_match(modifiers::Union{Vector{Symbol},Nothing}, held::ModifierKey
     return true
 end
 
-# ── Per-event constructors. Each names the type and its most-constrained field;
-#    `nothing` leaves that field (and so the pattern) unconstrained.
+# The constructors for one event type. Each names the type and the field that a
+# pattern constrains most often; `nothing` for that field matches any value.
 
-_constrained(name::Symbol, value) = value === nothing ? NamedTuple() : NamedTuple{(name,)}((value,))
+_constrain_field(name::Symbol, value) =
+    value === nothing ? NamedTuple() : NamedTuple{(name,)}((value,))
 
-KeyPressPattern(char, guard = nothing, label = nothing) =
-    EventPattern{KeyPress}(_constrained(:char, char), nothing, guard, label)
+"""
+    KeyPressPattern(char; modifiers = nothing, guard = nothing, label = nothing)
+    KeyDownPattern(key; modifiers = nothing, guard = nothing, label = nothing)
+    KeyUpPattern(key; modifiers = nothing, guard = nothing, label = nothing)
+    MouseDownPattern(button; modifiers = nothing, guard = nothing, label = nothing)
+    MouseUpPattern(button; modifiers = nothing, guard = nothing, label = nothing)
+    MousePressPattern(button; modifiers = nothing, guard = nothing, label = nothing)
+    MouseMovePattern(; modifiers = nothing, guard = nothing, label = nothing)
+    MouseEnterPattern(; modifiers = nothing, guard = nothing, label = nothing)
+    MouseLeavePattern(; modifiers = nothing, guard = nothing, label = nothing)
+    MouseScrollPattern(; modifiers = nothing, guard = nothing, label = nothing)
+
+An `EventPattern` for one event type. The first argument, when there is one, is
+the value of the field that the pattern constrains; `nothing` matches any value.
+
+Use them to write a pattern without its `NamedTuple` of fields.
+
+# Example
+
+    KeyDownPattern(:period; modifiers = [:ctrl])    # Ctrl+.
+    MousePressPattern(:left)                        # a left click
+
+See also `EventPattern`.
+"""
+KeyPressPattern(char; modifiers = nothing, guard = nothing, label = nothing) =
+    EventPattern{KeyPress}(_constrain_field(:char, char), modifiers, guard, label)
 KeyDownPattern(key; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{KeyDown}(_constrained(:key, key), modifiers, guard, label)
+    EventPattern{KeyDown}(_constrain_field(:key, key), modifiers, guard, label)
 KeyUpPattern(key; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{KeyUp}(_constrained(:key, key), modifiers, guard, label)
+    EventPattern{KeyUp}(_constrain_field(:key, key), modifiers, guard, label)
 MouseDownPattern(button; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{MouseDown}(_constrained(:button, button), modifiers, guard, label)
+    EventPattern{MouseDown}(_constrain_field(:button, button), modifiers, guard, label)
 MouseUpPattern(button; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{MouseUp}(_constrained(:button, button), modifiers, guard, label)
+    EventPattern{MouseUp}(_constrain_field(:button, button), modifiers, guard, label)
 MousePressPattern(button; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{MousePress}(_constrained(:button, button), modifiers, guard, label)
-MouseMovePattern(modifiers = nothing, guard = nothing, label = nothing) =
+    EventPattern{MousePress}(_constrain_field(:button, button), modifiers, guard, label)
+MouseMovePattern(; modifiers = nothing, guard = nothing, label = nothing) =
     EventPattern{MouseMove}(NamedTuple(), modifiers, guard, label)
-MouseEnterPattern(modifiers = nothing, guard = nothing, label = nothing) =
+MouseEnterPattern(; modifiers = nothing, guard = nothing, label = nothing) =
     EventPattern{MouseEnter}(NamedTuple(), modifiers, guard, label)
-MouseLeavePattern(modifiers = nothing, guard = nothing, label = nothing) =
+MouseLeavePattern(; modifiers = nothing, guard = nothing, label = nothing) =
     EventPattern{MouseLeave}(NamedTuple(), modifiers, guard, label)
-MouseScrollPattern(modifiers = nothing, guard = nothing, label = nothing) =
+MouseScrollPattern(; modifiers = nothing, guard = nothing, label = nothing) =
     EventPattern{MouseScroll}(NamedTuple(), modifiers, guard, label)
 
-# ─────────────────────────────────────────────────────────────────────────
-# Describing a pattern
-# ─────────────────────────────────────────────────────────────────────────
+# ── The description of a pattern ────────────────────────────────────────────
 
 """
     describe_event_pattern(pattern::EventPattern) -> String
 
-How the pattern's input is written for a human — `"n"`, `"Ctrl+."`, `"Left click"`,
-`"scroll"`. The pattern's own `label` wins when it has one; otherwise it is phrased
-from the event type and the constrained fields, falling back to the type name for an
-event with no phrasing of its own.
+The input of `pattern`, written for a person: `"n"`, `"Ctrl+."`, `"Left click"`,
+`"scroll"`. The label of the pattern, when it has one, is the text. Otherwise the
+text comes from the event type, the fields and the modifiers. An event type with no
+text of its own reads as its type name in words, such as `"window resize"`.
+
+Use it to list the input that a table of patterns answers, such as on a page of
+key bindings.
+
+# Example
+
+    describe_event_pattern(KeyPressPattern('a'; modifiers = [:ctrl]))    # "Ctrl+a"
+
+See also `matches_event_pattern`.
 """
 describe_event_pattern(pattern::EventPattern{E}) where {E} =
     pattern.label === nothing ? _describe(E, pattern) : pattern.label
 
-# Human prefix for a modifier set ("Ctrl+", "Ctrl+Alt+", "").
-function _mod_prefix(modifiers::Union{Vector{Symbol},Nothing})
+# The prefix for a set of modifiers: "Ctrl+", "Ctrl+Alt+", or "".
+function _get_modifier_prefix(modifiers::Union{Vector{Symbol},Nothing})
     (modifiers === nothing || isempty(modifiers)) && return ""
     labels = Dict(:ctrl => "Ctrl", :shift => "Shift", :alt => "Alt", :meta => "Meta")
-    join((labels[f] for f in _MODIFIER_FLAGS if f in modifiers), "+") * "+"
+    join((labels[flag] for flag in _MODIFIER_FLAGS if flag in modifiers), "+") * "+"
 end
 
-_key_label(::Nothing) = "key"
-function _key_label(key::Symbol)
+_get_key_label(::Nothing) = "key"
+function _get_key_label(key::Symbol)
     special = Dict(:period => ".", :space => "Space", :tab => "Tab", :return => "Return",
                    :home => "Home", :end => "End", :backspace => "Backspace",
                    :delete => "Delete", :escape => "Esc", :up => "↑", :down => "↓",
@@ -182,35 +181,44 @@ function _key_label(key::Symbol)
     get(special, key, uppercasefirst(string(key)))
 end
 
-_button_label(::Nothing) = "click"
-_button_label(button::Symbol) = button === :left ? "Left click" :
-                                button === :right ? "Right click" :
-                                button === :middle ? "Middle click" : "$(button) click"
+_get_button_label(::Nothing) = "click"
+_get_button_label(button::Symbol) =
+    button === :left   ? "Left click" :
+    button === :right  ? "Right click" :
+    button === :middle ? "Middle click" : "$(button) click"
 
-_field(pattern::EventPattern, name::Symbol) = get(pattern.fields, name, nothing)
+# The words of a type name: `WindowResize` gives "window resize".
+_get_type_words(type::Type) =
+    lowercase(replace(string(nameof(type)), r"(?<=[a-z0-9])(?=[A-Z])" => " "))
 
-_key_phrase(p) = _mod_prefix(p.modifiers) * _key_label(_field(p, :key))
-_button_phrase(p) = _mod_prefix(p.modifiers) * _button_label(_field(p, :button))
+_get_field(pattern::EventPattern, name::Symbol) = get(pattern.fields, name, nothing)
 
-_describe(::Type{KeyDown}, p) = _key_phrase(p)
-_describe(::Type{KeyUp}, p) = "release " * _key_phrase(p)
-_describe(::Type{KeyPress}, p) =
-    (c = _field(p, :char); c === nothing ? "character" : string(c))
-_describe(::Type{KeyChord}, p) = "key chord"
-_describe(::Type{MousePress}, p) = _button_phrase(p)
-_describe(::Type{MouseDown}, p) = "press " * _button_phrase(p)
-_describe(::Type{MouseUp}, p) = "release " * _button_phrase(p)
-_describe(::Type{MouseMove}, p) = _mod_prefix(p.modifiers) * "move pointer"
-_describe(::Type{MouseEnter}, p) = _mod_prefix(p.modifiers) * "pointer enters"
-_describe(::Type{MouseLeave}, p) = _mod_prefix(p.modifiers) * "pointer leaves"
-_describe(::Type{MouseScroll}, p) = _mod_prefix(p.modifiers) * "scroll"
-# Any event with no phrasing of its own (the window events, and anything added
-# later) is described by its type name rather than going unnamed.
-_describe(::Type{E}, p) where {E<:Event} = lowercase(string(nameof(E)))
+# The text of a pattern: the prefix of its modifiers, and then `text`.
+_prefix_modifiers(pattern, text) = _get_modifier_prefix(pattern.modifiers) * text
 
-# ─────────────────────────────────────────────────────────────────────────
-# The parser — shared by `@event_case` and by any DSL that binds events
-# ─────────────────────────────────────────────────────────────────────────
+_describe_key(pattern) =
+    _prefix_modifiers(pattern, _get_key_label(_get_field(pattern, :key)))
+_describe_button(pattern) =
+    _prefix_modifiers(pattern, _get_button_label(_get_field(pattern, :button)))
+
+_describe(::Type{KeyDown}, pattern) = _describe_key(pattern)
+_describe(::Type{KeyUp}, pattern) = "release " * _describe_key(pattern)
+function _describe(::Type{KeyPress}, pattern)
+    char = _get_field(pattern, :char)
+    _prefix_modifiers(pattern, char === nothing ? "character" : string(char))
+end
+_describe(::Type{KeyChord}, pattern) = "key chord"
+_describe(::Type{MousePress}, pattern) = _describe_button(pattern)
+_describe(::Type{MouseDown}, pattern) = "press " * _describe_button(pattern)
+_describe(::Type{MouseUp}, pattern) = "release " * _describe_button(pattern)
+_describe(::Type{MouseMove}, pattern) = _prefix_modifiers(pattern, "move pointer")
+_describe(::Type{MouseEnter}, pattern) = _prefix_modifiers(pattern, "pointer enters")
+_describe(::Type{MouseLeave}, pattern) = _prefix_modifiers(pattern, "pointer leaves")
+_describe(::Type{MouseScroll}, pattern) = _prefix_modifiers(pattern, "scroll")
+_describe(::Type{E}, pattern) where {E<:Event} =
+    _prefix_modifiers(pattern, _get_type_words(E))
+
+# ── The parser, which `@event_case` and every macro that binds events share ──
 
 # One positional field of a pattern.
 abstract type FieldPattern end
@@ -222,18 +230,21 @@ struct ExpressionField <: FieldPattern; expr; end
 """
     EventPatternRule(type, fields, modifiers, guard, result)
 
-One parsed `pattern => result` rule. `type` is the event's constructor name
-(`nothing` for the catch-all `_`), `fields` the positional field patterns in
-declared order, `modifiers` the exact modifier set (`nothing` = unconstrained),
-`guard` the `when(pattern, condition)` condition expression (or `nothing`), and
-`result` the right-hand side, unevaluated.
+One parsed `pattern => result` rule.
 
-Produced by [`parse_event_pattern_rule`](@ref) and consumed by [`build_event_pattern_expr`](@ref)
-and [`build_event_field_bindings`](@ref); a macro building on the event pattern syntax
-needs no other view of it.
+- `type` is the event type, or `nothing` for the catch-all `_`.
+- `fields` holds the positional field patterns, in the declared order.
+- `modifiers` is the exact set of modifiers, or `nothing` for any modifiers.
+- `guard` is the condition of `when(pattern, condition)`, or `nothing`.
+- `result` is the right side of the rule, not evaluated.
+
+Use it to write a macro on the pattern syntax: `parse_event_pattern_rule` makes it,
+and `build_event_pattern_expr` and `build_event_field_bindings` read it.
+
+See also `@event_case`, which documents the syntax.
 """
 struct EventPatternRule
-    type::Union{Symbol,Nothing}
+    type::Union{DataType,Nothing}
     fields::Vector{FieldPattern}
     modifiers::Union{Vector{Symbol},Nothing}
     guard::Any
@@ -250,165 +261,184 @@ function _parse_field(ex)
     elseif ex isa Bool || ex isa Int || ex isa Char || ex isa String
         LiteralField(ex)
     elseif ex isa Expr && ex.head == :call && ex.args[1] == :(^)
-        length(ex.args) == 2 || error("event pattern: ^(expr) expects exactly one argument: $ex")
+        length(ex.args) == 2 ||
+            error("event pattern: ^(expr) expects exactly one argument: $ex")
         ExpressionField(ex.args[2])
     else
         ExpressionField(ex)
     end
 end
 
-function _parse_modifiers(params::Expr)
+function _parse_modifiers(parameters::Expr)
     modifiers = Symbol[]
-    for p in params.args
-        p isa Symbol ||
-            error("event pattern: modifier flags must be bare names (e.g. `; ctrl, alt`), got `$p`")
-        p in _MODIFIER_FLAGS ||
-            error("event pattern: unknown modifier `$p`; expected one of $(_MODIFIER_FLAGS)")
-        push!(modifiers, p)
+    for flag in parameters.args
+        flag isa Symbol || error(
+            "event pattern: modifier flags must be bare names, such as `; ctrl, alt`, " *
+            "got `$flag`")
+        flag in _MODIFIER_FLAGS || error(
+            "event pattern: unknown modifier `$flag`; expected one of $(_MODIFIER_FLAGS)")
+        push!(modifiers, flag)
     end
     modifiers
 end
 
-# Returns (type, fields, modifiers); `type === nothing` is the catch-all `_`.
-function _parse_pattern(ex)
+# The type, the fields and the modifiers of a pattern; the type is `nothing` for the
+# catch-all `_`.
+function _parse_pattern(ex, scope::Module)
     if ex === :_
         return (nothing, FieldPattern[], nothing)
     elseif ex isa Symbol
-        haskey(_EVENT_TYPES, ex) ||
-            error("event pattern: unknown event type `$ex` (use `_` for catch-all)")
-        return (ex, FieldPattern[], nothing)
+        type = _find_event_type(ex, scope)
+        type === nothing && error(
+            "event pattern: `$ex` is no event type in scope (use `_` for catch-all)")
+        return (type, FieldPattern[], nothing)
     elseif ex isa Expr && ex.head == :call
         name = ex.args[1]
-        (name isa Symbol && haskey(_EVENT_TYPES, name)) ||
-            error("event pattern: unknown event type in pattern `$ex`")
+        type = name isa Symbol ? _find_event_type(name, scope) : nothing
+        type === nothing && error("event pattern: no event type in scope in `$ex`")
         rest = ex.args[2:end]
         modifiers = nothing
         if !isempty(rest) && rest[1] isa Expr && rest[1].head == :parameters
             modifiers = _parse_modifiers(rest[1])
             rest = rest[2:end]
         end
-        fields = FieldPattern[_parse_field(a) for a in rest]
-        declared = _EVENT_TYPES[name][2]
-        length(fields) <= length(declared) ||
-            error("event pattern: $name takes at most $(length(declared)) positional field(s) " *
-                  "$(declared), got $(length(fields))")
-        return (name, fields, modifiers)
+        fields = FieldPattern[_parse_field(argument) for argument in rest]
+        declared = _get_positional_event_fields(type)
+        length(fields) <= length(declared) || error(
+            "event pattern: $name takes at most $(length(declared)) positional " *
+            "field(s) $(declared), got $(length(fields))")
+        return (type, fields, modifiers)
     else
         error("event pattern: unsupported pattern `$ex`")
     end
 end
 
 """
-    parse_event_pattern_rule(expr) -> EventPatternRule
+    parse_event_pattern_rule(expr; scope = EventModule) -> EventPatternRule
 
-Parse one `pattern => result` rule (or `when(pattern, condition) => result`) of the
-event pattern syntax. Throws with a message naming the offending expression when the
-pattern is not one of the known event types.
+Parse one rule of the pattern syntax, `pattern => result` or
+`when(pattern, condition) => result`. The name of the event type resolves in
+`scope`, and then in `EventModule`. An error names the expression when the name is
+no concrete event type.
+
+Use it in a macro on the pattern syntax, with `scope = __module__`, so that an event
+type of the package that uses the macro is matchable.
+
+See also `build_event_pattern_expr`, `build_event_field_bindings` and `@event_case`.
 """
-function parse_event_pattern_rule(ex)
+function parse_event_pattern_rule(ex; scope::Module = EventModule)
     (ex isa Expr && ex.head == :call && ex.args[1] == :(=>)) ||
         error("event pattern: expected `pattern => result`, got `$ex`")
     lhs, rhs = ex.args[2], ex.args[3]
     if lhs isa Expr && lhs.head == :call && lhs.args[1] == :when
         length(lhs.args) == 3 ||
             error("event pattern: when(pattern, condition) expects exactly two arguments")
-        type, fields, modifiers = _parse_pattern(lhs.args[2])
+        type, fields, modifiers = _parse_pattern(lhs.args[2], scope)
         return EventPatternRule(type, fields, modifiers, lhs.args[3], rhs)
     else
-        type, fields, modifiers = _parse_pattern(lhs)
+        type, fields, modifiers = _parse_pattern(lhs, scope)
         return EventPatternRule(type, fields, modifiers, nothing, rhs)
     end
 end
 
-# A constrained field's required value; a bound or wildcard field constrains nothing.
-_is_constrained(p::FieldPattern) = p isa LiteralField || p isa ExpressionField
-_constraint_expr(p::LiteralField) = QuoteNode(p.value)
-_constraint_expr(p::ExpressionField) = esc(p.expr)
+# The value that a constrained field must hold; a bound or a wildcard field
+# constrains nothing.
+_is_constrained(field::FieldPattern) = field isa LiteralField || field isa ExpressionField
+_get_constraint_expr(field::LiteralField) = QuoteNode(field.value)
+_get_constraint_expr(field::ExpressionField) = esc(field.expr)
 
 """
     build_event_pattern_expr(rule::EventPatternRule, guard_expr) -> Expr
 
-The expression constructing `rule`'s reified [`EventPattern`](@ref), with `guard_expr`
-(a `(event) -> Bool` closure expression, or `:nothing`) as its guard. The event type
-is spliced in as a value, so the expression resolves in any module.
+The expression that makes the `EventPattern` of `rule`, with `guard_expr` as its
+guard: a closure expression `event -> Bool`, or `:nothing`. The event type is in
+the expression as a value, so the expression resolves in any module.
+
+Use it in a macro on the pattern syntax that keeps its patterns as data.
+
+See also `parse_event_pattern_rule`.
 """
 function build_event_pattern_expr(rule::EventPatternRule, guard_expr)
     rule.type === nothing && error("event pattern: `_` catch-all has no reified pattern")
-    type, declared = _EVENT_TYPES[rule.type]
+    declared = _get_positional_event_fields(rule.type)
     names, values = Symbol[], Any[]
     for i in eachindex(rule.fields)
         _is_constrained(rule.fields[i]) || continue
         push!(names, declared[i])
-        push!(values, _constraint_expr(rule.fields[i]))
+        push!(values, _get_constraint_expr(rule.fields[i]))
     end
     fields = :($(NamedTuple{Tuple(names)})(($(values...),)))
     modifiers = rule.modifiers === nothing ? :nothing :
                 Expr(:vect, QuoteNode.(rule.modifiers)...)
-    :($(EventPattern{type})($fields, $modifiers, $guard_expr))
+    :($(EventPattern{rule.type})($fields, $modifiers, $guard_expr))
 end
 
 """
     build_event_field_bindings(rule::EventPatternRule, event_symbol, body) -> Expr
 
-Wrap `body` in the `let` bindings for `rule`'s bound positional fields, read off
-`event_symbol` — so a rule's guard and result can name a field (`KeyPress(c)` binds
-`c`) without knowing the event's field order.
+`body` inside the `let` bindings of the bound positional fields of `rule`, read
+from `event_symbol`. So a guard and a result can name a field, as `c` in
+`KeyPress(c)`, without the order of the fields of the event.
+
+Use it in a macro on the pattern syntax, around the code of a rule. The result is
+`body` itself when the rule binds no field.
+
+See also `parse_event_pattern_rule`.
 """
 function build_event_field_bindings(rule::EventPatternRule, event_symbol, body)
-    declared = _EVENT_TYPES[rule.type][2]
+    declared = _get_positional_event_fields(rule.type)
     for i in length(rule.fields):-1:1
-        p = rule.fields[i]
-        if p isa BoundField
-            body = :(let $(esc(p.name)) = $event_symbol.$(declared[i]); $body end)
+        field = rule.fields[i]
+        if field isa BoundField
+            body = :(let $(esc(field.name)) = $event_symbol.$(declared[i]); $body end)
         end
     end
     body
 end
 
-# ─────────────────────────────────────────────────────────────────────────
-# @event_case — the compiled dispatch table
-# ─────────────────────────────────────────────────────────────────────────
+# ── @event_case, the compiled table ─────────────────────────────────────────
 
-# Each generated rule evaluates to the (escaped) result on a full match, or to the
-# `_nomatch` sentinel otherwise.
+# A generated rule evaluates to the escaped result when the event matches, and to
+# the `_nomatch` sentinel otherwise.
 
-_gen_field_match(accessor, ::WildcardField, success) = success
-_gen_field_match(accessor, p::BoundField, success) =
-    :(let $(esc(p.name)) = $accessor; $success end)
-_gen_field_match(accessor, p::LiteralField, success) =
-    :($accessor == $(QuoteNode(p.value)) ? $success : _nomatch)
-_gen_field_match(accessor, p::ExpressionField, success) =
-    :($accessor == $(esc(p.expr)) ? $success : _nomatch)
+_build_field_match(accessor, ::WildcardField, success) = success
+_build_field_match(accessor, field::BoundField, success) =
+    :(let $(esc(field.name)) = $accessor; $success end)
+_build_field_match(accessor, field::LiteralField, success) =
+    :($accessor == $(QuoteNode(field.value)) ? $success : _nomatch)
+_build_field_match(accessor, field::ExpressionField, success) =
+    :($accessor == $(esc(field.expr)) ? $success : _nomatch)
 
-# Exact modifier test: each of the four flags must equal its membership in
-# `modifiers` (listed => must be held, unlisted => must be absent).
-function _gen_mod_test(event, modifiers::Vector{Symbol})
-    tests = Any[:($event.modifiers.$flag === $(flag in modifiers)) for flag in _MODIFIER_FLAGS]
+# The exact modifier test: each of the four flags must equal its membership in
+# `modifiers`.
+function _build_modifier_test(event, modifiers::Vector{Symbol})
+    tests = Any[:($event.modifiers.$flag === $(flag in modifiers))
+                for flag in _MODIFIER_FLAGS]
     foldr((a, b) -> :($a && $b), tests)
 end
 
-function _gen_rule(event, rule::EventPatternRule)
+function _build_rule(event, rule::EventPatternRule)
     success = rule.guard === nothing ? esc(rule.result) :
               :($(esc(rule.guard)) ? $(esc(rule.result)) : _nomatch)
 
-    # Catch-all `_` matches any event.
+    # The catch-all `_` matches any event.
     rule.type === nothing && return success
 
-    type, declared = _EVENT_TYPES[rule.type]
+    declared = _get_positional_event_fields(rule.type)
 
-    # Wrap field matches from last to first so all binds are in scope for the
-    # result and the guard.
+    # The field tests nest from the last field to the first, so every binding is in
+    # scope for the guard and the result.
     body = success
     for i in length(rule.fields):-1:1
-        body = _gen_field_match(:($event.$(declared[i])), rule.fields[i], body)
+        body = _build_field_match(:($event.$(declared[i])), rule.fields[i], body)
     end
 
     if rule.modifiers !== nothing
-        body = :($(_gen_mod_test(event, rule.modifiers)) ? $body : _nomatch)
+        body = :($(_build_modifier_test(event, rule.modifiers)) ? $body : _nomatch)
     end
 
     return quote
-        if $event isa $type
+        if $event isa $(rule.type)
             $body
         else
             _nomatch
@@ -418,28 +448,63 @@ end
 
 """
     @event_case event begin
-        KeyDown(:period; ctrl)                                 => on_toggle()
-        when(KeyDown(k; alt), k in (:up, :down))               => on_navigate(k)
-        KeyPress(c)                                            => insert_char(c)
-        MousePress(:left, x, y)                                => select_at(x, y)
-        _                                                      => nothing
+        pattern => result
+        …
     end
 
-A first-match-wins dispatch table over the input events, compiled to plain
-`isa`/field tests. Rules are tried top to bottom; when none matches, the expression
-evaluates to `nothing`, so a reader body can simply
-`return @event_case event begin … end`. The pattern surface is documented on
-[`EventModule`](@ref).
+A table of `pattern => result` rules for an input event. The first rule whose
+pattern matches `event` gives the value, and the value is `nothing` when no rule
+matches. The rules compile to plain `isa` and field tests.
+
+Use it to turn an event into a value, such as an operation, in one expression.
+
+# Example
+
+    @event_case event begin
+        KeyDown(:period; ctrl)                    => on_toggle()
+        when(KeyDown(k; alt), k in (:up, :down))  => on_navigate(k)
+        KeyPress(c)                               => insert_char(c)
+        MousePress(:left, x, y)                   => select_at(x, y)
+        _                                         => nothing
+    end
+
+# The pattern syntax
+
+A pattern is written like the constructor of its event.
+
+- The name selects the event type. It is any concrete `Event` type whose name is
+  visible where the pattern is written, or one of `EventModule`. A bare name, such
+  as `MouseScroll`, tests the type only.
+- A positional argument matches or binds a field of the event, in the declared
+  order of the fields, without `modifiers`: `KeyDown(key, repeat)`,
+  `KeyPress(char, text)`, `MousePress(button, x, y, count)`, `MouseScroll(dx, dy, x,
+  y)`. A literal, such as `:period`, `'a'` or `42`, must be equal to the field. A
+  bare name, such as `k`, binds the field. `_` ignores the field. `^(expr)`, and any
+  other expression, must be `==` to the field at run time.
+- Modifier flags after `;`, from `ctrl`, `shift`, `alt` and `meta`, must match
+  exactly: every listed flag held, and every other flag not held. A pattern without
+  `;` matches any modifiers, so `KeyPress(c)` also matches a capital letter typed
+  with Shift.
+- `when(pattern, condition)` adds a condition, in which the bound names are in
+  scope.
+- `_` alone matches any event.
+
+An event type of another package is matchable where its name is visible, and it
+must exist before the macro expands.
+
+See also `parse_event_pattern_rule`, the parser for a macro on the same syntax, and
+`EventPattern`, a pattern as data.
 """
 macro event_case(scrutinee, block)
     entries = block isa Expr && block.head == :block ? block.args : [block]
-    rules = [parse_event_pattern_rule(e) for e in entries if !(e isa LineNumberNode)]
+    rules = [parse_event_pattern_rule(entry; scope = __module__)
+             for entry in entries if !(entry isa LineNumberNode)]
 
     event = gensym(:event)
 
     chain = :nothing
     for rule in reverse(rules)
-        rule_expr = _gen_rule(event, rule)
+        rule_expr = _build_rule(event, rule)
         chain = quote
             let _m = $rule_expr
                 _m === _nomatch ? $chain : _m

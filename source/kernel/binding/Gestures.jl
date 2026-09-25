@@ -53,7 +53,7 @@ end
 # splat. `domain` tags every binding built here. Bindings reference a hygienic
 # `_applicable` local that the caller binds to `applicable_expr`; both macros wrap
 # the items in the same `let _applicable = …`.
-function _parse_gesture_block(entries, domain::String)
+function _parse_gesture_block(entries, domain::String; scope::Module)
     precondition = nothing          # closure expr (doc, sel) -> Bool
     items = Any[]
 
@@ -92,7 +92,7 @@ function _parse_gesture_block(entries, domain::String)
             push!(items, _command_binding_expr(e.args[3], domain))
             continue
         end
-        rule = parse_event_pattern_rule(e)
+        rule = parse_event_pattern_rule(e; scope = scope)
         rule.type === nothing && error("@gestures: `_` catch-all is not allowed")
 
         # Split an optional leading "description" out of the right side.
@@ -174,7 +174,8 @@ by *unrelated* types (no common supertype) is a `@gesture_set` `splice`d into ea
 """
 macro gestures(document_type, block)
     entries = block isa Expr && block.head == :block ? block.args : [block]
-    applicable, items = _parse_gesture_block(entries, _type_name(document_type))
+    applicable, items = _parse_gesture_block(entries, _type_name(document_type);
+                                             scope = __module__)
 
     # Emit a `get_document_gesture_bindings_own(::Type{DocumentType})` method holding
     # the reified table (built fresh per call; cached by
@@ -204,7 +205,7 @@ its `domain` tag is `name`. Spliced bindings are shared objects, not copies.
 macro gesture_set(name, block)
     name isa Symbol || error("@gesture_set: expected a name, got `$name`")
     entries = block isa Expr && block.head == :block ? block.args : [block]
-    applicable, items = _parse_gesture_block(entries, string(name))
+    applicable, items = _parse_gesture_block(entries, string(name); scope = __module__)
     quote
         const $(esc(name)) = let _applicable = $applicable
             GestureBinding[$(items...)]
