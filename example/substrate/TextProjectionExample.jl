@@ -1,6 +1,8 @@
+# Prose wraps at the edge of its range, and at 800 px at most, so a line stays
+# short enough to read also where nothing gives an edge.
 function make_text_projection_example(; measure=measure_truetype_text)
     ChainingProjection(
-        WordWrapping(measure=measure),
+        WordWrapping(measure=measure, max_width=800),
         TextToGraphics(measure=measure),
     )
 end

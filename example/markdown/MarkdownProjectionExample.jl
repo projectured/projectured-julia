@@ -8,12 +8,13 @@ end
 
 # The rendered ("beautiful") view: marker-free, formatted markdown — big bold
 # headings, real bold/italic, plain inline code, `•` bullets, `▏` quote bars,
-# `───` rules, blue links. Word-wrapped like prose.
+# `───` rules, blue links. Word-wrapped like prose: at the edge of its range,
+# and at 800 px at most.
 function make_markdown_rendered_projection_example(; measure=measure_truetype_text)
     ChainingProjection(
         RecursiveProjection(MarkdownToSyntax(; style=:rendered)),
         RecursiveProjection(SyntaxToText()),
-        WordWrapping(measure=measure),
+        WordWrapping(measure=measure, max_width=800),
         TextToGraphics(measure=measure),
     )
 end

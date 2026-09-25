@@ -429,7 +429,39 @@ Step 0 takes the baseline.
       reachable cell, and the rooms and the column edges are new cells.
       `Catalog` has 500658 passes and no failure, error or broken test.
 
-- [ ] **Step 5: the patches go, and the old names.** The 800 of
+- [ ] **Step 5: the patches go, and the old names.** **In two commits
+      (2026-09-25).** 5a, the behaviour: the 800 and the 400 go (`max_width` of
+      `WordWrapping` and `FlowLayout` is `nothing` by default, and a given one
+      caps the edge); the card, the accordion item, the table, the tab page and
+      the scroll pane pass their range on less their insets, in the same state
+      (`with_inner_size`); the toolbar gives its items its edge; the evaluator
+      rows go back to `Content`, and `EvaluatorToplevelTest` checks that a
+      button result keeps its width (110 at a tab of 500). Kept as they are: the
+      table list gives a wrapping cell its column's slot and a clipping cell
+      none, which is a policy of the cell and not a missing edge; the shell and
+      the split always sit in a window's slot and already pass the cross range
+      on; the transform pane is always given a slot, and a bounded range
+      reaches it as no slot did. The flow draws its widest line, and at least
+      the minimum of its range, cut at its `max_width`, and it aligns its lines
+      in that width: with no edge it drew its break width, 2³¹−1, which the run
+      of the parts found (`SizeRangeChildRuleTest.jl:64`). `max_width` caps the
+      whole range of the flow, as the maximum of a `LayoutConstraint` does, so
+      a flow with `max_width = 400` in an exact 600 draws 400. The examples
+      `text`, `text_with_image` and `markdown_rendered` (and the messages of the
+      conversation example) wrap at `max_width = 800` (the user chose this,
+      2026-09-25): with no `max_width` the navigation walk, which prints with no
+      edge, did not wrap them, and their left-walk markers passed unexpectedly
+      (6 errors at `ClickRoundtripTest.jl:321`), though with a wrap at 800 the
+      walk still stops (53 carets against 449). The run of the 82 parts of
+      `test_all`, each in a process of its own, has the 660 failures of Step 4
+      at the same places. The catalog lost 2900 passes in 40 `:syntax`
+      examples; only `test_printer` moves, and the same example counts 259
+      alone and 50 after the other sql examples, because the printer walk
+      follows the weak `dependents` of a cell out of the document. The time and
+      the memory of each part are in `documentation/guide/testing-guide.md`.
+      5b, the names: `available_width`,
+      `available_height` and `with_available_size` go, and every reader reads
+      the range. The original text of the step: The 800 of
       `WordWrapping` and the 400 of `FlowLayout` go: text with no edge does not
       wrap, and a flow with no edge and no `max_width` does not break. The toolbar gives its
       items a bounded range instead of withholding the width; the table list

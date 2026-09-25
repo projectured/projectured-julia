@@ -4,8 +4,8 @@
 # sub-spans at word boundaries and inserts `TextNewline` elements where a word
 # would push the column past the wrap width. The wrap width is the maximum of
 # the range the parent gives on the width, `ctx.maximum_width`, exact or bounded
-# (so a resize re-wraps reactively), falling back to the projection's
-# `max_width` when the parent gives no edge.
+# (so a resize re-wraps reactively), cut at the projection's `max_width`; with
+# neither, a line does not wrap.
 #
 # Character preservation: the projection is structural only — every character of
 # the input survives in the output, exactly once and in order. A space that
@@ -15,20 +15,21 @@
 # ── Projection struct ───────────────────────────────────────────────────────
 
 """
-    WordWrapping(; max_width=800, measure)
+    WordWrapping(; max_width=nothing, measure)
 
 Pixel-based word-wrap projection. `measure(text, font) -> (width, height)`
 matches the downstream `TextToGraphics` measurer so wrap points line up with
-layout. `max_width` is the pixel fallback used when the context has no
-`maximum_width`.
+layout. A line wraps at the edge of the range the parent gives
+(`ctx.maximum_width`), and at `max_width` when that is less. With neither, a line
+does not wrap.
 """
 struct WordWrapping <: Projection
-    max_width::Int
+    max_width::Union{Nothing, Int}
     measure::Function
 end
 
-WordWrapping(; max_width::Int = 800, measure::Function) =
-    WordWrapping(max_width, measure)
+WordWrapping(; max_width::Union{Nothing, Integer} = nothing, measure::Function) =
+    WordWrapping(max_width === nothing ? nothing : Int(max_width), measure)
 
 # ── Mapping table ───────────────────────────────────────────────────────────
 
@@ -72,17 +73,17 @@ function print_document(p::WordWrapping, recursion, text::TextBlock, ctx)
 end
 
 # The width a line wraps at: the maximum of the range the parent gave, exact or
-# bounded, and `p.max_width` when the parent gave no edge.
+# bounded, cut at `p.max_width`; with neither, a width no line reaches.
+const _NO_WRAP_WIDTH = Int(typemax(Int32))
+
 function _wrap_width_cell(p::WordWrapping, ctx)
-    if ctx isa PrinterContext && ctx.maximum_width !== nothing
-        edge = ctx.maximum_width
-        fallback = p.max_width
-        return Cell(@computation begin
-            v = edge[]
-            v isa Integer ? max(1, Int(v)) : fallback
-        end)
-    end
-    Cell(p.max_width)
+    limit = something(p.max_width, _NO_WRAP_WIDTH)
+    edge = ctx isa PrinterContext ? ctx.maximum_width : nothing
+    edge === nothing && return Cell(limit)
+    Cell(@computation begin
+        v = edge[]
+        min(v isa Integer ? max(1, Int(v)) : _NO_WRAP_WIDTH, limit)
+    end)
 end
 
 # Returns (output_elements::Vector{TextDocument}, segs::Vector{WrapSegment}).

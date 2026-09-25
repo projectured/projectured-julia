@@ -4027,12 +4027,16 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # selector builder loop, so capturing it here would alias that closure's
     # local and clobber the selector viewport width.
     inset_x, inset_y = _inset_total(p, w)
+    # The page's extent inside a slot; with no slot the page is as large as what
+    # it holds.
     avail_w_inner = avail_w === nothing ? nothing :
         Cell(@computation max(0, Int(avail_w[]) - inset_x))
     avail_h_inner = avail_h === nothing ? nothing :
         Cell(@computation max(0, Int(avail_h[]) - geom[][4] - inset_y))   # geom[][4] == sel_h
-    content_ctx = (avail_w === nothing && avail_h === nothing) ? ctx :
-        with_available_size(ctx; width=avail_w_inner, height=avail_h_inner)
+    # The content gets the pane's range less the insets, and less the tab strip
+    # on the height, in the same state: a slot stays a slot and an edge stays an
+    # edge.
+    content_ctx = with_inner_size(ctx; width = inset_x, height = Cell(@computation geom[][4] + inset_y))
     # Reconcile the per-tab content iomaps so a tab add / remove reflows the content
     # through the held iomap; a non-widget slot reconciles to `nothing` (no content).
     all_cims = reconcile_child_iomaps(
@@ -4571,7 +4575,13 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     content = w.content
     inner_canvas = nothing
     if content isa Document
-        content_ctx = with_available_size(ctx; width = offer_w, height = offer_h)
+        # A clipped axis gives the content its extent exactly. An unclipped axis
+        # passes the parent's range on, less the insets: an edge stays an edge,
+        # so text in the pane wraps at it, and the pane takes the content's
+        # extent there.
+        content_ctx = with_inner_size(ctx; width = tx, height = ty)
+        offer_w === nothing || (content_ctx = with_exact_size(content_ctx; width = offer_w))
+        offer_h === nothing || (content_ctx = with_exact_size(content_ctx; height = offer_h))
         content_iomap = print_child(recursion, content, content_ctx)
         inner_canvas = content_iomap.output::GraphicsCanvas
     end
@@ -4989,13 +4999,11 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     child_cells = reconcile_child_iomaps(
         () -> Any[item for item in w.elements if item isa WidgetDocument],
-        # A toolbar lays its items out at their own size, side by side, so it
-        # allocates nothing on the main axis: it CLEARS `available_width` rather
-        # than passing its own down. Without this every width-bearing child —
-        # `_resolve_width` treats an authored width as a minimum and fills a
-        # seeded allocation — takes the whole band, so a 140-pixel slider drawn
-        # in a toolbar came out 800 wide.
-        (i, item) -> print_child(recursion, item, withhold_offer(ctx, :x)))
+        # A toolbar lays its items out at their own size, side by side, so it gives
+        # no slot on the main axis: an item that took a slot would stretch to the
+        # whole band. It gives its edge instead, as a bounded range, so an item
+        # draws its content and a text in it wraps at the band's edge.
+        (i, item) -> print_child(recursion, item, with_bounded_size(ctx; width = ctx.maximum_width)))
     build = Cell(@computation begin
         content_x, content_y = _content_offset(p, w)
         item_gap = p.item_gap
@@ -5447,10 +5455,10 @@ function _card_build(p, w, ctx, tim, cim)
     # the width it was offered, less the insets on both sides and the chevron
     # column. With neither there is no bound, and each text is the one line it
     # measures.
-    avail_w = ctx === nothing ? nothing : ctx.available_width
+    edge_w = ctx === nothing ? nothing : ctx.maximum_width
     authored_width = _sc(Int(w.width))
     text_bound = authored_width > 0 ? max(0, authored_width - pad_x) :
-                 avail_w !== nothing ? max(0, Int(avail_w[]) - pad_x) : 0
+                 edge_w !== nothing ? max(0, Int(edge_w[]) - pad_x) : 0
     header_top = y
     header_h = 0
     title_text = _get_state_text(p, w, :title)
@@ -5608,12 +5616,12 @@ function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard,
     # wider than the card that holds it.
     inset_width, _ = _inset_total(p, w)
     pad_x = inset_width + _card_chevron_column(p, w)
-    avail_w = ctx.available_width
+    # Without a width of its own, the card passes its range on, less its
+    # padding, in the same state: a slot stays a slot and an edge stays an edge.
     authored_width = _sc(Int(w.width))
-    inner_w = authored_width > 0 ? Cell(Int32(max(0, authored_width - pad_x))) :
-              avail_w === nothing ? nothing :
-              Cell(@computation Int32(max(0, Int(avail_w[]) - pad_x)))
-    inner_ctx = withhold_offer(with_available_size(ctx; width=inner_w), :y)
+    inner_ctx = authored_width > 0 ? with_exact_size(ctx; width = Cell(Int32(max(0, authored_width - pad_x)))) :
+                with_inner_size(ctx; width = pad_x)
+    inner_ctx = withhold_offer(inner_ctx, :y)
     tim = w.title isa Document ? print_child(recursion, w.title, inner_ctx) : nothing
     # A `LayoutConstraint` around the content is how a caller pins the body's
     # height — a collapsed card showing one row of what it holds. The card does
@@ -7471,11 +7479,9 @@ function _get_accordion_item_context(p::WidgetAccordionToGraphicsCanvas, w::Widg
     inset_width, _ = _inset_total(p, w)
     padding = inset_width + 2 * _sc(Int(p.item_padding.left[]))
     authored = _sc(Int(w.width))
-    offered = ctx.available_width
-    inner = authored > 0 ? Cell(Int32(max(0, authored - padding))) :
-            offered === nothing ? nothing :
-            Cell(@computation Int32(max(0, Int(offered[]) - padding)))
-    withhold_offer(with_available_size(ctx; width = inner), :y)
+    inner_ctx = authored > 0 ? with_exact_size(ctx; width = Cell(Int32(max(0, authored - padding)))) :
+                with_inner_size(ctx; width = padding)
+    withhold_offer(inner_ctx, :y)
 end
 
 function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::WidgetAccordion, ctx)
@@ -7959,14 +7965,11 @@ function print_document(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTabl
     layout_info = Cell(@computation _wt_grid_children(w))
 
     # The grid is drawn inside the table's own box, its outer rules and the
-    # cell padding beside them, so it is offered what the table was offered
-    # less those. A table whose columns share an offer then ends where the
-    # offer does.
-    grid_ctx = ctx === nothing ? ctx : with_available_size(ctx;
-        width = ctx.available_width === nothing ? nothing :
-                Cell(@computation Int32(max(0, Int(ctx.available_width[]) - 2 * (pad_x + bw) - inset_width))),
-        height = ctx.available_height === nothing ? nothing :
-                 Cell(@computation Int32(max(0, Int(ctx.available_height[]) - 2 * (pad_y + bw) - inset_height))))
+    # cell padding beside them, so it gets the table's range less those, in the
+    # same state. A table whose columns share a slot then ends where the slot
+    # does.
+    grid_ctx = ctx === nothing ? ctx : with_inner_size(ctx; width = 2 * (pad_x + bw) + inset_width,
+                                                           height = 2 * (pad_y + bw) + inset_height)
 
     # Build a GridLayout whose children are the recursed cell documents and
     # project it through `recursion` (which dispatches GridLayout → its renderer

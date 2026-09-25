@@ -1480,16 +1480,16 @@ function _fl_line_w(ln::Int, n::Int, child_iomaps::Vector, line_plan::Cell)
     end))
 end
 
-function _fl_child_x(i::Int, line_plan::Cell, max_w_cell::Cell,
+function _fl_child_x(i::Int, line_plan::Cell, outer_w::Cell,
                     line_w::Vector{Cell}, halign::Cell)
     Cell(Computation(function ()
         plan = line_plan[]
         ln, x_in_line = plan[i]
-        mw = max_w_cell[]
+        ow = outer_w[]
         lw = line_w[ln][]
         a  = halign[]
-        off = a === :center ? div(mw - lw, 2) :
-              a === :right  ? mw - lw          :
+        off = a === :center ? div(ow - lw, 2) :
+              a === :right  ? ow - lw          :
                               0
         Int32(x_in_line + off)
     end))
@@ -1522,6 +1522,7 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
     # edge.
     child_ctx = ctx === nothing ? nothing : withhold_offer(withhold_offer(ctx, :x), :y)
     edge_w = ctx === nothing ? nothing : ctx.maximum_width
+    minimum_w = ctx === nothing ? nothing : ctx.minimum_width
     build = Cell(@computation begin
         n = length(doc.children)
         child_iomaps = Any[]
@@ -1530,9 +1531,14 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
                                  make_child_context(child_ctx, doc, (@reference_step children), (@reference_step [i])))
             push!(child_iomaps, cim)
         end
+        # The break width: the smaller of `max_width` and the edge, and a width no
+        # line reaches when the flow has neither.
         authored_w = getfield(doc, :max_width)
-        max_w_cell = edge_w === nothing ? authored_w :
-                     Cell(@computation min(Int(authored_w[]), max(0, Int(edge_w[]))))
+        max_w_cell = Cell(@computation begin
+            authored = authored_w[]
+            limit = authored === nothing ? Int(typemax(Int32)) : Int(authored)
+            edge_w === nothing ? limit : min(limit, max(0, Int(edge_w[])))
+        end)
         hgap_cell  = getfield(doc, :horizontal_gap)
         vgap_cell  = getfield(doc, :vertical_gap)
         halign     = getfield(doc, :horizontal_align)
@@ -1552,13 +1558,25 @@ function print_document(p::FlowLayoutToGraphicsCanvas,
         for ln in 1:n
             push!(line_y, _fl_line_y(ln, line_h, vgap_cell))
         end
+        # The flow draws its widest line, and at least the minimum of its range,
+        # cut at `max_width`: the edge of an exact range, its content in a
+        # bounded or a free one.
+        outer_w = Cell(@computation begin
+            widest = 0
+            for ln in 1:line_count[]
+                widest = max(widest, line_w[ln][])
+            end
+            minimum = minimum_w === nothing ? nothing : minimum_w[]
+            authored = authored_w[]
+            minimum isa Integer || return widest
+            max(widest, authored === nothing ? Int(minimum) : min(Int(minimum), Int(authored)))
+        end)
         child_x = Cell[]
         child_y = Cell[]
         for i in 1:n
-            push!(child_x, _fl_child_x(i, line_plan, max_w_cell, line_w, halign))
+            push!(child_x, _fl_child_x(i, line_plan, outer_w, line_w, halign))
             push!(child_y, _fl_child_y(i, child_iomaps, line_plan, line_h, line_y, valign))
         end
-        outer_w = Cell(@computation max_w_cell[])
         outer_h = Cell(Computation(function ()
             lc = line_count[]
             lc == 0 && return 0

@@ -289,6 +289,10 @@ Written down because the reasoning is easy to lose and expensive to rebuild:
 - there is **no** scroll-axis rule: a viewport clips every axis it has an extent
   for and follows its content on the rest, and no axis is named anywhere;
 - there are **no** size constants: a stray constant in `WidgetToGraphics.jl`
-  can silently become the height of every scroll pane in a column;
-- a container that divides an axis is **not** exempt: with no offer it withholds
+  can silently become the height of every scroll pane in a column, and text with
+  no edge does not wrap at a number that nobody chose — it wraps at the edge its
+  parent gives, or not at all;
+- there is **no** local limit: a toolbar, a card, a table and an overlay read the
+  range their parent gives, and none of them computes an edge of its own;
+- a container that divides an axis is **not** exempt: with no edge it withholds
   that axis and takes each slot from the child, the same as any other `Content`.

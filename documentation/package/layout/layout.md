@@ -12,7 +12,7 @@
 | --- | --- |
 | `HorizontalLayout`, `VerticalLayout` | a row or a column, with `gap` and alignment |
 | `GridLayout`, `FormLayout` | cells in `columns`, with a size policy for each column and row; a form is a two-column grid |
-| `FlowLayout` | a row that wraps at `max_width` |
+| `FlowLayout` | a row that wraps at the edge of its range, or at `max_width` when that is less; it is as wide as its widest line, or as the edge of an exact range, but not wider than `max_width` unless one child is |
 | `StackLayout` | children on top of each other, the last on top |
 | `AnchoredLayout` | a `content`, and children placed next to parts of it |
 | `ConstraintLayout` | children placed by linear relations between their edges |

@@ -279,6 +279,41 @@ end
     end
 end
 
+# The width of the smallest canvas under `canvas`, with a width of its own, that
+# holds the text `label` directly, or `nothing`. A wrapper that is not a canvas
+# (a viewport, a placed child) is followed through its content.
+function _et_width_holding(canvas, label)
+    widths = Int[]
+    function walk(c)
+        if c isa GraphicsCanvas
+            width = Int(c.w[])
+            width > 0 && any(e -> e isa GraphicsText && e.text == label, c.elements) && push!(widths, width)
+            foreach(walk, c.elements)
+        else
+            for field in (:content, :child, :canvas)
+                hasproperty(c, field) && walk(getproperty(c, field))
+            end
+        end
+    end
+    walk(canvas)
+    isempty(widths) ? nothing : minimum(widths)
+end
+
+@testset "a widget result keeps its own width in the row" begin
+    toplevel = make_insertion_document(EvaluatorToplevel)
+    toplevel.elements[1].form.value = "WidgetButton(\"Press me\")"
+    evaluate_operation(editor(toplevel), read_gesture(toplevel, enter()))
+    renderer = NaturalToGraphics(measure = _stub,
+                                 extra = make_application_content_projections(measure = _stub))
+    canvas = get_iomap_output(print_document(renderer, nothing, toplevel,
+                 PrinterContext(EmptyReference(), Cell(500), Cell(400), Dict{Symbol,Any}())))
+    # `_stub` measures 10 pixels for each character: the label is 80 wide, and the
+    # button is that and its padding, far from the 500 of the tab.
+    width = _et_width_holding(canvas, "Press me")
+    @test width !== nothing
+    @test 80 <= width < 200
+end
+
 @testset "a form that answers nothing shows the nothing of Julia" begin
     # Nothing printed: the result is the Julia `nothing`, drawn by the Julia domain.
     form = evaluated_form("x_q = 3; nothing")

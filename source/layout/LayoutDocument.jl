@@ -303,8 +303,11 @@ end
     FlowLayout(children; max_width, horizontal_align, vertical_align,
                horizontal_gap, vertical_gap)
 
-A row of children that wraps to a new line when the next child
-would push past `max_width`. Each line is laid out left-to-right;
+A row of children that wraps to a new line when the next child would push past
+the edge of the range its parent gives, or past `max_width` when that is less;
+with neither, it is one line. The flow is as wide as its widest line, and as
+wide as the edge of an exact range, but not wider than `max_width` unless one
+child is. Each line is laid out left-to-right;
 line height = max `h` of children on that line. `horizontal_align`
 controls intra-line justification (`:left`, `:center`, `:right`);
 `vertical_align` controls cross-axis alignment within a line
@@ -321,7 +324,7 @@ See also `GridLayout` for fixed columns.
 """
 @document struct FlowLayout <: LayoutDocument
     children::CellVector = CellVector()
-    max_width::Int = 400
+    max_width::Union{Nothing,Int} = nothing
     horizontal_align::Symbol = :left
     vertical_align::Symbol = :top
     horizontal_gap::Int = 0
@@ -329,13 +332,13 @@ See also `GridLayout` for fixed columns.
 end
 
 function FlowLayout(children::Vector;
-                    max_width::Integer=400,
+                    max_width::Union{Nothing,Integer}=nothing,
                     horizontal_align::Symbol=:left,
                     vertical_align::Symbol=:top,
                     horizontal_gap::Integer=0,
                     vertical_gap::Integer=0)
     FlowLayout(CellVector(Cell[c isa Cell ? c : Cell(c) for c in children]),
-               Cell(Int(max_width)),
+               Cell(max_width === nothing ? nothing : Int(max_width)),
                Cell(horizontal_align), Cell(vertical_align),
                Cell(Int(horizontal_gap)), Cell(Int(vertical_gap)),
                Cell(nothing))

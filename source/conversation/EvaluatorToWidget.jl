@@ -40,9 +40,10 @@ const _PROMPT_ERROR_STYLE = StyleText(font_ubuntu_monospace_regular_20, color_de
 #
 # A fresh form holds an empty result, and it shows no `=` row until it has one.
 #
-# The rows fill the width of the form, and in a row the prompt keeps the width of
-# its one character while the document fills the rest. So a document that breaks
-# its lines, as prose does, breaks them at the edge of the pane that shows it.
+# The rows fill the width of the form. In a row the prompt keeps the width of its
+# one character, and the document gets the rest of the row as its edge: a document
+# that breaks its lines, as prose does, breaks them at the edge of the pane that
+# shows it, and a widget keeps its own size.
 
 function print_document(projection::EvaluatorFormToVerticalLayout,
                           recursion, form::EvaluatorForm, ctx)
@@ -72,7 +73,7 @@ _make_prompt(text, style) =
 
 _make_prompt_row(children::Function) =
     HorizontalLayout(CellVector(Computation(children)), Cell(:top), Cell(_PROMPT_GAP),
-                     Cell(Fill), Cell(nothing), Cell(nothing))
+                     Cell(Content), Cell(nothing), Cell(nothing))
 
 _has_result(form::EvaluatorForm) = !(form.result isa TextBlock && isempty(form.result.elements))
 

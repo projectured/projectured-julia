@@ -25,7 +25,7 @@ end
 
 Every child draws `max(minimum, content)` in the range its parent gives, or its
 authored size; an overlay caps at the maximum; wrapped text and a flow break at
-the maximum. The drawn width is asserted in each state of the range.
+the maximum, and a flow draws its widest line. The drawn width is asserted in each state of the range.
 """
 function test_size_range_child_rule()
 @testset "a rigid widget draws max(minimum, content)" begin
@@ -58,12 +58,16 @@ end
     @test _range_wrap_breaks(text, _range_bounded(1000)) == 0
 end
 
-@testset "a flow breaks at the smaller of its max_width and the maximum" begin
-    cards = () -> FlowLayout(Any[WidgetLabel("abcd") for _ in 1:5])
-    one_line = _range_drawn_width(cards(), _range_free())      # max_width 400 holds all five
+@testset "a flow breaks at the smaller of its max_width and the maximum, and draws its widest line" begin
+    cards = (; kwargs...) -> FlowLayout(Any[WidgetLabel("abcd") for _ in 1:5]; kwargs...)
+    one_line = _range_drawn_width(cards(), _range_free())      # with no edge, one line
+    @test one_line < 1000
     @test _range_drawn_width(cards(), _range_bounded(1000)) == one_line
+    # Broken at half, a bounded flow draws its widest line and an exact flow its edge.
     narrow = _range_drawn_width(cards(), _range_bounded(one_line ÷ 2))
-    @test narrow < one_line
-    @test narrow == _range_drawn_width(cards(), _range_exact(one_line ÷ 2))
+    @test narrow <= one_line ÷ 2
+    @test _range_drawn_width(cards(), _range_exact(one_line ÷ 2)) == one_line ÷ 2
+    # A max_width less than the edge breaks the lines where that edge does.
+    @test _range_drawn_width(cards(; max_width = one_line ÷ 2), _range_bounded(1000)) == narrow
 end
 end # test_size_range_child_rule
