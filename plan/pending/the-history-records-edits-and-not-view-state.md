@@ -151,6 +151,26 @@ the history holds. Two candidates:
 
 Step 3 measures both and records the numbers here. The owner then chooses.
 
+**Sizes, 2026-09-25** (a count of the documents a walk visits, which does not
+depend on the load of the machine; `search_documents` with a predicate that
+accepts everything):
+
+| Candidate | What it walks | Documents |
+| --- | --- | --- |
+| 1 | the document of the window history, with a small JSON file | 37 |
+| 1 | the same, with a second JSON file of 500 entries | 3045 |
+| 2 | the navigator's output | 3 |
+| 2 | the syntax output of the small file | 36 |
+| 2 | the syntax output of the 500-entry file, where a fold's target is | 14512 |
+
+A chart's write targets the output plot of the stage itself, so candidate 2 finds
+it by identity. A fold targets a node deep in a syntax output, which is larger
+than the document it shows. So neither candidate is always the smaller walk.
+
+**Rule of measurement.** A time runs only on an idle machine and with the owner's
+word for that run, in the measurement lane (`taskset -c 28,30,31`). The load was
+19 when the sizes were taken, so no time is taken yet.
+
 ### D5. What a run of typing is (Step 4, owner decides)
 
 **M** merges a run of steps into one. Questions for the owner:
