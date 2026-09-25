@@ -39,12 +39,15 @@ function print_document(p::MarkdownRootToVerticalLayout, recursion, root::Markdo
     # than at the length of its longest sentence. A block that authored a width
     # of its own keeps it: an offer is a promise about space, not a constraint.
     #
-    # An embedded file stands in a card of its own (below), built once for the
-    # element and found again by it, so a fold survives a block added above.
+    # An embedded file stands in a card of its own (below), and a table in a
+    # widget table (further below). Each is built once for the element and found
+    # again by it, so a fold survives a block added above.
     elements = root.elements::CellVector
     cards = IdDict{Any,Any}()
-    block_of(element) = _is_carded_block(element) ?
-        get!(() -> make_embed_card(element, get_filename(element)), cards, element) : element
+    block_of(element) =
+        _is_carded_block(element)  ? get!(() -> make_embed_card(element, get_filename(element)), cards, element) :
+        element isa MarkdownTable ? get!(() -> _make_page_table(element), cards, element) :
+        element
     children = CellVector(@computation Any[block_of(element) for element in elements])
     out = VerticalLayout(children,
                          Cell(p.horizontal_align), Cell(p.gap),
@@ -81,8 +84,13 @@ function map_reference_forward(::MarkdownRootToVerticalLayout, iomap, reference)
     t isa ConcreteReference || return nothing
     (t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
     rest = t.tail
-    _is_carded_block(_get_page_element(iomap.input, t.head.start + 1)) &&
-        (rest = make_embed_card_path(rest))
+    element = _get_page_element(iomap.input, t.head.start + 1)
+    if _is_carded_block(element)
+        rest = make_embed_card_path(rest)
+    elseif element isa MarkdownTable
+        rest = _map_table_path_forward(rest)
+        rest === nothing && return nothing
+    end
     ConcreteReference(FieldReferenceStep("children"), ConcreteReference(t.head, rest))
 end
 
@@ -99,11 +107,88 @@ function map_reference_backward(::MarkdownRootToVerticalLayout, iomap, reference
     t isa ConcreteReference || return nothing
     (t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
     rest = t.tail
-    if _is_carded_block(_get_page_element(iomap.input, t.head.start + 1))
+    element = _get_page_element(iomap.input, t.head.start + 1)
+    if _is_carded_block(element)
         rest = find_embed_card_path_inside(rest)
-        rest === nothing && return nothing
+    elseif element isa MarkdownTable
+        rest = _map_table_path_backward(rest)
     end
+    rest === nothing && return nothing
     ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(t.head, rest))
+end
+
+# ── A table is a widget table ────────────────────────────────────────────────
+#
+# A table on the page is drawn as a `WidgetTable`, the one table of the widget
+# layer: a header strip, lines between the entries, and entries that break their
+# lines at the edge of their column. The columns share the width of the page.
+# The entries are the paragraphs of the table, not copies, so the page draws
+# each one as prose.
+function _make_page_table(table::MarkdownTable)
+    column_headers = CellVector(@computation Any[entry for entry in table.header.elements])
+    rows = CellVector(@computation Any[CellVector(Cell[Cell(entry) for entry in row.elements])
+                                       for row in table.rows])
+    widget = WidgetTable(Cell(Point2D(0, 0)), column_headers, CellVector(), rows,
+                         Cell(@computation length(table.alignments)),
+                         Cell(1),                          # border_width
+                         Cell(Fill), Cell(Content),        # the columns share the width
+                         Cell(Any[]), Cell(Any[]),         # and none of them differs
+                         Cell(:wrap), Cell(Symbol[]),      # an entry breaks its lines at its column
+                         Cell(true),                       # visible
+                         Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing), # margin, border, padding, style
+                         Cell(nothing),                    # hovered
+                         Cell(nothing))                    # tooltip
+    set_cell_computation!(getfield(widget, :selection), () -> begin
+        inner = getfield(table, :selection)[]
+        inner === nothing ? nothing : _map_table_path_forward(inner)
+    end)
+    widget
+end
+
+# A path inside a table, as a path inside its widget table: `header.elements[j]`
+# is `column_headers[j]`, and `rows[k].elements[j]` is `rows[k][j]`. The rest of
+# the path is inside the entry, which the two share. A path to what the widget
+# does not draw, such as `alignments`, maps to nothing.
+function _map_table_path_forward(reference)
+    reference isa EmptyReference && return reference
+    reference isa ConcreteReference || return nothing
+    h, t = reference.head, reference.tail
+    h isa FieldReferenceStep || return nothing
+    if h.name == "header"
+        t isa EmptyReference && return ConcreteReference(FieldReferenceStep("column_headers"), t)
+        (t isa ConcreteReference && t.head isa FieldReferenceStep && t.head.name == "elements") ||
+            return nothing
+        return ConcreteReference(FieldReferenceStep("column_headers"), t.tail)
+    elseif h.name == "rows"
+        (t isa ConcreteReference && t.head isa RangeReferenceStep && is_element_reference_step(t.head)) ||
+            return nothing
+        entries = t.tail
+        entries isa EmptyReference && return reference
+        (entries isa ConcreteReference && entries.head isa FieldReferenceStep && entries.head.name == "elements") ||
+            return nothing
+        return ConcreteReference(h, ConcreteReference(t.head, entries.tail))
+    end
+    nothing
+end
+
+# A path inside a widget table, as a path inside its table: the inverse of
+# `_map_table_path_forward`.
+function _map_table_path_backward(reference)
+    reference isa EmptyReference && return reference
+    reference isa ConcreteReference || return nothing
+    h, t = reference.head, reference.tail
+    h isa FieldReferenceStep || return nothing
+    if h.name == "column_headers"
+        return ConcreteReference(FieldReferenceStep("header"),
+                                 ConcreteReference(FieldReferenceStep("elements"), t))
+    elseif h.name == "rows"
+        (t isa ConcreteReference && t.head isa RangeReferenceStep && is_element_reference_step(t.head)) ||
+            return nothing
+        t.tail isa EmptyReference && return reference
+        return ConcreteReference(h, ConcreteReference(t.head,
+                                     ConcreteReference(FieldReferenceStep("elements"), t.tail)))
+    end
+    nothing
 end
 
 # The whole point of the rewrap is that a page's embedded card is a real widget

@@ -153,6 +153,32 @@ end
 
 @forward_vector_protocol on MarkdownList to items
 
+"""
+One row of a `MarkdownTable`. `elements` holds one `MarkdownParagraph` for each
+column: an entry of a table is a run of inlines, which is what a paragraph is.
+"""
+@document struct MarkdownTableRow <: MarkdownDocument
+    elements::CellVector = CellVector()
+end
+
+@forward_vector_protocol on MarkdownTableRow to elements
+
+"""
+A table, as GitHub Markdown writes it: the `header` row, a delimiter row, and the
+body `rows`, each a `MarkdownTableRow`. `alignments` holds one of `:default`,
+`:left`, `:center` and `:right` for each column; it is what the delimiter row
+says, and the delimiter row is printed from it. `alignments` and `header` are
+required leading arguments, so `rows` reaches the `CellVector`-wrapping
+constructor: `MarkdownTable([:default], MarkdownTableRow(…), [MarkdownTableRow(…)])`.
+"""
+@document struct MarkdownTable <: MarkdownDocument
+    alignments::Any             # Vector{Symbol}, one per column
+    header::MarkdownTableRow
+    rows::CellVector = CellVector()
+end
+
+@forward_vector_protocol on MarkdownTable to rows
+
 # ── Root ──────────────────────────────────────────────────────────────────────
 
 """

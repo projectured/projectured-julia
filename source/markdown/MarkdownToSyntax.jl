@@ -150,6 +150,40 @@ end
 @projection_template MarkdownListToSyntaxNode MarkdownList (prj, doc) ->
     SyntaxNode(collection(:items); sep=TextString("\n"), indentation=0)
 
+# ── MarkdownTableRowToSyntaxNode / MarkdownTableToSyntaxNode (shared) ──────────
+# A row is its entries between pipes. A table is its header over its body rows,
+# and the delimiter row is the separator between the two: it is printed from
+# `alignments`, so no position in it stands for a field of the table.
+
+@projection struct MarkdownTableRowToSyntaxNode
+    pipe_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+end
+
+@projection_template MarkdownTableRowToSyntaxNode MarkdownTableRow (prj, doc) ->
+    SyntaxNode(collection(:elements);
+               open=TextString("| ", prj.pipe_style),
+               sep=TextString(" | ", prj.pipe_style),
+               close=TextString(" |", prj.pipe_style),
+               indentation=0)
+
+# The delimiter row of a table: one `---` for each column, with a colon on the
+# side the column aligns to.
+_make_delimiter_row(alignments) =
+    "| " * join((alignment === :left   ? ":---"  :
+                 alignment === :center ? ":---:" :
+                 alignment === :right  ? "---:"  : "---" for alignment in alignments), " | ") * " |"
+
+@projection struct MarkdownTableToSyntaxNode
+    pipe_style::ImmutableCell{StyleText} = StyleText(_MONO, color_solarized_gray)
+end
+
+@projection_template MarkdownTableToSyntaxNode MarkdownTable (prj, doc) ->
+    SyntaxNode(TextString("", prj.pipe_style), TextString("", prj.pipe_style),
+               TextString(() -> "\n" * _make_delimiter_row(doc.alignments) * "\n", prj.pipe_style),
+               [ project(:header),
+                 SyntaxNode(collection(:rows); sep=TextString("\n"), indentation=0) ],
+               0, false, nothing)
+
 @projection struct MarkdownRootToSyntaxNode
     style::ImmutableCell{StyleText} = StyleText(_MONO, color_black)
 end
@@ -572,6 +606,8 @@ function MarkdownToSyntax(; style::Symbol = :source)
                                         marker_style=gray_dejavu),
             MarkdownList          => MarkdownListToStyledNode(),
             MarkdownListItem      => MarkdownListItemToSyntaxNode(bullet=""),
+            MarkdownTable         => MarkdownTableToSyntaxNode(),
+            MarkdownTableRow      => MarkdownTableRowToSyntaxNode(),
             MarkdownLink          => MarkdownLinkToStyledNode(),
             MarkdownImage         => MarkdownImageToStyledNode(),
             MarkdownRoot          => MarkdownRootToSyntaxNode(),
@@ -591,6 +627,8 @@ function MarkdownToSyntax(; style::Symbol = :source)
         MarkdownQuote         => MarkdownQuoteToSyntaxNode(),
         MarkdownList          => MarkdownListToSyntaxNode(),
         MarkdownListItem      => MarkdownListItemToSyntaxNode(),
+        MarkdownTable         => MarkdownTableToSyntaxNode(),
+        MarkdownTableRow      => MarkdownTableRowToSyntaxNode(),
         MarkdownLink          => MarkdownLinkToSyntaxNode(),
         MarkdownImage         => MarkdownImageToSyntaxNode(),
         MarkdownRoot          => MarkdownRootToSyntaxNode(),

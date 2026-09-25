@@ -8,7 +8,7 @@ The Markdown domain, `ProjecturedMarkdown`, holds a Markdown page as a tree of b
 
 ## How it works
 
-`MarkdownRoot` holds the page in `elements`. The blocks are `MarkdownHeading`, `MarkdownParagraph`, `MarkdownCodeBlock`, `MarkdownQuote`, `MarkdownList` with `MarkdownListItem`, and `MarkdownThematicBreak`. The inlines are `MarkdownText`, `MarkdownCode`, `MarkdownEmphasis`, `MarkdownStrong`, `MarkdownLink` and `MarkdownImage`. A container holds its children in a `CellVector` field: `content` for inlines, `elements` or `items` for blocks.
+`MarkdownRoot` holds the page in `elements`. The blocks are `MarkdownHeading`, `MarkdownParagraph`, `MarkdownCodeBlock`, `MarkdownQuote`, `MarkdownList` with `MarkdownListItem`, `MarkdownTable` with `MarkdownTableRow`, and `MarkdownThematicBreak`. The inlines are `MarkdownText`, `MarkdownCode`, `MarkdownEmphasis`, `MarkdownStrong`, `MarkdownLink` and `MarkdownImage`. A container holds its children in a `CellVector` field: `content` for inlines, `elements`, `items` or `rows` for blocks. A table holds its `header` row, its body `rows`, and one alignment for each column in `alignments` (`:default`, `:left`, `:center` or `:right`). An entry of a table row is a `MarkdownParagraph`, because an entry is a run of inlines.
 
 The domain does not use `@domain`. It declares `MarkdownDocument` by hand, and `MarkdownInsertion` has a `value::Any` field. It has no `@gestures` tables, so the structural edits of JSON do not exist here. A text edit of a field goes through the shared splice, as in every domain.
 
@@ -23,11 +23,13 @@ The domain does not use `@domain`. It declares `MarkdownDocument` by hand, and `
 
 A page has a second route to the screen. `MarkdownRootToVerticalLayout` makes the page a `VerticalLayout` with one child for each block, and each block then goes through its own chain. The map is one step: `elements[i]` becomes `children[i]`.
 
+A table takes this route too. The layout draws it as a `WidgetTable`: the entries of the header are its column headers, the entries of each row are a row of it, the columns share the width of the page, and an entry breaks its lines at the edge of its column. The widget table holds the paragraphs of the table and not copies, and the maps rename only the steps between the page and an entry: `header.elements[j]` is `column_headers[j]`, and `rows[k].elements[j]` is `rows[k][j]`. In the syntax projection, in both presentations, a table is its source: pipes between the entries, and a delimiter row made from `alignments`.
+
 This route exists for a block that is not Markdown. A page can hold any file document, for example a `JsonFile`, as an element. In one syntax tree that element would arrive as reflected text and would not take a click. In the layout it is drawn by its own projection inside an embed card that you can fold. `make_embed_card` makes the card once for each element and keeps it in an `IdDict`, so the fold state stays when a block is added above it. The layout maps only three operations into a card: `ReplaceSelectionOperation`, `InvokeActionOperation` and `ToggleCollapseOperation`.
 
 ## The text form
 
-`parse_markdown` reads the blocks and the inlines listed above. `MarkdownFile` is the file type, for `.md` and `.markdown`. A reference to a node in another file is a fenced code block with the language `pred-ref`, because a fence is the opaque block of Markdown.
+`parse_markdown` reads the blocks and the inlines listed above. It reads the Markdown that the documentation tools write: a list item takes the lines below it that start no block, a run of lines indented by 4 columns is a code block with no language, a Julia admonition (`!!! note "title"` and an indented body) is a quote whose first paragraph is the title in bold, and a GitHub table is a `MarkdownTable`. A `|` escaped as `\|` is a pipe in its entry. The parser joins the lines of a paragraph with a space, so a page printed back is not always the text it was read from: a paragraph is one line, an indented code block is fenced, an admonition is a quote, and an ordered list has bullets. `MarkdownFile` is the file type, for `.md` and `.markdown`. A reference to a node in another file is a fenced code block with the language `pred-ref`, because a fence is the opaque block of Markdown.
 
 `get_markdown_section(document, title)` returns the part of a page from a heading to the next heading of the same or a higher level. The result shares the cells of the page. It is the Markdown method of `get_document_section`, so the `section(file("a.md"), "Title")` marker of a multi-file project can name a section. A missing title and a title that occurs twice both raise an error.
 
@@ -66,9 +68,11 @@ page     = parse_markdown("# Title\n\nSome **bold** text.\n")
 ```
 
 - Examples: `markdown_example` (source) and `markdown_rendered_example` (rendered, with word wrap). The factories are `make_markdown_document_example`, `make_markdown_projection_example` and `make_markdown_rendered_projection_example`.
-- Test: `test_markdown()` runs the layering guard, the page wrap test and the embed card test.
+- Test: `test_markdown()` runs the layering guard, the parser test (`test_markdown_parser()`, with excerpts of real tool answers and a parse of every guide), the page wrap test, the embed card test and the page table test (`test_markdown_page_table()`).
 
 ## Limits
 
-- No test covers the parser or the syntax projection by itself.
+- No test covers the syntax projection by itself.
+- The parser reads a flat list only: an indented list item is an item of the same list. It reads no hard line break, no HTML and no math, and an `<img …>` line is a paragraph of text.
+- A table draws every column at the left, because `WidgetTable` has no alignment for a column.
 - No structural gestures exist: you can edit the text of a block but not insert a block with a key.

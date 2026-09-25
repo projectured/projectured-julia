@@ -232,6 +232,8 @@ const domain_atomic_documents = AtomicDocument[
     AtomicDocument(:markdown, "image",      make_markdown_image_document_example),
     AtomicDocument(:markdown, "list_item",  make_markdown_list_item_document_example),
     AtomicDocument(:markdown, "quote",      make_markdown_quote_document_example),
+    AtomicDocument(:markdown, "table_row",  make_markdown_table_row_document_example),
+    AtomicDocument(:markdown, "table",      make_markdown_table_document_example),
     AtomicDocument(:markdown, "root",       make_markdown_root_document_example),
     AtomicDocument(:rst, "text",                     make_rst_text_document_example),
     AtomicDocument(:rst, "literal",                  make_rst_literal_document_example),

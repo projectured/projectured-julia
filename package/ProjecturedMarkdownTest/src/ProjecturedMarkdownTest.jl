@@ -65,8 +65,10 @@ for _src in _SOURCES
 end
 
 
+include("../../../test/markdown/MarkdownParserTest.jl")
 include("../../../test/markdown/MarkdownWrapTest.jl")
 include("../../../test/markdown/MarkdownEmbedCardTest.jl")
+include("../../../test/markdown/MarkdownTableTest.jl")
 include("../../../test/markdown/MarkdownSuite.jl")
 
 end # module ProjecturedMarkdownTest
