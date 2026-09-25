@@ -134,5 +134,12 @@ Work in the worktree `../projectured-julia-duplicate-tools`, on the branch
     does not change `ConversationModule.jl`.
 - [x] **Step 4. The guides.** `filesystem.md`, `conversation.md` and `julia.md`
   say that the kind has a duplicate and what it shares.
-- [ ] **Step 5. The narrow tests and the layering guards,** then move this plan
+- [x] **Step 5. The narrow tests and the layering guards,** then move this plan
   to `plan/done/`.
+  - Done. The tests of Steps 1 to 3 ran in the worktree environment
+    `environment/all`. `julia test/suite/naming.jl` answers "every name the
+    guard can read follows the law".
+  - `omnet-julia` declares no kind that holds Julia code or an
+    `EvaluatorForm`, so its duplicates do not change. Its IDE makes the
+    explorer as a `Workspace` (`source/ide/IdeWindow.jl`), so the Explorer tab
+    of the IDE also shows a `+`.
