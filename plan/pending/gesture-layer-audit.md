@@ -64,50 +64,59 @@ On 2026-09-25 the owner:
     video times. It gives events straight to the reader, with no recognizer.
   - Headless: `push_event!` gives the values that a test pushes.
 
-## The design (proposed; the decisions D1 to D6 wait for the owner)
+## The design (decided by the owner on 2026-09-25)
 
-- **D1, the field.** Every concrete event gets a last field `time::Float64`.
-  Every short constructor takes it as the keyword `time`, `0.0` by default, so
-  the existing constructions do not change. `0.0` means that the producer knows
-  no time. The interface declares `get_event_time(event)`.
-  - Option: the time on `WindowInput`, not on the event. The owner asked for
-    the time on the event.
+- **D1, the field.** Every concrete event gets a last field `time::Float64`, and
+  the time is **mandatory**: no constructor has a default for it. The owner
+  needs no backward compatibility here. Each short constructor takes the time as
+  the required keyword `time`; the full constructor takes it as its last
+  argument. The interface declares `get_event_time(event)`.
 - **D2, the time base.** Seconds on the clock of `time()`. Each backend converts
   its own stamps: SDL from its ticks at the poll, the web page sends
   `performance.timeOrigin + ev.timeStamp`, and the console takes `time()` when
   it reads the bytes.
-  - Option: seconds from an origin of each backend. The recognizer needs only
-    intervals, but a time on one clock can also go into a log.
 - **D3, equality.** The default equality of a struct compares the time too. The
-  tests that compare an event of a backend with a literal event then compare
-  the fields, or give the literal the same time.
-  - Option: `==` and `hash` of an event ignore the time. That keeps the tests,
-    but two events at different times are then equal.
+  tests that compare an event of a backend with a literal event change.
 - **D4, synthetic events.** `MousePress` takes the time of its `MouseUp`, and
-  `KeyChord` the time of its last `KeyDown`. Other producers, such as the hover
-  tracking of widgets, keep `0.0` in this plan.
+  `KeyChord` the time of its last `KeyDown`.
 - **D5, the recognizer.** It reads the time of each event, and its `clock`
   keyword goes. That also ends item 5. The tests give times to their events.
-- **D6, the way in for chords.**
-  - `Editor`, `make_editor` and `run_editor!` take a keyword `chords`, the chord
-    table of the recognizer.
-  - A pattern `KeyChord(KeyDown(:x; ctrl), KeyDown(:s; ctrl)) => …` in
-    `@event_case` and `@gestures` matches a chord of those steps. Each step is a
-    `KeyDown` pattern, with its own modifiers. `describe_event_pattern` gives
-    "Ctrl+x Ctrl+s".
-  - Option: the editor collects the chord table from the patterns of its
-    bindings, so a chord is written once. That needs a walk over every binding
-    of the projection, and it is a larger change.
+- **D6, chords.** The chord table of an editor will come from the `KeyChord`
+  patterns of its gesture bindings, so each chord is written once. The owner
+  deferred this; this plan only documents it, in
+  `plan/pending/key-chords-from-bindings.md`.
+
+Because the time is mandatory, each producer of an event must choose a time.
+The rules:
+
+- A backend gives the time of the input, from its own stamps (D2).
+- A reader or a probe that makes an event from another event gives the time of
+  that event: a move of a pointer event into the space of a child, a
+  `MouseEnter` from a `MouseMove`, a `MousePress` that a probe makes from a
+  `MouseMove`.
+- A producer with no input, such as a script of a precompile workload, an
+  example or a video tool, gives `time()`, the time when it makes the event.
+- A test gives a literal time. Most tests give `time = 0.0`; a test of the
+  recognizer gives the times that its case needs.
+- A pattern does not bind `time` by position: `time` is not a part of what a
+  gesture is. `_get_positional_event_fields` leaves it out.
+
+The inventory (a parse with the parser of Julia; pattern syntax in
+`@event_case`, `@gestures` and `@gesture_set` and quoted code do not count):
+1521 constructions. projectured-julia has 1206 in `test/`, 119 in `source/`, 38
+in `example/` and 18 in `tool/`; omnet-julia has 119, and inet-julia 21. No
+code passes an event type as a function value, and no code constructs an event
+through a type variable.
 
 ## The files
 
 Sealed files that the items change:
 
 - `gesture/GestureRecognizerModule.jl`, `gesture/GestureRecognizer.jl`: all items.
-- `event/EventModule.jl`, `event/EventInterface.jl`, `event/KeyboardEvent.jl`,
-  `event/MouseEvent.jl`, `event/WindowEvent.jl`: the time field and
-  `get_event_time` (items 1 and 4).
-- `event/EventPattern.jl`: the `KeyChord` pattern (item 4).
+- `event/EventModule.jl`, `event/EventInterface.jl`, `event/EventDefaults.jl`,
+  `event/KeyboardEvent.jl`, `event/MouseEvent.jl`, `event/WindowEvent.jl`: the
+  time field and `get_event_time` (item 1).
+- `event/EventPattern.jl`: the positional fields of a pattern leave `time` out.
 
 Files that are not sealed: `Sdl.jl`, `Web.jl`, `client.js`, `Console.jl`,
 `VideoBackend.jl`, `Editor.jl`, `EditorLoop.jl`, the tests, and the guides
@@ -143,9 +152,12 @@ Each step is a commit in this worktree.
      flush of two kept keys; a value that is not a `WindowInput`.
    - The suites give the baseline, with the kernel at 2335 passes (2 more) and
      the same 12 failures at the same lines.
-3. [ ] Item 1, after the owner confirms D1 to D5: the time field, the backends,
-   and the recognizer on the event time (item 5 with it).
-4. [ ] Item 4, after the owner confirms D6: the `chords` keyword and the
-   `KeyChord` pattern.
-5. [ ] The check: the suites as on main plus the new tests, the guards, omnet-julia
-   precompiles, and the live-window check.
+3. [ ] Item 1: the time field in the event layer, the constructions in
+   projectured-julia, the backends, and the recognizer on the event time
+   (item 5 with it).
+4. [x] Item 4: `plan/pending/key-chords-from-bindings.md`, deferred.
+5. [ ] The same constructions in omnet-julia and inet-julia, in worktrees of
+   their own, to land together with this branch.
+6. [ ] The check: the suites as on main plus the new tests, the guards,
+   omnet-julia and inet-julia precompile and pass their suites, and a live
+   window gives a click and a double click.
