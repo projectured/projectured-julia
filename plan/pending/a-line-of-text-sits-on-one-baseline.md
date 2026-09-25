@@ -686,6 +686,16 @@ projection holds its measure in one typed field, so the line model can not read 
   the branch, with the same panes: a code tab, a guide with a table and inline
   code, the chat pane with a result, a form, a heading with kerned pairs, and a
   selection across three lines. Images of both go to the owner, at ratio 1 and 2.
+  *Images made, the review of the owner open:* `/var/tmp/text-baseline-look/`
+  holds `scenes.jl`, which renders through `write_image` (the SDL renderer,
+  offscreen) at ratio 1 and 2, the images of the base and of the branch, and
+  `compare/`, each pair side by side (base left, red; branch right, green):
+  a line of body text, code and an emoji under a kerned heading; a selection
+  across three lines; a Markdown result in the chat pane; a JSON code tab; the
+  widget gallery. On the base, the descenders of the last line, of every table
+  cell and of the status line are cut; on the branch every ink shows, the runs
+  of a line share its baseline, and selection rows meet. The code tab does not
+  change: Ubuntu Mono has no line gap. A check in a live window is not done.
 - [ ] **Step 10. omnet-julia and inet-julia** follow the contract: their packages
   precompile, their presentation tests pass, and images of a topology, a
   timeline and a packet diagram go to the owner.
