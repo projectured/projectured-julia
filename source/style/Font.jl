@@ -32,46 +32,22 @@ end
 
 make_style_font(filename::AbstractString, size::Integer) = StyleFont(filename, size)
 
-# ── Readability scaling: display scale + zoom knobs ─────────────────────────────
+# ── Readability zoom ──────────────────────────────────────────────────────────
 #
-# `_DISPLAY_SCALE` is the *effective* logical→device factor everything reads. It
-# is the product of two independently-set inputs:
-#
-#   _BASE_DISPLAY_SCALE — the display's DPI scale, detected once by the SDL
-#                         backend at window open (the role this factor played
-#                         before user zoom existed).
-#   _USER_ZOOM          — the user's *uniform* readability zoom (Ctrl+=/-/0),
-#                         1.0 by default. Magnifies everything because it feeds
-#                         the device-edge scale uniformly.
-#
-# `recompute_display_scale!()` folds them back into `_DISPLAY_SCALE`. Keep these
-# as plain `Ref`s: layout never reads the display scale (it is scale-invariant —
-# see plan/done/global-display-scale.md), so changing it needs no reactive
-# invalidation, only a backend repaint.
-const _BASE_DISPLAY_SCALE = Ref(1.0)
-const _USER_ZOOM          = Ref(1.0)
-const _DISPLAY_SCALE      = Ref(1.0)
-
-recompute_display_scale!() = (_DISPLAY_SCALE[] = _BASE_DISPLAY_SCALE[] * _USER_ZOOM[])
+# Two zooms change the size of text on the screen. The uniform zoom (Ctrl+= and
+# Ctrl+-) is the `zoom` of the `Display` of an editor. A backend multiplies it
+# into the ratio of device pixels to logical pixels, and layout does not read it.
+# The font zoom (Ctrl+Alt+= and Ctrl+Alt+-) is `_FONT_ZOOM` below. Both zooms
+# step through `_ZOOM_STEPS` with `step_zoom`.
 
 # `_FONT_ZOOM` is the *font-only* readability zoom (Ctrl+Alt+=/-/0): it scales the
 # *logical* size of text so text-derived layout reflows bigger while fixed
 # geometry (paddings, image boxes, explicit spacing) stays put. Unlike the
-# display scale, layout DOES read it (`font_logical_size`), so it must be a
+# uniform zoom, layout DOES read it (`font_logical_size`), so it must be a
 # reactive `Cell` — writing it invalidates the text-layout cells that read it
 # during their thunks, which is what makes a font-zoom change relayout. A plain
 # value would leave those cached layouts stale (see package/kernel/doc/cell.md).
 const _FONT_ZOOM = Cell(1.0)
-
-"""
-    font_scaled_size(size::Integer) -> Int
-
-Device-pixel size at which a logical font `size` must be *rasterized* so that,
-once the renderer is scaled by [`_DISPLAY_SCALE`](@ref), the glyph lands 1:1 on
-device pixels and stays crisp. Backend-only: layout measures and positions text
-in logical pixels (via [`font_logical_size`](@ref)), never through this.
-"""
-font_scaled_size(size::Integer) = max(1, round(Int, size * _DISPLAY_SCALE[]))
 
 """
     font_logical_size(font::StyleFont) -> Int
@@ -85,33 +61,29 @@ when font zoom changes.
 font_logical_size(font::StyleFont) = max(1, round(Int, font.size * _FONT_ZOOM[]))
 
 """
-    font_device_size(font::StyleFont) -> Int
+    font_device_size(font::StyleFont, ratio::Real) -> Int
 
-A font's size in *device* pixels: the logical (font-zoomed) size scaled by the
-display factor. The size the backend rasterizes glyphs at. Equals
-`font_scaled_size(font.size)` at the default font zoom.
+A font's size in device pixels: its logical size after the font zoom, times
+`ratio`, the number of device pixels in one logical pixel. A backend rasterizes
+the glyphs at this size, so that they land one to one on the device pixels.
 """
-font_device_size(font::StyleFont) = max(1, round(Int, font.size * _FONT_ZOOM[] * _DISPLAY_SCALE[]))
+font_device_size(font::StyleFont, ratio::Real) =
+    max(1, round(Int, font.size * _FONT_ZOOM[] * ratio))
 
-# Discrete, browser-like zoom factors and a stepper that snaps `cur` to the
-# nearest one then moves `delta` steps (clamped). `delta == 0` resets to 1.0.
+# The zoom factors that `step_zoom` steps through, as in a web browser.
 const _ZOOM_STEPS = (0.5, 0.67, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0)
-function _stepped_zoom(cur::Real, delta::Integer)
+
+"""
+    step_zoom(zoom::Real, delta::Integer) -> Float64
+
+The zoom `delta` steps away from `zoom` in the table of zoom factors: `+1` zooms
+in, `-1` zooms out, and `0` gives `1.0`. A `zoom` between two factors counts as
+the nearest one, and the result stays inside the table.
+"""
+function step_zoom(zoom::Real, delta::Integer)
     delta == 0 && return 1.0
-    i = argmin(abs.(collect(_ZOOM_STEPS) .- cur))
+    i = argmin(abs.(collect(_ZOOM_STEPS) .- zoom))
     _ZOOM_STEPS[clamp(i + delta, 1, length(_ZOOM_STEPS))]
-end
-
-"""
-    adjust_user_zoom!(delta::Integer) -> Float64
-
-Step the uniform display zoom (+1 in, -1 out, 0 reset) and refold it into
-`_DISPLAY_SCALE`. Returns the new `_USER_ZOOM`.
-"""
-function adjust_user_zoom!(delta::Integer)
-    _USER_ZOOM[] = _stepped_zoom(_USER_ZOOM[], delta)
-    recompute_display_scale!()
-    _USER_ZOOM[]
 end
 
 """
@@ -122,7 +94,7 @@ cell via `set_cell_value!`, which invalidates the text-layout cells that read it
 next print relayouts. Returns the new font zoom.
 """
 function adjust_font_zoom!(delta::Integer)
-    set_cell_value!(_FONT_ZOOM, _stepped_zoom(_FONT_ZOOM[], delta))
+    set_cell_value!(_FONT_ZOOM, step_zoom(_FONT_ZOOM[], delta))
     _FONT_ZOOM[]
 end
 

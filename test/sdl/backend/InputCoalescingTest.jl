@@ -38,12 +38,15 @@ function _reset_input!()
     ProjecturedSdl._LAST_HOVER_MOTION[] = 0.0
 end
 
-_logical(v) = ProjecturedSdl._to_logical(Int(v))
+# The `Display` of the backend below has the scale 2, so an event holds the half of
+# the device coordinates that SDL reports.
+_logical(v) = ProjecturedSdl._to_logical(Int(v), 2.0)
 
 function test_input_coalescing()
 @testset "pointer motion is coalesced" begin
 
     backend = SdlBackend()
+    backend.display.scale = 2.0
 
     @testset "a run of motion answers with the newest sample" begin
         _reset_input!()

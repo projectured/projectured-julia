@@ -41,9 +41,8 @@ import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, Graphic
 import ProjecturedCollection.CollectionModule: ListNode, CellVector
 import ProjecturedStyle.StyleModule: AffineTransform, affine_identity, is_affine_axis_aligned
 import ProjecturedStyle.StyleModule: StyleColor
-import ProjecturedStyle.StyleModule: StyleFont, font_scaled_size, font_logical_size, font_device_size,
-                         _DISPLAY_SCALE, _BASE_DISPLAY_SCALE, recompute_display_scale!,
-                         adjust_user_zoom!, adjust_font_zoom!
+import ProjecturedStyle.StyleModule: StyleFont, font_logical_size, font_device_size,
+                         step_zoom, adjust_font_zoom!
 # `_get_font` resolves a font's name through this rather than opening
 # `font.filename` directly, so a bundle copied to another machine finds its
 # fonts where they are now. The metrics reader resolves the same way, which is

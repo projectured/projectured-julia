@@ -4,10 +4,10 @@ function test_dirty_rect()
 SDL = ProjecturedSdl   # the SDL backend module (provides SdlWindowResources + _compute_dirty_rect)
 
 # A bare resource record is enough for `_compute_dirty_rect`: it only reads
-# `width`/`height`/`dirty_bounds` and never touches the (null) renderer.
+# `width`/`height`/`ratio`/`dirty_bounds` and never touches the (null) renderer.
 make_res() = SDL.SdlWindowResources(
     C_NULL, C_NULL, :test, UInt32(0), "t", 800, 600, 0, 0, :default,
-    (0x00, 0x00, 0x00, 0xff), 1, C_NULL, 0, 0, false,
+    (0x00, 0x00, 0x00, 0xff), 1, 1.0, C_NULL, 0, 0, false,
     Dict{UInt,NTuple{4,Int}}(), NTuple{4,Int}[])
 
 @testset "detects an invalidated element and pads its bounds" begin

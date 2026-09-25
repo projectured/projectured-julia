@@ -60,7 +60,7 @@ end
         held = WindowDocument(; id = :held_window_test, title = "held_window_test",
                                 x = 100, y = 100, width = 200, height = 100,
                                 style = style, content = "content")
-        resource = SDL._open_native_window!(held; hidden = true)
+        resource = SDL._open_native_window!(backend, held; hidden = true)
         @test !SDL._is_native_window_shown(resource)
         # Painted, then shown. The paint that follows asks for the whole window,
         # because a driver is free to drop a present made while it is hidden.

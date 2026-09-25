@@ -47,8 +47,9 @@ Return the usable size of the given display (default 0) in **logical** pixels �
 the coordinate space window sizes are authored in. "Usable" means with
 OS-reserved areas like the taskbar / menu bar subtracted; the right thing for
 picking a default window size. The monitor's device-pixel size is divided by
-[`_DISPLAY_SCALE`](@ref) so that a window sized to it fills exactly one monitor
-once the backend scales it back to device pixels. Falls back to `(1280, 720)`
+the scale that the probe of the display finds, so that a window sized to it fills
+exactly one monitor once the backend scales it back to device pixels. Falls back
+to `(1280, 720)`
 if SDL cannot answer (no display, headless run, etc.). The video subsystem and
 the display scale are initialized lazily; safe to call before `initialize_backend!`.
 
@@ -70,7 +71,8 @@ function get_sdl_display_size(; display::Integer=0)
     # not override a setup where SDL already enumerates monitors correctly).
     if display == 0 && SDL_GetNumVideoDisplays() <= 1
         mon = _x11_primary_monitor_size(; require_multi=true)
-        mon === nothing || return (_to_logical(mon[1]), _to_logical(mon[2]))
+        mon === nothing || return (_to_logical(mon[1], _PROBED_DISPLAY_SCALE[]),
+                                   _to_logical(mon[2], _PROBED_DISPLAY_SCALE[]))
     end
 
     rect = Ref(SDL_Rect(Int32(0), Int32(0), Int32(0), Int32(0)))
@@ -78,7 +80,8 @@ function get_sdl_display_size(; display::Integer=0)
     if rc != 0 || rect[].w <= 0 || rect[].h <= 0
         return (1280, 720)
     end
-    (_to_logical(Int(rect[].w)), _to_logical(Int(rect[].h)))
+    (_to_logical(Int(rect[].w), _PROBED_DISPLAY_SCALE[]),
+     _to_logical(Int(rect[].h), _PROBED_DISPLAY_SCALE[]))
 end
 
 # ════════════════════════════════════════════════════════════════════════
@@ -105,6 +108,7 @@ mutable struct SdlWindowResources
     style::Symbol        # last applied style
     bg::NTuple{4,UInt8}  # last applied background
     ss::Int              # supersample factor for anti-aliasing (1 = off)
+    ratio::Float64       # last applied device pixel ratio of the backend's Display
     target::Ptr{SDL_Texture}  # offscreen SSAA render target (C_NULL until created)
     target_w::Int        # current target texture size (device px)
     target_h::Int
@@ -141,6 +145,12 @@ events into `WindowInput`s. Both are reconciled by
 `read_from_devices` needs to collapse a run of pointer motion into its newest
 sample. They live on the backend rather than at module level, so two backends in
 one process never hand each other an event.
+
+`display` is the `Display` that the backend draws on. Its device pixel ratio
+sizes the windows, rasterizes the text and converts the input coordinates. A new
+backend has a `Display()` of its own, and `initialize_backend!` gives it the
+scale that the probe finds. `configure_devices!` replaces it with the `Display`
+of the editor, so the zoom of that `Display` is the zoom of the windows.
 """
 mutable struct SdlBackend <: Backend
     # Multi-window reconciliation state.
@@ -161,6 +171,8 @@ mutable struct SdlBackend <: Backend
     # progress. Zero until `initialize_backend!` registers one; a wake on an
     # uninitialized backend is a no-op.
     wake_event_type::UInt32
+    # The display the windows are drawn on (see the docstring).
+    display::Display
 end
 
 # `partial_render` / `debug_dirty` default to the PROJECTURED_PARTIAL_RENDER /
@@ -174,7 +186,7 @@ SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
                Dict{UInt32, Symbol}(),
                partial_render === nothing ? _envflag("PROJECTURED_PARTIAL_RENDER", false) : partial_render,
                debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", false)    : debug_dirty,
-               nothing, nothing, UInt32(0))
+               nothing, nothing, UInt32(0), Display())
 
 # Module-level TTF font cache, keyed by (filename, scaled_size).
 # Shared by window rendering, offscreen image rendering, and text measurement.
@@ -200,7 +212,7 @@ end
 
 struct _TextTexture
     texture::Ptr{SDL_Texture}
-    dw::Int   # device px width  (logical size is recomputed per draw via _to_logical)
+    dw::Int   # device px width  (the logical size follows at each draw, from the ratio)
     dh::Int   # device px height
 end
 
@@ -451,13 +463,16 @@ _hidden_window_flags(style::Symbol) =
     (UInt32(_window_flags(style)) & ~UInt32(SDL_WINDOW_SHOWN)) | UInt32(SDL_WINDOW_HIDDEN)
 
 # Open one native SDL window for a WindowDocument and return the resource record.
-function _open_native_window!(w::WindowDocument; hidden::Bool = false)
+# The window is drawn at the device pixel ratio of the `Display` of `backend`.
+function _open_native_window!(backend::SdlBackend, w::WindowDocument; hidden::Bool = false)
     px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(w.x)
     py = w.y < 0 ? SDL_WINDOWPOS_CENTERED : Int32(w.y)
     flags = hidden ? _hidden_window_flags(w.style) : UInt32(_window_flags(w.style))
+    ratio = get_device_pixel_ratio(backend.display)
     # WindowDocument sizes are logical; the native window is device pixels.
     win = SDL_CreateWindow(w.title, px, py,
-        Int32(max(_to_device(w.width), 1)), Int32(max(_to_device(w.height), 1)), flags)
+        Int32(max(_to_device(w.width, ratio), 1)),
+        Int32(max(_to_device(w.height, ratio), 1)), flags)
     @assert win != C_NULL "SDL window creation failed: $(unsafe_string(SDL_GetError()))"
 
     # Linear filtering so the supersampled target downsamples smoothly.
@@ -483,12 +498,15 @@ function _open_native_window!(w::WindowDocument; hidden::Bool = false)
     end
     _drop_pathological_vsync!(renderer)
 
-    _update_display_scale!(win, renderer)
+    if _update_display_scale!(win, renderer)
+        backend.display.scale = _PROBED_DISPLAY_SCALE[]
+        ratio = get_device_pixel_ratio(backend.display)
+    end
 
     sdl_id = UInt32(SDL_GetWindowID(win))
     SdlWindowResources(win, renderer, w.id, sdl_id, w.title,
                        Int(w.width), Int(w.height), Int(w.x), Int(w.y),
-                       w.style, w.bg, _window_supersample(), C_NULL, 0, 0,
+                       w.style, w.bg, _window_supersample(), ratio, C_NULL, 0, 0,
                        true, Dict{UInt,NTuple{4,Int}}(), NTuple{4,Int}[])
 end
 
@@ -553,12 +571,12 @@ end
 # ── Logical ↔ device pixel conversion ──────────────────────────────────
 #
 # Layout, documents and events are all in *logical* pixels; the window's
-# backbuffer and the OS are in *device* pixels. These convert across the
-# `_DISPLAY_SCALE` boundary. `_to_device` sizes native windows / SSAA targets;
+# backbuffer and the OS are in *device* pixels. `ratio` is the number of device
+# pixels in one logical pixel. `_to_device` sizes native windows / SSAA targets;
 # `_to_logical` maps incoming device-space input (mouse, resize) back to the
 # logical space everything else lives in.
-_to_device(px) = round(Int, px * _DISPLAY_SCALE[])
-_to_logical(px) = round(Int, px / _DISPLAY_SCALE[])
+_to_device(px, ratio::Float64) = round(Int, px * ratio)
+_to_logical(px, ratio::Float64) = round(Int, px / ratio)
 
 # Idle (no-button) mouse motion is forwarded for hover features (e.g. the
 # reference inspector) but rate-limited so a probe does not run on every pixel.
@@ -580,7 +598,10 @@ function BackendModule.get_pointer_position(::SdlBackend)
     (Int(x_ref[]), Int(y_ref[]))
 end
 
-# Detect the effective display scale and update the module-wide font scale.
+# Find the scale of the display: the number of device pixels in one logical pixel
+# of the hardware. The scale is a fact of the machine, not of an editor, so the
+# probe runs once in a process and keeps its result in `_PROBED_DISPLAY_SCALE`.
+# `configure_devices!` copies it into the `Display` of each editor.
 #
 # Two-phase detection:
 #
@@ -595,7 +616,7 @@ end
 #     3. SDL renderer-output / window-size ratio — macOS Retina, native Wayland.
 #     4. SDL_GetDisplayDPI / 96 — Windows fallback.
 #
-# Falls back to _DISPLAY_SCALE = 1.0 (no scaling) if nothing fires.
+# Falls back to 1.0 (no scaling) if nothing fires.
 #
 # Both phases are latched, because the scale value alone cannot say whether a
 # probe already ran: a 1× display detects as exactly 1.0, which is also the
@@ -606,6 +627,7 @@ end
 #   _DISPLAY_SCALE_DETECTED — a real scale was found; no later phase may change it.
 const _DISPLAY_SCALE_PROBED   = Ref(false)
 const _DISPLAY_SCALE_DETECTED = Ref(false)
+const _PROBED_DISPLAY_SCALE   = Ref(1.0)
 
 function _detect_display_scale!()
     _DISPLAY_SCALE_PROBED[] && return _DISPLAY_SCALE_DETECTED[]
@@ -616,9 +638,9 @@ function _detect_display_scale!()
     if !isempty(env_val)
         scale = tryparse(Float64, env_val)
         if scale !== nothing && scale > 0
-            _BASE_DISPLAY_SCALE[] = scale; recompute_display_scale!()
+            _PROBED_DISPLAY_SCALE[] = scale
             _DISPLAY_SCALE_DETECTED[] = true
-            println("Display scale: $(_BASE_DISPLAY_SCALE[]) (PROJECTURED_DISPLAY_SCALE)")
+            println("Display scale: $(_PROBED_DISPLAY_SCALE[]) (PROJECTURED_DISPLAY_SCALE)")
             return true
         end
     end
@@ -632,9 +654,9 @@ function _detect_display_scale!()
             if m !== nothing
                 xft_dpi = parse(Float64, m.captures[1])
                 if xft_dpi > 0
-                    _BASE_DISPLAY_SCALE[] = xft_dpi / 96.0; recompute_display_scale!()
+                    _PROBED_DISPLAY_SCALE[] = xft_dpi / 96.0
                     _DISPLAY_SCALE_DETECTED[] = true
-                    println("Display scale: $(_BASE_DISPLAY_SCALE[]) (Xft.dpi = $xft_dpi)")
+                    println("Display scale: $(_PROBED_DISPLAY_SCALE[]) (Xft.dpi = $xft_dpi)")
                     return true
                 end
             end
@@ -646,9 +668,10 @@ function _detect_display_scale!()
     return false
 end
 
+# Answers `true` when this call found the scale.
 function _update_display_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer})
     # Skip if a window-free phase already found the scale.
-    _DISPLAY_SCALE_DETECTED[] && return
+    _DISPLAY_SCALE_DETECTED[] && return false
 
     # SDL renderer output size vs logical window size.
     dw = Ref{Cint}(0); dh = Ref{Cint}(0)
@@ -656,23 +679,25 @@ function _update_display_scale!(win::Ptr{SDL_Window}, renderer::Ptr{SDL_Renderer
     SDL_GetRendererOutputSize(renderer, dw, dh)
     SDL_GetWindowSize(win, ww, wh)
     if ww[] > 0 && dw[] > ww[]
-        _BASE_DISPLAY_SCALE[] = Float64(dw[]) / Float64(ww[]); recompute_display_scale!()
+        _PROBED_DISPLAY_SCALE[] = Float64(dw[]) / Float64(ww[])
         _DISPLAY_SCALE_DETECTED[] = true
-        println("Display scale: $(_BASE_DISPLAY_SCALE[]) (SDL renderer ratio)")
-        return
+        println("Display scale: $(_PROBED_DISPLAY_SCALE[]) (SDL renderer ratio)")
+        return true
     end
 
     # SDL DPI fallback (Windows / some X11 setups).
     display_index = SDL_GetWindowDisplayIndex(win)
-    display_index < 0 && return
+    display_index < 0 && return false
     ddpi = Ref{Cfloat}(0)
     hdpi = Ref{Cfloat}(0)
     vdpi = Ref{Cfloat}(0)
     if SDL_GetDisplayDPI(display_index, ddpi, hdpi, vdpi) == 0 && ddpi[] > 0
-        _BASE_DISPLAY_SCALE[] = Float64(ddpi[]) / 96.0; recompute_display_scale!()
+        _PROBED_DISPLAY_SCALE[] = Float64(ddpi[]) / 96.0
         _DISPLAY_SCALE_DETECTED[] = true
-        println("Display scale: $(_BASE_DISPLAY_SCALE[]) (SDL DPI = $(ddpi[]))")
+        println("Display scale: $(_PROBED_DISPLAY_SCALE[]) (SDL DPI = $(ddpi[]))")
+        return true
     end
+    false
 end
 
 # Destroy one native SDL window. Loaded fonts persist in the
@@ -686,8 +711,9 @@ end
 
 # ── Font resolution ────────────────────────────────────────────────────
 
-function _get_font(font::StyleFont)
-    size = font_device_size(font)
+# The handle of `font` at the device size for `ratio`.
+function _get_font(font::StyleFont, ratio::Float64)
+    size = font_device_size(font, ratio)
     key = (font.filename, size)
     get!(_font_cache, key) do
         # `font_file` and not `font.filename`: the name a `StyleFont` carries is
@@ -721,11 +747,11 @@ function _get_fallback_font(path::String, size::Int)
 end
 
 # The font that draws codepoint `cp` in a text set in `font`, whose handle is
-# `primary`.
-function _glyph_font(cp::UInt32, font::StyleFont, primary::Ptr{TTF_Font})
+# `primary`, at the device size for `ratio`.
+function _glyph_font(cp::UInt32, font::StyleFont, primary::Ptr{TTF_Font}, ratio::Float64)
     file = find_glyph_font_file(font.filename, cp)
     (file === nothing || file == font.filename) && return primary
-    handle = _get_fallback_font(file, font_device_size(font))
+    handle = _get_fallback_font(file, font_device_size(font, ratio))
     handle == C_NULL ? primary : handle
 end
 
@@ -734,8 +760,9 @@ end
 # draw a stray box; ZWJ (U+200D) and skin-tone modifiers stay in the current run
 # so they bind to the preceding emoji. A text the primary font carries in full is
 # a single run. Without shaping, ZWJ and skin-tone sequences draw as their
-# separate base glyphs.
-function _font_runs(text::AbstractString, font::StyleFont, primary::Ptr{TTF_Font})
+# separate base glyphs. A fallback font opens at the device size for `ratio`.
+function _font_runs(text::AbstractString, font::StyleFont, primary::Ptr{TTF_Font},
+                    ratio::Float64)
     runs = Tuple{Ptr{TTF_Font},String}[]
     carried = load_truetype_font(font.filename)
     buf = IOBuffer()
@@ -747,7 +774,7 @@ function _font_runs(text::AbstractString, font::StyleFont, primary::Ptr{TTF_Font
         sticky = started && (cp == 0x200D || 0x1F3FB <= cp <= 0x1F3FF)
         f = sticky ? cur :
             (cp <= 0xFFFF && has_font_glyph(carried, cp)) ? primary :
-            _glyph_font(cp, font, primary)
+            _glyph_font(cp, font, primary, ratio)
         if !started
             cur = f
         elseif f !== cur
@@ -808,22 +835,24 @@ _rgba8(c::StyleColor) = (UInt8(round(c.red * 255)), UInt8(round(c.green * 255)),
 
 # ── Render a single GraphicsText element ───────────────────────────────
 
-function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::Int, oy::Int)
+# `ratio` is the number of device pixels in one logical pixel of the render.
+function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::Int, oy::Int,
+                          ratio::Float64)
     text = elem.text::AbstractString
     isempty(text) && return
 
     font_style = elem.font::StyleFont
     color = _rgba8(elem.color)
     key = _TextTextureKey(renderer, String(text), font_style.filename,
-                          font_device_size(font_style), color)
+                          font_device_size(font_style, ratio), color)
 
     # Reuse the uploaded texture for an unchanged (text, font, colour) span;
     # rasterize + upload only on a cache miss. The texture is rasterized at
     # device size and freed when its renderer is torn down.
     entry = get(_text_texture_cache, key, nothing)
     if entry === nothing
-        font = _get_font(font_style)
-        runs = _font_runs(text, font_style, font)
+        font = _get_font(font_style, ratio)
+        runs = _font_runs(text, font_style, font, ratio)
         surface = length(runs) == 1 ?
             TTF_RenderUTF8_Blended(runs[1][1], runs[1][2], SDL_Color(color...)) :
             _render_runs_blended(runs, color)
@@ -837,11 +866,12 @@ function _render_element!(renderer::Ptr{SDL_Renderer}, elem::GraphicsText, ox::I
         _text_texture_cache[key] = entry
     end
 
-    # The destination rect is in logical pixels (= device size ÷ scale). The
+    # The destination rect is in logical pixels (= device size ÷ ratio). The
     # renderer scale then maps it back to device pixels, so the texture lands
     # 1:1 and stays crisp.
     dest = Ref(SDL_Rect(elem.x + ox, elem.y + oy,
-                        Int32(_to_logical(entry.dw)), Int32(_to_logical(entry.dh))))
+                        Int32(_to_logical(entry.dw, ratio)),
+                        Int32(_to_logical(entry.dh, ratio))))
     SDL_RenderCopy(renderer, entry.texture, C_NULL, dest)
 end
 
@@ -879,7 +909,8 @@ _clip_restore!(renderer::Ptr{SDL_Renderer}, prev::SDL_Rect) =
 # would draw its later content over the tab strip and outside the page.
 #
 # So a viewport intersects with the clip in force, and restores it afterwards.
-function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox::Int, oy::Int)
+function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox::Int, oy::Int,
+                          ratio::Float64)
     vx = Int(vp.x) + ox
     vy = Int(vp.y) + oy
     vw = Int(vp.w)
@@ -893,7 +924,7 @@ function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox
         # Fast path: identity transform — clip + draw exactly as before.
         box = SDL_Rect(Int32(vx), Int32(vy), Int32(vw), Int32(vh))
         SDL_RenderSetClipRect(renderer, Ref(prev === nothing ? box : _clip_intersect(box, prev)))
-        _render_canvas!(renderer, canvas, vx + cx, vy + cy, vx + vw, vy + vh)
+        _render_canvas!(renderer, canvas, vx + cx, vy + cy, vx + vw, vy + vh, ratio)
         _clip_restore!(renderer, prev)
         return
     end
@@ -926,7 +957,7 @@ function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox
     org_y = round(Int, (vy + ty) / sy) + cy
     clip_r = round(Int, (vx + vw) / sx)
     clip_b = round(Int, (vy + vh) / sy)
-    _render_canvas!(renderer, canvas, org_x, org_y, clip_r, clip_b)
+    _render_canvas!(renderer, canvas, org_x, org_y, clip_r, clip_b, ratio)
     SDL_RenderSetScale(renderer, Cfloat(base_x), Cfloat(base_y))
     _clip_restore!(renderer, prev)
 end
@@ -1525,13 +1556,10 @@ end
 
 # ── Dispatch over a heterogeneous element list ────────────────────────
 
-function _render_elements!(renderer::Ptr{SDL_Renderer}, elements, ox::Int, oy::Int, vw::Int, vh::Int)
-    for elem in elements
-        _dispatch_render_elem!(renderer, elem, ox, oy, vw, vh)
-    end
-end
-
-function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox::Int, oy::Int, vw::Int, vh::Int)
+# `ratio` is the number of device pixels in one logical pixel of the render. Only
+# a text reads it: it rasterizes its glyphs at the device size.
+function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox::Int, oy::Int,
+                         vw::Int, vh::Int, ratio::Float64)
     layout = canvas.layout
     elements = canvas.elements
     early_stop = !canvas.overlapping_elements && layout != layout_none
@@ -1541,7 +1569,7 @@ function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox
         while prev_node !== nothing
             elem = prev_node.value
             if !(elem isa GraphicsFence)
-                _dispatch_render_elem!(renderer, elem, ox, oy, vw, vh)
+                _dispatch_render_elem!(renderer, elem, ox, oy, vw, vh, ratio)
                 if early_stop
                     if layout == layout_vertical
                         ey = _render_elem_y(elem)
@@ -1568,7 +1596,7 @@ function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox
                         ex !== nothing && (ex + ox) > vw && break
                     end
                 end
-                _dispatch_render_elem!(renderer, elem, ox, oy, vw, vh)
+                _dispatch_render_elem!(renderer, elem, ox, oy, vw, vh, ratio)
             end
             node = node.next
         end
@@ -1584,14 +1612,15 @@ function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox
                     ex !== nothing && (ex + ox) > vw && break
                 end
             end
-            _dispatch_render_elem!(renderer, elem, ox, oy, vw, vh)
+            _dispatch_render_elem!(renderer, elem, ox, oy, vw, vh, ratio)
         end
     end
 end
 
-function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::Int, vw::Int, vh::Int)
+function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::Int,
+                                vw::Int, vh::Int, ratio::Float64)
     if elem isa GraphicsText
-        _render_element!(renderer, elem, ox, oy)
+        _render_element!(renderer, elem, ox, oy, ratio)
     elseif elem isa GraphicsRect
         _render_rect!(renderer, elem, ox, oy)
     elseif elem isa GraphicsLine
@@ -1605,7 +1634,7 @@ function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::
     elseif elem isa GraphicsCircle
         _render_circle!(renderer, elem, ox, oy)
     elseif elem isa GraphicsViewport
-        _render_viewport!(renderer, elem, ox, oy)
+        _render_viewport!(renderer, elem, ox, oy, ratio)
     elseif elem isa GraphicsImage
         _render_image!(renderer, elem, ox, oy)
     elseif elem isa GraphicsCanvas
@@ -1616,7 +1645,7 @@ function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::
         # clip bound. Subtracting the offset here culled lower/deeper content
         # prematurely (e.g. chat-bubble bodies past the first viewport-height).
         cx, cy = Int(elem.x), Int(elem.y)
-        _render_canvas!(renderer, elem, ox + cx, oy + cy, vw, vh)
+        _render_canvas!(renderer, elem, ox + cx, oy + cy, vw, vh, ratio)
     end
     # GraphicsFence and unknown types are silently skipped
 end
@@ -1629,10 +1658,11 @@ _render_elem_y(elem) = hasproperty(elem, :y) ? Int(elem.y) : nothing
 # Clear and repaint one native window's canvas. Called by the
 # reconciler once per WindowDocument per frame.
 # Ensure the SSAA render target exists and matches the device backbuffer size
-# times the supersample factor (`width*scale*ss × height*scale*ss`), recreating
+# times the supersample factor (`width*ratio*ss × height*ratio*ss`), recreating
 # it on size change. Returns true if a usable target is in place.
 function _ensure_ss_target!(res::SdlWindowResources)
-    tw, th = _to_device(res.width) * res.ss, _to_device(res.height) * res.ss
+    tw = _to_device(res.width, res.ratio) * res.ss
+    th = _to_device(res.height, res.ratio) * res.ss
     (tw <= 0 || th <= 0) && return false
     if res.target != C_NULL && (res.target_w != tw || res.target_h != th)
         SDL_DestroyTexture(res.target); res.target = C_NULL
@@ -1692,20 +1722,24 @@ end
 
 # Bounds of a single element / a whole canvas / a set of list-node values,
 # returned as an absolute logical `(x0,y0,x1,y1)` tuple or `nothing` if empty.
+# A text is measured at `ratio`, the ratio it is drawn at, so its bounds cover
+# every pixel that the render gives it.
 # These reuse the existing `_bounds_elem!` / `_accumulate_bounds!` machinery
 # (and so recompute the cells they read — exactly what we want, since the unit
 # is about to be repainted).
-function _bounds_of_elem(elem, ox::Int, oy::Int)
+function _bounds_of_elem(elem, ox::Int, oy::Int, ratio::Float64)
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int))
     mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
-    _bounds_elem!(elem, ox, oy, measure_sdl_text, mnx, mny, mxx, mxy)
+    measure = (text, font) -> _measure_sdl_text(text, font, ratio)
+    _bounds_elem!(elem, ox, oy, measure, mnx, mny, mxx, mxy)
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
 
-function _bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int)
+function _bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int, ratio::Float64)
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int))
     mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
-    _accumulate_bounds!(canvas, ox, oy, measure_sdl_text, mnx, mny, mxx, mxy)
+    measure = (text, font) -> _measure_sdl_text(text, font, ratio)
+    _accumulate_bounds!(canvas, ox, oy, measure, mnx, mny, mxx, mxy)
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
 
@@ -1745,7 +1779,7 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
         unit = true                      # the regenerated element vector changed
     end
     if unit
-        _union_unit!(res, acc, objectid(canvas), _bounds_of_canvas(canvas, ox, oy))
+        _union_unit!(res, acc, objectid(canvas), _bounds_of_canvas(canvas, ox, oy, res.ratio))
         return
     end
     layout = canvas.layout
@@ -1780,7 +1814,7 @@ function _collect_dirty_elem!(res::SdlWindowResources, elem, ox::Int, oy::Int,
         _collect_viewport_dirty!(res, elem, ox, oy, acc)
     elseif _node_dirty(elem)
         # Leaf with an in-place-mutated (stale) field cell.
-        _union_unit!(res, acc, objectid(elem), _bounds_of_elem(elem, ox, oy))
+        _union_unit!(res, acc, objectid(elem), _bounds_of_elem(elem, ox, oy, res.ratio))
     end
     nothing
 end
@@ -1879,7 +1913,7 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode,
     if spine_dirty
         wb = _DirtyAcc()
         for (_, val, _) in visited
-            b = _bounds_of_elem(val, ox, oy)
+            b = _bounds_of_elem(val, ox, oy, res.ratio)
             b === nothing || _acc_extend!(wb, b)
         end
         if !_acc_empty(wb)
@@ -1893,7 +1927,7 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode,
 
     for (n, val, vstale) in visited
         if vstale
-            _union_unit!(res, acc, objectid(n), _bounds_of_elem(val, ox, oy))
+            _union_unit!(res, acc, objectid(n), _bounds_of_elem(val, ox, oy, res.ratio))
         else
             _collect_dirty_elem!(res, val, ox, oy, vw, vh, acc)
         end
@@ -1992,7 +2026,7 @@ end
 function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
     bg = res.bg
     renderer = res.renderer
-    scale = Float32(_DISPLAY_SCALE[])
+    scale = Float32(res.ratio)
 
     if !_ensure_ss_target!(res)
         # No usable retained target — fall back to the classic full repaint
@@ -2000,7 +2034,7 @@ function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
         SDL_RenderSetScale(renderer, scale, scale)
         SDL_SetRenderDrawColor(renderer, bg[1], bg[2], bg[3], bg[4])
         SDL_RenderClear(renderer)
-        _render_canvas!(renderer, canvas, 0, 0, res.width, res.height)
+        _render_canvas!(renderer, canvas, 0, 0, res.width, res.height, res.ratio)
         SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
         SDL_RenderPresent(renderer)
         return
@@ -2038,7 +2072,7 @@ function _render_window!(res::SdlWindowResources, canvas::GraphicsCanvas)
     # pixels outside the dirty region. Repaint the dirty background by hand.
     SDL_SetRenderDrawColor(renderer, bg[1], bg[2], bg[3], bg[4])
     SDL_RenderFillRect(renderer, clip)
-    _render_canvas!(renderer, canvas, 0, 0, res.width, res.height)
+    _render_canvas!(renderer, canvas, 0, 0, res.width, res.height, res.ratio)
     SDL_RenderSetClipRect(renderer, C_NULL)
     SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
     SDL_SetRenderTarget(renderer, C_NULL)
@@ -2097,15 +2131,19 @@ end
     measure_text(backend::SdlBackend, text::AbstractString, font::StyleFont) -> (Int, Int)
 
 Return the `(width, height)` of `text` rendered in `font`, in **logical**
-pixels — the space all layout lives in. The glyphs are rasterized at device
-size (for crispness) and the device measurement is divided back by
-[`_DISPLAY_SCALE`](@ref). Font handles are cached in the module-level
-[`_font_cache`](@ref).
+pixels — the space all layout lives in. The glyphs are rasterized at the device
+size for the device pixel ratio of the `Display` of `backend` (for crispness),
+and the device measurement is divided back by that ratio. Font handles are
+cached in the module-level [`_font_cache`](@ref).
 """
-function BackendModule.measure_text(::SdlBackend, text::AbstractString, font::StyleFont)
+BackendModule.measure_text(backend::SdlBackend, text::AbstractString, font::StyleFont) =
+    _measure_sdl_text(text, font, get_device_pixel_ratio(backend.display))
+
+# The logical size of `text` in `font`, measured at the device size for `ratio`.
+function _measure_sdl_text(text::AbstractString, font::StyleFont, ratio::Float64)
     isempty(text) && return (0, font_logical_size(font))
-    primary = _get_font(font)
-    runs = _font_runs(text, font, primary)
+    primary = _get_font(font, ratio)
+    runs = _font_runs(text, font, primary, ratio)
     # Fast path: a single run — all in the primary font (the common case) or all
     # in one fallback font. Measure with that run's own font, not `primary`,
     # otherwise a pure-emoji span would be sized from the text font's `.notdef` box.
@@ -2113,7 +2151,7 @@ function BackendModule.measure_text(::SdlBackend, text::AbstractString, font::St
         f, s = runs[1]
         w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
         TTF_SizeUTF8(f, s, w_ref, h_ref)
-        return (_to_logical(Int(w_ref[])), _to_logical(Int(h_ref[])))
+        return (_to_logical(Int(w_ref[]), ratio), _to_logical(Int(h_ref[]), ratio))
     end
     # Mixed-font span: sum per-run widths and baseline-align heights, matching the
     # composite produced by `_render_runs_blended`.
@@ -2127,20 +2165,19 @@ function BackendModule.measure_text(::SdlBackend, text::AbstractString, font::St
         max_ascent = max(max_ascent, asc)
         max_below = max(max_below, Int(h_ref[]) - asc)
     end
-    return (_to_logical(total_w), _to_logical(max_ascent + max_below))
+    return (_to_logical(total_w, ratio), _to_logical(max_ascent + max_below, ratio))
 end
 
 # ── Standalone convenience function ──────────────────────────────────
 
-const _font_backend = SdlBackend()
-
 """
     measure_sdl_text(text, font) -> (Int, Int)
 
-Standalone text measurement using SDL_ttf. Returns `(pixel_width, pixel_height)`.
-Uses a module-level font cache.
+Standalone text measurement using SDL_ttf. Returns `(pixel_width, pixel_height)`
+in logical pixels, measured at the device pixel ratio 1, so the result does not
+depend on the display of the machine. Uses a module-level font cache.
 """
-measure_sdl_text(text, font) = measure_text(_font_backend, text, font)
+measure_sdl_text(text, font) = _measure_sdl_text(text, font, 1.0)
 
 # ── Canvas rasterization ──────────────────────────────────────────────
 
@@ -2234,20 +2271,14 @@ function _open_offscreen_renderer(width::Integer, height::Integer;
 end
 
 # Clear `off` to `background` and render `canvas` (logical size `width × height`)
-# into it. `_DISPLAY_SCALE` is set so glyphs rasterize at device size, matching
-# the renderer's scale.
+# into it. The glyphs rasterize at the device size for the export scale `off.sc`,
+# which matches the scale of the renderer.
 function _render_canvas_offscreen!(off, canvas::GraphicsCanvas, width::Integer,
                                    height::Integer, background::NTuple{4,UInt8})
-    old_scale = _DISPLAY_SCALE[]
-    _DISPLAY_SCALE[] = off.sc
-    try
-        r, g, b, a = background
-        SDL_SetRenderDrawColor(off.renderer, r, g, b, a)
-        SDL_RenderClear(off.renderer)
-        _render_canvas!(off.renderer, canvas, 0, 0, Int(width), Int(height))
-    finally
-        _DISPLAY_SCALE[] = old_scale
-    end
+    r, g, b, a = background
+    SDL_SetRenderDrawColor(off.renderer, r, g, b, a)
+    SDL_RenderClear(off.renderer)
+    _render_canvas!(off.renderer, canvas, 0, 0, Int(width), Int(height), off.sc)
     nothing
 end
 
@@ -2513,6 +2544,7 @@ function BackendModule.initialize_backend!(backend::SdlBackend)
     @assert TTF_Init() == 0 "TTF init failed: $(unsafe_string(SDL_GetError()))"
     SDL_StartTextInput()   # enable SDL_TEXTINPUT events (explicit for portability)
     _detect_display_scale!()
+    backend.display.scale = _PROBED_DISPLAY_SCALE[]
     _PARTIAL_RENDER[] = backend.partial_render
     _DEBUG_DIRTY[]    = backend.debug_dirty
     # Start with no input owed: a backend that is opened again must not answer
@@ -2745,10 +2777,11 @@ in which exactly one member is non-`nothing`: `motion` for a `MouseMove`,
 window event it ignores, a text input that maps to no key) is skipped here, so
 `(nothing, nothing)` means the queue is empty and nothing else.
 
-This is the whole of the former `read_from_devices` body. It is split out so
-that the caller can run it in a loop and keep only the newest motion.
+`read_from_devices` runs it in a loop and keeps only the newest motion.
 """
 function _poll_window_input(backend::SdlBackend)
+    # SDL reports device pixels; the events hold logical pixels.
+    ratio = get_device_pixel_ratio(backend.display)
     event_ref = Ref{SDL_Event}()
     while Bool(SDL_PollEvent(event_ref))
         evt = event_ref[]
@@ -2767,8 +2800,8 @@ function _poll_window_input(backend::SdlBackend)
                 return (WindowInput(wid, WindowDefocus()), nothing)
             elseif sub == UInt8(5)  # SDL_WINDOWEVENT_RESIZED (external/user only)
                 # SDL reports device pixels; the document works in logical pixels.
-                nw = _to_logical(Int(evt.window.data1))
-                nh = _to_logical(Int(evt.window.data2))
+                nw = _to_logical(Int(evt.window.data1), ratio)
+                nh = _to_logical(Int(evt.window.data2), ratio)
                 # Mark the resource as already at this size so the reconciler's
                 # _update_window_geometry! doesn't issue a redundant
                 # SDL_SetWindowSize back at the OS (which would fight the drag).
@@ -2806,14 +2839,14 @@ function _poll_window_input(backend::SdlBackend)
         elseif t == 0x00000401  # SDL_MOUSEBUTTONDOWN
             button = _sdl_button_sym(evt.button.button)
             mods = _current_modifiers()
-            x, y = _to_logical(Int(evt.button.x)), _to_logical(Int(evt.button.y))
+            x, y = _to_logical(Int(evt.button.x), ratio), _to_logical(Int(evt.button.y), ratio)
             wid = _lookup_window_id(backend, evt.button.windowID)
             return (WindowInput(wid, MouseDown(button, x, y, mods)), nothing)
 
         elseif t == 0x00000402  # SDL_MOUSEBUTTONUP
             button = _sdl_button_sym(evt.button.button)
             mods = _current_modifiers()
-            x, y = _to_logical(Int(evt.button.x)), _to_logical(Int(evt.button.y))
+            x, y = _to_logical(Int(evt.button.x), ratio), _to_logical(Int(evt.button.y), ratio)
             wid = _lookup_window_id(backend, evt.button.windowID)
             return (WindowInput(wid, MouseUp(button, x, y, mods)), nothing)
 
@@ -2826,8 +2859,8 @@ function _poll_window_input(backend::SdlBackend)
             # The motion slot of the pair. The caller keeps only the newest of a
             # run of these, and applies the rate limit to what it keeps.
             return (nothing, WindowInput(wid,
-                MouseMove(_to_logical(Int(evt.motion.x)), _to_logical(Int(evt.motion.y)),
-                          buttons, mods)))
+                MouseMove(_to_logical(Int(evt.motion.x), ratio),
+                          _to_logical(Int(evt.motion.y), ratio), buttons, mods)))
 
         elseif t == 0x00000403  # SDL_MOUSEWHEEL
             mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
@@ -2839,7 +2872,8 @@ function _poll_window_input(backend::SdlBackend)
                 dx, dy = dy, 0
             end
             return (WindowInput(wid,
-                MouseScroll(dx, dy, _to_logical(Int(mx_ref[])), _to_logical(Int(my_ref[])), mods)),
+                MouseScroll(dx, dy, _to_logical(Int(mx_ref[]), ratio),
+                            _to_logical(Int(my_ref[]), ratio), mods)),
                 nothing)
         end
     end
@@ -2881,7 +2915,7 @@ function BackendModule.open_native_windows!(backend::SdlBackend, screen::ScreenD
     for w in screen.windows
         w isa WindowDocument || continue
         haskey(backend.windows, w.id) && continue
-        res = _open_native_window!(w)
+        res = _open_native_window!(backend, w)
         backend.windows[w.id] = res
         backend.window_ids[res.sdl_id] = res.id
         push!(opened, res.sdl_id)
@@ -2942,7 +2976,7 @@ end
 function _native_window_size(res::SdlWindowResources)
     w = Ref{Cint}(0); h = Ref{Cint}(0)
     SDL_GetWindowSize(res.win, w, h)
-    (_to_logical(Int(w[])), _to_logical(Int(h[])))
+    (_to_logical(Int(w[]), res.ratio), _to_logical(Int(h[]), res.ratio))
 end
 
 # Pump the event queue, and drop the size changes belonging to the windows just
@@ -2975,12 +3009,11 @@ new ids cause a window to be opened; existing windows have their
 geometry / title / style updated as needed, then repainted with the
 matching `WindowDocument.content` canvas.
 
-The reconciler ignores `devices` other than via the presence of at
-least one `Display` entry — `Display` itself carries no per-window
-state and exists only to indicate that the editor wants to render
-onto a display.
+Each window is drawn at the device pixel ratio of the `Display` of `backend`,
+which `configure_devices!` sets. The reconciler does not read `devices`.
 """
 function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Device}, screen::ScreenDocument)
+    ratio = get_device_pixel_ratio(backend.display)
     desired_ids = Set{Symbol}()
     for w in screen.windows
         w isa WindowDocument || continue
@@ -3009,12 +3042,12 @@ function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Dev
         _place_fitted_window!(backend, w)
         res = get(backend.windows, w.id, nothing)
         if res === nothing
-            res = _open_native_window!(w; hidden = true)
+            res = _open_native_window!(backend, w; hidden = true)
             backend.windows[w.id] = res
             backend.window_ids[res.sdl_id] = res.id
             _show_painted_window!(res, w)
         else
-            _update_window_geometry!(res, w)
+            _update_window_geometry!(res, w, ratio)
         end
         _render_window!(res, canvas)
     end
@@ -3123,19 +3156,21 @@ function _show_painted_window!(res::SdlWindowResources, w::WindowDocument)
     res.first_paint = true
 end
 
-# Apply title / size / position / bg changes from a WindowDocument to
-# its native counterpart. Cached fields on SdlWindowResources avoid
-# redundant SDL calls when nothing changed.
-function _update_window_geometry!(res::SdlWindowResources, w::WindowDocument)
+# Apply title / size / position / bg changes from a WindowDocument, and a change
+# of the device pixel ratio `ratio`, to its native counterpart. Cached fields on
+# SdlWindowResources avoid redundant SDL calls when nothing changed.
+function _update_window_geometry!(res::SdlWindowResources, w::WindowDocument,
+                                  ratio::Float64)
     if w.title != res.title
         SDL_SetWindowTitle(res.win, w.title)
         res.title = String(w.title)
     end
-    if w.width != res.width || w.height != res.height
-        SDL_SetWindowSize(res.win, Int32(max(_to_device(w.width), 1)),
-                                   Int32(max(_to_device(w.height), 1)))
+    if w.width != res.width || w.height != res.height || ratio != res.ratio
+        SDL_SetWindowSize(res.win, Int32(max(_to_device(w.width, ratio), 1)),
+                                   Int32(max(_to_device(w.height, ratio), 1)))
         res.width = Int(w.width)
         res.height = Int(w.height)
+        res.ratio = ratio
     end
     if (w.x >= 0 && w.x != res.x) || (w.y >= 0 && w.y != res.y)
         px = w.x < 0 ? SDL_WINDOWPOS_CENTERED : Int32(w.x)
@@ -3157,9 +3192,10 @@ end
 # ════════════════════════════════════════════════════════════════════════
 #
 # The gesture is recognised editor-globally in the kernel's `read!`; here the SDL
-# backend supplies the concrete behaviour. `AdjustZoomOperation` rescales the
-# display factor (everything magnifies) and reflows the logical viewport — no
-# re-projection. `AdjustFontZoomOperation` writes the `_FONT_ZOOM` cell, which
+# backend supplies the concrete behaviour. `AdjustZoomOperation` steps the `zoom`
+# of the backend's `Display`, so the device pixel ratio changes (everything
+# magnifies), and reflows the logical viewport — no re-projection.
+# `AdjustFontZoomOperation` writes the `_FONT_ZOOM` cell, which
 # relayouts text-derived geometry that is held in cells (TextToGraphics), but the
 # widget layer measures content *eagerly* during `print_document` and bakes
 # constant sizes (WidgetToGraphics' `_make_canvas`), so those boxes only re-fit
@@ -3181,7 +3217,7 @@ function _force_full_repaint!(editor)
 end
 
 # Keep each window's *device* size fixed across a uniform-zoom change: scale its
-# logical `width`/`height` by `old/new` so `_to_device(new) == old_device`. The
+# logical `width`/`height` by `old/new` ratio, so the device size stays the same. The
 # OS window therefore does not resize, while the content relayouts to the new
 # logical viewport — those cells are the printer's `available_width/height`, so
 # the write reflows reactively (no re-projection), exactly like a user resize.
@@ -3198,10 +3234,11 @@ function _reflow_for_scale!(editor, ratio::Float64)
 end
 
 function evaluate_operation(editor, op::AdjustZoomOperation)
-    old = _DISPLAY_SCALE[]
-    adjust_user_zoom!(op.delta)
-    new = _DISPLAY_SCALE[]
-    _reflow_for_scale!(editor, old / new)
+    editor.backend isa SdlBackend || return nothing
+    display = editor.backend.display
+    old = get_device_pixel_ratio(display)
+    display.zoom = step_zoom(display.zoom, op.delta)
+    _reflow_for_scale!(editor, old / get_device_pixel_ratio(display))
     _force_full_repaint!(editor)
     nothing
 end
@@ -3276,18 +3313,17 @@ BackendModule.decode_image(filename::AbstractString) = decode_sdl_image(filename
 BackendModule.get_display_size(::SdlBackend; display::Integer=0) =
     get_sdl_display_size(; display=display)
 
-# Populate the Display devices with the real display geometry and HiDPI scale
-# discovered at start-up (called after `initialize_backend!`, so the scale is
-# already detected). Mouse/Keyboard are left at their defaults — SDL2 cannot
-# reliably report button count or keyboard layout.
-function BackendModule.configure_devices!(::SdlBackend, devices)
-    width, height = get_sdl_display_size()
-    scale = _DISPLAY_SCALE[]
-    for device in devices
-        device isa Display || continue
-        device.width  = width
-        device.height = height
-        device.scale  = scale
-    end
+# Fill the first `Display` in `devices` with the usable size and the scale of the
+# real display, and draw with it from now on: its `zoom` then steps with
+# Ctrl+= and Ctrl+-. The scale is the one the probe finds, so the zoom of an
+# editor does not reach the `Display` of another. Mouse/Keyboard are left at their
+# defaults — SDL2 cannot reliably report button count or keyboard layout.
+function BackendModule.configure_devices!(backend::SdlBackend, devices)
+    index = findfirst(device -> device isa Display, devices)
+    index === nothing && return nothing
+    display = devices[index]::Display
+    display.width, display.height = get_sdl_display_size()
+    display.scale = _PROBED_DISPLAY_SCALE[]
+    backend.display = display
     return nothing
 end
