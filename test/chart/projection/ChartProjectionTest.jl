@@ -560,7 +560,7 @@ function test_chart_projection()
             op = read_intent(proj, iomap,
                              MousePress(:left,
                                         round(Int, ChartModule.to_pixel(gg.xs, 2.5)),
-                                        (band2[1] + band2[2]) ÷ 2))
+                                        (band2[1] + band2[2]) ÷ 2; time = 0.0))
             @test op isa ReplaceSelectionOperation
             chart.selection = op.path
             @test get_selected_sample(chart) == (1, 3)
@@ -653,7 +653,7 @@ function test_chart_projection()
             value_row = first(r for r in rects if r[1] == 0)
 
             op = read_intent(proj, iomap,
-                             MousePress(:left, value_row[2] + 2, value_row[3] + value_row[5] ÷ 2))
+                             MousePress(:left, value_row[2] + 2, value_row[3] + value_row[5] ÷ 2; time = 0.0))
             @test op isa ReplaceSelectionOperation
             @test is_reference_equal(strip_reference_types(op.path),
                                      strip_reference_types(@reference ::Chart.legend::ChartLegend))
@@ -662,12 +662,12 @@ function test_chart_projection()
             plot = iomap.step_iomaps[1][].output
             hover = read_intent(proj, iomap,
                                 MouseMove(value_row[2] + 2, value_row[3] + value_row[5] ÷ 2,
-                                          MouseButtons(), ModifierKeys()))
+                                          MouseButtons(), ModifierKeys(); time = 0.0))
             hover === nothing || evaluate_operation(nothing, hover)
             @test plot.hovered === nothing
 
             op = read_intent(proj, iomap,
-                             MousePress(:left, series_row[2] + 2, series_row[3] + series_row[5] ÷ 2))
+                             MousePress(:left, series_row[2] + 2, series_row[3] + series_row[5] ÷ 2; time = 0.0))
             @test op isa ReplaceReferencedValueOperation
             @test op.value == false
 
@@ -768,13 +768,13 @@ function test_chart_projection()
             index, ix, iy, iw, ih = first(get_legend_item_rects(plan))
 
             # Clicking a legend item hides the series it stands for.
-            op = read_intent(proj, iomap, MousePress(:left, ix + 2, iy + ih ÷ 2))
+            op = read_intent(proj, iomap, MousePress(:left, ix + 2, iy + ih ÷ 2; time = 0.0))
             @test op isa ReplaceReferencedValueOperation
             @test op.document === chart.series[index]
             @test op.value == false
 
             # Hovering one names it, so the frame can veil the others.
-            op = read_intent(proj, iomap, MouseMove(ix + 2, iy + ih ÷ 2, MouseButtons(), ModifierKeys()))
+            op = read_intent(proj, iomap, MouseMove(ix + 2, iy + ih ÷ 2, MouseButtons(), ModifierKeys(); time = 0.0))
             @test op !== nothing
             evaluate_operation(nothing, op)
             @test plot.hovered !== nothing
@@ -782,7 +782,7 @@ function test_chart_projection()
             @test veiled[1].color.alpha != veiled[2].color.alpha
 
             # Leaving clears both hover fields.
-            op = read_intent(proj, iomap, MouseLeave(0, 0, MouseButtons(), ModifierKeys()))
+            op = read_intent(proj, iomap, MouseLeave(0, 0, MouseButtons(), ModifierKeys(); time = 0.0))
             @test op !== nothing
             evaluate_operation(nothing, op)
             @test plot.hovered === nothing && plot.cursor === nothing
@@ -797,13 +797,13 @@ function test_chart_projection()
             # A click on the title strip selects the title, on an axis strip the
             # axis — and the reference that comes back is in the chart's own
             # domain, not the plot's, because stage 1 peels its step off.
-            op = read_intent(proj, iomap, MousePress(:left, g.plot_x + 10, 2))
+            op = read_intent(proj, iomap, MousePress(:left, g.plot_x + 10, 2; time = 0.0))
             @test op isa ReplaceSelectionOperation
             @test is_reference_equal(strip_reference_types(op.path),
                                      strip_reference_types(@reference ::Chart.title::String))
 
             op = read_intent(proj, iomap,
-                             MousePress(:left, 4, g.plot_y + g.plot_h ÷ 2))
+                             MousePress(:left, 4, g.plot_y + g.plot_h ÷ 2; time = 0.0))
             @test op isa ReplaceSelectionOperation
             @test is_reference_equal(strip_reference_types(op.path),
                                      strip_reference_types(@reference ::Chart.y_axis::ChartAxis))
@@ -813,7 +813,7 @@ function test_chart_projection()
             @test !isempty(pts)
             px, py = pts[length(pts) ÷ 2]
             op = read_intent(proj, iomap,
-                             MousePress(:left, px + g.plot_x, py + g.plot_y))
+                             MousePress(:left, px + g.plot_x, py + g.plot_y; time = 0.0))
             @test op isa ReplaceSelectionOperation
             chart.selection = op.path
             @test get_selected_sample(chart) !== nothing
@@ -826,7 +826,7 @@ function test_chart_projection()
             # the whole series instead.
             far = _series_hit_away_from_samples(g, pts)
             if far !== nothing
-                op = read_intent(proj, iomap, MousePress(:left, far[1], far[2]))
+                op = read_intent(proj, iomap, MousePress(:left, far[1], far[2]; time = 0.0))
                 @test op isa ReplaceSelectionOperation
                 @test is_reference_equal(strip_reference_types(op.path),
                     strip_reference_types(@reference ::Chart.series::CellVector[1]::ChartLineSeries))
@@ -869,7 +869,7 @@ function test_chart_projection()
             target = PlotModule.to_pixel(g.xs, 500.0)
             elapsed = @elapsed op = read_intent(proj, iomap,
                 MousePress(:left, round(Int, target),
-                           round(Int, PlotModule.to_pixel(g.ys, sin(500.0)))))
+                           round(Int, PlotModule.to_pixel(g.ys, sin(500.0))); time = 0.0))
             @test op isa ReplaceSelectionOperation
             @test elapsed < 0.5
             big.selection = op.path
@@ -885,7 +885,7 @@ function test_chart_projection()
             iomap = print_document(proj, proj, cloud, PrinterContext())
             g = iomap.step_iomaps[2][].geometry
             op = read_intent(proj, iomap,
-                MousePress(:left, g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2))
+                MousePress(:left, g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2; time = 0.0))
             cloud.selection = op === nothing ? nothing : op.path
             @test get_selected_sample(cloud) === nothing
         end
@@ -897,12 +897,12 @@ function test_chart_projection()
 
             # Nothing selected, nothing to move.
             @test get_selected_series_index(chart) == 0
-            @test read_gesture(chart, KeyDown(:down, move_modifier)) === nothing
+            @test read_gesture(chart, KeyDown(:down, move_modifier; time = 0.0)) === nothing
 
             chart.selection = @reference ::Chart.series::CellVector[1]::ChartLineSeries
             @test get_selected_series_index(chart) == 1
 
-            op = read_gesture(chart, KeyDown(:down, move_modifier))
+            op = read_gesture(chart, KeyDown(:down, move_modifier; time = 0.0))
             @test op !== nothing
             _apply_to(chart, op)
             @test String(chart.series[1].label) == second_label
@@ -910,16 +910,16 @@ function test_chart_projection()
             # The selection follows the series that moved.
             @test get_selected_series_index(chart) == 2
 
-            op = read_gesture(chart, KeyDown(:up, move_modifier))
+            op = read_gesture(chart, KeyDown(:up, move_modifier; time = 0.0))
             _apply_to(chart, op)
             @test String(chart.series[1].label) == first_label
 
             # Moving past either end is not an operation at all.
             chart.selection = @reference ::Chart.series::CellVector[1]::ChartLineSeries
-            @test read_gesture(chart, KeyDown(:up, move_modifier)) === nothing
+            @test read_gesture(chart, KeyDown(:up, move_modifier; time = 0.0)) === nothing
 
             # Deleting removes exactly the selected series.
-            op = read_gesture(chart, KeyDown(:delete, alt_modifier))
+            op = read_gesture(chart, KeyDown(:delete, alt_modifier; time = 0.0))
             @test op !== nothing
             _apply_to(chart, op)
             @test length(chart.series) == 1
@@ -940,7 +940,7 @@ function test_chart_projection()
             # The wheel zooms about the cursor: the window narrows, and the data
             # point that was under the pointer is still under it.
             under = PlotModule.to_data(g.xs, mid_x)
-            op = read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys()))
+            op = read_intent(proj, iomap, MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(); time = 0.0))
             @test op !== nothing
             evaluate_operation(nothing, op)
             after = resolve_view(plot)
@@ -954,14 +954,14 @@ function test_chart_projection()
             @test PlotModule.to_data(g2.xs, mid_x) ≈ under atol=4pixel
 
             # Wheeling out again widens it back.
-            op = read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ModifierKeys()))
+            op = read_intent(proj, iomap, MouseScroll(0, -1, mid_x, mid_y, ModifierKeys(); time = 0.0))
             evaluate_operation(nothing, op)
             back = resolve_view(plot)
             @test (back.x_max - back.x_min) ≈ (before.x_max - before.x_min) atol=1e-6
 
             # Over the x-axis strip only x zooms; over the y strip only y.
             op = read_intent(proj, iomap,
-                MouseScroll(0, 1, mid_x, g.plot_y + g.plot_h + 4, ModifierKeys()))
+                MouseScroll(0, 1, mid_x, g.plot_y + g.plot_h + 4, ModifierKeys(); time = 0.0))
             evaluate_operation(nothing, op)
             v = resolve_view(plot)
             @test (v.x_max - v.x_min) < (before.x_max - before.x_min)
@@ -969,7 +969,7 @@ function test_chart_projection()
 
             plot.view = nothing
             op = read_intent(proj, iomap,
-                MouseScroll(0, 1, g.plot_x - 4, mid_y, ModifierKeys()))
+                MouseScroll(0, 1, g.plot_x - 4, mid_y, ModifierKeys(); time = 0.0))
             evaluate_operation(nothing, op)
             v = resolve_view(plot)
             @test (v.x_max - v.x_min) ≈ (before.x_max - before.x_min) atol=1e-6
@@ -978,27 +978,27 @@ function test_chart_projection()
             # Shift+wheel pans without changing the window width.
             plot.view = nothing
             op = read_intent(proj, iomap,
-                MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true)))
+                MouseScroll(0, 1, mid_x, mid_y, ModifierKeys(; shift=true); time = 0.0))
             evaluate_operation(nothing, op)
             v = resolve_view(plot)
             @test (v.x_max - v.x_min) ≈ (before.x_max - before.x_min) atol=1e-6
             @test v.x_min > before.x_min
 
             # A wheel outside the plot and its axis strips is not ours.
-            @test read_intent(proj, iomap, MouseScroll(0, 1, 2, 2, ModifierKeys())) === nothing
+            @test read_intent(proj, iomap, MouseScroll(0, 1, 2, 2, ModifierKeys(); time = 0.0)) === nothing
 
             # Keyboard: pan, zoom, and reset to auto-fit.
             # Shift+arrow pans; the bare arrows belong to selection navigation.
             plot.view = nothing
-            op = read_intent(proj, iomap, KeyDown(:right, ModifierKeys(; shift=true)))
+            op = read_intent(proj, iomap, KeyDown(:right, ModifierKeys(; shift=true); time = 0.0))
             @test op !== nothing
             evaluate_operation(nothing, op)
             @test resolve_view(plot).x_min > before.x_min
             # A bare arrow falls past the view reader to the chart's own
             # navigation, which is what moves the selection.
-            @test read_intent(proj, iomap, KeyDown(:right, ModifierKeys())) isa ReplaceSelectionOperation
+            @test read_intent(proj, iomap, KeyDown(:right, ModifierKeys(); time = 0.0)) isa ReplaceSelectionOperation
             # '0' drops back to auto-fit, whatever the window had become.
-            op = read_intent(proj, iomap, KeyPress('0'))
+            op = read_intent(proj, iomap, KeyPress('0'; time = 0.0))
             @test op !== nothing
             evaluate_operation(nothing, op)
             @test plot.view === nothing
@@ -1014,15 +1014,15 @@ function test_chart_projection()
             x0, y0 = g.plot_x + 30, g.plot_y + 30
             x1, y1 = g.plot_x + 160, g.plot_y + 140
 
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys())))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys(); time = 0.0)))
             @test plot.drag_anchor !== nothing
 
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x1, y1, MouseButtons(:left), ModifierKeys())))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x1, y1, MouseButtons(:left), ModifierKeys(); time = 0.0)))
             @test plot.drag_rect !== nothing
             # While the band is up it is drawn over the series.
             @test _count_kind(_series_elements(iomap.output), GraphicsRect) >= 1
 
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseUp(:left, x1, y1, ModifierKeys())))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseUp(:left, x1, y1, ModifierKeys(); time = 0.0)))
             @test plot.drag_anchor === nothing && plot.drag_rect === nothing
             v = resolve_view(plot)
             # The committed window is what the band enclosed.
@@ -1031,25 +1031,25 @@ function test_chart_projection()
 
             # A band that never grew is a click, not a zoom.
             plot.view = nothing
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys())))
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseUp(:left, x0 + 2, y0 + 2, ModifierKeys())))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys(); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseUp(:left, x0 + 2, y0 + 2, ModifierKeys(); time = 0.0)))
             @test plot.view === nothing
 
             # Leaving mid-drag abandons it rather than committing halfway.
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys())))
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x1, y1, MouseButtons(:left), ModifierKeys())))
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseLeave(0, 0, MouseButtons(), ModifierKeys())))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseDown(:left, x0, y0, ModifierKeys(); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseMove(x1, y1, MouseButtons(:left), ModifierKeys(); time = 0.0)))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseLeave(0, 0, MouseButtons(), ModifierKeys(); time = 0.0)))
             @test plot.drag_anchor === nothing && plot.drag_rect === nothing
             @test plot.view === nothing
 
             # Shift-dragging pans instead of banding.
             evaluate_operation(nothing, read_intent(proj, iomap,
-                MouseDown(:left, x1, y1, ModifierKeys(; shift=true))))
+                MouseDown(:left, x1, y1, ModifierKeys(; shift=true); time = 0.0)))
             evaluate_operation(nothing, read_intent(proj, iomap,
-                MouseMove(x1 - 40, y1, MouseButtons(:left), ModifierKeys(; shift=true))))
+                MouseMove(x1 - 40, y1, MouseButtons(:left), ModifierKeys(; shift=true); time = 0.0)))
             @test plot.drag_rect === nothing
             @test plot.view !== nothing
-            evaluate_operation(nothing, read_intent(proj, iomap, MouseUp(:left, x1 - 40, y1, ModifierKeys())))
+            evaluate_operation(nothing, read_intent(proj, iomap, MouseUp(:left, x1 - 40, y1, ModifierKeys(); time = 0.0)))
         end
 
         @testset "crosshair" begin
@@ -1062,7 +1062,7 @@ function test_chart_projection()
 
             plain = length(_series_elements(iomap.output))
             evaluate_operation(nothing, read_intent(proj, iomap,
-                MouseMove(g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2, MouseButtons(), ModifierKeys())))
+                MouseMove(g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2, MouseButtons(), ModifierKeys(); time = 0.0)))
             @test plot.cursor !== nothing
             els = _series_elements(iomap.output)
             @test length(els) > plain
@@ -1082,7 +1082,7 @@ function test_chart_projection()
             ed = (; document = chart)
             # Ctrl+Home seeds a selection, which is what every navigation walk
             # needs before it can start.
-            op = read_gesture(chart, KeyDown(:home, ModifierKeys(; ctrl=true)))
+            op = read_gesture(chart, KeyDown(:home, ModifierKeys(; ctrl=true); time = 0.0))
             @test op isa ReplaceSelectionOperation
             _apply_to(chart, op)
             @test get_chart_part_index(chart, chart.selection) == 1
@@ -1090,58 +1090,58 @@ function test_chart_projection()
             # Right walks forward through every part and stops at the end.
             seen = Int[1]
             for _ in 1:20
-                op = read_gesture(chart, KeyDown(:right, no_modifier))
+                op = read_gesture(chart, KeyDown(:right, no_modifier; time = 0.0))
                 op === nothing && break
                 _apply_to(chart, op)
                 push!(seen, get_chart_part_index(chart, chart.selection))
             end
             @test seen == collect(1:length(parts))
-            @test read_gesture(chart, KeyDown(:right, no_modifier)) === nothing
+            @test read_gesture(chart, KeyDown(:right, no_modifier; time = 0.0)) === nothing
 
             # And Left walks back.
-            op = read_gesture(chart, KeyDown(:left, no_modifier))
+            op = read_gesture(chart, KeyDown(:left, no_modifier; time = 0.0))
             @test op !== nothing
             _apply_to(chart, op)
             @test get_chart_part_index(chart, chart.selection) == length(parts) - 1
 
-            _apply_to(chart, read_gesture(chart, KeyDown(:end, ModifierKeys(; ctrl=true))))
+            _apply_to(chart, read_gesture(chart, KeyDown(:end, ModifierKeys(; ctrl=true); time = 0.0)))
             @test get_chart_part_index(chart, chart.selection) == length(parts)
-            _apply_to(chart, read_gesture(chart, KeyDown(:home, no_modifier)))
+            _apply_to(chart, read_gesture(chart, KeyDown(:home, no_modifier; time = 0.0)))
             @test get_chart_part_index(chart, chart.selection) == 1
 
             # Tree navigation, as in any document: Alt+Up out to the whole
             # chart, Alt+Down back in to the first part.
-            _apply_to(chart, read_gesture(chart, KeyDown(:up, alt_modifier)))
+            _apply_to(chart, read_gesture(chart, KeyDown(:up, alt_modifier; time = 0.0)))
             @test chart.selection isa EmptyReference
             @test get_chart_part_index(chart, chart.selection) == 0
             # The whole chart has nothing above it and no sibling here.
-            @test read_gesture(chart, KeyDown(:up, alt_modifier)) === nothing
-            @test read_gesture(chart, KeyDown(:left, alt_modifier)) === nothing
-            @test read_gesture(chart, KeyDown(:right, alt_modifier)) === nothing
-            _apply_to(chart, read_gesture(chart, KeyDown(:down, alt_modifier)))
+            @test read_gesture(chart, KeyDown(:up, alt_modifier; time = 0.0)) === nothing
+            @test read_gesture(chart, KeyDown(:left, alt_modifier; time = 0.0)) === nothing
+            @test read_gesture(chart, KeyDown(:right, alt_modifier; time = 0.0)) === nothing
+            _apply_to(chart, read_gesture(chart, KeyDown(:down, alt_modifier; time = 0.0)))
             @test get_chart_part_index(chart, chart.selection) == 1
-            @test read_gesture(chart, KeyDown(:down, alt_modifier)) === nothing
+            @test read_gesture(chart, KeyDown(:down, alt_modifier; time = 0.0)) === nothing
             # Alt+Right and Alt+Left move between siblings, and the first part
             # keeps the selection.
-            _apply_to(chart, read_gesture(chart, KeyDown(:right, alt_modifier)))
+            _apply_to(chart, read_gesture(chart, KeyDown(:right, alt_modifier; time = 0.0)))
             @test get_chart_part_index(chart, chart.selection) == 2
-            _apply_to(chart, read_gesture(chart, KeyDown(:left, alt_modifier)))
+            _apply_to(chart, read_gesture(chart, KeyDown(:left, alt_modifier; time = 0.0)))
             @test get_chart_part_index(chart, chart.selection) == 1
-            _apply_to(chart, read_gesture(chart, KeyDown(:left, alt_modifier)))
+            _apply_to(chart, read_gesture(chart, KeyDown(:left, alt_modifier; time = 0.0)))
             @test get_chart_part_index(chart, chart.selection) == 1
-            _apply_to(chart, read_gesture(chart, KeyDown(:right, alt_modifier)))
+            _apply_to(chart, read_gesture(chart, KeyDown(:right, alt_modifier; time = 0.0)))
 
             # Ctrl+Alt+Home selects the whole chart, wherever the cursor was.
-            _apply_to(chart, read_gesture(chart, KeyDown(:home, ModifierKeys(; ctrl=true, alt=true))))
+            _apply_to(chart, read_gesture(chart, KeyDown(:home, ModifierKeys(; ctrl=true, alt=true); time = 0.0)))
             @test chart.selection isa EmptyReference
 
             # The view gestures do not take the arrows away from navigation.
             proj = _chart_projection()
             iomap = print_document(proj, proj, chart, PrinterContext())
             @test read_intent(proj.projections[2], iomap.step_iomaps[2][],
-                              KeyDown(:right, no_modifier)) === nothing
+                              KeyDown(:right, no_modifier; time = 0.0)) === nothing
             @test read_intent(proj.projections[2], iomap.step_iomaps[2][],
-                              KeyDown(:right, ModifierKeys(; shift=true))) !== nothing
+                              KeyDown(:right, ModifierKeys(; shift=true); time = 0.0)) !== nothing
         end
 
         @testset "selection is drawn" begin

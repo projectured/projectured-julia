@@ -20,7 +20,7 @@ struct _Click
 end
 
 """
-    GestureRecognizer(; clock = time, chords = Vector{Vector{KeyDown}}(),
+    GestureRecognizer(; chords = Vector{Vector{KeyDown}}(),
                         click_max_displacement = 5, click_max_duration = 0.3,
                         multi_click_max_displacement = 5, multi_click_max_interval = 0.3)
 
@@ -28,8 +28,9 @@ The state of the recognition of gestures for one editor: the gestures that wait
 for delivery, the press of each mouse button, the last click, the chord table
 and the keys of a chord that is not complete yet.
 
-`clock` gives the time in seconds for the click windows. It is `time` by
-default, and a test gives a clock of its own.
+The click windows compare the times of the events (`get_event_time`), which are
+the times of the input, so a slow frame between a press and its release does not
+lengthen the click.
 
 `chords` is the chord table: each entry is a sequence of `KeyDown`s. A step
 matches a key on its `key` and its modifiers, and its `repeat` flag does not
@@ -53,8 +54,6 @@ mutable struct GestureRecognizer
     # The chord table, and the keys of a chord that is not complete yet.
     chords::Vector{Vector{KeyDown}}
     chord_buffer::Vector{WindowInput}
-    # The source of the time (a test gives its own).
-    clock::Function
     # The click windows (see the docstring).
     click_max_displacement::Int
     click_max_duration::Float64
@@ -62,14 +61,12 @@ mutable struct GestureRecognizer
     multi_click_max_interval::Float64
 end
 
-GestureRecognizer(; clock::Function = time,
-                    chords::Vector{Vector{KeyDown}} = Vector{Vector{KeyDown}}(),
+GestureRecognizer(; chords::Vector{Vector{KeyDown}} = Vector{Vector{KeyDown}}(),
                     click_max_displacement::Integer = 5, click_max_duration::Real = 0.3,
                     multi_click_max_displacement::Integer = 5,
                     multi_click_max_interval::Real = 0.3) =
     GestureRecognizer(WindowInput[], Dict{Symbol,_ButtonPress}(), nothing,
                       chords, WindowInput[],
-                      clock,
                       click_max_displacement, Float64(click_max_duration),
                       multi_click_max_displacement, Float64(multi_click_max_interval))
 
@@ -84,24 +81,24 @@ keeps the input. A gesture that follows its input waits in `recognizer.pending`.
 - A `MouseDown` starts a possible click of its button.
 - A `MouseUp` answers itself. When it is inside the click window of the
   `MouseDown` of its button in the same window, a `MousePress` follows it in
-  `pending`, at the place of the `MouseUp`, with its modifiers, its window and
-  the `count` of a double or triple click.
+  `pending`, at the place and the time of the `MouseUp`, with its modifiers, its
+  window and the `count` of a double or triple click.
 - A `KeyDown`, when the chord table is not empty, goes to the chord in progress.
   The recognizer keeps a key that continues a sequence of the table and answers
-  `nothing`. The key that completes a sequence answers a `KeyChord`. A key that
-  breaks the chord in progress answers the kept keys and itself, in order, as
-  ordinary keys, and it does not start a new chord.
+  `nothing`. The key that completes a sequence answers a `KeyChord`, at the time
+  of that key. A key that breaks the chord in progress answers the kept keys and
+  itself, in order, as ordinary keys, and it does not start a new chord.
 - Any other event answers itself.
 """
 function recognize_gesture!(recognizer::GestureRecognizer, window_input::WindowInput)
     event = window_input.event
     if event isa MouseDown
         recognizer.presses[event.button] =
-            _ButtonPress(window_input.window_id, event.x, event.y, recognizer.clock())
+            _ButtonPress(window_input.window_id, event.x, event.y, event.time)
         return window_input
     elseif event isa MouseUp
         press = pop!(recognizer.presses, event.button, nothing)
-        now = Float64(recognizer.clock())
+        now = event.time
         if press !== nothing && press.window_id === window_input.window_id &&
            abs(event.x - press.x) < recognizer.click_max_displacement &&
            abs(event.y - press.y) < recognizer.click_max_displacement &&
@@ -110,7 +107,7 @@ function recognize_gesture!(recognizer::GestureRecognizer, window_input::WindowI
             push!(recognizer.pending,
                   WindowInput(window_input.window_id,
                               MousePress(event.button, event.x, event.y, count,
-                                         event.modifiers)))
+                                         event.modifiers; time = now)))
         end
         return window_input
     elseif event isa KeyDown
@@ -158,7 +155,7 @@ function _recognize_key!(recognizer::GestureRecognizer, window_input::WindowInpu
             keys = KeyDown[kept.event for kept in recognizer.chord_buffer]
             window_id = recognizer.chord_buffer[1].window_id
             empty!(recognizer.chord_buffer)
-            return WindowInput(window_id, KeyChord(keys))
+            return WindowInput(window_id, KeyChord(keys; time = event.time))
         end
         return nothing
     end

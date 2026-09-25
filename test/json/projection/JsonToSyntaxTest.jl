@@ -66,15 +66,15 @@ _written(op) = op.operations[1].value
     for (ch, T) in (('n', JsonNull), ('f', JsonBool), ('t', JsonBool),
                     ('"', JsonString), ('[', JsonArray), (':', JsonObjectEntry),
                     ('{', JsonObject))
-        op = read_key(JsonInsertion(), whole, KeyPress(ch))
+        op = read_key(JsonInsertion(), whole, KeyPress(ch; time = 0.0))
         @test op isa CompoundOperation
         @test _written(op) isa T
     end
     # Booleans carry the literal the key names.
-    @test _written(read_key(JsonInsertion(), whole, KeyPress('t'))).value === true
-    @test _written(read_key(JsonInsertion(), whole, KeyPress('f'))).value === false
+    @test _written(read_key(JsonInsertion(), whole, KeyPress('t'; time = 0.0))).value === true
+    @test _written(read_key(JsonInsertion(), whole, KeyPress('f'; time = 0.0))).value === false
     # A digit on a non-number builds a number whose cursor sits after the digit.
-    op = read_key(JsonInsertion(), whole, KeyPress('5'))
+    op = read_key(JsonInsertion(), whole, KeyPress('5'; time = 0.0))
     @test op isa CompoundOperation
     @test _written(op) isa JsonNumber
     @test _written(op).value == 5
@@ -82,7 +82,7 @@ end
 
 @testset "replacing the whole root swaps editor.document" begin
     doc = JsonInsertion()
-    op = read_key(doc, whole, KeyPress('['))
+    op = read_key(doc, whole, KeyPress('['; time = 0.0))
     ed = _JsonReaderEditor(doc, nothing)
     evaluate_operation(ed, op)
     @test ed.document isa JsonArray
@@ -93,7 +93,7 @@ end
 
 @testset "replacing a nested element writes the slot in place" begin
     arr = JsonArray([JsonInsertion()])
-    op = read_key(arr, @reference(arr, elements[1]), KeyPress('5'))
+    op = read_key(arr, @reference(arr, elements[1]), KeyPress('5'; time = 0.0))
     @test op isa CompoundOperation
     @test _written(op) isa JsonNumber
     ed = _JsonReaderEditor(arr, nothing)
@@ -111,14 +111,14 @@ end
     # last-to-first removes. The gating is real, but it belongs to the chain — the text
     # layer claims a digit first, so the domain never sees one mid-number.
     num = JsonNumber(42)
-    @test read_key(num, @reference(num, value{1}), KeyPress('5')) isa CompoundOperation
+    @test read_key(num, @reference(num, value{1}), KeyPress('5'; time = 0.0)) isa CompoundOperation
 
     chain = ChainingProjection(RecursiveProjection(JsonToSyntax()),
                                RecursiveProjection(SyntaxToText()),
                                TextToGraphics(measure = measure_truetype_text))
     n = JsonNumber(42)
     set_selection!(n, @reference(n, value{1}))
-    @test read_intent(chain, print_document(chain, n), KeyPress('5')) isa ReplaceNumberRangeOperation
+    @test read_intent(chain, print_document(chain, n), KeyPress('5'; time = 0.0)) isa ReplaceNumberRangeOperation
 end
 
 @testset "a letter typed into a number is ignored" begin
@@ -128,7 +128,7 @@ end
     # Type `key` at the caret `caret`, and evaluate what the chain reads.
     function type_key!(document, caret, key)
         set_selection!(document, caret)
-        op = read_intent(chain, print_document(chain, document), KeyPress(key))
+        op = read_intent(chain, print_document(chain, document), KeyPress(key; time = 0.0))
         op === nothing || evaluate_operation(_JsonReaderEditor(document, nothing), op)
         op
     end
@@ -159,7 +159,7 @@ end
                                TextToGraphics(measure = measure_truetype_text))
     function type_key!(document, caret, key)
         set_selection!(document, caret)
-        op = read_intent(chain, print_document(chain, document), KeyPress(key))
+        op = read_intent(chain, print_document(chain, document), KeyPress(key; time = 0.0))
         op === nothing || evaluate_operation(_JsonReaderEditor(document, nothing), op)
         op
     end
@@ -180,7 +180,7 @@ end
 
 @testset "array insert appends an insertion and selects it" begin
     arr = JsonArray([JsonNumber(1)])
-    op = read_key(arr, whole, KeyPress(','))
+    op = read_key(arr, whole, KeyPress(','; time = 0.0))
     @test op isa CompoundOperation                       # splice + select-new
     @test op.operations[1] isa ReplaceReferencedValueOperation
     ed = _JsonReaderEditor(arr, nothing)
@@ -192,7 +192,7 @@ end
 
 @testset "object insert appends an entry and selects its key" begin
     obj = JsonObject("a" => JsonNumber(1))
-    op = read_key(obj, whole, KeyPress(','))
+    op = read_key(obj, whole, KeyPress(','; time = 0.0))
     @test op isa CompoundOperation
     ed = _JsonReaderEditor(obj, nothing)
     evaluate_operation(ed, op)
@@ -205,7 +205,7 @@ end
 
 @testset "Tab moves from an entry key to its value" begin
     obj = JsonObject("a" => JsonNumber(1))
-    op = read_key(obj, @reference(obj, entries[1].key{0}), KeyDown(:tab, ModifierKeys()))
+    op = read_key(obj, @reference(obj, entries[1].key{0}), KeyDown(:tab, ModifierKeys(); time = 0.0))
     @test op isa ReplaceSelectionOperation
     # The Tab op selects the entry's value whole, carrying its folded types. The
     # terminal checkpoint is the value's *concrete* type, not the declared `Document`
@@ -214,7 +214,7 @@ end
     @test is_reference_equal(op.path,
           @reference ::JsonObject.entries::CellVector[1]::JsonObjectEntry.value::JsonNumber)
     # Tab outside a key does nothing.
-    @test read_key(obj, whole, KeyDown(:tab, ModifierKeys())) === nothing
+    @test read_key(obj, whole, KeyDown(:tab, ModifierKeys(); time = 0.0)) === nothing
 end
 
 @testset "empty values render a muted placeholder hint" begin

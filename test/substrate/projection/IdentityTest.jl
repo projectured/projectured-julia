@@ -14,9 +14,9 @@ function test_identity()
     end
 
     @testset "a gesture that the input does not answer gives no operation" begin
-        @test read_intent(IdentityProjection(), iomap, MousePress(:left, 1, 1, ModifierKeys())) === nothing
-        @test read_intent(IdentityProjection(), iomap, MousePress(:right, 1, 1, ModifierKeys())) === nothing
-        @test read_intent(IdentityProjection(), iomap, MouseMove(1, 1)) === nothing
+        @test read_intent(IdentityProjection(), iomap, MousePress(:left, 1, 1, ModifierKeys(); time = 0.0)) === nothing
+        @test read_intent(IdentityProjection(), iomap, MousePress(:right, 1, 1, ModifierKeys(); time = 0.0)) === nothing
+        @test read_intent(IdentityProjection(), iomap, MouseMove(1, 1; time = 0.0)) === nothing
     end
 
     @testset "a chain with an identity stage answers nothing to an unclaimed press" begin
@@ -25,7 +25,7 @@ function test_identity()
         # itself the operation of the whole read.
         chain = ChainingProjection(IdentityProjection(), IdentityProjection())
         chain_iomap = print_document(chain, number)
-        change = read_intent(chain, nothing, Intent(MousePress(:right, 1, 1, ModifierKeys())), chain_iomap)
+        change = read_intent(chain, nothing, Intent(MousePress(:right, 1, 1, ModifierKeys(); time = 0.0)), chain_iomap)
         @test change.operation === nothing
     end
 

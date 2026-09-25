@@ -66,12 +66,12 @@ function test_text_range_selection()
         (x, y, _) = only(_tr_texts(_tr_window(backend)))
         # A press between "hello" and " world".
         _tr_press!(editor, backend,
-                   MousePress(:left, x + first(measure("hello", font)), y + 8, _TR_NONE))
+                   MousePress(:left, x + first(measure("hello", font)), y + 8, _TR_NONE; time = 0.0))
         @test _tr_range(s) == (5, 5)
         caret_rects = _tr_rects(_tr_window(backend))
 
-        _tr_press!(editor, backend, KeyDown(:left, _TR_SHIFT))
-        _tr_press!(editor, backend, KeyDown(:left, _TR_SHIFT))
+        _tr_press!(editor, backend, KeyDown(:left, _TR_SHIFT; time = 0.0))
+        _tr_press!(editor, backend, KeyDown(:left, _TR_SHIFT; time = 0.0))
         @test _tr_range(s) == (3, 5)
         # The window's own path names the same range: there is one selection.
         root = get_reference_steps(strip_reference_types(editor.document.selection))
@@ -79,19 +79,19 @@ function test_text_range_selection()
         @test _tr_rects(_tr_window(backend)) == caret_rects + 1
 
         # The right key moves the stop.
-        _tr_press!(editor, backend, KeyDown(:right, _TR_SHIFT))
+        _tr_press!(editor, backend, KeyDown(:right, _TR_SHIFT; time = 0.0))
         @test _tr_range(s) == (3, 6)
-        _tr_press!(editor, backend, KeyDown(:end, _TR_SHIFT))
+        _tr_press!(editor, backend, KeyDown(:end, _TR_SHIFT; time = 0.0))
         @test _tr_range(s) == (3, 11)
 
         # Typing replaces the range, and the caret follows the typed text.
-        _tr_press!(editor, backend, KeyPress('X'))
+        _tr_press!(editor, backend, KeyPress('X'; time = 0.0))
         @test s.value == "helX"
         @test _tr_range(s) == (4, 4)
 
-        _tr_press!(editor, backend, KeyDown(:home, _TR_SHIFT))
+        _tr_press!(editor, backend, KeyDown(:home, _TR_SHIFT; time = 0.0))
         @test _tr_range(s) == (0, 4)
-        _tr_press!(editor, backend, KeyDown(:backspace, _TR_NONE))
+        _tr_press!(editor, backend, KeyDown(:backspace, _TR_NONE; time = 0.0))
         @test s.value == ""
         @test _tr_range(s) == (0, 0)
     end
@@ -104,10 +104,10 @@ function test_text_range_selection()
         (editor, backend) = _tr_editor(s, projection)
         (x, y, _) = only(_tr_texts(_tr_window(backend)))
         _tr_press!(editor, backend,
-                   MousePress(:left, x + first(measure("abcd", font)), y + 8, _TR_NONE))
-        _tr_press!(editor, backend, KeyDown(:left, _TR_SHIFT))
+                   MousePress(:left, x + first(measure("abcd", font)), y + 8, _TR_NONE; time = 0.0))
+        _tr_press!(editor, backend, KeyDown(:left, _TR_SHIFT; time = 0.0))
         @test _tr_range(s) == (3, 4)
-        _tr_press!(editor, backend, KeyDown(:left, _TR_NONE))
+        _tr_press!(editor, backend, KeyDown(:left, _TR_NONE; time = 0.0))
         @test _tr_range(s) == (3, 3)
     end
 
@@ -117,16 +117,16 @@ function test_text_range_selection()
         texts = _tr_texts(_tr_window(backend))
         (x, y, _) = texts[findfirst(t -> t[3] == "name", texts)]
         _tr_press!(editor, backend,
-                   MousePress(:left, x + first(measure("na", font)), y + 8, _TR_NONE))
+                   MousePress(:left, x + first(measure("na", font)), y + 8, _TR_NONE; time = 0.0))
         # The path is a live value that changes in place, so its printed form is
         # what is kept.
         @test editor.document.selection !== nothing
         before = repr(editor.document.selection)
-        _tr_press!(editor, backend, KeyDown(:left, _TR_SHIFT))
+        _tr_press!(editor, backend, KeyDown(:left, _TR_SHIFT; time = 0.0))
         @test editor.operation === nothing
         @test repr(editor.document.selection) == before
         # A plain arrow still moves the caret there.
-        _tr_press!(editor, backend, KeyDown(:left, _TR_NONE))
+        _tr_press!(editor, backend, KeyDown(:left, _TR_NONE; time = 0.0))
         @test repr(editor.document.selection) != before
     end
 end

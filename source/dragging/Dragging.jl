@@ -220,7 +220,7 @@ read_intent(p::DraggingProjection, iomap::DraggingIoMap, payload) =
 # when the point resolves to no selectable element (or to a non-selection op,
 # e.g. a collapse-marker toggle).
 function _locate_point(p::DraggingProjection, recursion, iomap::DraggingIoMap, x::Int, y::Int, mods)
-    probe = Intent(MousePress(:left, x, y, mods), nothing)
+    probe = Intent(MousePress(:left, x, y, mods; time = time()), nothing)
     inner = read_intent(iomap.inner_iomap.projection, recursion, probe, iomap.inner_iomap)
     op = inner isa Intent ? inner.operation : inner
     op isa ReplaceSelectionOperation ? op.path : nothing

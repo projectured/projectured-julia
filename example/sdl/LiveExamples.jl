@@ -156,8 +156,8 @@ end
 const json_typein_live = LiveExample("json_typein", json_example,
     vcat(
         make_typein_gestures(" world"),
-        [timed_event(KeyDown(:left, ModifierKeys(), false); hold=0.4),
-         timed_event(KeyDown(:left, ModifierKeys(), false); hold=0.6)],
+        [timed_event(KeyDown(:left, ModifierKeys(), false; time = time()); hold=0.4),
+         timed_event(KeyDown(:left, ModifierKeys(), false; time = time()); hold=0.6)],
     );
     initial_selection = @reference(make_json_document_example(), entries[1].value.value{5}))
 
@@ -176,10 +176,13 @@ const json_select_and_edit_live = LiveExample("json_select_and_edit", json_examp
 # structural-authoring gestures (`,`-insert, Tab, type-to-replace).
 const json_insert_live = LiveExample("json_insert", json_example,
     vcat(
-        [timed_event(KeyPress(','); hold=0.6)],               # add a new entry, cursor on its key
+        [timed_event(KeyPress(',';
+                              time = time()); hold=0.6)],               # add a new entry, cursor on its key
         make_typein_gestures("role"),                          # type the key
-        [timed_event(KeyDown(:tab, ModifierKeys()); hold=0.6),    # Tab: key → value (whole)
-         timed_event(KeyPress('"'); hold=0.5)],                # start a string value
+        [timed_event(KeyDown(:tab, ModifierKeys();
+                             time = time()); hold=0.6),    # Tab: key → value (whole)
+         timed_event(KeyPress('"';
+                              time = time()); hold=0.5)],                # start a string value
         make_typein_gestures("admin"),                         # type the value
     );
     initial_selection = @reference(make_json_document_example(), entries[1].value))
@@ -213,16 +216,18 @@ const json_build_example = Example("json_build", () -> JsonInsertion(), make_jso
 # directly. A bool is whole-selected, where a plain arrow navigates the tree and
 # `End` does nothing, so the caret can not leave a container whose last value is a
 # bool.
-_jb_right() = timed_event(KeyDown(:right, ModifierKeys()); hold=0.25)
-_jb_down()  = timed_event(KeyDown(:down, ModifierKeys()); hold=0.3)
-_jb_tab()   = timed_event(KeyDown(:tab, ModifierKeys()); hold=0.32)
-_jb_comma() = timed_event(KeyPress(','); hold=0.40)
-_jb_open(c) = timed_event(KeyPress(c); hold=0.40)            # '{' or '['
+_jb_right() = timed_event(KeyDown(:right, ModifierKeys(); time = time()); hold=0.25)
+_jb_down()  = timed_event(KeyDown(:down, ModifierKeys(); time = time()); hold=0.3)
+_jb_tab()   = timed_event(KeyDown(:tab, ModifierKeys(); time = time()); hold=0.32)
+_jb_comma() = timed_event(KeyPress(','; time = time()); hold=0.40)
+_jb_open(c) = timed_event(KeyPress(c; time = time()); hold=0.40)            # '{' or '['
 _jb_key(s)  = make_typein_gestures(s)                        # caret already on the (empty) key
-_jb_str(s)  = vcat([timed_event(KeyPress('"'); hold=0.30)], make_typein_gestures(s))
+_jb_str(s)  = vcat([timed_event(KeyPress('"';
+                                         time = time()); hold=0.30)], make_typein_gestures(s))
 _jb_estr(k, v) = vcat(_jb_key(k), [_jb_tab()], _jb_str(v))   # "k": "v"
 _jb_enum(k, v) = vcat(_jb_key(k), [_jb_tab()], make_typein_gestures(v))            # "k": <digits>
-_jb_ebool(k, b) = vcat(_jb_key(k), [_jb_tab()], [timed_event(KeyPress(b ? 't' : 'f'); hold=0.3)])
+_jb_ebool(k, b) = vcat(_jb_key(k), [_jb_tab()], [timed_event(KeyPress(b ? 't' : 'f';
+                                                                      time = time()); hold=0.3)])
 
 const json_build_live = LiveExample("json_build", json_build_example,
     vcat(

@@ -1259,32 +1259,36 @@ end
 
 _route_scroll_to_children(child_entries::Vector, evt::MouseScroll) =
     _route_to_children(child_entries, evt.x, evt.y,
-        (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
+        (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
 
 _route_click_to_children(child_entries::Vector, evt::MousePress) =
     _route_to_children(child_entries, evt.x, evt.y,
-        (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers))
+        (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
 
 # Route a MouseEnter / MouseLeave crossing to the hit child (for hover feedback,
 # Stage 6) — the child reader flips its `hovered` cell.
 _route_crossing_to_children(child_entries::Vector, evt) =
     _route_to_children(child_entries, evt.x, evt.y,
-        (x, y) -> evt isa MouseEnter ? MouseEnter(x, y, evt.buttons, evt.modifiers) :
-                                       MouseLeave(x, y, evt.buttons, evt.modifiers))
+        (x, y) -> evt isa MouseEnter ? MouseEnter(x, y, evt.buttons, evt.modifiers;
+                                                  time = evt.time) :
+                                       MouseLeave(x, y, evt.buttons, evt.modifiers;
+                                                  time = evt.time))
 
 # Route pointer motion to the hit child (coordinate-translated), so a hovered
 # widget nested in a band container still sees MouseMove.
 _route_move_to_children(child_entries::Vector, evt::MouseMove) =
     _route_to_children(child_entries, evt.x, evt.y,
-        (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers))
+        (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
 
 # Route a raw press-down / release to the hit child (coordinate-translated), so a
 # button nested in a container flips its `pressed` cell (the depress feedback). The
 # composed MousePress click is routed separately via `_route_click_to_children`.
 _route_downup_to_children(child_entries::Vector, evt) =
     _route_to_children(child_entries, evt.x, evt.y,
-        (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers) :
-                                      MouseUp(evt.button, x, y, evt.modifiers))
+        (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers;
+                                                time = evt.time) :
+                                      MouseUp(evt.button, x, y, evt.modifiers;
+                                              time = evt.time))
 
 # Translate a path-bearing op from `op`'s current domain (this projection's
 # child's input domain — what the bubbled-up reader returned) into this
@@ -1674,7 +1678,8 @@ function _read_text_content_intent(p, iomap, evt, left::Int, top::Int)
             end
             answer = shift_operation_position(
                 read_intent(content_iomap.projection, content_iomap,
-                            MousePress(button, lx, ly, evt.count, evt.modifiers)),
+                            MousePress(button, lx, ly, evt.count, evt.modifiers;
+                                       time = evt.time)),
                 cox, coy)
             # A document with nothing in it measures nothing, so it has no
             # position to answer with and an empty field could not be clicked
@@ -2068,10 +2073,12 @@ function read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextM
         MousePress(button, x, y) =>
             shift_operation_position(
                 read_intent(child_iomap.projection, child_iomap,
-                            MousePress(button, x - cox, y - coy, evt.count, evt.modifiers)),
+                            MousePress(button, x - cox, y - coy, evt.count, evt.modifiers;
+                                       time = evt.time)),
                 cox, coy)
         MouseScroll(dx, dy, x, y) =>
-            read_intent(child_iomap.projection, child_iomap, MouseScroll(dx, dy, x - cox, y - coy))
+            read_intent(child_iomap.projection, child_iomap,
+                        MouseScroll(dx, dy, x - cox, y - coy; time = evt.time))
         _ => read_intent(child_iomap.projection, child_iomap, evt)
     end
     _retarget_op(p, iomap, op)
@@ -2256,7 +2263,7 @@ function read_intent(p::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraph
     ce === nothing && return nothing
     (ox, oy, cim) = ce
     op = shift_operation_position(read_child_event(cim, MousePress(evt.button, evt.x - ox, evt.y - oy,
-                                                                   evt.count, evt.modifiers)),
+                                                                   evt.count, evt.modifiers; time = evt.time)),
                                   ox, oy)
     _retarget_op(p, iomap, op)
 end
@@ -2641,19 +2648,20 @@ function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, e
     end
     res = @event_case evt begin
         MouseScroll => _route_composite_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
+            (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
         MousePress => _route_composite_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers))
+            (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers;
+                                 time = evt.time))
         MouseDown => _route_composite_drag(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseDown(evt.button, x, y, evt.modifiers))
+            (x, y) -> MouseDown(evt.button, x, y, evt.modifiers; time = evt.time))
         MouseUp => _route_composite_drag(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseUp(evt.button, x, y, evt.modifiers))
+            (x, y) -> MouseUp(evt.button, x, y, evt.modifiers; time = evt.time))
         MouseMove => _route_composite_drag(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers))
+            (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
         MouseEnter => _route_composite_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseEnter(x, y, evt.buttons, evt.modifiers))
+            (x, y) -> MouseEnter(x, y, evt.buttons, evt.modifiers; time = evt.time))
         MouseLeave => _route_composite_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseLeave(x, y, evt.buttons, evt.modifiers))
+            (x, y) -> MouseLeave(x, y, evt.buttons, evt.modifiers; time = evt.time))
         _ => begin
             # Coordless (keyboard) events route to the child the selection points
             # at, or to nothing when the selection is not inside this composite.
@@ -3035,8 +3043,10 @@ end
 # another band still reaches the band that holds the drag.
 function _route_shell_button(child_iomaps::Vector, evt)
     found = _route_composite_drag(child_iomaps, evt.x, evt.y,
-        (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers) :
-                                      MouseUp(evt.button, x, y, evt.modifiers))
+        (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers;
+                                                time = evt.time) :
+                                      MouseUp(evt.button, x, y, evt.modifiers;
+                                              time = evt.time))
     found === nothing ? nothing : first(found)
 end
 
@@ -3056,7 +3066,8 @@ function _select_in_band(shell::WidgetShell, child_iomaps::Vector, evt::MousePre
         canvas isa GraphicsCanvas || continue
         lx, ly = evt.x - ox - Int(canvas.x), evt.y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
-        answer = read_child_event(cim, MousePress(evt.button, lx, ly, evt.count, evt.modifiers))
+        answer = read_child_event(cim, MousePress(evt.button, lx, ly, evt.count, evt.modifiers;
+                                                  time = evt.time))
         answer === nothing && return nothing
         return reroot_operation(answer, (FieldReferenceStep(field),))
     end
@@ -3105,9 +3116,12 @@ function _find_captured_band(p::WidgetShellToGraphicsCanvas, shell, child_iomaps
 end
 
 # The same pointer event at another point.
-_move_pointer_event(evt::MouseDown, x, y) = MouseDown(evt.button, x, y, evt.modifiers)
-_move_pointer_event(evt::MouseUp, x, y) = MouseUp(evt.button, x, y, evt.modifiers)
-_move_pointer_event(evt::MouseMove, x, y) = MouseMove(x, y, evt.buttons, evt.modifiers)
+_move_pointer_event(evt::MouseDown, x, y) = MouseDown(evt.button, x, y, evt.modifiers;
+                                                      time = evt.time)
+_move_pointer_event(evt::MouseUp, x, y) = MouseUp(evt.button, x, y, evt.modifiers;
+                                                  time = evt.time)
+_move_pointer_event(evt::MouseMove, x, y) = MouseMove(x, y, evt.buttons, evt.modifiers;
+                                                      time = evt.time)
 
 # Hand `evt` to one band, translated into its frame.
 function _read_band_event(entry, evt)
@@ -3671,9 +3685,10 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, e
     end
     res = @event_case evt begin
         MouseScroll => _route_split_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
+            (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
         MousePress => _route_split_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers))
+            (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers;
+                                 time = evt.time))
         # Coordinate-bearing pointer events (a non-drag press/release, plain motion,
         # and the hover crossings) route to the slot *under the pointer*, exactly as
         # the composite does — a hover crossing must reach whatever the pointer is
@@ -3682,15 +3697,15 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, e
         # already consumed above by `_split_drag_read`, so a `MouseDown`/`MouseMove`/
         # `MouseUp` reaching here is not part of a drag and belongs to a child.
         MouseDown => _route_split_drag(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseDown(evt.button, x, y, evt.modifiers))
+            (x, y) -> MouseDown(evt.button, x, y, evt.modifiers; time = evt.time))
         MouseUp => _route_split_drag(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseUp(evt.button, x, y, evt.modifiers))
+            (x, y) -> MouseUp(evt.button, x, y, evt.modifiers; time = evt.time))
         MouseMove => _route_split_drag(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers))
+            (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
         MouseEnter => _route_split_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseEnter(x, y, evt.buttons, evt.modifiers))
+            (x, y) -> MouseEnter(x, y, evt.buttons, evt.modifiers; time = evt.time))
         MouseLeave => _route_split_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MouseLeave(x, y, evt.buttons, evt.modifiers))
+            (x, y) -> MouseLeave(x, y, evt.buttons, evt.modifiers; time = evt.time))
         _ => begin
             # Forward keyboard (and other coordless) events to the child the
             # forward-projected selection points at, so the keystroke reaches the
@@ -4325,29 +4340,33 @@ function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
         MousePress(button, x, y) => begin
             lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
             hit_element_at(canvas, lx, ly) === nothing && return nothing
-            MousePress(button, lx, ly, evt.count, evt.modifiers)
+            MousePress(button, lx, ly, evt.count, evt.modifiers; time = evt.time)
         end
         MouseScroll(dx, dy, x, y) => begin
             lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
             hit_element_at(canvas, lx, ly) === nothing && return nothing
-            MouseScroll(dx, dy, lx, ly)
+            MouseScroll(dx, dy, lx, ly; time = evt.time)
         end
         MouseDown(button, x, y) =>
-            MouseDown(button, x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.modifiers)
+            MouseDown(button, x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.modifiers;
+                      time = evt.time)
         MouseUp(button, x, y) =>
-            MouseUp(button, x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.modifiers)
+            MouseUp(button, x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.modifiers;
+                    time = evt.time)
         MouseMove(x, y) =>
-            MouseMove(x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.buttons, evt.modifiers)
+            MouseMove(x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.buttons, evt.modifiers;
+                      time = evt.time)
         # Hover crossings hit-test like a click (a MouseEnter over the tab strip,
         # not the content, must not fall into the active tab); MouseLeave clears the
         # child's hover so it is translated but forwarded even off-content.
         MouseEnter(x, y) => begin
             lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
             hit_element_at(canvas, lx, ly) === nothing && return nothing
-            MouseEnter(lx, ly, evt.buttons, evt.modifiers)
+            MouseEnter(lx, ly, evt.buttons, evt.modifiers; time = evt.time)
         end
         MouseLeave(x, y) =>
-            MouseLeave(x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.buttons, evt.modifiers)
+            MouseLeave(x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.buttons, evt.modifiers;
+                       time = evt.time)
         _ => evt
     end
     # The tab's frame is at the same offset for every event, so a position in the
@@ -4769,32 +4788,37 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
         MousePress(button, x, y) => begin
             lx, ly = _local(x, y)
             shift_operation_position(
-                read_child_event(content_iomap, MousePress(button, lx, ly, evt.count, evt.modifiers)),
+                read_child_event(content_iomap, MousePress(button, lx, ly, evt.count, evt.modifiers;
+                                                           time = evt.time)),
                 x - lx, y - ly)
         end
         MouseDown(button, x, y) => begin
             lx, ly = _local(x, y)
-            read_child_event(content_iomap, MouseDown(button, lx, ly, evt.modifiers))
+            read_child_event(content_iomap, MouseDown(button, lx, ly, evt.modifiers;
+                                                      time = evt.time))
         end
         MouseUp(button, x, y) => begin
             lx, ly = _local(x, y)
             read_intent(content_iomap.projection, content_iomap,
-                             MouseUp(button, lx, ly, evt.modifiers))
+                             MouseUp(button, lx, ly, evt.modifiers; time = evt.time))
         end
         MouseMove(x, y) => begin
             lx, ly = _local(x, y)
             read_intent(content_iomap.projection, content_iomap,
-                             MouseMove(lx, ly, evt.buttons, evt.modifiers))
+                             MouseMove(lx, ly, evt.buttons, evt.modifiers;
+                                       time = evt.time))
         end
         MouseEnter(x, y) => begin
             lx, ly = _local(x, y)
             read_intent(content_iomap.projection, content_iomap,
-                             MouseEnter(lx, ly, evt.buttons, evt.modifiers))
+                             MouseEnter(lx, ly, evt.buttons, evt.modifiers;
+                                        time = evt.time))
         end
         MouseLeave(x, y) => begin
             lx, ly = _local(x, y)
             read_intent(content_iomap.projection, content_iomap,
-                             MouseLeave(lx, ly, evt.buttons, evt.modifiers))
+                             MouseLeave(lx, ly, evt.buttons, evt.modifiers;
+                                        time = evt.time))
         end
         # The wheel goes to the innermost pane under the pointer, so translate
         # it like a press and let the content refuse first; see the viewport
@@ -4802,7 +4826,7 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
         MouseScroll(dx, dy, x, y) => begin
             lx, ly = _local(x, y)
             read_intent(content_iomap.projection, content_iomap,
-                             MouseScroll(dx, dy, lx, ly, evt.modifiers))
+                             MouseScroll(dx, dy, lx, ly, evt.modifiers; time = evt.time))
         end
         _ => read_intent(content_iomap.projection, content_iomap, evt)
     end
@@ -4951,31 +4975,34 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
         MousePress(button, x, y) => begin
             lx, ly = _local(x, y)
             map_operation_position(
-                read_child_event(content_iomap, MousePress(button, lx, ly, evt.count, evt.modifiers)),
+                read_child_event(content_iomap, MousePress(button, lx, ly, evt.count, evt.modifiers;
+                                                           time = evt.time)),
                 _outer)
         end
         MouseDown(button, x, y) => begin
             lx, ly = _local(x, y)
-            read_child_event(content_iomap, MouseDown(button, lx, ly, evt.modifiers))
+            read_child_event(content_iomap, MouseDown(button, lx, ly, evt.modifiers;
+                                                      time = evt.time))
         end
         MouseUp(button, x, y) => begin
             lx, ly = _local(x, y)
-            read_intent(content_iomap.projection, content_iomap, MouseUp(button, lx, ly, evt.modifiers))
+            read_intent(content_iomap.projection, content_iomap, MouseUp(button, lx, ly, evt.modifiers;
+                                                                         time = evt.time))
         end
         MouseMove(x, y) => begin
             lx, ly = _local(x, y)
             read_intent(content_iomap.projection, content_iomap,
-                        MouseMove(lx, ly, evt.buttons, evt.modifiers))
+                        MouseMove(lx, ly, evt.buttons, evt.modifiers; time = evt.time))
         end
         MouseEnter(x, y) => begin
             lx, ly = _local(x, y)
             read_intent(content_iomap.projection, content_iomap,
-                        MouseEnter(lx, ly, evt.buttons, evt.modifiers))
+                        MouseEnter(lx, ly, evt.buttons, evt.modifiers; time = evt.time))
         end
         MouseLeave(x, y) => begin
             lx, ly = _local(x, y)
             read_intent(content_iomap.projection, content_iomap,
-                        MouseLeave(lx, ly, evt.buttons, evt.modifiers))
+                        MouseLeave(lx, ly, evt.buttons, evt.modifiers; time = evt.time))
         end
         _ => read_intent(content_iomap.projection, content_iomap, evt)
     end
@@ -5058,7 +5085,8 @@ end
 # element it came from.
 function _route_toolbar_press(toolbar::WidgetToolbar, entries::Vector, evt::MousePress)
     found = _route_composite_event(entries, evt.x, evt.y,
-                (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers))
+                (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers;
+                                     time = evt.time))
     found === nothing && return nothing
     operation, laid_out = found
     widgets = findall(item -> item isa WidgetDocument, collect(toolbar.elements))
@@ -5723,7 +5751,8 @@ function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::M
         end
     end
     _card_route(w, entries, evt.x, evt.y,
-                (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers))
+                (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers;
+                                     time = evt.time))
 end
 # Pointer events route into the card's content by coordinate, so an interactive
 # widget nested in a card (a button, a hovered row) still sees hover crossings, the
@@ -5741,15 +5770,20 @@ function read_intent(::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     entries = getfield(iomap, :child_iomaps)[]
     (evt isa MouseEnter || evt isa MouseLeave) &&
         return _card_route(w, entries, evt.x, evt.y,
-                           (x, y) -> evt isa MouseEnter ? MouseEnter(x, y, evt.buttons, evt.modifiers) :
-                                                          MouseLeave(x, y, evt.buttons, evt.modifiers))
+                           (x, y) -> evt isa MouseEnter ? MouseEnter(x, y, evt.buttons, evt.modifiers;
+                                                                     time = evt.time) :
+                                                          MouseLeave(x, y, evt.buttons, evt.modifiers;
+                                                                     time = evt.time))
     evt isa MouseMove &&
         return _card_route(w, entries, evt.x, evt.y,
-                           (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers))
+                           (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers;
+                                               time = evt.time))
     (evt isa MouseDown || evt isa MouseUp) &&
         return _card_route(w, entries, evt.x, evt.y,
-                           (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers) :
-                                                         MouseUp(evt.button, x, y, evt.modifiers))
+                           (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers;
+                                                                   time = evt.time) :
+                                                         MouseUp(evt.button, x, y, evt.modifiers;
+                                                                 time = evt.time))
     evt isa MouseScroll && return nothing
     getfield(w, :selection)[] === nothing && return nothing
     for entry in entries
@@ -7414,7 +7448,8 @@ read_intent(::WidgetTextareaToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 function read_intent(p::WidgetTextareaToGraphicsCanvas, iomap::WidgetTextareaToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     iomap.input.enabled === false && return nothing
-    typed = _is_plain_key(evt, :return) ? KeyPress('\n', "\n", ModifierKeys()) : evt
+    typed = _is_plain_key(evt, :return) ?
+            KeyPress('\n', "\n", ModifierKeys(); time = evt.time) : evt
     _read_text_content_intent(p, iomap, typed, _content_offset(p, iomap.input)...)
 end
 
@@ -7638,13 +7673,20 @@ end
 
 # A pointer event moved by `(dx, dy)` into the frame of a child.
 _translate_pointer_event(evt::MousePress, dx, dy) =
-    MousePress(evt.button, evt.x - dx, evt.y - dy, evt.count, evt.modifiers)
-_translate_pointer_event(evt::MouseDown, dx, dy) = MouseDown(evt.button, evt.x - dx, evt.y - dy, evt.modifiers)
-_translate_pointer_event(evt::MouseUp, dx, dy) = MouseUp(evt.button, evt.x - dx, evt.y - dy, evt.modifiers)
-_translate_pointer_event(evt::MouseMove, dx, dy) = MouseMove(evt.x - dx, evt.y - dy, evt.buttons, evt.modifiers)
-_translate_pointer_event(evt::MouseScroll, dx, dy) = MouseScroll(evt.dx, evt.dy, evt.x - dx, evt.y - dy)
-_translate_pointer_event(evt::MouseEnter, dx, dy) = MouseEnter(evt.x - dx, evt.y - dy, evt.buttons, evt.modifiers)
-_translate_pointer_event(evt::MouseLeave, dx, dy) = MouseLeave(evt.x - dx, evt.y - dy, evt.buttons, evt.modifiers)
+    MousePress(evt.button, evt.x - dx, evt.y - dy, evt.count, evt.modifiers;
+               time = evt.time)
+_translate_pointer_event(evt::MouseDown, dx, dy) = MouseDown(evt.button, evt.x - dx, evt.y - dy, evt.modifiers;
+                                                             time = evt.time)
+_translate_pointer_event(evt::MouseUp, dx, dy) = MouseUp(evt.button, evt.x - dx, evt.y - dy, evt.modifiers;
+                                                         time = evt.time)
+_translate_pointer_event(evt::MouseMove, dx, dy) = MouseMove(evt.x - dx, evt.y - dy, evt.buttons, evt.modifiers;
+                                                             time = evt.time)
+_translate_pointer_event(evt::MouseScroll, dx, dy) = MouseScroll(evt.dx, evt.dy, evt.x - dx, evt.y - dy;
+                                                                 time = evt.time)
+_translate_pointer_event(evt::MouseEnter, dx, dy) = MouseEnter(evt.x - dx, evt.y - dy, evt.buttons, evt.modifiers;
+                                                               time = evt.time)
+_translate_pointer_event(evt::MouseLeave, dx, dy) = MouseLeave(evt.x - dx, evt.y - dy, evt.buttons, evt.modifiers;
+                                                               time = evt.time)
 
 # ── WidgetTable ─────────────────────────────────────────────────────────────
 #
@@ -8361,7 +8403,8 @@ function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTG
     # offset + child canvas offset.
     cell_x = content_x + geom.grid_off_x + Int(ox_cell[]) + Int(canvas.x)
     cell_y = content_y + geom.grid_off_y + Int(oy_cell[]) + Int(canvas.y)
-    local_evt = MousePress(g.button, g.x - cell_x, g.y - cell_y, g.count, g.modifiers)
+    local_evt = MousePress(g.button, g.x - cell_x, g.y - cell_y, g.count, g.modifiers;
+                           time = g.time)
     op = read_intent(cim.projection, cim, local_evt)
     # A cell that declines the click — a label has nothing to say to one —
     # leaves it to the row, and the row is selected: a table of text is a
@@ -8478,7 +8521,8 @@ function _wt_enter_cell_content(iomap::WidgetTableToGraphicsCanvasIoMap, geom::W
     entry = entries[gidx]
     entry === nothing && return nothing
     cim = entry[3]
-    op = read_intent(cim.projection, cim, KeyDown(:home, ModifierKeys(ctrl=true)))
+    op = read_intent(cim.projection, cim, KeyDown(:home, ModifierKeys(ctrl=true);
+                                                  time = time()))
     op isa ReplaceSelectionOperation || return nothing
     table_ref = _wt_grid_ref_to_table(
         ConcreteReference(FieldReferenceStep("children"),

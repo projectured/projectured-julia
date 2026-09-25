@@ -27,9 +27,9 @@ function test_record_video()
 @testset "record_video" begin
     @testset "encodes an mp4" begin
         gestures = [
-            (event = KeyPress('h'),                        hold = 0.3),
-            (event = KeyPress('i'),                        hold = 0.3),
-            (event = KeyDown(:right, ModifierKeys(), false),  hold = 0.4),
+            (event = KeyPress('h'; time = 0.0),                        hold = 0.3),
+            (event = KeyPress('i'; time = 0.0),                        hold = 0.3),
+            (event = KeyDown(:right, ModifierKeys(), false; time = 0.0),  hold = 0.4),
         ]
         filename = tempname() * ".mp4"
         ok = try
@@ -57,7 +57,7 @@ function test_record_video()
         before = evaluate_reference(doc, string_ref)
         filename = tempname() * ".mp4"
         ok = try
-            record_video(doc, proj; gestures = [(event = KeyPress('z'), hold = 0.2)],
+            record_video(doc, proj; gestures = [(event = KeyPress('z'; time = 0.0), hold = 0.2)],
                          filename, fps=10, width=400, height=300, supersample=1,
                          initial_selection=caret)
             true
@@ -89,7 +89,7 @@ function test_record_video()
         filename = tempname() * ".mp4"
         timeline = [
             (operation = ReplaceSelectionOperation(caret), hold = 0.2),
-            (event     = KeyPress('q'),                    hold = 0.2),
+            (event     = KeyPress('q'; time = 0.0),                    hold = 0.2),
         ]
         ok = try
             record_video(doc, proj; gestures = timeline, filename,
@@ -110,7 +110,7 @@ function test_record_video()
 
     # .mp4 is the only supported container.
     @test_throws ErrorException record_video(make_json_document_example(), make_json_projection_example();
-                                             gestures = [(event = KeyPress('a'), hold = 0.1)],
+                                             gestures = [(event = KeyPress('a'; time = 0.0), hold = 0.1)],
                                              filename = tempname() * ".avi")
 
     @testset "assistant conversation demo records and waits for the reply" begin

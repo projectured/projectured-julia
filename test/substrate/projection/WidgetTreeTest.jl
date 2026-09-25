@@ -59,29 +59,29 @@ end
     w, io = _fresh()
     r1 = io.geometry.rows[1]
     # A hover is view state, and marked so that no history records it.
-    @test _readop_marked(io, MouseEnter(r1.chevron_x1 + 2, r1.y0 + 2, MouseButtons(), _mods)) isa ReplaceViewStateOperation
-    op = _readop(io, MouseEnter(r1.chevron_x1 + 2, r1.y0 + 2, MouseButtons(), _mods))
+    @test _readop_marked(io, MouseEnter(r1.chevron_x1 + 2, r1.y0 + 2, MouseButtons(), _mods; time = 0.0)) isa ReplaceViewStateOperation
+    op = _readop(io, MouseEnter(r1.chevron_x1 + 2, r1.y0 + 2, MouseButtons(), _mods; time = 0.0))
     @test op isa ReplaceReferencedValueOperation && op.value !== nothing
     getfield(w, :hovered)[] = op.value
     @test w.hovered !== nothing
 
-    op = _readop(io, MouseLeave(0, 0, MouseButtons(), _mods))
+    op = _readop(io, MouseLeave(0, 0, MouseButtons(), _mods; time = 0.0))
     @test op isa ReplaceReferencedValueOperation && op.value === nothing
     getfield(w, :hovered)[] = op.value
     @test w.hovered === nothing
     # A leave with nothing already hovered is a no-op.
-    @test _readop(io, MouseLeave(0, 0, MouseButtons(), _mods)) === nothing
+    @test _readop(io, MouseLeave(0, 0, MouseButtons(), _mods; time = 0.0)) === nothing
 end
 
 @testset "MouseMove updates hover only when the row changes" begin
     w, io = _fresh()
     rows = io.geometry.rows
     r1, r2 = rows[1], rows[2]
-    getfield(w, :hovered)[] = _readop(io, MouseEnter(r1.chevron_x1 + 2, r1.y0 + 2, MouseButtons(), _mods)).value
+    getfield(w, :hovered)[] = _readop(io, MouseEnter(r1.chevron_x1 + 2, r1.y0 + 2, MouseButtons(), _mods; time = 0.0)).value
     # Same row again → nothing (no churn).
-    @test _readop(io, MouseMove(r1.chevron_x1 + 5, r1.y0 + 5, MouseButtons(), _mods)) === nothing
+    @test _readop(io, MouseMove(r1.chevron_x1 + 5, r1.y0 + 5, MouseButtons(), _mods; time = 0.0)) === nothing
     # Different row → a fresh write.
-    op = _readop(io, MouseMove(r2.chevron_x1 + 5, r2.y0 + 5, MouseButtons(), _mods))
+    op = _readop(io, MouseMove(r2.chevron_x1 + 5, r2.y0 + 5, MouseButtons(), _mods; time = 0.0))
     @test op isa ReplaceReferencedValueOperation && op.value !== nothing
 end
 
@@ -89,17 +89,17 @@ end
     w, io = _fresh()
     r1 = io.geometry.rows[1]
     # Chevron click on the parent → collapse (children hidden, flag set).
-    op = _readop(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods))
+    op = _readop(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods; time = 0.0))
     @test op isa ReplaceReferencedValueOperation
     # A folded row is view state, so a history does not record the click.
-    @test _readop_marked(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods)) isa
+    @test _readop_marked(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods; time = 0.0)) isa
           ReplaceViewStateOperation
     getfield(w, :collapsed)[] = op.value
     @test [1] in w.collapsed
     g = io.geometry
     @test length(g.rows) == 2 && g.rows[1].collapsed
     # Chevron click again → expand.
-    op = _readop(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods))
+    op = _readop(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods; time = 0.0))
     getfield(w, :collapsed)[] = op.value
     @test !([1] in w.collapsed)
     @test length(io.geometry.rows) == 4
@@ -107,7 +107,7 @@ end
     # A click on the label (past the chevron column) selects instead of toggling.
     w2, io2 = _fresh()
     r = io2.geometry.rows[1]
-    op = _readop(io2, MousePress(:left, r.chevron_x1 + 20, r.y0 + 2, _mods))
+    op = _readop(io2, MousePress(:left, r.chevron_x1 + 20, r.y0 + 2, _mods; time = 0.0))
     @test op isa ReplaceSelectionOperation
 end
 
@@ -122,7 +122,7 @@ _bands(io) = [r for r in _rects(io) if r.color.alpha[] > 0]
     @test length(bands) == 2                            # hover + selection bands
     @test all(Int(r.h[]) == 0 for r in bands)           # neither active yet
     # Hover row 1 → one band gains the row's height.
-    getfield(w, :hovered)[] = _readop(io, MouseEnter(2, io.geometry.rows[1].y0 + 2, MouseButtons(), _mods)).value
+    getfield(w, :hovered)[] = _readop(io, MouseEnter(2, io.geometry.rows[1].y0 + 2, MouseButtons(), _mods; time = 0.0)).value
     @test any(Int(r.h[]) == 24 for r in _bands(io))
 end
 
@@ -150,10 +150,10 @@ end
         io = print_document(_full, doc)
         enters = clicks = 0
         for x in xs, y in ys
-            ce = read_intent(_full, nothing, Intent(MouseEnter(x, y, MouseButtons(), _mods), nothing), io)
+            ce = read_intent(_full, nothing, Intent(MouseEnter(x, y, MouseButtons(), _mods; time = 0.0), nothing), io)
             oe = _view_state_write(ce isa Intent ? ce.operation : ce)
             oe isa ReplaceReferencedValueOperation && oe.document isa WidgetTree && (enters += 1)
-            cp = read_intent(_full, nothing, Intent(MousePress(:left, x, y, _mods), nothing), io)
+            cp = read_intent(_full, nothing, Intent(MousePress(:left, x, y, _mods; time = 0.0), nothing), io)
             op = cp isa Intent ? cp.operation : cp
             op isa ReplaceSelectionOperation && (clicks += 1)
         end

@@ -46,7 +46,8 @@ function test_sdl_keysym()
     # backend builds for that chord.
     @testset "the command palette pattern matches the event SDL builds" begin
         # SDL modifier bits: KMOD_LCTRL = 0x0040, KMOD_LSHIFT = 0x0001.
-        event = ProjecturedSdl.sdl_to_keydown(Int32(112), UInt16(0x0040 | 0x0001), false)
+        event = ProjecturedSdl.sdl_to_keydown(Int32(112), UInt16(0x0040 | 0x0001), false;
+                                                time = 0.0)
         @test event.key === :p
         @test is_command_palette_gesture(event)
     end

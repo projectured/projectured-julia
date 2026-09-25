@@ -30,22 +30,22 @@ function press!(event)
     operation
 end
 
-ctrl(key) = KeyDown(key, ModifierKeys(ctrl = true))
-ctrl_shift(key) = KeyDown(key, ModifierKeys(ctrl = true, shift = true))
-ctrl_alt(key) = KeyDown(key, ModifierKeys(ctrl = true, alt = true))
+ctrl(key) = KeyDown(key, ModifierKeys(ctrl = true); time = 0.0)
+ctrl_shift(key) = KeyDown(key, ModifierKeys(ctrl = true, shift = true); time = 0.0)
+ctrl_alt(key) = KeyDown(key, ModifierKeys(ctrl = true, alt = true); time = 0.0)
 
 # Rename whatever tab has the focus: into the name, clear it, type the new one.
 function rename!(name)
-    press!(KeyDown(:f2, ModifierKeys()))
+    press!(KeyDown(:f2, ModifierKeys(); time = 0.0))
     focus = get_pane_focus_title(tree)
     focus === nothing && return false
     for _ in 1:length(get_pane_tab_title_string(focus[1].tabs[focus[2]]))
-        press!(KeyDown(:backspace, ModifierKeys()))
+        press!(KeyDown(:backspace, ModifierKeys(); time = 0.0))
     end
     for c in name
-        press!(KeyPress(c, ModifierKeys()))
+        press!(KeyPress(c, ModifierKeys(); time = 0.0))
     end
-    press!(KeyDown(:escape, ModifierKeys()))
+    press!(KeyDown(:escape, ModifierKeys(); time = 0.0))
     true
 end
 
@@ -166,9 +166,9 @@ end
     press!(DragTabOperation(widget_of(source), 1))
     @test tree.drag !== nothing
     x, y = point(target, 0.5, 0.5)
-    press!(MouseMove(x, y, MouseButtons(:left), ModifierKeys()))
+    press!(MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0))
     @test tree.drag.target === target
-    press!(MouseUp(:left, x, y, ModifierKeys()))
+    press!(MouseUp(:left, x, y, ModifierKeys(); time = 0.0))
 
     @test tree.drag === nothing
     @test length(target.tabs) == 2
@@ -188,7 +188,7 @@ end
     # middle of the pane: the tree's rectangles are proportional and ignore the
     # few pixels a border and a splitter take, so an edge is not a place to aim.
     x, y = point(d_group, 0.5, 0.5)
-    press!(MousePress(:left, x, y, ModifierKeys()))
+    press!(MousePress(:left, x, y, ModifierKeys(); time = 0.0))
     @test get_pane_focus(tree)[1] === d_group
     press!(ctrl(:w))
 
@@ -207,10 +207,10 @@ end
     # a different group.
     left_group, right_group = get_pane_groups(tree)
     lx, ly = point(left_group, 0.5, 0.5)
-    press!(MousePress(:left, lx, ly, ModifierKeys()))
+    press!(MousePress(:left, lx, ly, ModifierKeys(); time = 0.0))
     @test get_pane_focus(tree)[1] === left_group
     rx, ry = point(right_group, 0.5, 0.5)
-    press!(MousePress(:left, rx, ry, ModifierKeys()))
+    press!(MousePress(:left, rx, ry, ModifierKeys(); time = 0.0))
     @test get_pane_focus(tree)[1] === right_group
 end
 
@@ -230,13 +230,13 @@ end
     x0, y0 = round(Int, r.x * WIDTH), round(Int, r.y * HEIGHT)
     target = nothing
     for y in y0:2:(y0 + 40), x in x0:2:(x0 + 200)
-        if is_duplicate(read_intent(projection, iomap, MousePress(:left, x, y, ModifierKeys())))
+        if is_duplicate(read_intent(projection, iomap, MousePress(:left, x, y, ModifierKeys(); time = 0.0)))
             target = (x, y)
             break
         end
     end
     @test target !== nothing
-    press!(MousePress(:left, target[1], target[2], ModifierKeys()))
+    press!(MousePress(:left, target[1], target[2], ModifierKeys(); time = 0.0))
     @test length(group.tabs) == count + 1
     @test get_pane_tab_title_string(group.tabs[2]) == shown * " (2)"
     @test get_pane_focus(tree) == (group, 2)

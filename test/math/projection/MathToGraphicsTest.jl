@@ -181,7 +181,7 @@ end
     fraction = _print(MathFraction(PrimitiveNumber(1), MathVariable("x")))
     canvas = fraction.output
     _press(x, y) = read_intent(fraction.projection, fraction,
-                               MousePress(:left, Int(x), Int(y)))
+                               MousePress(:left, Int(x), Int(y); time = 0.0))
 
     numerator_x, numerator_y = _at(canvas, 1)
     operation = _press(numerator_x + 1, numerator_y + 1)
@@ -229,7 +229,7 @@ end
     iomap = _print(document)
     getfield(document, :selection)[] =
         ConcreteReference(FieldReferenceStep("left"), EmptyReference())
-    _key(k) = read_intent(iomap.projection, iomap, KeyDown(k, ModifierKeys()))
+    _key(k) = read_intent(iomap.projection, iomap, KeyDown(k, ModifierKeys(); time = 0.0))
 
     # Right moves to the sibling, left comes back, and left again declines.
     operation = _key(:right)
@@ -253,7 +253,7 @@ end
     document = MathVariable("x")
     iomap = _print(document)
     getfield(document, :selection)[] = EmptyReference()
-    operation = read_intent(iomap.projection, iomap, KeyPress('/'))
+    operation = read_intent(iomap.projection, iomap, KeyPress('/'; time = 0.0))
     # A compound: write the new node, then move the selection into its hole.
     @test operation isa CompoundOperation
     fraction = operation.operations[1].value
@@ -263,18 +263,18 @@ end
     @test operation.operations[2].path.head.name == "denominator"
 
     # The same shape for a superscript and for a parenthesis.
-    @test read_intent(iomap.projection, iomap, KeyPress('^')).operations[1].value isa MathScript
-    @test read_intent(iomap.projection, iomap, KeyPress('(')).operations[1].value isa MathParenthesized
+    @test read_intent(iomap.projection, iomap, KeyPress('^'; time = 0.0)).operations[1].value isa MathScript
+    @test read_intent(iomap.projection, iomap, KeyPress('('; time = 0.0)).operations[1].value isa MathParenthesized
     # A key that builds nothing is declined, not swallowed.
-    @test read_intent(iomap.projection, iomap, KeyPress('%')) === nothing
+    @test read_intent(iomap.projection, iomap, KeyPress('%'; time = 0.0)) === nothing
 end
 
 @testset "a letter fills an empty slot" begin
     slot = MathInsertion()
     iomap = _print(slot)
     getfield(slot, :selection)[] = EmptyReference()
-    @test read_intent(iomap.projection, iomap, KeyPress('y')).operations[1].value isa MathVariable
-    @test read_intent(iomap.projection, iomap, KeyPress('7')).operations[1].value isa PrimitiveNumber
+    @test read_intent(iomap.projection, iomap, KeyPress('y'; time = 0.0)).operations[1].value isa MathVariable
+    @test read_intent(iomap.projection, iomap, KeyPress('7'; time = 0.0)).operations[1].value isa PrimitiveNumber
 end
 
 @testset "every example formula prints and answers a selection" begin

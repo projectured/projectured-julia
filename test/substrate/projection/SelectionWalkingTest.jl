@@ -22,7 +22,7 @@ function _walking_tree()
     (root = root, card = card, layout = layout, button = button, label = label, field = field)
 end
 
-_walk_key(key, modifiers = ModifierKeys(alt = true)) = KeyDown(key, modifiers)
+_walk_key(key, modifiers = ModifierKeys(alt = true)) = KeyDown(key, modifiers; time = 0.0)
 
 # Where one step of the walk from `node` lands, as the node it names.
 function _walk_from(root, node, direction)
@@ -122,7 +122,7 @@ function test_selection_walking()
         @test get_selection_walk_direction(_walk_key(:left, ModifierKeys())) === nothing
         @test get_selection_walk_direction(_walk_key(:left, ModifierKeys(alt = true, ctrl = true))) === nothing
         @test get_selection_walk_direction(_walk_key(:home)) === nothing
-        @test get_selection_walk_direction(MousePress(:left, 1, 1, ModifierKeys(alt = true))) === nothing
+        @test get_selection_walk_direction(MousePress(:left, 1, 1, ModifierKeys(alt = true); time = 0.0)) === nothing
     end
 
     @testset "the projection answers what nothing inside answered" begin

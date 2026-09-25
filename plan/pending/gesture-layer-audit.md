@@ -155,6 +155,58 @@ Each step is a commit in this worktree.
 3. [ ] Item 1: the time field in the event layer, the constructions in
    projectured-julia, the backends, and the recognizer on the event time
    (item 5 with it).
+   - The event layer: every concrete event has `time::Float64` as its last
+     field. The full constructor takes it as its last argument, and every short
+     form as the required keyword `time`. `get_event_time` is declared in
+     `EventInterface.jl` and defined in `EventDefaults.jl`. A pattern leaves
+     `time` out of its positional fields.
+   - The constructions: a script over the parse tree
+     (`/var/tmp/gesture-audit/events.jl`) added `time = …` to each
+     construction that had none, and left pattern syntax, quoted code and
+     definitions alone. The tests got `time = 0.0` (1157 sites in 94 files).
+     The readers got the time of the event that they read from (`evt.time`,
+     `event.time` or `g.time`); four probes with no input got `time()`. The
+     drivers of the precompile workloads, the examples and the video tools got
+     `time()`, and a driver whose start time `t0` comes before its list got
+     `t0`. The test macro `@em_test_bind_fields` takes a pattern as its first
+     argument, and that argument has no time.
+   - The backends: SDL converts `evt.common.timestamp` with its ticks
+     (`_get_sdl_event_time`), and `sdl_to_keydown`, `sdl_to_keyup` and
+     `sdl_to_keypress` take the time as a keyword. The web page sends `t`, the
+     time of the browser event or of the send, and `Web.jl` reads it; a message
+     with no `t` gets the time when it arrives. The console reads `time()` once
+     after it drains the input, and its decoder takes the time as a keyword.
+     The video backend gives its last `WindowQuit` the time when it builds its
+     timeline.
+   - The recognizer reads the time of each event; its `clock` keyword and field
+     are gone. A `MousePress` has the time of its `MouseUp`, and a `KeyChord` the
+     time of its last key. A new test processes a release a third of a second
+     after its press, with event times 0.1 s apart, and gets a click.
+   - The lines that the time made longer than 90 characters in main code are
+     wrapped. The lines of the tests are not: most tests read as lists of
+     events, and the budget of a line is not wrapped there.
+   - The first run of the suites found three faults of this step, all fixed:
+     - The script skipped the whole body of `@event_case`, but only the left
+       side of a rule `pattern => result` is pattern syntax. 40 constructions
+       on right sides had no time: 37 in `WidgetToGraphics.jl` and 3 in
+       `PaneGestures.jl`. The script now skips only the left side. In
+       `@gestures` the event has a generated name that the right side can not
+       name, so the 3 in `PaneGestures.jl` got `time()`.
+     - `ApplicationVideo.jl` replaced the clock of the recognizer with the clock
+       of the video frames. The video backend now gives each event it delivers
+       the time of the schedule when it fires (`_restamp_event`), so clicks and
+       double clicks are measured in video time, and the example no longer
+       touches the recognizer.
+     - The tests of the web and console backends compared an event of the
+       backend with a literal event at the time 0.0 (D3). The web test messages
+       now carry `"t":1500`, and the tests expect the time 1.5 s; a message with
+       no `t` must get a time between the times before and after it arrives.
+       The console tests compare the other fields, and check that the time of
+       the read lies between the times before and after it.
+   - The guides: the examples of events in `devices-and-backends.md`,
+     `engineer-tour.md`, `focus.md`, `video.md` and `debugging-guide.md` show the
+     time, and `web.md` documents the field `t`. `web.md` also said that the web
+     backend keeps SDL alive for the font cache of SDL, which is false.
 4. [x] Item 4: `plan/pending/key-chords-from-bindings.md`, deferred.
 5. [ ] The same constructions in omnet-julia and inet-julia, in worktrees of
    their own, to land together with this branch.

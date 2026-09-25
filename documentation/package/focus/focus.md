@@ -73,8 +73,8 @@ The four files of `source/focus/` hold the parts above: `Focus.jl` the Tab walk 
 ```julia
 FocusModule.is_focusable_document(w::MyControl) = w.enabled   # a domain opts in
 path = get_first_focusable_path(document)                     # a Reference, or nothing
-is_whole_selection_press(MousePress(:left, 10, 20, 1, ModifierKeys(alt = true)))   # true
-is_focusing_press(MouseDown(:left, 10, 20, ModifierKeys()))                         # true
+is_whole_selection_press(MousePress(:left, 10, 20, 1, ModifierKeys(alt = true); time = 0.0))  # true
+is_focusing_press(MouseDown(:left, 10, 20, ModifierKeys(); time = 0.0))                        # true
 projection = SelectionWalkingProjection(; inner = make_json_projection_example())
 ```
 

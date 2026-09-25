@@ -445,5 +445,5 @@ end
 function read_intent(::InsertionNothingToSyntaxLeaf, iomap::SimpleIoMap, op::ReplaceStringRangeOperation)
     text = op.replacement
     isempty(text) && return nothing
-    read_gesture(iomap.input, KeyPress(first(text), text, ModifierKeys()))
+    read_gesture(iomap.input, KeyPress(first(text), text, ModifierKeys(); time = time()))
 end

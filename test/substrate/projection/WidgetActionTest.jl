@@ -21,7 +21,7 @@ proj = make_widget_projection_example()
     # Menu item bound to the command.
     item = WidgetMenuItem(save)
     iio  = print_document(proj, item)
-    iop  = read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys()))
+    iop  = read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0))
     @test iop isa CompoundOperation
     @test iop.operations[1] isa InvokeActionOperation
     @test iop.operations[1].action === save
@@ -29,7 +29,7 @@ proj = make_widget_projection_example()
     # Button bound to the same command.
     btn = WidgetButton(save; size = Point2D(80, 0))
     bio = print_document(proj, btn)
-    bop = read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys()))
+    bop = read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0))
     @test bop isa InvokeActionOperation
     @test bop.action === save
 
@@ -38,7 +38,7 @@ proj = make_widget_projection_example()
                         menu_bar = WidgetMenu([WidgetMenuItem(save)]),
                         size = Point2D(300, 200))
     sio = print_document(proj, shell)
-    sop = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false))
+    sop = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false; time = 0.0))
     @test sop isa InvokeActionOperation
     @test sop.action === save
 
@@ -55,23 +55,23 @@ end
 
     item = WidgetMenuItem(save)
     iio  = print_document(proj, item)
-    @test read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys())) === nothing
+    @test read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0)) === nothing
 
     btn = WidgetButton(save; size = Point2D(80, 0))
     bio = print_document(proj, btn)
-    @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys())) === nothing
+    @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0)) === nothing
 
     shell = WidgetShell(WidgetLabel("body");
                         menu_bar = WidgetMenu([WidgetMenuItem(save)]),
                         size = Point2D(300, 200))
     sio = print_document(proj, shell)
     # The disabled action's shortcut does not fire; the key falls through instead.
-    sop = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false))
+    sop = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false; time = 0.0))
     @test !(sop isa InvokeActionOperation)
 
     # Re-enabling makes the shortcut fire again (reactive `enabled` cell).
     save.enabled = true
-    sop2 = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false))
+    sop2 = read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false; time = 0.0))
     @test sop2 isa InvokeActionOperation
 end
 
@@ -84,11 +84,11 @@ end
     sio = print_document(proj, shell)
 
     # The matching chord is consumed (returns the action op).
-    @test read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false)) isa InvokeActionOperation
+    @test read_intent(proj, sio, KeyDown(:s, ModifierKeys(ctrl = true), false; time = 0.0)) isa InvokeActionOperation
     # A non-matching chord is not claimed as a shortcut (it falls through).
-    @test !(read_intent(proj, sio, KeyDown(:x, ModifierKeys(ctrl = true), false)) isa InvokeActionOperation)
+    @test !(read_intent(proj, sio, KeyDown(:x, ModifierKeys(ctrl = true), false; time = 0.0)) isa InvokeActionOperation)
     # Exact-modifier matching: bare `s` (no Ctrl) is not the Ctrl+S shortcut.
-    @test !(read_intent(proj, sio, KeyDown(:s, ModifierKeys(), false)) isa InvokeActionOperation)
+    @test !(read_intent(proj, sio, KeyDown(:s, ModifierKeys(), false; time = 0.0)) isa InvokeActionOperation)
 end
 
 @testset "InvokeActionOperation respects enabled at evaluate time" begin
@@ -137,15 +137,15 @@ end
 
     # Disable it: both views decline the click (the conjunction's action half).
     save.enabled = false
-    @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys())) === nothing
-    @test read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys())) === nothing
+    @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0)) === nothing
     save.enabled = true
-    @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys())) isa InvokeActionOperation
+    @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0)) isa InvokeActionOperation
 
     # The view's own gate is the other half: inert here, live elsewhere.
     btn.enabled = false
-    @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys())) === nothing
-    @test read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys())) isa CompoundOperation
+    @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0)) isa CompoundOperation
 end
 
 @testset "a control's own label and icon fold into a fresh Action" begin
@@ -175,14 +175,14 @@ end
     # Dialog alone: the click opens it.
     only_dialog = WidgetButton("Open"; size = Point2D(80, 0), dialog = dlg)
     dio = print_document(proj, only_dialog)
-    @test read_intent(proj, dio, MousePress(:left, 2, 2, ModifierKeys())) isa OpenWindowOperation
+    @test read_intent(proj, dio, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0)) isa OpenWindowOperation
 
     # Callback as well: the callback wins, and the dialog is the fallback for a
     # command that does nothing.
     both = WidgetButton("Open";
                         size = Point2D(80, 0), action = (_e) -> (fired[] += 1), dialog = dlg)
     bio = print_document(proj, both)
-    @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys())) isa InvokeActionOperation
+    @test read_intent(proj, bio, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0)) isa InvokeActionOperation
 end
 
 @testset "a menu item's submenu beats its callback" begin
@@ -191,7 +191,7 @@ end
     item = WidgetMenuItem("File"; action = (_e) -> error("must not fire"), submenu = sub)
     iio  = print_document(proj, item)
     # To open a popup is not an edit, so the popup comes marked as view state.
-    answer = read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys()))
+    answer = read_intent(proj, iio, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0))
     @test answer isa ReplaceViewStateOperation
     @test get_wrapped_operation(answer) isa OpenPopupOperation
 end
@@ -205,7 +205,7 @@ end
     @test _dialog_text_xy(iomap.output, "Ready") !== nothing
     @test _dialog_text_xy(iomap.output, "Ln 1, Col 1") !== nothing
     # A status bar is inert.
-    @test read_intent(proj, iomap, MousePress(:left, 2, 2, ModifierKeys())) === nothing
+    @test read_intent(proj, iomap, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0)) === nothing
 end
 
 end # @testset

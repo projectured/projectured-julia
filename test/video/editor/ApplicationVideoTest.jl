@@ -50,10 +50,10 @@ function test_application_video()
     # buffer, "repl" names the tool, and Enter commits it — the same key
     # sequence `warm_application` uses to open the evaluator.
     timeline = Any[
-        (event = KeyDown(:t, ModifierKeys(ctrl = true)), hold = 0.2),
-        (event = KeyDown(:insert, ModifierKeys()),        hold = 0.2),
+        (event = KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0), hold = 0.2),
+        (event = KeyDown(:insert, ModifierKeys(); time = 0.0),        hold = 0.2),
         make_typein_gestures("repl"; hold = 0.1, jitter = 0.0)...,
-        (event = KeyDown(:return, ModifierKeys()),        hold = 0.5),
+        (event = KeyDown(:return, ModifierKeys(); time = 0.0),        hold = 0.5),
     ]
     expected_duration = initial_hold + sum(e.hold for e in timeline) + final_hold
 
@@ -95,7 +95,7 @@ end
     note_time = (await = editor -> (push!(times, get_clock_time(editor.clock)); true), hold = 1.0)
     timeline = Any[
         note_time,
-        (event = KeyDown(:t, ModifierKeys(ctrl = true)), hold = 1.0),
+        (event = KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0), hold = 1.0),
         note_time,
     ]
     filename = tempname() * ".mp4"
@@ -140,7 +140,7 @@ end
 
 @testset "the pointer is drawn where the last mouse event left it" begin
     width, height = 480, 360
-    timeline = Any[(event = MouseMove(300, 200, MouseButtons(), ModifierKeys()), hold = 0.5)]
+    timeline = Any[(event = MouseMove(300, 200, MouseButtons(), ModifierKeys(); time = 0.0), hold = 0.5)]
     # One folder for both takes: the navigator shows its name.
     root = mktempdir()
     frames = map((true, false)) do pointer

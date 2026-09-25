@@ -36,7 +36,7 @@ proj = make_widget_projection_example()
 @testset "Esc dismisses the dialog" begin
     dlg = WidgetMessageBox("Title", "A message")
     iomap = print_document(proj, dlg)
-    op = read_intent(proj, iomap, KeyDown(:escape, ModifierKeys(), false))
+    op = read_intent(proj, iomap, KeyDown(:escape, ModifierKeys(), false; time = 0.0))
     @test op isa CloseWindowOperation
     @test op.id === :widget_dialog
 end
@@ -45,7 +45,7 @@ end
     dlg = WidgetMessageBox("Title", "A message")
     iomap = print_document(proj, dlg)
     # (2, 2) is the top-left scrim; the card is centered, so it is outside it.
-    op = read_intent(proj, iomap, MousePress(:left, 2, 2, ModifierKeys()))
+    op = read_intent(proj, iomap, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0))
     @test op isa CloseWindowOperation
     @test op.id === :widget_dialog
 end
@@ -57,7 +57,7 @@ end
     iomap = print_document(proj, dlg)
     xy = _dialog_text_xy(iomap.output, "OK")
     @test xy !== nothing
-    op = read_intent(proj, iomap, MousePress(:left, xy[1] + 2, xy[2] + 2, ModifierKeys()))
+    op = read_intent(proj, iomap, MousePress(:left, xy[1] + 2, xy[2] + 2, ModifierKeys(); time = 0.0))
     @test op isa CompoundOperation
     @test op.operations[1] isa InvokeActionOperation
     @test op.operations[2] isa CloseWindowOperation
@@ -69,7 +69,7 @@ end
 @testset "a custom popup_id is the id that closes" begin
     dlg = WidgetMessageBox("T", "m"; popup_id = :my_dialog)
     iomap = print_document(proj, dlg)
-    op = read_intent(proj, iomap, KeyDown(:escape, ModifierKeys(), false))
+    op = read_intent(proj, iomap, KeyDown(:escape, ModifierKeys(), false; time = 0.0))
     @test op isa CloseWindowOperation
     @test op.id === :my_dialog
 end
@@ -90,12 +90,12 @@ end
     nbefore = length(screen.windows)
     # Clicking the select in the BASE window would normally open a dropdown popup;
     # while the modal is open the window input is dropped, so no window opens.
-    window_input = WindowInput(:base, MousePress(:left, 10, 10, ModifierKeys()))
+    window_input = WindowInput(:base, MousePress(:left, 10, 10, ModifierKeys(); time = 0.0))
     read_intent(sproj, nothing, Intent(window_input, nothing), iomap)
     @test length(screen.windows) == nbefore
 
     # Esc routed to the modal window itself IS processed → it closes.
-    window_input2 = WindowInput(:widget_dialog, KeyDown(:escape, ModifierKeys(), false))
+    window_input2 = WindowInput(:widget_dialog, KeyDown(:escape, ModifierKeys(), false; time = 0.0))
     read_intent(sproj, nothing, Intent(window_input2, nothing), iomap)
     @test !any(w -> w isa WindowDocument && w.id === :widget_dialog, screen.windows)
 end
@@ -112,7 +112,7 @@ end
     iomap  = print_document(sproj, screen)
 
     nbefore = length(screen.windows)
-    window_input = WindowInput(:base, MousePress(:left, 10, 10, ModifierKeys()))
+    window_input = WindowInput(:base, MousePress(:left, 10, 10, ModifierKeys(); time = 0.0))
     read_intent(sproj, nothing, Intent(window_input, nothing), iomap)
     @test length(screen.windows) == nbefore + 1
     opened = nothing

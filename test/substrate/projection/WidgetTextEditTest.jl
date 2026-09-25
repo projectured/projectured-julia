@@ -39,7 +39,7 @@ end
     set_selection!(doc, _cursor(3))            # cursor after "edi"
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
 
-    op = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys()))
+    op = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
     @test op isa ReplaceStringRangeOperation
     # The widget prepended `content` to the Text-domain reference.
     @test op.reference.head == FieldReferenceStep("content")
@@ -54,7 +54,7 @@ end
     set_selection!(doc, _cursor(3))
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
     @test iomap.output isa GraphicsCanvas                      # still renders
-    @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys())) === nothing
+    @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0)) === nothing
     @test doc.content.elements[1].content == "edit me"         # value unchanged
 end
 
@@ -63,14 +63,14 @@ end
     set_selection!(doc, _cursor(4))            # cursor after "edit"
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
 
-    bs = read_intent(_proj(), iomap, KeyDown(:backspace, ModifierKeys()))
+    bs = read_intent(_proj(), iomap, KeyDown(:backspace, ModifierKeys(); time = 0.0))
     @test bs isa ReplaceStringRangeOperation
     @test bs.reference.head == FieldReferenceStep("content")
     evaluate_operation(_WidgetTextMockEditor(doc), bs)
     @test doc.content.elements[1].content == "edi me"
 
     iomap2 = print_document(_proj(), nothing, doc, PrinterContext())
-    arrow = read_intent(_proj(), iomap2, KeyDown(:left, ModifierKeys()))
+    arrow = read_intent(_proj(), iomap2, KeyDown(:left, ModifierKeys(); time = 0.0))
     @test arrow isa ReplaceSelectionOperation
     @test arrow.path.head == FieldReferenceStep("content")
 end
@@ -94,15 +94,15 @@ end
     set_selection!(doc, _cursor(3))            # cursor after "one"
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
 
-    typed = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys()))
+    typed = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
     @test typed isa ReplaceStringRangeOperation
     @test typed.reference.head == FieldReferenceStep("content")
-    broken = read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys()))
+    broken = read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys(); time = 0.0))
     @test broken isa ReplaceStringRangeOperation
     @test broken.replacement == "\n"
     @test broken.reference.head == FieldReferenceStep("content")
     # Tab is not text, so it goes on to move the focus.
-    @test read_intent(_proj(), iomap, KeyDown(:tab, ModifierKeys())) === nothing
+    @test read_intent(_proj(), iomap, KeyDown(:tab, ModifierKeys(); time = 0.0)) === nothing
 
     evaluate_operation(_WidgetTextMockEditor(doc), broken)
     @test doc.content.elements[1].content == "one\n two"
@@ -116,7 +116,7 @@ end
 
     # A press on the drawn second line puts the caret into that line.
     _, x, y = first(t for t in _drawn_texts(iomap.output) if occursin("two", t[1]))
-    click = read_intent(_proj(), iomap, MousePress(:left, x + 25, y + 4, ModifierKeys()))
+    click = read_intent(_proj(), iomap, MousePress(:left, x + 25, y + 4, ModifierKeys(); time = 0.0))
     @test click isa ReplaceSelectionOperation
     @test click.path.head == FieldReferenceStep("content")
     @test click.path.tail.head isa TextRangeReferenceStep
@@ -135,15 +135,15 @@ _held_caret(widget) = strip_reference_types(widget.selection)
     off = WidgetTextarea(content; enabled = false)
     set_selection!(off, _cursor(1))
     iomap = print_document(_proj(), nothing, off, PrinterContext())
-    @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys())) === nothing
-    @test read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys())) === nothing
-    @test read_intent(_proj(), iomap, MousePress(:left, 10, 10, ModifierKeys())) === nothing
+    @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(_proj(), iomap, MousePress(:left, 10, 10, ModifierKeys(); time = 0.0)) === nothing
     @test off.content.elements[1].content == "one"
 
     plain = WidgetTextarea("one\ntwo"; enabled = false)
     set_selection!(plain, _plain_cursor(1))
     plain_iomap = print_document(_proj(), nothing, plain, PrinterContext())
-    @test read_intent(_proj(), plain_iomap, KeyPress('X', "X", ModifierKeys())) === nothing
+    @test read_intent(_proj(), plain_iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0)) === nothing
     @test plain.content == "one\ntwo"
 end
 
@@ -152,18 +152,18 @@ end
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
     # With no caret the string is drawn whole, and a key has nowhere to go.
     @test occursin("edit me", join(text for (text, _, _) in _drawn_texts(iomap.output)))
-    @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys())) === nothing
+    @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0)) === nothing
 
     # A press puts the caret into the string, under the pointer.
     _, x, y = first(t for t in _drawn_texts(iomap.output) if startswith(t[1], "edit"))
-    click = read_intent(_proj(), iomap, MousePress(:left, x + 32, y + 4, ModifierKeys()))
+    click = read_intent(_proj(), iomap, MousePress(:left, x + 32, y + 4, ModifierKeys(); time = 0.0))
     @test click isa ReplaceSelectionOperation
     @test click.path == _plain_cursor(3)
     evaluate_operation(_WidgetTextMockEditor(doc), click)
     @test _held_caret(doc) == _plain_cursor(3)
 
     # A typed letter is a string edit of the field, and the caret moves past it.
-    typed = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys()))
+    typed = read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0))
     @test typed isa ReplaceStringRangeOperation
     @test typed.reference == _plain_cursor(3)
     evaluate_operation(_WidgetTextMockEditor(doc), typed)
@@ -172,18 +172,18 @@ end
     @test occursin("ediXt me", join(text for (text, _, _) in _drawn_texts(iomap.output)))
 
     # Backspace and an arrow go through the text domain too.
-    erased = read_intent(_proj(), iomap, KeyDown(:backspace, ModifierKeys()))
+    erased = read_intent(_proj(), iomap, KeyDown(:backspace, ModifierKeys(); time = 0.0))
     evaluate_operation(_WidgetTextMockEditor(doc), erased)
     @test doc.content == "edit me"
-    moved = read_intent(_proj(), iomap, KeyDown(:left, ModifierKeys()))
+    moved = read_intent(_proj(), iomap, KeyDown(:left, ModifierKeys(); time = 0.0))
     @test moved isa ReplaceSelectionOperation && moved.path == _plain_cursor(2)
 
     # A validator sees the edit of a plain string as it sees any other.
     digits = WidgetText("12"; validator = make_numeric_validator())
     set_selection!(digits, _plain_cursor(2))
     digits_iomap = print_document(_proj(), nothing, digits, PrinterContext())
-    @test read_intent(_proj(), digits_iomap, KeyPress('a', "a", ModifierKeys())) === nothing
-    @test read_intent(_proj(), digits_iomap, KeyPress('3', "3", ModifierKeys())) isa
+    @test read_intent(_proj(), digits_iomap, KeyPress('a', "a", ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(_proj(), digits_iomap, KeyPress('3', "3", ModifierKeys(); time = 0.0)) isa
           ReplaceStringRangeOperation
 end
 
@@ -191,7 +191,7 @@ end
     doc = WidgetTextarea("one two"; rows = 3)
     set_selection!(doc, _plain_cursor(3))
     iomap = print_document(_proj(), nothing, doc, PrinterContext())
-    broken = read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys()))
+    broken = read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys(); time = 0.0))
     @test broken isa ReplaceStringRangeOperation
     @test broken.replacement == "\n"
     evaluate_operation(_WidgetTextMockEditor(doc), broken)

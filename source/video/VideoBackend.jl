@@ -117,7 +117,8 @@ function VideoBackend(timeline::AbstractVector, window_id::Symbol;
             error("VideoBackend: timeline entry $i carries neither `event` nor `await`")
         end
     end
-    entries[n + 1] = (event = WindowQuit(), fire_at = acc + Float64(final_hold))
+    quit = WindowQuit(; time = time())
+    entries[n + 1] = (event = quit, fire_at = acc + Float64(final_hold))
     VideoBackend(Int(width), Int(height), Int(fps), String(frames_dir), window_id,
                 entries, 1, false, -1, -1, 0.0, 0.0, -1.0, nothing, Ref(0), nothing, nothing,
                 Int(supersample), Float64(scale), video_time, pointer, false, -Inf)
@@ -181,8 +182,10 @@ wait_for_input(backend::VideoBackend, devices, timeout_seconds) =
 
 The next `timeline` entry whose `fire_at` has passed, as the `WindowInput`
 `play_live!` builds for a live device: `entry.event` wrapped for
-`backend.window_id`. A mouse event updates the tracked pointer position before
-it is returned. Answers `nothing` when the timeline is exhausted, the next
+`backend.window_id`, with the time of the schedule when it fires, so the
+gesture recognizer measures a click and a double click in the time of the
+video. A mouse event updates the tracked pointer position before it is
+returned. Answers `nothing` when the timeline is exhausted, the next
 entry has not fired yet, or the entry already delivered has not been rendered
 yet (`awaiting_render`) — every one of them the same "nothing left this poll"
 answer a real device gives, and the last of them what keeps one entry per frame
@@ -199,7 +202,14 @@ function read_from_devices(backend::VideoBackend, devices)
     backend.next_entry += 1
     backend.awaiting_render = true
     _track_pointer!(backend, entry.event)
-    WindowInput(backend.window_id, entry.event)
+    WindowInput(backend.window_id, _restamp_event(entry.event, backend.start_time + elapsed))
+end
+
+# `event` with the time `time` in place of its own. The time is the last field of
+# every event (see `Event`), and the full constructor takes every field.
+function _restamp_event(event, time::Float64)
+    type = typeof(event)
+    type(ntuple(i -> getfield(event, i), fieldcount(type) - 1)..., time)
 end
 
 # An `await` entry holds the schedule until its predicate answers true, or

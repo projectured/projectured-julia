@@ -53,19 +53,19 @@ end
 _written(op) = op.operations[1].value
 
 @testset "insertion replace builds the right node" begin
-    op = read_key(XmlInsertion(), whole, KeyPress('"'))
+    op = read_key(XmlInsertion(), whole, KeyPress('"'; time = 0.0))
     @test op isa CompoundOperation
     @test _written(op) isa XmlText
-    op = read_key(XmlInsertion(), whole, KeyPress('<'))
+    op = read_key(XmlInsertion(), whole, KeyPress('<'; time = 0.0))
     @test op isa CompoundOperation
     @test _written(op) isa XmlElement
     # An unrelated key declines.
-    @test read_key(XmlInsertion(), whole, KeyPress('q')) === nothing
+    @test read_key(XmlInsertion(), whole, KeyPress('q'; time = 0.0)) === nothing
 end
 
 @testset "replacing the whole root swaps editor.document" begin
     doc = XmlInsertion()
-    op = read_key(doc, whole, KeyPress('<'))
+    op = read_key(doc, whole, KeyPress('<'; time = 0.0))
     ed = _XmlReaderEditor(doc, nothing)
     evaluate_operation(ed, op)
     @test ed.document isa XmlElement
@@ -75,7 +75,7 @@ end
 
 @testset "replacing a selected child insertion writes the slot in place" begin
     e = XmlElement("a", XmlDocument[XmlInsertion()])
-    op = read_key(e, @reference(e, children[1]), KeyPress('<'))
+    op = read_key(e, @reference(e, children[1]), KeyPress('<'; time = 0.0))
     @test op isa CompoundOperation
     @test _written(op) isa XmlElement
     ed = _XmlReaderEditor(e, nothing)
@@ -86,7 +86,7 @@ end
 
 @testset "element insert appends a child element and selects its tag" begin
     e = XmlElement("a", XmlDocument[XmlText("hi")])
-    op = read_key(e, whole, KeyPress('<'))
+    op = read_key(e, whole, KeyPress('<'; time = 0.0))
     @test op isa CompoundOperation                        # splice + select-new
     @test op.operations[1] isa ReplaceReferencedValueOperation
     ed = _XmlReaderEditor(e, nothing)
@@ -98,7 +98,7 @@ end
 
 @testset "element insert appends a child text and selects its value" begin
     e = XmlElement("a")
-    op = read_key(e, whole, KeyPress('"'))
+    op = read_key(e, whole, KeyPress('"'; time = 0.0))
     @test op isa CompoundOperation
     ed = _XmlReaderEditor(e, nothing)
     evaluate_operation(ed, op)
@@ -110,7 +110,7 @@ end
 @testset "Space inserts an attribute and selects its name" begin
     e = XmlElement("a")
     # Cursor in the start tag → fires.
-    op = read_key(e, @reference(e, tag{0}), KeyDown(:space, ModifierKeys()))
+    op = read_key(e, @reference(e, tag{0}), KeyDown(:space, ModifierKeys(); time = 0.0))
     @test op isa CompoundOperation
     ed = _XmlReaderEditor(e, nothing)
     evaluate_operation(ed, op)
@@ -119,12 +119,12 @@ end
     @test selof(e.attrs[1]) isa ConcreteReference  # cursor in the name
     # Gating: Space while editing a child node declines.
     e2 = XmlElement("a", XmlDocument[XmlText("hi")])
-    @test read_key(e2, @reference(e2, children[1].content{0}), KeyDown(:space, ModifierKeys())) === nothing
+    @test read_key(e2, @reference(e2, children[1].content{0}), KeyDown(:space, ModifierKeys(); time = 0.0)) === nothing
 end
 
 @testset "Insert key inserts a generic insertion child" begin
     e = XmlElement("a")
-    op = read_key(e, whole, KeyDown(:insert, ModifierKeys()))
+    op = read_key(e, whole, KeyDown(:insert, ModifierKeys(); time = 0.0))
     @test op isa CompoundOperation
     ed = _XmlReaderEditor(e, nothing)
     evaluate_operation(ed, op)
@@ -134,12 +134,12 @@ end
 
 @testset "= moves from an attribute name to its value" begin
     e = XmlElement("a", [XmlAttribute("k", "v")])
-    op = read_key(e, @reference(e, attrs[1].name{0}), KeyPress('='))
+    op = read_key(e, @reference(e, attrs[1].name{0}), KeyPress('='; time = 0.0))
     @test op isa ReplaceSelectionOperation
     # op.path is annotated against `e`, so compare against the same typed form.
     @test is_reference_equal(op.path, @reference(e, attrs[1].value{0}))
     # = outside an attribute name does nothing.
-    @test read_key(e, whole, KeyPress('=')) === nothing
+    @test read_key(e, whole, KeyPress('='; time = 0.0)) === nothing
 end
 
 end # @testset "XmlToSyntax reader commands"
@@ -165,35 +165,35 @@ end
 
 @testset "an ordinary key inside a tag name is a character edit" begin
     e = XmlElement("div", XmlDocument[XmlText("hi")])
-    @test read_key(e, @reference(e, tag{1}), KeyPress('x')) isa ReplaceStringRangeOperation
+    @test read_key(e, @reference(e, tag{1}), KeyPress('x'; time = 0.0)) isa ReplaceStringRangeOperation
 end
 
 @testset "`<` / `\"` inside a tag name still insert a child (override)" begin
     e = XmlElement("div", XmlDocument[XmlText("hi")])
-    @test read_key(e, @reference(e, tag{1}), KeyPress('<')) isa CompoundOperation
-    @test read_key(e, @reference(e, tag{1}), KeyPress('"')) isa CompoundOperation
+    @test read_key(e, @reference(e, tag{1}), KeyPress('<'; time = 0.0)) isa CompoundOperation
+    @test read_key(e, @reference(e, tag{1}), KeyPress('"'; time = 0.0)) isa CompoundOperation
 end
 
 @testset "`<` / `\"` on a whole element insert a child" begin
     e = XmlElement("div", XmlDocument[XmlText("hi")])
-    @test read_key(e, EmptyReference(), KeyPress('<')) isa CompoundOperation
-    @test read_key(e, EmptyReference(), KeyPress('"')) isa CompoundOperation
+    @test read_key(e, EmptyReference(), KeyPress('<'; time = 0.0)) isa CompoundOperation
+    @test read_key(e, EmptyReference(), KeyPress('"'; time = 0.0)) isa CompoundOperation
 end
 
 # An attribute name can not hold `=`, so in the name the key moves the caret to the
 # value, although the text stage would make it a character.
 @testset "`=` in an attribute name moves to the value (override)" begin
     e = XmlElement("div", [XmlAttribute("key", "v")])
-    op = read_key(e, @reference(e, attrs[1].name{1}), KeyPress('='))
+    op = read_key(e, @reference(e, attrs[1].name{1}), KeyPress('='; time = 0.0))
     @test op isa ReplaceSelectionOperation
     @test is_reference_equal(op.path, @reference(e, attrs[1].value{0}))
 end
 
 @testset "`=` in an attribute value or a text is a character edit" begin
     e = XmlElement("div", [XmlAttribute("key", "v")], XmlDocument[XmlText("hi")])
-    @test read_key(e, @reference(e, attrs[1].value{1}), KeyPress('=')) isa ReplaceStringRangeOperation
-    @test read_key(e, @reference(e, children[1].content{1}), KeyPress('=')) isa ReplaceStringRangeOperation
-    @test read_key(e, @reference(e, tag{1}), KeyPress('=')) isa ReplaceStringRangeOperation
+    @test read_key(e, @reference(e, attrs[1].value{1}), KeyPress('='; time = 0.0)) isa ReplaceStringRangeOperation
+    @test read_key(e, @reference(e, children[1].content{1}), KeyPress('='; time = 0.0)) isa ReplaceStringRangeOperation
+    @test read_key(e, @reference(e, tag{1}), KeyPress('='; time = 0.0)) isa ReplaceStringRangeOperation
 end
 
 end # @testset "XmlToSyntax override gestures (full chain)"

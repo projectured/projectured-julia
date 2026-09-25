@@ -50,7 +50,7 @@ mktempdir() do dir
     @testset "Ctrl+S writes the changed content to disk" begin
         file = make_file(get_file_document_type(path), path, read(path, String))
         file.content = parse_json("{\"greeting\": \"goodbye\"}")
-        op = read_gesture(file, KeyDown(:s, ModifierKeys(ctrl = true)))
+        op = read_gesture(file, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0))
         @test op isa Operation
         evaluate_operation(nothing, op)
         @test occursin("goodbye", read(path, String))
@@ -61,7 +61,7 @@ mktempdir() do dir
     @testset "Ctrl+O reads the file back, and selects the whole file" begin
         file = make_file(get_file_document_type(path), path, read(path, String))
         write(path, "{\"greeting\": \"reloaded\"}")
-        op = read_gesture(file, KeyDown(:o, ModifierKeys(ctrl = true)))
+        op = read_gesture(file, KeyDown(:o, ModifierKeys(ctrl = true); time = 0.0))
         @test op isa CompoundOperation
         @test any(o -> o isa ReplaceSelectionOperation && o.path isa EmptyReference, op.operations)
         evaluate_operation(nothing, only(o for o in op.operations if o isa ReloadFileOperation))
@@ -79,17 +79,17 @@ mktempdir() do dir
                                               Dict{Symbol,Any}()))
         (x, y) = only((x, y) for (text, x, y) in _app_drawn_at(get_iomap_output(iomap))
                       if occursin("hello", text))
-        answer = read_intent(renderer, iomap, MousePress(:left, x + 3, y + 3, 1, ModifierKeys()))
+        answer = read_intent(renderer, iomap, MousePress(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
         @test answer isa ReplaceSelectionOperation
         @test occursin(r"^\.content\.entries\[1\]\.value\.value\{\d+\}$",
                        repr(strip_reference_types(answer.path)))
-        @test read_intent(renderer, iomap, KeyDown(:s, ModifierKeys(ctrl = true))) isa SaveFileOperation
+        @test read_intent(renderer, iomap, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0)) isa SaveFileOperation
     end
 
     @testset "a file with an empty name declines both" begin
         file = JsonFile("", JsonNull())
-        @test read_gesture(file, KeyDown(:s, ModifierKeys(ctrl = true))) === nothing
-        @test read_gesture(file, KeyDown(:o, ModifierKeys(ctrl = true))) === nothing
+        @test read_gesture(file, KeyDown(:s, ModifierKeys(ctrl = true); time = 0.0)) === nothing
+        @test read_gesture(file, KeyDown(:o, ModifierKeys(ctrl = true); time = 0.0)) === nothing
     end
 end
 

@@ -151,7 +151,7 @@ function test_fault_catching()
         # An Alt+press names the mark, as it names anything else on the screen.
         # The report is no child of the node that failed, so the path is a
         # drawn-object step from it.
-        press = MousePress(:left, 0, 0, 1, ModifierKeys(alt = true))
+        press = MousePress(:left, 0, 0, 1, ModifierKeys(alt = true); time = 0.0)
         operation = read_intent(barrier, iomap, press)
         @test operation isa ReplaceSelectionOperation
         report = evaluate_reference(leaf, operation.path)
@@ -170,7 +170,7 @@ function test_fault_catching()
         # is declined, and a path into the node has no image, so no edit can
         # address one.
         @test read_intent(barrier, iomap, nothing) === nothing
-        @test read_intent(barrier, iomap, MousePress(:left, 0, 0, 1, ModifierKeys())) === nothing
+        @test read_intent(barrier, iomap, MousePress(:left, 0, 0, 1, ModifierKeys(); time = 0.0)) === nothing
         @test map_reference_forward(barrier, iomap, EmptyReference()) === nothing
     end
 
@@ -259,7 +259,7 @@ function test_fault_catching()
         reader = FaultCatchingProjection(inner = InterruptingProjection(when = :read),
                                          substitute = FaultToSyntax())
         iomap = print_document(reader, reader, FaultProbeLeaf(value = 1), context)
-        @test_throws InterruptException read_intent(reader, iomap, KeyPress('x'))
+        @test_throws InterruptException read_intent(reader, iomap, KeyPress('x'; time = 0.0))
         @test_throws InterruptException map_reference_forward(reader, iomap, EmptyReference())
     end
 
@@ -279,7 +279,7 @@ function test_fault_catching()
         reader = FaultCatchingProjection(inner = InterruptingProjection(when = :failing_read),
                                          substitute = FaultToSyntax())
         iomap = print_document(reader, reader, FaultProbeLeaf(value = 1), context)
-        @test_throws ErrorException read_intent(reader, iomap, KeyPress('x'))
+        @test_throws ErrorException read_intent(reader, iomap, KeyPress('x'; time = 0.0))
     end
 
     @testset "an editor hands its policy to the barrier" begin

@@ -181,16 +181,16 @@ end
 # characters, and delete. Events that don't apply to a given domain still warm the
 # reader pipeline (the reader runs regardless of whether it yields an operation).
 const _WARMUP_EVENTS = Any[
-    KeyDown(:home,  ModifierKeys(ctrl = true)),   # seed the first caret
-    KeyDown(:right, ModifierKeys()),
-    KeyDown(:left,  ModifierKeys()),
-    KeyDown(:down,  ModifierKeys()),
-    KeyDown(:up,    ModifierKeys()),
-    KeyDown(:end,   ModifierKeys(ctrl = true)),
-    KeyPress('x'),                             # insert a character
-    KeyPress('1'),
-    KeyDown(:backspace, ModifierKeys()),
-    KeyDown(:delete,    ModifierKeys()),
+    KeyDown(:home,  ModifierKeys(ctrl = true); time = time()),   # seed the first caret
+    KeyDown(:right, ModifierKeys(); time = time()),
+    KeyDown(:left,  ModifierKeys(); time = time()),
+    KeyDown(:down,  ModifierKeys(); time = time()),
+    KeyDown(:up,    ModifierKeys(); time = time()),
+    KeyDown(:end,   ModifierKeys(ctrl = true); time = time()),
+    KeyPress('x'; time = time()),                             # insert a character
+    KeyPress('1'; time = time()),
+    KeyDown(:backspace, ModifierKeys(); time = time()),
+    KeyDown(:delete,    ModifierKeys(); time = time()),
 ]
 
 const _WARMUP_WALK_MAX_DEPTH = 200

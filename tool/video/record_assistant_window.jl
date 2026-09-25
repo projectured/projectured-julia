@@ -13,7 +13,8 @@ const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "assistant_window.mp4") : ARGS[1]
 const COMPOSER = (1000, 518)          # read off a frame of the window
 const TURN_CAP = 420.0                # seconds a turn may take before the take goes on
 
-_key(key; hold = 0.35, kwargs...) = (event = KeyDown(key, ModifierKeys(; kwargs...)), hold = hold)
+_key(key; hold = 0.35, kwargs...) = (event = KeyDown(key, ModifierKeys(; kwargs...);
+                                                     time = time()), hold = hold)
 _type(text) = make_typein_gestures(text; hold = 0.15, jitter = 0.6)
 
 _find_assistant(editor) =
@@ -37,7 +38,8 @@ const PROMPTS = [
 ]
 
 function make_timeline()
-    timeline = Any[(event = MousePress(:left, COMPOSER[1], COMPOSER[2], ModifierKeys()), hold = 1.0)]
+    timeline = Any[(event = MousePress(:left, COMPOSER[1], COMPOSER[2], ModifierKeys();
+                                       time = time()), hold = 1.0)]
     turns = 1                                        # the greeting
     for prompt in PROMPTS
         append!(timeline, _type(prompt))

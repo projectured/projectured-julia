@@ -15,9 +15,10 @@ function _find_event_type(name::Symbol, scope::Module)
 end
 
 # The fields of `type` that a positional pattern argument binds or matches, in the
-# declared order. `modifiers` is written after the `;`, so it is not one of them.
+# declared order. `modifiers` is written after the `;`, so it is not one of them,
+# and `time` is not a part of what a gesture is.
 _get_positional_event_fields(type::Type) =
-    Symbol[field for field in fieldnames(type) if field !== :modifiers]
+    Symbol[field for field in fieldnames(type) if !(field in (:modifiers, :time))]
 
 const _MODIFIER_FLAGS = (:ctrl, :shift, :alt, :meta)
 

@@ -43,7 +43,7 @@ function test_json_content_clicks_clean(label, document, projection)
             # Click in the middle of the segment, well inside content.
             cx = sc.x + max(1, (_segment_x_at(sc, sc.char_end, measure) - sc.x) ÷ 2)
             cy = sc.y + max(1, line_h ÷ 2)
-            op = read_intent(projection, iomap, MousePress(:left, cx, cy, ModifierKeys()))
+            op = read_intent(projection, iomap, MousePress(:left, cx, cy, ModifierKeys(); time = 0.0))
             op isa ReplaceSelectionOperation || continue
             if _path_contains_projection_reference(op.path)
                 push!(errors, "click on content $(repr(sc.text)) at ($cx,$cy) produced path with ProjectionReferenceStep: $(op.path)")

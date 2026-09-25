@@ -546,22 +546,22 @@ function warm_application()
             push!(paths, path)
         end
         write(joinpath(directory, "d.txt"), "text")
-        events = Any[KeyDown(:down, ModifierKeys()),
-                     KeyPress('x'),
-                     MousePress(:left, 100, 84, 1, ModifierKeys()),
-                     KeyDown(:return, ModifierKeys()),
-                     KeyDown(:s, ModifierKeys(ctrl = true)),
+        events = Any[KeyDown(:down, ModifierKeys(); time = time()),
+                     KeyPress('x'; time = time()),
+                     MousePress(:left, 100, 84, 1, ModifierKeys(); time = time()),
+                     KeyDown(:return, ModifierKeys(); time = time()),
+                     KeyDown(:s, ModifierKeys(ctrl = true); time = time()),
                      # Ctrl+T opens a tab on an empty placeholder, Insert turns
                      # the placeholder into the name buffer, and Enter commits
                      # the typed name. Backspace takes the "y" back, and Left
                      # and Delete the "x", so "evaluator" is what commits.
-                     KeyDown(:t, ModifierKeys(ctrl = true)),
-                     KeyDown(:insert, ModifierKeys()),
-                     (KeyPress(c) for c in "evaluatorxy")...,
-                     KeyDown(:backspace, ModifierKeys()),
-                     KeyDown(:left, ModifierKeys()),
-                     KeyDown(:delete, ModifierKeys()),
-                     KeyDown(:return, ModifierKeys())]
+                     KeyDown(:t, ModifierKeys(ctrl = true); time = time()),
+                     KeyDown(:insert, ModifierKeys(); time = time()),
+                     (KeyPress(c; time = time()) for c in "evaluatorxy")...,
+                     KeyDown(:backspace, ModifierKeys(); time = time()),
+                     KeyDown(:left, ModifierKeys(); time = time()),
+                     KeyDown(:delete, ModifierKeys(); time = time()),
+                     KeyDown(:return, ModifierKeys(); time = time())]
         document, projection = make_application_window(paths; root = directory,
             assistant = make_application_assistant(:ollama))
         scene = make_window_scene(document, "ProjecturEd"; width = 1280, height = 800)

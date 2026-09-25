@@ -19,13 +19,13 @@ function test_text_clipboard()
                                            make_clipboard_projection(make_json_projection_example()))
             texts = _tr_texts(_tr_window(backend))
             (x, y, _) = texts[findfirst(t -> t[3] == "Alice", texts)]
-            _tr_press!(editor, backend, MousePress(:left, x + first(measure("Al", font)), y + 8, none))
+            _tr_press!(editor, backend, MousePress(:left, x + first(measure("Al", font)), y + 8, none; time = 0.0))
             buf[] = "ZZ"
-            _tr_press!(editor, backend, KeyDown(:v, ctrl))
+            _tr_press!(editor, backend, KeyDown(:v, ctrl; time = 0.0))
             @test json.entries[1].value.value == "AlZZice"
             # A copy at a caret takes nothing.
             buf[] = "kept"
-            _tr_press!(editor, backend, KeyDown(:c, ctrl))
+            _tr_press!(editor, backend, KeyDown(:c, ctrl; time = 0.0))
             @test buf[] == "kept"
             @test json.entries[1].value.value == "AlZZice"
         end
@@ -39,16 +39,16 @@ function test_text_clipboard()
                                            make_clipboard_projection(projection))
             (x, y, _) = only(_tr_texts(_tr_window(backend)))
             _tr_press!(editor, backend,
-                       MousePress(:left, x + first(measure("hello", font)), y + 8, none))
-            _tr_press!(editor, backend, KeyDown(:left, ModifierKeys(shift = true)))
-            _tr_press!(editor, backend, KeyDown(:left, ModifierKeys(shift = true)))
+                       MousePress(:left, x + first(measure("hello", font)), y + 8, none; time = 0.0))
+            _tr_press!(editor, backend, KeyDown(:left, ModifierKeys(shift = true); time = 0.0))
+            _tr_press!(editor, backend, KeyDown(:left, ModifierKeys(shift = true); time = 0.0))
             buf[] = ""
-            _tr_press!(editor, backend, KeyDown(:c, ctrl))
+            _tr_press!(editor, backend, KeyDown(:c, ctrl; time = 0.0))
             @test buf[] == "lo"
             @test s.value == "hello world"
             @test _tr_range(s) == (3, 5)
             buf[] = "p!"
-            _tr_press!(editor, backend, KeyDown(:v, ctrl))
+            _tr_press!(editor, backend, KeyDown(:v, ctrl; time = 0.0))
             @test s.value == "help! world"
             @test _tr_range(s) == (5, 5)
         end

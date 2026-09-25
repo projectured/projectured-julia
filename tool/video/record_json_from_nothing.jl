@@ -24,8 +24,9 @@ const GESTURE_LINES = 8     # the lines the panel shows
 const OPERATION_WIDTH = 60
 const WIDTH, HEIGHT, FPS = (GESTURES ? 1280 : 900), 720, 30
 
-_key(key; hold = 0.35, kwargs...) = (event = KeyDown(key, ModifierKeys(; kwargs...)), hold = hold)
-_press(character; hold = 0.4) = (event = KeyPress(character), hold = hold)
+_key(key; hold = 0.35, kwargs...) = (event = KeyDown(key, ModifierKeys(; kwargs...);
+                                                     time = time()), hold = hold)
+_press(character; hold = 0.4) = (event = KeyPress(character; time = time()), hold = hold)
 _type(text) = make_typein_gestures(text; hold = 0.15, jitter = 0.6)   # the human rhythm, D13
 _right(; hold = 0.3) = _key(:right; hold = hold)                     # leave a string
 # From the last value of a nested container: the next line holds only the

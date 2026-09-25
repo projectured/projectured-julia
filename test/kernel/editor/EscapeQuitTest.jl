@@ -56,14 +56,14 @@ function test_escape_quit()
 
     @testset "an Escape no reader wanted closes the editor" begin
         editor = _escape_editor(EscapeDecliningProjection())
-        _press!(editor, KeyDown(:escape, none))
+        _press!(editor, KeyDown(:escape, none; time = 0.0))
         @test EditorModule.read!(editor)
         @test editor.operation isa QuitEditorOperation
     end
 
     @testset "an Escape a reader claimed does not" begin
         editor = _escape_editor(EscapeClaimingProjection())
-        _press!(editor, KeyDown(:escape, none))
+        _press!(editor, KeyDown(:escape, none; time = 0.0))
         @test EditorModule.read!(editor)
         @test editor.operation isa DoNothingOperation
         @test !(editor.operation isa QuitEditorOperation)
@@ -71,21 +71,21 @@ function test_escape_quit()
 
     @testset "a modified Escape is left to the projections" begin
         editor = _escape_editor(EscapeDecliningProjection())
-        _press!(editor, KeyDown(:escape, ModifierKeys(ctrl=true)))
+        _press!(editor, KeyDown(:escape, ModifierKeys(ctrl=true); time = 0.0))
         @test !EditorModule.read!(editor)                        # drained, nothing produced
         @test editor.operation === nothing
     end
 
     @testset "a real quit still closes the editor whatever the readers say" begin
         editor = _escape_editor(EscapeClaimingProjection())
-        _press!(editor, WindowQuit())
+        _press!(editor, WindowQuit(; time = 0.0))
         @test EditorModule.read!(editor)
         @test editor.operation isa QuitEditorOperation
     end
 
     @testset "another key is not a quit" begin
         editor = _escape_editor(EscapeDecliningProjection())
-        _press!(editor, KeyDown(:home, none))
+        _press!(editor, KeyDown(:home, none; time = 0.0))
         @test !EditorModule.read!(editor)
         @test editor.operation === nothing
     end

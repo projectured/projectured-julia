@@ -37,23 +37,30 @@ const SLIDER_TRACK = (777, 198, 240)  # the left end, the height and the width o
 include(joinpath(@__DIR__, "julia_forms.jl"))
 include(joinpath(@__DIR__, "s4_forms.jl"))
 
-_key(key; hold = 0.4, kwargs...) = (event = KeyDown(key, ModifierKeys(; kwargs...)), hold = hold)
+_key(key; hold = 0.4, kwargs...) = (event = KeyDown(key, ModifierKeys(; kwargs...);
+                                                    time = time()), hold = hold)
 _type(text) = make_typein_gestures(text; hold = 0.06, jitter = 0.5)    # a fast typist
-_type_fast(text) = [(event = KeyPress(c), hold = 0.01) for c in text]
-_type_by_frame(text) = [(event = KeyPress(c), hold = 1 / 30) for c in text]    # one key a frame
-_press(x, y; hold = 0.6, kwargs...) = [(event = MouseMove(x, y, MouseButtons(), ModifierKeys()), hold = 0.4),
-                                       (event = MouseDown(:left, x, y, ModifierKeys(; kwargs...)), hold = 0.1),
-                                       (event = MouseUp(:left, x, y, ModifierKeys(; kwargs...)), hold = hold)]
+_type_fast(text) = [(event = KeyPress(c; time = time()), hold = 0.01) for c in text]
+_type_by_frame(text) = [(event = KeyPress(c;
+                                          time = time()), hold = 1 / 30) for c in text]    # one key a frame
+_press(x, y; hold = 0.6, kwargs...) = [(event = MouseMove(x, y, MouseButtons(), ModifierKeys();
+                                                          time = time()), hold = 0.4),
+                                       (event = MouseDown(:left, x, y, ModifierKeys(; kwargs...);
+                                                          time = time()), hold = 0.1),
+                                       (event = MouseUp(:left, x, y, ModifierKeys(; kwargs...);
+                                                        time = time()), hold = hold)]
 
 # A drag of the slider's knob from one value to another, 4 px a frame.
 function _drag_slider(from, to; hold = 1.5)
     left, y, width = SLIDER_TRACK
     x0, x1 = round(Int, left + from * width), round(Int, left + to * width)
     step = x1 >= x0 ? 4 : -4
-    vcat([(event = MouseMove(x0, y, MouseButtons(), ModifierKeys()), hold = 0.5),
-          (event = MouseDown(:left, x0, y, ModifierKeys()), hold = 0.3)],
-         [(event = MouseMove(x, y, MouseButtons(:left), ModifierKeys()), hold = 1 / 30) for x in x0 + step:step:x1],
-         [(event = MouseUp(:left, x1, y, ModifierKeys()), hold = hold)])
+    vcat([(event = MouseMove(x0, y, MouseButtons(), ModifierKeys();
+                             time = time()), hold = 0.5),
+          (event = MouseDown(:left, x0, y, ModifierKeys(); time = time()), hold = 0.3)],
+         [(event = MouseMove(x, y, MouseButtons(:left), ModifierKeys();
+                             time = time()), hold = 1 / 30) for x in x0 + step:step:x1],
+         [(event = MouseUp(:left, x1, y, ModifierKeys(); time = time()), hold = hold)])
 end
 
 # How long the window stays still after a form runs. A form that changes the

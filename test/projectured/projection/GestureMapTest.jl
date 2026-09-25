@@ -77,9 +77,9 @@ function test_gesture_map()
     end
 
     @testset "is_help_gesture recognizes the help summons" begin
-        @test is_help_gesture(KeyDown(:f1, ModifierKeys()))
-        @test !is_help_gesture(KeyDown(:home, ModifierKeys()))
-        @test !is_help_gesture(KeyPress('?'))
+        @test is_help_gesture(KeyDown(:f1, ModifierKeys(); time = 0.0))
+        @test !is_help_gesture(KeyDown(:home, ModifierKeys(); time = 0.0))
+        @test !is_help_gesture(KeyPress('?'; time = 0.0))
     end
 
 end

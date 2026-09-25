@@ -118,7 +118,13 @@
     };
   }
 
+  // The time of a browser event in milliseconds since the Unix epoch: the clock
+  // of `time()` on the server, times 1000.
+  function stamp(ev) { return performance.timeOrigin + ev.timeStamp; }
+
+  // A message with no event of the browser behind it has the time of the send.
   function send(obj) {
+    if (obj.t === undefined) obj.t = performance.timeOrigin + performance.now();
     if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(obj));
   }
 
@@ -585,16 +591,19 @@
 
     canvas.addEventListener("mousedown", (ev) => {
       const { x, y } = pos(ev, canvas);
-      send({ type: "mousedown", window: idFn(), button: buttonSym(ev.button), x, y, mods: mods(ev) });
+      send({ type: "mousedown", window: idFn(), button: buttonSym(ev.button), x, y, mods: mods(ev),
+             t: stamp(ev) });
     });
     canvas.addEventListener("mouseup", (ev) => {
       const { x, y } = pos(ev, canvas);
-      send({ type: "mouseup", window: idFn(), button: buttonSym(ev.button), x, y, mods: mods(ev) });
+      send({ type: "mouseup", window: idFn(), button: buttonSym(ev.button), x, y, mods: mods(ev),
+             t: stamp(ev) });
     });
     canvas.addEventListener("mousemove", (ev) => {
       if (ev.buttons === 0) return;            // only forward motion while held
       const { x, y } = pos(ev, canvas);
-      send({ type: "mousemove", window: idFn(), x, y, buttons: ev.buttons, mods: mods(ev) });
+      send({ type: "mousemove", window: idFn(), x, y, buttons: ev.buttons, mods: mods(ev),
+             t: stamp(ev) });
     });
     canvas.addEventListener("wheel", (ev) => {
       ev.preventDefault();
@@ -602,7 +611,7 @@
       send({
         type: "scroll", window: idFn(),
         dx: Math.sign(ev.deltaX), dy: -Math.sign(ev.deltaY),
-        x, y, mods: mods(ev),
+        x, y, mods: mods(ev), t: stamp(ev),
       });
     }, { passive: false });
     canvas.addEventListener("contextmenu", (ev) => ev.preventDefault());
@@ -610,7 +619,8 @@
     doc.addEventListener("keydown", (ev) => {
       const prevented = PREVENT_KEYS.has(ev.key) || ev.ctrlKey || ev.metaKey;
       if (prevented) ev.preventDefault();
-      send({ type: "keydown", window: idFn(), key: ev.key, code: ev.code, repeat: ev.repeat, mods: mods(ev) });
+      send({ type: "keydown", window: idFn(), key: ev.key, code: ev.code, repeat: ev.repeat,
+             mods: mods(ev), t: stamp(ev) });
       // preventDefault() on keydown suppresses the browser's keypress event, so a
       // printable key we prevented would never deliver its type-in character. In
       // practice this is Space (kept in PREVENT_KEYS so it doesn't scroll/activate
@@ -618,16 +628,18 @@
       // space inserts like any other typed character. Ctrl/Meta combos are excluded
       // — those are chords, not text input.
       if (prevented && ev.key.length === 1 && !ev.ctrlKey && !ev.metaKey) {
-        send({ type: "keypress", window: idFn(), char: ev.key, text: ev.key, mods: mods(ev) });
+        send({ type: "keypress", window: idFn(), char: ev.key, text: ev.key, mods: mods(ev),
+               t: stamp(ev) });
       }
     });
     doc.addEventListener("keyup", (ev) => {
-      send({ type: "keyup", window: idFn(), key: ev.key, code: ev.code, mods: mods(ev) });
+      send({ type: "keyup", window: idFn(), key: ev.key, code: ev.code, mods: mods(ev),
+             t: stamp(ev) });
     });
     doc.addEventListener("keypress", (ev) => {
       const ch = ev.key;                       // printable chars only (≈ SDL_TEXTINPUT)
       if (!ch || ch.length !== 1) return;
-      send({ type: "keypress", window: idFn(), char: ch, text: ch, mods: mods(ev) });
+      send({ type: "keypress", window: idFn(), char: ch, text: ch, mods: mods(ev), t: stamp(ev) });
     });
   }
 

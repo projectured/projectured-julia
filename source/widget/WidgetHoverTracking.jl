@@ -97,7 +97,8 @@ function read_intent(p::WidgetHoverTrackingProjection, recursion, change::Intent
 
     # 1. Who is under the pointer now? Route an enter and read back the widget's
     #    own response; its `widget` field is an opaque identity token.
-    enter_op = _route(p, recursion, child, MouseEnter(event.x, event.y, event.buttons, event.modifiers))
+    enter_op = _route(p, recursion, child, MouseEnter(event.x, event.y, event.buttons, event.modifiers;
+                                                      time = event.time))
     new_target = _target_of(enter_op)
     old_target = p.last[]
 
@@ -113,7 +114,8 @@ function read_intent(p::WidgetHoverTrackingProjection, recursion, change::Intent
     #    undoes its own state. We forward whatever it returns; we never build it.
     if old_target !== nothing && p.last_pos[] !== nothing
         ox, oy = p.last_pos[]
-        leave_op = _route(p, recursion, child, MouseLeave(ox, oy, event.buttons, event.modifiers))
+        leave_op = _route(p, recursion, child, MouseLeave(ox, oy, event.buttons, event.modifiers;
+                                                          time = event.time))
         leave_op === nothing || push!(ops, leave_op)
     end
     # 3. Enter the new widget (forward the response we already have).

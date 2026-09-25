@@ -247,13 +247,13 @@ _typein_broken(message)    = (ok=false, message=message, broken=true)
 function _edit_spec(kind::Symbol, old::AbstractString, k::Int, ch::AbstractString)
     n = length(old)
     if kind === :insert
-        (KeyPress(first(ch)), _expected_splice(old, k, k, ch), k + length(ch), true)
+        (KeyPress(first(ch); time = 0.0), _expected_splice(old, k, k, ch), k + length(ch), true)
     elseif kind === :backspace
-        event = KeyDown(:backspace, ModifierKeys())
+        event = KeyDown(:backspace, ModifierKeys(); time = 0.0)
         k > 0 ? (event, _expected_splice(old, k - 1, k, ""), k - 1, true) :
                 (event, old, k, false)
     elseif kind === :delete
-        event = KeyDown(:delete, ModifierKeys())
+        event = KeyDown(:delete, ModifierKeys(); time = 0.0)
         k < n ? (event, _expected_splice(old, k, k + 1, ""), k, true) :
                 (event, old, k, false)
     else

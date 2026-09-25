@@ -1,9 +1,12 @@
 # Fragment of `EventModule` — the behaviour the event contract supplies itself:
-# the modifier-free fallback for `get_modifier_keys`, and the per-flag predicates
-# derived over it.
+# the modifier-free fallback for `get_modifier_keys`, the time that every event
+# holds, and the per-flag predicates derived over the modifiers.
 
 # An event with no modifier state of its own carries none.
 get_modifier_keys(::Event) = ModifierKeys()
+
+# Every concrete event holds its time as its field `time`.
+get_event_time(event::Event) = event.time::Float64
 
 """
     has_ctrl_modifier_key(event)  -> Bool

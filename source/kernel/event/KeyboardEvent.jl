@@ -3,7 +3,8 @@
 # `KeyDown`s.
 
 """
-    KeyDown(key::Symbol, modifiers::ModifierKeys[, repeat::Bool])
+    KeyDown(key::Symbol, modifiers::ModifierKeys[, repeat::Bool]; time)
+    KeyDown(key, modifiers, repeat, time)
 
 A key went down.
 
@@ -21,51 +22,69 @@ A key went down.
   `KeyPress`.
 
 `repeat` is `true` for an event that the operating system repeats while the key is
-held. Without `repeat`, the event is not a repeat.
+held. Without `repeat`, the event is not a repeat. `time` is the time of the input
+(see `Event`).
 """
 struct KeyDown <: DeviceEvent
     key::Symbol
     modifiers::ModifierKeys
     repeat::Bool
+    time::Float64
 end
 
-KeyDown(key::Symbol, modifiers::ModifierKeys) = KeyDown(key, modifiers, false)
+KeyDown(key::Symbol, modifiers::ModifierKeys; time::Real) =
+    KeyDown(key, modifiers, false, Float64(time))
+KeyDown(key::Symbol, modifiers::ModifierKeys, repeat::Bool; time::Real) =
+    KeyDown(key, modifiers, repeat, Float64(time))
 
 """
-    KeyUp(key::Symbol, modifiers::ModifierKeys)
+    KeyUp(key::Symbol, modifiers::ModifierKeys; time)
+    KeyUp(key, modifiers, time)
 
 A key went up. `key` names the key as for `KeyDown`.
 """
 struct KeyUp <: DeviceEvent
     key::Symbol
     modifiers::ModifierKeys
+    time::Float64
 end
 
+KeyUp(key::Symbol, modifiers::ModifierKeys; time::Real) =
+    KeyUp(key, modifiers, Float64(time))
+
 """
-    KeyPress(char::Char, text::String, modifiers::ModifierKeys)
+    KeyPress(char::Char, text::String, modifiers::ModifierKeys; time)
+    KeyPress(char, text, modifiers, time)
 
 A character was typed. The input method of the operating system gives the
 composed Unicode character, after a dead key or an input method for another script.
 `char` holds the character, and `text` holds the full string, for an input of more
 than one code point.
 
-`KeyPress(char)` has no modifiers, and `KeyPress(char, modifiers)` takes them. Both
-set `text` to the character.
+`KeyPress(char; time)` has no modifiers, and `KeyPress(char, modifiers; time)`
+takes them. Both set `text` to the character.
 """
 struct KeyPress <: DeviceEvent
     char::Char
     text::String
     modifiers::ModifierKeys
+    time::Float64
 end
 
-KeyPress(char::Char) = KeyPress(char, string(char), ModifierKeys())
-KeyPress(char::Char, mods::ModifierKeys) = KeyPress(char, string(char), mods)
+KeyPress(char::Char, text::String, modifiers::ModifierKeys; time::Real) =
+    KeyPress(char, text, modifiers, Float64(time))
+KeyPress(char::Char; time::Real) =
+    KeyPress(char, string(char), ModifierKeys(), Float64(time))
+KeyPress(char::Char, modifiers::ModifierKeys; time::Real) =
+    KeyPress(char, string(char), modifiers, Float64(time))
 
 """
-    KeyChord(keys::Vector{KeyDown})
+    KeyChord(keys::Vector{KeyDown}; time)
+    KeyChord(keys, time)
 
 A sequence of `KeyDown`s as one event, such as Ctrl+C and then Ctrl+K. `keys` holds
-the `KeyDown`s in order, and each holds its own modifiers.
+the `KeyDown`s in order, and each holds its own modifiers. `time` is the time of
+the last key.
 
 A chord is only a combination of events, and it carries no intent. Other code
 states which sequences are chords, and the code that reads a chord gives it its
@@ -73,6 +92,9 @@ meaning, as for any other event.
 """
 struct KeyChord <: SyntheticEvent
     keys::Vector{KeyDown}
+    time::Float64
 end
+
+KeyChord(keys::Vector{KeyDown}; time::Real) = KeyChord(keys, Float64(time))
 
 get_modifier_keys(event::Union{KeyDown,KeyUp,KeyPress}) = event.modifiers

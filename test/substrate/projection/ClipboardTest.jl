@@ -113,13 +113,13 @@ end
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
 
     # Toggle
-    op = read_intent(p, iomap, KeyDown(:slash, ctrl))
+    op = read_intent(p, iomap, KeyDown(:slash, ctrl; time = 0.0))
     @test op isa ToggleClipboardSliceOperation
     @test op.projection === p
 
     # Copy — writes a fresh deep copy into the slice, then restores the
     # original selection (the write would otherwise move it to .slice).
-    op = read_intent(p, iomap, KeyDown(:c, ctrl))
+    op = read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0))
     @test op isa CompoundOperation
     @test length(op.operations) == 2
     @test op.operations[1] isa CompoundOperation                # folded replace_document
@@ -131,7 +131,7 @@ end
     @test op.operations[2].path == cpath(FieldReferenceStep("content"))
 
     # Note — stores the live object, then restores the original selection.
-    op = read_intent(p, iomap, KeyDown(:n, ctrl))
+    op = read_intent(p, iomap, KeyDown(:n, ctrl; time = 0.0))
     @test op isa CompoundOperation
     @test op.operations[1] isa CompoundOperation
     @test _rd_val(op.operations[1]) === content
@@ -139,7 +139,7 @@ end
     @test op.operations[2].path == cpath(FieldReferenceStep("content"))
 
     # Cut — compound of (store live) + (blank source).
-    op = read_intent(p, iomap, KeyDown(:x, ctrl))
+    op = read_intent(p, iomap, KeyDown(:x, ctrl; time = 0.0))
     @test op isa CompoundOperation
     @test length(op.operations) == 2
     @test op.operations[1] isa CompoundOperation
@@ -160,7 +160,7 @@ end
 
     # Paste — replaces the selection target with the live slice, then pins the
     # selection to the pasted target.
-    op = read_intent(p, iomap, KeyDown(:v, ctrl))
+    op = read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0))
     @test op isa CompoundOperation
     @test op.operations[1] isa CompoundOperation
     @test _rd_ref(op.operations[1]).head.name == "content"
@@ -169,7 +169,7 @@ end
     @test op.operations[2].path == cpath(FieldReferenceStep("content"))
 
     # Paste copy — a fresh deep copy each time.
-    op = read_intent(p, iomap, KeyDown(:v, ctrl_shift))
+    op = read_intent(p, iomap, KeyDown(:v, ctrl_shift; time = 0.0))
     @test op isa CompoundOperation
     @test op.operations[1] isa CompoundOperation
     @test _rd_val(op.operations[1]) !== stored
@@ -183,7 +183,7 @@ end
     empty_slice.selection = cpath(FieldReferenceStep("content"))
     pe = ClipboardSliceToAnyProjection()
     iomap_e = print_document(pe, IdentityProjection(), empty_slice, PrinterContext())
-    @test !(read_intent(pe, iomap_e, KeyDown(:v, ctrl)) isa CompoundOperation)
+    @test !(read_intent(pe, iomap_e, KeyDown(:v, ctrl; time = 0.0)) isa CompoundOperation)
 end
 
 @testset "collection printer display toggle" begin
@@ -216,13 +216,13 @@ end
     iomap = print_document(p, IdentityProjection(), coll, PrinterContext())
 
     # Toggle
-    op = read_intent(p, iomap, KeyDown(:asterisk, ctrl))
+    op = read_intent(p, iomap, KeyDown(:asterisk, ctrl; time = 0.0))
     @test op isa ToggleClipboardCollectionOperation
     @test op.projection === p
 
     # Add — inserts the selected object at the front of `elements`.
     coll.selection = cpath(FieldReferenceStep("content"))
-    op = read_intent(p, iomap, KeyDown(:equals, ctrl))
+    op = read_intent(p, iomap, KeyDown(:equals, ctrl; time = 0.0))
     @test op isa ReplaceReferencedValueOperation                     # insert_elements splice
     @test op.reference.head.name == "elements"
     @test op.reference.tail.head isa RangeReferenceStep && op.reference.tail.head.start == 0
@@ -230,7 +230,7 @@ end
 
     # Remove — deletes the selected element (0-based index → RangeReferenceStep start).
     coll.selection = cpath(FieldReferenceStep("elements"), ElementReferenceStep(2))
-    op = read_intent(p, iomap, KeyDown(:minus, ctrl))
+    op = read_intent(p, iomap, KeyDown(:minus, ctrl; time = 0.0))
     @test op isa ReplaceReferencedValueOperation                     # delete_elements splice
     @test op.reference.head.name == "elements"
     @test op.reference.tail.head isa RangeReferenceStep && op.reference.tail.head.start == 1
@@ -239,7 +239,7 @@ end
     # Remove with a non-element selection does not delete: it falls through to
     # the content reader rather than emitting a splice.
     coll.selection = cpath(FieldReferenceStep("content"))
-    @test !(read_intent(p, iomap, KeyDown(:minus, ctrl)) isa ReplaceReferencedValueOperation)
+    @test !(read_intent(p, iomap, KeyDown(:minus, ctrl; time = 0.0)) isa ReplaceReferencedValueOperation)
 end
 
 @testset "slice OS clipboard bridge" begin
@@ -259,7 +259,7 @@ end
         p = ClipboardSliceToAnyProjection(to_text=to_text, from_text=from_text)
         iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
 
-        op = read_intent(p, iomap, KeyDown(:c, ctrl))
+        op = read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0))
         @test op isa CompoundOperation
         @test op.operations[end] isa WriteOsClipboardOperation
         @test op.operations[end].text == "hello"
@@ -268,7 +268,7 @@ end
 
         # Cut also mirrors out (and still blanks the source).
         buf[] = ""
-        op = read_intent(p, iomap, KeyDown(:x, ctrl))
+        op = read_intent(p, iomap, KeyDown(:x, ctrl; time = 0.0))
         @test op.operations[end] isa WriteOsClipboardOperation
         evaluate_operation(nothing, op.operations[end])
         @test buf[] == "hello"
@@ -279,7 +279,7 @@ end
         empty = ClipboardSlice(PrimitiveString("x"))
         empty.selection = cpath(FieldReferenceStep("content"))
         iomap_e = print_document(p, IdentityProjection(), empty, PrinterContext())
-        op = read_intent(p, iomap_e, KeyDown(:v, ctrl))
+        op = read_intent(p, iomap_e, KeyDown(:v, ctrl; time = 0.0))
         @test op isa CompoundOperation
         @test _rd_val(op.operations[1]) isa PrimitiveString
         @test _rd_val(op.operations[1]).value == "from-os"
@@ -289,16 +289,16 @@ end
         # behavior — no OS read happens at all).
         pn = ClipboardSliceToAnyProjection()                     # converters nothing
         iomap_n = print_document(pn, IdentityProjection(), empty, PrinterContext())
-        @test !(read_intent(pn, iomap_n, KeyDown(:v, ctrl)) isa CompoundOperation)
+        @test !(read_intent(pn, iomap_n, KeyDown(:v, ctrl; time = 0.0)) isa CompoundOperation)
 
         # A failed/empty OS read (nothing) declines gracefully rather than erroring.
         set_os_clipboard_backend!(read = () -> nothing, write = t -> false)
-        @test !(read_intent(p, iomap_e, KeyDown(:v, ctrl)) isa CompoundOperation)
+        @test !(read_intent(p, iomap_e, KeyDown(:v, ctrl; time = 0.0)) isa CompoundOperation)
 
         # Copy with no to_text converter emits no WriteOsClipboardOperation.
         p2 = ClipboardSliceToAnyProjection()
         iomap2 = print_document(p2, IdentityProjection(), slice, PrinterContext())
-        op = read_intent(p2, iomap2, KeyDown(:c, ctrl))
+        op = read_intent(p2, iomap2, KeyDown(:c, ctrl; time = 0.0))
         @test op isa CompoundOperation
         @test !any(o -> o isa WriteOsClipboardOperation, op.operations)
     finally
@@ -327,7 +327,7 @@ end
         # Copy: stores the substring as a TextString in the slice and mirrors to OS.
         s = mkslice()
         iom = print_document(p, IdentityProjection(), s, PrinterContext())
-        op = read_intent(p, iom, KeyDown(:c, ctrl))
+        op = read_intent(p, iom, KeyDown(:c, ctrl; time = 0.0))
         @test op isa CompoundOperation
         @test _rd_val(op.operations[1]) isa TextString
         @test _rd_val(op.operations[1]).content == "world"
@@ -340,7 +340,7 @@ end
         # under content + OS mirror.
         s = mkslice()
         iom = print_document(p, IdentityProjection(), s, PrinterContext())
-        op = read_intent(p, iom, KeyDown(:x, ctrl))
+        op = read_intent(p, iom, KeyDown(:x, ctrl; time = 0.0))
         @test op isa CompoundOperation
         @test _rd_val(op.operations[1]) isa TextString
         del = op.operations[2]
@@ -353,7 +353,7 @@ end
         # splicing the stored text over the selected range.
         s = mkslice(stored = TextString("ZZZ"))
         iom = print_document(p, IdentityProjection(), s, PrinterContext())
-        op = read_intent(p, iom, KeyDown(:v, ctrl))
+        op = read_intent(p, iom, KeyDown(:v, ctrl; time = 0.0))
         @test op isa ReplaceStringRangeOperation
         @test op.replacement == "ZZZ"
         @test op.reference.head.name == "content"
@@ -362,7 +362,7 @@ end
         buf[] = "OSPASTE"
         s = mkslice()                                   # no stored slice
         iom = print_document(p, IdentityProjection(), s, PrinterContext())
-        op = read_intent(p, iom, KeyDown(:v, ctrl))
+        op = read_intent(p, iom, KeyDown(:v, ctrl; time = 0.0))
         @test op isa ReplaceStringRangeOperation
         @test op.replacement == "OSPASTE"
 
@@ -377,7 +377,7 @@ end
         iom = print_document(p, IdentityProjection(), sc, PrinterContext())
         # Declines (no range): no copy compound is produced — it falls through to the
         # content child, which echoes the event rather than a clipboard operation.
-        @test !(read_intent(p, iom, KeyDown(:c, ctrl)) isa CompoundOperation)
+        @test !(read_intent(p, iom, KeyDown(:c, ctrl; time = 0.0)) isa CompoundOperation)
     finally
         reset_os_clipboard_backend!()
     end
@@ -407,20 +407,20 @@ end
         buf[] = "XY"
         text = PrimitiveString("hello")
         (slice, p, iomap) = text_slice(text, value_step, RangeReferenceStep(2, 2))
-        op = read_intent(p, iomap, KeyDown(:v, ctrl))
+        op = read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0))
         @test op isa ReplaceStringRangeOperation
         @test op.replacement == "XY"
         apply!(slice, op)
         @test text.value == "heXYllo"
         @test ends(text) == (4, 4)
         # Paste-copy is the same edit.
-        @test read_intent(p, iomap, KeyDown(:v, ctrl_shift)) isa ReplaceStringRangeOperation
+        @test read_intent(p, iomap, KeyDown(:v, ctrl_shift; time = 0.0)) isa ReplaceStringRangeOperation
 
         # A range is replaced.
         buf[] = "Z"
         text = PrimitiveString("hello")
         (slice, p, iomap) = text_slice(text, value_step, RangeReferenceStep(1, 4))
-        apply!(slice, read_intent(p, iomap, KeyDown(:v, ctrl)))
+        apply!(slice, read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0)))
         @test text.value == "hZo"
 
         # A copy and a note of a range store its characters in the slice and on
@@ -429,7 +429,7 @@ end
             buf[] = ""
             text = PrimitiveString("hello")
             (slice, p, iomap) = text_slice(text, value_step, RangeReferenceStep(1, 4))
-            op = read_intent(p, iomap, KeyDown(key, ctrl))
+            op = read_intent(p, iomap, KeyDown(key, ctrl; time = 0.0))
             @test op isa CompoundOperation
             apply!(slice, op)
             @test buf[] == "ell"
@@ -444,7 +444,7 @@ end
         text = PrimitiveString("hello")
         (slice, p, iomap) = text_slice(text, value_step, RangeReferenceStep(2, 2);
                                        stored = PrimitiveString("stored"))
-        op = read_intent(p, iomap, KeyDown(:c, ctrl))
+        op = read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0))
         op isa Operation && apply!(slice, op)
         @test buf[] == "kept"
         @test slice.slice.value == "stored"
@@ -453,7 +453,7 @@ end
         buf[] = ""
         text = PrimitiveString("hello")
         (slice, p, iomap) = text_slice(text, value_step, RangeReferenceStep(1, 4))
-        apply!(slice, read_intent(p, iomap, KeyDown(:x, ctrl)))
+        apply!(slice, read_intent(p, iomap, KeyDown(:x, ctrl; time = 0.0)))
         @test text.value == "ho"
         @test buf[] == "ell"
         @test ends(text) == (1, 1)
@@ -462,12 +462,12 @@ end
         number = PrimitiveNumber(42)
         (slice, p, iomap) = text_slice(number, value_step, RangeReferenceStep(1, 1))
         buf[] = "7"
-        op = read_intent(p, iomap, KeyDown(:v, ctrl))
+        op = read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0))
         @test op isa ReplaceNumberRangeOperation
         apply!(slice, op)
         @test number.value == 472
         buf[] = "x"
-        @test !(read_intent(p, iomap, KeyDown(:v, ctrl)) isa ReplaceRangeOperation)
+        @test !(read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0)) isa ReplaceRangeOperation)
         @test number.value == 472
 
         # A string with no line break drops the ones the text ends with; a string
@@ -475,11 +475,11 @@ end
         buf[] = "X\n"
         one_line = PrimitiveString("ab")
         (slice, p, iomap) = text_slice(one_line, value_step, RangeReferenceStep(1, 1))
-        apply!(slice, read_intent(p, iomap, KeyDown(:v, ctrl)))
+        apply!(slice, read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0)))
         @test one_line.value == "aXb"
         two_lines = PrimitiveString("a\nb")
         (slice, p, iomap) = text_slice(two_lines, value_step, RangeReferenceStep(1, 1))
-        apply!(slice, read_intent(p, iomap, KeyDown(:v, ctrl)))
+        apply!(slice, read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0)))
         @test two_lines.value == "aX\n\nb"
 
         # A document that refuses pasted text protects its strings from a paste
@@ -488,9 +488,9 @@ end
         buf[] = "no"
         (slice, p, iomap) = text_slice(record, FieldReferenceStep("item"), value_step,
                                        RangeReferenceStep(1, 3))
-        @test !(read_intent(p, iomap, KeyDown(:v, ctrl)) isa ReplaceRangeOperation)
-        @test !(read_intent(p, iomap, KeyDown(:x, ctrl)) isa CompoundOperation)
-        apply!(slice, read_intent(p, iomap, KeyDown(:c, ctrl)))
+        @test !(read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0)) isa ReplaceRangeOperation)
+        @test !(read_intent(p, iomap, KeyDown(:x, ctrl; time = 0.0)) isa CompoundOperation)
+        apply!(slice, read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0)))
         @test buf[] == "ep"
         @test record.item.value == "kept"
 
@@ -500,11 +500,11 @@ end
         text = PrimitiveString("ab")
         (slice, p, iomap) = text_slice(text, value_step, RangeReferenceStep(1, 1);
                                        stored = PrimitiveString("S"))
-        apply!(slice, read_intent(p, iomap, KeyDown(:v, ctrl)))
+        apply!(slice, read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0)))
         @test text.value == "aSb"
         (slice, p, iomap) = text_slice(PrimitiveString("ab"), value_step, RangeReferenceStep(1, 1);
                                        stored = _ClipboardPair(PrimitiveString("l"), PrimitiveString("r")))
-        @test !(read_intent(p, iomap, KeyDown(:v, ctrl)) isa ReplaceRangeOperation)
+        @test !(read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0)) isa ReplaceRangeOperation)
     finally
         reset_os_clipboard_backend!()
     end
@@ -516,9 +516,9 @@ end
     slice.selection = cpath(FieldReferenceStep("content"), RangeReferenceStep(2, 2))
     p = ClipboardSliceToAnyProjection()
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
-    @test !(read_intent(p, iomap, KeyDown(:v, ctrl)) isa CompoundOperation)
-    @test !(read_intent(p, iomap, KeyDown(:v, ctrl_shift)) isa CompoundOperation)
-    @test !(read_intent(p, iomap, KeyDown(:x, ctrl)) isa CompoundOperation)
+    @test !(read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0)) isa CompoundOperation)
+    @test !(read_intent(p, iomap, KeyDown(:v, ctrl_shift; time = 0.0)) isa CompoundOperation)
+    @test !(read_intent(p, iomap, KeyDown(:x, ctrl; time = 0.0)) isa CompoundOperation)
 end
 
 @testset "a document that refuses a paste protects itself and what it holds" begin
@@ -531,20 +531,20 @@ end
     for refused in (cpath(content, FieldReferenceStep("left")),
                     cpath(content, FieldReferenceStep("left"), FieldReferenceStep("item")))
         slice.selection = refused
-        @test !(read_intent(p, iomap, KeyDown(:v, ctrl)) isa CompoundOperation)
-        @test !(read_intent(p, iomap, KeyDown(:x, ctrl)) isa CompoundOperation)
+        @test !(read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0)) isa CompoundOperation)
+        @test !(read_intent(p, iomap, KeyDown(:x, ctrl; time = 0.0)) isa CompoundOperation)
     end
     # A record whose kind declares no duplicate is not copied, and it is noted
     # as itself. What it holds is copied.
     slice.selection = cpath(content, FieldReferenceStep("left"))
-    @test !(read_intent(p, iomap, KeyDown(:c, ctrl)) isa CompoundOperation)
-    noted = read_intent(p, iomap, KeyDown(:n, ctrl))
+    @test !(read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0)) isa CompoundOperation)
+    noted = read_intent(p, iomap, KeyDown(:n, ctrl; time = 0.0))
     @test noted isa CompoundOperation
     @test _rd_val(noted.operations[1]) === record
     slice.selection = cpath(content, FieldReferenceStep("left"), FieldReferenceStep("item"))
-    @test read_intent(p, iomap, KeyDown(:c, ctrl)) isa CompoundOperation
+    @test read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0)) isa CompoundOperation
     slice.selection = cpath(content, FieldReferenceStep("right"))
-    op = read_intent(p, iomap, KeyDown(:v, ctrl))
+    op = read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0))
     @test op isa CompoundOperation
     @test _rd_ref(op.operations[1]) == cpath(content, FieldReferenceStep("right"))
     # A noted record pastes as itself where a paste may write. A paste of a new
@@ -553,10 +553,10 @@ end
                           _ClipboardRecord(PrimitiveString("kept")))
     held.selection = cpath(content, FieldReferenceStep("right"))
     io = print_document(p, IdentityProjection(), held, PrinterContext())
-    pasted = read_intent(p, io, KeyDown(:v, ctrl))
+    pasted = read_intent(p, io, KeyDown(:v, ctrl; time = 0.0))
     @test pasted isa CompoundOperation
     @test _rd_val(pasted.operations[1]) === held.slice
-    @test !(read_intent(p, io, KeyDown(:v, ctrl_shift)) isa CompoundOperation)
+    @test !(read_intent(p, io, KeyDown(:v, ctrl_shift; time = 0.0)) isa CompoundOperation)
 end
 
 @testset "a copy of a tool is its duplicate, and a note is the tool itself" begin
@@ -566,30 +566,30 @@ end
     slice = ClipboardSlice(_ClipboardPair(tool, PrimitiveString("free")))
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
     slice.selection = cpath(content, FieldReferenceStep("left"))
-    copied = read_intent(p, iomap, KeyDown(:c, ctrl))
+    copied = read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0))
     @test copied isa CompoundOperation
     duplicate = _rd_val(copied.operations[1])
     @test duplicate isa _ClipboardTool
     @test duplicate !== tool
-    noted = read_intent(p, iomap, KeyDown(:n, ctrl))
+    noted = read_intent(p, iomap, KeyDown(:n, ctrl; time = 0.0))
     @test _rd_val(noted.operations[1]) === tool
     # A document that holds a tool is copied, and the tool inside it is the
     # duplicate. A document that holds a record with no duplicate is not copied.
     slice.selection = cpath(content)
-    whole = _rd_val(read_intent(p, iomap, KeyDown(:c, ctrl)).operations[1])
+    whole = _rd_val(read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0)).operations[1])
     @test whole isa _ClipboardPair && whole !== slice.content
     @test whole.left isa _ClipboardTool && whole.left !== tool
     kept = ClipboardSlice(_ClipboardPair(_ClipboardRecord(PrimitiveString("r")), PrimitiveString("s")))
     kept.selection = cpath(content)
     io = print_document(p, IdentityProjection(), kept, PrinterContext())
-    @test !(read_intent(p, io, KeyDown(:c, ctrl)) isa CompoundOperation)
+    @test !(read_intent(p, io, KeyDown(:c, ctrl; time = 0.0)) isa CompoundOperation)
     # A stored tool pastes as itself, and a paste of a new copy pastes a new
     # duplicate each time.
     held = ClipboardSlice(_ClipboardPair(PrimitiveString("x"), PrimitiveString("y")), tool)
     held.selection = cpath(content, FieldReferenceStep("right"))
     io = print_document(p, IdentityProjection(), held, PrinterContext())
-    @test _rd_val(read_intent(p, io, KeyDown(:v, ctrl)).operations[1]) === tool
-    fresh = _rd_val(read_intent(p, io, KeyDown(:v, ctrl_shift)).operations[1])
+    @test _rd_val(read_intent(p, io, KeyDown(:v, ctrl; time = 0.0)).operations[1]) === tool
+    fresh = _rd_val(read_intent(p, io, KeyDown(:v, ctrl_shift; time = 0.0)).operations[1])
     @test fresh isa _ClipboardTool && fresh !== tool
 end
 
@@ -601,13 +601,13 @@ end
     slice.selection = cpath(content, FieldReferenceStep("left"))
     p = ClipboardSliceToAnyProjection()
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
-    @test !(read_intent(p, iomap, KeyDown(:c, ctrl)) isa CompoundOperation)
+    @test !(read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0)) isa CompoundOperation)
     # A document met twice without a loop is copied once.
     shared = _ClipboardKeeper(PrimitiveString("shared"))
     twice = ClipboardSlice(_ClipboardPair(_ClipboardPair(shared, shared), PrimitiveString("e")))
     twice.selection = cpath(content, FieldReferenceStep("left"))
     io = print_document(p, IdentityProjection(), twice, PrinterContext())
-    copy = _rd_val(read_intent(p, io, KeyDown(:c, ctrl)).operations[1])
+    copy = _rd_val(read_intent(p, io, KeyDown(:c, ctrl; time = 0.0)).operations[1])
     @test copy.left === copy.right
 end
 
@@ -618,9 +618,9 @@ end
     slice.selection = cpath(content, FieldReferenceStep("left"))
     p = ClipboardSliceToAnyProjection()
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
-    copied = _rd_val(read_intent(p, iomap, KeyDown(:c, ctrl)).operations[1])
+    copied = _rd_val(read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0)).operations[1])
     @test copied isa PrimitiveString && copied !== shown
-    @test _rd_val(read_intent(p, iomap, KeyDown(:n, ctrl)).operations[1]) === shown
+    @test _rd_val(read_intent(p, iomap, KeyDown(:n, ctrl; time = 0.0)).operations[1]) === shown
     @test ProjecturedClipboard.ClipboardModule.find_clipboard_document(42) === nothing
 end
 
@@ -634,11 +634,11 @@ end
         focus.make_output_reference(owner, drawn, cpath(FieldReferenceStep("value"))))
     p = ClipboardSliceToAnyProjection()
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
-    copied = _rd_val(read_intent(p, iomap, KeyDown(:c, ctrl)).operations[1])
+    copied = _rd_val(read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0)).operations[1])
     @test copied isa _ClipboardKeeper && copied !== drawn
-    @test _rd_val(read_intent(p, iomap, KeyDown(:n, ctrl)).operations[1]) === drawn
+    @test _rd_val(read_intent(p, iomap, KeyDown(:n, ctrl; time = 0.0)).operations[1]) === drawn
     # The drawn widget is not a slot of the document that drew it.
-    @test !(read_intent(p, iomap, KeyDown(:v, ctrl)) isa CompoundOperation)
+    @test !(read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0)) isa CompoundOperation)
 end
 
 @testset "a paste writes only a value its slot takes" begin
@@ -650,9 +650,9 @@ end
         slice.selection = at_label
         p = ClipboardSliceToAnyProjection()
         iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
-        @test (read_intent(p, iomap, KeyDown(:v, ctrl)) isa CompoundOperation) == taken
+        @test (read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0)) isa CompoundOperation) == taken
         # A cut writes an empty document, which this slot does not take either.
-        @test !(read_intent(p, iomap, KeyDown(:x, ctrl)) isa CompoundOperation)
+        @test !(read_intent(p, iomap, KeyDown(:x, ctrl; time = 0.0)) isa CompoundOperation)
     end
 end
 
@@ -665,7 +665,7 @@ end
         slice.selection = cpath(content, FieldReferenceStep("left"))
         p = ClipboardSliceToAnyProjection()
         iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
-        @test (read_intent(p, iomap, KeyDown(:v, ctrl)) isa CompoundOperation) == taken
+        @test (read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0)) isa CompoundOperation) == taken
     end
     @test accepts_pasted_replacement(PrimitiveString("a"), PrimitiveString("b"))
 end
@@ -676,12 +676,12 @@ end
     offered = (:copy, :note, :paste, :paste_copy)
     p = ClipboardSliceToAnyProjection(offered_gestures = offered)
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
-    @test !(read_intent(p, iomap, KeyDown(:x, ctrl)) isa CompoundOperation)
-    @test !(read_intent(p, iomap, KeyDown(:slash, ctrl)) isa ToggleClipboardSliceOperation)
-    @test read_intent(p, iomap, KeyDown(:c, ctrl)) isa CompoundOperation
-    @test read_intent(p, iomap, KeyDown(:n, ctrl)) isa CompoundOperation
-    @test read_intent(p, iomap, KeyDown(:v, ctrl)) isa CompoundOperation
-    @test read_intent(p, iomap, KeyDown(:v, ctrl_shift)) isa CompoundOperation
+    @test !(read_intent(p, iomap, KeyDown(:x, ctrl; time = 0.0)) isa CompoundOperation)
+    @test !(read_intent(p, iomap, KeyDown(:slash, ctrl; time = 0.0)) isa ToggleClipboardSliceOperation)
+    @test read_intent(p, iomap, KeyDown(:c, ctrl; time = 0.0)) isa CompoundOperation
+    @test read_intent(p, iomap, KeyDown(:n, ctrl; time = 0.0)) isa CompoundOperation
+    @test read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0)) isa CompoundOperation
+    @test read_intent(p, iomap, KeyDown(:v, ctrl_shift; time = 0.0)) isa CompoundOperation
     @test Set(CLIPBOARD_GESTURES) ==
               Set((:toggle, :copy, :copy_reference, :cut, :note, :paste, :paste_copy))
 end
@@ -693,7 +693,7 @@ end
         slice = ClipboardSlice(PrimitiveString("abc"))
         p = ClipboardSliceToAnyProjection()
         iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
-        operation = read_intent(p, iomap, KeyDown(:c, ModifierKeys(ctrl = true, shift = true)))
+        operation = read_intent(p, iomap, KeyDown(:c, ModifierKeys(ctrl = true, shift = true); time = 0.0))
         @test operation isa CopyReferenceOperation
         # A caret inside the text names the document that holds the text.
         set_selection!(slice, ConcreteReference(FieldReferenceStep("content"),
@@ -740,7 +740,7 @@ end
     set_selection!(pair, cpath(FieldReferenceStep("right")))
     p = ClipboardSliceToAnyProjection()
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
-    op = read_intent(p, iomap, KeyDown(:n, ctrl))
+    op = read_intent(p, iomap, KeyDown(:n, ctrl; time = 0.0))
     @test op isa CompoundOperation
     @test _rd_val(op.operations[1]) === pair
 end
@@ -756,7 +756,7 @@ end
     slice.selection = cpath(FieldReferenceStep("content"), FieldReferenceStep("right"))
     p = ClipboardSliceToAnyProjection()
     iomap = print_document(p, IdentityProjection(), slice, PrinterContext())
-    op = read_intent(p, iomap, KeyDown(:v, ctrl))
+    op = read_intent(p, iomap, KeyDown(:v, ctrl; time = 0.0))
     @test op isa CompoundOperation
     @test _rd_val(op.operations[1]) === noted
     # The write's own selection move names the target and nothing inside it.
@@ -798,7 +798,7 @@ end
     @test iomap.output === content
     # A press that neither the clipboard nor the content answers gives no
     # operation, and not the press itself.
-    change = read_intent(projection, nothing, Intent(MousePress(:right, 1, 1, ModifierKeys())), iomap)
+    change = read_intent(projection, nothing, Intent(MousePress(:right, 1, 1, ModifierKeys(); time = 0.0)), iomap)
     @test change.operation === nothing
 end
 

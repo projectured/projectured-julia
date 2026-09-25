@@ -148,7 +148,7 @@ function test_click_roundtrip(label, document, projection; broken=nothing)
             for k in sc.char_start:sc.char_end
                 cx = _segment_x_at(sc, k, measure) + 1
                 cy = sc.y + max(1, line_h ÷ 2)
-                op = read_intent(projection, iomap, MousePress(:left, cx, cy, ModifierKeys()))
+                op = read_intent(projection, iomap, MousePress(:left, cx, cy, ModifierKeys(); time = 0.0))
                 # A click on an inline expand/collapse marker (or a collapsed
                 # ellipsis) is a fold gesture, not a cursor move: it yields a
                 # ToggleCollapseOperation. That is a legitimate outcome — skip
@@ -199,11 +199,11 @@ end
 # expected terminal state: walking `right` from the text start exhausts at the
 # text end, which is exactly where Ctrl+End jumps, and vice versa.
 const TEXT_WALK_RIGHT = (name = "right",
-                         seed = KeyDown(:home, ModifierKeys(ctrl=true)),
-                         step = KeyDown(:right, ModifierKeys()))
+                         seed = KeyDown(:home, ModifierKeys(ctrl=true); time = 0.0),
+                         step = KeyDown(:right, ModifierKeys(); time = 0.0))
 const TEXT_WALK_LEFT  = (name = "left",
-                         seed = KeyDown(:end, ModifierKeys(ctrl=true)),
-                         step = KeyDown(:left, ModifierKeys()))
+                         seed = KeyDown(:end, ModifierKeys(ctrl=true); time = 0.0),
+                         step = KeyDown(:left, ModifierKeys(); time = 0.0))
 
 """
     _walk_cursor(document, projection, walk; max_steps=10_000)

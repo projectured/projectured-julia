@@ -186,7 +186,7 @@ julia> iomap.output                            # the printed tree
 julia> iomap.output[]                          # force the outer Cell
 
 julia> using Projectured: KeyDown, ModifierKeys, Intent
-julia> change = read_intent(proj, nothing, Intent(KeyDown(:right, ModifierKeys())), iomap);
+julia> change = read_intent(proj, nothing, Intent(KeyDown(:right, ModifierKeys(); time = time())), iomap);
 julia> change.operation                              # the operation the reader produced
 julia> evaluate_operation((; document = doc), change.operation);   # apply it (editor.document)
 julia> print_document(proj, doc)                   # reprint after the edit
@@ -224,7 +224,7 @@ julia> getfield(tb, :selection)[]                    # where the caret landed af
 # Feed the key to ONE stage in isolation (here the final Text→Graphics stage):
 julia> last_stage = proj.projections[end];
 julia> ed = (; document = tb, iomap = print_document(last_stage, tb));
-julia> read_intent(last_stage, ed.iomap, KeyPress('x'))    # an op here, nothing there → localize
+julia> read_intent(last_stage, ed.iomap, KeyPress('x'; time = time()))   # an op here, nothing there
 ```
 
 If a single stage **produces** an operation but the **full chain declines**, the fault
@@ -359,7 +359,7 @@ julia> Cassette.posthook(::TraceCtx, out, ::typeof(Projectured.read_intent), p, 
 # wrap whatever triggers a read — a manual call, or the editor's read of one event:
 julia> ex = json_example; doc, proj = ex.document, ex.projection;
 julia> iomap = print_document(proj, doc);
-julia> Cassette.overdub(TraceCtx(), () -> read_intent(proj, nothing, Intent(KeyDown(:right, ModifierKeys())), iomap))
+julia> Cassette.overdub(TraceCtx(), () -> read_intent(proj, nothing, Intent(KeyDown(:right, ModifierKeys(); time = time())), iomap))
 ```
 
 You get an indented call tree of every read as the event flows through the
@@ -435,9 +435,9 @@ rendering takes.
 ```julia
 julia> using Projectured, ProjecturedExample
 julia> gestures = [
-           (event = KeyPress('h'),                       hold = 0.3),
-           (event = KeyPress('i'),                       hold = 0.3),
-           (event = KeyDown(:right, ModifierKeys(), false), hold = 0.5),
+           (event = KeyPress('h'; time = time()),                       hold = 0.3),
+           (event = KeyPress('i'; time = time()),                       hold = 0.3),
+           (event = KeyDown(:right, ModifierKeys(), false; time = time()), hold = 0.5),
        ]
 julia> record_example_video("json", gestures, "/tmp/demo.mp4"; fps=30)
 ```
@@ -475,7 +475,7 @@ value or a `doc -> op` thunk evaluated at fire time:
 ```julia
 julia> timeline = [
            (operation = ReplaceSelectionOperation(caret), hold = 0.3),  # jump the caret
-           (event     = KeyPress('!'),                    hold = 0.3),  # type there
+           (event     = KeyPress('!'; time = time()),     hold = 0.3),  # type there
        ]
 julia> record_video(doc, proj, timeline, "/tmp/demo.mp4")
 ```

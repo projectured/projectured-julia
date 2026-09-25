@@ -107,7 +107,7 @@ function _feed_event!(ed, projection, event)
     true
 end
 
-_feed!(ed, projection, ch::Char) = _feed_event!(ed, projection, KeyPress(ch))
+_feed!(ed, projection, ch::Char) = _feed_event!(ed, projection, KeyPress(ch; time = 0.0))
 
 # A concrete event synthesised from a gesture pattern — a `KeyPress` char, or a `KeyDown`
 # key with its modifiers. `nothing` for a pattern with no fixed key (an unconstrained
@@ -118,8 +118,8 @@ _mods(v::Vector{Symbol}) =
 
 function _synth_event(pattern)
     pattern isa EventPattern || return nothing
-    haskey(pattern.fields, :char) && return KeyPress(pattern.fields.char)
-    haskey(pattern.fields, :key)  && return KeyDown(pattern.fields.key, _mods(pattern.modifiers))
+    haskey(pattern.fields, :char) && return KeyPress(pattern.fields.char; time = 0.0)
+    haskey(pattern.fields, :key)  && return KeyDown(pattern.fields.key, _mods(pattern.modifiers); time = 0.0)
     nothing
 end
 
@@ -261,7 +261,7 @@ function _grow_event(projection, container, field, child)
     # container offers (its `@gestures`, e.g. XML's `KeyDown(:space)` for an attribute).
     candidates = Any[]
     ck = _create_keystroke(projection, child)
-    ck === nothing || push!(candidates, KeyPress(ck))
+    ck === nothing || push!(candidates, KeyPress(ck; time = 0.0))
     probe = _fresh_container(projection, container)
     if probe !== nothing
         for b in get_document_gesture_bindings(typeof(probe.document))
@@ -481,8 +481,8 @@ function test_json_construct()
         # every `,` as a character; where no step can carry that claim — on the
         # delimiter after a string, in a number — the JSON step reads the key itself.
         @testset "json/caret-only" begin
-            chars(text) = [KeyPress(c) for c in text]
-            tab, right = KeyDown(:tab, ModifierKeys()), KeyDown(:right, ModifierKeys())
+            chars(text) = [KeyPress(c; time = 0.0) for c in text]
+            tab, right = KeyDown(:tab, ModifierKeys(); time = 0.0), KeyDown(:right, ModifierKeys(); time = 0.0)
             function build(events)
                 seed = JsonInsertion()
                 set_selection!(seed, EmptyReference())
@@ -491,9 +491,9 @@ function test_json_construct()
                 (ed.document, answered)
             end
             (doc, answered) = build(vcat(
-                [KeyPress('{')], chars("name"), [tab, KeyPress('"')], chars("Alice"),
-                [right, KeyPress(',')], chars("age"), [tab], chars("30"),
-                [KeyPress(',')], chars("city"), [tab, KeyPress('"')], chars("W")))
+                [KeyPress('{'; time = 0.0)], chars("name"), [tab, KeyPress('"'; time = 0.0)], chars("Alice"),
+                [right, KeyPress(','; time = 0.0)], chars("age"), [tab], chars("30"),
+                [KeyPress(','; time = 0.0)], chars("city"), [tab, KeyPress('"'; time = 0.0)], chars("W")))
             @test all(answered)
             @test isempty(compare_content(doc, JsonObject("name" => JsonString("Alice"),
                                                           "age" => JsonNumber(30),
@@ -501,8 +501,8 @@ function test_json_construct()
             # The caret after a nested value belongs to the nested object, which
             # printed the delimiter under it, so the `,` adds the entry there.
             (doc, answered) = build(vcat(
-                [KeyPress('{')], chars("a"), [tab, KeyPress('{')], chars("b"), [tab, KeyPress('"')],
-                chars("x"), [right, KeyPress(',')], chars("c"), [tab], chars("1")))
+                [KeyPress('{'; time = 0.0)], chars("a"), [tab, KeyPress('{'; time = 0.0)], chars("b"), [tab, KeyPress('"'; time = 0.0)],
+                chars("x"), [right, KeyPress(','; time = 0.0)], chars("c"), [tab], chars("1")))
             @test all(answered)
             @test isempty(compare_content(doc, JsonObject("a" => JsonObject("b" => JsonString("x"),
                                                                              "c" => JsonNumber(1)))))
@@ -510,14 +510,14 @@ function test_json_construct()
             # and its parent adds the entry. From `"x"│`, the four presses of Right
             # pass the end of the line and the indentation, onto the `}`.
             (doc, answered) = build(vcat(
-                [KeyPress('{')], chars("a"), [tab, KeyPress('{')], chars("b"), [tab, KeyPress('"')],
-                chars("x"), [right, right, right, right, KeyPress(',')], chars("c"), [tab], chars("1")))
+                [KeyPress('{'; time = 0.0)], chars("a"), [tab, KeyPress('{'; time = 0.0)], chars("b"), [tab, KeyPress('"'; time = 0.0)],
+                chars("x"), [right, right, right, right, KeyPress(','; time = 0.0)], chars("c"), [tab], chars("1")))
             @test all(answered)
             @test isempty(compare_content(doc, JsonObject("a" => JsonObject("b" => JsonString("x")),
                                                           "c" => JsonNumber(1))))
             # The same for an array: after the nested `]`, the outer array takes the `,`.
             (doc, answered) = build(vcat(
-                [KeyPress('['), KeyPress('['), KeyPress('1'), right, KeyPress(','), KeyPress('2')]))
+                [KeyPress('['; time = 0.0), KeyPress('['; time = 0.0), KeyPress('1'; time = 0.0), right, KeyPress(','; time = 0.0), KeyPress('2'; time = 0.0)]))
             @test all(answered)
             @test isempty(compare_content(doc, JsonArray(JsonArray(JsonNumber(1)), JsonNumber(2))))
         end

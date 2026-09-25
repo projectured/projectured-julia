@@ -18,28 +18,28 @@
 
 # Position navigation: character / word / line / document moves.
 const POSITION_NAVIGATION_KEYS = [
-    KeyDown(:left,  ModifierKeys()),
-    KeyDown(:right, ModifierKeys()),
-    KeyDown(:up,    ModifierKeys()),
-    KeyDown(:down,  ModifierKeys()),
-    KeyDown(:home,  ModifierKeys()),
-    KeyDown(:end,   ModifierKeys()),
-    KeyDown(:home,  ModifierKeys(ctrl=true)),
-    KeyDown(:end,   ModifierKeys(ctrl=true)),
-    KeyDown(:left,  ModifierKeys(ctrl=true)),
-    KeyDown(:right, ModifierKeys(ctrl=true)),
+    KeyDown(:left,  ModifierKeys(); time = 0.0),
+    KeyDown(:right, ModifierKeys(); time = 0.0),
+    KeyDown(:up,    ModifierKeys(); time = 0.0),
+    KeyDown(:down,  ModifierKeys(); time = 0.0),
+    KeyDown(:home,  ModifierKeys(); time = 0.0),
+    KeyDown(:end,   ModifierKeys(); time = 0.0),
+    KeyDown(:home,  ModifierKeys(ctrl=true); time = 0.0),
+    KeyDown(:end,   ModifierKeys(ctrl=true); time = 0.0),
+    KeyDown(:left,  ModifierKeys(ctrl=true); time = 0.0),
+    KeyDown(:right, ModifierKeys(ctrl=true); time = 0.0),
 ]
-const POSITION_SEED_GESTURE = KeyDown(:home, ModifierKeys(ctrl=true))
+const POSITION_SEED_GESTURE = KeyDown(:home, ModifierKeys(ctrl=true); time = 0.0)
 
 # Tree navigation: Alt+arrow structural moves. The seed Ctrl+Alt+Home is
 # recognised and resolved at the syntax layer, selecting the root ∅.
 const TREE_NAVIGATION_KEYS = [
-    KeyDown(:up,    ModifierKeys(alt=true)),
-    KeyDown(:down,  ModifierKeys(alt=true)),
-    KeyDown(:left,  ModifierKeys(alt=true)),
-    KeyDown(:right, ModifierKeys(alt=true)),
+    KeyDown(:up,    ModifierKeys(alt=true); time = 0.0),
+    KeyDown(:down,  ModifierKeys(alt=true); time = 0.0),
+    KeyDown(:left,  ModifierKeys(alt=true); time = 0.0),
+    KeyDown(:right, ModifierKeys(alt=true); time = 0.0),
 ]
-const TREE_SEED_GESTURE = KeyDown(:home, ModifierKeys(ctrl=true, alt=true))
+const TREE_SEED_GESTURE = KeyDown(:home, ModifierKeys(ctrl=true, alt=true); time = 0.0)
 
 explore_position_selections(document, projection, initial_selection=nothing; onstate=nothing) =
     explore_selections(document, projection;

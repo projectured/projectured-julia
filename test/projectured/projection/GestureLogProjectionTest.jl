@@ -9,8 +9,8 @@
 function test_gesture_log()
 @testset "GestureLog" begin
     none = ModifierKeys()
-    left = KeyDown(:left, none)
-    typed = KeyPress('7')
+    left = KeyDown(:left, none; time = 0.0)
+    typed = KeyPress('7'; time = 0.0)
 
     _force(value) = value isa Cell ? value[] : value
 
@@ -34,8 +34,8 @@ function test_gesture_log()
 
     @testset "an entry renders the gesture and the operation" begin
         log = GestureLog()
-        record_gesture!(log, KeyDown(:c, ModifierKeys(ctrl=true)), ToggleCollapseOperation())
-        record_gesture!(log, MousePress(:left, 412, 88), DoNothingOperation())
+        record_gesture!(log, KeyDown(:c, ModifierKeys(ctrl=true); time = 0.0), ToggleCollapseOperation())
+        record_gesture!(log, MousePress(:left, 412, 88; time = 0.0), DoNothingOperation())
         @test log.entries[1].gesture == "Ctrl+C"
         @test log.entries[1].operation == "toggle collapse"
         @test log.entries[1].kind === :ToggleCollapseOperation
@@ -116,7 +116,7 @@ function test_gesture_log()
                                                  filter = (gesture, operation) -> true)
         iomap = print_document(recorder, array)
 
-        @test read_intent(recorder, iomap, KeyDown(:f9, none)) === nothing
+        @test read_intent(recorder, iomap, KeyDown(:f9, none; time = 0.0)) === nothing
         @test length(log.entries) == 0
     end
 
@@ -208,7 +208,7 @@ function test_gesture_log()
         overlay_iomap = print_document(overlay, nothing, mkarray(), ctx())
 
         for (x, y) in ((4, 4), (12, 8), (30, 6))
-            gesture = MousePress(:left, x, y)
+            gesture = MousePress(:left, x, y; time = 0.0)
             expected = read_intent(plain, nothing, Intent(gesture, nothing), plain_iomap)
             actual = read_intent(overlay, nothing, Intent(gesture, nothing), overlay_iomap)
             @test string(actual.operation) == string(expected.operation)
@@ -223,7 +223,7 @@ function test_gesture_log()
         iomap = print_document(text, log)
         @test _force(iomap.output) == "no gesture yet"
 
-        record_gesture!(log, KeyDown(:c, ModifierKeys(ctrl=true)), ToggleCollapseOperation())
+        record_gesture!(log, KeyDown(:c, ModifierKeys(ctrl=true); time = 0.0), ToggleCollapseOperation())
         record_gesture!(log, left, DoNothingOperation())
         lines = split(_force(iomap.output), "\n")
         @test length(lines) == 2

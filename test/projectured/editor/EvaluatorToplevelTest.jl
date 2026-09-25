@@ -57,8 +57,8 @@ print_natural(document) =
 render(document) = drawn(print_natural(document))
 
 editor(t) = _EvaluatorToplevelMockEditor(t, ToolSet())
-enter() = KeyDown(:return, ModifierKeys())
-shift_enter() = KeyDown(:return, ModifierKeys(shift = true))
+enter() = KeyDown(:return, ModifierKeys(); time = 0.0)
+shift_enter() = KeyDown(:return, ModifierKeys(shift = true); time = 0.0)
 
 @testset "a fresh loop holds one empty form, caret inside it" begin
     toplevel = make_insertion_document(EvaluatorToplevel)
@@ -132,7 +132,7 @@ end
     # A wheel turn toward the start takes the view off the end, and moves the
     # forms down by one line, which is 24 pixels with this measure.
     at_end = last(prompts_y())
-    change = read_intent(projection, nothing, Intent(MouseScroll(0, 1, 50, 50)), iomap)
+    change = read_intent(projection, nothing, Intent(MouseScroll(0, 1, 50, 50; time = 0.0)), iomap)
     evaluate_operation(ed, change.operation)
     @test toplevel.follow_end == false
     @test last(prompts_y()) == at_end + 24
@@ -173,7 +173,7 @@ end
     circle = GraphicsCircle(10, 10, 10)
     @test print_natural(circle) === circle
     iomap = print_document(GraphicsToGraphics(), nothing, circle, nothing)
-    @test read_intent(GraphicsToGraphics(), iomap, KeyPress('x')) === nothing
+    @test read_intent(GraphicsToGraphics(), iomap, KeyPress('x'; time = 0.0)) === nothing
     toplevel = make_insertion_document(EvaluatorToplevel)
     toplevel.elements[1].form.value = "GraphicsCircle(10, 10, 10)"
     evaluate_operation(editor(toplevel), read_gesture(toplevel, enter()))
@@ -219,7 +219,7 @@ end
     @test toplevel.elements[1].form.selection === nothing
     @test toplevel.elements[2].form.selection !== nothing
     # Alt+Enter evaluates nothing: Enter alone does.
-    @test read_gesture(toplevel, KeyDown(:return, ModifierKeys(alt = true))) === nothing
+    @test read_gesture(toplevel, KeyDown(:return, ModifierKeys(alt = true); time = 0.0)) === nothing
 end
 
 # The form that evaluating `code` leaves behind, with the parse on or off.
@@ -397,7 +397,7 @@ function history_session(codes...; parse = true, structured = false)
     toplevel.type_structured_forms = structured
     ed = editor(toplevel)
     type!(text) = evaluate_operation(ed, ReplaceStringRangeOperation(toplevel.selection, text))
-    press!(key; modifiers...) = (op = read_gesture(toplevel, KeyDown(key, ModifierKeys(; modifiers...)));
+    press!(key; modifiers...) = (op = read_gesture(toplevel, KeyDown(key, ModifierKeys(; modifiers...); time = 0.0));
                    op === nothing || evaluate_operation(ed, op); op)
     shown() = toplevel.elements[length(toplevel.elements)].form.value
     caret() = last(get_reference_steps(strip_reference_types(toplevel.selection)))
@@ -663,8 +663,8 @@ end
     # that the gesture recognizer makes of the two. It answers what the press does.
     function press!(x, y)
         operation = nothing
-        for event in (MouseDown(:left, x, y, ModifierKeys()), MouseUp(:left, x, y, ModifierKeys()),
-                      MousePress(:left, x, y, 1, ModifierKeys()))
+        for event in (MouseDown(:left, x, y, ModifierKeys(); time = 0.0), MouseUp(:left, x, y, ModifierKeys(); time = 0.0),
+                      MousePress(:left, x, y, 1, ModifierKeys(); time = 0.0))
             change = read_intent(projection, nothing, Intent(event), iomap)
             operation = change isa Intent ? change.operation : change
             operation isa Operation && evaluate_operation(ed, operation)

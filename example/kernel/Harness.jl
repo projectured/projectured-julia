@@ -147,5 +147,6 @@ machine cadence. Holds are drawn fresh on every call.
 """
 function make_typein_gestures(text::AbstractString; hold::Real=0.15, jitter::Real=0.6)
     j = clamp(Float64(jitter), 0.0, 1.0)
-    [(event = KeyPress(c), hold = hold * (1 + j * (2 * rand() - 1))) for c in text]
+    [(event = KeyPress(c;
+                       time = time()), hold = hold * (1 + j * (2 * rand() - 1))) for c in text]
 end

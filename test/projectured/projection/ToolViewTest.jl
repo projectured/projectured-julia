@@ -211,9 +211,9 @@ end
         operation
     end
     # A layout with no selection has no focus, and a layout gesture needs one.
-    press!(KeyDown(:tab, ModifierKeys(ctrl = true)))
+    press!(KeyDown(:tab, ModifierKeys(ctrl = true); time = 0.0))
     before = length(log.entries)
-    @test press!(KeyDown(:t, ModifierKeys(ctrl = true))) !== nothing
+    @test press!(KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0)) !== nothing
     @test length(log.entries) > before
 end
 

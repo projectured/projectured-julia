@@ -26,19 +26,19 @@ function test_event_module()
 @testset "EventModule" begin
 
     @testset "WindowInput carries the window an event came from" begin
-        window_input = WindowInput(:default, KeyDown(:period, ModifierKeys(), false))
+        window_input = WindowInput(:default, KeyDown(:period, ModifierKeys(), false; time = 0.0))
         @test window_input isa WindowInput
         @test window_input.window_id === :default
         @test window_input.event isa KeyDown
     end
 
     @testset "the short forms of the constructors" begin
-        @test KeyDown(:a, ModifierKeys()).repeat === false
-        @test KeyPress('a').text == "a"
-        @test MousePress(:left, 1, 2).count == 1
-        @test MousePress(:left, 1, 2, ModifierKeys(ctrl = true)).count == 1
-        @test MousePress(:left, 1, 2, 2, ModifierKeys()).count == 2
-        @test MouseMove(1, 2).buttons == MouseButtons()
+        @test KeyDown(:a, ModifierKeys(); time = 0.0).repeat === false
+        @test KeyPress('a'; time = 0.0).text == "a"
+        @test MousePress(:left, 1, 2; time = 0.0).count == 1
+        @test MousePress(:left, 1, 2, ModifierKeys(ctrl = true); time = 0.0).count == 1
+        @test MousePress(:left, 1, 2, 2, ModifierKeys(); time = 0.0).count == 2
+        @test MouseMove(1, 2; time = 0.0).buttons == MouseButtons()
     end
 
     @testset "MouseButtons holds every held button" begin
@@ -46,21 +46,21 @@ function test_event_module()
         @test MouseButtons(:left) == MouseButtons(left = true)
         both = MouseButtons(:left, :right)
         @test both.left && both.right && !both.middle
-        move = MouseMove(3, 4, both, ModifierKeys())
+        move = MouseMove(3, 4, both, ModifierKeys(); time = 0.0)
         @test move.buttons.left && move.buttons.right
         @test_throws ArgumentError MouseButtons(:none)
         @test isbitstype(MouseButtons)
     end
 
     @testset "@event_case dispatches on event type" begin
-        event = KeyDown(:period, ModifierKeys(ctrl=true), false)
+        event = KeyDown(:period, ModifierKeys(ctrl=true), false; time = 0.0)
         r = @event_case event begin
             KeyDown(:period; ctrl) => :dot_ctrl
             _                      => :fallback
         end
         @test r === :dot_ctrl
 
-        move = MouseDown(:left, 10, 20, ModifierKeys())
+        move = MouseDown(:left, 10, 20, ModifierKeys(); time = 0.0)
         r2 = @event_case move begin
             KeyDown(:period; ctrl) => :dot_ctrl
             _                      => :fallback
@@ -74,7 +74,7 @@ function test_event_module()
             _                     => nothing
         end
         @test rest(EmTestRestEvent(3, 4)) == (3, 4)
-        @test rest(KeyPress('a')) === nothing
+        @test rest(KeyPress('a'; time = 0.0)) === nothing
         rule = parse_event_pattern_rule(:(EmTestRestEvent(x) => x); scope = @__MODULE__)
         @test rule.type === EmTestRestEvent
         # Without the module of the pattern, the name is not in scope.
@@ -83,7 +83,7 @@ function test_event_module()
 
     @testset "EventPattern matches and describes" begin
         p = KeyDownPattern(:period; modifiers = [:ctrl])
-        event = KeyDown(:period, ModifierKeys(ctrl=true), false)
+        event = KeyDown(:period, ModifierKeys(ctrl=true), false; time = 0.0)
         @test matches_event_pattern(p, event)
         @test (@inferred matches_event_pattern(p, event)) === true
         @test describe_event_pattern(p) == "Ctrl+."
@@ -106,11 +106,11 @@ function test_event_module()
 
     @testset "the pattern constructors take their options as keywords" begin
         digit = KeyPressPattern(nothing; guard = e -> isdigit(e.char))
-        @test matches_event_pattern(digit, KeyPress('5'))
-        @test !matches_event_pattern(digit, KeyPress('z'))
+        @test matches_event_pattern(digit, KeyPress('5'; time = 0.0))
+        @test !matches_event_pattern(digit, KeyPress('z'; time = 0.0))
         shifted = MouseScrollPattern(; modifiers = [:shift])
-        @test matches_event_pattern(shifted, MouseScroll(0, 1, 2, 3, ModifierKeys(shift = true)))
-        @test !matches_event_pattern(shifted, MouseScroll(0, 1, 2, 3))
+        @test matches_event_pattern(shifted, MouseScroll(0, 1, 2, 3, ModifierKeys(shift = true); time = 0.0))
+        @test !matches_event_pattern(shifted, MouseScroll(0, 1, 2, 3; time = 0.0))
     end
 
     @testset "the parser builds a pattern and the field bindings" begin
@@ -119,12 +119,12 @@ function test_event_module()
         @test rule.modifiers == [:ctrl]
         pattern = Core.eval(@__MODULE__, build_event_pattern_expr(rule, :nothing))
         @test pattern isa EventPattern{KeyDown}
-        @test matches_event_pattern(pattern, KeyDown(:home, ModifierKeys(ctrl = true)))
-        @test !matches_event_pattern(pattern, KeyDown(:home, ModifierKeys()))
+        @test matches_event_pattern(pattern, KeyDown(:home, ModifierKeys(ctrl = true); time = 0.0))
+        @test !matches_event_pattern(pattern, KeyDown(:home, ModifierKeys(); time = 0.0))
 
-        @test @em_test_bind_fields(KeyPress(c) => c, KeyPress('q')) === 'q'
+        @test @em_test_bind_fields(KeyPress(c) => c, KeyPress('q'; time = 0.0)) === 'q'
         @test @em_test_bind_fields(MousePress(b, x, y) => (b, x, y),
-                                   MousePress(:right, 5, 6)) == (:right, 5, 6)
+                                   MousePress(:right, 5, 6; time = 0.0)) == (:right, 5, 6)
         # A rule that binds no field leaves the body as it is.
         @test build_event_field_bindings(rule, :event, :body) === :body
     end

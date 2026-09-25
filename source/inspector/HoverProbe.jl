@@ -82,7 +82,7 @@ function read_intent(p::HoverProbeProjection, recursion, change::Intent, iomap::
     event = change.gesture
     if event isa MouseMove
         # Reverse-project the hover position exactly as a left click would be.
-        press = MousePress(:left, event.x, event.y, event.modifiers)
+        press = MousePress(:left, event.x, event.y, event.modifiers; time = event.time)
         probe = read_intent(iomap.child_iomap.projection, recursion,
                                 Intent(press, nothing), iomap.child_iomap)
         probe_op = probe isa Intent ? probe.operation : probe

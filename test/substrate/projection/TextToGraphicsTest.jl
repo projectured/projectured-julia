@@ -328,11 +328,11 @@ caret(block) = [(r.x, r.y, r.h) for r in _rects(print_document(p, block).output)
 # A click on the second row selects inside *that line's* span; Down crosses into
 # it; End goes to the end of the line the caret is already on.
 iomap = print_document(p, with_selection(mkblock(), TextModule.make_flat_caret_reference(fb(Int[1, 1], 0))))
-click = read_intent(p, iomap, MousePress(:left, 31, 20))
+click = read_intent(p, iomap, MousePress(:left, 31, 20; time = 0.0))
 @test click isa ReplaceSelectionOperation
 @test coord(click) == ([2, 1], 3)
-@test coord(read_intent(p, iomap, KeyDown(:down, ModifierKeys())))[1] == [2, 1]
-@test coord(read_intent(p, iomap, KeyDown(:end, ModifierKeys()))) == ([1, 1], 5)
+@test coord(read_intent(p, iomap, KeyDown(:down, ModifierKeys(); time = 0.0)))[1] == [2, 1]
+@test coord(read_intent(p, iomap, KeyDown(:end, ModifierKeys(); time = 0.0))) == ([1, 1], 5)
 
 # A blank line keeps its row. It has neither a glyph nor a terminating
 # `TextNewline` to take a height from, so the block's prevailing font sizes it.
@@ -450,7 +450,7 @@ p = TextToGraphics(measure=m)
 block(text, k) = with_selection(TextBlock(TextString(text, font_ubuntu_monospace_regular_20, color_red)),
                                 TextModule.make_flat_caret_reference(k))
 flat(op) = (strip_reference_types(op.path).head::TextRangeReferenceStep).start
-press(text, k, key) = (op = read_intent(p, print_document(p, block(text, k)), KeyDown(key, ModifierKeys()));
+press(text, k, key) = (op = read_intent(p, print_document(p, block(text, k)), KeyDown(key, ModifierKeys(); time = 0.0));
                        op === nothing ? nothing : flat(op))
 # "a", an empty line, then "b": Up goes from "b" onto the empty line, then onto
 # "a", and Down comes back the same way.

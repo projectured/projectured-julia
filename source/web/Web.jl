@@ -540,6 +540,11 @@ _get_held_mouse_buttons(mask::Integer) =
     MouseButtons((mask & 1) != 0, (mask & 4) != 0, (mask & 2) != 0)
 _winid(obj)::Symbol = haskey(obj, :window) ? Symbol(String(obj[:window])) : :none
 
+# The time of a message on the clock of `time()`. The page sends `t`, the time of
+# the browser event in milliseconds since the Unix epoch. A message with no `t`
+# has the time when it arrives.
+_get_message_time(obj)::Float64 = haskey(obj, :t) ? Float64(obj[:t]) / 1000 : time()
+
 # Decode one client message and enqueue the resulting WindowInput(s). Only raw
 # device events are emitted; click (`MousePress`) synthesis from a MouseDown/
 # MouseUp pair is the editor's `GestureRecognizer`'s job, not the backend's
@@ -550,25 +555,27 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
     obj = JSON3.read(msg)
     typ = String(obj[:type])
     wid = _winid(obj)
+    at = _get_message_time(obj)
 
     if typ == "mousedown"
         b = _button(obj); x = Int(obj[:x]); y = Int(obj[:y])
-        put!(backend.inbound, WindowInput(wid, MouseDown(b, x, y, _mods(obj))))
+        put!(backend.inbound, WindowInput(wid, MouseDown(b, x, y, _mods(obj); time = at)))
 
     elseif typ == "mouseup"
         b = _button(obj); x = Int(obj[:x]); y = Int(obj[:y]); m = _mods(obj)
-        put!(backend.inbound, WindowInput(wid, MouseUp(b, x, y, m)))
+        put!(backend.inbound, WindowInput(wid, MouseUp(b, x, y, m; time = at)))
 
     elseif typ == "mousemove"
         mask = Int(get(obj, :buttons, 0))
         mask == 0 && return  # only forward motion while a button is held
         put!(backend.inbound, WindowInput(wid,
             MouseMove(Int(obj[:x]), Int(obj[:y]), _get_held_mouse_buttons(mask),
-                      _mods(obj))))
+                      _mods(obj); time = at)))
 
     elseif typ == "scroll"
         put!(backend.inbound, WindowInput(wid,
-            MouseScroll(Int(obj[:dx]), Int(obj[:dy]), Int(obj[:x]), Int(obj[:y]), _mods(obj))))
+            MouseScroll(Int(obj[:dx]), Int(obj[:dy]), Int(obj[:x]), Int(obj[:y]), _mods(obj);
+                        time = at)))
 
     elseif typ == "keydown"
         m = _mods(obj)
@@ -577,29 +584,32 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
         # reports what happened and decides no meaning. The editor loop quits on an
         # Escape that no reader handled.
         sym = convert_web_key_to_symbol(key, String(get(obj, :code, "")), m)
-        put!(backend.inbound, WindowInput(wid, KeyDown(sym, m, Bool(get(obj, :repeat, false)))))
+        repeat = Bool(get(obj, :repeat, false))
+        put!(backend.inbound, WindowInput(wid, KeyDown(sym, m, repeat; time = at)))
 
     elseif typ == "keyup"
         m = _mods(obj)
         sym = convert_web_key_to_symbol(String(obj[:key]), String(get(obj, :code, "")), m)
-        put!(backend.inbound, WindowInput(wid, KeyUp(sym, m)))
+        put!(backend.inbound, WindowInput(wid, KeyUp(sym, m; time = at)))
 
     elseif typ == "keypress"
         text = String(obj[:text])
         isempty(text) && return
-        put!(backend.inbound, WindowInput(wid, KeyPress(first(text), text, _mods(obj))))
+        put!(backend.inbound, WindowInput(wid, KeyPress(first(text), text, _mods(obj);
+                                                        time = at)))
 
     elseif typ == "resize"
-        put!(backend.inbound, WindowInput(wid, WindowResize(Int(obj[:w]), Int(obj[:h]))))
+        put!(backend.inbound, WindowInput(wid, WindowResize(Int(obj[:w]), Int(obj[:h]);
+                                                            time = at)))
 
     elseif typ == "close"
-        put!(backend.inbound, WindowInput(wid, WindowClose()))
+        put!(backend.inbound, WindowInput(wid, WindowClose(; time = at)))
 
     elseif typ == "blur"
-        put!(backend.inbound, WindowInput(wid, WindowDefocus()))
+        put!(backend.inbound, WindowInput(wid, WindowDefocus(; time = at)))
 
     elseif typ == "quit"
-        put!(backend.inbound, WindowInput(:none, WindowQuit()))
+        put!(backend.inbound, WindowInput(:none, WindowQuit(; time = at)))
 
     elseif typ == "resync"
         # Client (re)launched popups and wants a fresh full state for everything.

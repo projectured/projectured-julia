@@ -285,14 +285,17 @@ a lone ESC is Escape, and ESC with one more byte is that key with Alt.
 """
 function BackendModule.read_from_devices(backend::ConsoleBackend, devices)
     _drain_input!(backend)
+    # The terminal gives no time with its bytes, so an event has the time of the read.
+    read_time = time()
     buffer = backend.inbuf
     while !isempty(buffer)
         count = length(buffer)
-        event = _next_event!(buffer)
+        event = _next_event!(buffer; time = read_time)
         if event === nothing && length(buffer) == count
             _wait_for_input_bytes(backend.input, _ESCAPE_SEQUENCE_TIMEOUT_SECONDS)
             _drain_input!(backend)
-            event = _next_event!(buffer; settled = length(buffer) == count)
+            event = _next_event!(buffer; settled = length(buffer) == count,
+                                 time = read_time)
         end
         event === nothing || return WindowInput(:console, event)
     end
@@ -330,20 +333,21 @@ end
 # and `settled` is false. With `settled`, no more bytes follow, so the start of
 # a sequence is read as the keys that were typed, and at least one byte is
 # consumed. A sequence that makes no event is consumed, and `nothing` is
-# returned. Pure aside from mutating `buf`, so it is unit-testable.
-function _next_event!(buf::Vector{UInt8}; settled::Bool = false)
+# returned. The event has the time `time`, when the bytes were read. Pure aside
+# from mutating `buf`, so it is unit-testable.
+function _next_event!(buf::Vector{UInt8}; settled::Bool = false, time::Real)
     isempty(buf) && return nothing
     b0 = buf[1]
-    b0 == 0x1b && return _next_escape_event!(buf, settled)
+    b0 == 0x1b && return _next_escape_event!(buf, settled, time)
     b0 >= 0x80 && !settled && length(buf) < _count_utf8_bytes(b0) && return nothing
 
     deleteat!(buf, 1)
-    if b0 == 0x03;  return WindowQuit()                                  # Ctrl-C
-    elseif b0 == 0x00; return KeyDown(:space, ModifierKeys(ctrl=true))     # Ctrl-Space
-    elseif b0 == 0x0d || b0 == 0x0a; return KeyDown(:return, ModifierKeys())
-    elseif b0 == 0x7f || b0 == 0x08; return KeyDown(:backspace, ModifierKeys())
-    elseif b0 == 0x09; return KeyDown(:tab, ModifierKeys())
-    elseif 0x20 <= b0 < 0x7f; return KeyPress(Char(b0))                 # printable ASCII
+    if b0 == 0x03;  return WindowQuit(; time)                              # Ctrl-C
+    elseif b0 == 0x00; return KeyDown(:space, ModifierKeys(ctrl=true); time) # Ctrl-Space
+    elseif b0 == 0x0d || b0 == 0x0a; return KeyDown(:return, ModifierKeys(); time)
+    elseif b0 == 0x7f || b0 == 0x08; return KeyDown(:backspace, ModifierKeys(); time)
+    elseif b0 == 0x09; return KeyDown(:tab, ModifierKeys(); time)
+    elseif 0x20 <= b0 < 0x7f; return KeyPress(Char(b0); time)          # printable ASCII
     elseif b0 >= 0x80                                                   # UTF-8 lead byte
         nbytes = _count_utf8_bytes(b0)
         bytes = UInt8[b0]
@@ -352,7 +356,7 @@ function _next_event!(buf::Vector{UInt8}; settled::Bool = false)
         end
         s = String(bytes)
         isempty(s) && return nothing
-        return KeyPress(first(s))
+        return KeyPress(first(s); time)
     end
     return nothing  # other C0 control byte: ignore
 end
@@ -362,19 +366,19 @@ _count_utf8_bytes(lead::UInt8) = lead >= 0xf0 ? 4 : lead >= 0xe0 ? 3 : 2
 # Parse the event at the front of `buf`, which starts with ESC. ESC starts a
 # control sequence (`ESC [`), a key of the keypad (`ESC O`), an Alt chord (ESC
 # and the key, as xterm sends it), or it is the Escape key itself.
-function _next_escape_event!(buf::Vector{UInt8}, settled::Bool)
+function _next_escape_event!(buf::Vector{UInt8}, settled::Bool, time::Real)
     if length(buf) == 1
         settled || return nothing
         popfirst!(buf)
-        return KeyDown(:escape, ModifierKeys())
+        return KeyDown(:escape, ModifierKeys(); time)
     end
     second = buf[2]
     if second == 0x1b
         # A second ESC starts a new key, so the first ESC is Escape.
         popfirst!(buf)
-        return KeyDown(:escape, ModifierKeys())
+        return KeyDown(:escape, ModifierKeys(); time)
     elseif second == UInt8('[') || second == UInt8('O')
-        event, count = _decode_escape_sequence(buf)
+        event, count = _decode_escape_sequence(buf, time)
         if count > 0
             deleteat!(buf, 1:count)
             return event
@@ -384,7 +388,7 @@ function _next_escape_event!(buf::Vector{UInt8}, settled::Bool)
         settled || return nothing
     end
     tail = buf[2:end]
-    event = _next_event!(tail; settled)
+    event = _next_event!(tail; settled, time)
     consumed = length(buf) - 1 - length(tail)
     consumed == 0 && return nothing
     deleteat!(buf, 1:(1 + consumed))
@@ -407,14 +411,14 @@ const _TILDE_KEYS = Dict{Int,Symbol}(
 # Decode the sequence `ESC [ parameters final` or `ESC O final` at the front of
 # `buf`. Return the event and the count of bytes that the sequence takes. The
 # event is `nothing` for a sequence that has no key here, and the count is 0
-# for a sequence whose final byte has not arrived.
-function _decode_escape_sequence(buf::Vector{UInt8})
+# for a sequence whose final byte has not arrived. The event has the time `time`.
+function _decode_escape_sequence(buf::Vector{UInt8}, time::Real)
     if buf[2] == UInt8('O')
         length(buf) < 3 && return (nothing, 0)
         key = get(_FINAL_BYTE_KEYS, buf[3], nothing)
         # `ESC O` and a byte that no keypad key sends is Alt+O.
-        key === nothing && return (KeyPress('O', ModifierKeys(alt = true)), 2)
-        return (_make_key_event(key, ModifierKeys()), 3)
+        key === nothing && return (KeyPress('O', ModifierKeys(alt = true); time), 2)
+        return (_make_key_event(key, ModifierKeys(), time), 3)
     end
     index = 3
     while index <= length(buf) && 0x20 <= buf[index] <= 0x3f
@@ -432,7 +436,7 @@ function _decode_escape_sequence(buf::Vector{UInt8})
           get(_FINAL_BYTE_KEYS, final, nothing)
     key === nothing && return (nothing, index)
     final == UInt8('Z') && (modifiers = ModifierKeys(modifiers.ctrl, true, modifiers.alt, modifiers.meta))
-    return (_make_key_event(key, modifiers), index)
+    return (_make_key_event(key, modifiers, time), index)
 end
 
 # xterm sends the modifiers of a key as the parameter 1 + m, where m is the sum
@@ -443,15 +447,18 @@ function _decode_modifier_parameter(parameter::Int)
 end
 
 # Home with no modifier is the chord that selects the root; see `_home_event`.
-_make_key_event(key::Symbol, modifiers::ModifierKeys) =
-    key === :home && modifiers == ModifierKeys() ? _home_event() : KeyDown(key, modifiers)
+_make_key_event(key::Symbol, modifiers::ModifierKeys, time::Real) =
+    key === :home && modifiers == ModifierKeys() ? _home_event(time) :
+                                                   KeyDown(key, modifiers; time)
 
-_with_alt_modifier(event::KeyDown) = KeyDown(event.key, _with_alt_modifier(event.modifiers), event.repeat)
-_with_alt_modifier(event::KeyPress) = KeyPress(event.char, event.text, _with_alt_modifier(event.modifiers))
+_with_alt_modifier(event::KeyDown) =
+    KeyDown(event.key, _with_alt_modifier(event.modifiers), event.repeat; time = event.time)
+_with_alt_modifier(event::KeyPress) =
+    KeyPress(event.char, event.text, _with_alt_modifier(event.modifiers); time = event.time)
 _with_alt_modifier(modifiers::ModifierKeys) = ModifierKeys(modifiers.ctrl, modifiers.shift, true, modifiers.meta)
 _with_alt_modifier(event) = event
 
 # The terminal Home key maps to the reader's "select the root node" chord
 # (Ctrl+Alt+Home). It is the console's entry point into structural navigation
 # (there is no mouse to click a starting selection).
-_home_event() = KeyDown(:home, ModifierKeys(ctrl=true, alt=true))
+_home_event(time::Real) = KeyDown(:home, ModifierKeys(ctrl=true, alt=true); time)

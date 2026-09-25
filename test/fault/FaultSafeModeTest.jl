@@ -23,7 +23,7 @@ function _failing_editor()
     editor
 end
 
-_escape() = WindowInput(:main, KeyDown(:escape, ModifierKeys()))
+_escape() = WindowInput(:main, KeyDown(:escape, ModifierKeys(); time = 0.0))
 
 function test_fault_safe_mode()
 @testset "the safe mode" begin

@@ -5,8 +5,9 @@
 
 const _WEB = ProjecturedWeb
 
+# The page sends the time of each event as `t`, in milliseconds: 1.5 s here.
 const _WEB_ESCAPE_MESSAGE =
-    """{"type":"keydown","window":"main","key":"Escape","code":"Escape","mods":{}}"""
+    """{"type":"keydown","window":"main","key":"Escape","code":"Escape","mods":{},"t":1500}"""
 
 # A port of 127.0.0.1 that no socket holds now.
 function _find_free_web_port()
@@ -26,7 +27,7 @@ function test_web_backend()
         window_input = read_from_devices(backend, Device[])
         @test window_input isa WindowInput
         @test window_input.window_id === :main
-        @test window_input.event == KeyDown(:escape, ModifierKeys())
+        @test window_input.event == KeyDown(:escape, ModifierKeys(); time = 1.5)
         @test read_from_devices(backend, Device[]) === nothing
     end
 
@@ -55,9 +56,14 @@ function test_web_backend()
         @test elapsed < 5.0
 
         # An event in the queue ends the wait before it starts.
+        # A message with no `t` has the time when it arrives.
+        before = time()
         _WEB._decode_and_enqueue!(backend, """{"type":"keypress","window":"main","text":"a"}""")
+        after = time()
         @test (@elapsed wait_for_input(backend, Device[], 30.0)) < 5.0
-        @test read_from_devices(backend, Device[]).event == KeyPress('a')
+        typed = read_from_devices(backend, Device[]).event
+        @test typed == KeyPress('a'; time = typed.time)
+        @test before <= typed.time <= after
         # With the queue read, the next wait lasts until its timeout.
         @test (@elapsed wait_for_input(backend, Device[], 0.2)) >= 0.15
 
@@ -66,7 +72,7 @@ function test_web_backend()
         elapsed = @elapsed wait_for_input(backend, Device[], 30.0)
         wait(receiver)
         @test elapsed < 5.0
-        @test read_from_devices(backend, Device[]).event == KeyDown(:escape, ModifierKeys())
+        @test read_from_devices(backend, Device[]).event == KeyDown(:escape, ModifierKeys(); time = 1.5)
 
         # A resync makes no event, but it ends the wait, so that a frame sends
         # every window in full.
@@ -114,7 +120,7 @@ function test_web_backend()
             @test (@elapsed wait_for_input(backend, Device[], 10.0)) < 5.0
             window_input = read_from_devices(backend, Device[])
             @test window_input isa WindowInput
-            @test window_input.event == KeyDown(:escape, ModifierKeys())
+            @test window_input.event == KeyDown(:escape, ModifierKeys(); time = 1.5)
             response = _WEB.HTTP.get("http://127.0.0.1:$(port)/client.js")
             @test response.status == 200
         finally

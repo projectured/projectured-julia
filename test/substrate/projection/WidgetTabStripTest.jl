@@ -30,8 +30,8 @@ function _sweep(proj, iomap, event_of)
     found
 end
 
-_press(x, y) = MousePress(:left, x, y, ModifierKeys())
-_down(x, y) = MouseDown(:left, x, y, ModifierKeys())
+_press(x, y) = MousePress(:left, x, y, ModifierKeys(); time = 0.0)
+_down(x, y) = MouseDown(:left, x, y, ModifierKeys(); time = 0.0)
 
 # The first x at which `predicate` holds, or `nothing`.
 function _first_x(found, predicate)

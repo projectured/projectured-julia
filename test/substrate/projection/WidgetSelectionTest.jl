@@ -80,7 +80,7 @@ function _selection_all_rings(root)
     rings
 end
 
-_press(x, y, modifiers = ModifierKeys()) = MousePress(:left, x, y, modifiers)
+_press(x, y, modifiers = ModifierKeys()) = MousePress(:left, x, y, modifiers; time = 0.0)
 
 # The first point, row by row, where a press writes the value of `control`. The
 # reader says where the control is, so the test repeats no layout arithmetic.
@@ -97,15 +97,15 @@ end
 # the two make. The editor evaluates the answer of each at the root.
 function _selection_click!(projection, iomap, root, x, y; button = :left,
                            modifiers = ModifierKeys())
-    for event in (MouseDown(button, x, y, modifiers), MouseUp(button, x, y, modifiers),
-                  MousePress(button, x, y, modifiers))
+    for event in (MouseDown(button, x, y, modifiers; time = 0.0), MouseUp(button, x, y, modifiers; time = 0.0),
+                  MousePress(button, x, y, modifiers; time = 0.0))
         answer = read_intent(projection, iomap, event)
         answer === nothing || evaluate_operation((document = root,), answer)
     end
 end
 
 function _selection_space!(projection, iomap, root)
-    answer = read_intent(projection, iomap, KeyDown(:space, ModifierKeys()))
+    answer = read_intent(projection, iomap, KeyDown(:space, ModifierKeys(); time = 0.0))
     answer === nothing || evaluate_operation((document = root,), answer)
     answer
 end
@@ -170,7 +170,7 @@ function test_widget_selection()
         @test is_whole_selection_press(_press(1, 1, _ALT))
         @test !is_whole_selection_press(_press(1, 1))
         @test !is_whole_selection_press(_press(1, 1, ModifierKeys(alt = true, ctrl = true)))
-        @test !is_whole_selection_press(MousePress(:right, 1, 1, _ALT))
+        @test !is_whole_selection_press(MousePress(:right, 1, 1, _ALT; time = 0.0))
     end
 
     @testset "an Alt+click selects the widget under the pointer" begin
@@ -331,10 +331,10 @@ function test_widget_selection()
         projection = _selection_projection()
         focus = ProjecturedFocus.FocusModule
         box = WidgetCheckbox(false)
-        down = MouseDown(:left, 1, 1, ModifierKeys())
+        down = MouseDown(:left, 1, 1, ModifierKeys(); time = 0.0)
         @test focus.is_focusing_press(down)
-        @test !focus.is_focusing_press(MouseDown(:right, 1, 1, ModifierKeys()))
-        @test !focus.is_focusing_press(MouseDown(:left, 1, 1, ModifierKeys(alt = true)))
+        @test !focus.is_focusing_press(MouseDown(:right, 1, 1, ModifierKeys(); time = 0.0))
+        @test !focus.is_focusing_press(MouseDown(:left, 1, 1, ModifierKeys(alt = true); time = 0.0))
         @test !focus.is_focusing_press(_press(1, 1))
         # A focusable control that answered nothing is selected as a whole.
         @test focus.convert_to_focus_selection(nothing, box).path isa EmptyReference
@@ -355,7 +355,7 @@ function test_widget_selection()
         _selection_click!(projection, iomap, b.layout, x, y; button = :right)
         @test find_whole_selected_index(b.layout.selection, "children") == 1
         @test read_intent(projection, iomap,
-                          MouseDown(:left, x, y, ModifierKeys(alt = true))) === nothing
+                          MouseDown(:left, x, y, ModifierKeys(alt = true); time = 0.0)) === nothing
         @test find_whole_selected_index(b.layout.selection, "children") == 1
     end
 

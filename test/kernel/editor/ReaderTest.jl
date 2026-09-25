@@ -9,29 +9,29 @@ const _ALL_KEY_SYMBOLS = [
 
 const _ALL_KEY_EVENTS = vcat(
     # KeyDown with each symbol, with and without ctrl
-    [KeyDown(key, ModifierKeys(ctrl=ctrl)) for key in _ALL_KEY_SYMBOLS for ctrl in (false, true)],
+    [KeyDown(key, ModifierKeys(ctrl=ctrl); time = 0.0) for key in _ALL_KEY_SYMBOLS for ctrl in (false, true)],
     # KeyDown with repeat flag
-    [KeyDown(key, ModifierKeys(), true)    for key in (:left, :right, :backspace, :delete)],
+    [KeyDown(key, ModifierKeys(), true; time = 0.0)    for key in (:left, :right, :backspace, :delete)],
     # KeyUp
-    [KeyUp(key, ModifierKeys())            for key in _ALL_KEY_SYMBOLS],
+    [KeyUp(key, ModifierKeys(); time = 0.0)            for key in _ALL_KEY_SYMBOLS],
     # KeyPress — printable characters
-    [KeyPress(ch) for ch in ('a', 'Z', '0', ' ', ',', '.', '\n', 'é', '€')],
+    [KeyPress(ch; time = 0.0) for ch in ('a', 'Z', '0', ' ', ',', '.', '\n', 'é', '€')],
 )
 
 const _MOUSE_SAMPLE_XY = [(0, 0), (1, 1), (100, 100), (400, 300), (800, 600)]
 
 const _ALL_MOUSE_EVENTS = vcat(
-    [MouseDown(btn, x, y)
+    [MouseDown(btn, x, y; time = 0.0)
      for btn   in (:left, :middle, :right)
      for (x,y) in _MOUSE_SAMPLE_XY],
-    [MouseUp(btn, x, y)
+    [MouseUp(btn, x, y; time = 0.0)
      for btn   in (:left, :middle, :right)
      for (x,y) in _MOUSE_SAMPLE_XY],
-    [MousePress(btn, x, y)
+    [MousePress(btn, x, y; time = 0.0)
      for btn   in (:left, :middle, :right)
      for (x,y) in _MOUSE_SAMPLE_XY],
-    [MouseMove(x, y)   for (x,y) in _MOUSE_SAMPLE_XY],
-    [MouseScroll(dx, dy, x, y)
+    [MouseMove(x, y; time = 0.0)   for (x,y) in _MOUSE_SAMPLE_XY],
+    [MouseScroll(dx, dy, x, y; time = 0.0)
      for dx    in (-1, 0, 1)
      for dy    in (-1, 0, 1)
      for (x,y) in _MOUSE_SAMPLE_XY],

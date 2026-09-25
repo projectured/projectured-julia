@@ -22,7 +22,7 @@ end
 function test_gesture_help()
 @testset "GestureHelpDecoratorProjection" begin
     none = ModifierKeys()
-    f1   = KeyDown(:f1, none)
+    f1   = KeyDown(:f1, none; time = 0.0)
 
     # A real content pipeline whose collector yields reified gestures.
     inner = RecursiveProjection(JsonToSyntax())
@@ -67,11 +67,11 @@ function test_gesture_help()
         help = GestureHelpDecoratorProjection(inner = inner, state = state)
         iomap = print_document(help, arr)
 
-        op = read_intent(help, iomap, KeyDown(:comma, none))  # array insert
+        op = read_intent(help, iomap, KeyDown(:comma, none; time = 0.0))  # array insert
         @test !(op isa OpenWindowOperation)
         @test !state.open
         # The decorator returns exactly what the wrapped editor returned.
-        direct = read_intent(inner, iomap.inner_iomap, KeyDown(:comma, none))
+        direct = read_intent(inner, iomap.inner_iomap, KeyDown(:comma, none; time = 0.0))
         @test typeof(op) === typeof(direct)
     end
 

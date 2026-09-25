@@ -16,9 +16,9 @@ function _history_recorded_answers(example)
     output isa GraphicsDocument || return String[]
     width, height = Int.(get_graphics_size(output))
     width, height = clamp(width, 100, 1600), clamp(height, 100, 1200)
-    events = Any[MouseMove(x, y) for x in 5:max(20, width ÷ 20):width
+    events = Any[MouseMove(x, y; time = 0.0) for x in 5:max(20, width ÷ 20):width
                                   for y in 5:max(20, height ÷ 15):height]
-    append!(events, [MouseScroll(0, turn, x, y) for turn in (-1, 1)
+    append!(events, [MouseScroll(0, turn, x, y; time = 0.0) for turn in (-1, 1)
                      for (x, y) in ((width ÷ 2, height ÷ 2), (width ÷ 4, height ÷ 4))])
     recorded = String[]
     for event in events
@@ -54,49 +54,49 @@ function test_history_sweep()
                 place(text, band) = first((x, y) for (t, x, y) in drawn() if t == text && x in band)
                 none = ModifierKeys()
                 alt = ModifierKeys(alt = true)
-                click((x, y); modifiers = none) = [MouseDown(:left, x + 3, y + 3, modifiers),
-                                                   MouseUp(:left, x + 3, y + 3, modifiers),
-                                                   MousePress(:left, x + 3, y + 3, 1, modifiers)]
-                key_downs(names...; modifiers = none) = [KeyDown(name, modifiers) for name in names]
+                click((x, y); modifiers = none) = [MouseDown(:left, x + 3, y + 3, modifiers; time = 0.0),
+                                                   MouseUp(:left, x + 3, y + 3, modifiers; time = 0.0),
+                                                   MousePress(:left, x + 3, y + 3, 1, modifiers; time = 0.0)]
+                key_downs(names...; modifiers = none) = [KeyDown(name, modifiers; time = 0.0) for name in names]
                 left, middle, right = 0:400, 400:1100, 1100:1600
 
                 # The chevron left of a folder's name: one click closes it, the next
                 # opens it again.
                 fold_twice() = let (x, y) = place("alpha", left)
-                    [MousePress(:left, x - 34, y + 5, 1, none), MousePress(:left, x - 34, y + 5, 1, none)]
+                    [MousePress(:left, x - 34, y + 5, 1, none; time = 0.0), MousePress(:left, x - 34, y + 5, 1, none; time = 0.0)]
                 end
 
                 # Each gesture is made when its turn comes, because the one before
                 # it can move what it points at.
                 gestures = Pair{String,Function}[
                     "the pointer moves over the window" =>
-                        () -> [MouseMove(x, y) for x in 20:120:1580 for y in 20:120:980],
+                        () -> [MouseMove(x, y; time = 0.0) for x in 20:120:1580 for y in 20:120:980],
                     "a click on a row of the navigator" => () -> click(place("alpha", left)),
                     "Down and Up in the navigator" => () -> key_downs(:down, :up),
                     "Alt+click on a row" => () -> click(place("beta", left); modifiers = alt),
                     "a folder closes and opens" => fold_twice,
-                    "the wheel over the navigator" => () -> [MouseScroll(0, -1, 100, 300), MouseScroll(0, 1, 100, 300)],
+                    "the wheel over the navigator" => () -> [MouseScroll(0, -1, 100, 300; time = 0.0), MouseScroll(0, 1, 100, 300; time = 0.0)],
                     "a click in the file" => () -> click(place("Alice", middle)),
                     "arrow keys in the file" => () -> key_downs(:right, :left, :end, :home),
                     "Shift+Right in the file" => () -> key_downs(:right; modifiers = ModifierKeys(shift = true)),
                     "Alt+Up and Alt+Down in the file" => () -> key_downs(:up, :down; modifiers = alt),
                     "Alt+click in the file" => () -> click(place("Alice", middle); modifiers = alt),
-                    "the wheel over the file" => () -> [MouseScroll(0, -1, 700, 300), MouseScroll(0, 1, 700, 300)],
+                    "the wheel over the file" => () -> [MouseScroll(0, -1, 700, 300; time = 0.0), MouseScroll(0, 1, 700, 300; time = 0.0)],
                     "a click on the tab title of the navigator" => () -> click(place("Files", left)),
                     "a click on the tab title of the file" => () -> click(place("a.json", 300:1100)),
                     "a click on the tab title of the assistant" => () -> click(place("Assistant", right)),
                     "Ctrl+Alt+Right" => () -> key_downs(:right; modifiers = ModifierKeys(ctrl = true, alt = true)),
                     "a click in the draft" => () -> click(place("type here…", right)),
                     "Left and Right in the draft" => () -> key_downs(:left, :right),
-                    "the wheel over the transcript" => () -> [MouseScroll(0, 1, 1500, 300), MouseScroll(0, -1, 1500, 300)],
+                    "the wheel over the transcript" => () -> [MouseScroll(0, 1, 1500, 300; time = 0.0), MouseScroll(0, -1, 1500, 300; time = 0.0)],
                     "the File menu opens and Escape closes it" =>
                         () -> vcat(click(place("File", 0:60)), key_downs(:escape)),
                     "F1 twice" => () -> key_downs(:f1, :f1),
                     "the palette opens, takes a letter and closes" =>
-                        () -> Any[KeyDown(:p, ModifierKeys(ctrl = true, shift = true)), KeyPress('s'),
-                                  KeyDown(:escape, none)],
+                        () -> Any[KeyDown(:p, ModifierKeys(ctrl = true, shift = true); time = 0.0), KeyPress('s'; time = 0.0),
+                                  KeyDown(:escape, none; time = 0.0)],
                     "the context menu opens and closes" =>
-                        () -> Any[MousePress(:right, 700, 300, 1, none), KeyDown(:escape, none)],
+                        () -> Any[MousePress(:right, 700, 300, 1, none; time = 0.0), KeyDown(:escape, none; time = 0.0)],
                     "Ctrl+C" => () -> key_downs(:c; modifiers = ModifierKeys(ctrl = true)),
                 ]
                 for (gesture, make) in gestures
@@ -136,27 +136,27 @@ function test_history_sweep()
                 drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
                 click!(matches) = begin
                     (x, y) = first((x, y) for (text, x, y) in drawn() if matches(text, x))
-                    press!(MousePress(:left, x + 3, y + 3, 1, ModifierKeys()))
+                    press!(MousePress(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
                 end
                 text = first(repeat("typed text ", 14), 150)
 
                 # One character first: the first key compiles, and a compile longer
                 # than the pause would end the run.
                 click!((t, x) -> occursin("Alice", t) && 400 <= x < 1100)
-                press!(KeyPress('x'))
+                press!(KeyPress('x'; time = 0.0))
                 # A step of the window alone: a new tab in the navigator's group.
                 click!((t, x) -> t == "Files" && x < 400)
-                press!(KeyDown(:t, ModifierKeys(ctrl = true)))
+                press!(KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0))
                 opened = steps()
                 tab = window.undo_entries[end].label
 
                 click!((t, x) -> occursin("lice", t) && 400 <= x < 1100)
-                foreach(character -> press!(KeyPress(character)), text)
+                foreach(character -> press!(KeyPress(character; time = 0.0)), text)
                 @test steps() == opened .+ (1, 1)
                 @test window.undo_entries[end - 1].label == tab
 
                 click!((t, x) -> t == "type here…" && x >= 1100)
-                foreach(character -> press!(KeyPress(character)), text)
+                foreach(character -> press!(KeyPress(character; time = 0.0)), text)
                 @test steps() == opened .+ (2, 1)
             end
         end

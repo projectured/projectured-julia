@@ -148,9 +148,9 @@ end
 function test_command_palette_decorator()
 @testset "CommandPaletteDecoratorProjection" begin
     none    = ModifierKeys()
-    summon  = KeyDown(:p, ModifierKeys(ctrl=true, shift=true))
-    enter   = KeyDown(:return, none)
-    escape  = KeyDown(:escape, none)
+    summon  = KeyDown(:p, ModifierKeys(ctrl=true, shift=true); time = 0.0)
+    enter   = KeyDown(:return, none; time = 0.0)
+    escape  = KeyDown(:escape, none; time = 0.0)
 
     # The real JSON pipeline, down to graphics — the decorator draws over graphics.
     mkarr() = (a = JsonArray([JsonNumber(1)]); set_selection!(a, EmptyReference()); a)
@@ -196,13 +196,13 @@ function test_command_palette_decorator()
         iomap = print_document(p, arr)
         read_intent(p, iomap, summon)
         for c in "insert"
-            @test read_intent(p, iomap, KeyPress(c)) isa DoNothingOperation
+            @test read_intent(p, iomap, KeyPress(c; time = 0.0)) isa DoNothingOperation
         end
         @test state.palette.query == "insert"
         @test get_command_palette_row(state.palette).description == "Insert a new element"
         # A comma inserts an element in JSON. While the palette is open it is a
         # character of the query, and the array is untouched.
-        @test read_intent(p, iomap, KeyPress(',')) isa DoNothingOperation
+        @test read_intent(p, iomap, KeyPress(','; time = 0.0)) isa DoNothingOperation
         @test length(arr.elements) == 1
         @test state.palette.query == "insert,"
     end
@@ -212,17 +212,17 @@ function test_command_palette_decorator()
         p = mkpalette(state)
         iomap = print_document(p, mkarr())
         read_intent(p, iomap, summon)
-        for c in "insert"; read_intent(p, iomap, KeyPress(c)); end
-        read_intent(p, iomap, KeyDown(:backspace, none))
+        for c in "insert"; read_intent(p, iomap, KeyPress(c; time = 0.0)); end
+        read_intent(p, iomap, KeyDown(:backspace, none; time = 0.0))
         @test state.palette.query == "inser"
         # Back to an empty query, so more than one row matches and a step can move.
-        for _ in 1:5; read_intent(p, iomap, KeyDown(:backspace, none)); end
+        for _ in 1:5; read_intent(p, iomap, KeyDown(:backspace, none; time = 0.0)); end
         @test state.palette.query == ""
         # Compare the selection, not the row: two rows can hold equal values.
         first_at = get_command_palette_selected(state.palette)
-        read_intent(p, iomap, KeyDown(:down, none))
+        read_intent(p, iomap, KeyDown(:down, none; time = 0.0))
         @test get_command_palette_selected(state.palette) != first_at
-        read_intent(p, iomap, KeyDown(:up, none))
+        read_intent(p, iomap, KeyDown(:up, none; time = 0.0))
         @test get_command_palette_selected(state.palette) == first_at
     end
 
@@ -232,7 +232,7 @@ function test_command_palette_decorator()
         arr = mkarr()
         iomap = print_document(p, arr)
         read_intent(p, iomap, summon)
-        for c in "insert"; read_intent(p, iomap, KeyPress(c)); end
+        for c in "insert"; read_intent(p, iomap, KeyPress(c; time = 0.0)); end
         operation = read_intent(p, iomap, enter)
         @test operation isa Operation
         @test !(operation isa DoNothingOperation)
@@ -248,7 +248,7 @@ function test_command_palette_decorator()
         arr = mkarr()
         iomap = print_document(p, arr)
         read_intent(p, iomap, summon)
-        for c in "insert"; read_intent(p, iomap, KeyPress(c)); end
+        for c in "insert"; read_intent(p, iomap, KeyPress(c; time = 0.0)); end
         @test read_intent(p, iomap, escape) isa DoNothingOperation
         @test !state.open[]
         @test length(arr.elements) == 1
@@ -260,7 +260,7 @@ function test_command_palette_decorator()
         arr = mkarr()
         iomap = print_document(p, arr)
         # A comma reaches JSON and inserts an element, as it does without the palette.
-        operation = read_intent(p, iomap, KeyPress(','))
+        operation = read_intent(p, iomap, KeyPress(','; time = 0.0))
         @test operation isa Operation
         @test !state.open[]
     end
@@ -296,7 +296,7 @@ function test_command_palette_decorator()
         @test panel.w > 0 && panel.h > 0        # the text measured for real
         tall = panel.h
         # The panel follows the list: a query that narrows it makes the panel shorter.
-        for c in "insert"; read_intent(p, iomap, KeyPress(c)); end
+        for c in "insert"; read_intent(p, iomap, KeyPress(c; time = 0.0)); end
         @test iomap.output.elements[2].elements[1].h < tall
     end
 
@@ -346,7 +346,7 @@ function test_command_palette_decorator()
 
         @test read_intent(composed, iomap, WindowInput(:json, summon)) isa DoNothingOperation
         for c in "insert"
-            read_intent(composed, iomap, WindowInput(:json, KeyPress(c)))
+            read_intent(composed, iomap, WindowInput(:json, KeyPress(c; time = 0.0)))
         end
         operation = read_intent(composed, iomap, WindowInput(:json, enter))
         @test operation isa Operation
@@ -377,7 +377,7 @@ function test_command_palette_decorator()
         @test count(r -> r.operation !== nothing, rows) > 0
 
         for c in "insert a new entry"
-            read_intent(p, iomap, KeyPress(c))
+            read_intent(p, iomap, KeyPress(c; time = 0.0))
         end
         row = get_command_palette_row(p.state.palette)
         @test row.description == "Insert a new entry"
@@ -400,7 +400,7 @@ function test_command_palette_decorator()
 
         # Tab moves the cursor from the key to the value; the command moves it back.
         set_selection!(obj, @reference(obj, entries[1].key{0}))
-        forward = read_gesture(obj, KeyDown(:tab, none))
+        forward = read_gesture(obj, KeyDown(:tab, none; time = 0.0))
         @test forward isa ReplaceSelectionOperation
         set_selection!(obj, forward.path)
         back = fire_named_gesture_binding(bindings, obj, "Move from value to key";

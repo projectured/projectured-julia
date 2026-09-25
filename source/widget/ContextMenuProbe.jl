@@ -67,7 +67,8 @@ function read_intent(p::ContextMenuProbeProjection, recursion, change::Intent,
     operation === nothing || selection !== nothing || return inner_answer
     is_right || return inner_answer
     # The same Alt press the tooltip probe uses, so both find the same document.
-    press = MousePress(:left, event.x, event.y, ModifierKeys(alt = true))
+    press = MousePress(:left, event.x, event.y, ModifierKeys(alt = true);
+                       time = event.time)
     probe = read_intent(iomap.child_iomap.projection, recursion,
                         Intent(press, nothing), iomap.child_iomap)
     probed = probe isa Intent ? probe.operation : probe

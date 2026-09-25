@@ -31,28 +31,28 @@ function _focus_second(control)
         ConcreteReference(RangeReferenceStep(1, 2), EmptyReference()))
     layout
 end
-_key(k; modifiers...) = KeyDown(k, ModifierKeys(; modifiers...))
+_key(k; modifiers...) = KeyDown(k, ModifierKeys(; modifiers...); time = 0.0)
 
 @testset "spin box steps up/down and clamps to [min, max]" begin
     s = WidgetSpinBox(5; min=0, max=10, step=2)
     io = print_document(proj, s)
     cw = Int(io.output.w[]); ch = Int(io.output.h[])
-    up   = read_intent(proj, io, MousePress(:left, cw - 2, 2, ModifierKeys()))           # top stepper
-    down = read_intent(proj, io, MousePress(:left, cw - 2, ch - 2, ModifierKeys()))       # bottom stepper
+    up   = read_intent(proj, io, MousePress(:left, cw - 2, 2, ModifierKeys(); time = 0.0))           # top stepper
+    down = read_intent(proj, io, MousePress(:left, cw - 2, ch - 2, ModifierKeys(); time = 0.0))       # bottom stepper
     @test up isa ReplaceReferencedValueOperation && up.value == 7
     @test down isa ReplaceReferencedValueOperation && down.value == 3
     # A click in the field area (left of the steppers) does not step.
-    @test read_intent(proj, io, MousePress(:left, 2, 2, ModifierKeys())) === nothing
+    @test read_intent(proj, io, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0)) === nothing
 
     # Clamp: stepping past max stays at max; past min stays at min.
     hi = print_document(proj, WidgetSpinBox(10; min=0, max=10, step=5))
-    @test read_intent(proj, hi, MousePress(:left, Int(hi.output.w[]) - 2, 2, ModifierKeys())).value == 10
+    @test read_intent(proj, hi, MousePress(:left, Int(hi.output.w[]) - 2, 2, ModifierKeys(); time = 0.0)).value == 10
     lo = print_document(proj, WidgetSpinBox(0; min=0, max=10, step=5))
-    @test read_intent(proj, lo, MousePress(:left, Int(lo.output.w[]) - 2, Int(lo.output.h[]) - 2, ModifierKeys())).value == 0
+    @test read_intent(proj, lo, MousePress(:left, Int(lo.output.w[]) - 2, Int(lo.output.h[]) - 2, ModifierKeys(); time = 0.0)).value == 0
 
     # Disabled is inert.
     dis = print_document(proj, WidgetSpinBox(5; enabled=false))
-    @test read_intent(proj, dis, MousePress(:left, Int(dis.output.w[]) - 2, 2, ModifierKeys())) === nothing
+    @test read_intent(proj, dis, MousePress(:left, Int(dis.output.w[]) - 2, 2, ModifierKeys(); time = 0.0)) === nothing
 end
 
 @testset "list click + arrow keys move the selection" begin
@@ -63,19 +63,19 @@ end
     # ReplaceSelectionOperation carrying an `items[i-1:i]` reference, so an
     # enclosing projection can map it into its own domain (and back when
     # printing). It is NOT a write to a private index field.
-    pick2 = read_intent(proj, io, MousePress(:left, 5, rh + 2, ModifierKeys()))           # row 2
+    pick2 = read_intent(proj, io, MousePress(:left, 5, rh + 2, ModifierKeys(); time = 0.0))           # row 2
     @test pick2 isa ReplaceSelectionOperation
     @test pick2.path == make_widget_list_selection(2)
-    @test read_intent(proj, io, KeyDown(:down, ModifierKeys(), false)).path ==
+    @test read_intent(proj, io, KeyDown(:down, ModifierKeys(), false; time = 0.0)).path ==
           make_widget_list_selection(2)                                                         # 1 → 2
-    @test read_intent(proj, io, KeyDown(:up, ModifierKeys(), false)).path ==
+    @test read_intent(proj, io, KeyDown(:up, ModifierKeys(), false; time = 0.0)).path ==
           make_widget_list_selection(1)                                                         # 1 → 1 (floor)
     # `selected=` sugar and `get_widget_list_selected` are inverses; 0 = none.
     @test get_widget_list_selected(l) == 1
     @test get_widget_list_selected(WidgetList(["Alpha", "Beta"])) == 0
     # An empty list is inert.
     @test read_intent(proj, print_document(proj, WidgetList(String[])),
-                          MousePress(:left, 2, 2, ModifierKeys())) === nothing
+                          MousePress(:left, 2, 2, ModifierKeys(); time = 0.0)) === nothing
 end
 
 @testset "toggle group picks the segment under the press" begin
@@ -89,18 +89,18 @@ end
 
     # The answer is a value write, the way a select's picked option answers — a
     # segment is a control's value, not a place in a document.
-    first = read_intent(proj, io, MousePress(:left, left, 4, ModifierKeys()))
+    first = read_intent(proj, io, MousePress(:left, left, 4, ModifierKeys(); time = 0.0))
     @test first isa ReplaceReferencedValueOperation
     @test first.document === g
     @test first.value == 1
-    @test read_intent(proj, io, MousePress(:left, right, 4, ModifierKeys())).value == 3
+    @test read_intent(proj, io, MousePress(:left, right, 4, ModifierKeys(); time = 0.0)).value == 3
 
     # The segment already on is not a change, so there is no edit to report.
     on_first = print_document(proj, WidgetToggleGroup(["Run", "Fast", "Express"]; selected=1))
-    @test read_intent(proj, on_first, MousePress(:left, left, 4, ModifierKeys())) === nothing
+    @test read_intent(proj, on_first, MousePress(:left, left, 4, ModifierKeys(); time = 0.0)) === nothing
 
     # Past the right edge is outside the control, which every widget declines.
-    @test read_intent(proj, io, MousePress(:left, w + 5, 4, ModifierKeys())) === nothing
+    @test read_intent(proj, io, MousePress(:left, w + 5, 4, ModifierKeys(); time = 0.0)) === nothing
 
     # With a target, the pick names what it changes: a group that is *for*
     # something writes that thing's field, and `values` says what a segment means.
@@ -111,30 +111,30 @@ end
                                values = [:run, :fast, :express],
                                target = holder, field = "text")
     aimed_io = print_document(proj, aimed)
-    picked = read_intent(proj, aimed_io, MousePress(:left, 2, 4, ModifierKeys()))
+    picked = read_intent(proj, aimed_io, MousePress(:left, 2, 4, ModifierKeys(); time = 0.0))
     @test picked isa ReplaceReferencedValueOperation
     @test picked.document === holder
     @test picked.value === :run
 
     # A right press is not a pick, and a disabled group is inert.
-    @test read_intent(proj, io, MousePress(:right, left, 4, ModifierKeys())) === nothing
+    @test read_intent(proj, io, MousePress(:right, left, 4, ModifierKeys(); time = 0.0)) === nothing
     dis = WidgetToggleGroup(["Run", "Fast"]; selected=2, enabled=false)
     @test read_intent(proj, print_document(proj, dis),
-                      MousePress(:left, 4, 4, ModifierKeys())) === nothing
+                      MousePress(:left, 4, 4, ModifierKeys(); time = 0.0)) === nothing
     # An invisible one draws nothing and answers nothing.
     inv = WidgetToggleGroup(["Run", "Fast"]; visible=false)
     @test read_intent(proj, print_document(proj, inv),
-                      MousePress(:left, 4, 4, ModifierKeys())) === nothing
+                      MousePress(:left, 4, 4, ModifierKeys(); time = 0.0)) === nothing
 end
 
 @testset "a toggle flips from a press, and from Return and Space with the focus" begin
     t  = WidgetToggle("Bold")
     io = print_document(proj, t)
     x, y = _drawn_text_positions(io.output)["Bold"]
-    press = read_intent(proj, io, MousePress(:left, x + 2, y + 2, ModifierKeys()))
+    press = read_intent(proj, io, MousePress(:left, x + 2, y + 2, ModifierKeys(); time = 0.0))
     @test press isa ReplaceReferencedValueOperation
     @test press.document === t && press.value === true
-    @test read_intent(proj, io, MousePress(:right, x + 2, y + 2, ModifierKeys())) === nothing
+    @test read_intent(proj, io, MousePress(:right, x + 2, y + 2, ModifierKeys(); time = 0.0)) === nothing
     # A released toggle draws its outline, and a pressed one does not.
     @test Int(io.output.elements[1].border_width) > 0
     evaluate_operation(nothing, press)
@@ -153,7 +153,7 @@ end
 
     off = WidgetToggle("Bold"; enabled = false)
     off_io = print_document(proj, off)
-    @test read_intent(proj, off_io, MousePress(:left, x + 2, y + 2, ModifierKeys())) === nothing
+    @test read_intent(proj, off_io, MousePress(:left, x + 2, y + 2, ModifierKeys(); time = 0.0)) === nothing
     @test read_intent(proj, print_document(proj, _focus_second(off)), _key(:space)) === nothing
 end
 
@@ -162,14 +162,14 @@ end
     io = print_document(proj, r)
     at = _drawn_text_positions(io.output)
     compact = at["Compact"]; comfortable = at["Comfortable"]; default = at["Default"]
-    pick = read_intent(proj, io, MousePress(:left, compact[1] + 2, compact[2] + 2, ModifierKeys()))
+    pick = read_intent(proj, io, MousePress(:left, compact[1] + 2, compact[2] + 2, ModifierKeys(); time = 0.0))
     @test pick isa ReplaceReferencedValueOperation
     @test pick.document === r && pick.value == 3
     # The circle of a row is part of its target, left of the word.
-    @test read_intent(proj, io, MousePress(:left, 2, comfortable[2] + 2, ModifierKeys())).value == 2
+    @test read_intent(proj, io, MousePress(:left, 2, comfortable[2] + 2, ModifierKeys(); time = 0.0)).value == 2
     # The option that is on is not a change, and a right press is not a pick.
-    @test read_intent(proj, io, MousePress(:left, default[1] + 2, default[2] + 2, ModifierKeys())) === nothing
-    @test read_intent(proj, io, MousePress(:right, compact[1] + 2, compact[2] + 2, ModifierKeys())) === nothing
+    @test read_intent(proj, io, MousePress(:left, default[1] + 2, default[2] + 2, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, io, MousePress(:right, compact[1] + 2, compact[2] + 2, ModifierKeys(); time = 0.0)) === nothing
 
     # The dot is drawn in the row of the option that is on.
     evaluate_operation(nothing, pick)
@@ -196,7 +196,7 @@ end
     off = WidgetRadioGroup(["Default", "Compact"]; selected = 1, enabled = false)
     off_io = print_document(proj, off)
     lx, ly = _drawn_text_positions(off_io.output)["Compact"]
-    @test read_intent(proj, off_io, MousePress(:left, lx + 2, ly + 2, ModifierKeys())) === nothing
+    @test read_intent(proj, off_io, MousePress(:left, lx + 2, ly + 2, ModifierKeys(); time = 0.0)) === nothing
     @test read_intent(proj, print_document(proj, _focus_second(off)), _key(:down)) === nothing
 end
 
@@ -219,9 +219,9 @@ end
     # Space with no modifier.
     for control in (WidgetCheckbox(false), WidgetSwitch(; checked = false))
         control_io = print_document(proj, control)
-        @test read_intent(proj, control_io, MousePress(:left, 2, 2, ModifierKeys())) !== nothing
-        @test read_intent(proj, control_io, MousePress(:right, 2, 2, ModifierKeys())) === nothing
-        @test read_intent(proj, control_io, MousePress(:middle, 2, 2, ModifierKeys())) === nothing
+        @test read_intent(proj, control_io, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0)) !== nothing
+        @test read_intent(proj, control_io, MousePress(:right, 2, 2, ModifierKeys(); time = 0.0)) === nothing
+        @test read_intent(proj, control_io, MousePress(:middle, 2, 2, ModifierKeys(); time = 0.0)) === nothing
         focused = print_document(proj, _focus_second(control))
         @test read_intent(proj, focused, _key(:space)) !== nothing
         @test read_intent(proj, focused, _key(:return)) !== nothing

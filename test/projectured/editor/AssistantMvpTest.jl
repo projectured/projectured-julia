@@ -100,7 +100,7 @@ function _mvp_enter!(a::Assistant)
     chain = make_assistant_projection_example()
     set_selection!(a, @reference(a, draft.^(make_draft_caret_reference(a.draft))))
     iomap = print_document(chain, a)
-    op = read_intent(chain, iomap, KeyDown(:return, ModifierKeys()))
+    op = read_intent(chain, iomap, KeyDown(:return, ModifierKeys(); time = 0.0))
     op === nothing && return nothing
     evaluate_operation((document = a, tools = register_default_tools!(ToolSet())), op)
     op
@@ -675,7 +675,7 @@ end
 function _find_toggle(proj, io, pred)
     for y in 2:3:820, x in 16:4:200
         op = try
-            read_intent(proj, io, MousePress(:left, x, y))
+            read_intent(proj, io, MousePress(:left, x, y; time = 0.0))
         catch
             nothing
         end

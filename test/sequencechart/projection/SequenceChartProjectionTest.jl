@@ -349,7 +349,7 @@ function test_sequencechart_projection()
             flow = to_pixel(g.scale, g.coordinates[row])
             cross = g.lane_of[get_event_axis(chart.events, row)]
             press = MousePress(:left, round(Int, flow + g.body_x),
-                               round(Int, cross + g.body_y), _sc_no_modifier)
+                               round(Int, cross + g.body_y), _sc_no_modifier; time = 0.0)
             op = read_intent(projection, stage2, press)
             @test op isa ReplaceSelectionOperation
 
@@ -373,7 +373,7 @@ function test_sequencechart_projection()
             plot.view = SequenceChartView(1, 0.0, 0.5)
 
             press = MousePress(:left, round(Int, g.body_x + g.body_w / 2),
-                               round(Int, g.body_y + g.body_h / 2), 2, _sc_no_modifier)
+                               round(Int, g.body_y + g.body_h / 2), 2, _sc_no_modifier; time = 0.0)
             op = read_intent(stage2.projection, stage2, press)
             @test op isa ReplaceViewStateOperation      # a zoom is view state
             _sc_apply(plot, op)
@@ -391,7 +391,7 @@ function test_sequencechart_projection()
             x = round(Int, g.body_x + g.body_w / 2)
             y = round(Int, g.body_y + g.body_h / 2)
             focus = to_data(g.scale, g.body_w / 2)
-            op = read_intent(stage2.projection, stage2, MouseScroll(0, 1, x, y))
+            op = read_intent(stage2.projection, stage2, MouseScroll(0, 1, x, y; time = 0.0))
             @test op isa ReplaceViewStateOperation
             _sc_apply(plot, op)
 
@@ -412,7 +412,7 @@ function test_sequencechart_projection()
             row = first(g.visible_events)
             flow = to_pixel(g.scale, g.coordinates[row])
             cross = g.lane_of[get_event_axis(chart.events, row)]
-            move = MouseMove(round(Int, flow + g.body_x), round(Int, cross + g.body_y))
+            move = MouseMove(round(Int, flow + g.body_x), round(Int, cross + g.body_y); time = 0.0)
             op = read_intent(stage2.projection, stage2, move)
             @test op !== nothing
             _sc_apply(plot, op)
@@ -424,7 +424,7 @@ function test_sequencechart_projection()
             @test read_intent(stage2.projection, stage2, move) === nothing
 
             # Leaving clears both, so no stale readout outlives the pointer.
-            leave = read_intent(stage2.projection, stage2, MouseLeave(0, 0))
+            leave = read_intent(stage2.projection, stage2, MouseLeave(0, 0; time = 0.0))
             _sc_apply(plot, leave)
             @test plot.hovered === nothing
             @test plot.cursor === nothing
@@ -435,7 +435,7 @@ function test_sequencechart_projection()
             stage2 = _stage2_iomap(iomap)
             # A click on the background is not a selection of anything.
             @test read_intent(stage2.projection, stage2,
-                              MousePress(:left, 2, 2, _sc_no_modifier)) === nothing
+                              MousePress(:left, 2, 2, _sc_no_modifier; time = 0.0)) === nothing
         end
 
         @testset "long arrows split" begin
@@ -670,18 +670,18 @@ function test_sequencechart_selection()
         @testset "arrow keys walk the parts" begin
             chart = _sc_chart()
             chart.selection = nothing
-            op = read_gesture(chart, KeyDown(:right, _sc_no_modifier))
+            op = read_gesture(chart, KeyDown(:right, _sc_no_modifier; time = 0.0))
             @test op isa ReplaceSelectionOperation
             _sc_apply(chart, op)
             @test get_sequence_chart_part_index(chart, chart.selection) == 1
 
             for expected in 2:6
-                _sc_apply(chart, read_gesture(chart, KeyDown(:down, _sc_no_modifier)))
+                _sc_apply(chart, read_gesture(chart, KeyDown(:down, _sc_no_modifier; time = 0.0)))
                 @test get_sequence_chart_part_index(chart, chart.selection) == expected
             end
             # At the end there is nowhere to go, so the gesture is declined
             # rather than consumed.
-            @test read_gesture(chart, KeyDown(:down, _sc_no_modifier)) === nothing
+            @test read_gesture(chart, KeyDown(:down, _sc_no_modifier; time = 0.0)) === nothing
         end
 
         @testset "Alt and an arrow walk the chart as they walk any document" begin
@@ -690,30 +690,30 @@ function test_sequencechart_selection()
             chart.selection = EmptyReference()
             # The whole chart: nothing above it, no sibling, and down is the
             # first part.
-            @test read_gesture(chart, KeyDown(:up, alt)) === nothing
-            @test read_gesture(chart, KeyDown(:left, alt)) === nothing
-            @test read_gesture(chart, KeyDown(:right, alt)) === nothing
-            _sc_apply(chart, read_gesture(chart, KeyDown(:down, alt)))
+            @test read_gesture(chart, KeyDown(:up, alt; time = 0.0)) === nothing
+            @test read_gesture(chart, KeyDown(:left, alt; time = 0.0)) === nothing
+            @test read_gesture(chart, KeyDown(:right, alt; time = 0.0)) === nothing
+            _sc_apply(chart, read_gesture(chart, KeyDown(:down, alt; time = 0.0)))
             @test get_sequence_chart_part_index(chart, chart.selection) == 1
             # Sideways between the parts; the first part keeps the selection.
-            _sc_apply(chart, read_gesture(chart, KeyDown(:right, alt)))
+            _sc_apply(chart, read_gesture(chart, KeyDown(:right, alt; time = 0.0)))
             @test get_sequence_chart_part_index(chart, chart.selection) == 2
-            _sc_apply(chart, read_gesture(chart, KeyDown(:left, alt)))
+            _sc_apply(chart, read_gesture(chart, KeyDown(:left, alt; time = 0.0)))
             @test get_sequence_chart_part_index(chart, chart.selection) == 1
-            _sc_apply(chart, read_gesture(chart, KeyDown(:left, alt)))
+            _sc_apply(chart, read_gesture(chart, KeyDown(:left, alt; time = 0.0)))
             @test get_sequence_chart_part_index(chart, chart.selection) == 1
             # A part has nothing below it here, and up is the whole chart.
-            @test read_gesture(chart, KeyDown(:down, alt)) === nothing
-            _sc_apply(chart, read_gesture(chart, KeyDown(:up, alt)))
+            @test read_gesture(chart, KeyDown(:down, alt; time = 0.0)) === nothing
+            _sc_apply(chart, read_gesture(chart, KeyDown(:up, alt; time = 0.0)))
             @test get_sequence_chart_part_index(chart, chart.selection) == 0
         end
 
         @testset "arrow keys walk the trace once an event is selected" begin
             chart = _sc_chart()
             chart.selection = get_event_reference(chart, 3)
-            _sc_apply(chart, read_gesture(chart, KeyDown(:right, _sc_no_modifier)))
+            _sc_apply(chart, read_gesture(chart, KeyDown(:right, _sc_no_modifier; time = 0.0)))
             @test get_selected_event(chart) == 4
-            _sc_apply(chart, read_gesture(chart, KeyDown(:left, _sc_no_modifier)))
+            _sc_apply(chart, read_gesture(chart, KeyDown(:left, _sc_no_modifier; time = 0.0)))
             @test get_selected_event(chart) == 3
         end
 
@@ -721,9 +721,9 @@ function test_sequencechart_selection()
             # Events 1 and 6 are the client's; everything between is not.
             chart = _sc_chart()
             chart.selection = get_event_reference(chart, 1)
-            _sc_apply(chart, read_gesture(chart, KeyDown(:right, _sc_shift)))
+            _sc_apply(chart, read_gesture(chart, KeyDown(:right, _sc_shift; time = 0.0)))
             @test get_selected_event(chart) == 6
-            @test read_gesture(chart, KeyDown(:right, _sc_shift)) === nothing
+            @test read_gesture(chart, KeyDown(:right, _sc_shift; time = 0.0)) === nothing
         end
 
         @testset "ctrl follows causality" begin
@@ -731,21 +731,21 @@ function test_sequencechart_selection()
             # next to this" but "what caused it".
             chart = _sc_chart()
             chart.selection = get_event_reference(chart, 4)
-            _sc_apply(chart, read_gesture(chart, KeyDown(:left, _sc_ctrl)))
+            _sc_apply(chart, read_gesture(chart, KeyDown(:left, _sc_ctrl; time = 0.0)))
             @test get_selected_event(chart) == 3       # arrow 3 runs 3 → 4
 
-            _sc_apply(chart, read_gesture(chart, KeyDown(:right, _sc_ctrl)))
+            _sc_apply(chart, read_gesture(chart, KeyDown(:right, _sc_ctrl; time = 0.0)))
             @test get_selected_event(chart) == 4
 
             # An occurrence nothing caused declines rather than jumping.
             chart.selection = get_event_reference(chart, 1)
-            @test read_gesture(chart, KeyDown(:left, _sc_ctrl)) === nothing
+            @test read_gesture(chart, KeyDown(:left, _sc_ctrl; time = 0.0)) === nothing
         end
 
         @testset "lanes reorder" begin
             chart = _sc_chart()
             chart.selection = get_axis_reference(chart, 1)
-            op = read_gesture(chart, KeyDown(:down, ModifierKeys(; ctrl=true, shift=true)))
+            op = read_gesture(chart, KeyDown(:down, ModifierKeys(; ctrl=true, shift=true); time = 0.0))
             @test op !== nothing
             _sc_apply(chart, op)
             @test get_axis_display_order(chart) == [2, 1, 3]

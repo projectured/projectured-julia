@@ -44,14 +44,14 @@ function test_scroll_pane_hover()
 
         y = 100
         getfield(pane, :scroll_position)[] = Point2D(0, 0)
-        press_unscrolled = row_of(MousePress(:left, 20, y))
-        hover_unscrolled = row_of(MouseMove(20, y))
+        press_unscrolled = row_of(MousePress(:left, 20, y; time = 0.0))
+        hover_unscrolled = row_of(MouseMove(20, y; time = 0.0))
         @test hover_unscrolled !== nothing
 
         # Scroll by whole rows and ask again at the SAME pixel.
         getfield(pane, :scroll_position)[] = Point2D(0, 120)
-        press_scrolled = row_of(MousePress(:left, 20, y))
-        hover_scrolled = row_of(MouseMove(20, y))
+        press_scrolled = row_of(MousePress(:left, 20, y; time = 0.0))
+        hover_scrolled = row_of(MouseMove(20, y; time = 0.0))
 
         # Scrolling has to change what is under the pointer …
         @test hover_scrolled != hover_unscrolled
@@ -76,13 +76,13 @@ function test_scroll_pane_hover()
         unscrolled = print_document(projection,
             WidgetScrollPane(_scroll_pane_list(); size = Point2D(200, 200)))
         for y in (10, 100, 190)
-            press = MousePress(:left, 20, y)
+            press = MousePress(:left, 20, y; time = 0.0)
             row = _scroll_pane_row(projection, following, press)
             @test row == _scroll_pane_row(projection, scrolled, press)
             @test row != _scroll_pane_row(projection, unscrolled, press)
         end
         # The bottom of the pane is the last row.
-        @test string(_scroll_pane_row(projection, following, MousePress(:left, 20, 190))) ==
+        @test string(_scroll_pane_row(projection, following, MousePress(:left, 20, 190; time = 0.0))) ==
               ".content.items[40]"
     end
 
@@ -110,7 +110,7 @@ function test_scroll_pane_hover()
                              scroll_position = Point2D(0, room)))
         # The press lands past the card's padding and chevron column, on the
         # last row of the list.
-        press = MousePress(:left, 60, 160)
+        press = MousePress(:left, 60, 160; time = 0.0)
         @test string(_scroll_pane_row(projection, following, press)) ==
               ".content.content.items[40]"
         @test _scroll_pane_row(projection, following, press) ==
@@ -131,7 +131,7 @@ function test_scroll_pane_hover()
         @test room > 0
         @test Int(_scroll_pane_viewport(iomap).content.y) == -room
         # Up one notch: the pane leaves the end, and the owner's cell says so.
-        up = read_intent(projection, iomap, MouseScroll(0, 1, 100, 100))
+        up = read_intent(projection, iomap, MouseScroll(0, 1, 100, 100; time = 0.0))
         @test up !== nothing
         evaluate_operation(nothing, up)
         @test owned[] == false

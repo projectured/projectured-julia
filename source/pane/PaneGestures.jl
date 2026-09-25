@@ -172,9 +172,12 @@ end
     # name, so a key that means something else keeps meaning it — the rule body
     # is the guard, because a `when(…)` guard sees only the event's own fields.
     KeyDown(:escape;) => "Leave the tab name" => _leave_title(doc)
-    KeyPress(c, t) => "Type in the tab name" => _title_edit(doc, KeyPress(c, t, _NO_MODIFIERS))
+    KeyPress(c, t) => "Type in the tab name" => _title_edit(doc, KeyPress(c, t, _NO_MODIFIERS;
+                                                                          time = time()))
     KeyDown(:backspace;) =>
-        "Delete backward in the tab name" => _title_edit(doc, KeyDown(:backspace, _NO_MODIFIERS))
+        "Delete backward in the tab name" => _title_edit(doc, KeyDown(:backspace, _NO_MODIFIERS;
+                                                                      time = time()))
     KeyDown(:delete;) =>
-        "Delete forward in the tab name" => _title_edit(doc, KeyDown(:delete, _NO_MODIFIERS))
+        "Delete forward in the tab name" => _title_edit(doc, KeyDown(:delete, _NO_MODIFIERS;
+                                                                     time = time()))
 end

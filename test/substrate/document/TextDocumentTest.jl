@@ -97,24 +97,24 @@ b = caret(fb(Int[1, 2], 0))
 # Character motion is `± 1` in the flat stream. Every offset — including the break
 # and the indentation gap between the lines — is now a valid caret rest (those
 # positions are deletable), so motion no longer skips them.
-motion(f, key) = cflat(read_bound_gesture(caret(f), KeyDown(key, ModifierKeys())))
+motion(f, key) = cflat(read_bound_gesture(caret(f), KeyDown(key, ModifierKeys(); time = 0.0)))
 @test motion(fb(Int[1, 1], 2), :right) == fb(Int[1, 1], 3)   # 2 → 3
 @test motion(fb(Int[1, 1], 5), :right) == fb(Int[1, 2], 1)   # 5 → 6, into span 2
 @test motion(fb(Int[1, 2], 6), :right) == 12                 # 11 → 12, onto the break gap
 @test motion(fb(Int[2, 1], 0), :left)  == 13                 # 14 → 13, into the indent gap
 
 # Bare End is geometry — TextToGraphics owns it, the domain table has no binding.
-@test read_bound_gesture(caret(fb(Int[1, 1], 0)), KeyDown(:end, ModifierKeys())) === nothing
+@test read_bound_gesture(caret(fb(Int[1, 1], 0)), KeyDown(:end, ModifierKeys(); time = 0.0)) === nothing
 # Ctrl+End reaches the flat end; Ctrl+Left is word-wise.
-@test cflat(read_bound_gesture(caret(fb(Int[1, 1], 0)), KeyDown(:end, ModifierKeys(; ctrl = true)))) ==
+@test cflat(read_bound_gesture(caret(fb(Int[1, 1], 0)), KeyDown(:end, ModifierKeys(; ctrl = true); time = 0.0))) ==
       fb(Int[2, 1], 6)
-@test cflat(read_bound_gesture(caret(fb(Int[1, 2], 6)), KeyDown(:left, ModifierKeys(; ctrl = true)))) ==
+@test cflat(read_bound_gesture(caret(fb(Int[1, 2], 6)), KeyDown(:left, ModifierKeys(; ctrl = true); time = 0.0))) ==
       fb(Int[1, 2], 1)
 
 # Typing edits that line's own span (a flat ReplaceTextRangeOperation, lowered to a
 # span edit as it threads up), and the caret advances past the insert.
 b = caret(fb(Int[2, 1], 6))
-op = read_bound_gesture(b, KeyPress('!'))
+op = read_bound_gesture(b, KeyPress('!'; time = 0.0))
 @test op isa ReplaceTextRangeOperation
 evaluate_operation((document = b,), op)
 @test b.elements[2].elements[1].content == "second!"
@@ -124,7 +124,7 @@ evaluate_operation((document = b,), op)
 # before it (the indentation gap); the standalone evaluate still declines a gap /
 # cross-span delete (v1), leaving the line unchanged.
 bb  = caret(fb(Int[2, 1], 0))
-bop = read_bound_gesture(bb, KeyDown(:backspace, ModifierKeys()))
+bop = read_bound_gesture(bb, KeyDown(:backspace, ModifierKeys(); time = 0.0))
 @test bop isa ReplaceTextRangeOperation
 evaluate_operation((document = bb,), bop)
 @test bb.elements[2].elements[1].content == "second"
@@ -137,7 +137,7 @@ flat = with_selection(TextBlock(TextString("ab"),
 @test get_flat_offsets(flat) == [0, 2, 3]
 @test get_flat_selection(flat) == (4, 4, true)
 @test TextModule.get_flat_cursor_coordinate(flat) == (span = [3], char = 1)
-@test cflat(read_bound_gesture(flat, KeyDown(:left, ModifierKeys()))) == 3
+@test cflat(read_bound_gesture(flat, KeyDown(:left, ModifierKeys(); time = 0.0))) == 3
 
 end # @testset "TextLine: line-structured blocks"
 
@@ -150,23 +150,23 @@ end # @testset "TextLine: line-structured blocks"
     range = TextModule.make_flat_range_reference(3, 5)
 
     # From a caret, the key's direction makes the range.
-    @test pair(read_bound_gesture(at(caret), KeyDown(:left, shift))) == (4, 5)
-    @test pair(read_bound_gesture(at(caret), KeyDown(:right, shift))) == (5, 6)
-    @test pair(read_bound_gesture(at(caret), KeyDown(:left, ctrl_shift))) == (0, 5)
-    @test pair(read_bound_gesture(at(caret), KeyDown(:right, ctrl_shift))) == (5, 6)
-    @test pair(read_bound_gesture(at(caret), KeyDown(:home, ctrl_shift))) == (0, 5)
-    @test pair(read_bound_gesture(at(caret), KeyDown(:end, ctrl_shift))) == (5, 11)
+    @test pair(read_bound_gesture(at(caret), KeyDown(:left, shift; time = 0.0))) == (4, 5)
+    @test pair(read_bound_gesture(at(caret), KeyDown(:right, shift; time = 0.0))) == (5, 6)
+    @test pair(read_bound_gesture(at(caret), KeyDown(:left, ctrl_shift; time = 0.0))) == (0, 5)
+    @test pair(read_bound_gesture(at(caret), KeyDown(:right, ctrl_shift; time = 0.0))) == (5, 6)
+    @test pair(read_bound_gesture(at(caret), KeyDown(:home, ctrl_shift; time = 0.0))) == (0, 5)
+    @test pair(read_bound_gesture(at(caret), KeyDown(:end, ctrl_shift; time = 0.0))) == (5, 11)
 
     # A range stays ordered: the left keys move its start, the right keys its stop.
-    @test pair(read_bound_gesture(at(range), KeyDown(:left, shift))) == (2, 5)
-    @test pair(read_bound_gesture(at(range), KeyDown(:right, shift))) == (3, 6)
+    @test pair(read_bound_gesture(at(range), KeyDown(:left, shift; time = 0.0))) == (2, 5)
+    @test pair(read_bound_gesture(at(range), KeyDown(:right, shift; time = 0.0))) == (3, 6)
     # The ends stop at the ends of the text.
     @test pair(read_bound_gesture(at(TextModule.make_flat_range_reference(0, 11)),
-                                  KeyDown(:left, shift))) == (0, 11)
+                                  KeyDown(:left, shift; time = 0.0))) == (0, 11)
     # A plain arrow collapses the range to its near end, as before.
-    @test read_bound_gesture(at(range), KeyDown(:left, ModifierKeys())).path.head.start == 3
+    @test read_bound_gesture(at(range), KeyDown(:left, ModifierKeys(); time = 0.0)).path.head.start == 3
     # A whole element is not a character selection, and the key declines.
     @test read_bound_gesture(at(ConcreteReference(TextSpanReferenceStep(0, 5), EmptyReference())),
-                             KeyDown(:left, shift)) === nothing
+                             KeyDown(:left, shift; time = 0.0)) === nothing
 end # @testset "Shift and a motion key select a range"
 end # test_text

@@ -11,7 +11,7 @@ function test_focusing()
     # ── focus out: Ctrl+, drops the last step of the focus part ──────────────
     let fp = FocusingProjection(part_type=Vector, part=Reference(PositionReferenceStep(1)))
         iomap = print_document(fp, nothing, input, nothing)
-        op = read_intent(fp, iomap, KeyDown(:comma, ctrl))
+        op = read_intent(fp, iomap, KeyDown(:comma, ctrl; time = 0.0))
         @test op isa ReplaceFocusPartOperation
         @test op.projection === fp
         @test op.part == EmptyReference()           # the single step was dropped
@@ -20,19 +20,19 @@ function test_focusing()
     # ── focus out declines when already at the root (empty part) ─────────────
     let fp = FocusingProjection()                         # part defaults to ∅
         iomap = print_document(fp, nothing, input, nothing)
-        @test read_intent(fp, iomap, KeyDown(:comma, ctrl)) === nothing
+        @test read_intent(fp, iomap, KeyDown(:comma, ctrl; time = 0.0)) === nothing
     end
 
     # ── focus in declines when the input has no selection to descend into ────
     let fp = FocusingProjection(part_type=Vector, part=Reference(PositionReferenceStep(1)))
         iomap = print_document(fp, nothing, input, nothing)   # raw Vector: no `.selection`
-        @test read_intent(fp, iomap, KeyDown(:period, ctrl)) === nothing
+        @test read_intent(fp, iomap, KeyDown(:period, ctrl; time = 0.0)) === nothing
     end
 
     # ── exact modifiers: a bare comma (no Ctrl) is not the focus-out gesture ──
     let fp = FocusingProjection(part_type=Vector, part=Reference(PositionReferenceStep(1)))
         iomap = print_document(fp, nothing, input, nothing)
-        @test read_intent(fp, iomap, KeyDown(:comma, ModifierKeys())) === nothing
+        @test read_intent(fp, iomap, KeyDown(:comma, ModifierKeys(); time = 0.0)) === nothing
     end
 end
 

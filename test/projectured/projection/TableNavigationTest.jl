@@ -20,17 +20,17 @@
 
 function explore_table_selections(document, projection; onstate=nothing)
     nav_keys = [
-        KeyDown(:up,    ModifierKeys()),
-        KeyDown(:down,  ModifierKeys()),
-        KeyDown(:left,  ModifierKeys()),
-        KeyDown(:right, ModifierKeys()),
-        KeyDown(:up,    ModifierKeys(alt=true)),
-        KeyDown(:down,  ModifierKeys(alt=true)),
-        KeyDown(:left,  ModifierKeys(alt=true)),
-        KeyDown(:right, ModifierKeys(alt=true)),
-        KeyDown(:space, ModifierKeys(shift=true)),
-        KeyDown(:space, ModifierKeys(ctrl=true)),
-        KeyDown(:return, ModifierKeys()),
+        KeyDown(:up,    ModifierKeys(); time = 0.0),
+        KeyDown(:down,  ModifierKeys(); time = 0.0),
+        KeyDown(:left,  ModifierKeys(); time = 0.0),
+        KeyDown(:right, ModifierKeys(); time = 0.0),
+        KeyDown(:up,    ModifierKeys(alt=true); time = 0.0),
+        KeyDown(:down,  ModifierKeys(alt=true); time = 0.0),
+        KeyDown(:left,  ModifierKeys(alt=true); time = 0.0),
+        KeyDown(:right, ModifierKeys(alt=true); time = 0.0),
+        KeyDown(:space, ModifierKeys(shift=true); time = 0.0),
+        KeyDown(:space, ModifierKeys(ctrl=true); time = 0.0),
+        KeyDown(:return, ModifierKeys(); time = 0.0),
     ]
 
     visited = Set{String}()
@@ -44,7 +44,7 @@ function explore_table_selections(document, projection; onstate=nothing)
     end
 
     op = try
-        read_intent(projection, iomap, KeyDown(:home, ModifierKeys(ctrl=true, alt=true)))
+        read_intent(projection, iomap, KeyDown(:home, ModifierKeys(ctrl=true, alt=true); time = 0.0))
     catch e
         return (state_count=0, errors=["Ctrl+Alt+Home failed: $e"])
     end
@@ -169,19 +169,19 @@ end
     nav(g, sel) = _table_nav(doc, proj, g, sel)
 
     # Ctrl+Alt+Home → whole table from anywhere.
-    @test nav(KeyDown(:home, ModifierKeys(ctrl=true, alt=true)), _wt_cell(2, 2)) == "∅"
+    @test nav(KeyDown(:home, ModifierKeys(ctrl=true, alt=true); time = 0.0), _wt_cell(2, 2)) == "∅"
 
     # Plain (unmodified) arrows move the active cell once a whole cell is already
     # selected — no Alt needed in structural mode — with edge clamping.
-    @test nav(KeyDown(:down,  ModifierKeys()), _wt_cell(2, 2)) == ".rows[3][2]"
-    @test nav(KeyDown(:up,    ModifierKeys()), _wt_cell(2, 2)) == ".rows[1][2]"
-    @test nav(KeyDown(:left,  ModifierKeys()), _wt_cell(2, 2)) == ".rows[2][1]"
-    @test nav(KeyDown(:right, ModifierKeys()), _wt_cell(2, 2)) == ".rows[2][3]"
-    @test nav(KeyDown(:up,    ModifierKeys()), _wt_cell(1, 2)) == ".rows[1][2]"   # clamp top
-    @test nav(KeyDown(:right, ModifierKeys()), _wt_cell(1, 3)) == ".rows[1][3]"   # clamp right
+    @test nav(KeyDown(:down,  ModifierKeys(); time = 0.0), _wt_cell(2, 2)) == ".rows[3][2]"
+    @test nav(KeyDown(:up,    ModifierKeys(); time = 0.0), _wt_cell(2, 2)) == ".rows[1][2]"
+    @test nav(KeyDown(:left,  ModifierKeys(); time = 0.0), _wt_cell(2, 2)) == ".rows[2][1]"
+    @test nav(KeyDown(:right, ModifierKeys(); time = 0.0), _wt_cell(2, 2)) == ".rows[2][3]"
+    @test nav(KeyDown(:up,    ModifierKeys(); time = 0.0), _wt_cell(1, 2)) == ".rows[1][2]"   # clamp top
+    @test nav(KeyDown(:right, ModifierKeys(); time = 0.0), _wt_cell(1, 3)) == ".rows[1][3]"   # clamp right
 
     # Alt+arrows still navigate from a whole cell too.
-    @test nav(KeyDown(:down,  ModifierKeys(alt=true)), _wt_cell(2, 2)) == ".rows[3][2]"
+    @test nav(KeyDown(:down,  ModifierKeys(alt=true); time = 0.0), _wt_cell(2, 2)) == ".rows[3][2]"
 
     # On an in-cell cursor a *plain* arrow keeps editing the text (declined here →
     # routed into content), while Alt+arrow first promotes to the whole cell. The
@@ -191,31 +191,31 @@ end
     incell = let
         clear_selection!(doc)
         set_selection!(doc, _wt_cell(2, 2))
-        op = read_intent(proj, print_document(proj, doc), KeyDown(:return, ModifierKeys()))
+        op = read_intent(proj, print_document(proj, doc), KeyDown(:return, ModifierKeys(); time = 0.0))
         op.path
     end
     # Alt+arrow promotes an in-cell cursor to the whole cell, then moves.
-    @test nav(KeyDown(:down, ModifierKeys(alt=true)), incell) == ".rows[3][2]"
-    @test !startswith(nav(KeyDown(:down, ModifierKeys()), incell), ".rows[3][2]")
+    @test nav(KeyDown(:down, ModifierKeys(alt=true); time = 0.0), incell) == ".rows[3][2]"
+    @test !startswith(nav(KeyDown(:down, ModifierKeys(); time = 0.0), incell), ".rows[3][2]")
 
     # Shift+Space / Ctrl+Space widen the active cell to its row / column.
-    @test nav(KeyDown(:space, ModifierKeys(shift=true)), _wt_cell(2, 2)) == ".rows[2]"
-    @test nav(KeyDown(:space, ModifierKeys(ctrl=true)),  _wt_cell(2, 2)) == ".column_headers[2]"
+    @test nav(KeyDown(:space, ModifierKeys(shift=true); time = 0.0), _wt_cell(2, 2)) == ".rows[2]"
+    @test nav(KeyDown(:space, ModifierKeys(ctrl=true); time = 0.0),  _wt_cell(2, 2)) == ".column_headers[2]"
 
     # A whole row steps between rows and narrows to its first cell.
-    @test nav(KeyDown(:down,  ModifierKeys()), _wt_row(2)) == ".rows[3]"
-    @test nav(KeyDown(:up,    ModifierKeys()), _wt_row(2)) == ".rows[1]"
-    @test nav(KeyDown(:right, ModifierKeys()), _wt_row(2)) == ".rows[2][1]"
-    @test nav(KeyDown(:return, ModifierKeys()), _wt_row(2)) == ".rows[2][1]"
+    @test nav(KeyDown(:down,  ModifierKeys(); time = 0.0), _wt_row(2)) == ".rows[3]"
+    @test nav(KeyDown(:up,    ModifierKeys(); time = 0.0), _wt_row(2)) == ".rows[1]"
+    @test nav(KeyDown(:right, ModifierKeys(); time = 0.0), _wt_row(2)) == ".rows[2][1]"
+    @test nav(KeyDown(:return, ModifierKeys(); time = 0.0), _wt_row(2)) == ".rows[2][1]"
 
     # A whole column steps between columns and narrows to its first cell.
-    @test nav(KeyDown(:right, ModifierKeys()), _wt_col(2)) == ".column_headers[3]"
-    @test nav(KeyDown(:left,  ModifierKeys()), _wt_col(2)) == ".column_headers[1]"
-    @test nav(KeyDown(:down,  ModifierKeys()), _wt_col(2)) == ".rows[1][2]"
-    @test nav(KeyDown(:return, ModifierKeys()), _wt_col(2)) == ".rows[1][2]"
+    @test nav(KeyDown(:right, ModifierKeys(); time = 0.0), _wt_col(2)) == ".column_headers[3]"
+    @test nav(KeyDown(:left,  ModifierKeys(); time = 0.0), _wt_col(2)) == ".column_headers[1]"
+    @test nav(KeyDown(:down,  ModifierKeys(); time = 0.0), _wt_col(2)) == ".rows[1][2]"
+    @test nav(KeyDown(:return, ModifierKeys(); time = 0.0), _wt_col(2)) == ".rows[1][2]"
 
     # Enter on a whole cell drops a real character cursor into its content.
-    @test startswith(nav(KeyDown(:return, ModifierKeys()), _wt_cell(2, 2)), ".rows[2][2]")
+    @test startswith(nav(KeyDown(:return, ModifierKeys(); time = 0.0), _wt_cell(2, 2)), ".rows[2][2]")
 end
 
 @testset "Alt+click promotes a data cell to a whole-cell pick" begin
@@ -231,8 +231,8 @@ end
     cx = div(geom.col_x[gc] + geom.col_x[gc+1], 2)
     cy = div(geom.row_y[gr] + geom.row_y[gr+1], 2)
 
-    alt_op   = read_intent(proj, io, MousePress(:left, cx, cy, ModifierKeys(alt=true)))
-    plain_op = read_intent(proj, io, MousePress(:left, cx, cy, ModifierKeys()))
+    alt_op   = read_intent(proj, io, MousePress(:left, cx, cy, ModifierKeys(alt=true); time = 0.0))
+    plain_op = read_intent(proj, io, MousePress(:left, cx, cy, ModifierKeys(); time = 0.0))
 
     @test alt_op isa ReplaceSelectionOperation
     @test string(alt_op.path) == ".rows[2][2]"
@@ -251,19 +251,19 @@ end
     # Column header strip (grid row 1) over data column 3.
     gc = 3 + geom.col_offset
     cx = div(geom.col_x[gc] + geom.col_x[gc+1], 2)
-    col_op = read_intent(proj, io, MousePress(:left, cx, div(geom.row_y[2], 2), ModifierKeys()))
+    col_op = read_intent(proj, io, MousePress(:left, cx, div(geom.row_y[2], 2), ModifierKeys(); time = 0.0))
     @test col_op isa ReplaceSelectionOperation
     @test string(col_op.path) == ".column_headers[3]"
 
     # Row header strip (grid column 1) over data row 2.
     gr = 2 + geom.row_offset
     cy = div(geom.row_y[gr] + geom.row_y[gr+1], 2)
-    row_op = read_intent(proj, io, MousePress(:left, div(geom.col_x[2], 2), cy, ModifierKeys()))
+    row_op = read_intent(proj, io, MousePress(:left, div(geom.col_x[2], 2), cy, ModifierKeys(); time = 0.0))
     @test row_op isa ReplaceSelectionOperation
     @test string(row_op.path) == ".rows[2]"
 
     # Top-left corner (header intersection) selects the whole table.
-    corner_op = read_intent(proj, io, MousePress(:left, div(geom.col_x[2], 2), div(geom.row_y[2], 2), ModifierKeys()))
+    corner_op = read_intent(proj, io, MousePress(:left, div(geom.col_x[2], 2), div(geom.row_y[2], 2), ModifierKeys(); time = 0.0))
     @test corner_op isa ReplaceSelectionOperation
     @test corner_op.path isa EmptyReference
 end

@@ -374,32 +374,32 @@ function sdl_keysym_to_symbol(keysym::Int32)::Symbol
 end
 
 """
-    sdl_to_keydown(keysym, mod, is_repeat) -> KeyDown
+    sdl_to_keydown(keysym, mod, is_repeat; time) -> KeyDown
 
-Build a `KeyDown` from SDL key-down event fields.
+Build a `KeyDown` from SDL key-down event fields, at the time `time`.
 """
-function sdl_to_keydown(keysym::Int32, mod::UInt16, is_repeat::Bool)::KeyDown
-    KeyDown(sdl_keysym_to_symbol(keysym), sdl_modifiers(mod), is_repeat)
+function sdl_to_keydown(keysym::Int32, mod::UInt16, is_repeat::Bool; time::Real)::KeyDown
+    KeyDown(sdl_keysym_to_symbol(keysym), sdl_modifiers(mod), is_repeat; time)
 end
 
 """
-    sdl_to_keyup(keysym, mod) -> KeyUp
+    sdl_to_keyup(keysym, mod; time) -> KeyUp
 
-Build a `KeyUp` from SDL key-up event fields.
+Build a `KeyUp` from SDL key-up event fields, at the time `time`.
 """
-function sdl_to_keyup(keysym::Int32, mod::UInt16)::KeyUp
-    KeyUp(sdl_keysym_to_symbol(keysym), sdl_modifiers(mod))
+function sdl_to_keyup(keysym::Int32, mod::UInt16; time::Real)::KeyUp
+    KeyUp(sdl_keysym_to_symbol(keysym), sdl_modifiers(mod); time)
 end
 
 """
-    sdl_to_keypress(evt) -> Union{KeyPress, Nothing}
+    sdl_to_keypress(evt; time) -> Union{KeyPress, Nothing}
 
-Build a `KeyPress` from an `SDL_TEXTINPUT` event. Returns `nothing` if
+Build a `KeyPress` at the time `time` from an `SDL_TEXTINPUT` event. Returns `nothing` if
 the event carries no printable text (e.g. empty or invalid UTF-8).
 `SDL_TEXTINPUT` provides a null-terminated UTF-8 string in `evt.text.text`
 (a `NTuple{32,UInt8}`).
 """
-function sdl_to_keypress(evt)::Union{KeyPress,Nothing}
+function sdl_to_keypress(evt; time::Real)::Union{KeyPress,Nothing}
     text_bytes = evt.text.text  # NTuple{32,UInt8}
     len = 0
     for b in text_bytes
@@ -415,7 +415,15 @@ function sdl_to_keypress(evt)::Union{KeyPress,Nothing}
     isempty(text) && return nothing
     ch = first(text)
     mods = _current_modifiers()
-    KeyPress(ch, text, mods)
+    KeyPress(ch, text, mods; time)
+end
+
+# The time of an SDL event on the clock of `time()`. SDL stamps each event with
+# the milliseconds since `SDL_Init`, so the ticks now minus the stamp is the age
+# of the event. The subtraction wraps as the ticks do.
+function _get_sdl_event_time(timestamp::UInt32)
+    age = SDL_GetTicks() - timestamp
+    time() - Int(age) / 1000
 end
 
 # ════════════════════════════════════════════════════════════════════════
@@ -2796,18 +2804,19 @@ function _poll_window_input(backend::SdlBackend)
     while Bool(SDL_PollEvent(event_ref))
         evt = event_ref[]
         t = evt.type
+        event_time = _get_sdl_event_time(evt.common.timestamp)
 
         if t == SDL_QUIT
-            return (WindowInput(:none, WindowQuit()), nothing)
+            return (WindowInput(:none, WindowQuit(; time = event_time)), nothing)
 
         elseif t == 0x00000200  # SDL_WINDOWEVENT
             # event byte 1 = SDL_WindowEventID
             sub = evt.window.event
             wid = _lookup_window_id(backend, evt.window.windowID)
             if sub == UInt8(14)  # SDL_WINDOWEVENT_CLOSE
-                return (WindowInput(wid, WindowClose()), nothing)
+                return (WindowInput(wid, WindowClose(; time = event_time)), nothing)
             elseif sub == UInt8(12)  # SDL_WINDOWEVENT_FOCUS_LOST
-                return (WindowInput(wid, WindowDefocus()), nothing)
+                return (WindowInput(wid, WindowDefocus(; time = event_time)), nothing)
             elseif sub == UInt8(5)  # SDL_WINDOWEVENT_RESIZED (external/user only)
                 # SDL reports device pixels; the document works in logical pixels.
                 nw = _to_logical(Int(evt.window.data1), ratio)
@@ -2820,7 +2829,8 @@ function _poll_window_input(backend::SdlBackend)
                     res.width = nw
                     res.height = nh
                 end
-                return (WindowInput(wid, WindowResize(nw, nh)), nothing)
+                return (WindowInput(wid, WindowResize(nw, nh;
+                                                      time = event_time)), nothing)
             end
             # Other window events are not currently surfaced; keep polling.
             continue
@@ -2834,14 +2844,18 @@ function _poll_window_input(backend::SdlBackend)
             # the insertion, the command palette and every other reader that binds
             # it. The editor loop quits on an Escape that nothing handled.
             is_repeat = evt.key.repeat != 0
-            return (WindowInput(wid, sdl_to_keydown(keysym, evt.key.keysym.mod, is_repeat)), nothing)
+            keydown = sdl_to_keydown(keysym, evt.key.keysym.mod, is_repeat;
+                                     time = event_time)
+            return (WindowInput(wid, keydown), nothing)
 
         elseif t == 0x00000301  # SDL_KEYUP
             wid = _lookup_window_id(backend, evt.key.windowID)
-            return (WindowInput(wid, sdl_to_keyup(evt.key.keysym.sym, evt.key.keysym.mod)), nothing)
+            keyup = sdl_to_keyup(evt.key.keysym.sym, evt.key.keysym.mod;
+                                 time = event_time)
+            return (WindowInput(wid, keyup), nothing)
 
         elseif t == 0x00000303  # SDL_TEXTINPUT
-            kp = sdl_to_keypress(evt)
+            kp = sdl_to_keypress(evt; time = event_time)
             kp === nothing && continue
             wid = _lookup_window_id(backend, evt.text.windowID)
             return (WindowInput(wid, kp), nothing)
@@ -2851,14 +2865,16 @@ function _poll_window_input(backend::SdlBackend)
             mods = _current_modifiers()
             x, y = _to_logical(Int(evt.button.x), ratio), _to_logical(Int(evt.button.y), ratio)
             wid = _lookup_window_id(backend, evt.button.windowID)
-            return (WindowInput(wid, MouseDown(button, x, y, mods)), nothing)
+            return (WindowInput(wid, MouseDown(button, x, y, mods; time = event_time)),
+                    nothing)
 
         elseif t == 0x00000402  # SDL_MOUSEBUTTONUP
             button = _sdl_button_sym(evt.button.button)
             mods = _current_modifiers()
             x, y = _to_logical(Int(evt.button.x), ratio), _to_logical(Int(evt.button.y), ratio)
             wid = _lookup_window_id(backend, evt.button.windowID)
-            return (WindowInput(wid, MouseUp(button, x, y, mods)), nothing)
+            return (WindowInput(wid, MouseUp(button, x, y, mods; time = event_time)),
+                    nothing)
 
         elseif t == 0x00000400  # SDL_MOUSEMOTION
             mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
@@ -2870,7 +2886,8 @@ function _poll_window_input(backend::SdlBackend)
             # run of these, and applies the rate limit to what it keeps.
             return (nothing, WindowInput(wid,
                 MouseMove(_to_logical(Int(evt.motion.x), ratio),
-                          _to_logical(Int(evt.motion.y), ratio), buttons, mods)))
+                          _to_logical(Int(evt.motion.y), ratio), buttons, mods;
+                          time = event_time)))
 
         elseif t == 0x00000403  # SDL_MOUSEWHEEL
             mx_ref, my_ref = Ref{Cint}(0), Ref{Cint}(0)
@@ -2883,7 +2900,7 @@ function _poll_window_input(backend::SdlBackend)
             end
             return (WindowInput(wid,
                 MouseScroll(dx, dy, _to_logical(Int(mx_ref[]), ratio),
-                            _to_logical(Int(my_ref[]), ratio), mods)),
+                            _to_logical(Int(my_ref[]), ratio), mods; time = event_time)),
                 nothing)
         end
     end

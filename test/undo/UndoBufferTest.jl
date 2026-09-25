@@ -194,17 +194,17 @@ function test_undo_buffer()
         editor = _UndoEditor(buffer)
 
         # Nothing recorded yet: the key is not swallowed.
-        @test !(read_intent(projection, iomap, KeyDown(:z, ctrl)) isa UndoOperation)
+        @test !(read_intent(projection, iomap, KeyDown(:z, ctrl; time = 0.0)) isa UndoOperation)
 
         evaluate_operation(editor, read_intent(projection, iomap, _write_first("changed")))
-        undo = read_intent(projection, iomap, KeyDown(:z, ctrl))
+        undo = read_intent(projection, iomap, KeyDown(:z, ctrl; time = 0.0))
         @test undo isa UndoOperation
         @test undo.buffer === buffer
 
         evaluate_operation(editor, undo)
         @test _texts(list) == ["a"]
-        @test read_intent(projection, iomap, KeyDown(:y, ctrl)) isa RedoOperation
-        @test read_intent(projection, iomap, KeyDown(:z, ctrl_shift)) isa RedoOperation
+        @test read_intent(projection, iomap, KeyDown(:y, ctrl; time = 0.0)) isa RedoOperation
+        @test read_intent(projection, iomap, KeyDown(:z, ctrl_shift; time = 0.0)) isa RedoOperation
     end
 
     @testset "a barrier stops the way back" begin
@@ -265,7 +265,7 @@ function test_undo_buffer()
         editor = _UndoEditor(buffer)
         press!(gesture, text) = evaluate_operation(editor,
             read_intent(projection, nothing, Intent(gesture, _write_first(text)), iomap).operation)
-        type!(text) = press!(KeyPress(last(text)), text)
+        type!(text) = press!(KeyPress(last(text); time = 0.0), text)
 
         type!("a"); type!("ab"); type!("abc")
         @test length(buffer.undo_entries) == 1
@@ -286,7 +286,7 @@ function test_undo_buffer()
         @test length(buffer.undo_entries) == 3
 
         # A key that is not a character is a step of its own, and ends the run.
-        press!(KeyDown(:backspace, ModifierKeys()), "abcd")
+        press!(KeyDown(:backspace, ModifierKeys(); time = 0.0), "abcd")
         type!("abcdx")
         @test length(buffer.undo_entries) == 5
 
@@ -311,7 +311,7 @@ function test_undo_buffer()
                                            Cell(@computation inner_iomap.output), inner_iomap)
         editor = _UndoEditor(outer)
         type!(text) = evaluate_operation(editor,
-            read_intent(projection, nothing, Intent(KeyPress(last(text)), _write_first(text)),
+            read_intent(projection, nothing, Intent(KeyPress(last(text); time = 0.0), _write_first(text)),
                         outer_iomap).operation)
 
         type!("a"); type!("ab"); type!("abc")
@@ -387,7 +387,7 @@ function test_undo_buffer()
         evaluate_operation(editor, read_intent(projection, outer_iomap, _write_first("changed")))
 
         # Ctrl+Z reaches the inner buffer, and the outer records the undo.
-        undo = read_intent(projection, outer_iomap, KeyDown(:z, ctrl))
+        undo = read_intent(projection, outer_iomap, KeyDown(:z, ctrl; time = 0.0))
         @test undo isa RecordUndoOperation
         @test undo.buffer === outer
         @test get_wrapped_operation(undo) isa UndoOperation
@@ -405,7 +405,7 @@ function test_undo_buffer()
         iomap = print_document(projection, IdentityProjection(), buffer, PrinterContext())
         editor = _UndoEditor(buffer)
         evaluate_operation(editor, read_intent(projection, iomap, _write_first("changed")))
-        evaluate_operation(editor, read_intent(projection, iomap, KeyDown(:z, ctrl)))
+        evaluate_operation(editor, read_intent(projection, iomap, KeyDown(:z, ctrl; time = 0.0)))
         @test length(buffer.undo_entries) == 0
     end
 

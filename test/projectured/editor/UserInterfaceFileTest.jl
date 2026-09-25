@@ -15,7 +15,7 @@ function test_user_interface_file()
 
 mktempdir() do dir
     log = GestureLog()
-    record_gesture!(log, KeyDown(:t, ModifierKeys(ctrl = true)), DoNothingOperation())
+    record_gesture!(log, KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0), DoNothingOperation())
     @test length(log.entries) == 1
 
     tree = PaneTree(PaneSplit(:vertical, [

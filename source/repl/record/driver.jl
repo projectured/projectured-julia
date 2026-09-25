@@ -47,15 +47,18 @@ t0 = time()
 # press compiles the same code as a thousand; what has to vary is the KIND of
 # event.
 const GESTURES = Any[
-    MouseMove(40, 200), MouseMove(400, 300), MouseMove(800, 500),
-    MousePress(:left, 400, 300), MousePress(:right, 400, 300),
-    MouseScroll(0, -3, 400, 300), MouseScroll(0, 3, 400, 300),
-    KeyDown(:down, ModifierKeys()), KeyDown(:up, ModifierKeys()),
-    KeyDown(:left, ModifierKeys()), KeyDown(:right, ModifierKeys()),
-    KeyDown(:tab, ModifierKeys()), KeyDown(:home, ModifierKeys()),
-    KeyDown(:end, ModifierKeys()), KeyDown(:backspace, ModifierKeys()),
-    KeyDown(:delete, ModifierKeys()), KeyDown(:return, ModifierKeys()),
-    KeyPress('x'), KeyPress('1'),
+    MouseMove(40, 200; time = t0), MouseMove(400, 300; time = t0),
+    MouseMove(800, 500; time = t0),
+    MousePress(:left, 400, 300; time = t0), MousePress(:right, 400, 300; time = t0),
+    MouseScroll(0, -3, 400, 300; time = t0), MouseScroll(0, 3, 400, 300; time = t0),
+    KeyDown(:down, ModifierKeys(); time = t0), KeyDown(:up, ModifierKeys(); time = t0),
+    KeyDown(:left, ModifierKeys(); time = t0), KeyDown(:right, ModifierKeys(); time = t0),
+    KeyDown(:tab, ModifierKeys(); time = t0), KeyDown(:home, ModifierKeys(); time = t0),
+    KeyDown(:end, ModifierKeys(); time = t0),
+    KeyDown(:backspace, ModifierKeys(); time = t0),
+    KeyDown(:delete, ModifierKeys(); time = t0),
+    KeyDown(:return, ModifierKeys(); time = t0),
+    KeyPress('x'; time = t0), KeyPress('1'; time = t0),
 ]
 
 # One example, opened in the scene the editor builds and driven the way the

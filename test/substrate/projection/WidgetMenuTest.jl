@@ -38,7 +38,7 @@ function _click_first_item(menu, button=:left)
     iomap = print_document(proj, menu)
     xy = _first_text_xy(iomap.output)
     xy === nothing && return (nothing, nothing)
-    op = read_intent(proj, iomap, MousePress(button, xy[1] + 2, xy[2] + 2, ModifierKeys()))
+    op = read_intent(proj, iomap, MousePress(button, xy[1] + 2, xy[2] + 2, ModifierKeys(); time = 0.0))
     (op, iomap)
 end
 
@@ -137,7 +137,7 @@ end
     item = WidgetMenuItem("File"; submenu = submenu)
     iomap = print_document(proj, item)
 
-    op = read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys()))
+    op = read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys(); time = 0.0))
     @test op isa ReplaceViewStateOperation
     popup = _menu_popup(op)
     @test popup isa OpenPopupOperation
@@ -154,7 +154,7 @@ end
     item = WidgetMenuItem("File"; action = (_e) -> error("must not fire"), submenu = submenu)
     iomap = print_document(proj, item)
 
-    op = read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys()))
+    op = read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys(); time = 0.0))
     @test _menu_popup(op) isa OpenPopupOperation   # opened the submenu, did not run the action
     @test !(op isa CompoundOperation)
 end
@@ -163,7 +163,7 @@ end
     submenu = WidgetMenu([WidgetMenuItem("New")])
     item = WidgetMenuItem("File"; submenu = submenu, enabled = false)
     iomap = print_document(proj, item)
-    @test read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys())) === nothing
+    @test read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys(); time = 0.0)) === nothing
 end
 
 @testset "a menu bar moves the popup of an item into its own frame" begin
@@ -174,7 +174,7 @@ end
     # The press lands on the second item, and the popup opens below that item,
     # in the frame of the bar: its position is where the bar placed the item.
     (ox, oy, cim) = getfield(_menu_iomap_of(iomap, bar), :child_iomaps)[][2]
-    popup = _menu_popup(read_intent(proj, iomap, MousePress(:left, ox + 3, oy + 3, ModifierKeys())))
+    popup = _menu_popup(read_intent(proj, iomap, MousePress(:left, ox + 3, oy + 3, ModifierKeys(); time = 0.0)))
     @test popup isa OpenPopupOperation
     @test ox > 0
     @test popup.x == ox
@@ -189,7 +189,7 @@ end
     iomap = print_document(proj, menu)
     xy = _first_text_xy(iomap.output)
     # The menu routes the crossing to the hit item, which flips `hovered`.
-    op = read_intent(proj, iomap, MouseEnter(xy[1] + 2, xy[2] + 2, MouseButtons(), ModifierKeys()))
+    op = read_intent(proj, iomap, MouseEnter(xy[1] + 2, xy[2] + 2, MouseButtons(), ModifierKeys(); time = 0.0))
     @test _view_state_write(op) isa ReplaceReferencedValueOperation
     @test _view_state_write(op).value === true
 

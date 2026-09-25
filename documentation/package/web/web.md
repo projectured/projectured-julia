@@ -14,7 +14,7 @@
 
 `get_web_asset_directory(name)` returns `share/projectured/<name>` beside the executable of a built binary, and `asset/<name>` of the checkout in a Julia session. The client and the fonts come from there.
 
-The backend holds one connection. A second WebSocket gets the message `{"type":"busy"}`, and the backend reads nothing from it. `quit_backend!` closes the connection and the server. It does not call `SDL_Quit`, because the font cache of `ProjecturedSdl`, when that package is loaded in the same process, holds open fonts.
+The backend holds one connection. A second WebSocket gets the message `{"type":"busy"}`, and the backend reads nothing from it. `quit_backend!` closes the connection and the server.
 
 ### Measure
 
@@ -35,6 +35,8 @@ The messages go through an ordered queue to a send task. A patch depends on the 
 ### Events in
 
 The socket handler decodes each JSON message and puts a `WindowInput` into the channel `inbound`. `read_from_devices` takes one event from the channel, or returns `nothing`.
+
+Each client message holds `t`: the time of its browser event in milliseconds since the Unix epoch, `performance.timeOrigin + event.timeStamp`, or the time of the send for a message with no browser event. The event gets `t / 1000`, on the clock of `time()`. A message with no `t` gets the time when it arrives.
 
 | Client message | Event |
 | --- | --- |

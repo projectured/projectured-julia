@@ -138,11 +138,11 @@ end
     chain = ChainingProjection(PrimitiveToText(), TextToGraphics(measure = measure_truetype_text))
     doc = PrimitiveNumber(42)
     set_selection!(doc, _value_range_ref(2, 2))
-    op = read_intent(chain, print_document(chain, doc), KeyPress('a'))
+    op = read_intent(chain, print_document(chain, doc), KeyPress('a'; time = 0.0))
     op === nothing || evaluate_operation((document=doc,), op)
     @test doc.value === 42
     @test _cursor_at(doc).start == 2
-    op = read_intent(chain, print_document(chain, doc), KeyPress('5'))
+    op = read_intent(chain, print_document(chain, doc), KeyPress('5'; time = 0.0))
     evaluate_operation((document=doc,), op)
     @test doc.value === 425
 end
@@ -161,7 +161,7 @@ end
     chain = ChainingProjection(PrimitiveToText(), TextToGraphics(measure = measure_truetype_text))
     doc = PrimitiveNumber(nothing)
     set_selection!(doc, _value_range_ref(0, 0))
-    evaluate_operation((document=doc,), read_intent(chain, print_document(chain, doc), KeyPress('5')))
+    evaluate_operation((document=doc,), read_intent(chain, print_document(chain, doc), KeyPress('5'; time = 0.0)))
     @test doc.value === 5
     # A cleared string, and a field that holds any value, take the text.
     doc = PrimitiveString(nothing)
@@ -179,7 +179,7 @@ end
     set_selection!(s, _value_range_ref(0, 0))
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyPress('x')
+    evt = KeyPress('x'; time = 0.0)
     op = read_intent(p, iomap, evt)
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == "x"
@@ -196,7 +196,7 @@ end
     set_selection!(s, _value_range_ref(2, 2))
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyDown(:backspace, ModifierKeys())
+    evt = KeyDown(:backspace, ModifierKeys(); time = 0.0)
     op = read_intent(p, iomap, evt)
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == ""
@@ -208,7 +208,7 @@ end
     set_selection!(s, _value_range_ref(0, 0))
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyDown(:delete, ModifierKeys())
+    evt = KeyDown(:delete, ModifierKeys(); time = 0.0)
     op = read_intent(p, iomap, evt)
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == ""
@@ -226,7 +226,7 @@ end
     set_selection!(s, _value_range_ref(0, 0))
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyPress('x', "x", ModifierKeys(true, false, false, false))
+    evt = KeyPress('x', "x", ModifierKeys(true, false, false, false); time = 0.0)
     op = read_intent(p, iomap, evt)
     @test op isa ReplaceStringRangeOperation
     @test op.replacement == "x"
@@ -237,7 +237,7 @@ end
     set_selection!(s, _value_range_ref(0, 0))
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyDown(:backspace, ModifierKeys())
+    evt = KeyDown(:backspace, ModifierKeys(); time = 0.0)
     @test read_intent(p, iomap, evt) === nothing
 end
 
@@ -246,7 +246,7 @@ end
     set_selection!(s, _value_range_ref(2, 2))
     p = PrimitiveStringToSyntaxLeaf()
     iomap = SimpleIoMap(p, s, nothing)
-    evt = KeyDown(:delete, ModifierKeys())
+    evt = KeyDown(:delete, ModifierKeys(); time = 0.0)
     @test read_intent(p, iomap, evt) === nothing
 end
 

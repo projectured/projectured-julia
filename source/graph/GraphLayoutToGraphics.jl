@@ -282,7 +282,8 @@ function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MousePress)
         canvas = cim.output
         ox = canvas isa GraphicsCanvas ? Int(canvas.x) : 0
         oy = canvas isa GraphicsCanvas ? Int(canvas.y) : 0
-        local_evt = MousePress(g.button, g.x - x - ox, g.y - y - oy, g.count, g.modifiers)
+        local_evt = MousePress(g.button, g.x - x - ox, g.y - y - oy, g.count, g.modifiers;
+                               time = g.time)
         op = read_intent(cim.projection, cim, local_evt)
         # A selection is re-rooted into the graph's own space, because WHERE it
         # points is a place inside a node and the graph is what knows where that

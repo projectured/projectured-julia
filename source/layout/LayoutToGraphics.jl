@@ -261,11 +261,11 @@ end
 
 _route_scroll(entries, evt::MouseScroll) =
     _route_to_children(entries, evt.x, evt.y,
-        (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
+        (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
 
 _route_click(entries, evt::MousePress) =
     _route_to_children(entries, evt.x, evt.y,
-        (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers))
+        (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
 
 # Pointer motion / crossings carry coordinates, so they hit-test the laid-out
 # children exactly like a click — routing to the child *under the pointer*, not the
@@ -274,20 +274,24 @@ _route_click(entries, evt::MousePress) =
 # WidgetComposite's crossing routing.
 _route_move(entries, evt::MouseMove) =
     _route_to_children(entries, evt.x, evt.y,
-        (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers))
+        (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
 
 _route_crossing(entries, evt) =
     _route_to_children(entries, evt.x, evt.y,
-        (x, y) -> evt isa MouseEnter ? MouseEnter(x, y, evt.buttons, evt.modifiers) :
-                                       MouseLeave(x, y, evt.buttons, evt.modifiers))
+        (x, y) -> evt isa MouseEnter ? MouseEnter(x, y, evt.buttons, evt.modifiers;
+                                                  time = evt.time) :
+                                       MouseLeave(x, y, evt.buttons, evt.modifiers;
+                                                  time = evt.time))
 
 # A raw press-down / release also hit-tests by coordinate, so a button laid out in a
 # layout flips its `pressed` cell (the depress feedback). The composed MousePress
 # click is routed separately by `_route_click`.
 _route_downup(entries, evt) =
     _route_to_children(entries, evt.x, evt.y,
-        (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers) :
-                                      MouseUp(evt.button, x, y, evt.modifiers))
+        (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers;
+                                                time = evt.time) :
+                                      MouseUp(evt.button, x, y, evt.modifiers;
+                                              time = evt.time))
 
 # Forward a coordless event to the single child the layout's selection points at.
 function _forward_layout_event_slot(entries::Vector, evt, slot::Int)
@@ -1665,11 +1669,11 @@ end
 
 _route_scroll_reverse(entries, evt::MouseScroll) =
     _route_to_children_reverse(entries, evt.x, evt.y,
-        (x, y) -> MouseScroll(evt.dx, evt.dy, x, y))
+        (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
 
 _route_click_reverse(entries, evt::MousePress) =
     _route_to_children_reverse(entries, evt.x, evt.y,
-        (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers))
+        (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
 
 function _route_stack_event(iomap::ChildrenIoMap, evt)
     entries = getfield(iomap, :child_iomaps)[]::Vector

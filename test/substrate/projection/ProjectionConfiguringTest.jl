@@ -53,7 +53,7 @@ end # @testset
 
     # Control starts visible → Ctrl+F hides it. Showing and hiding the bar is view
     # state, so a history does not record it.
-    ctrl_f = KeyDown(:f, ModifierKeys(ctrl=true))
+    ctrl_f = KeyDown(:f, ModifierKeys(ctrl=true); time = 0.0)
     marked = read_intent(pcp, nothing, _mkchange(ctrl_f, nothing), iomap).operation
     @test marked isa ReplaceViewStateOperation
     op = get_wrapped_operation(marked)
@@ -61,7 +61,7 @@ end # @testset
     @test op.document === iomap.control_widget
 
     # Escape also hides while visible.
-    esc = KeyDown(:escape, ModifierKeys())
+    esc = KeyDown(:escape, ModifierKeys(); time = 0.0)
     op_esc = read_intent(pcp, nothing, _mkchange(esc, nothing), iomap).operation
     @test op_esc isa ReplaceViewStateOperation && get_wrapped_operation(op_esc).value == false
 
@@ -94,7 +94,7 @@ end # @testset
     # redirects it onto the inner projection's bool cell.
     flipped = false
     for y in 0:4:120, x in 150:5:230
-        op = read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys()))
+        op = read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys(); time = 0.0))
         op isa ReplaceReferencedValueOperation || continue
         evaluate_operation(_PcEditor(doc), op)
         if inner.case_insensitive[] || inner.invert[]
@@ -134,7 +134,7 @@ end # @testset
     # test's expectation needs either an autofocus semantic in the widget layer
     # or a pcp change that lets control-directed selections persist — both are
     # design decisions, not local test fixes.
-    op = read_intent(proj, nothing, _mkchange(KeyPress('X', "X", ModifierKeys()), nothing), iomap).operation
+    op = read_intent(proj, nothing, _mkchange(KeyPress('X', "X", ModifierKeys(); time = 0.0), nothing), iomap).operation
     @test_broken op isa ReplaceReferencedValueOperation
     op isa ReplaceReferencedValueOperation || return
     @test op.reference.head == FieldReferenceStep("pattern")

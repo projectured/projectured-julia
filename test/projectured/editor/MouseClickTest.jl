@@ -229,7 +229,7 @@ function test_mouse_click_roundtrip(label, document, projection; tolerance=100, 
         
         for (click_x, click_y, description) in clicks
             # Call read_intent with mouse click
-            event = MousePress(:left, click_x, click_y)
+            event = MousePress(:left, click_x, click_y; time = 0.0)
             op = try
                 read_intent(projection, iomap, event)
             catch e

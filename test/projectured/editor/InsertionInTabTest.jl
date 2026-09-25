@@ -47,7 +47,7 @@ function press!(event)
     operation
 end
 
-type!(text) = for c in text; press!(KeyPress(c, ModifierKeys())); end
+type!(text) = for c in text; press!(KeyPress(c, ModifierKeys(); time = 0.0)); end
 
 # What the tab that has the focus holds.
 function content()
@@ -70,8 +70,8 @@ end
 
 @testset "Ctrl+T opens a tab on an empty placeholder" begin
     # Ctrl+Tab gives the first tab the focus, as opening a window does.
-    press!(KeyDown(:tab, ModifierKeys(ctrl = true)))
-    press!(KeyDown(:t, ModifierKeys(ctrl = true)))
+    press!(KeyDown(:tab, ModifierKeys(ctrl = true); time = 0.0))
+    press!(KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0))
     @test length(get_pane_groups(tree)[1].tabs) == 2
     @test content() isa DocumentNothing
     # The cursor is on the placeholder, not on the tab. Without this the Insert
@@ -80,7 +80,7 @@ end
 end
 
 @testset "Insert turns the placeholder into the name buffer" begin
-    press!(KeyDown(:insert, ModifierKeys()))
+    press!(KeyDown(:insert, ModifierKeys(); time = 0.0))
     @test content() isa DocumentInsertion
 end
 
@@ -94,20 +94,20 @@ end
     # Each key reaches the buffer as an edit of the one character it removes, a
     # range and not a caret, through every stage of the standing iomap.
     type!("jsonx")
-    press!(KeyDown(:backspace, ModifierKeys()))
+    press!(KeyDown(:backspace, ModifierKeys(); time = 0.0))
     @test content().value == "json"
-    press!(KeyDown(:left, ModifierKeys()))
-    press!(KeyDown(:left, ModifierKeys()))
+    press!(KeyDown(:left, ModifierKeys(); time = 0.0))
+    press!(KeyDown(:left, ModifierKeys(); time = 0.0))
     type!("x")
     @test content().value == "jsxon"
-    press!(KeyDown(:left, ModifierKeys()))
-    press!(KeyDown(:delete, ModifierKeys()))
+    press!(KeyDown(:left, ModifierKeys(); time = 0.0))
+    press!(KeyDown(:delete, ModifierKeys(); time = 0.0))
     @test content().value == "json"
     # The caret is between "js" and "on", so two keys each way empty the buffer.
-    press!(KeyDown(:backspace, ModifierKeys()))
-    press!(KeyDown(:backspace, ModifierKeys()))
-    press!(KeyDown(:delete, ModifierKeys()))
-    press!(KeyDown(:delete, ModifierKeys()))
+    press!(KeyDown(:backspace, ModifierKeys(); time = 0.0))
+    press!(KeyDown(:backspace, ModifierKeys(); time = 0.0))
+    press!(KeyDown(:delete, ModifierKeys(); time = 0.0))
+    press!(KeyDown(:delete, ModifierKeys(); time = 0.0))
     @test content().value == ""
 end
 
@@ -116,7 +116,7 @@ end
     @test occursin("json", drawn())
     # `:return` is what a keyboard sends. The backend maps keysym 13 to it, and
     # every binding in the tree names it; `:enter` names no key at all.
-    press!(KeyDown(:return, ModifierKeys()))
+    press!(KeyDown(:return, ModifierKeys(); time = 0.0))
     # "json" is the alias `@domain Json` gives its own insertion, and an exact
     # name wins over every prefix, so the commit is unambiguous.
     @test content() isa JsonInsertion

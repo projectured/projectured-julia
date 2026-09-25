@@ -62,7 +62,7 @@ function _tooltip_read(composed, scene, event)
     change isa Intent ? change.operation : change
 end
 
-_move(composed, scene, x, y) = _tooltip_read(composed, scene, MouseMove(x, y))
+_move(composed, scene, x, y) = _tooltip_read(composed, scene, MouseMove(x, y; time = 0.0))
 _rest(composed, scene, feed) =
     _tooltip_read(composed, scene, PointerRest(feed.rest.x, feed.rest.y))
 
@@ -147,7 +147,7 @@ end
     scene, composed, feed = _tooltip_scene()
     _move(composed, scene, 20, 10)
     _rest(composed, scene, feed)
-    _tooltip_read(composed, scene, MousePress(:left, 20, 10, 1, ModifierKeys()))
+    _tooltip_read(composed, scene, MousePress(:left, 20, 10, 1, ModifierKeys(); time = 0.0))
     @test length(scene.windows) == 1
 end
 
@@ -160,13 +160,13 @@ end
     scene, composed, _ = _tooltip_scene(; document = split)
     grab = nothing
     for x in 0:399
-        operation = _tooltip_read(composed, scene, MouseDown(:left, x, 100))
+        operation = _tooltip_read(composed, scene, MouseDown(:left, x, 100; time = 0.0))
         _holds_operation(operation, StartSplitterDragOperation) && (grab = (x, operation); break)
     end
     @test grab !== nothing
     (x, operation) = grab
     evaluate_operation(nothing, operation)
-    moved = _tooltip_read(composed, scene, MouseMove(x + 30, 100, MouseButtons(:left), ModifierKeys()))
+    moved = _tooltip_read(composed, scene, MouseMove(x + 30, 100, MouseButtons(:left), ModifierKeys(); time = 0.0))
     @test _holds_operation(moved, ResizeSplitPaneOperation)
 end
 
@@ -205,11 +205,11 @@ function test_tooltip_feed()
     end
 
     @testset "a move names a deadline, and a later move moves it" begin
-        press!(MouseMove(20, 10))
+        press!(MouseMove(20, 10; time = 0.0))
         @test compute_wake_deadline(feed, editor) ≈ 0.5
         clock[] = 10.3
         @test compute_wake_deadline(feed, editor) ≈ 0.2
-        press!(MouseMove(21, 10))
+        press!(MouseMove(21, 10; time = 0.0))
         @test compute_wake_deadline(feed, editor) ≈ 0.5
     end
 
@@ -230,7 +230,7 @@ function test_tooltip_feed()
     end
 
     @testset "a move away closes it, and the wait starts again" begin
-        press!(MouseMove(20, 50))
+        press!(MouseMove(20, 50; time = 0.0))
         @test length(scene.windows) == 1
         @test compute_wake_deadline(feed, editor) ≈ 0.5
     end
@@ -264,7 +264,7 @@ function _read(document; menu = compute_context_menu)
         selection = false, context_menu = menu)(document, make_layout_projection_example())
     iomap = print_document(projection, document)
     answer = read_intent(projection, nothing,
-                         Intent(MousePress(:right, 5, 5, ModifierKeys())), iomap)
+                         Intent(MousePress(:right, 5, 5, ModifierKeys(); time = 0.0)), iomap)
     answer isa Intent ? answer.operation : answer
 end
 
@@ -290,7 +290,7 @@ _opens_popup(operation) = operation isa ReplaceViewStateOperation &&
     probe = ContextMenuProbeProjection(inner = _ContextSelecting(), compute_context_menu = _ -> menu)
     iomap = print_document(probe, PrimitiveString("row"))
     answer(button) = read_intent(probe, nothing,
-                                 Intent(MousePress(button, 7, 9, ModifierKeys())), iomap).operation
+                                 Intent(MousePress(button, 7, 9, ModifierKeys(); time = 0.0)), iomap).operation
     right = answer(:right)
     @test right isa CompoundOperation
     @test right.operations[1] isa ReplaceSelectionOperation

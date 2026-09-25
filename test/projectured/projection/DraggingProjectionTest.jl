@@ -53,15 +53,15 @@ function test_dragging()
 
         # MouseDown hit-tests the grab point (x=100 → element 2) and arms a
         # pending drag, absorbing the press.
-        @test _feed(proj, iomap, MouseDown(:left, 100, 100, ModifierKeys())) === nothing
+        @test _feed(proj, iomap, MouseDown(:left, 100, 100, ModifierKeys(); time = 0.0)) === nothing
         @test proj.state.phase === :pending
 
         # A move past the 5px threshold activates the drag, still absorbed.
-        @test _feed(proj, iomap, MouseMove(120, 100, MouseButtons(:left), ModifierKeys())) === nothing
+        @test _feed(proj, iomap, MouseMove(120, 100, MouseButtons(:left), ModifierKeys(); time = 0.0)) === nothing
         @test proj.state.phase === :dragging
 
         # MouseUp hit-tests the drop point (x=300 → element 4): element 2 moves there.
-        op = _feed(proj, iomap, MouseUp(:left, 300, 100, ModifierKeys()))
+        op = _feed(proj, iomap, MouseUp(:left, 300, 100, ModifierKeys(); time = 0.0))
         @test op isa MoveRangeOperation
         @test proj.state.phase === :idle
 
@@ -74,11 +74,11 @@ function test_dragging()
         content = JsonArray(JsonNumber(10), JsonNumber(20), JsonNumber(30))
         proj, iomap = _drag_setup(content, _hit_2_or_4)
 
-        @test _feed(proj, iomap, MouseDown(:left, 100, 100, ModifierKeys())) === nothing
+        @test _feed(proj, iomap, MouseDown(:left, 100, 100, ModifierKeys(); time = 0.0)) === nothing
         @test proj.state.phase === :pending
         # Release within threshold (2px): no drag, no op — the backend's
         # synthesised MousePress handles the click selection separately.
-        op = _feed(proj, iomap, MouseUp(:left, 102, 100, ModifierKeys()))
+        op = _feed(proj, iomap, MouseUp(:left, 102, 100, ModifierKeys(); time = 0.0))
         @test op === nothing
         @test proj.state.phase === :idle
         @test [Int(content.elements[i].value) for i in 1:3] == [10, 20, 30]
@@ -90,9 +90,9 @@ function test_dragging()
         hit(g) = g isa MousePress && g.x == 100 ? ReplaceSelectionOperation(_elem_path(2)) : nothing
         proj, iomap = _drag_setup(content, hit)
 
-        _feed(proj, iomap, MouseDown(:left, 100, 100, ModifierKeys()))
-        _feed(proj, iomap, MouseMove(120, 100, MouseButtons(:left), ModifierKeys()))
-        op = _feed(proj, iomap, MouseUp(:left, 999, 100, ModifierKeys()))
+        _feed(proj, iomap, MouseDown(:left, 100, 100, ModifierKeys(); time = 0.0))
+        _feed(proj, iomap, MouseMove(120, 100, MouseButtons(:left), ModifierKeys(); time = 0.0))
+        op = _feed(proj, iomap, MouseUp(:left, 999, 100, ModifierKeys(); time = 0.0))
         @test !(op isa MoveRangeOperation)
         @test [Int(content.elements[i].value) for i in 1:2] == [10, 20]
     end
@@ -108,11 +108,11 @@ function test_dragging()
         iomap = DraggingIoMap(proj, DraggingState(content, 5),
                                         inner.output, inner)
 
-        @test _feed(proj, iomap, MouseDown(:left, 24, 24, ModifierKeys())) === nothing   # grab element 1
+        @test _feed(proj, iomap, MouseDown(:left, 24, 24, ModifierKeys(); time = 0.0)) === nothing   # grab element 1
         @test proj.state.phase === :pending
-        _feed(proj, iomap, MouseMove(24, 48, MouseButtons(:left), ModifierKeys()))                     # cross threshold
+        _feed(proj, iomap, MouseMove(24, 48, MouseButtons(:left), ModifierKeys(); time = 0.0))                     # cross threshold
         @test proj.state.phase === :dragging
-        op = _feed(proj, iomap, MouseUp(:left, 24, 72, ModifierKeys()))                  # drop at element 3
+        op = _feed(proj, iomap, MouseUp(:left, 24, 72, ModifierKeys(); time = 0.0))                  # drop at element 3
         @test op isa MoveRangeOperation
         @test op.source_start == 1 && op.destination_index == 3
 

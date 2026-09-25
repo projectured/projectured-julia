@@ -63,10 +63,10 @@ The loop over the entries does not yield, so a task that a gesture started, such
 
 ```julia
 gestures = [
-    (event = MousePress(:left, 120, 40), hold = 0.3),   # place the caret
-    (event = KeyPress('h'), hold = 0.3),
-    (event = KeyPress('i'), hold = 0.3),
-    (event = KeyDown(:right, ModifierKeys()), hold = 0.5),
+    (event = MousePress(:left, 120, 40; time = time()), hold = 0.3),   # place the caret
+    (event = KeyPress('h'; time = time()), hold = 0.3),
+    (event = KeyPress('i'; time = time()), hold = 0.3),
+    (event = KeyDown(:right, ModifierKeys(); time = time()), hold = 0.5),
 ]
 record_video(document, projection, gestures, "demo.mp4"; fps = 30)
 record_assistant_conversation_video("assistant.mp4")

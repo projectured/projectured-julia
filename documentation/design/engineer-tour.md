@@ -170,12 +170,15 @@ node's selection and does not need the path to the root. See
 A **gesture** is a backend-independent input event.
 
 ```julia
-KeyPress('a')                             # a character
-KeyDown(:left, ModifierKeys())            # an arrow key
-KeyDown(:return, ModifierKeys(ctrl=true)) # Ctrl+Enter
-MousePress(:left, 132, 47)                # a click at a pixel
-MouseScroll(0, 1, 200, 300)
+KeyPress('a'; time = t)                             # a character
+KeyDown(:left, ModifierKeys(); time = t)            # an arrow key
+KeyDown(:return, ModifierKeys(ctrl=true); time = t) # Ctrl+Enter
+MousePress(:left, 132, 47; time = t)                # a click at a pixel
+MouseScroll(0, 1, 200, 300; time = t)
 ```
+
+`t` is the time of the input, in seconds on the clock of `time()`. Every event
+holds one.
 
 A gesture carries no meaning. It says what happened, not what it means. The
 meaning belongs to the reader.

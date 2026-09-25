@@ -20,7 +20,7 @@ function _press!(editor, event)
 end
 
 _type!(editor, text) = for c in text
-    _press!(editor, KeyPress(c, ModifierKeys()))
+    _press!(editor, KeyPress(c, ModifierKeys(); time = 0.0))
 end
 
 function _seeded()
@@ -35,7 +35,7 @@ end
 @testset "F2 puts the caret at the end of the name" begin
     tree, group, editor = _seeded()
     @test get_pane_focus_title(tree) === nothing
-    @test _press!(editor, KeyDown(:f2, ModifierKeys())) !== nothing
+    @test _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0)) !== nothing
     @test get_pane_focus_title(tree) == (group, 1)
     # The caret sits after the last character, so typing appends.
     _type!(editor, "!")
@@ -44,7 +44,7 @@ end
 
 @testset "typing edits the name and nothing else" begin
     tree, group, editor = _seeded()
-    _press!(editor, KeyDown(:f2, ModifierKeys()))
+    _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0))
     _type!(editor, " today")
     @test get_pane_tab_title_string(group.tabs[1]) == "notes today"
     # The tab's content is untouched — the keys went to the name.
@@ -54,18 +54,18 @@ end
 
 @testset "backspace and delete work in the name" begin
     tree, group, editor = _seeded()
-    _press!(editor, KeyDown(:f2, ModifierKeys()))
-    _press!(editor, KeyDown(:backspace, ModifierKeys()))
+    _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0))
+    _press!(editor, KeyDown(:backspace, ModifierKeys(); time = 0.0))
     @test get_pane_tab_title_string(group.tabs[1]) == "note"
-    _press!(editor, KeyDown(:backspace, ModifierKeys()))
+    _press!(editor, KeyDown(:backspace, ModifierKeys(); time = 0.0))
     @test get_pane_tab_title_string(group.tabs[1]) == "not"
 end
 
 @testset "Escape leaves the name and the caret returns to the tab" begin
     tree, group, editor = _seeded()
-    _press!(editor, KeyDown(:f2, ModifierKeys()))
+    _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0))
     @test get_pane_focus_title(tree) == (group, 1)
-    @test _press!(editor, KeyDown(:escape, ModifierKeys())) !== nothing
+    @test _press!(editor, KeyDown(:escape, ModifierKeys(); time = 0.0)) !== nothing
     @test get_pane_focus_title(tree) === nothing
     @test get_pane_focus(tree) == (group, 1)
     # And typing no longer touches the name.
@@ -76,8 +76,8 @@ end
 
 @testset "the pane chords still work while the caret is in a name" begin
     tree, group, editor = _seeded()
-    _press!(editor, KeyDown(:f2, ModifierKeys()))
-    @test _press!(editor, KeyDown(:t, ModifierKeys(ctrl = true))) !== nothing
+    _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0))
+    @test _press!(editor, KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0)) !== nothing
     @test length(group.tabs) == 3
 end
 
@@ -87,12 +87,12 @@ end
     group = tree.root
     editor = _PaneRenameMockEditor(tree)
     evaluate_operation(editor, make_pane_focus_operation(tree, group, 0))
-    _press!(editor, KeyDown(:t, ModifierKeys(ctrl = true)))
+    _press!(editor, KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0))
     @test get_pane_tab_title_string(group.tabs[1]) == "untitled"
 
-    _press!(editor, KeyDown(:f2, ModifierKeys()))
+    _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0))
     for _ in 1:length("untitled")
-        _press!(editor, KeyDown(:backspace, ModifierKeys()))
+        _press!(editor, KeyDown(:backspace, ModifierKeys(); time = 0.0))
     end
     _type!(editor, "readme")
     @test get_pane_tab_title_string(group.tabs[1]) == "readme"
@@ -106,7 +106,7 @@ _steps(reference) = reference === nothing ? nothing :
 
 @testset "the tab bar holds the caret in the name" begin
     tree, group, editor = _seeded()
-    _press!(editor, KeyDown(:f2, ModifierKeys()))
+    _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0))
     caret() = _steps(get_stored_selection(_tab_bar(print_document(_chain(), editor.document))))
     steps = caret()
     @test steps[1:3] == [FieldReferenceStep("selector_element_pairs"), ElementReferenceStep(1),
@@ -116,7 +116,7 @@ _steps(reference) = reference === nothing ? nothing :
     _type!(editor, "!")
     @test (caret()[4].start, caret()[4].stop) == (6, 6)
     # Out of the name, the tab bar names the tab and holds no caret.
-    _press!(editor, KeyDown(:escape, ModifierKeys()))
+    _press!(editor, KeyDown(:escape, ModifierKeys(); time = 0.0))
     @test caret() == [FieldReferenceStep("selector_element_pairs"), ElementReferenceStep(1)]
 end
 
@@ -140,13 +140,13 @@ end
     tree, group, editor = _seeded()
     drawn() = _carets(get_iomap_output(print_document(_chain(), editor.document)))
     @test isempty(drawn())
-    _press!(editor, KeyDown(:f2, ModifierKeys()))
+    _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0))
     at_end = only(drawn())
     # The stub measures 10 pixels for each character, so one more character moves
     # the caret 10 pixels to the right.
     _type!(editor, "!")
     @test only(drawn()) == (at_end[1] + 10, at_end[2])
-    _press!(editor, KeyDown(:escape, ModifierKeys()))
+    _press!(editor, KeyDown(:escape, ModifierKeys(); time = 0.0))
     @test isempty(drawn())
 end
 
@@ -155,7 +155,7 @@ end
     tree = PaneTree(group)
     editor = _PaneRenameMockEditor(tree)
     evaluate_operation(editor, make_pane_focus_operation(tree, group, 0))
-    @test _press!(editor, KeyDown(:f2, ModifierKeys())) === nothing
+    @test _press!(editor, KeyDown(:f2, ModifierKeys(); time = 0.0)) === nothing
 end
 
 end # testset

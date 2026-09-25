@@ -78,29 +78,29 @@ function test_gesture_binding()
 
     @testset "matches: KeyPress ignores modifiers, honours char + guard" begin
         p = KeyPressPattern('n')
-        @test matches_event_pattern(p, KeyPress('n'))
-        @test matches_event_pattern(p, KeyPress('n', ModifierKeys(shift=true)))   # modifiers ignored
-        @test !matches_event_pattern(p, KeyPress('x'))
-        @test !matches_event_pattern(p, KeyDown(:n, ModifierKeys()))
+        @test matches_event_pattern(p, KeyPress('n'; time = 0.0))
+        @test matches_event_pattern(p, KeyPress('n', ModifierKeys(shift=true); time = 0.0))   # modifiers ignored
+        @test !matches_event_pattern(p, KeyPress('x'; time = 0.0))
+        @test !matches_event_pattern(p, KeyDown(:n, ModifierKeys(); time = 0.0))
 
         digit = KeyPressPattern(nothing; guard = e -> isdigit(e.char), label = "0-9")
-        @test matches_event_pattern(digit, KeyPress('5'))
-        @test !matches_event_pattern(digit, KeyPress('z'))
+        @test matches_event_pattern(digit, KeyPress('5'; time = 0.0))
+        @test !matches_event_pattern(digit, KeyPress('z'; time = 0.0))
     end
 
     @testset "matches: KeyDown honours key + exact modifiers" begin
         p = KeyDownPattern(:period; modifiers = [:ctrl])
-        @test matches_event_pattern(p, KeyDown(:period, ModifierKeys(ctrl=true)))
-        @test !matches_event_pattern(p, KeyDown(:period, ModifierKeys()))                    # ctrl required
-        @test !matches_event_pattern(p, KeyDown(:period, ModifierKeys(ctrl=true, alt=true))) # exact: alt absent
-        @test !matches_event_pattern(p, KeyDown(:home, ModifierKeys(ctrl=true)))
+        @test matches_event_pattern(p, KeyDown(:period, ModifierKeys(ctrl=true); time = 0.0))
+        @test !matches_event_pattern(p, KeyDown(:period, ModifierKeys(); time = 0.0))                    # ctrl required
+        @test !matches_event_pattern(p, KeyDown(:period, ModifierKeys(ctrl=true, alt=true); time = 0.0)) # exact: alt absent
+        @test !matches_event_pattern(p, KeyDown(:home, ModifierKeys(ctrl=true); time = 0.0))
     end
 
     @testset "matches: MousePress honours button, ignores position" begin
         p = MousePressPattern(:left)
-        @test matches_event_pattern(p, MousePress(:left, 10, 20))
-        @test matches_event_pattern(p, MousePress(:left, 99, 5))
-        @test !matches_event_pattern(p, MousePress(:right, 10, 20))
+        @test matches_event_pattern(p, MousePress(:left, 10, 20; time = 0.0))
+        @test matches_event_pattern(p, MousePress(:left, 99, 5; time = 0.0))
+        @test !matches_event_pattern(p, MousePress(:right, 10, 20; time = 0.0))
     end
 
     @testset "describe renders readable gesture strings" begin
@@ -131,16 +131,16 @@ function test_gesture_binding()
     @testset "read_bound_gesture fires the matching, applicable binding" begin
         leaf = GestureProbeLeaf()
         leaf.selection = EmptyReference()
-        @test read_bound_gesture(leaf, KeyPress('n')) == MarkOperation(:neg)
-        @test read_bound_gesture(leaf, KeyPress('7')) == MarkOperation(Symbol('7'))
-        @test read_bound_gesture(leaf, KeyDown(:period, ModifierKeys(ctrl=true))) == MarkOperation(:toggle)
+        @test read_bound_gesture(leaf, KeyPress('n'; time = 0.0)) == MarkOperation(:neg)
+        @test read_bound_gesture(leaf, KeyPress('7'; time = 0.0)) == MarkOperation(Symbol('7'))
+        @test read_bound_gesture(leaf, KeyDown(:period, ModifierKeys(ctrl=true); time = 0.0)) == MarkOperation(:toggle)
         # An unbound gesture yields nothing.
-        @test read_bound_gesture(leaf, KeyPress('z')) === nothing
+        @test read_bound_gesture(leaf, KeyPress('z'; time = 0.0)) === nothing
     end
 
     @testset "applicable precondition gates firing (and greys help rows)" begin
         leaf = GestureProbeLeaf()           # selection === nothing → precondition false
-        @test read_bound_gesture(leaf, KeyPress('n')) === nothing
+        @test read_bound_gesture(leaf, KeyPress('n'; time = 0.0)) === nothing
         @test isempty(get_applicable_gesture_bindings(leaf, get_document_gesture_bindings(GestureProbeLeaf)))
         leaf.selection = EmptyReference()
         @test length(get_applicable_gesture_bindings(leaf, get_document_gesture_bindings(GestureProbeLeaf))) == 4
@@ -149,8 +149,8 @@ function test_gesture_binding()
     @testset "read_gesture interpreter routes through the reified table" begin
         arr = GestureProbeArray()
         arr.selection = EmptyReference()
-        @test read_gesture(arr, KeyPress(',')) == MarkOperation(:append)   # own
-        @test read_gesture(arr, KeyPress('p')) == MarkOperation(:pos)      # inherited
+        @test read_gesture(arr, KeyPress(','; time = 0.0)) == MarkOperation(:append)   # own
+        @test read_gesture(arr, KeyPress('p'; time = 0.0)) == MarkOperation(:pos)      # inherited
     end
 
     @testset "@gesture_set + splice shares a set across unrelated types" begin
@@ -171,11 +171,11 @@ function test_gesture_binding()
         # Both unrelated types fire the shared gestures; each keeps its own.
         a = ProbeAlpha(); a.selection = EmptyReference()
         b = ProbeBeta();  b.selection = EmptyReference()
-        @test read_gesture(a, KeyDown(:c, ModifierKeys(ctrl=true))) == MarkOperation(:copy)
-        @test read_gesture(b, KeyDown(:c, ModifierKeys(ctrl=true))) == MarkOperation(:copy)
-        @test read_gesture(a, KeyPress('a')) == MarkOperation(:alpha)
-        @test read_gesture(b, KeyPress('b')) == MarkOperation(:beta)
-        @test read_gesture(a, KeyPress('b')) === nothing   # beta's own rule isn't on alpha
+        @test read_gesture(a, KeyDown(:c, ModifierKeys(ctrl=true); time = 0.0)) == MarkOperation(:copy)
+        @test read_gesture(b, KeyDown(:c, ModifierKeys(ctrl=true); time = 0.0)) == MarkOperation(:copy)
+        @test read_gesture(a, KeyPress('a'; time = 0.0)) == MarkOperation(:alpha)
+        @test read_gesture(b, KeyPress('b'; time = 0.0)) == MarkOperation(:beta)
+        @test read_gesture(a, KeyPress('b'; time = 0.0)) === nothing   # beta's own rule isn't on alpha
     end
 
     @testset "a `nothing` rule is a binding with no gesture" begin
@@ -200,11 +200,11 @@ function test_gesture_binding()
     @testset "no event fires a rule with no gesture" begin
         probe = CommandProbe()
         probe.selection = EmptyReference()
-        @test read_bound_gesture(probe, KeyPress('x')) == MarkOperation(:cut)
+        @test read_bound_gesture(probe, KeyPress('x'; time = 0.0)) == MarkOperation(:cut)
         # An unmatched event walks the WHOLE table, past both `nothing` patterns. The
         # walk must skip them rather than ask them to match.
-        @test read_bound_gesture(probe, KeyPress('z')) === nothing
-        @test read_bound_gesture(probe, KeyDown(:return, ModifierKeys())) === nothing
+        @test read_bound_gesture(probe, KeyPress('z'; time = 0.0)) === nothing
+        @test read_bound_gesture(probe, KeyDown(:return, ModifierKeys(); time = 0.0)) === nothing
     end
 
     @testset "fire_named_gesture_binding runs a binding by its name" begin

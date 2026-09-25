@@ -494,7 +494,8 @@ function _wtl_route_cell_click(iomap::WidgetTableListIoMap, k::Int, c::Int, g::M
     cell isa GraphicsCanvas || return row
     cell_x = content_x + Int(x_cell[]) + Int(cell.x)
     cell_y = Int(st.header_height[]) + Int(canvas.y) + Int(y_cell[]) + Int(cell.y)
-    op = read_intent(cim.projection, cim, MousePress(g.button, g.x - cell_x, g.y - cell_y, g.count, g.modifiers))
+    op = read_intent(cim.projection, cim, MousePress(g.button, g.x - cell_x, g.y - cell_y, g.count, g.modifiers;
+                                                     time = g.time))
     op === nothing && return row
     op isa ReplaceSelectionOperation || return op
     ReplaceSelectionOperation(_wtl_cell_reference(k, c, op.path))
@@ -569,7 +570,8 @@ function _wtl_enter_cell(iomap::WidgetTableListIoMap, k::Int, c::Int)
     _, entries = st.built[k]
     cim = entries[c][3]
     cim === nothing && return nothing
-    op = read_intent(cim.projection, cim, KeyDown(:home, ModifierKeys(ctrl = true)))
+    op = read_intent(cim.projection, cim, KeyDown(:home, ModifierKeys(ctrl = true);
+                                                  time = time()))
     op isa ReplaceSelectionOperation || return nothing
     ReplaceSelectionOperation(_wtl_cell_reference(k, c, op.path))
 end

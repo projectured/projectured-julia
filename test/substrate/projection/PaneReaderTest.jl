@@ -51,7 +51,7 @@ _is_insert(op) = !isempty(_inserted_titles(op)) && !_is_duplicate(op)
 function _sweep(proj, iomap)
     found = Tuple{Int,Any}[]
     for y in 0:2:40, x in 0:2:400
-        op = read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys()))
+        op = read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys(); time = 0.0))
         op === nothing || push!(found, (x, op))
     end
     found
@@ -175,7 +175,7 @@ end
 
     caret = nothing
     for y in 0:2:300, x in 0:2:400
-        op = read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys()))
+        op = read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys(); time = 0.0))
         op isa ReplaceSelectionOperation || continue
         occursin("PrimitiveString", string(op.path)) || continue
         caret = op
@@ -243,7 +243,7 @@ end
     # The divider of an even split sits near the middle; find the band it grabs in.
     grab = nothing
     for x in 190:210
-        op = read_intent(proj, iomap, MouseDown(:left, x, 150, ModifierKeys()))
+        op = read_intent(proj, iomap, MouseDown(:left, x, 150, ModifierKeys(); time = 0.0))
         if _starts_drag(op)
             grab = x
             _apply!(editor, op)
@@ -254,14 +254,14 @@ end
 
     # The weight write comes back marked as view state, as the widget marked the
     # resize it answers, so a history records no part of the drag.
-    move = read_intent(proj, iomap, MouseMove(300, 150, MouseButtons(:left), ModifierKeys()))
+    move = read_intent(proj, iomap, MouseMove(300, 150, MouseButtons(:left), ModifierKeys(); time = 0.0))
     @test move isa ReplaceViewStateOperation
     @test get_wrapped_operation(move) isa ReplaceReferencedValueOperation
     _apply!(editor, move)
     @test get_pane_weights(tree.root)[1] > 0.6        # the left pane took the space
     @test sum(get_pane_weights(tree.root)) ≈ 1.0
 
-    finish = read_intent(proj, iomap, MouseUp(:left, 300, 150, ModifierKeys()))
+    finish = read_intent(proj, iomap, MouseUp(:left, 300, 150, ModifierKeys(); time = 0.0))
     @test finish isa ReplaceViewStateOperation
     @test get_wrapped_operation(finish) isa EndSplitterDragOperation
     _apply!(editor, finish)
@@ -286,15 +286,15 @@ end
     function _drag!(to)
         grabbed = false
         for x in 0:399
-            operation = read_intent(proj, iomap, MouseDown(:left, x, 150, ModifierKeys()))
+            operation = read_intent(proj, iomap, MouseDown(:left, x, 150, ModifierKeys(); time = 0.0))
             _starts_drag(operation) || continue
             _apply!(editor, operation)
             grabbed = true
             break
         end
         grabbed || return false
-        _apply!(editor, read_intent(proj, iomap, MouseMove(to, 150, MouseButtons(:left), ModifierKeys())))
-        _apply!(editor, read_intent(proj, iomap, MouseUp(:left, to, 150, ModifierKeys())))
+        _apply!(editor, read_intent(proj, iomap, MouseMove(to, 150, MouseButtons(:left), ModifierKeys(); time = 0.0)))
+        _apply!(editor, read_intent(proj, iomap, MouseUp(:left, to, 150, ModifierKeys(); time = 0.0)))
         true
     end
 
@@ -327,13 +327,13 @@ end
 
     # The inner divider runs across the right column, near half its height.
     grabbed = findfirst(y -> _starts_drag(read_intent(proj, iomap,
-                                MouseDown(:left, 340, y, ModifierKeys()))), 100:200)
+                                MouseDown(:left, 340, y, ModifierKeys(); time = 0.0))), 100:200)
     @test grabbed !== nothing
     grabbed === nothing && return
     y = (100:200)[grabbed]
-    _apply!(editor, read_intent(proj, iomap, MouseDown(:left, 340, y, ModifierKeys())))
-    _apply!(editor, read_intent(proj, iomap, MouseMove(340, y + 60, MouseButtons(:left), ModifierKeys())))
-    _apply!(editor, read_intent(proj, iomap, MouseUp(:left, 340, y + 60, ModifierKeys())))
+    _apply!(editor, read_intent(proj, iomap, MouseDown(:left, 340, y, ModifierKeys(); time = 0.0)))
+    _apply!(editor, read_intent(proj, iomap, MouseMove(340, y + 60, MouseButtons(:left), ModifierKeys(); time = 0.0)))
+    _apply!(editor, read_intent(proj, iomap, MouseUp(:left, 340, y + 60, ModifierKeys(); time = 0.0)))
     @test get_pane_weights(inner)[1] > 0.6              # the top pane took the space
     @test get_pane_weights(tree.root) == [0.5, 0.5]     # and the outer split is untouched
 end
@@ -357,7 +357,7 @@ end
 
 # ── A whole page ─────────────────────────────────────────────────────────
 
-_alt_press(x, y) = MousePress(:left, x, y, ModifierKeys(alt = true))
+_alt_press(x, y) = MousePress(:left, x, y, ModifierKeys(alt = true); time = 0.0)
 _page_context() = PrinterContext(EmptyReference(), Cell(400), Cell(300), Dict{Symbol,Any}())
 
 # Where a text is drawn, and the drawn box of every selection ring.
@@ -481,7 +481,7 @@ end
     paste(slice) = begin
         p = ClipboardSliceToAnyProjection()
         io = print_document(p, IdentityProjection(), slice, PrinterContext())
-        read_intent(p, io, KeyDown(:v, ModifierKeys(ctrl = true)))
+        read_intent(p, io, KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
     end
     stored = WidgetLabel("stored")
     slice = ClipboardSlice(tree, stored)
@@ -508,7 +508,7 @@ end
     slice = ClipboardSlice(tree)
     p = ClipboardSliceToAnyProjection()
     io = print_document(p, IdentityProjection(), slice, PrinterContext())
-    press(key) = read_intent(p, io, KeyDown(key, ModifierKeys(ctrl = true)))
+    press(key) = read_intent(p, io, KeyDown(key, ModifierKeys(ctrl = true); time = 0.0))
     stored(op) = op.operations[1].operations[1].value
     slice.selection = ConcreteReference(root, get_pane_tab_reference(tree, group, 1))
     copied = stored(press(:c))

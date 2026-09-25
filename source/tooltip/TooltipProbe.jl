@@ -140,7 +140,8 @@ function _open_at_rest(p::TooltipProbeProjection, recursion, iomap::TooltipProbe
     rest = p.rest
     rest.moved_at = nothing
     rest.shown && return nothing
-    press = MousePress(:left, event.x, event.y, ModifierKeys(alt = true))
+    press = MousePress(:left, event.x, event.y, ModifierKeys(alt = true);
+                       time = event.time)
     probe = read_intent(iomap.child_iomap.projection, recursion,
                         Intent(press, nothing), iomap.child_iomap)
     operation = probe isa Intent ? probe.operation : probe

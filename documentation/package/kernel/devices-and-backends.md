@@ -52,14 +52,23 @@ web and console backends leave the `Display` at its defaults.
 Projection readers only see these events, never SDL-specific structs:
 
 ```julia
-KeyPress('a')                          # character input
-KeyDown(:left, ModifierKeys())            # arrow key, no modifiers
-KeyDown(:return, ModifierKeys(ctrl=true)) # Ctrl-Enter
-MousePress(:left, 132, 47)             # left button at pixel (132, 47)
-MouseMove(120, 90)                     # cursor moved to (120, 90)
-MouseScroll(0, 1, 200, 300)            # wheel scrolled (dx, dy) at (200, 300)
-WindowQuit()                            # the window was closed
+KeyPress('a'; time = t)                           # character input
+KeyDown(:left, ModifierKeys(); time = t)          # arrow key, no modifiers
+KeyDown(:return, ModifierKeys(ctrl=true); time = t) # Ctrl-Enter
+MousePress(:left, 132, 47; time = t)              # left button at pixel (132, 47)
+MouseMove(120, 90; time = t)                      # cursor moved to (120, 90)
+MouseScroll(0, 1, 200, 300; time = t)             # wheel scrolled (dx, dy) at (200, 300)
+WindowQuit(; time = t)                            # the window was closed
 ```
+
+Every event holds `time`, the time of the input in seconds on the clock of
+`time()`, and no constructor has a default for it. A backend gives the time of
+the input from its own stamps: SDL converts the ticks of its events, the web page
+sends the time of each browser event, and the console takes the time when it
+reads the bytes. Code that makes an event from another event, such as a reader
+that moves a pointer event into the space of a child, gives the time of that
+event. The gesture recognizer compares these times, so a slow frame between a
+press and its release does not lose a click.
 
 This vocabulary is what insulates a `TextToGraphics.read_intent` (which
 maps the `:left`/`:right` `KeyDown` keys to a `ReplaceSelectionOperation`) from
@@ -233,9 +242,9 @@ Server → client, one ordered message per frame:
 Client → server (raw browser key fields; the server maps them):
 
 ```json
-{"type":"mousedown","window":"json","button":"left","x":40,"y":40,"mods":{…}}
-{"type":"keydown","window":"json","key":"ArrowLeft","code":"ArrowLeft","mods":{…}}
-{"type":"keypress","window":"json","char":"a","text":"a","mods":{…}}
+{"type":"mousedown","window":"json","button":"left","x":40,"y":40,"mods":{…},"t":…}
+{"type":"keydown","window":"json","key":"ArrowLeft","code":"ArrowLeft","mods":{…},"t":…}
+{"type":"keypress","window":"json","char":"a","text":"a","mods":{…},"t":…}
 {"type":"resize","window":"json","w":…,"h":…}   {"type":"resync"}   {"type":"quit"}
 ```
 

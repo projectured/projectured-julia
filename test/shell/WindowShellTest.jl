@@ -301,7 +301,7 @@ end
         opened_window_projections = make_opened_window_projections())
     editor = _ShellFakeEditor(scene)
     function move!(x, y)
-        change = read_intent(composed, nothing, Intent(WindowInput(:shell, MouseMove(x, y))),
+        change = read_intent(composed, nothing, Intent(WindowInput(:shell, MouseMove(x, y; time = 0.0))),
                              print_document(composed, scene))
         operation = change isa Intent ? change.operation : change
         operation isa Operation && evaluate_operation(editor, operation)

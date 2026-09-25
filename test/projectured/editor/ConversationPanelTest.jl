@@ -19,15 +19,15 @@ function test_assistant_composer_panel()
             iom = print_document(proj, a)
             @test iom.output isa GraphicsCanvas
             # No selection in the draft: the key is no edit of it.
-            @test !(read_intent(proj, iom, KeyPress('h')) isa ReplaceStringRangeOperation)
+            @test !(read_intent(proj, iom, KeyPress('h'; time = 0.0)) isa ReplaceStringRangeOperation)
             # A caret in the draft: the text layer edits the draft's value.
             set_selection!(a, @reference(a, draft.^(make_draft_caret_reference(a.draft))))
-            op = read_intent(proj, iom, KeyPress('h'))
+            op = read_intent(proj, iom, KeyPress('h'; time = 0.0))
             @test op isa ReplaceStringRangeOperation
             @test op.replacement == "h"
             @test first(get_reference_steps(strip_reference_types(op.reference))) ==
                   FieldReferenceStep("draft")
-            @test read_intent(proj, iom, KeyDown(:return, ModifierKeys())) isa SubmitDraftTurnOperation
+            @test read_intent(proj, iom, KeyDown(:return, ModifierKeys(); time = 0.0)) isa SubmitDraftTurnOperation
         end
 
         @testset "submit pushes the draft, resets it, and streams a reply" begin
@@ -78,16 +78,16 @@ function test_assistant_composer_panel()
             press(event) = _tr_press!(editor, backend, event)
             none = ModifierKeys()
             # The card selected as a whole takes no key.
-            press(KeyPress('z'))
+            press(KeyPress('z'; time = 0.0))
             @test something(a.draft.parts[end].content.value, "") == ""
             texts = _tr_texts(_tr_window(backend))
             (x, y, _) = texts[findfirst(t -> occursin("type here", t[3]), texts)]
-            press(MousePress(:left, x + 30, y + 8, none))
-            foreach(c -> press(KeyPress(c)), "hi")
+            press(MousePress(:left, x + 30, y + 8, none; time = 0.0))
+            foreach(c -> press(KeyPress(c; time = 0.0)), "hi")
             @test a.draft.parts[end].content.value == "hi"
             steps = get_reference_steps(strip_reference_types(editor.document.selection))
             @test (last(steps).start, last(steps).stop) == (2, 2)
-            press(KeyDown(:return, none))
+            press(KeyDown(:return, none; time = 0.0))
             @test length(a.conversation.turns) >= 1
             @test something(a.draft.parts[end].content.value, "") == ""
             _panel_wait_idle!(a)
@@ -109,50 +109,50 @@ function test_assistant_composer_panel()
             none = ModifierKeys()
             texts = _tr_texts(_tr_window(backend))
             (x, y, _) = texts[findfirst(t -> occursin("type here", t[3]), texts)]
-            press(MousePress(:left, x + 30, y + 8, none))
+            press(MousePress(:left, x + 30, y + 8, none; time = 0.0))
             at("", (0, 0))
-            foreach(c -> press(KeyPress(c)), "hello")
+            foreach(c -> press(KeyPress(c; time = 0.0)), "hello")
             at("hello", (5, 5))
-            press(KeyDown(:left, none))
+            press(KeyDown(:left, none; time = 0.0))
             at("hello", (4, 4))
-            press(KeyPress('X'))
+            press(KeyPress('X'; time = 0.0))
             at("hellXo", (5, 5))
-            press(KeyDown(:left, ModifierKeys(shift = true)))
-            press(KeyDown(:left, ModifierKeys(shift = true)))
+            press(KeyDown(:left, ModifierKeys(shift = true); time = 0.0))
+            press(KeyDown(:left, ModifierKeys(shift = true); time = 0.0))
             at("hellXo", (3, 5))
-            press(KeyDown(:backspace, none))
+            press(KeyDown(:backspace, none; time = 0.0))
             at("helo", (3, 3))
-            press(KeyDown(:return, ModifierKeys(shift = true)))
+            press(KeyDown(:return, ModifierKeys(shift = true); time = 0.0))
             at("hel\no", (4, 4))
 
             # A click inside the text lands where it was aimed.
             texts = _tr_texts(_tr_window(backend))
             (x, y, _) = texts[findfirst(t -> t[3] == "hel", texts)]
             press(MousePress(:left, x + first(measure_truetype_text("h", font_ubuntu_monospace_regular_20)),
-                             y + 8, none))
+                             y + 8, none; time = 0.0))
             at("hel\no", (1, 1))
 
             # Return submits, and the fresh draft holds the selection.
-            press(KeyDown(:return, none))
+            press(KeyDown(:return, none; time = 0.0))
             @test length(a.conversation.turns) >= 1
             at("", (0, 0))
-            press(KeyPress('q'))
+            press(KeyPress('q'; time = 0.0))
             at("q", (1, 1))
 
             # A structured part: the kind chooser takes the selection.
-            press(KeyDown(:tab, none))
+            press(KeyDown(:tab, none; time = 0.0))
             @test active() isa DocumentInsertion
             at("", (0, 0))
-            foreach(c -> press(KeyPress(c)), "jul")
+            foreach(c -> press(KeyPress(c; time = 0.0)), "jul")
             at("jul", (3, 3))
             # The caret does not enter the chooser's own words.
-            foreach(_ -> press(KeyDown(:left, none)), 1:5)
+            foreach(_ -> press(KeyDown(:left, none; time = 0.0)), 1:5)
             at("jul", (0, 0))
-            press(KeyDown(:backspace, none))
+            press(KeyDown(:backspace, none; time = 0.0))
             at("jul", (0, 0))
             # A range that would leave the value declines.
-            press(KeyDown(:end, ModifierKeys(ctrl = true)))
-            press(KeyDown(:right, ModifierKeys(shift = true)))
+            press(KeyDown(:end, ModifierKeys(ctrl = true); time = 0.0))
+            press(KeyDown(:right, ModifierKeys(shift = true); time = 0.0))
             at("jul", (3, 3))
             _panel_wait_idle!(a)
         end

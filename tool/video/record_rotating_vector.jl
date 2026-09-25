@@ -32,10 +32,13 @@ const CANVAS_CENTRE = (432, 362)      # the canvas row after the first two forms
 # tab there. The take reads the project and writes nothing into it.
 const PROJECT = normpath(joinpath(@__DIR__, "..", "..", "example", "filesystem", "fixture", "project"))
 
-_key(key; hold = 0.4, kwargs...) = (event = KeyDown(key, ModifierKeys(; kwargs...)), hold = hold)
+_key(key; hold = 0.4, kwargs...) = (event = KeyDown(key, ModifierKeys(; kwargs...);
+                                                    time = time()), hold = hold)
 _type(text) = make_typein_gestures(text; hold = 0.06, jitter = 0.5)    # a fast typist
-_press(x, y; hold = 0.6, kwargs...) = [(event = MouseMove(x, y, MouseButtons(), ModifierKeys()), hold = 0.4),
-                                       (event = MousePress(:left, x, y, ModifierKeys(; kwargs...)), hold = hold)]
+_press(x, y; hold = 0.6, kwargs...) = [(event = MouseMove(x, y, MouseButtons(), ModifierKeys();
+                                                          time = time()), hold = 0.4),
+                                       (event = MousePress(:left, x, y, ModifierKeys(; kwargs...);
+                                                           time = time()), hold = hold)]
 
 include(joinpath(@__DIR__, "julia_forms.jl"))
 include(joinpath(@__DIR__, "s1_forms.jl"))
@@ -55,7 +58,7 @@ function _forms(forms; type = _type)
 end
 
 # The warm-up: the steps of the first half, typed fast, with no hold to watch.
-_type_fast(text) = [(event = KeyPress(c), hold = 0.01) for c in text]
+_type_fast(text) = [(event = KeyPress(c; time = time()), hold = 0.01) for c in text]
 
 function make_warm_up_timeline()
     vcat(

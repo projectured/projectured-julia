@@ -134,7 +134,7 @@ end
     # A value-domain selection move flowing up from the value child is re-rooted
     # under versions[1].value (IdentityProjection passes it through unchanged).
     value_sel = ReplaceSelectionOperation(EmptyReference())
-    change = Intent(KeyDown(:right, ModifierKeys()), value_sel)
+    change = Intent(KeyDown(:right, ModifierKeys(); time = 0.0), value_sel)
     out = read_intent(p, IdentityProjection(), change, iomap)
     @test out.operation isa ReplaceSelectionOperation
     rerooted = out.operation.path
@@ -147,7 +147,7 @@ end
     empty_vo = VersionedObject(ObjectVersion[])
     iomap_e = print_document(p, IdentityProjection(), empty_vo, PrinterContext())
     out_e = read_intent(p, IdentityProjection(),
-        Intent(KeyDown(:right, ModifierKeys()), value_sel), iomap_e)
+        Intent(KeyDown(:right, ModifierKeys(); time = 0.0), value_sel), iomap_e)
     @test out_e.operation === nothing
 end
 
@@ -159,7 +159,7 @@ end
     # Ctrl+Shift+S snapshots the active value into a new front ObjectVersion via a
     # sequence splice (insert_elements) — a ReplaceReferencedValueOperation whose terminal is
     # a zero-width RangeReferenceStep(0,0) into `versions` and whose value is the items.
-    op = read_intent(p, iomap, KeyDown(:s, ctrl_shift))
+    op = read_intent(p, iomap, KeyDown(:s, ctrl_shift; time = 0.0))
     @test op isa ReplaceReferencedValueOperation
     @test op.reference.head.name == "versions"
     @test op.reference.tail.head isa RangeReferenceStep && op.reference.tail.head.start == 0
@@ -171,7 +171,7 @@ end
 
     # Ctrl+Delete deletes the active version via a splice (delete_elements): a
     # ReplaceReferencedValueOperation with terminal RangeReferenceStep(0,1) and an empty value.
-    op = read_intent(p, iomap, KeyDown(:delete, ctrl))
+    op = read_intent(p, iomap, KeyDown(:delete, ctrl; time = 0.0))
     @test op isa ReplaceReferencedValueOperation
     @test op.reference.head.name == "versions"
     @test op.reference.tail.head isa RangeReferenceStep && op.reference.tail.head.start == 0
@@ -184,7 +184,7 @@ end
     # With no author named, the author is the user of the system.
     p = VersioningToAnyProjection()
     iomap = print_document(p, IdentityProjection(), vo, PrinterContext())
-    snapshot = read_intent(p, iomap, KeyDown(:s, ctrl_shift)).value[1]
+    snapshot = read_intent(p, iomap, KeyDown(:s, ctrl_shift; time = 0.0)).value[1]
     @test snapshot.properties.author == Sys.username()
     @test snapshot.properties.timestamp isa Float64
     @test before <= snapshot.properties.timestamp <= time()
@@ -192,7 +192,7 @@ end
     # A named author, and the criteria select the new version.
     p = VersioningToAnyProjection(author = "dora")
     iomap = print_document(p, IdentityProjection(), vo, PrinterContext())
-    op = read_intent(p, iomap, KeyDown(:s, ctrl_shift))
+    op = read_intent(p, iomap, KeyDown(:s, ctrl_shift; time = 0.0))
     @test op.value[1].properties.author == "dora"
     evaluate_operation((document = vo,), op)
     @test vo.versions[1].properties.author == "dora"
