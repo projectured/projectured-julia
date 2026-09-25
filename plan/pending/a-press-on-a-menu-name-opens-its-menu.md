@@ -3,7 +3,8 @@
 > **Status (2026-09-25): in progress** on the branch `popup-position`, worktree
 > `projectured-julia-popup-position`. The owner chose the design below, in which
 > a popup carries a position that each reader moves into its own frame on the
-> way up, and took the three recommendations of "Decisions".
+> way up, and took the three recommendations of "Decisions". Steps 1 to 8 are
+> landed; step 9 fixes F7, which the owner found in the live application.
 
 A press on "File", "View" or "Help" in the menu bar of the application window
 does nothing, and no message says why. The same causes break the other popups:
@@ -51,6 +52,16 @@ projection, with traces of the readers and of the forward maps.
   inside a pane opens comes up wrapped in a `RecordUndoOperation`, and the window
   manager does not find it. The undo package does not depend on the screen
   package, so its filter can not name the popup.
+- **F7. The window manager of the desktop closes the popup.** Found by the
+  owner after the landing, in the live application: a press on "File" opens a
+  small window, and the window closes at once. A live run on GNOME Shell (X11)
+  logged the order: the popup window opens with the `:floating` flags, gets the
+  keyboard focus, loses it in the same poll, and the `WindowDefocus` rule of
+  `WindowManagingProjection` closes it because it is `auto_dismiss`. With
+  `SDL_WINDOW_POPUP_MENU` the window manager does not manage the window and
+  gives it no focus, so it stays open; but then no event closes it. The tests
+  read the layers with no window manager, so no test saw it. The old resolver
+  opened its popups with the same flags.
 
 ## Why the clipboard is a chain
 
@@ -337,7 +348,24 @@ to the readers.
   the docstring of `map_reference_forward`. The anchored layout is
   `AnchoredLayout`, a placement of layout children, and it never named the
   resolver, so its document does not change.
-- [ ] 9. Verification against a baseline of `main`, and the move of this plan to
+- [ ] 9. **F7, a popup is a window that never takes the focus.** The owner
+  chose this design after F7 was found:
+  - A new window style `:popup`. The SDL backend opens it borderless, above the
+    other windows, not in the taskbar, and with `SDL_WINDOW_POPUP_MENU`, so the
+    window manager neither manages it nor gives it the focus. `ScreenToScreen`
+    opens every popup with `:popup`. A dialog stays `:floating`, because a
+    dialog takes the focus.
+  - `WindowManagingProjection` closes every `auto_dismiss` window when a
+    `MouseDown` arrives in another window, and the press goes on. It closes
+    every `auto_dismiss` `:popup` window when a window loses the focus, because
+    the focus of a popup stays in the window under it. It closes every
+    `auto_dismiss` window on a bare Escape and consumes the Escape, which
+    otherwise reaches the rule of the editor that quits.
+  - A second press on a menu name closes the menu and opens it again: the press
+    goes on. The owner accepted this limit.
+  - omnet-julia: `IdeWindowWrapTest.jl` passes a `Symbol` as the buttons of a
+    `MouseMove`; the kernel takes `MouseButtons` since `6b411294`.
+- [ ] 10. Verification against a baseline of `main`, and the move of this plan to
   `plan/done/`.
 
 ## Decisions (owner, 2026-09-25)
