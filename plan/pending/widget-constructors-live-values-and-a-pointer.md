@@ -168,6 +168,25 @@ name.content = "Ada Lovelace"
 
 ### 3.7 A cell that is a result follows the cell
 
+**Dropped (2026-09-25, the owner's decision).** A result that is not a
+`Document` stays a text snapshot of its display, as the Julia REPL prints a value
+once, when the form runs. The reasons:
+
+- `show` must not be reactive. A `show` that read a cell with `c[]` would add a
+  hidden dependency to every computation that logs or prints a value.
+  `Base.show(::ReactiveCell)` reads the fields `valid` and `value`, which record
+  no dependency, and that is right.
+- A reactive result can not work in general. A cell can be part of any value,
+  and that value's `show` calls the cell's `show`, so a result row could follow a
+  cell only when the cell is the whole result, never a cell inside a vector or a
+  struct. A document that read the result cell itself before `show` was
+  considered and rejected for this reason.
+
+So the display of a cell stays `Cell(value, 0)` and `Cell(computation, …)`, and
+`ReactiveCell.jl`, sealed since 2026-09-25, needs no change. A value that must be
+seen live belongs in a widget that reads it, as the label that counts the presses
+in S4 does. The text below is the design as it was proposed.
+
 Today the evaluator keeps a result that is a `Document`, which renders live, and
 makes any other value a text snapshot of its display (`Evaluator.jl`,
 `evaluate_operation(::EvaluateSelectedFormOperation)`). A cell displays as
@@ -270,7 +289,16 @@ sealed).
         its row (the button of `button = …`, the field of `name = …`), because
         the result row gives its document `Fill` so that text wraps at the edge
         of the pane; and `presses = Cell(0)` shows `Cell(primitive, 0)`.
-- [ ] Step 6: a cell that is a result follows the cell (§3.7), with a test.
+        **Both settled (2026-09-25).** The layout range
+        (`plan/done/layout-sizing-model.md`, Step 5a) makes the result row
+        `Content`: a widget result keeps its own width and a long text still
+        wraps at the edge, and `EvaluatorToplevelTest` checks a button result
+        (110 px in a tab of 500). The row of `presses = Cell(0)` shows
+        `Cell(value, 0)` once and does not follow the cell, as §3.7 decides; the
+        label that counts the presses shows the live value.
+- ~~[ ] Step 6: a cell that is a result follows the cell (§3.7), with a test.~~
+      **Dropped (2026-09-25):** a result that is not a document stays a snapshot
+      of `show`; §3.7 gives the reasons.
 - [ ] Step 7: the landing of both repositories, when the owner says so.
       **Landed, not pushed** (2026-09-24, "land in main first"): projectured-julia
       `main` f954f90e and omnet-julia `main` b532199b, by fast-forward. Both mains
