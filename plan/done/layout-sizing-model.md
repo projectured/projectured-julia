@@ -545,7 +545,21 @@ Step 0 takes the baseline.
       `MarkdownTableTest.jl` to follow the names; the rebase of Step 6 made
       that change. `word-wrapping-projection.md` names the range.
 
-- [ ] **Step 8: the landing** of both repositories, when the owner says so.
+- [x] **Step 8: the landing** of both repositories, when the owner says so.
+      **Done** (2026-09-25). The owner asked to land before the full check and
+      to test afterwards. projectured-julia `main` moved by a fast-forward to
+      `5c143060` (from `984e8968`, after a second rebase that joined the new
+      text of `sdl.md` about the `Display`), and omnet-julia `main` to
+      `7b1fd5a9`; neither is pushed. The check afterwards ran each of the 82
+      parts of `test_all` in its own process, on `984e8968` and on `5c143060`:
+      664 and 663 failures, at the same places, apart from one timing check of
+      `WebTest.jl:110` that failed on main only (5.5 s against a bound of 5.0 s
+      under load). Pass counts: the kernel +22 and the substrate +80 are the new
+      tests, the evaluator +2 its new check, and the catalog +4122, the
+      printers −210 and the domain examples −308 are the reach of the printer
+      walk. The check ran as a user service, `systemd-run --user`, so that the
+      end of a session does not stop it; a logout and a reboot did stop it
+      once, and it resumed from the logs.
 
 ## 7. The documentation, by step
 
