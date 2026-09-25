@@ -1,7 +1,7 @@
 # Documentation tool results drawn as Markdown documents
 
-> **Status:** Steps 0 to 5 and 7 landed on 2026-09-25 (`8ece1ad1`), and Step 8
-> after them. The timing of Step 6 waits for the owner. Written 2026-09-25.
+> **Status:** done on 2026-09-25. Steps 0 to 5 and 7 landed at `8ece1ad1`, and
+> Step 8 at `9b45cea5`. The owner dropped the timing of Step 6. Written 2026-09-25.
 
 The assistant pane draws the answer of a documentation tool as plain text. The
 answer is Markdown: a guide, a module, a type, a function, a list of search hits.
@@ -29,7 +29,7 @@ projection, while the model goes on to get the text that the tool wrote.
 4. **The branch lands before the layout range, and the grid in the transcript
    waits for it** (2026-09-25, after Step 6): "I agree with you, land now,
    I'll notify when they are done". The plan
-   [layout-sizing-model.md](layout-sizing-model.md) is in progress on the branch
+   [layout-sizing-model.md](../pending/layout-sizing-model.md) is in progress on the branch
    `layout-range`; its Step 5a makes a card pass its range on to its content,
    which is the width a table in the transcript needs. Step 8 below follows
    when the owner says that plan is done.
@@ -189,7 +189,7 @@ columns got no width: the transcript offers the content of a part no width (a
 entries were cut away. The prose around it wrapped at the 800-pixel fallback
 of `WordWrapping`. A fallback width for the table would be a second number that
 nobody chose, which `layout-rules.md` §1 forbids, and `Content` columns would
-make a wide table leave the card. [layout-sizing-model.md](layout-sizing-model.md)
+make a wide table leave the card. [layout-sizing-model.md](../pending/layout-sizing-model.md)
 gives the content its width; then the row can be added (§5, question 5).
 
 ### 3.5 The Markdown domain reads what the tools write
@@ -304,7 +304,7 @@ the alignments as children.
 - **The examples.** `atomic_documents()` gets one small example for each new
   type, so `CatalogCoverageTest` and `test_example` cover them.
 
-The pending [layout-sizing-model.md](layout-sizing-model.md) changes how a grid
+The pending [layout-sizing-model.md](../pending/layout-sizing-model.md) changes how a grid
 gives width to its columns. The table does not wait for it: `WidgetTable`
 already breaks the lines of an entry.
 
@@ -390,7 +390,9 @@ that file. All files of `tool/` are `⬜` on 2026-09-25.
   tool that declares `"text/markdown"`: the result is a `MarkdownRoot`, the
   history holds the text of the tool, an error result stays a `TextBlock`, and a
   tool that declares `"text/plain"` keeps a `TextBlock`.
-- [~] **Step 6. Check in the real editor.** *The check of the drawing is done,
+- [x] **Step 6. Check in the real editor.** *The owner dropped the timing on
+  2026-09-25 ("drop it"): the parse of the largest answer is 1.7 ms, and a
+  resource read starts folded. The check of the drawing is done,
   and the timing is not. A scripted model called `read_resource` for the
   section of `kernel/selection` with the table, and `search_api` for
   `evaluate_reference`, through `_run_agent_loop!`; the assistant row of
@@ -427,7 +429,7 @@ that file. All files of `tool/` are `⬜` on 2026-09-25.
   `Dict{DataType,Int}`: `main` lists the template first and the branch the leaf.
   The drawing of an image or a link does not change.
 - [x] **Step 8. The grid table in the transcript, and the alignment of a
-  column.** After Step 5 of [layout-sizing-model.md](layout-sizing-model.md)
+  column.** After Step 5 of [layout-sizing-model.md](../pending/layout-sizing-model.md)
   lands, when the owner says so:
   - Add `MarkdownRoot => ChainingProjection(MarkdownRootToVerticalLayout(),
     VerticalLayoutToGraphicsCanvas())` before the `MarkdownDocument` row of
@@ -502,7 +504,7 @@ decision 3). Question 5 came from Step 6, and the owner decided it on 2026-09-25
 
 5. **A grid table in the transcript** (found in Step 6, §3.4). **Decided: wait
    for the layout range (§1, decision 4), then Step 8.**
-   The options: wait for [layout-sizing-model.md](layout-sizing-model.md) to
+   The options: wait for [layout-sizing-model.md](../pending/layout-sizing-model.md) to
    give the content of a part its width, then add the page row for
    `MarkdownRoot` to the renderer of the transcript; or add the row now with a
    fallback width for a table that is offered none. *Recommendation: wait,
