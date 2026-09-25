@@ -121,9 +121,36 @@ landed, and reported three faults with a screenshot.
   header of `WidgetSelectTest.jl` named the resolver that the last plan removed;
   it describes the present now. The popup suites: 170 pass before the fix of
   the window wrap test, and `test_window_wrap` 33 pass after it.
-- [ ] 5. **G3.** The help pages open inside a scroll pane. Test: in the
+- [x] 5. **G3.** The help pages open inside a scroll pane. Test: in the
   application, a wheel over the Documents tab moves its rows, and a second press
   on "Documents" opens no second tab.
-- [ ] 6. The documents: `widget.md`, `screen.md`, `shell.md`.
+
+  Done. `_make_scrolling_tool` opens the two lists as `WidgetScrollPane(list)`;
+  `_reach_tool!` titles such a tab by what it shows, and `_find_tool_tab` looks
+  into the scroll pane (`_get_tool_document`). A saved window writes every
+  document of a tab, and the `.pred` writer refuses a type it does not know, so
+  `WidgetScrollPane` is now a `.pred` type that writes its content only, as
+  `WidgetShell` does.
+
+  **The other way, and why not.** A projection could put the list in a scroll
+  pane, as `FileSystemToWidget` does, and leave the tab content alone. But a
+  registered natural row must draw graphics, a row that draws a widget needs a
+  chained renderer in the content rows of each host (the caveat of the
+  assistant row), and that renderer would meet the same list again unless the
+  list became syntax first. That is a new projection and a row in every host;
+  the tab content path is three small changes in the shell and the widget
+  package, and the omnet IDE gets it with the Help menu.
+
+  Tests: `test_window_shell` (the lists in scroll panes with their titles, the
+  page about the program bare, and a `.pred` round trip that keeps the list and
+  writes no scroll position), `test_help`, `test_user_interface_file` and
+  `test_application` (a wheel over the Documents tab moves its rows up): 518
+  pass.
+- [x] 6. The documents: `widget.md`, `screen.md`, `shell.md`.
+
+  Done: `widget.md` (what a popup holds, the popover of a dropdown, the row
+  width, no size from a trigger, the two `.pred` types), `screen.md` (a popup
+  fits what it draws, up to its bound) and `shell.md` (the lists open in a
+  scroll pane).
 - [ ] 7. A live check on the display, the verification against `main`, and the
   move of this plan to `plan/done/`.

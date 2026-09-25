@@ -49,7 +49,7 @@ Each menu of the bar has its own make function. `make_window_file_menu()` makes 
 
 `make_window_menu_bar(; extra, about)` combines them: File, then View, then the menus of `extra`, then Help. Help is the last menu, as on a desktop, so a host's own menus go between View and Help.
 
-Each Help item opens its tab through `_reach_tool!`, [the same function the toolbar uses](#the-toolbar-opens-the-tools). A second use of a Help item focuses the tab that is already open, and does not open a second one. `about` makes the page of the host's own program, from the editor; the default makes the page of ProjecturEd.
+Each Help item opens its tab through `_reach_tool!`, [the same function the toolbar uses](#the-toolbar-opens-the-tools). A second use of a Help item focuses the tab that is already open, and does not open a second one. The list of document types and the list of projections are longer than a pane, and a tab page gets no scroll of its own, so each opens inside a `WidgetScrollPane`, with the title of the list; `_find_tool_tab` looks into the scroll pane. A saved window keeps the list in its scroll pane, and not where it was scrolled. `about` makes the page of the host's own program, from the editor; the default makes the page of ProjecturEd.
 
 ### How a host adds a command
 

@@ -10,7 +10,7 @@
 
 - `id`, a `Symbol`. The backend keeps one native window for each id, from frame to frame.
 - `title`, `x`, `y`, `width`, `height`. A position of `-1` lets the backend choose, and a size of `0` sizes the window to its content.
-- `minimum_size` and `maximum_size`, the bounds of a window that fits what it holds. A maximum of `(0, 0)`, the default, is a window of a fixed size, and that is every window but a tooltip today.
+- `minimum_size` and `maximum_size`, the bounds of a window that fits what it holds. A maximum of `(0, 0)`, the default, is a window of a fixed size. A tooltip and a popup fit what they hold.
 - `style`: `:normal`, `:tooltip`, `:floating` or `:popup`. The backend applies the behaviour of each style. A `:popup` is a menu or a dropdown list, and it never takes the focus: the keyboard stays in the window under it. A `:floating` window, such as a dialog, takes the focus.
 - `auto_dismiss`: the window is a transient popup, which closes when the pointer or the keyboard acts elsewhere, as a menu does. `WindowManagingProjection` lists the events that close it.
 - `modal`: while the window is open, no other window gets input.
@@ -26,7 +26,7 @@ It keeps the IO map of each window by identity (`reconcile_child_iomaps`). So a 
 
 Its reference map is where a window position becomes a screen position. A structural path gets the prefix `windows[i].content`. A `PointReferenceStep`, a pixel position inside the content, also gets the `x` and `y` of the window added.
 
-Its reader routes a `WindowInput` event by the window id, not by the position in the list. It then adds the prefix `windows[i]` to the operation that comes back. When that operation is an `OpenPopupOperation` inside `ReplaceViewStateOperation`, it adds the window's own screen origin to the popup and turns it into an `OpenWindowOperation` with `style = :popup`, and drops the mark. The mark keeps a popup out of a history only above the window; below the window manager, a popup opens exactly as any other window does.
+Its reader routes a `WindowInput` event by the window id, not by the position in the list. It then adds the prefix `windows[i]` to the operation that comes back. When that operation is an `OpenPopupOperation` inside `ReplaceViewStateOperation`, it adds the window's own screen origin to the popup and turns it into an `OpenWindowOperation` with `style = :popup` and a `maximum_size` of the width and the height of the popup, and drops the mark. So the window takes the extent of what the popup draws, up to that bound, which is `(640, 800)` by default. The mark keeps a popup out of a history only above the window; below the window manager, a popup opens exactly as any other window does.
 
 ### WindowManagingProjection
 
