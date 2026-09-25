@@ -32,15 +32,30 @@ function test_code_execution()
         # A long vector shows as Julia's own elided line, which is short.
         elided = run("collect(1:1000)")
         @test startswith(elided, "[1, 2, 3") && occursin("…", elided) && !occursin("500", elided)
-        # A value whose form is long even limited — a tuple is never elided — is
-        # described, not shown.
+        # A value whose form is long even limited — a tuple is never elided —
+        # keeps its start and its end around one mark line, then a note.
         long = run("Tuple(1:1000)")
-        @test startswith(long, "The last value is NTuple{1000, Int64}.")
+        @test startswith(long, "(1, 2, 3")
+        @test occursin(r"⋯ \d+ characters left out ⋯", long)
+        @test occursin("The value is trimmed: NTuple{1000, Int64}.", long)
         @test occursin("println(first(x, 10))", long)
-        @test !occursin("500", long)
         # What the code prints comes first, and is never cut.
         printed = run("for i in 1:300\n  println(i)\nend\nTuple(1:1000)")
-        @test startswith(printed, join(string.(1:300), '\n') * "\nThe last value is NTuple")
+        @test startswith(printed, join(string.(1:300), '\n') * "\n(1, 2, 3")
+    end
+
+    @testset "a short value is unchanged" begin
+        @test run("1 + 1") == "2\n"
+        @test run("\"a word\"") == "\"a word\"\n"
+    end
+
+    @testset "the person's description shows the value as the REPL does" begin
+        @test describe_value_for_person(nothing) == ""
+        @test describe_value_for_person(2) == "2\n"
+        long = describe_value_for_person(collect(1:1000))
+        @test occursin("1000-element Vector{Int64}:", long)
+        @test occursin("⋮", long)
+        @test !occursin("Print a part", long)
     end
 
     @testset "an Expr runs as its text does" begin

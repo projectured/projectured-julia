@@ -131,20 +131,23 @@ its text repr.
 get_last_evaluated_value(set::ToolSet) = set.last_value
 
 """
-    execute_julia_code(set, target, code) -> String
+    execute_julia_code(set, target, code; describe_value = _describe_value_for_model) -> String
 
 Evaluate `code` in the editor process, with `target` bound as `editor` and the
 Projectured names in scope. Statements run at the top level of `set`'s persistent
 scratch module, so top-level assignments stay bound for later calls.
 
-**The answer is what the code printed, whole, and the last value in one line.**
-What the code prints is what the caller asked for, so it is never cut. The
-value of the last expression comes unasked, and it is what floods a window — a
-`DataFrame` of thousands of rows, the `Text` a side-effect verb answers — so a
-short one is shown as it is and a long one is described by its `summary`; the
-caller then prints the part it wants. A value is whole or described, never cut
-in the middle. `nothing`, with nothing printed, answers "Done.", because an
-empty answer reads as a broken tool.
+**The answer is what the code printed, whole, then the value of the last
+statement on its own.** What the code prints is what the caller asked for, so
+it is never cut. The value of the last statement comes unasked, and it is what
+floods a window — a `DataFrame` of thousands of rows, the `Text` a side-effect
+verb answers — so `describe_value` renders it instead of the value itself. Its
+default, `_describe_value_for_model`, keeps a short value whole, limits a
+longer one as the Julia REPL would, and trims one still longer than that to its
+start and its end with a note of how to read a part; [`describe_value_for_person`](@ref)
+is the other description this editor calls it with, the value exactly as the
+REPL shows it, with no note. `nothing`, with nothing printed, answers "Done.",
+because an empty answer reads as a broken tool.
 
 **A name that is not defined answers the nearest names that are.** A caller
 guesses `plot_results`, and the error names `make_result_plot`: the search that
@@ -161,7 +164,8 @@ set of simulations: it wrote an empty call, got a blank back, said "the tool see
 to not be returning the output", and spent every remaining round searching instead
 of running anything. The one line back is what lets it correct itself.
 """
-function execute_julia_code(set::ToolSet, target, code)
+function execute_julia_code(set::ToolSet, target, code;
+                             describe_value::Function = _describe_value_for_model)
     @info "[tool] execute_julia_code call" code
     set.last_value = nothing
     if code === nothing || isempty(strip(String(code)))
@@ -170,30 +174,34 @@ function execute_julia_code(set::ToolSet, target, code)
         return answer
     end
     # parseall handles code of several lines
-    output = _run_expression(set, target, () -> Meta.parseall(code))
+    output = _run_expression(set, target, () -> Meta.parseall(code); describe_value)
     @info "[tool] execute_julia_code result" output
     output
 end
 
 """
-    execute_julia_expression(set, target, expression) -> String
+    execute_julia_expression(set, target, expression; describe_value = _describe_value_for_model) -> String
 
 [`execute_julia_code`](@ref) for code that is already an `Expr`, such as
 `Meta.parseall` or `make_julia_expression` gives: the same scratch module, the
 same `editor` binding, the same answer, and the same notice to the observers. An
 object that the expression holds in a `QuoteNode` is used as that very object.
 """
-function execute_julia_expression(set::ToolSet, target, expression)
+function execute_julia_expression(set::ToolSet, target, expression;
+                                   describe_value::Function = _describe_value_for_model)
     @info "[tool] execute_julia_expression call" expression
     set.last_value = nothing
-    output = _run_expression(set, target, () -> expression)
+    output = _run_expression(set, target, () -> expression; describe_value)
     @info "[tool] execute_julia_expression result" output
     output
 end
 
 # Everything an evaluation does after the parse. `make_expression` runs inside
 # the guard, so a failure to make the expression is answered like any other.
-function _run_expression(set::ToolSet, target, make_expression::Function)
+# `describe_value` renders the last value once the capture is closed, so its
+# text never lands inside the same pipe as the code's own `println`s.
+function _run_expression(set::ToolSet, target, make_expression::Function;
+                          describe_value::Function = _describe_value_for_model)
     output = try
         m = _scratch_module(set)
         # (Re)bind `editor` each call, so user code can reference it and so it
@@ -204,10 +212,10 @@ function _run_expression(set::ToolSet, target, make_expression::Function)
         stdout_pipe = Pipe()
         stderr_pipe = Pipe()
 
+        result = nothing
         redirect_stdio(stdout = stdout_pipe, stderr = stderr_pipe) do
             # Evaluate each top-level statement in order and keep the last value
             # (REPL semantics); top-level assignments persist as module globals.
-            result = nothing
             if expr isa Expr && expr.head == :toplevel
                 for e in expr.args
                     e isa LineNumberNode && continue
@@ -216,9 +224,8 @@ function _run_expression(set::ToolSet, target, make_expression::Function)
             else
                 result = Core.eval(m, expr)
             end
-            set.last_value = result
-            print(_describe_last_value(result))
         end
+        set.last_value = result
 
         close(stdout_pipe.in)
         close(stderr_pipe.in)
@@ -227,7 +234,7 @@ function _run_expression(set::ToolSet, target, make_expression::Function)
         close(stdout_pipe.out)
         close(stderr_pipe.out)
 
-        answer = stdout_output * stderr_output
+        answer = stdout_output * stderr_output * describe_value(result)
         isempty(strip(answer)) ? "Done." : answer
     catch e
         sprint(showerror, e, catch_backtrace()) * _suggest_nearest_names(e, set)
@@ -236,26 +243,56 @@ function _run_expression(set::ToolSet, target, make_expression::Function)
     output
 end
 
-# The longest value that is shown as it is. Beyond it, the value is described.
+# The longest value that is shown as it is. Beyond it, the value is limited.
 const _SHOWN_VALUE_CHARACTERS = 200
 
-# The value of the last expression, as the answer shows it: a short one as it
-# is, a long one by its `summary` and how to read a part of it, and `nothing` as
-# nothing at all. Prose a verb answers on purpose is shown whole, however long:
-# a `Text` as it is, and a long `String` without its quotes. A verb that answers
+# The longest REPL-limited display a model is shown whole. Beyond it, the
+# display is trimmed to its start and its end around one mark line.
+const _MODEL_VALUE_CHARACTERS = 600
+
+"""
+    describe_value_for_person(value) -> String
+
+The value of the last statement, exactly as the Julia REPL shows it: `show`
+with `MIME"text/plain"()`, `:limit => true`, and the size of a default terminal
+(24 rows × 80 columns) — a string keeps its quotes, and a long collection keeps
+the REPL's own `⋮`. `nothing` describes as nothing, the REPL's own answer to it.
+
+Passed as `describe_value` to [`execute_julia_code`](@ref) wherever the answer
+goes to a person rather than to a model: the evaluator and the chat composer.
+"""
+function describe_value_for_person(value)
+    value === nothing && return ""
+    Base.invokelatest(sprint, show, MIME"text/plain"(), value;
+        context = (:limit => true, :displaysize => (24, 80))) * "\n"
+end
+
+# The value of the last statement, as a model is shown it: a short one as it
+# is, a longer one limited as the Julia REPL would limit it, and one still long
+# even limited trimmed to its start and its end, with a note of how to read a
+# part. Prose a verb answers on purpose is shown whole, however long: a `Text`
+# as it is, and a long `String` without its quotes. A verb that answers
 # `show_layout`'s layout or a search's hits answers it to be read. A function is
 # shown as the Julia REPL shows it, by its name and its number of methods; its
 # plain `repr` in the scratch module is the name of its type. The code just made
 # the function in a newer world, so the display runs in the newest one.
-function _describe_last_value(value)
+function _describe_value_for_model(value)
     value === nothing && return ""
     value isa Base.Text && return string(value) * "\n"
     value isa Function && return Base.invokelatest(sprint, show, MIME"text/plain"(), value) * "\n"
     text = repr(value; context = :limit => true)
     (length(text) <= _SHOWN_VALUE_CHARACTERS && !occursin('\n', text)) && return text * "\n"
     value isa AbstractString && return String(value) * "\n"
-    "The last value is " * _summarize_value(value) * ". Print the part you want to read, " *
-        "as `println(first(x, 10))` or `println(names(x))`.\n"
+    limited = Base.invokelatest(sprint, show, MIME"text/plain"(), value;
+        context = (:limit => true, :displaysize => (20, 100)))
+    length(limited) <= _MODEL_VALUE_CHARACTERS && return limited * "\n"
+    # Never a print of the whole value — a huge collection would cost too much
+    # to render even to measure. Only the already-limited display is trimmed.
+    half = _MODEL_VALUE_CHARACTERS ÷ 2
+    left_out = length(limited) - 2 * half
+    first(limited, half) * "\n⋯ " * string(left_out) * " characters left out ⋯\n" *
+        last(limited, half) * "\nThe value is trimmed: " * _summarize_value(value) *
+        ". Print a part, as `println(first(x, 10))` or `println(names(x))`.\n"
 end
 
 function _summarize_value(value)
