@@ -95,6 +95,8 @@ mouse-click / click-round-trip sweeps — see
 
 `test_all` is just a `@testset` that calls the per-package functions in
 sequence; pick the one you actually need and skip the rest.
+[The time and the memory of each part](#the-time-and-the-memory-of-each-part)
+gives what each of them costs.
 
 ## Per-package tests
 
@@ -117,7 +119,7 @@ sequence; pick the one you actually need and skip the rest.
 | `test_tree_navigations_complete()` | Same idea for whole-element/structural selections (`collect_tree_selections`); curated to the native syntax tree. |
 | `test_repls()` | Runs `test_repl` (full read-eval-print loop) over every example. |
 | `test_text_navigation_invariants_all()` | Runs `test_text_navigation_invariants` (walk the cursor end to end, rightwards from Ctrl+Home and leftwards from Ctrl+End, and cross-check the two walks) over every example with a text pipeline. |
-| `test_typeins()` | Runs `test_typein` (type a character at every cursor position of every string and check the edit) over the supported field-addressed examples. ~1200 positions, ~30s. |
+| `test_typeins()` | Runs `test_typein` (type a character at every cursor position of every string and check the edit) over the supported field-addressed examples. About three minutes. |
 | `test_mcp_tools()`, `test_mcp_resources()` | MCP server tools and resources. |
 | `test_mouse_clicks()` | Mouse-click round-tripping. Run by `test_all`. |
 | `test_catalog()` | Runs printer/reader/repl (+ position-navigation on `:graphics`) over the **generated** atomic-example catalog — see below. Run by `test_all`. |
@@ -127,6 +129,65 @@ sequence; pick the one you actually need and skip the rest.
 may call, search by name/pattern/description, and `execute_julia_code`) and
 [test/kernel/agent/AgentSeamTest.jl](../../test/kernel/agent/AgentSeamTest.jl) (the inbound
 agent-server seam) — this table does not name them individually.
+
+## The time and the memory of each part
+
+`test_all()` calls 82 parts. Two runs on 2026-09-25 measured each part alone, in
+a process of its own, so the peak memory of a process is the peak of one part.
+The table gives each part that took more than 60 s or more than 1.5 GB in one of
+the two runs. Each other part took less than 60 s and less than 1.5 GB.
+
+| Part | Time | Peak memory | Allocated |
+|---|---|---|---|
+| `test_catalog()` | 556–666 s | 1.6 GB | 46 GB |
+| `test_position_navigations()` | 379–392 s | 1.4 GB | 368 GB |
+| `test_substrate()` | 250–365 s | 4.3 GB | 20 GB |
+| `test_typeins()` | 175–212 s | 1.0 GB | 231 GB |
+| `test_application()` | 158–174 s | 2.2 GB | 18 GB |
+| `test_text_navigation_invariants_all()` | 128–150 s | 1.1 GB | 72 GB |
+| `test_repls()` | 129–149 s | 1.2 GB | 20 GB |
+| `test_natural_renders_every_atom()` | 110–146 s | 1.2 GB | 14 GB |
+| `test_natural_round_trips_every_atom()` | 80–117 s | 1.1 GB | 9 GB |
+| `test_evaluator_toplevel()` | 58–101 s | 1.8 GB | 6 GB |
+| `test_kernel()` | 91–99 s | 2.5 GB | 8 GB |
+| `test_click_roundtrips()` | 90–99 s | 1.1 GB | 45 GB |
+| `test_readers()` | 88–95 s | 1.1 GB | 9 GB |
+| `test_tree_navigations()` | 90–93 s | 1.2 GB | 12 GB |
+| `test_domain_examples()` | 83–93 s | 1.2 GB | 10 GB |
+| `test_printers()` | 83–86 s | 1.2 GB | 9 GB |
+| `test_sql()` | 74–82 s | 1.7 GB | 7 GB |
+| `test_mouse_clicks()` | 71–72 s | 1.1 GB | 7 GB |
+| `test_projections()` | 59–63 s | 1.5 GB | 6 GB |
+| `test_chart()` | 40–45 s | 1.9 GB | 4 GB |
+| `test_graph()` | 34–38 s | 1.7 GB | 3 GB |
+
+- **Time.** The sum over the 82 parts was 72 and 70 minutes. The load of
+  `ProjecturedTest` takes about 8 s in each process, so about 11 minutes of the
+  sum is load. The first process after a change of the source also precompiles
+  the changed packages, which adds up to two minutes.
+- **Memory.** Each peak includes about 0.75 GB for the loaded packages. No part
+  needed more than 4.5 GB, so a cap of 8 GB on each process is enough.
+- **Allocation.** `test_position_navigations()` and `test_typeins()` allocate the
+  most, and spend 43 s and 28 s in garbage collection. Their objects are short
+  lived, so their peak stays under 1.5 GB.
+- **Noise.** Other work ran on the machine, with a load average from 2 to 24 on
+  32 CPUs. The time of a part changed by up to 43 % between the two runs. The
+  peak memory changed by at most 220 MB.
+
+To measure a part again:
+
+1. Find the name of the part in the body of `test_all()` in
+   [ProjecturedSuite.jl](../../test/projectured/ProjecturedSuite.jl).
+2. Run the part in a process of its own under `/usr/bin/time`. `%e` is the
+   time in seconds, and `%M` is the peak resident memory in KB.
+
+   ```bash
+   /usr/bin/time -f "%e s, %M KB" julia -t 2 --project=environment/all \
+       -e 'using ProjecturedTest, Test; @testset "part" begin test_catalog() end'
+   ```
+
+3. To get the allocation, read `Base.gc_num()` before and after the call, and
+   subtract the two with `Base.GC_Diff`.
 
 ## The generated example catalog
 
