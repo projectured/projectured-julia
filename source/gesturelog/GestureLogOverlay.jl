@@ -151,20 +151,20 @@ _force(value) = value isa Cell ? value[] : value
 _width(document) = hasproperty(document, :w) ? Int(document.w) : 0
 _height(document) = hasproperty(document, :h) ? Int(document.h) : 0
 
-# The available size of the context is what the window gives the content. It is
+# The maximum of the range is the edge that the window gives the content. It is
 # a `Cell`, so the panel follows a resize of the window.
 _available(size::Cell) = Int(size[])
 _available(::Nothing) = 0
 
 function _panel_x(p::GestureLogOverlayProjection, ctx, width::Integer)
     return _is_right(p.anchor) ?
-        max(p.margin, _available(ctx.available_width) - width - p.margin) :
+        max(p.margin, _available(ctx.maximum_width) - width - p.margin) :
         p.margin
 end
 
 function _panel_y(p::GestureLogOverlayProjection, ctx, height::Integer)
     return _is_bottom(p.anchor) ?
-        max(p.margin, _available(ctx.available_height) - height - p.margin) :
+        max(p.margin, _available(ctx.maximum_height) - height - p.margin) :
         p.margin
 end
 

@@ -25,8 +25,8 @@ function test_widget_table_list_header_floor()
     table = WidgetTable(; column_headers = Any["id", "a much longer header"],
                         rows = head, column_count = 2, column_policies = Any[grow, grow])
     function print_at(width)
-        ctx = with_available_size(PrinterContext(); width = Cell(Int32(width)),
-                                  height = Cell(Int32(300)))
+        ctx = with_exact_size(PrinterContext(); width = Cell(Int32(width)),
+                              height = Cell(Int32(300)))
         print_document(rec, nothing, table, ctx)
     end
     wide = print_at(900)
@@ -48,7 +48,7 @@ det = (t, f) -> (length(t) * 8, 16)
 rec = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch,
     WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
-context() = with_available_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(300)))
+context() = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(300)))
 mods = ModifierKeys()
 alt = ModifierKeys(alt = true)
 

@@ -93,7 +93,7 @@ end
                              weight_width=1.0, preferred_width=200)
     doc   = WidgetSplitPane(:horizontal, Any[mk("L"), mk("R")])
     proj  = _proj()
-    ctx   = with_available_size(PrinterContext(); width=Cell(601), height=Cell(400))
+    ctx   = with_exact_size(PrinterContext(); width=Cell(601), height=Cell(400))
     iomap = print_document(proj, nothing, doc, ctx)
 
     _feed(proj, iomap, MouseDown(:left, 300, 50, ModifierKeys()))

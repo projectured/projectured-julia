@@ -1244,8 +1244,8 @@ function print_document(p::GridLayoutToGraphicsCanvas,
     halign    = getfield(doc, :horizontal_align)
     valign    = getfield(doc, :vertical_align)
     column_align_cell = getfield(doc, :column_align)
-    avail_w = ctx === nothing ? nothing : ctx.available_width
-    avail_h = ctx === nothing ? nothing : ctx.available_height
+    avail_w = ctx === nothing ? nothing : get_exact_width(ctx)
+    avail_h = ctx === nothing ? nothing : get_exact_height(ctx)
 
     # A column's and a row's policy, read once. What a policy IS, a caller says
     # when it builds the grid; nothing changes one while the grid is on screen,
@@ -1322,7 +1322,7 @@ function print_document(p::GridLayoutToGraphicsCanvas,
                    is_content_column(col) ? with_bounded_size(cctx; width = column_edges[col]) :
                    withhold_offer(cctx, :x)
             cctx = _gl_offers(policy_of_row(row)) ?
-                with_available_size(cctx; height = _gl_int32_cell(row_h[row])) :
+                with_exact_size(cctx; height = _gl_int32_cell(row_h[row])) :
                 withhold_offer(cctx, :y)
         end
         cim = _recurse_child(recursion, doc.children[i],
@@ -1703,7 +1703,7 @@ function print_document(p::StackLayoutToGraphicsCanvas,
         n = length(doc.children)
         cims = Any[]
         for i in 1:n
-            cctx = with_available_size(
+            cctx = with_exact_size(
                 make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]));
                 width=nothing, height=nothing)
             push!(cims, _recurse_child(recursion, doc.children[i], cctx))
@@ -1847,7 +1847,7 @@ function _cl_build(solver, recursion, doc, ctx)
     measure_iomaps = Any[]
     for i in 1:n
         cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
-        cctx = with_available_size(cctx; width=nothing, height=nothing)
+        cctx = with_exact_size(cctx; width=nothing, height=nothing)
         push!(measure_iomaps, _recurse_child(recursion, doc.children[i], cctx))
     end
 
@@ -1889,9 +1889,9 @@ function _cl_build(solver, recursion, doc, ctx)
             push!(final_iomaps, measure_iomaps[i])
         else
             cctx = make_child_context(ctx, doc, (@reference_step children), (@reference_step [i]))
-            cctx = with_available_size(cctx;
-                                       width  = xset[i] ? sw[i] : nothing,
-                                       height = yset[i] ? sh[i] : nothing)
+            cctx = with_exact_size(cctx;
+                                   width  = xset[i] ? sw[i] : nothing,
+                                   height = yset[i] ? sh[i] : nothing)
             push!(final_iomaps, _recurse_child(recursion, doc.children[i], cctx))
         end
     end

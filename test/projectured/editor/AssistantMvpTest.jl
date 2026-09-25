@@ -363,7 +363,7 @@ function _mvp_test_card_fills_its_page()
             widgets.dispatch)))
         padding = 16
         for width in (600, 900)
-            offer = ProjectionModule.with_available_size(
+            offer = ProjectionModule.with_exact_size(
                 ProjectionModule.PrinterContext();
                 width = Cell(Int32(width)), height = Cell(Int32(1200)))
             canvas = print_document(renderer, nothing, a, offer).output
@@ -570,8 +570,8 @@ function _mvp_test_collapse_containment()
         # Stage 3 — every card's right edge is within the conversation width, on
         # the fallback path and at allocated panel widths (collapsed + expanded).
         for ctx in (PrinterContext(),
-                    with_available_size(PrinterContext(); width = Cell(760)),
-                    with_available_size(PrinterContext(); width = Cell(1200)))
+                    with_exact_size(PrinterContext(); width = Cell(760)),
+                    with_exact_size(PrinterContext(); width = Cell(1200)))
             out = _render_conversation_widget(
                 make_conversation_document_example(), ctx)
             @test _canvas_max_absright(out) <= Int(out.w)

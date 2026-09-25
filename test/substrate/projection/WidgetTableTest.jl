@@ -131,8 +131,8 @@ function test_widget_table_fills_offer()
     table = WidgetTable(Any["name", "value"], Any[Any["a", "1"], Any["b", "2"]];
                         column_policies = Any[Fill, Fixed(80)])
     for width in (400, 600)
-        ctx = with_available_size(PrinterContext(); width = Cell(Int32(width)),
-                                  height = Cell(Int32(400)))
+        ctx = with_exact_size(PrinterContext(); width = Cell(Int32(width)),
+                              height = Cell(Int32(400)))
         iomap = print_document(rec, nothing, table, ctx)
         @test Int(iomap.output.w[]) == width
         # The last rule is the right edge of the table.
@@ -155,8 +155,8 @@ function test_widget_table_content_floor()
     table = WidgetTable(Any["id", "text"], Any[Any["1", long], Any["2", "b"]];
                         column_policies = Any[grow, grow])
     function geometry_at(width)
-        ctx = with_available_size(PrinterContext(); width = Cell(Int32(width)),
-                                  height = Cell(Int32(400)))
+        ctx = with_exact_size(PrinterContext(); width = Cell(Int32(width)),
+                              height = Cell(Int32(400)))
         iomap = print_document(rec, nothing, table, ctx)
         (Int(iomap.output.w[]), iomap.geometry)
     end
@@ -183,7 +183,7 @@ function test_shell_offers_only_its_size()
     pane() = WidgetScrollPane(WidgetLabel("a label"); size = Point2D(0, 0))
     function viewport_of(shell; offered = true)
         ctx = offered ?
-            with_available_size(PrinterContext(); width = Cell(Int32(700)), height = Cell(Int32(500))) :
+            with_exact_size(PrinterContext(); width = Cell(Int32(700)), height = Cell(Int32(500))) :
             PrinterContext()
         found = GraphicsViewport[]
         walk(node) = node isa GraphicsViewport ? push!(found, node) :
@@ -219,8 +219,8 @@ function test_scroll_pane_axis_size()
     # draws one viewport for each region.
     content() = WidgetLabel("a label")
     function viewport(size, width)
-        ctx = with_available_size(PrinterContext(); width = Cell(Int32(width)),
-                                  height = Cell(Int32(400)))
+        ctx = with_exact_size(PrinterContext(); width = Cell(Int32(width)),
+                              height = Cell(Int32(400)))
         out = print_document(rec, nothing, WidgetScrollPane(content(); size = size), ctx).output
         only(e for e in out.elements if e isa GraphicsViewport)
     end
@@ -235,7 +235,7 @@ function test_scroll_pane_axis_size()
     rows = Cell(100)
     size = Point2D(Cell(0), Cell(100))
     set_cell_computation!(getfield(size, :y), () -> rows[])
-    ctx = with_available_size(PrinterContext(); width = Cell(Int32(400)), height = Cell(Int32(400)))
+    ctx = with_exact_size(PrinterContext(); width = Cell(Int32(400)), height = Cell(Int32(400)))
     out = print_document(rec, nothing, WidgetScrollPane(content(); size = size), ctx).output
     pane = only(e for e in out.elements if e isa GraphicsViewport)
     @test Int(pane.h) == 100
@@ -255,7 +255,7 @@ function test_widget_table_cell_policy()
     make(; kw...) = WidgetTable(Any["AA", "BB"],
                                 Any[Any[long, "x"], Any["second", "y"]];
                                 column_policies = Any[Fixed(80), Fixed(80)], kw...)
-    ctx = with_available_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(400)))
+    ctx = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(400)))
     # Every text a table drew, through the viewports the grid now emits.
     function texts(node, found = String[])
         if node isa GraphicsCanvas

@@ -31,7 +31,7 @@ Downward-flowing per-invocation context for `print_document`.
 whose range is exact on each axis where a cell is given, as the root of a
 window gives its size, and free where `nothing` is given.
 
-`ctx.available_width` and `ctx.available_height` read the extent of an exact
+`get_exact_width(ctx)` and `get_exact_height(ctx)` read the extent of an exact
 range, and `nothing` for a bounded or a free one.
 """
 struct PrinterContext
@@ -64,13 +64,24 @@ PrinterContext(ref::Reference) =
 # `nothing` for a bounded or a free range.
 _get_exact_extent(minimum, maximum) = (minimum !== nothing && minimum === maximum) ? maximum : nothing
 
-function Base.getproperty(ctx::PrinterContext, name::Symbol)
-    name === :available_width &&
-        return _get_exact_extent(getfield(ctx, :minimum_width), getfield(ctx, :maximum_width))
-    name === :available_height &&
-        return _get_exact_extent(getfield(ctx, :minimum_height), getfield(ctx, :maximum_height))
-    getfield(ctx, name)
-end
+"""
+    get_exact_width(ctx) -> Union{Cell, Nothing}
+
+The width of `ctx` when its range on the width is exact: the one cell that is
+both its minimum and its maximum. `nothing` when the range is bounded or free.
+
+Use it where a printer fills the slot that its parent gives, and is its content
+where the parent gives none: a shell, a split, a viewport, the columns of a grid.
+"""
+get_exact_width(ctx::PrinterContext) = _get_exact_extent(ctx.minimum_width, ctx.maximum_width)
+
+"""
+    get_exact_height(ctx) -> Union{Cell, Nothing}
+
+The height of `ctx` when its range on the height is exact, and `nothing` when it
+is bounded or free. See [`get_exact_width`](@ref).
+"""
+get_exact_height(ctx::PrinterContext) = _get_exact_extent(ctx.minimum_height, ctx.maximum_height)
 
 # A copy of `ctx` with the range of each axis given as a pair (minimum, maximum).
 _with_ranges(ctx::PrinterContext, width, height; reference = ctx.reference,
@@ -219,13 +230,6 @@ function _get_inner_range(range, inset)
     minimum === maximum && return (inner_maximum, inner_maximum)
     (_get_inner_extent(minimum, inset), inner_maximum)
 end
-
-"""
-    with_available_size(ctx; width, height) -> PrinterContext
-
-The same as [`with_exact_size`](@ref).
-"""
-with_available_size(ctx::PrinterContext; kwargs...) = with_exact_size(ctx; kwargs...)
 
 """
     withhold_offer(ctx, axis) -> PrinterContext

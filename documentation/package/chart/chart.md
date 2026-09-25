@@ -34,7 +34,7 @@ Chart ──ChartToChartPlot──▶ ChartPlot ──ChartPlotToGraphicsCanvas�
 
 `ChartToChartPlot` wraps the chart in a `ChartPlot`, the presentation document. It holds the `view`, a zoom window in data coordinates, the `cursor`, the `hovered` part and the state of a drag. None of this is chart content: a saved chart has no scroll position, and two panes can zoom one chart in two ways. The stage builds the `ChartPlot` once and keeps its identity, so a zoom survives a change of the data. It maps a reference by one step, `chart`, and takes the node type from `get_reference_node_type`, so a `ChartNothing` root also gets a typed step.
 
-`ChartPlotToGraphicsCanvas(; measure, width, height)` is the renderer. One computed cell derives the frame from the chart, the view and the available size: the data ranges, the plot rectangle, the ticks and their measured labels. The margins of the axes follow from the measured labels. A zoom writes a new data window, and the ticks, the grid and the decimation follow from it, so a zoom shows more detail and does not magnify pixels.
+`ChartPlotToGraphicsCanvas(; measure, width, height)` is the renderer. `width` and `height` are the chart's own size: an exact range from the parent replaces it, and a bounded range caps it at the edge. One computed cell derives the frame from the chart, the view and that size: the data ranges, the plot rectangle, the ticks and their measured labels. The margins of the axes follow from the measured labels. A zoom writes a new data window, and the ticks, the grid and the decimation follow from it, so a zoom shows more detail and does not magnify pixels.
 
 ### Colored strips
 

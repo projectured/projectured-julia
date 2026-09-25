@@ -3219,8 +3219,9 @@ end
 # Keep each window's *device* size fixed across a uniform-zoom change: scale its
 # logical `width`/`height` by `old/new` ratio, so the device size stays the same. The
 # OS window therefore does not resize, while the content relayouts to the new
-# logical viewport — those cells are the printer's `available_width/height`, so
-# the write reflows reactively (no re-projection), exactly like a user resize.
+# logical viewport — those cells are the exact range that the printer gives the
+# content, so the write reflows reactively (no re-projection), exactly like a
+# user resize.
 function _reflow_for_scale!(editor, ratio::Float64)
     (ratio == 1.0 || !isfinite(ratio)) && return
     out = editor.iomap === nothing ? nothing : editor.iomap.output

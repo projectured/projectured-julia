@@ -231,7 +231,7 @@ end
 # ── Styling helpers ─────────────────────────────────────────────────────────
 
 # Fallback viewport / track extents used only when a widget carries no `size`
-# *and* its parent allocated no `available_*` extent (isolated rendering). Named
+# *and* its parent gave no exact extent (isolated rendering). Named
 # here so the value is stated once — the scroll bar's track size is read by
 # both its printer and its hit-test reader, so a single source avoids a drift
 # risk between the two.
@@ -2157,8 +2157,8 @@ function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDia
     padding_left, padding_top, padding_right, padding_bottom = box.padding
     gap = _sc(p.gap); radius = _sc(p.corner_radius)
     # The dialog fills its (modal) window; the scrim covers that whole area.
-    aw = ctx === nothing ? nothing : ctx.available_width
-    ah = ctx === nothing ? nothing : ctx.available_height
+    aw = ctx === nothing ? nothing : get_exact_width(ctx)
+    ah = ctx === nothing ? nothing : get_exact_height(ctx)
     avail_w = aw !== nothing ? max(0, Int(aw[])) : 480
     avail_h = ah !== nothing ? max(0, Int(ah[])) : 320
 
@@ -2805,15 +2805,15 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
     # (`layout-rules.md` §3). A window offers its size, so the shell of a window
     # fills it and follows it when it resizes, with no number of its own.
     authored = getfield(w, :size)[] isa Point2D
-    has_width = authored || ctx.available_width !== nothing
-    has_height = authored || ctx.available_height !== nothing
+    has_width = authored || get_exact_width(ctx) !== nothing
+    has_height = authored || get_exact_height(ctx) !== nothing
     outer_width = Cell(@computation begin
         sz = getfield(w, :size)[]
-        sz isa Point2D ? Int(sz.x[]) : Int(ctx.available_width[])
+        sz isa Point2D ? Int(sz.x[]) : Int(get_exact_width(ctx)[])
     end)
     outer_height = Cell(@computation begin
         sz = getfield(w, :size)[]
-        sz isa Point2D ? Int(sz.y[]) : Int(ctx.available_height[])
+        sz isa Point2D ? Int(sz.y[]) : Int(get_exact_height(ctx)[])
     end)
     # The room inside the shell, across, less its insets.
     avail_w_cell = Cell(@computation begin
@@ -2823,8 +2823,8 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
     # A band spans the shell and is as tall as what it holds, so it is offered
     # the width and no height. An item of a band that is offered the window's
     # height draws as tall as the window.
-    band_ctx = with_available_size(ctx; width = has_width ? avail_w_cell : nothing,
-                                        height = nothing)
+    band_ctx = with_exact_size(ctx; width = has_width ? avail_w_cell : nothing,
+                                    height = nothing)
     # Each named slot is reconciled by its field value and forced only in the
     # branch that renders it (a nil slot never re-projects). The menu bar's
     # reference is extended into `menu_bar` so a submenu anchor forward-maps back
@@ -2854,8 +2854,8 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
     # The content is offered that room on each axis where the shell has an
     # extent, and nothing where it has none: then it takes its own extent, and
     # a shell never offers 0.
-    content_ctx = with_available_size(ctx; width = has_width ? avail_w_cell : nothing,
-                                           height = has_height ? avail_h_cell : nothing)
+    content_ctx = with_exact_size(ctx; width = has_width ? avail_w_cell : nothing,
+                                       height = has_height ? avail_h_cell : nothing)
     content_cell = reconcile_child_iomap(() -> w.content, c -> print_child(recursion, c, content_ctx))
     build = Cell(@computation begin
         b = bands[]
@@ -3315,8 +3315,8 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
     # Allocating the full offer and then placing the first child at `cox` made the
     # pane overhang its own offer by exactly the inset, on both axes.
     inset_x, inset_y = _inset_total(p, w)
-    outer_avail_w = ctx.available_width
-    outer_avail_h = ctx.available_height
+    outer_avail_w = get_exact_width(ctx)
+    outer_avail_h = get_exact_height(ctx)
     avail_w = outer_avail_w === nothing ? nothing :
               Cell(@computation Int32(max(0, Int(outer_avail_w[]) - inset_x)))
     avail_h = outer_avail_h === nothing ? nothing :
@@ -3366,8 +3366,8 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
         # tells the child it has no room at all, and it draws nothing; withholding
         # the axis lets the child size itself, which is what the slot then is.
         cctx  = avail_main === nothing ? withhold_offer(ctx, main_axis) :
-                main_axis === :x ? with_available_size(ctx; width=cell) :
-                                   with_available_size(ctx; height=cell)
+                main_axis === :x ? with_exact_size(ctx; width=cell) :
+                                   with_exact_size(ctx; height=cell)
         cim = print_child(recursion, inner, cctx)
         push!(inner_iomaps, cim)
     end
@@ -4021,8 +4021,8 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # vertical insets from the height — otherwise the content is allocated the
     # full extent yet drawn at the inset, overhanging the pane (cf.
     # WidgetTitlePane above).
-    avail_w = ctx.available_width
-    avail_h = ctx.available_height
+    avail_w = get_exact_width(ctx)
+    avail_h = get_exact_height(ctx)
     # Distinct names: `tx` is reused below as a tab x-position inside the
     # selector builder loop, so capturing it here would alias that closure's
     # local and clobber the selector viewport width.
@@ -4554,8 +4554,8 @@ function print_document(p::WidgetScrollPaneToGraphicsCanvas, recursion, w::Widge
     # computed cell — a tree pane that grows as its rows open — follows it after
     # the first print as well.
     tx, ty = _inset_total(p, w)
-    avail_w = ctx.available_width
-    avail_h = ctx.available_height
+    avail_w = get_exact_width(ctx)
+    avail_h = get_exact_height(ctx)
     function extent_cell(authored, avail, inset)
         (authored() > 0 || avail !== nothing) || return nothing
         Cell(@computation begin
@@ -4834,8 +4834,8 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
     py = pos isa Point2D ? _sc(Int(pos.y[])) : 0
     # The same rule as the scroll pane's: an authored size wins over an offer.
     tx, ty = _inset_total(p, w)
-    avail_w = ctx.available_width
-    avail_h = ctx.available_height
+    avail_w = get_exact_width(ctx)
+    avail_h = get_exact_height(ctx)
     vw_cell = sz isa Point2D ? Cell(Int32(Int(sz.x[]))) :
               avail_w !== nothing ?
               Cell(@computation Int32(max(0, Int(avail_w[]) - tx))) :
@@ -4864,7 +4864,7 @@ function print_document(p::WidgetTransformPaneToGraphicsCanvas, recursion, w::Wi
     content_iomap = nothing
     content = w.content
     if content isa Document
-        content_ctx = with_available_size(ctx; width=vw_cell, height=vh_cell)
+        content_ctx = with_exact_size(ctx; width=vw_cell, height=vh_cell)
         content_iomap = print_child(recursion, content, content_ctx)
         inner_canvas = content_iomap.output::GraphicsCanvas
         inner_elems_cv = inner_canvas.elements
@@ -5594,7 +5594,7 @@ function _card_body(content, inner_ctx)
     pinned = content.preferred_height
     pinned === nothing && return (content.child, inner_ctx)
     (WidgetScrollPane(content.child; padding = inset_default),
-     with_available_size(inner_ctx; height = Cell(Int32(Int(pinned)))))
+     with_exact_size(inner_ctx; height = Cell(Int32(Int(pinned)))))
 end
 
 function print_document(p::WidgetCardToGraphicsCanvas, recursion, w::WidgetCard, ctx)

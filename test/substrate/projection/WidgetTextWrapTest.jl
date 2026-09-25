@@ -33,8 +33,8 @@ function _spans(node, ox = 0, found = Tuple{Int,Int,String}[])
 end
 
 _print(document, width) = print_document(_projection(), nothing, document,
-    with_available_size(PrinterContext(); width = Cell(Int32(width)),
-                                          height = Cell(Int32(600)))).output
+    with_exact_size(PrinterContext(); width = Cell(Int32(width)),
+                                      height = Cell(Int32(600)))).output
 
 @testset "a label breaks at the width it was offered" begin
     label = WidgetLabel(SENTENCE)

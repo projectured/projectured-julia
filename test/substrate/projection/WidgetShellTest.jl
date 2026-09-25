@@ -36,8 +36,8 @@ function test_widget_shell_layout()
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
-    offer(w, h) = with_available_size(PrinterContext();
-                                      width = Cell(Int32(w)), height = Cell(Int32(h)))
+    offer(w, h) = with_exact_size(PrinterContext();
+                                  width = Cell(Int32(w)), height = Cell(Int32(h)))
     shell() = WidgetShell(WidgetScrollPane(WidgetLabel("body");
                                            size = Point2D(0, 0));
                           menu_bar = WidgetMenu(Any[WidgetMenuItem("File"),
@@ -97,8 +97,8 @@ function test_widget_shell_pointer()
     rec = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch)))
-    offer(w, h) = with_available_size(PrinterContext();
-                                      width = Cell(Int32(w)), height = Cell(Int32(h)))
+    offer(w, h) = with_exact_size(PrinterContext();
+                                  width = Cell(Int32(w)), height = Cell(Int32(h)))
     # A menu bar and a toolbar above the content, so the content's frame starts
     # well below the window's: a down that kept window coordinates would miss.
     framed(content) = WidgetShell(content;

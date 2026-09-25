@@ -69,8 +69,8 @@ function print_document(p::ScreenToScreen, recursion, input::WindowDocument, ctx
                                      m[1] > 0 ? m[1] : getfield(input, :width)[])))
     offer_height = Cell(@computation((m = maximum_size[];
                                       m[2] > 0 ? m[2] : getfield(input, :height)[])))
-    content_ctx = with_available_size(make_child_context(ctx, FieldReferenceStep("content"));
-                                      width=offer_width, height=offer_height)
+    content_ctx = with_exact_size(make_child_context(ctx, FieldReferenceStep("content"));
+                                  width=offer_width, height=offer_height)
     # Reconcile the content by identity so replacing a same-id window's content
     # (a hover probe following the cursor, a re-opened tooltip) re-projects it
     # reactively; a same object mutated in place reuses the iomap and re-derives

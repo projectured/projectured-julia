@@ -163,9 +163,8 @@ end
     ResizeWindowOperation(target, width, height)
 
 Set the `width`/`height` cells of `target` (a `WindowDocument`) to a new pixel
-size. Because those cells are the `available_width`/`available_height` the printer
-threads into the window's content, writing them re-lays-out the content reactively
-— no re-projection. Carries the target document directly, so it bubbles up through
+size. Because those cells are the exact range that the printer gives the window's
+content, writing them re-lays-out the content reactively — no re-projection. Carries the target document directly, so it bubbles up through
 every reader layer unchanged and is applied by `evaluate_operation`.
 """
 struct ResizeWindowOperation <: Operation

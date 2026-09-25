@@ -103,8 +103,8 @@ end
 @testset "the page draws every entry, and a long entry breaks inside its column" begin
     page = parse_markdown(source)
     renderer = NaturalToGraphics(measure = _measure)
-    context = with_available_size(PrinterContext(); width = Cell(Int32(400)),
-                                                    height = Cell(Int32(800)))
+    context = with_exact_size(PrinterContext(); width = Cell(Int32(400)),
+                                                height = Cell(Int32(800)))
     chain = ChainingProjection(MarkdownRootToVerticalLayout(), VerticalLayoutToGraphicsCanvas())
     texts = _table_texts(print_document(chain, renderer, page, context).output)
     drawn = join(last.(texts), " ")

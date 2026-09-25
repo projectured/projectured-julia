@@ -1178,14 +1178,23 @@ _series_elements!(out, g, ::Int, ::Any) = out
 
 # ── Printer ──────────────────────────────────────────────────────────────
 
-# Canvas size: whatever a parent layout allocated, else the projection's own
-# fallback. Reading the cells here registers the dependency, so a resize
-# reflows without re-projecting.
+# The extent on one axis, by the child rule: the projection's own size, cut at the
+# maximum of the range, and at least its minimum. An exact range gives the chart
+# its extent, a bounded one caps it, and a free one leaves it its own size.
+function _get_chart_extent(minimum, maximum, natural)
+    upper = maximum === nothing ? nothing : maximum[]
+    lower = minimum === nothing ? nothing : minimum[]
+    extent = upper === nothing ? natural : min(natural, Int(upper))
+    lower === nothing ? extent : max(extent, Int(lower))
+end
+
+# Canvas size: the extent on each axis, and never less than the chart can draw
+# in. Reading the cells here registers the dependency, so a resize reflows
+# without re-projecting.
 function _canvas_size(p::ChartPlotToGraphicsCanvas, ctx)
-    aw = ctx === nothing ? nothing : ctx.available_width
-    ah = ctx === nothing ? nothing : ctx.available_height
-    w = aw === nothing ? p.width : something(aw[], p.width)
-    h = ah === nothing ? p.height : something(ah[], p.height)
+    ctx === nothing && return (max(p.width, 120), max(p.height, 80))
+    w = _get_chart_extent(ctx.minimum_width, ctx.maximum_width, p.width)
+    h = _get_chart_extent(ctx.minimum_height, ctx.maximum_height, p.height)
     (max(Int(w), 120), max(Int(h), 80))
 end
 

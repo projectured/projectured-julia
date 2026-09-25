@@ -39,8 +39,8 @@ end
     cells = Any[WidgetLabel("Name:"), WidgetText("x")]
     plain  = GridLayout(copy(cells), 2)
     filled = GridLayout(copy(cells), 2; column_policies=Any[Content, Fill], horizontal_gap=8)
-    ctx = with_available_size(PrinterContext(EmptyReference());
-                              width=_LC_Cell(600), height=_LC_Cell(400))
+    ctx = with_exact_size(PrinterContext(EmptyReference());
+                          width=_LC_Cell(600), height=_LC_Cell(400))
     pw = Int(print_document(proj, nothing, plain,  ctx).output.w[])
     fw = Int(print_document(proj, nothing, filled, ctx).output.w[])
     @test fw > pw          # the stretched grid filled the available width
@@ -51,8 +51,8 @@ end
     # Two rows of one column. The second fills, so it takes what the first
     # leaves of a seeded height; with no policy both are their content.
     cells() = Any[WidgetLabel("top"), WidgetLabel("rest")]
-    ctx = with_available_size(PrinterContext(EmptyReference());
-                              width=_LC_Cell(600), height=_LC_Cell(400))
+    ctx = with_exact_size(PrinterContext(EmptyReference());
+                          width=_LC_Cell(600), height=_LC_Cell(400))
     plain  = GridLayout(cells(), 1)
     filled = GridLayout(cells(), 1; row_policies=Any[Content, Fill])
     ph = Int(print_document(proj, nothing, plain,  ctx).output.h[])
@@ -66,8 +66,8 @@ end
 @testset "a Fixed column clips what it holds, and a withheld offer draws one line" begin
     long = "a value that is far too wide for forty pixels of column"
     cells() = Any[WidgetLabel(long), WidgetLabel("b")]
-    ctx = with_available_size(PrinterContext(EmptyReference());
-                              width=_LC_Cell(600), height=_LC_Cell(400))
+    ctx = with_exact_size(PrinterContext(EmptyReference());
+                          width=_LC_Cell(600), height=_LC_Cell(400))
     # The column hands its forty pixels to the cell, which breaks its lines
     # there; the grid draws the cell inside a viewport of the slot, which is
     # §3b: what was handed out is clipped to.
@@ -95,10 +95,10 @@ end
 
 @testset "a flow breaks at the width it is offered, and its children are their content" begin
     words() = Any[WidgetBadge(w) for w in ("alpha", "beta", "gamma", "delta", "epsilon")]
-    wide = with_available_size(PrinterContext(EmptyReference());
-                               width=_LC_Cell(600), height=_LC_Cell(400))
-    narrow = with_available_size(PrinterContext(EmptyReference());
-                                 width=_LC_Cell(150), height=_LC_Cell(400))
+    wide = with_exact_size(PrinterContext(EmptyReference());
+                           width=_LC_Cell(600), height=_LC_Cell(400))
+    narrow = with_exact_size(PrinterContext(EmptyReference());
+                             width=_LC_Cell(150), height=_LC_Cell(400))
     flow() = FlowLayout(words(); max_width=400, horizontal_gap=4, vertical_gap=4)
     at_wide = print_document(proj, nothing, flow(), wide)
     at_narrow = print_document(proj, nothing, flow(), narrow)
@@ -122,8 +122,8 @@ end
     cells = Any[WidgetLabel("a-very-long-label"), WidgetLabel("b")]
     g = GridLayout(cells, 2; column_policies=Any[Fixed(40), Content])
     io = print_document(proj, nothing, g,
-                        with_available_size(PrinterContext(EmptyReference());
-                                            width=_LC_Cell(600), height=_LC_Cell(400)))
+                        with_exact_size(PrinterContext(EmptyReference());
+                                        width=_LC_Cell(600), height=_LC_Cell(400)))
     # 40 for the first column plus whatever "b" measures — far under the 600 it
     # was offered, because neither column asked for a share of it.
     @test Int(io.output.w[]) < 120

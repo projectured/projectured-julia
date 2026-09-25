@@ -504,8 +504,8 @@ end
     proj = RecursiveProjection(TypeDispatchingProjection(vcat(
         LayoutToGraphics().dispatch,
         WidgetToGraphics(_font; measure=_stub).dispatch)))
-    offered = with_available_size(PrinterContext(); width = Cell(Int32(900)),
-                                  height = Cell(Int32(60)))
+    offered = with_exact_size(PrinterContext(); width = Cell(Int32(900)),
+                              height = Cell(Int32(60)))
     iomap = print_document(proj, nothing, group, offered)
 
     @testset "it fills what it was offered" begin

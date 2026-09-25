@@ -122,8 +122,8 @@ function test_formula_math()
             FormulaFormula("twice", parse_julia("2 * rho")),
         ])
         renderer = NaturalToGraphics(measure = measure_truetype_text)
-        context = with_available_size(PrinterContext();
-                                      width = Cell(Int32(800)), height = Cell(Int32(600)))
+        context = with_exact_size(PrinterContext();
+                                  width = Cell(Int32(800)), height = Cell(Int32(600)))
         canvas = print_document(renderer, nothing, sheet, context).output
         texts = _formula_texts(canvas)
         @test any(t -> occursin("ρ", t), texts)               # the equation's symbol

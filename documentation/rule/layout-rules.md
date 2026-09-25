@@ -32,9 +32,12 @@ An axis is in one of three states:
 An overlay (a tooltip, a menu, a context menu) caps instead of stretching:
 `e = min(max(A, C(M)), M)`.
 
-A container gives an exact range to a child that it sizes (§3, §4), and a free
-range to any other child; `with_exact_size`, `with_bounded_size` and
-`withhold_offer` make the three states.
+A container gives an exact range to a child that it sizes (§3, §4), a bounded
+range to a child that it only bounds, and a free range on an axis where it has
+no edge. `with_exact_size`, `with_bounded_size` and `withhold_offer` make the
+three states. A printer that fills a slot, and is its content where it has
+none, reads `get_exact_width(ctx)` and `get_exact_height(ctx)`: the cell of an
+exact range, and `nothing` for a bounded or a free one.
 
 Four policies say everything:
 

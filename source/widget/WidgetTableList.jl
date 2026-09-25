@@ -95,7 +95,7 @@ end
 # told its height, and neither comes from the cell.
 function _wtl_cell_context(ctx, w::WidgetTable, c::Int, widths::Cell)
     offered = _wt_column_cell_policy(w, c) === :wrap
-    ctx = offered ? with_available_size(ctx; width = Cell(@computation Int32(widths[][c]))) :
+    ctx = offered ? with_exact_size(ctx; width = Cell(@computation Int32(widths[][c]))) :
                     withhold_offer(ctx, :x)
     withhold_offer(ctx, :y)
 end
@@ -266,7 +266,7 @@ function _wtl_print(p::WidgetTableToGraphicsCanvas, recursion, w::WidgetTable, c
     # about the list moves.
     inset_width, _ = _inset_total(p, w)
     content_x, content_y = _content_offset(p, w)
-    avail_w = ctx === nothing ? nothing : ctx.available_width
+    avail_w = ctx === nothing ? nothing : get_exact_width(ctx)
     header_row_color = _get_state_color(p, w, :header_row)
     divider_stroke = _get_state_stroke(p, w, :divider)
     # The columns from the policies; a weighted column shares what the table was

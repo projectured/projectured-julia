@@ -51,7 +51,7 @@ end
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch))
     bar = WidgetMenu(Any[WidgetMenuItem("File"), WidgetMenuItem("View"), WidgetMenuItem("Help")];
                      orientation = :horizontal)
-    ctx = with_available_size(PrinterContext(); width = Cell(Int32(1000)), height = Cell(Int32(600)))
+    ctx = with_exact_size(PrinterContext(); width = Cell(Int32(1000)), height = Cell(Int32(600)))
     output = print_document(rec, nothing, bar, ctx).output
     xs = Int[]
     for element in output.elements

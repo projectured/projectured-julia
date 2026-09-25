@@ -109,7 +109,7 @@ iomap2 = print_document(proj2, input2)
 
 end # @testset "WordWrapping maps a whole-element box past a soft break"
 
-@testset "WordWrapping reads available_width from context" begin
+@testset "WordWrapping reads the maximum width from the context" begin
 
 src = "alpha beta gamma delta"
 input = TextBlock(TextString(src, font_ubuntu_monospace_regular_20, color_default))
@@ -117,7 +117,7 @@ m = _test_measure(10, 18)
 # Construct with a generous max_width fallback; the context value should win.
 proj = WordWrapping(max_width=10_000, measure=m)
 avail = Cell(60)  # 60px ≈ 6 chars per line
-ctx = with_available_size(PrinterContext(); width=avail)
+ctx = with_exact_size(PrinterContext(); width=avail)
 iomap = print_document(proj, nothing, input, ctx)
 out = iomap.output
 
@@ -125,7 +125,7 @@ joined = join((elem.content for elem in out.elements if elem isa TextString), ""
 @test joined == src
 @test count(e -> e isa TextNewline, out.elements) >= 1
 
-end # @testset "WordWrapping reads available_width from context"
+end # @testset "WordWrapping reads the maximum width from the context"
 
 @testset "WordWrapping image is an unbreakable token" begin
 

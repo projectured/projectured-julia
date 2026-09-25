@@ -140,6 +140,7 @@ the maximum.
 | `with_available_size(ctx; width, height)` | `with_exact_size(ctx; width, height)`: minimum and maximum are the same cell |
 | — | `with_bounded_size(ctx; width, height)`: minimum `nothing`, maximum the cell |
 | `withhold_offer(ctx, axis)` | `withhold_offer(ctx, axis)`: minimum and maximum `nothing` |
+| — | `get_exact_width(ctx)`, `get_exact_height(ctx)`: the cell of an exact range, `S` of §4.3, and `nothing` for a bounded or a free one (added in Step 5b) |
 
 The names follow `naming-rules.md`; Step 1 checks them against it again.
 
@@ -429,7 +430,7 @@ Step 0 takes the baseline.
       reachable cell, and the rooms and the column edges are new cells.
       `Catalog` has 500658 passes and no failure, error or broken test.
 
-- [ ] **Step 5: the patches go, and the old names.** **In two commits
+- [x] **Step 5: the patches go, and the old names.** **Done, in two commits
       (2026-09-25).** 5a, the behaviour: the 800 and the 400 go (`max_width` of
       `WordWrapping` and `FlowLayout` is `nothing` by default, and a given one
       caps the edge); the card, the accordion item, the table, the tab page and
@@ -461,7 +462,24 @@ Step 0 takes the baseline.
       the memory of each part are in `documentation/guide/testing-guide.md`.
       5b, the names: `available_width`,
       `available_height` and `with_available_size` go, and every reader reads
-      the range. The original text of the step: The 800 of
+      the range. **Decisions of 5b (2026-09-25):** a reader that fills a slot
+      and is its content where it has none reads `S`, the extent of an exact
+      range, through two new functions, `get_exact_width(ctx)` and
+      `get_exact_height(ctx)`, so it keeps its behaviour: the dialog, the
+      shell, the split, the tabbed pane, the scroll pane, the transform pane,
+      the columns and rows of the grid, the table list and the pane tree.
+      `with_available_size` is `with_exact_size` at each call. The charts
+      follow the child rule, `max(minimum, min(own size, maximum))`, so a
+      bounded range caps a chart at its edge where it kept its own size before.
+      The two overlays place their panel against the maximum, which is the same
+      at the root. `layout-rules.md` §1 said that a container gives a free
+      range to a child that it does not size; it now names the bounded range
+      too, and the two functions. 18 parts of `test_all` (the guards, the
+      kernel, the substrate, markdown, formula, the two charts, the
+      projections, the assistant, the application, the evaluator, the
+      printers, the domain examples and the mouse clicks) have the failures
+      and the counts of the run of 5a; `test_kernel` has one pass less, the
+      check of `with_available_size`. No other file names the old names. The original text of the step: The 800 of
       `WordWrapping` and the 400 of `FlowLayout` go: text with no edge does not
       wrap, and a flow with no edge and no `max_width` does not break. The toolbar gives its
       items a bounded range instead of withholding the width; the table list

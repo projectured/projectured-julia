@@ -136,7 +136,7 @@ function test_gesture_log()
         log = GestureLog()
         array = mkarray()
         overlay = GestureLogOverlayProjection(inner = inner_graphics(), log = log)
-        ctx = with_available_size(PrinterContext(); width = Cell(1000), height = Cell(600))
+        ctx = with_exact_size(PrinterContext(); width = Cell(1000), height = Cell(600))
         iomap = print_document(overlay, nothing, array, ctx)
 
         output = _force(iomap.output)
@@ -161,7 +161,7 @@ function test_gesture_log()
         log = GestureLog()
         array = mkarray()
         overlay = GestureLogOverlayProjection(inner = inner_graphics(), log = log)
-        ctx = with_available_size(PrinterContext(); width = Cell(1000), height = Cell(600))
+        ctx = with_exact_size(PrinterContext(); width = Cell(1000), height = Cell(600))
         iomap = print_document(overlay, nothing, array, ctx)
 
         panel = _force(iomap.output).elements[2]
@@ -203,7 +203,7 @@ function test_gesture_log()
         plain = inner_graphics()
         overlay = GestureLogOverlayProjection(inner = inner_graphics(), log = log,
                                               anchor = :top_left)
-        ctx() = with_available_size(PrinterContext(); width = Cell(900), height = Cell(400))
+        ctx() = with_exact_size(PrinterContext(); width = Cell(900), height = Cell(400))
         plain_iomap = print_document(plain, nothing, mkarray(), ctx())
         overlay_iomap = print_document(overlay, nothing, mkarray(), ctx())
 

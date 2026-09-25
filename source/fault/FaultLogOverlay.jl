@@ -168,19 +168,19 @@ _force_fault_cell(value) = value isa Cell ? value[] : value
 _fault_width(document) = hasproperty(document, :w) ? Int(document.w) : 0
 _fault_height(document) = hasproperty(document, :h) ? Int(document.h) : 0
 
-# The available size of the context is what the window gives the content. It is
+# The maximum of the range is the edge that the window gives the content. It is
 # a `Cell`, so the panel follows a resize of the window.
 _fault_available(size::Cell) = Int(size[])
 _fault_available(::Nothing) = 0
 
 _fault_panel_x(p::FaultLogOverlayProjection, ctx, width::Integer) =
     _is_fault_right(p.anchor) ?
-        max(p.margin, _fault_available(ctx.available_width) - width - p.margin) :
+        max(p.margin, _fault_available(ctx.maximum_width) - width - p.margin) :
         p.margin
 
 _fault_panel_y(p::FaultLogOverlayProjection, ctx, height::Integer) =
     _is_fault_bottom(p.anchor) ?
-        max(p.margin, _fault_available(ctx.available_height) - height - p.margin) :
+        max(p.margin, _fault_available(ctx.maximum_height) - height - p.margin) :
         p.margin
 
 _is_fault_right(anchor::Symbol) = anchor === :top_right || anchor === :bottom_right

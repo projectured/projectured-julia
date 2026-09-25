@@ -167,8 +167,8 @@ function print_document(p::PaneTreeToWidget, recursion, tree::PaneTree, ctx)
         () -> tree.root,
         root -> _recurse(recursion, root,
                          make_child_context(ctx, tree, (@reference_step root))))
-    available = (ctx.available_width === nothing || ctx.available_height === nothing) ?
-                nothing : (ctx.available_width, ctx.available_height)
+    available = (get_exact_width(ctx) === nothing || get_exact_height(ctx) === nothing) ?
+                nothing : (get_exact_width(ctx), get_exact_height(ctx))
 
     # The layout, and one layer over it. A `WidgetComposite` is what can carry the
     # overlay: it hands each child the extent it was given itself, so the panes
@@ -281,7 +281,7 @@ function print_document(p::PaneSplitToWidgetSplitPane, recursion, split::PaneSpl
     # `axis` is what the widget calls its orientation: a vertical split lays its
     # children out horizontally.
     horizontal = axis === :horizontal
-    available = horizontal ? ctx.available_width : ctx.available_height
+    available = horizontal ? get_exact_width(ctx) : get_exact_height(ctx)
     # With an allocation to divide, a slot prefers nothing of its own and takes
     # its weighted share of the whole. Without one there is no total to divide,
     # so the slots keep their intrinsic sizes.

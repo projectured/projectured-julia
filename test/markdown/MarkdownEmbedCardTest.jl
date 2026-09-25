@@ -93,8 +93,8 @@ end
 @testset "the page draws the name, and a folded card hides the file" begin
     page, file = _page()
     renderer = NaturalToGraphics(measure = _measure)
-    context = with_available_size(PrinterContext(); width = Cell(Int32(600)),
-                                                    height = Cell(Int32(800)))
+    context = with_exact_size(PrinterContext(); width = Cell(Int32(600)),
+                                                height = Cell(Int32(800)))
     # The page's own chain, with the renderer as what draws each block.
     chain = ChainingProjection(MarkdownRootToVerticalLayout(), VerticalLayoutToGraphicsCanvas())
     iomap = print_document(chain, renderer, page, context)

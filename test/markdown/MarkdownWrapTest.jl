@@ -28,8 +28,8 @@ end
 
 function _page_spans(source, width)
     renderer = NaturalToGraphics(measure = _measure)
-    context = with_available_size(PrinterContext(); width = Cell(Int32(width)),
-                                                    height = Cell(Int32(800)))
+    context = with_exact_size(PrinterContext(); width = Cell(Int32(width)),
+                                                height = Cell(Int32(800)))
     _spans(print_document(renderer, nothing, parse_markdown(source), context).output)
 end
 

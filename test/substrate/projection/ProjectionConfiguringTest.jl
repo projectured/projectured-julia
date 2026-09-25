@@ -120,7 +120,7 @@ end # @testset
     proj  = ChainingProjection(pcp, renderer)
 
     doc   = TextBlock(TextString("alpha dolor", font, color_default))
-    ctx   = with_available_size(PrinterContext(); width=Cell(800), height=Cell(600))
+    ctx   = with_exact_size(PrinterContext(); width=Cell(800), height=Cell(600))
     iomap = print_document(proj, nothing, doc, ctx)
 
     # A KeyPress routes to the (only) editable control and appends to the pattern.
