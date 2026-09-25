@@ -11,7 +11,7 @@ The package has the shape of the clipboard and of versioning: a wrapper document
 | Part | What it is |
 | --- | --- |
 | `UndoBuffer` | `content`, the document; `undo_entries`, oldest first; `redo_entries`; `capacity`, 100 by default |
-| `UndoEntry` | `label`, a description for a person; `inverse`, the operation that goes back; `selection`, the caret before the step |
+| `UndoEntry` | `label`, a description for a person; `inverse`, the operation that goes back; `selection`, the caret before the step; `typing_caret`, the caret after a typed step, as text; `time`, when the step was made or last grew |
 | `UndoBufferToAnyProjection(; filter)` | the transparent projection, its reader and its keys |
 | `UndoBufferToSyntax` | the history itself, drawn as lines |
 
@@ -34,7 +34,26 @@ Three questions have three separate mechanisms:
 | Can this step be taken back? | `make_inverse_operation`, when the operation is evaluated |
 | What happens when it can not? | a **barrier** entry, whose `inverse` is `nothing`; undo stops at it |
 
-`is_undo_step`, the default filter, drops `nothing`, `DoNothingOperation`, a bare `ReplaceSelectionOperation` and a write marked `ReplaceViewStateOperation`. A caret move follows almost every key, and a hover follows almost every move of the pointer, so a history full of them is not usable. A widget marks its `hovered`, `pressed` and `dragging`, a split pane marks the grab, each move and the release of a divider, and a pane tree marks its `drag`. So Ctrl+Z after a divider drag takes back the edit before it. A compound that holds a write stays. An operation that changes no document, such as a file write or a zoom, has the inverse `DoNothingOperation()`, and no entry is added for it. Undo does not step over a barrier, because that would make a document that matches no state the user saw.
+`is_undo_step`, the default filter, drops `nothing`, `DoNothingOperation`, a move of the selection (`ReplaceSelectionOperation`, `SelectNextInsertionOperation`), a fold (`ToggleCollapseOperation`), a write marked `ReplaceViewStateOperation`, and a compound of nothing else. A caret move follows almost every key, and a hover follows almost every move of the pointer, so a history full of them is not usable. A compound that holds one write stays. An operation that changes no document, such as a file write or a zoom of the window, has the inverse `DoNothingOperation()`, and no entry is added for it. Undo does not step over a barrier, because that would make a document that matches no state the user saw.
+
+**The reader that reads a gesture decides whether its write is view state.** A field is not view state by its type. When the widget renderer draws a tree, a click on a chevron uses the tree as a control, and the write of `collapsed` is view state; a projection that shows the same tree as data writes `collapsed` as an edit. So the mark is made where the gesture is read:
+
+| Reader | Writes marked as view state |
+| --- | --- |
+| widgets | `hovered`, `pressed`, `dragging`; a scroll (`scroll_position`, `follow_end`, `tab_scroll`, `transform`); a tree fold (`collapsed`); an accordion section (`expanded`) |
+| split pane, pane tree | the grab, each move and the release of a divider; the `drag` of a tab |
+| configuring projection | the `visible` of the control bar |
+| chart, sequence chart | the zoom window (`view`), the lane offset (`cross_offset`), the pointer (`cursor`, `hovered`), the rubber band (`drag_anchor`, `drag_rect`) |
+
+A fold is dropped by its kind instead: `ToggleCollapseOperation` is the flip of a fold that a reader made of a click on a chevron. `test_history_sweep()` presses the gestures that change no document in the application window and moves the pointer over every example, and it fails when a history grows.
+
+### A run of typing is one step
+
+A history holds `capacity` steps, 100 by default, so a step for each character would push every other step out after 100 characters. A run of typed characters is therefore one step. A `KeyPress` is a character, and a `KeyPress` that makes a recorded step is typing; a key that is not a character arrives as a `KeyDown`.
+
+The reader decides when it reads the step, and `RecordUndoOperation` carries the answer in `run`: `:none`, `:starts` or `:continues`. A run is open while its last step is typing and has a way back, nothing was taken back since, the caret of the buffer is where the run left it (`typing_caret`), and less than `TYPING_PAUSE`, one second, passed. So a caret move, a key that is not a character, an undo and a pause each end a run. A step that joins the run keeps the caret from before the first character, and its way back takes back the newest character first.
+
+A buffer above a buffer keeps a copy of each step below. A run joins in both or in neither: the copy of a run is taken back by one undo of the buffer below, which joined its own run too. When the outer buffer recorded a step of its own since, such as a tab that opens, its reader turns `:continues` into `:starts`, and the next character begins a new run in both. A typed character with no way back makes the joined run a barrier, so the two buffers keep the same number of steps.
 
 ### The reader wraps and never records
 
@@ -51,7 +70,7 @@ A buffer is a document node, so a buffer can hold a buffer, and both arrangement
 - A buffer around the **window** records everything. A splitter move, a new tab and a chat draft are edits too, and no buffer of a document sees them.
 - A buffer around **each file** gives Ctrl+Z its usual meaning: an undo in one file does not take back an edit in another.
 
-Four rules make the two work together:
+Four rules make the two work together, and a run of typing keeps them (see above):
 
 1. **The innermost buffer takes the key**, because the reader reads the content first.
 2. **Undo and redo are the inverses of each other.** The inverse of a `RecordUndoOperation` is an `UndoOperation` of that buffer. The inverse of an undo is a redo, and the inverse of a redo is an undo. So an outer buffer takes back an inner step with an `UndoOperation` of the inner buffer. The outer buffer does not repeat the recording of the inner one, and the two lists of the inner buffer stay correct.
@@ -97,6 +116,8 @@ It registers nothing at load time. The keys are a `get_projection_gesture_bindin
 - **The inverse is taken before the change.** It must read the state that the change starts from, and a compound is inverted member by member for the same reason.
 - **A barrier stops the history.** Stepping over a step that has no inverse would make a state that never existed.
 - **An outer buffer undoes through the inner one.** The chain of inverses from record to undo to redo lets a buffer record another buffer without a special case.
+- **The reader that reads a gesture marks view state.** A field can be view state under one projection and content under another, so no list of fields exists. See [plan/done/the-history-records-edits-and-not-view-state.md](../../../plan/done/the-history-records-edits-and-not-view-state.md).
+- **A run of typing is one step, in each buffer on the path.** Otherwise typing pushes every other step out, and an outer copy would no longer name exactly one inner step.
 - **The inner buffer takes the key first.** This is the reverse of the reader order of versioning, and the comment at the head of `source/undo/UndoBufferToAny.jl` says so.
 
 ## Usage
@@ -112,7 +133,7 @@ register_undo_tools!(editor.tools)
 ```
 
 - Examples: `undo_example`, a JSON document with a history behind it, and `undo_history_example`, the history drawn. The factories are in `example/projectured/UndoDocumentExample.jl` and `UndoProjectionExample.jl`. Both examples are outside the `examples` registry, because a sweep would leave a history for the next test.
-- Tests: `test_undo()` in `test/undo/UndoSuite.jl` runs the layering guard and `test_undo_buffer()`. Its documents are declared in the suite and the content projection is the identity, so no domain is needed. `test_undo_round_trip()` in `test/projectured/projection/UndoRoundTripTest.jl` edits `undo_example` at sampled carets and undoes each edit.
+- Tests: `test_undo()` in `test/undo/UndoSuite.jl` runs the layering guard and `test_undo_buffer()`. Its documents are declared in the suite and the content projection is the identity, so no domain is needed. `test_undo_round_trip()` in `test/projectured/projection/UndoRoundTripTest.jl` edits `undo_example` at sampled carets and undoes each edit. `test_history_sweep()` in `test/projectured/editor/HistorySweepTest.jl` asserts that a gesture that changes no document adds no step, and that a run of 150 typed characters is one step in the file and in the window.
 
 ## Limits
 

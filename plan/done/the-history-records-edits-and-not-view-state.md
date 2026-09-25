@@ -1,8 +1,9 @@
 # The history records edits, and not view state
 
-**Status (2026-09-25): IN PROGRESS** on the branch `history-view-state`, in the
-worktree `projectured-julia-history-view-state`. Steps 1 to 4 are done.
-Step 5, the guides, is next. Steps 3 and 4 start with a design that the owner decides.
+**Status (2026-09-25): DONE** on the branch `history-view-state`, in the
+worktree `projectured-julia-history-view-state`. Not on `main` yet. One option
+waits for the owner: **O** as a safety net over every write (candidate 1 of D4),
+which is a new mechanism.
 
 **Goal:** the undo history holds the edits a person makes, and nothing else. A
 gesture that only changes what the window shows adds no step, and a run of typing
@@ -290,6 +291,11 @@ waits for the owner.
   - Tests: `test_undo` 110 of 110, `test_history_sweep` 132 of 132,
     `test_undo_round_trip` 122 of 122, `test_application` 324 of 324,
     `test_export_collisions`, `test_package_graph`, the naming guard.
-- [ ] **Step 5.** The guides: `documentation/package/undo/undo.md` (what the
+- [x] **Step 5.** The guides: `documentation/package/undo/undo.md` (what the
   history records and why) and `documentation/package/widget/widget.md` (the list
   of view-state writes).
+
+  Done: `undo.md` has the filter, the rule that the reader marks view state with a
+  table of who marks what, a section on runs of typing, the tests and two design
+  decisions. `widget.md`, `chart.md` and `sequencechart.md` say which of their
+  writes are view state.

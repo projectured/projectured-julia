@@ -32,7 +32,7 @@
 SequenceChart ──SequenceChartToSequenceChartPlot──▶ SequenceChartPlot ──SequenceChartPlotToGraphicsCanvas──▶ GraphicsCanvas
 ```
 
-The first stage wraps the chart in a `SequenceChartPlot`: the `view`, `follow_end`, the lane scroll `cross_offset`, the `cursor` and the `hovered` part. It keeps its identity across prints and maps a reference by one step, as `ChartToChartPlot` does; see [chart.md](../chart/chart.md#the-chain). The second stage does the layout, the gutter, the lanes, the arrow routes, the decimation and the reader.
+The first stage wraps the chart in a `SequenceChartPlot`: the `view`, `follow_end`, the lane scroll `cross_offset`, the `cursor` and the `hovered` part. These are the state of the view, and the reader marks each write of them as view state, so a history records no zoom, lane scroll or hover. It keeps its identity across prints and maps a reference by one step, as `ChartToChartPlot` does; see [chart.md](../chart/chart.md#the-chain). The second stage does the layout, the gutter, the lanes, the arrow routes, the decimation and the reader.
 
 The renderer splits its work into three cells by what makes each one stale: the cumulative timeline pass, the frame layout, and the element list. The hover, the selection and the cursor are read only by the last cell. So a pointer move over a long trace builds an overlay again, not the frame.
 
