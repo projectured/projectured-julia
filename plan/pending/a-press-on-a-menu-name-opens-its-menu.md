@@ -1,8 +1,9 @@
 # A press on a menu name opens its menu, and every popup opens where its widget is
 
-> **Status (2026-09-25): pending.** The owner chose the design below, in which a
-> popup carries a position that each reader moves into its own frame on the way
-> up. Nothing is started. Three decisions are open; see "Open decisions".
+> **Status (2026-09-25): in progress** on the branch `popup-position`, worktree
+> `projectured-julia-popup-position`. The owner chose the design below, in which
+> a popup carries a position that each reader moves into its own frame on the
+> way up, and took the three recommendations of "Decisions".
 
 A press on "File", "View" or "Help" in the menu bar of the application window
 does nothing, and no message says why. The same causes break the other popups:
@@ -181,7 +182,7 @@ to the readers.
 - [ ] 4. **D6, the row.** Test: the popup window of "File" draws "New tab" and
   "Close tab", and a press on "New tab" opens a tab and closes the popup. The
   same for "Help" and "Documents".
-- [ ] 5. **D10, after the owner decides.** Test: a right press on a row of the
+- [ ] 5. **D10.** Test: a right press on a row of the
   navigator selects it and opens the menu of the row; a right press in the JSON
   tab opens the menu of the window.
 - [ ] 6. **D9, the `content` step of the shell.** Test: the reference that a
@@ -196,14 +197,12 @@ to the readers.
 - [ ] 9. Verification against a baseline of `main`, and the move of this plan to
   `plan/done/`.
 
-## Open decisions
+## Decisions (owner, 2026-09-25)
 
-- **D10:** does a right press on a row select it and open the menu (the
-  recommendation), or must a row decline a right press?
-- **The name** of the function of D2. The proposal is
-  `shift_operation_position`.
-- **The popup wrap:** remove `make_popup_screen_wrap` (the recommendation), or
-  keep it as a function that answers `identity` for one release of omnet-julia.
+- **D10:** a right press on a row selects it and opens the menu, in one
+  `CompoundOperation`.
+- **The name** of the function of D2 is `shift_operation_position`.
+- **The popup wrap:** `make_popup_screen_wrap` goes.
 
 ## The options before the owner's design
 
