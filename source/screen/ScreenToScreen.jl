@@ -133,8 +133,8 @@ end
 
 # Window level: peel `content`, delegate the tail to the content iomap. A
 # coordinate image (`PointReferenceStep`, the forward image of a positioned widget in
-# the content's frame) is shifted by this window's screen origin so the popup
-# resolver lands in screen space; a structural path is re-rooted at `content`.
+# the content's frame) is shifted by this window's screen origin, so it lands in
+# screen space; a structural path is re-rooted at `content`.
 function _map_window(fn, iomap::ScreenWindowIoMap, reference)
     reference isa ConcreteReference || return reference
     h = get_reference_head(reference)
@@ -208,10 +208,37 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
         cim = iomap.content_iomap
         inner = read_intent(cim.projection, recursion, Intent(window_input.event, nothing), cim)
         op = _prefix_op(inner.operation, (FieldReferenceStep("content"),))
-        return Intent(change.gesture, op)
+        return Intent(change.gesture, _open_popup_windows(op, iomap.input))
     end
     payload = change.operation === nothing ? change.gesture : change.operation
     return Intent(change.gesture, read_intent(p, iomap, payload))
+end
+
+# A popup that the content of a window answers is in the frame of the window. It
+# opens as a floating window of its own, at the screen origin of this window plus
+# its position. The mark that kept it out of a history is not needed above the
+# window, so a popup inside `ReplaceViewStateOperation` opens bare, and the
+# window manager finds it.
+_open_popup_windows(op, window::WindowDocument) =
+    _open_popup_window(op, _wval(getfield(window, :x)), _wval(getfield(window, :y)))
+_open_popup_windows(op, window) = op
+
+_open_popup_window(op, x, y) = op
+_open_popup_window(op::OpenPopupOperation, x, y) =
+    OpenWindowOperation(; id = op.id, x = x + op.x, y = y + op.y,
+                          width = op.width, height = op.height, style = :floating,
+                          auto_dismiss = op.auto_dismiss, content = op.content)
+function _open_popup_window(op::CompoundOperation, x, y)
+    members = Any[_open_popup_window(member, x, y) for member in op.operations]
+    all(member === original for (member, original) in zip(members, op.operations)) ?
+        op : CompoundOperation(members)
+end
+function _open_popup_window(op::WrappingOperation, x, y)
+    inner = get_wrapped_operation(op)
+    opened = _open_popup_window(inner, x, y)
+    opened === inner && return op
+    (op isa ReplaceViewStateOperation && opened isa OpenWindowOperation) && return opened
+    rewrap_operation(op, opened)
 end
 
 # Prepend `steps` to the reference path inside `op` (if it carries one), rooting a

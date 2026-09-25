@@ -74,7 +74,6 @@ export WidgetInsertionToGraphicsCanvas, WidgetLabelToGraphicsCanvas, WidgetTextT
        WidgetSpinBoxToGraphicsCanvas, WidgetSpinBoxToGraphicsCanvasIoMap,
        WidgetListToGraphicsCanvas, WidgetListToGraphicsCanvasIoMap,
        WidgetOptionToGraphicsCanvas,
-       get_anchor_point,
        register_icon!, make_glyph_icon, make_image_icon, find_icon_character
 export ObjectToWidget, ObjectToWidgetIoMap
 export ObjectFieldToWidget, ObjectFieldToWidgetIoMap
@@ -83,7 +82,6 @@ export WidgetTableListIoMap, make_widget_table_row
 export make_embed_card, make_embed_card_path, find_embed_card_path_inside
 export WidgetHoverTrackingProjection, WidgetHoverTrackingIoMap
 export ProjectionConfiguringProjection, ProjectionConfiguringIoMap
-export WidgetPopupResolverProjection, WidgetPopupResolverIoMap
 export ContextMenuProbeProjection, ContextMenuProbeIoMap
 export WidgetInsertion, WidgetLabel, WidgetText, WidgetCheckbox, WidgetButton, WidgetTooltip, WidgetContextMenu, WidgetDialog, WidgetMenu, WidgetMenuItem, WidgetToolbarItem, WidgetComposite, WidgetShell, WidgetTitlePane, WidgetSplitPane, WidgetTabbedPane, WidgetTabPage, WidgetHighlight, WidgetScrollPane, WidgetTransformPane, WidgetToolbar, WidgetStatusBar, WidgetScrollBar, WidgetBadge, WidgetSeparator, WidgetCard, WidgetSwitch, WidgetProgress, WidgetSlider, WidgetRadioGroup, WidgetAvatar, WidgetAlert, WidgetSkeleton, WidgetToggle, WidgetToggleGroup, WidgetSelect, WidgetOption, WidgetTextarea, WidgetAccordion, WidgetSpinBox, WidgetList, WidgetTable, WidgetTree, Action
 export WidgetStyle, WidgetCheckboxStyle, WidgetDialogStyle, WidgetTitlePaneStyle, WidgetSplitPaneStyle,
@@ -103,7 +101,6 @@ include("ObjectFieldToWidget.jl")
 include("CellTableToWidgetTable.jl")
 include("WidgetHoverTracking.jl")
 include("ProjectionConfiguring.jl")
-include("WidgetPopupResolver.jl")
 include("ContextMenuProbe.jl")
 
 end # module

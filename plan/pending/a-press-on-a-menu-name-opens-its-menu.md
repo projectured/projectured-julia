@@ -10,7 +10,7 @@ does nothing, and no message says why. The same causes break the other popups:
 a `WidgetSelect` inside a pane, a `WidgetContextMenu`, and the context menu of
 the window. This plan fixes every popup, not only the menu bar.
 
-## The five faults (found 2026-09-25)
+## The faults (found 2026-09-25)
 
 Each fault was found with an offscreen probe over `make_application_window`:
 real presses at the drawn position of a label, read through the whole window
@@ -46,6 +46,11 @@ projection, with traces of the readers and of the forward maps.
 - **F5. A row takes the right press.** The Files navigator answers a right press
   with a `ReplaceSelectionOperation`, because a press selects the row. The probe
   lets the closer answer win, so a right press on a row opens no menu.
+- **F6. A history records a popup.** Found in step 3. `is_undo_step`, the filter
+  of `UndoBufferToAnyProjection`, does not skip a popup, so a popup that a widget
+  inside a pane opens comes up wrapped in a `RecordUndoOperation`, and the window
+  manager does not find it. The undo package does not depend on the screen
+  package, so its filter can not name the popup.
 
 ## Why the clipboard is a chain
 
@@ -201,7 +206,7 @@ to the readers.
   `test_command_palette`, `test_command_palette_decorator`,
   `test_window_shell`, `test_window_wrap`, the two widget shell tests and
   `test_application`: 783 pass, 0 fail.
-- [ ] 3. **D1 to D5, the position on the way up.** Find every place of D3 with a
+- [x] 3. **D1 to D5, the position on the way up.** Find every place of D3 with a
   grep. Tests with real presses in the window of `make_application_window`:
   "File" opens a popup window at the position under the label; a
   `WidgetSelect` in a pane opens its dropdown under the select, also inside a
@@ -209,6 +214,50 @@ to the readers.
   its menu at the press point. `AnchorPointTest.jl` keeps its forward-map cases
   and loses the resolver cases; `WindowWrapTest.jl` loses the test of the
   popup wrap.
+
+  Done. Decisions and facts of the implementation:
+
+  - **Two functions, not one.** `map_operation_position(operation, move)` in
+    `source/graphics/OperationPosition.jl` moves every position through a point
+    map, with methods for `CompoundOperation` and `WrappingOperation` and a
+    catch-all; `ProjecturedScreen` adds the method for `OpenPopupOperation`.
+    `shift_operation_position(operation, dx, dy)` is its common case. The zoom
+    pane needs the point map, because its transform scales a position.
+  - **A popup is marked as view state (F6).** Each opener answers
+    `ReplaceViewStateOperation(OpenPopupOperation(…))`: the kernel marker for "not
+    an edit", which every history skips. It adds no mechanism. The window layer
+    of `ScreenToScreen` (`_open_popup_windows`) turns the popup into an
+    `OpenWindowOperation` at the window's origin and drops the marker, so the
+    window manager finds it as before.
+  - **The rule applies at a place that reads a child with a press.** A place
+    that read the child with `(lx, ly)` for its own `(x, y)` shifts the answer
+    by `(x - lx, y - ly)`: `_route_to_children` in both files,
+    `_route_composite_event` (the composite and the toolbar),
+    `_route_split_event`, `_route_to_children_reverse`, the active tab, the
+    card, the dialog, the context menu widget, the text content, the scroll pane
+    and the accordion. The zoom pane moves the position through its transform.
+    Not changed: `_select_in_band` (an Alt press selects), `_read_band_event`
+    and every drag (a down, an up or a move opens no popup).
+  - **The graph drops a popup.** `_route_click` of the graph answers only a
+    selection or an operation that travels unchanged, so a popup of a widget
+    inside a node is dropped, as before. Out of scope.
+  - **Removed:** `WidgetPopupResolver.jl`, `get_anchor_point`,
+    `make_popup_screen_wrap` with its seven calls, and the `anchor` fields of the
+    IO maps of the menu item, the select and the context menu widget.
+    `AnchorPointTest.jl` keeps its forward-map cases with a local helper.
+  - **The window origin** is added as `_map_window` added it before; −1 means
+    that the backend chooses the position.
+
+  Tests: new cases for a submenu below its item, a menu bar and a layout that
+  move a popup, a select in a scrolled pane and in a zoomed pane, the context
+  menu probe at the press, a select that drops down as a window below itself in
+  a window scene, and a real press on "File" in the application window.
+  `test_widget_menu`, `test_widget_select_dropdown`, `test_widget_context_menu`,
+  `test_anchor_point`, `test_widget_transform_pane`, `test_scroll_pane_hover`,
+  `test_widget_tooltip`, `test_tooltip_probe`, `test_context_menu_probe`,
+  `test_window_wrap`, `test_window_shell`, `test_clipboard`, `test_identity`
+  and `test_application`: 863 pass, 0 fail.
+
 - [ ] 4. **D6, the row.** Test: the popup window of "File" draws "New tab" and
   "Close tab", and a press on "New tab" opens a tab and closes the popup. The
   same for "Help" and "Documents".

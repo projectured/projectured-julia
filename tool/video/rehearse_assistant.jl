@@ -21,8 +21,7 @@ function make_editor(directory)
                                                    root = directory, assistant = assistant)
     scene = make_window_scene(document, "ProjecturEd"; width = WIDTH, height = HEIGHT)
     composed = make_window_scene_projection(projection;
-        opened_window_projections = make_opened_window_projections(),
-        screen_wrap = make_popup_screen_wrap())
+        opened_window_projections = make_opened_window_projections())
     editor = Editor(ConsoleBackend(), scene, composed, Device[Display(), Keyboard(), Mouse()])
     editor.iomap = print_document(composed, nothing, scene,
                                   PrinterContext(EmptyReference(), Cell(WIDTH), Cell(HEIGHT),

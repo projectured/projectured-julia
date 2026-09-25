@@ -261,20 +261,28 @@ function _read(document; menu = compute_context_menu)
 end
 
 @testset "a document that offers a menu opens one" begin
-    operation = _read(_speaks())
+    marked = _read(_speaks())
+    # To open a popup is not an edit, so the popup comes marked as view state.
+    @test marked isa ReplaceViewStateOperation
+    operation = get_wrapped_operation(marked)
     @test operation isa OpenPopupOperation
     @test operation.content isa WidgetMenu
+    # The menu opens at the press.
+    @test (operation.x, operation.y) == (5, 5)
     # A popup with no size is a window nobody sees.
     @test operation.width > 0 && operation.height > 0
 end
 
+# Whether an answer opens a popup: the popup comes marked as view state.
+_opens_popup(operation) = operation isa ReplaceViewStateOperation &&
+                          get_wrapped_operation(operation) isa OpenPopupOperation
+
 @testset "a document that offers none opens none" begin
-    @test !(_read(WidgetShell(WidgetLabel("silent");
-                              size = Point2D(200, 100))) isa OpenPopupOperation)
+    @test !_opens_popup(_read(WidgetShell(WidgetLabel("silent"); size = Point2D(200, 100))))
 end
 
 @testset "no function, no probe" begin
-    @test !(_read(_speaks(); menu = nothing) isa OpenPopupOperation)
+    @test !_opens_popup(_read(_speaks(); menu = nothing))
 end
 
 end # @testset

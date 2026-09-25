@@ -77,8 +77,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                  opened_window_projections =
                                      make_opened_window_projections(;
                                          content = make_application_content_projections(measure = measure),
-                                         measure = measure),
-                                 screen_wrap = make_popup_screen_wrap())
+                                         measure = measure))
             backend.editor = editor
             # In video time a click is judged by video time too: the gesture
             # recognizer measures the gap between a down and its up with the

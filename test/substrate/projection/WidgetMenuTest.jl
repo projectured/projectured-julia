@@ -105,25 +105,48 @@ end
 end
 
 # ── Submenu-opener (Step 4b) ──────────────────────────────────────────────
-# An item with a `submenu` opens it as an anchor-relative popup *below itself*
-# (reusing the WidgetSelect dropdown route) instead of running an action. The
-# item is printed standalone — its reader does not hit-test the click position
-# (routing hit-tests upstream), so a left press anywhere triggers it.
+# An item with a `submenu` opens it as a popup *below itself*, at a position in
+# its own frame, instead of running an action. The item is printed standalone —
+# its reader does not hit-test the click position (routing hit-tests upstream),
+# so a left press anywhere triggers it. To open a popup is not an edit, so the
+# popup comes marked as view state.
 
-@testset "a submenu item opens its submenu as an anchor-relative popup" begin
+_menu_popup(op) = op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op
+
+# The IO map of `document` in the IO map tree of a print: the example projection
+# is a chain, so the widget's own IO map sits inside the IO map of the print. The
+# chain has the same input, so the deepest IO map of `document` is the one.
+function _menu_iomap_of(iomap, document, depth = 0)
+    depth > 12 && return nothing
+    for field in fieldnames(typeof(iomap))
+        value = getfield(iomap, field)
+        value = value isa CellModule.Cell ? value[] : value
+        for candidate in (value isa AbstractVector ? value : (value,))
+            candidate = candidate isa CellModule.Cell ? candidate[] : candidate
+            candidate isa Tuple && (candidate = last(candidate))
+            candidate isa IoMap || continue
+            found = _menu_iomap_of(candidate, document, depth + 1)
+            found === nothing || return found
+        end
+    end
+    iomap.input === document ? iomap : nothing
+end
+
+@testset "a submenu item opens its submenu below itself" begin
     submenu = WidgetMenu([WidgetMenuItem("New"), WidgetMenuItem("Open")])
     item = WidgetMenuItem("File"; submenu = submenu)
     iomap = print_document(proj, item)
 
     op = read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys()))
-    @test op isa OpenPopupOperation
-    @test op.id === :widget_popup
-    @test op.auto_dismiss === true
-    @test op.anchor isa EmptyReference      # anchored to the item itself (root)
-    @test op.dx == 0                            # opens directly below
-    @test op.dy > 0
-    @test op.content === submenu                # the popup content is the submenu
-    @test op.height > 0
+    @test op isa ReplaceViewStateOperation
+    popup = _menu_popup(op)
+    @test popup isa OpenPopupOperation
+    @test popup.id === :widget_popup
+    @test popup.auto_dismiss === true
+    @test popup.x == 0                          # at the left edge of the item
+    @test popup.y == _menu_iomap_of(iomap, item).control_height + 4   # just below it
+    @test popup.content === submenu             # the popup content is the submenu
+    @test popup.height > 0
 end
 
 @testset "a submenu takes precedence over an action" begin
@@ -132,7 +155,7 @@ end
     iomap = print_document(proj, item)
 
     op = read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys()))
-    @test op isa OpenPopupOperation            # opened the submenu, did not run the action
+    @test _menu_popup(op) isa OpenPopupOperation   # opened the submenu, did not run the action
     @test !(op isa CompoundOperation)
 end
 
@@ -143,25 +166,20 @@ end
     @test read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys())) === nothing
 end
 
-@testset "the resolver maps the submenu anchor to an absolute OpenWindowOperation" begin
+@testset "a menu bar moves the popup of an item into its own frame" begin
     submenu = WidgetMenu([WidgetMenuItem("New"), WidgetMenuItem("Open")])
-    item = WidgetMenuItem("File"; submenu = submenu)
-    # Mirror the real pipeline (as WidgetSelectTest does): the resolver wraps the
-    # content projection, isolated through a NestingProjection.
-    inner = NestingProjection(proj; recursion = IdentityProjection())
-    resolver = WidgetPopupResolverProjection(inner = inner)
-    rio = print_document(resolver, item)
-
-    op = read_intent(resolver, rio, MousePress(:left, 5, 5, ModifierKeys()))
-    @test op isa OpenWindowOperation
-    @test op.id === :widget_popup
-    @test op.style === :floating
-    @test op.auto_dismiss === true
-    @test op.content === submenu
-    # The item sits at the origin, so its top-left resolves to (0, 0); the popup
-    # opens directly below (dx == 0, dy == item_height + gap > 0).
-    @test op.x == 0
-    @test op.y > 0
+    bar = WidgetMenu(Any[WidgetMenuItem("File"), WidgetMenuItem("View"; submenu = submenu)];
+                     orientation = :horizontal, padding = Inset(2, 2, 2, 2))
+    iomap = print_document(proj, bar)
+    # The press lands on the second item, and the popup opens below that item,
+    # in the frame of the bar: its position is where the bar placed the item.
+    (ox, oy, cim) = getfield(_menu_iomap_of(iomap, bar), :child_iomaps)[][2]
+    popup = _menu_popup(read_intent(proj, iomap, MousePress(:left, ox + 3, oy + 3, ModifierKeys())))
+    @test popup isa OpenPopupOperation
+    @test ox > 0
+    @test popup.x == ox
+    @test popup.y == oy + cim.control_height + 4
+    @test popup.content === submenu
 end
 
 # ── Hover feedback (Qt-gap Part F) ─────────────────────────────────────────

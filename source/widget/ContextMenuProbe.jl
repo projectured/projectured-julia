@@ -32,10 +32,9 @@ makes the menu worth having.
 because this probe takes no `measure`: a `WidgetContextMenu`, which has one,
 measures its own and answers before this probe is asked.
 
-**The menu opens at the top-left of the document it belongs to**, not under the
-pointer. The resolver places a popup at its anchor plus an offset in the anchor's
-own coordinates, and the probe knows the document it found but not where inside
-it the press landed.
+**The menu opens at the pointer.** The probe has the press point in its own
+frame, and each reader above it moves that point into its own frame, up to the
+window, which opens the menu there.
 """
 ContextMenuProbeProjection(; inner::Projection, compute_context_menu::Function,
                              width::Integer = 220, row_height::Integer = 24) =
@@ -76,11 +75,10 @@ function read_intent(p::ContextMenuProbeProjection, recursion, change::Intent,
     # same case.
     menu === nothing && (menu = p.compute_context_menu(iomap.input))
     menu === nothing && return inner_answer
-    path === nothing && (path = EmptyReference())
     rows = menu isa WidgetMenu ? max(1, length(menu.elements)) : 1
-    Intent(event, OpenPopupOperation(; id = :widget_popup, anchor = path,
-                                       width = p.width, height = rows * p.row_height,
-                                       content = menu))
+    Intent(event, ReplaceViewStateOperation(
+        OpenPopupOperation(; id = :widget_popup, x = event.x, y = event.y,
+                             width = p.width, height = rows * p.row_height, content = menu)))
 end
 
 read_intent(p::ContextMenuProbeProjection, iomap::ContextMenuProbeIoMap, payload) =

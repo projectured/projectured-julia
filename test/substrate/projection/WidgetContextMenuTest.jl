@@ -16,6 +16,25 @@ function test_widget_context_menu()
 # / `using ProjecturedExample`).
 proj = make_layout_projection_example()
 
+# The IO map of `document` in the IO map tree of a print: the example projection
+# is a chain, so the widget's own IO map sits inside the IO map of the print. The
+# chain has the same input, so the deepest IO map of `document` is the one.
+function _context_iomap_of(iomap, document, depth = 0)
+    depth > 12 && return nothing
+    for field in fieldnames(typeof(iomap))
+        value = getfield(iomap, field)
+        value = value isa CellModule.Cell ? value[] : value
+        for candidate in (value isa AbstractVector ? value : (value,))
+            candidate = candidate isa CellModule.Cell ? candidate[] : candidate
+            candidate isa Tuple && (candidate = last(candidate))
+            candidate isa IoMap || continue
+            found = _context_iomap_of(candidate, document, depth + 1)
+            found === nothing || return found
+        end
+    end
+    iomap.input === document ? iomap : nothing
+end
+
 @testset "a right click opens the menu at the pointer" begin
     menu  = WidgetMenu([WidgetMenuItem("Cut"), WidgetMenuItem("Copy"), WidgetMenuItem("Paste")])
     child = WidgetLabel("right-click me")
@@ -23,14 +42,16 @@ proj = make_layout_projection_example()
     iomap = print_document(proj, wrap)
 
     op = read_intent(proj, iomap, MousePress(:right, 12, 7, ModifierKeys()))
-    @test op isa OpenPopupOperation
-    @test op.id === :widget_popup
-    @test op.auto_dismiss === true
-    @test op.anchor isa EmptyReference   # anchored to the wrapper itself (root)
-    @test op.dx == 12                        # local click coords are the offset
-    @test op.dy == 7
-    @test op.content === menu                # the popup content is the context menu
-    @test op.height > 0
+    # To open a popup is not an edit, so the popup comes marked as view state.
+    @test op isa ReplaceViewStateOperation
+    popup = get_wrapped_operation(op)
+    @test popup isa OpenPopupOperation
+    @test popup.id === :widget_popup
+    @test popup.auto_dismiss === true
+    @test popup.x == 12                      # at the local click, in the wrapper's frame
+    @test popup.y == 7
+    @test popup.content === menu             # the popup content is the context menu
+    @test popup.height > 0
 end
 
 @testset "a left click routes to the child, not the menu" begin
@@ -61,25 +82,20 @@ end
     @test read_intent(proj, iomap, MousePress(:right, 5, 5, ModifierKeys())) === nothing
 end
 
-@testset "the resolver places the menu at the pointer (absolute OpenWindowOperation)" begin
+@testset "a layout moves the menu of a wrapper into its own frame" begin
     menu = WidgetMenu([WidgetMenuItem("Cut"), WidgetMenuItem("Copy")])
     wrap = WidgetContextMenu(WidgetLabel("target"), menu)
-    # Mirror the real pipeline (as WidgetSelectTest does): the resolver wraps the
-    # content projection, isolated through a NestingProjection.
-    inner    = NestingProjection(proj; recursion = IdentityProjection())
-    resolver = WidgetPopupResolverProjection(inner = inner)
-    rio = print_document(resolver, wrap)
-
-    op = read_intent(resolver, rio, MousePress(:right, 20, 9, ModifierKeys()))
-    @test op isa OpenWindowOperation
-    @test op.id === :widget_popup
-    @test op.style === :floating
-    @test op.auto_dismiss === true
+    layout = VerticalLayout(Any[WidgetLabel("above"), wrap])
+    iomap = print_document(proj, layout)
+    # The press lands 20 and 9 pixels into the wrapper, below the label, and the
+    # menu opens at the press, in the frame of the layout.
+    (x_cell, y_cell, _) = getfield(_context_iomap_of(iomap, layout), :child_iomaps)[][2]
+    ox, oy = Int(x_cell[]), Int(y_cell[])
+    op = get_wrapped_operation(read_intent(proj, iomap, MousePress(:right, ox + 20, oy + 9, ModifierKeys())))
+    @test op isa OpenPopupOperation
     @test op.content === menu
-    # Wrapper sits at the origin, so its top-left resolves to (0, 0); the local
-    # click offset (20, 9) places the popup under the pointer.
-    @test op.x == 20
-    @test op.y == 9
+    @test oy > 0
+    @test (op.x, op.y) == (ox + 20, oy + 9)
 end
 
 end # @testset

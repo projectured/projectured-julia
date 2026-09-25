@@ -507,10 +507,10 @@ set_cell_computation!(w::WidgetTooltip, f::Function) = (set_cell_computation!(ge
 Wraps `child`, rendering it unchanged (a transparent behavioural wrapper). A
 **right** click anywhere over it opens `menu` (a `WidgetMenu`) as a popup placed at
 the pointer (Stage 3 Step 4d). It reuses the popup window route: the right click
-emits an `OpenPopupOperation` anchored to this wrapper with the *local* click
-coordinates as the offset, so a content-root resolver places the menu at the
-pointer — no pointer injection. Non-right events route to `child`. A disabled
-wrapper ignores the right click (the child still works).
+emits an `OpenPopupOperation` at the *local* click coordinates, which each reader
+above moves into its own frame, so the window opens the menu at the pointer — no
+pointer injection. Non-right events route to `child`. A disabled wrapper ignores
+the right click (the child still works).
 """
 @document struct WidgetContextMenu <: WidgetDocument
     child::Any

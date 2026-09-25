@@ -71,8 +71,7 @@ function _app_make_scene(paths, dir; assistant = nothing)
     document, projection = make_application_window(paths; root = dir, assistant = assistant)
     scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
     composed = make_window_scene_projection(projection;
-        opened_window_projections = make_opened_window_projections(),
-        screen_wrap = make_popup_screen_wrap())
+        opened_window_projections = make_opened_window_projections())
     iomap = print_document(composed, scene)
     (document, scene, composed, iomap)
 end
@@ -445,8 +444,7 @@ function test_application()
                                                                assistant = nothing)
                 editor = make_editor(document, projection, "ProjecturEd";
                                      backend = HeadlessBackend(), width = 1600, height = 1000,
-                                     opened_window_projections = make_opened_window_projections(),
-                                     screen_wrap = make_popup_screen_wrap())
+                                     opened_window_projections = make_opened_window_projections())
                 @test editor.iomap !== nothing
                 focus_pane!(editor, find_pane_reference(editor, "Files"))
                 @test _app_is_one_path(editor.document)
@@ -619,6 +617,25 @@ function test_application()
                 tabs = [tab for group in get_pane_groups(_app_window(document)) for tab in group.tabs]
                 @test count(tab -> tab.content === get_session_gesture_log(), tabs) == 1
                 @test any(text -> occursin("Gestures", text), drawn())
+            end
+
+            @testset "a press on a menu name opens its menu as a window under the name" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                drawn = _app_drawn_at(print_document(composed, scene).output.windows[1].content)
+                # The pixel of the label, found where it is drawn.
+                (x, y) = only((x, y) for (text, x, y) in drawn if text == "File")
+                @test length(scene.windows) == 1
+                _app_fire(composed, iomap, MousePress(:left, x + 2, y + 2, 1, ModifierKeys()))
+                @test length(scene.windows) == 2
+                window, popup = scene.windows[1], scene.windows[2]
+                @test popup.content isa WidgetMenu
+                @test popup.style === :floating
+                # The item has 6 pixels of room left of its name and 4 above it, and
+                # the menu opens 4 pixels below the item, at its left edge.
+                item_height = print_document(make_window_shell_projection(IdentityProjection()),
+                                             make_window_file_menu()).control_height
+                @test popup.x == window.x + x - 6
+                @test popup.y == window.y + y - 4 + item_height + 4
             end
 
             @testset "Help opens the document types and the page about the program in tabs, and the window draws them" begin
@@ -1120,8 +1137,7 @@ function test_application()
                 scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
                 composed = make_window_scene_projection(projection;
                     opened_window_projections = make_opened_window_projections(;
-                        content = make_application_content_projections()),
-                    screen_wrap = make_popup_screen_wrap())
+                        content = make_application_content_projections()))
                 iomap = print_document(composed, scene)
                 # The pixel of the button, found the way a hand finds it: by
                 # pressing. The toolbar is a band near the top of the window.
@@ -1180,8 +1196,7 @@ function test_application()
                     tooltip_feed = make_tooltip_feed())
                 scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
                 composed = make_window_scene_projection(projection;
-                    opened_window_projections = make_opened_window_projections(),
-                    screen_wrap = make_popup_screen_wrap())
+                    opened_window_projections = make_opened_window_projections())
                 # One print, kept, as the editor keeps it: a divider holds its drag
                 # on the widget the print made, and a second print makes another.
                 io = print_document(composed, scene)

@@ -400,7 +400,6 @@ function run_application(paths::AbstractString...;
                                  make_opened_window_projections(;
                                      content = make_application_content_projections(measure = measure),
                                      measure = measure),
-                             screen_wrap = make_popup_screen_wrap(),
                              fault_policy = fault_policy)
         start(editor)
         start_application!(editor, mcp, assistant, model)
@@ -568,8 +567,7 @@ function warm_application()
         scene = make_window_scene(document, "ProjecturEd"; width = 1280, height = 800)
         composed = make_window_scene_projection(projection;
             opened_window_projections = make_opened_window_projections(;
-                content = make_application_content_projections()),
-            screen_wrap = make_popup_screen_wrap())
+                content = make_application_content_projections()))
         editor = Editor(ConsoleBackend(), scene, composed,
                         Device[Display(), Keyboard(), Mouse()])
         editor.iomap = print_document(composed, scene)

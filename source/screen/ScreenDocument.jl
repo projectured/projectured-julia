@@ -118,35 +118,40 @@ OpenWindowOperation(; id::Symbol,
                         style, auto_dismiss, modal, content)
 
 """
-    OpenPopupOperation(; id, anchor, dx, dy, width, height, auto_dismiss, content)
+    OpenPopupOperation(; id, x, y, width, height, auto_dismiss, content)
 
-Request a popup window **anchored to another element** rather than at absolute
-coordinates. `anchor` is a `Reference` (captured at print time by the trigger)
-naming the element to anchor under; `(dx, dy)` is the trigger-supplied offset (the
-trigger bakes its own size in, so "below the box" is `(0, box_height + gap)`).
+Request a popup window whose top left is at `(x, y)` in the frame of the reader
+that holds the operation. The widget that opens a popup answers a position in
+its own frame, so "just below me" is `(0, height + gap)`. Each reader on the way
+up moves the position into its own frame with `map_operation_position`, by the
+place where it put the child that answered, and the layer of the window adds
+the screen origin of the window and answers an `OpenWindowOperation`. So no
+reader needs the screen position of the widget, and the operation does not
+reach `evaluate_operation`.
 
-A resolver projection turns it into an `OpenWindowOperation` at
-`position + (dx, dy)` — resolving `anchor` to an absolute position via
-`map_reference_forward` — so the deep trigger reader never needs its own absolute
-coordinates. It does not reach `evaluate_operation`.
+An opener marks it with `ReplaceViewStateOperation`, because to open a popup is
+not an edit, and a history does not record it.
 """
 struct OpenPopupOperation <: Operation
     id::Symbol
-    anchor::Reference
-    dx::Int
-    dy::Int
+    x::Int
+    y::Int
     width::Int
     height::Int
     auto_dismiss::Bool
     content::Document
 end
 
-OpenPopupOperation(; id::Symbol, anchor::Reference,
-                     dx::Integer = 0, dy::Integer = 0,
+OpenPopupOperation(; id::Symbol, x::Integer = 0, y::Integer = 0,
                      width::Integer = 0, height::Integer = 0,
                      auto_dismiss::Bool = true, content::Document) =
-    OpenPopupOperation(id, anchor, Int(dx), Int(dy), Int(width), Int(height),
-                       auto_dismiss, content)
+    OpenPopupOperation(id, Int(x), Int(y), Int(width), Int(height), auto_dismiss, content)
+
+function map_operation_position(operation::OpenPopupOperation, move)
+    x, y = move(operation.x, operation.y)
+    OpenPopupOperation(operation.id, Int(x), Int(y), operation.width, operation.height,
+                       operation.auto_dismiss, operation.content)
+end
 
 """
     CloseWindowOperation(id)

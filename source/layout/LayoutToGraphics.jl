@@ -222,7 +222,10 @@ function _route_to_children(child_entries::Vector, x::Int, y::Int, make_evt)
         entry === nothing && continue
         point = _find_child_point(entry, x, y; bounded = true)
         point === nothing && continue
-        result = read_child_event(last(entry), make_evt(point...))
+        # A position in the answer goes back into this frame by the offset the
+        # event came in by.
+        result = shift_operation_position(read_child_event(last(entry), make_evt(point...)),
+                                          x - point[1], y - point[2])
         result !== nothing && return (result, i)
     end
     nothing
@@ -1651,7 +1654,10 @@ function _route_to_children_reverse(child_entries::Vector, x::Int, y::Int, make_
         entry === nothing && continue
         point = _find_child_point(entry, x, y; bounded = false)
         point === nothing && continue
-        result = read_child_event(last(entry), make_evt(point...))
+        # A position in the answer goes back into this frame by the offset the
+        # event came in by.
+        result = shift_operation_position(read_child_event(last(entry), make_evt(point...)),
+                                          x - point[1], y - point[2])
         result !== nothing && return (result, i)
     end
     nothing

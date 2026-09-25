@@ -42,6 +42,7 @@ using ..SerializationModule
 import ..DocumentModule: get_document_title
 import ..EditorModule: make_editor
 import ..OperationModule: evaluate_operation
+import ..GraphicsModule: map_operation_position
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
 export OpenWindowOperation, OpenPopupOperation, CloseWindowOperation,

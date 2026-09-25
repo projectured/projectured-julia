@@ -1,11 +1,22 @@
-# Anchor resolution: `get_anchor_point` reuses `map_reference_forward` to resolve a
-# document reference to the anchor widget's absolute graphics position. The forward
-# image of a positioned widget is a `PointReferenceStep`; each container shifts only a
+# The position of a widget through `map_reference_forward`: a document reference
+# resolves to the widget's absolute graphics position. The forward image of a
+# positioned widget is a `PointReferenceStep`; each container shifts only a
 # coordinate result by where it placed the child (paths stay paths). Self-contained
 # per projection, so widgets nest in any container and vice versa. Ground truth is
 # walked directly from the output canvas tree.
 function test_anchor_point()
-@testset "get_anchor_point (forward-map to graphics coords)" begin
+@testset "the forward map resolves a widget to its graphics position" begin
+
+# The point the forward map gives for `reference`, in the frame of the root
+# output canvas, or `nothing` when the image is not a point.
+function get_anchor_point(iomap, reference)
+    image = map_reference_forward(iomap.projection, iomap, reference)
+    image isa PointReferenceStep || return nothing
+    out = iomap.output
+    bx = out isa GraphicsCanvas ? Int(out.x[]) : 0
+    by = out isa GraphicsCanvas ? Int(out.y[]) : 0
+    (bx + Int(image.x[]), by + Int(image.y[]))
+end
 
 # Symbols resolve from the enclosing `ProjecturedTest` module's `using Projectured`
 # / `using ProjecturedExample`; `Cell` is referenced fully-qualified.

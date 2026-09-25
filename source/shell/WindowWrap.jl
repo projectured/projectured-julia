@@ -152,23 +152,3 @@ make_opened_window_projections(; gesture_help::Bool = true,
              Pair{Type,Any}[GestureMap => make_gesture_map_projection(measure)] :
              Pair{Type,Any}[],
          Pair{Type,Any}[content...])
-
-"""
-    make_popup_screen_wrap() -> Function
-
-The wrap that puts `WidgetPopupResolverProjection` on the window route. It is
-the value of the `screen_wrap` keyword of `run_window_editor`.
-
-**A popup is a native window, so it is placed in screen coordinates.** A widget
-that offers one answers an `OpenPopupOperation` naming an anchor and an offset
-inside the window; the resolver maps that anchor forward through the screen
-printer, adds the offset, and answers the `OpenWindowOperation` that the window
-manager opens. Mapping through the screen printer is what makes the coordinates
-absolute, and it is why this cannot ride in the fold of
-[`make_window_wrap`](@ref): the fold wraps the content of a window and never
-sees the screen.
-
-A window that goes without it draws every popup-offering widget and opens none
-of them.
-"""
-make_popup_screen_wrap() = inner -> WidgetPopupResolverProjection(inner = inner)

@@ -14,23 +14,6 @@
 # `GraphicsCanvas` wrapping the `GraphicsViewport` that clips, with the content
 # delegated through the recursion argument. Compose it with `NestingProjection`
 # to give that content a different recursion table than the surrounding tree.
-# ── Anchor resolution ──────────────────────────────────────────────
-#
-# Resolve a document-domain `reference` to the anchor's absolute top-left within
-# the root output canvas, reusing `map_reference_forward` (no parallel generic —
-# wrappers compose it for free). Returns `(x, y)` or `nothing`. The forward image
-# of a positioned widget is a `PointReferenceStep` in the root output's frame; add the
-# root canvas's own origin to land in window-content coordinates. The trigger
-# bakes any size-relative offset (e.g. "below the box") into the open op itself.
-function get_anchor_point(iomap, reference)
-    img = map_reference_forward(iomap.projection, iomap, reference)
-    img isa PointReferenceStep || return nothing
-    out = iomap.output
-    bx = out isa GraphicsCanvas ? Int(out.x[]) : 0
-    by = out isa GraphicsCanvas ? Int(out.y[]) : 0
-    (bx + Int(img.x[]), by + Int(img.y[]))
-end
-
 # ── Theme (design tokens) ─────────────────────────────────────────
 
 """
@@ -1266,7 +1249,9 @@ function _route_to_children(child_entries::Vector, x::Int, y::Int, make_evt)
         canvas isa GraphicsCanvas || continue
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
-        result = read_child_event(cim, make_evt(lx, ly))
+        # A position in the answer, such as a popup the child opens, goes back
+        # into this frame by the offset the event came in by.
+        result = shift_operation_position(read_child_event(cim, make_evt(lx, ly)), x - lx, y - ly)
         result !== nothing && return result
     end
     nothing
@@ -1687,8 +1672,10 @@ function _read_text_content_intent(p, iomap, evt, left::Int, top::Int)
             else
                 (x - cox, y - coy)
             end
-            answer = read_intent(content_iomap.projection, content_iomap,
-                                 MousePress(button, lx, ly, evt.count, evt.modifiers))
+            answer = shift_operation_position(
+                read_intent(content_iomap.projection, content_iomap,
+                            MousePress(button, lx, ly, evt.count, evt.modifiers)),
+                cox, coy)
             # A document with nothing in it measures nothing, so it has no
             # position to answer with and an empty field could not be clicked
             # into at all. A click in the box means "the caret goes here", and on
@@ -1923,8 +1910,8 @@ end
 # `dialog` as a modal window (Step 5); else run its plain `action`. This is just
 # the default primary op — it is not privileged; any gesture (double/right/shift-
 # click, …) is expressed as its own per-instance binding. A modal dialog is
-# centered, not anchored, so it opens directly as an `OpenWindowOperation` (no
-# popup resolver). v1 uses a generous fixed window box; true screen-sizing /
+# centered, not placed under a widget, so it opens directly as an
+# `OpenWindowOperation`. v1 uses a generous fixed window box; true screen-sizing /
 # centering is deferred (see widget.md).
 # A command that does something wins; the dialog is the fallback for one that
 # does not, so a button carrying both a callback and a dialog runs the callback.
@@ -2016,17 +2003,14 @@ WidgetContextMenuToGraphicsCanvas(theme::WidgetTheme; measure,
     WidgetContextMenuToGraphicsCanvas(measure, margin, border, padding, margin_color, border_color,
                                       padding_color, content_color, font)
 
-# Carries the recursed child's iomap (for event routing + re-rooting) and the
-# wrapper's own document path (captured from `ctx.reference`) — the anchor a right
-# click uses to place the context-menu popup at the pointer.
-# @iomap so the reader reads child_iomap/anchor transparently; the child is
-# reconciled so a content swap rebuilds it (PAR-STABLE-IOMAP-IDENTITY).
+# Carries the recursed child's iomap (for event routing + re-rooting).
+# @iomap so the reader reads child_iomap transparently; the child is reconciled
+# so a content swap rebuilds it (PAR-STABLE-IOMAP-IDENTITY).
 @iomap struct WidgetContextMenuToGraphicsCanvasIoMap
     projection::Any
     input::Any
     output::Any
     child_iomap::Any
-    anchor::Any
 end
 
 function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::WidgetContextMenu, ctx)
@@ -2049,13 +2033,11 @@ function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::Widg
         (width = width, height = height, elements = elements)
     end)
     canvas = _reactive_canvas_cell(0, 0, build)
-    WidgetContextMenuToGraphicsCanvasIoMap(p, w, canvas, child_iomap, ctx.reference)
+    WidgetContextMenuToGraphicsCanvasIoMap(p, w, canvas, child_iomap)
 end
 
-# Forward image: the wrapper is a positioned leaf for anchoring — the empty
-# reference maps to its own top-left, so a content-root resolver places the popup
-# at `wrapper_top_left + (local click)`. (A `.child` descent for a trigger nested
-# in the child is not needed here and stays unmapped.)
+# Forward image: the wrapper is a positioned leaf — the empty reference maps to
+# its own top-left. (A `.child` descent is not needed here and stays unmapped.)
 map_reference_forward(::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, reference) =
     _self_point(reference)
 map_reference_forward(::WidgetContextMenuToGraphicsCanvas, iomap, reference) = nothing
@@ -2067,10 +2049,11 @@ map_reference_backward(::WidgetContextMenuToGraphicsCanvas, iomap, reference) = 
 
 read_intent(::WidgetContextMenuToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
-# A right click opens the context menu at the pointer (Step 4d): an anchor-relative
-# `OpenPopupOperation` whose offset is the *local* click coordinates, so the
-# resolver places the menu under the pointer. Every other event routes to the
-# child (its returned op is re-rooted through `.child`).
+# A right click opens the context menu at the pointer (Step 4d): an
+# `OpenPopupOperation` at the local click, which each reader above moves into its
+# own frame. Every other event routes to the child (its returned op is re-rooted
+# through `.child`), and a popup the child opens is moved out of the content
+# offset.
 function read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
@@ -2083,7 +2066,10 @@ function read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextM
     cox, coy = _content_offset(p, w)
     op = @event_case evt begin
         MousePress(button, x, y) =>
-            read_intent(child_iomap.projection, child_iomap, MousePress(button, x - cox, y - coy, evt.count, evt.modifiers))
+            shift_operation_position(
+                read_intent(child_iomap.projection, child_iomap,
+                            MousePress(button, x - cox, y - coy, evt.count, evt.modifiers)),
+                cox, coy)
         MouseScroll(dx, dy, x, y) =>
             read_intent(child_iomap.projection, child_iomap, MouseScroll(dx, dy, x - cox, y - coy))
         _ => read_intent(child_iomap.projection, child_iomap, evt)
@@ -2102,10 +2088,10 @@ function _open_context_menu(p::WidgetContextMenuToGraphicsCanvas, menu, iomap, l
         tw, _ = _text_size(p.measure, p.font, string(it.action.label))
         width = max(width, tw)
     end
-    OpenPopupOperation(; id=:widget_popup, anchor=iomap.anchor,
-                       dx=lx, dy=ly, width=max(width, 1) + 16,
-                       height=max(1, length(items)) * row_h,
-                       auto_dismiss=true, content=menu)
+    ReplaceViewStateOperation(
+        OpenPopupOperation(; id=:widget_popup, x=lx, y=ly, width=max(width, 1) + 16,
+                           height=max(1, length(items)) * row_h,
+                           auto_dismiss=true, content=menu))
 end
 
 # ── WidgetDialog ──────────────────────────────────────────────────────────────
@@ -2269,26 +2255,24 @@ function read_intent(p::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraph
     ce = iomap.content_entry
     ce === nothing && return nothing
     (ox, oy, cim) = ce
-    op = read_child_event(cim, MousePress(evt.button, evt.x - ox, evt.y - oy,
-                                          evt.count, evt.modifiers))
+    op = shift_operation_position(read_child_event(cim, MousePress(evt.button, evt.x - ox, evt.y - oy,
+                                                                   evt.count, evt.modifiers)),
+                                  ox, oy)
     _retarget_op(p, iomap, op)
 end
 
 # ── WidgetMenuItem ──────────────────────────────────────────────────────────
 
-# Carries the anchor (the item's own document path, captured from `ctx.reference`
-# at print time) and the rendered item size, so a submenu-opener item can open its
-# `submenu` as a popup anchored just below itself without re-deriving its position
-# (Step 4b, mirroring `WidgetSelect`). `child_iomaps` keeps scroll routing into
-# embedded widget content working.
-# @iomap so the reader reads child_iomaps/anchor/control_width/control_height
+# Carries the rendered item size, so a submenu-opener item can open its `submenu`
+# as a popup just below itself, in its own frame. `child_iomaps` keeps scroll
+# routing into embedded widget content working.
+# @iomap so the reader reads child_iomaps/control_width/control_height
 # transparently (all shared from the build cell); PAR-STABLE-IOMAP-IDENTITY.
 @iomap struct WidgetMenuItemToGraphicsCanvasIoMap
     projection::Any
     input::Any
     output::Any
     child_iomaps::Any
-    anchor::Any
     control_width::Any
     control_height::Any
 end
@@ -2358,13 +2342,13 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
     # bar the leftmost item then swallows every crossing, so hover always lit the
     # first button. See `hit_element_at` in document/Graphics.jl.
     WidgetMenuItemToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(0, 0, build),
-                                        Cell(@computation build[].child_iomaps), ctx.reference,
+                                        Cell(@computation build[].child_iomaps),
                                         Cell(@computation build[].width), Cell(@computation build[].height))
 end
 
 # Forward image (Step 2.0 leaf): the empty reference maps to the item's own
-# top-left so a content-root resolver can anchor a submenu popup under it; parent
-# containers shift it on the way up. Invisible item / non-empty ref: no image.
+# top-left; parent containers shift it on the way up. Invisible item / non-empty
+# ref: no image.
 map_reference_forward(::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToGraphicsCanvasIoMap, reference) =
     _self_point(reference)
 map_reference_forward(::WidgetMenuItemToGraphicsCanvas, iomap::SimpleIoMap, reference) = nothing
@@ -2401,11 +2385,11 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
     _route_scroll_to_children(getfield(iomap, :child_iomaps)[]::Vector, evt)
 end
 
-# Open the item's `submenu` as a floating popup anchored just below the item,
-# reusing the WidgetSelect dropdown route (Step 3c): an anchor-relative
-# `OpenPopupOperation` the content-root resolver turns into an absolute window.
-# Size the popup to the submenu's rows (its items share this item's row metrics);
-# placement beyond "below, clamped" is left to anchored-layout.md.
+# Open the item's `submenu` as a floating popup just below the item: a position in
+# the item's own frame, which each reader above moves into its own frame, as the
+# `WidgetSelect` dropdown does. Size the popup to the submenu's rows (its items
+# share this item's row metrics); placement beyond "below" is left to
+# anchored-layout.md.
 function _open_submenu_popup(p::WidgetMenuItemToGraphicsCanvas, submenu,
                              iomap::WidgetMenuItemToGraphicsCanvasIoMap)
     items = collect(submenu.elements)
@@ -2418,10 +2402,10 @@ function _open_submenu_popup(p::WidgetMenuItemToGraphicsCanvas, submenu,
         tw, _ = _text_size(p.measure, p.label_text.font, string(it.action.label))
         width = max(width, tw + 2icox)
     end
-    OpenPopupOperation(; id=:widget_popup, anchor=iomap.anchor,
-                       dx=0, dy=row_h + gap, width=width,
-                       height=max(1, length(items)) * row_h,
-                       auto_dismiss=true, content=submenu)
+    ReplaceViewStateOperation(
+        OpenPopupOperation(; id=:widget_popup, x=0, y=row_h + gap, width=width,
+                           height=max(1, length(items)) * row_h,
+                           auto_dismiss=true, content=submenu))
 end
 
 # ── WidgetToolbarItem ───────────────────────────────────────────────────────
@@ -2523,10 +2507,10 @@ _menu_item_height(cim) =
 
 function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
-    # Reconcile every element by identity, keeping the ORIGINAL index so a nested
-    # trigger captures `…elements[i]` as its anchor (a content-root resolver
-    # forward-maps it back to graphics coordinates, Step 4c). Non-widget slots
-    # reconcile to `nothing` and are skipped when laying out.
+    # Reconcile every element by identity, keeping the ORIGINAL index so the
+    # context of an item names `…elements[i]` and its forward image maps back to
+    # graphics coordinates (Step 4c). Non-widget slots reconcile to `nothing` and
+    # are skipped when laying out.
     child_cells = reconcile_child_iomaps(
         () -> w.elements,
         (i, item) -> item isa WidgetDocument ?
@@ -2718,7 +2702,7 @@ function _route_composite_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
         canvas isa GraphicsCanvas || continue
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
-        result = read_child_event(cim, make_evt(lx, ly))
+        result = shift_operation_position(read_child_event(cim, make_evt(lx, ly)), x - lx, y - ly)
         result !== nothing && return (result, i)
     end
     nothing
@@ -2827,8 +2811,8 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
                                     height = nothing)
     # Each named slot is reconciled by its field value and forced only in the
     # branch that renders it (a nil slot never re-projects). The menu bar's
-    # reference is extended into `menu_bar` so a submenu anchor forward-maps back
-    # through the shell.
+    # reference is extended into `menu_bar`, so a reference inside the bar
+    # forward-maps back through the shell.
     mb_cell = reconcile_child_iomap(() -> w.menu_bar,
         c -> print_child(recursion, c, make_child_context(band_ctx, FieldReferenceStep("menu_bar"))))
     tb_cell = reconcile_child_iomap(() -> w.toolbar, c -> print_child(recursion, c, band_ctx))
@@ -2919,8 +2903,8 @@ _shell_band_height(cim) = cim.output isa GraphicsCanvas ? Int(cim.output.h[]) : 
 # `content`, `tooltip`), each wrapped at its band offset. Descend the leading
 # field step to the matching child (found by identity, since the bands are
 # positional/conditional) and shift a coordinate image by that placement; paths
-# and unknown fields pass through with no image. Step 4c completes the Step 2.0
-# deferral for the menu-bar path so a menu-bar entry's submenu anchor resolves.
+# and unknown fields pass through with no image, and the menu-bar path maps an
+# entry of the bar to its position (Step 4c).
 _shell_field(w, name) =
     name == "menu_bar" ? w.menu_bar :
     name == "toolbar"  ? w.toolbar  :
@@ -3814,7 +3798,7 @@ function _route_split_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
         oy = Int(y_cell[])
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
-        result = read_child_event(cim, make_evt(lx, ly))
+        result = shift_operation_position(read_child_event(cim, make_evt(lx, ly)), x - lx, y - ly)
         result !== nothing && return (result, i)
     end
     nothing
@@ -4361,7 +4345,10 @@ function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
             MouseLeave(x - ox - Int(canvas.x), y - oy - Int(canvas.y), evt.buttons, evt.modifiers)
         _ => evt
     end
-    op = read_child_event(cim, child_evt)
+    # The tab's frame is at the same offset for every event, so a position in the
+    # answer goes back by it.
+    op = shift_operation_position(read_child_event(cim, child_evt),
+                                  ox + Int(canvas.x), oy + Int(canvas.y))
     op === nothing && return nothing
     (op, active_idx)
 end
@@ -4772,9 +4759,13 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
         (x - cox + Int(sp.x[]), y - coy + sy)
     end
     op = @event_case evt begin
+        # A popup the content opens goes back by the content origin and the
+        # scroll offset, the difference between the two frames of the press.
         MousePress(button, x, y) => begin
             lx, ly = _local(x, y)
-            read_child_event(content_iomap, MousePress(button, lx, ly, evt.count, evt.modifiers))
+            shift_operation_position(
+                read_child_event(content_iomap, MousePress(button, lx, ly, evt.count, evt.modifiers)),
+                x - lx, y - ly)
         end
         MouseDown(button, x, y) => begin
             lx, ly = _local(x, y)
@@ -4945,10 +4936,18 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
     content_iomap = iomap.content_iomap
     inverse = compute_affine_inverse(M)
     _local(x, y) = round.(Int, apply_affine_transform(inverse, Float64(x - cox), Float64(y - coy)))
+    # A position in the content's answer goes back through the transform itself,
+    # so a popup opens where its widget is drawn; its size stays in screen pixels.
+    _outer(x, y) = begin
+        px, py = apply_affine_transform(M, Float64(x), Float64(y))
+        (round(Int, px) + cox, round(Int, py) + coy)
+    end
     op = content_iomap === nothing ? nothing : @event_case evt begin
         MousePress(button, x, y) => begin
             lx, ly = _local(x, y)
-            read_child_event(content_iomap, MousePress(button, lx, ly, evt.count, evt.modifiers))
+            map_operation_position(
+                read_child_event(content_iomap, MousePress(button, lx, ly, evt.count, evt.modifiers)),
+                _outer)
         end
         MouseDown(button, x, y) => begin
             lx, ly = _local(x, y)
@@ -5694,7 +5693,7 @@ function _card_route(w::WidgetCard, entries::Vector, x::Int, y::Int, make_evt)
         canvas isa GraphicsCanvas || continue
         lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
-        op = read_child_event(cim, make_evt(lx, ly))
+        op = shift_operation_position(read_child_event(cim, make_evt(lx, ly)), x - lx, y - ly)
         op === nothing && continue
         return _card_reroot(w, cim, op)
     end
@@ -6902,17 +6901,15 @@ WidgetSelectToGraphicsCanvas(theme::WidgetTheme; measure,
                                  label_disabled_text, chevron_color, focus_ring_stroke, gap, chevron_size,
                                  corner_radius)
 
-# Carries the anchor (the select's own document path, captured from `ctx.reference`
-# at print time) and the rendered box size, so the reader can open the dropdown
-# popup anchored under the box without re-deriving its position. `control_width`
-# fixes the popup width to the box; `control_height` places it just below.
+# Carries the rendered box size, so the reader can open the dropdown popup under
+# the box, in its own frame. `control_width` fixes the popup width to the box;
+# `control_height` places it just below.
 # @iomap so the reader reads `iomap.control_width`/`control_height` transparently
-# (the extent is now a shared build-derived cell); PAR-STABLE-IOMAP-IDENTITY.
+# (the extent is a shared build-derived cell); PAR-STABLE-IOMAP-IDENTITY.
 @iomap struct WidgetSelectToGraphicsCanvasIoMap
     projection::Any
     input::Any
     output::Any
-    anchor::Any
     control_width::Any
     control_height::Any
 end
@@ -6948,13 +6945,13 @@ function print_document(p::WidgetSelectToGraphicsCanvas, recursion, w::WidgetSel
         (width=outer_width, height=outer_height, elements=elements)
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
-    WidgetSelectToGraphicsCanvasIoMap(p, w, canvas, ctx.reference,
+    WidgetSelectToGraphicsCanvasIoMap(p, w, canvas,
                                       Cell(@computation build[].width), Cell(@computation build[].height))
 end
 
 # Forward image (Step 2.0): the select is a positioned leaf, so the empty
 # reference maps to its top-left in its own frame; parent containers shift it on
-# the way up. A content-root resolver reads this to anchor the dropdown popup.
+# the way up.
 map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraphicsCanvasIoMap, reference) =
     _self_point(reference)
 map_reference_forward(::WidgetSelectToGraphicsCanvas, iomap::SimpleIoMap, reference) = nothing
@@ -6963,11 +6960,10 @@ map_reference_backward(::WidgetSelectToGraphicsCanvas, iomap, reference) = nothi
 # Invisible select (printer returned a bare empty canvas): inert.
 read_intent(::WidgetSelectToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 
-# A left click on the box opens the option list as a floating popup window,
-# anchored just below the box. The reader carries only the anchor reference + a
-# trigger-baked offset; a content-root resolver (`WidgetPopupResolver`) maps the
-# anchor forward to absolute coordinates and turns this into an `OpenWindowOperation`.
-# The deep reader never computes its own screen position.
+# A left click on the box opens the option list as a floating popup window just
+# below the box. The reader answers that position in its own frame; each reader
+# above moves it into its own frame, and the layer of the window turns it into an
+# `OpenWindowOperation`. The deep reader never computes its own screen position.
 function read_intent(p::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
@@ -6980,16 +6976,16 @@ end
 
 # Build the dropdown: a `VerticalLayout` of `WidgetOption`s (one per selectable
 # value, each pointing back at this select for the value write) wrapped in an
-# `OpenPopupOperation` anchored under the box. No options ⇒ nothing to open.
+# `OpenPopupOperation` under the box. No options ⇒ nothing to open.
 function _open_select_popup(w::WidgetSelect, iomap::WidgetSelectToGraphicsCanvasIoMap)
     opts = collect(w.options)
     isempty(opts) && return nothing
     gap = 4
     items = Any[WidgetOption(w, opt; width=iomap.control_width) for opt in opts]
-    OpenPopupOperation(; id=:widget_popup, anchor=iomap.anchor,
-                       dx=0, dy=iomap.control_height + gap,
-                       width=iomap.control_width, height=length(opts) * iomap.control_height,
-                       auto_dismiss=true, content=VerticalLayout(items))
+    ReplaceViewStateOperation(
+        OpenPopupOperation(; id=:widget_popup, x=0, y=iomap.control_height + gap,
+                           width=iomap.control_width, height=length(opts) * iomap.control_height,
+                           auto_dismiss=true, content=VerticalLayout(items)))
 end
 
 # ── WidgetOption ──────────────────────────────────────────────────────────────
@@ -7610,11 +7606,11 @@ function read_intent(::WidgetAccordionToGraphicsCanvas,
     answer = if _positioned_event(evt) || evt isa MouseEnter || evt isa MouseLeave
         canvas = body_iomap.output
         canvas isa GraphicsCanvas || return nothing
-        local_event = _translate_pointer_event(evt, Int(iomap.output.x) + x + Int(canvas.x),
-                                               Int(iomap.output.y) + y + Int(canvas.y))
+        dx, dy = Int(iomap.output.x) + x + Int(canvas.x), Int(iomap.output.y) + y + Int(canvas.y)
+        local_event = _translate_pointer_event(evt, dx, dy)
         (evt isa MouseLeave || hit_element_at(canvas, local_event.x, local_event.y) !== nothing) ||
             return nothing
-        read_child_event(body_iomap, local_event)
+        shift_operation_position(read_child_event(body_iomap, local_event), dx, dy)
     elseif _is_accordion_body_selected(w, index)
         read_intent(body_iomap.projection, body_iomap, evt)
     else

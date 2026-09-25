@@ -1,15 +1,34 @@
-# The fold that stacks a window's wrappers, and the wrap that puts the popup
-# resolver on the window route.
+# The fold that stacks a window's wrappers, and the popup a widget in a window
+# opens.
 #
-# The second half is the one that matters: a popup is a native window, so the
-# operation that opens one carries screen coordinates. A window built without
-# `make_popup_screen_wrap` draws every popup-offering widget and opens none of
-# them, and nothing says so — the click is simply swallowed.
+# A popup is a native window, so the operation that opens one reaches the window
+# manager in screen coordinates. The widget answers a position in its own frame,
+# each reader on the way up moves it, and the window adds its screen origin: a
+# window needs no wrapper for it.
 
 function test_window_wrap()
 @testset "window wrap" begin
 
 _document() = PrimitiveString("x")
+
+# The IO map of `document` in the IO map tree of a print: the example projection
+# is a chain, so the widget's own IO map sits inside the IO map of the print. The
+# chain has the same input, so the deepest IO map of `document` is the one.
+function _wrap_iomap_of(iomap, document, depth = 0)
+    depth > 12 && return nothing
+    for field in fieldnames(typeof(iomap))
+        value = getfield(iomap, field)
+        value = value isa CellModule.Cell ? value[] : value
+        for candidate in (value isa AbstractVector ? value : (value,))
+            candidate = candidate isa CellModule.Cell ? candidate[] : candidate
+            candidate isa Tuple && (candidate = last(candidate))
+            candidate isa IoMap || continue
+            found = _wrap_iomap_of(candidate, document, depth + 1)
+            found === nothing || return found
+        end
+    end
+    iomap.input === document ? iomap : nothing
+end
 
 # The recorder is always outermost, so what a keyword added is one step in. A
 # gesture log a person opens in a tab shows the session's own log, which must
@@ -62,37 +81,27 @@ end
     @test isempty(make_opened_window_projections(; gesture_help = false))
 end
 
-@testset "a select drops down only when the screen wrap is there" begin
+@testset "a select drops down as a window below the select" begin
     # The window manager is what consumes an `OpenWindowOperation`, so the proof
     # is the window that appears, not the operation that comes back. A reader
     # that answers `nothing` here has done the work.
-    make_scene() = make_window_scene(
-        WidgetSelect("Apple"; options = ["Apple", "Banana"], width = 180),
-        "shell"; width = 400, height = 300)
+    select = WidgetSelect("Apple"; options = ["Apple", "Banana"], width = 180)
+    scene = make_window_scene(select, "shell"; width = 400, height = 300)
     content = make_layout_projection_example()
+    projection = make_window_scene_projection(content)
+    iomap = print_document(projection, scene)
     press = Intent(WindowInput(:shell, MousePress(:left, 5, 5, ModifierKeys())))
-    answer(projection, scene) = begin
-        iomap = print_document(projection, scene)
-        change = read_intent(projection, nothing, press, iomap)
-        change isa Intent ? change.operation : change
-    end
-
-    # What every window does today. The select answers an anchor-relative
-    # `OpenPopupOperation`, it reaches the top of the window route with nothing
-    # to resolve it, and no window opens. The dropdown never appears.
-    bare = make_scene()
-    operation = answer(make_window_scene_projection(content), bare)
-    @test operation isa OpenPopupOperation
-    @test length(bare.windows) == 1
-
-    # With the wrap, the resolver turns the anchor into screen coordinates and
-    # the manager opens the window, so the reader has nothing left to answer.
-    wrapped = make_scene()
-    @test answer(make_window_scene_projection(content;
-                                              screen_wrap = make_popup_screen_wrap()),
-                 wrapped) === nothing
-    @test length(wrapped.windows) == 2
-    @test last(wrapped.windows).content isa VerticalLayout
+    change = read_intent(projection, nothing, press, iomap)
+    @test (change isa Intent ? change.operation : change) === nothing
+    @test length(scene.windows) == 2
+    window, popup = scene.windows[1], scene.windows[2]
+    @test popup.content isa VerticalLayout
+    @test popup.style === :floating
+    # Just below the select, which sits at the origin of the window's content, in
+    # screen coordinates. The window offers the select its height, so the
+    # select's height is the one the scene printed.
+    height = _wrap_iomap_of(iomap, select).control_height
+    @test (popup.x, popup.y) == (window.x, window.y + height + 4)
 end
 
 end # @testset
