@@ -349,6 +349,15 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 - **Beats:** the arrow keys move the caret from a JSON string into the XML text and back. Type a word in an XML paragraph. Press F1 inside the XML and inside the JSON: the lists of keys differ.
 - **Acceptance:** the caret crosses the boundary in both directions. A second take can use the Julia function with an XML body of the web page, after Step 8 makes that document again as an example (G5).
 
+#### S10. Only what changes is drawn again
+
+- **The owner's words, 2026-09-25:** "show the partial render and the dirty rectangle for navigation only causes a small box to be re-rendered and for editing text only causes the edited paragraph to be re-rendered, this is a demonstration of reactivity and laziness/incrementality".
+- **Feature:** a change computes again only the cells that depend on it, and the backend repaints only the region that changed.
+- **Claim:** the editor is reactive and incremental. A move of the caret repaints a small box, and a typed character repaints only the paragraph that holds it.
+- **Setup:** a text of several paragraphs, with `partial_render` and `debug_dirty` on: the SDL backend has both (`source/sdl/Sdl.jl`), and `debug_dirty` outlines the repainted region in red. `VideoBackend` has neither, so the recorder must first repaint partially and draw the outline, or the take records the SDL window from the screen (G6, as S9 needs).
+- **Beats:** the arrow keys move the caret through a paragraph: a small red box at the old and at the new place of the caret. A word is typed into the second paragraph: the red box covers that paragraph and nothing else.
+- **Acceptance:** in each frame of the take, the outline covers only the two caret boxes on a move, and only the edited paragraph on a key.
+
 ### Considered, and not chosen now
 
 | Feature | Why not now |
