@@ -21,9 +21,15 @@ The file system domain, `ProjecturedFileSystem`, shows folders and files of the 
 There are two views of the tree:
 
 - **`FileSystemToSyntax()`** prints a directory as a name leaf and an indented body. A custom `marker_eligible` predicate puts the fold marker on the directory name only, not also on the body. The name of a file is text that the projection introduces, so a text edit on it returns `nothing` and a caret on it selects the file.
-- **`FileSystemToWidget()`** prints the whole tree as one `WidgetTree`, with an icon for each file extension. One pair of functions converts a path in the file system to a path in the tree and back. The printer and the reader both use it.
+- **`FileSystemToWidget()`** prints the whole tree as one `WidgetTree` inside a `WidgetScrollPane`, with an icon for each file extension. The pane scrolls the tree when the tree is larger than the space the pane is given, because a tab puts nothing around what it holds. One pair of functions converts a path in the file system to a path in the tree and back, and the reference maps put the pane's `content` step in front of it.
 
-The Explorer chain is `WorkspaceToFileSystem`, then `FileSystemToWidget`, then `WidgetToGraphics`.
+The Explorer chain is `WorkspaceToFileSystem`, then `FileSystemToWidget`, then `RecursiveProjection(WidgetToGraphics(…))`. The renderer is recursive because the scroll pane prints the tree through the recursion.
+
+### Select a row
+
+A `WorkspaceFolder` holds a name and a path, and the tree below it is computed from the path. So a row of the tree is a place that the projection introduces, and a selection of a row is a `ProjectionReferenceStep` on the folder. The root path of a selected file reads `….folders[1].proj(WorkspaceFolderToFileSystemDirectory(), .elements[2].elements[1])`. The root row is the folder itself, so the folder as a whole, `….folders[1]`, selects the root row.
+
+The selection of the computed directory is a computed cell: the image of the folder's selection. No reader writes it, so the window has one selection, and a key goes where the root path points. A plain click and the arrow keys move the row. An Alt+click selects the `Workspace` as a whole, so the pane that holds it draws its selection ring; the four-argument reader of `WorkspaceToFileSystemDirectory` answers that press itself, because the folder draws as the whole view and no widget draws a ring for it alone.
 
 ### Open a file
 
@@ -39,7 +45,7 @@ Enter on a row, or a double click, makes an `OpenFileOperation(path; wrap)`. The
 
 ## How it fits
 
-`ProjecturedFileSystem` depends on `ProjecturedFileFormat` and `ProjecturedPane` for the open, and on `ProjecturedWidget` for the tree. `ProjecturedShell` uses it for the dialogs and for the Explorer button of the toolbar.
+`ProjecturedFileSystem` depends on `ProjecturedFileFormat` and `ProjecturedPane` for the open, on `ProjecturedWidget` for the tree, and on `ProjecturedFocus` for the Alt+press that selects the workspace. `ProjecturedShell` uses it for the dialogs and for the Explorer button of the toolbar.
 
 Its `__init__` registers:
 
@@ -53,6 +59,7 @@ Its `__init__` registers:
 
 - **An open names the file, not the place.** The file system package has no reference to tabs or panes. The pane tree chooses the place of a file.
 - **A chooser only chooses.** The dialog document holds a path. The shell acts on it.
+- **A row is a place the projection introduces.** The tree is computed from a path, so a row has no document of its own in the workspace. The row goes into the root path as a `ProjectionReferenceStep` on the folder, as a catalog row does on a `DatabaseInstance`. A second selection on the computed directory would split the window's selection in two.
 - **The tree is read, not watched.** A computed cell must not read the disk as a side effect of a print, so a live view of the disk needs a synchronizer outside the cells. [plan/tentative/filesystem-file-content-projection.md](../../../plan/tentative/filesystem-file-content-projection.md) discusses one.
 
 ## Usage
@@ -64,10 +71,12 @@ run_example("navigator")                 # the Explorer view of the fixture proj
 ```
 
 - Examples: `filesystem_example` (syntax), `filesystem_widget_example` (the tree) and `navigator_example` (the workspace). They read the fixture under `example/filesystem/fixture/project/`, so they do not change when the repository changes.
-- Test: `test_filesystem()` runs the layering guard and the two projection tests.
+- Test: `test_filesystem()` runs the layering guard, the two projection tests, and `test_workspace_to_filesystem()`, which maps a row through the workspace and back.
 
 ## Limits
 
 - A workspace with more than one folder shows only the first folder. The comment in `source/filesystem/WorkspaceToFileSystem.jl` says so.
 - A change on the disk does not show until something assigns the folder path again.
+- A key that moves the selection to a row below the edge of the pane does not scroll the row into view.
+- A selected row other than the root row names no document, so a copy of it copies nothing.
 - A file has no content view in this domain. To edit a file, open it; its extension selects the domain.

@@ -1,7 +1,8 @@
 # The navigator selection goes into the row, and the navigator scrolls
 
-**Status (2026-09-25): IN PROGRESS** on the branch `navigator-selection`, in the
-worktree `projectured-julia-navigator-selection`. Nothing is on `main`.
+**Status (2026-09-25): DONE** on the branch `navigator-selection`, in the
+worktree `projectured-julia-navigator-selection`. Nothing is on `main`. One open
+point outside this plan is under Step 1: a scroll goes into the window history.
 
 ## 1. The request and the rulings
 
@@ -154,5 +155,10 @@ no ring shows.
   `test_workspace_to_filesystem`, `test_package_graph` 661 of 661, the file
   dialogs 11 of 11, `test_shell` 175 of 180 (the same five toolbar failures as
   `main`), the two examples at the counts of `main`, and the naming guard.
-- [ ] **Step 4.** The guides: `documentation/package/filesystem/filesystem.md`
+- [x] **Step 4.** The guides: `documentation/package/filesystem/filesystem.md`
   and the dependency table in `documentation/rule/package-rules.md`.
+
+  Done. `filesystem.md` has a section on the selection of a row, the scroll
+  pane, the recursive renderer, the new dependency, a design decision and two
+  limits. `package-rules.md` lists only the packages of the substrate, so it has
+  no row to change.
