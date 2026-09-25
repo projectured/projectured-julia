@@ -1379,11 +1379,12 @@ function print_document(p::WidgetLabelToGraphicsCanvas, recursion, w::WidgetLabe
         content_x, content_y = _content_offset(p, w)
         content_width, content_height = _content_size(p.measure, style.font, content)
         elements = Any[]
-        # Text breaks at the width the parent offered, less the box. A label that
-        # fills a column holds prose in that column, and a line longer than the
-        # column is drawn past it and lost. An image is not broken; it fills its box.
-        avail = ctx === nothing ? nothing : ctx.available_width
-        bound = avail === nothing || content isa ImageDocument ? 0 : max(0, Int(avail[]) - inset_width)
+        # Text breaks at the edge of the range the parent gave, exact or bounded,
+        # less the box. A label in a column holds prose in that column, and a line
+        # longer than the column would be drawn past it and lost. An image is not
+        # broken; it fills its box.
+        edge = ctx === nothing ? nothing : ctx.maximum_width
+        bound = edge === nothing || content isa ImageDocument ? 0 : max(0, Int(edge[]) - inset_width)
         if bound > 0 && content_width > bound
             text_elements = Any[]
             text_width, text_height = _push_text_block!(text_elements, p.measure, style, string(content),

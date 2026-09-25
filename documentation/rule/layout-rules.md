@@ -107,11 +107,12 @@ and a bare child uses it. A wrapper is the same vocabulary written explicitly fo
 the one child that differs.
 
 Both defaults are read on **both** axes: the one the layout divides, and the one
-it does not. On the cross axis a weight takes the offer, a declared preferred
-extent takes that number, and anything else is `Content` — the offer is withheld
-and the child sizes to what it draws. A bare child has weight `0`, so `Content` is
-what a stack gives unless it says otherwise, and a badge in a column stays
-badge-shaped.
+it does not. On the cross axis a weight takes the stack's edge exactly, a declared
+preferred extent takes that number exactly, and anything else is `Content`: it gets
+a bounded range, its content up to the stack's edge, raised to the placement's
+minimum and cut at the placement's maximum. A bare child has weight `0`, so
+`Content` is what a stack gives unless it says otherwise: a badge in a column stays
+badge-shaped, and a paragraph in the column wraps at the column's edge.
 
 ```julia
 VerticalLayout(turns; gap = 6, child_width = Fill, child_height = Content)
@@ -120,13 +121,20 @@ VerticalLayout(turns; gap = 6, child_width = Fill, child_height = Content)
 ## 3. What a container offers
 
 ```
-offer(axis) = my extent on that axis    when I know it independently of my children
-              nothing                   when my extent on that axis comes FROM them
+slot(axis) = my extent on that axis    when I know it independently of my children
+             nothing                   when my extent on that axis comes FROM them
+edge(axis) = the edge I was given, less my insets
 ```
 
 The second line is not taste. A child that reads an extent its parent computed
 from its children reads the parent's own outer size, and the reactive cell cycles
 and overflows the stack. `withhold_offer(ctx, axis)` is that rule, written once.
+
+The edge is a different value. It is the maximum of the range that the container
+was given, a cell of the container's own parent, and never the container's own
+extent. So a stack whose extent on its cross axis comes from its children still
+gives each `Content` child the edge as a bounded range, and no cell reads its own
+result.
 
 So a `VerticalLayout` withholds height, a `HorizontalLayout` withholds width, a
 `WidgetCard` withholds height, a `WidgetToolbar` withholds width — each because
@@ -155,14 +163,14 @@ cell to read. An unclipped axis reads a cell that the content produces.
 ## 3b. Who clips
 
 ```
-A container that hands a child a bounded extent on an axis
-MUST clip that axis to the extent it handed out.
+A container that hands a child a slot (an exact range) on an axis
+MUST clip that axis to the slot it handed out.
 ```
 
-An offer is a promise about space, not a constraint on the child. Nothing makes a
-widget fit: `_resolve_size` returns an authored size whatever is offered, and
-otherwise `max(offer, content)` — so the content is a floor **above** the offer, and
-a widget never draws smaller than what it holds. That is deliberate. A widget that
+A slot is a promise about space, not a constraint on the child. Nothing makes a
+widget fit: `_resolve_size` returns an authored size whatever is given, and
+otherwise `max(minimum, content)` — so the content is a floor **above** the slot,
+and a widget never draws smaller than what it holds. That is deliberate. A widget that
 clamped itself to the offer would report the offer as its extent, and a stack could
 no longer tell a child that is too big from one that fits, which is the measurement
 `Content` and `allocate_axis` both run on.
@@ -172,11 +180,16 @@ So the promise is kept by the party that made it. The container emits a
 element `WidgetScrollPane` has always emitted — and reports **its own box** rather
 than what the child reached.
 
-**Per bounded axis, not per widget.** An axis a container withholds — because its own
+**Per axis with a slot, not per widget.** An axis a container withholds — because its own
 extent comes from the child — has nothing to clip against, and clipping to an extent
 derived from the content is the cycle §3 describes. So a tab page clips both axes, a
 split clips its main axis always and its cross axis when it was offered one, and a
 card clips its width but not its height.
+
+**A bounded range adds no clip.** Its maximum is the room of an ancestor that gave
+a slot, less what lies between, and that ancestor clips. Rigid content that is
+wider than its edge overflows into the room of its siblings, and the ancestor's
+clip ends it.
 
 **Clipping is not scrolling.** A viewport bounds; a scroll pane bounds *and* holds an
 offset that moves the content inside. Content that must scroll brings a

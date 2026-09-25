@@ -365,7 +365,20 @@ Step 0 takes the baseline.
       only by those 17 passes: the same 649 failures, 11 errors and 1114 broken
       tests, at the same places, and the same count of `Catalog`.
 
-- [ ] **Step 3: the containers and the cross axis.** The root, the viewports,
+- [x] **Step 3: the containers and the cross axis.** **Decisions (2026-09-25):**
+      the step gives the bounded range on the cross axis of the stacks, and the
+      label wraps at the maximum (it is reflowing content, missed in Step 2).
+      Two parts move. The `Content` columns of a grid go to Step 4, because
+      their maximum is the main-axis formula over the columns. The containers
+      with one content (shell, split, tab page, viewports, table, card) keep
+      reading the exact slot until Step 5: a bounded range reaches them as no
+      slot, which is what they had before, so they lose nothing, and they pass
+      a bounded range on in Step 5 with the other readers. `with_size_range`
+      (a range with a minimum and a maximum) and `with_inner_size` (the range
+      less an inset, in the same state) are new helpers of `PrinterContext`.
+      A bounded range adds no clip: its maximum is the room of an ancestor
+      that gave a slot, and that ancestor clips (`layout-rules.md` §3b).
+      The original text of the step: The root, the viewports,
       the shell, the split, the tab page, the pane tree and the card give exact
       ranges as today; the cross axis of the stacks gives a `Content` child
       `(minᵢ, min(B, maxᵢ))`; the grid gives a `Content` column's cells
@@ -376,6 +389,14 @@ Step 0 takes the baseline.
       - Documents: `documentation/package/layout/layout.md` ("The size that a
         parent offers"); `layout-rules.md` §2 (where a policy lives), §3
         (what a container offers) and §3b (who clips: at the maximum).
+      **Done.** `test_size_range_cross_axis()` passes 8 of 8: in a column that is
+      500 and 300 wide, a short label and a button keep their width, a long
+      label wraps at the edge, a `Fill` child takes the width, and a placement
+      minimum (120) and maximum (250) hold. `test_all()` has the same 660
+      failures at the same places as Step 2, 8 more passes in the substrate,
+      and 3134 fewer in `Catalog`, whose count follows the state that earlier
+      examples leave (Step 1): 496490 at main, 499680 at Steps 1 and 2, 496546
+      here, with no failure, error or broken test.
 
 - [ ] **Step 4: the main axis of the stacks.** The formula of §4.3 for the
       unweighted children, `Fixed` on the main axis, and a weighted child in a

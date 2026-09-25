@@ -850,18 +850,29 @@ end
 # changes (a part is added/swapped) — that is what makes structure reactive. The
 # per-child size/position cells it constructs stay lazy, so a child merely
 # *growing* recomputes those cells without rebuilding the stack.
-# The context a stack hands a child on the axis it does NOT divide.
+# The range a stack gives a child on the axis it does NOT divide.
 #
-# `Fill` and `Relative` take the offer, a declared preferred extent takes that
-# number, and everything else is `Content`: the offer is withheld and the child
-# sizes to what it draws. `axis` is the cross axis, and `default` is the layout's
-# own `child_width`/`child_height` for that axis.
+# The stack's own edge on that axis, `B`, is the maximum of the range it was
+# given. `Fill` and `Relative` take it exactly, `(B, B)`; a declared preferred
+# extent takes that number exactly; and everything else is `Content`: the child
+# draws its content up to the edge, `(minᵢ, min(B, maxᵢ))`, from the placement's
+# minimum and maximum. `axis` is the cross axis, and `default` is the layout's own
+# `child_width`/`child_height` for that axis.
+#
+# The edge is the cell the stack's parent gave, never the stack's own extent,
+# which is computed from its children, so no child reads a result of its own.
 function _cross_context(cctx, child, axis::Symbol, default)
-    layout_weight(child, axis; default) > 0 && return cctx
+    edge = axis === :x ? cctx.maximum_width : cctx.maximum_height
+    on_axis(range) = axis === :x ? (; width = range) : (; height = range)
+    layout_weight(child, axis; default) > 0 && return with_size_range(cctx; on_axis((edge, edge))...)
     pref = layout_preferred(child, axis, 0; default)
-    pref > 0 && return with_available_size(cctx;
-        (axis === :x ? (; width = Cell(Int32(pref))) : (; height = Cell(Int32(pref))))...)
-    withhold_offer(cctx, axis)
+    pref > 0 && return with_exact_size(cctx; on_axis(Cell(Int32(pref)))...)
+    minimum = layout_min(child, axis, 0; default)
+    maximum = layout_max(child, axis, 0; default)
+    bound = maximum == typemax(Int) ? edge :
+            edge === nothing ? Cell(Int32(maximum)) :
+            Cell(@computation Int32(min(Int(edge[]), maximum)))
+    with_size_range(cctx; on_axis((minimum > 0 ? Cell(Int32(minimum)) : nothing, bound))...)
 end
 
 function _vl_build(recursion, doc, ctx)

@@ -175,6 +175,52 @@ function with_bounded_size(ctx::PrinterContext; width = _KeepRange(), height = _
 end
 
 """
+    with_size_range(ctx; width, height) -> PrinterContext
+
+A copy of `ctx` with the range of each axis given as a pair `(minimum, maximum)`,
+each a cell or `nothing`. An axis that is not given keeps its range.
+
+Use it for a range with both a minimum and an edge, as a `Content` child with a
+placement minimum receives in a bounded parent. `with_exact_size` and
+`with_bounded_size` write the common ranges.
+"""
+function with_size_range(ctx::PrinterContext; width = _KeepRange(), height = _KeepRange())
+    _with_ranges(ctx,
+                 width isa _KeepRange ? _get_width_range(ctx) : width,
+                 height isa _KeepRange ? _get_height_range(ctx) : height)
+end
+
+"""
+    with_inner_size(ctx; width = 0, height = 0) -> PrinterContext
+
+A copy of `ctx` whose range on each axis is the range of `ctx` less an inset, in
+the same state: an exact range stays exact, a bounded one stays bounded and a
+free one stays free. The minimum and the maximum are each reduced by the inset,
+and never go under 0. An inset is a number or a cell of a number.
+
+Use it where a container passes its own range on to its content, less its
+margin, border, padding and bands.
+"""
+with_inner_size(ctx::PrinterContext; width = 0, height = 0) =
+    _with_ranges(ctx, _get_inner_range(_get_width_range(ctx), width),
+                 _get_inner_range(_get_height_range(ctx), height))
+
+_get_inset_value(inset::Real) = Int(inset)
+_get_inset_value(inset::Cell) = Int(inset[])
+
+_get_inner_extent(extent::Nothing, inset) = nothing
+_get_inner_extent(extent::Cell, inset) =
+    Cell(@computation Int32(max(0, Int(extent[]) - _get_inset_value(inset))))
+
+# An exact range stays one cell, so it stays exact.
+function _get_inner_range(range, inset)
+    minimum, maximum = range
+    inner_maximum = _get_inner_extent(maximum, inset)
+    minimum === maximum && return (inner_maximum, inner_maximum)
+    (_get_inner_extent(minimum, inset), inner_maximum)
+end
+
+"""
     with_available_size(ctx; width, height) -> PrinterContext
 
 The same as [`with_exact_size`](@ref).
