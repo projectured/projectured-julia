@@ -326,6 +326,15 @@ end
     @test _et_flatten(form.result) == "phase_q (generic function with 1 method)"
 end
 
+@testset "a long value shows the REPL header, not a note to the model" begin
+    form = evaluated_form("collect(1:1000)")
+    text = _et_flatten(form.result)
+    @test occursin("1000-element Vector{Int64}:", text)
+    @test occursin("⋮", text)
+    @test !occursin("Print a part", text)
+    @test !occursin("trimmed", text)
+end
+
 @testset "a form becomes Julia with its lambda, its keywords and its short definitions" begin
     for code in ("map(x -> x^2, [1, 2])", "sum([1, 2]; init = 0)", "twice_q(x) = 2 * x")
         @test !(evaluated_form(code).form isa PrimitiveString)
