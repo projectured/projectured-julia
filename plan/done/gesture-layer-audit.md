@@ -228,7 +228,7 @@ Each step is a commit in this worktree.
      `ae39586c`): `test_presentation()` 1689 pass, 14 fail, 3 error, 1 broken;
      `test_legacy()` 1027 pass, 6 fail, 59 error; `test_campaign_ui()` passes;
      `test_ide()` 447 pass, 1 fail, 2 error.
-6. [ ] The check: the suites as on main plus the new tests, the guards,
+6. [x] The check: the suites as on main plus the new tests, the guards,
    omnet-julia and inet-julia precompile and pass their suites, and a live
    window gives a click and a double click.
    - The branch is rebased onto projectured-julia main `33c4c977`. Main had
@@ -260,3 +260,9 @@ Each step is a commit in this worktree.
    - inet-julia: its untracked manifest is out of date on main (it names a
      deleted package), so both runs resolve fresh from `Project.toml`. The
      presentation test gives 569 of 569 on main and on the branch.
+
+## Status: done
+
+The owner approved on 2026-09-26 the edit of the sealed `ModifierKeys.jl`, whose
+example threw without a time, the seal of the two gesture files and the seven
+event files, and the landing of the three branches together.
