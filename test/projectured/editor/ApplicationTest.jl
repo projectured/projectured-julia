@@ -702,7 +702,10 @@ function test_application()
                 @test !any(text -> occursin("document types", text), drawn())
                 _app_apply!(editor, InvokeActionOperation(action("Documents")))
                 tabs() = [tab for group in get_pane_groups(_app_window(document)) for tab in group.tabs]
-                @test count(tab -> get_wrapped_document(tab.content) isa DocumentTypeList, tabs()) == 1
+                # The list opens inside a scroll pane, so the tab shows it there.
+                shown(tab) = (content = get_wrapped_document(tab.content);
+                              content isa WidgetScrollPane ? content.content : content)
+                @test count(tab -> shown(tab) isa DocumentTypeList, tabs()) == 1
                 # The heading and the first entry of the list, which the tab shows
                 # without a scroll.
                 @test any(text -> occursin("document types", text), drawn())
@@ -710,6 +713,26 @@ function test_application()
                 _app_apply!(editor, InvokeActionOperation(action("About")))
                 @test count(tab -> get_wrapped_document(tab.content) isa AboutPage, tabs()) == 1
                 @test "ProjecturEd" in drawn()
+            end
+
+            @testset "a wheel over the list of document types moves its rows" begin
+                # The list is longer than its tab, and a tab page gets no scroll of
+                # its own: the list scrolls because it opens in a scroll pane.
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                editor = _app_make_editor(scene, composed, iomap)
+                help = only(item for item in make_window_menu_bar().elements
+                            if string(item.action.label) == "Help")
+                documents = only(item.action for item in help.submenu.elements
+                                 if string(item.action.label) == "Documents")
+                _app_apply!(editor, InvokeActionOperation(documents))
+                drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
+                place() = only((x, y) for (text, x, y) in drawn() if text == "AboutPage")
+                (x, y) = place()
+                operation = _app_fire(composed, editor.iomap, MouseScroll(0, -3, x + 10, y + 5))
+                @test operation isa Operation
+                _app_apply!(editor, operation)
+                # A wheel turned towards the person moves the rows up.
+                @test place()[2] < y
             end
 
             @testset "the toolbar holds the tools, and draws no word" begin

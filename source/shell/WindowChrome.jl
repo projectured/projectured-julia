@@ -87,11 +87,11 @@ make_window_help_menu(; about = _ -> AboutPage()) =
     WidgetMenuItem("Help"; padding = _WINDOW_MENU_PADDING, submenu = WidgetMenu(Any[
         make_window_command("Documents",
                             editor -> _reach_tool!(editor, DocumentTypeList,
-                                                   _make_default_tool(DocumentTypeList));
+                                                   _make_scrolling_tool(DocumentTypeList));
                             tooltip = "Every document type that an empty tab can make"),
         make_window_command("Projections",
                             editor -> _reach_tool!(editor, ProjectionList,
-                                                   _make_default_tool(ProjectionList));
+                                                   _make_scrolling_tool(ProjectionList));
                             tooltip = "Every projection: the views of a document, and the projections that combine them"),
         make_window_command("About", editor -> _reach_tool!(editor, AboutPage, about);
                             tooltip = "What this program is, and its version"),
@@ -259,6 +259,14 @@ make_window_tool_command(label, type::Type; icon = nothing, tooltip = nothing,
 
 _make_default_tool(type::Type) = _ -> make_insertion_document(type)
 
+# A list of the Help menu is longer than a pane, and a tab page gets no scroll of
+# its own, so the list opens inside a scroll pane.
+_make_scrolling_tool(type::Type) = _ -> WidgetScrollPane(make_insertion_document(type))
+
+# What a tool tab shows: the content of the scroll pane that a scrolling tool
+# opens in, else the document itself.
+_get_tool_document(document) = document isa WidgetScrollPane ? document.content : document
+
 # The pane slice's own edits, in the pane tree that holds the focus. A menu
 # command is a second way to the one implementation. It runs while the editor
 # evaluates the command, so it posts its edit, made through the readers, and the
@@ -308,7 +316,11 @@ function _reach_tool!(editor, type::Type, make)
     tree_reference, tree = found
     tool = _find_tool_tab(tree, type)
     if tool === nothing
-        post_pane_operation!(editor, make_open_pane_operation(editor, make(editor)))
+        document = make(editor)
+        shown = _get_tool_document(document)
+        # A tool in a scroll pane is titled by what it shows, not by the pane.
+        title = shown === document ? nothing : get_document_title(shown)
+        post_pane_operation!(editor, make_open_pane_operation(editor, document; title = title))
     else
         group, index = tool
         _post_tree_operation!(editor, tree_reference, make_pane_focus_operation(tree, group, index),
@@ -326,7 +338,7 @@ function _find_tool_tab(tree, type::Type)
               Any[focused, (group for group in groups if group !== focused)...]
     for group in ordered
         for (index, tab) in enumerate(group.tabs)
-            get_wrapped_document(tab.content) isa type && return (group, index)
+            _get_tool_document(get_wrapped_document(tab.content)) isa type && return (group, index)
         end
     end
     nothing

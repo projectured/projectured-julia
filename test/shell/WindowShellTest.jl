@@ -73,19 +73,35 @@ end
     # A host gives the page of its own program.
     page = AboutPage(; name = "Host", version = "2.0")
     help = make_window_help_menu(; about = _ -> page)
-    holding(type) = [get_wrapped_document(tab.content) for tab in group.tabs
-                     if get_wrapped_document(tab.content) isa type]
+    # A list is longer than a pane, so it opens inside a scroll pane; the page
+    # about the program is short and opens bare.
+    shown(tab) = (document = get_wrapped_document(tab.content);
+                  document isa WidgetScrollPane ? document.content : document)
+    holding(type) = [shown(tab) for tab in group.tabs if shown(tab) isa type]
     for (item, type) in zip(help.submenu.elements, [DocumentTypeList, ProjectionList, AboutPage])
         evaluate_operation(editor, InvokeActionOperation(item.action))
         @test length(holding(type)) == 1
         first_tab()
         evaluate_operation(editor, InvokeActionOperation(item.action))
         @test length(holding(type)) == 1
-        @test _is_focused_at(tree, group, findfirst(tab -> get_wrapped_document(tab.content) isa type,
-                                                     collect(group.tabs)))
+        @test _is_focused_at(tree, group, findfirst(tab -> shown(tab) isa type, collect(group.tabs)))
     end
     @test only(holding(AboutPage)) === page
     @test length(group.tabs) == 4
+    tab(type) = only(tab for tab in group.tabs if shown(tab) isa type)
+    @test get_wrapped_document(tab(DocumentTypeList).content) isa WidgetScrollPane
+    @test get_wrapped_document(tab(ProjectionList).content) isa WidgetScrollPane
+    @test get_wrapped_document(tab(AboutPage).content) === page
+    # The tab is titled by the list, not by the scroll pane.
+    @test get_pane_tab_title_string(tab(DocumentTypeList)) == "Documents"
+    @test get_pane_tab_title_string(tab(ProjectionList)) == "Projections"
+    # A saved window keeps the list in its scroll pane, and not where it was
+    # scrolled.
+    pane = get_wrapped_document(tab(DocumentTypeList).content)
+    text = print_pred_text(pane)
+    @test parse_pred_text(text) isa WidgetScrollPane
+    @test parse_pred_text(text).content isa DocumentTypeList
+    @test !occursin("scroll_position", text)
 end
 
 @testset "the shell prints what it holds with the step of its field" begin

@@ -2837,6 +2837,12 @@ get_wrapped_document(shell::WidgetShell) = get_wrapped_document(shell.content)
 # is the one it is opened in, not the one it was saved from.
 pred_arguments(shell::WidgetShell) = (shell.content,), Pair{Symbol,Any}[]
 
+# A saved window keeps what a scroll pane holds, and not where it was scrolled or
+# how large it was drawn: both belong to the window it is opened in. A list of
+# the Help menu is a tab of this kind.
+pred_arguments(pane::WidgetScrollPane) = (pane.content,), Pair{Symbol,Any}[]
+
 function __init__()
     register_pred_type!(WidgetShell)
+    register_pred_type!(WidgetScrollPane)
 end
