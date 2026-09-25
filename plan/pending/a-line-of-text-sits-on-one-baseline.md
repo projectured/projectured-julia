@@ -1,7 +1,9 @@
 # A line of text sits on one baseline
 
-> **Status:** pending. Written 2026-09-25. Nothing is implemented. The owner
-> decided the five questions of §5 on 2026-09-25.
+> **Status:** in progress, in the worktree `projectured-julia-text-baseline` on
+> the branch `text-baseline`, from `c634a718`. Written 2026-09-25. The owner
+> decided the five questions of §5 on 2026-09-25, and asked on the same day to
+> start the work in a worktree.
 
 Text in the editor is laid out by the top of each run, measured with a height
 that is the em size, and drawn by backends that kern and hint as they like. This
