@@ -210,6 +210,24 @@ Each step is a commit in this worktree.
 4. [x] Item 4: `plan/pending/key-chords-from-bindings.md`, deferred.
 5. [ ] The same constructions in omnet-julia and inet-julia, in worktrees of
    their own, to land together with this branch.
+   - omnet-julia: branch `event-time` in `../omnet-julia-event-time`. The tests
+     and the test package give `time = 0.0` (89 sites), the precompile
+     workloads give `time()` or the start time `t0` of the driver (30 sites),
+     and the folder `demo/`, which the first inventory did not scan, gives
+     `time()` (15 sites). Commits `d1793365` and `4b693eb9`.
+   - inet-julia: branch `event-time` in `../inet-julia-event-time`. The test
+     gives `time = 0.0`, and the precompile driver gives `time()`, one event on
+     each line. Commit `658b4d4`.
+   - The check runs in scratch environments that point projectured-julia at
+     this worktree and each repository at its own worktree. The baseline runs
+     in a scratch environment that points at the main checkouts. The two test
+     packages `OmnetCampaignUiTest` and `OmnetIdeTest` are added to both,
+     because their tests changed. The omnet suites need 4 threads: with 2, the
+     presentation suite waits for a simulation session that never ends.
+   - The baseline of omnet-julia on main (`b585d8fa`, projectured-julia
+     `ae39586c`): `test_presentation()` 1689 pass, 14 fail, 3 error, 1 broken;
+     `test_legacy()` 1027 pass, 6 fail, 59 error; `test_campaign_ui()` passes;
+     `test_ide()` 447 pass, 1 fail, 2 error.
 6. [ ] The check: the suites as on main plus the new tests, the guards,
    omnet-julia and inet-julia precompile and pass their suites, and a live
    window gives a click and a double click.
