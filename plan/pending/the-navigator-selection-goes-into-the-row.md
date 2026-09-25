@@ -98,9 +98,27 @@ no ring shows.
 
 ## 4. Steps
 
-- [ ] **Step 1.** D1: the scroll pane around the tree, and its reference maps.
+- [x] **Step 1.** D1: the scroll pane around the tree, and its reference maps.
   Test: a wheel over the navigator scrolls it, and a click and Enter still open
   a file.
+
+  Done. What the work showed:
+  - A container widget prints its content through the `recursion` argument, so
+    the renderer at the end of a chain must be `RecursiveProjection(WidgetToGraphics(…))`,
+    as the header of `WidgetToGraphics.jl` says. The three navigator chains used a
+    bare `WidgetToGraphics`, which was enough for a leaf `WidgetTree`: the natural
+    row in `FileSystemToSyntax.jl`, the widget example, and the row in
+    `Application.jl`. All three are wrapped now. Inside the application the bare
+    renderer borrowed the recursion of the outer renderer.
+  - In this code a wheel event with a positive `dy` scrolls up.
+  - **Open point, not in this plan:** a scroll of any `WidgetScrollPane` is a plain
+    `ReplaceReferencedValueOperation`, so the window history records it and
+    `Ctrl+Z` takes it back. The transcript has the same fault. `_write_view_state`
+    is the view-state write that a history skips.
+  - Baseline on `main`: `test_application` fails one assertion at the toolbar
+    (commit `94d4fc6d` added "Frame plot" and did not update the test), and the
+    position navigation of `filesystem_widget` and `navigator` fails 3313 and 328
+    times. The branch changes none of these counts.
 - [ ] **Step 2.** D2 and D3: the row in the root path, the computed directory
   selection, the Alt+press, and the dependency. Test: a click on a row puts the
   row in the root path and no ring shows; `Down` moves it; Enter opens the file;

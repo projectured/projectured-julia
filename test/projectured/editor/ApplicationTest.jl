@@ -1223,6 +1223,32 @@ function test_application()
                 @test _app_plain(opened) isa OpenFileOperation
                 @test _app_plain(opened).path == _app_plain(operation).path
             end
+
+            @testset "the navigator scrolls a tree taller than its pane" begin
+                mktempdir() do tall
+                    for folder in ("alpha", "beta", "gamma"), k in 1:12
+                        mkpath(joinpath(tall, folder))
+                        write(joinpath(tall, folder, "file$k.jl"), "x = $k\n")
+                    end
+                    document, scene, composed, iomap = _app_make_scene(String[], tall)
+                    editor = _app_make_editor(scene, composed, iomap)
+                    drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
+                    lowest() = maximum(y for (text, x, y) in drawn() if text == "file9.jl" && x < 400)
+                    @test lowest() > 1000               # the last row is below the window
+                    # A wheel turned towards the person moves the rows up.
+                    for _ in 1:40
+                        operation = _app_fire(composed, editor.iomap, MouseScroll(0, -3, 100, 500))
+                        operation isa Operation && _app_apply!(editor, operation)
+                    end
+                    last_row = lowest()
+                    @test last_row < 1000
+                    # A double click opens the file drawn under the pointer.
+                    opened = _app_fire(composed, editor.iomap,
+                                       MousePress(:left, 100, last_row + 3, 2, ModifierKeys()))
+                    @test _app_plain(opened) isa OpenFileOperation
+                    @test _app_plain(opened).path == joinpath(tall, "gamma", "file9.jl")
+                end
+            end
         end
 
         # Each case does what a person or a script does, and then asks whether the

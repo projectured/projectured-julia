@@ -1,18 +1,22 @@
 # Fragment of `FileSystemModule`.
 #
 # FileSystem → WidgetDocument projection. Maps a whole file-system tree to a single
-# [`WidgetTree`](@ref): the root directory becomes the one root node, each
-# directory/file below it a nested [`WidgetTreeNode`](@ref) carrying a **dedicated
-# icon** (an extension-derived glyph) plus its basename as the **text** label.
+# [`WidgetTree`](@ref) inside a [`WidgetScrollPane`](@ref): the root directory
+# becomes the one root node, each directory/file below it a nested
+# [`WidgetTreeNode`](@ref) carrying a **dedicated icon** (an extension-derived
+# glyph) plus its basename as the **text** label.
 #
 #     FileSystemDirectory → WidgetTreeNode(folder-icon, dirname, [child nodes…])
 #     FileSystemFile      → WidgetTreeNode(type-icon,   filename)
 #
+# The pane scrolls the tree when it is taller or wider than the space the pane is
+# given. A tab puts nothing around what it holds, so the view scrolls itself.
+#
 # Selection maps in lockstep with the node layout: the root node is path `roots[1]`
 # (file-system reference `∅`), and a node at file-system reference
 # `elements[a].elements[b]…` is the tree node `roots[1].children[a].children[b]…`.
-# The two reference mappers encode that correspondence and are the single source of
-# truth reused by the printer's selection wiring and the generic reader.
+# The two reference mappers add and remove the pane's `content` step in front of
+# that path. The printer wires the tree's own selection with the node path alone.
 # ── Projection ────────────────────────────────────────────────────────────────
 
 """
@@ -82,15 +86,11 @@ end
 # ── Printer ───────────────────────────────────────────────────────────────────
 
 function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDocument, ctx)
-    # Wire the tree's selection forward from the document selection through this
-    # projection's own forward map (deferred-iomap trick, as in FileSystemToSyntax).
-    iomap_cell = Cell(nothing)
+    # The tree's selection is the node path of the document selection.
     sel = Cell(@computation begin
-        im = iomap_cell[]
-        im === nothing && return nothing
         path = doc.selection
         path === nothing && return nothing
-        map_reference_forward(p, im, path)
+        _map_tree_reference_forward(path)
     end)
     # The roots are a reactive thunk so structural file-system changes rebuild the
     # node tree without re-running `print_document`.
@@ -102,27 +102,37 @@ function print_document(p::FileSystemToWidgetTree, recursion, doc::FileSystemDoc
                       Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
                       Cell(nothing), Cell(Set{Vector{Int}}()),
                       Cell(GestureBinding[]), Cell(nothing), sel)
-    iomap = SimpleIoMap(p, doc, tree)
-    iomap_cell[] = iomap
-    return iomap
+    # No size of its own: the pane takes the extent its parent offers, and on an
+    # axis with no offer it is as large as the tree and clips nothing.
+    SimpleIoMap(p, doc, WidgetScrollPane(tree))
 end
 
 # ── Reference mapping (file-system ⇄ WidgetTree node-path) ─────────────────────
 
 # Forward: a file-system selection (`elements[a].elements[b]…` or `∅`) → the tree
-# node `roots[1].children[a].children[b]…`.
+# node `content.roots[1].children[a].children[b]…` in the pane.
 function map_reference_forward(p::FileSystemToWidgetTree, iomap::SimpleIoMap, reference)
+    node = _map_tree_reference_forward(reference)
+    node === nothing && return nothing
+    ConcreteReference(FieldReferenceStep("content"), node)
+end
+
+# Backward: a node path in the pane (`content.roots[1].children[a].children[b]…`)
+# → the file-system reference `elements[a].elements[b]…` (or `∅` for the root node).
+function map_reference_backward(p::FileSystemToWidgetTree, iomap::SimpleIoMap, reference)
+    (reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
+     reference.head.name == "content") || return nothing
+    idxs = _tree_ref_indices(reference.tail)
+    idxs === nothing && return nothing
+    _fs_ref_from_indices(idxs)
+end
+
+# The tree node `roots[1].children[a]…` of a file-system reference, or nothing on
+# an unexpected shape.
+function _map_tree_reference_forward(reference)
     idxs = _fs_ref_indices(reference)
     idxs === nothing && return nothing
     _tree_ref_from_indices(idxs)
-end
-
-# Backward: a tree node-path (`roots[1].children[a].children[b]…`) → the
-# file-system reference `elements[a].elements[b]…` (or `∅` for the root node).
-function map_reference_backward(p::FileSystemToWidgetTree, iomap::SimpleIoMap, reference)
-    idxs = _tree_ref_indices(reference)
-    idxs === nothing && return nothing
-    _fs_ref_from_indices(idxs)
 end
 
 # Decode a file-system reference into a list of element indices ([] = root, the

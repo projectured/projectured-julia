@@ -226,7 +226,8 @@ function __init__()
     register_natural_graphics!(:workspace, (; measure) -> Pair{Type,Any}[
         WorkspaceDocument => ChainingProjection(RecursiveProjection(WorkspaceToFileSystem()),
                                                 RecursiveProjection(FileSystemToWidget()),
-                                                WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = measure)),
+                                                RecursiveProjection(WidgetToGraphics(font_ubuntu_monospace_regular_20;
+                                                                                     measure = measure))),
     ])
     register_pred_type!(Workspace)
     register_pred_type!(WorkspaceFolder)

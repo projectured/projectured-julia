@@ -18,6 +18,6 @@ function make_filesystem_widget_projection_example(; measure=measure_truetype_te
     font = font_ubuntu_monospace_regular_20
     ChainingProjection(
         RecursiveProjection(FileSystemToWidget()),
-        WidgetToGraphics(font; measure=measure),
+        RecursiveProjection(WidgetToGraphics(font; measure=measure)),
     )
 end

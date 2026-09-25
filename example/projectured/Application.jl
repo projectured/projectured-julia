@@ -161,7 +161,7 @@ function make_application_content_projections(; measure = measure_truetype_text)
             RecursiveProjection(WorkspaceToFileSystem()),
             RecursiveProjection(FileSystemToWidget(
                 open_file = path -> OpenFileOperation(path; wrap = UndoBuffer))),
-            WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = measure)),
+            RecursiveProjection(WidgetToGraphics(font_ubuntu_monospace_regular_20; measure = measure))),
         # A tab of its own: the pane group hands the assistant's own split pane
         # to a fresh renderer, rather than re-entering the one already dispatching
         # on it — a tab's content is read through `print_child`, which does not
