@@ -231,3 +231,32 @@ Each step is a commit in this worktree.
 6. [ ] The check: the suites as on main plus the new tests, the guards,
    omnet-julia and inet-julia precompile and pass their suites, and a live
    window gives a click and a double click.
+   - The branch is rebased onto projectured-julia main `33c4c977`. Main had
+     added 10 constructions in two tests, which got `time = 0.0`.
+   - The wide run covers every changed test file: the kernel, substrate, SDL
+     and video suites, the suites of shell, json, fault, conversation, xml,
+     undo, sequencechart, math, julia, chart and odbc, and the 33 functions of
+     the umbrella whose files changed. On main and on the branch, all give the
+     same results, except two faults of this branch, both fixed:
+     - `PointerRest`, the event of the tooltip package, had no time. Every
+       event type of every package holds its time, so it has one now, and the
+       tooltip feed gives the time of the rest. The inventory looked only for
+       the event types of the kernel; a search for `<: Event`,
+       `<: DeviceEvent` and `<: SyntheticEvent` finds one more in the tests,
+       `EmTestRestEvent`, which has a time too.
+     - The new SDL test of the stamps read once too early: an idle motion that
+       the rate limit holds back can make one read answer nothing. It now reads
+       for a bounded number of reads.
+   - The live check of item 1 is a test in the SDL suite
+     (`InputCoalescingTest.jl`): it pushes a press into the queue of SDL and
+     reads it, pushes the release 0.1 s later, and reads it after a slow frame
+     of 0.5 s. The stamps are 0.1 s apart, so the recognizer makes a click.
+   - omnet-julia: the four suites give the results of main, with two
+     differences that the checkouts explain: a timing test of the watch example
+     failed on main only, and the main checkout holds an untracked folder
+     `mm1k/` whose `.ini` and `.ned` files the walks over every such file count.
+     The branch was rebased onto omnet main `3ac77bde`, which had fixed a test
+     for `MouseButtons` in the same line as this branch.
+   - inet-julia: its untracked manifest is out of date on main (it names a
+     deleted package), so both runs resolve fresh from `Project.toml`. The
+     presentation test gives 569 of 569 on main and on the branch.
