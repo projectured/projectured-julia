@@ -35,6 +35,7 @@ function test_substrate()
         test_searching()
         test_sorting()
         test_switching()
+        test_identity()
         test_window_input_unwrapping()
         test_versioning_to_any()
         test_text_file()
@@ -152,6 +153,7 @@ end
 
 export test_substrate, test_substrate_layering, test_substrate_examples
 export test_bounded_sync, test_document_reflection
+export test_identity
 export test_collection, test_copying_projection, test_focusing, test_reversing, test_filtering, test_searching, test_sorting
 export test_switching, test_window_input_unwrapping
 export test_versioning_to_any

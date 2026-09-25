@@ -163,10 +163,18 @@ to the readers.
 
 ## Steps
 
-- [ ] 1. **D7, the identity reader.** Test: a chain with an identity stage
+- [x] 1. **D7, the identity reader.** Test: a chain with an identity stage
   answers `nothing` to a press that no stage claims. Run the narrow suites of the
   projection algebra and of the clipboard, then `test_substrate()`, because
   identity stages are everywhere.
+
+  Done. The reader answers `read_gesture` of its input for a `KeyPress`, a
+  `KeyDown`, a `MousePress` and a `CollectIntents`, passes an `Operation`
+  through, and answers `nothing` for any other payload, such as a `MouseMove`.
+  `test_identity()` in `test/substrate/projection/IdentityTest.jl`: 6 pass.
+  `test_clipboard()`: 201 pass. `test_substrate()`: 80868 pass, 3 fail, 2 error,
+  1 broken; `main` gives 80862 pass and the same failures (the splitter drags
+  inside a tabbed pane and along the y axis), so the 6 more are the new test.
 - [ ] 2. **D8, the nesting clipboard.** First list every key that the clipboard
   and a content both answer, and check each one against the new order. Tests:
   the clipboard suite, Ctrl+/ still switches the view, the slice prints only

@@ -9,15 +9,16 @@ function print_document(projection::IdentityProjection, recursion, input, ctx)
 end
 
 function read_intent(::IdentityProjection, iomap, operation)
-    # Asked what is available, answer for the input document: an identity
-    # projection introduces nothing of its own, so its input's table is the whole of
-    # what it offers. Without this the payload would pass through unchanged like
-    # everything else, and a document behind an identity would go unlisted.
-    if operation isa CollectIntents
+    # An identity projection introduces nothing of its own, so a gesture and the
+    # question of what is available are answered for the input document, as the
+    # default leaf reader of the kernel answers them. An operation passes through
+    # unchanged. Any other payload is not an answer: a pass-through that returned
+    # a raw gesture would give the event back as the operation of the whole read.
+    if operation isa Union{KeyPress, KeyDown, MousePress, CollectIntents}
         input = iomap.input
         return input isa Document ? read_gesture(input, operation) : nothing
     end
-    operation
+    operation isa Operation ? operation : nothing
 end
 
 function map_reference_forward(::IdentityProjection, iomap, reference)
