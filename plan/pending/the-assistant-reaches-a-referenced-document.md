@@ -337,7 +337,7 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       a `KeyError`; `test_json()` passes 194, as on `main`.
       The step as planned: D11 and D15, with tests of `object[key]` and its
       `KeyError`.
-- [ ] **Step 5: the documentation.** **In progress (2026-09-26).** Done:
+- [x] **Step 5: the documentation.** **Done (2026-09-26).**
       - D12: `_ANSWER_DESCRIPTION` and `_VARIABLES_DESCRIPTION` in
         `DefaultTools.jl` hold the sentence about the answer and the paragraph
         about variables, and both descriptions use them, so the two can not
@@ -422,6 +422,11 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       `ReferencedDocument{PaneTab} at .windows[1]…tabs[1]: PaneTab(…)`. Found:
       `print_natural_text` answers a `String`, which the tool shows quoted with
       `\n` escapes, as the REPL does; the guide and §3 print it with `println`.
+      The rehearsal with qwen waits: on 2026-09-26 another session held the
+      model and two suites, with 22 GB free, and a model run needs 47 GB. The
+      script is `/var/tmp/referenced/rehearse.jl`: the S2 rehearsal of the
+      s2-video branch, with the assistant built by the `Assistant` constructor,
+      which takes `llm` on `main`, so it runs on this branch.
       Round 2 answers the typed reference of the new tab, which is long
       (`::ScreenDocument.windows::CellVector[1]::…::PaneTab`); a
       `ReferencedDocument` answer (D10, open) would show the tab.
