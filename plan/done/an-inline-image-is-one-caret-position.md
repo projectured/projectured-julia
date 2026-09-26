@@ -1,7 +1,8 @@
 # An inline image is one caret position
 
-> **Status:** in progress in the worktree `projectured-julia-inline-image`, branch
-> `inline-image`, from `main` `90748061`. Written 2026-09-26. The owner asked for this
+> **Status:** done, 2026-09-26, on the branch `inline-image` (worktree
+> `projectured-julia-inline-image`), rebased on `main` `bde5620d`; not landed.
+> Written 2026-09-26. The owner asked for this
 > plan after the text layout examples showed the fault
 > ([text-layout-examples.md](../done/text-layout-examples.md), Step 2), and
 > answered the seven questions of §5 on 2026-09-26.
@@ -286,7 +287,7 @@ Do the work in a git worktree, and commit each step.
     images. In `text_with_image` the left walk stops at 152, at a soft wrap:
     Left from the start of a wrapped line maps back to the same input offset
     (the stall of `NAV_LEFT_WALK_STALLS`, owned by
-    [left-motion-stalls-on-introduced-text.md](left-motion-stalls-on-introduced-text.md)).
+    [left-motion-stalls-on-introduced-text.md](../pending/left-motion-stalls-on-introduced-text.md)).
     In `text_baseline` the right walk stops at 225, before an empty line of two
     `TextNewline`s: `WordWrapping` maps an offset in a gap back to the nearest
     run (`convert_flat_offset_to_element`), so the caret can not stand on the
@@ -432,12 +433,38 @@ Do the work in a git worktree, and commit each step.
     total moves by +1 per image from Steps 1 and 2 (the caret after the image is
     a new position) and by -2 per image from Step 5b (the cells of `font` and
     `font_color`).
-- [ ] **Step 9. The suites** of Step 0 against the baseline, in a fresh process;
+- [x] **Step 9. The suites** of Step 0 against the baseline, in a fresh process;
   a moved count is explained before it is accepted. Images of the three examples
   with a caret after an image go to the owner.
+  - *Done* (`/var/tmp/inline-image/final/`). No fail, error or broken count
+    moves; the 1091 fail and error entries are the same set, and the 1068 of
+    `TypeinTest.jl` only moved from line 587 to line 606 (Step 8 added a
+    function above it). Three pass counts move:
+    - `substrate` 85078 → 85219 (+141): `InlineImageCaretTest` (+146), the
+      rewritten wrap test (+3), and 2 cells fewer for each of the 4 images of
+      the substrate examples (-8), the removed `font` and `font_color`.
+    - `markdown` 113 → 222 (+109): `MarkdownImageLeafTest`.
+    - `catalog_text` 10498 → 10493 (-5), all in the atom `text/graphics`
+      (`"logo "` and one image): each of its three views loses the 2 cells, and
+      the graphics view gains the caret after the image (+1).
+  - *More sweeps,* on the branch and on the `main` checkout
+    (`/var/tmp/inline-image/extras/`): `book` 24 → 25 (the paragraph test of
+    Step 1), `rst` 76, `click_roundtrips` 40 / 3 / 0 / 1,
+    `text_navigation_invariants_all` 368 / 12 / 3 / 8 and `typeins`
+    5146 / 6 / 0 / 16 the same, `position_navigations` 7398 → 7400 (the carets
+    after the two images of `text_with_image`). The failure sets are the same.
+    The 6 type-in failures of the `syntax` example (Backspace at the start of a
+    value deletes a character of the parent's `sep`) are on `main` too.
+  - *Rebase:* `main` gained `eb38c90c` (the SDL dirty walk) and a plan. After
+    the rebase, `test_sdl` passes 731 / 731, and the three examples give the
+    counts of Step 8.
+  - *Images* (`/var/tmp/inline-image/images/`): the caret after the first image
+    of each of the three examples stands at the right edge of the image, on the
+    baseline, as high as the font of the run after it; a range over the photo of
+    `text_with_image` paints the photo.
 - [x] **Step 10. The documents.** `text.md` (an image counts one; the list at :28;
   the limits), the comments of `TextToGraphics` about the two spaces, and
-  [text-domain-kit.md](text-domain-kit.md) :378-384, which says the two spaces
+  [text-domain-kit.md](../pending/text-domain-kit.md) :378-384, which says the two spaces
   differ on images.
   - *Done before Step 9,* so that one suite run covers the final tree.
     `text.md`: the span table, the caret (an image counts one, the place of an
@@ -455,10 +482,10 @@ Do the work in a git worktree, and commit each step.
 
 ## 7. Relations and risks
 
-- [text-domain-kit.md](text-domain-kit.md) (pending) argues to keep the two
+- [text-domain-kit.md](../pending/text-domain-kit.md) (pending) argues to keep the two
   spaces apart (:378-384). They stay apart for soft newlines; they agree on
   images after this plan.
-- [left-motion-stalls-on-introduced-text.md](left-motion-stalls-on-introduced-text.md)
+- [left-motion-stalls-on-introduced-text.md](../pending/left-motion-stalls-on-introduced-text.md)
   (pending) names the walk of `text_with_image` as asymmetric (:160-166). Step 3
   can change it; its counts are compared, not assumed.
 - **Counts move.** The type-in, navigation and catalog counts of every example with
