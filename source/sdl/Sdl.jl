@@ -962,6 +962,16 @@ end
 
 # ── Render a GraphicsViewport element ────────────────────────────────
 
+# The edges of the clip in force, in absolute logical pixels. A laid-out canvas
+# walks its elements between them, so an element outside is neither drawn nor
+# read.
+struct _ClipEdges
+    left::Int
+    top::Int
+    right::Int
+    bottom::Int
+end
+
 # The intersection of two clip rectangles, empty when they do not meet.
 function _clip_intersect(a::SDL_Rect, b::SDL_Rect)
     x1 = max(a.x, b.x)
@@ -1004,12 +1014,12 @@ function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox
     cx, cy = Int(canvas.x), Int(canvas.y)
     M = vp.transform::AffineTransform
     prev = _clip_current(renderer)
-    org_x, org_y, clip_r, clip_b = _compute_viewport_content_place(vx, vy, vw, vh, cx, cy, M)
+    org_x, org_y, edges = _compute_viewport_content_place(vx, vy, vw, vh, cx, cy, M)
     if _is_plain_viewport_transform(M)
         # Fast path: a plain transform clips to the box and draws unscaled.
         box = SDL_Rect(Int32(vx), Int32(vy), Int32(vw), Int32(vh))
         SDL_RenderSetClipRect(renderer, Ref(prev === nothing ? box : _clip_intersect(box, prev)))
-        _render_canvas!(renderer, canvas, org_x, org_y, clip_r, clip_b, ratio)
+        _render_canvas!(renderer, canvas, org_x, org_y, edges, ratio)
         _clip_restore!(renderer, prev)
         return
     end
@@ -1034,7 +1044,7 @@ function _render_viewport!(renderer::Ptr{SDL_Renderer}, vp::GraphicsViewport, ox
     clip = Ref(SDL_Rect(Int32(round(box.x / sx)), Int32(round(box.y / sy)),
                         Int32(round(box.w / sx)), Int32(round(box.h / sy))))
     SDL_RenderSetClipRect(renderer, clip)
-    _render_canvas!(renderer, canvas, org_x, org_y, clip_r, clip_b, ratio)
+    _render_canvas!(renderer, canvas, org_x, org_y, edges, ratio)
     SDL_RenderSetScale(renderer, Cfloat(base_x), Cfloat(base_y))
     _clip_restore!(renderer, prev)
 end
@@ -1046,7 +1056,7 @@ _is_plain_viewport_transform(M::AffineTransform) =
     (M.a == 1.0 && M.d == 1.0 && M.e == 0.0 && M.f == 0.0 && is_affine_axis_aligned(M))
 
 # Where a viewport with the absolute box `(vx, vy, vw, vh)` draws its content at the
-# content offset `(cx, cy)`: the content origin and the right and bottom edges that
+# content offset `(cx, cy)`: the content origin and the edges of the clip that
 # `_render_canvas!` gets, in the units the content is drawn in. The render and the
 # dirty walk both read it, so the walk visits what the render draws.
 #
@@ -1056,11 +1066,13 @@ _is_plain_viewport_transform(M::AffineTransform) =
 # and translation (e, f) are honoured.
 function _compute_viewport_content_place(vx::Int, vy::Int, vw::Int, vh::Int, cx::Int, cy::Int,
                                      M::AffineTransform)
-    _is_plain_viewport_transform(M) && return (vx + cx, vy + cy, vx + vw, vy + vh)
+    _is_plain_viewport_transform(M) &&
+        return (vx + cx, vy + cy, _ClipEdges(vx, vy, vx + vw, vy + vh))
     sx = M.a == 0.0 ? 1.0 : M.a
     sy = M.d == 0.0 ? 1.0 : M.d
     (round(Int, (vx + M.e) / sx) + cx, round(Int, (vy + M.f) / sy) + cy,
-     round(Int, (vx + vw) / sx), round(Int, (vy + vh) / sy))
+     _ClipEdges(round(Int, vx / sx), round(Int, vy / sy),
+                round(Int, (vx + vw) / sx), round(Int, (vy + vh) / sy)))
 end
 
 # ── Render a GraphicsRect element ────────────────────────────────────
@@ -1660,7 +1672,7 @@ end
 # `ratio` is the number of device pixels in one logical pixel of the render. Only
 # a text reads it: it rasterizes its glyphs at the device size.
 function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox::Int, oy::Int,
-                         vw::Int, vh::Int, ratio::Float64)
+                         edges::_ClipEdges, ratio::Float64)
     layout = canvas.layout
     elements = canvas.elements
     early_stop = !canvas.overlapping_elements && layout != layout_none
@@ -1670,14 +1682,14 @@ function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox
         while prev_node !== nothing
             elem = prev_node.value
             if !(elem isa GraphicsFence)
-                _dispatch_render_elem!(renderer, elem, ox, oy, vw, vh, ratio)
+                _dispatch_render_elem!(renderer, elem, ox, oy, edges, ratio)
                 if early_stop
                     if layout == layout_vertical
                         ey = _render_elem_y(elem)
-                        ey !== nothing && (ey + oy) < 0 && break
+                        ey !== nothing && (ey + oy) < edges.top && break
                     elseif layout == layout_horizontal
                         ex = _render_elem_x(elem)
-                        ex !== nothing && (ex + ox) < 0 && break
+                        ex !== nothing && (ex + ox) < edges.left && break
                     end
                 end
             end
@@ -1691,35 +1703,45 @@ function _render_canvas!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas, ox
                 if early_stop
                     if layout == layout_vertical
                         ey = _render_elem_y(elem)
-                        ey !== nothing && (ey + oy) > vh && break
+                        ey !== nothing && (ey + oy) > edges.bottom && break
                     elseif layout == layout_horizontal
                         ex = _render_elem_x(elem)
-                        ex !== nothing && (ex + ox) > vw && break
+                        ex !== nothing && (ex + ox) > edges.right && break
                     end
                 end
-                _dispatch_render_elem!(renderer, elem, ox, oy, vw, vh, ratio)
+                _dispatch_render_elem!(renderer, elem, ox, oy, edges, ratio)
             end
             node = node.next
         end
     else
-        for elem in elements
+        # A laid-out canvas starts at the first element that reaches into the
+        # clip. The elements before it end before the near edge, so their
+        # content is not read.
+        for i in _compute_first_drawn_index(canvas, ox, oy, edges):length(elements)
+            elem = elements[i]
             elem isa GraphicsFence && continue
             if early_stop
                 if layout == layout_vertical
                     ey = _render_elem_y(elem)
-                    ey !== nothing && (ey + oy) > vh && break
+                    ey !== nothing && (ey + oy) > edges.bottom && break
                 elseif layout == layout_horizontal
                     ex = _render_elem_x(elem)
-                    ex !== nothing && (ex + ox) > vw && break
+                    ex !== nothing && (ex + ox) > edges.right && break
                 end
             end
-            _dispatch_render_elem!(renderer, elem, ox, oy, vw, vh, ratio)
+            _dispatch_render_elem!(renderer, elem, ox, oy, edges, ratio)
         end
     end
 end
 
+# The index of the first element of `canvas` that the render and the walks visit:
+# the near edge of the clip on the layout axis, moved into the canvas coordinates.
+_compute_first_drawn_index(canvas::GraphicsCanvas, ox::Int, oy::Int, edges::_ClipEdges) =
+    compute_first_visible_index(canvas,
+        canvas.layout == layout_horizontal ? edges.left - ox : edges.top - oy)
+
 function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::Int,
-                                vw::Int, vh::Int, ratio::Float64)
+                                edges::_ClipEdges, ratio::Float64)
     if elem isa GraphicsText
         _render_element!(renderer, elem, ox, oy, ratio)
     elseif elem isa GraphicsRect
@@ -1739,14 +1761,12 @@ function _dispatch_render_elem!(renderer::Ptr{SDL_Renderer}, elem, ox::Int, oy::
     elseif elem isa GraphicsImage
         _render_image!(renderer, elem, ox, oy)
     elseif elem isa GraphicsCanvas
-        # Nested canvas: offset its origin by its position. `vw`/`vh` are the
-        # *absolute* screen-space clip edges (right/bottom) used only by the
-        # early-stop culling, so they are passed through unchanged — a child's
-        # local offset moves `oy` (and thus the element's absolute y), not the
-        # clip bound. Subtracting the offset here culled lower/deeper content
-        # prematurely (e.g. chat-bubble bodies past the first viewport-height).
+        # Nested canvas: offset its origin by its position. `edges` are the
+        # absolute clip edges, used only by the early stop, so they pass
+        # through unchanged: a child's local offset moves `oy`, and with it the
+        # absolute y of each element, not the clip.
         cx, cy = Int(elem.x), Int(elem.y)
-        _render_canvas!(renderer, elem, ox + cx, oy + cy, vw, vh, ratio)
+        _render_canvas!(renderer, elem, ox + cx, oy + cy, edges, ratio)
     end
     # GraphicsFence and unknown types are silently skipped
 end
@@ -1895,31 +1915,32 @@ end
 #
 # A vertical or horizontal canvas whose elements do not overlap stops drawing at
 # the first element past the far edge of the viewport, and a list stops at the
-# first element before the near edge when it walks back. `(vw, vh)` are the
-# absolute right and bottom edges; the render passes them to a nested canvas
-# unchanged.
+# first element before the near edge when it walks back. `edges` are the
+# absolute edges of the clip; the render passes them to a nested canvas
+# unchanged. A laid-out `CellVector` starts at `_compute_first_drawn_index`.
 
-function _is_past_early_stop(elem, ox::Int, oy::Int, vw::Int, vh::Int,
+function _is_past_early_stop(elem, ox::Int, oy::Int, edges::_ClipEdges,
                              layout::LayoutDirection, early::Bool)::Bool
     early || return false
     if layout == layout_vertical
         ey = _render_elem_y(elem)
-        return ey !== nothing && (ey + oy) > vh
+        return ey !== nothing && (ey + oy) > edges.bottom
     elseif layout == layout_horizontal
         ex = _render_elem_x(elem)
-        return ex !== nothing && (ex + ox) > vw
+        return ex !== nothing && (ex + ox) > edges.right
     end
     false
 end
 
-function _is_before_early_start(elem, ox::Int, oy::Int, layout::LayoutDirection, early::Bool)::Bool
+function _is_before_early_start(elem, ox::Int, oy::Int, edges::_ClipEdges,
+                                layout::LayoutDirection, early::Bool)::Bool
     early || return false
     if layout == layout_vertical
         ey = _render_elem_y(elem)
-        return ey !== nothing && (ey + oy) < 0
+        return ey !== nothing && (ey + oy) < edges.top
     elseif layout == layout_horizontal
         ex = _render_elem_x(elem)
-        return ex !== nothing && (ex + ox) < 0
+        return ex !== nothing && (ex + ox) < edges.left
     end
     false
 end
@@ -1944,10 +1965,10 @@ _is_early_stop_layout(canvas::GraphicsCanvas) =
 _make_placement_key(elem, parent::UInt) = hash(objectid(elem), parent)
 
 function _record_painted_element!(res::SdlWindowResources, elem, key::UInt, ox::Int, oy::Int,
-                                  vw::Int, vh::Int)
+                                  edges::_ClipEdges)
     elem isa GraphicsFence && return nothing
     elem isa GraphicsCanvas &&
-        return _record_painted_canvas!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), vw, vh)
+        return _record_painted_canvas!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges)
     elem isa GraphicsViewport && return _record_painted_viewport!(res, elem, key, ox, oy)
     res.painted.origins[key] = (ox, oy)
     _record_bounds!(res, key, _bounds_of_elem(elem, ox, oy, res.ratio))
@@ -1955,22 +1976,23 @@ end
 
 # A canvas whose content origin is `(ox, oy)`.
 function _record_painted_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt,
-                                 ox::Int, oy::Int, vw::Int, vh::Int)
+                                 ox::Int, oy::Int, edges::_ClipEdges)
     res.painted.origins[key] = (ox, oy)
     elements = canvas.elements
     layout = canvas.layout
     early = _is_early_stop_layout(canvas)
     acc = _DirtyAcc()
     if elements isa ListNode
-        for node in _collect_drawn_nodes(elements, ox, oy, vw, vh, layout, early)
-            b = _record_painted_node!(res, node, node.value, key, ox, oy, vw, vh)
+        for node in _collect_drawn_nodes(elements, ox, oy, edges, layout, early)
+            b = _record_painted_node!(res, node, node.value, key, ox, oy, edges)
             b === nothing || _acc_extend!(acc, b)
         end
     else
-        for elem in elements
+        for i in _compute_first_drawn_index(canvas, ox, oy, edges):length(elements)
+            elem = elements[i]
             elem isa GraphicsFence && continue
-            _is_past_early_stop(elem, ox, oy, vw, vh, layout, early) && break
-            b = _record_painted_element!(res, elem, _make_placement_key(elem, key), ox, oy, vw, vh)
+            _is_past_early_stop(elem, ox, oy, edges, layout, early) && break
+            b = _record_painted_element!(res, elem, _make_placement_key(elem, key), ox, oy, edges)
             b === nothing || _acc_extend!(acc, b)
         end
     end
@@ -1979,11 +2001,11 @@ end
 
 # A node of a list whose key is `list`: its place, and the bounds of its value.
 function _record_painted_node!(res::SdlWindowResources, node::ListNode, value, list::UInt,
-                               ox::Int, oy::Int, vw::Int, vh::Int)
+                               ox::Int, oy::Int, edges::_ClipEdges)
     key = _make_placement_key(node, list)
     res.painted.origins[key] = (ox, oy)
     _record_bounds!(res, key, _record_painted_element!(res, value, _make_placement_key(value, key),
-                                                       ox, oy, vw, vh))
+                                                       ox, oy, edges))
 end
 
 # A viewport at the content origin `(ox, oy)`. Its bounds are its box, because it
@@ -1994,8 +2016,8 @@ function _record_painted_viewport!(res::SdlWindowResources, vp::GraphicsViewport
     box, content, transform = _get_viewport_geometry(vp, ox, oy)
     res.painted.origins[key] = (ox, oy)
     res.painted.viewports[key] = (box, objectid(content), transform)
-    cox, coy, cvw, cvh = _compute_viewport_content_place(box, content, transform)
-    _record_painted_canvas!(res, content, _make_placement_key(content, key), cox, coy, cvw, cvh)
+    cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
+    _record_painted_canvas!(res, content, _make_placement_key(content, key), cox, coy, cedges)
     _record_bounds!(res, key, _is_empty_box(box) ? nothing : box)
 end
 
@@ -2075,14 +2097,14 @@ _is_painted_geometry_full(res::SdlWindowResources) =
 # True for a graphic that holds no other: its own cells are its whole content.
 _is_leaf_graphic(elem) = !(elem isa GraphicsCanvas || elem isa GraphicsViewport)
 
-# Recurse into a canvas at content origin `(ox, oy)`, placed under `key`. `(vw,
-# vh)` is the viewport extent, threaded exactly as in `_render_canvas!` so the
+# Recurse into a canvas at content origin `(ox, oy)`, placed under `key`. `edges`
+# are the edges of the clip, threaded exactly as in `_render_canvas!` so the
 # dirty walk reads precisely the cells the renderer reads — in particular it
 # honours the same layout early-stop, so off-screen `ListNode` tail cells (which
 # the renderer leaves lazily invalid) are not misread as "dirty" every frame.
 # Accumulates into `acc`.
 function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt,
-                                ox::Int, oy::Int, vw::Int, vh::Int, acc::_DirtyAcc)::Bool
+                                ox::Int, oy::Int, edges::_ClipEdges, acc::_DirtyAcc)::Bool
     elements_cell = getfield(canvas, :elements)
     # A canvas's painted content depends only on its elements and on the place it
     # is painted at — not on w/h/layout (those are metadata for parents/scroll that
@@ -2101,16 +2123,44 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
         # A list has no bounds of its own to repaint: a list that moved, or that
         # was never painted, reflows as a changed spine does.
         res.painted.origins[key] = (ox, oy)
-        return _collect_listnode_dirty!(res, ev, key, ox, oy, vw, vh, layout, early, acc;
+        return _collect_listnode_dirty!(res, ev, key, ox, oy, edges, layout, early, acc;
                                         reflow = unit)
     end
     if !unit
-        stale_slot, changed = _collect_elements_dirty!(res, ev, key, ox, oy, vw, vh, layout, early, acc)
-        if !stale_slot
-            return changed && _refresh_canvas_bounds!(res, ev, key, ox, oy, vw, vh, layout, early)
+        # The walk starts where the render starts. A search that would read a
+        # stale slot or leaf answers nothing, and the canvas is painted whole.
+        first = _find_first_walked_index(canvas, ev, ox, oy, edges)
+        if first !== nothing
+            stale_slot, changed = _collect_elements_dirty!(res, ev, key, first, ox, oy, edges,
+                                                           layout, early, acc)
+            if !stale_slot
+                return changed && _refresh_canvas_bounds!(res, ev, key, first, ox, oy, edges,
+                                                          layout, early)
+            end
         end
     end
-    _union_unit!(res, acc, key, () -> _record_painted_canvas!(res, canvas, key, ox, oy, vw, vh))
+    _union_unit!(res, acc, key, () -> _record_painted_canvas!(res, canvas, key, ox, oy, edges))
+end
+
+# The index of the first element that the render draws, found by the same search
+# as `_compute_first_drawn_index`, or `nothing` when a slot or a leaf that the
+# search reads is not up to date. The search reads the place of a few elements,
+# and that read would compute a stale one again before the walk tests it.
+function _find_first_walked_index(canvas::GraphicsCanvas, ev, ox::Int, oy::Int, edges::_ClipEdges)
+    (_is_early_stop_layout(canvas) && ev isa CellVector) || return 1
+    slots = getfield(ev, :elements)[]
+    horizontal = canvas.layout == layout_horizontal
+    stale = false
+    first = compute_first_visible_index(length(slots), horizontal ? edges.left - ox : edges.top - oy) do i
+        elem = slots[i]
+        if elem isa AbstractCell
+            is_cell_up_to_date(elem) || (stale = true; return nothing)
+            elem = elem[]
+        end
+        _is_leaf_graphic(elem) && _node_dirty(elem) && (stale = true; return nothing)
+        horizontal ? _render_elem_x(elem) : _render_elem_y(elem)
+    end
+    stale ? nothing : first
 end
 
 # The elements of a canvas that is not itself a unit, in the order the renderer
@@ -2122,13 +2172,14 @@ end
 # reads its place, as a canvas is before its origin is read. Past the
 # early-stop, each graphic that was painted has left the view and its place is
 # cleared; the first that was not painted ends the list.
-function _collect_elements_dirty!(res::SdlWindowResources, ev, key::UInt, ox::Int, oy::Int,
-                                  vw::Int, vh::Int, layout::LayoutDirection, early::Bool,
-                                  acc::_DirtyAcc)
+function _collect_elements_dirty!(res::SdlWindowResources, ev, key::UInt, first::Int,
+                                  ox::Int, oy::Int, edges::_ClipEdges, layout::LayoutDirection,
+                                  early::Bool, acc::_DirtyAcc)
     slots = ev isa CellVector ? getfield(ev, :elements)[] : ev
     past = false
     changed = false
-    for slot in slots
+    for i in first:length(slots)
+        slot = slots[i]
         if slot isa AbstractCell
             is_cell_up_to_date(slot) || return (true, changed)
             elem = slot[]
@@ -2138,12 +2189,12 @@ function _collect_elements_dirty!(res::SdlWindowResources, ev, key::UInt, ox::In
         elem isa GraphicsFence && continue
         elem_key = _make_placement_key(elem, key)
         leaf_dirty = _is_leaf_graphic(elem) && _node_dirty(elem)
-        past = past || _is_past_early_stop(elem, ox, oy, vw, vh, layout, early)
+        past = past || _is_past_early_stop(elem, ox, oy, edges, layout, early)
         if past
             _clear_left_view!(res, acc, elem_key) || break
             changed = true
         else
-            changed |= _collect_dirty_elem!(res, elem, elem_key, ox, oy, vw, vh, acc, leaf_dirty)
+            changed |= _collect_dirty_elem!(res, elem, elem_key, ox, oy, edges, acc, leaf_dirty)
         end
     end
     (false, changed)
@@ -2151,12 +2202,14 @@ end
 
 # Record the bounds of a canvas again, from the records of the elements it draws.
 # True when they changed.
-function _refresh_canvas_bounds!(res::SdlWindowResources, ev, key::UInt, ox::Int, oy::Int,
-                                 vw::Int, vh::Int, layout::LayoutDirection, early::Bool)::Bool
+function _refresh_canvas_bounds!(res::SdlWindowResources, ev, key::UInt, first::Int,
+                                 ox::Int, oy::Int, edges::_ClipEdges, layout::LayoutDirection,
+                                 early::Bool)::Bool
     drawn = _DirtyAcc()
-    for elem in ev
+    for i in first:length(ev)
+        elem = ev[i]
         elem isa GraphicsFence && continue
-        _is_past_early_stop(elem, ox, oy, vw, vh, layout, early) && break
+        _is_past_early_stop(elem, ox, oy, edges, layout, early) && break
         b = get(res.dirty_bounds, _make_placement_key(elem, key), nothing)
         b === nothing || _acc_extend!(drawn, b)
     end
@@ -2167,14 +2220,14 @@ end
 # One element at the content origin `(ox, oy)`. `leaf_dirty` is whether a leaf's
 # own cells were stale, tested by the caller before any read of its place.
 function _collect_dirty_elem!(res::SdlWindowResources, elem, key::UInt, ox::Int, oy::Int,
-                              vw::Int, vh::Int, acc::_DirtyAcc, leaf_dirty::Bool)::Bool
+                              edges::_ClipEdges, acc::_DirtyAcc, leaf_dirty::Bool)::Bool
     elem isa GraphicsFence && return false
     elem isa GraphicsCanvas &&
-        return _collect_canvas_dirty!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), vw, vh, acc)
+        return _collect_canvas_dirty!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges, acc)
     elem isa GraphicsViewport && return _collect_viewport_dirty!(res, elem, key, ox, oy, acc)
     # A leaf new to the screen, or one with an in-place-mutated (stale) field cell.
     (leaf_dirty || !_is_painted(res, key)) || return false
-    _union_unit!(res, acc, key, () -> _record_painted_element!(res, elem, key, ox, oy, vw, vh))
+    _union_unit!(res, acc, key, () -> _record_painted_element!(res, elem, key, ox, oy, edges))
 end
 
 # A viewport clips its content, so its dirty contribution is clamped to its own
@@ -2191,9 +2244,9 @@ function _collect_viewport_dirty!(res::SdlWindowResources, vp::GraphicsViewport,
         old = get(res.dirty_bounds, key, nothing)
         return old != _record_painted_viewport!(res, vp, key, ox, oy)
     end
-    cox, coy, cvw, cvh = _compute_viewport_content_place(box, content, transform)
+    cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
     tmp = _DirtyAcc()
-    _collect_canvas_dirty!(res, content, _make_placement_key(content, key), cox, coy, cvw, cvh, tmp)
+    _collect_canvas_dirty!(res, content, _make_placement_key(content, key), cox, coy, cedges, tmp)
     _acc_empty(tmp) && return false
     # Under a scale the content's dirty region is in scaled content units; rather
     # than map every sub-rect through the transform, treat any dirty content as
@@ -2215,7 +2268,7 @@ end
 # links from the head, up to and with the first node before the near edge, then
 # forward along the next links from the head, up to the first node past the far
 # edge.
-function _collect_drawn_nodes(head::ListNode, ox::Int, oy::Int, vw::Int, vh::Int,
+function _collect_drawn_nodes(head::ListNode, ox::Int, oy::Int, edges::_ClipEdges,
                               layout::LayoutDirection, early::Bool)
     nodes = ListNode[]
     node = head.prev
@@ -2223,7 +2276,7 @@ function _collect_drawn_nodes(head::ListNode, ox::Int, oy::Int, vw::Int, vh::Int
         value = node.value
         if !(value isa GraphicsFence)
             push!(nodes, node)
-            _is_before_early_start(value, ox, oy, layout, early) && break
+            _is_before_early_start(value, ox, oy, edges, layout, early) && break
         end
         node = node.prev
     end
@@ -2231,7 +2284,7 @@ function _collect_drawn_nodes(head::ListNode, ox::Int, oy::Int, vw::Int, vh::Int
     while node !== nothing
         value = node.value
         if !(value isa GraphicsFence)
-            _is_past_early_stop(value, ox, oy, vw, vh, layout, early) && break
+            _is_past_early_stop(value, ox, oy, edges, layout, early) && break
             push!(nodes, node)
         end
         node = node.next
@@ -2270,7 +2323,7 @@ end
 # were painted and that the render no longer reaches have their places cleared.
 # True when the bounds of the list changed.
 function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::UInt,
-                                  ox::Int, oy::Int, vw::Int, vh::Int,
+                                  ox::Int, oy::Int, edges::_ClipEdges,
                                   layout::LayoutDirection, early::Bool, acc::_DirtyAcc;
                                   reflow::Bool = false)::Bool
     # (node, its key, its value, whether the value or a leaf value's cells are stale)
@@ -2291,7 +2344,7 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
         pc = getfield(node, :prev)
         if !(elem isa GraphicsFence)
             visit!(node, elem, vstale)
-            if _is_before_early_start(elem, ox, oy, layout, early)
+            if _is_before_early_start(elem, ox, oy, edges, layout, early)
                 above = is_cell_up_to_date(pc) ? pc[] : nothing
                 break
             end
@@ -2310,7 +2363,7 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
         elem = vcell[]
         if !(elem isa GraphicsFence)
             leaf_dirty = _is_leaf_graphic(elem) && _node_dirty(elem)
-            if _is_past_early_stop(elem, ox, oy, vw, vh, layout, early)
+            if _is_past_early_stop(elem, ox, oy, edges, layout, early)
                 below = node
                 break
             end
@@ -2329,23 +2382,23 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
         for (n, nkey, val, _) in visited
             old = get(res.dirty_bounds, nkey, nothing)
             old === nothing || _acc_extend!(wb, old)
-            b = _record_painted_node!(res, n, val, key, ox, oy, vw, vh)
+            b = _record_painted_node!(res, n, val, key, ox, oy, edges)
             b === nothing || _acc_extend!(wb, b)
         end
         if !_acc_empty(wb)
             # Reflow runs to the viewport bottom (vertical) / right (horizontal).
-            bottom = layout == layout_horizontal ? wb.maxy : max(wb.maxy, vh)
-            right  = layout == layout_horizontal ? max(wb.maxx, vw) : wb.maxx
+            bottom = layout == layout_horizontal ? wb.maxy : max(wb.maxy, edges.bottom)
+            right  = layout == layout_horizontal ? max(wb.maxx, edges.right) : wb.maxx
             _acc_extend!(acc, (wb.minx, wb.miny, right, bottom))
         end
     else
         for (n, nkey, val, stale) in visited
             if stale || !_is_painted(res, nkey)
-                _union_unit!(res, acc, nkey, () -> _record_painted_node!(res, n, val, key, ox, oy, vw, vh))
+                _union_unit!(res, acc, nkey, () -> _record_painted_node!(res, n, val, key, ox, oy, edges))
             else
                 value_key = _make_placement_key(val, nkey)
                 # The bounds of the value changed inside it: the node's record follows.
-                _collect_dirty_elem!(res, val, value_key, ox, oy, vw, vh, acc, false) &&
+                _collect_dirty_elem!(res, val, value_key, ox, oy, edges, acc, false) &&
                     _record_bounds!(res, nkey, get(res.dirty_bounds, value_key, nothing))
             end
         end
@@ -2370,7 +2423,7 @@ end
 function _compute_dirty_rect(res::SdlWindowResources, canvas::GraphicsCanvas)
     acc = _DirtyAcc()
     _collect_canvas_dirty!(res, canvas, _make_placement_key(canvas, UInt(0)),
-                           0, 0, res.width, res.height, acc)
+                           0, 0, _ClipEdges(0, 0, res.width, res.height), acc)
     _acc_empty(acc) && return nothing
     pad = 2
     x0 = clamp(acc.minx - pad, 0, res.width)
@@ -2464,7 +2517,7 @@ function _render_window!(backend::SdlBackend, res::SdlWindowResources,
         SDL_RenderSetScale(renderer, scale, scale)
         SDL_SetRenderDrawColor(renderer, bg[1], bg[2], bg[3], bg[4])
         SDL_RenderClear(renderer)
-        _render_canvas!(renderer, canvas, 0, 0, res.width, res.height, res.ratio)
+        _render_canvas!(renderer, canvas, 0, 0, _ClipEdges(0, 0, res.width, res.height), res.ratio)
         SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
         SDL_RenderPresent(renderer)
         return
@@ -2512,7 +2565,7 @@ function _render_window!(backend::SdlBackend, res::SdlWindowResources,
     # pixels outside the dirty region. Repaint the dirty background by hand.
     SDL_SetRenderDrawColor(renderer, bg[1], bg[2], bg[3], bg[4])
     SDL_RenderFillRect(renderer, clip)
-    _render_canvas!(renderer, canvas, 0, 0, res.width, res.height, res.ratio)
+    _render_canvas!(renderer, canvas, 0, 0, _ClipEdges(0, 0, res.width, res.height), res.ratio)
     SDL_RenderSetClipRect(renderer, C_NULL)
     SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
     SDL_SetRenderTarget(renderer, C_NULL)
@@ -2662,7 +2715,7 @@ function _render_canvas_offscreen!(off, canvas::GraphicsCanvas, width::Integer,
     r, g, b, a = background
     SDL_SetRenderDrawColor(off.renderer, r, g, b, a)
     SDL_RenderClear(off.renderer)
-    _render_canvas!(off.renderer, canvas, 0, 0, Int(width), Int(height), off.sc)
+    _render_canvas!(off.renderer, canvas, 0, 0, _ClipEdges(0, 0, Int(width), Int(height)), off.sc)
     nothing
 end
 

@@ -37,6 +37,7 @@ import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsText, Graphic
                          GraphicsPolyline, GraphicsPolygon, GraphicsSpline, GraphicsViewport, GraphicsImage,
                          GraphicsFence, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
                          _bounds_elem!, _bounds_extend!,
+                         compute_first_visible_index,
                          tessellate_spline, build_polyline_arrowhead
 import ProjecturedCollection.CollectionModule: ListNode, CellVector
 import ProjecturedStyle.StyleModule: AffineTransform, affine_identity, is_affine_axis_aligned

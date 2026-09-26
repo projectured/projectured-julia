@@ -701,7 +701,9 @@ function hit_element_at(canvas::GraphicsCanvas, x::Int, y::Int)
             node = node.next
         end
     else
-        for (i, elem) in enumerate(elements)
+        first = compute_first_visible_index(canvas, layout == layout_horizontal ? x : y)
+        for i in first:length(elements)
+            elem = elements[i]
             elem isa GraphicsFence && continue
             if early_stop
                 if layout == layout_vertical
@@ -759,6 +761,60 @@ end
 
 _elem_x(elem) = hasproperty(elem, :x) ? Int(elem.x) : nothing
 _elem_y(elem) = hasproperty(elem, :y) ? Int(elem.y) : nothing
+
+"""
+    compute_first_visible_index(canvas, edge) -> Int
+
+The index of the first element of `canvas` that can reach past `edge`, the near
+edge of a clip on the layout axis, in the coordinates of `canvas`.
+
+The elements of a laid-out canvas do not overlap, and they follow the axis, so
+an element ends where the next one starts. The answer is the last element that
+starts at or before `edge`, and every element before it ends at or before
+`edge`. The search reads the position of a few elements, about `log2(n)`, and
+the content of none.
+
+It answers `1` for a canvas without a layout, for elements that can overlap,
+for a `ListNode`, and when an element it reads has no position on the axis.
+
+# Example
+
+    rows = GraphicsCanvas(CellVector(Cell[Cell(row) for row in rows]), layout_vertical;
+                          overlapping = false)
+    first = compute_first_visible_index(rows, 460)   # the row under y = 460
+
+See also `hit_element_at`, which starts its test there.
+"""
+function compute_first_visible_index(canvas::GraphicsCanvas, edge::Int)
+    layout = canvas.layout
+    (layout == layout_none || canvas.overlapping_elements) && return 1
+    elements = canvas.elements
+    elements isa ListNode && return 1
+    position = layout == layout_horizontal ? _elem_x : _elem_y
+    compute_first_visible_index(i -> position(elements[i]), length(elements), edge)
+end
+
+# The search itself, over `count` elements: `get_start(i)` is where element `i`
+# starts on the axis, or `nothing`, which answers `1`. A walk that must test an
+# element before it reads it gives its own `get_start`, and so reads the same
+# elements as the render.
+function compute_first_visible_index(get_start::Function, count::Int, edge::Int)
+    first = 1
+    low, high = 1, count
+    while low <= high
+        middle = (low + high) >>> 1
+        start = get_start(middle)
+        start === nothing && return 1
+        if start <= edge
+            first = middle
+            low = middle + 1
+        else
+            high = middle - 1
+        end
+    end
+    first
+end
+
 
 # ── Content bounds ──────────────────────────────────────────────────────
 #

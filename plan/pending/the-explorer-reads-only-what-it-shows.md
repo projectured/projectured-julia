@@ -292,12 +292,18 @@ approval of the owner and an idle machine.
   `FileSystemToWidgetTest.jl`. File system 78 pass. Substrate 85,080 pass, with
   the same 5 faults of `SplitPaneDragTest.jl` and 1 broken as the baseline; the
   2 more passes are the new WidgetTree test of step 2.
-- [ ] **Step 4. The renderer skips what is above the top edge (3.4, backend 1
+- [x] **Step 4. The renderer skips what is above the top edge (3.4, backend 1
   and 2).** Test: a vertical canvas of 1,000 lazy rows in a viewport of 10 rows,
   scrolled to the middle. After a render with the offscreen renderer, only the
   rows in the viewport have their content up to date. The same for the dirty
   walk and for `hit_element_at`. Compare the text, graphics and SDL suites with
   the baseline.
+  *Done.* `test_laid_out_canvas()` in `test/sdl/backend/LaidOutCanvasTest.jl`
+  renders 1,000 rows scrolled by 5,000 pixels: the renderer and the dirty walk
+  read rows 501 to 561, and a viewport of 100 pixels reads rows 501 to 511. The
+  graphics test checks `compute_first_visible_index` and the hit test. File
+  system 78, substrate 85,090 (10 new), SDL 694 (4 new); the faults are the 5
+  of the baseline.
 - [ ] **Step 5. A laid-out canvas declares its extent (3.4, backend 3).** Test:
   the scroll room of that canvas reads no row. Compare the widget suites with the
   baseline.

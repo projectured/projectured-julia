@@ -98,4 +98,24 @@ end
     @test iomap.output === canvas
 end
 
+@testset "compute_first_visible_index" begin
+    rows(n; layout = layout_vertical, overlapping = false) = GraphicsCanvas(
+        CellVector(Cell[Cell(GraphicsRect(0, 10 * (k - 1), 50, 10)) for k in 1:n]);
+        layout = layout, overlapping = overlapping)
+    canvas = rows(100)
+    @test compute_first_visible_index(canvas, -5) == 1       # before the first row
+    @test compute_first_visible_index(canvas, 0) == 1
+    @test compute_first_visible_index(canvas, 9) == 1        # inside the first row
+    @test compute_first_visible_index(canvas, 10) == 2       # at the top of the second
+    @test compute_first_visible_index(canvas, 505) == 51
+    @test compute_first_visible_index(canvas, 5000) == 100   # past the last row
+    # Without a layout, with elements that can overlap, and with no elements, the
+    # walk starts at the first element.
+    @test compute_first_visible_index(rows(100; layout = layout_none), 505) == 1
+    @test compute_first_visible_index(rows(100; overlapping = true), 505) == 1
+    @test compute_first_visible_index(rows(0), 505) == 1
+    # The hit test starts there and finds the row under the point.
+    @test hit_element_at(canvas, 25, 505) == 50              # the offset of row 51
+end
+
 end # test_graphics
