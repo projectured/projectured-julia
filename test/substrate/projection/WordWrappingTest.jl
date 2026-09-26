@@ -174,13 +174,16 @@ input = TextBlock(
 proj  = WordWrapping(max_width=80, measure=m)
 iomap = print_document(proj, input)
 # The image is input span 2; a soft newline drops it onto the next line, shifting
-# its output index. The image is zero-width in the caret stream, so its flat
-# position is the "abcdef" boundary (flat 6); that offset must survive the
-# forward/backward mapping despite the index shift.
-in_ref  = TextModule.make_flat_caret_reference(convert_element_to_flat_offset(input, 2, 0))
-out_ref = map_reference_forward(proj, iomap, in_ref)
-@test out_ref !== nothing
-@test map_reference_backward(proj, iomap, out_ref) !== nothing
+# its output index. The caret before the image (flat 6) is the end of "abcdef", on
+# the first line. The caret after it (flat 7) is past the soft newline in the
+# output (flat 8). Both map back to where they started.
+caret(k) = TextModule.make_flat_caret_reference(k)
+@test convert_element_to_flat_offset(input, 2, 0) == 6
+for (input_offset, output_offset) in ((6, 6), (7, 8))
+    out_ref = map_reference_forward(proj, iomap, caret(input_offset))
+    @test is_reference_equal(out_ref, caret(output_offset))
+    @test is_reference_equal(map_reference_backward(proj, iomap, out_ref), caret(input_offset))
+end
 
 end # @testset "WordWrapping image selection round-trips"
 

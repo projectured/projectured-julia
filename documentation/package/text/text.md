@@ -14,7 +14,7 @@
 | `TextString` | a span: `content`, `font`, `font_color`, `fill_color`, `line_color`, `padding` |
 | `TextNewline` | a line break, with the same style fields |
 | `TextSpacing` | a gap of `size` in `:pixel` or `:space` units |
-| `TextGraphics` | a graphics document, such as an image, inline as one glyph |
+| `TextGraphics` | a graphics document, such as an image, inline as one glyph and one caret position; it has no font and no colour |
 | `TextLine` | one line of spans, with an `indentation` |
 
 A `TextString` keeps `content` in a reactive `Cell`, because you type into it. `font` and `font_color` are an `ImmutableCell` by default: the style of a span is authored and not edited, so no glyph gets a dependency edge on it. Pass a `Cell` to make one of them reactive.
@@ -25,7 +25,9 @@ A `TextString` keeps `content` in a reactive `Cell`, because you type into it. `
 
 ### The caret
 
-**The canonical caret is a flat offset.** `TextRangeReferenceStep(start, stop)` counts characters over the whole block, from 0. `start == stop` is a caret, and it evaluates to a `Position`. A `TextNewline` and a `TextSpacing` count one character, and so do the indentation and the implied break of a `TextLine`. `get_flat_offsets` is the one function that counts the implied break. So a place between two spans has one offset, from whichever direction the caret came.
+**The canonical caret is a flat offset.** `TextRangeReferenceStep(start, stop)` counts characters over the whole block, from 0. `start == stop` is a caret, and it evaluates to a `Position`. A `TextNewline`, a `TextSpacing` and an inline `TextGraphics` count one character, and so do the indentation and the implied break of a `TextLine`. `get_flat_offsets` is the one function that counts the implied break. So a place between two spans has one offset, from whichever direction the caret came. `get_flat_string` gives the text as one string with one character for each offset: U+FFFC for an image, as `TextToString` gives it.
+
+**An image has a caret before it and a caret after it.** An offset resolves to the text run that holds it, and at the seam of two runs to the end of the earlier run. An offset that no run holds is beside an image: the caret before the image or after it, drawn at its left or right edge. Because an image is one offset, the caret before it and the caret after it never have the same offset.
 
 The structural form `.elements[i].content{k}` is the second legal form. An edit leaves it behind after `evaluate_operation`, until the next print makes the caret flat again. `get_flat_caret` reads either form, and every decorator maps the caret through it.
 
@@ -48,9 +50,9 @@ The reader has two halves.
 | Key | Edit |
 | --- | --- |
 | a printable key | insert the text at the selection |
-| Backspace, Delete | delete one character, or the range |
+| Backspace, Delete | delete one character, or the range; Backspace after an image and Delete before it delete the image |
 | Left, Right | move the caret one character; a range collapses to its near end |
-| Ctrl+Left, Ctrl+Right | move by a word |
+| Ctrl+Left, Ctrl+Right | move by a word; an image is a word of its own |
 | Ctrl+Home, Ctrl+End | go to the start or the end of the text |
 | Shift with one of the six motion keys above | move one end of the range and keep the other |
 | Ctrl+. | `ToggleCollapseOperation`, which the syntax stage resolves |
@@ -59,7 +61,9 @@ The table matches modifiers exactly. `KeyDown(:left;)` is plain Left, and Alt+Le
 
 **The geometry half** is the reader of `TextToGraphics`. It calls the table first through `_gesture_op`. If the table gives `nothing`, the reader uses its coordinate table for three kinds of input. Plain Home and End go to the ends of the visual line. Up and Down keep the nearest x. A mouse click places the caret. Shift with Home, End, Up or Down moves one end of the range in the same way. A click always makes a plain caret; `SyntaxToText` resolves Alt+click. A key that neither half uses gives `nothing` and never the raw event, so the next reader gets it.
 
-A typed key makes a `ReplaceTextRangeOperation` on the flat range. `_lower_text_range` lowers it to a `ReplaceStringRangeOperation` on `.elements[i].content[s:e]` of one span, which the syntax stage and the domains read. A range that crosses two spans lowers to `nothing`. At the end, `splice_value!` changes the `content` of the span in place. On a `TextBlock` target it finds the span that holds the range, and on an empty block it adds a `TextString`.
+A typed key makes a `ReplaceTextRangeOperation` on the flat range. `_lower_text_range` lowers it to a `ReplaceStringRangeOperation` on `.elements[i].content[s:e]` of one span, which the syntax stage and the domains read. A range that crosses two spans lowers to `nothing`. At the end, `splice_value!` changes the `content` of the span in place. On a `TextBlock` target it finds the span that holds the range in the caret space, and on an empty block it adds a `TextString`.
+
+**An edit beside an image writes the element list.** A key typed where no run holds the caret, beside an image, starts a new run there with `insert_elements`. A range of only images is deleted with `delete_elements`, or replaced by one new run of the typed text. Each leaves the caret after it, and undo takes it back. A new run takes the style of the nearest text run of the image's line, the run before the image first; on a line with no run, the first `TextString` or `TextNewline` of the block. `evaluate_operation` of a `ReplaceTextRangeOperation` makes the same edits on a block that is the document.
 
 ### Layout
 
@@ -69,11 +73,11 @@ A typed key makes a `ReplaceTextRangeOperation` on the flat range. `_lower_text_
 
 **The height of a line comes from its boxes.** It is as high as the largest ascent, the largest descent and the largest line gap of the boxes it holds. `line_spacing` sets the distance from the top of the line to the top of the next one; at `SingleSpacing()` that distance is the sum of those three. Half of the leading, the difference between the line distance and the ascent plus the descent, sits above the ink and half below.
 
-**The caret stands on the baseline**, as high as the font at its place: from the baseline minus the ascent to the baseline plus the descent of the run it is in. Its x is the pen position of its character boundary from `compute_caret_offsets`, not the width of the text before it, so a caret after a kerned pair stands past the kerning. **A selection** covers the full line box of each line it spans, so the rectangles of consecutive lines meet with no gap. **A click** picks the line whose box holds its `y`, then the character boundary nearest to its `x`.
+**The caret stands on the baseline**, as high as the font at its place: from the baseline minus the ascent to the baseline plus the descent of the run it is in. Beside an image, which has no font, it takes the font of the nearest text run of its line, by the rule of a new run. Its x is the pen position of its character boundary from `compute_caret_offsets`, not the width of the text before it, so a caret after a kerned pair stands past the kerning. **A selection** covers the full line box of each line it spans, so the rectangles of consecutive lines meet with no gap. A range of the caret, a `TextRangeReferenceStep`, is painted with the offsets of the caret space. A box, a `TextSpanReferenceStep`, is painted with the offsets of the box space, where a `TextNewline` and a `TextSpacing` count 0, because `WordWrapping` adds soft newlines and a box must not move. An image in either counts 1, and it is painted. **A click** picks the line whose box holds its `y`, then the character boundary nearest to its `x`.
 
 The examples show each rule of the layout, and the text of each says what to look at: `text_baseline_example` (runs of several fonts, a fallback glyph, an emoji and an icon on one baseline), `text_line_height_example` (lines of different heights, a code line with no line gap, an image on the baseline), `text_kerning_example` (kerned pairs and the caret in a pair) and `text_selection_example` (a selection across lines of mixed sizes). `text_spacing_examples` holds one example for each spacing; `run_example(text_spacing_examples)` opens them side by side, and `run_example(text_layout_examples)` the four others.
 
-The IO map holds `char_to_coord`, one `SegmentCoordinate` for each drawn piece: its `span_path`, its character range, its pixel position, its font and its size. `y` and `height` are the line box of the visual line the segment is on, so every segment of one line shares them; a click picks a line by its box, and a selection covers each line it spans with no gap. An inline `TextGraphics` is one character wide in the text and carries the size of the image. So a click on its left or right half puts the caret before or after it. The reader and the hit test downstream use this table. `TextToGraphics` also draws the caret and the selection rectangles; [graphics.md](../graphics/graphics.md) describes the output.
+The IO map holds `char_to_coord`, one `SegmentCoordinate` for each drawn piece: its `span_path`, its character range, its pixel position, its font and its size. `y` and `height` are the line box of the visual line the segment is on, so every segment of one line shares them; a click picks a line by its box, and a selection covers each line it spans with no gap. An inline `TextGraphics` is one character wide in the text, carries the size of the image and the font of a caret beside it. So a click on its left or right half puts the caret before or after it. The reader and the hit test downstream use this table. `TextToGraphics` also draws the caret and the selection rectangles; [graphics.md](../graphics/graphics.md) describes the output.
 
 ### The decorators
 
@@ -94,9 +98,9 @@ A whole-element box, a `TextSpanReferenceStep`, maps through the same table. A s
 
 Each decorator maps the caret in both of its forms, and its output selection is the flat form. `TextLineNumbering` puts the caret after the number of its line, and `TextFirstLine` draws no caret that is after the first line.
 
-A decorator gets a key only when the stages after it return no operation for it. `SelectionInverting` returns `nothing` for a key. The other decorators read the key with `read_gesture` of their input block, so the answer is an edit at the caret of the input, or `nothing`. No decorator returns the key itself, so on `nothing` the stage before it gets the key.
+A decorator gets a key only when the stages after it return no operation for it. `SelectionInverting` returns `nothing` for a key. The other decorators read the key with `read_gesture` of their input block, so the answer is an edit at the caret of the input, or `nothing`. No decorator returns the key itself, so on `nothing` the stage before it gets the key. An edit beside an image writes the element list of the output, whose indices a decorator changes. So a decorator declines such a write (`is_text_element_write`), and the chain reads the key again against its input. `SyntaxToText` declines it too: an image in a syntax leaf, such as the picture of a Markdown, Book or reStructuredText document, is not edited through the syntax.
 
-The added spans are the soft `TextNewline` of `WordWrapping` and the number prefix of `TextLineNumbering`. They have no input, so a click on a number goes to the first character of the line. A space at a wrap stays at the end of the upper line, so every input character is in the output once.
+The added spans are the soft `TextNewline` of `WordWrapping` and the number prefix of `TextLineNumbering`. A soft newline before an image takes the style of a new run beside that image. They have no input, so a click on a number goes to the first character of the line. A space at a wrap stays at the end of the upper line, so every input character is in the output once.
 
 `WordWrapping` must get the same `measure` as `TextToGraphics`, or the wrap points and the layout do not agree. Its reader also reads a key against the unwrapped input, so a Backspace across a soft break is an edit inside one span. An empty span stays one empty span with a segment of length 0, so a caret in an empty field maps through. `TextToGraphics` draws that caret one line high, and a line that holds only an empty span is one line high too. An empty line has a zero-width `SegmentCoordinate` where its caret stands, so Up and Down stop on it. The coordinate stays only on a line that draws no glyph, so the line-break spans of syntax text add none. `TextFiltering` and `TextHighlighting` keep the pattern in a `Cell`: a new pattern filters again, and `nothing` passes everything through. A line of `TextFiltering` ends at a `TextNewline`, and `TextHighlighting` matches inside one span only.
 
@@ -119,6 +123,7 @@ It registers no file type and no natural row. `@domain Text` makes the placehold
 ## Design decisions
 
 - **The caret is a flat offset.** A caret anchored to a span has two names at a span boundary, one for each direction of travel; a flat offset has one. See [plan/done/text-range-reference-flat-cursor.md](../../../plan/done/text-range-reference-flat-cursor.md).
+- **An inline image is one caret position,** as a word processor gives a picture set in line with text one character. Every reader of the caret space counts it 1, so a caret stands before and after it and a key can reach and delete it. See [plan/done/an-inline-image-is-one-caret-position.md](../../../plan/done/an-inline-image-is-one-caret-position.md).
 - **A box selection and a caret are two step types.** They hold the same data, but a motion key moves a caret and does not move a box. One type for both would make a selected element act as an editable caret.
 - **The reader is split by what it reads.** What needs only the spans is a `@gestures` table on `TextBlock`, and the gesture help lists that same table. What needs pixels stays in `TextToGraphics`. See [projection-system.md](../kernel/projection-system.md).
 - **A key without a rule goes on.** The gesture table matches modifiers exactly, so a key that it does not bind gets `nothing` with no extra rule that returns it.
@@ -142,11 +147,14 @@ projection = ChainingProjection(WordWrapping(measure = FontFileMeasure()),
 ```
 
 - Examples: `text_example`, `plain_text_example`, `text_with_image_example`, the text layout examples of [Layout](#layout) (`text_layout_examples` and `text_spacing_examples`), `word_wrapping_example`, `line_numbering_example`, `text_filtering_example` and `text_highlighting_example` in `example/substrate/`. The atomic catalog has one document for each span type and for `TextLine`.
-- Tests: `test_text()` for the documents and the gesture table, `test_text_to_graphics()`, `test_text_line_model()`, `test_word_wrapping()`, `test_text_filtering()`, `test_text_first_line()`, `test_text_line_numbering()`, `test_text_highlighting()` and `test_selection_inverting()` in `test/substrate/`, and `test_text_range_selection()` in the umbrella suite.
+- Tests: `test_text()` for the documents and the gesture table, `test_text_to_graphics()`, `test_text_line_model()`, `test_inline_image_caret()`, `test_word_wrapping()`, `test_text_filtering()`, `test_text_first_line()`, `test_text_line_numbering()`, `test_text_highlighting()` and `test_selection_inverting()` in `test/substrate/`, and `test_text_range_selection()` in the umbrella suite.
 
 ## Limits
 
-- An edit over a range that crosses two spans does nothing.
+- An edit over a range that crosses two spans does nothing, also a range of text and an image.
+- Through `SyntaxToText`, an image in a leaf is not edited: Backspace and Delete beside it make no element write.
+- Through `WordWrapping`, a caret can not stand on an empty line between two `TextNewline`s: the backward map takes an offset in a gap to the nearest run.
+- At the end of a text, the block caret of `SelectionInverting` adds an inverted space, and Right there maps past the end.
 - `TextColumnReferenceStep` has no gesture that makes it.
 - No code in `source/` or `example/` uses `TextFirstLine`.
 - In `text` and `text_with_image`, a walk with Left does not reach the start of the text. It also takes a different number of steps than a walk with Right. `formula` and `markdown_rendered` have the same fault. `NAV_LEFT_WALK_STALLS` in `test/projectured/editor/ExampleSweeps.jl` marks the four as broken; see [plan/pending/left-motion-stalls-on-introduced-text.md](../../../plan/pending/left-motion-stalls-on-introduced-text.md).

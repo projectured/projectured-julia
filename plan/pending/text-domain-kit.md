@@ -380,8 +380,10 @@ Two things the *rendering* caught that the reading did not (both now regression-
   one **`SyntaxToText` must count when it emits the lines**. A `TextNewline` still counts **zero**
   there, and that is not an oversight to unify away: `WordWrapping` splices *soft* newlines in at
   wrap points and documents the box space as invariant under them. The graphics box space and
-  `text_flat_length` are therefore two deliberately different spaces (they also differ on
-  `TextGraphics`: 1 vs 0). Leave them apart.
+  `text_flat_length` are therefore two deliberately different spaces. An inline `TextGraphics`
+  counts 1 in both since
+  [an-inline-image-is-one-caret-position.md](../done/an-inline-image-is-one-caret-position.md).
+  Leave them apart.
 
 Verified by driving the pipeline, not only by the suite: a line block renders indented with one row
 per line, the graphics agree with `TextToString`'s string, a click on the second row yields

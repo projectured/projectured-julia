@@ -579,7 +579,7 @@ function _text_span_infos(text::TextBlock)
 end
 
 # The path of every inline image, in document order, at either depth.
-function _text_image_paths(text::TextBlock)
+function _collect_image_paths(text::TextBlock)
     paths = SpanPath[]
     for (i, el) in enumerate(text.elements)
         if el isa TextGraphics
@@ -1095,7 +1095,7 @@ end
 # the caret before the image and char 1 the caret after it. Between two images,
 # the caret after the earlier one. `nothing` when no image touches the offset.
 function _find_flat_image_place(text::TextBlock, flat::Int)
-    for path in _text_image_paths(text)
+    for path in _collect_image_paths(text)
         base = get_flat_base(text, path)
         base === nothing && continue
         base <= flat <= base + 1 && return (path, flat - base)
@@ -1275,7 +1275,7 @@ end
 # siblings of one container; `nothing` when anything else is in the range.
 function _find_image_range(text::TextBlock, s::Int, e::Int)
     paths = SpanPath[]
-    for path in _text_image_paths(text)
+    for path in _collect_image_paths(text)
         base = get_flat_base(text, path)
         (base !== nothing && s <= base < e) && push!(paths, path)
     end

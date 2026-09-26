@@ -259,7 +259,7 @@ Do the work in a git worktree, and commit each step.
   - *Done.* *Decision:* `_flat_to_span` still answers text runs only, because
     the edit code (`evaluate_operation`, `_lower_text_range`) splices the run it
     returns. A new `_find_flat_place` answers the run, else the image beside the
-    offset (`_find_flat_image_place`, over `_text_image_paths`); between two
+    offset (`_find_flat_image_place`, over `_collect_image_paths`); between two
     images, the caret after the earlier one. `get_flat_cursor_coordinate` and
     `_text_flat_span` use it. The caret branch of `_layout_group` needed no
     change.
@@ -435,10 +435,23 @@ Do the work in a git worktree, and commit each step.
 - [ ] **Step 9. The suites** of Step 0 against the baseline, in a fresh process;
   a moved count is explained before it is accepted. Images of the three examples
   with a caret after an image go to the owner.
-- [ ] **Step 10. The documents.** `text.md` (an image counts one; the list at :28;
+- [x] **Step 10. The documents.** `text.md` (an image counts one; the list at :28;
   the limits), the comments of `TextToGraphics` about the two spaces, and
   [text-domain-kit.md](text-domain-kit.md) :378-384, which says the two spaces
   differ on images.
+  - *Done before Step 9,* so that one suite run covers the final tree.
+    `text.md`: the span table, the caret (an image counts one, the place of an
+    offset beside an image), the keys, the edit beside an image, the caret and
+    the selection paint of the layout, the decline of an element write in the
+    decorators and `SyntaxToText`, a design decision, the tests, and four
+    limits (two of them the faults found in Steps 3 and 5). The comment of
+    `_layout_overlay` describes the two spaces (Step 7). `console.md` stays
+    true: the console prints nothing for an image. The test of
+    `WordWrappingTest.jl` that said an image is zero-width now asserts where
+    the carets before and after a wrapped image map.
+  - *Rename:* `_text_image_paths` is `_collect_image_paths`, because a function
+    name starts with a verb (`julia-rename.jl`, 3 references). The naming guard
+    (`test/suite/naming.jl`) passes.
 
 ## 7. Relations and risks
 
