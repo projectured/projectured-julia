@@ -177,6 +177,13 @@ All of them are from 2026-09-26.
 - **D41.** When the view changes, the target is found again, as if the pointer
   moved: the old part gets a leave and the new part an enter. The owner agreed to
   this principle for Q14.
+- **D42.** After a frame that changed what the display shows, the loop gives the
+  projection an event of the display, and the target tracker and the drag
+  tracker find their part again at the last position. The owner chose this way
+  for Q14. The principle, in the owner's words: the read-eval-print loop "can go
+  to sleep when the view does not change anymore. If the view has changed the
+  loop has to run again." So the loop sleeps only after a frame that changed
+  nothing.
 
 ## 3. What is wrong today
 
@@ -416,50 +423,22 @@ The direction that follows from the decisions so far:
 
 ## 5. Open questions
 
-- **Q14. The view changes under a pointer that does not move.** An example: the
-  pointer rests on row 5 of a list of files, and row 5 is lit. The person turns
-  the wheel, and the list scrolls three rows. Row 8 is now under the pointer.
-  - In principle, the target is a function of two inputs: the position of the
-    pointer and the view. When either one changes, the target must be found
-    again, and the old part gets a leave and the new part an enter, as if the
-    pointer moved. A browser finds the hover again after a scroll or a change of
-    the layout, and Qt sends an enter to a widget that appears under the cursor.
-  - In the design, the tracker reads the wheel event before the scroll happens.
-    It maps the point through the old view and finds row 5 again. Then the
-    operation of the scroll is evaluated and the view is printed, but no event
-    comes after that, so no reader runs. The tracker keeps row 5 as its target
-    until the pointer moves, and row 5, now three rows higher, stays lit while
-    row 8 is under the pointer. A fake move would find the target, but D3 does
-    not allow it: a move is a record of the hardware.
-  - Other examples of the same fault: a key scrolls the list; a dialog or a popup
-    opens or closes under the pointer; a tab page changes by a key; a content
-    changes by itself (a log that grows, a simulation that updates a table).
-  - The principle is D41. What is open is how the tracker learns that the view
-    changed. The loop knows it: a frame that evaluated an operation, or that
-    drained a change from a feed, can change the view. Two ways:
-    - **Claude's recommendation: an event of the display.** After a frame that
-      changed the view, the loop gives the projection an event that says that the
-      display shows a new frame (the name is open). The target tracker maps its
-      last position through the new view, and when the target changed, it sends
-      the leave and the enter. The drag tracker finds the drag hover again in the
-      same way. The display is a device, and a new frame is a record of what it
-      did, so D3 holds. The enter writes a light, which makes one more frame; its
-      event finds the same target and answers nothing, so the chain stops. A
-      frame that changes nothing sends no event, so an idle editor stays idle.
-    - **A sample of the pointer.** After such a frame, the loop reads the
-      position from the pointer device and gives it as an event of its own. It is
-      a record of the hardware too, but it names the position, which the tracker
-      has already, and not the cause, which is the change of the view.
-  - Not a way: a light that each printer derives from the target. The owner's
-    model gives the light to the reader of the part (the meaning belongs to the
-    thing), and a target that depends on the view and a view that depends on the
-    target can form a cycle of cells.
+- **Q15. When a frame counts as changed, and the name of the event (D42).**
+  Claude's suggestion: the backend sends the event when it shows a frame that
+  differs from the one before, because only the backend knows what the display
+  shows; the SDL backend already finds the parts that changed, for its dirty
+  rectangles. The name: `DisplayUpdate`, in the form `<Source><Action>`.
+- **A risk of D42.** A light that changes the layout can move another part under
+  the pointer, which lights and changes the layout again, frame after frame. A
+  browser has the same risk with a hover that changes the layout. The plan must
+  say what stops it: a rule that a light does not change the layout, or a bound.
 
 The questions of keyboard navigation are in the plan of D33.
 
 Answered and moved to §2: Q2 (D23), Q3 (D24), Q4 (D25), Q5 (D20), Q6 (D26), Q7
 and Q8 (D27), Q9 (D28), Q10 (D29), Q11 (D30), Q1 (D31), Q12 (D32). Q13 moved to
-the plan of D33.
+the plan of D33. Q14 (D41, D42): the example of the list that scrolls under a still
+pointer is in §3.4 and in the conversation of 2026-09-26.
 
 ## 6. Steps
 
@@ -475,11 +454,15 @@ the plan of D33.
   `Union{Event,Gesture}`. The naming rules get the line for a gesture. No
   behaviour changes. Tests: the event module, the patterns, the naming guard,
   the kernel layering, then the suites of the packages that match `MouseClick`.
-- [ ] 2. **The timer (D22, D24).** The event `TimerExpire` and
-  `SetTimerOperation`. The editor holds the deadlines, `compute_wait_timeout`
-  counts them, and the loop reads a `TimerExpire` at each deadline. Tests: a
-  reader that answers `SetTimerOperation` gets `TimerExpire` at that time; a new
-  deadline replaces the old one; an idle editor with no deadline still sleeps.
+- [ ] 2. **The timer and the display event (D22, D24, D42).** The event
+  `TimerExpire` and `SetTimerOperation`. The editor holds the deadlines,
+  `compute_wait_timeout` counts them, and the loop reads a `TimerExpire` at each
+  deadline. After a frame that changed what the display shows, the loop reads the
+  event of the display, and it sleeps only after a frame that changed nothing.
+  Tests: a reader that answers `SetTimerOperation` gets `TimerExpire` at that
+  time; a new deadline replaces the old one; a frame that changes the display is
+  followed by the display event, and a frame that changes nothing is not; an idle
+  editor still sleeps.
 - [ ] 3. **A gesture follows a route (D12, D28).** An intent with a route can
   carry a gesture. The last reader on the route reads the gesture, with the rest
   of the route as the part. Every widget container and every layout follows a
@@ -517,7 +500,8 @@ the plan of D33.
   `WidgetHoverTrackingProjection` goes away. Tests: a row of a popup lights (H1);
   the light follows the pointer to the next row; the leave of the window turns
   it off (H3); a row of a list turns off when the pointer moves onto another
-  widget (§3.4); a live check on the display, with the owner's word for XTest.
+  widget (§3.4); a list that scrolls under a still pointer lights the row that is
+  now under it (D41); a live check on the display, with the owner's word for XTest.
 - [ ] 8. **The probes go away (D7).** A tooltip is the meaning of a `MouseDwell`
   on the target, and `compute_tooltip` stays; the feed, the probe and
   `PointerRest` of the tooltip package go away. The inspector reads the target.
