@@ -90,7 +90,6 @@ abstract type Backend end
 # Backend interface (backend/BackendInterface.jl) — all dispatched on the concrete backend
 initialize_backend!(::Backend)                    # set up libraries, allocate caches
 quit_backend!(::Backend)                    # release everything
-measure_text(::Backend, text, font) # (px_width, px_height)
 read_from_devices(::Backend, devices)           # poll → WindowInput
 write_to_devices(::Backend, devices, document)  # render the output
 wait_for_input(::Backend, devices, timeout_seconds)  # block until input, a wake, or the timeout
@@ -206,10 +205,10 @@ arguments; `WebBackend`'s constructor defaults `host`/`port`.
 
 #### How it satisfies the interface
 
-- **`measure_text` stays on the server.** The layout pipeline calls
-  `measure_text` synchronously *while printing*, long before any primitive
-  reaches the browser, so the server must measure glyphs the same way the browser
-  renders them. The backend measures with `measure_truetype_text`, the pure-Julia
+- **The measure stays on the server.** The layout pipeline measures text
+  synchronously *while printing*, long before any primitive reaches the
+  browser, so the server must measure glyphs the same way the browser renders
+  them. `TextToGraphics` measures with a `FontFileMeasure()`, the pure-Julia
   TrueType measurer of `ProjecturedStyle`, so it needs no SDL; the same TTFs are served to the browser (`/font/<name>`,
   loaded via the `FontFace` API) so metrics line up. The browser handles HiDPI
   with `devicePixelRatio`, so the server stays in logical pixels.
@@ -299,8 +298,7 @@ file:
 - **`write_pdf`** ([source/pdf/Pdf.jl](../../../source/pdf/Pdf.jl)) walks the same
   canvas and emits a **vector** PDF (paths + selectable text, embedded TrueType
   fonts, optional multi-page pagination). It is entirely SDL-free — it measures
-  text with `measure_truetype_text`, which has the same contract as
-  `measure_sdl_text`.
+  text from the font files, with a `FontFileMeasure()`.
 - **`record_video`** ([package/ProjecturedVideo/src/ProjecturedVideo.jl](../../../package/ProjecturedVideo/src/ProjecturedVideo.jl))
   renders a timed sequence of gestures or operations to an `.mp4` file, with no
   window: it rasterizes each frame through the same offscreen SDL renderer as
@@ -309,18 +307,19 @@ file:
 
 See [the graphics guide](../graphics/graphics.md) for the image and PDF APIs.
 
-## Projections that need the backend
+## Projections that measure text
 
-Some projections need to *measure* text to lay it out (`TextToGraphics`
-and `WidgetToGraphics` both word-wrap based on glyph widths). They accept a
-`measure::Function` argument so they stay backend-agnostic:
+Some projections need to lay out text (`TextToGraphics`, `WordWrapping` and
+`WidgetToGraphics` among them). They take a `measure::TextMeasure` argument, from
+`ProjecturedStyle`, so they stay backend-agnostic:
 
 ```julia
-TextToGraphics(measure = measure_sdl_text)   # or measure_truetype_text, with no SDL
+TextToGraphics(measure = FontFileMeasure())
 ```
 
-Inject the backend's measurer when building the pipeline; the projection
-itself never sees the backend type.
+`FontFileMeasure()` reads the font files, as every backend draws them, so the
+projection never asks the backend to measure. A test passes a `FixedMeasure`
+instead.
 
 ## Adding a new device
 
@@ -337,10 +336,11 @@ itself never sees the backend type.
 
 1. Subtype `Backend` (defined in `source/kernel/backend/`) in your backend package.
 2. Implement the `Backend` interface (`initialize_backend!`, `quit_backend!`,
-   `measure_text`, `read_from_devices`, `write_to_devices`).
+   `read_from_devices`, `write_to_devices`).
 3. Translate native events into the existing backend-agnostic event types
    so projection code does not need to change.
-4. Provide a `measure_text` callback for projections that need it.
+4. Draw each glyph where a `TextMeasure` places it, so the ink lands where the
+   layout put it.
 
 The fact that every event at the projection level is a `KeyPress`/`KeyDown`/`Mouse*`/`WindowQuit`
 is the contract that keeps backends interchangeable.
@@ -496,7 +496,7 @@ BackendDefaults.jl  (BackendModule)         — the fallback behaviours the cont
 ### BackendModule
 
 Declares `Backend <: Any` and the backend generics `initialize_backend!`,
-`quit_backend!`, `measure_text`, `read_from_devices`, `write_to_devices`,
+`quit_backend!`, `read_from_devices`, `write_to_devices`,
 `get_display_size`, `configure_devices!`, `open_native_windows!`, `write_image`,
 `record_video`, `render_canvas`, `decode_image`, `get_pointer_position`. Concrete backends
 (SDL, Web, Console, Headless, …) live in opt-in packages that subtype `Backend`
@@ -516,7 +516,7 @@ capabilities a backend may not support: `get_pointer_position` answers `(-1, -1)
 leaves the devices at their default properties, and `open_native_windows!` is a
 no-op for a backend that has no native windows to open — each a legal answer
 rather than a missing implementation. The batch generics deliberately have no
-such fallback: an unimplemented `measure_text` or `write_image` must raise a
+such fallback: an unimplemented `write_to_devices` or `write_image` must raise a
 `MethodError` rather than fabricate a result.
 
 No document is imported here. The batch I/O generics are duck-typed on the
@@ -526,8 +526,7 @@ No document is imported here. The batch I/O generics are duck-typed on the
 
 The dependency-free in-memory `HeadlessBackend` — which logs every
 `write_to_devices` document into `rendered` and pops scripted events on each
-`read_from_devices` (`push_event!` enqueues them; `measure_text` returns a fixed
-`(8 * length, 16)`) — is a **test double** for the `Backend` seam. By
+`read_from_devices` (`push_event!` enqueues them) — is a **test double** for the `Backend` seam. By
 PAR-NO-TEST-DOUBLES-IN-MAIN it lives in `ProjecturedKernelExample`, not here, so
 no double is reachable from a production build; the kernel editor tests import it
 from there to drive the loop without any real backend.

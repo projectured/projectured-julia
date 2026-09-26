@@ -125,7 +125,7 @@ arrows = SequenceChartArrows([1, 3], [2, 4]; labels = ["request", "200 OK"])
 chart = SequenceChart("request", axes; events = events, arrows = arrows,
                       timeline = SequenceChartTimeline(; mode = :nonlinear))
 projection = ChainingProjection(SequenceChartToSequenceChartPlot(),
-                                SequenceChartPlotToGraphicsCanvas(measure = measure_truetype_text))
+                                SequenceChartPlotToGraphicsCanvas(measure = FontFileMeasure()))
 ```
 
 - Examples: `sequencechart`, a request through four tiers with a retry timer, an elided chain and a state band; `sequencechart_vertical`, the same trace as a UML diagram; `sequencechart_linear`, the same trace on a proportional axis, which shows why `:nonlinear` exists; `sequencechart_pair` and `sequencechart_inspector`. All are in `example/sequencechart/`. The atomic catalog has `sequencechart/plot`.

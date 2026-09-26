@@ -860,7 +860,7 @@ by a verb. Chrome that only the printer produces is outside the editor.
 
 **Keep backends behind the `Backend`/`Device` seam; the same editor runs
 unchanged across them.** A backend provides `initialize_backend!`,
-`quit_backend!`, `measure_text`, and the per-frame device I/O
+`quit_backend!`, and the per-frame device I/O
 `read_from_devices`/`write_to_devices` — all declared in `BackendInterface.jl`
 and dispatched on the concrete backend; the device layer supplies only the
 `Device`/`Keyboard`/`Mouse`/`Display` device types those two take as a list.
@@ -869,8 +869,8 @@ Swapping `SdlBackend()` for
 pipeline, or domains. Convert platform events to the backend-agnostic device
 vocabulary (`KeyPress`, `KeyDown`, `Mouse*`, `WindowQuit`) in the backend, so
 projection reader code never sees a raw platform event; a projection that needs
-to measure text takes an injected `measure::Function` rather than the backend
-itself. A single source of truth governs any cross-backend mapping (e.g.
+to measure text takes an injected `measure::TextMeasure` rather than the
+backend itself. A single source of truth governs any cross-backend mapping (e.g.
 `convert_web_key_to_symbol` mirrors `sdl_keysym_to_symbol`).
 
 ### PAR-OPT-IN-DEPENDENCY

@@ -96,7 +96,7 @@ The cost of a chart depends on the size of its plot rectangle, not on the length
 `ProjecturedChart` depends on `ProjecturedCollection`, `ProjecturedDomain`, `ProjecturedGraphics`, `ProjecturedKernel`, `ProjecturedPlot` and `ProjecturedStyle`. No package depends on it. It has no `__init__` and registers nothing: no natural row, no file type. A caller builds the chain, or adds one entry to the natural renderer to draw a chart inside another document:
 
 ```julia
-NaturalToGraphics(measure = measure_truetype_text,
+NaturalToGraphics(measure = FontFileMeasure(),
                   extra = Pair{Type,Any}[Chart => make_chart_pipeline_example()])
 ```
 
@@ -128,7 +128,7 @@ Chart("Throughput", [ChartBarSeries("run A", [12.0, 19.0, 7.0])];
 Chart("MAC states", [ChartStripSeries("channel", [0.0, 4.0, 9.0], ["idle", "busy", "idle"]; x_end = 20.0)])
 
 projection = ChainingProjection(ChartToChartPlot(),
-                                ChartPlotToGraphicsCanvas(measure = measure_truetype_text))
+                                ChartPlotToGraphicsCanvas(measure = FontFileMeasure()))
 ```
 
 - Examples: `chart` (four charts in a `WidgetTable`), `chart_line`, `chart_bar`, `chart_histogram`, `chart_scatter`, `chart_strip` and `chart_inspector`, in `example/chart/`. The atomic catalog has `chart/plot`.

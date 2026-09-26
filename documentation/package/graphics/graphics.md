@@ -24,6 +24,8 @@
 
 Every field is a reactive cell, so a change of one coordinate repaints only what reads it. A colour is a `StyleColor` and a font is a `StyleFont`, both from [style.md](../style/style.md). Each backend converts a `StyleColor` to its own device encoding when it draws. Coordinates are `Int32` pixels, and a box names its size `w` and `h`. Elements draw in order, so a later element is on top.
 
+`y` of a `GraphicsText` is the top of its box, and the baseline is `y` plus the ascent that [`compute_text_extent`](../style/style.md) gives for `text` and `font`. The box is the ascent plus the descent high. Every backend draws the baseline there, and a layout that puts texts of different fonts on one baseline sets each `y` to the baseline minus that text's own ascent.
+
 The spline and arrowhead geometry is computed here, by `tessellate_spline` and `build_polyline_arrowhead`, so each backend draws the same points. The backends draw only the translation and the scale of a viewport transform.
 
 ### The canvas and the hit test
@@ -33,7 +35,7 @@ The spline and arrowhead geometry is computed here, by `tessellate_spline` and `
 `hit_element_at(canvas, x, y)` returns the offset of the first element that contains the point, or `nothing`. Every caller in `source/` tests only for `nothing`. The test for each shape:
 
 - A box, a viewport and a line use their bounding box. A circle uses its radius.
-- A text uses the height of its font and has no right edge, so it takes every point to the right of its start.
+- A text uses its box: the width, the ascent and the descent of [`compute_text_extent`](../style/style.md).
 - A polyline and a spline take a band of `max(3, width + 2)` pixels around the path. A polygon takes its whole interior.
 - A canvas tests its own elements, with the point moved into its frame.
 
@@ -59,7 +61,7 @@ A canvas with a `w` or `h` that is not zero first clips the point to its own box
 
 ### Measuring
 
-This package calls no font backend. A function that needs the width of a text takes `measure(text, font) -> (width, height)` as an argument. `get_canvas_content_bounds(canvas, measure)` returns the box of everything that a canvas draws. `get_graphics_size(document, measure)` returns the size of one primitive. `measure_truetype_text` of [style.md](../style/style.md) needs no display, and `measure_sdl_text` of the SDL backend gives the same widths as the screen.
+This package calls no font backend. A function that needs the box of a text takes a `TextMeasure`, from [style.md](../style/style.md), as an argument, `FontFileMeasure()` by default. `get_canvas_content_bounds(canvas, measure)` returns the box of everything that a canvas draws. `get_graphics_size(document, measure)` returns the size of one primitive; a bare `GraphicsText` outside a canvas has its width there. `_bounds_elem!` takes the same measure, so the bounds of a canvas cover the box of each text it holds.
 
 ### Saving to a file
 
@@ -68,14 +70,14 @@ Two functions write a canvas to a file without a window. Each takes a canvas, or
 ```julia
 proj = ChainingProjection(RecursiveProjection(JsonToSyntax()),
                           RecursiveProjection(SyntaxToText()),
-                          TextToGraphics(measure = measure_truetype_text))
+                          TextToGraphics(measure = FontFileMeasure()))
 write_image(document, proj, "snapshot.png"; width = 1200, height = 800)
 write_pdf(document, proj, "snapshot.pdf")                                   # one page, sized to the content
 write_pdf(document, proj, "book.pdf"; paginate = true, width = 612, height = 792)
 ```
 
 - `write_image` is in the SDL backend. It draws through an offscreen SDL renderer and writes `.bmp` or `.png`; another extension raises an error. With no size, the image fits the content up to 1200 by 800.
-- `write_pdf` is in `ProjecturedPdf` and needs no SDL. It writes each primitive as a PDF path or text operator and embeds the fonts as Type0 fonts, so the text is selectable. With `paginate = true`, `height` is the page height, and the content is cut into bands of that height across pages. `measure` defaults to `measure_truetype_text` and sets the page size; the projection that makes the canvas keeps its own `measure`.
+- `write_pdf` is in `ProjecturedPdf` and needs no SDL. It writes each primitive as a PDF path or text operator and embeds the fonts as Type0 fonts, so the text is selectable. With `paginate = true`, `height` is the page height, and the content is cut into bands of that height across pages. It draws from the font files, so it takes no `measure` keyword and sizes its pages by the boxes of the font files; the projection that makes the canvas keeps its own `measure`.
 - `GraphicsCanvasToImageFile` and `GraphicsCanvasToPdfFile` are the same steps as the last stage of a chain. Their output is an `ImageFile`, and they have no reader.
 
 [devices-and-backends.md](../kernel/devices-and-backends.md) describes the backends that paint a canvas on a screen.
@@ -90,7 +92,7 @@ It registers nothing and has no `__init__`.
 
 - **A colour is a `StyleColor`, not four bytes.** SDL, PDF and the web backend each need a different device encoding, so each backend converts at draw time. A converted cache in the document would fit only one of them. See [plan/done/graphics-stylecolor-and-coordinate-normalization.md](../../../plan/done/graphics-stylecolor-and-coordinate-normalization.md).
 - **Every coordinate is `Int32`.** The canvas uses the same type as the primitives. The same plan holds the change.
-- **The measure is an argument.** The package and `TextToGraphics` above it then need neither SDL nor a PDF library, and a test measures with `measure_truetype_text`.
+- **The measure is an argument.** The package and `TextToGraphics` above it then need neither SDL nor a PDF library, and a test measures with a `FixedMeasure`.
 - **A fence is an element, not a flag.** No primitive needs an extra field, and the renderer and the hit test skip it with one `isa` check.
 - **Non-overlap is declared, not computed.** The producer, for example a table that stacks its rows, sets `overlapping_elements = false` or puts a fence where it can guarantee it.
 
@@ -113,6 +115,5 @@ hit_element_at(canvas, 60, 25)        # the offset of the element, or nothing
 ## Limits
 
 - `GraphicsCanvasToGraphicsImage` does not rasterize, and no plan tracks the rasterizing cache.
-- A `GraphicsText` in a canvas with no size takes every point to its right.
 - The PDF writer does not compress its content streams or subset its fonts. It draws a `GraphicsImage` only when `data` is an RGBA byte buffer; an SDL texture has no pixels that it can read.
 - A viewport transform can not rotate or shear its content.

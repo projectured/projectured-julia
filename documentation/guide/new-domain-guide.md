@@ -300,7 +300,7 @@ end
 Create `example/bookmark/BookmarkProjectionExample.jl`:
 
 ```julia
-function make_bookmark_projection_example(; measure=measure_sdl_text)
+function make_bookmark_projection_example(; measure=FontFileMeasure())
     ChainingProjection(
         RecursiveProjection(BookmarkToSyntax()),
         RecursiveProjection(SyntaxToText()),
@@ -312,7 +312,7 @@ end
 Both files belong to the example package,
 `package/ProjecturedBookmarkExample/` — its own `Project.toml`, depending on
 `ProjecturedBookmark` plus whatever the two functions above name directly
-(`ProjecturedKernelExample` for `measure_sdl_text`). Its root module needs the
+(`ProjecturedStyle` for `FontFileMeasure`). Its root module needs the
 same alias loop as Step 2, over its own dependency tuple, before the two
 `include`s:
 
@@ -321,6 +321,7 @@ module ProjecturedBookmarkExample
 
 using ProjecturedBookmark
 using ProjecturedKernelExample
+using ProjecturedStyle
 
 for _src in (ProjecturedBookmark, ProjecturedKernelExample)
     for _n in names(_src; all = true)

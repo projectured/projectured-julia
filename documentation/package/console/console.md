@@ -22,9 +22,9 @@ WindowInputUnwrappingProjection(
 
 For any other output, `write_to_devices` raises an error that says to drop the `TextToGraphics` step.
 
-### Measure and draw
+### Draw
 
-`measure_text` returns `(length(text), 1)`, one cell for each character. No projection of a console pipeline measures text, but the interface requires the method.
+The backend has no text measure: a console pipeline ends in `TextBlock` and never reaches `TextToGraphics`, so no projection of a console pipeline measures text.
 
 `render_console` writes the spans of the block into one buffer:
 

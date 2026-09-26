@@ -18,11 +18,13 @@ The backend has no call that opens or closes a window. `write_to_devices(backend
 
 The editor calls `open_native_windows!` before the first print. It opens every window, waits up to 250 ms until the size that the window manager grants holds still for 20 ms, and writes that size into the `WindowDocument`. So the document is laid out once, at the real size, and not again when the answer of the window manager arrives as a resize.
 
-### Measure and draw text
+### Draw text
 
-`measure_text(backend::SdlBackend, text, font)` measures with SDL_ttf at the device size for the device pixel ratio of the `Display` of `backend`, and divides by that ratio, so the result is in logical pixels. It splits the text into runs by font: a character that the font lacks goes to the file that `find_glyph_font_file` of `ProjecturedStyle` names, which is the file that `measure_truetype_text` uses too. `measure_sdl_text(text, font)` is the same measure as a plain function, at the ratio 1, so its result does not depend on the display of the machine. It is exported because a projection takes its measure by value, as in `TextToGraphics(measure = measure_sdl_text)`, and a generic can not go there.
+The backend draws a text where a [`FontFileMeasure`](../style/style.md) lays it out: `compute_placed_glyphs(text, font)` gives the file and the pen position of each glyph, and the backend draws each glyph at that position, in its own font file. It opens every font with `TTF_HINTING_LIGHT_SUBPIXEL`, light hinting that fits a glyph to the pixel rows only, so the ink keeps the width of the advance the layout gave it. A character that the font lacks draws from the file that `find_glyph_font_file` of `ProjecturedStyle` names.
 
-Font handles are in a module cache keyed by file and size. A drawn text is a texture, and a second module cache keeps it by renderer, text, font, size and colour. Without it, a static document that scrolls rasterizes, uploads and destroys every span on every frame. The cache is emptied at 16384 entries, and the textures of a renderer go when the renderer is destroyed.
+On a cache miss, `_render_text_surface` rasterizes each glyph of the text and composes them into one surface, with the pen origin of each glyph on the device pixel nearest to its pen position; the baseline of the surface is the row where the tallest glyph's ascent lands. Font handles are in a module cache keyed by file and device size. The composed surface becomes a texture, kept in a second module cache by renderer, text, font, logical size, device size and colour, so a static document that scrolls does not rasterize, upload and destroy every span on every frame. `_render_element!` places that texture so that its baseline lands on `y` plus the ascent that `compute_text_extent` gives the text: the baseline the layout computed. The cache is emptied at 16384 entries, and the textures of a renderer go when the renderer is destroyed.
+
+`_compute_text_texture_box` finds the rectangle the texture covers, from the geometry of each glyph with no render, and `_extend_drawn_bounds!` adds it to the dirty rectangle of a partial repaint and to the size of `write_image`: the texture can reach past the box of the text, left of `x` by a negative left bearing and above its top by a glyph that rises above the ascent of its font.
 
 ### Paint a window
 
@@ -75,7 +77,7 @@ Both repaint every window in full.
 
 ## Design decisions
 
-- **The generic is the surface.** A caller reaches the backend through the generics of `BackendModule`: `render_canvas`, `decode_image`, `get_display_size`. The helpers stay inside; `measure_sdl_text` is the one exported helper, because it goes by value.
+- **The generic is the surface.** A caller reaches the backend through the generics of `BackendModule`: `render_canvas`, `decode_image`, `get_display_size`. The layout never asks the backend to measure text; it asks a `TextMeasure`.
 - **The windows open before the first print.** A document laid out first is laid out at a size that the window never has. See [plan/done/native-window-size.md](../../../plan/done/native-window-size.md).
 - **The repaint follows the reactive graph.** The cells that a change invalidated say which graphics changed, so the backend compares no pixels. See [plan/done/optimize-rendering-dirty-rect.md](../../../plan/done/optimize-rendering-dirty-rect.md).
 - **The damage history follows the buffer age.** A swap chain of two or three buffers would otherwise show an old edit on the buffer that was not repainted.
@@ -88,11 +90,11 @@ Both repaint every window in full.
 run_editor!(SdlBackend(), projection, document)
 backend = SdlBackend(; partial_render = true, debug_dirty = true)
 write_image(document, projection, "snapshot.png")
-projection = TextToGraphics(measure = measure_sdl_text)
+projection = TextToGraphics(measure = FontFileMeasure())
 ```
 
 - Examples: every gallery example runs on it by default. `example/sdl/LiveExamples.jl` plays a timeline in a window or records it with `record_video`. The screenshots under `asset/image/example/` come from `write_image`.
-- Test: `test_sdl()` in `ProjecturedSdlTest` runs the layering guard, the dirty rectangle, the key symbols, the device configuration, the font fallback, the coalescing of input, the wait and the wake, the native windows, and `write_image`.
+- Test: `test_sdl()` in `ProjecturedSdlTest` runs the layering guard, the dirty rectangle, the key symbols, the device configuration, the agreement of the font metrics with SDL_ttf (`test_sdl_font_metrics_agree`), the baseline of the drawn ink and the pen positions of each glyph (`test_sdl_text_baseline_ink`, `test_sdl_text_pen_positions`), the coalescing of input, the wait and the wake, the native windows, and `write_image`.
 
 ## Limits
 

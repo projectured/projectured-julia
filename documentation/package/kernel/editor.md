@@ -297,7 +297,7 @@ document = JsonString("hello world")
 proj     = ChainingProjection(
     JsonToSyntax(),
     SyntaxToText(),
-    TextToGraphics(measure = (t, f) -> measure_sdl_text(backend, t, f)),
+    TextToGraphics(measure = FontFileMeasure()),
 )
 
 run_editor!(backend, proj, document)
@@ -403,11 +403,11 @@ In the example packages this is wired up for you — see `play_live_example` and
   and `Mouse` — see [the devices and backends guide](devices-and-backends.md).
 - `Backend` is the abstraction over the display/input platform. There are two
   implementations: `SdlBackend` (graphics) and `ConsoleBackend` (terminal). The
-  backend provides `initialize_backend!`, `quit_backend!`, `measure_text`, and
+  backend provides `initialize_backend!`, `quit_backend!`, and
   the per-frame device I/O `read_from_devices` / `write_to_devices`.
-- Projections that need to measure text take a `measure::Function` argument
-  (e.g. `TextToGraphics`); the backend's `measure_sdl_text` is the usual
-  injection.
+- Projections that need to measure text take a `measure::TextMeasure` argument
+  (e.g. `TextToGraphics`); `FontFileMeasure()` of `ProjecturedStyle` is the
+  usual injection, and every backend draws what it measures.
 - The `ConsoleBackend` consumes the **TextBlock** domain directly (no
   `TextToGraphics`): its `write_to_devices` renders a `TextBlock` to the terminal
   with ANSI colors, the selection encoded as inverse-video span colors by a

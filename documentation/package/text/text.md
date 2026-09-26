@@ -63,9 +63,15 @@ A typed key makes a `ReplaceTextRangeOperation` on the flat range. `_lower_text_
 
 ### Layout
 
-`TextToGraphics(; start_x, start_y, measure)` places the spans from left to right and starts a new line at a `TextLine`, a `TextNewline` or a `'\n'` in the content. It does not wrap. `measure(text, font)` returns `(width, height)`. It is required, and a backend gives its own, for example `measure_sdl_text`, or `measure_truetype_text` of [style.md](../style/style.md).
+`TextToGraphics(; start_x, start_y, measure, line_spacing = SingleSpacing())` places the spans from left to right and starts a new line at a `TextLine`, a `TextNewline` or a `'\n'` in the content. It does not wrap. `measure` is a [`TextMeasure`](../style/style.md); `FontFileMeasure()` is the one the application and the exports pass, as every backend draws, and a test passes a `FixedMeasure`. `line_spacing` is a [`LineSpacing`](../style/style.md) and sets the distance to the next line.
 
-The IO map holds `char_to_coord`, one `SegmentCoordinate` for each drawn piece: its `span_path`, its character range, its pixel position, its font and its size. An inline `TextGraphics` is one character wide in the text and carries the size of the image. So a click on its left or right half puts the caret before or after it. The reader and the hit test downstream use this table. `TextToGraphics` also draws the caret and the selection rectangles; [graphics.md](../graphics/graphics.md) describes the output.
+**Every box of a line sits on one baseline.** A `TextString` sits with its baseline on the baseline of the line, and its top is the baseline minus its own ascent, so a run in a smaller font or a fallback glyph aligns with the rest of the line. An inline `TextGraphics` sits with its bottom on the baseline, as a picture set in line with text does: its ascent is its height. A line with no box, an empty line, takes the metrics of its own font.
+
+**The height of a line comes from its boxes.** It is as high as the largest ascent, the largest descent and the largest line gap of the boxes it holds. `line_spacing` sets the distance from the top of the line to the top of the next one; at `SingleSpacing()` that distance is the sum of those three. Half of the leading, the difference between the line distance and the ascent plus the descent, sits above the ink and half below.
+
+**The caret stands on the baseline**, as high as the font at its place: from the baseline minus the ascent to the baseline plus the descent of the run it is in. Its x is the pen position of its character boundary from `compute_caret_offsets`, not the width of the text before it, so a caret after a kerned pair stands past the kerning. **A selection** covers the full line box of each line it spans, so the rectangles of consecutive lines meet with no gap. **A click** picks the line whose box holds its `y`, then the character boundary nearest to its `x`.
+
+The IO map holds `char_to_coord`, one `SegmentCoordinate` for each drawn piece: its `span_path`, its character range, its pixel position, its font and its size. `y` and `height` are the line box of the visual line the segment is on, so every segment of one line shares them; a click picks a line by its box, and a selection covers each line it spans with no gap. An inline `TextGraphics` is one character wide in the text and carries the size of the image. So a click on its left or right half puts the caret before or after it. The reader and the hit test downstream use this table. `TextToGraphics` also draws the caret and the selection rectangles; [graphics.md](../graphics/graphics.md) describes the output.
 
 ### The decorators
 
@@ -129,12 +135,12 @@ block = TextBlock(TextString("Hello"), TextNewline(font = font_ubuntu_monospace_
 lines = TextBlock(TextLine(TextString("a = 1")), TextLine(TextString("b = 2"); indentation = 2))
 span.content = "New content"          # writes through the cell
 
-projection = ChainingProjection(WordWrapping(measure = measure_truetype_text),
-                                TextToGraphics(measure = measure_truetype_text))
+projection = ChainingProjection(WordWrapping(measure = FontFileMeasure()),
+                                TextToGraphics(measure = FontFileMeasure()))
 ```
 
 - Examples: `text_example`, `plain_text_example`, `text_with_image_example`, `word_wrapping_example`, `line_numbering_example`, `text_filtering_example` and `text_highlighting_example` in `example/substrate/`. The atomic catalog has one document for each span type and for `TextLine`.
-- Tests: `test_text()` for the documents and the gesture table, `test_text_to_graphics()`, `test_word_wrapping()`, `test_text_filtering()`, `test_text_first_line()`, `test_text_line_numbering()`, `test_text_highlighting()` and `test_selection_inverting()` in `test/substrate/`, and `test_text_range_selection()` in the umbrella suite.
+- Tests: `test_text()` for the documents and the gesture table, `test_text_to_graphics()`, `test_text_line_model()`, `test_word_wrapping()`, `test_text_filtering()`, `test_text_first_line()`, `test_text_line_numbering()`, `test_text_highlighting()` and `test_selection_inverting()` in `test/substrate/`, and `test_text_range_selection()` in the umbrella suite.
 
 ## Limits
 

@@ -25,9 +25,30 @@ The package also defines about a thousand colour constants (`color_black`, `colo
 
 ### Measurement without a display
 
-`measure_truetype_text(text, font)` returns `(width, height)` from the advance widths in the `hmtx` table of the font file. The parser reads only the tables it needs and draws nothing. It is the default `measure` function of every example projection, and the PDF and web backends use it. It has the same contract as `measure_sdl_text`, so a projection runs with or without SDL.
+A [`TextMeasure`](../../../source/style/TextMeasure.jl) answers what a layout needs to place text, with no display: the box of a string, the metrics of a font with no text, and the x of each character boundary of a string.
 
-A font does not carry every glyph. `find_glyph_font_file(path, character)` finds the file that has a glyph: the font itself, then DejaVu Sans Mono, then Noto Emoji. `measure_truetype_text` measures each character in the font that draws it. The variation selectors U+FE0E and U+FE0F measure as zero width, because the SDL renderer does no shaping.
+- `measure_string(measure, text, font) -> StringBox` is the box of `text` set in `font`: its advance `width`, kerning included, and the largest `ascent`, `descent` and `line_gap` of the fonts that draw its glyphs. The baseline of the string is `ascent` below the top of the box.
+- `get_font_metrics(measure, font) -> FontMetrics` is the vertical metrics of `font` with no text: the `ascent`, the `descent` and the `line_gap`.
+- `compute_caret_offsets(measure, text, font) -> Vector{Float64}` is the pen position before each character of `text`, `length(text) + 1` values. Each is the pen position where the next character starts, so the caret after "A" in "AV" stands where "V" starts, past the kerning of the pair.
+
+Every value is a real number in logical pixels; a `TextMeasure` rounds nothing. `compute_text_extent(measure, text, font) -> (width, ascent, descent)` rounds the box of `measure_string` to whole logical pixels: the width rounded, and the ascent and the descent rounded up, so the box never ends inside the ink. With no `measure`, it answers the box that a `GraphicsText` draws, from the font files.
+
+`FontFileMeasure()` reads the font files, as every backend draws them: the `hmtx` advance of each glyph, the `kern` pairs between two glyphs of one font, the fallback font of a character the font lacks, and the vertical metrics by FreeType's rule. It is the measure of the application and the exports, and the PDF and web backends use it. `FixedMeasure(advance, ascent, descent, line_gap; fonts = Dict())` answers fixed numbers for a test: every character is `advance` wide, there is no kerning, and every font has the given metrics, except a font that `fonts` gives its own `FontMetrics`.
+
+A font does not carry every glyph. `find_glyph_font_file(path, character)` finds the file that has a glyph: the font itself, then DejaVu Sans Mono, then Noto Emoji. `FontFileMeasure` measures each character in the font that draws it. The variation selectors U+FE0E and U+FE0F measure as zero width, because the SDL renderer does no shaping.
+
+### Line spacing
+
+A [`LineSpacing`](../../../source/style/LineSpacing.jl) sets the distance between the lines of a text, as a word processor sets it. The natural distance of a line is the sum of the largest ascent, descent and line gap of its boxes.
+
+- `SingleSpacing()` sets the lines at their natural distance.
+- `MultipleSpacing(factor)` sets the lines at `factor` times their natural distance.
+- `ExactSpacing(distance)` sets the lines `distance` logical pixels apart, whatever their fonts.
+- `AtLeastSpacing(distance)` sets the lines `distance` logical pixels apart, or at their natural distance when that is larger.
+
+`compute_line_box(measure, text, font; spacing = SingleSpacing())` gives the box of a line that holds one text alone, as a label or a title does: a [`LineBox`](../../../source/style/LineSpacing.jl) with the width, the height, the baseline and the `y` of the text in the box. The baseline sits half of the leading below the top of the box, then the ascent, and never higher than the rounded ascent of the text, so the ink never rises above the box.
+
+**Example.** Ubuntu 20 has an ascent of 18.64, a descent of 3.78 and a line gap of 0.56 logical pixels, so its natural distance is 22.98. `compute_line_box(FontFileMeasure(), "delay", font_ubuntu_regular_20)` at `SingleSpacing()` gives a line box 23 pixels high, with the baseline 19 pixels below its top: half of the line gap, 0.28, and the ascent, rounded.
 
 ### Two zoom settings
 
@@ -54,11 +75,11 @@ The size of text on the screen comes from two separate settings:
 ```julia
 style = StyleText(font_ubuntu_monospace_regular_20, color_solarized_blue)
 faint = StyleColor(0.0, 0.0, 0.0, 0.25)
-width, height = measure_truetype_text("hello", font_ubuntu_monospace_regular_20)
+width, ascent, descent = compute_text_extent("hello", font_ubuntu_monospace_regular_20)
 font_logical_size(font_ubuntu_monospace_regular_20)   # 20 at the default font zoom
 ```
 
-- Test: no package suite exists. `test_font_metrics()`, `test_font_fallback()` and `test_affine_transform()` in `test/substrate/document/` cover the parser and the geometry.
+- Test: no package suite exists. `test_font_metrics()`, `test_font_fallback()` and `test_affine_transform()` in `test/substrate/document/` cover the parser and the geometry; `test_text_measure()` and `test_line_spacing()`, in the same folder, cover the measure contract and the line spacing.
 
 ## Limits
 

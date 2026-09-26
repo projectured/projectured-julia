@@ -32,7 +32,7 @@ Most widgets have `visible`, a `tooltip`, the box insets `margin`, `border` and 
 `WidgetToGraphics(font; measure, theme)` returns a `TypeDispatchingProjection` with one rule for each widget type and one for `GridLayout`. `WidgetTabPage` and `WidgetAccordionItem` have no rule, because the printer of the parent draws them, so the table has 42 widget rules. A caller wraps the result in `RecursiveProjection`, or puts its `.dispatch` pairs into a larger table:
 
 ```julia
-widgets    = WidgetToGraphics(font_ubuntu_regular_20; measure = measure_truetype_text)
+widgets    = WidgetToGraphics(font_ubuntu_regular_20; measure = FontFileMeasure())
 projection = RecursiveProjection(TypeDispatchingProjection(vcat(
     LayoutToGraphics().dispatch, widgets.dispatch)))
 ```

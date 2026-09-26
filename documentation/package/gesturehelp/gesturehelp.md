@@ -70,8 +70,8 @@ The package registers nothing: no natural row, no `.pred` type and no insertion 
 ```julia
 help_state = GestureHelpState()
 projection = GestureHelpDecoratorProjection(inner = projection, state = help_state)
-projection = CommandPaletteDecoratorProjection(inner = projection, measure = measure_truetype_text)
-help_row   = GestureMap => make_gesture_map_projection(measure_truetype_text)   # for the window F1 opens
+projection = CommandPaletteDecoratorProjection(inner = projection, measure = FontFileMeasure())
+help_row   = GestureMap => make_gesture_map_projection(FontFileMeasure())   # for the window F1 opens
 run_example("json"; gesture_help = true, command_palette = true)
 ```
 

@@ -50,7 +50,7 @@ An editor needs three things: a backend, a document and a projection.
 using Projectured, ProjecturedSdl
 
 document = parse_natural_text(:json, "{\"name\": \"Alice\"}")
-projection = NaturalToGraphics(measure = measure_truetype_text)
+projection = NaturalToGraphics(measure = FontFileMeasure())
 run_window_editor(document, projection, "My data"; backend = SdlBackend())
 ```
 

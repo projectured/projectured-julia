@@ -98,7 +98,7 @@ pool     = OdbcConnectionPool()
 catalog  = ChainingProjection(DatabaseInstanceToDbCatalog(pool),
                               RecursiveProjection(DbCatalogToSyntax()),
                               RecursiveProjection(SyntaxToText(marker_eligible = is_dbcatalog_marker_eligible)),
-                              TextToGraphics(measure = measure_truetype_text))
+                              TextToGraphics(measure = FontFileMeasure()))
 ```
 
 - Examples: the atomic catalog has one document for each catalog type and one `DatabaseInstance`. The live examples are in `example/odbc/`: `dbcatalog_example` and `dvdrental_catalog_example` browse a catalog, and `sql_table_example` shows the result of a query. They read the connection from the `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGHOST` and `PGPORT` environment variables.

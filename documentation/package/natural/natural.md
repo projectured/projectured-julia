@@ -112,7 +112,7 @@ text     = print_natural_text(document)
 has_natural_parser(:json)                  # true
 get_natural_extension(document)            # ".json"
 chain    = make_natural_projection(document, :string)
-renderer = NaturalToGraphics(measure = measure_truetype_text)
+renderer = NaturalToGraphics(measure = FontFileMeasure())
 ```
 
 - Example: `natural_example` draws a `CellVector` of a JSON, a math, a Julia, a text and an XML document with `NaturalToGraphics` alone.

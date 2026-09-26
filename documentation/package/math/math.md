@@ -134,7 +134,7 @@ tree = MathAssignment(MathVariable("W"),
 line = print_natural_text(tree)        # the linear form
 back = parse_math(line)                # a tree that prints the same line
 flat = MathToSyntax()
-boxes = MathToGraphics(measure = measure_truetype_text)
+boxes = MathToGraphics(measure = FontFileMeasure())
 ```
 
 - Examples: `math_example` shows the linear form. `math_table_example` puts numbers and formulas in the cells of a `WidgetTable`. `math_display_example` stacks every formula of `example/math/MathDocumentExample.jl` in two dimensions. The atomic catalog has one document for each type.

@@ -49,7 +49,7 @@ sorted = ApplyAtProjection(@reference(entries), SortingProjection(by = e -> e.ke
 sorted = SortingAtProjection(@reference(entries), e -> e.key)     # the same
 chain  = ChainingProjection(RecursiveProjection(JsonToSyntax()),
                             RecursiveProjection(SyntaxToText()),
-                            TextToGraphics(measure = measure_truetype_text))
+                            TextToGraphics(measure = FontFileMeasure()))
 choice = SwitchingProjection([JsonToSyntax(), XmlToSyntax()], Cell(1))
 ```
 

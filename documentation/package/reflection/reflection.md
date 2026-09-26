@@ -72,7 +72,7 @@ shadow = reflect_document(value, DepthPolicy(depth = 1, elements = 20))
 sync_reflection!(shadow, value, DepthPolicy(depth = 1, elements = 20))
 projection = ChainingProjection(ReflectionToWidget(),
                                 WidgetToGraphics(font_ubuntu_monospace_regular_20;
-                                                 measure = measure_truetype_text))
+                                                 measure = FontFileMeasure()))
 run_value_viewer(Dict("a" => 1, "b" => [1, 2, 3]))   # the tree, one level at a time
 run_value_viewer(value; tree = false)                # the flat view
 ```
