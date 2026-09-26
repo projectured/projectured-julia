@@ -711,10 +711,18 @@ projection holds its measure in one typed field, so the line model can not read 
 - [ ] **Step 10. omnet-julia and inet-julia** follow the contract: their packages
   precompile, their presentation tests pass, and images of a topology, a
   timeline and a packet diagram go to the owner.
-- [ ] **Step 11. The documents:** `style.md` (the metrics and the measure),
+- [x] **Step 11. The documents:** `style.md` (the metrics and the measure),
   `text.md` (the line model and the spacing), the `GraphicsText` docstring and
   `graphics.md`, `sdl.md`, `pdf.md`, `web.md`, `layout-rules.md` if it names a
   text height, and `markdown.md`, whose limit goes.
+  *Done:* 23 documents. `style.md` has the measure contract and the line
+  spacing; `text.md` the line model; `graphics.md` the box of a `GraphicsText`;
+  `sdl.md`, `pdf.md`, `web.md` and `console.md` how each backend draws a text;
+  `devices-and-backends.md`, `editor.md` and `architecture-invariants.md` the
+  backend interface with no `measure_text`; `markdown.md` loses its limit; the
+  example code of eleven more documents passes `FontFileMeasure()`.
+  `layout-rules.md` names no text height, and `testing-guide.md` names no
+  removed test.
 
 ## 7. Relations and risks
 
