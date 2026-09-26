@@ -9,7 +9,7 @@ SDL = ProjecturedSdl   # the SDL backend module (provides SdlWindowResources + _
 make_res() = SDL.SdlWindowResources(
     C_NULL, C_NULL, :test, UInt32(0), "t", 800, 600, 0, 0, :default,
     (0x00, 0x00, 0x00, 0xff), 1, 1.0, C_NULL, 0, 0, false,
-    Dict{UInt,NTuple{4,Int}}(), SDL._PaintedGeometry(), NTuple{4,Int}[])
+    Dict{UInt,NTuple{4,Int}}(), SDL._PaintedGeometry(), Vector{NTuple{4,Int}}[])
 
 @testset "detects an invalidated element and pads its bounds" begin
     # A canvas whose elements are produced by a computed thunk over `src`,
@@ -317,6 +317,37 @@ end
     leaf_y[] = 40
     @test SDL._compute_dirty_rect(res, top) == (0, 18, 52, 52)
     @test SDL._compute_dirty_rect(res, top) === nothing
+end
+
+@testset "two changes far apart are two rectangles, not the box that spans them" begin
+    # A paragraph at the top and a status line at the bottom change in one frame.
+    top_width = Cell(100)
+    bottom_width = Cell(100)
+    upper = GraphicsCanvas(CellVector(@computation [GraphicsRect(0, 0, top_width[], 18)]))
+    lower = GraphicsCanvas(CellVector(@computation [GraphicsRect(0, 0, bottom_width[], 18)]); y = 500)
+    top = GraphicsCanvas(CellVector(Cell[Cell(upper), Cell(lower)]), layout_none)
+    res = make_res()
+    SDL._compute_dirty_rect(res, top)
+    @test isempty(SDL._compute_dirty_region(res, top))
+    top_width[] = 60
+    bottom_width[] = 80
+    @test sort(SDL._compute_dirty_region(res, top)) == [(0, 0, 102, 20), (0, 498, 102, 520)]
+end
+
+@testset "a rectangle that another covers is dropped" begin
+    # The caret moves inside the line that changes: the line's box holds both
+    # places of the caret, so the region is that one box.
+    width = Cell(300)
+    line = GraphicsCanvas(CellVector(@computation [GraphicsRect(0, 0, width[], 18)]); y = 20)
+    caret = GraphicsRect(10, 20, 2, 18)
+    caret_x = Cell(10)
+    set_cell_computation!(getfield(caret, :x), () -> Int32(caret_x[]))
+    top = GraphicsCanvas(CellVector(Cell[Cell(line), Cell(caret)]), layout_none)
+    res = make_res()
+    SDL._compute_dirty_rect(res, top)
+    width[] = 200
+    caret_x[] = 150
+    @test SDL._compute_dirty_region(res, top) == [(0, 18, 302, 40)]
 end
 
 @testset "a scaled viewport repaints its box when its content moves" begin

@@ -128,12 +128,12 @@ mutable struct SdlWindowResources
     dirty_bounds::Dict{UInt,NTuple{4,Int}}  # last-rendered absolute logical bounds, keyed by
                                             # the placement of each graphic (for old∪new)
     painted::_PaintedGeometry  # the place and the geometry each graphic was painted with
-    # Recent frames' logical dirty rects (x0,y0,x1,y1), most-recent first. The
-    # target→window copy each frame refreshes the union of the last `buffer age`
-    # of these: the back-buffer we draw into was last presented `age` frames ago
+    # Recent frames' logical dirty rects (x0,y0,x1,y1), one set for each frame,
+    # most-recent first. The target→window copy each frame refreshes the rects of
+    # the last `buffer age` frames: the back-buffer we draw into was last presented `age` frames ago
     # (queried via EGL/GLX buffer age), so everything that changed since then
     # must be re-copied or the older edits ghost on the alternate buffer(s).
-    damage_history::Vector{NTuple{4,Int}}
+    damage_history::Vector{Vector{NTuple{4,Int}}}
 end
 
 """
@@ -259,7 +259,7 @@ const _TEXT_TEXTURE_CACHE_CAP = 16384
 # vars, and `_render_window!` reads them from the backend of the window.
 
 # How many recent frames' damage rects to retain for the partial target→window
-# copy. The copy refreshes the union of the last `buffer age` of them; deeper
+# copy. The copy refreshes the rects of the last `buffer age` of them; deeper
 # swap chains than this fall back to a full copy. 8 is far beyond any real swap
 # chain (double/triple buffering ⇒ age 2/3).
 const _DAMAGE_HISTORY_CAP = 8
@@ -541,7 +541,7 @@ function _open_native_window!(backend::SdlBackend, w::WindowDocument; hidden::Bo
     SdlWindowResources(win, renderer, w.id, sdl_id, w.title,
                        Int(w.width), Int(w.height), Int(w.x), Int(w.y),
                        w.style, w.bg, _window_supersample(), ratio, C_NULL, 0, 0,
-                       true, Dict{UInt,NTuple{4,Int}}(), _PaintedGeometry(), NTuple{4,Int}[])
+                       true, Dict{UInt,NTuple{4,Int}}(), _PaintedGeometry(), Vector{NTuple{4,Int}}[])
 end
 
 # ── Vsync, where it works ──────────────────────────────────────────────
@@ -1804,8 +1804,8 @@ end
 # ── Dirty-rectangle analysis ─────────────────────────────────────────────
 #
 # Walk the canvas tree (mirroring `_render_canvas!`'s offset accumulation and
-# extents) and return the smallest absolute logical rectangle covering every
-# graphic that changed, or `nothing` if nothing changed. A graphic changes in one
+# extents) and return the set of absolute logical rectangles that covers every
+# graphic that changed, empty if nothing changed (`_DirtyRegion`). A graphic changes in one
 # of three ways, and the walk finds each in its own way.
 #
 # Its content changed. Detection keys on the reactive `valid` flag of the
@@ -1827,9 +1827,9 @@ end
 # to the screen and is painted. A graphic that was painted and now lies past the
 # layout early-stop is not drawn, and its old place is cleared.
 #
-# For each dirty unit we union its *new* bounds with its *previous* rendered
-# bounds (cached in `res.dirty_bounds`) so content that moved, shrank or was
-# removed still clears its vacated pixels. A unit is painted whole, so the walk
+# For each dirty unit the region gets its *new* bounds and its *previous*
+# rendered bounds (cached in `res.dirty_bounds`) so content that moved, shrank or
+# was removed still clears its vacated pixels. A unit is painted whole, so the walk
 # also records the bounds and the place of everything inside it that the render
 # reaches (`_record_painted_element!`): the first change inside it then knows
 # what it covered and where it was.
@@ -1856,7 +1856,25 @@ _acc_tuple_or_nothing(a::_DirtyAcc) = _acc_empty(a) ? nothing : _acc_tuple(a)
 # and its corner must not stretch a rectangle.
 _is_empty_box(b::NTuple{4,Int}) = !(b[3] > b[1] && b[4] > b[2])
 
-_acc_extend_box!(a::_DirtyAcc, b::NTuple{4,Int}) = _is_empty_box(b) ? nothing : _acc_extend!(a, b)
+# The dirty region of a frame: a set of rectangles, each painted on its own. A
+# rectangle that another one covers completely is dropped; rectangles that only
+# overlap are both kept, so two small changes far apart repaint two small boxes
+# and not the box that spans both.
+struct _DirtyRegion
+    rects::Vector{NTuple{4,Int}}
+end
+_DirtyRegion() = _DirtyRegion(NTuple{4,Int}[])
+
+_is_rect_covered(inner::NTuple{4,Int}, outer::NTuple{4,Int}) =
+    outer[1] <= inner[1] && outer[2] <= inner[2] && outer[3] >= inner[3] && outer[4] >= inner[4]
+
+function _add_dirty_rect!(region::_DirtyRegion, r::NTuple{4,Int})
+    _is_empty_box(r) && return nothing
+    any(q -> _is_rect_covered(r, q), region.rects) && return nothing
+    filter!(q -> !_is_rect_covered(q, r), region.rects)
+    push!(region.rects, r)
+    nothing
+end
 
 # True if any of `elem`'s own visual field cells is stale. `:selection` is the
 # reader's reference (not rendered) and `:prev`/`:next` are the list spine
@@ -2049,26 +2067,26 @@ _is_painted(res::SdlWindowResources, key::UInt) = haskey(res.painted.origins, ke
 # Clear the place of a graphic that was painted and that the render no longer
 # reaches, and forget it. False when it was not painted: the render did not reach
 # it before either, so what follows it was not painted.
-function _clear_left_view!(res::SdlWindowResources, acc::_DirtyAcc, key::UInt)::Bool
+function _clear_left_view!(res::SdlWindowResources, region::_DirtyRegion, key::UInt)::Bool
     _is_painted(res, key) || return false
     old = get(res.dirty_bounds, key, nothing)
-    old === nothing || _acc_extend!(acc, old)
+    old === nothing || _add_dirty_rect!(region, old)
     delete!(res.dirty_bounds, key)
     delete!(res.painted.origins, key)
     delete!(res.painted.viewports, key)
     true
 end
 
-# Union a dirty unit's previous (cached) and new bounds into `acc`. `record`
+# Add a dirty unit's previous (cached) and new bounds to `region`. `record`
 # computes the new bounds and records them, with everything inside the unit, as
 # next frame's "previous"; the old bounds are read before it runs. The new bounds
 # are `nothing` when the unit now renders nothing (content removed) — its cached
 # old extent is still cleared. True when the new bounds differ from the old.
-function _union_unit!(res::SdlWindowResources, acc::_DirtyAcc, key::UInt, record::Function)::Bool
+function _union_unit!(res::SdlWindowResources, region::_DirtyRegion, key::UInt, record::Function)::Bool
     old = get(res.dirty_bounds, key, nothing)
     new = record()
-    old === nothing || _acc_extend!(acc, old)
-    new === nothing || _acc_extend!(acc, new)
+    old === nothing || _add_dirty_rect!(region, old)
+    new === nothing || _add_dirty_rect!(region, new)
     old != new
 end
 
@@ -2108,9 +2126,9 @@ _is_leaf_graphic(elem) = !(elem isa GraphicsCanvas || elem isa GraphicsViewport)
 # dirty walk reads precisely the cells the renderer reads — in particular it
 # honours the same layout early-stop, so off-screen `ListNode` tail cells (which
 # the renderer leaves lazily invalid) are not misread as "dirty" every frame.
-# Accumulates into `acc`.
+# Adds to `region`.
 function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt,
-                                ox::Int, oy::Int, edges::_ClipEdges, acc::_DirtyAcc)::Bool
+                                ox::Int, oy::Int, edges::_ClipEdges, region::_DirtyRegion)::Bool
     elements_cell = getfield(canvas, :elements)
     # A canvas's painted content depends only on its elements and on the place it
     # is painted at — not on w/h/layout (those are metadata for parents/scroll that
@@ -2129,7 +2147,7 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
         # A list has no bounds of its own to repaint: a list that moved, or that
         # was never painted, reflows as a changed spine does.
         res.painted.origins[key] = (ox, oy)
-        return _collect_listnode_dirty!(res, ev, key, ox, oy, edges, layout, early, acc;
+        return _collect_listnode_dirty!(res, ev, key, ox, oy, edges, layout, early, region;
                                         reflow = unit)
     end
     if !unit
@@ -2139,14 +2157,14 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
         if start !== nothing
             first, dirty_leaves = start
             stale_slot, changed = _collect_elements_dirty!(res, ev, key, first, dirty_leaves,
-                                                           ox, oy, edges, layout, early, acc)
+                                                           ox, oy, edges, layout, early, region)
             if !stale_slot
                 return changed && _refresh_canvas_bounds!(res, ev, key, first, ox, oy, edges,
                                                           layout, early)
             end
         end
     end
-    _union_unit!(res, acc, key, () -> _record_painted_canvas!(res, canvas, key, ox, oy, edges))
+    _union_unit!(res, region, key, () -> _record_painted_canvas!(res, canvas, key, ox, oy, edges))
 end
 
 # The index of the first element that the render draws, found by the same search
@@ -2184,7 +2202,7 @@ end
 # cleared; the first that was not painted ends the list.
 function _collect_elements_dirty!(res::SdlWindowResources, ev, key::UInt, first::Int,
                                   dirty_leaves::Vector{Int}, ox::Int, oy::Int, edges::_ClipEdges,
-                                  layout::LayoutDirection, early::Bool, acc::_DirtyAcc)
+                                  layout::LayoutDirection, early::Bool, region::_DirtyRegion)
     slots = ev isa CellVector ? getfield(ev, :elements)[] : ev
     past = false
     changed = false
@@ -2201,10 +2219,10 @@ function _collect_elements_dirty!(res::SdlWindowResources, ev, key::UInt, first:
         leaf_dirty = _is_leaf_graphic(elem) && (i in dirty_leaves || _node_dirty(elem))
         past = past || _is_past_early_stop(elem, ox, oy, edges, layout, early)
         if past
-            _clear_left_view!(res, acc, elem_key) || break
+            _clear_left_view!(res, region, elem_key) || break
             changed = true
         else
-            changed |= _collect_dirty_elem!(res, elem, elem_key, ox, oy, edges, acc, leaf_dirty)
+            changed |= _collect_dirty_elem!(res, elem, elem_key, ox, oy, edges, region, leaf_dirty)
         end
     end
     (false, changed)
@@ -2230,14 +2248,14 @@ end
 # One element at the content origin `(ox, oy)`. `leaf_dirty` is whether a leaf's
 # own cells were stale, tested by the caller before any read of its place.
 function _collect_dirty_elem!(res::SdlWindowResources, elem, key::UInt, ox::Int, oy::Int,
-                              edges::_ClipEdges, acc::_DirtyAcc, leaf_dirty::Bool)::Bool
+                              edges::_ClipEdges, region::_DirtyRegion, leaf_dirty::Bool)::Bool
     elem isa GraphicsFence && return false
     elem isa GraphicsCanvas &&
-        return _collect_canvas_dirty!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges, acc)
-    elem isa GraphicsViewport && return _collect_viewport_dirty!(res, elem, key, ox, oy, acc)
+        return _collect_canvas_dirty!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges, region)
+    elem isa GraphicsViewport && return _collect_viewport_dirty!(res, elem, key, ox, oy, region)
     # A leaf new to the screen, or one with an in-place-mutated (stale) field cell.
     (leaf_dirty || !_is_painted(res, key)) || return false
-    _union_unit!(res, acc, key, () -> _record_painted_element!(res, elem, key, ox, oy, edges))
+    _union_unit!(res, region, key, () -> _record_painted_element!(res, elem, key, ox, oy, edges))
 end
 
 # A viewport clips its content, so its dirty contribution is clamped to its own
@@ -2245,32 +2263,32 @@ end
 # transform, its old and its new box are dirty. Its bounds are its box, so only
 # such a change changes them.
 function _collect_viewport_dirty!(res::SdlWindowResources, vp::GraphicsViewport, key::UInt,
-                                  ox::Int, oy::Int, acc::_DirtyAcc)::Bool
+                                  ox::Int, oy::Int, region::_DirtyRegion)::Bool
     box, content, transform = _get_viewport_geometry(vp, ox, oy)
     painted = get(res.painted.viewports, key, nothing)
     if painted != (box, objectid(content), transform)
-        painted === nothing || _acc_extend_box!(acc, painted[1])
-        _acc_extend_box!(acc, box)
+        painted === nothing || _add_dirty_rect!(region, painted[1])
+        _add_dirty_rect!(region, box)
         old = get(res.dirty_bounds, key, nothing)
         return old != _record_painted_viewport!(res, vp, key, ox, oy)
     end
     cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
-    tmp = _DirtyAcc()
-    _collect_canvas_dirty!(res, content, _make_placement_key(content, key), cox, coy, cedges, tmp)
-    _acc_empty(tmp) && return false
+    inner = _DirtyRegion()
+    _collect_canvas_dirty!(res, content, _make_placement_key(content, key), cox, coy, cedges, inner)
+    isempty(inner.rects) && return false
     # Under a scale the content's dirty region is in scaled content units; rather
     # than map every sub-rect through the transform, treat any dirty content as
     # dirtying the whole (clipped) viewport box. Correct, and zoom/pan repaints
     # the whole pane anyway.
     if !_is_plain_viewport_transform(transform)
-        _acc_extend_box!(acc, box)
+        _add_dirty_rect!(region, box)
         return false
     end
-    # Intersect the content's dirty region with the viewport box.
+    # Intersect each rectangle of the content's dirty region with the viewport box.
     vx, vy, vx1, vy1 = box
-    ix0 = max(tmp.minx, vx); iy0 = max(tmp.miny, vy)
-    ix1 = min(tmp.maxx, vx1); iy1 = min(tmp.maxy, vy1)
-    (ix1 > ix0 && iy1 > iy0) && _acc_extend!(acc, (ix0, iy0, ix1, iy1))
+    for r in inner.rects
+        _add_dirty_rect!(region, (max(r[1], vx), max(r[2], vy), min(r[3], vx1), min(r[4], vy1)))
+    end
     false
 end
 
@@ -2306,11 +2324,11 @@ end
 # that the render no longer reaches. A fence was never painted and is passed. A
 # link that is not up to date was not read by the render, so nothing past it was
 # drawn. True when a node was cleared.
-function _clear_left_view_nodes!(res::SdlWindowResources, acc::_DirtyAcc, node, list::UInt,
+function _clear_left_view_nodes!(res::SdlWindowResources, region::_DirtyRegion, node, list::UInt,
                                  link::Symbol)::Bool
     cleared = false
     while node !== nothing
-        if _clear_left_view!(res, acc, _make_placement_key(node, list))
+        if _clear_left_view!(res, region, _make_placement_key(node, list))
             cleared = true
         elseif !(getfield(node, :value)[] isa GraphicsFence)
             break
@@ -2334,7 +2352,7 @@ end
 # True when the bounds of the list changed.
 function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::UInt,
                                   ox::Int, oy::Int, edges::_ClipEdges,
-                                  layout::LayoutDirection, early::Bool, acc::_DirtyAcc;
+                                  layout::LayoutDirection, early::Bool, region::_DirtyRegion;
                                   reflow::Bool = false)::Bool
     # (node, its key, its value, whether the value or a leaf value's cells are stale)
     visited = Tuple{ListNode,UInt,Any,Bool}[]
@@ -2384,8 +2402,8 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
         node = nc[]
     end
 
-    _clear_left_view_nodes!(res, acc, above, key, :prev)
-    _clear_left_view_nodes!(res, acc, below, key, :next)
+    _clear_left_view_nodes!(res, region, above, key, :prev)
+    _clear_left_view_nodes!(res, region, below, key, :next)
 
     if spine_dirty
         wb = _DirtyAcc()
@@ -2399,16 +2417,16 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
             # Reflow runs to the viewport bottom (vertical) / right (horizontal).
             bottom = layout == layout_horizontal ? wb.maxy : max(wb.maxy, edges.bottom)
             right  = layout == layout_horizontal ? max(wb.maxx, edges.right) : wb.maxx
-            _acc_extend!(acc, (wb.minx, wb.miny, right, bottom))
+            _add_dirty_rect!(region, (wb.minx, wb.miny, right, bottom))
         end
     else
         for (n, nkey, val, stale) in visited
             if stale || !_is_painted(res, nkey)
-                _union_unit!(res, acc, nkey, () -> _record_painted_node!(res, n, val, key, ox, oy, edges))
+                _union_unit!(res, region, nkey, () -> _record_painted_node!(res, n, val, key, ox, oy, edges))
             else
                 value_key = _make_placement_key(val, nkey)
                 # The bounds of the value changed inside it: the node's record follows.
-                _collect_dirty_elem!(res, val, value_key, ox, oy, edges, acc, false) &&
+                _collect_dirty_elem!(res, val, value_key, ox, oy, edges, region, false) &&
                     _record_bounds!(res, nkey, get(res.dirty_bounds, value_key, nothing))
             end
         end
@@ -2430,17 +2448,26 @@ end
 # or `nothing` when nothing changed. Recording what was painted is a side effect,
 # so this is also called (its rect ignored) on the first full paint to seed each
 # unit's previous bounds and each graphic's place.
-function _compute_dirty_rect(res::SdlWindowResources, canvas::GraphicsCanvas)
-    acc = _DirtyAcc()
+function _compute_dirty_region(res::SdlWindowResources, canvas::GraphicsCanvas)
+    region = _DirtyRegion()
     _collect_canvas_dirty!(res, canvas, _make_placement_key(canvas, UInt(0)),
-                           0, 0, _ClipEdges(0, 0, res.width, res.height), acc)
-    _acc_empty(acc) && return nothing
+                           0, 0, _ClipEdges(0, 0, res.width, res.height), region)
     pad = 2
-    x0 = clamp(acc.minx - pad, 0, res.width)
-    y0 = clamp(acc.miny - pad, 0, res.height)
-    x1 = clamp(acc.maxx + pad, 0, res.width)
-    y1 = clamp(acc.maxy + pad, 0, res.height)
-    (x1 <= x0 || y1 <= y0) ? nothing : (x0, y0, x1, y1)
+    padded = _DirtyRegion()
+    for r in region.rects
+        _add_dirty_rect!(padded, (clamp(r[1] - pad, 0, res.width), clamp(r[2] - pad, 0, res.height),
+                                  clamp(r[3] + pad, 0, res.width), clamp(r[4] + pad, 0, res.height)))
+    end
+    padded.rects
+end
+
+# The smallest rectangle that covers the dirty region, or `nothing` when nothing
+# changed: the size of a frame's repaint in one number, for a log or a test.
+function _compute_dirty_rect(res::SdlWindowResources, canvas::GraphicsCanvas)
+    rects = _compute_dirty_region(res, canvas)
+    isempty(rects) && return nothing
+    (minimum(r[1] for r in rects), minimum(r[2] for r in rects),
+     maximum(r[3] for r in rects), maximum(r[4] for r in rects))
 end
 
 # ── Swap-chain buffer age ──────────────────────────────────────────────────
@@ -2503,14 +2530,56 @@ function _back_buffer_age()::Int
     return 0
 end
 
+# ── Painting a dirty region ──────────────────────────────────────────────
+
+# Each rectangle of a region is painted with its own clip, so each one costs a
+# walk of the whole canvas. Past this many, the region is painted as the one
+# rectangle that covers it.
+const _DIRTY_RECT_LIMIT = 8
+
+function _limit_dirty_rects(rects::Vector{NTuple{4,Int}})
+    length(rects) <= _DIRTY_RECT_LIMIT && return rects
+    [(minimum(r[1] for r in rects), minimum(r[2] for r in rects),
+      maximum(r[3] for r in rects), maximum(r[4] for r in rects))]
+end
+
+_to_sdl_rect(r::NTuple{4,Int}) = SDL_Rect(Int32(r[1]), Int32(r[2]), Int32(r[3] - r[1]), Int32(r[4] - r[2]))
+
+# Repaint the `rects` of `canvas` into the current target of `renderer`, each
+# under its own clip. Not SDL_RenderClear: it ignores the clip rect and would
+# wipe the retained pixels outside the dirty region, so the background of each
+# rect is filled by hand.
+function _paint_dirty_rects!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas,
+                             rects::Vector{NTuple{4,Int}}, bg::NTuple{4,UInt8},
+                             width::Int, height::Int, ratio::Float64)
+    for r in rects
+        clip = Ref(_to_sdl_rect(r))
+        SDL_RenderSetClipRect(renderer, clip)
+        SDL_SetRenderDrawColor(renderer, bg[1], bg[2], bg[3], bg[4])
+        SDL_RenderFillRect(renderer, clip)
+        _render_canvas!(renderer, canvas, 0, 0, _ClipEdges(0, 0, width, height), ratio)
+    end
+    SDL_RenderSetClipRect(renderer, C_NULL)
+    nothing
+end
+
+# Outline each rect in red, `thickness` logical pixels wide, inside the rect.
+function _outline_dirty_rects!(renderer::Ptr{SDL_Renderer}, rects, thickness::Int)
+    SDL_SetRenderDrawColor(renderer, 0xff, 0x00, 0x00, 0xff)
+    for r in rects, i in 0:(thickness - 1)
+        SDL_RenderDrawRect(renderer, Ref(_to_sdl_rect((r[1] + i, r[2] + i, r[3] - i, r[4] - i))))
+    end
+    nothing
+end
+
 # ── Per-window paint ──────────────────────────────────────────────────────
 
 # Repaint `canvas` into the window, restricting the work to the invalidated
 # region when partial rendering is enabled. Everything is rendered into the
 # retained `res.target` texture (which keeps its pixels across frames); only the
-# dirty sub-rectangle of that texture is re-rendered, then the damaged region
-# (this frame's dirty rect unioned with the last `buffer age` frames' — see
-# `damage_history` / `_back_buffer_age`) is copied to the window and presented.
+# dirty rects of that texture are re-rendered, then the damaged rects (this
+# frame's and those of the last `buffer age` frames — see `damage_history` /
+# `_back_buffer_age`) are copied to the window and presented.
 # Copying only the damage instead of the whole target keeps the scaled blit
 # proportional to the edit.
 function _render_window!(backend::SdlBackend, res::SdlWindowResources,
@@ -2533,15 +2602,15 @@ function _render_window!(backend::SdlBackend, res::SdlWindowResources,
         return
     end
 
-    # Decide the region to repaint.
+    # Decide the rectangles to repaint.
     if !partial
-        dirty = (0, 0, res.width, res.height)
+        rects = [(0, 0, res.width, res.height)]
     else
         # Always walk: this seeds `res.dirty_bounds` with each unit's current
         # extent so the *next* edit can clear vacated pixels (old∪new). On the
         # first paint the whole window must be cleared (the target is undefined
         # and margins outside the content have no element to mark them dirty),
-        # so the computed rect is widened to the full window — but the walk's
+        # so the region is widened to the full window — but the walk's
         # cache-seeding side effect is kept.
         #
         # The records of graphics that are gone collect until they are forgotten,
@@ -2550,42 +2619,32 @@ function _render_window!(backend::SdlBackend, res::SdlWindowResources,
             _forget_painted_geometry!(res)
             res.first_paint = true
         end
-        computed = _compute_dirty_rect(res, canvas)
+        computed = _compute_dirty_region(res, canvas)
         # A walk with no records paints the whole window as one unit, so it
         # records everything that is there: the count to measure growth against.
         res.painted.baseline == 0 && (res.painted.baseline = _count_painted_records(res))
         if res.first_paint
-            dirty = (0, 0, res.width, res.height)
+            rects = [(0, 0, res.width, res.height)]
         else
-            computed === nothing && return   # nothing invalidated — skip paint/present
-            dirty = computed
+            isempty(computed) && return   # nothing invalidated — skip paint/present
+            rects = _limit_dirty_rects(computed)
         end
     end
     res.first_paint = false
 
     rss = Float32(res.ss) * scale
-    dx, dy = dirty[1], dirty[2]
-    dw, dh = dirty[3] - dirty[1], dirty[4] - dirty[2]
-    clip = Ref(SDL_Rect(Int32(dx), Int32(dy), Int32(dw), Int32(dh)))
-
     SDL_SetRenderTarget(renderer, res.target)
     SDL_RenderSetScale(renderer, rss, rss)
-    SDL_RenderSetClipRect(renderer, clip)
-    # Not SDL_RenderClear: it ignores the clip rect and would wipe the retained
-    # pixels outside the dirty region. Repaint the dirty background by hand.
-    SDL_SetRenderDrawColor(renderer, bg[1], bg[2], bg[3], bg[4])
-    SDL_RenderFillRect(renderer, clip)
-    _render_canvas!(renderer, canvas, 0, 0, _ClipEdges(0, 0, res.width, res.height), res.ratio)
-    SDL_RenderSetClipRect(renderer, C_NULL)
+    _paint_dirty_rects!(renderer, canvas, rects, bg, res.width, res.height, res.ratio)
     SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
     SDL_SetRenderTarget(renderer, C_NULL)
 
-    # Copy only the damaged region from the retained target to the window
+    # Copy only the damaged rects from the retained target to the window
     # back-buffer, rather than the whole (supersampled) target, so the scaled
     # blit tracks the edit instead of the window. The back-buffer we just rendered
     # into was last presented `age` frames ago (EGL/GLX buffer age, queried now
     # that the window framebuffer is current), so to bring it current we re-copy
-    # every frame's damage since then — the union of the last `age` dirty rects.
+    # every frame's damage since then — the rects of the last `age` frames.
     # Age 0 means undefined contents; an unsupported extension, age 0, or too
     # little history all fall back to a full copy. This is correct for any
     # swap-chain depth (no fixed double-buffer assumption).
@@ -2598,29 +2657,30 @@ function _render_window!(backend::SdlBackend, res::SdlWindowResources,
         # trail. The current frame's dirty region is still shown by its outline.
         SDL_RenderCopy(renderer, res.target, C_NULL, C_NULL)
     else
-        cx0, cy0, cx1, cy1 = dirty
-        for i in 1:(age - 1)
-            r = res.damage_history[i]
-            cx0 = min(cx0, r[1]); cy0 = min(cy0, r[2]); cx1 = max(cx1, r[3]); cy1 = max(cy1, r[4])
+        damage = _DirtyRegion()
+        foreach(r -> _add_dirty_rect!(damage, r), rects)
+        for i in 1:(age - 1), r in res.damage_history[i]
+            _add_dirty_rect!(damage, r)
         end
-        src = Ref(SDL_Rect(round(Int32, cx0 * rss),   round(Int32, cy0 * rss),
-                           round(Int32, (cx1 - cx0) * rss), round(Int32, (cy1 - cy0) * rss)))
-        dst = Ref(SDL_Rect(round(Int32, cx0 * scale), round(Int32, cy0 * scale),
-                           round(Int32, (cx1 - cx0) * scale), round(Int32, (cy1 - cy0) * scale)))
-        SDL_RenderCopy(renderer, res.target, src, dst)
+        for r in damage.rects
+            src = Ref(SDL_Rect(round(Int32, r[1] * rss), round(Int32, r[2] * rss),
+                               round(Int32, (r[3] - r[1]) * rss), round(Int32, (r[4] - r[2]) * rss)))
+            dst = Ref(SDL_Rect(round(Int32, r[1] * scale), round(Int32, r[2] * scale),
+                               round(Int32, (r[3] - r[1]) * scale), round(Int32, (r[4] - r[2]) * scale)))
+            SDL_RenderCopy(renderer, res.target, src, dst)
+        end
     end
-    # Record this frame's content damage (most-recent first) for future unions.
-    pushfirst!(res.damage_history, dirty)
+    # Record this frame's content damage (most-recent first) for future copies.
+    pushfirst!(res.damage_history, rects)
     length(res.damage_history) > _DAMAGE_HISTORY_CAP && resize!(res.damage_history, _DAMAGE_HISTORY_CAP)
 
     if debug
-        # Outline this frame's repainted region on the window. The box is drawn
-        # straight onto the back-buffer (not into `res.target`), so it would ghost
-        # across frames; the forced full copy above repaints over the previous
-        # frame's outline, leaving only the current one visible.
+        # Outline this frame's repainted rects on the window. The boxes are drawn
+        # straight onto the back-buffer (not into `res.target`), so they would
+        # ghost across frames; the forced full copy above repaints over the
+        # previous frame's outlines, leaving only the current ones visible.
         SDL_RenderSetScale(renderer, scale, scale)
-        SDL_SetRenderDrawColor(renderer, 0xff, 0x00, 0x00, 0xff)
-        SDL_RenderDrawRect(renderer, clip)
+        _outline_dirty_rects!(renderer, rects, 1)
         SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
     end
     SDL_RenderPresent(renderer)
@@ -2983,6 +3043,76 @@ function _emit_frames!(off, canvas::GraphicsCanvas, width::Integer, height::Inte
         end
     finally
         out_surface !== off.surface && SDL_FreeSurface(out_surface)
+    end
+    nothing
+end
+
+
+# What a partial paint into an offscreen renderer keeps from frame to frame: the
+# records of the dirty walk, in a resource record with no window, and the rects
+# of the last frame that repainted something. The outline of those rects stays
+# on each frame until the next repaint, as a window keeps its last picture.
+mutable struct _OffscreenPaintState
+    res::SdlWindowResources
+    last_rects::Vector{NTuple{4,Int}}
+end
+
+function _make_offscreen_paint_state(off, width::Integer, height::Integer)
+    res = SdlWindowResources(C_NULL, off.renderer, :offscreen, UInt32(0), "",
+                             Int(width), Int(height), 0, 0, :default, (0x00, 0x00, 0x00, 0xff),
+                             off.S, off.sc, C_NULL, 0, 0, true,
+                             Dict{UInt,NTuple{4,Int}}(), _PaintedGeometry(), Vector{NTuple{4,Int}}[])
+    _OffscreenPaintState(res, NTuple{4,Int}[])
+end
+
+# Render `canvas` into `off` as a window with `partial_render` does: the surface
+# keeps its pixels, and only the rects the dirty walk finds are painted again.
+# The first frame paints everything. Answers the rects painted, empty when
+# nothing changed.
+function _render_canvas_offscreen_partial!(off, state::_OffscreenPaintState, canvas::GraphicsCanvas,
+                                           background::NTuple{4,UInt8})
+    res = state.res
+    if _is_painted_geometry_full(res)
+        _forget_painted_geometry!(res)
+        res.first_paint = true
+    end
+    computed = _compute_dirty_region(res, canvas)
+    res.painted.baseline == 0 && (res.painted.baseline = _count_painted_records(res))
+    rects = res.first_paint ? [(0, 0, res.width, res.height)] : _limit_dirty_rects(computed)
+    res.first_paint = false
+    isempty(rects) && return rects
+    _paint_dirty_rects!(off.renderer, canvas, rects, background, res.width, res.height, off.sc)
+    state.last_rects = rects
+    rects
+end
+
+# Write the picture of `off` as the next frame, with `overlay` drawn over it and
+# the red outline of `outline` around it. Both go on a copy of the picture and
+# never into `off`, so a partial paint finds the surface as it left it.
+function _emit_frame_with_overlay!(off, width::Integer, height::Integer, overlay,
+                                   outline::Vector{NTuple{4,Int}}, tmpdir::AbstractString,
+                                   frame::Ref{Int})
+    out = off.S > 1 ? _downsample_surface(off.surface, off.out_w, off.out_h, off.S) :
+                      SDL_DuplicateSurface(off.surface)
+    try
+        if overlay !== nothing || !isempty(outline)
+            renderer = SDL_CreateSoftwareRenderer(out)
+            SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
+            SDL_RenderSetScale(renderer, Float32(off.sc), Float32(off.sc))
+            overlay === nothing || _render_canvas!(renderer, overlay, 0, 0, Int(width), Int(height), off.sc)
+            # Two pixels: a video halves the resolution of its colours, and a
+            # line of one pixel fades to a trace.
+            _outline_dirty_rects!(renderer, outline, 2)
+            SDL_RenderFlush(renderer)
+            _evict_renderer_textures!(renderer)
+            SDL_DestroyRenderer(renderer)
+        end
+        frame[] += 1
+        fn = joinpath(tmpdir, "frame_$(lpad(frame[], 6, '0')).png")
+        IMG_SavePNG(out, fn) == 0 ||
+            error("_emit_frame_with_overlay!: IMG_SavePNG failed for $fn: $(unsafe_string(SDL_GetError()))")
+    finally
+        SDL_FreeSurface(out)
     end
     nothing
 end
