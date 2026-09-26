@@ -398,8 +398,21 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       its fully typed reference; their docstrings and `pane/pane.md` say so, and
       `ApplicationTest.jl` reads the reference with `get_reference`.
       `test_referenced_document_editor()`, `test_application()`,
-      `test_pane_surgery()` and `test_documentation()` pass (505). To do: the
-      texts in omnet-julia. Measured before the change: in this repository
+      `test_pane_surgery()` and `test_documentation()` pass (505).
+      omnet-julia, branch `referenced-document` in the worktree
+      `omnet-julia-referenced-document`: the system texts of `IdeWindow.jl` and
+      `CampaignWindow.jl` say that `open_pane!` answers the tab (5d0ad513), and
+      `test/campaign/PaneProgramTest.jl` gives `evaluate_reference` the
+      `get_reference` of what `duplicate_pane!` answers (the first search missed
+      it; `evaluate_reference` takes only a `Reference`). Run in scratch
+      environments against this branch and against both `main` checkouts, the
+      same counts: `test_pane_program` 47, `test_result_verbs` 63,
+      `test_ide_file_navigator` 8, `test_select_and_paste` 86,
+      `test_assistant_session_by_hand` 24, `test_assistant_problem_table` 16,
+      `test_assistant_turn_misses` 8. The environments are under
+      `/var/tmp/referenced/omnet-check/`; `OmnetIdeTest` and
+      `OmnetCampaignUiTest` are packages of their own, not in `environment/all`.
+      Measured before the change: in this repository
       `ApplicationTest.jl:466` gives the answer to `strip_reference_types` and
       becomes `get_reference(opened)`; in omnet-julia every use of the answer
       goes to `get_referenced_value`, which takes a referenced document, so its
