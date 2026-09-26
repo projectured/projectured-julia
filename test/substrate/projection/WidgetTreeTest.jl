@@ -7,7 +7,7 @@
 # selection, so they are coordinate-space-agnostic. Here we drive the WidgetTree
 # projection directly with a deterministic text measure so row geometry is exact.
 
-using ProjecturedKernel.CellModule: Cell, Computation
+using ProjecturedKernel.CellModule: Cell, Computation, is_cell_up_to_date
 
 function test_widget_tree()
 @testset "WidgetTree hover + collapse" begin
@@ -134,6 +134,33 @@ end
     getfield(w, :hovered)[] = _readop(io, MouseEnter(2, io.geometry.rows[1].y0 + 2, MouseButtons(), _mods; time = 0.0)).value
     @test any(Int(r.h[]) == 24 for r in _bands(io, 1))
     @test all(Int(r.h[]) == 0 for r in _bands(io, 2))   # the next row stays dark
+end
+
+@testset "a toggle keeps the canvas of each row that stays, and changes only its chevron" begin
+    w = WidgetTree(Any[("src", Any["a.jl", "b.jl"]), ("doc", Any["c.md"]), "README"];
+                   expanded = Set{Vector{Int}}())
+    io = print_document(_treeproj, w)
+    right = string(WidgetModule.find_icon_character(:chevron_right))
+    down = string(WidgetModule.find_icon_character(:chevron_down))
+    chevron(row) = only(e for e in row.elements if e isa GraphicsText && e.text in (right, down))
+    before = collect(_rows_canvas(io).elements)
+    @test length(before) == 3
+    @test chevron(before[1]).text == right
+    doc_chevron = chevron(before[2])
+
+    getfield(w, :expanded)[] = Set([[1]])
+    # The content of a folder row that did not toggle is not computed again: only
+    # the glyph of its chevron reads the set of open folders.
+    @test is_cell_up_to_date(getfield(getfield(before[2], :elements)[], :elements))
+    @test !is_cell_up_to_date(getfield(doc_chevron, :text))
+    # The rows of the folder are new, the rows that stay keep their canvas, and
+    # the rows under the folder move down by its two rows.
+    after = collect(_rows_canvas(io).elements)
+    @test length(after) == 5
+    @test after[1] === before[1] && after[4] === before[2] && after[5] === before[3]
+    @test Int(after[4].y) == 3 * 24
+    @test chevron(after[1]).text == down
+    @test doc_chevron.text == right
 end
 
 @testset "the whole tree canvas is a hit target (nested routability)" begin

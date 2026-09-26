@@ -6679,6 +6679,17 @@ function _push_chevron!(elems::Vector, cx::Int, cy::Int, s::Int, dir::Symbol, co
     nothing
 end
 
+# A chevron at the same place, which points down while `is_open()` answers true
+# and right otherwise. Its glyph is a text cell of its own that calls `is_open`,
+# so a toggle changes the glyph and not the element list that holds it.
+function _push_open_chevron!(elems::Vector, cx::Int, cy::Int, s::Int, color::StyleColor,
+                             is_open::Function)
+    glyph() = string(find_icon_character(is_open() ? :chevron_down : :chevron_right))
+    push!(elems, GraphicsText(glyph, cx - 2s, cy - 2s;
+                              font = StyleFont(font_lucide_icons_20.filename, 4s), color))
+    nothing
+end
+
 # ── Icons ─────────────────────────────────────────────────────────────────────
 #
 # An icon is a *named* value, not a `GraphicsImage`. A registry maps each name to a
@@ -8938,18 +8949,34 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
         band
     end
 
+    # The top of the row of `path` in the open tree, or 0 once the path is not in it.
+    function get_row_top(path)
+        g = geometry[]
+        i = get(g.index, path, nothing)
+        i === nothing ? Int32(0) : Int32(g.rows[i].y0)
+    end
+
+    # The canvas of each row that was drawn, kept by the path of the row. A toggle
+    # computes the rows again, and a row that stays keeps its canvas: the top of
+    # the canvas reads where its path is now. So a partial repaint paints a row
+    # that moved at its old and its new place, and no row that kept its place.
+    kept_rows = Dict{Vector{Int},GraphicsCanvas}()
+    make_row(row::WTreeRow) = get!(() -> make_row_canvas(row), kept_rows, row.path)
+
     # One row: a canvas at the place of the row, whose content the renderer reads
     # only when it draws the row. The content reads the node, and whether the node
-    # has children, which for a folder is one read of its listing.
-    function make_row(row::WTreeRow)
+    # has children, which for a folder is one read of its listing. The chevron
+    # reads whether the row is open in a cell of its own, so a toggle changes the
+    # glyph of a chevron and not the content of a row.
+    function make_row_canvas(row::WTreeRow)
         content = CellVector(Computation(function ()
             node = _wtree_node_at(w, row.path)
             result = Any[make_band(row, p.layer_hovered_color, () -> w.hovered),
                          make_band(row, row_selected_color, () -> w.selection)]
             x = row.depth * indent
             if _wtree_has_children(node)
-                _push_chevron!(result, x + chevron_column ÷ 2, row_height ÷ 2, chevron_size,
-                               row.path in w.expanded ? :down : :right, chevron_color)
+                _push_open_chevron!(result, x + chevron_column ÷ 2, row_height ÷ 2, chevron_size,
+                                    chevron_color, () -> row.path in w.expanded)
             end
             icon = _tree_icon(node)
             if icon isa Symbol
@@ -8964,7 +8991,8 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                         x + chevron_column + column[], pad, label_style.color)
             result
         end))
-        GraphicsCanvas(Cell(Int32(0)), Cell(Int32(row.y0)), Cell(@computation Int32(width[])),
+        GraphicsCanvas(Cell(Int32(0)), Cell(@computation get_row_top(row.path)),
+                       Cell(@computation Int32(width[])),
                        Cell(Int32(row.height)), content, layout_none, true, Cell(nothing))
     end
 
