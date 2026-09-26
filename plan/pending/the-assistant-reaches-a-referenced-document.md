@@ -584,3 +584,19 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       become private (`find_pane` is built on `_find_pane_reference`), and their
       callers call `find_pane` and pass the referenced document, or call
       `get_reference`.
+- [ ] `get_referenced_value` moves to the editor layer (the owner, 2026-09-26:
+      "it's a generic function that evaluates a reference relative to the
+      editor, it has nothing to do with panes"). It came into
+      `source/pane/PaneProgram.jl` with the other verbs that read and write the
+      window as a program (bfd380a2, 2026-09-12). Its body is generic: the root
+      of the editor, the refusal of a reference that is not fully typed, the
+      evaluation, and an `ArgumentError` that names the path. Two parts belong
+      to the pane: it takes a `PaneTree` as a root too, and its error text names
+      "this window" and `show_layout`. In the editor layer it sits next to
+      `get_parent(editor, x)`; whether it keeps its name or becomes a method
+      `evaluate_reference(editor::Editor, reference)` is for the owner.
+      It answers the node, not a `ReferencedDocument`: it evaluates a reference,
+      which is below the referenced document, and a `get_` reads a value at a
+      known place, so D21 ("finds or makes a part") does not cover it.
+      `replace_referenced_value!` stays in the pane package: it checks a write
+      into a pane tree and restores the focus.
