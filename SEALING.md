@@ -85,6 +85,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `event/MouseEvent.jl`
   - ⬜ `event/WindowEvent.jl`
   - ⬜ `event/TimerEvent.jl`
+  - ⬜ `event/DisplayEvent.jl`
   - ⬜ `event/WindowInput.jl`
   - ⬜ `event/EventDefaults.jl`
   - ⬜ `event/EventPattern.jl`

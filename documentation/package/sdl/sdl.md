@@ -44,6 +44,8 @@ The offscreen renderer paints the same way for `VideoBackend(...; partial_render
 
 `partial_render` defaults to the environment variable `PROJECTURED_PARTIAL_RENDER`, and that defaults to off. So `SdlBackend()` repaints the whole window on each frame unless the variable is set.
 
+The walk runs in both modes, because it also tells whether a frame differs from the one before. A window that shows such a frame gets a `DisplayUpdate`: `write_to_devices` queues `WindowInput(id, DisplayUpdate(; time))` in `display_updates`, one for each window, `read_from_devices` answers the queued updates before it polls SDL, and `wait_for_input` does not block while one waits. A frame with no change queues nothing, so the loop can sleep. A full frame still repaints and presents the whole window, whatever the walk found: the full mode does not depend on the walk to draw right, only to report.
+
 ### Events in
 
 `read_from_devices` polls SDL and returns one `WindowInput`:

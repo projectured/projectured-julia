@@ -160,6 +160,10 @@ They live on the backend rather than at module level, so two backends in one
 process never hand each other an event or a delay. `partial_render` and
 `debug_dirty` are read for each window of this backend alone.
 
+`display_updates` holds a `DisplayUpdate` for each window that showed a frame
+which differs from the one before, until `read_from_devices` answers it. A window
+that shows two changed frames before a read has one update, with the later time.
+
 `display` is the `Display` that the backend draws on. Its device pixel ratio
 sizes the windows, rasterizes the text and converts the input coordinates. A new
 backend has a `Display()` of its own, and `initialize_backend!` gives it the
@@ -190,6 +194,9 @@ mutable struct SdlBackend <: Backend
     wake_event_type::UInt32
     # The display the windows are drawn on (see the docstring).
     display::Display
+    # The `DisplayUpdate` of each window that showed a changed frame since the
+    # last read, at most one for each window (see the docstring).
+    display_updates::Vector{WindowInput}
 end
 
 # `partial_render` / `debug_dirty` default to the PROJECTURED_PARTIAL_RENDER /
@@ -203,7 +210,7 @@ SdlBackend(; partial_render::Union{Bool,Nothing} = nothing,
                Dict{UInt32, Symbol}(),
                partial_render === nothing ? _envflag("PROJECTURED_PARTIAL_RENDER", false) : partial_render,
                debug_dirty    === nothing ? _envflag("PROJECTURED_DEBUG_DIRTY", false)    : debug_dirty,
-               nothing, nothing, 0.0, UInt32(0), Display())
+               nothing, nothing, 0.0, UInt32(0), Display(), WindowInput[])
 
 # Module-level TTF font cache, keyed by (filename, scaled_size).
 # Shared by window rendering, offscreen image rendering, and text measurement.
@@ -2650,16 +2657,38 @@ end
 
 # ── Per-window paint ──────────────────────────────────────────────────────
 
+# Walk `canvas` for what changed since the frame before, and answer the region
+# that covers it, empty when nothing changed. The walk seeds `res.dirty_bounds`
+# with each unit's current extent, so the *next* edit can clear vacated pixels
+# (old∪new). The records of graphics that are gone collect until they are
+# forgotten, and a full paint records again what is there.
+function _walk_window_change!(res::SdlWindowResources, canvas::GraphicsCanvas)
+    if _is_painted_geometry_full(res)
+        _forget_painted_geometry!(res)
+        res.first_paint = true
+    end
+    computed = _compute_dirty_region(res, canvas)
+    # A walk with no records paints the whole window as one unit, so it
+    # records everything that is there: the count to measure growth against.
+    res.painted.baseline == 0 && (res.painted.baseline = _count_painted_records(res))
+    computed
+end
+
 # Repaint `canvas` into the window, restricting the work to the invalidated
-# region when partial rendering is enabled. Everything is rendered into the
-# retained `res.target` texture (which keeps its pixels across frames); only the
-# dirty rects of that texture are re-rendered, then the damaged rects (this
-# frame's and those of the last `buffer age` frames — see `damage_history` /
-# `_back_buffer_age`) are copied to the window and presented.
-# Copying only the damage instead of the whole target keeps the scaled blit
-# proportional to the edit.
+# region when partial rendering is enabled, and answer whether the frame differs
+# from the one before, which the backend reports as a `DisplayUpdate`.
+# Everything is rendered into the retained `res.target` texture (which keeps its
+# pixels across frames); only the dirty rects of that texture are re-rendered,
+# then the damaged rects (this frame's and those of the last `buffer age` frames
+# — see `damage_history` / `_back_buffer_age`) are copied to the window and
+# presented. Copying only the damage instead of the whole target keeps the
+# scaled blit proportional to the edit.
+#
+# The walk runs in both modes: in the partial mode it also names the rects to
+# repaint. A full frame repaints and presents the whole window whatever the walk
+# found, because the full mode must not depend on the walk to be right.
 function _render_window!(backend::SdlBackend, res::SdlWindowResources,
-                         canvas::GraphicsCanvas)
+                         canvas::GraphicsCanvas)::Bool
     partial = backend.partial_render
     debug = backend.debug_dirty
     bg = res.bg
@@ -2669,42 +2698,29 @@ function _render_window!(backend::SdlBackend, res::SdlWindowResources,
     if !_ensure_ss_target!(res)
         # No usable retained target — fall back to the classic full repaint
         # straight to the window backbuffer.
+        computed = _walk_window_change!(res, canvas)
+        changed = res.first_paint || !isempty(computed)
+        res.first_paint = false
         SDL_RenderSetScale(renderer, scale, scale)
         SDL_SetRenderDrawColor(renderer, bg[1], bg[2], bg[3], bg[4])
         SDL_RenderClear(renderer)
         _render_canvas!(renderer, canvas, 0, 0, _ClipEdges(0, 0, res.width, res.height), res.ratio)
         SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
         SDL_RenderPresent(renderer)
-        return
+        return changed
     end
 
-    # Decide the rectangles to repaint.
-    if !partial
+    # Decide the rectangles to repaint. On the first paint the whole window must
+    # be cleared (the target is undefined and margins outside the content have no
+    # element to mark them dirty), so the region is the full window, but the
+    # walk still runs for its records.
+    computed = _walk_window_change!(res, canvas)
+    changed = res.first_paint || !isempty(computed)
+    if !partial || res.first_paint
         rects = [(0, 0, res.width, res.height)]
     else
-        # Always walk: this seeds `res.dirty_bounds` with each unit's current
-        # extent so the *next* edit can clear vacated pixels (old∪new). On the
-        # first paint the whole window must be cleared (the target is undefined
-        # and margins outside the content have no element to mark them dirty),
-        # so the region is widened to the full window — but the walk's
-        # cache-seeding side effect is kept.
-        #
-        # The records of graphics that are gone collect until they are forgotten,
-        # and a full paint records again what is there.
-        if _is_painted_geometry_full(res)
-            _forget_painted_geometry!(res)
-            res.first_paint = true
-        end
-        computed = _compute_dirty_region(res, canvas)
-        # A walk with no records paints the whole window as one unit, so it
-        # records everything that is there: the count to measure growth against.
-        res.painted.baseline == 0 && (res.painted.baseline = _count_painted_records(res))
-        if res.first_paint
-            rects = [(0, 0, res.width, res.height)]
-        else
-            isempty(computed) && return   # nothing invalidated — skip paint/present
-            rects = _limit_dirty_rects(computed)
-        end
+        isempty(computed) && return false   # nothing invalidated — skip paint/present
+        rects = _limit_dirty_rects(computed)
     end
     res.first_paint = false
 
@@ -2760,6 +2776,7 @@ function _render_window!(backend::SdlBackend, res::SdlWindowResources,
         SDL_RenderSetScale(renderer, 1.0f0, 1.0f0)
     end
     SDL_RenderPresent(renderer)
+    changed
 end
 
 # ── Canvas rasterization ──────────────────────────────────────────────
@@ -3308,6 +3325,7 @@ between them, so cooperative tasks that live on this thread keep their turn.
 """
 function BackendModule.wait_for_input(backend::SdlBackend, devices, timeout_seconds)
     backend.pending_input === nothing || return nothing
+    isempty(backend.display_updates) || return nothing
     timeout = Float64(timeout_seconds)
     if backend.pending_motion !== nothing
         remaining = _HOVER_MOTION_INTERVAL - (time() - backend.last_hover_motion)
@@ -3397,6 +3415,9 @@ function BackendModule.read_from_devices(backend::SdlBackend, devices)
         backend.pending_input = nothing
         return owed
     end
+    # A window that showed a changed frame: the readers find their part of the
+    # view again before they read the input that came after it.
+    isempty(backend.display_updates) || return popfirst!(backend.display_updates)
     # The newest motion sample so far — carried over from a call the rate limit
     # blocked, then overwritten by anything newer this poll finds.
     motion = backend.pending_motion
@@ -3721,8 +3742,18 @@ function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Dev
             _adopt_native_position!(res, w)
             _update_window_geometry!(res, w, ratio)
         end
-        _render_window!(backend, res, canvas)
+        _render_window!(backend, res, canvas) && _queue_display_update!(backend, w.id)
     end
+end
+
+# Report that window `id` shows a frame that differs from the one before. One
+# update for each window waits, with the time of its latest frame.
+function _queue_display_update!(backend::SdlBackend, id::Symbol)
+    update = WindowInput(id, DisplayUpdate(; time = time()))
+    index = findfirst(input -> input.window_id === id, backend.display_updates)
+    index === nothing ? push!(backend.display_updates, update) :
+                        (backend.display_updates[index] = update)
+    nothing
 end
 
 """

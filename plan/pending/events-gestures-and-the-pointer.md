@@ -4,7 +4,7 @@
 > document over several sessions. It records the concepts, what is wrong today,
 > the owner's decisions and the questions that are still open. The steps of the
 > refactor come after the open questions have answers. The owner's model of
-> three tracking projections (D8 to D44) and the steps came on the same day, after the first
+> three tracking projections (D8 to D45) and the steps came on the same day, after the first
 > round of decisions.
 
 The facts of the code are in the study
@@ -191,6 +191,10 @@ All of them are from 2026-09-26.
   surface of the part, and no part changes its size or place for it. This stops
   the loop of D42 from a light that moves another part under the pointer, frame
   after frame. It becomes a rule of the design documents. (The risk of D42.)
+- **D45.** A feed that writes because a frame happened writes at most once per
+  time interval, so that a frame that a display event causes does not feed the
+  next one (D42). The fix stays in each feed (D40). The owner chose this rule
+  over a special frame and over a limit of display rounds (Q16).
 
 ## 3. What is wrong today
 
@@ -430,7 +434,7 @@ The direction that follows from the decisions so far:
 
 ## 5. Open questions
 
-- **Q16. Views that change on every frame (found in step 2).** With D42, a frame
+- **Q16 (answered by D45). Views that change on every frame (found in step 2).** With D42, a frame
   that changed the display is followed by one more read. A view that changes
   because a frame happened then keeps the loop awake for ever:
   - the frame statistics: `FrameStatisticsFeed` flushes on every frame whose
@@ -573,7 +577,7 @@ it holds the example.
     shell and answers nothing (`test_shell` 231 pass). `test_kernel` 2435 pass,
     with the same 3 failures and 3 errors as `main`; `test_undo` 111 pass.
 
-  **The display event waits for the owner** (Q16).
+  **The display event** follows D45 (Q16).
 - [ ] 3. **A gesture follows a route (D12, D28).** An intent with a route can
   carry a gesture. The last reader on the route reads the gesture, with the rest
   of the route as the part. Every widget container and every layout follows a

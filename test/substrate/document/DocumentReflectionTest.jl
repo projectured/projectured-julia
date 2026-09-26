@@ -131,6 +131,36 @@ end
     obj.inner.n = 1; obj.name = "root"
 end
 
+@testset "the feed syncs at most once per interval, and a chevron at once" begin
+    # A sync that writes changes the display, and the frame of the display event
+    # must not sync again, or a value that changes all the time would redraw on
+    # every frame.
+    drain! = ProjecturedKernel.FeedModule.drain_changes!
+    deadline = ProjecturedKernel.FeedModule.compute_wake_deadline
+    value = ReflectNested("root", ReflectLeafy(1, "x"), collect(1:10))
+    n = reflect_document(value, policy)
+    clock = Ref(5.0)
+    feed = ReflectionFeed(n, value; policy = policy, now = () -> clock[])
+    drain!(feed, nothing)
+    @test deadline(feed, nothing) === nothing
+    value.name = "renamed"
+    clock[] += 0.125
+    # Too soon: the sync waits, and the feed asks for a frame at the interval's end.
+    @test drain!(feed, nothing) == 0
+    @test reflect_kid(n, 1).value == "root"
+    @test deadline(feed, nothing) == 0.125
+    # A chevron does not wait.
+    request_sync!(reflect_kid(n, 2).children)
+    @test deadline(feed, nothing) == 0.0
+    @test drain!(feed, nothing) == 1
+    @test reflect_kid(n, 1).value == "renamed"
+    @test deadline(feed, nothing) === nothing
+    value.name = "again"
+    clock[] += 0.5
+    drain!(feed, nothing)
+    @test reflect_kid(n, 1).value == "again"
+end
+
 # ── Collapse is writing a marker back, same as for documents ──────────────
 @testset "collapse sticks" begin
     n = reflect_document(obj, policy)

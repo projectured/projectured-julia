@@ -66,17 +66,20 @@ end
     @test wrap(; selection = true)[1] isa ClipboardSlice
 end
 
-@testset "a timer that no reader set passes every wrapper and answers nothing" begin
-    # The loop reads a timer as a bare event, because it belongs to no window. Every
-    # reader of a window that is not the one that set it must let it pass.
+@testset "a timer and a display update that no reader takes answer nothing" begin
+    # The loop reads a timer as a bare event, because it belongs to no window, and
+    # a display update in the input of its window. Every reader that does not take
+    # them must let them pass.
     shell = WidgetShell(WidgetLabel("content"); size = Point2D(400, 300))
     document, projection = make_window_wrap()(shell, make_layout_projection_example())
     scene = make_window_scene(document, "shell"; width = 400, height = 300)
     composed = make_window_scene_projection(projection;
         opened_window_projections = make_opened_window_projections())
-    change = read_intent(composed, nothing, Intent(TimerExpire(:nobody, 0.0)),
-                         print_document(composed, scene))
-    @test (change isa Intent ? change.operation : change) === nothing
+    iomap = print_document(composed, scene)
+    for input in (TimerExpire(:nobody, 0.0), WindowInput(:shell, DisplayUpdate(; time = 0.0)))
+        change = read_intent(composed, nothing, Intent(input), iomap)
+        @test (change isa Intent ? change.operation : change) === nothing
+    end
 end
 
 @testset "the palette sits outside the help" begin

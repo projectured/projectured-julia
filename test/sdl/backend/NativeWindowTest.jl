@@ -111,6 +111,45 @@ end
     quit_backend!(full)
 end
 
+@testset "a backend reports each frame that changed, and no other" begin
+    # A reader that keeps a part of the view as its state finds it again at a
+    # `DisplayUpdate`. So a frame that shows something new is reported, and one
+    # that shows nothing new is not, or the loop would never sleep. Both modes
+    # report the same, because the walk runs in both.
+    backends = [SdlBackend(partial_render = partial, debug_dirty = false)
+                for partial in (false, true)]
+    for backend in backends
+        initialize_backend!(backend)
+        devices = Device[Display()]
+        id = Symbol("display_update_test_", backend.partial_render)
+        x = Cell(10)
+        canvas = GraphicsCanvas(CellVector(@computation [GraphicsRect(x[], 10, 60, 20)]),
+                                layout_none)
+        window = WindowDocument(; id = id, title = String(id), x = 100, y = 100,
+                                  width = 200, height = 100, style = :tooltip,
+                                  content = canvas)
+        screen = ScreenDocument([window])
+        write_to_devices(backend, devices, screen)   # opens, paints, shows
+        write_to_devices(backend, devices, screen)   # the paint after the show
+        # One update for the window, however many changed frames it showed.
+        @test length(backend.display_updates) == 1
+        # An update that waits ends a wait at once.
+        started = time()
+        wait_for_input(backend, devices, 5.0)
+        @test time() - started < 1.0
+        input = read_from_devices(backend, devices)
+        @test input isa WindowInput && input.window_id === id &&
+              input.event isa DisplayUpdate
+        @test isempty(backend.display_updates)
+        write_to_devices(backend, devices, screen)   # nothing changed
+        @test isempty(backend.display_updates)
+        x[] = 50
+        write_to_devices(backend, devices, screen)   # the rectangle moved
+        @test length(backend.display_updates) == 1
+    end
+    foreach(quit_backend!, reverse(backends))
+end
+
 @testset "a window with a maximum fits what it printed" begin
     SDL = ProjecturedSdl
     fit(canvas_width, canvas_height; minimum_size, maximum_size) = begin

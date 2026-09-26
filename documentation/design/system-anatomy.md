@@ -325,6 +325,7 @@ composes with any higher-order projection.
 | `event/MouseEvent.jl` | `MouseDown`, `MouseUp`, `MouseClick`, `MouseMove`, `MouseEnter`, `MouseLeave`, `MouseScroll` |
 | `event/WindowEvent.jl` | `WindowQuit`, `WindowClose`, `WindowResize`, `WindowDefocus`, `WindowLeave` |
 | `event/TimerEvent.jl` | `TimerExpire` |
+| `event/DisplayEvent.jl` | `DisplayUpdate` |
 | `agent/AgentModule.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `package/mcp/` |
 
 ---

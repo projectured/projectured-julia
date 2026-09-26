@@ -7,7 +7,7 @@ gesture are plain data. Their fields hold symbols, numbers, characters, modifier
 keys and the time of the input, and they hold no reference to the source that
 made them.
 
-The module lives in nine fragments that share this namespace:
+The module lives in ten fragments that share this namespace:
 
 - [`EventInterface.jl`](EventInterface.jl) — `Event` and `Gesture`, and
   `get_modifier_keys` and `get_event_time`, the generics that every event and
@@ -23,6 +23,8 @@ The module lives in nine fragments that share this namespace:
   `WindowDefocus` and `WindowLeave`.
 - [`TimerEvent.jl`](TimerEvent.jl) — `TimerExpire`, the event of a timer that a
   reader set.
+- [`DisplayEvent.jl`](DisplayEvent.jl) — `DisplayUpdate`, the event of a display that
+  shows a new frame of a window.
 - [`WindowInput.jl`](WindowInput.jl) — an event or a gesture and the id of the
   window that it came from.
 - [`EventDefaults.jl`](EventDefaults.jl) — the fallback of `get_modifier_keys`,
@@ -39,7 +41,7 @@ export KeyDown, KeyUp, KeyPress, KeyChord
 export MouseButtons, MouseDown, MouseUp, MouseClick, MouseMove, MouseEnter, MouseLeave,
        MouseScroll
 export WindowQuit, WindowClose, WindowResize, WindowDefocus, WindowLeave
-export TimerExpire
+export TimerExpire, DisplayUpdate
 export WindowInput
 export has_ctrl_modifier_key, has_shift_modifier_key, has_alt_modifier_key,
        has_meta_modifier_key
@@ -56,6 +58,7 @@ include("KeyboardEvent.jl")
 include("MouseEvent.jl")
 include("WindowEvent.jl")
 include("TimerEvent.jl")
+include("DisplayEvent.jl")
 include("WindowInput.jl")
 include("EventDefaults.jl")
 include("EventPattern.jl")

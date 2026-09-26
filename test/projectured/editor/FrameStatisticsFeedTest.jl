@@ -25,7 +25,9 @@ function test_frame_statistics_feed()
 
     @testset "a subscribed view turns the flush on, and off once flushed" begin
         statistics = FrameStatistics()
-        feed = FrameStatisticsFeed(statistics = statistics, plot = FramePlot())
+        clock = Ref(0.0)
+        feed = FrameStatisticsFeed(statistics = statistics, plot = FramePlot(),
+                                   now = () -> clock[])
         editor = Editor(HeadlessBackend(), statistics, FrameStatisticsToSyntax(),
                         Device[]; feeds = Feed[feed])
         # Subscribe the way a view does: read `frame_count` in a computation.
@@ -40,12 +42,38 @@ function test_frame_statistics_feed()
         # Flushed means flushed: no deadline and no work until the next fold.
         @test compute_wake_deadline(feed, editor) === nothing
         @test drain_feeds!(editor) == 0
-        # A second fold updates the row in place.
+        # A second fold updates the row in place, once the interval has passed.
         EditorModule.record_frame_performance!(editor, 0.020)
+        clock[] += 0.25
         drain_feeds!(editor)
         @test statistics.rows[1].count == 2
         @test statistics.rows[1].maximum >= 0.020
         # Keep the subscription alive across every assertion above.
+        @test view[] == 2
+    end
+
+    @testset "a document flushes at most once per interval" begin
+        # A flush changes the display, and the frame that the display event makes
+        # must not flush again, or the frames would feed themselves.
+        statistics = FrameStatistics()
+        clock = Ref(10.0)
+        feed = FrameStatisticsFeed(statistics = statistics, plot = FramePlot(),
+                                   now = () -> clock[])
+        editor = Editor(HeadlessBackend(), statistics, FrameStatisticsToSyntax(),
+                        Device[]; feeds = Feed[feed])
+        view = Cell(@computation statistics.frame_count)
+        view[]
+        EditorModule.record_frame_performance!(editor, 0.016)
+        @test drain_feeds!(editor) >= 1
+        EditorModule.record_frame_performance!(editor, 0.016)
+        clock[] += 0.1
+        # Due, but flushed less than an interval ago: nothing now, and a deadline.
+        @test drain_feeds!(editor) == 0
+        @test statistics.frame_count == 1
+        @test compute_wake_deadline(feed, editor) == 0.25
+        clock[] += 0.2
+        @test drain_feeds!(editor) >= 1
+        @test statistics.frame_count == 2
         @test view[] == 2
     end
 

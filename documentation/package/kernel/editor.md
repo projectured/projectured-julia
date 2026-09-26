@@ -85,6 +85,15 @@ the one before. When the time comes, `read!` reads a `TimerExpire(name, time)`
 before any device input. It is a bare event, because a timer belongs to no
 window, and it leaves the timers when it is read. The reader checks its own state
 when the event comes, so a timer that a newer event made stale needs no cancel.
+
+A frame that changed what the display shows is followed by one more read. A
+backend that shows windows reports such a frame as
+`WindowInput(window_id, DisplayUpdate(; time))`, and its wait does not block
+while one waits. A reader that keeps a part of the view as its state finds it
+again then, because the view can change under a pointer that does not move. The
+loop sleeps only after a frame that changed nothing. A feed that writes because
+a frame happened, such as the frame statistics or a reflected value, writes at
+most once per interval, so that the frames do not feed themselves.
 The wake-pending flag starts set, so the first frame paints before the first
 wait. A backend without a wait of its own sleeps one 10 ms poll slice per
 call — the cadence this loop had when it slept — and that slice is also where

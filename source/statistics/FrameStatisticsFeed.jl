@@ -6,7 +6,7 @@
 """
     FrameStatisticsFeed(; statistics = get_session_frame_statistics(),
                           plot = get_session_frame_plot(),
-                          flush_interval = 0.25)
+                          flush_interval = 0.25, now = time)
 
 Register it when the editor is created —
 `Editor(...; feeds = Feed[FrameStatisticsFeed()])` — and a statistics tab and a
@@ -23,17 +23,26 @@ for a view is `has_dependent_cells` on a cell that every view of the document re
 refreshes at the flush interval, an unwatched editor records for free and
 flushes nothing, and a view that closes goes quiet once the collector sweeps its
 subscription.
+
+Each document flushes at most once per `flush_interval`, by the clock `now`. A
+flush changes what the display shows, and the display event of that frame makes
+one more frame; that frame finds the document flushed less than an interval ago
+and leaves it, so the loop sleeps again.
 """
-struct FrameStatisticsFeed <: Feed
+mutable struct FrameStatisticsFeed <: Feed
     statistics::FrameStatistics
     plot::FramePlot
     flush_interval::Float64
+    # The clock of the interval, and when each document flushed last.
+    now::Function
+    statistics_flushed_at::Float64
+    plot_flushed_at::Float64
 end
 
 FrameStatisticsFeed(; statistics::FrameStatistics = get_session_frame_statistics(),
                       plot::FramePlot = get_session_frame_plot(),
-                      flush_interval::Real = 0.25) =
-    FrameStatisticsFeed(statistics, plot, Float64(flush_interval))
+                      flush_interval::Real = 0.25, now::Function = time) =
+    FrameStatisticsFeed(statistics, plot, Float64(flush_interval), now, -Inf, -Inf)
 
 _is_frame_statistics_due(feed::FrameStatisticsFeed, store::FrameMeasurementStore) =
     feed.statistics.frame_count != get_frame_count(store) &&
@@ -43,12 +52,24 @@ _is_frame_plot_due(feed::FrameStatisticsFeed, store::FrameMeasurementStore) =
     _get_frame_plot_count(feed.plot) != get_frame_count(store) &&
     has_dependent_cells(getfield(feed.plot, :names))
 
+# A document that flushed less than an interval ago waits. A flush changes what
+# the display shows, so a display event makes one more frame; that frame must not
+# flush again, or the frames would feed themselves.
+_is_flush_allowed(feed::FrameStatisticsFeed, flushed_at::Float64) =
+    feed.now() - flushed_at >= feed.flush_interval
+
 function drain_changes!(feed::FrameStatisticsFeed, editor)
     store = editor.frame_measurements
     written = 0
-    _is_frame_statistics_due(feed, store) &&
-        (written += flush_frame_statistics!(feed.statistics, store))
-    _is_frame_plot_due(feed, store) && (written += flush_frame_plot!(feed.plot, store))
+    if _is_frame_statistics_due(feed, store) &&
+       _is_flush_allowed(feed, feed.statistics_flushed_at)
+        feed.statistics_flushed_at = feed.now()
+        written += flush_frame_statistics!(feed.statistics, store)
+    end
+    if _is_frame_plot_due(feed, store) && _is_flush_allowed(feed, feed.plot_flushed_at)
+        feed.plot_flushed_at = feed.now()
+        written += flush_frame_plot!(feed.plot, store)
+    end
     written
 end
 
