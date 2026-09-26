@@ -1,0 +1,186 @@
+# A key in one paragraph repaints only that paragraph
+
+## Goal
+
+The owner's words, 2026-09-26: "using partial render in the SdlBackend, I want to
+have an example which has multiple paragraphs, blocks … where I can type-in one
+paragraph and the following paragraph is not rendered in the partial render mode.
+This is possible because the layout of the paragraph following the one that is
+being edited does not depend on the edited paragraph if the height does not
+change. … I want to make a video of this feature working in the projectured
+binary."
+
+This is the take S10 of [feature-video-screenplays.md](feature-video-screenplays.md)
+("Only what changes is drawn again"). The binary turns the feature on with
+`PROJECTURED_PARTIAL_RENDER=1`, and `PROJECTURED_DEBUG_DIRTY=1` outlines the
+repainted rectangle in red: the program makes its backend as `SdlBackend()`, and
+both switches default to these variables.
+
+## What was measured on main, 2026-09-26
+
+A probe with no window printed four paragraphs, edited paragraph 2, and asked the
+real `_compute_dirty_rect` for the rectangle. A line is about 20 px high.
+
+| Pipeline | Edit | Rectangle | Result |
+| --- | --- | --- | --- |
+| `TextToGraphics` alone | same height | `(0,18,332,43)` | only paragraph 2, but by accident (fault 1) |
+| `TextToGraphics` alone | the first edit shrinks the line | `(0,18,22,43)` | the old text stays on screen (fault 2) |
+| `TextToGraphics` alone | paragraph 2 grows by one line | `(0,18,332,63)` | paragraphs 3 and 4 move to y 60 and 80, and are not repainted (fault 1) |
+| `WordWrapping` → `TextToGraphics` | same height | `(0,0,692,243)` | the whole block |
+| a `.txt` file as the binary opens it | same height | `(0,0,692,243)` | the whole block |
+| a Markdown page as a tab draws it | same height | `(0,75,704,148)` of a 302 px page | only paragraph 2 |
+
+**Fault 1.** `_collect_dirty_elem!` read `elem.x` and `elem.y` of a child canvas
+for its offset, and the layout early-stop read `elem.y`, before
+`_collect_canvas_dirty!` tested whether they were up to date. The read computes
+the value again, so the walk never saw a stale origin on any child canvas. A
+paragraph below an edit that kept its height was not repainted, which is right,
+but a paragraph that moved was not repainted either.
+
+**Fault 2.** The first paint makes the whole tree one unit, and the walk recorded
+the bounds of that unit only. The first change of a line inside it had no old
+bounds, so it could not clear the pixels it no longer covered.
+
+**The word wrap is not local.** `WordWrapping` wraps the whole block in one cell
+and makes new sub-spans after each edit, so every line below is new.
+
+**A `.txt` file is one cell.** It opens as one `PrimitiveString`. Propagation is
+write-driven (architecture decision 10), so every cell below that string is stale
+after each key, and no projection can make it local.
+
+**A Markdown page is local already.** A `.md` file in a tab is the rendered page:
+`MarkdownRootToVerticalLayout` gives each block its own chain, so each paragraph
+has its own `WordWrapping` and its own `TextToGraphics`. A key writes the
+`MarkdownText` of one paragraph. The children of the vertical layout get a stale
+`x` (from the width of the page) and a stale `y` (from the heights above), and
+fault 1 hid both.
+
+## Decisions
+
+- **The video uses a Markdown file** (the owner, 2026-09-26, asked "can we use a
+  markdown file?"). It needs no change of a text projection: the rendered page is
+  local for each paragraph once the backend is right.
+- **The backend compares the geometry of a container by value** and keeps the
+  engine write-driven. The `y` cells below an edit still compute again, one sum
+  for each paragraph, but the backend does not repaint a paragraph whose place is
+  the same. A cutoff by value in the engine would change decision 10 and the
+  sealed files of `source/kernel/cell/`.
+- **The word wrap for each paragraph is deferred.** The owner said yes to its plan
+  before the Markdown answer. It is written below, and it is not needed for the
+  video.
+
+## Steps
+
+- [x] **1. Fix the two faults of the dirty walk** (`source/sdl/Sdl.jl`).
+  - A graphic changes in one of three ways. Its content changed: a stale element
+    list, a stale slot of it, a stale list node, or a leaf with a stale cell, each
+    tested before it is read. It moved or was resized: the walk compares the
+    absolute content origin of each canvas, and the box, the content canvas and
+    the transform of each viewport, by value with what the last paint used
+    (`res.painted::_PaintedGeometry`). It came into view or left it: a graphic
+    with no record is painted, and one that was painted and is now past the
+    layout early-stop has its old place cleared.
+  - A paint of a unit records, for everything inside it that the render reaches,
+    its place in `res.painted.origins`, its bounds in `dirty_bounds`, and the
+    geometry of each viewport (`_record_painted_element!`, `_record_painted_canvas!`,
+    `_record_painted_node!`, `_record_painted_viewport!`). The records stop at the
+    layout early-stop, as the render does. A first version recorded the whole
+    content of a viewport; in a scroll pane that lays out the whole document on
+    each paint of a unit, so the records follow the render.
+  - **A record is keyed by placement**: `hash(objectid(graphic), key of its
+    container)`, with the window canvas under 0. The four regions of a frozen pane
+    share one element list, and keyed by `objectid` alone each region found the
+    origin that the region before it left, so a scrolled table with frozen headers
+    repainted on every frame. The code review found it.
+  - **The walk passes the extents that the render passes.** A nested canvas gets
+    the edges of the viewport unchanged, as `_dispatch_render_elem!` does; main
+    subtracted the offset of the canvas and stopped too early inside a nested
+    stack. `_get_viewport_content_place` and `_is_plain_viewport_transform` give
+    the content origin and the edges of a viewport to the renderer and to the walk,
+    also under a scale.
+  - **A list records the nodes it draws** (`_collect_drawn_nodes`, the order and
+    the early-stop of `_render_canvas!`). On main a list had no bounds, so a list
+    inside a canvas that scrolled was not repainted at all. A list that moved, or
+    that was never painted, reflows to the bottom and unions the old bounds of its
+    nodes, so a move to the left clears the old right edge.
+  - **The bounds of a container follow its content.** Each walk function answers
+    whether the recorded bounds of what it walked changed, and a container whose
+    content changed so records its bounds again from the graphics it draws
+    (`_refresh_canvas_bounds!`). Before, only a unit wrote its record: a line that
+    grew left the paragraph around it with the old width, and a later move of the
+    paragraph left ghost pixels. The second review round found it; it was on main
+    too.
+  - **A leaf is tested before the early-stop reads its place**, as a canvas is.
+    Before, a leaf whose `y` changed in a vertical stack was never repainted.
+  - A list reads a `.prev` link past its near edge only when the link is up to
+    date, so the walk never builds a node that the render does not build.
+  - A slot is tested as an `AbstractCell`, only where the walk visits it, because
+    a slot past the early-stop can stay stale for as long as it is off-screen.
+  - A viewport that changed repaints its old and its new box. On main it repainted
+    the new box only, and it did so whenever one of its cells was stale, also when
+    the values were the same. A viewport of zero size records no bounds.
+  - The records of graphics that are gone stay until a full paint. When the
+    records are more than twice what the last full paint recorded, plus 10000,
+    the backend forgets them and paints the whole window once.
+  - Tests: `test_dirty_rect()`, 61 pass (20 on main). The new cases: a paragraph
+    below an edit that keeps its place is not repainted; a paragraph that moves
+    repaints its old and its new place; the first change after the first paint
+    clears what was painted, for a canvas and for a leaf; a paint records only
+    what the render reaches; a list inside a canvas that scrolls moves with it; a
+    nested stack is walked as far as it is drawn; a graphic drawn at two places
+    keeps each place; a graphic that leaves the view clears where it was; a list
+    that moves left clears its old right edge; a paragraph whose line grew clears
+    the whole line when it moves; a leaf that moves along its stack repaints; a
+    scaled viewport repaints its box
+    when its content moves; a viewport repaints when its geometry changes and not
+    when it is computed again. The first frame of the `ListNode` case is now a
+    reflow of the whole list. `test_write_image()`,
+    `test_text_ink_inside_viewports()`, `test_sdl_layering()` and the naming
+    guard pass.
+  - The probe again, on the branch: `TextToGraphics`, paragraph 2 grows →
+    `(0,18,332,103)`, which covers the moved paragraphs; the first edit shrinks →
+    `(0,18,332,43)`; Markdown, same height → `(0,75,704,148)`; Markdown, grows →
+    `(0,75,657,325)`; Markdown, shrinks → `(0,75,657,302)`.
+- [ ] **2. Check it in the binary.** Open a Markdown file of several paragraphs in
+  `bin/projectured` with both variables set, on the live display, and type into
+  the second paragraph with pushed SDL events. Find every other unit that a key
+  repaints: the caret, the tab title if it marks a change, a status line, the
+  selection ring of the page. Keep what is right to repaint and fix what is not.
+- [ ] **3. The Markdown file for the take.** Several paragraphs of prose, long
+  enough to wrap at the width of the tab, and a heading. It lives with the other
+  inputs of the videos.
+- [ ] **4. Record the take** from the screen, because `VideoBackend` has no
+  partial render. The beats of S10: the arrow keys move the caret (a small red
+  box at the old and at the new place), then a word is typed into the second
+  paragraph (the red box covers that paragraph only), then a line is typed that
+  makes the paragraph one line taller (the red box reaches the paragraphs below,
+  which move). The output goes to `build/video/` of the worktree.
+
+## Deferred: the word wrap for each paragraph
+
+For a `TextBlock` of spans and `TextNewline` elements (the `TextDocument` row of
+the binary, and every prose chain that holds more than one paragraph):
+
+- `WordWrapping` groups its input into hard paragraphs at `TextNewline` elements.
+  The grouping reads the structure only, as `_line_groups` of `TextToGraphics`
+  does. Each paragraph has its own wrap cell, which reads only its own spans and
+  the wrap width, and its own table of `WrapSegment`s.
+- The output keeps one container for each paragraph, so a content edit does not
+  change the membership of the output. **Open choice for the owner:** a nested
+  `TextBlock` for each paragraph, or a `TextLine` that may hold soft breaks. Both
+  change the flat offsets (`get_flat_offsets`, `TextBlockToString`) and the
+  mapping of the selection.
+- `TextToGraphics` gives each paragraph container its own canvas and its own line
+  cells, with a `y` chain of paragraphs. The stack reads only the count of
+  paragraphs.
+- A `.txt` file stays one cell, so it stays whole-dirty. Only a change of what a
+  `.txt` opens as would change that.
+
+## Known limits
+
+- A leaf repaints when one of its cells is stale, also when the value is the same.
+  Leaves are small, so the cost is small.
+- The caret overlay of `TextToGraphics` lays out the whole block again on each key
+  (`_layout_overlay`). It repaints only the caret, but the work is not local.
+- The web backend (`source/web/Web.jl`) has its own dirty walk, with the model
+  of main: it tests the `x` and `y` cells for staleness and keys by `objectid`.
