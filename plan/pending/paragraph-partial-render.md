@@ -170,6 +170,22 @@ fault 1 hid both.
     3. The backend repaints one bounding rectangle. The status bar at the bottom
        changes on each key, so the rectangle of any key reaches the bottom of the
        window, over every paragraph below the edit.
+  - **The owner's answer, 2026-09-26:** "there's a specific video recording API
+    in projectured, use that" and "how about instead of unioning the boxes into a
+    large box we add them to a set and only drop boxes which are totally covered?
+    then we paint that".
+    - Done: the dirty region is a set of rectangles (commit `9a6490dc`): a
+      rectangle that another covers is dropped, each one is painted under its own
+      clip, and past eight the region is painted as the box that covers them.
+    - Done: `VideoBackend` and `record_application_video` take `partial_render`
+      and `debug_dirty` (commit `1c9a4b3b`). The offscreen surface is the kept
+      target; the pointer and the outline go on a copy of the frame; the outline
+      of the last repaint stays on the frames until the next one.
+    - Done: the shell keeps the wrappers of its bands (commit `995b3f91`).
+    - The probe after a click and after typing now gives two rectangles, the pane
+      area `(0,70,1280,693)` and the status bar `(0,689,1280,720)`. The pane area
+      is still one unit because the composite rebuilds, so the next step is the
+      containers, and the question below is still open.
   - **Open decision: what the red box means.**
     - *Staleness (the model now).* The box shows what the reactive graph made
       stale, plus the graphics that moved. It is the honest picture of the
@@ -189,11 +205,12 @@ fault 1 hid both.
   the second paragraph with pushed SDL events. Find every other unit that a key
   repaints: the caret, the tab title if it marks a change, a status line, the
   selection ring of the page. Keep what is right to repaint and fix what is not.
-- [ ] **3. The Markdown file for the take.** Several paragraphs of prose, long
-  enough to wrap at the width of the tab, and a heading. It lives with the other
-  inputs of the videos.
-- [ ] **4. Record the take** from the screen, because `VideoBackend` has no
-  partial render. The beats of S10: the arrow keys move the caret (a small red
+- [x] **3. The Markdown file for the take**: `example/markdown/paragraphs.md`, a
+  heading and five paragraphs of prose that wrap at the width of the tab and say
+  what the viewer sees.
+- [ ] **4. Record the take** with `record_application_video(...; partial_render =
+  true, debug_dirty = true)`, the video API of the repository (the owner,
+  2026-09-26), and not from the screen. The beats of S10: the arrow keys move the caret (a small red
   box at the old and at the new place), then a word is typed into the second
   paragraph (the red box covers that paragraph only), then a line is typed that
   makes the paragraph one line taller (the red box reaches the paragraphs below,
