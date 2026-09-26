@@ -350,6 +350,21 @@ end
     @test SDL._compute_dirty_region(res, top) == [(0, 18, 302, 40)]
 end
 
+@testset "a recording does not hide a change the walk has still to test" begin
+    # A box first in the list measures the canvas after it, as the box of a
+    # composite measures its children: the size of a canvas reads every graphic
+    # in it. The canvas shrinks from 80 to 40; its old width is still cleared.
+    width = Cell(80)
+    child = GraphicsCanvas(CellVector(@computation [GraphicsRect(0, 0, width[], 10)]); y = 100)
+    box = GraphicsCanvas(CellVector(@computation (get_graphics_size(child); Any[])))
+    top = GraphicsCanvas(CellVector(Cell[Cell(box), Cell(child)]), layout_none)
+    res = make_res()
+    SDL._compute_dirty_rect(res, top)
+    @test isempty(SDL._compute_dirty_region(res, top))
+    width[] = 40
+    @test SDL._compute_dirty_region(res, top) == [(0, 98, 82, 112)]
+end
+
 @testset "a scaled viewport repaints its box when its content moves" begin
     offset = Cell(0)
     content = GraphicsCanvas(CellVector(Cell[Cell(GraphicsRect(0, 0, 50, 10))]);
