@@ -1,7 +1,7 @@
 # The Explorer reads only what it shows
 
-> **Status:** in progress, in the worktree `projectured-julia-explorer-lazy` on
-> the branch `explorer-reads-only-what-it-shows`, from `6a511ab0`. Written
+> **Status:** done, in the worktree `projectured-julia-explorer-lazy` on the
+> branch `explorer-reads-only-what-it-shows`, from `6a511ab0`. Not landed. Written
 > 2026-09-26. The owner approved the plan and the three contract changes on
 > 2026-09-26. The owner asked: "the
 > workspace file explorer seems to be non-lazy, if there are many files in the
@@ -347,10 +347,21 @@ approval of the owner and an idle machine.
   open set is `{[1]}` again, so step 2 needs no reset. Not done: a press of a
   real pointer in a live window, and the open of `build/` in it; the render
   test of step 6 covers the scroll of a large folder.
-- [ ] **Step 8. Documents.** Update `filesystem.md` (the tree, the duplicate,
+- [x] **Step 8. Documents.** Update `filesystem.md` (the tree, the duplicate,
   D7, the limits), `widget.md` (`expanded`, the lazy children), and
   `graphics.md` (the two edges of the limit, the declared extent). Move the plan
   to `plan/done/`.
+  *Done.* Also `collection.md` (the keyword form of D8), `reflection.md` and
+  `bounded-sync.md` (the derived `expanded` set).
+
+## 9. The landing
+
+The branch changes a public name that omnet-julia uses: its test
+`test/presentation/WatchExampleTest.jl` (lines 108 and 110) writes the tree's
+`collapsed`, and must write `expanded`. omnet-julia reads projectured-julia from
+the live checkout, so that change lands with this branch. No other omnet-julia
+or inet-julia source names `WidgetTree`, `WidgetTreeNode`,
+`make_filesystem_pathname` or `_render_canvas!`.
 
 ## 7. Risks
 

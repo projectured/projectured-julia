@@ -30,7 +30,7 @@ The spline and arrowhead geometry is computed here, by `tessellate_spline` and `
 
 ### The canvas and the hit test
 
-`GraphicsCanvas.elements` is a `CellVector` or a `ListNode`. A `ListNode` can be a list without an end in either direction; see [collection.md](../collection/collection.md). `layout` names the axis along which the canvas can grow without an end: `layout_none`, `layout_horizontal` or `layout_vertical`. A backend stops painting such a list when the elements are past the visible edge.
+`GraphicsCanvas.elements` is a `CellVector` or a `ListNode`. A `ListNode` can be a list without an end in either direction; see [collection.md](../collection/collection.md). `layout` names the axis along which the canvas can grow without an end: `layout_none`, `layout_horizontal` or `layout_vertical`. A backend paints only the elements between the edges of its clip. On a `CellVector` canvas with a layout and elements that do not overlap, it starts at `compute_first_visible_index(canvas, edge)`, a binary search for the last element that starts at or before the near edge, and it stops at the first element past the far edge. A `ListNode` is walked both ways from its head to the edges. The backend does not read the content of an element that it does not paint. The dirty walk and `hit_element_at` follow the same rule.
 
 `hit_element_at(canvas, x, y)` returns the offset of the first element that contains the point, or `nothing`. Every caller in `source/` tests only for `nothing`. The test for each shape:
 
@@ -42,6 +42,8 @@ The spline and arrowhead geometry is computed here, by `tessellate_spline` and `
 A canvas with a `w` or `h` that is not zero first clips the point to its own box. This clip is what keeps a text on the left of a row from taking the clicks of its right neighbour. An auto-sized canvas, with `w` and `h` zero, does not clip.
 
 **The producer declares that elements do not overlap, and nothing checks it.** With `overlapping_elements = false` and a `layout`, the renderer and the hit test stop at the first element past the visible edge or past the point. A `GraphicsFence` in the element list states that the elements before it and after it do not overlap on the layout axis. It draws nothing, and both the renderer and the hit test skip it. A canvas that declares no overlap and has overlapping elements misses hits.
+
+`has_declared_extent(canvas)` is true for a canvas with a layout, elements that do not overlap, and `w > 0` and `h > 0`. Such a canvas declares its extent: `get_graphics_size` and the dirty bounds take its box and do not walk its elements, so a size query reads no element of a long list.
 
 ### Selection and clicks
 

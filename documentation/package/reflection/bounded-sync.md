@@ -130,7 +130,7 @@ per sync; that is the failure mode to watch for in any extension.
 projection has no laziness of its own — it prints whatever the shadow holds,
 which is small because the sync was bounded.
 
-Expansion state stays in one place: the printer *derives* the tree's `collapsed`
+Expansion state stays in one place: the printer *derives* the tree's `expanded`
 set from the shadow, and the reader translates a chevron click into a request or
 a collapse on the shadow and swallows the operation, so the widget never holds a
 disagreeing copy. One wrinkle worth knowing — the tree draws a chevron only for a

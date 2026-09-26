@@ -40,6 +40,12 @@ SyntaxNode(CellVector(@computation [project_child(c) for c in input.children]); 
 
 `CellVector(f)` with a plain function is a vector of one element, the function. Only `Computation` derives the element list, as with `Cell(Computation(f))`.
 
+`CellVector(@computation(keys); element)` computes one slot for each key, and the slot computes `element(key)` at its first read. A read of the length computes the keys and nothing else, and a read of one element computes that element and no other. The listing of a folder and the children of a file tree use it:
+
+```julia
+entries = CellVector(@computation(readdir(folder)); element = name -> stat(joinpath(folder, name)))
+```
+
 ### The list
 
 A `ListNode` is the middle of a chain. `prev` and `next` are two tails that grow outward, and each is a cell, so a thunk can compute either one. A chain can then have no end in either direction, and only the nodes that a reader walks to exist. `head[1]` is the held node, `head[2]` walks `next` and `head[0]` walks `prev`. `push!` adds to the right tail, `pushfirst!` to the left tail, and iteration starts at `get_left_tail`. `take_first(node, n)` and `take_first(node, n_prev, n_next)` read a finite window.

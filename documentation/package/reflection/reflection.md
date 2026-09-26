@@ -29,9 +29,9 @@ The three states of `children` are the three states of the policy. So the open s
 
 `ReflectionToWidget(; show_kind)` prints the shadow as a `WidgetTree`. Each node becomes a `WidgetTreeNode` whose label is `name = value` for a leaf, or `name: kind` for a composite. The tree draws a chevron only for a node with children. So a node on a marker gets one placeholder child that says how much is behind it, such as "100 items not loaded".
 
-The open state has one record, the shadow. The printer derives the `collapsed` set of the `WidgetTree` from the nodes on markers. The chevron of a tree writes a new `collapsed` set with a `ReplaceReferencedValueOperation`. The reader compares that set with the derived one, finds the node of each path that changed, and returns `SetReflectedDisclosureOperation(changes)`. It does not write the shadow, because a reader has no side effect. `evaluate_operation` of the operation writes a marker for a close and calls `request_sync!` for an open.
+The open state has one record, the shadow. The printer derives the `expanded` set of the `WidgetTree` from the shadow: the path of each node whose children show, and a node on a marker is closed. The chevron of a tree writes a new `expanded` set with a `ReplaceReferencedValueOperation`. The reader diffs that set against the derived one, finds the node of each path that changed, and returns `SetReflectedDisclosureOperation(changes)`. It does not write the shadow, because a reader has no side effect. `evaluate_operation` of the operation writes a marker for a close and calls `request_sync!` for an open.
 
-The printer walks the shadow inside a cell, and the roots and the `collapsed` set of the `WidgetTree` read that cell. So a sync that fills a node prints the tree again, and an editor that keeps its IoMap shows the node open.
+The printer walks the shadow inside a cell, and the roots and the `expanded` set of the `WidgetTree` read that cell. So a sync that fills a node prints the tree again, and an editor that keeps its IoMap shows the node open.
 
 ### The feed
 

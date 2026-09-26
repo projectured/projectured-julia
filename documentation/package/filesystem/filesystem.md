@@ -16,12 +16,12 @@ The file system domain, `ProjecturedFileSystem`, shows folders and files of the 
 | `WorkspaceFolder` | a `name` and a `pathname` |
 | `FileSystemChooser` | a `directory` and a `name`: the document of an open or save dialog |
 
-`make_filesystem_pathname(path)` reads a path from the disk into a `FileSystemFile` or a `FileSystemDirectory`, with all the entries below it. The tree is a snapshot. `WorkspaceToFileSystem` reads it again in a computed cell when the `pathname` of a folder changes. Nothing watches the disk.
+`make_filesystem_pathname(path)` makes a `FileSystemFile` or a `FileSystemDirectory`. A folder is read at the first read of its `elements`, and each entry at its own first read: a read of the length is one `readdir`, and a read of an entry is one `isdir`. A folder that can not be read, because of a permission or because it is gone, has no entries. A folder is read once, and nothing watches the disk. `WorkspaceToFileSystem` makes the folder again in a computed cell when the `pathname` of a workspace folder changes.
 
 There are two views of the tree:
 
 - **`FileSystemToSyntax()`** prints a directory as a name leaf and an indented body. A custom `marker_eligible` predicate puts the fold marker on the directory name only, not also on the body. The name of a file is text that the projection introduces, so a text edit on it returns `nothing` and a caret on it selects the file.
-- **`FileSystemToWidget()`** prints the whole tree as one `WidgetTree` inside a `WidgetScrollPane`, with an icon for each file extension. The pane scrolls the tree when the tree is larger than the space the pane is given, because a tab puts nothing around what it holds. One pair of functions converts a path in the file system to a path in the tree and back, and the reference maps put the pane's `content` step in front of it.
+- **`FileSystemToWidget()`** prints the tree as one `WidgetTree` inside a `WidgetScrollPane`, with an icon for each file extension. The root row is open, and each folder under it is closed until a person opens it. A folder row reads the listing of its folder when the row is drawn, to know if it has a chevron, and an empty folder has no chevron. The tree draws only the rows in the viewport of the pane, so a row outside the viewport reads nothing from the disk. The pane scrolls the tree when the tree is larger than the space the pane is given, because a tab puts nothing around what it holds. The tree takes the width that the pane offers, and the pane clips a longer name: there is no horizontal scroll. One pair of functions converts a path in the file system to a path in the tree and back, and the reference maps put the pane's `content` step in front of it.
 
 The Explorer chain is `WorkspaceToFileSystem`, then `FileSystemToWidget`, then `RecursiveProjection(WidgetToGraphics(…))`. The renderer is recursive because the scroll pane prints the tree through the recursion.
 
@@ -41,7 +41,7 @@ Enter on a row, or a double click, makes an `OpenFileOperation(path; wrap)`. The
 
 ### Duplicate the Explorer
 
-`has_document_duplicate` is `true` for every `WorkspaceDocument`, so the tab of the Explorer shows a `+` above its `x`. The duplicate is a copy of the folders; see [document.md](../kernel/document.md#the-duplicate). The selected row and the closed folders are not in the workspace. The reader writes the row selection on the computed `FileSystemDirectory`, and the closed folders are a cell of the `WidgetTree`. So a duplicate opens with no row selected and every folder open.
+`has_document_duplicate` is `true` for every `WorkspaceDocument`, so the tab of the Explorer shows a `+` above its `x`. The duplicate is a copy of the folders; see [document.md](../kernel/document.md#the-duplicate). The selected row and the open folders are not in the workspace. The reader writes the row selection on the computed `FileSystemDirectory`, and the open folders are a cell of the `WidgetTree` (`expanded`). So a duplicate opens with no row selected and only the first level open.
 
 ## How it fits
 
@@ -60,7 +60,8 @@ Its `__init__` registers:
 - **An open names the file, not the place.** The file system package has no reference to tabs or panes. The pane tree chooses the place of a file.
 - **A chooser only chooses.** The dialog document holds a path. The shell acts on it.
 - **A row is a place the projection introduces.** The tree is computed from a path, so a row has no document of its own in the workspace. The row goes into the root path as a `ProjectionReferenceStep` on the folder, as a catalog row does on a `DatabaseInstance`. A second selection on the computed directory would split the window's selection in two.
-- **The tree is read, not watched.** A computed cell must not read the disk as a side effect of a print, so a live view of the disk needs a synchronizer outside the cells. [plan/tentative/filesystem-file-content-projection.md](../../../plan/tentative/filesystem-file-content-projection.md) discusses one.
+- **A folder is read once, and nothing watches it.** The first read happens when the Explorer draws the row of the folder or opens it. A live view of the disk needs a synchronizer outside the cells. [plan/tentative/filesystem-file-content-projection.md](../../../plan/tentative/filesystem-file-content-projection.md) discusses one.
+- **The screen decides what is read.** The renderer draws only the rows in the viewport, and a row is computed only when it is drawn, so the Explorer reads the folders on the screen and no others.
 
 ## Usage
 
@@ -71,7 +72,7 @@ run_example("navigator")                 # the Explorer view of the fixture proj
 ```
 
 - Examples: `filesystem_example` (syntax), `filesystem_widget_example` (the tree) and `navigator_example` (the workspace). They read the fixture under `example/filesystem/fixture/project/`, so they do not change when the repository changes.
-- Test: `test_filesystem()` runs the layering guard, the two projection tests, and `test_workspace_to_filesystem()`, which maps a row through the workspace and back.
+- Test: `test_filesystem()` runs the layering guard, the two projection tests, `test_filesystem_document()`, which checks the reads of a folder, and `test_workspace_to_filesystem()`, which maps a row through the workspace and back. The SDL suite has `test_tree_render()`, which renders a folder of 1,000 entries in a small pane and checks that only the drawn rows read their entries.
 
 ## Limits
 
@@ -80,3 +81,6 @@ run_example("navigator")                 # the Explorer view of the fixture proj
 - A key that moves the selection to a row below the edge of the pane does not scroll the row into view.
 - A selected row other than the root row names no document, so a copy of it copies nothing.
 - A file has no content view in this domain. To edit a file, open it; its extension selects the domain.
+- A folder that was read is not read again when it closes and opens.
+- A long name is clipped at the edge of the pane.
+- The tree keeps the open folders as index paths. When the folder path changes, the tree starts again with only the root open.
