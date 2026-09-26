@@ -44,6 +44,16 @@ took to make. It is for a take whose changes come from its timeline and its
 clock; a take that waits for work outside the loop, such as the answer of a
 model, keeps the wall clock.
 
+A frame in which the editor paints nothing still takes its place in the video,
+so a take always ends. The editor paints nothing when a paint fails, when it has
+stopped calling `write_to_devices` after too many failures in a row, or when it
+has no window. The recorder then holds the last picture it painted: in wall-clock
+time, a copy for each `1/fps` slot, and in video time, one copy for each such
+frame. After a failed paint, the held picture carries a red line at the bottom
+that says what failed. An entry that waits for its frame takes the held picture
+as that frame, so the timeline goes on, and the entries after it fire as they
+are due.
+
 With `pointer = true` each frame shows the mouse pointer where the last mouse
 event of the timeline left it, from the first mouse event on: an arrow, a ring
 around its tip while the left button is held, and the ring fading out for 0.3 s
@@ -115,6 +125,17 @@ mutable struct VideoBackend <: Backend
     paint_state::Any
     # The rects of each recent repaint, with its schedule second, for the hold.
     recent_repaints::Vector{Tuple{Float64,Vector{NTuple{4,Int}}}}
+    # The reads that answered nothing since the last paint. A frame ends its reads
+    # with one that answers nothing, so a read that starts with this count above
+    # zero starts a frame after one that painted nothing.
+    unpainted_reads::Int
+    # The last frame the editor painted, the background of the window, the first
+    # line of the fault of the last paint that failed (`nothing` once a paint
+    # works), and the held picture with that line on it.
+    painted_file::Union{String,Nothing}
+    background::NTuple{4,UInt8}
+    fault_line::Union{String,Nothing}
+    held_file::Union{String,Nothing}
 end
 
 function VideoBackend(timeline::AbstractVector, window_id::Symbol;
@@ -145,7 +166,8 @@ function VideoBackend(timeline::AbstractVector, window_id::Symbol;
                 entries, 1, false, -1, -1, 0.0, 0.0, -1.0, nothing, Ref(0), nothing, nothing,
                 Int(supersample), Float64(scale), video_time, pointer, false, -Inf,
                 partial_render, debug_dirty, Float64(debug_dirty_hold), nothing,
-                Tuple{Float64,Vector{NTuple{4,Int}}}[])
+                Tuple{Float64,Vector{NTuple{4,Int}}}[], 0, nothing, (0x00, 0x00, 0x00, 0xff),
+                nothing, nothing)
 end
 
 # The video time of the frame about to be written: the frames written so far,
@@ -181,6 +203,10 @@ function initialize_backend!(backend::VideoBackend)
     backend.awaiting_render = false
     backend.frame[] = 0
     backend.last_frame_file = nothing
+    backend.unpainted_reads = 0
+    backend.painted_file = nothing
+    backend.fault_line = nothing
+    backend.held_file = nothing
     nothing
 end
 
@@ -209,9 +235,23 @@ entry has not fired yet, or the entry already delivered has not been rendered
 yet (`awaiting_render`) — every one of them the same "nothing left this poll"
 answer a real device gives, and the last of them what keeps one entry per frame
 true regardless of how long an entry's own turn through the loop takes.
+
+A read that starts after a frame in which the editor painted nothing first holds
+the last picture for that frame (see [`VideoBackend`](@ref)), and the held
+picture is the frame of an entry that waits for one.
 """
 function read_from_devices(backend::VideoBackend, devices)
     backend.start_time < 0 && return nothing   # no frame on disk yet — nothing to map an event onto
+    backend.unpainted_reads > 0 && _hold_picture!(backend)
+    input = _take_due_entry!(backend)
+    input === nothing && (backend.unpainted_reads += 1)
+    input
+end
+
+# The next entry of the timeline when it is due, as its window input; `nothing`
+# while an entry waits for its frame, while the next one is not due, and for an
+# `await` entry.
+function _take_due_entry!(backend::VideoBackend)
     backend.awaiting_render && return nothing
     backend.next_entry > length(backend.timeline) && return nothing
     entry = backend.timeline[backend.next_entry]
@@ -334,18 +374,88 @@ function write_to_devices(backend::VideoBackend, devices, screen::ScreenDocument
     # there is nothing yet to backfill a gap against.
     backend.start_time < 0 ? (backend.start_time = time()) :
         (backend.video_time || _backfill_frames!(backend))
-    if backend.partial_render
-        _write_partial_frame!(backend, canvas, window.bg)
-    else
-        if backend.pointer && backend.pointer_x >= 0
-            canvas = GraphicsCanvas(Any[canvas; _make_pointer_graphics(backend)]; w = backend.width, h = backend.height)
+    backend.background = window.bg
+    try
+        if backend.partial_render
+            _write_partial_frame!(backend, canvas, window.bg)
+        else
+            if backend.pointer && backend.pointer_x >= 0
+                canvas = GraphicsCanvas(Any[canvas; _make_pointer_graphics(backend)]; w = backend.width, h = backend.height)
+            end
+            _emit_frames!(backend.off, canvas, backend.width, backend.height, window.bg,
+                         backend.frames_dir, backend.frame, 1)
         end
-        _emit_frames!(backend.off, canvas, backend.width, backend.height, window.bg,
-                     backend.frames_dir, backend.frame, 1)
+    catch exception
+        # The frames hold the last picture with this fault on it until a paint
+        # works, and the barrier of the editor records the fault. A partial
+        # paint that stopped half way left its surface unknown, so the next
+        # paint paints it all.
+        line = _describe_fault(exception)
+        line == backend.fault_line || (backend.held_file = nothing)
+        backend.fault_line = line
+        backend.paint_state = nothing
+        rethrow()
     end
     backend.last_frame_file = _video_frame_path(backend.frames_dir, backend.frame[])
+    backend.painted_file = backend.last_frame_file
+    backend.fault_line = nothing
+    backend.held_file = nothing
+    backend.unpainted_reads = 0
     backend.awaiting_render = false
     nothing
+end
+
+# The first line of what a failed paint threw.
+_describe_fault(exception) = String(first(split(sprint(showerror, exception), '\n')))
+
+# What the video shows for a frame in which the editor painted nothing: the
+# last picture, with the line of the fault on it after a failed paint. In
+# wall-clock time the copies fill each `1/fps` slot up to now; in video time the
+# frame is one copy. An entry that waits for its frame has it now.
+function _hold_picture!(backend::VideoBackend)
+    backend.awaiting_render = false
+    picture = _render_held_picture!(backend)
+    picture === nothing && return nothing
+    backend.last_frame_file = picture
+    if backend.video_time
+        backend.frame[] += 1
+        cp(picture, _video_frame_path(backend.frames_dir, backend.frame[]))
+    else
+        _backfill_frames!(backend)
+    end
+    nothing
+end
+
+# The picture that the frames hold: the last painted frame, or after a failed
+# paint that frame with the red line of the fault drawn on it. The line is drawn
+# once for each fault, and the calls after it answer the same file. When no
+# paint has worked yet, the line is drawn on the background of the window, as a
+# frame of its own.
+function _render_held_picture!(backend::VideoBackend)
+    backend.fault_line === nothing && return backend.painted_file
+    backend.held_file === nothing || return backend.held_file
+    overlay = _make_fault_line_graphics(backend)
+    if backend.painted_file === nothing
+        _emit_frames!(backend.off, overlay, backend.width, backend.height, backend.background,
+                      backend.frames_dir, backend.frame, 1)
+        backend.held_file = _video_frame_path(backend.frames_dir, backend.frame[])
+    else
+        backend.held_file = joinpath(backend.frames_dir, "held_$(backend.frame[]).png")
+        _save_picture_with_overlay!(backend.off, backend.painted_file, overlay,
+                                    backend.width, backend.height, backend.held_file)
+    end
+    backend.held_file
+end
+
+# The red band across the bottom of a held picture, with the fault in white.
+const _FAULT_BAND_HEIGHT = 28
+
+function _make_fault_line_graphics(backend::VideoBackend)
+    top = backend.height - _FAULT_BAND_HEIGHT
+    GraphicsCanvas(Any[GraphicsRect(0, top, backend.width, _FAULT_BAND_HEIGHT; color = color_solarized_red),
+                       GraphicsText("The window can not paint: " * backend.fault_line, 8, top + 5;
+                                    font = font_dejavu_monospace_bold_16, color = color_white)];
+                   w = backend.width, h = backend.height)
 end
 
 # A frame of a partial repaint: the window canvas paints only what changed, and

@@ -31,9 +31,10 @@ import FFMPEG
 import ProjecturedKernel.BackendModule: Backend, record_video,
        initialize_backend!, quit_backend!, write_to_devices,
        read_from_devices, wait_for_input, get_pointer_position, get_display_size
-import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsCircle, GraphicsPolygon
+import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsCircle, GraphicsPolygon,
+       GraphicsRect, GraphicsText
 import ProjecturedGraphics.StyleModule: StyleColor, color_black, color_white, color_transparent,
-       color_solarized_orange
+       color_solarized_orange, color_solarized_red, font_dejavu_monospace_bold_16
 import ProjecturedKernel.ProjectionModule: print_document, read_intent
 import ProjecturedKernel.OperationModule: evaluate_operation
 import ProjecturedKernel.SelectionModule: clear_selection!, set_selection!
@@ -48,7 +49,7 @@ import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
 
 import ProjecturedSdl: _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!,
                        _make_offscreen_paint_state, _render_canvas_offscreen_partial!,
-                       _emit_frame_with_overlay!
+                       _emit_frame_with_overlay!, _save_picture_with_overlay!
 # `SdlBackend` itself is already in scope via the bare `using ProjecturedSdl` above.
 
 include("../../../source/video/Video.jl")

@@ -3350,6 +3350,30 @@ function _emit_frame_with_overlay!(off, width::Integer, height::Integer, overlay
     nothing
 end
 
+# Draw `overlay` over the frame saved in `picture` and save the result as
+# `filename`. The frame has the size of the output of `off`, so the overlay is
+# drawn at the scale of the output, as `_emit_frame_with_overlay!` draws it.
+function _save_picture_with_overlay!(off, picture::AbstractString, overlay::GraphicsCanvas,
+                                     width::Integer, height::Integer, filename::AbstractString)
+    surface = IMG_Load(picture)
+    surface == C_NULL &&
+        error("_save_picture_with_overlay!: failed to load $picture: $(unsafe_string(SDL_GetError()))")
+    try
+        renderer = SDL_CreateSoftwareRenderer(surface)
+        SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
+        SDL_RenderSetScale(renderer, Float32(off.sc), Float32(off.sc))
+        _render_canvas!(renderer, overlay, 0, 0, _ClipEdges(0, 0, Int(width), Int(height)), off.sc)
+        SDL_RenderFlush(renderer)
+        _evict_renderer_textures!(renderer)
+        SDL_DestroyRenderer(renderer)
+        IMG_SavePNG(surface, filename) == 0 ||
+            error("_save_picture_with_overlay!: IMG_SavePNG failed for $filename: $(unsafe_string(SDL_GetError()))")
+    finally
+        SDL_FreeSurface(surface)
+    end
+    nothing
+end
+
 
 # ════════════════════════════════════════════════════════════════════════
 # Application lifecycle
