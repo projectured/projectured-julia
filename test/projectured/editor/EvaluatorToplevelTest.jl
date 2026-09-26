@@ -370,6 +370,38 @@ end
     @test form.is_error
 end
 
+@testset "a form becomes Julia with an infix operator and with its semicolons" begin
+    for code in ("files = first(search_documents(editor.document, d -> d isa Workspace))",
+                 "push!(toolbar.elements, WidgetToolbarItem(\"Hello\"));",
+                 "k = :a => 1", "x = 1; y = 2")
+        form = evaluated_form(code)
+        @test !(form.form isa PrimitiveString)
+        @test print_natural_text(form.form) == code
+    end
+end
+
+@testset "a form that ends with a semicolon hides its value" begin
+    no_result(form) = form.result isa TextBlock && isempty(form.result.elements)
+    # The value is not shown, and the code ran: the name it bound holds the value.
+    form = evaluated_form("xs = [1, 2, 3];")
+    @test no_result(form)
+    @test !form.is_error
+    @test print_natural_text(form.form) == "xs = [1, 2, 3];"
+    # A comment after the `;` does not show the value either, and a string form
+    # hides it as a Julia document does.
+    @test no_result(evaluated_form("xs = [1, 2, 3];  # three"))
+    @test no_result(evaluated_form("xs = [1, 2, 3];"; parse = false))
+    # A document is not drawn either.
+    @test no_result(evaluated_form("TextBlock(TextString(\"hidden\"));"))
+    # What the code prints still shows, and so does an error.
+    @test _et_flatten(evaluated_form("println(\"shown\"); 42;").result) == "shown"
+    form = evaluated_form("throw(ArgumentError(\"stop\"));")
+    @test form.is_error
+    @test occursin("stop", _et_flatten(form.result))
+    # A `;` between two statements hides nothing.
+    @test _et_flatten(evaluated_form("a = 1; a + 1").result) == "2"
+end
+
 @testset "the parse changes the form, never the result" begin
     # An error names the line of the test that made it in its stack trace, so an
     # error is compared by its first line.

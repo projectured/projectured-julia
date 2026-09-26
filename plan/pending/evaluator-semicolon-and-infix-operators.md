@@ -61,9 +61,27 @@ The rehearsal of S7 found two faults of the evaluator:
   - `statements` has no default, so `@document` keeps the positional
     constructors: the parser calls `JuliaToplevel(statements, true)`.
   - `test_julia()`: 392 pass, none fails.
-- [ ] 3. The evaluator hides the result of a form that ends with `;`. Tests in
+  - The FSM code generator (`source/fsm/FsmToJuliaCode.jl`) reads an action of
+    a `;` line as the statements of a block, as it did when that line was a
+    `JuliaBlock`, so the generated code keeps one statement on each line.
+- [x] 3. The evaluator hides the result of a form that ends with `;`. Tests in
   `test/projectured/editor/EvaluatorToplevelTest.jl`: the forms of S7 become
   Julia documents, and a `;` hides the result but keeps what the code prints.
+  - The value is described with an empty text, so the output holds only what the
+    code printed; with nothing printed, the result is an empty `TextBlock`, which
+    draws no result row. An error still shows.
+  - A form that holds a pasted object has no source text, so a `;` after the
+    object does not hide it.
+  - The evaluator marks an error by the words `ERROR` or `Error` in the output,
+    so `error("stop")` is shown but not marked. That rule is older than this plan.
+  - `test_evaluator_toplevel()`: 237 pass. `test_julia()`: 392 pass.
+    `test_conversation()`: 166 pass, 1 fail, the layering guard that fails on main.
+  - `test_fsm()` 23, `test_formula()` 12 and `test_process()` 108 fail, and the
+    cause is not in this branch: since commit 154f3306 the table of
+    `JuliaToSyntax` ends with the catch-all `Document => JuliaObjectToSyntaxLeaf()`,
+    and `FsmToSyntax`, `FormulaToSyntax` and `ProcessToSyntax` append their own
+    entries after it, so their notation prints `⟨FsmComponent⟩` and the like.
+    `FsmToJuliaCode` passes 39 of 39.
 - [ ] 4. The documents: `documentation/package/julia/julia.md`, the evaluator
   document, and the docstring of `find_form_document`.
 - [ ] 5. The S7 forms use `nameof(typeof(…))` (the owner's choice for the type
