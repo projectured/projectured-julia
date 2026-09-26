@@ -545,7 +545,7 @@ end
 
 WidgetTextToGraphicsCanvas(theme::WidgetTheme; measure,
                            margin = inset_default, border = _make_uniform_inset(theme.border_width),
-                           padding = inset_default,
+                           padding = _make_control_padding(theme),
                            margin_color = color_transparent, border_color = theme.input,
                            padding_color = theme.background, content_color = theme.background,
                            padding_disabled_color = theme.muted, content_disabled_color = theme.muted,
