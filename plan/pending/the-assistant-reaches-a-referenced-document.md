@@ -703,6 +703,31 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       tab: the forward map of a route into a tab's content, and the widget
       stage carrying it to the content's projection. The pane verbs route to the
       tree, which is why the window's history records their edits.
+      The owner (2026-09-26): "yes, we need proper routing not shortcuts". What
+      the proper route needs, found in the code:
+      1. **The `.element` step.** The pane stage maps a route into a tab's content
+         to `selector_element_pairs[i]` and the content path, but the node at
+         `[i]` is a `WidgetTabPage`, and the content is its `element`. The widget
+         stage says so in `_tab_prefix` (`WidgetToGraphics.jl`): "writing it
+         unconditionally is the correct path, and it would need the decoder changed
+         in the same commit"; the decoder is `PaneToWidget`. So the pane stage's
+         forward and backward maps and the widget stage's `_tab_prefix` change
+         together, and the selection that the tabbed pane passes into a page
+         follows.
+      2. **A route through the widget containers.** On the path from the window's
+         widget root to a file, the widget stage has
+         `WidgetCompositeToGraphicsCanvas`, `WidgetSplitPaneToGraphicsCanvas` (with
+         a `LayoutConstraint` that has no IoMap of its own) and
+         `WidgetTabbedPaneToGraphicsCanvas` (with a `WidgetTabPage` that has
+         none), then `FileToContent`, which follows routes. Only the shell of the
+         widget stage follows a route today. The rule the shell uses is general:
+         take the steps of the route from the input until a node is the input of a
+         child IoMap, pass the rest to that child, and reroot the answer by the
+         steps taken. One helper for the widget containers, whose `child_iomaps`
+         hold `(x, y, child)`; the kernel's `ChildrenIoMap` leaves that form open,
+         so the helper is in the widget stage.
+      3. **The verbs** of D24, rooted at the document that the history of the
+         file holds.
 - [ ] **Step 7: the landing,** when the owner says so.
 
 ### Follow-up, after this plan (D21)
