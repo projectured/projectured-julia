@@ -437,8 +437,48 @@ The questions of keyboard navigation are in the plan of D33.
 
 Answered and moved to §2: Q2 (D23), Q3 (D24), Q4 (D25), Q5 (D20), Q6 (D26), Q7
 and Q8 (D27), Q9 (D28), Q10 (D29), Q11 (D30), Q1 (D31), Q12 (D32). Q13 moved to
-the plan of D33. Q14 (D41, D42): the example of the list that scrolls under a still
-pointer is in §3.4 and in the conversation of 2026-09-26.
+the plan of D33. Q14 is kept below, because it holds the example.
+
+- **Q14 (answered by D41 and D42). The view changes under a pointer that does
+  not move.** An example: the
+  pointer rests on row 5 of a list of files, and row 5 is lit. The person turns
+  the wheel, and the list scrolls three rows. Row 8 is now under the pointer.
+  - In principle, the target is a function of two inputs: the position of the
+    pointer and the view. When either one changes, the target must be found
+    again, and the old part gets a leave and the new part an enter, as if the
+    pointer moved. A browser finds the hover again after a scroll or a change of
+    the layout, and Qt sends an enter to a widget that appears under the cursor.
+  - In the design, the tracker reads the wheel event before the scroll happens.
+    It maps the point through the old view and finds row 5 again. Then the
+    operation of the scroll is evaluated and the view is printed, but no event
+    comes after that, so no reader runs. The tracker keeps row 5 as its target
+    until the pointer moves, and row 5, now three rows higher, stays lit while
+    row 8 is under the pointer. A fake move would find the target, but D3 does
+    not allow it: a move is a record of the hardware.
+  - Other examples of the same fault: a key scrolls the list; a dialog or a popup
+    opens or closes under the pointer; a tab page changes by a key; a content
+    changes by itself (a log that grows, a simulation that updates a table).
+  - The principle is D41. What is open is how the tracker learns that the view
+    changed. The loop knows it: a frame that evaluated an operation, or that
+    drained a change from a feed, can change the view. Two ways:
+    - **Claude's recommendation: an event of the display.** After a frame that
+      changed the view, the loop gives the projection an event that says that the
+      display shows a new frame (the name is open). The target tracker maps its
+      last position through the new view, and when the target changed, it sends
+      the leave and the enter. The drag tracker finds the drag hover again in the
+      same way. The display is a device, and a new frame is a record of what it
+      did, so D3 holds. The enter writes a light, which makes one more frame; its
+      event finds the same target and answers nothing, so the chain stops. A
+      frame that changes nothing sends no event, so an idle editor stays idle.
+    - **A sample of the pointer.** After such a frame, the loop reads the
+      position from the pointer device and gives it as an event of its own. It is
+      a record of the hardware too, but it names the position, which the tracker
+      has already, and not the cause, which is the change of the view.
+  - Not a way: a light that each printer derives from the target. The owner's
+    model gives the light to the reader of the part (the meaning belongs to the
+    thing), and a target that depends on the view and a view that depends on the
+    target can form a cycle of cells.
+
 
 ## 6. Steps
 
