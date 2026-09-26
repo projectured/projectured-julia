@@ -1167,6 +1167,14 @@ function _make_canvas(x::Int, y::Int, elems::Vector)
                    kept, layout_none, true, Cell(nothing))
 end
 
+# The same, with its top a cell: a wrapper whose place follows what is above it,
+# and that stays the same wrapper when it moves.
+function _make_canvas(x::Int, y::Cell, elems::Vector)
+    canvas = _make_canvas(x, 0, elems)
+    GraphicsCanvas(getfield(canvas, :x), y, getfield(canvas, :w), getfield(canvas, :h),
+                   getfield(canvas, :elements), layout_none, true, Cell(nothing))
+end
+
 function _make_canvas(x::Int, y::Int, w::Int, h::Int, elems::Vector)
     GraphicsCanvas(Int32(x), Int32(y), Int32(w), Int32(h),
                    CellVector(Cell[Cell(e) for e in elems]),
@@ -2901,59 +2909,55 @@ function print_document(p::WidgetShellToGraphicsCanvas, recursion, w::WidgetShel
                                        height = has_height ? avail_h_cell : nothing)
     content_cell = reconcile_child_iomap(() -> w.content,
         c -> print_child(recursion, c, make_child_context(content_ctx, FieldReferenceStep("content"))))
-    build = Cell(@computation begin
+    # The top of each band. The content hangs under the toolbar, and the status bar
+    # runs along the bottom edge when the shell has a height, and under the content
+    # when it has none, so a shell that hugs its content still shows it.
+    places = Cell(@computation begin
         b = bands[]
-        cox, coy = b.cox, b.coy
+        menu_y = b.coy
+        tool_y = menu_y + b.menu_h
+        content_y = tool_y + b.tool_h
+        content_bottom = content_y
+        w.content !== nothing && !has_height && (content_bottom += _shell_band_height(content_cell[]))
+        _, ty = _inset_total(p, w)
+        status_y = has_height ? b.coy + outer_height[] - ty - b.status_h : content_bottom
+        (menu_bar = menu_y, toolbar = tool_y, content = content_y, status_bar = status_y)
+    end)
+    # The bands the shell draws, each with the iomap it holds and the cell of its top.
+    # Which bands there are depends on the fields of the shell and not on how tall
+    # a band is, so a status line that changes its text rebuilds nothing here:
+    # each band keeps its wrapper, and the top of a band is a cell of its own. A
+    # band that keeps its place is then not painted again.
+    slots = Cell(@computation begin
+        out = Any[]
+        w.menu_bar isa WidgetDocument && push!(out, (:menu_bar, mb_cell[]))
+        w.toolbar isa WidgetDocument && push!(out, (:toolbar, tb_cell[]))
+        # Any content, not only a widget: the recursion decides how it renders, so
+        # a shell frames a domain document the same way a tab of a
+        # WidgetTabbedPane holds one. An absent content is the only empty case.
+        w.content !== nothing && push!(out, (:content, content_cell[]))
+        w.status_bar isa WidgetDocument && push!(out, (:status_bar, sb_cell[]))
+        w.overlay isa WidgetDocument && push!(out, (:overlay, tt_cell[]))
+        out
+    end)
+    get_band_left(name) = name === :overlay ? 0 : _content_offset(p, w)[1]
+    get_band_top(name) = name === :overlay ? 0 : getproperty(places[], name)
+    build = Cell(@computation begin
         elems = Any[]
-        child_iomaps = Any[]
         if has_width && has_height
             inset_width, inset_height = _inset_total(p, w)
             content_width = max(0, Int(outer_width[]) - inset_width)
             content_height = max(0, Int(outer_height[]) - inset_height)
             _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
         end
-        content_y = coy
-        if w.menu_bar isa WidgetDocument
-            cim = mb_cell[]
-            push!(child_iomaps, (cox, content_y, cim))
-            push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
-            content_y += b.menu_h
+        for (name, cim) in slots[]
+            push!(elems, _make_canvas(get_band_left(name), Cell(@computation Int32(get_band_top(name))),
+                                      Any[cim.output]))
         end
-        if w.toolbar isa WidgetDocument
-            cim = tb_cell[]
-            push!(child_iomaps, (cox, content_y, cim))
-            push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
-            content_y += b.tool_h
-        end
-        # Any content, not only a widget: the recursion decides how it renders, so
-        # a shell frames a domain document the same way a tab of a
-        # WidgetTabbedPane holds one. An absent content is the only empty case.
-        content_bottom = content_y
-        if w.content !== nothing
-            cim = content_cell[]
-            push!(child_iomaps, (cox, content_y, cim))
-            push!(elems, _make_canvas(cox, content_y, Any[cim.output]))
-            has_height || (content_bottom += _shell_band_height(cim))
-        end
-        # The status bar runs along the bottom edge when the shell has a height,
-        # and under the content when it has none, so a shell that hugs its
-        # content still shows it.
-        if w.status_bar isa WidgetDocument
-            cim = sb_cell[]
-            _, ty = _inset_total(p, w)
-            sb_y = has_height ? coy + outer_height[] - ty - b.status_h : content_bottom
-            push!(child_iomaps, (cox, sb_y, cim))
-            push!(elems, _make_canvas(cox, sb_y, Any[cim.output]))
-        end
-        if w.overlay isa WidgetDocument
-            cim = tt_cell[]
-            push!(child_iomaps, (0, 0, cim))
-            push!(elems, _make_canvas(0, 0, Any[cim.output]))
-        end
-        (elements=elems, child_iomaps=child_iomaps)
+        elems
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements, _p_measure(p)),
-                  Cell(@computation build[].child_iomaps))
+    child_iomaps = Cell(@computation Any[(get_band_left(name), get_band_top(name), cim) for (name, cim) in slots[]])
+    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[], _p_measure(p)), child_iomaps)
 end
 
 # How tall a band's printed output is.
