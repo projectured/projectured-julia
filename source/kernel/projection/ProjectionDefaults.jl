@@ -206,8 +206,17 @@ has already been produced) or otherwise the gesture (the gesture→operation sta
 then re-wrap the result as a `Intent` with the gesture preserved. Compound
 projections that must thread the change to their children override this with a
 4-arg method of their own.
+
+A change with a route goes on to the child that the route names, when `iomap`
+holds children ([`get_child_iomaps`](@ref)), through
+[`read_routed_child`](@ref). A container is then not asked where the change goes,
+so it needs no code of its own for a route. A reader that holds no children reads
+the change as it reads every change.
 """
 function read_intent(p::Projection, recursion, change::Intent, iomap)
+    if change.route !== nothing && get_child_iomaps(iomap) !== nothing
+        return read_routed_child(recursion, change, iomap)
+    end
     payload = change.operation === nothing ? change.gesture : change.operation
     op = read_intent(p, iomap, payload)
     return Intent(change.gesture, op)
@@ -219,11 +228,71 @@ end
 
 What a reader gets back from a child that `change` goes to, where `change` is
 what [`follow_intent_route`](@ref) gave for that child. When no route remains,
-the child's input is the place of the operation: the child is not read, and the
-answer is the operation that `change` carries, with no route. Otherwise the
-child reads `change` with `read_intent`.
+the child's input is the place of the change. For an operation, the child is not
+read, and the answer is the operation that `change` carries, with no route. For a
+gesture, the child is the part that the gesture is for, and it reads the gesture.
+Otherwise the child reads `change` with `read_intent`.
 """
 function read_routed_intent(projection, recursion, change::Intent, iomap)
     change.route isa EmptyReference || return read_intent(projection, recursion, change, iomap)
+    change.operation === nothing && change.gesture !== nothing &&
+        return read_intent(projection, recursion, change, iomap)
     Intent(change.gesture, change.operation, change.description, change.domain)
+end
+
+get_child_iomaps(iomap) = nothing
+get_child_iomaps(iomap::ContentIoMap) = Any[iomap.inner_iomap]
+get_child_iomaps(iomap::ChildrenIoMap) = _find_entry_iomaps(iomap.child_iomaps)
+
+# The IoMaps among the entries of a container: an entry is an IoMap, a tuple whose
+# last member is one (a place and the IoMap of what is there), or empty.
+function _find_entry_iomaps(entries)
+    found = Any[]
+    for entry in entries
+        entry isa Tuple && !isempty(entry) && (entry = last(entry))
+        entry isa IoMap && push!(found, entry)
+    end
+    found
+end
+
+"""
+    read_routed_child(recursion, change, iomap) -> Intent
+
+The answer of the child that the route of `change` reaches, for a container whose
+IoMap holds its children ([`get_child_iomaps`](@ref)). The route is read from the
+input of `iomap` one step at a time, until the node it reaches is the input of a
+child. That child gets `change` with the rest of the route
+([`read_routed_intent`](@ref)), and its answer comes back rerooted by the steps
+taken, as the answer to a gesture does. A container can hold a child through a
+node that has no IoMap of its own, as a split pane holds each pane in a
+`LayoutConstraint`, so the walk goes on until it reaches a child; a child whose
+input is the input of the container gets the whole route.
+
+A route that reaches no child reaches nothing that this container prints, and it
+is answered with no operation. So is a gesture whose route ends at the container
+itself: a container answers such a gesture only with a reader of its own.
+"""
+function read_routed_child(recursion, change::Intent, iomap)
+    children = something(get_child_iomaps(iomap), Any[])
+    node, route = get_iomap_input(iomap), change.route
+    taken = ReferenceStep[]
+    while true
+        for child in children
+            get_iomap_input(child) === node || continue
+            steps = Tuple(taken)
+            inner = read_routed_intent(get_iomap_projection(child), recursion,
+                                       follow_intent_route(change, steps...), child)
+            return Intent(change.gesture, reroot_operation(inner.operation, steps))
+        end
+        route isa ConcreteReference || break
+        step = get_reference_head(route)
+        node = try
+            evaluate_reference_step(step, node)
+        catch
+            break
+        end
+        push!(taken, step)
+        route = get_reference_tail(route)
+    end
+    Intent(change.gesture, nothing)
 end

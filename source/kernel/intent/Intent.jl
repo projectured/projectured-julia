@@ -21,13 +21,18 @@ in two coordinate frames:
   document's own rule, the slice or projection name for a projection's own.
   Empty groups under one fallback heading, which is how an unlabelled reader makes
   itself visible.
-- `route` — `nothing` for a change that a gesture starts. For an operation that
-  code already made, the path from the current reader's input to the place the
-  operation is relative to; the gesture is then `nothing`. A reader that passes
-  the change to a child gives it the route that remains below that child
-  ([`follow_intent_route`](@ref)); where the route is empty, the child is the
-  place, and its parent takes the operation as the child's answer. On the way
-  up, an answer carries no route.
+- `route` — `nothing` for a change that a gesture starts at the pointer or at the
+  selection. For an operation that code already made, the path from the current
+  reader's input to the place the operation is relative to; the gesture is then
+  `nothing`. For a gesture that is for one part, such as a leave for the part
+  that the pointer left, the path to that part; the operation is then `nothing`,
+  and no reader finds the part by the position of the gesture. A reader that
+  passes the change to a child gives it the route that remains below that child
+  ([`follow_intent_route`](@ref)); a container that holds its children does so
+  by default ([`read_routed_child`](@ref)). Where the route is empty, the child
+  is the place: its parent takes an operation as the child's answer, and the
+  child reads a gesture. A reader that holds no children reads the change with
+  the rest of the route as the part. On the way up, an answer carries no route.
 
 A reader returns an `Intent`: it either keeps `operation === nothing` (it had
 nothing to say) or returns a fresh `Intent` with the gesture preserved and a real

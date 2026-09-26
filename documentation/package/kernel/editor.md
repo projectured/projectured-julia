@@ -297,6 +297,24 @@ answer instead (`read_routed_intent` in
 On the way up, an answer carries no route, so the rest of the pipeline treats
 it exactly as it treats the answer to a gesture.
 
+A container needs no code for a route. The kernel's default reader walks the
+route into the child that it names, when the IoMap of the container holds its
+children: `get_child_iomaps(iomap)` names them (a `ChildrenIoMap`, a
+`ContentIoMap`, and each package's own container IoMaps), and
+`read_routed_child` reads the route one step at a time from the input of the
+container until the node it reaches is the input of a child. A container can
+hold a child through a node that has no IoMap of its own, so the walk goes on
+until it reaches one. A route that reaches no child answers no operation.
+
+A route can carry a gesture too, for one part: a tracker sends a leave to the
+part that the pointer left, which is no longer under the pointer. The gesture
+is then the gesture, and the operation is `nothing`. The containers pass it on
+by the route and never by the position that it holds. Where the route is empty,
+the child is the part, and it reads the gesture; a reader that holds no children
+reads it with the rest of the route as the part. A gesture whose route ends at
+a container gets no answer, unless the container has a reader of its own for
+it.
+
 The pane package's verbs (`focus_pane!`, `open_pane!`, `close_pane!`,
 `duplicate_pane!`, `move_pane!`) use `read_rooted_operation` to carry their
 edit from a pane tree to the root; see

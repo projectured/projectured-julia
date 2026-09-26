@@ -359,6 +359,17 @@ single mapper in both directions; do not add a parallel generic for either.
 """
 function map_reference_backward end
 
+"""
+    get_child_iomaps(iomap) -> collection of IoMaps, or nothing
+
+The IO maps of the children that `iomap` holds: what the reader of a container
+reaches by a route. A container that holds its children answers them, in any
+order; every other IO map answers `nothing`. [`read_routed_child`](@ref) walks a
+route to the child whose input it reaches. A package whose container keeps its
+children in an IoMap of its own adds a method for that IoMap.
+"""
+function get_child_iomaps end
+
 # ── The children-container seam (methods in ChildrenContainer.jl) ──────
 
 """

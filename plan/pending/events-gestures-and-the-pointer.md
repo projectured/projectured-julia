@@ -603,13 +603,44 @@ it holds the example.
     else the process holds (the printer walk follows weak links out of the
     document), so a new kernel test before it moves it; alone, the branch
     and `main` give the same count.
-- [ ] 3. **A gesture follows a route (D12, D28).** An intent with a route can
+- [x] 3. **A gesture follows a route (D12, D28).** An intent with a route can
   carry a gesture. The last reader on the route reads the gesture, with the rest
   of the route as the part. Every widget container and every layout follows a
   route. A domain projection does not have to: its reader gets the gesture with
   the rest of the route and can ignore it. Tests: an enter with a route reaches
   a button inside a composite inside a split pane; a route that ends in a row of
   a list gives the list the rest of the route.
+
+  Done on the branch `gesture-type`, rebased onto `main` `64fa21e2`:
+  - The kernel: `read_routed_intent` lets the place read a gesture (an operation
+    still stands as the answer). The default four-argument reader walks a route
+    into the child that it names, when the IoMap holds children:
+    `get_child_iomaps(iomap)` is a new open getter of the projection layer, and
+    `read_routed_child` the walk. The kernel answers the getter for
+    `ChildrenIoMap` and `ContentIoMap`; the widget package for the scroll pane,
+    the transform pane, the context menu, the dialog, the menu item and the
+    accordion; the layout package for the grid. So a container needs no code of
+    its own for a route. The getter lives in the projection layer, not in the
+    sealed IoMap interface, because it serves the readers.
+  - The widget package's own walk (`_read_routed_child`, `_RoutingContainerProjection`,
+    and the scroll pane reader that `main` added for the file tab) went away; the
+    shell keeps its own reader, because its route names a band of the shell.
+  - A gesture whose route ends at a container gets no answer, unless the
+    container has a reader of its own for it. A routed gesture is not moved into
+    the frame of a child: the route alone names the part, and a position that a
+    part needs comes in the route as a point step (D11, step 4).
+  - Tests: `test_routed_change` (kernel, 19 pass: the child that the route names
+    reads the gesture, a leaf gets the rest of the route, an operation stands at
+    its place, a gesture for the container itself or for nothing gets no answer,
+    a wrapper passes the whole route, a change with no route is read as before);
+    `test_routed_gesture` (substrate, 7 pass: a routed enter lights the button
+    that it names inside a composite inside a split pane, and no other; a routed
+    leave clears it wherever the pointer is; a route to nothing answers
+    nothing). The list reads no route until step 7, so the kernel test covers a
+    route deeper than a leaf with a probe leaf.
+  - Compared with `main`: the kernel, substrate, shell, referenced document,
+    application, mouse click and history sweep suites fail the same tests;
+    omnet-julia's 27 test functions give the same summaries.
 - [ ] 4. **The part at a point (D11).** `map_reference_backward` from a
   `PointReferenceStep` in each projection that ends in graphics. The hit test of
   each one moves into the mapping, and a reader of a click that has the same hit

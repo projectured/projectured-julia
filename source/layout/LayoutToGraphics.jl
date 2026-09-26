@@ -1417,6 +1417,12 @@ end
 map_reference_backward(::GridLayoutToGraphicsCanvas, iomap, reference) =
     _children_backward(iomap, reference)
 
+# A grid holds its cells in entries of a place and an IoMap, so a route reaches
+# the cell it names through the kernel's default reader.
+ProjectionModule.get_child_iomaps(iomap::GridLayoutIoMap) =
+    Any[last(entry) for entry in iomap.child_iomaps
+        if entry isa Tuple && !isempty(entry) && last(entry) isa IoMap]
+
 function read_intent(::GridLayoutToGraphicsCanvas, iomap::GridLayoutIoMap, evt)
     _route_layout_event(iomap, evt)
 end

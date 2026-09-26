@@ -982,6 +982,10 @@ WidgetScrollBarToGraphicsCanvas(theme::WidgetTheme;
     content_iomap::Any
 end
 
+# What a route reaches through this container: see `_collect_child_iomaps`.
+ProjectionModule.get_child_iomaps(iomap::WidgetScrollPaneToGraphicsCanvasIoMap) =
+    _collect_child_iomaps(iomap.content_iomap)
+
 # ── IoMap for WidgetTransformPane ──────────────────────────────────────────
 
 @iomap struct WidgetTransformPaneToGraphicsCanvasIoMap
@@ -990,6 +994,10 @@ end
     output::GraphicsCanvas
     content_iomap::Any
 end
+
+# What a route reaches through this container: see `_collect_child_iomaps`.
+ProjectionModule.get_child_iomaps(iomap::WidgetTransformPaneToGraphicsCanvasIoMap) =
+    _collect_child_iomaps(iomap.content_iomap)
 
 # ── Text helpers ───────────────────────────────────────────────────────────
 
@@ -2045,6 +2053,10 @@ WidgetContextMenuToGraphicsCanvas(theme::WidgetTheme; measure,
     child_iomap::Any
 end
 
+# What a route reaches through this container: see `_collect_child_iomaps`.
+ProjectionModule.get_child_iomaps(iomap::WidgetContextMenuToGraphicsCanvasIoMap) =
+    _collect_child_iomaps(iomap.child_iomap)
+
 function print_document(p::WidgetContextMenuToGraphicsCanvas, recursion, w::WidgetContextMenu, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     w.child isa Document || return SimpleIoMap(p, w, _empty_canvas())
@@ -2156,6 +2168,10 @@ WidgetDialogToGraphicsCanvas(theme::WidgetTheme; measure,
     content_entry::Any       # (ox, oy, cim) | nothing
     button_entries::Cell     # Vector of (ox, oy, cim)
 end
+
+# What a route reaches through this container: see `_collect_child_iomaps`.
+ProjectionModule.get_child_iomaps(iomap::WidgetDialogToGraphicsCanvasIoMap) =
+    _collect_child_iomaps(iomap.content_entry, iomap.button_entries...)
 
 function print_document(p::WidgetDialogToGraphicsCanvas, recursion, w::WidgetDialog, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
@@ -2302,6 +2318,10 @@ end
     control_width::Any
     control_height::Any
 end
+
+# What a route reaches through this container: see `_collect_child_iomaps`.
+ProjectionModule.get_child_iomaps(iomap::WidgetMenuItemToGraphicsCanvasIoMap) =
+    _collect_child_iomaps(iomap.child_iomaps...)
 
 # A bound command (Stage 4) supplies the item's label, enabled-state, and callback,
 # so a menu item / toolbar button / shortcut can share one `Action`.
@@ -3039,53 +3059,22 @@ end
 
 # ── Routes through a container ─────────────────────────────────────────────
 #
-# An operation with a route goes on to the child the route names, and comes back
-# rerooted by the steps it took, as the answer to a gesture does. The route is
-# read from the container's input one step at a time, until the node it reaches is
-# the input of a child: a container can hold a child through a node that has no
-# IoMap of its own, as a split pane holds each pane in a `LayoutConstraint` and a
-# tabbed pane each page in a `WidgetTabPage`. A route that reaches no child
-# reaches nothing this container prints, and it is answered with no operation.
-const _RoutingContainerProjection = Union{WidgetCompositeToGraphicsCanvas,
-                                          WidgetSplitPaneToGraphicsCanvas,
-                                          WidgetTabbedPaneToGraphicsCanvas}
+# A change with a route goes on to the child the route names, and comes back
+# rerooted by the steps it took, as the answer to a gesture does. The kernel's
+# default reader does this for every container whose IoMap names its children
+# (`get_child_iomaps`, `read_routed_child`): a `ChildrenIoMap` does, and a
+# container with an IoMap of its own says what it holds, next to that IoMap. The
+# shell keeps its own reader, because its route names a band of the shell.
 
-function read_intent(p::_RoutingContainerProjection, recursion, change::Intent,
-                     iomap::ChildrenIoMap)
-    change.route === nothing && return @invoke read_intent(p::Projection, recursion, change::Intent, iomap)
-    children = Any[entry[3] for entry in getfield(iomap, :child_iomaps)[]::Vector
-                   if entry isa Tuple && length(entry) == 3]
-    _read_routed_child(recursion, change, iomap.input, children)
-end
-
-# A scroll pane holds one child, its content.
-function read_intent(p::WidgetScrollPaneToGraphicsCanvas, recursion, change::Intent,
-                     iomap::WidgetScrollPaneToGraphicsCanvasIoMap)
-    change.route === nothing && return @invoke read_intent(p::Projection, recursion, change::Intent, iomap)
-    content = iomap.content_iomap
-    _read_routed_child(recursion, change, iomap.input, content === nothing ? Any[] : Any[content])
-end
-
-function _read_routed_child(recursion, change::Intent, input, children::Vector)
-    node, route, taken = input, change.route, ReferenceStep[]
-    while route isa ConcreteReference
-        step = get_reference_head(route)
-        node = try
-            evaluate_reference_step(step, node)
-        catch
-            return Intent(change.gesture, nothing)
-        end
-        push!(taken, step)
-        route = get_reference_tail(route)
-        for child in children
-            child.input === node || continue
-            steps = Tuple(taken)
-            inner = read_routed_intent(child.projection, recursion,
-                                       follow_intent_route(change, steps...), child)
-            return Intent(change.gesture, reroot_operation(inner.operation, steps))
-        end
+# The IoMaps among `entries`: an IoMap, a tuple whose last member is one (a place
+# and the IoMap of what is there), or nothing.
+function _collect_child_iomaps(entries...)
+    found = Any[]
+    for entry in entries
+        entry isa Tuple && !isempty(entry) && (entry = last(entry))
+        entry isa IoMap && push!(found, entry)
     end
-    Intent(change.gesture, nothing)
+    found
 end
 
 # The shell wraps a single child widget as its `.content` field. A path
@@ -7644,6 +7633,10 @@ WidgetAccordionToGraphicsCanvas(theme::WidgetTheme; measure,
     header_bounds::Any
     body_entry::Any
 end
+
+# What a route reaches through this container: see `_collect_child_iomaps`.
+ProjectionModule.get_child_iomaps(iomap::WidgetAccordionToGraphicsCanvasIoMap) =
+    _collect_child_iomaps(iomap.body_entry)
 
 # The body of the open item, or `nothing` when no item is open.
 function _get_open_accordion_body(w::WidgetAccordion)
