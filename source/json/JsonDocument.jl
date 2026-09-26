@@ -47,8 +47,8 @@ that holds an array of objects.
 
 # Example
 
-    for person in people              # each element, here a `JsonObject`
-        println(person["name"].value)
+    for item in items                 # each element, here a `JsonObject`
+        println(item["name"].value)
     end
 """
 @document struct JsonArray <: JsonDocument
@@ -80,8 +80,8 @@ Use it to read the fields of a JSON record by their names.
 
 # Example
 
-    person["name"].value              # "Ada", the string of the key "name"
-    keys(person)                      # the names of its fields
+    item["name"].value                # "lamp", the string of the key "name"
+    keys(item)                        # the names of its fields
 """
 @document struct JsonObject <: JsonDocument
     entries::CellVector = CellVector()

@@ -11,8 +11,8 @@ const _ANSWER_DESCRIPTION =
 const _VARIABLES_DESCRIPTION =
     "Each call runs in the same module, so a variable that one call binds at the top " *
     "level is still there in every later call. Keep each object that you find or make " *
-    "in its own variable, named by what it holds and numbered: `people_tab_1`, " *
-    "`people_1`, `rows_1`. When you make another object of the same kind, give it the " *
+    "in its own variable, named by what it holds and numbered: `items_tab_1`, " *
+    "`items_1`, `rows_1`. When you make another object of the same kind, give it the " *
     "next number, `rows_2`, and do not overwrite the first. Use a variable again in a " *
     "later call instead of finding its object again.\n\n"
 

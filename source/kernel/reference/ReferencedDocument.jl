@@ -232,8 +232,8 @@ Use it to keep where a document is, and to find the document there again later.
 
 # Example
 
-    locator = DocumentLocator(editor, get_reference(people_tab))
-    people_tab = find_referenced_document(locator)
+    locator = DocumentLocator(editor, get_reference(items_tab))
+    items_tab = find_referenced_document(locator)
 """
 struct DocumentLocator{S}
     start::S
@@ -280,7 +280,7 @@ document around any part, for example to open a new tab in the group of a tab.
 
 # Example
 
-    people_group_1 = get_parent(editor, find_pane(editor, "people.json"))
+    items_group_1 = get_parent(editor, find_pane(editor, "items.json"))
 """
 function get_parent(root, x::Union{Reference, ReferencedDocument})
     steps = get_reference_steps(strip_reference_types(convert(Reference, x)))

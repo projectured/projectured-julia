@@ -54,7 +54,7 @@ _delta(delta::Integer) = delta > 0 ? "in" : delta < 0 ? "out" : "reset"
 
 `describe_operation(operation)`, with each reference written as
 [`describe_reference`](@ref) writes it from `root`, the document the references of
-`operation` start at: `set people.json › [2].city = "Paris"` in place of the whole
+`operation` start at: `set items.json › [2].price = 12` in place of the whole
 path from the root.
 """
 describe_operation(operation, root) = with(() -> describe_operation(operation), _DESCRIBED_ROOT => root)
@@ -65,7 +65,7 @@ describe_operation(operation, root) = with(() -> describe_operation(operation), 
 How `reference` is written for a human, from `root`, the document it starts at:
 the title of the deepest document on it that has one, then `›` and the rest of the
 path from the document that the titled document edits, as
-[`get_edited_field`](@ref) names it. `people.json › [2].city` names a field of the
+[`get_edited_field`](@ref) names it. `items.json › [2].price` names a field of the
 document a file holds, whatever layers hold the file. A reference with no titled
 document on it is written whole.
 """

@@ -139,7 +139,7 @@ scratch module, so top-level assignments stay bound for later calls.
 
 **A variable is how a caller keeps what it found.** The description the model
 reads tells it to keep each object it finds or makes in its own variable, named by
-what it holds and numbered (`people_tab_1`, `rows_1`, then `rows_2`), and to use
+what it holds and numbered (`items_tab_1`, `rows_1`, then `rows_2`), and to use
 the variable in a later call instead of finding the object again.
 
 **The answer is what the code printed, whole, then the value of the last
