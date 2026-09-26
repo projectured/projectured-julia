@@ -748,6 +748,23 @@ function test_application()
                 end
             end
 
+            @testset "a tool button opens its tool beside the files, not in the explorer that holds the focus" begin
+                document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
+                editor = _app_make_editor(scene, composed, iomap)
+                tree = _app_window(document)
+                focus_pane!(editor, find_pane_reference(editor, "Files"))
+                explorer = first(get_pane_focus(tree))
+                toolbar = only(search_documents(document, node -> node isa WidgetToolbar))
+                button = only(item for item in toolbar.elements
+                              if string(item.action.label) == "Evaluator")
+                _app_apply!(editor, InvokeActionOperation(button.action))
+                (group, index) = get_pane_focus(tree)
+                @test get_wrapped_document(group.tabs[index].content) isa EvaluatorToplevel
+                @test group !== explorer
+                # The group of the files, where a file from the explorer opens too.
+                @test any(tab -> is_file_document(tab.content), group.tabs)
+            end
+
             @testset "the Evaluator button opens an evaluator, and Enter evaluates what is typed" begin
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
                 # A real editor, because an evaluation reads the tools of the editor.

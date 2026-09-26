@@ -262,8 +262,9 @@ layout that exists: [`focus_pane!`](@ref), [`move_pane!`](@ref) and
 [`close_pane!`](@ref), and [`replace_referenced_value!`](@ref) at a reference for
 what no verb says, such as the weights of a split. What they cannot say without
 naming a group by hand is *where a new pane goes*, and that policy is this verb:
-the focused group, and never the one
-[`pane_group_to_avoid`](@ref) names. [`duplicate_pane!`](@ref) places a
+the focused group, never the one [`pane_group_to_avoid`](@ref) names, and never
+a group with a tab that declines [`accepts_opened_file`](@ref), such as an
+explorer, while another group exists. [`duplicate_pane!`](@ref) places a
 duplicate beside its original, by the same policy when the original is in that
 group.
 
@@ -337,13 +338,17 @@ function _make_open_pane(editor, document; title, group)
 end
 
 # The group a new pane goes to: the focused group, and never the one
-# `pane_group_to_avoid` names while another group exists.
+# `pane_group_to_avoid` names while another group exists. Of the rest, only a
+# group every tab of which `accepts_opened_file` while one exists, so a pane
+# opened with the focus in an explorer goes beside the files, as a file does.
 function _find_placement_group(tree::PaneTree)
     groups = get_pane_groups(tree)
     isempty(groups) && error("The window has no group to open a pane in.")
     avoid = pane_group_to_avoid(tree)
     elsewhere = avoid === nothing ? groups : [g for g in groups if g !== avoid]
     isempty(elsewhere) && (elsewhere = groups)
+    free = [g for g in elsewhere if _is_free_group(g)]
+    isempty(free) || (elsewhere = free)
     group = get_pane_focused_group(tree)
     (group === nothing || !(group in elsewhere)) && (group = first(elsewhere))
     group

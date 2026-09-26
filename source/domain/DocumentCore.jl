@@ -104,15 +104,15 @@ takes text in its fields, because a person types there.
 """
 accepts_pasted_text(::Any) = true
 
-# ── What a newly opened file may share a pane group with ──────────────────────
+# ── What a new tab may share a pane group with ────────────────────────────────
 
 """
     accepts_opened_file(document) -> Bool
 
-Whether the pane group `document` sits in may also take a newly opened file, as
-a sibling tab. `true` by default. A domain answers `false` for a document a file
-must not crowd: an explorer a person opened the file from, or a running
-conversation.
+Whether the pane group `document` sits in may also take a newly opened file, or
+a new pane that no caller placed, as a sibling tab. `true` by default. A domain
+answers `false` for a document a new tab must not crowd: an explorer a person
+opened the file from, or a running conversation.
 """
 accepts_opened_file(::Any) = true
 

@@ -26,9 +26,12 @@ function get_pane_file_group(editor)
     for group in groups
         any(tab -> is_file_document(tab.content), group.tabs) && return group
     end
-    free = [group for group in groups
-            if all(tab -> accepts_opened_file(tab.content), group.tabs)]
+    free = [group for group in groups if _is_free_group(group)]
     isempty(free) && return nothing
     focused = get_pane_focused_group(tree)
     focused in free ? focused : first(free)
 end
+
+# Whether a new tab may go in beside every tab of `group`: each content
+# `accepts_opened_file`. A group with no tab is free.
+_is_free_group(group::PaneGroup) = all(tab -> accepts_opened_file(tab.content), group.tabs)
