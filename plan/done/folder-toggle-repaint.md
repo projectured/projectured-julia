@@ -53,10 +53,14 @@ which is the whole tree, although it draws no pixel.
 - [x] **F. Tests** for A to E, and the probe of the application: a toggle paints
   the chevron of the row and the rows from it down, and nothing above it.
 - [x] **G. The take**: the scroll step, the text of the page, a new take, and the
-  web page. The take is `build/video/s10/take3.mp4` (59.3 s), recorded by
-  `build/video/s10/take2.jl` over the timeline in `timeline2.jl`. On the web page it
-  replaces `assets/videos/partial-render.mp4`, with a poster at 9.8 s, where the
-  folder `chart` opens (commit `ec08cac` of `projectured.github.io`, not pushed).
+  web page. The take is `build/video/s10/take4.mp4` (59.3 s), recorded after the
+  rebase onto `main` at 15b40434 by `build/video/s10/take2.jl` over the timeline in
+  `timeline2.jl`. On the web page it replaces `assets/videos/partial-render.mp4`,
+  with a poster at 9.8 s, where the folder `chart` opens (commit `cee5b5e` of
+  `projectured.github.io`, not pushed).
+- The rebase onto `main` brought a scroll pane around each file tab. The pixel
+  check on the rebased branch again finds all 684 frames the same with a full and
+  with a partial repaint.
 
 ## What was found while it was built
 
