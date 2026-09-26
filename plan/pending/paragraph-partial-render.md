@@ -292,6 +292,21 @@ fault 1 hid both.
   makes the paragraph one line taller (the red box reaches the paragraphs below,
   which move). The output goes to `build/video/` of the worktree.
 
+## Landing: the rebase onto the main of 2026-09-26
+
+Another session changed the same walk on main while this branch was open: the
+render, the walk, the records and the hit test get all four edges of the clip
+(`_ClipEdges`), a laid-out canvas starts at `_compute_first_drawn_index`, the walk
+finds its start with `_find_first_walked_index` (a stale slot on the path of the
+search makes the canvas one unit, and a stale leaf keeps its test from before the
+read), and a canvas that declares its extent gives its box as its bounds. The
+rebase kept both: each of the four commits of this branch that touch `Sdl.jl` was
+applied onto main's walk, with main's edges, start index and search, and
+`_paint_dirty_rects!` passes the edges of the window to the render, as main's
+single rectangle did, because a glyph can reach past its box into the next
+rectangle. `WidgetToGraphics.jl` merged by itself. After each resolved commit
+`test_dirty_rect()` and `test_laid_out_canvas()` passed.
+
 ## Deferred: the word wrap for each paragraph
 
 For a `TextBlock` of spans and `TextNewline` elements (the `TextDocument` row of
