@@ -18,7 +18,11 @@ The format depends on the layout of the structs in memory. It is for one version
 
 ### The multi-file project
 
-A document graph can also be saved as text files that a version control system compares line by line. A **file document** has a `filename` and a `content`. It is a subtype of `FileDocument`, or a type with another supertype that returns `true` from `is_file_document`. `FileProject(base_dir, files)` holds the files, because a reference from one file into another needs the other file.
+A document graph can also be saved as text files that a version control system compares line by line. A **file document** has a `filename` and a `content`. It is a subtype of `FileDocument`, or a type with another supertype that returns `true` from `is_file_document`.
+
+`get_file_content(file)` answers the value of the `content` field: the parsed tree, for most formats. An application that keeps a history of each file holds that history in the field instead, so `get_file_content` then answers the history and not the tree; [`get_edited_document`](../kernel/reference.md#a-document-together-with-its-reference) reaches the document itself, through the history and every other such layer. `get_edited_field` of a `FileDocument` answers `:content`, unless the file's own node is its content, where it answers `nothing`. `get_file_content` also takes a `ReferencedDocument` in place of the file.
+
+`FileProject(base_dir, files)` holds the files, because a reference from one file into another needs the other file.
 
 **A file reference is a fact about storage, so it is never a node of the document.** In memory the graph is the real graph. A JSON object can hold an XML element, a shared subtree is one object, and a cycle is a cycle. Only the save writes references:
 

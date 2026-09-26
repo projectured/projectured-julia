@@ -58,7 +58,7 @@ browsing tools below. Do not guess names — search for them.
 `ReferencedDocument`: the tab, and the reference to it from the root of
 `editor.document`. A referenced document acts like its document: read a field,
 index it, iterate it. Every document or collection that a read answers is a
-referenced document too, so it still knows where it is; a string, a number or a
+referenced document too, with the reference to its place; a string, a number or a
 `Bool` comes back plain. `get_edited_document(tab)` answers the data that the tab
 shows, through the file and the history that hold it. The pane verbs and
 `print_natural_text` take a referenced document where they take a reference or a

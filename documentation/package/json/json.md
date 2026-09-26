@@ -20,6 +20,15 @@ The JSON domain, `ProjecturedJson`, holds JSON data as a tree of reactive docume
 
 `elements` and `entries` are `CellVector` fields. `@forward_vector_protocol` lets you index a `JsonArray` as a vector, and `@adapt_map_protocol` lets you use a `JsonObject` as a map from key to value. A `JsonNumber` holds `nothing` while you delete all of its text. The printer then shows the hint "enter json number" and does not call `string` on the value.
 
+A `JsonArray` acts as a vector of its elements: `array[1]` answers the element at that position, `length(array)` its count, and a `for` loop over it walks the elements in order. A `JsonObject` acts as a map from key to value: `object["name"]` answers the value document of that key, `keys(object)` the names in order, `haskey(object, key)` whether a name is present, `get(object, key, default)` the value or a default, and a `for` loop over it walks each `(key, value)` pair, with `value` the value document of the entry. A leaf — `JsonString`, `JsonNumber` or `JsonBool` — holds its plain value in its `value` field. A key an object does not have throws a `KeyError` that names the key:
+
+```julia
+person = JsonObject("name" => JsonString("Ada"))
+person["name"].value      # "Ada"
+haskey(person, "age")     # false
+person["age"]             # ERROR: KeyError: key "age" not found
+```
+
 ### The projection
 
 `JsonToSyntax()` has one `@projection_template` rule for each document type. A scalar becomes a `SyntaxLeaf` whose text is `bound` to the `value` field. An empty value shows a muted hint: "enter json string", "enter json number", "enter json bool" or "enter key". The number leaf has `retype = ReplaceNumberRangeOperation`, so a typed digit edits the number as a number. The leaf retypes the edit also when an array or an object holds it: the reader of a container finds the leaf that the edit enters with `find_template_value_retype`, so a digit typed into a cleared number in an array makes a number. A key that can not be part of a number, such as a letter, leaves the number as it is. The string leaf escapes its text with `json_escape` and has the two quotes as `open` and `close`.
@@ -57,6 +66,8 @@ The retype rules have the guard `_json_replaceable`. It returns `false` when the
 `ProjecturedJson` depends on the kernel and on `ProjecturedDomain`, `ProjecturedSyntax`, `ProjecturedText`, `ProjecturedNatural`, `ProjecturedSerialization` and `ProjecturedFileFormat`, with the small packages below them. No other domain package depends on it. The examples put JSON next to other domains, for example in `pane_json_example` and in a split pane with XML.
 
 Its `__init__` in `source/json/JsonModule.jl` registers the natural row with the rung `:syntax`, the format `:json`, the extension `.json` and the parser `parse_json`. It also registers `JsonFile` for `.json`. The [YAML domain](../yaml/yaml.md) mirrors these types one to one.
+
+An application that gives a language model access to the editor declares the seven types of this domain in its own vocabulary, so a model can read the shape of a JSON file it opens: `example/projectured/Application.jl` names `JsonArray`, `JsonObject`, `JsonObjectEntry`, `JsonString`, `JsonNumber`, `JsonBool` and `JsonNull` this way, beside the pane and file verbs it also declares.
 
 ## Design decisions
 

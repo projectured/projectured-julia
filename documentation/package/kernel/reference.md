@@ -384,6 +384,64 @@ live     = get_valid_reference_prefix(document, annotated)  # truncate at first 
 > helpers emit it, and `fold_reference_types` immediately folds it into node
 > `type` fields. It never appears as a step in a stored or consumed path.
 
+## A document together with its reference
+
+`ReferencedDocument{T}` pairs a document with the reference that reached it: the
+node, of type `T`, as it was when it was found, and the complete reference to it
+from the root it was found from. `T` is the type of whatever the reference
+reaches — a document, a collection, or any other value.
+
+It acts like the document it holds. Reading or writing a property, indexing,
+iteration, `length`, `isempty`, `keys`, `haskey`, `get`, `values`, `setindex!`,
+`push!`, `insert!` and `deleteat!` all go to the document. A write stores the
+document of a `ReferencedDocument` it is given, so the tree never holds one. A read
+that answers a document or a collection answers a `ReferencedDocument` too, with
+the reference extended by the field or the index that reached it; a read that
+answers a leaf value — a string, a number, a `Bool`, `nothing` — answers that
+value plain, with no reference around it:
+
+```julia
+tree = ReferencedDocument(root, EmptyReference())
+first_child = tree.children[1]     # a ReferencedDocument at .children[1]
+first_child.name                   # a plain string
+```
+
+Each step that a read adds records the type of the node it stands on, and the
+reference ends on the type of the value, as `annotate_reference_types` records
+them, so a function that takes only a fully typed reference takes it. A key that
+no step can name, such as the key of a document that acts as a map, is found in
+the document by its identity. A value that the document holds at more than one
+place is answered plain, because no reference is better than a wrong one.
+
+Read the two parts with `get_document` and `get_reference`; every other property
+name goes to the document instead. `ReferencedDocument` is not a subtype of
+`Reference` or of `Document`: as a `Reference` it would have to answer every
+method written for the two concrete reference structs, in a layer whose
+interface is sealed; as a `Document` the generic document machinery — a search, a
+printer walk, a copy — would treat it as a node of the tree, which it is not.
+Because every property goes to the document, `x isa T` is false for a
+`ReferencedDocument` that references a value of type `T`; code that checks a
+type asks `get_document(x)` first. `convert` to a document type converts
+`get_document(x)` to it, and `convert` to `Reference` converts `get_reference(x)`
+to it, so a `ReferencedDocument` fits where either is wanted.
+
+`DocumentLocator(start, reference)` is the address of a document, not resolved:
+`start` is the document the reference is read from, and the reference is read
+from it only when `find_referenced_document(locator)` is called. That function
+answers a `ReferencedDocument`, or `nothing` when the reference no longer reaches
+a node, so a `ReferencedDocument` found before an edit is brought up to date
+after it: `find_referenced_document(DocumentLocator(start, get_reference(old)))`
+reads the same place again.
+
+`get_edited_document(x)` follows a chain of layers down to the document a person
+edits: a tab wraps what it shows, a file wraps the document read from it, a
+history wraps the document it keeps. Each such layer answers the name of its own
+field through the open generic `get_edited_field`, and `get_edited_document`
+reads that field, one layer at a time, for at most 16 layers, so a cycle of
+layers cannot make it run forever. Given a `ReferencedDocument` it answers a
+`ReferencedDocument` whose reference passes through every layer it crossed;
+given a plain document it answers a plain document.
+
 ## Input and output references
 
 References are always interpreted relative to a particular document. When a
