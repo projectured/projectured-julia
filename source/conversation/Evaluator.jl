@@ -480,14 +480,14 @@ form, or `nothing` when the form keeps its string.
 A form becomes a Julia document when the document prints back as the same tokens
 on the same lines as the code; the spaces between them may change. Otherwise the
 form keeps its string: code with a comment, code that the print would change in
-another way (a `;` between two statements prints as a block of lines), code that
-does not parse, or code that no loaded domain reads as Julia. Use it to check
-the forms of a script before they are typed.
+another way (the juxtaposed product `2x` prints as `2 * x`), code that does not
+parse, or code that no loaded domain reads as Julia. Use it to check the forms of
+a script before they are typed.
 
 # Example
 
     find_form_document("add!(WidgetLabel(\"Go\"))")    # a JuliaCall
-    find_form_document("a; b")                          # nothing
+    find_form_document("y = 2x + 1")                    # nothing
 """
 function find_form_document(code::AbstractString)
     has_natural_parser(:jl) || return nothing

@@ -82,7 +82,7 @@ The rehearsal of S7 found two faults of the evaluator:
     and `FsmToSyntax`, `FormulaToSyntax` and `ProcessToSyntax` append their own
     entries after it, so their notation prints `⟨FsmComponent⟩` and the like.
     `FsmToJuliaCode` passes 39 of 39.
-- [ ] 4. The documents: `documentation/package/julia/julia.md`, the evaluator
+- [x] 4. The documents: `documentation/package/julia/julia.md`, the evaluator
   document, and the docstring of `find_form_document`.
 - [ ] 5. The S7 forms use `nameof(typeof(…))` (the owner's choice for the type
   names) and a `;` after `push!`, and the take is recorded.
