@@ -82,6 +82,35 @@ end
     end
 end
 
+@testset "a point of a window maps to the part drawn there, in a popup too" begin
+    # The screen peels `windows[i].content`, and the window's own projection maps
+    # the point in the window's frame, so every window maps its points alike.
+    shell = WidgetShell(WidgetList(Any["a", "b", "c"]); size = Point2D(400, 300))
+    document, projection = make_window_wrap(; gesture_help = false, command_palette = false,
+                                              selection = false)(shell, make_layout_projection_example())
+    scene = make_window_scene(document, "shell"; width = 400, height = 300)
+    menu = WidgetMenu(Any[WidgetMenuItem("Alpha"), WidgetMenuItem("Beta"), WidgetMenuItem("Gamma")];
+                      orientation = :vertical)
+    push!(scene.windows, WindowDocument(; id = :widget_popup, title = "popup", x = 50, y = 50,
+                                          width = 200, height = 150, style = :popup, content = menu))
+    composed = make_window_scene_projection(projection;
+        opened_window_projections = make_opened_window_projections(; gesture_help = false))
+    iomap = print_document(composed, scene)
+    window(i) = (FieldReferenceStep("windows"), RangeReferenceStep(i - 1, i), FieldReferenceStep("content"))
+    function at(i, x, y)
+        answer = map_reference_backward(composed, iomap,
+            extend_reference(EmptyReference(), window(i)..., PointReferenceStep(x, y)))
+        answer === nothing ? nothing : strip_reference_types(answer)
+    end
+    @test at(1, 5, 45) == extend_reference(EmptyReference(), window(1)..., FieldReferenceStep("content"),
+                                           FieldReferenceStep("items"), RangeReferenceStep(1, 2))
+    # Below the rows, the list itself is the part.
+    @test at(1, 5, 280) == extend_reference(EmptyReference(), window(1)..., FieldReferenceStep("content"))
+    @test at(2, 5, 30) == extend_reference(EmptyReference(), window(2)..., FieldReferenceStep("elements"),
+                                           RangeReferenceStep(1, 2))
+    @test at(2, 5, 140) === nothing
+end
+
 @testset "the palette sits outside the help" begin
     document, base = _document(), IdentityProjection()
     _, projection = make_window_wrap(; gesture_help = true, command_palette = true,

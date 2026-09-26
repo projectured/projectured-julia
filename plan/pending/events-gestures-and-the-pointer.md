@@ -705,6 +705,15 @@ it holds the example.
     `_find_sequence_chart_part`. Tests: `test_chart` 350 pass and
     `test_sequencechart` 283 pass (`main` 345 and 279); the mapping equals the
     path of a click, and the chain carries it on to the chart.
+  - [x] 4e. The screen and the window scene need no new code: the screen peels
+    `windows[i].content`, the window managing projection and the scene pass the
+    rest on, and the projection of the window maps the point in the window's
+    frame. So a point of a window is `windows[i].content` and a point step, and
+    a popup maps its points as the first window does (the case of H1). A fact
+    found: in a shell, an auto-sized widget fills the offered area, so a point
+    anywhere in it maps to that widget, and a click there reaches the same
+    widget. Test: `test_shell` 236 pass (a list row and the list itself in the
+    first window, a menu item in a popup, nothing past the menu).
 - [ ] 5. **The start over of Tab leaves the hover tracker (D2, §5 of the plan of
   D33).** A small wrapping step does only the start over at the ends, and the
   hover tracker loses its branch for Tab. Tests: the focus traversal tests; Tab
