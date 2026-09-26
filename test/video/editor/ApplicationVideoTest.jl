@@ -189,13 +189,17 @@ end
     full = take()
     partial = take(partial_render = true)
     outlined = take(partial_render = true, debug_dirty = true)
-    if !any(isnothing, (full, partial, outlined))
+    held = take(partial_render = true, debug_dirty = true, debug_dirty_hold = 0.2)
+    if !any(isnothing, (full, partial, outlined, held))
         # The kept surface, painted again only where something changed, ends as
         # the full paint ends, beyond the noise of the encoder.
         @test count(i -> maximum(abs.(full[i] .- partial[i])) > 60, CartesianIndices(full)) == 0
         # The outline of the last repaint stays on the frame.
         is_red(p) = p[1] > 180 && p[2] < 80 && p[3] < 80
         @test count(is_red, outlined) > count(is_red, partial)
+        # With a hold, the outline goes when the hold is over: the last key is
+        # more than 0.2 s before the last frame.
+        @test count(is_red, held) < count(is_red, outlined)
     end
 end
 end # test_application_video

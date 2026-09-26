@@ -59,9 +59,10 @@ pixels, and the dirty walk of `ProjecturedSdl` finds what to paint again. The
 pointer is then drawn on the written frame and not into the surface. With
 `debug_dirty = true` as well, each frame outlines in red the rects of the last
 frame that repainted something, as the window keeps its last picture with its
-outline until the next repaint. `debug_dirty_hold` seconds keeps each outline on
-the frames for that long as well, so a repaint of a single frame, such as the one
-where a paragraph grows and the ones below move, stays long enough to be seen.
+outline until the next repaint. With `debug_dirty_hold` seconds, each outline
+stays on the frames for that long instead, and no longer: a repaint of a single
+frame, such as the one where a paragraph grows and the ones below move, stays
+long enough to be seen, and a pause after it shows no outline.
 """
 mutable struct VideoBackend <: Backend
     width::Int
@@ -364,14 +365,14 @@ function _write_partial_frame!(backend::VideoBackend, canvas::GraphicsCanvas, ba
                               backend.frames_dir, backend.frame)
 end
 
-# The rects to outline on this frame: those of the last repaint, and those of every
-# repaint of the last `debug_dirty_hold` seconds.
+# The rects to outline on this frame: those of the last repaint, or with a hold,
+# those of every repaint of the last `debug_dirty_hold` seconds.
 function _get_held_outline(backend::VideoBackend, painted, last_rects)
     backend.debug_dirty_hold > 0 || return last_rects
     now = _get_schedule_seconds(backend)
     isempty(painted) || push!(backend.recent_repaints, (now, painted))
     filter!(entry -> now - entry[1] <= backend.debug_dirty_hold, backend.recent_repaints)
-    held = copy(last_rects)
+    held = NTuple{4,Int}[]
     for (_, rects) in backend.recent_repaints
         append!(held, rects)
     end
