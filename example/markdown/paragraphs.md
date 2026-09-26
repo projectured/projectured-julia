@@ -6,11 +6,11 @@ Every value on the screen is a reactive cell: a text, a color, a place. A key, a
 
 When the pointer moves onto a button, the editor writes one cell of that button, which says that the pointer is on it. The button that the pointer left changes one cell too. Only these two buttons are painted again.
 
-Before each frame, the backend walks the tree of graphics. It keeps the place of each graphic from the last paint, and it finds three kinds of change: a graphic whose cells changed, a graphic that moved, and a graphic that came into the view or left it.
+Before each frame, the backend compares the tree of graphics with the last paint. It finds a graphic that draws something else, one that moved, and one that came into the view or left it.
 
 Each change adds two rectangles to a set: where the graphic was, and where it is now. The set drops a rectangle only when another one covers it fully. The backend paints each rectangle under its own clip, into a picture of the window that it keeps, and it copies only these rectangles to the screen.
 
-A container does not read the size of its children, so a change in one part of the window does not paint the other parts again. When a folder in the navigator opens, the navigator is painted again, and this page is not.
+A container does not read the size of its children. When a folder in the navigator opens, the rows below it move down, so they are painted again, and the rows above it are not. When the navigator scrolls, every row moves, so all of the navigator is painted again, but this page is not.
 
 The caret is a graphic too. When it moves by a line or by a word, the red box covers its old place and its new place, and nothing else.
 
