@@ -248,6 +248,13 @@ function map_reference_forward(p::CommandPaletteDecoratorProjection, iomap::Comm
 end
 
 function map_reference_backward(p::CommandPaletteDecoratorProjection, iomap::CommandPaletteDecoratorIoMap, reference)
+    # A point maps into the content in the same frame, as a pointer event reaches
+    # it. While the palette is open it owns every event, so no point reaches the
+    # content.
+    if find_reference_point(reference) !== nothing
+        p.state.open[] && return nothing
+        return map_reference_backward(p.inner, iomap.inner_iomap, reference)
+    end
     inner = _strip_wrapper(reference)
     inner === nothing && return nothing
     map_reference_backward(p.inner, iomap.inner_iomap, inner)

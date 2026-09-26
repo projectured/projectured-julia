@@ -318,6 +318,30 @@ function test_command_palette_decorator()
         @test map_reference_backward(p, iomap, EmptyReference()) === nothing
     end
 
+    @testset "a point reaches the content while the palette is closed, and nothing while it is open" begin
+        state = CommandPaletteState()
+        p = mkpalette(state)
+        iomap = print_document(p, mkarr())
+        # The point inside the drawn number, wherever the font puts it. The brackets
+        # are chrome, and no point on them maps to a part.
+        function number_point(node, x = 0, y = 0)
+            x += hasproperty(node, :x) ? Int(node.x) : 0
+            y += hasproperty(node, :y) ? Int(node.y) : 0
+            node isa GraphicsText && node.text == "1" && return PointReferenceStep(x + 2, y + 2)
+            for element in (hasproperty(node, :elements) ? node.elements : ())
+                found = number_point(element, x, y)
+                found === nothing || return found
+            end
+            nothing
+        end
+        point = number_point(iomap.inner_iomap.output)
+        inner = map_reference_backward(p.inner, iomap.inner_iomap, point)
+        @test inner !== nothing
+        @test map_reference_backward(p, iomap, point) == inner
+        read_intent(p, iomap, summon)
+        @test map_reference_backward(p, iomap, point) === nothing
+    end
+
     @testset "the help window sees exactly what it saw without the palette" begin
         state = CommandPaletteState()
         p = mkpalette(state)

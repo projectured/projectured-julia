@@ -714,6 +714,15 @@ it holds the example.
     anywhere in it maps to that widget, and a click there reaches the same
     widget. Test: `test_shell` 236 pass (a list row and the list itself in the
     first window, a menu item in a popup, nothing past the menu).
+  - [ ] 4f. The projections outside the substrate. A walk of the real
+    application window found one stage that stopped every point: the command
+    palette decorator. It now passes a point to its content in the same frame
+    while the palette is closed, and maps nothing while it is open, because the
+    open palette owns every event. After it, "File" and "Help" map to their menu
+    items, an explorer entry to its folder and a `ProjectionReferenceStep`, and a
+    word of a JSON tab to its text position. A JSON bracket maps to nothing: it
+    is chrome, with no part in the domain. Test: `test_command_palette_decorator`
+    66 pass.
 - [ ] 5. **The start over of Tab leaves the hover tracker (D2, §5 of the plan of
   D33).** A small wrapping step does only the start over at the ends, and the
   hover tracker loses its branch for Tab. Tests: the focus traversal tests; Tab
