@@ -67,6 +67,21 @@ function test_referenced_document()
         @test evaluate_reference(root, get_reference(leaf)) === root.entries["leaf"]
     end
 
+    @testset "a collection answers its keys, its values and a default" begin
+        root = ReferencedTable(Dict{String, Any}("leaf" => ReferencedLeaf("d", nothing)), nothing)
+        entries = ReferencedDocument(root, EmptyReference()).entries
+        @test haskey(entries, "leaf")
+        @test collect(keys(entries)) == ["leaf"]
+        @test [value.name for value in values(entries)] == ["d"]
+        @test get(entries, "missing", :none) === :none
+        leaf = get(entries, "leaf", :none)
+        @test evaluate_reference(root, get_reference(leaf)) === root.entries["leaf"]
+        children = ReferencedDocument(_make_referenced_tree(), EmptyReference()).children
+        @test !isempty(children)
+        @test children[end].name == "b"
+        @test get(children, 3, :none) === :none
+    end
+
     @testset "a write goes to the document" begin
         root = _make_referenced_tree()
         first_child = ReferencedDocument(root, EmptyReference()).children[1]

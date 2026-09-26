@@ -9,27 +9,27 @@
 # ── Primitives ───────────────────────────────────────────────────────────
 
 """
-The JSON `null` literal.
+The JSON `null` literal. It holds no value.
 """
 @document struct JsonNull <: JsonDocument
 end
 
 """
-A JSON boolean literal (`true` or `false`).
+A JSON boolean literal. `value` is `true` or `false`.
 """
 @document struct JsonBool <: JsonDocument
     value::Bool
 end
 
 """
-A JSON number literal. `value` may be `nothing` while its text has been fully deleted.
+A JSON number literal. `value` is the number, or `nothing` while its text is empty.
 """
 @document struct JsonNumber <: JsonDocument
     value::Union{Real, Nothing}
 end
 
 """
-A JSON string literal.
+A JSON string literal. `value` is the `String`.
 """
 @document struct JsonString <: JsonDocument
     value::String
@@ -38,7 +38,18 @@ end
 # ── Compounds ────────────────────────────────────────────────────────────
 
 """
-A JSON array `[…]`. `collapsed` hides its elements behind a marker in the projection.
+A JSON array `[…]`. `elements` holds its values, each a JSON document. The array acts
+as a vector of them: `array[1]`, `length(array)`, `for element in array`.
+`collapsed` hides the elements behind a marker in the projection.
+
+Use it to read the items of a JSON list, for example the records of a JSON file
+that holds an array of objects.
+
+# Example
+
+    for person in people              # each element, here a `JsonObject`
+        println(person["name"].value)
+    end
 """
 @document struct JsonArray <: JsonDocument
     elements::CellVector = CellVector()
@@ -48,7 +59,8 @@ end
 @forward_vector_protocol on JsonArray to elements
 
 """
-One `"key": value` member of a JSON object.
+One `"key": value` member of a JSON object. `key` is the name, a `String`, and `value`
+is the JSON document of its value.
 """
 @document struct JsonObjectEntry <: JsonDocument
     key::String
@@ -57,8 +69,19 @@ One `"key": value` member of a JSON object.
 end    
 
 """
-A JSON object `{…}` — an ordered sequence of `JsonObjectEntry` members.
-`collapsed` hides them in the projection.
+A JSON object `{…}`: `entries` holds its members in order, each a `JsonObjectEntry`
+with a `key` and a `value`. The object acts as a map from key to value:
+`object["name"]` answers the value of that key, and `keys(object)`,
+`haskey(object, key)` and `get(object, key, default)` work as for a `Dict`. A value
+is a JSON document, so read the `value` field of a string, a number or a boolean for
+the plain value. `collapsed` hides the members in the projection.
+
+Use it to read the fields of a JSON record by their names.
+
+# Example
+
+    person["name"].value              # "Ada", the string of the key "name"
+    keys(person)                      # the names of its fields
 """
 @document struct JsonObject <: JsonDocument
     entries::CellVector = CellVector()

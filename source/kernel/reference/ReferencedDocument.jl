@@ -10,7 +10,8 @@ found from. `T` is the type of whatever the reference reaches: a document, a
 collection, or any other value.
 
 It acts like the document it references. Reading or writing a property, indexing,
-iteration and `length` go to the document. A read that answers a document or a
+iteration, `length`, `isempty`, `keys`, `haskey`, `get` and `values` go to the
+document. A read that answers a document or a
 collection answers it as a `ReferencedDocument` too, with the reference extended by
 the field or the index; a read that answers any other value — a string, a number, a
 `Bool`, `nothing` — answers that value. So a chain of reads looks like code on the
@@ -79,6 +80,13 @@ Base.propertynames(x::ReferencedDocument, private::Bool = false) =
     propertynames(get_document(x), private)
 
 Base.length(x::ReferencedDocument) = length(get_document(x))
+Base.isempty(x::ReferencedDocument) = isempty(get_document(x))
+Base.firstindex(x::ReferencedDocument) = firstindex(get_document(x))
+Base.lastindex(x::ReferencedDocument) = lastindex(get_document(x))
+Base.eachindex(x::ReferencedDocument) = eachindex(get_document(x))
+Base.keys(x::ReferencedDocument) = keys(get_document(x))
+Base.haskey(x::ReferencedDocument, key) = haskey(get_document(x), key)
+Base.setindex!(x::ReferencedDocument, value, key) = setindex!(get_document(x), value, key)
 
 # The step from a collection to the value at `key`: an element for a position in a
 # sequence, the entry for a key of a dictionary. Any other key answers `nothing`,
@@ -87,16 +95,34 @@ _make_key_step(document::AbstractDict, key) = FieldReferenceStep(string(key))
 _make_key_step(document, key::Integer) = ElementReferenceStep(Int(key))
 _make_key_step(document, key) = nothing
 
+# `value` as a referenced document when the document of `x` holds it, found by its
+# identity; a value that the document does not hold, such as a new collection that a
+# function computed from it, is answered as it is.
+function _find_referenced_value(x::ReferencedDocument, value)
+    _is_referenced_value(value) || return value
+    found = search_references(get_document(x), node -> node === value)
+    isempty(found) && return value
+    ReferencedDocument(value, concat_references(get_reference(x), first(found)))
+end
+
 function Base.getindex(x::ReferencedDocument, key)
     document = get_document(x)
     value = document[key]
     _is_referenced_value(value) || return value
     step = _make_key_step(document, key)
-    step === nothing || return ReferencedDocument(value, extend_reference(get_reference(x), step))
-    found = search_references(document, node -> node === value)
-    isempty(found) && return ReferencedDocument(value, get_reference(x))
-    ReferencedDocument(value, concat_references(get_reference(x), first(found)))
+    step === nothing && return _find_referenced_value(x, value)
+    ReferencedDocument(value, extend_reference(get_reference(x), step))
 end
+
+# What the document's own `get` answers for a missing key, apart from every value it
+# can hold.
+struct _MissingKey end
+
+Base.get(x::ReferencedDocument, key, default) =
+    get(get_document(x), key, _MissingKey()) isa _MissingKey ? default : x[key]
+
+Base.values(x::ReferencedDocument) =
+    [_find_referenced_value(x, value) for value in values(get_document(x))]
 
 # The iteration state: the position of the next value, and the state of the
 # document's own iteration.
@@ -118,10 +144,21 @@ function Base.iterate(x::ReferencedDocument, state::_ReferencedIterationState)
 end
 
 function _make_referenced_step(x::ReferencedDocument, (value, inner), position::Int)
-    step = get_document(x) isa AbstractDict ? nothing : ElementReferenceStep(position)
-    element = step === nothing ? value :
-              _make_referenced(value, extend_reference(get_reference(x), step))
-    (element, _ReferencedIterationState(position + 1, inner))
+    (_make_iterated_value(x, value, position), _ReferencedIterationState(position + 1, inner))
+end
+
+# The value that iteration answers at `position`. An element of a sequence is at its
+# position. A value of any other document, such as a `(key, value)` member of a map,
+# is found in the document by its identity, and so is each part of such a member.
+function _make_iterated_value(x::ReferencedDocument, value, position::Int)
+    _is_referenced_value(value) || return value
+    document = get_document(x)
+    if !(document isa AbstractDict) && applicable(getindex, document, position) &&
+       document[position] === value
+        return ReferencedDocument(value, extend_reference(get_reference(x), ElementReferenceStep(position)))
+    end
+    value isa Tuple && return map(part -> _find_referenced_value(x, part), value)
+    _find_referenced_value(x, value)
 end
 
 # The name of the type without the cell parameters that a document type carries.

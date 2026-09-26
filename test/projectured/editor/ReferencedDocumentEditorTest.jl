@@ -53,6 +53,24 @@ function test_referenced_document_editor()
         @test [entry.key for entry in first_person.entries] == ["name", "age"]
     end
 
+    @testset "an array iterates and an object reads by key, keeping references" begin
+        people = get_edited_document(find_pane(editor, "people.json"))
+        @test [person["name"].value for person in people] == ["Cleo", "Ada"]
+        @test [person["age"].value for person in people] == [29, 36]
+        second_name = people[2]["name"]
+        @test get_document(second_name) isa JsonString
+        @test evaluate_reference(editor.document, get_reference(second_name)) === get_document(second_name)
+        rows = [[person["name"].value, person["age"].value] for person in people]
+        @test sort(rows; by = first) == [["Ada", 36], ["Cleo", 29]]
+        first_person = people[1]
+        for (key, value) in first_person
+            @test key isa String
+            @test evaluate_reference(editor.document, get_reference(value)) === get_document(value)
+        end
+        @test keys(first_person) == ["name", "age"]
+        @test_throws KeyError first_person["nme"]
+    end
+
     @testset "a tab that shows a widget answers the widget" begin
         open_pane!(editor, WidgetLabel("hello"); title = "Hello")
         hello = get_edited_document(find_pane(editor, "Hello"))

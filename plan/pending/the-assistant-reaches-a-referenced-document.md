@@ -97,13 +97,13 @@ print_natural_text(people_1)
 Round 2, reuse `people_tab_1` and `people_1`:
 
 ```julia
-rows_1 = [[person["name"].value, person["age"].value] for person in people_1.elements]
+rows_1 = [[person["name"].value, person["age"].value] for person in people_1]
 sort!(rows_1; by = first)
 table_tab_1 = open_pane!(editor, WidgetTable(["name", "age"], rows_1);
                          title = "People by name", target = get_parent(people_tab_1))
 ```
 
-`people_1.elements` is a `ReferencedDocument{CellVector}`; each `person` a
+`people_1` iterates its elements, because `JsonArray` acts as a vector; each `person` a
 `ReferencedDocument{JsonObject}`; `person["name"]` a `ReferencedDocument{JsonString}`
 whose reference reaches that entry's value; `.value` the plain `String`.
 
@@ -127,6 +127,14 @@ whose reference reaches that entry's value; `.value` the plain `String`.
   Because every property is forwarded, the two fields are read only through
   `get_document` and `get_reference`. `x isa JsonArray` stays false; code that
   checks a type asks `get_document(x)`.
+  *Found in Step 4:* the functions a collection answers go to the document too:
+  `isempty`, `firstindex`, `lastindex`, `eachindex`, `keys`, `haskey`, `get`,
+  `values` and `setindex!`, because the JSON docstrings of D15 tell the reader to
+  use `keys(object)` and `get(object, key, default)`. An element of a sequence is
+  at its position only when the document reads that position back; any other
+  value that iteration or a key answers, such as a `(key, value)` member of a
+  `JsonObject`, is found in the document by its identity, and a value the document
+  does not hold is answered plain.
 - **D3. Its display says both what and where:**
   `ReferencedDocument{PaneTab} at .windows[1]…tabs[2]: PaneTab("people.json", …)`,
   so a model that reads a value knows it holds a referenced document.
@@ -178,6 +186,12 @@ whose reference reaches that entry's value; `.value` the plain `String`.
 - **D11. `object[key]` on a `JsonObject`** answers the value document of that key,
   and throws a `KeyError` that names the keys the object has when the key is
   missing.
+  *Found in Step 4:* `object[key]`, `keys`, `haskey`, `get`, `values` and iteration
+  already exist, from `@adapt_map_protocol` in `ForwardProtocol.jl`, and
+  `JsonArray` acts as a vector through `@forward_vector_protocol`. The `KeyError`
+  names the key only: `ForwardProtocol.jl` is sealed, and a second `getindex`
+  method for `JsonObject` would overwrite the method of the macro, which stops
+  precompilation. The docstring of `JsonObject` sends the reader to `keys(object)`.
 
 ### The documentation the model reads
 
@@ -280,7 +294,14 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       `open_pane!` with a group target, a tab target and a side, and its answer;
       `move_pane!`, `focus_pane!`, `close_pane!` and `print_natural_text` with a
       referenced document.
-- [ ] **Step 4: JSON.** D11 and D15, with tests of `object[key]` and its
+- [x] **Step 4: JSON.** Done. D11 already existed (see D11). The docstrings
+      of the JSON types say their shape (D15 for the source; the application
+      declaration is in Step 5). The referenced document forwards the collection
+      functions (see D2). `test_referenced_document()` passes 33 checks and
+      `test_referenced_document_editor()` 24, with an array that iterates, an
+      object read by key, by `get` and by iteration, and a missing key that throws
+      a `KeyError`; `test_json()` passes 194, as on `main`.
+      The step as planned: D11 and D15, with tests of `object[key]` and its
       `KeyError`.
 - [ ] **Step 5: the documentation.** D12 to D17; the search tests of D13;
       `test_documentation()` and `test_naming()` pass.
