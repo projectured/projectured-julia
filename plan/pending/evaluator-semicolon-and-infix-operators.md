@@ -46,10 +46,21 @@ The rehearsal of S7 found two faults of the evaluator:
 
 ## Steps
 
-- [ ] 1. The infix operators parse to `JuliaBinaryOperation`, with the precedence
+- [x] 1. The infix operators parse to `JuliaBinaryOperation`, with the precedence
   of the Julia manual. Round-trip tests in `test/julia/document/JuliaParserTest.jl`.
-- [ ] 2. `JuliaToplevel`: the node, its parse, its syntax projection and its
-  export. Round-trip tests for `a; b`, `x = 1;` and `x = 1; # c`.
+  - A dotted comparison is written `Symbol(".==")`: in Julia 1.13 `:(.==)` is an
+    `Expr` of the dotted operator, not a `Symbol`.
+  - A comparison still associates to the left in the printer, as before. A rule
+    that put parentheses around a comparison inside a comparison broke
+    `a < b < c`, which the parser folds to the left and which is much more common.
+    So `(a < b) == c` still prints without its parentheses: the domain has no node
+    for a chained comparison. That gap is older than this plan.
+- [x] 2. `JuliaToplevel`: the node, its parse, its syntax projection and its
+  export. Round-trip tests for `a; b`, `x = 1;`, `a; b;`, a `;` before a comment,
+  and a line of a block that ends with `;`.
+  - `statements` has no default, so `@document` keeps the positional
+    constructors: the parser calls `JuliaToplevel(statements, true)`.
+  - `test_julia()`: 392 pass, none fails.
 - [ ] 3. The evaluator hides the result of a form that ends with `;`. Tests in
   `test/projectured/editor/EvaluatorToplevelTest.jl`: the forms of S7 become
   Julia documents, and a `;` hides the result but keeps what the code prints.

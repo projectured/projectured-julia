@@ -104,20 +104,33 @@ end
 # printed bare becomes `!a || b`, which is not the same thing and does not
 # announce itself.
 
-const _JULIA_COMPARISONS = (:(==), :(!=), :(<), :(>), :(<=), :(>=), :(===), :(!==))
+const _JULIA_COMPARISONS = (:(==), :(!=), :(<), :(>), :(<=), :(>=), :(===), :(!==),
+                             :isa, :in, :∈, :∉)
 
-_julia_precedence(op::Symbol) =
+# A broadcast operator binds as the operator without its dot: `.+` as `+`.
+_julia_undotted(op::Symbol) =
+    (text = string(op); length(text) > 1 && startswith(text, '.') ? Symbol(text[2:end]) : op)
+
+# The order of the Julia manual, from the loosest: a pair, `||`, `&&`, the
+# comparisons, `|>`, the additions, the multiplications, and `^`. An operator
+# that the table does not name binds between the multiplications and `^`.
+_julia_precedence(op::Symbol) = _julia_undotted_precedence(_julia_undotted(op))
+_julia_undotted_precedence(op::Symbol) =
+    op === :(=>) ? 0 :
     op === :|| ? 1 :
     op === :&& ? 2 :
     op in _JULIA_COMPARISONS ? 3 :
-    op in (:+, :-) ? 4 :
-    op in (:*, :/) ? 5 :
-    op === :^ ? 7 : 6
+    op === :|> ? 4 :
+    op in (:+, :-) ? 5 :
+    op in (:*, :/, :%, :÷) ? 6 :
+    op === :^ ? 8 : 7
 
-# `&&` and `||` associate to the right in Julia, the arithmetic and comparison
-# operators to the left. The side an operator already associates toward needs no
-# parentheses at equal precedence; the other side does.
-_julia_right_associative(op::Symbol) = op === :&& || op === :|| || op === :^
+# `=>`, `&&`, `||` and `^` associate to the right in Julia, and the arithmetic
+# and comparison operators and `|>` to the left. The side an operator already
+# associates toward needs no parentheses at equal precedence; the other side does.
+# The parser folds a chained comparison `a < b < c` to the left, so it prints
+# back as written.
+_julia_right_associative(op::Symbol) = _julia_undotted(op) in (:(=>), :&&, :||, :^)
 
 _julia_operand_parens(operand, outer::Symbol, on_right::Bool) = begin
     operand isa JuliaBinaryOperation || return false
@@ -732,6 +745,19 @@ end
 @projection_template JuliaBlockToSyntaxNode JuliaBlock (p, b) ->
     SyntaxNode(collection(:statements); indentation=p.indentation)
 
+# ── JuliaToplevelToSyntaxNode ───────────────────────────────────────────────
+
+@projection struct JuliaToplevelToSyntaxNode
+    delim::ImmutableCell{StyleText} = StyleText(font_ubuntu_monospace_regular_20, color_solarized_gray)
+end
+
+# The statements on one line, with `; ` between them, and a `;` after the last
+# one when the line ends with it.
+@projection_template JuliaToplevelToSyntaxNode JuliaToplevel (p, t) ->
+    SyntaxNode(collection(:statements);
+               sep=TextString("; ", p.delim),
+               close=TextString(() -> t.trailing_semicolon ? ";" : "", p.delim))
+
 # ── JuliaIfToSyntaxNode ─────────────────────────────────────────────────────
 
 @projection struct JuliaIfToSyntaxNode
@@ -935,6 +961,7 @@ function JuliaToSyntax()
         JuliaTry             => JuliaTryToSyntaxNode(),
         JuliaBegin           => JuliaBeginToSyntaxNode(),
         JuliaBlock           => JuliaBlockToSyntaxNode(),
+        JuliaToplevel        => JuliaToplevelToSyntaxNode(),
         JuliaIf              => JuliaIfToSyntaxNode(),
         JuliaFunction        => JuliaFunctionToSyntaxNode(),
         JuliaFunctionDeclaration => JuliaFunctionDeclarationToSyntaxNode(),

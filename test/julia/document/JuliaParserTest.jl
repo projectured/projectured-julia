@@ -10,7 +10,7 @@ appeared in a real file and stopped the whole file from parsing, since
 """
 
 using Test
-using ProjecturedJulia.JuliaModule: parse_julia
+using ProjecturedJulia.JuliaModule: parse_julia, JuliaBlock, JuliaToplevel
 using ProjecturedNatural.NaturalModule: print_natural_text
 
 # What the printer produced, trimmed — the pipeline emits the editor's rendered
@@ -79,6 +79,34 @@ function test_julia_parser()
         @test _julia_round_trip("y = a < b < c") == "y = a < b < c"
         @test _julia_round_trip("function f end") == "function f end"
         @test occursin("(x) ->", _julia_round_trip("g = function (x)\n    x\nend"))
+    end
+
+    @testset "an infix operator prints between its operands" begin
+        for code in ("d isa Workspace", "x in xs", "x ∈ xs", "x ∉ xs", "a => b", "x |> f",
+                     "a % b", "a ÷ b", "a .+ b", "a .== b",
+                     "first(search_documents(editor.document, d -> d isa JsonFile))")
+            @test _julia_round_trip(code) == code
+        end
+        # The parentheses follow the precedence and the associativity of Julia.
+        for code in ("a => b => c", "(a => b) => c", "x |> f |> g", "x |> (f |> g)",
+                     "a + b in xs", "a in (xs == ys)", "a .+ b .* c", "(a .+ b) .* c",
+                     "k => a || b", "(k => a) || b")
+            @test _julia_round_trip(code) == code
+        end
+    end
+
+    @testset "statements on one line keep their semicolons" begin
+        @test _julia_round_trip("a; b") == "a; b"
+        @test _julia_round_trip("x = 1;") == "x = 1;"
+        @test _julia_round_trip("a; b;") == "a; b;"
+        @test _julia_round_trip("push!(xs, 1);  # the list") == "push!(xs, 1);"
+        @test parse_julia("x = 1;") isa JuliaToplevel
+        @test parse_julia("x = 1;").trailing_semicolon
+        @test !parse_julia("a; b").trailing_semicolon
+        # A line of its own in a block of lines keeps its `;` too.
+        @test _julia_round_trip("x = 1\ny = 2;") == "x = 1\n  y = 2;"
+        # A `;` inside a `begin` block separates statements of that block.
+        @test parse_julia("begin a; b end") isa JuliaBlock
     end
 
     @testset "a whole file is a document" begin

@@ -224,6 +224,17 @@ A sequence of statements/expressions.
 end
 
 """
+Statements on one line with `;` between them, `a; b`, which the Julia parser
+gives as an `Expr(:toplevel, …)` of their own. `trailing_semicolon` is a `;`
+after the last statement, `x = 1;`, which the Julia REPL reads as "do not show
+the value".
+"""
+@document struct JuliaToplevel <: JuliaDocument
+    statements::CellVector
+    trailing_semicolon::Bool = false
+end
+
+"""
 A `using`/`import`/`export` statement. `keyword` is `:using`, `:import`,
 `:export` or `:public`; `path` is the rendered spec exactly as written, e.g.
 `"Main.SubmoduleExample"`, `"A, B"`, or `"A: x, y"`. Kept as a flat string
