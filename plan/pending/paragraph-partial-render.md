@@ -186,7 +186,43 @@ fault 1 hid both.
       area `(0,70,1280,693)` and the status bar `(0,689,1280,720)`. The pane area
       is still one unit because the composite rebuilds, so the next step is the
       containers, and the question below is still open.
-  - **Open decision: what the red box means.**
+  - **The owner's answer, 2026-09-26, second round:** "most projections are
+    already handling selection changes with a very small reactive change in the
+    output, usually only selection … a size change is of course different …
+    yes, you can continue on refining how projection printers handle
+    incremental changes, the smaller the change in the output is the better".
+    So the model stays the one of stale cells, and the printers get smaller.
+  - **What a click and a key repainted, cause by cause** (the probe with no
+    window lists the stale canvases and the chain of stale cells behind each):
+    1. *The status bar* computed its height in the cell of its words, so the
+       selection it shows made its height stale on each key, and with it the
+       room the shell offers the pane tree. Its height now comes from the line
+       of its font and its insets.
+    2. *The composite* sized its box from its children in the cell that built its
+       wrappers, and the size of a child reads every graphic in it, the caret
+       and the selection ring included. Its list now reads which children it has;
+       its box is a canvas of its own, which measures the children only when it
+       has something to draw.
+    3. *The split pane and the tabbed pane* measured their children with
+       `get_graphics_size` even when the parent offered the extent and the
+       measure was not used. They measure only for an axis with no slot.
+    4. *A string edit* placed its caret with `clear_selection!` and
+       `set_selection!`, which writes the selection cell of every node on the
+       path, so each container that reads its selection (a tabbed pane reads it
+       for its active tab) rebuilt on each key. It uses `replace_selection!`,
+       which stores the same selection and writes only the cells whose value
+       changes.
+    5. *The walk* read cells in an order that let a recording compute cells it
+       had still to test: the box of the composite, visited first, measured the
+       children and hid the typed text. The walk now has two phases: it finds
+       every change, then it runs the recordings in the order it met them. A
+       viewport always defers the clip of its inner rectangles, because a
+       viewport inside it answers that its own bounds did not change.
+  - The probe after these: a click repaints the caret `(699,256,705,283)` and
+    the status bar; each key repaints paragraph 2 `(262,233,1245,283)` and the
+    status bar, and nothing else.
+  - **Decided, no longer open: what the red box means.** It stays the picture of
+    the stale cells, as the owner's answer says. The two options were:
     - *Staleness (the model now).* The box shows what the reactive graph made
       stale, plus the graphics that moved. It is the honest picture of the
       reactivity the video is about. It needs: a dirty region of several
