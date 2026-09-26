@@ -102,13 +102,20 @@ end
 
 The filter that the overlay uses when the caller names no other one. It drops a
 selection operation, because a selection follows almost every click and almost
-every arrow key and would fill the whole buffer. It also drops the operations
-that change nothing.
+every arrow key and would fill the whole buffer. It drops a write of view state,
+such as a scroll or a hover, because it is no edit and follows the pointer as
+often. It also drops the operations that change nothing, and a compound of
+nothing but these.
 """
 default_gesture_log_filter(gesture, operation) =
-    !(operation === nothing ||
-      operation isa DoNothingOperation ||
-      operation isa ReplaceSelectionOperation)
+    !(operation === nothing || _is_view_only(operation))
+
+# An operation that changes no document: one that does nothing, a move of the
+# selection, a write of view state, or a compound of nothing else.
+_is_view_only(operation) =
+    operation isa Union{DoNothingOperation, ReplaceSelectionOperation, ReplaceViewStateOperation} ||
+    (operation isa CompoundOperation && !isempty(operation.operations) &&
+     all(_is_view_only, operation.operations))
 
 _operation_kind(::Nothing) = :Nothing
 _operation_kind(operation) = nameof(typeof(operation))

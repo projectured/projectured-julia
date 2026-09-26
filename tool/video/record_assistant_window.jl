@@ -49,10 +49,10 @@ function turn_finished(turns::Integer)
     end
 end
 
-# The session's gesture log in a pane below the file, with 20% of the height, and
-# the focus back on the file. The log is emptied first, so the take shows its own
-# steps and not the warm-up's.
-function put_log_below_the_file!(document)
+# The window of the take: the Files tab closed, so the file and the assistant have
+# its room, and the session's gesture log in a pane below the file, with 20% of the
+# height, with the focus back on the file.
+function prepare_window!(document)
     log = get_session_gesture_log()
     clear_gesture_log!(log)
     log.count = 0
@@ -60,6 +60,9 @@ function put_log_below_the_file!(document)
     # moves the group of the file one level down.
     selected = try_evaluate_reference(document, get_selection(document), nothing)
     tree = only(search_documents(document, node -> node isa PaneTree))
+    files = only(g for g in get_pane_groups(tree)
+                 if any(tab -> get_pane_tab_title_string(tab) == "Files", g.tabs))
+    apply_pane_operation!(tree, make_pane_close_tab_operation(tree, files, 1))
     group = only(g for g in get_pane_groups(tree)
                  if any(tab -> get_pane_tab_title_string(tab) == "people.json", g.tabs))
     apply_pane_operation!(tree, make_pane_split_operation(tree, group; orientation = :horizontal,
@@ -119,7 +122,7 @@ function record(output, llm, timeline; initial_hold, final_hold)
                              width = 1280, height = 720, fps = 30,
                              assistant = :ollama, llm = llm, root = directory,
                              initial_hold = initial_hold, final_hold = final_hold,
-                             prepare = put_log_below_the_file!)
+                             prepare = prepare_window!)
 end
 
 function main()

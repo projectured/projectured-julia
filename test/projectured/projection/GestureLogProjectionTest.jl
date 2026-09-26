@@ -111,6 +111,12 @@ function test_gesture_log()
         @test !default_gesture_log_filter(left, DoNothingOperation())
         @test !default_gesture_log_filter(left, nothing)
         @test default_gesture_log_filter(left, ToggleCollapseOperation())
+        # A scroll writes view state, and a compound of nothing else is no edit.
+        scroll = CompoundOperation(Any[
+            ReplaceViewStateOperation(ReplaceReferencedValueOperation(nothing, EmptyReference(), 1)),
+            ReplaceViewStateOperation(ReplaceReferencedValueOperation(nothing, EmptyReference(), 2))])
+        @test !default_gesture_log_filter(left, scroll)
+        @test !default_gesture_log_filter(left, scroll.operations[1])
     end
 
     @testset "the recorder passes the operation through and records it" begin
