@@ -2372,12 +2372,18 @@ distinct from its text **label** (the decoration model used by typical widget
 libraries — Swing `JTree` renderers, Qt's `QTreeView` decoration role). `icon`
 is `Any`: a glyph `String` today, an image document later. `children` is a
 `Vector` of child nodes (each a `WidgetTreeNode`, a leaf `String`, or a
-bare `(label, children)` tuple); an empty vector marks a leaf.
+bare `(label, children)` tuple), or a `CellVector` of them; an empty one marks
+a leaf, and a leaf has no chevron.
+
+The tree reads `children` only for a row that it draws, to know if the row has
+a chevron, and for an open node, to draw the rows under it. So a `CellVector`
+whose elements are computed one at a time reads nothing for a node that is not
+drawn, and one element for each child row that is drawn.
 """
 struct WidgetTreeNode
     icon::Any
     label::Any
-    children::Vector
+    children::Any                # a Vector, or a CellVector read only when needed
     gestures::Any
 end
 # A node is a plain value (not a `Document`), so it has no `selection`; its

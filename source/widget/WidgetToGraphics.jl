@@ -8646,9 +8646,11 @@ WidgetTreeToGraphicsCanvas(theme::WidgetTheme; measure,
 _tree_icon(node)  = node isa WidgetTreeNode ? node.icon : ""
 _tree_label(node) = node isa WidgetTreeNode ? string(node.label) :
                     (node isa Tuple ? string(node[1]) : string(node))
+# The children of a `WidgetTreeNode` are not read here: the caller reads them,
+# and the tree reads them only for a drawn row and for an open node.
 function _tree_children(node)
     if node isa WidgetTreeNode
-        isempty(node.children) ? nothing : node.children
+        node.children
     elseif node isa Tuple && length(node) >= 2 && node[2] isa AbstractVector
         node[2]
     else

@@ -56,4 +56,33 @@ end
         @test [r.path for r in iomap.geometry.rows] == [[1], [1, 1], [1, 2]]
     end
 end
+
+# The tree opens its root, and shows each entry under it closed. It reads the
+# listing of the root, and of each folder it shows, to know if the folder has a
+# chevron; it reads nothing below them.
+@testset "FileSystemToWidget reads the folders it shows" begin
+    mktempdir() do dir
+        mkpath(joinpath(dir, "full", "inner"))
+        write(joinpath(dir, "full", "a.jl"), "")
+        mkpath(joinpath(dir, "none"))
+        write(joinpath(dir, "top.jl"), "")
+        folder = make_filesystem_pathname(dir)
+        pane = print_document(RecursiveProjection(FileSystemToWidget()), folder).output
+        widgets = WidgetToGraphics(font_ubuntu_regular_20; measure = FixedMeasure(8, 12, 4, 0))
+        tree_projection = only(pr for (T, pr) in widgets.dispatch if T === WidgetTree)
+        rows = print_document(tree_projection, pane.content).geometry.rows
+
+        @test [r.path for r in rows] == [[1], [1, 1], [1, 2], [1, 3]]
+        @test [r.label for r in rows[2:end]] == ["full", "none", "top.jl"]
+        @test rows[1].expanded && !rows[2].expanded
+        # A folder with entries has a chevron, and an empty folder has none.
+        @test rows[2].has_children && !rows[3].has_children && !rows[4].has_children
+
+        is_listing_read(d) = is_cell_up_to_date(getfield(d.elements, :elements))
+        full = folder.elements[1]
+        inner = full.elements[2]
+        @test is_listing_read(folder) && is_listing_read(full)
+        @test !is_listing_read(inner)
+    end
+end
 end

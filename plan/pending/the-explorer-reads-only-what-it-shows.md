@@ -283,10 +283,15 @@ approval of the owner and an idle machine.
   ReflectionToWidget, icon and gesture tests pass. *For the landing:*
   omnet-julia `test/presentation/WatchExampleTest.jl` writes the tree's
   `collapsed` and must write `expanded`.
-- [ ] **Step 3. The children are read only when they are needed (3.3).** Test:
+- [x] **Step 3. The children are read only when they are needed (3.3).** Test:
   after a print of the Explorer on the fixture, only the listings of the root
   and of the folders under the root are read. An empty folder has no chevron.
   After this step, the tree still draws every row of the open tree.
+  *Done.* `_fs_node` gives a folder the children
+  `CellVector(@computation(1:length(d.elements)); element = …)`. The test is in
+  `FileSystemToWidgetTest.jl`. File system 78 pass. Substrate 85,080 pass, with
+  the same 5 faults of `SplitPaneDragTest.jl` and 1 broken as the baseline; the
+  2 more passes are the new WidgetTree test of step 2.
 - [ ] **Step 4. The renderer skips what is above the top edge (3.4, backend 1
   and 2).** Test: a vertical canvas of 1,000 lazy rows in a viewport of 10 rows,
   scrolled to the middle. After a render with the offscreen renderer, only the

@@ -60,8 +60,12 @@ end
 _fs_node(f::FileSystemFile, open_file) =
     WidgetTreeNode(_fs_icon(f), basename(f.pathname);
                    gestures = _make_open_file_bindings(f.pathname, open_file))
+# The children of a folder are read one at a time: the length reads the listing,
+# and a child reads its own entry, so a row that the tree does not draw reads
+# nothing from the disk.
 function _fs_node(d::FileSystemDirectory, open_file)
-    children = Any[_fs_node(c, open_file) for c in d.elements]
+    children = CellVector(@computation(1:length(d.elements));
+                          element = i -> _fs_node(d.elements[i], open_file))
     WidgetTreeNode(_fs_icon(d), _dir_name(d.pathname), children)
 end
 
