@@ -4,7 +4,7 @@
 > document over several sessions. It records the concepts, what is wrong today,
 > the owner's decisions and the questions that are still open. The steps of the
 > refactor come after the open questions have answers. The owner's model of
-> three tracking projections (D8 to D19) came on the same day, after the first
+> three tracking projections (D8 to D22) came on the same day, after the first
 > round of decisions.
 
 The facts of the code are in the study
@@ -107,6 +107,16 @@ All of them are from 2026-09-26.
   avoids complications of decoding.
 - **D19.** The dragged part is what the reader answers for the start of the drag,
   for example the target of a drag start operation.
+- **D20.** A drag starts after a small move. Before that move, the press can
+  still be a click.
+- **D21.** The drag tracking projection gets its target from a reader: the reader
+  reads a drag start gesture, and its answer is a drag start operation that
+  names the target.
+- **D22.** Time with no input comes as an event. At a deadline, the loop gives
+  the projection an event that says that the time came, with its time. The
+  tracker matches "no motion, then this event" as a dwell. The reader does not
+  read a clock, so a replay gives the same answer. How a deadline is set is
+  open (Q3).
 
 ## 3. What is wrong today
 
@@ -165,6 +175,10 @@ All of them are from 2026-09-26.
 - The editor has a clock (`Editor.jl:61`). The loop writes it once in each frame,
   and a printer reads it through the printer context to animate. A reader does
   not get it.
+- The loop does not wake at a fixed rate. It wakes every `FRAME_INTERVAL` only
+  while a cell reads the clock (an animation), at the nearest deadline of a feed,
+  and else it sleeps until input (`compute_wait_timeout`, `Feeds.jl:35`). Only a
+  backend with no wait of its own polls, in slices of 10 ms.
 
 ### 3.4 A widget projection makes the crossings
 
@@ -337,20 +351,37 @@ The direction that follows from the decisions so far:
   no tracking projection takes? A drag reads `MouseDown`, `MouseMove` and
   `MouseUp` today; with D9 it reads the drag gestures. What about the other
   events?
-- **Q3. Time with no input.** The owner asked (2026-09-26): the editor has a clock
-  in the printer context; is that enough, or must the intent carry it? Claude's
-  answer is in the conversation of that day; the choice is open.
+- **Q3. How a deadline is set (D22).** Two ways:
+  - **A timer operation.** On a motion, the reader answers an operation that sets
+    the deadline, with a new time that replaces the one before. The editor
+    evaluates it and wakes at the deadline. No cancel is needed: when the time
+    event comes, the tracker checks its state, and a motion after the deadline
+    was set makes the event match nothing. This is Claude's recommendation. The
+    same operation serves a chord timeout, a long press and the auto-scroll of a
+    drag.
+  - **A minimum rate.** The loop reads a time event every N ms. The loop has no
+    such rate today (§3.3), so this adds a wake and a read through the chain
+    while nothing happens, a time event in a replay for each wake, and a delay of
+    up to N ms for a dwell.
+
+  With a timer operation, who holds the deadline: the editor, or the state
+  document of the tracker, which the loop reads?
 - **Q4. Where the dwell is made.** D4 says that the dwell does not depend on the
   view, so Claude reads it as a gesture of the gesture tracking projection.
-- **Q5. When a drag starts.** On the down, or after the pointer moves past a
-  threshold? D14 swallows the click while a drag is on. If a drag starts on the
-  down, a click on a tab or on a slider is swallowed.
-- **Q6. The order of the tracking projections.** The drag hover needs the target;
-  the drag swallows the click. Which projection is inside which?
+- **Q6. The order of the gesture tracker and the drag tracker.** The drag tracker
+  swallows the click (D14). It can be inside the gesture tracker, where it gets
+  the click and drops it, or outside, where it keeps the up of a drag from the
+  gesture tracker. (Q5 became D20. The target of the drag start became D21, and
+  a tracker that needs the part at a point uses D11, so no tracker needs another
+  for a target.)
 - **Q7. Where the state documents sit.** One target for the screen, or one for
   each window; the pointer position, in which coordinates.
 - **Q8. A gesture across windows.** A drag can start in one window and end in
   another. Which window owns the gesture?
+- **Q9. The end of a route.** The most specific part often has no reader of its
+  own: a row of a list is a string that the list draws. Claude reads D12 so: the
+  last reader on the route reads the gesture, with the rest of the route as the
+  part.
 
 ## 6. Next steps
 
