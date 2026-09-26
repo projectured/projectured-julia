@@ -35,6 +35,7 @@ function test_referenced_document()
         root = _make_referenced_tree()
         tree = ReferencedDocument(root, EmptyReference())
         @test get_document(tree) === root
+        @test get_document(root) === root
         children = tree.children
         @test children isa ReferencedDocument
         @test get_document(children) === root.children

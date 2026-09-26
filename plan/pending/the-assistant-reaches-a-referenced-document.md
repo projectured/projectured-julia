@@ -559,11 +559,26 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
         `PaneSplit`, and got a `MethodError`: it took every part to be a
         referenced document. `open_pane!` with `target` and `side = :below`
         would have done it in one call; the guide shows only `side = :right`.
-      Findings for the owner, not decided: `print` of a referenced document and
-      of a JSON leaf; `get_document` of a plain document; `get_referenced_value`
-      under D21; the guide's example of `side`; the `WidgetTable` docstring,
-      which calls `WidgetTable(headers, rows)` a "string convenience shim",
-      although it takes any value (so the model converted with `String`).
+      What the owner decided on the findings (2026-09-26):
+      - `print` of a document writes its natural text, and a referenced document
+        prints its document: its own plan, `a-print-writes-and-a-make-answers.md`
+        (D5 there).
+      - `get_referenced_value` answers the node, and moves to the editor layer:
+        a follow-up below.
+      - Done here: `get_document(x)` answers `x` for any value that is not a
+        referenced document; the orientation guide shows a card put under a group
+        with `side = :below`, and says `:left`, `:right`, `:above`, `:below`; the
+        `open_pane!` docstring says "beside or under another tab" and shows a
+        `side = :below` call; the `WidgetTable` docstring says that a row takes
+        any value (a document as itself, any other value as `string(value)` in a
+        `WidgetLabel`, a JSON leaf by its `.value`), and its example has a number.
+        Measured place of `open_pane!` after the change, with the words only and
+        with the meaning model: "open a tab under another tab" not in the first
+        four and 3; "put a new pane below a group of tabs" 3 and 3; "open a pane
+        under another pane" 1 and 2. The unit test asserts the last with the
+        words. `test_referenced_document()` 51 and
+        `test_referenced_document_editor()` 71 pass, with `test_documentation()`,
+        `test_naming()` and `test_export_collisions()`.
       Round 2 answers the typed reference of the new tab, which is long
       (`::ScreenDocument.windows::CellVector[1]::…::PaneTab`); a
       `ReferencedDocument` answer (D10, open) would show the tab.

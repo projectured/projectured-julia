@@ -144,6 +144,7 @@ function test_referenced_document_editor()
         @test "ReferencedDocument" in first_names("a document and where it is"; mode = "description")
         @test first(first_names("the address of a document"; mode = "description")) == "DocumentLocator"
         @test first(first_names("the fields of a JSON object"; mode = "description")) == "JsonObject"
+        @test first(first_names("open a pane under another pane"; mode = "description")) == "open_pane!"
     end
 
     @testset "the document functions take a referenced document" begin

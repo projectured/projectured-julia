@@ -37,14 +37,17 @@ struct ReferencedDocument{T}
 end
 
 """
-    get_document(x::ReferencedDocument) -> T
+    get_document(x) -> T
 
-The document that `x` references, as it was when it was found.
+The document that `x` references, as it was when it was found. Given any value
+that is not a referenced document, it answers that value, so code that unwraps
+works on a referenced document and on a plain one alike.
 
 Use it where code needs the document itself: to check its type, or to hand it to a
 function that has no method for a referenced document.
 """
 get_document(x::ReferencedDocument) = getfield(x, :document)
+get_document(x) = x
 
 """
     get_reference(x::ReferencedDocument) -> Reference

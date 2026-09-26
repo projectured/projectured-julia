@@ -251,12 +251,14 @@ pane_group_to_avoid(tree) = nothing
 Put `document` in a new tab, and answer the tab it made, as a `ReferencedDocument`.
 
 Use it to show, display or place a value on the screen: a table, a plot, a set
-of runs, a layout of widgets, any document, in a tab of its own beside what is
-open. It answers the new tab with its reference, which the other pane verbs take.
+of runs, a layout of widgets, any document, in a tab of its own, beside or under
+another tab, or in the group that has the focus. It answers the new tab with its
+reference, which the other pane verbs take.
 
 # Example
 
     delay_tab_1 = open_pane!(editor, make_result_plot(frame); title = "Delay")
+    runs_tab_1 = open_pane!(editor, runs; title = "Runs", target = delay_tab_1, side = :below)
     focus_pane!(editor, delay_tab_1)
 
 See also `focus_pane!`, `replace_referenced_value!` to close or change a pane,

@@ -2156,18 +2156,21 @@ WidgetAccordion(items::Vector; position::Point2D=Point2D(0, 0), expanded::Intege
 
 """
     WidgetTable(; position, column_headers, rows, column_count, row_headers, ...)
-    WidgetTable(headers::Vector, rows::Vector; position)   # string convenience shim
+    WidgetTable(headers::Vector, rows::Vector; position)
 
 A grid of cells with optional column headers and row headers.
 
 Use it to show rows of values by hand, when no verb gives a frame for them:
-`headers` is a `Vector` of strings and `rows` a `Vector` of rows of strings,
-and each string becomes a `WidgetLabel`. The result verbs make their own tables:
-`make_result_table` answers a frame the window draws as this widget.
+`headers` is a `Vector` of column names and `rows` a `Vector` of rows. A value in
+a row can be of any type: a document is shown as itself, and any other value, such
+as a `String` or a number, becomes a `WidgetLabel` of the text `string(value)`
+gives. For the bare text of a JSON leaf, pass its `.value`. The result verbs make
+their own tables: `make_result_table` answers a frame the window draws as this
+widget.
 
 # Example
 
-    open_pane!(editor, WidgetTable(["run", "delay"], [["Fifo-0", "0.12"], ["Fifo-1", "0.15"]]); title = "By hand")
+    open_pane!(editor, WidgetTable(["name", "age"], [["Ada", 36], ["Bob", 41]]); title = "People")
 
 The single table abstraction. A grid of **document cells** (each cell is a
 `Document`, recursed through the shared recursion — so a cell can be a
