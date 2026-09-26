@@ -403,10 +403,16 @@ Do the work in a git worktree, and commit each step.
   - *Decision:* the console backend still prints nothing for an image. It gets
     its highlight from the span colours that `SelectionInverting` sets, not from
     flat offsets, so the missing character moves no highlight.
-- [ ] **Step 7. The paint of a selection** (§3.7, question 6). A caret-space range
+- [x] **Step 7. The paint of a selection** (§3.7, question 6). A caret-space range
   is painted with caret-space offsets, and an image in a range is painted. Tests:
   a range across a `TextNewline`, across a soft newline and across an image
   paints exactly its characters, checked by the x of each row end.
+  - *Done.* `_layout_overlay` keeps two offset tables, the caret space and the
+    box space, and `_highlight_char_range` answers the space of its range with
+    it. `_hl_piece_blank` does not count an image segment as blank.
+  - *Fact:* the four new assertions fail on the code before this step, as §2.3
+    said: a range over a `TextNewline` and one over a soft newline paint one
+    character too many on the next row, and an image in a range is not painted.
 - [ ] **Step 8. The type-in walk.** At the start of the run after an image, a typed
   character goes into that run, and Backspace yields the deletion of the image;
   Delete at the end of the run before an image yields it too. The walk asserts

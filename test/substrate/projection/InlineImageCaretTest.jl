@@ -364,5 +364,30 @@ end
     @test length(to_string(example)) == TextModule._text_flat_total(example)
 end
 
+@testset "a range is painted over exactly its characters and images" begin
+    # Every character is 10 wide and the image 24.
+    measure = FixedMeasure(10, 12, 4, 0)
+    # The left and the right end of each row of the highlight: the rects of the
+    # first element of the canvas, the highlight canvas.
+    function rows(projection, block, s, e)
+        clear_selection!(block)
+        set_selection!(block, TextModule.make_flat_range_reference(s, e))
+        highlight = print_document(projection, block).output.elements[1]
+        [(Int(r.x), Int(r.x) + Int(r.w)) for r in highlight.elements if Int(r.w) > 0]
+    end
+    plain = TextToGraphics(measure = measure)
+    nl() = TextNewline(font = font_ubuntu_monospace_regular_20)
+
+    # Across a `TextNewline`, which is one position: 'b', the break and 'c'.
+    @test rows(plain, TextBlock(_run("ab"), nl(), _run("cd")), 1, 4) == [(10, 20), (0, 10)]
+    # An image in a range is painted.
+    @test rows(plain, TextBlock(_run("ab"), _image(), _run("cd")), 2, 3) == [(20, 44)]
+    @test rows(plain, TextBlock(_run("ab"), _image(), _run("cd")), 1, 3) == [(10, 44)]
+    # Across a soft newline: "aaa " wraps before "bbb" at 50, and the range
+    # "a bb" of the document is "a " on line 1 and "bb" on line 2.
+    wrapped = ChainingProjection(WordWrapping(measure = measure, max_width = 50), TextToGraphics(measure = measure))
+    @test rows(wrapped, TextBlock(_run("aaa bbb")), 2, 6) == [(20, 40), (0, 20)]
+end
+
 end # @testset "Inline image caret"
 end # test_inline_image_caret

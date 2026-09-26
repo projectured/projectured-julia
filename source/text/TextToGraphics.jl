@@ -737,27 +737,37 @@ end
 # absolute coordinates the line sub-canvases render into — by running the very
 # layout the lines run, group by group.
 #
-# `span_flat_offsets` maps a span's `SpanPath` to the flat character offset it
-# starts at: the space a `TextSpanReferenceStep` box is expressed in. A
-# `TextLine` contributes its implicit break and its indentation to that space (the
-# rule of `get_flat_offsets`), because the projection that emits the line counts
-# both. A `TextNewline` contributes nothing: `WordWrapping` splices soft newlines
-# into the block at wrap points and the box space must stay invariant under them.
+# Two tables map a span's `SpanPath` to the flat offset it starts at, one for each
+# space a range is expressed in. Both count a character and an inline image as 1,
+# and the implicit break and the indentation of a `TextLine` (the rule of
+# `get_flat_offsets`), because the projection that emits the line counts both.
+#   • The caret space of the text domain (`get_flat_offsets`), in which a
+#     `TextRangeReferenceStep` is expressed, also counts a `TextNewline` and a
+#     `TextSpacing` as 1.
+#   • The box space, in which a `TextSpanReferenceStep` box is expressed, counts
+#     them as 0: `WordWrapping` splices soft newlines into the block at wrap
+#     points, and a box must stay invariant under them.
 function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::Cell)
     cursor_pos = get_flat_cursor_coordinate(styled, sel)
     coord_map = SegmentCoordinate[]
-    span_flat_offsets = Dict{SpanPath,Int}()
+    box_offsets = Dict{SpanPath,Int}()
+    caret_offsets = Dict{SpanPath,Int}()
     cursor = nothing
     offset = Float64(p.start_y)   # the real top of the next group
-    flat = 0
+    box = 0
+    caret = 0
 
     for group in _line_groups(styled)
-        group.break_before && (flat += 1)
-        flat += group.indentation
+        group.break_before && (box += 1; caret += 1)
+        box += group.indentation
+        caret += group.indentation
         for (path, span) in group.spans
-            span_flat_offsets[path] = flat
-            flat += _box_flat_length(span)
+            box_offsets[path] = box
+            caret_offsets[path] = caret
+            box += _box_flat_length(span)
+            caret += get_flat_length(span)
         end
+        group.newline === nothing || (caret += 1)
         laid = _layout_group(p, group, round(Int, offset), cursor_pos, false, block_font)
         append!(coord_map, laid.coord_map)
         cursor === nothing && (cursor = laid.cursor)
@@ -766,8 +776,10 @@ function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::
 
     highlight = NTuple{4,Int}[]
     hl_range = _highlight_char_range(sel, coord_map)
-    hl_range === nothing ||
-        (highlight = _compute_span_rows(coord_map, span_flat_offsets, hl_range[1], hl_range[2], p))
+    if hl_range !== nothing
+        offsets = hl_range[3] === :caret ? caret_offsets : box_offsets
+        highlight = _compute_span_rows(coord_map, offsets, hl_range[1], hl_range[2], p)
+    end
     (cursor = cursor, highlight = highlight)
 end
 
@@ -1218,13 +1230,14 @@ end
 # ── Highlight helpers ─────────────────────────────────────────────────────
 
 """
-    _highlight_char_range(sel, coord_map) -> (start, stop) or nothing
+    _highlight_char_range(sel, coord_map) -> (start, stop, space) or nothing
 
-Extract the flat character range for a box selection from the TextBlock's
-selection. Recognized shapes:
-- `EmptyReference` (∅) → highlight the full extent `(0, N)` where N is
-  the total character count across all segments.
-- `ConcreteReference(TextSpanReferenceStep(s, e), ∅)` → `(s, e)`.
+Extract the flat character range to highlight from the TextBlock's selection,
+and the space its offsets are in (see `_layout_overlay`). Recognized shapes:
+- `EmptyReference` (∅) → the full extent, in the box space.
+- `ConcreteReference(TextRangeReferenceStep(s, e), ∅)` with `s != e` → `(s, e)`,
+  in the caret space.
+- `ConcreteReference(TextSpanReferenceStep(s, e), ∅)` → `(s, e)`, in the box space.
 Returns `nothing` for any other selection shape (normal cursor, etc.).
 """
 function _highlight_char_range(sel, coord_map::Vector{SegmentCoordinate})
@@ -1234,7 +1247,7 @@ function _highlight_char_range(sel, coord_map::Vector{SegmentCoordinate})
     if sel isa EmptyReference
         isempty(coord_map) && return nothing
         # Cover all segments: use a large sentinel that exceeds any absolute offset.
-        return (0, typemax(Int) >> 1)
+        return (0, typemax(Int) >> 1, :box)
     end
     sel isa ConcreteReference || return nothing
     h = sel.head
@@ -1242,10 +1255,10 @@ function _highlight_char_range(sel, coord_map::Vector{SegmentCoordinate})
     if h isa TextRangeReferenceStep
         # A non-empty text selection highlights its flat range; a caret has none
         # (it is drawn as the cursor rect instead).
-        return h.start == h.stop ? nothing : (h.start, h.stop)
+        return h.start == h.stop ? nothing : (h.start, h.stop, :caret)
     end
     h isa TextSpanReferenceStep || return nothing
-    return (h.start, h.stop)
+    return (h.start, h.stop, :box)
 end
 
 # Whether the highlighted sub-range `[s, e)` (offsets in this segment's own base
@@ -1257,6 +1270,8 @@ end
 # skipped too (rare, but correct at a range boundary).
 function _hl_piece_blank(sc::SegmentCoordinate, s::Int, e::Int)
     e <= s && return true
+    # An inline image draws, so it anchors its row.
+    isempty(sc.text) && sc.width > 0 && return false
     t = sc.text
     lo = s - sc.char_start           # 0-based char offset into sc.text
     hi = e - sc.char_start
