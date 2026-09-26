@@ -87,17 +87,21 @@ end
 # What the dirty walk remembers of each graphic from the frame that painted it,
 # keyed by its placement (`_make_placement_key`): the place of every graphic (the
 # absolute content origin of a canvas, the origin of the container of any other),
-# and the box, the content and the transform of a viewport. The walk compares the
-# geometry of this frame with it by value. `baseline` is the count of records
-# after the last full paint; it bounds how many records of graphics that are gone
-# can collect.
+# the box, the content and the transform of a viewport, the keys of the elements
+# that a canvas drew, and the signature of each leaf (`_compute_leaf_signature`).
+# The walk compares this frame with it by value. `baseline` is the count of
+# records after the last full paint; it bounds how many records of graphics that
+# are gone can collect.
 mutable struct _PaintedGeometry
     origins::Dict{UInt,NTuple{2,Int}}
     viewports::Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform}}
+    members::Dict{UInt,Vector{UInt}}
+    signatures::Dict{UInt,UInt}
     baseline::Int
 end
 _PaintedGeometry() = _PaintedGeometry(Dict{UInt,NTuple{2,Int}}(),
-                                      Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform}}(), 0)
+                                      Dict{UInt,Tuple{NTuple{4,Int},UInt,AffineTransform}}(),
+                                      Dict{UInt,Vector{UInt}}(), Dict{UInt,UInt}(), 0)
 
 """
     SdlWindowResources
@@ -1897,6 +1901,7 @@ end
 # the cells it reads — exactly what we want, since the unit is about to be
 # repainted).
 function _bounds_of_elem(elem, ox::Int, oy::Int, ratio::Float64)
+    _is_invisible_graphic(elem) && return nothing
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int))
     mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
     _extend_drawn_bounds!(elem, ox, oy, ratio, mnx, mny, mxx, mxy)
@@ -1912,6 +1917,12 @@ function _bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int, ratio::Floa
     end
     mxx[] == typemin(Int) ? nothing : (mnx[], mny[], mxx[], mxy[])
 end
+
+# True for a rectangle with a transparent fill and no visible border, such as the
+# hit target of a widget: SDL draws no pixel of it, so it has no bounds to paint.
+_is_invisible_graphic(elem) =
+    elem isa GraphicsRect && elem.color.alpha == 0 &&
+    (Int(elem.border_width) == 0 || elem.border_color.alpha == 0)
 
 # Extend the bounds by what SDL draws for `elem` at the content origin `(ox, oy)`.
 function _extend_drawn_bounds!(elem, ox::Int, oy::Int, ratio::Float64, mnx, mny, mxx, mxy)
@@ -1995,7 +2006,22 @@ function _record_painted_element!(res::SdlWindowResources, elem, key::UInt, ox::
         return _record_painted_canvas!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges)
     elem isa GraphicsViewport && return _record_painted_viewport!(res, elem, key, ox, oy)
     res.painted.origins[key] = (ox, oy)
+    res.painted.signatures[key] = _compute_leaf_signature(elem)
     _record_bounds!(res, key, _bounds_of_elem(elem, ox, oy, res.ratio))
+end
+
+# What a leaf draws, as one number: the hash of the values of its cells. The
+# engine computes a cell again when a cell it read was written, also when the new
+# value is the same, so the walk compares this and the bounds before it paints a
+# leaf whose cells were stale.
+function _compute_leaf_signature(elem)::UInt
+    signature = hash(typeof(elem))
+    for f in fieldnames(typeof(elem))
+        (f === :selection || f === :prev || f === :next) && continue
+        c = getfield(elem, f)
+        signature = hash(c isa AbstractCell ? c[] : c, signature)
+    end
+    signature
 end
 
 # A canvas whose content origin is `(ox, oy)`.
@@ -2012,13 +2038,17 @@ function _record_painted_canvas!(res::SdlWindowResources, canvas::GraphicsCanvas
             b === nothing || _acc_extend!(acc, b)
         end
     else
+        members = UInt[]
         for i in _compute_first_drawn_index(canvas, ox, oy, edges):length(elements)
             elem = elements[i]
             elem isa GraphicsFence && continue
             _is_past_early_stop(elem, ox, oy, edges, layout, early) && break
-            b = _record_painted_element!(res, elem, _make_placement_key(elem, key), ox, oy, edges)
+            elem_key = _make_placement_key(elem, key)
+            push!(members, elem_key)
+            b = _record_painted_element!(res, elem, elem_key, ox, oy, edges)
             b === nothing || _acc_extend!(acc, b)
         end
+        res.painted.members[key] = members
     end
     _record_bounds!(res, key, _acc_tuple_or_nothing(acc))
 end
@@ -2074,11 +2104,25 @@ _is_painted(res::SdlWindowResources, key::UInt) = haskey(res.painted.origins, ke
 # knows: the old bounds of a unit, the old and new box of a viewport, the place a
 # graphic left. It runs the recordings after, in the order it met them, so a unit
 # is recorded before the container that holds it records its bounds again.
+#
+# A canvas whose element list is new is read in a second phase, in `lists`, after
+# the walk has tested every cell of the frame, because its list can read the size
+# of other graphics and compute their cells. Under that canvas the walk compares
+# by value (`by_value`): a read of the list can have computed the cells below it,
+# so a stale cell there says nothing. The clip of a viewport, in `clips`, runs
+# after every recording, because a recording adds the rectangles it clips.
 struct _DirtyWalk
     region::_DirtyRegion
     deferred::Vector{Function}
+    lists::Vector{Function}
+    clips::Vector{Function}
+    by_value::Bool
 end
-_DirtyWalk() = _DirtyWalk(_DirtyRegion(), Function[])
+_DirtyWalk() = _DirtyWalk(_DirtyRegion(), Function[], Function[], Function[], false)
+
+# A walk into the region `region` that shares the queues of `walk`.
+_make_inner_walk(walk::_DirtyWalk, region::_DirtyRegion; by_value::Bool = walk.by_value) =
+    _DirtyWalk(region, walk.deferred, walk.lists, walk.clips, by_value)
 
 # Run `f` after the walk. True, so a caller can answer that something changed.
 _defer!(walk::_DirtyWalk, f::Function) = (push!(walk.deferred, f); true)
@@ -2091,9 +2135,17 @@ function _clear_left_view!(res::SdlWindowResources, walk::_DirtyWalk, key::UInt)
     old = get(res.dirty_bounds, key, nothing)
     old === nothing || _add_dirty_rect!(walk.region, old)
     delete!(res.dirty_bounds, key)
+    _forget_painted_record!(res, key)
+    true
+end
+
+# Forget what a paint recorded of the graphic placed at `key`, but its bounds.
+function _forget_painted_record!(res::SdlWindowResources, key::UInt)
     delete!(res.painted.origins, key)
     delete!(res.painted.viewports, key)
-    true
+    delete!(res.painted.members, key)
+    delete!(res.painted.signatures, key)
+    nothing
 end
 
 # A dirty unit: after the walk, its previous (cached) bounds and its new bounds go
@@ -2116,6 +2168,8 @@ function _forget_painted_geometry!(res::SdlWindowResources)
     empty!(res.dirty_bounds)
     empty!(res.painted.origins)
     empty!(res.painted.viewports)
+    empty!(res.painted.members)
+    empty!(res.painted.signatures)
     res.painted.baseline = 0
     nothing
 end
@@ -2125,7 +2179,8 @@ end
 const _PAINTED_RECORD_SLACK = 10_000
 
 _count_painted_records(res::SdlWindowResources) =
-    length(res.dirty_bounds) + length(res.painted.origins) + length(res.painted.viewports)
+    length(res.dirty_bounds) + length(res.painted.origins) + length(res.painted.viewports) +
+    length(res.painted.members) + length(res.painted.signatures)
 
 _is_painted_geometry_full(res::SdlWindowResources) =
     _count_painted_records(res) > 2 * res.painted.baseline + _PAINTED_RECORD_SLACK
@@ -2155,10 +2210,10 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
     # must not be mistaken for "dirty"). `(ox, oy)` already holds this canvas's own
     # offset, which the caller read, so the place is compared by value.
     moved = get(res.painted.origins, key, nothing) != (ox, oy)
-    unit = moved || !is_cell_up_to_date(elements_cell)
+    list_changed = walk.by_value || !is_cell_up_to_date(elements_cell)
     ev = elements_cell[]                 # read after capturing validity above
-    if !unit && ev isa CellVector && !is_cell_up_to_date(getfield(ev, :elements))
-        unit = true                      # the regenerated element vector changed
+    if !list_changed && ev isa CellVector && !is_cell_up_to_date(getfield(ev, :elements))
+        list_changed = true              # the regenerated element vector changed
     end
     layout = canvas.layout
     early = _is_early_stop_layout(canvas)
@@ -2167,9 +2222,17 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
         # was never painted, reflows as a changed spine does.
         res.painted.origins[key] = (ox, oy)
         return _collect_listnode_dirty!(res, ev, key, ox, oy, edges, layout, early, walk;
-                                        reflow = unit)
+                                        reflow = moved || list_changed)
     end
-    if !unit
+    if !moved && list_changed && haskey(res.painted.members, key)
+        # A new element list, read in the second phase and walked by value.
+        walk.by_value && return _collect_new_elements_dirty!(res, canvas, key, ox, oy, edges, walk)
+        push!(walk.lists, () -> _collect_new_elements_dirty!(res, canvas, key, ox, oy, edges,
+                                                             _make_inner_walk(walk, walk.region;
+                                                                              by_value = true)))
+        return true
+    end
+    if !moved && !list_changed
         # The walk starts where the render starts. A search that would read a
         # stale slot answers nothing, and the canvas is painted whole.
         start = _find_first_walked_index(canvas, ev, ox, oy, edges)
@@ -2248,18 +2311,49 @@ function _collect_elements_dirty!(res::SdlWindowResources, ev, key::UInt, first:
     (false, changed)
 end
 
-# Record the bounds of a canvas again, from the records of the elements it draws.
-function _refresh_canvas_bounds!(res::SdlWindowResources, ev, key::UInt, first::Int,
-                                 ox::Int, oy::Int, edges::_ClipEdges, layout::LayoutDirection,
-                                 early::Bool)
-    drawn = _DirtyAcc()
+# The elements of a canvas whose element list is new and that did not move, in a
+# walk by value. Each element is taken by its placement key, as in a list that did
+# not change: a new one is painted, a moved one at its old and new place, a kept
+# one only when it draws something else. What the canvas drew before and does not
+# draw now is cleared: an element that left the list, or the view.
+function _collect_new_elements_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas, key::UInt,
+                                      ox::Int, oy::Int, edges::_ClipEdges, walk::_DirtyWalk)
+    ev = canvas.elements
+    layout = canvas.layout
+    early = _is_early_stop_layout(canvas)
+    first = _compute_first_drawn_index(canvas, ox, oy, edges)
+    drawn = Set{UInt}()
     for i in first:length(ev)
         elem = ev[i]
         elem isa GraphicsFence && continue
         _is_past_early_stop(elem, ox, oy, edges, layout, early) && break
-        b = get(res.dirty_bounds, _make_placement_key(elem, key), nothing)
+        elem_key = _make_placement_key(elem, key)
+        push!(drawn, elem_key)
+        _collect_dirty_elem!(res, elem, elem_key, ox, oy, edges, walk, false)
+    end
+    for old in res.painted.members[key]
+        old in drawn || _clear_left_view!(res, walk, old)
+    end
+    _defer!(walk, () -> _refresh_canvas_bounds!(res, ev, key, first, ox, oy, edges, layout, early))
+end
+
+# Record the bounds of a canvas again, from the records of the elements it draws,
+# and the keys of those elements.
+function _refresh_canvas_bounds!(res::SdlWindowResources, ev, key::UInt, first::Int,
+                                 ox::Int, oy::Int, edges::_ClipEdges, layout::LayoutDirection,
+                                 early::Bool)
+    drawn = _DirtyAcc()
+    members = UInt[]
+    for i in first:length(ev)
+        elem = ev[i]
+        elem isa GraphicsFence && continue
+        _is_past_early_stop(elem, ox, oy, edges, layout, early) && break
+        elem_key = _make_placement_key(elem, key)
+        push!(members, elem_key)
+        b = get(res.dirty_bounds, elem_key, nothing)
         b === nothing || _acc_extend!(drawn, b)
     end
+    res.painted.members[key] = members
     _record_bounds!(res, key, _acc_tuple_or_nothing(drawn))
 end
 
@@ -2272,8 +2366,18 @@ function _collect_dirty_elem!(res::SdlWindowResources, elem, key::UInt, ox::Int,
         return _collect_canvas_dirty!(res, elem, key, ox + Int(elem.x), oy + Int(elem.y), edges, walk)
     elem isa GraphicsViewport && return _collect_viewport_dirty!(res, elem, key, ox, oy, walk)
     # A leaf new to the screen, or one with an in-place-mutated (stale) field cell.
-    (leaf_dirty || !_is_painted(res, key)) || return false
-    _union_unit!(res, walk, key, () -> _record_painted_element!(res, elem, key, ox, oy, edges))
+    record = () -> _record_painted_element!(res, elem, key, ox, oy, edges)
+    _is_painted(res, key) || return _union_unit!(res, walk, key, record)
+    (leaf_dirty || walk.by_value) || return false
+    # A leaf that draws what it drew, where it drew it, is not painted.
+    _defer!(walk, () -> begin
+        old = get(res.dirty_bounds, key, nothing)
+        old_signature = get(res.painted.signatures, key, nothing)
+        new = record()
+        new == old && old_signature == get(res.painted.signatures, key, nothing) && return
+        old === nothing || _add_dirty_rect!(walk.region, old)
+        new === nothing || _add_dirty_rect!(walk.region, new)
+    end)
 end
 
 # A viewport clips its content, so its dirty contribution is clamped to its own
@@ -2293,11 +2397,12 @@ function _collect_viewport_dirty!(res::SdlWindowResources, vp::GraphicsViewport,
     end
     cox, coy, cedges = _compute_viewport_content_place(box, content, transform)
     # The content can answer that nothing changed in its bounds while a viewport
-    # inside it has rectangles to give, so the clip is always deferred; an empty
-    # region costs nothing there.
-    inner = _DirtyWalk(_DirtyRegion(), walk.deferred)
+    # inside it has rectangles to give, so the clip always runs, after the
+    # recordings; an empty region costs nothing there. A viewport inside the
+    # content queues its clip before this one, so it adds its rectangles first.
+    inner = _make_inner_walk(walk, _DirtyRegion())
     _collect_canvas_dirty!(res, content, _make_placement_key(content, key), cox, coy, cedges, inner)
-    _defer!(walk, () -> begin
+    push!(walk.clips, () -> begin
         isempty(inner.region.rects) && return
         # Under a scale the content's dirty region is in scaled content units;
         # rather than map every sub-rect through the transform, treat any dirty
@@ -2470,8 +2575,9 @@ function _collect_listnode_dirty!(res::SdlWindowResources, head::ListNode, key::
     end)
 end
 
-# Compute the dirty region for `canvas` (the whole window content): the walk,
-# then the recordings it deferred. Each rectangle is clamped to the window and
+# Compute the dirty region for `canvas` (the whole window content): the walk, the
+# new element lists it queued, the recordings it deferred, and the clips of the
+# viewports (see `_DirtyWalk`). Each rectangle is clamped to the window and
 # padded a couple of logical pixels so anti-aliased glyph edges straddling the
 # clip boundary are not clipped. Empty when nothing changed. Recording what was
 # painted is a side effect, so this is also called (its region ignored) on the
@@ -2480,7 +2586,13 @@ function _compute_dirty_region(res::SdlWindowResources, canvas::GraphicsCanvas)
     walk = _DirtyWalk()
     _collect_canvas_dirty!(res, canvas, _make_placement_key(canvas, UInt(0)),
                            0, 0, _ClipEdges(0, 0, res.width, res.height), walk)
+    i = 0
+    while i < length(walk.lists)
+        i += 1
+        walk.lists[i]()
+    end
     foreach(record -> record(), walk.deferred)
+    foreach(clip -> clip(), walk.clips)
     pad = 2
     padded = _DirtyRegion()
     for r in walk.region.rects

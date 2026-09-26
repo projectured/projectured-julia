@@ -416,5 +416,63 @@ end
     @test SDL._compute_dirty_rect(res, top) === nothing
 end
 
+@testset "a new element list paints what it adds and moves, and clears what it drops" begin
+    # Rows in a vertical stack, kept by the list that holds them, as the rows of
+    # a tree: a folder opens under the first row, so the two rows below it move
+    # down. The first row keeps its place and is not painted.
+    tops = Dict(:a => Cell(0), :b => Cell(20), :c => Cell(40))
+    make_row(name) = GraphicsRect(0, () -> tops[name][], 100, 18)
+    a, b, c = make_row(:a), make_row(:b), make_row(:c)
+    opened = GraphicsRect(20, 20, 80, 18)
+    is_open = Cell(false)
+    stack = GraphicsCanvas(CellVector(@computation is_open[] ? Any[a, opened, b, c] : Any[a, b, c]);
+                           layout = layout_vertical, overlapping = false)
+    res = make_res()
+    SDL._compute_dirty_rect(res, stack)
+    @test SDL._compute_dirty_rect(res, stack) === nothing
+
+    is_open[] = true
+    tops[:b][] = 40
+    tops[:c][] = 60
+    @test SDL._compute_dirty_rect(res, stack) == (0, 18, 102, 80)
+    @test SDL._compute_dirty_rect(res, stack) === nothing
+
+    # The folder closes: the row of the folder is cleared, and the rows below
+    # move up again.
+    is_open[] = false
+    tops[:b][] = 20
+    tops[:c][] = 40
+    @test SDL._compute_dirty_rect(res, stack) == (0, 18, 102, 80)
+    @test SDL._compute_dirty_rect(res, stack) === nothing
+end
+
+@testset "a stale leaf that draws what it drew is not painted" begin
+    # The chevron of a folder that did not toggle reads the set of open folders:
+    # its cell is computed again, to the same value.
+    level = Cell(1)
+    mark = GraphicsRect(0, 0, 10, 10; color = color_black)
+    set_cell_computation!(getfield(mark, :color), () -> level[] > 5 ? color_red : color_black)
+    top = GraphicsCanvas(CellVector(Cell[Cell(mark)]), layout_none)
+    res = make_res()
+    SDL._compute_dirty_rect(res, top)
+    @test SDL._compute_dirty_rect(res, top) === nothing
+    level[] = 2
+    @test SDL._compute_dirty_rect(res, top) === nothing
+    level[] = 9
+    @test SDL._compute_dirty_rect(res, top) == (0, 0, 12, 12)
+end
+
+@testset "a rectangle that draws nothing gives no rectangle" begin
+    # The hit target of a widget: a transparent rectangle that grows with it.
+    height = Cell(100)
+    target = GraphicsRect(Int32(0), Int32(0), Int32(200), Cell(@computation Int32(height[]));
+                          color = color_transparent)
+    top = GraphicsCanvas(CellVector(Cell[Cell(target)]), layout_none)
+    res = make_res()
+    SDL._compute_dirty_rect(res, top)
+    height[] = 300
+    @test SDL._compute_dirty_rect(res, top) === nothing
+end
+
 end # testset
 end # test_dirty_rect
