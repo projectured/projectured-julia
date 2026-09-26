@@ -92,6 +92,8 @@ function test_referenced_document_editor()
         before = open_pane!(editor, PrimitiveString("before"); title = "Before",
                             target = find_pane(editor, "people.json"))
         @test group.tabs[index] === get_referenced_value(editor, before)
+        @test before isa ReferencedDocument && get_document(before) === group.tabs[index]
+        @test is_fully_typed_reference(get_reference(before))
         @test group.tabs[index + 1] === people_tab
 
         group_reference = concat_references(find_pane_tree_reference(editor),
@@ -122,6 +124,8 @@ function test_referenced_document_editor()
                             if any(t -> get_pane_tab_title_string(t) == "Beside", g.tabs))
         @test get_pane_tab_title_string(first(beside_group.tabs)) == "Before"
         copy = duplicate_pane!(editor, find_pane(editor, "Last"))
+        @test copy isa ReferencedDocument
+        @test get_referenced_value(editor, copy) === get_document(copy)
         @test startswith(get_pane_tab_title_string(get_referenced_value(editor, copy)), "Last")
         close_pane!(editor, find_pane(editor, "Last"))
         @test find_pane(editor, "Last") === nothing

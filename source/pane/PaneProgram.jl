@@ -246,18 +246,18 @@ precompiles.
 pane_group_to_avoid(tree) = nothing
 
 """
-    open_pane!(editor, document; title = nothing, target = nothing, side = nothing) -> Reference
+    open_pane!(editor, document; title = nothing, target = nothing, side = nothing) -> ReferencedDocument
 
-Put `document` in a new tab, and answer a reference to the tab it made.
+Put `document` in a new tab, and answer the tab it made, as a `ReferencedDocument`.
 
 Use it to show, display or place a value on the screen: a table, a plot, a set
 of runs, a layout of widgets, any document, in a tab of its own beside what is
-open. It answers the reference of the new tab, which the other pane verbs take.
+open. It answers the new tab with its reference, which the other pane verbs take.
 
 # Example
 
-    reference = open_pane!(editor, make_result_plot(frame); title = "Delay")
-    focus_pane!(editor, reference)
+    delay_tab_1 = open_pane!(editor, make_result_plot(frame); title = "Delay")
+    focus_pane!(editor, delay_tab_1)
 
 See also `focus_pane!`, `replace_referenced_value!` to close or change a pane,
 `show_layout`.
@@ -273,13 +273,14 @@ explorer, while another group exists. [`duplicate_pane!`](@ref) places a
 duplicate beside its original, by the same policy when the original is in that
 group.
 
-**It answers a reference, not a title.** A reference names any part of any
-document and a title names a tab, so the reference is what the next call takes:
+**It answers the tab and its reference, not a title.** A reference names any part
+of any document and a title names a tab, so the referenced tab is what the next
+call takes, and `get_reference` gives its reference:
 
 ```julia
-where = open_pane!(editor, chart)
-focus_pane!(editor, where)
-replace_referenced_value!(editor, where, PaneTab(other, "something else"))
+chart_tab_1 = open_pane!(editor, chart)
+focus_pane!(editor, chart_tab_1)
+replace_referenced_value!(editor, chart_tab_1, PaneTab(other, "something else"))
 ```
 
 `title` is what the tab is called. Left out, the document's own
@@ -308,7 +309,7 @@ function open_pane!(editor, document; title = nothing, group = nothing, target =
     reference = _reference_of_tab(tree, tab)
     reference === nothing &&
         error("The pane was opened and then could not be found again.")
-    concat_references(route, reference)
+    ReferencedDocument(tab, concat_references(route, reference))
 end
 
 open_pane!(editor, document::ReferencedDocument; keywords...) =
@@ -970,10 +971,10 @@ _can_hold_pane(document) =
 # ── The duplicate ───────────────────────────────────────────────────────────
 
 """
-    duplicate_pane!(editor, reference::Reference) -> Reference
+    duplicate_pane!(editor, reference::Reference) -> ReferencedDocument
 
-Make a second pane like the one `reference` names, and answer a reference to
-the new pane.
+Make a second pane like the one `reference` names, and answer the new pane, as a
+`ReferencedDocument`.
 
 Use it to duplicate, copy or clone a pane: another plot like this one, a second
 runner, or another assistant that knows this conversation. The duplicate is a
@@ -985,13 +986,13 @@ reads what the original reads.
 
 # Example
 
-    second = duplicate_pane!(editor, find_pane_reference(editor, "Delay"))
-    focus_pane!(editor, second)
+    delay_tab_2 = duplicate_pane!(editor, find_pane(editor, "Delay"))
+    focus_pane!(editor, delay_tab_2)
 
 See also `open_pane!`, `focus_pane!`, `find_pane_reference`, `show_layout`.
 
-The reference it takes and the one it answers are complete: they start at the
-root of the editor's document.
+The reference it takes and the reference of the pane it answers are complete:
+they start at the root of the editor's document.
 
 **A duplicate is a thing a replace cannot say.** A replace writes a value the
 caller made, and a correct duplicate is not a value a caller can make: a copy of
@@ -1011,7 +1012,7 @@ function duplicate_pane!(editor, reference::Reference)
     found = _reference_of_tab(tree, duplicate)
     found === nothing &&
         error("The duplicate was opened and then could not be found again.")
-    concat_references(route, found)
+    ReferencedDocument(duplicate, concat_references(route, found))
 end
 
 duplicate_pane!(editor, pane::ReferencedDocument) = duplicate_pane!(editor, get_reference(pane))

@@ -456,7 +456,7 @@ function test_application()
                 editor = _app_make_editor(scene, composed, iomap)
                 tree = _app_window(document)
                 history = document.content.content.undo_entries
-                title(reference) = get_pane_tab_title_string(evaluate_reference(scene, reference))
+                title(pane) = get_pane_tab_title_string(evaluate_reference(scene, get_reference(pane)))
                 @test _app_is_one_path(scene) && isempty(_app_find_stray_live_selections(scene))
 
                 focus_pane!(editor, find_pane_reference(editor, "Files"))
@@ -464,7 +464,7 @@ function test_application()
 
                 steps = length(history)
                 opened = open_pane!(editor, PrimitiveString("hello"); title = "Hello")
-                @test startswith(repr(strip_reference_types(opened)), ".windows[1].")
+                @test startswith(repr(strip_reference_types(get_reference(opened))), ".windows[1].")
                 @test title(opened) == "Hello"
                 @test let (group, index) = get_pane_focus(tree)
                     get_pane_tab_title_string(group.tabs[index]) == "Hello"
@@ -473,7 +473,7 @@ function test_application()
                 @test length(history) == steps + 1          # an open is one undo step
 
                 second = duplicate_pane!(editor, opened)
-                @test startswith(repr(strip_reference_types(second)), ".windows[1].")
+                @test startswith(repr(strip_reference_types(get_reference(second))), ".windows[1].")
                 name = title(second)
                 @test name != "Hello" && startswith(name, "Hello")
                 close_pane!(editor, second)

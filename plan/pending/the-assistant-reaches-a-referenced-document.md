@@ -393,8 +393,13 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
         layering guards, `test_naming()` and `test_export_collisions()` pass.
       - Found: a `CellVector` has no `keys`, so `findfirst` on `group.tabs` throws;
         the test collects the vector first. Not changed here.
-      To do (D10, agreed 2026-09-26): `open_pane!` and `duplicate_pane!` answer a
-      `ReferencedDocument`. Measured: in this repository
+      D10, done in this repository (2026-09-26): `open_pane!` and
+      `duplicate_pane!` answer the tab they made as a `ReferencedDocument`, with
+      its fully typed reference; their docstrings and `pane/pane.md` say so, and
+      `ApplicationTest.jl` reads the reference with `get_reference`.
+      `test_referenced_document_editor()`, `test_application()`,
+      `test_pane_surgery()` and `test_documentation()` pass (505). To do: the
+      texts in omnet-julia. Measured before the change: in this repository
       `ApplicationTest.jl:466` gives the answer to `strip_reference_types` and
       becomes `get_reference(opened)`; in omnet-julia every use of the answer
       goes to `get_referenced_value`, which takes a referenced document, so its

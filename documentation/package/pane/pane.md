@@ -151,8 +151,8 @@ A duplicate is not a mirror. Each node stores its own `selection`, so two panes 
 | `get_referenced_value(editor, reference)` | reads the node at a reference | the node, or an `ArgumentError` that names the path |
 | `replace_referenced_value!(editor, reference, value)` | writes a value at a reference, as one undo step | the new layout |
 | `focus_pane!(editor, reference)` | shows a tab and gives it the focus | the new layout |
-| `open_pane!(editor, document; title, group, target, side)` | puts a document in a new tab | the reference of the tab |
-| `duplicate_pane!(editor, reference)` | duplicates a tab | the reference of the duplicate |
+| `open_pane!(editor, document; title, group, target, side)` | puts a document in a new tab | the new tab, as a `ReferencedDocument` |
+| `duplicate_pane!(editor, reference)` | duplicates a tab | the duplicate, as a `ReferencedDocument` |
 | `close_pane!(editor, reference)` | closes a tab | the new layout |
 | `move_pane!(editor, reference, target; side)` | moves a tab to a group, before a tab, or beside a group in a new split | the new layout |
 
@@ -191,7 +191,7 @@ A path to a node that the tree does not hold is not fully typed, and every verb 
 
 `open_pane!` takes the same `target` and `side` as `move_pane!`, in place of the focused group: a group as `target` sends the tab to its end, a tab as `target` puts the new tab before it, and `side` puts the tab in a new group beside the target's group, as `make_pane_split_operation` splits a group: in a new split that takes the place of the target's group, or in the parent split when it already has that orientation; the new tab gets the focus. `open_pane!` throws an `ArgumentError` for a call that gives both `group` and `target`, and for a `side` that is not one of the four.
 
-`find_pane(editor, title)` answers the tab of that title as a `ReferencedDocument` that acts like the tab, or `nothing` when no tab has that title; two tabs of that title raise the same `ArgumentError` as `find_pane_reference`. Every verb that takes a reference, or a document to place, also takes a `ReferencedDocument` in its stead: `focus_pane!`, `close_pane!`, `duplicate_pane!`, `move_pane!` for either its reference or its target, `get_referenced_value`, `replace_referenced_value!` for the reference or the value it writes, `describe_document`, and `open_pane!` for the document it opens and for its `target` — such as the tab `find_pane` answers. `open_pane!` itself still answers a plain `Reference`.
+`find_pane(editor, title)` answers the tab of that title as a `ReferencedDocument` that acts like the tab, or `nothing` when no tab has that title; two tabs of that title raise the same `ArgumentError` as `find_pane_reference`. Every verb that takes a reference, or a document to place, also takes a `ReferencedDocument` in its stead: `focus_pane!`, `close_pane!`, `duplicate_pane!`, `move_pane!` for either its reference or its target, `get_referenced_value`, `replace_referenced_value!` for the reference or the value it writes, `describe_document`, and `open_pane!` for the document it opens and for its `target` — such as the tab `find_pane` answers. `open_pane!` and `duplicate_pane!` answer the tab they made as a `ReferencedDocument` too; `get_reference` gives its reference.
 
 `make_pane_api()` and `make_interface_api()` return the names that a model may write, by module: the verbs, the pane types, the layouts, `@reference`, and the widgets that a person names in a request. A declaration of a whole module adds about thirty generated schema variants for each document type. Declared whole, `PaneModule` and `ReferenceModule` take the surface from 10 names to 122, and a search for "what panes are open" then finds those variants before `show_layout`.
 
