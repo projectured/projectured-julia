@@ -4,7 +4,7 @@
 > document over several sessions. It records the concepts, what is wrong today,
 > the owner's decisions and the questions that are still open. The steps of the
 > refactor come after the open questions have answers. The owner's model of
-> three tracking projections (D8 to D40) and the steps came on the same day, after the first
+> three tracking projections (D8 to D41) and the steps came on the same day, after the first
 > round of decisions.
 
 The facts of the code are in the study
@@ -174,6 +174,9 @@ All of them are from 2026-09-26.
   combines better", in the owner's words. It must become a rule of the design
   documents, near `PAR-DELEGATE-ONE-LEVEL`. It holds for this plan too: a
   tracking projection does only what no part can do alone.
+- **D41.** When the view changes, the target is found again, as if the pointer
+  moved: the old part gets a leave and the new part an enter. The owner agreed to
+  this principle for Q14.
 
 ## 3. What is wrong today
 
@@ -431,6 +434,26 @@ The direction that follows from the decisions so far:
   - Other examples of the same fault: a key scrolls the list; a dialog or a popup
     opens or closes under the pointer; a tab page changes by a key; a content
     changes by itself (a log that grows, a simulation that updates a table).
+  - The principle is D41. What is open is how the tracker learns that the view
+    changed. The loop knows it: a frame that evaluated an operation, or that
+    drained a change from a feed, can change the view. Two ways:
+    - **Claude's recommendation: an event of the display.** After a frame that
+      changed the view, the loop gives the projection an event that says that the
+      display shows a new frame (the name is open). The target tracker maps its
+      last position through the new view, and when the target changed, it sends
+      the leave and the enter. The drag tracker finds the drag hover again in the
+      same way. The display is a device, and a new frame is a record of what it
+      did, so D3 holds. The enter writes a light, which makes one more frame; its
+      event finds the same target and answers nothing, so the chain stops. A
+      frame that changes nothing sends no event, so an idle editor stays idle.
+    - **A sample of the pointer.** After such a frame, the loop reads the
+      position from the pointer device and gives it as an event of its own. It is
+      a record of the hardware too, but it names the position, which the tracker
+      has already, and not the cause, which is the change of the view.
+  - Not a way: a light that each printer derives from the target. The owner's
+    model gives the light to the reader of the part (the meaning belongs to the
+    thing), and a target that depends on the view and a view that depends on the
+    target can form a cycle of cells.
 
 The questions of keyboard navigation are in the plan of D33.
 
