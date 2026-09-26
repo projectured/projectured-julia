@@ -14,9 +14,12 @@ using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedSdl,
       ProjecturedSdlExample, ProjecturedVideo
 
 const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "assistant_undo.mp4") : ARGS[1]
-const COMPOSER = (1000, 518)          # read off a frame of the window
-const FILE = (300, 120)               # a point on the text of people.json
-const FILE_DOWN = (500, 300)          # where the wheel scrolls the file
+# The window is drawn 15% smaller than its logical size, so a video of 1280×720
+# holds a logical window of 1506×847: more room for the code in the conversation.
+const WIDTH, HEIGHT, SCALE = 1506, 847, 0.85
+const COMPOSER = (1059, 642)          # read off a frame of the window, in logical pixels
+const FILE = (118, 129)               # a point on the text of people.json
+const FILE_DOWN = (353, 353)          # where the wheel scrolls the file
 
 const PEOPLE = """
 [{"name": "Cleo", "age": 29, "city": "Lyon"}, {"name": "Ada", "age": 36, "city": "London"},
@@ -65,6 +68,7 @@ function prepare_window!(document)
                                                           tab = PaneTab("Gestures", get_session_gesture_log())))
     split, _ = get_pane_parent(tree, group)
     split.weights = [0.8, 0.2]
+    tree.root.weights = [0.55, 0.45]      # the assistant a little wider, for its code
     apply_pane_operation!(tree, make_pane_focus_operation(tree, group, 1))
     selected === nothing ||
         set_selection!(document, annotate_reference_types(document,
@@ -110,7 +114,7 @@ function main()
         make_scripted_turn(make_scripted_say("Frank, 30, from Paris is the last person."; delay = 0.0)),
     ]; delay = 0.0)
     path = record_application_video([joinpath(directory, "people.json")], make_timeline(), OUTPUT;
-                                    width = 1280, height = 720, fps = 30,
+                                    width = WIDTH, height = HEIGHT, scale = SCALE, fps = 30,
                                     assistant = :ollama, llm = llm, root = directory,
                                     initial_hold = 1.0, final_hold = 1.0,
                                     prepare = prepare_window!)

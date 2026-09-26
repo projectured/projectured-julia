@@ -7,16 +7,20 @@
 # person's side is scripted: a prompt, the assistant adds Frank to people.json,
 # the person scrolls to him, clicks in the file and presses Ctrl+Z, then a second
 # prompt, and the assistant opens a tab with a table. The session's gesture log is
-# in a pane below the file. A warm-up with a scripted model runs the same steps
+# in a pane below the file. The take waits 4 s before each call of the model, so
+# the viewer reads each block of code and its answer. A warm-up with a scripted model runs the same steps
 # first, so the take does not fire its entries in a burst after a slow start.
 
 using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedOllama,
       ProjecturedSdl, ProjecturedSdlExample, ProjecturedVideo
 
 const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "assistant_window.mp4") : ARGS[1]
-const COMPOSER = (1000, 518)          # read off a frame of the window
-const FILE = (300, 120)               # a point on the text of people.json
-const FILE_MIDDLE = (500, 300)        # where the wheel scrolls the file
+# The window is drawn 15% smaller than its logical size, so a video of 1280×720
+# holds a logical window of 1506×847: more room for the code in the conversation.
+const WIDTH, HEIGHT, SCALE = 1506, 847, 0.85
+const COMPOSER = (1059, 642)          # read off a frame of the window, in logical pixels
+const FILE = (118, 129)               # a point on the text of people.json
+const FILE_MIDDLE = (353, 353)        # where the wheel scrolls the file
 const TURN_CAP = 600.0                # seconds a turn may take before the take goes on
 
 const PEOPLE = """
@@ -74,6 +78,7 @@ function prepare_window!(document)
                                                           tab = PaneTab("Gestures", log)))
     split, _ = get_pane_parent(tree, group)
     split.weights = [0.8, 0.2]
+    tree.root.weights = [0.55, 0.45]      # the assistant a little wider, for its code
     apply_pane_operation!(tree, make_pane_focus_operation(tree, group, 1))
     selected === nothing ||
         set_selection!(document, annotate_reference_types(document,
@@ -96,6 +101,24 @@ function make_timeline(; typing, read, cap)
      _key(:return; hold = 1.0),
      (await = turn_finished(5), hold = cap)]
 end
+
+# The model of the take, which waits `pause` seconds before each of its calls, so
+# the viewer reads each block of code and its answer before the model goes on.
+# What the model does is its own; only the time between its rounds is longer.
+const LlmModule = Projectured.LlmModule
+struct PacedLlm <: LlmModule.Llm
+    inner::LlmModule.Llm
+    pause::Float64
+end
+function LlmModule.stream_turn(llm::PacedLlm, request; on_event)
+    sleep(llm.pause)
+    LlmModule.stream_turn(llm.inner, request; on_event)
+end
+LlmModule.render_tool_schema(llm::PacedLlm, tools) = LlmModule.render_tool_schema(llm.inner, tools)
+LlmModule.has_meaning_model(llm::PacedLlm) = LlmModule.has_meaning_model(llm.inner)
+LlmModule.get_meaning_model_name(llm::PacedLlm) = LlmModule.get_meaning_model_name(llm.inner)
+LlmModule.compute_meaning_vectors(llm::PacedLlm, texts; kwargs...) =
+    LlmModule.compute_meaning_vectors(llm.inner, texts; kwargs...)
 
 # A scripted model that makes the two calls of the rehearsal at once, for the
 # warm-up.
@@ -123,7 +146,7 @@ function record(output, llm, timeline; initial_hold, final_hold)
     directory = mktempdir()
     write(joinpath(directory, "people.json"), PEOPLE)
     record_application_video([joinpath(directory, "people.json")], timeline, output;
-                             width = 1280, height = 720, fps = 30,
+                             width = WIDTH, height = HEIGHT, scale = SCALE, fps = 30,
                              assistant = :ollama, llm = llm, root = directory,
                              initial_hold = initial_hold, final_hold = final_hold,
                              prepare = prepare_window!)
@@ -138,7 +161,7 @@ function main()
     rm(warm_up; force = true)
     println("warm-up: ", round(time() - started; digits = 1), " s")
     started = time()
-    path = record(OUTPUT, OllamaLlm(context = 32768, seed = 1),
+    path = record(OUTPUT, PacedLlm(OllamaLlm(context = 32768, seed = 1), 4.0),
                   make_timeline(; typing = (hold = 0.15, jitter = 0.6), read = 3.0, cap = TURN_CAP);
                   initial_hold = 2.0, final_hold = 5.0)
     println("recorded: ", path, " in ", round(time() - started; digits = 1), " s")
