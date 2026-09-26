@@ -352,5 +352,17 @@ end
     @test newline.font_color == color_red
 end
 
+@testset "the string of a text is its flat string" begin
+    to_string(block) = (o = print_document(RecursiveProjection(TextToString()), block).output;
+                        o isa AbstractString ? o : o[])
+    spacing = TextSpacing(4; font = font_ubuntu_monospace_regular_20)
+    block = TextBlock(TextLine(_run("ab"), _image()), TextLine(_run("c"), spacing, _image(); indentation = 2))
+    @test to_string(block) == "ab\uFFFC\n  c \uFFFC"
+    @test to_string(block) == get_flat_string(block)
+    example = make_text_with_image_example()
+    @test to_string(example) == get_flat_string(example)
+    @test length(to_string(example)) == TextModule._text_flat_total(example)
+end
+
 end # @testset "Inline image caret"
 end # test_inline_image_caret

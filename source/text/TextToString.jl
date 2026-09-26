@@ -3,9 +3,11 @@
 # TextBlock → String projection. Flattens a sequence of styled text spans into
 # a plain Julia String by concatenating each span's content. TextString spans
 # contribute their content verbatim; TextNewline spans contribute a newline
-# character; a TextLine contributes its indentation and its own spans, and the
-# enclosing block emits the break it implies (a separator: `n` lines, `n-1`
-# breaks). All other span types are ignored.
+# character, a TextSpacing a space and an inline image (TextGraphics) U+FFFC; a
+# TextLine contributes its indentation and its own spans, and the enclosing block
+# emits the break it implies (a separator: `n` lines, `n-1` breaks). So the string
+# of a text is its flat string (`get_flat_string`): an offset into the one is an
+# offset into the other.
 # ── TextStringToString ───────────────────────────────────────────────────────
 
 struct TextStringToString <: Projection end
@@ -45,6 +47,30 @@ end
 function read_intent(::TextNewlineToString, iomap::SimpleIoMap, op)
     return nothing
 end
+
+# ── TextSpacingToString ───────────────────────────────────────────────────────
+
+struct TextSpacingToString <: Projection end
+
+map_reference_forward(::TextSpacingToString, iomap, reference) = nothing
+map_reference_backward(::TextSpacingToString, iomap, reference) = nothing
+
+print_document(p::TextSpacingToString, recursion, spacing::TextSpacing, ctx) =
+    SimpleIoMap(p, spacing, Cell(" "))
+
+read_intent(::TextSpacingToString, iomap::SimpleIoMap, op) = nothing
+
+# ── TextGraphicsToString ──────────────────────────────────────────────────────
+
+struct TextGraphicsToString <: Projection end
+
+map_reference_forward(::TextGraphicsToString, iomap, reference) = nothing
+map_reference_backward(::TextGraphicsToString, iomap, reference) = nothing
+
+print_document(p::TextGraphicsToString, recursion, image::TextGraphics, ctx) =
+    SimpleIoMap(p, image, Cell(string(OBJECT_REPLACEMENT_CHARACTER)))
+
+read_intent(::TextGraphicsToString, iomap::SimpleIoMap, op) = nothing
 
 # ── TextLineToString ──────────────────────────────────────────────────────────
 
@@ -121,9 +147,11 @@ end
 
 function TextToString()
     TypeDispatchingProjection(
-        TextString  => TextStringToString(),
-        TextNewline => TextNewlineToString(),
-        TextLine    => TextLineToString(),
-        TextBlock   => TextBlockToString(),
+        TextString   => TextStringToString(),
+        TextNewline  => TextNewlineToString(),
+        TextSpacing  => TextSpacingToString(),
+        TextGraphics => TextGraphicsToString(),
+        TextLine     => TextLineToString(),
+        TextBlock    => TextBlockToString(),
     )
 end

@@ -56,7 +56,8 @@ export set_cell_computation!, get_flat_length, get_flat_offsets, get_flat_string
 export SpanPath, get_flat_base, make_flat_caret_reference, make_flat_range_reference,
        get_flat_cursor_coordinate, is_structural_selection, is_text_element_write
 export TextToGraphics, TextToGraphicsIoMap
-export TextBlockToString, TextStringToString, TextNewlineToString, TextLineToString, TextToString
+export TextBlockToString, TextStringToString, TextNewlineToString, TextSpacingToString, TextGraphicsToString,
+       TextLineToString, TextToString
 export TextLineNumbering, LineNumbering
 export WordWrapping, WordWrappingIoMap, WrapSegment
 export TextFiltering, TextFilteringIoMap

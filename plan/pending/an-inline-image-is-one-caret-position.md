@@ -393,8 +393,16 @@ Do the work in a git worktree, and commit each step.
     `SelectionEnumeration.jl` counted the `font_color` string `""` of an image as
     a text leaf, one position per image, which goes away; Step 9 sees it in the
     counts.
-- [ ] **Step 6. The string of a text** (§3.6). `TextToString` gives an image U+FFFC.
+- [x] **Step 6. The string of a text** (§3.6). `TextToString` gives an image U+FFFC.
   Test: the string of `text_with_image` and its length against the total.
+  - *Done.* New rules `TextGraphicsToString` (U+FFFC) and
+    `TextSpacingToString` (a space) in `TextToString()`.
+  - *Decision:* the rule for `TextSpacing` is added too. Without it a text with a
+    spacing errors in `TextToString` as a text with an image did, and the string
+    of a text is its flat string only when both rules exist.
+  - *Decision:* the console backend still prints nothing for an image. It gets
+    its highlight from the span colours that `SelectionInverting` sets, not from
+    flat offsets, so the missing character moves no highlight.
 - [ ] **Step 7. The paint of a selection** (§3.7, question 6). A caret-space range
   is painted with caret-space offsets, and an image in a range is painted. Tests:
   a range across a `TextNewline`, across a soft newline and across an image
