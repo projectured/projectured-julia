@@ -103,9 +103,15 @@ The owner found that a row of a popup menu does not light under the pointer.
 
 - [ ] 0. Unseal `event/WindowEvent.jl` and `event/EventModule.jl` in
   `SEALING.md`, in a commit that names the owner's permission.
-- [ ] 1. **H2.** Event 13 becomes `WindowDefocus`, 12 nothing. Test: an SDL
+- [x] 1. **H2.** Event 13 becomes `WindowDefocus`, 12 nothing. Test: an SDL
   window event 13 pushed into the queue reads as `WindowDefocus`, and 12 reads as
   nothing.
+
+  Done. The window events of `_poll_window_input` are named by their SDL
+  constants, not by numbers. `test_input_coalescing` pushes both events into the
+  real SDL queue: 23 pass. A popup now closes when the person switches to another
+  program, as the rule meant; a press in the first window still closes it by the
+  rule of a press.
 - [ ] 2. **H3, the event.** The new event in `WindowEvent.jl`, exported and named
   in the list of window events of `EventModule.jl`. The SDL backend reports it
   from event 11; the web client and the web backend report it from `mouseleave`.

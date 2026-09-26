@@ -3453,11 +3453,13 @@ function _poll_window_input(backend::SdlBackend)
             # event byte 1 = SDL_WindowEventID
             sub = evt.window.event
             wid = _lookup_window_id(backend, evt.window.windowID)
-            if sub == UInt8(14)  # SDL_WINDOWEVENT_CLOSE
+            # Named, not numbered: the focus a window gains (12) and the focus it
+            # loses (13) are one number apart.
+            if sub == UInt8(SDL_WINDOWEVENT_CLOSE)
                 return (WindowInput(wid, WindowClose(; time = event_time)), nothing)
-            elseif sub == UInt8(12)  # SDL_WINDOWEVENT_FOCUS_LOST
+            elseif sub == UInt8(SDL_WINDOWEVENT_FOCUS_LOST)
                 return (WindowInput(wid, WindowDefocus(; time = event_time)), nothing)
-            elseif sub == UInt8(5)  # SDL_WINDOWEVENT_RESIZED (external/user only)
+            elseif sub == UInt8(SDL_WINDOWEVENT_RESIZED)  # external/user only
                 # SDL reports device pixels; the document works in logical pixels.
                 nw = _to_logical(Int(evt.window.data1), ratio)
                 nh = _to_logical(Int(evt.window.data2), ratio)

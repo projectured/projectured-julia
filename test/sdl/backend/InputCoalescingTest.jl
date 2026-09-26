@@ -36,6 +36,11 @@ _push_button_up!(x, y) =
                                                UInt32(0), _SDL_BUTTON_LEFT, UInt8(0),
                                                UInt8(1), UInt8(0), Int32(x), Int32(y)))
 
+_push_window_event!(kind) =
+    _push_sdl_event!(_SDL.SDL_WindowEvent(UInt32(_SDL.SDL_WINDOWEVENT), UInt32(0), UInt32(0),
+                                          UInt8(kind), UInt8(0), UInt8(0), UInt8(0),
+                                          Int32(0), Int32(0)))
+
 # Start from an empty queue and an expired rate limit, so each case sees only
 # what it pushed.
 function _reset_input!(backend)
@@ -155,6 +160,18 @@ function test_input_coalescing()
             @test (answered.event.x, answered.event.y) == (_logical(60), _logical(70))
         end
         _reset_input!(other)
+        _reset_input!(backend)
+    end
+
+    @testset "a window that loses the focus says so, and one that gains it says nothing" begin
+        _reset_input!(backend)
+        _push_window_event!(_SDL.SDL_WINDOWEVENT_FOCUS_LOST)
+        input = read_from_devices(backend, Device[])
+        @test input isa WindowInput
+        @test input.event isa WindowDefocus
+        _reset_input!(backend)
+        _push_window_event!(_SDL.SDL_WINDOWEVENT_FOCUS_GAINED)
+        @test read_from_devices(backend, Device[]) === nothing
         _reset_input!(backend)
     end
 
