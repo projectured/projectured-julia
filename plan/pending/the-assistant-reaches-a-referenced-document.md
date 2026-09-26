@@ -86,7 +86,13 @@ problem", and shaped that API over several messages (2026-09-26):
 
 ## 3. The ideal code with the new API
 
-Round 1, look at the data and keep what it finds:
+The code of S2, as the model would write it after its searches. It ran headless
+through `execute_julia_code` on the declared API of the application on
+2026-09-26, with the five people of the screenplay, and made the window of the
+video. The owner agreed to it on 2026-09-26.
+
+**Prompt 1:** "Open a second tab beside the first one with a table of the people
+in people.json, sorted by name." Call 1 looks at the data and keeps what it finds:
 
 ```julia
 people_tab_1 = find_pane(editor, "people.json")      # ReferencedDocument{PaneTab}
@@ -94,7 +100,7 @@ people_1 = get_edited_document(people_tab_1)         # ReferencedDocument{JsonAr
 println(print_natural_text(people_1))
 ```
 
-Round 2, reuse `people_tab_1` and `people_1`:
+The tool answers the JSON text. Call 2 uses the same variables:
 
 ```julia
 rows_1 = [[person["name"].value, person["age"].value] for person in people_1]
@@ -103,9 +109,35 @@ table_tab_1 = open_pane!(editor, WidgetTable(["name", "age"], rows_1);
                          title = "People by name", target = get_parent(editor, people_tab_1))
 ```
 
-`people_1` iterates its elements, because `JsonArray` acts as a vector; each `person` a
-`ReferencedDocument{JsonObject}`; `person["name"]` a `ReferencedDocument{JsonString}`
-whose reference reaches that entry's value; `.value` the plain `String`.
+"People by name" opens after "people.json" in the same group, with the rows Ada,
+Bob, Cleo, Dan, Eve. `people_1` iterates its elements, because `JsonArray` acts as
+a vector; each `person` is a `ReferencedDocument{JsonObject}`; `person["name"]` a
+`ReferencedDocument{JsonString}` whose reference reaches that entry's value;
+`.value` the plain `String`.
+
+**Prompt 2:** "Under the two tabs, add a card with a table of the names and the
+ages." One call, which uses `rows_1` again and does not read the file a second
+time:
+
+```julia
+card_tab_1 = open_pane!(editor, WidgetCard(content = WidgetTable(["name", "age"], rows_1));
+                        title = "Names and ages", target = get_parent(editor, table_tab_1),
+                        side = :below)
+```
+
+The group of the two tabs becomes a stacked split, 50% and 50%, with the card
+below. **Beat 4:** one `Ctrl+Z` removes the card and its split, because an open
+with `side` is one undo step.
+
+With D10, each `open_pane!` answers
+`ReferencedDocument{PaneTab} at .windows[1]….tabs[2]: PaneTab(PrimitiveString("People by name"), WidgetTable(…), nothing)`,
+so the model sees the tab, and `table_tab_1` is a target like `people_tab_1`.
+Before D10, the answer was the typed path
+`::ScreenDocument.windows::CellVector[1]::…::PaneGroup.tabs::CellVector[2]::PaneTab`.
+
+Not shown by the headless run: what qwen writes. The system prompt is not changed
+(D18) and names the older path, so the rehearsal of Step 6 shows which path the
+model takes.
 
 ## 4. Decisions
 
@@ -193,7 +225,22 @@ whose reference reaches that entry's value; `.value` the plain `String`.
 - **D10. `open_pane!(editor, document; title, target = nothing, side = nothing)`**
   places the new tab as `move_pane!` places a pane (a group: at its end; a tab:
   before it; with `side`, beside it in a new split) and answers the new tab as a
-  `ReferencedDocument`.
+  `ReferencedDocument`. `duplicate_pane!` answers its new tab the same way. The
+  owner agreed on 2026-09-26, after the S2 code of §3.
+- **D21. One answer type for a part, and one way to reach its reference.** The
+  owner agreed on 2026-09-26:
+  - A function that finds or makes a part answers a `ReferencedDocument`.
+  - A function that takes a part takes a `ReferencedDocument` or a `Reference`
+    (D5).
+  - A caller that needs the reference calls `get_reference(x)`. There is no
+    second, `_reference`, version of a finder in the public API: it is one call
+    away, and two names for one act show side by side in each search.
+  - No keyword that changes the answer type: the type would depend on a value,
+    each docstring would describe two answers, and a model that does not pass
+    the keyword gets the older form. No second verb for the new answer: a model
+    picks between two names for one act at random.
+  - Not now: `find_pane_reference` and `find_pane_tree_reference` stay declared
+    while the system prompt names them (D18). The follow-up is below.
 - **D11. `object[key]` on a `JsonObject`** answers the value document of that key,
   and throws a `KeyError` that names the keys the object has when the key is
   missing.
@@ -341,11 +388,17 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
         layering guards, `test_naming()` and `test_export_collisions()` pass.
       - Found: a `CellVector` has no `keys`, so `findfirst` on `group.tabs` throws;
         the test collects the vector first. Not changed here.
-      Open: the answer of `open_pane!` stays a `Reference`. D10 makes it a
-      `ReferencedDocument`, which the lifted verbs take, but
-      `ApplicationTest.jl` gives it to `strip_reference_types`, and omnet-julia
-      keeps it in eight places and returns it from functions whose docstrings say
-      "reference"; the owner decides that change across the two repositories.
+      To do (D10, agreed 2026-09-26): `open_pane!` and `duplicate_pane!` answer a
+      `ReferencedDocument`. Measured: in this repository
+      `ApplicationTest.jl:466` gives the answer to `strip_reference_types` and
+      becomes `get_reference(opened)`; in omnet-julia every use of the answer
+      goes to `get_referenced_value`, which takes a referenced document, so its
+      code works unchanged, and its text changes: the system texts
+      `IdeWindow.jl:135` and `CampaignWindow.jl:429` ("answers a reference") and
+      the docstrings of the functions that answer what `open_pane!` answered
+      (`ResultSelection.jl`, `ResultReader.jl`). A referenced document does not
+      forward `==`; no comparison of the answer with a `Reference` was found.
+      The two repositories land together.
       The step as planned: D5 and D10, with tests:
       `open_pane!` with a group target, a tab target and a side, and its answer;
       `move_pane!`, `focus_pane!`, `close_pane!` and `print_natural_text` with a
@@ -458,3 +511,14 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       (context 32768, seed 1): the rounds it takes and whether the tab opens are
       recorded here and in the video plan.
 - [ ] **Step 7: the landing,** when the owner says so.
+
+### Follow-up, after this plan (D21)
+
+- [ ] When the owner changes the system prompt of the application (D18, after
+      Step 6): stop declaring `find_pane_reference` and `find_pane_tree_reference`,
+      and add `find_pane_tree(editor)`, which answers the pane tree as a
+      referenced document.
+- [ ] A cleanup across this repository and omnet-julia: the `_reference` finders
+      become private (`find_pane` is built on `_find_pane_reference`), and their
+      callers call `find_pane` and pass the referenced document, or call
+      `get_reference`.
