@@ -596,6 +596,24 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
         groups alone, and `open_pane!` takes one group or one tab as its target.
         Open for the owner: the words of the prompts in the screenplay, or a verb
         that puts a pane beside several panes.
+      **The screenplay changed (the owner, 2026-09-26):** the card step is gone.
+      S2 ends with "Ada moved to Paris. Change it in people.json." and one
+      `Ctrl+Z` that puts "London" back (s2-video worktree, 576a1774). Checked
+      headless after the choice, three ways the model can write it, with the
+      undo steps of the window's history and of the file's own history:
+      - `people_1[2]["city"] = JsonString("Paris")`: the file shows Paris; no
+        undo step anywhere.
+      - `people_1[2]["city"].value = "Paris"`: the same; no undo step anywhere.
+        This is the form the guide invites, because it reads with `.value`.
+      - `replace_referenced_value!(editor, people_1[2]["city"], JsonString("Paris"))`:
+        the file shows Paris; one step in the window's history, none in the
+        file's.
+      So a write through a referenced document (D2) changes the document with
+      no step that `Ctrl+Z` can take back, and the write through the window
+      records its step in the window's history, not in the history of the file
+      that a person's own edit goes to. Open for the owner: what a write through
+      a referenced document does, and which history an edit of the assistant
+      goes to; and whether the table follows the file.
       Round 2 answers the typed reference of the new tab, which is long
       (`::ScreenDocument.windows::CellVector[1]::…::PaneTab`); a
       `ReferencedDocument` answer (D10, open) would show the tab.
