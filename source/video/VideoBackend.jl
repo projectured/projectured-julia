@@ -8,6 +8,7 @@
     VideoBackend(timeline, window_id; width=1280, height=720, fps=30,
                 initial_hold=0.5, final_hold=initial_hold,
                 supersample=2, scale=1, video_time=false, pointer=true,
+                partial_render=false, debug_dirty=false,
                 frames_dir=mktempdir()) -> VideoBackend
 
 A `Backend` whose input is a scripted `timeline` and whose output is one PNG
@@ -51,6 +52,14 @@ the frame's own, so nothing of it enters the document of the application. The
 rendering itself is `ProjecturedSdl`'s
 offscreen renderer (`_open_offscreen_renderer`), opened here and closed by
 [`quit_backend!`](@ref).
+
+With `partial_render = true` a frame repaints only the rects that changed, as
+an `SdlBackend` with `partial_render` does: the offscreen surface keeps its
+pixels, and the dirty walk of `ProjecturedSdl` finds what to paint again. The
+pointer is then drawn on the written frame and not into the surface. With
+`debug_dirty = true` as well, each frame outlines in red the rects of the last
+frame that repainted something, as the window keeps its last picture with its
+outline until the next repaint.
 """
 mutable struct VideoBackend <: Backend
     width::Int
@@ -95,6 +104,11 @@ mutable struct VideoBackend <: Backend
     pointer::Bool
     pointer_held::Bool
     pointer_released_at::Float64
+    # The partial repaint: whether a frame paints only what changed, whether it
+    # outlines that in red, and what the offscreen paint keeps between frames.
+    partial_render::Bool
+    debug_dirty::Bool
+    paint_state::Any
 end
 
 function VideoBackend(timeline::AbstractVector, window_id::Symbol;
@@ -102,6 +116,7 @@ function VideoBackend(timeline::AbstractVector, window_id::Symbol;
                       initial_hold::Real = 0.5, final_hold::Real = initial_hold,
                       supersample::Integer = 2, scale::Real = 1,
                       video_time::Bool = false, pointer::Bool = true,
+                      partial_render::Bool = false, debug_dirty::Bool = false,
                       frames_dir::AbstractString = mktempdir())
     n = length(timeline)
     entries = Vector{Any}(undef, n + 1)
@@ -121,7 +136,8 @@ function VideoBackend(timeline::AbstractVector, window_id::Symbol;
     entries[n + 1] = (event = quit, fire_at = acc + Float64(final_hold))
     VideoBackend(Int(width), Int(height), Int(fps), String(frames_dir), window_id,
                 entries, 1, false, -1, -1, 0.0, 0.0, -1.0, nothing, Ref(0), nothing, nothing,
-                Int(supersample), Float64(scale), video_time, pointer, false, -Inf)
+                Int(supersample), Float64(scale), video_time, pointer, false, -Inf,
+                partial_render, debug_dirty, nothing)
 end
 
 # The video time of the frame about to be written: the frames written so far,
@@ -310,14 +326,34 @@ function write_to_devices(backend::VideoBackend, devices, screen::ScreenDocument
     # there is nothing yet to backfill a gap against.
     backend.start_time < 0 ? (backend.start_time = time()) :
         (backend.video_time || _backfill_frames!(backend))
-    if backend.pointer && backend.pointer_x >= 0
-        canvas = GraphicsCanvas(Any[canvas; _make_pointer_graphics(backend)]; w = backend.width, h = backend.height)
+    if backend.partial_render
+        _write_partial_frame!(backend, canvas, window.bg)
+    else
+        if backend.pointer && backend.pointer_x >= 0
+            canvas = GraphicsCanvas(Any[canvas; _make_pointer_graphics(backend)]; w = backend.width, h = backend.height)
+        end
+        _emit_frames!(backend.off, canvas, backend.width, backend.height, window.bg,
+                     backend.frames_dir, backend.frame, 1)
     end
-    _emit_frames!(backend.off, canvas, backend.width, backend.height, window.bg,
-                 backend.frames_dir, backend.frame, 1)
     backend.last_frame_file = _video_frame_path(backend.frames_dir, backend.frame[])
     backend.awaiting_render = false
     nothing
+end
+
+# A frame of a partial repaint: the window canvas paints only what changed, and
+# the pointer is drawn on the written frame, because a canvas made around the
+# window each frame would be new to the dirty walk and repaint it all.
+function _write_partial_frame!(backend::VideoBackend, canvas::GraphicsCanvas, background)
+    backend.paint_state === nothing &&
+        (backend.paint_state = _make_offscreen_paint_state(backend.off, backend.width, backend.height))
+    state = backend.paint_state
+    _render_canvas_offscreen_partial!(backend.off, state, canvas, background)
+    pointer = backend.pointer && backend.pointer_x >= 0 ?
+              GraphicsCanvas(_make_pointer_graphics(backend); w = backend.width, h = backend.height) :
+              nothing
+    outline = backend.debug_dirty ? state.last_rects : NTuple{4,Int}[]
+    _emit_frame_with_overlay!(backend.off, backend.width, backend.height, pointer, outline,
+                              backend.frames_dir, backend.frame)
 end
 
 function _select_window(backend::VideoBackend, screen::ScreenDocument)

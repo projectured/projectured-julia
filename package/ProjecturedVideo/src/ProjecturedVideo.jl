@@ -46,7 +46,9 @@ import ProjecturedKernel.EventModule: WindowInput, WindowQuit,
        MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
 import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
 
-import ProjecturedSdl: _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!
+import ProjecturedSdl: _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!,
+                       _make_offscreen_paint_state, _render_canvas_offscreen_partial!,
+                       _emit_frame_with_overlay!
 # `SdlBackend` itself is already in scope via the bare `using ProjecturedSdl` above.
 
 include("../../../source/video/Video.jl")

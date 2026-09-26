@@ -166,4 +166,34 @@ end
         @test maximum(rows) - minimum(rows) <= 24
     end
 end
+@testset "a partial repaint draws what a full repaint draws" begin
+    width, height = 480, 360
+    timeline = Any[
+        (event = KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0), hold = 0.3),
+        (event = KeyDown(:insert, ModifierKeys(); time = 0.0),        hold = 0.3),
+        make_typein_gestures("repl"; hold = 0.1, jitter = 0.0)...,
+        (event = KeyDown(:return, ModifierKeys(); time = 0.0),        hold = 0.5),
+    ]
+    root = mktempdir()
+    take(; kwargs...) = begin
+        filename = tempname() * ".mp4"
+        record_application_video(String[], timeline, filename; width = width, height = height, fps = 10,
+                                 assistant = :none, root = root, initial_hold = 0.2, final_hold = 0.3,
+                                 supersample = 1, video_time = true, kwargs...)
+        frame = _read_last_frame(filename, width, height)
+        rm(filename; force = true)
+        frame
+    end
+    full = take()
+    partial = take(partial_render = true)
+    outlined = take(partial_render = true, debug_dirty = true)
+    if !any(isnothing, (full, partial, outlined))
+        # The kept surface, painted again only where something changed, ends as
+        # the full paint ends, beyond the noise of the encoder.
+        @test count(i -> maximum(abs.(full[i] .- partial[i])) > 60, CartesianIndices(full)) == 0
+        # The outline of the last repaint stays on the frame.
+        is_red(p) = p[1] > 180 && p[2] < 80 && p[3] < 80
+        @test count(is_red, outlined) > count(is_red, partial)
+    end
+end
 end # test_application_video
