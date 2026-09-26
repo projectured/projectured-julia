@@ -107,7 +107,9 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        glob_matches,
        parse_reference_pattern, @ref_str,
        parse_reference_path, ReferenceSyntaxStep, ReferenceSyntaxField, ReferenceSyntaxIndex,
-       @reference_case, @reference_rules, @reference, @reference_step
+       @reference_case, @reference_rules, @reference, @reference_step,
+       # a document with the reference that reached it, and the address of one
+       ReferencedDocument, get_document, get_reference, DocumentLocator, find_referenced_document
 
 include("ReferenceInterface.jl")
 include("ReferenceStep.jl")
@@ -120,5 +122,6 @@ include("ReferenceCase.jl")
 include("ReferenceRules.jl")
 include("ReferencePatternString.jl")
 include("ReferenceBuilder.jl")
+include("ReferencedDocument.jl")
 
 end # module

@@ -236,7 +236,21 @@ Each step: tests first where they fit, the change, the narrowest tests that cove
 it, and a commit with explicit paths and no attribution line. Work in a worktree of
 its own, from `main`. Check each file against `SEALING.md` before editing it.
 
-- [ ] **Step 1: the two types.** D1 to D6 and D9 in the reference layer, with
+- [ ] **Step 1: the two types.** **In progress (2026-09-26).** Done:
+      `source/kernel/reference/ReferencedDocument.jl` holds `ReferencedDocument`,
+      its forwarding, display and `convert`, `DocumentLocator` and
+      `find_referenced_document`; `test_referenced_document()` passes 25 checks,
+      and the kernel layering guard accepts the file. Found: `CellVector` is not a
+      kernel type (it lives in `source/collection/`), so the kernel knows a
+      collection by `Document`, `AbstractVector`, `AbstractDict` and `Tuple`; a
+      `CellVector` is a `Document`. A property that is not a field of its document
+      has no step a reference can record, so its value is answered plain. A key
+      that is neither a position nor a dictionary key is found in the document by
+      identity (`search_references`). Open: `get_parent` must evaluate a shorter
+      reference, which needs the root, and a `ReferencedDocument` keeps only its
+      reference (D1); the owner chooses between `get_parent(editor, x)` and a
+      referenced document that also keeps its root.
+      The rest of the step: D1 to D6 and D9 in the reference layer, with
       tests: forwarding of a property, a write, indexing and iteration, and the
       referenced answer for a document and the plain answer for a leaf; the
       display; `convert` to a document type and to `Reference`; a locator resolved,
