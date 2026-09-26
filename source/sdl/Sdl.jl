@@ -2563,8 +2563,9 @@ end
 
 # Each rectangle of a region is painted with its own clip, so each one costs a
 # walk of the whole canvas. Past this many, the region is painted as the one
-# rectangle that covers it.
-const _DIRTY_RECT_LIMIT = 8
+# rectangle that covers it. A paragraph that grows by a line gives two
+# rectangles for itself and two for each paragraph below it that moves.
+const _DIRTY_RECT_LIMIT = 32
 
 function _limit_dirty_rects(rects::Vector{NTuple{4,Int}})
     length(rects) <= _DIRTY_RECT_LIMIT && return rects
