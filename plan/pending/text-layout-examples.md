@@ -38,7 +38,7 @@ side by side.
 ## 3. Steps
 
 - [x] **Step 1.** The documents, the projection and the registration.
-- [ ] **Step 2.** `test_example` passes for each example.
+- [x] **Step 2.** `test_example` passes for each example.
   *Result:* six examples pass fully. `text_baseline` fails 18 type-in
   assertions, `text_line_height` 6 and `text_selection` 8, all at
   `TypeinTest.jl:555`, and all at offset 0 of a span that follows another text
@@ -46,6 +46,20 @@ side by side.
   insert goes into the previous span, and a Backspace deletes its last
   character, as a word processor does at the seam of two style runs. The
   type-in test expects each span start to be a place of its own. The owner
-  decides how the test treats such a seam.
-- [ ] **Step 3.** Images of each example at ratio 1 and 2 go to the owner.
+  chose on 2026-09-26 that the test treats the start of a run that directly
+  follows another text run as the caret at the end of that run, and tests it
+  once (`_walk_span_strings!` in `TypeinTest.jl`).
+  *Done.* The seams of two text runs pass. Four failures remain, two in
+  `text_baseline` and two in `text_line_height`, at the start of the run after
+  an inline image: an image has no width in the flat caret stream, so the caret
+  after an image is the caret before it, and a typed character goes before the
+  image. `text_with_image_example` fails the same 4 assertions on `main`. It is a
+  fault of the caret model, not of the examples, and the test keeps it visible.
+  The suites of Step 0 fail as `main` does (1068 type-in failures of the
+  conversation widget, at the same assertion, whose line moved to 587). The
+  substrate count rises by 3593: the printer walks of the nine examples, which
+  `test_substrate_examples` walks (543, 573, 385, 444, 324, 324, 324, 352, 324).
+- [x] **Step 3.** Images of each example at ratio 1 and 2 go to the owner.
+  *Done:* `/var/tmp/text-layout-examples/images2/`. The exact spacing is 20
+  pixels: at 16 the heading and the first sentence could not be read.
 - [x] **Step 4.** `text.md` names the examples.

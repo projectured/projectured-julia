@@ -32,6 +32,10 @@
 # Backspace at `k==0` and delete at `k==n` decline uniformly (the reader returns
 # nothing) — those boundaries are the no-op cases.
 #
+# A text run that directly follows another text run in a line starts at the caret
+# where that run ends, so its boundary `0` is tested once, as the end of the run
+# before it (`_walk_span_strings!`).
+#
 # The boundary carets (`0` and `n`) are the point of walking every position: they
 # sit where the projection also renders the neighbouring chrome (a quote, a
 # delimiter, the next token), which is where a typed character can land in the
@@ -75,7 +79,7 @@ using ProjecturedSyntax.SyntaxModule: SyntaxNode, SyntaxLeaf
 # so typing into it has no cursor to render.
 
 function _collect_string_refs(document)
-    refs = NamedTuple{(:cursor, :kind)}[]
+    refs = NamedTuple{(:cursor, :kind, :first_position)}[]
     _walk_strings!(document, EmptyReference(), Set{UInt64}(), refs)
     refs
 end
@@ -131,19 +135,46 @@ function _walk_strings!(node, path, visited, refs)
         fval = getfield(node, fname)
         val  = fval isa Cell ? fval[] : fval
         field_path = extend_reference(path, FieldReferenceStep(string(fname)))
-        if val isa TextString
+        if node isa Union{TextBlock, TextLine} && fname === :elements && val isa CellVector
+            _walk_span_strings!(val, field_path, visited, refs)
+        elseif val isa TextString
             # Document-domain TextString: cursor anchors at the field, the
             # characters are its `.content`. Do not descend further.
-            push!(refs, (cursor=field_path, kind=:textstring))
+            push!(refs, (cursor=field_path, kind=:textstring, first_position=0))
         elseif val isa TextBlock
             # Document-domain TextBlock: cursor is a flat offset across spans,
             # anchored at the field. Do not descend into the spans.
-            push!(refs, (cursor=field_path, kind=:texttext))
+            push!(refs, (cursor=field_path, kind=:texttext, first_position=0))
         elseif val isa AbstractString
-            push!(refs, (cursor=field_path, kind=:plain))
+            push!(refs, (cursor=field_path, kind=:plain, first_position=0))
         else
             _walk_strings!(val, field_path, visited, refs)
         end
+    end
+end
+
+# The spans of a text block or of a line. A text run that directly follows another
+# text run starts where that run ends: the flat caret there is the end of the run
+# before it, and a typed character goes into that run, as a word processor gives
+# it the style of the character before it. So such a run is walked from its first
+# interior boundary, and the seam is tested once, as the end of the run before it.
+# An inline image has no width in the caret stream, so the run after an image
+# keeps its first boundary.
+function _walk_span_strings!(spans::CellVector, path, visited, refs)
+    id = objectid(spans)
+    id in visited && return
+    push!(visited, id)
+    previous = nothing
+    for i in 1:length(spans)
+        span = spans[i]
+        first = length(refs) + 1
+        _walk_strings!(span, extend_reference(path, RangeReferenceStep(i - 1, i)), visited, refs)
+        if span isa TextString && previous isa TextString
+            for j in first:length(refs)
+                refs[j] = merge(refs[j], (first_position = 1,))
+            end
+        end
+        previous = span
     end
 end
 
@@ -423,6 +454,7 @@ function _edit_target(document, projection, target, ch, policy::Symbol)
     end
     n = length(pristine)
     for k in _typein_positions(n, policy)
+        k < target.first_position && continue
         for kind in _EDIT_KINDS
             outcome = _edit_at(document, projection, target, k, ch, kind)
             push!(results, (position=k, length=n, edit=kind, ok=outcome.ok, message=outcome.message))
