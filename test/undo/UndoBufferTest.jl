@@ -66,6 +66,8 @@ function test_undo_buffer()
             ReplaceViewStateOperation(_write_first("y"))]))
         @test is_undo_step(nothing, CompoundOperation(Any[
             ReplaceViewStateOperation(_write_first("x")), _write_first("y")]))
+        # A timer that a reader sets edits no document.
+        @test !is_undo_step(nothing, SetTimerOperation(:dwell, 1.0))
         # A compound that carries a write is kept.
         @test is_undo_step(nothing, CompoundOperation(Any[_write_first("x"),
                                                           ReplaceSelectionOperation(EmptyReference())]))

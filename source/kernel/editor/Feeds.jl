@@ -28,7 +28,8 @@ const FRAME_INTERVAL = 0.01
 
 How long the next wait may block: `FRAME_INTERVAL` while anything subscribes
 to the editor's clock, bounded further by every feed's
-`compute_wake_deadline`, and `Inf` when nothing asks to come back. A stale
+`compute_wake_deadline` and by the earliest timer of `editor.timers`, and `Inf`
+when nothing asks to come back. A stale
 subscriber the collector has not swept yet keeps the animation bound for a
 few more frames; each of them drains nothing and repaints nothing.
 """
@@ -38,6 +39,12 @@ function compute_wait_timeout(editor::Editor)
         deadline = compute_wake_deadline(feed, editor)
         deadline === nothing && continue
         deadline < timeout && (timeout = deadline)
+    end
+    isempty(editor.timers) && return timeout
+    now = time()
+    for due in values(editor.timers)
+        remaining = max(0.0, due - now)
+        remaining < timeout && (timeout = remaining)
     end
     timeout
 end

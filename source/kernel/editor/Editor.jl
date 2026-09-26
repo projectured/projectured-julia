@@ -52,6 +52,10 @@ Holds the state for a read-eval-print loop:
                    no loop runs. [`run_on_editor_task!`](@ref) reads it to
                    know whether a call from another task must wait for a frame
                    (internal).
+  - `timers`     — the timers that readers set with `SetTimerOperation`: the
+                   time of each, by its name. The loop wakes at the earliest,
+                   and [`read!`](@ref) reads a `TimerExpire` for each one whose
+                   time has come (internal).
 """
 mutable struct Editor
     backend::Backend
@@ -71,6 +75,7 @@ mutable struct Editor
     wake_pending::Threads.Atomic{Bool}
     frame_measurements::FrameMeasurementStore
     loop_task::Union{Task, Nothing}
+    timers::Dict{Symbol, Float64}
 end
 
 # The inbox is bounded: a producer that outruns the editor should wait for it,
@@ -91,7 +96,7 @@ function Editor(backend, document, projection, devices;
                     # first wait, so the editor paints once before anything
                     # has happened.
                     Feed[InboxFeed(); feeds], Threads.Atomic{Bool}(true),
-                    FrameMeasurementStore(), nothing)
+                    FrameMeasurementStore(), nothing, Dict{Symbol, Float64}())
     # Registration is the one moment a feed meets its editor. The callback is
     # the only handle a producer-side store gets: a store lives below the
     # editor layer and must not name `Editor`.
@@ -104,6 +109,12 @@ function Editor(backend, document, projection, devices;
     # the very next frame rather than on the next unrelated event.
     attach_fault_wake!(faults, wake)
     editor
+end
+
+# A timer set again under the same name replaces the one before.
+function OperationModule.evaluate_operation(editor::Editor, operation::SetTimerOperation)
+    editor.timers[operation.name] = operation.time
+    nothing
 end
 
 # Drop the cached IoMap so the next `print!` rebuilds the projection from scratch.

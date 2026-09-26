@@ -45,6 +45,7 @@ make_inverse_operation(document, operation::DoNothingOperation) = operation
 
 # An operation that changes no document: the way back is to do nothing.
 make_inverse_operation(document, ::QuitEditorOperation) = DoNothingOperation()
+make_inverse_operation(document, ::SetTimerOperation) = DoNothingOperation()
 make_inverse_operation(document, ::AdjustZoomOperation) = DoNothingOperation()
 make_inverse_operation(document, ::AdjustFontZoomOperation) = DoNothingOperation()
 

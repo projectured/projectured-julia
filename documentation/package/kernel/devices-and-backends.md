@@ -377,6 +377,7 @@ EventModule.jl   (EventModule)        — the input event vocabulary, seven frag
         │                       the gestures MouseClick, MouseEnter, MouseLeave
         ├─ WindowEvent.jl     — WindowQuit, WindowClose, WindowResize, WindowDefocus,
         │                       WindowLeave
+        ├─ TimerEvent.jl      — TimerExpire, the event of a timer that a reader set
         ├─ WindowInput.jl   — an event or a gesture plus the id of the window it came from
         └─ EventDefaults.jl   — the get_modifier_keys fallback and the four
                                 has_*_modifier_key predicates derived over it

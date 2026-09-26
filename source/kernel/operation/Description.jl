@@ -21,6 +21,7 @@ describe_operation(::Nothing) = "no operation"
 describe_operation(::DoNothingOperation) = "do nothing"
 describe_operation(operation::ReplaceViewStateOperation) = describe_operation(operation.operation)
 describe_operation(::QuitEditorOperation) = "quit"
+describe_operation(operation::SetTimerOperation) = "set the timer " * string(operation.name)
 describe_operation(::SelectNextInsertionOperation) = "select next insertion"
 describe_operation(::ToggleCollapseOperation) = "toggle collapse"
 describe_operation(operation::ReplaceSelectionOperation) = "select " * _short_reference(operation.path)

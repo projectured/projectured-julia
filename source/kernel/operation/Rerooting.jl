@@ -57,3 +57,5 @@ operation_reference(op) = nothing
 retarget_operation(op, reference) = op
 
 operation_travels_unchanged(op) = false
+# A timer names its editor's timer, not a place, so every reader passes it up.
+operation_travels_unchanged(::SetTimerOperation) = true

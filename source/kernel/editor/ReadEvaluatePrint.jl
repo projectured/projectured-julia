@@ -17,16 +17,22 @@ there's nothing to evaluate or repaint for them.
 Raw backend events are first pulled through the editor's `GestureRecognizer`
 (`pop_gesture!`), which is where multi-event combinations become gestures —
 e.g. a `MouseDown`/`MouseUp` pair is recognised as a `MouseClick` click. The
-recogniser returns an `WindowInput` wrapping a backend-agnostic gesture
-(KeyDown, KeyUp, KeyPress, MouseDown, MouseUp, MouseClick, MouseMove,
-MouseScroll, WindowQuit, WindowClose, …) together with the originating
-`WindowDocument.id`. The window input is passed to the projection pipeline reader
-which translates it via the last stored IoMap.
+recogniser returns an `WindowInput` wrapping an event or a gesture (KeyDown,
+KeyUp, KeyPress, MouseDown, MouseUp, MouseClick, MouseMove, MouseScroll,
+WindowQuit, WindowClose, …) together with the originating `WindowDocument.id`.
+The window input is passed to the projection pipeline reader which translates it
+via the last stored IoMap.
+
+A timer of `editor.timers` whose time has come is read first, as a bare
+`TimerExpire`: a timer belongs to no window. The earliest one goes first, and it
+leaves the timers when it is read.
 """
 function read!(editor::Editor)
     while true
-        window_input = pop_gesture!(editor.recognizer,
-                            () -> _read_from_devices_guarded(editor))
+        window_input = _pop_due_timer!(editor)
+        window_input === nothing &&
+            (window_input = pop_gesture!(editor.recognizer,
+                                         () -> _read_from_devices_guarded(editor)))
         if window_input === nothing
             editor.operation = nothing
             return false
@@ -96,6 +102,19 @@ function read_rooted_operation(editor, place::Reference, operation::Operation;
     answer = read_intent(editor.projection, nothing, change, editor.iomap)
     rooted = answer isa Intent ? answer.operation : answer
     rooted isa Operation ? rooted : nothing
+end
+
+# The `TimerExpire` of the earliest timer whose time has come, which leaves the
+# timers, or `nothing` when no timer is due.
+function _pop_due_timer!(editor::Editor)
+    isempty(editor.timers) && return nothing
+    name, due = first(editor.timers)
+    for (other, other_due) in editor.timers
+        other_due < due && ((name, due) = (other, other_due))
+    end
+    due <= time() || return nothing
+    delete!(editor.timers, name)
+    TimerExpire(name, due)
 end
 
 """

@@ -107,6 +107,26 @@ function evaluate_operation(editor, op::QuitEditorOperation)
 end
 
 """
+    SetTimerOperation(name::Symbol, time)
+
+Set the timer `name` of the editor to `time`, in seconds on the clock of `time()`.
+When that time comes, the loop of the editor reads a `TimerExpire(name, time)`.
+A timer set again under the same name replaces the one before; a timer under
+another name is another timer.
+
+A reader answers it to find a pattern that ends when no event arrives: it sets
+the timer on each event that starts the wait, and it checks its own state when
+the `TimerExpire` comes. It edits no document, so a history does not record it,
+and it names no reference, so every reader passes it up unchanged. The editor
+evaluates it; an evaluator that is not an editor does nothing with it.
+"""
+struct SetTimerOperation <: Operation
+    name::Symbol
+    time::Float64
+end
+
+
+"""
     AdjustZoomOperation(delta)
 
 Editor-global *uniform* readability zoom: `delta` is +1 (in), -1 (out) or 0

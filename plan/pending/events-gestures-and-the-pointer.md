@@ -430,7 +430,18 @@ The direction that follows from the decisions so far:
 
 ## 5. Open questions
 
-No question of this plan is open.
+- **Q16. Views that change on every frame (found in step 2).** With D42, a frame
+  that changed the display is followed by one more read. A view that changes
+  because a frame happened then keeps the loop awake for ever:
+  - the frame statistics: `FrameStatisticsFeed` flushes on every frame whose
+    count differs, and its own header says "a wake would make frames feed
+    themselves";
+  - `ReflectionFeed` syncs a live value on every frame, so a value that changes
+    all the time would redraw at the full frame rate.
+
+  Also, the SDL backend presents every window on every frame when partial
+  rendering is off, which is the default; so "a frame that differs" must come
+  from the dirty walk, which then runs in both modes.
 
 The questions of keyboard navigation are in the plan of D33.
 
@@ -542,6 +553,27 @@ it holds the example.
   time; a new deadline replaces the old one; a frame that changes the display is
   followed by the display event, and a frame that changes nothing is not; an idle
   editor still sleeps.
+
+  **The timer is done** on the branch `gesture-type`:
+  - `TimerExpire(name, time)` is an event in its own fragment,
+    `event/TimerEvent.jl`. `SetTimerOperation(name, time)` sets the timer `name`
+    of the editor; the editor keeps the times in `editor.timers`, and
+    `compute_wait_timeout` counts the earliest.
+  - A timer has a name, so that a timer set again replaces only its own time:
+    the gesture tracker, and later a chord or a drag, each set their own timer.
+    The plan did not say this; Claude added it for "a new deadline replaces the
+    old one" with more than one tracker.
+  - `read!` reads a due timer before any device input, as a bare `TimerExpire`,
+    because a timer belongs to no window; the earliest goes first and leaves the
+    timers. The operation travels up every reader unchanged, inverts to nothing,
+    and a history does not record it (`_is_no_edit` of the undo package).
+  - Tests: `test_editor_timer`, 28 pass (the wait, the replace, the order of
+    due timers, a loop that wakes at a timer, the traits of the operation); the
+    undo filter drops a timer; a bare timer passes the whole window scene of a
+    shell and answers nothing (`test_shell` 231 pass). `test_kernel` 2435 pass,
+    with the same 3 failures and 3 errors as `main`; `test_undo` 111 pass.
+
+  **The display event waits for the owner** (Q16).
 - [ ] 3. **A gesture follows a route (D12, D28).** An intent with a route can
   carry a gesture. The last reader on the route reads the gesture, with the rest
   of the route as the part. Every widget container and every layout follows a

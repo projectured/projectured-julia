@@ -58,7 +58,7 @@ end
 ```julia
 while true
     if !editor.wake_pending[]                        # a pending wake skips the wait
-        timeout = compute_wait_timeout(editor)       # animation, feed deadlines, else Inf
+        timeout = compute_wait_timeout(editor)       # animation, feed deadlines, timers, else Inf
         timeout > 0 && wait_for_input(editor.backend, editor.devices, timeout)
     end
     Threads.atomic_xchg!(editor.wake_pending, false) # this frame owns every wake so far
@@ -75,7 +75,16 @@ end
 Between frames the editor sleeps in the backend's `wait_for_input`, and three
 things end the sleep: an input event, a `wake_editor!` from any task, and the
 timeout. The timeout is `FRAME_INTERVAL` while anything subscribes to the
-editor's clock (an animation), else the nearest feed deadline, else `Inf`.
+editor's clock (an animation), else the nearest feed deadline or timer, else
+`Inf`.
+
+A timer is how a reader waits for a pattern that ends when no event arrives. The
+reader answers `SetTimerOperation(name, time)`, the editor keeps the time under
+the name in `editor.timers`, and a timer set again under the same name replaces
+the one before. When the time comes, `read!` reads a `TimerExpire(name, time)`
+before any device input. It is a bare event, because a timer belongs to no
+window, and it leaves the timers when it is read. The reader checks its own state
+when the event comes, so a timer that a newer event made stale needs no cancel.
 The wake-pending flag starts set, so the first frame paints before the first
 wait. A backend without a wait of its own sleeps one 10 ms poll slice per
 call — the cadence this loop had when it slept — and that slice is also where

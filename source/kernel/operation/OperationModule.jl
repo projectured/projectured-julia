@@ -45,6 +45,7 @@ export Operation, WrappingOperation, get_wrapped_operation, rewrap_operation,
        evaluate_operation, invalidate_projection!,
        # from Operations.jl
        DoNothingOperation, ReplaceSelectionOperation, QuitEditorOperation,
+       SetTimerOperation,
        QuitEditorException, ToggleCollapseOperation,
        ReplaceReferencedValueOperation, ReplaceViewStateOperation,
        replace_document, insert_elements,
