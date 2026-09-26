@@ -1,9 +1,9 @@
 # Examples of how text layout works
 
-> **Status:** in progress, in the worktree `projectured-julia-text-layout-examples`
+> **Status:** done, in the worktree `projectured-julia-text-layout-examples`
 > on the branch `text-layout-examples`, from `48ecec12`. Written 2026-09-26. The
 > owner asked: "Create examples in projectured which shows how text layout
-> works".
+> works". The owner approved the landing on 2026-09-26.
 
 ## 1. The request
 
