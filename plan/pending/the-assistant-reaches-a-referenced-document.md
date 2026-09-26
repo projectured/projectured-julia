@@ -317,6 +317,13 @@ model takes.
   the verb does not name it; 284 checks pass with the editor, reference, code
   execution, documentation and naming tests.
 
+- **D23. An edit of the assistant inside a document that keeps its own history
+  goes into that history** (the owner, 2026-09-26: "yes, that's simpler"), as an
+  edit of the person does. So the person undoes it in the tab of the file, and the
+  file's history knows the change. Found before the decision:
+  `replace_referenced_value!` records its step in the history of the window,
+  not in the history of the file. To do.
+
 ### Not done
 
 - **D20. No `document` binding in `execute_julia_code`** (the owner,
@@ -631,6 +638,19 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       that a person's own edit goes to. Open for the owner: what a write through
       a referenced document does, and which history an edit of the assistant
       goes to; and whether the table follows the file.
+      **The screenplay changed again (the owner, 2026-09-26; s2-video,
+      1b65bd98):** "Add Frank, 30, from Paris to people.json."; the person clicks
+      in `people.json` and presses `Ctrl+Z`; then the table prompt of beat 2; the
+      video ends on the table. The log panel is at the bottom left. Decided with
+      it (D23 below): an edit of the assistant inside a file goes into the
+      history of that file. The question whether the table follows the file does
+      not come up in this order. Checked after the choice: the declared API has
+      one verb that edits, `replace_referenced_value!`; the kernel makes an insert
+      and a delete operation (`insert_elements`, `delete_elements` in
+      `Operations.jl`), but neither is declared, and neither is `evaluate_operation`
+      that runs one. So "Add Frank" has no path through an operation that the
+      model can call; `push!(people_1, …)` works only as a direct write, with no
+      undo step (D22).
       Round 2 answers the typed reference of the new tab, which is long
       (`::ScreenDocument.windows::CellVector[1]::…::PaneTab`); a
       `ReferencedDocument` answer (D10, open) would show the tab.
