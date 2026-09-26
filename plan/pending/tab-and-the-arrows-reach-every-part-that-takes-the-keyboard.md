@@ -15,6 +15,36 @@ can interact using the keyboard in a meaningful way".
 The focus is the selection (the docstring of `FocusModule`): a part is reached
 when the selection names it. A part that takes the keyboard is a **stop**.
 
+### The model: a caret that moves from one text into the next
+
+The owner gave this model on 2026-09-26. Two documents, "Hello" and "World",
+stand in a row. Each one has its own projection with its own text navigation.
+Their parent is a projection that puts the two in sequence.
+
+1. The caret is at the end of "Hello", and the person presses Right.
+2. The parent gives the key to "Hello", the child that the selection names.
+3. "Hello" has no place to move to, so it answers no operation.
+4. The parent sees that no operation came, and it moves the selection to the
+   start of "World", the next child in its own order.
+5. If "World" was the last child, the parent answers no operation too, and its
+   own parent tries the same step one level up.
+
+No projection knows more than its own children. Each child decides where the
+caret can go inside it, and each parent decides only which child comes next.
+
+Tab and the move in the plane work the same way:
+
+- **Tab.** A container gives Tab to the selected child. When the child answers
+  no operation, the container moves to the next child that holds a stop, and
+  enters it at its first stop. The containers of today already do this (§3).
+- **The move in the plane (Shift + Alt + arrow).** A container gives the key to
+  the selected child. When the child answers no operation, the container looks
+  among its own children, by its own layout, for the neighbour in that direction,
+  and enters it from the side that the move comes from. With no neighbour, it
+  answers no operation, and its parent tries.
+- **The wrapper** does only what no part can do: when the outermost part answers
+  no operation for Tab, it starts over at the other end.
+
 ## 2. The owner's decisions
 
 All of them are from 2026-09-26.
