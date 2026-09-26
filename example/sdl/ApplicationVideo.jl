@@ -15,7 +15,7 @@
                              llm=nothing, root=pwd(), initial_hold=0.5, final_hold=1.0,
                              supersample=2, scale=1, video_time=false, pointer=true,
                              partial_render=false, debug_dirty=false, debug_dirty_hold=0,
-                             status_bar=true, measure=FontFileMeasure()) -> String
+                             status_bar=true, measure=FontFileMeasure(), wrap_projection=identity) -> String
 
 Record the application window of [`run_application`](@ref) — built the same
 way, over `paths` and `root`, with the same `assistant`/`model`/`context` — and
@@ -52,6 +52,11 @@ that in red on the frames, and `debug_dirty_hold` keeps each outline that many
 seconds (see `VideoBackend`). `status_bar = false` leaves out the status bar
 of the window (see [`make_application_window`](@ref)).
 
+`wrap_projection` takes the projection of the window and answers the one the
+take draws, such as the window with a panel of the gesture and operation log
+over it. A wrapper at the root reads every operation, also one that a verb of
+the assistant makes.
+
 `llm` is the model of the assistant when it is given, as
 [`make_application_assistant`](@ref) takes it: a scripted model, or an
 `OllamaLlm` with the seed and the temperature of a take.
@@ -71,14 +76,15 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   video_time::Bool = false, pointer::Bool = true,
                                   partial_render::Bool = false, debug_dirty::Bool = false,
                                   debug_dirty_hold::Real = 0, status_bar::Bool = true,
-                                  measure = FontFileMeasure())
+                                  measure = FontFileMeasure(), wrap_projection = identity)
     lowercase(splitext(filename)[2]) == ".mp4" ||
         error("record_application_video: only .mp4 output is supported (got \"$filename\")")
     chat = make_application_assistant(assistant; model = model, context = context, llm = llm)
-    document, projection = make_application_window(collect(String, paths);
-                                                    root = root, assistant = chat,
-                                                    status_bar = status_bar,
-                                                    measure = measure)
+    document, window_projection = make_application_window(collect(String, paths);
+                                                           root = root, assistant = chat,
+                                                           status_bar = status_bar,
+                                                           measure = measure)
+    projection = wrap_projection(window_projection)
     title = "ProjecturEd"
     backend = VideoBackend(timeline, Symbol(title); width = width, height = height,
                            fps = fps, initial_hold = initial_hold, final_hold = final_hold,
