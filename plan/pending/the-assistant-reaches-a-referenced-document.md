@@ -520,11 +520,27 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       `ReferencedDocument{PaneTab} at .windows[1]…tabs[1]: PaneTab(…)`. Found:
       `print_natural_text` answers a `String`, which the tool shows quoted with
       `\n` escapes, as the REPL does; the guide and §3 print it with `println`.
-      The rehearsal with qwen waits: on 2026-09-26 another session held the
-      model and two suites, with 22 GB free, and a model run needs 47 GB. The
+      **The rehearsal with qwen, prompt 1 (2026-09-26):** a tab opened, in
+      137 s and 6 rounds of the 8 the agent allows. Every rehearsal before this
+      plan ended with no tab. `qwen3.8:27b` on the GPU, context 32768, seed 1,
+      the system prompt unchanged (D18), three people in `people.json`. The
       script is `/var/tmp/referenced/rehearse.jl`: the S2 rehearsal of the
       s2-video branch, with the assistant built by the `Assistant` constructor,
-      which takes `llm` on `main`, so it runs on this branch.
+      which takes `llm` on `main`. What the model did:
+      1. `read_resource` of the orientation guide;
+      2. `search_api` for `open_pane!` and for `WidgetTable`, and a
+         `search_guides` by description;
+      3. `execute_julia_code` with the three lines of round 1 of the guide,
+         copied as they stand, which printed the JSON;
+      4. a call that converted each value with `String(...)`, because the
+         docstring of `WidgetTable(headers, rows)` calls it a "string
+         convenience shim"; `String(::Int64)` failed;
+      5. the same with `string(...)`, and `open_pane!(…; title = "People by
+         name", target = people_tab_1, side = :right)`: the tab opened in a new
+         group to the right of "people.json", with Ada 36, Bob 41, Cleo 29;
+      6. an answer that says so.
+      It read "beside the first one" as `side = :right`, a new split, and not
+      as the next tab of the same group; both fit the prompt.
       Round 2 answers the typed reference of the new tab, which is long
       (`::ScreenDocument.windows::CellVector[1]::…::PaneTab`); a
       `ReferencedDocument` answer (D10, open) would show the tab.
