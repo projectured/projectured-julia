@@ -366,6 +366,13 @@ end
 # uniform border and one color for the padding and the content, the border, the
 # padding and the content are one rounded rect; else each part is a band, so a
 # translucent part does not show the color of the part around it.
+# True when `_push_box_parts!` can draw something for a box of these insets and
+# colours: a colour that is not transparent, and a border only where it has a width.
+_is_box_visible(box, colors) =
+    !is_color_transparent(colors.margin) || !is_color_transparent(colors.padding) ||
+    !is_color_transparent(colors.content) ||
+    (any(>(0), box.border) && !is_color_transparent(colors.border))
+
 function _push_box_parts!(elements::Vector, box, colors, content_width::Int, content_height::Int;
                           radius::Int = 0)
     margin_left, margin_top, margin_right, margin_bottom = box.margin
@@ -2647,18 +2654,34 @@ function print_document(p::WidgetCompositeToGraphicsCanvas, recursion, w::Widget
     child_cells = reconcile_child_iomaps(
         () -> Any[c for c in w.elements if (c isa WidgetDocument || c isa LayoutDocument)],
         (i, c) -> print_child(recursion, c, ctx))
-    build = Cell(@computation begin
-        content_x, content_y = _content_offset(p, w)
-        cims = child_cells[]
-        # The natural extent of the children together, before the box around them.
+    # The natural extent of the children together, before the box around them.
+    extent = Cell(@computation begin
         content_width, content_height = 0, 0
-        for cim in cims
+        for cim in child_cells[]
             ew, eh = _element_size(cim.output, _p_measure(p))
             content_width = max(content_width, ew); content_height = max(content_height, eh)
         end
-        child_iomaps = Any[(content_x, content_y, cim) for cim in cims]
+        (content_width, content_height)
+    end)
+    # The box around the children is a canvas of its own, so the list of the
+    # composite reads only which children there are and keeps its wrappers when
+    # something inside a child changes. The box reads the size of the children
+    # only when it has something to draw: the size of a child reads every graphic
+    # in it, and a transparent box would pay for that on every change inside.
+    box = GraphicsCanvas(CellVector(@computation begin
         elems = Any[]
-        _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, content_height)
+        insets, colors = _get_box_insets(p, w), _get_box_colors(p, w)
+        if _is_box_visible(insets, colors)
+            content_width, content_height = extent[]
+            _push_box_parts!(elems, insets, colors, content_width, content_height)
+        end
+        elems
+    end))
+    build = Cell(@computation begin
+        content_x, content_y = _content_offset(p, w)
+        cims = child_cells[]
+        child_iomaps = Any[(content_x, content_y, cim) for cim in cims]
+        elems = Any[box]
         for cim in cims
             push!(elems, _make_canvas(content_x, content_y, Any[cim.output]))
         end
@@ -3598,9 +3621,11 @@ function _split_build(p::WidgetSplitPaneToGraphicsCanvas, recursion, w::WidgetSp
             cim = inner_iomaps[i]
             cim.output isa GraphicsCanvas || continue
             slot = Int(slot_main[i][])
-            reach_w, reach_h = get_graphics_size(cim.output)
+            # A child is measured only when the parent offers no cross extent:
+            # its size reads every graphic in it, so a measure that is not used
+            # would rebuild this list on every change inside the child.
             cross = avail_cross === nothing ?
-                    Int(main_axis === :x ? reach_h : reach_w) : cross_extent
+                    Int(get_graphics_size(cim.output)[main_axis === :x ? 2 : 1]) : cross_extent
             clip_w = main_axis === :x ? slot : cross
             clip_h = main_axis === :x ? cross : slot
             push!(result, _wrap_child_canvas(cim.output, child_x[i], child_y[i],
@@ -4158,9 +4183,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         cim = (1 <= idx <= length(cims)) ? cims[idx] : nothing
         page_w, page_h = 0, 0
         if cim !== nothing
-            reach_w, reach_h = get_graphics_size(cim.output)
-            page_w = avail_w_inner === nothing ? Int(reach_w) : max(0, Int(avail_w_inner[]))
-            page_h = avail_h_inner === nothing ? Int(reach_h) : max(0, Int(avail_h_inner[]))
+            page_w, page_h = _compute_page_extent(cim, avail_w_inner, avail_h_inner)
         end
         result = Any[]
         page_color = _get_part_color(w, :page_color, p.page_color)
@@ -4184,9 +4207,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         cim = (1 <= idx <= length(cims)) ? cims[idx] : nothing
         page_w, page_h = 0, 0
         if cim !== nothing
-            reach_w, reach_h = get_graphics_size(cim.output)
-            page_w = avail_w_inner === nothing ? Int(reach_w) : max(0, Int(avail_w_inner[]))
-            page_h = avail_h_inner === nothing ? Int(reach_h) : max(0, Int(avail_h_inner[]))
+            page_w, page_h = _compute_page_extent(cim, avail_w_inner, avail_h_inner)
         end
         result = Any[]
         _push_box_parts!(result, box, colors, max(geom[][5], page_w), sel_h + page_h)
@@ -4226,9 +4247,7 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
         (1 <= idx <= length(cims) && cims[idx] !== nothing) || return nothing
         page = _get_page_document(w, idx)
         _is_whole_selected_page(page) || return nothing
-        reach_w, reach_h = get_graphics_size(cims[idx].output)
-        page_w = avail_w_inner === nothing ? Int(reach_w) : max(0, Int(avail_w_inner[]))
-        page_h = avail_h_inner === nothing ? Int(reach_h) : max(0, Int(avail_h_inner[]))
+        page_w, page_h = _compute_page_extent(cims[idx], avail_w_inner, avail_h_inner)
         (cox, coy + geom[][4], page_w, page_h)
     end; color = p.selection_ring_stroke.color, width = p.selection_ring_stroke.width)
 
@@ -4249,6 +4268,16 @@ function print_document(p::WidgetTabbedPaneToGraphicsCanvas, recursion, w::Widge
     # The (x, y, cim) tuples reflow with the reconciled per-tab content iomaps.
     child_iomaps = Cell(@computation Any[(cox, coy + geom[][4], cim) for cim in all_cims[] if cim !== nothing])
     ChildrenIoMap(p, w, canvas, child_iomaps)
+end
+
+# The extent of the page of a tabbed pane: the slot offered on each axis, else
+# what the content reaches. The content is measured only for an axis with no
+# slot, because its size reads every graphic in it: a measure that is not used
+# would rebuild the page on every change inside it.
+function _compute_page_extent(cim, avail_w_inner, avail_h_inner)
+    reach() = get_graphics_size(cim.output)
+    (avail_w_inner === nothing ? Int(reach()[1]) : max(0, Int(avail_w_inner[])),
+     avail_h_inner === nothing ? Int(reach()[2]) : max(0, Int(avail_h_inner[])))
 end
 
 function map_reference_forward(::WidgetTabbedPaneToGraphicsCanvas, iomap, reference)
@@ -5216,28 +5245,41 @@ WidgetStatusBarToGraphicsCanvas(theme::WidgetTheme; measure,
 
 function print_document(p::WidgetStatusBarToGraphicsCanvas, recursion, w::WidgetStatusBar, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
-    SimpleIoMap(p, w, _reactive_canvas(0, 0, () -> begin
+    # A status bar is one line, so its height comes from the font of its labels
+    # and from its insets, and not from its words. A segment that says something
+    # else, as the selection does on each key, changes what the bar draws and not
+    # the room the bands around it have.
+    height = Cell(@computation begin
+        _, inset_height = _inset_total(p, w)
+        label = _get_part_text(w, :label_text, p.label_text)
+        _resolve_height(ctx, 0, compute_line_box(p.measure, "", label.font).height + inset_height)
+    end)
+    build = Cell(@computation begin
         content_x, content_y = _content_offset(p, w)
         inset_width, inset_height = _inset_total(p, w)
         item_gap = _sc(p.item_gap)
         label = _get_part_text(w, :label_text, p.label_text)
         labels = Any[]
-        x = 0; text_h = 0
+        x = 0
         for (i, seg) in enumerate(w.elements)
             s = string(seg)
-            tw, th = _text_size(p.measure, label.font, s)
+            tw, _ = _text_size(p.measure, label.font, s)
             i == 1 || (x += item_gap)
             _push_text!(labels, p.measure, label.font, s, content_x + x, content_y, label.color)
-            x += tw; text_h = max(text_h, th)
+            x += tw
         end
-        width  = _resolve_width(ctx, 0, x + inset_width)
-        height = _resolve_height(ctx, 0, text_h + inset_height)
+        width = _resolve_width(ctx, 0, x + inset_width)
         elements = Any[]
         _push_box_parts!(elements, _get_box_insets(p, w), _get_box_colors(p, w),
-                         width - inset_width, height - inset_height)
+                         width - inset_width, height[] - inset_height)
         append!(elements, labels)
-        (width=width, height=height, elements=elements)
-    end))
+        (width=width, elements=elements)
+    end)
+    SimpleIoMap(p, w, GraphicsCanvas(Int32(0), Int32(0),
+                                     Cell(@computation Int32(build[].width)),
+                                     Cell(@computation Int32(height[])),
+                                     CellVector(@computation build[].elements),
+                                     layout_none, true, Cell(nothing)))
 end
 
 map_reference_forward(::WidgetStatusBarToGraphicsCanvas, iomap, reference) = nothing
