@@ -320,3 +320,5 @@ function print_natural_text(document)
         error("print_natural_text: no natural text for $(typeof(document))")
     String(print_document(projection, document).output)
 end
+
+print_natural_text(document::ReferencedDocument) = print_natural_text(get_document(document))

@@ -76,5 +76,70 @@ function test_referenced_document_editor()
         hello = get_edited_document(find_pane(editor, "Hello"))
         @test get_document(hello) isa WidgetLabel
     end
+
+    history = only(search_documents(editor.document,
+                                    node -> node isa UndoBuffer && node.content isa PaneTree))
+    tree = history.content
+    focused_title() = let (group, index) = get_pane_focus(tree)
+        get_pane_tab_title_string(group.tabs[index])
+    end
+
+    @testset "open_pane! puts a tab before a tab, at the end of a group, and beside it" begin
+        people_tab = get_document(find_pane(editor, "people.json"))
+        group = only(g for g in get_pane_groups(tree) if any(t -> t === people_tab, g.tabs))
+        index = findfirst(t -> t === people_tab, collect(group.tabs))
+
+        before = open_pane!(editor, PrimitiveString("before"); title = "Before",
+                            target = find_pane(editor, "people.json"))
+        @test group.tabs[index] === get_referenced_value(editor, before)
+        @test group.tabs[index + 1] === people_tab
+
+        group_reference = concat_references(find_pane_tree_reference(editor),
+                                            only(search_references(tree, node -> node === group)))
+        last_tab = open_pane!(editor, PrimitiveString("last"); title = "Last", target = group_reference)
+        @test group.tabs[end] === get_referenced_value(editor, last_tab)
+
+        groups = length(get_pane_groups(tree))
+        steps = length(history.undo_entries)
+        beside = open_pane!(editor, PrimitiveString("beside"); title = "Beside",
+                            target = find_pane(editor, "people.json"), side = :right)
+        @test length(get_pane_groups(tree)) == groups + 1
+        @test !any(t -> t === get_referenced_value(editor, beside), group.tabs)
+        @test focused_title() == "Beside"
+        @test length(history.undo_entries) == steps + 1
+
+        @test_throws ArgumentError open_pane!(editor, PrimitiveString("x");
+                                              target = find_pane(editor, "Last"), side = :middle)
+        @test_throws ArgumentError open_pane!(editor, PrimitiveString("x"); group = group,
+                                              target = find_pane(editor, "Last"))
+    end
+
+    @testset "the pane verbs take a referenced document" begin
+        focus_pane!(editor, find_pane(editor, "Before"))
+        @test focused_title() == "Before"
+        move_pane!(editor, find_pane(editor, "Before"), find_pane(editor, "Beside"))
+        beside_group = only(g for g in get_pane_groups(tree)
+                            if any(t -> get_pane_tab_title_string(t) == "Beside", g.tabs))
+        @test get_pane_tab_title_string(first(beside_group.tabs)) == "Before"
+        copy = duplicate_pane!(editor, find_pane(editor, "Last"))
+        @test startswith(get_pane_tab_title_string(get_referenced_value(editor, copy)), "Last")
+        close_pane!(editor, find_pane(editor, "Last"))
+        @test find_pane(editor, "Last") === nothing
+        beside = find_pane(editor, "Beside")
+        @test get_referenced_value(editor, beside) === get_document(beside)
+        @test describe_document(beside) == describe_document(get_document(beside))
+    end
+
+    @testset "the document functions take a referenced document" begin
+        people_tab = find_pane(editor, "people.json")
+        people = get_edited_document(people_tab)
+        @test print_natural_text(people) == print_natural_text(get_document(people))
+        @test length(search_documents(people, node -> node isa JsonString)) == 2
+        @test get_file_content(people_tab.content) === get_file_content(get_document(people_tab).content)
+        @test get_wrapped_document(people_tab.content) === get_wrapped_document(get_document(people_tab).content)
+        path = joinpath(directory, "copy.json")
+        write_document_file(people, path)
+        @test occursin("Cleo", read(path, String))
+    end
 end
 end # test_referenced_document_editor

@@ -53,6 +53,9 @@ format for `.pdoc`, the natural text format for an extension a domain parses,
 and the registered file type for any other extension that has one (`.pred`,
 `.txt`, no extension). An extension with neither is written as natural text.
 """
+write_document_file(document::ReferencedDocument, path::AbstractString) =
+    write_document_file(get_document(document), path)
+
 function write_document_file(document::Document, path::AbstractString)
     _ext(path) == _BINARY_EXT && return save_document(document, path)
     _is_registered_file_path(path) && return _write_registered_file(document, path)

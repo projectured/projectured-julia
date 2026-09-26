@@ -81,6 +81,9 @@ using ..CellModule
 using ..CellStructModule
 using ..DocumentModule
 
+# Imported to extend: a referenced document is read by these as its document.
+import ..DocumentModule: search_documents, get_wrapped_document
+
 export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReferenceStep,
        FieldReferenceStep, Position,
        RangeReferenceStep, Reference,

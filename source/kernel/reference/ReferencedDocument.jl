@@ -173,6 +173,12 @@ end
 Base.convert(::Type{T}, x::ReferencedDocument) where {T <: Document} = convert(T, get_document(x))
 Base.convert(::Type{T}, x::ReferencedDocument) where {T <: Reference} = convert(T, get_reference(x))
 
+search_documents(x::ReferencedDocument, predicate; keywords...) =
+    search_documents(get_document(x), predicate; keywords...)
+search_documents(x::ReferencedDocument, query::Union{AbstractString, Regex}; keywords...) =
+    search_documents(get_document(x), query; keywords...)
+get_wrapped_document(x::ReferencedDocument) = get_wrapped_document(get_document(x))
+
 """
     DocumentLocator(start, reference)
 

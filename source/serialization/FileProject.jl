@@ -91,6 +91,7 @@ and version are the file — answers with the node itself and says so with
 [`is_own_content`](@ref).
 """
 get_file_content(f) = unwrap_cell(getfield(f, :content))
+get_file_content(file::ReferencedDocument) = get_file_content(get_document(file))
 
 """
     is_own_content(file) -> Bool

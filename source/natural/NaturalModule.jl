@@ -60,6 +60,7 @@ using ..ProjectionModule
 using ..StyleModule
 using ..TextModule
 using ..WidgetModule
+using ..ReferenceModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document

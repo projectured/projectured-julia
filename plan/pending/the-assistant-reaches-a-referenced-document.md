@@ -290,7 +290,41 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       missing title; `get_edited_document` of a file tab reaches the `JsonArray`,
       and its reference evaluates to it; of a tab that holds a widget; of a file
       document and of a history.
-- [ ] **Step 3: the pane verbs and the lifted functions.** D5 and D10, with tests:
+- [ ] **Step 3: the pane verbs and the lifted functions.** **In progress
+      (2026-09-26).** Done:
+      - The lift of D5 is one method for each function, next to the function, and
+        no generic mechanism: a macro or a generated method that reads the
+        signatures of a function would be a new mechanism. The functions of the
+        application API that take a reference or a document: `focus_pane!`,
+        `close_pane!`, `duplicate_pane!`, `move_pane!` (either parameter),
+        `get_referenced_value`, `replace_referenced_value!` (the reference or the
+        value), `describe_document` and `open_pane!` in `PaneProgram.jl`;
+        `search_documents` and `get_wrapped_document` in `ReferencedDocument.jl`
+        (the reference layer extends the two document-layer generics for its own
+        type); `get_file_content` in `FileProject.jl`; `print_natural_text` in
+        `NaturalNotation.jl`, which needs `ProjecturedNatural` to bind
+        `ReferenceModule`; `export_document` and `write_document_file` in the
+        file format package.
+      - `open_pane!` and `make_open_pane_operation` take `target` (a `Reference`
+        or a `ReferencedDocument`: a group, and the tab goes to its end; a tab,
+        and the new tab goes before it) and `side`. `group` stays, as a value;
+        `group` and `target` together are refused, and so is a `side` that is not
+        one of the four. `side` uses a new surgery,
+        `make_pane_open_split_operation(tree, target, tab; side)` in
+        `PaneSurgery.jl`: a split takes the place of the target group and holds a
+        new group with the tab. It is the first shape of the split drop, because
+        nothing leaves a group; the open is one undo step.
+      - `test_referenced_document_editor()` passes 44 checks; `test_pane_surgery()`,
+        `test_pane_drag()`, `test_application()`, the substrate and kernel
+        layering guards, `test_naming()` and `test_export_collisions()` pass.
+      - Found: a `CellVector` has no `keys`, so `findfirst` on `group.tabs` throws;
+        the test collects the vector first. Not changed here.
+      Open: the answer of `open_pane!` stays a `Reference`. D10 makes it a
+      `ReferencedDocument`, which the lifted verbs take, but
+      `ApplicationTest.jl` gives it to `strip_reference_types`, and omnet-julia
+      keeps it in eight places and returns it from functions whose docstrings say
+      "reference"; the owner decides that change across the two repositories.
+      The step as planned: D5 and D10, with tests:
       `open_pane!` with a group target, a tab target and a side, and its answer;
       `move_pane!`, `focus_pane!`, `close_pane!` and `print_natural_text` with a
       referenced document.

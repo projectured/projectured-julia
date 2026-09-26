@@ -202,6 +202,7 @@ holds**, beside those documents — this package can only describe what it knows
 which is a layout and an empty pane.
 """
 describe_document(content) = String(nameof(typeof(content)))
+describe_document(x::ReferencedDocument) = describe_document(get_document(x))
 describe_document(::Nothing) = "empty"
 
 # A pane that holds a layout holds several documents at once, and how many is the
@@ -241,7 +242,7 @@ precompiles.
 pane_group_to_avoid(tree) = nothing
 
 """
-    open_pane!(editor, document; title = nothing) -> Reference
+    open_pane!(editor, document; title = nothing, target = nothing, side = nothing) -> Reference
 
 Put `document` in a new tab, and answer a reference to the tab it made.
 
@@ -283,15 +284,22 @@ back to [`describe_document`](@ref). A title already taken gets a number, so two
 panes are never one name, and the name is for a person to read rather than for a
 caller to address the pane by.
 
-`group` is a group of the window to open the tab in. Left out, the policy above
-chooses one in the pane tree that holds the focus. An application uses it when
-it knows better than the focus, for example to put a file that a navigator
-opens beside the other files.
+`target` is where the tab goes, as [`move_pane!`](@ref) places a pane: a group,
+and the tab goes to its end; or a tab, and the new tab goes before it. It is a
+`Reference` or a `ReferencedDocument`, such as a tab that `find_pane` found. With
+`side` — `:left`, `:right`, `:above` or `:below` — the tab goes in a new group
+beside the target's group, in a new split. Left out, the policy above chooses a
+group in the pane tree that holds the focus.
+
+`group` is a group of the window to open the tab in, as a value and not as a
+reference. An application uses it when it knows better than the focus, for
+example to put a file that a navigator opens beside the other files.
 
 The answer is a complete reference, from the root of the editor's document.
 """
-function open_pane!(editor, document; title = nothing, group = nothing)
-    operation, route, tree, tab = _make_open_pane(editor, document; title, group)
+function open_pane!(editor, document; title = nothing, group = nothing, target = nothing,
+                    side = nothing)
+    operation, route, tree, tab = _make_open_pane(editor, document; title, group, target, side)
     _evaluate_pane_operation!(editor, operation)
     reference = _reference_of_tab(tree, tab)
     reference === nothing &&
@@ -299,24 +307,38 @@ function open_pane!(editor, document; title = nothing, group = nothing)
     concat_references(route, reference)
 end
 
+open_pane!(editor, document::ReferencedDocument; keywords...) =
+    open_pane!(editor, get_document(document); keywords...)
+
 """
-    make_open_pane_operation(editor, document; title = nothing, group = nothing) -> Operation
+    make_open_pane_operation(editor, document; title = nothing, group = nothing,
+                             target = nothing, side = nothing) -> Operation
 
 The operation that puts `document` in a new tab, as [`open_pane!`](@ref) places
 it, from the root of the editor's document. It evaluates nothing: a caller that
 runs inside another evaluation posts it with `post_operation!`.
 """
-make_open_pane_operation(editor, document; title = nothing, group = nothing) =
-    first(_make_open_pane(editor, document; title, group))
+make_open_pane_operation(editor, document; title = nothing, group = nothing, target = nothing,
+                         side = nothing) =
+    first(_make_open_pane(editor, document; title, group, target, side))
 
-function _make_open_pane(editor, document; title, group)
+function _make_open_pane(editor, document; title, group, target, side)
+    (group === nothing || target === nothing) ||
+        throw(ArgumentError("open_pane!: give `group` or `target`, not both."))
+    (side === nothing || side in (:left, :right, :above, :below)) ||
+        throw(ArgumentError("open_pane!: `side` is :left, :right, :above or :below."))
     root = _get_root_document(editor)
-    found = group === nothing ? _find_focused_tree_route(editor) :
-                                _find_group_tree_route(root, group)
-    found === nothing &&
-        error("open_pane!: no pane tree has the focus, so name the group to open in.")
-    route, tree = found
-    group === nothing && (group = _find_placement_group(tree))
+    index = nothing
+    if target !== nothing
+        route, tree, group, index = _find_open_target(root, convert(Reference, target))
+    else
+        found = group === nothing ? _find_focused_tree_route(editor) :
+                                    _find_group_tree_route(root, group)
+        found === nothing &&
+            error("open_pane!: no pane tree has the focus, so name the group to open in.")
+        route, tree = found
+        group === nothing && (group = _find_placement_group(tree))
+    end
     any(g -> g === group, get_pane_groups(tree)) ||
         error("open_pane!: the group is not a group of this window.")
 
@@ -330,11 +352,26 @@ function _make_open_pane(editor, document; title, group)
              end
     name = _unique_pane_title(tree, wanted)
     tab = PaneTab(name, document)
-    operation = _make_rooted_pane_operation(editor, route, tree,
-                                            make_pane_open_tab_operation(tree, group, tab),
+    placement = side === nothing ? make_pane_open_tab_operation(tree, group, tab; index) :
+                                   make_pane_open_split_operation(tree, group, tab; side)
+    operation = _make_rooted_pane_operation(editor, route, tree, placement,
                                             "Open the pane " * name)
     operation === nothing && error("The window has no group to open a pane in.")
     (operation, route, tree, tab)
+end
+
+# The pane tree, the group and the index in it that `target` names: a group, at
+# its end, or a tab, at its place.
+function _find_open_target(root, target::Reference)
+    found = _find_pane_tree_route(root, target)
+    found === nothing &&
+        throw(ArgumentError("open_pane!: the target names nothing inside a pane tree."))
+    route, tree = found
+    destination = try_evaluate_reference(root, target, nothing)
+    destination isa PaneTab && return (route, tree, _find_pane_position(tree, destination)...)
+    (destination isa PaneGroup && any(g -> g === destination, get_pane_groups(tree))) ||
+        throw(ArgumentError("open_pane!: the target names no group or tab of the pane's tree."))
+    (route, tree, destination, nothing)
 end
 
 # The group a new pane goes to: the focused group, and never the one
@@ -430,6 +467,9 @@ function get_referenced_value(editor, reference::Reference)
     node
 end
 
+get_referenced_value(editor, reference::ReferencedDocument) =
+    get_referenced_value(editor, get_reference(reference))
+
 # ── Writing ─────────────────────────────────────────────────────────────────
 
 """
@@ -500,6 +540,11 @@ function replace_referenced_value!(editor, reference::Reference, value)
     _restore_focus!(editor, route, tree, focused)
     show_layout(editor)
 end
+
+replace_referenced_value!(editor, reference::ReferencedDocument, value) =
+    replace_referenced_value!(editor, get_reference(reference), value)
+replace_referenced_value!(editor, reference::Reference, value::ReferencedDocument) =
+    replace_referenced_value!(editor, reference, get_document(value))
 
 # The steps of `reference` after the route to its tree, as a path from the tree.
 function _get_path_in_tree(reference::Reference, route::Reference)
@@ -639,6 +684,8 @@ function focus_pane!(editor, reference::Reference)
     _evaluate_pane_operation!(editor, operation)
     show_layout(editor)
 end
+
+focus_pane!(editor, pane::ReferencedDocument) = focus_pane!(editor, get_reference(pane))
 
 focus_pane!(_, ::Nothing) =
     throw(ArgumentError("No pane has that name, so there is no pane to focus."))
@@ -794,6 +841,8 @@ function close_pane!(editor, reference::Reference)
     show_layout(editor)
 end
 
+close_pane!(editor, pane::ReferencedDocument) = close_pane!(editor, get_reference(pane))
+
 close_pane!(_, ::Nothing) =
     throw(ArgumentError("No pane has that name, so there is no pane to close."))
 
@@ -944,6 +993,8 @@ function duplicate_pane!(editor, reference::Reference)
     concat_references(route, found)
 end
 
+duplicate_pane!(editor, pane::ReferencedDocument) = duplicate_pane!(editor, get_reference(pane))
+
 """
     make_duplicate_pane_operation(editor, reference::Reference) -> Operation
 
@@ -1012,6 +1063,10 @@ function move_pane!(editor, reference::Reference, target::Reference; side = noth
     _evaluate_pane_operation!(editor, operation)
     show_layout(editor)
 end
+
+move_pane!(editor, pane::Union{Reference, ReferencedDocument},
+           target::Union{Reference, ReferencedDocument}; side = nothing) =
+    move_pane!(editor, convert(Reference, pane), convert(Reference, target); side)
 
 """
     make_move_pane_operation(editor, reference, target; side = nothing) -> Operation | Nothing
