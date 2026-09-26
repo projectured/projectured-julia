@@ -2134,11 +2134,12 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
     end
     if !unit
         # The walk starts where the render starts. A search that would read a
-        # stale slot or leaf answers nothing, and the canvas is painted whole.
-        first = _find_first_walked_index(canvas, ev, ox, oy, edges)
-        if first !== nothing
-            stale_slot, changed = _collect_elements_dirty!(res, ev, key, first, ox, oy, edges,
-                                                           layout, early, acc)
+        # stale slot answers nothing, and the canvas is painted whole.
+        start = _find_first_walked_index(canvas, ev, ox, oy, edges)
+        if start !== nothing
+            first, dirty_leaves = start
+            stale_slot, changed = _collect_elements_dirty!(res, ev, key, first, dirty_leaves,
+                                                           ox, oy, edges, layout, early, acc)
             if !stale_slot
                 return changed && _refresh_canvas_bounds!(res, ev, key, first, ox, oy, edges,
                                                           layout, early)
@@ -2149,24 +2150,27 @@ function _collect_canvas_dirty!(res::SdlWindowResources, canvas::GraphicsCanvas,
 end
 
 # The index of the first element that the render draws, found by the same search
-# as `_compute_first_drawn_index`, or `nothing` when a slot or a leaf that the
+# as `_compute_first_drawn_index`, and the indices of the leaves that the search
+# read while their cells were not up to date; or `nothing` when a slot that the
 # search reads is not up to date. The search reads the place of a few elements,
-# and that read would compute a stale one again before the walk tests it.
+# and that read computes a stale leaf again, so the walk takes the test of the
+# leaf from before the read.
 function _find_first_walked_index(canvas::GraphicsCanvas, ev, ox::Int, oy::Int, edges::_ClipEdges)
-    (_is_early_stop_layout(canvas) && ev isa CellVector) || return 1
+    (_is_early_stop_layout(canvas) && ev isa CellVector) || return (1, Int[])
     slots = getfield(ev, :elements)[]
     horizontal = canvas.layout == layout_horizontal
-    stale = false
+    stale_slot = false
+    dirty_leaves = Int[]
     first = compute_first_visible_index(length(slots), horizontal ? edges.left - ox : edges.top - oy) do i
         elem = slots[i]
         if elem isa AbstractCell
-            is_cell_up_to_date(elem) || (stale = true; return nothing)
+            is_cell_up_to_date(elem) || (stale_slot = true; return nothing)
             elem = elem[]
         end
-        _is_leaf_graphic(elem) && _node_dirty(elem) && (stale = true; return nothing)
+        _is_leaf_graphic(elem) && _node_dirty(elem) && push!(dirty_leaves, i)
         horizontal ? _render_elem_x(elem) : _render_elem_y(elem)
     end
-    stale ? nothing : first
+    stale_slot ? nothing : (first, dirty_leaves)
 end
 
 # The elements of a canvas that is not itself a unit, in the order the renderer
@@ -2179,8 +2183,8 @@ end
 # early-stop, each graphic that was painted has left the view and its place is
 # cleared; the first that was not painted ends the list.
 function _collect_elements_dirty!(res::SdlWindowResources, ev, key::UInt, first::Int,
-                                  ox::Int, oy::Int, edges::_ClipEdges, layout::LayoutDirection,
-                                  early::Bool, acc::_DirtyAcc)
+                                  dirty_leaves::Vector{Int}, ox::Int, oy::Int, edges::_ClipEdges,
+                                  layout::LayoutDirection, early::Bool, acc::_DirtyAcc)
     slots = ev isa CellVector ? getfield(ev, :elements)[] : ev
     past = false
     changed = false
@@ -2194,7 +2198,7 @@ function _collect_elements_dirty!(res::SdlWindowResources, ev, key::UInt, first:
         end
         elem isa GraphicsFence && continue
         elem_key = _make_placement_key(elem, key)
-        leaf_dirty = _is_leaf_graphic(elem) && _node_dirty(elem)
+        leaf_dirty = _is_leaf_graphic(elem) && (i in dirty_leaves || _node_dirty(elem))
         past = past || _is_past_early_stop(elem, ox, oy, edges, layout, early)
         if past
             _clear_left_view!(res, acc, elem_key) || break

@@ -55,20 +55,20 @@ end
     @test sort(read) == collect(501:511)
 end
 
-@testset "a size query and a dirty unit read no row" begin
+@testset "a size query reads no row, and a dirty unit the rows in the window" begin
     read = Int[]
     rows = make_rows(read)
     @test has_declared_extent(rows)
     @test get_graphics_size(rows) == (100, 10000)
     @test isempty(read)
-    # A list of rows that is computed again is one dirty unit, and its bounds
-    # are its box, so the dirty walk reads no row for it.
+    # A list of rows that is computed again is one dirty unit. The walk records
+    # the rows that the render draws, and reads no other.
     source = make_rows(read)
     computed = GraphicsCanvas(CellVector(Computation(() -> collect(Any, source.elements)));
                               y = -5000, w = 100, h = 10000,
                               layout = layout_vertical, overlapping = false)
     @test SDL._compute_dirty_rect(make_res(), GraphicsCanvas(Any[computed]; w = 800, h = 600)) !== nothing
-    @test isempty(read)
+    @test sort(read) == collect(501:561)
 end
 
 end

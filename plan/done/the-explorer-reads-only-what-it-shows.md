@@ -1,7 +1,8 @@
 # The Explorer reads only what it shows
 
 > **Status:** done, in the worktree `projectured-julia-explorer-lazy` on the
-> branch `explorer-reads-only-what-it-shows`, from `6a511ab0`. Not landed. Written
+> branch `explorer-reads-only-what-it-shows`, from `6a511ab0`, rebased onto
+> `bde5620d`. Not landed. Written
 > 2026-09-26. The owner approved the plan and the three contract changes on
 > 2026-09-26. The owner asked: "the
 > workspace file explorer seems to be non-lazy, if there are many files in the
@@ -147,10 +148,23 @@ The change to the backend:
    is, because the tree does not use a `ListNode`.
 2. `_collect_canvas_dirty!` and `hit_element_at` use the same rule. The dirty
    walk must read the same cells that the renderer reads. *Found while the
-   proposal was written:* now the two walks differ. For a nested canvas at
-   `cy > 0`, the renderer passes the bottom edge unchanged, and the dirty walk
-   passes `vh - cy`, so the dirty walk stops `cy` pixels earlier. The change
-   passes the same `_ClipEdges` in both.
+   proposal was written:* on `6a511ab0` the two walks differed for a nested
+   canvas at `cy > 0`: the renderer passed the bottom edge unchanged, and the
+   dirty walk passed `vh - cy`. `eb38c90c` on `main` rewrote the dirty walk
+   (records of the place of each graphic, a clear of what leaves the view) and
+   passes the same edges in both. This branch was rebased onto it, and threads
+   the four edges of `_ClipEdges` through that walk: the record of a paint,
+   the test of the elements, the refresh of the bounds, the list walk and the
+   viewport. The walk tests a slot or a leaf before it reads it, and the search
+   reads a few elements, so the walk searches with its own reader
+   (`_find_first_walked_index`): a stale slot on the path of the search makes
+   the canvas one unit, painted whole, as a stale slot does on `main`; a stale
+   leaf that the search reads keeps the test from before the read, so only the
+   leaf repaints. A first version made the canvas one unit for a stale leaf too,
+   and `DirtyRectTest.jl:318` ("a leaf that moves along its stack repaints")
+   caught that it repainted the whole stack. The render and the walk share
+   `compute_first_visible_index(get_start, count, edge)`, so they read the same
+   elements.
 3. A canvas with a layout, elements that do not overlap, and `w > 0` and `h > 0`
    declares its extent. `get_graphics_size`, the dirty bounds and `_scroll_room`
    take that box and do not walk the elements. The scroll pane already clamps
@@ -219,7 +233,8 @@ in a `ListNode`. The tree does not, for three reasons:
   inner constructor of the struct, so `element` is a keyword.
 - **D9 (plan).** The names: `compute_first_visible_index` (a search that always
   answers an index), `has_declared_extent`, and the private `_ClipEdges`,
-  `_compute_first_drawn_index` and `_read_folder_names`.
+  `_compute_first_drawn_index`, `_find_first_walked_index` and
+  `_read_folder_names`.
 
 ## 5. Open questions
 
