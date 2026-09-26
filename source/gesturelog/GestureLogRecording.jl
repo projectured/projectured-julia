@@ -20,21 +20,25 @@
 # `Function` in a reactive field becomes a thunk and the reader calls it with no
 # arguments.
 """
-    GestureLogRecordingProjection(; inner, log, filter = default_gesture_log_filter)
+    GestureLogRecordingProjection(; inner, log, filter = default_gesture_log_filter,
+                                    fold_typing = false)
 
 Decorator over `inner` that records every operation the inner reader makes.
 `filter(gesture, operation)` decides what the log keeps; the default drops the
-selection operations.
+selection operations. Each entry writes its references from the document this
+projection reads, by the titles of the documents on them. `fold_typing` folds a
+run of typed characters into one entry (see `record_gesture!`).
 """
 struct GestureLogRecordingProjection <: Projection
     inner::Any
     log::GestureLog
     filter::Any
+    fold_typing::Bool
 end
 
 GestureLogRecordingProjection(; inner, log::GestureLog,
-                                filter = default_gesture_log_filter) =
-    GestureLogRecordingProjection(inner, log, filter)
+                                filter = default_gesture_log_filter, fold_typing::Bool = false) =
+    GestureLogRecordingProjection(inner, log, filter, fold_typing)
 
 # Transparent: `output` forwards the inner output through a cell so the IoMap
 # keeps its identity while the inner projection re-derives.
@@ -61,7 +65,7 @@ function read_intent(p::GestureLogRecordingProjection, recursion, change::Intent
     if operation isa Operation && p.filter(change.gesture, operation)
         # Code that acts with no gesture says in the description what it did.
         record_gesture!(p.log, change.gesture === nothing ? change.description : change.gesture,
-                        operation)
+                        operation; root = iomap.input, fold_typing = p.fold_typing)
     end
     child
 end

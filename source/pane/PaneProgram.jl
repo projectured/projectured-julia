@@ -556,7 +556,7 @@ function replace_referenced_value!(editor, reference::Reference, value)
     focused = _focused_tab(tree)
     shown = _shown_tabs(tree)
     operation = _make_deepest_pane_write(editor, reference, route, tree, path, value,
-                                         "Replace " * _path_text(path))
+                                         "Replace " * describe_reference(reference, root))
     operation === nothing && throw(ArgumentError("The window did not take the write."))
     _evaluate_pane_operation!(editor, operation)
     _restore_shown!(tree, shown)

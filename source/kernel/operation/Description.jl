@@ -49,12 +49,89 @@ end
 
 _delta(delta::Integer) = delta > 0 ? "in" : delta < 0 ? "out" : "reset"
 
+"""
+    describe_operation(operation, root) -> String
+
+`describe_operation(operation)`, with each reference written as
+[`describe_reference`](@ref) writes it from `root`, the document the references of
+`operation` start at: `set people.json › [2].city = "Paris"` in place of the whole
+path from the root.
+"""
+describe_operation(operation, root) = with(() -> describe_operation(operation), _DESCRIBED_ROOT => root)
+
+"""
+    describe_reference(reference, root) -> String
+
+How `reference` is written for a human, from `root`, the document it starts at:
+the title of the deepest document on it that has one, then `›` and the rest of the
+path from the document that the titled document edits, as
+[`get_edited_field`](@ref) names it. `people.json › [2].city` names a field of the
+document a file holds, whatever layers hold the file. A reference with no titled
+document on it is written whole.
+"""
+function describe_reference(reference::Reference, root)
+    titled = _find_titled_reference(root, reference)
+    titled === nothing || return titled
+    _write_reference(reference)
+end
+
+# The document that the references of the operation being described start at, or
+# `nothing` when the description writes each reference whole.
+const _DESCRIBED_ROOT = ScopedValue{Any}(nothing)
+
 # The type checkpoints of a folded reference say nothing to a human and eat the
 # whole width, so the skeleton is what the log shows: `entries[1].value`. The
 # compact form keeps a step short that would print its whole content.
-_short_reference(reference::Reference) =
-    _truncate(sprint(show, strip_reference_types(reference); context = :compact => true), 60)
+function _short_reference(reference::Reference)
+    root = _DESCRIBED_ROOT[]
+    root === nothing ? _write_reference(reference) : describe_reference(reference, root)
+end
 _short_reference(reference) = _truncate(string(reference), 60)
+
+_write_reference(reference::Reference) =
+    _truncate(sprint(show, strip_reference_types(reference); context = :compact => true), 60)
+
+# `title › rest` for the deepest document on `reference` that has a title, where
+# `rest` starts at the document that titled document edits; `nothing` when no
+# document on it has a title, or when the reference leaves the tree.
+function _find_titled_reference(root, reference::Reference)
+    steps = get_reference_steps(strip_reference_types(reference))
+    nodes = Any[root]
+    for step in steps
+        node = try
+            evaluate_reference_step(step, nodes[end])
+        catch
+            break
+        end
+        push!(nodes, node)
+    end
+    depth = findlast(node -> _get_title_text(node) !== nothing, nodes)
+    depth === nothing && return nothing
+    title = _get_title_text(nodes[depth])
+    # Past the layers the titled document keeps its document in: a file and its history.
+    while depth <= length(steps) && depth < length(nodes)
+        field = get_edited_field(nodes[depth])
+        step = steps[depth]
+        (field !== nothing && step isa FieldReferenceStep && step.name == String(field)) || break
+        depth += 1
+    end
+    rest = steps[depth:end]
+    isempty(rest) && return title
+    title * " › " * _write_reference(extend_reference(EmptyReference(), rest...))
+end
+
+# The title a document gives itself, as text, or `nothing` when it gives none.
+function _get_title_text(node)
+    node isa Document || return nothing
+    title = try
+        get_document_title(node)
+    catch
+        nothing
+    end
+    title === nothing && return nothing
+    text = strip(string(title isa Document && hasproperty(title, :value) ? title.value : title))
+    isempty(text) ? nothing : String(text)
+end
 
 # A value that a human can read: a literal keeps its text, a document shows its
 # type. A whole document printed into one line is noise.

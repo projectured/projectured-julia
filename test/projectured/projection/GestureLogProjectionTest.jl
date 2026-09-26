@@ -32,6 +32,29 @@ function test_gesture_log()
         @test log.entries[20].index == 25
     end
 
+    @testset "a run of typed characters folds into one entry" begin
+        log = GestureLog()
+        for character in "abc"
+            record_gesture!(log, KeyPress(character; time = 0.0), ToggleCollapseOperation();
+                            fold_typing = true)
+        end
+        @test length(log.entries) == 1
+        @test log.entries[1].gesture == "typed \"abc\""
+        record_gesture!(log, left, ToggleCollapseOperation(); fold_typing = true)
+        record_gesture!(log, KeyPress('d'; time = 0.0), ToggleCollapseOperation(); fold_typing = true)
+        @test [entry.gesture for entry in log.entries][[1, 3]] == ["typed \"abc\"", "typed \"d\""]
+        @test log.count == 3
+    end
+
+    @testset "a reference is written from the titled document on it" begin
+        log = GestureLog()
+        record_gesture!(log, left, ToggleCollapseOperation())
+        reference = extend_reference(EmptyReference(), FieldReferenceStep("entries"), ElementReferenceStep(1))
+        @test describe_reference(reference, log) == "Gestures › .entries[1]"
+        @test describe_operation(ReplaceSelectionOperation(reference), log) == "select Gestures › .entries[1]"
+        @test describe_operation(ReplaceSelectionOperation(reference)) == "select .entries[1]"
+    end
+
     @testset "an entry renders the gesture and the operation" begin
         log = GestureLog()
         record_gesture!(log, KeyDown(:c, ModifierKeys(ctrl=true); time = 0.0), ToggleCollapseOperation())

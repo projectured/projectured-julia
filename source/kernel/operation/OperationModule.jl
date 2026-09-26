@@ -40,6 +40,7 @@ using ..CellModule
 using ..DocumentModule
 using ..ReferenceModule
 using ..SelectionModule
+using Base.ScopedValues: ScopedValue, with
 
 export Operation, WrappingOperation, get_wrapped_operation, rewrap_operation,
        evaluate_operation, invalidate_projection!,
@@ -58,7 +59,7 @@ export Operation, WrappingOperation, get_wrapped_operation, rewrap_operation,
        # from Inversion.jl
        make_inverse_operation, evaluate_invertible_operation!, get_slot_at,
        # from Description.jl
-       describe_operation
+       describe_operation, describe_reference
 
 include("OperationInterface.jl")   # the operation contract (declaration-only)
 include("OperationDefaults.jl")    # the fallback behaviours the contract supplies itself

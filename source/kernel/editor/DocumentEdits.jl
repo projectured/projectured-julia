@@ -38,9 +38,12 @@ _get_part_reference(part::ReferencedDocument) = get_reference(part)
 
 # Evaluates the replace of the range `start:stop` of the collection at `collection`
 # by `values`, as an edit, and answers the collection as it is after the edit.
+# `words` says what the edit does, and the description names the collection after
+# them, as a log shows it.
 function _replace_elements!(editor::Editor, collection, start::Integer, stop::Integer, values,
-                            description::AbstractString)
+                            words::AbstractString)
     reference = _get_part_reference(collection)
+    description = words * " " * describe_reference(reference, editor.document)
     target = extend_reference(strip_reference_types(reference), RangeReferenceStep(start, stop))
     stored = Any[get_document(value) for value in values]
     operation = find_rooted_operation(editor, target,
@@ -72,7 +75,7 @@ collection of a document that the editor shows.
 """
 insert_elements!(editor::Editor, collection, index::Integer, values) =
     _replace_elements!(editor, collection, index - 1, index - 1, values,
-                       "Insert " * string(length(values)) * " at [" * string(index) * "]")
+                       "Insert " * string(length(values)) * " into")
 
 """
     delete_elements!(editor, collection, index, count = 1) -> ReferencedDocument
@@ -92,4 +95,4 @@ any collection of a document that the editor shows.
 """
 delete_elements!(editor::Editor, collection, index::Integer, count::Integer = 1) =
     _replace_elements!(editor, collection, index - 1, index - 1 + count, Any[],
-                       "Delete " * string(count) * " at [" * string(index) * "]")
+                       "Delete " * string(count) * " from")

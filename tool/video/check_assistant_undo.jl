@@ -59,7 +59,7 @@ function _with_gesture_overlay(projection)
         inner = GestureLogOverlayProjection(inner = projection, log = log, anchor = :bottom_left,
                     content = make_gesture_log_content_projection(; measure = FontFileMeasure(),
                                                                     operation_width = OPERATION_WIDTH)),
-        log = log, filter = _shows_in_overlay)
+        log = log, filter = _shows_in_overlay, fold_typing = true)
 end
 
 # An entry that prints what the window holds now and lets the take go on.
