@@ -91,7 +91,7 @@ Round 1, look at the data and keep what it finds:
 ```julia
 people_tab_1 = find_pane(editor, "people.json")      # ReferencedDocument{PaneTab}
 people_1 = get_edited_document(people_tab_1)         # ReferencedDocument{JsonArray}
-print_natural_text(people_1)
+println(print_natural_text(people_1))
 ```
 
 Round 2, reuse `people_tab_1` and `people_1`:
@@ -337,9 +337,59 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       a `KeyError`; `test_json()` passes 194, as on `main`.
       The step as planned: D11 and D15, with tests of `object[key]` and its
       `KeyError`.
-- [ ] **Step 5: the documentation.** D12 to D17; the search tests of D13;
+- [ ] **Step 5: the documentation.** **In progress (2026-09-26).** Done:
+      - D12: `_ANSWER_DESCRIPTION` and `_VARIABLES_DESCRIPTION` in
+        `DefaultTools.jl` hold the sentence about the answer and the paragraph
+        about variables, and both descriptions use them, so the two can not
+        differ. The docstring of `execute_julia_code` says the rule too.
+        `test_declared_api()` checks both descriptions.
+      - D13: the first sentence of `get_edited_document` says "the data that a
+        tab or an open file shows". Found: the search ranks a hit by its name
+        score first and by its prose only in a tie, so a request whose words are
+        not in a name can not answer that name first with the words alone. The
+        unit test asserts what the words can do: "edited document" and "find
+        pane" in mode "keywords", "a document and where it is", "the address of
+        a document" and "the fields of a JSON object" in mode "description".
+        Measured with the meaning model of the application
+        (`nomic-embed-text`, fused with the words), the place of the name in the
+        hits: "the data of a tab" 3 (`get_edited_document`), "what a file tab
+        holds" 5, "the JSON of an open file" not in the first 5, "a tab by its
+        title" 3 (`find_pane`), "find a tab by its name" 1, "read the data that a
+        tab shows" 4, "open a new tab next to another tab" 1 (`open_pane!`), "a
+        document and where it is" and "the address of a document" 1
+        (`DocumentLocator`). A hit list shows 8 in summary and 25 in names, so
+        each is in what the model reads, but not always first.
+      - D14: `make_pane_api` declares `find_pane` and `ReferencedDocument`,
+        `get_document`, `get_reference`, `DocumentLocator`,
+        `find_referenced_document` and `get_edited_document`, because `find_pane`
+        answers a referenced document; `make_application_api` declares the seven
+        JSON types.
+      - D16: the orientation guide has a row for the referenced document, the
+        section "Reach what a tab holds" with the two rounds and the rule of D12,
+        and a gotcha: a referenced document is not an instance of its
+        document's type.
+      - D17: the docstring of `get_file_content` has the right name and says
+        that the answer can be the history. Each pane verb says that it takes a
+        referenced document.
+      - `test_documentation()`, `test_naming()`, `test_declared_api()`,
+        `test_code_execution()` and `test_referenced_document_editor()` (49)
+        pass.
+      Open: the package documents of D16 (reference, pane, file format, JSON).
+      The step as planned: D12 to D17; the search tests of D13;
       `test_documentation()` and `test_naming()` pass.
-- [ ] **Step 6: the ideal code, and the rehearsal.** The code of §3 runs as the
+- [ ] **Step 6: the ideal code, and the rehearsal.** **In progress
+      (2026-09-26).** The two rounds of the orientation guide run through
+      `execute_julia_code` on the declared API of the application, headless:
+      round 1 prints the JSON, round 2 opens "People by name" after
+      "people.json" in the same group, with the rows Ada 36, Bob 41, Cleo 29,
+      and a third call shows `people_tab_1` as
+      `ReferencedDocument{PaneTab} at .windows[1]…tabs[1]: PaneTab(…)`. Found:
+      `print_natural_text` answers a `String`, which the tool shows quoted with
+      `\n` escapes, as the REPL does; the guide and §3 print it with `println`.
+      Round 2 answers the typed reference of the new tab, which is long
+      (`::ScreenDocument.windows::CellVector[1]::…::PaneTab`); a
+      `ReferencedDocument` answer (D10, open) would show the tab.
+      The step as planned: The code of §3 runs as the
       assistant runs it (`execute_julia_code` on the declared API) and opens the
       table after "people.json". Then a rehearsal of S2 with qwen on the GPU
       (context 32768, seed 1): the rounds it takes and whether the tab opens are

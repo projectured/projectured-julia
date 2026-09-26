@@ -69,7 +69,7 @@ Look at the data first, in one call:
 ```julia
 people_tab_1 = find_pane(editor, "people.json")
 people_1 = get_edited_document(people_tab_1)
-print_natural_text(people_1)
+println(print_natural_text(people_1))
 ```
 
 Then use the same variables in the next call. A `JsonArray` acts as a vector, and
