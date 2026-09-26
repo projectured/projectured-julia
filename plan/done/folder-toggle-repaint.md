@@ -52,8 +52,11 @@ which is the whole tree, although it draws no pixel.
   transparent fill and no visible border gives no rectangle to the region.
 - [x] **F. Tests** for A to E, and the probe of the application: a toggle paints
   the chevron of the row and the rows from it down, and nothing above it.
-- [ ] **G. The take**: the scroll step, the text of the page, a new take, and the
-  web page.
+- [x] **G. The take**: the scroll step, the text of the page, a new take, and the
+  web page. The take is `build/video/s10/take3.mp4` (59.3 s), recorded by
+  `build/video/s10/take2.jl` over the timeline in `timeline2.jl`. On the web page it
+  replaces `assets/videos/partial-render.mp4`, with a poster at 9.8 s, where the
+  folder `chart` opens (commit `ec08cac` of `projectured.github.io`, not pushed).
 
 ## What was found while it was built
 
