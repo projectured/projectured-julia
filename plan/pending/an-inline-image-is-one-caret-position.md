@@ -2,7 +2,8 @@
 
 > **Status:** pending, not started. Written 2026-09-26. The owner asked for this
 > plan after the text layout examples showed the fault
-> ([text-layout-examples.md](../done/text-layout-examples.md), Step 2).
+> ([text-layout-examples.md](../done/text-layout-examples.md), Step 2), and
+> answered the six questions of §5 on 2026-09-26. Question 7 is open.
 
 An inline image (`TextGraphics`, a span of a `TextBlock`) has no width in the
 flat caret stream. So the caret after an image is the caret before it: a
@@ -133,8 +134,12 @@ after an image. The type-in walk keeps these failures visible on purpose.
 
 - **A typed character** before an image goes to the end of the text run before
   it; after an image, to the start of the text run after it. Where no text run
-  touches that side of the image, the character starts a new run there, in the
-  font and the colour of the image span (question 3), with `insert_elements`.
+  touches that side of the image, the character starts a new run there, with
+  `insert_elements` (question 3). An image has no font and no colour, so the new
+  run takes the style of the nearest text run of its line, the run before the
+  image first; on a line with no text run, the style of the block, the font that
+  `_block_font` finds and the colour of the run it finds it in. This rule is my
+  proposal from the owner's answer, not the owner's decision.
 - **Backspace after an image and Delete before it delete the image** (question 4),
   with `delete_elements`, and leave the caret where the image was.
 - **A range** that covers text and an image still does nothing: an edit across
@@ -144,12 +149,23 @@ after an image. The type-in walk keeps these failures visible on purpose.
   Markdown, Book or reStructuredText document keeps its own reader: it does not
   throw, it counts its image as 1, and it declines an edit of the image (question 5).
 
-### 3.5 The string of a text
+### 3.5 The style beside an image
+
+An image has no font and no colour (the owner, question 3). The line model reads
+a font where it meets an image today: the caret beside an image takes the font of
+the image span (TextToGraphics.jl:557), and `_element_font(::TextGraphics)`
+(:816) lets an image give the prevailing font of a block and the height of a line
+with no glyph. With the owner's statement, each of these takes the style of the
+nearest text run instead, by the rule of §3.4. Whether `TextGraphics` keeps its
+`font`, `font_color`, `fill_color`, `line_color` and `padding` fields is
+question 7.
+
+### 3.6 The string of a text
 
 `TextToString` gives an image U+FFFC, so the string of a text is its flat
 characters, and an offset in one is an offset in the other.
 
-### 3.6 The paint of a selection
+### 3.7 The paint of a selection
 
 A `TextRangeReferenceStep` is painted with caret-space offsets, and a
 `TextSpanReferenceStep` with box-space offsets, as its producers mean them. An
@@ -166,27 +182,30 @@ image inside a selection is painted (question 6).
 
 ## 5. Questions for the owner
 
-My recommendation follows each question; the decisions are yours.
+The owner answered questions 1 to 6 on 2026-09-26.
 
 1. **The character of an image in the flat characters and in the string.**
-   U+FFFC, the Unicode character for an object in text, or nothing (the image
-   then counts 1 in offsets but 0 in strings)? *I recommend U+FFFC*: one space for
-   offsets and strings.
-2. **Word motion.** Is an image a word of its own (Ctrl+Right stops before and
-   after it), or part of the word around it? *I recommend a word of its own*, as
-   in a word processor.
-3. **Typing where no text run touches the image.** Start a new run in the font and
-   the colour of the image span, or decline the key? *I recommend a new run*:
-   otherwise no text can follow an image at the end of a line.
-4. **Backspace after, Delete before.** Delete the image, or step over it? *I
-   recommend deleting it*, as a word processor does; undo restores it.
-5. **Scope through `SyntaxToText`.** The picture leaves of Markdown, Book and
-   reStructuredText stop throwing and count the image as 1, but decline an edit
-   of the image, which would be a structural edit of the domain. *I recommend
-   this scope*; editing a picture through its syntax is a plan of each domain.
-6. **The paint of a selection.** Fix the caret-space range painted with box-space
-   offsets (§2.3) here, or in a plan of its own? *I recommend here*: it is the
-   same fault, two spaces that disagree, and Step 7 tests both together.
+   *Decided:* U+FFFC, the Unicode character for an object in text.
+2. **Word motion.** *Decided:* an image is a word of its own; Ctrl+Right stops
+   before and after it.
+3. **Typing where no text run touches the image.** *Decided:* a new run starts
+   there, and "an image does not have font and color". The style of the new run
+   comes from the nearest text run (§3.4, my proposal).
+4. **Backspace after, Delete before.** *Decided:* they delete the image; undo
+   restores it.
+5. **Scope through `SyntaxToText`.** *Decided:* the picture leaves of Markdown,
+   Book and reStructuredText stop throwing and count the image as 1; an edit of
+   the image through its syntax is deferred to a plan of each domain.
+6. **The paint of a selection.** *Decided:* fixed in this plan (Step 7).
+7. **The style fields of `TextGraphics`** (open). An image has no font and no
+   colour, but `TextGraphics` has `font`, `font_color`, `fill_color`, `line_color`
+   and `padding`, and every producer passes a font. Do the fields go, or does an
+   image keep only `fill_color`, `line_color` and `padding`, which a box around a
+   picture can use? My recommendation: remove `font` and `font_color`, keep the
+   three box fields, and make the readers of §3.5 take the style of the nearest
+   text run. It changes every producer of `TextGraphics`
+   (`BookToSyntax.jl:557, 568`, `MarkdownToSyntax.jl:446`, `RstToSyntax.jl:1145`
+   and the examples), so it is its own step.
 
 ## 6. Steps
 
@@ -224,9 +243,15 @@ Do the work in a git worktree, and commit each step.
   caret lands beside it. `_text_elem_path_to_flat` and `_flat_to_span_char` count
   an image as 1. Tests: a caret beside an image through each decorator, and a
   walk over a Markdown picture leaf with a real image file.
-- [ ] **Step 6. The string of a text** (§3.5). `TextToString` gives an image U+FFFC.
+- [ ] **Step 5b. The style beside an image** (§3.5). The caret beside an image,
+  the prevailing font of a block and the height of a line with no glyph take the
+  style of the nearest text run, by the rule of §3.4; with question 7, the fields
+  of `TextGraphics` that it decides go. Tests: the caret height beside an image
+  in a line of a small font, a line that holds only an image, and a new run typed
+  after an image at the end of a line.
+- [ ] **Step 6. The string of a text** (§3.6). `TextToString` gives an image U+FFFC.
   Test: the string of `text_with_image` and its length against the total.
-- [ ] **Step 7. The paint of a selection** (§3.6, question 6). A caret-space range
+- [ ] **Step 7. The paint of a selection** (§3.7, question 6). A caret-space range
   is painted with caret-space offsets, and an image in a range is painted. Tests:
   a range across a `TextNewline`, across a soft newline and across an image
   paints exactly its characters, checked by the x of each row end.
