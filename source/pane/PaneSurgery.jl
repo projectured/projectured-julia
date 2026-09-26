@@ -381,30 +381,6 @@ function make_pane_open_tab_operation(tree::PaneTree, group::PaneGroup, tab::Pan
     insert_elements(tabs_path, at - 1, Any[tab]; selection = _make_new_tab_cursor(pairs, tab))
 end
 
-"""
-    make_pane_open_split_operation(tree, target, tab; side) -> Operation | Nothing
-
-Put `tab` in a new group beside the group `target`, and focus it. A new split
-takes the place of `target` and holds the two groups, each with half of the
-place. `side` is `:left`, `:right`, `:above` or `:below`: where the new group is.
-`nothing` when `target` has no place in `tree`.
-"""
-function make_pane_open_split_operation(tree::PaneTree, target::PaneGroup, tab::PaneTab;
-                                        side::Symbol)
-    new_group = PaneGroup(PaneTab[tab])
-    before = side === :left || side === :above
-    split = PaneSplit(side in (:left, :right) ? :vertical : :horizontal,
-                      before ? Any[new_group, target] : Any[target, new_group];
-                      weights = [0.5, 0.5])
-    write = _slot_write(tree, target, split)
-    write === nothing && return nothing
-    pairs = _pairs_to(tree, new_group; subs = Pair{Any,Any}[target => split])
-    pairs === nothing && return write
-    push!(pairs, (new_group, FieldReferenceStep("tabs")))
-    push!(pairs, (new_group.tabs, ElementReferenceStep(1)))
-    CompoundOperation(Any[write, ReplaceSelectionOperation(_make_new_tab_cursor(pairs, tab))])
-end
-
 # Where the selection goes in a tab that is about to exist, given the pairs that
 # lead to it: its content, when the content is the empty placeholder a paste
 # fills; on along the content's own selection, when the content holds one; and

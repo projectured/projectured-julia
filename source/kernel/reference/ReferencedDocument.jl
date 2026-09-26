@@ -15,7 +15,7 @@ document. A read that answers a document or a
 collection answers it as a `ReferencedDocument` too, with the reference extended by
 the field or the index; a read that answers any other value — a string, a number, a
 `Bool`, `nothing` — answers that value. So a chain of reads looks like code on the
-document itself, and every value in it but the last still knows where it is.
+document itself, and every value in it but the last holds the reference to its place.
 
 Read its two parts with [`get_document`](@ref) and [`get_reference`](@ref); every
 property name goes to the document. A referenced document is not an instance of the
@@ -61,20 +61,47 @@ get_reference(x::ReferencedDocument) = getfield(x, :reference)
 _is_referenced_value(value) =
     value isa Document || value isa AbstractVector || value isa AbstractDict || value isa Tuple
 
-_make_referenced(value, reference::Reference) =
-    _is_referenced_value(value) ? ReferencedDocument(value, reference) : value
+# What a write stores: the document of a referenced document, so the tree never
+# holds a referenced document.
+_get_stored_value(value) = value isa ReferencedDocument ? get_document(value) : value
+
+# `value` as a referenced document one `step` below the document of `x`. The step
+# records the type of the node it stands on, and the reference ends on the type of
+# `value`, as `annotate_reference_types` records them, so a function that takes
+# only a fully typed reference takes this one.
+function _make_stepped_value(x::ReferencedDocument, step, value)
+    _is_referenced_value(value) || return value
+    typed = ConcreteReference(get_reference_node_type(get_document(x)), step,
+                              EmptyReference(get_reference_node_type(value)))
+    ReferencedDocument(value, concat_references(get_reference(x), typed))
+end
+
+# `value` as a referenced document when the document of `x` holds it at exactly one
+# place, found by its identity. A value that the document does not hold, such as a
+# new collection that a function computed from it, and a value that it holds at
+# more than one place, such as a document with no fields, is answered as it is: no
+# reference is better than a wrong one.
+function _find_referenced_value(x::ReferencedDocument, value)
+    _is_referenced_value(value) || return value
+    document = get_document(x)
+    found = search_references(document, node -> node === value)
+    length(found) == 1 || return value
+    ReferencedDocument(value, concat_references(get_reference(x),
+                                                annotate_reference_types(document, only(found))))
+end
 
 function Base.getproperty(x::ReferencedDocument, name::Symbol)
     document = get_document(x)
     value = getproperty(document, name)
-    # A property that is not a field has no step that a reference can record, so
-    # its value is answered as it is.
-    (document isa AbstractDict || hasfield(typeof(document), name)) || return value
-    _make_referenced(value, extend_reference(get_reference(x), FieldReferenceStep(String(name))))
+    # A property that is not a field has no step that a reference can record, and
+    # a field of a dictionary is not one of its entries, so their values are
+    # answered as they are.
+    (!(document isa AbstractDict) && hasfield(typeof(document), name)) || return value
+    _make_stepped_value(x, FieldReferenceStep(String(name)), value)
 end
 
 Base.setproperty!(x::ReferencedDocument, name::Symbol, value) =
-    setproperty!(get_document(x), name, value)
+    setproperty!(get_document(x), name, _get_stored_value(value))
 
 Base.propertynames(x::ReferencedDocument, private::Bool = false) =
     propertynames(get_document(x), private)
@@ -86,32 +113,28 @@ Base.lastindex(x::ReferencedDocument) = lastindex(get_document(x))
 Base.eachindex(x::ReferencedDocument) = eachindex(get_document(x))
 Base.keys(x::ReferencedDocument) = keys(get_document(x))
 Base.haskey(x::ReferencedDocument, key) = haskey(get_document(x), key)
-Base.setindex!(x::ReferencedDocument, value, key) = setindex!(get_document(x), value, key)
 
-# The step from a collection to the value at `key`: an element for a position in a
-# sequence, the entry for a key of a dictionary. Any other key answers `nothing`,
-# and the value is then found in the document by its identity.
-_make_key_step(document::AbstractDict, key) = FieldReferenceStep(string(key))
-_make_key_step(document, key::Integer) = ElementReferenceStep(Int(key))
-_make_key_step(document, key) = nothing
+Base.setindex!(x::ReferencedDocument, value, key) =
+    setindex!(get_document(x), _get_stored_value(value), key)
 
-# `value` as a referenced document when the document of `x` holds it, found by its
-# identity; a value that the document does not hold, such as a new collection that a
-# function computed from it, is answered as it is.
-function _find_referenced_value(x::ReferencedDocument, value)
-    _is_referenced_value(value) || return value
-    found = search_references(get_document(x), node -> node === value)
-    isempty(found) && return value
-    ReferencedDocument(value, concat_references(get_reference(x), first(found)))
-end
+Base.push!(x::ReferencedDocument, values...) =
+    (push!(get_document(x), map(_get_stored_value, values)...); x)
+Base.insert!(x::ReferencedDocument, index::Integer, value) =
+    (insert!(get_document(x), index, _get_stored_value(value)); x)
+Base.deleteat!(x::ReferencedDocument, index) = (deleteat!(get_document(x), index); x)
+
+# The step from a collection to the value at `key`: the entry of a dictionary, for
+# a key that a field step can name, and an element, for a position. Any other key
+# answers `nothing`, and the value is then found in the document by its identity.
+_make_key_step(document, key) =
+    document isa AbstractDict ?
+        (key isa Union{AbstractString, Symbol} ? FieldReferenceStep(String(key)) : nothing) :
+        (key isa Integer ? ElementReferenceStep(Int(key)) : nothing)
 
 function Base.getindex(x::ReferencedDocument, key)
-    document = get_document(x)
-    value = document[key]
-    _is_referenced_value(value) || return value
-    step = _make_key_step(document, key)
-    step === nothing && return _find_referenced_value(x, value)
-    ReferencedDocument(value, extend_reference(get_reference(x), step))
+    value = get_document(x)[key]
+    step = _make_key_step(get_document(x), key)
+    step === nothing ? _find_referenced_value(x, value) : _make_stepped_value(x, step, value)
 end
 
 # What the document's own `get` answers for a missing key, apart from every value it
@@ -121,8 +144,12 @@ struct _MissingKey end
 Base.get(x::ReferencedDocument, key, default) =
     get(get_document(x), key, _MissingKey()) isa _MissingKey ? default : x[key]
 
-Base.values(x::ReferencedDocument) =
-    [_find_referenced_value(x, value) for value in values(get_document(x))]
+function Base.values(x::ReferencedDocument)
+    document = get_document(x)
+    document isa AbstractDict && return [x[key] for key in keys(document)]
+    document isa AbstractVector && return collect(x)
+    [_find_referenced_value(x, value) for value in values(document)]
+end
 
 # The iteration state: the position of the next value, and the state of the
 # document's own iteration.
@@ -147,16 +174,16 @@ function _make_referenced_step(x::ReferencedDocument, (value, inner), position::
     (_make_iterated_value(x, value, position), _ReferencedIterationState(position + 1, inner))
 end
 
-# The value that iteration answers at `position`. An element of a sequence is at its
-# position. A value of any other document, such as a `(key, value)` member of a map,
-# is found in the document by its identity, and so is each part of such a member.
+# The value that iteration answers at `position`. A member of a dictionary is its
+# key and its value read by that key. An element of a sequence is at its position.
+# A value of any other document, such as a `(key, value)` member of a map, is found
+# in the document by its identity, and so is each part of such a member.
 function _make_iterated_value(x::ReferencedDocument, value, position::Int)
-    _is_referenced_value(value) || return value
     document = get_document(x)
-    if !(document isa AbstractDict) && applicable(getindex, document, position) &&
-       document[position] === value
-        return ReferencedDocument(value, extend_reference(get_reference(x), ElementReferenceStep(position)))
-    end
+    document isa AbstractDict && return value isa Pair ? first(value) => x[first(value)] : value
+    _is_referenced_value(value) || return value
+    applicable(getindex, document, position) && document[position] === value &&
+        return _make_stepped_value(x, ElementReferenceStep(position), value)
     value isa Tuple && return map(part -> _find_referenced_value(x, part), value)
     _find_referenced_value(x, value)
 end
@@ -219,7 +246,7 @@ Use it to find a document again after the tree changed, or to bring a
 function find_referenced_document(locator::DocumentLocator)
     document = try_evaluate_reference(locator.start, locator.reference, _NotReached())
     document isa _NotReached && return nothing
-    ReferencedDocument(document, locator.reference)
+    ReferencedDocument(document, annotate_reference_types(locator.start, locator.reference))
 end
 
 # The most layers `get_edited_document` passes through, so a cycle of layers ends.
@@ -235,7 +262,8 @@ from a tab to what it shows, from a file to the document read from it, from a
 history to the document it keeps.
 
 Given a `ReferencedDocument`, it answers a `ReferencedDocument` whose reference goes
-through every layer it passed; given a document, it answers the document.
+through every layer it passed; given a document, it answers the document. A layer
+whose field holds a leaf, such as a `String`, answers that value.
 
 Use it to read or change the data that a tab or an open file shows, in one call,
 without knowing which layers hold it.

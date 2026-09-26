@@ -1,7 +1,7 @@
 """
 `ReferencedDocument` and `DocumentLocator` over a test-local tree of toy documents:
 a referenced document acts like its document, and every document or collection it
-answers knows where it is.
+answers holds the reference to its place.
 """
 
 using Test
@@ -82,11 +82,40 @@ function test_referenced_document()
         @test get(children, 3, :none) === :none
     end
 
-    @testset "a write goes to the document" begin
+    @testset "every reference a read makes records its types" begin
         root = _make_referenced_tree()
-        first_child = ReferencedDocument(root, EmptyReference()).children[1]
+        tree = ReferencedDocument(root, EmptyReference())
+        @test is_fully_typed_reference(get_reference(tree.children[2].children[1]))
+        @test all(child -> is_fully_typed_reference(get_reference(child)), tree.children)
+        leaf = ReferencedDocument(ReferencedTable(Dict{String, Any}("leaf" => ReferencedLeaf("d", nothing)),
+                                                  nothing), EmptyReference()).entries["leaf"]
+        @test is_fully_typed_reference(get_reference(leaf))
+    end
+
+    @testset "a dictionary reads by any key, and iterates its members with references" begin
+        numbers = ReferencedDocument(Dict(1 => Any[1], 2 => Any[2]), EmptyReference())
+        @test get_document(numbers)[1] == (numbers[1] isa ReferencedDocument ? get_document(numbers[1]) : numbers[1])
+        @test get(numbers, 3, :none) === :none
+        root = ReferencedTable(Dict{String, Any}("leaf" => ReferencedLeaf("d", nothing)), nothing)
+        for (key, value) in ReferencedDocument(root, EmptyReference()).entries
+            @test key == "leaf"
+            @test evaluate_reference(root, get_reference(value)) === root.entries["leaf"]
+        end
+    end
+
+    @testset "a write goes to the document, and stores a document, never a referenced one" begin
+        root = _make_referenced_tree()
+        tree = ReferencedDocument(root, EmptyReference())
+        first_child = tree.children[1]
         first_child.name = "A"
         @test root.children[1].name == "A"
+        tree.children[1] = tree.children[2].children[1]
+        @test root.children[1] isa ReferencedLeaf
+        push!(tree.children, tree.children[2])
+        @test length(root.children) == 3
+        @test root.children[3] isa ReferencedBranch
+        deleteat!(tree.children, 3)
+        @test length(root.children) == 2
     end
 
     @testset "the display says what and where" begin

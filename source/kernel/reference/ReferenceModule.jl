@@ -17,7 +17,7 @@ The reference types/values, the `@reference_case` pattern-matching DSL, and the
 `@reference` / `@reference_step` construction DSL are one module, because they are only ever
 imported together and separating them just multiplied import headers.
 
-The module lives in eleven fragments that share this namespace:
+The module lives in twelve fragments that share this namespace:
 
 - [`ReferenceInterface.jl`](ReferenceInterface.jl) — the contract: the `ReferenceStep` and
   `Reference` abstract types (a document's `selection` field holds a `Reference`
@@ -58,6 +58,11 @@ The module lives in eleven fragments that share this namespace:
   the Julia surface lowers to. A front end, not a second pattern language.
 - [`ReferenceBuilder.jl`](ReferenceBuilder.jl) — the `@reference` / `@reference_step`
   construction DSL (compact surface syntax for building paths).
+- [`ReferencedDocument.jl`](ReferencedDocument.jl) — `ReferencedDocument`, a
+  document together with the reference that reached it, which acts like the
+  document; `DocumentLocator`, the address of a document; and
+  `get_edited_document`, which follows `get_edited_field` to the document a person
+  edits.
 
 The linked-list *shape* is persistent — extending a path reuses the existing
 tail rather than copying. The reactive step structs are mutable and store

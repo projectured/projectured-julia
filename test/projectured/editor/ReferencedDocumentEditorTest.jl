@@ -1,6 +1,6 @@
 # A referenced document in the application window: a tab found by its title, the
 # data a file tab shows reached through the file and its history, and a read into
-# that data that still knows where it is.
+# that data that holds the reference to its place.
 
 using Test
 
@@ -152,6 +152,66 @@ function test_referenced_document_editor()
         path = joinpath(directory, "copy.json")
         write_document_file(people, path)
         @test occursin("Cleo", read(path, String))
+        exported = joinpath(directory, "exported.json")
+        export_document(people, exported)
+        @test occursin("Ada", read(exported, String))
+        again = open_pane!(editor, people; title = "People again")
+        @test get_referenced_value(editor, again).content === get_document(people)
+    end
+
+    # A referenced document that a read made, not only one that `find_pane` found,
+    # goes to a verb that takes only a fully typed reference.
+    groups_of(node) = get_document(node) isa PaneGroup ? Any[node] :
+                      get_document(node) isa PaneSplit ?
+                          reduce(vcat, [groups_of(element) for element in node.elements]; init = Any[]) :
+                          Any[]
+    is_nested_alike(node) = node isa PaneSplit &&
+        any(element -> (element isa PaneSplit && element.orientation === node.orientation) ||
+                       is_nested_alike(element), node.elements)
+    title_of(tab) = get_pane_tab_title_string(get_document(tab))
+
+    @testset "a pane verb takes a referenced document that a read made" begin
+        people = get_edited_document(find_pane(editor, "people.json"))
+        @test get_referenced_value(editor, people[1]) === get_document(people[1])
+        tree_1 = find_referenced_document(DocumentLocator(editor.document, find_pane_tree_reference(editor)))
+        people_group_1 = only(group for group in groups_of(tree_1.root)
+                              if any(tab -> title_of(tab) == "people.json", group.tabs))
+        open_pane!(editor, PrimitiveString("closable"); title = "Closable", target = people_group_1)
+        closable = only(tab for tab in people_group_1.tabs if title_of(tab) == "Closable")
+        close_pane!(editor, closable)
+        @test find_pane(editor, "Closable") === nothing
+    end
+
+    @testset "open_pane! beside a group keeps a split from holding a split of its orientation" begin
+        tree_1 = find_referenced_document(DocumentLocator(editor.document, find_pane_tree_reference(editor)))
+        people_group_1 = only(group for group in groups_of(tree_1.root)
+                              if any(tab -> title_of(tab) == "people.json", group.tabs))
+        open_pane!(editor, PrimitiveString("left"); title = "Left",
+                   target = find_pane(editor, "people.json"), side = :left)
+        open_pane!(editor, PrimitiveString("above"); title = "Above", target = people_group_1, side = :above)
+        @test find_pane(editor, "Left") !== nothing && find_pane(editor, "Above") !== nothing
+        @test !is_nested_alike(tree.root)
+        operation = make_open_pane_operation(editor, PrimitiveString("by operation");
+                                             title = "By operation", target = find_pane(editor, "people.json"))
+        evaluate_operation(editor, operation)
+        @test find_pane(editor, "By operation") !== nothing
+    end
+
+    @testset "a value found by identity at two places has no reference" begin
+        path = joinpath(directory, "nulls.json")
+        write(path, "{\"a\": null, \"b\": null}")
+        nulls = ReferencedDocument(get_edited_document(read_document_file(path)), EmptyReference())
+        second = nulls["b"]
+        @test !(second isa ReferencedDocument) ||
+              occursin("[2]", repr(strip_reference_types(get_reference(second))))
+    end
+
+    @testset "a text file answers the document of its text" begin
+        path = joinpath(directory, "notes.txt")
+        write(path, "hello")
+        text = get_edited_document(make_file_tab(path))
+        @test text isa PrimitiveString
+        @test occursin("hello", repr(text))
     end
 end
 end # test_referenced_document_editor

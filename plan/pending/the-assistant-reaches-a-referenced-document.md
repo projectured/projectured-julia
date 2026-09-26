@@ -309,11 +309,11 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
         or a `ReferencedDocument`: a group, and the tab goes to its end; a tab,
         and the new tab goes before it) and `side`. `group` stays, as a value;
         `group` and `target` together are refused, and so is a `side` that is not
-        one of the four. `side` uses a new surgery,
-        `make_pane_open_split_operation(tree, target, tab; side)` in
-        `PaneSurgery.jl`: a split takes the place of the target group and holds a
-        new group with the tab. It is the first shape of the split drop, because
-        nothing leaves a group; the open is one undo step.
+        one of the four. `side` uses `make_pane_split_operation(tree, group;
+        orientation, side, tab)`, which a split of a group already uses: a new
+        split takes the place of the target group, or the new group joins the
+        parent split when it has that orientation, so no split holds a split of
+        its own orientation. The open is one undo step.
       - `test_referenced_document_editor()` passes 44 checks; `test_pane_surgery()`,
         `test_pane_drag()`, `test_application()`, the substrate and kernel
         layering guards, `test_naming()` and `test_export_collisions()` pass.
@@ -374,9 +374,45 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       - `test_documentation()`, `test_naming()`, `test_declared_api()`,
         `test_code_execution()` and `test_referenced_document_editor()` (49)
         pass.
-      Open: the package documents of D16 (reference, pane, file format, JSON).
+      - D16, the package documents: `kernel/reference.md` (a section "A
+        document together with its reference"), `pane/pane.md` (`target`,
+        `side`, `find_pane`, the verbs that take a referenced document),
+        `fileformat/fileformat.md`, `serialization/serialization.md`
+        (`get_file_content`, `get_edited_field` of a file) and `json/json.md`
+        (the shape, with an example that runs). The writing guard passes.
       The step as planned: D12 to D17; the search tests of D13;
       `test_documentation()` and `test_naming()` pass.
+- **The review of Steps 1 to 5 (2026-09-26).** A code review of the branch
+  found these, and each is fixed, with a test:
+  - A reference that a read made was not fully typed: `extend_reference` leaves
+    the new last node without a type, and each pane verb refuses a reference that
+    is not fully typed. Each step that a read adds now records the type of the
+    node it stands on and ends on the type of the value, as
+    `annotate_reference_types` does; a value found by identity has its found path
+    annotated, and `find_referenced_document` annotates the locator's reference.
+  - `_make_key_step` had two methods that were ambiguous for a dictionary with
+    integer keys. It is one method: a dictionary key that a field step can name
+    (a `String` or a `Symbol`) is a field step, a position is an element step, and
+    any other key is found by identity.
+  - A write stored a referenced document in the tree. `setproperty!`,
+    `setindex!`, `push!` and `insert!` store its document.
+  - `open_pane!` with `side` had its own surgery, without the flattening of
+    `make_pane_split_operation`; it calls that function now (see Step 3).
+  - The identity search took the first of equal values, which gives a wrong
+    reference for a document with no fields that is at two places. A value found
+    at more than one place is answered plain.
+  - A dictionary iterates `key => value`, with the value read by its key;
+    `values` of a sequence reads by position. `push!`, `insert!` and `deleteat!`
+    go to the document. `SEALING.md` lists `reference/ReferencedDocument.jl`, and
+    the docstring of `ReferenceModule.jl` names the fragment.
+  - Not changed: `people[1]` and `people.elements[1]` answer two different
+    references to one node; both evaluate to it. `get_edited_document` of a text
+    file answers a `PrimitiveString`, a document, and not a `String` as the review
+    said.
+  `test_referenced_document()` passes 44 checks and
+  `test_referenced_document_editor()` 58; with `test_pane_surgery()`,
+  `test_application()`, the kernel and substrate layering guards, `test_naming()`
+  and `test_documentation()`, 752 pass.
 - [ ] **Step 6: the ideal code, and the rehearsal.** **In progress
       (2026-09-26).** The two rounds of the orientation guide run through
       `execute_julia_code` on the declared API of the application, headless:

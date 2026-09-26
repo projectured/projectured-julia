@@ -357,7 +357,8 @@ function _make_open_pane(editor, document; title, group, target, side)
     name = _unique_pane_title(tree, wanted)
     tab = PaneTab(name, document)
     placement = side === nothing ? make_pane_open_tab_operation(tree, group, tab; index) :
-                                   make_pane_open_split_operation(tree, group, tab; side)
+                make_pane_split_operation(tree, group; tab, side,
+                                          orientation = side in (:left, :right) ? :vertical : :horizontal)
     operation = _make_rooted_pane_operation(editor, route, tree, placement,
                                             "Open the pane " * name)
     operation === nothing && error("The window has no group to open a pane in.")

@@ -30,9 +30,6 @@ parser of the document's own format, because a later `import_document` would rea
 the text with the wrong grammar. An extension with no parser passes, and so does a
 second name of the same format: a YAML document can go to `.yaml` or `.yml`.
 """
-export_document(document::ReferencedDocument, path::AbstractString) =
-    export_document(get_document(document), path)
-
 function export_document(document::Document, path::AbstractString)
     ext    = lowercase(splitext(path)[2])
     parser = find_natural_parser(_ext_symbol(ext))
@@ -42,6 +39,9 @@ function export_document(document::Document, path::AbstractString)
     write(path, print_natural_text(document))
     path
 end
+
+export_document(document::ReferencedDocument, path::AbstractString) =
+    export_document(get_document(document), path)
 
 # ── Editor operations ──────────────────────────────────────────────────────
 
