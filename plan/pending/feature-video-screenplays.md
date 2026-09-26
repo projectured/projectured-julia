@@ -353,9 +353,11 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
   - An edit in the tab and an edit in the result row each show in both views, and the caret shows in both. Each edit is one entry of the `UndoBuffer` inside `JsonFile`, and the window buffer records it too; two presses of `Ctrl+Z` in the tab take both edits back in both views.
   - A count with `search_documents` after an undo is wrong: it also finds the old text in `redo_entries`. Check an undo on a frame.
   - `people.json` holds three people, because five do not fit in the result row of a pane that is 512 px wide.
-- **Open for the owner after the rehearsal:**
-  - A type result shows its cell parameters: `WindowDocument{Cell, Cell, …}` holds the word `Cell` 14 times.
-  - The result of `push!` is the `CellVector` of the buttons, which draws as a column of nine icons, 300 px high.
+- **Decided by the owner after the rehearsal, 2026-09-26:**
+  - A type result showed its cell parameters: `WindowDocument{Cell, Cell, …}` held the word `Cell` 14 times. The forms use `nameof(typeof(…))`, so the results read `:ScreenDocument`, `:WindowDocument` and `:WidgetShell`.
+  - The result of `push!` is the `CellVector` of the buttons, which drew as a column of nine icons, 300 px high. The form ends with `;`, and the evaluator hides the value of such a form, as the Julia REPL does (`plan/pending/evaluator-semicolon-and-infix-operators.md`). The same plan makes the two forms with `d -> d isa …` Julia documents, so every form of the take draws in the colors of the Julia notation.
+- **The take of 2026-09-27**: `tool/video/record_reflective_editor.jl`, 1280×720, 136.3 s, 2.0 MB, recorded in video time in a warm session after a first run of the same script, so no step compiles during the take. It is `build/video/s7/s7_reflective_editor.mp4` of the worktree `projectured-julia-s7-reflective-video`. The code is typed in short runs (a name, a call up to its `(`, an argument up to its `,`), 0.13 s a key with a jitter of 0.4 and 0.25 s between the runs. The folder is named `team`, because both explorers show its name.
+  - The Frame plot of beat 5 shows frames of 25 to 120 ms. That time includes the work of the recorder, which draws each frame at twice the size and saves it.
 - **Acceptance:**
   - Beats 5 and 8 work from the copy in the evaluator. No test did this before this video. If a click fails, it is a product gap to fix, not a reason to change the beat.
   - `search_documents` also walks the undo buffer. The rehearsal checks with `===` that each search finds the object that the window shows.

@@ -1,6 +1,6 @@
 # A `;` hides the result, and every form of S7 is a Julia document
 
-**Status: in progress, on the branch `s7-reflective-video`.** The owner asked for
+**Status: done, on the branch `s7-reflective-video`.** The owner asked for
 it on 2026-09-26, after the rehearsal of screenplay S7
 (`plan/pending/feature-video-screenplays.md`): "use the semicolon. Some forms still
 don't parse and turn into Julia documents".
@@ -84,5 +84,7 @@ The rehearsal of S7 found two faults of the evaluator:
     `FsmToJuliaCode` passes 39 of 39.
 - [x] 4. The documents: `documentation/package/julia/julia.md`, the evaluator
   document, and the docstring of `find_form_document`.
-- [ ] 5. The S7 forms use `nameof(typeof(…))` (the owner's choice for the type
-  names) and a `;` after `push!`, and the take is recorded.
+- [x] 5. The S7 forms use `nameof(typeof(…))` (the owner's choice for the type
+  names) and a `;` after `push!`, and the take is recorded
+  (`tool/video/record_reflective_editor.jl`; the take is described in S7 of
+  `plan/pending/feature-video-screenplays.md`).
