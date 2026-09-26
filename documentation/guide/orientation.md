@@ -82,8 +82,9 @@ table_tab_1 = open_pane!(editor, WidgetTable(["name", "age"], rows_1); title = "
 ```
 
 `open_pane!` puts the new tab where the focus is. To put it before a tab, or at
-the end of a group, give that tab or group as `target`. To put it beside or under
-the target, in a new split, add `side`: `:left`, `:right`, `:above` or `:below`.
+the end of a group, give that tab or group as `target`. To put it in a new pane
+beside or under the group of the target, add `side`: `:left`, `:right`, `:above`
+or `:below`. The new pane is always next to one group.
 `get_parent(editor, people_tab_1)` answers the group that holds the tab, so this
 puts a card under the group of `people.json` and the tabs beside it:
 

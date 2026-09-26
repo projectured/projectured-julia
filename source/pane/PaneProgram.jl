@@ -246,14 +246,15 @@ precompiles.
 pane_group_to_avoid(tree) = nothing
 
 """
-    open_pane!(editor, document; title = nothing, target = nothing, side = nothing) -> ReferencedDocument
+    open_pane!(editor, document; title = nothing, target = nothing, side = nothing,
+               group = nothing) -> ReferencedDocument
 
 Put `document` in a new tab, and answer the tab it made, as a `ReferencedDocument`.
 
 Use it to show, display or place a value on the screen: a table, a plot, a set
-of runs, a layout of widgets, any document, in a tab of its own, beside or under
-another tab, or in the group that has the focus. It answers the new tab with its
-reference, which the other pane verbs take.
+of runs, a layout of widgets, any document, in a tab of its own: in the group of
+another tab, in a new pane beside or under one group, or in the group that has the
+focus. It answers the new tab with its reference, which the other pane verbs take.
 
 # Example
 
@@ -292,17 +293,26 @@ panes are never one name, and the name is for a person to read rather than for a
 caller to address the pane by.
 
 `target` is where the tab goes, as [`move_pane!`](@ref) places a pane: a group,
-and the tab goes to its end; or a tab, and the new tab goes before it. It is a
-`Reference` or a `ReferencedDocument`, such as a tab that `find_pane` found. With
-`side` — `:left`, `:right`, `:above` or `:below` — the tab goes in a new group
-beside the target's group, in a new split. Left out, the policy above chooses a
-group in the pane tree that holds the focus.
+and the tab goes to its end; or a tab, and the new tab goes before it, in the same
+group. It is a `Reference` or a `ReferencedDocument`, such as a tab that
+`find_pane` found or the group that `get_parent` answers for it. Left out, the
+policy above chooses a group in the pane tree that holds the focus.
+
+`side` — `:left`, `:right`, `:above` or `:below` — puts the tab in a new group next
+to the one group that `target` is or holds. A new split takes the place of that
+group and holds the two groups, each with half of its place; when the split that
+holds the group already runs in that direction, the new group joins that split
+next to the group instead, and takes half of the group's place. The new group is
+always next to one group: a pane beside or under several groups at once is not a
+placement `open_pane!` makes.
 
 `group` is a group of the window to open the tab in, as a value and not as a
 reference. An application uses it when it knows better than the focus, for
-example to put a file that a navigator opens beside the other files.
+example to put a file that a navigator opens beside the other files. `group` and
+`target` together are refused.
 
-The answer is a complete reference, from the root of the editor's document.
+The answer holds the new tab and its complete reference, from the root of the
+editor's document.
 """
 function open_pane!(editor, document; title = nothing, group = nothing, target = nothing,
                     side = nothing)
