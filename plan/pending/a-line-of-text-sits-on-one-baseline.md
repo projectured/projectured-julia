@@ -1,9 +1,10 @@
 # A line of text sits on one baseline
 
-> **Status:** in progress, in the worktree `projectured-julia-text-baseline` on
+> **Status:** done, in the worktree `projectured-julia-text-baseline` on
 > the branch `text-baseline`, from `c634a718`. Written 2026-09-25. The owner
 > decided the five questions of §5 on 2026-09-25, and asked on the same day to
-> start the work in a worktree. Steps 0 to 8 are done; Steps 10 and 11 are in progress.
+> start the work in a worktree. All steps are done; the owner approved the landing
+> on 2026-09-26.
 
 Text in the editor is laid out by the top of each run, measured with a height
 that is the em size, and drawn by backends that kern and hint as they like. This
@@ -694,7 +695,7 @@ projection holds its measure in one typed field, so the line model can not read 
   takes the Markdown bridge in its `/syntax`, `/text` and `/graphics` variants,
   and none fails. The `/syntax` variants count what the first base counted; the
   `/text` and `/graphics` variants took the Julia bridge on the first base too.
-- [ ] **Step 9. The look, in a real window.** The application on `main` and on
+- [x] **Step 9. The look, in a real window.** The application on `main` and on
   the branch, with the same panes: a code tab, a guide with a table and inline
   code, the chat pane with a result, a form, a heading with kerned pairs, and a
   selection across three lines. Images of both go to the owner, at ratio 1 and 2.
@@ -707,10 +708,28 @@ projection holds its measure in one typed field, so the line model can not read 
   widget gallery. On the base, the descenders of the last line, of every table
   cell and of the status line are cut; on the branch every ink shows, the runs
   of a line share its baseline, and selection rows meet. The code tab does not
-  change: Ubuntu Mono has no line gap. A check in a live window is not done.
-- [ ] **Step 10. omnet-julia and inet-julia** follow the contract: their packages
+  change: Ubuntu Mono has no line gap. A check in a live window is not done:
+  the images come from the offscreen renderer, which draws text through the same
+  code as a window.
+- [x] **Step 10. omnet-julia and inet-julia** follow the contract: their packages
   precompile, their presentation tests pass, and images of a topology, a
   timeline and a packet diagram go to the owner.
+  *Done* in the branches `text-baseline` of omnet-julia (`ce46fe2b`, 58 files)
+  and inet-julia (`6cb78a9`, 13 files). Both are tested before the landing in
+  scratch environments (`/var/tmp/text-baseline-cross/`) whose paths reach the
+  three branches, against the same environments reaching the three `main`
+  checkouts. The tests run in a network namespace with no Ollama server, because
+  the IDE suite asks a local model and loaded two models into memory in the
+  first run. The results, `main` against the branch: omnet-julia presentation
+  1689/14/3 and 1689/14/3; study presentation 22 and 22; Qtenv 35 and 35; IDE
+  437/0/1 and 437/0/1; campaign UI 188 and 188; legacy 1027/6/59 and
+  1026/6/58, where the one test of difference walks the NED files of the
+  checkout and `main` holds an untracked `mm1k/mm1k.ned`; inet-julia
+  `InetTest` 569 and 569, `InetQueuingTest` 519 and 519. The failures are at the
+  same lines; the watch example has one line more above them on the branch.
+  The images are in `/var/tmp/text-baseline-look/compare/` (`omnet-*`,
+  `inet-*`): the timeline and the packet diagram draw whole; the topology card
+  shows its header and no graph on both sides.
 - [x] **Step 11. The documents:** `style.md` (the metrics and the measure),
   `text.md` (the line model and the spacing), the `GraphicsText` docstring and
   `graphics.md`, `sdl.md`, `pdf.md`, `web.md`, `layout-rules.md` if it names a
