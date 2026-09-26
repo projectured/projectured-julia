@@ -793,7 +793,20 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       from the code, not read back. Open: the take itself, with the log panel
       and real keys, in the s2-video worktree, which needs this branch; and the
       text of a log line (the owner's question 4).
-- [ ] **Step 7: the landing,** when the owner says so.
+- [x] **Step 7: the landing** (the owner, 2026-09-26: "land this branch").
+      Rebased onto `main` 4b828483 with no conflict; six files changed on both
+      sides (`pane.md`, `Application.jl`, `PaneProgram.jl`, `WidgetDocument.jl`,
+      `WidgetToGraphics.jl`, `ApplicationTest.jl`). `main` had removed
+      `measure_truetype_text` (acde9278), so the editor test builds the window
+      with the default measure. The landing check: `test_referenced_document()`
+      51, `test_referenced_document_editor()` 87, the pane, tab, file-tab,
+      split-pane, gesture-log, declared-API, code-execution, JSON, documentation,
+      naming, export and layering tests pass; `test_application()` 336 of 338 and
+      `test_split_pane_drag()` 25 of 30, each the same on `main`. The omnet-julia
+      branch `referenced-document` (the two system texts and the test fix of
+      `PaneProgramTest.jl`) waits for the owner's word; until it lands,
+      `test_pane_program` of omnet-julia has 2 errors against this `main`.
+      Not done in this plan: the take of S2 (Step 6), the follow-ups below.
 
 ### Follow-up, after this plan (D21)
 

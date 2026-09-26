@@ -7,15 +7,12 @@ using Test
 function _make_referenced_application(directory)
     write(joinpath(directory, "people.json"),
           "[{\"name\": \"Cleo\", \"age\": 29}, {\"name\": \"Ada\", \"age\": 36}]")
-    measure = measure_truetype_text
     document, projection = make_application_window([joinpath(directory, "people.json")];
-                                                    root = directory, assistant = nothing,
-                                                    measure = measure)
+                                                    root = directory, assistant = nothing)
     editor = make_editor(document, projection, "ProjecturEd"; backend = HeadlessBackend(),
                          width = 1280, height = 720,
                          opened_window_projections = make_opened_window_projections(;
-                             content = make_application_content_projections(measure = measure),
-                             measure = measure))
+                             content = make_application_content_projections()))
     start_application!(editor, false, :none, "")
     run_frame!(editor)
     editor
