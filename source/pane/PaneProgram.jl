@@ -555,9 +555,8 @@ function replace_referenced_value!(editor, reference::Reference, value)
 
     focused = _focused_tab(tree)
     shown = _shown_tabs(tree)
-    operation = _make_rooted_pane_operation(editor, route, tree,
-                                            ReplaceReferencedValueOperation(nothing, path, value),
-                                            "Replace " * _path_text(path))
+    operation = _make_deepest_pane_write(editor, reference, route, tree, path, value,
+                                         "Replace " * _path_text(path))
     operation === nothing && throw(ArgumentError("The window did not take the write."))
     _evaluate_pane_operation!(editor, operation)
     _restore_shown!(tree, shown)
@@ -571,6 +570,21 @@ replace_referenced_value!(editor, reference::Reference, value::ReferencedDocumen
     replace_referenced_value!(editor, reference, get_document(value))
 
 # The steps of `reference` after the route to its tree, as a path from the tree.
+# The write rooted at the deepest place the readers carry it from, so a history
+# inside a tab records an edit of the tab's content as it records an edit of the
+# person; at the tree, when no place below it takes the write, as for a write into
+# the layout, and for a root that has no readers.
+function _make_deepest_pane_write(editor, reference, route, tree, path, value, description)
+    if editor isa Editor && editor.iomap !== nothing
+        deep = find_rooted_operation(editor, reference,
+                                     relative -> ReplaceReferencedValueOperation(nothing, relative, value);
+                                     description)
+        deep === nothing || return deep
+    end
+    _make_rooted_pane_operation(editor, route, tree, ReplaceReferencedValueOperation(nothing, path, value),
+                                description)
+end
+
 function _get_path_in_tree(reference::Reference, route::Reference)
     steps = collect(get_reference_steps(strip_reference_types(reference)))
     skip = length(get_reference_steps(strip_reference_types(route)))

@@ -30,6 +30,7 @@ using ..FeedModule
 import ..FeedModule: drain_changes!
 
 export Editor, make_editor, run_editor!, read!, read_rooted_operation, evaluate!, print!, run_frame!,
+       find_rooted_operation, insert_elements!, delete_elements!,
        get_frame_clock_time,
        post_operation!, drain_operations!, is_editor_degraded,
        get_consecutive_fault_limit,
@@ -41,6 +42,7 @@ include("Editor.jl")
 include("Inbox.jl")
 include("Feeds.jl")
 include("ReadEvaluatePrint.jl")
+include("DocumentEdits.jl")
 include("SafeMode.jl")
 include("FaultBarriers.jl")
 include("EditorLoop.jl")

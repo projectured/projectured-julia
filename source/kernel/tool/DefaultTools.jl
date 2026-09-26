@@ -27,11 +27,19 @@ _make_editing_description(ways::AbstractString) =
     "handle it as an edit: Ctrl+Z can not undo it, and the editor does not check its " *
     "permissions or transform it, as it does for an operation.\n\n"
 
-const _REPLACE_VERB = "`replace_referenced_value!(editor, part, new_value)`"
+# The verbs that edit, as the description names them.
+const _EDITING_VERBS = (:replace_referenced_value! => "`replace_referenced_value!(editor, part, new_value)`",
+                        :insert_elements! => "`insert_elements!(editor, collection, index, values)`",
+                        :delete_elements! => "`delete_elements!(editor, collection, index)`")
+
+_join_verbs(texts) = length(texts) == 1 ? only(texts) :
+                     join(texts[1:(end - 1)], ", ") * " or " * texts[end]
 
 function _make_editing_description(set::ToolSet)
-    declared = any(entry -> :replace_referenced_value! in get_api_entry_names(entry), set.api)
-    _make_editing_description(declared ? "a verb, such as " * _REPLACE_VERB : "a verb that changes it")
+    declared = Set(name for entry in set.api for name in get_api_entry_names(entry))
+    texts = [text for (name, text) in _EDITING_VERBS if name in declared]
+    _make_editing_description(isempty(texts) ? "a verb that changes it" :
+                              "a verb, such as " * _join_verbs(texts))
 end
 
 # What the model is told about the code it may write. It follows the declaration,
@@ -46,7 +54,7 @@ const _WHOLE_SURFACE_DESCRIPTION =
     "it is already included automatically.\n\n" *
     _ANSWER_DESCRIPTION *
     _VARIABLES_DESCRIPTION *
-    _make_editing_description("a verb, such as " * _REPLACE_VERB *
+    _make_editing_description("a verb, such as " * _join_verbs([last(verb) for verb in _EDITING_VERBS]) *
                               ", or an operation that `evaluate_operation(editor, operation)` runs") *
     "MANDATORY — read these resources BEFORE writing any code:\n" *
     "1. resource://guides\n" *

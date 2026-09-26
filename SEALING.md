@@ -192,6 +192,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `editor/Inbox.jl`
   - ⬜ `editor/Feeds.jl`
   - ⬜ `editor/ReadEvaluatePrint.jl`
+  - ⬜ `editor/DocumentEdits.jl`
   - ⬜ `editor/SafeMode.jl`
   - ⬜ `editor/FaultBarriers.jl`
   - ⬜ `editor/EditorLoop.jl`

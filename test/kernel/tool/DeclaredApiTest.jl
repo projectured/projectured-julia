@@ -423,6 +423,7 @@ function test_declared_api()
         register_default_tools!(narrow)
         text = only([t for t in narrow.tools if t.name == "execute_julia_code"]).description
         @test !occursin("replace_referenced_value!", text)
+        @test !occursin("insert_elements!", text)
         @test !occursin("evaluate_operation", text)
     end
 

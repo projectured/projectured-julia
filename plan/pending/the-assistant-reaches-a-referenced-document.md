@@ -748,6 +748,29 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       tab, split, file-tab, gesture-log and application tests pass (1291);
       `test_split_pane_drag()` has 3 failures and 2 errors, the same on `main`
       (a893fc2a).
+      **Part 3 done (2026-09-26).** `source/kernel/editor/DocumentEdits.jl` (a
+      new fragment of `EditorModule`, listed in `SEALING.md`):
+      `find_rooted_operation(editor, reference, make_operation)` tries the places
+      on the reference from the deepest up and roots the operation at the first
+      one from which the readers carry it to the root, so it needs to know nothing
+      of undo; `insert_elements!(editor, collection, index, values)` and
+      `delete_elements!(editor, collection, index, count = 1)` make the range
+      replace that `insert_elements` and `delete_elements` make, with a 1-based
+      index, store the document of each value, and answer the collection after
+      the edit as a `ReferencedDocument`. `replace_referenced_value!` keeps its
+      checks and its answer in the pane package and roots its write the same way
+      (`_make_deepest_pane_write`), with the route to the tree for a root with no
+      readers, as the test stand-ins have. Decided in the work: the move of
+      `replace_referenced_value!` to the editor layer waits for the follow-up that
+      moves `get_referenced_value`; the routing it needs is done now. The
+      application declares `insert_elements!` and `delete_elements!`; the
+      editing sentence of the description names each declared one of the three;
+      the orientation guide shows the insert of Frank. Tests: each verb through a
+      referenced document puts one step in the file's history and one in the
+      window's, and an undo in the file's history takes it back; the description
+      names the verbs only when they are declared. 711 pass with the tool,
+      layering, naming, export, documentation, application, pane and file-tab
+      tests.
 - [ ] **Step 7: the landing,** when the owner says so.
 
 ### Follow-up, after this plan (D21)

@@ -139,6 +139,8 @@ function test_referenced_document_editor()
         register_default_tools!(set)
         description = only([t for t in set.tools if t.name == "execute_julia_code"]).description
         @test occursin("replace_referenced_value!(editor, part, new_value)", description)
+        @test occursin("insert_elements!(editor, collection, index, values)", description)
+        @test occursin("delete_elements!(editor, collection, index)", description)
         first_names(query; mode) = [m.captures[1] for m in eachmatch(r"^- `([^(`{]+)"m,
             string(search_api(set, query; mode = mode, detail = "names", limit = 3)))]
         @test first(first_names("edited document"; mode = "keywords")) == "get_edited_document"
@@ -245,6 +247,34 @@ function test_referenced_document_editor()
         evaluate_operation(editor, rooted)
         @test get_document(people)[2]["name"].value == "Adele"
         @test (length(history.undo_entries), length(file_history.undo_entries)) == steps .+ 1
+    end
+
+    @testset "the editing verbs record an edit in the history of the file, and an undo takes it back" begin
+        people_tab = find_pane(editor, "people.json")
+        people = get_edited_document(people_tab)
+        file_history = get_document(people_tab).content.content
+        count = length(get_document(people))
+        steps = (length(history.undo_entries), length(file_history.undo_entries))
+        frank = JsonObject("name" => JsonString("Frank"), "age" => JsonNumber(30))
+        answer = insert_elements!(editor, people, count + 1, [frank])
+        @test answer isa ReferencedDocument && get_document(answer) === get_document(people)
+        @test length(get_document(people)) == count + 1
+        @test get_document(people)[end]["name"].value == "Frank"
+        @test (length(history.undo_entries), length(file_history.undo_entries)) == steps .+ 1
+        evaluate_operation(editor, UndoOperation(file_history))
+        @test length(get_document(people)) == count
+
+        delete_elements!(editor, people, 1)
+        @test length(get_document(people)) == count - 1
+        evaluate_operation(editor, UndoOperation(file_history))
+        @test length(get_document(people)) == count
+
+        steps = length(file_history.undo_entries)
+        replace_referenced_value!(editor, people[1]["name"], JsonString("Cleopatra"))
+        @test get_document(people)[1]["name"].value == "Cleopatra"
+        @test length(file_history.undo_entries) == steps + 1
+        evaluate_operation(editor, UndoOperation(file_history))
+        @test get_document(people)[1]["name"].value == "Cleo"
     end
 
     @testset "a text file answers the document of its text" begin

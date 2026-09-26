@@ -49,7 +49,8 @@ browsing tools below. Do not guess names — search for them.
 - **Resolve** — `evaluate_reference(editor.document, path)` → the node at a path.
 - **Intent** — build an `Operation`, then `evaluate_operation(editor, op)`
   (e.g. `ReplaceSelectionOperation(path)` to select), or call a verb that makes
-  one, such as `replace_referenced_value!`. This is how to change the document;
+  one, such as `replace_referenced_value!`, `insert_elements!` or
+  `delete_elements!`. This is how to change the document;
   operations carry their own target, so they work through any
   `ScreenDocument`/`WindowDocument` wrapping. A direct write to a document, such as
   `part.value = new_value`, works, but the editor does not handle it as an edit:
@@ -93,7 +94,17 @@ replace_referenced_value!(editor, people_1[2]["city"], JsonString("Paris"))
 ```
 
 and not `people_1[2]["city"].value = "Paris"`, which changes the document outside
-the editor's handling of an edit.
+the editor's handling of an edit. To add a record, or to remove one, use
+`insert_elements!` and `delete_elements!`, which take the collection and a
+1-based index:
+
+```julia
+frank_1 = JsonObject("name" => JsonString("Frank"), "age" => JsonNumber(30), "city" => JsonString("Paris"))
+insert_elements!(editor, people_1, length(people_1) + 1, [frank_1])
+```
+
+Each of the three records the edit in the history of the file, so Ctrl+Z in the
+tab of the file takes it back.
 
 `open_pane!` puts the new tab where the focus is. To put it before a tab, or at
 the end of a group, give that tab or group as `target`. To put it in a new pane
