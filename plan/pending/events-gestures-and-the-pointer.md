@@ -4,7 +4,7 @@
 > document over several sessions. It records the concepts, what is wrong today,
 > the owner's decisions and the questions that are still open. The steps of the
 > refactor come after the open questions have answers. The owner's model of
-> three tracking projections (D8 to D30) came on the same day, after the first
+> three tracking projections (D8 to D33) came on the same day, after the first
 > round of decisions.
 
 The facts of the code are in the study
@@ -140,6 +140,33 @@ All of them are from 2026-09-26.
   no hover: the drag gets the moves, and the drag hover takes the place of the
   hover. The order from the outside in is: gesture, drag, target, screen.
 - **D30.** Each tracking projection has a package of its own.
+- **D31.** The gesture type and the names, as Claude suggested them for Q1:
+  - `abstract type Gesture end`, beside `Event` and not under it. A place that
+    takes both takes `Union{Event,Gesture}`; there is no common root type.
+  - `DeviceEvent` goes away.
+  - The gesture types stay in the event layer of the kernel.
+  - A gesture has the name form of an event, `<Source><Action>`, and the naming
+    rules say so. The new gestures: `MouseHover`, `MouseDwell`, `DragStart`,
+    `DragMove`, `DragHover`, `DragEnd`. `MouseEnter`, `MouseLeave` and
+    `KeyChord` stay, and `MousePress` becomes `MouseClick`.
+  - The timer: `SetTimerOperation`, and the event `TimerExpire`.
+  - The projections `GestureTrackingProjection`,
+    `MouseTargetTrackingProjection` and `DragTrackingProjection`, with the
+    wrapper documents `GestureTrackingState`, `MouseTargetTrackingState` and
+    `DragTrackingState`, in the packages `ProjecturedGestureTracking`,
+    `ProjecturedMouseTargetTracking` and `ProjecturedDragTracking`.
+- **D32.** The utility function of D15 lives in the screen package, next to
+  `make_window_scene_projection`. The screen package depends on the three
+  tracking packages, and they do not depend on it.
+- **D33.** Keyboard navigation between parts is a projection step of its own,
+  outside the hover tracker. Its purpose, in the owner's words: "to be able to
+  reach any user interface component which can interact using the keyboard in a
+  meaningful way". It does three things:
+  - Tab and Shift+Tab move to the next and the previous such part, and start
+    over at each end;
+  - cursor keys, probably with modifiers, move in the plane to the part that is
+    next in that direction, found with the mapping of references;
+  - it works with any document that accepts it, not only with widgets.
 
 ## 3. What is wrong today
 
@@ -360,8 +387,8 @@ The direction that follows from the decisions so far:
    the five probes (D7).
 8. The dwell moves from the tooltip package into a tracking projection (D4, D17).
    A tooltip is then one meaning of a dwell, which the target gives.
-9. The Tab wrap-around leaves the hover tracker (D2). Its new place is a question
-   of the focus traversal, not of this design.
+9. The Tab wrap-around leaves the hover tracker (D2) for the navigation step of
+   D33, which reaches every part that takes the keyboard, in any document.
 10. A utility function composes the tracking projections (D15), and the rules and
     documents change (D16).
 11. Each tracking projection gets a package of its own (D30). The packages that
@@ -377,37 +404,34 @@ The direction that follows from the decisions so far:
 
 ## 5. Open questions
 
-- **Q1. The gesture type and the names.** Claude's suggestion:
-  - `abstract type Gesture end`, beside `Event` and not under it. About 15 places
-    bind a value to `Event` and must take a gesture too: the pattern language,
-    `WindowInput`, the getters of the time and the modifiers, and the gesture
-    log. They take `Union{Event,Gesture}`. No third, common root type.
-  - Remove `DeviceEvent`: after D3 every event is a device event, and only one
-    docstring names the type.
-  - The gesture types stay in the event layer of the kernel, because readers in
-    about 20 packages match them. Only the recognition leaves the kernel (D8).
-  - A gesture has the name form of an event, `<Source><Action>`, and the type
-    tree tells the two apart. One line in the naming rules says so. New
-    gestures: `MouseHover`, `MouseDwell`, `DragStart`, `DragMove`, `DragHover`,
-    `DragEnd`. `MouseEnter`, `MouseLeave` and `KeyChord` stay. The timer:
-    `SetTimerOperation`, and the event `TimerExpire`. The projections:
-    `GestureTrackingProjection`, `MouseTargetTrackingProjection` and
-    `DragTrackingProjection`, with the wrapper documents `GestureTrackingState`,
-    `MouseTargetTrackingState` and `DragTrackingState`. The packages (D30):
-    `ProjecturedGestureTracking`, `ProjecturedMouseTargetTracking` and
-    `ProjecturedDragTracking`, in `source/gesturetracking/`,
-    `source/mousetargettracking/` and `source/dragtracking/`.
-  - As a separate choice: rename `MousePress` to `MouseClick`. D18 keeps
-    `KeyPress` as an event, so today "Press" names an event for a key and a
-    gesture for the mouse.
-- **Q12. Where the composition utility lives (D15).** It needs all three
-  tracking packages. Claude recommends the screen package, next to
-  `make_window_scene_projection` (`WindowScene.jl:76`), because the default
-  composition wraps the screen (D27). The three packages then do not depend on
-  the screen package, and it depends on them.
+- **Q13. The keyboard navigation of D33.** The facts of today:
+  - The package `ProjecturedFocus` holds the open trait `is_focusable_document`,
+    to which a domain adds a method; the widgets mark each enabled interactive
+    leaf (`WidgetDocument.jl:2795`). It also holds the walks
+    `get_first_focusable_path` and `get_last_focusable_path`, which name no
+    widget type.
+  - The widget and layout containers move Tab inside themselves
+    (`WidgetToGraphics.jl:1225`, `LayoutToGraphics.jl:207`), and only the start
+    over at the ends is in the hover tracker.
+  - `SelectionWalkingProjection` of the same package is a precedent for the
+    step: a transparent wrapper that answers the Alt + arrow keys that nothing
+    inside answered, with a walk over the structure of any document.
+
+  The questions, for the design of the step:
+  - Does the step do the whole walk of Tab, so the code of Tab in the
+    containers goes away? Claude recommends yes, so one place does it for every
+    document.
+  - Which keys move in the plane? Alt + arrow already walks the structure.
+  - A part that uses a key itself (Tab in a text, arrows in a list) answers it
+    first, and the step gets only what nothing answered. Which key always
+    leaves such a part?
+  - Is `is_focusable_document` the test of "can interact using the keyboard in
+    a meaningful way"? Is a JSON editor one stop, or is each of its elements?
+  - The move in the plane needs the drawn box of each stop: the forward mapping
+    of a reference to the output. Claude did not check yet how far it reaches.
 
 Answered and moved to §2: Q2 (D23), Q3 (D24), Q4 (D25), Q5 (D20), Q6 (D26), Q7
-and Q8 (D27), Q9 (D28), Q10 (D29), Q11 (D30).
+and Q8 (D27), Q9 (D28), Q10 (D29), Q11 (D30), Q1 (D31), Q12 (D32).
 
 ## 6. Next steps
 
@@ -417,8 +441,12 @@ and Q8 (D27), Q9 (D28), Q10 (D29), Q11 (D30).
 3. Then write the steps of the refactor in this document, each with its test.
 
 The refactor changes sealed files. The owner allows the unsealing of the two
-files of `gesture/` (D8). The removal of `SyntheticEvent` also changes
-`event/EventInterface.jl`, `event/MouseEvent.jl` and `event/KeyboardEvent.jl`,
-which are sealed; each needs the owner's word before a change
-([SEALING.md](../../SEALING.md)). The rule `PAR-NO-NEW-SYNTHETIC-EVENT` changes
-too (D16).
+files of `gesture/` (D8). These sealed files of `event/` change too, and each
+needs the owner's word before a change ([SEALING.md](../../SEALING.md)):
+- `EventInterface.jl`: `SyntheticEvent` and `DeviceEvent` go, `Gesture` comes;
+- `MouseEvent.jl` and `KeyboardEvent.jl`: the supertypes of the gestures, and
+  `MouseClick`;
+- `EventPattern.jl`: a pattern takes a gesture, and `MouseClickPattern`;
+- `EventDefaults.jl` and `WindowInput.jl`: they take `Union{Event,Gesture}`.
+
+The rule `PAR-NO-NEW-SYNTHETIC-EVENT` changes too (D16).
