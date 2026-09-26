@@ -548,7 +548,7 @@ it holds the example.
       `test_inspector_disclosure`, `test_playback_mode` and `test_legacy_page`
       fail in the same way;
     - inet-julia: the three changed files parse.
-- [ ] 2. **The timer and the display event (D22, D24, D42).** The event
+- [x] 2. **The timer and the display event (D22, D24, D42, D43, D45).** The event
   `TimerExpire` and `SetTimerOperation`. The editor holds the deadlines,
   `compute_wait_timeout` counts them, and the loop reads a `TimerExpire` at each
   deadline. After a frame that changed what the display shows, the loop reads the
@@ -577,7 +577,32 @@ it holds the example.
     shell and answers nothing (`test_shell` 231 pass). `test_kernel` 2435 pass,
     with the same 3 failures and 3 errors as `main`; `test_undo` 111 pass.
 
-  **The display event** follows D45 (Q16).
+  **The display event is done** too, after D45 (Q16):
+  - `DisplayUpdate(time)` is an event in its own fragment,
+    `event/DisplayEvent.jl`. The contract of `write_to_devices` says that a
+    backend which shows windows reports each frame that differs from the one
+    before as `WindowInput(window_id, DisplayUpdate)`, and does not block its
+    wait while one waits.
+  - The SDL backend runs the dirty walk in both modes; a full frame still
+    repaints the whole window, because the full mode must not depend on the walk
+    to draw right. `_render_window!` answers whether the frame changed, and
+    `write_to_devices` queues one update for each window.
+  - `FrameStatisticsFeed` flushes each document at most once per
+    `flush_interval`; `ReflectionFeed` syncs at most once per `interval`
+    (0.25 s), unless a chevron asks, and asks for a frame at the end of an
+    interval in which it skipped a sync. Both take a clock `now` for tests.
+  - Rebased onto `main` `7b667d83`, where the partial render branch landed; the
+    walk helper answers its region of rectangles.
+  - Tests, each compared with `main`: `test_kernel` +28, `test_substrate` +9
+    (the reflection feed), `test_shell` +2 (a timer and a display update pass the
+    window scene with no answer), the frame statistics feed +7, `test_sdl` 773
+    pass (+17: a changed frame gives one update in both modes, a frame with no
+    change gives none, and a waiting update ends a wait); the export collisions
+    pass; the failing tests are the same as on `main`.
+  - A count to know: the pass count of the substrate examples moves with what
+    else the process holds (the printer walk follows weak links out of the
+    document), so a new kernel test before it moves it; alone, the branch
+    and `main` give the same count.
 - [ ] 3. **A gesture follows a route (D12, D28).** An intent with a route can
   carry a gesture. The last reader on the route reads the gesture, with the rest
   of the route as the part. Every widget container and every layout follows a
