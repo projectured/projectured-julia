@@ -73,7 +73,7 @@ end
     # A dropdown is offered the exact size of its window. It offers its items no
     # height, and each item the width that the widest item needs, so a highlight
     # spans the row and the menu is as large as its items, not as the window.
-    det = (t, f) -> (length(t) * 8, 16)
+    det = FixedMeasure(8, 12, 4, 0)
     rec = RecursiveProjection(TypeDispatchingProjection(
         WidgetToGraphics(font_ubuntu_regular_20; measure = det).dispatch))
     menu = WidgetMenu(Any[WidgetMenuItem("Documents"), WidgetMenuItem("About")])
