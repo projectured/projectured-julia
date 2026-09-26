@@ -3,7 +3,9 @@
 > **Status (2026-09-26): design, no code.** The owner and Claude write this
 > document over several sessions. It records the concepts, what is wrong today,
 > the owner's decisions and the questions that are still open. The steps of the
-> refactor come after the open questions have answers.
+> refactor come after the open questions have answers. The owner's model of
+> three tracking projections (D8 to D19) came on the same day, after the first
+> round of decisions.
 
 The facts of the code are in the study
 [pointer-hover-and-windows-today.md](pointer-hover-and-windows-today.md). This
@@ -17,26 +19,38 @@ The owner's definitions, from the conversation of 2026-09-26:
 
 - **Event.** A data structure that describes something that the hardware
   generated, as the platform reports it: a key goes down, a button goes up, the
-  pointer moves, the pointer leaves a window. An event has no meaning of its own.
+  pointer moves, the pointer leaves a window, a character is typed (`KeyPress`,
+  D18). An event has no meaning of its own.
 - **Gesture.** A pattern that matches a sequence of events. The pattern can leave
   out events. A click is a down and an up of one button, near in place and in
-  time. A chord is a sequence of keys. A rest is no motion of the mouse for a
-  short time. The gesture recognizer can hold any number of these patterns.
-- **Rest.** A gesture: no motion of the mouse for a short time. It does not
-  depend on the view under the pointer, so a rest alone is not a hover over a
-  particular thing. The thing at the position of the rest gives it a meaning, as
-  for a click.
-- **The thing under the pointer.** It follows from two inputs: the position of
-  the pointer, and the view (what is drawn where). It is neither an event nor a
-  gesture. It changes when either input changes. `MouseEnter` and `MouseLeave`
-  are changes of this fact, so they are neither events nor gestures.
+  time. A chord is a sequence of keys. A dwell is no motion of the mouse for a
+  short time. A projection recognizes gestures (D8), and it can hold any number
+  of patterns. A tracking projection can also match a pattern over the events
+  and its own state: the target tracker makes an enter from a motion and the
+  target that the motion reaches.
+- **Tracking projection.** A projection that recognizes gestures and keeps the
+  state that the recognition needs, in a document (D10). There are three (D9):
+  - the **gesture tracking projection**: the click and the key chord;
+  - the **mouse target tracking projection**: its state is the most specific
+    document part that the mouse points at; its gestures are the enter, the
+    leave and the hover;
+  - the **drag tracking projection**: its state is the dragged part; its gestures
+    are the drag start, the drag end, the drag hover and the drag move.
+- **Dwell and hover.** Two different gestures (D17). The mouse dwell: the mouse
+  does not move for a short time. It does not depend on the view under the
+  pointer, so a dwell alone is not a hover over a particular thing (D4). The
+  mouse hover: the mouse moves over the same target.
+- **The target.** The most specific document part under the pointer. It follows
+  from two inputs: the position of the pointer, and the view (what is drawn
+  where). `map_reference_backward` from the point finds it (D11). It changes when
+  either input changes.
 - **Meaning.** A reader takes a gesture and answers the edit that the gesture
   means. The meaning belongs to the thing that the gesture lands on.
 
 The owner's first principle of hover was: "a pointer that rests on the same
-thing for a while is a gesture". Decision D4 makes it exact: the gesture is the
-rest, and the thing is not a part of the gesture. The reader finds the thing at
-the position of the rest.
+thing for a while is a gesture". D4 and D17 make it exact: the gesture is the
+dwell, and the thing is not a part of the gesture. The reader finds the thing at
+the position of the dwell.
 
 The naming rules already name this ladder: "Event → Gesture → Intent →
 Operation → Document" ([naming-rules.md:192-200](../../documentation/rule/naming-rules.md)).
@@ -44,22 +58,55 @@ The code does not follow it (§3).
 
 ## 2. The owner's decisions
 
-| # | Decision |
-| --- | --- |
-| D1 | The pointer that leaves a window is an event, `WindowLeave`. Done on the branch `window-leave`. |
-| D2 | The Tab wrap-around is unrelated to hover. |
-| D3 | `SyntheticEvent` must not exist. A gesture is a gesture, with a type of its own, so that gestures and events do not mix. |
-| D4 | A rest (a "pointer rest", or a "mouse rest") is a gesture: the event pattern of no mouse motion for a short time. It is independent of the view under it, so in itself it is not a hover over a particular thing. |
-| D5 | The gesture recognizer can hold any number of event patterns (gestures). |
-| D6 | `MouseEnter` and `MouseLeave` are neither events nor gestures. |
-| D7 | A reader must not answer a question that is not a gesture. In the owner's words: "how should a projection reader know what is the total set of possible questions?" |
-
 All of them are from 2026-09-26.
 
-The owner also gave a direction for the question "what is at this point":
-`map_reference_backward` of the projection, at the position of the pointer,
-gives what a gesture there acts on, "so you would not even need to track it".
-This is a direction, not yet a decision.
+- **D1.** The pointer that leaves a window is an event, `WindowLeave`. Done on the
+  branch `window-leave`.
+- **D2.** The Tab wrap-around is unrelated to hover.
+- **D3.** `SyntheticEvent` must not exist. A gesture is a gesture, with a type of
+  its own, so that gestures and events do not mix.
+- **D4.** A rest is a gesture: the event pattern of no mouse motion for a short
+  time. It is independent of the view under it, so in itself it is not a hover
+  over a particular thing. D17 names it the mouse dwell.
+- **D5.** The recognition can hold any number of event patterns (gestures).
+- **D6.** `MouseEnter` and `MouseLeave` are gestures, made by the mouse target
+  tracking projection. The first decision of the day said "neither events nor
+  gestures"; the owner changed it when the model of D9 came.
+- **D7.** A reader must not answer a question that is not a gesture. In the
+  owner's words: "how should a projection reader know what is the total set of
+  possible questions?"
+- **D8.** Gesture recognition leaves the kernel, and projections do it. The owner
+  allows the unsealing of `gesture/GestureRecognizerModule.jl` and
+  `gesture/GestureRecognizer.jl`.
+- **D9.** Three tracking projections, as §1 lists them. The gesture tracking
+  projection is the one that most hosts use, but a host does not have to.
+- **D10.** The state of a tracking projection is a document, written by an
+  operation. No state is on the projection itself.
+- **D11.** The part at a point is found by `map_reference_backward` from a
+  `PointReferenceStep`, and every projection supports it. In a domain projection
+  this is usually trivial.
+- **D12.** A gesture for a part reaches its reader by the reference of the part,
+  never by a position. One generic mechanism reaches any reader of the composite
+  projection by reference. It is the mechanism with which an AI agent imitates a
+  person: an intent with no gesture, with a prepared operation, along the
+  reference of the target. §3.10 shows what of it exists.
+- **D13.** An enter and a leave go to every part on the path that changes: a
+  leave to each part of the old path that is not on the new path, and an enter
+  to each part of the new path that is not on the old path. So a button lights
+  when the pointer is on its label, and a `JsonArray` can light when the pointer
+  is on one of its elements.
+- **D14.** While a drag is on, the drag tracking projection swallows the click
+  gestures.
+- **D15.** A utility function composes any combination of the tracking
+  projections, so a host reuses a combination with one call.
+- **D16.** The rules and the documents change with the design, for example
+  `PAR-NO-NEW-SYNTHETIC-EVENT`.
+- **D17.** The mouse hover (the mouse moves) and the mouse dwell (the mouse does
+  not move) are two different gestures.
+- **D18.** `KeyPress` stays what it is today: an event, the typed character. This
+  avoids complications of decoding.
+- **D19.** The dragged part is what the reader answers for the start of the drag,
+  for example the target of a drag start operation.
 
 ## 3. What is wrong today
 
@@ -93,6 +140,17 @@ This is a direction, not yet a decision.
   events and gestures.
 - It acts only when an event arrives, so it can not find a pattern of "no event
   for a time". For this reason the rest is outside it (§3.3).
+- Only the editor uses it: every `Editor` makes one (`Editor.jl:89`), and `read!`
+  sends every event through it before `read_intent` (`ReadEvaluatePrint.jl:28`).
+  Two tests use it too. No layer below it and nothing in omnet-julia uses it.
+- The chord table is empty in every running editor. Only the recognizer test
+  fills it, and [key-chords-from-bindings.md](key-chords-from-bindings.md) is
+  deferred (2026-09-25). So the chord exists only in tests.
+- `KeyPress` comes from the input method of the platform (`SDL_TEXTINPUT` in
+  SDL). Readers act on `KeyDown`, which holds the flag of the auto-repeat. No
+  reader reads `KeyUp`.
+- Readers in about 20 packages match `MousePress`, so the gesture types must stay
+  low in the stack.
 
 ### 3.3 The rest lives in the tooltip package
 
@@ -101,6 +159,12 @@ This is a direction, not yet a decision.
   has a feed by default, and each host wires it by hand.
 - The tooltip probe keeps the time of the last move itself. So the recognizer,
   the feed and the probe each keep a part of the state of the pointer.
+- The kernel has the feed interface: `compute_wake_deadline(feed, editor)` names
+  the time when the loop must wake (`FeedInterface.jl:38`), and the loop sleeps
+  until the earliest deadline of all feeds.
+- The editor has a clock (`Editor.jl:61`). The loop writes it once in each frame,
+  and a printer reads it through the printer context to animate. A reader does
+  not get it.
 
 ### 3.4 A widget projection makes the crossings
 
@@ -143,18 +207,20 @@ This is a direction, not yet a decision.
 
 ### 3.5 Readers answer questions
 
-- Four probes ask "what is under the pointer" through `read_intent` (study §8).
-  Each probe puts the question in the form of a fake gesture. Each reads the
-  answer from the inner shape of an operation: `_target_of` takes the root of a
-  hover write (`WidgetHoverTracking.jl:146`), and the three others take the path
-  of a `ReplaceSelectionOperation`. No reader promises these shapes.
+- Five probes ask "what is under the pointer" through `read_intent`: the four of
+  study §8, and the reorder drag, which finds its drop target with a fake
+  `MousePress` (`Dragging.jl:222`). Each probe puts the question in the form of a
+  fake gesture. Each reads the answer from the inner shape of an operation:
+  `_target_of` takes the root of a hover write (`WidgetHoverTracking.jl:146`),
+  and the four others take the path of a `ReplaceSelectionOperation`. No reader
+  promises these shapes.
 - A reader changes its answer for the sake of a probe: the table writes on every
   enter only so that the tracker finds it (`WidgetToGraphics.jl:8317`).
 - The rule `PAR-NO-NEW-SYNTHETIC-EVENT` already forbids this use: "The reader
   chain reads what a person does. It is not a channel to carry an operation, a
   request or a question through the projection hierarchy"
   ([architecture-invariants.md:503-514](../../documentation/rule/architecture-invariants.md)).
-  The four probes break it. The rule also says that a synthetic event that
+  The five probes break it. The rule also says that a synthetic event that
   exists now is not a precedent for a new one.
 
 ### 3.6 The pointer position has no home
@@ -165,58 +231,137 @@ This is a direction, not yet a decision.
 - The web client sends no motion while no button is held, so the browser has no
   crossing and no rest (study §4).
 
+### 3.7 Each drag works alone
+
+| Drag | Where the state is | When the drag starts | The pointer leaves the window | Feedback over a target |
+| --- | --- | --- | --- | --- |
+| reorder (`ProjecturedDragging`) | on the projection instance (`Dragging.jl:37-44`) | after 5 px | not handled; the drag can stay on forever | none |
+| splitter of `WidgetSplitPane` | document fields `active_splitter`, `drag_anchor` | at once, on `MouseDown` | not handled | none |
+| tab of a pane | `PaneTree.drag`, view state | at once, on `MouseDown` | not handled | a drop indicator |
+| slider | the field `dragging` | at once, on `MouseDown` | not handled | none |
+| chart pan and zoom | document fields, view state | at once, on `MouseDown` | `MouseLeave` cancels it | a rubber band |
+
+- Nothing prevents a click after a drag: any press and release within 5 px and
+  0.3 s is a click. The tab strip and the slider read both `MouseDown` and
+  `MousePress`.
+- For the splitter and the chart pan, the dragged thing is not a part of the
+  document: it is a divider, or the visible range of the data. D19 covers this:
+  the dragged thing is what the reader answers for the start.
+- The design of the drag package keeps the state on the projection because "no
+  phase of a drag must survive a new print" (`dragging.md:21`). D10 changes this.
+
+### 3.8 No projection that ends in graphics maps a point backward, except one
+
+- `PointReferenceStep(x, y)` names a pixel (`PointReferenceStep.jl:4`, in the
+  graphics package). The screen uses it for screen pixels
+  (`ScreenToScreen.jl:113-147`).
+- Only the math projection maps a point backward (`MathToGraphics.jl:1752`), and
+  its click reader uses that mapping.
+- These answer `nothing` for every reference: the graphics leaf
+  (`GraphicsCaching.jl:43`), text to graphics (`TextToGraphics.jl:80`), the
+  widgets (for example the button, `WidgetToGraphics.jl:1887`), both charts
+  (`ChartPlotToGraphics.jl:1295`, `SequenceChartPlotToGraphics.jl:948`), and the
+  anchored layout.
+- These map a structural path backward, but not a point: the other layouts (a
+  path into the drawn canvas becomes a path into `children`,
+  `LayoutToGraphics.jl:600-635`), the syntax chain (text spans), and the screen
+  (`ScreenToScreen.jl:116-159`).
+- Every projection does its hit test by hand inside `read_intent`:
+  `hit_element_at`, `_route_to_children`, `_wtl_row_at`, `_hit_segment` and
+  others. No function answers "what is here" outside `read_intent`. The graphics
+  leaf already turns a point into the path of a drawn element
+  (`GraphicsCaching.jl:119-155`).
+- About 90 projection types end in graphics in projectured-julia, 42 of them
+  widgets, and about 17 in omnet-julia (counted by name).
+
+### 3.9 The state of the trackers is on the projections
+
+The hover tracker, the drag package and the tooltip probe keep their state on the
+projection instance, and change it inside `read_intent`. The kernel already has
+the operation for such state, `ReplaceViewStateOperation`: "what the pointer is
+over, what it holds down, what a drag carries" (`Operations.jl:207-218`).
+
+### 3.10 An intent can already follow a route to a place
+
+- `Intent` has the field `route`: for an operation that code made, the path from
+  the input of the reader to the place of the operation. The gesture is then
+  `nothing` (`Intent.jl:24-31`).
+- `read_rooted_operation(editor, place, operation)` starts such an intent at the
+  root (`ReadEvaluatePrint.jl:73-99`). The plan
+  [an-operation-enters-at-any-reference.md](../done/an-operation-enters-at-any-reference.md)
+  (done 2026-09-23) made it for this goal: "a verb, the assistant, an MCP tool, a
+  test, a replay … can do anything a person can do".
+- Few readers follow a route: the chain (`Chaining.jl:137`), `ScreenToScreen`,
+  the widget shell (`WidgetToGraphics.jl:2996`), the undo buffer, two clipboard
+  projections and the file format projection. The default reader ignores the
+  route. No other widget container and no domain projection follows it.
+- At the place, the reader is not read: the prepared operation stands as its
+  answer (`read_routed_intent`, `ProjectionDefaults.jl:226`). A gesture that goes
+  to a target by reference (D12) needs the reader at the place to read the
+  gesture.
+
 ## 4. What we want to change
 
 The direction that follows from the decisions so far:
 
 1. Remove `SyntheticEvent` (D3). The events stay under `Event`, and the gestures
    get a type tree of their own.
-2. The recognizer holds an open set of gesture patterns (D5): the click with its
-   count, the chord, the rest, and the gestures that come later.
-3. The rest moves from the tooltip package into the recognizer, as the pattern
-   of no mouse motion for a short time (D4). A tooltip is then one meaning of a
-   rest, which the thing at the position gives.
-4. `MouseEnter` and `MouseLeave` go away (D6). The light of the thing under the
-   pointer follows from the position and the view. How it follows is open (Q4).
-5. No reader answers a question (D7). The four probes go away. The question
-   "what is at this point" goes to reference mapping, with
-   `map_reference_backward` at the position as the direction.
-6. The Tab wrap-around leaves the hover tracker (D2). Its new place is a question
+2. Remove the gesture layer from the kernel (D8). The editor gives events to the
+   projection; the tracking projections make the gestures (D9).
+3. Keep the state of each tracking projection in a document, written by view
+   state operations (D10).
+4. Make every projection that ends in graphics map a `PointReferenceStep`
+   backward (D11). The hit tests move out of `read_intent`, and a click reader
+   can use the same mapping, as the math projection does.
+5. Extend the route of an intent so that a gesture can go to a reference, and
+   make every composite projection follow a route (D12). Keys, crossings, a
+   dwell on the target and an operation of an AI agent then take one path.
+6. Send an enter and a leave to each part on the changed path (D13). The target
+   tracker holds one target for the whole screen, so every window has hover
+   (fault H1), and `WindowLeave` clears it.
+7. Join the five drags in the drag tracking projection (D14, D19), and remove
+   the five probes (D7).
+8. The dwell moves from the tooltip package into a tracking projection (D4, D17).
+   A tooltip is then one meaning of a dwell, which the target gives.
+9. The Tab wrap-around leaves the hover tracker (D2). Its new place is a question
    of the focus traversal, not of this design.
+10. A utility function composes the tracking projections (D15), and the rules and
+    documents change (D16).
 
 ## 5. Open questions
 
-- **Q1. The names.** The root type of a gesture, and the name of the rest
-  (`PointerRest` or `MouseRest`). The naming law has a form for an event and none
-  for a gesture. Does it need one?
-- **Q2. What a reader receives.** Only gestures, or gestures and events? A
-  splitter, a tab of a pane, the pan of a chart, a slider and a reorder drag read
-  `MouseDown`, `MouseMove` and `MouseUp` today (study §9). Is each of these
-  events also a gesture of one event, or is a drag a gesture of its own?
-- **Q3. Time with no input.** A rest ends when no event arrives, so the
-  recognizer needs a deadline that the loop sleeps until, as the tooltip feed
-  does today. Who keeps that deadline?
-- **Q4. The thing under the pointer.** Where it is found, where it is kept, and
-  how a thing shows that it is under the pointer. What does the word "hover"
-  name in the new model?
-- **Q5. The pointer position.** One for each editor or one for each window, in
-  which coordinates, and what `WindowLeave` sets it to.
-- **Q6. The answer of `map_reference_backward`.** Can it answer "what is at this
-  point" for every projection today? The facts to collect: which projections map
-  a position of the graphics backward, and what the inspector, the context menu
-  and the tooltip need from the answer.
-- **Q7. A gesture across windows.** A drag can start in one window and end in
+- **Q1. The names.** The root type of a gesture; the names of the three tracking
+  projections and of their gestures. The naming law has a form for an event and
+  none for a gesture. Does it need one?
+- **Q2. What a reader receives.** Only gestures, or gestures and the events that
+  no tracking projection takes? A drag reads `MouseDown`, `MouseMove` and
+  `MouseUp` today; with D9 it reads the drag gestures. What about the other
+  events?
+- **Q3. Time with no input.** The owner asked (2026-09-26): the editor has a clock
+  in the printer context; is that enough, or must the intent carry it? Claude's
+  answer is in the conversation of that day; the choice is open.
+- **Q4. Where the dwell is made.** D4 says that the dwell does not depend on the
+  view, so Claude reads it as a gesture of the gesture tracking projection.
+- **Q5. When a drag starts.** On the down, or after the pointer moves past a
+  threshold? D14 swallows the click while a drag is on. If a drag starts on the
+  down, a click on a tab or on a slider is swallowed.
+- **Q6. The order of the tracking projections.** The drag hover needs the target;
+  the drag swallows the click. Which projection is inside which?
+- **Q7. Where the state documents sit.** One target for the screen, or one for
+  each window; the pointer position, in which coordinates.
+- **Q8. A gesture across windows.** A drag can start in one window and end in
   another. Which window owns the gesture?
 
 ## 6. Next steps
 
 1. Answer the open questions with the owner, one at a time, and record each
    answer in §2.
-2. Collect the facts that an answer needs at the time it needs them (Q2, Q6).
+2. Collect the facts that an answer needs at the time it needs them.
 3. Then write the steps of the refactor in this document, each with its test.
 
-The refactor changes sealed files: every file of `event/` except `EventModule.jl`
-and `WindowEvent.jl`, and both files of `gesture/`. Each file needs the owner's
-word before a change ([SEALING.md](../../SEALING.md)). The rule
-`PAR-NO-NEW-SYNTHETIC-EVENT` names `SyntheticEvent`, so its text changes too, and
-a change of a rule is the owner's decision.
+The refactor changes sealed files. The owner allows the unsealing of the two
+files of `gesture/` (D8). The removal of `SyntheticEvent` also changes
+`event/EventInterface.jl`, `event/MouseEvent.jl` and `event/KeyboardEvent.jl`,
+which are sealed; each needs the owner's word before a change
+([SEALING.md](../../SEALING.md)). The rule `PAR-NO-NEW-SYNTHETIC-EVENT` changes
+too (D16).
