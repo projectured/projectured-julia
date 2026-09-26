@@ -159,14 +159,8 @@ All of them are from 2026-09-26.
   `make_window_scene_projection`. The screen package depends on the three
   tracking packages, and they do not depend on it.
 - **D33.** Keyboard navigation between parts is a projection step of its own,
-  outside the hover tracker. Its purpose, in the owner's words: "to be able to
-  reach any user interface component which can interact using the keyboard in a
-  meaningful way". It does three things:
-  - Tab and Shift+Tab move to the next and the previous such part, and start
-    over at each end;
-  - cursor keys, probably with modifiers, move in the plane to the part that is
-    next in that direction, found with the mapping of references;
-  - it works with any document that accepts it, not only with widgets.
+  outside the hover tracker. Its design is the plan
+  [tab-and-the-arrows-reach-every-part-that-takes-the-keyboard.md](tab-and-the-arrows-reach-every-part-that-takes-the-keyboard.md), split from this plan on 2026-09-26 with the decisions D35 to D39.
 - **D34.** The owner allows the unsealing of every kernel file that the design
   needs, and the files stay unsealed after the work. Unsealed in `SEALING.md` on
   2026-09-26: `event/EventInterface.jl`, `event/KeyboardEvent.jl`,
@@ -175,17 +169,7 @@ All of them are from 2026-09-26.
   `gesture/GestureRecognizer.jl` and `backend/BackendInterface.jl` (its docstring
   names `DeviceEvent`). `event/WindowEvent.jl` and `event/EventModule.jl` were
   unsealed before, for `WindowLeave`, and stay unsealed too.
-- **D35.** One Tab walker does the whole walk of Tab, if it can; the owner is not
-  sure that it can (Q13).
-- **D36.** Shift + Alt + arrow moves in the plane. No code uses this key yet.
-- **D37.** A part that uses a key answers it first; the navigation step gets only
-  what no part answered. So no key always leaves a part: a part that takes Tab
-  keeps Tab.
-- **D38.** A JSON document is one stop. Inside it, its own cursor keys move.
-- **D39.** A move in the plane maps the current stop forward to its drawn
-  element. Then a search looks around it, in the direction of the key, for the
-  closest graphical element that maps back (D11) to a document that takes the
-  keyboard.
+- **D35 to D39** moved to the plan of D33, as N2 to N6.
 
 ## 3. What is wrong today
 
@@ -407,7 +391,8 @@ The direction that follows from the decisions so far:
 8. The dwell moves from the tooltip package into a tracking projection (D4, D17).
    A tooltip is then one meaning of a dwell, which the target gives.
 9. The Tab wrap-around leaves the hover tracker (D2) for the navigation step of
-   D33, which reaches every part that takes the keyboard, in any document.
+   D33. That step must exist before the hover tracker goes away, or come in the
+   same change, so that Tab still starts over at the ends.
 10. A utility function composes the tracking projections (D15), and the rules and
     documents change (D16).
 11. Each tracking projection gets a package of its own (D30). The packages that
@@ -423,27 +408,12 @@ The direction that follows from the decisions so far:
 
 ## 5. Open questions
 
-- **Q13. Can one Tab walker do the whole walk (D35)?** The facts of today:
-  - The package `ProjecturedFocus` holds the open trait `is_focusable_document`,
-    to which a domain adds a method; the widgets mark each enabled interactive
-    leaf (`WidgetDocument.jl:2795`). It also holds the walks
-    `get_first_focusable_path` and `get_last_focusable_path`, which name no
-    widget type.
-  - The widget and layout containers move Tab inside themselves
-    (`WidgetToGraphics.jl:1225`, `LayoutToGraphics.jl:207`), and only the start
-    over at the ends is in the hover tracker.
-  - `SelectionWalkingProjection` of the same package is a precedent for the
-    step: a transparent wrapper that answers the Alt + arrow keys that nothing
-    inside answered, with a walk over the structure of any document.
-
-  A walk over the document can reach a part that is not drawn: a hidden page of
-  a tabbed pane, a closed section of an accordion. The containers know this. If
-  the walker counts only the stops that are drawn, as the search of D39 does, it
-  can know it too. The facts to collect: the special cases that the Tab code of
-  each container holds.
+No question of this plan is open. The questions of keyboard navigation are in
+the plan of D33.
 
 Answered and moved to §2: Q2 (D23), Q3 (D24), Q4 (D25), Q5 (D20), Q6 (D26), Q7
-and Q8 (D27), Q9 (D28), Q10 (D29), Q11 (D30), Q1 (D31), Q12 (D32), and the parts 2 to 5 of Q13 (D36 to D39).
+and Q8 (D27), Q9 (D28), Q10 (D29), Q11 (D30), Q1 (D31), Q12 (D32). Q13 moved to
+the plan of D33.
 
 ## 6. Next steps
 
