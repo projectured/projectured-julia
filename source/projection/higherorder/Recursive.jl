@@ -52,6 +52,7 @@ function map_reference_forward(::RecursiveProjection, iomap, reference)
     return nothing
 end
 
-function map_reference_backward(::RecursiveProjection, iomap, reference)
-    return nothing
-end
+# It prints through its child and answers the child's IoMap, so a reference maps
+# back through the child.
+map_reference_backward(rp::RecursiveProjection, iomap, reference) =
+    map_reference_backward(rp.child, iomap, reference)

@@ -131,6 +131,25 @@ function test_anchored_layout()
         @test positions[2] == (116, 0)      # past the content's right edge, plus the offset
     end
 
+    @testset "a point maps to the content or to the annotation drawn at it" begin
+        content = _al_label("the diagram")
+        renderer = _al_renderer()
+        alone = print_document(renderer, content).output
+        note = AnchoredEntry(WidgetLabel("12 waiting");
+                             target = alone, placement = :right, offset_x = 6)
+        iomap = print_document(renderer, AnchoredLayout(content, Any[note]))
+        # The content is the first entry, and the label inside it the part there.
+        on_content = map_reference_backward(renderer, iomap, PointReferenceStep(5, 5))
+        @test strip_reference_types(on_content) ==
+              extend_reference(EmptyReference(), FieldReferenceStep("content"),
+                               FieldReferenceStep("children"), RangeReferenceStep(0, 1))
+        # The annotation is drawn over the content, past its right edge.
+        on_note = map_reference_backward(renderer, iomap, PointReferenceStep(120, 5))
+        @test strip_reference_types(on_note) ==
+              extend_reference(EmptyReference(), FieldReferenceStep("children"),
+                               RangeReferenceStep(0, 1))
+    end
+
     @testset "a target named by reference is resolved through the content" begin
         # The other way to name a target, and the one a live diagram uses: the
         # annotation names *what it annotates* in the content's own terms and the

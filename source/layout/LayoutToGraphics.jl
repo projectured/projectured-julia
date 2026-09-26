@@ -633,12 +633,47 @@ function _backward_descend(document, entries::Vector, field::String, reference, 
 end
 
 """
-A path into a layout's canvas, as a path into its `children`.
+A path into a layout's canvas, as a path into its `children`. A point of the
+canvas maps to the child drawn at it (`_point_backward`).
 """
-_children_backward(iomap::_LayoutChildrenIoMap, reference,
-                   drawn = output -> output isa GraphicsDocument) =
-    _backward_descend(iomap.input, getfield(iomap, :child_iomaps)[]::Vector,
-                      "children", reference, drawn)
+function _children_backward(iomap::_LayoutChildrenIoMap, reference,
+                            drawn = output -> output isa GraphicsDocument;
+                            topmost_first::Bool = false)
+    entries = getfield(iomap, :child_iomaps)[]::Vector
+    point = find_reference_point(reference)
+    point === nothing || return _point_backward(iomap.input, entries, point; topmost_first)
+    _backward_descend(iomap.input, entries, "children", reference, drawn)
+end
+
+"""
+A point of a container's canvas, as a path into the document it printed: the
+child drawn at the point, and on into that child with the point in the child's
+frame. It is the hit test of a pointer event (`_find_child_point`), so a point
+maps to the child that a click there reaches. A layout that draws its children
+over each other searches from the topmost child down, as its reader does. A child
+that maps nothing at its point is itself the part at the point. `steps_of(index)`
+names the steps from the document to the child of an entry; by default the
+entries are the `children` in order.
+"""
+function _point_backward(document, entries::Vector, point; topmost_first::Bool = false,
+                         steps_of = index -> (FieldReferenceStep("children"),
+                                              RangeReferenceStep(index - 1, index)))
+    order = topmost_first ? (length(entries):-1:1) : (1:length(entries))
+    for index in order
+        entry = entries[index]
+        entry === nothing && continue
+        local_point = _find_child_point(entry, point.x, point.y; bounded = !topmost_first)
+        local_point === nothing && continue
+        child = entry[3]
+        answer = map_reference_backward(child.projection, child, PointReferenceStep(local_point...))
+        path = answer === nothing ? EmptyReference() : answer
+        for step in Base.reverse(steps_of(index))
+            path = ConcreteReference(step, path)
+        end
+        return annotate_reference_types(document, path)
+    end
+    nothing
+end
 
 # ── Per-cell helpers (a comprehension body cannot hold a begin/end block) ──
 
@@ -1787,7 +1822,8 @@ end
 
 # A stack keeps only canvases, which is the test its own build used.
 map_reference_backward(::StackLayoutToGraphicsCanvas, iomap, reference) =
-    _children_backward(iomap, reference, output -> output isa GraphicsCanvas)
+    _children_backward(iomap, reference, output -> output isa GraphicsCanvas;
+                       topmost_first = true)
 
 function read_intent(::StackLayoutToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _route_stack_event(iomap, evt)
@@ -1968,7 +2004,7 @@ function map_reference_forward(::ConstraintLayoutToGraphicsCanvas, iomap, refere
 end
 
 map_reference_backward(::ConstraintLayoutToGraphicsCanvas, iomap, reference) =
-    _children_backward(iomap, reference)
+    _children_backward(iomap, reference; topmost_first = true)
 
 # Children can overlap (the solver places them freely), so route like a stack:
 # scan topmost-first so the last-drawn child wins a click.
@@ -2115,7 +2151,18 @@ function map_reference_forward(::AnchoredLayoutToGraphicsCanvas, iomap, referenc
     return _children_forward(iomap, reference)
 end
 
-map_reference_backward(::AnchoredLayoutToGraphicsCanvas, iomap, reference) = nothing
+# Only a point maps back: the anchored child drawn at it, topmost first, as the
+# reader routes a click.
+function map_reference_backward(::AnchoredLayoutToGraphicsCanvas, iomap, reference)
+    point = find_reference_point(reference)
+    point === nothing && return nothing
+    # The first entry is the content, and the entry after it the first child.
+    _point_backward(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, point;
+                    topmost_first = true,
+                    steps_of = index -> index == 1 ? (FieldReferenceStep("content"),) :
+                                        (FieldReferenceStep("children"),
+                                         RangeReferenceStep(index - 2, index - 1)))
+end
 
 # Anchored children are drawn over the content, so a click must reach them
 # first — the same topmost-first rule the stack and constraint layouts follow.

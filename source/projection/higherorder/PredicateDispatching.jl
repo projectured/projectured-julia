@@ -62,6 +62,12 @@ function map_reference_forward(::PredicateDispatchingProjection, iomap, referenc
     return nothing
 end
 
-function map_reference_backward(::PredicateDispatchingProjection, iomap, reference)
-    return nothing
+# It answers the IoMap of the projection whose predicate matched the input, so a
+# reference maps back through that projection, chosen again as the reader
+# chooses it.
+function map_reference_backward(pdp::PredicateDispatchingProjection, iomap, reference)
+    for (pred, proj) in pdp.dispatch
+        pred(iomap.input) && return map_reference_backward(proj, iomap, reference)
+    end
+    nothing
 end

@@ -662,6 +662,20 @@ it holds the example.
     neither). The substrate, JSON, click, selection, clipboard, probe, dragging,
     gesture log, application, conversation and math suites fail the same tests
     as `main`.
+  - [x] 4b. The layouts, and the higher-order projections above them. A layout
+    maps a point to the child drawn at it with the hit test of a pointer event
+    (`_find_child_point`), and on into the child with the point in its frame; a
+    child that maps nothing at its point is itself the part. The stack and the
+    constraint layout search from the topmost child, as their readers do; the
+    anchored layout names its content and its children. A point could not pass
+    four higher-order projections, which mapped nothing back since the first
+    port: the chain now maps back through its stages in reverse, the recursive
+    projection through its child, the predicate dispatcher through the
+    projection that its predicate chooses, and the switcher through its active
+    branch. Tests: a vertical layout and the whole chain above it, a point where
+    nothing is drawn, a stack, an anchored layout (content and annotation), a
+    predicate dispatcher and a switcher. The same suites as in 4a fail the same
+    tests as `main`.
 - [ ] 5. **The start over of Tab leaves the hover tracker (D2, §5 of the plan of
   D33).** A small wrapping step does only the start over at the ends, and the
   hover tracker loses its branch for Tab. Tests: the focus traversal tests; Tab

@@ -236,6 +236,15 @@ function map_reference_forward(::ChainingProjection, iomap, reference)
     ref
 end
 
+# A reference into the output of the last stage, mapped back through each stage in
+# reverse order into the input of the first: `nothing` as soon as a stage maps
+# nothing. So a point of what the chain draws maps to the part of its input there.
 function map_reference_backward(::ChainingProjection, iomap, reference)
-    return nothing
+    ref = reference
+    for cell in Iterators.reverse(iomap.step_iomaps)
+        ref === nothing && return nothing
+        step = cell[]
+        ref = map_reference_backward(step.projection, step, ref)
+    end
+    ref
 end

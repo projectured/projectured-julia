@@ -77,6 +77,9 @@ function map_reference_forward(::SwitchingProjection, iomap, reference)
     return nothing
 end
 
+# A reference maps back through the active branch, whose IoMap it holds.
 function map_reference_backward(::SwitchingProjection, iomap, reference)
-    return nothing
+    inner = iomap.inner_iomap
+    inner === nothing && return nothing
+    map_reference_backward(get_iomap_projection(inner), inner, reference)
 end

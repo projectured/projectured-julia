@@ -149,4 +149,16 @@ end
     @test click isa ReplaceSelectionOperation && click.path == at_rect
 end
 
+@testset "a dispatching and a switching projection map a point through their choice" begin
+    rect = GraphicsRect(10, 10, 30, 20)
+    canvas = GraphicsCanvas(CellVector(Cell[Cell(rect)]))
+    expected = ConcreteReference(ElementReferenceStep(1), ConcreteReference(PointReferenceStep(5, 2)))
+    by_predicate = PredicateDispatchingProjection((_ -> true) => GraphicsCanvasToGraphicsImage())
+    @test map_reference_backward(by_predicate, print_document(by_predicate, canvas),
+                                 PointReferenceStep(15, 12)) == expected
+    switching = SwitchingProjection(Any[GraphicsCanvasToGraphicsImage()])
+    @test map_reference_backward(switching, print_document(switching, canvas),
+                                 PointReferenceStep(15, 12)) == expected
+end
+
 end # test_graphics
