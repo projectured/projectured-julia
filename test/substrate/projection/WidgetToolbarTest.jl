@@ -5,7 +5,7 @@
 # hit_element_at then let the leftmost item swallow every crossing — hover always
 # lit the first button. Bounding the item canvas to its footprint fixes it.
 
-using ProjecturedKernel.CellModule: Cell, Computation
+using ProjecturedKernel.CellModule: Cell, Computation, is_cell_up_to_date
 
 function test_widget_toolbar()
 @testset "WidgetToolbar pointer routing" begin
@@ -48,6 +48,28 @@ end
     end
     for (i, c) in enumerate(wrappers)
         @test hovered_at(c) == labels[i]
+    end
+end
+
+# A hover writes the `hovered` cell of an item. The layer that shows it reads that
+# cell in cells of its own, so the element list and the extent of the item stay up
+# to date: the toolbar does not lay out its items again, and a partial repaint
+# paints only the layer.
+@testset "a hover changes the layer of an item and nothing else" begin
+    for item in (WidgetToolbarItem("Run"; icon = :play), WidgetMenuItem("Save"))
+        c = print_document(proj, item).output
+        width, height = Int(c.w[]), Int(c.h[])
+        rects = [e for e in map(_unwrap, collect(c.elements)) if e isa GraphicsRect]
+        hidden = [r for r in rects if Int(r.w) == 0 && Int(r.h) == 0]
+        @test length(hidden) == 1
+        item.hovered = true
+        @test is_cell_up_to_date(getfield(c, :elements))
+        @test is_cell_up_to_date(getfield(c.elements, :elements))
+        @test is_cell_up_to_date(getfield(c, :w)) && is_cell_up_to_date(getfield(c, :h))
+        layer = only(hidden)
+        @test (Int(layer.w), Int(layer.h)) == (width, height)
+        item.hovered = false
+        @test (Int(layer.w), Int(layer.h)) == (0, 0)
     end
 end
 

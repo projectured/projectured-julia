@@ -223,15 +223,19 @@ end
     @test _view_state_write(op) isa ReplaceReferencedValueOperation
     @test _view_state_write(op).value === true
 
-    # A hovered item renders an extra (hover surface) element vs an un-hovered one.
+    # A hovered item draws one more surface as large as the item: the hover
+    # layer, which has no size while the item is not hovered.
+    full_surfaces(io) = begin
+        size = (Int(io.output.w[]), Int(io.output.h[]))
+        count(e -> e isa GraphicsRect && (Int(e.w), Int(e.h)) == size,
+              map(e -> e isa CellModule.Cell ? e[] : e, collect(io.output.elements)))
+    end
     plain = print_document(proj, WidgetMenuItem("New"))
     hov   = WidgetMenuItem("New"); hov.hovered = true
-    hovio = print_document(proj, hov)
-    @test length(collect(hovio.output.elements)) > length(collect(plain.output.elements))
-    # A disabled hovered item shows no surface (same element count as plain).
+    @test full_surfaces(print_document(proj, hov)) == full_surfaces(plain) + 1
+    # A disabled hovered item shows no surface.
     dis = WidgetMenuItem("New"; enabled=false); dis.hovered = true
-    @test length(collect(print_document(proj, dis).output.elements)) ==
-          length(collect(plain.output.elements))
+    @test full_surfaces(print_document(proj, dis)) == full_surfaces(plain)
 end
 
 end # @testset

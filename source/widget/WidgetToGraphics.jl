@@ -455,6 +455,26 @@ function _push_state_layer!(elements::Vector, color, x::Int, y::Int, width::Int,
     _push_panel!(elements, x, y, width, height; fill = color, radius = radius)
 end
 
+# Push the layer of the hovered state, and of the pressed state when
+# `pressed_color` is given, over the surface of `w`. The layer is always there:
+# its size and its color are cells of its own that read the `hovered` and the
+# `pressed` cell of `w`, as the focus ring reads the selection. A crossing then
+# changes the layer and not the element list or the extent of the widget, so
+# only the layer is painted again. While `w` is neither hovered nor pressed, the
+# layer has no size and draws nothing.
+function _push_hover_layer!(elements::Vector, w::WidgetDocument, x::Int, y::Int,
+                            width::Int, height::Int; hovered_color::StyleColor,
+                            pressed_color = nothing, radius::Int = 0)
+    is_pressed() = pressed_color !== nothing && w.pressed === true
+    is_shown() = is_pressed() || w.hovered === true
+    layer = GraphicsRect(x, y, 0, 0; color = hovered_color, radius = radius)
+    set_cell_computation!(getfield(layer, :w), () -> is_shown() ? Int32(width) : Int32(0))
+    set_cell_computation!(getfield(layer, :h), () -> is_shown() ? Int32(height) : Int32(0))
+    pressed_color === nothing ||
+        set_cell_computation!(getfield(layer, :color), () -> is_pressed() ? pressed_color : hovered_color)
+    push!(elements, layer)
+end
+
 # A focus ring around a focused widget (Stage 2). Focus is selection. The ring is
 # a **persistent overlay** (always pushed) whose `w`/`h` read the selection — full
 # control bounds when focused, 0 when not (a zero-size rect the renderer skips).
@@ -1846,15 +1866,14 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         inner_width, inner_height = button_width - inset_width, button_height - inset_height
         corner_radius = _sc(p.corner_radius)
         # State-driven surface. The reader keeps the widget's transient
-        # `pressed`/`hovered` cells current; reading them here ties the rendered
-        # layer to that state reactively. A hovered or a pressed button draws a
+        # `pressed`/`hovered` cells current. A hovered or a pressed button draws a
         # translucent layer over its surface, so the state shows over any surface
-        # color. A disabled button (or one bound to a disabled command) ignores
-        # that state entirely: its own muted surface and label, no shadow (its
-        # reader also never sets pressed/hovered).
+        # color; the layer reads the state in cells of its own. A press also drops
+        # the shadow, so it is read here. A disabled button (or one bound to a
+        # disabled command) ignores that state entirely: its own muted surface and
+        # label, no shadow, no layer (its reader also never sets pressed/hovered).
         enabled = _button_enabled(w)
         pressed = enabled && w.pressed === true
-        hovered = enabled && w.hovered === true
         state = enabled ? nothing : :disabled
         label = _get_state_text(p, w, :label; state)
         # The rect of the border: the box without its margin.
@@ -1872,8 +1891,9 @@ function print_document(p::WidgetButtonToGraphicsCanvas, recursion, w::WidgetBut
         end
         _push_box_parts!(elements, box, _get_box_colors(p, w; state), inner_width, inner_height;
                          radius = corner_radius)
-        _push_state_layer!(elements, pressed ? p.layer_pressed_color : hovered ? p.layer_hovered_color : nothing,
-                           margin_left, margin_top, border_box_width, border_box_height; radius = corner_radius)
+        enabled && _push_hover_layer!(elements, w, margin_left, margin_top, border_box_width, border_box_height;
+                                      hovered_color = p.layer_hovered_color,
+                                      pressed_color = p.layer_pressed_color, radius = corner_radius)
         # Lay out icon + label as one centered group; the icon tints to the label color
         # (so it mutes with the button), the label sits to its right.
         start_x = content_x + (inner_width - full_w) ÷ 2
@@ -2325,7 +2345,6 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
         inset_width, inset_height = _inset_total(p, w)
         command = _menu_item_command(w)
         enabled = _menu_item_enabled(w)
-        hovered = enabled && w.hovered === true
         state = enabled ? nothing : :disabled
         label = _get_state_text(p, w, :label; state)
         # A bound command's label overrides the content; otherwise the content is the
@@ -2354,7 +2373,7 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
             cw += icon_w + gap
         end
         (width = cw + inset_width, height = ch + inset_height, inset_width, inset_height,
-         hovered, elements = elems, child_iomaps)
+         enabled, elements = elems, child_iomaps)
     end)
     build = Cell(@computation begin
         needed = measured[]
@@ -2365,10 +2384,10 @@ function print_document(p::WidgetMenuItemToGraphicsCanvas, recursion, w::WidgetM
         final = Any[GraphicsRect(0, 0, control_w, control_h; color = color_transparent, radius = 0)]
         _push_box_parts!(final, _get_box_insets(p, w), _get_box_colors(p, w),
                          control_w - needed.inset_width, control_h - needed.inset_height)
-        # The hover layer, only when hovered + enabled, drawn over the box and
-        # under the content.
-        _push_state_layer!(final, needed.hovered ? p.layer_hovered_color : nothing,
-                           0, 0, control_w, control_h)
+        # The hover layer of an enabled item, drawn over the box and under the
+        # content.
+        needed.enabled && _push_hover_layer!(final, w, 0, 0, control_w, control_h;
+                                             hovered_color = p.layer_hovered_color)
         append!(final, needed.elements)
         (width=control_w, height=control_h, elements=final, child_iomaps=needed.child_iomaps)
     end)
@@ -2473,8 +2492,7 @@ function print_document(p::WidgetToolbarItemToGraphicsCanvas, recursion, w::Widg
         drawn = Any[GraphicsRect(0, 0, width, height; color = color_transparent, radius = 0)]
         _push_box_parts!(drawn, _get_box_insets(p, w), _get_box_colors(p, w; state),
                          content_width, content_height)
-        _push_state_layer!(drawn, enabled && w.hovered === true ? p.layer_hovered_color : nothing,
-                           0, 0, width, height)
+        enabled && _push_hover_layer!(drawn, w, 0, 0, width, height; hovered_color = p.layer_hovered_color)
         append!(drawn, elements)
         (width = width, height = height, elements = drawn)
     end))
@@ -2567,6 +2585,23 @@ _menu_item_height(cim) =
     cim isa WidgetMenuItemToGraphicsCanvasIoMap ? cim.control_height :
         (cim.output isa GraphicsCanvas ? Int(cim.output.h[]) : 0)
 
+# The extent that a bar reaches: the box parts in `box`, and each item of
+# `child_iomaps` at its place with the size it states. A parent that asks the size
+# of the bar then reads no graphic inside an item, such as the layer that a hover
+# changes, so a hover does not move what lies under the bar.
+function _compute_bar_extent(box::Vector, child_iomaps::Vector, measure)
+    width, height = 0, 0
+    for part in box
+        part_width, part_height = _element_size(part, measure)
+        width = max(width, part_width); height = max(height, part_height)
+    end
+    for (x, y, cim) in child_iomaps
+        width = max(width, x + _menu_item_width(cim))
+        height = max(height, y + _menu_item_height(cim))
+    end
+    (width, height)
+end
+
 function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu, ctx)
     w.visible == false && return ChildrenIoMap(p, w, _empty_canvas(), Cell(Any[]))
     # Reconcile every element by identity, keeping the ORIGINAL index so the
@@ -2615,13 +2650,13 @@ function print_document(p::WidgetMenuToGraphicsCanvas, recursion, w::WidgetMenu,
         elems = Any[]
         _push_box_parts!(elems, _get_box_insets(p, w; variant), _get_box_colors(p, w; variant),
                          content_width, content_height)
+        width, height = _compute_bar_extent(elems, child_iomaps, _p_measure(p))
         append!(elems, items)
-        (elements=elems, child_iomaps=child_iomaps)
+        # A menu is an overlay: capped by the window, never stretched to it.
+        (width = _resolve_overlay(ctx, :x, 0, width), height = _resolve_overlay(ctx, :y, 0, height),
+         elements = elems, child_iomaps = child_iomaps)
     end)
-    # A menu is an overlay: capped by the window, never stretched to it.
-    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements, _p_measure(p);
-                                              cap = ctx),
-                  Cell(@computation build[].child_iomaps))
+    ChildrenIoMap(p, w, _reactive_canvas_cell(0, 0, build), Cell(@computation build[].child_iomaps))
 end
 
 # `elements[i]/…` routes to the i-th item's forward image, shifted by where this
@@ -5186,11 +5221,11 @@ function print_document(p::WidgetToolbarToGraphicsCanvas, recursion, w::WidgetTo
         content_width = max(0, x_cursor - item_gap)
         elems = Any[]
         _push_box_parts!(elems, _get_box_insets(p, w), _get_box_colors(p, w), content_width, item_h)
+        width, height = _compute_bar_extent(elems, child_iomaps, _p_measure(p))
         append!(elems, items)
-        (elements=elems, child_iomaps=child_iomaps)
+        (width = width, height = height, elements = elems, child_iomaps = child_iomaps)
     end)
-    ChildrenIoMap(p, w, _reactive_canvas_auto(0, 0, () -> build[].elements, _p_measure(p)),
-                  Cell(@computation build[].child_iomaps))
+    ChildrenIoMap(p, w, _reactive_canvas_cell(0, 0, build), Cell(@computation build[].child_iomaps))
 end
 
 function map_reference_forward(::WidgetToolbarToGraphicsCanvas, iomap, reference)
