@@ -304,8 +304,13 @@ approval of the owner and an idle machine.
   graphics test checks `compute_first_visible_index` and the hit test. File
   system 78, substrate 85,090 (10 new), SDL 694 (4 new); the faults are the 5
   of the baseline.
-- [ ] **Step 5. A laid-out canvas declares its extent (3.4, backend 3).** Test:
+- [x] **Step 5. A laid-out canvas declares its extent (3.4, backend 3).** Test:
   the scroll room of that canvas reads no row. Compare the widget suites with the
+  baseline.
+  *Done.* `get_graphics_size` (so `_scroll_room`), `_bounds_of_canvas` and
+  `_extend_drawn_bounds!` take the box. The SDL test checks that a size query
+  and a computed list of 1,000 rows as one dirty unit read no row. Substrate
+  85,095 (5 new), SDL 699 (5 new), file system 78; the faults are the 5 of the
   baseline.
 - [ ] **Step 6. The tree draws its rows lazily (3.4, tree).** The tree takes
   the width that the pane offers (Q1). Test: the Explorer over a fixture folder

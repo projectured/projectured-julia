@@ -118,4 +118,16 @@ end
     @test hit_element_at(canvas, 25, 505) == 50              # the offset of row 51
 end
 
+@testset "has_declared_extent" begin
+    elements = CellVector(Cell[Cell(GraphicsRect(0, 10 * (k - 1), 500, 10)) for k in 1:3])
+    rows = GraphicsCanvas(elements; w = 100, h = 30, layout = layout_vertical, overlapping = false)
+    @test has_declared_extent(rows)
+    # The size is the box, not the elements: the rects are 500 wide, the box 100.
+    @test get_graphics_size(rows) == (100, 30)
+    @test !has_declared_extent(GraphicsCanvas(elements; w = 100, h = 0, layout = layout_vertical,
+                                              overlapping = false))
+    @test !has_declared_extent(GraphicsCanvas(elements; w = 100, h = 30))   # no layout
+    @test get_graphics_size(GraphicsCanvas(elements; w = 100, h = 30)) == (500, 30)
+end
+
 end # test_graphics

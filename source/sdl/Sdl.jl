@@ -1886,6 +1886,7 @@ function _bounds_of_elem(elem, ox::Int, oy::Int, ratio::Float64)
 end
 
 function _bounds_of_canvas(canvas::GraphicsCanvas, ox::Int, oy::Int, ratio::Float64)
+    has_declared_extent(canvas) && return (ox, oy, ox + Int(canvas.w), oy + Int(canvas.h))
     mnx = Ref(typemax(Int)); mny = Ref(typemax(Int))
     mxx = Ref(typemin(Int)); mxy = Ref(typemin(Int))
     for elem in canvas.elements
@@ -1903,8 +1904,13 @@ function _extend_drawn_bounds!(elem, ox::Int, oy::Int, ratio::Float64, mnx, mny,
         x, y = ox + Int(elem.x), oy + Int(elem.y)
         _bounds_extend!(mnx, mny, mxx, mxy, x + texture[1], y + texture[2], x + texture[3], y + texture[4])
     elseif elem isa GraphicsCanvas
+        x, y = ox + Int(elem.x), oy + Int(elem.y)
+        if has_declared_extent(elem)
+            _bounds_extend!(mnx, mny, mxx, mxy, x, y, x + Int(elem.w), y + Int(elem.h))
+            return
+        end
         for child in elem.elements
-            _extend_drawn_bounds!(child, ox + Int(elem.x), oy + Int(elem.y), ratio, mnx, mny, mxx, mxy)
+            _extend_drawn_bounds!(child, x, y, ratio, mnx, mny, mxx, mxy)
         end
     else
         _bounds_elem!(elem, ox, oy, FontFileMeasure(), mnx, mny, mxx, mxy)

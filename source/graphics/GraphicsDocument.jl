@@ -783,7 +783,7 @@ for a `ListNode`, and when an element it reads has no position on the axis.
                           overlapping = false)
     first = compute_first_visible_index(rows, 460)   # the row under y = 460
 
-See also `hit_element_at`, which starts its test there.
+See also `hit_element_at`, which starts its test there, and `has_declared_extent`.
 """
 function compute_first_visible_index(canvas::GraphicsCanvas, edge::Int)
     layout = canvas.layout
@@ -815,6 +815,29 @@ function compute_first_visible_index(get_start::Function, count::Int, edge::Int)
     first
 end
 
+"""
+    has_declared_extent(canvas) -> Bool
+
+Whether `canvas` states its own extent, so that a query of its size takes its
+box and does not walk its elements.
+
+A canvas that lays out its elements along an axis, without overlap, can hold
+more elements than a reader must read: the rows of a long tree, of which the
+screen shows a few. Such a canvas states its extent in `w` and `h`. A canvas
+without a layout, with elements that can overlap, or without both a width and a
+height, states none, and a query walks its elements.
+
+# Example
+
+    rows = GraphicsCanvas(elements; layout = layout_vertical, overlapping = false, w = 300, h = 23_000)
+    has_declared_extent(rows)          # true: its size is 300 × 23000, read from the box
+
+See also `get_graphics_size` and `compute_first_visible_index`.
+"""
+has_declared_extent(canvas::GraphicsCanvas) =
+    canvas.layout != layout_none && !canvas.overlapping_elements &&
+    Int(canvas.w) > 0 && Int(canvas.h) > 0
+
 
 # ── Content bounds ──────────────────────────────────────────────────────
 #
@@ -836,6 +859,10 @@ end
 
 function _accumulate_bounds!(canvas::GraphicsCanvas, ox::Int, oy::Int, measure::TextMeasure,
                              minx, miny, maxx, maxy)
+    if has_declared_extent(canvas)
+        _bounds_extend!(minx, miny, maxx, maxy, ox, oy, ox + Int(canvas.w), oy + Int(canvas.h))
+        return
+    end
     for elem in canvas.elements
         _bounds_elem!(elem, ox, oy, measure, minx, miny, maxx, maxy)
     end
