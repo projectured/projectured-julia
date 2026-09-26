@@ -47,7 +47,7 @@ function turn_finished(turns::Integer)
     end
 end
 
-# The session's gesture log in a pane below the file, with 30% of the height, and
+# The session's gesture log in a pane below the file, with 20% of the height, and
 # the focus back on the file. The window records into that log from its start.
 function put_log_below_the_file!(document)
     # The selection is a path through the tree, so it is set again after the split
@@ -60,7 +60,7 @@ function put_log_below_the_file!(document)
                                                           side = :below,
                                                           tab = PaneTab("Gestures", get_session_gesture_log())))
     split, _ = get_pane_parent(tree, group)
-    split.weights = [0.7, 0.3]
+    split.weights = [0.8, 0.2]
     apply_pane_operation!(tree, make_pane_focus_operation(tree, group, 1))
     selected === nothing ||
         set_selection!(document, annotate_reference_types(document,
@@ -75,7 +75,7 @@ function say(label)
         people = get_edited_document(tab)
         window = only(search_documents(editor.document, node -> node isa UndoBuffer && node.content isa PaneTree))
         println(rpad(label, 24), "people ", [person["name"].value for person in people],
-                "; steps (window, file) ", (length(window.undo_entries), length(tab.content.content.undo_entries)))
+                "; steps (window, file) ", (length(window.undo_entries), length(tab.content.content.content.undo_entries)))
         for entry in get_session_gesture_log().entries
             println("    log: ", entry)
         end
