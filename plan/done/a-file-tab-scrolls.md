@@ -1,6 +1,6 @@
 # A file tab scrolls
 
-> **Status:** pending. Written 2026-09-26.
+> **Status:** done. Written and landed 2026-09-26.
 
 ## 1. The request
 
@@ -109,5 +109,11 @@ default, no?", then "yes and do it before the take".
   97, `test_file_tab()`, `test_filesystem()`, `test_file_project()` 134,
   `test_json()` 194 and `test_naming()` pass, `test_application()` 336 of 338 as on
   `main`.
-- [ ] **Step 5: the landing**, when the owner says so. Then the S2 take, on the
-      s2-video branch rebased onto it.
+- [x] **Step 5: the landing.** Done (2026-09-26), on the owner's word ("Land the
+      scroll"). The branch was rebased onto `main` at 7b667d83 with no conflict.
+      Pass on the rebased branch: `test_referenced_document_editor()` 97,
+      `test_file_tab()` 13, `test_filesystem()` 80, `test_file_project()` 134,
+      `test_window_shell()` 114, `test_gesture_log()` 50, `test_naming()`,
+      `test_documentation()`; `test_application()` 336 of 338, its 2 errors in
+      "the navigator scrolls a tree taller than its pane" the same as on `main`.
+      The s2-video branch is rebased onto it.
