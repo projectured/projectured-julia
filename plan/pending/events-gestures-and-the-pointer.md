@@ -4,7 +4,7 @@
 > document over several sessions. It records the concepts, what is wrong today,
 > the owner's decisions and the questions that are still open. The steps of the
 > refactor come after the open questions have answers. The owner's model of
-> three tracking projections (D8 to D40) came on the same day, after the first
+> three tracking projections (D8 to D40) and the steps came on the same day, after the first
 > round of decisions.
 
 The facts of the code are in the study
@@ -413,12 +413,24 @@ The direction that follows from the decisions so far:
 
 ## 5. Open questions
 
-- **Q14. The view changes under a pointer that does not move.** A list scrolls, a
-  popup opens, a content changes, and the pointer stays still. The target
-  tracker runs only when an event comes, so it does not see that the target
-  changed, and the light stays on the old part (§3.4). A tracker that is read
-  again after each print would see it, but no event comes then, and a fake move
-  is not allowed (D3). How does the tracker learn that the view changed?
+- **Q14. The view changes under a pointer that does not move.** An example: the
+  pointer rests on row 5 of a list of files, and row 5 is lit. The person turns
+  the wheel, and the list scrolls three rows. Row 8 is now under the pointer.
+  - In principle, the target is a function of two inputs: the position of the
+    pointer and the view. When either one changes, the target must be found
+    again, and the old part gets a leave and the new part an enter, as if the
+    pointer moved. A browser finds the hover again after a scroll or a change of
+    the layout, and Qt sends an enter to a widget that appears under the cursor.
+  - In the design, the tracker reads the wheel event before the scroll happens.
+    It maps the point through the old view and finds row 5 again. Then the
+    operation of the scroll is evaluated and the view is printed, but no event
+    comes after that, so no reader runs. The tracker keeps row 5 as its target
+    until the pointer moves, and row 5, now three rows higher, stays lit while
+    row 8 is under the pointer. A fake move would find the target, but D3 does
+    not allow it: a move is a record of the hardware.
+  - Other examples of the same fault: a key scrolls the list; a dialog or a popup
+    opens or closes under the pointer; a tab page changes by a key; a content
+    changes by itself (a log that grows, a simulation that updates a table).
 
 The questions of keyboard navigation are in the plan of D33.
 
@@ -428,9 +440,10 @@ the plan of D33.
 
 ## 6. Steps
 
-> **Proposed by Claude on 2026-09-26. The owner has not approved them.** Each
-> step keeps every suite green, and each step ends with a commit. A step that
-> changes a name or a signature also changes omnet-julia.
+> **Proposed by Claude and approved by the owner on 2026-09-26, with their
+> order.** Each step keeps every suite green, and each step ends with a commit. A
+> step that changes a name or a signature also changes omnet-julia. The steps
+> continue on the branch `window-leave`, whose plan this plan takes over.
 
 - [ ] 1. **The gesture type (D3, D31).** `abstract type Gesture end` beside
   `Event`. `MouseClick` (renamed from `MousePress` with `julia-rename.jl`),
