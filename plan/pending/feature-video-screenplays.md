@@ -345,6 +345,17 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 | 11 | Edit a name in the tab, then another name in the result row. | Each edit shows in both views. | One document, two views. |
 | 12 | `Ctrl+Z` in the tab, then hold. | Both views go back. | |
 
+- **The rehearsal of 2026-09-26**, ten takes in video time in one warm session, typed fast; the checks print from `await` entries. Every beat works in the program as it is:
+  - `editor.document` is a `ScreenDocument` (`windows`, `selection`), so the walk goes through `windows[1]`: `ScreenDocument` → `WindowDocument` → `ClipboardSlice` → `WidgetShell` → `toolbar`. The toolbar is `editor.document.windows[1].content.content.toolbar`, and its result row is the same object (`===`).
+  - The copy of the toolbar is live: a press on Frame plot opens a real Frame plot tab in the group of the evaluator, which then covers the evaluator, so the take presses the Evaluator tab to go back. `push!(toolbar.elements, WidgetToolbarItem("Hello"))` adds a "Hello" button to the toolbar of the window and to its copy.
+  - The search finds the explorer of the Files pane (`===`), and a double-click on `people.json` in the copy opens a real tab. The double-click also selects that row in both views, because they show one document; a press on the Evaluator tab then brings that selection back, and an Enter would open the file a second time. So the take clicks the prompt line before it types.
+  - A drag of the tab to the right edge splits the window; the left group then shows `README.md`, and the take presses the Evaluator tab again. The JSON search finds the document of the tab (`===`).
+  - An edit in the tab and an edit in the result row each show in both views, and the caret shows in both. Each edit is one entry of the `UndoBuffer` inside `JsonFile`, and the window buffer records it too; two presses of `Ctrl+Z` in the tab take both edits back in both views.
+  - A count with `search_documents` after an undo is wrong: it also finds the old text in `redo_entries`. Check an undo on a frame.
+  - `people.json` holds three people, because five do not fit in the result row of a pane that is 512 px wide.
+- **Open for the owner after the rehearsal:**
+  - A type result shows its cell parameters: `WindowDocument{Cell, Cell, …}` holds the word `Cell` 14 times.
+  - The result of `push!` is the `CellVector` of the buttons, which draws as a column of nine icons, 300 px high.
 - **Acceptance:**
   - Beats 5 and 8 work from the copy in the evaluator. No test did this before this video. If a click fails, it is a product gap to fix, not a reason to change the beat.
   - `search_documents` also walks the undo buffer. The rehearsal checks with `===` that each search finds the object that the window shows.
