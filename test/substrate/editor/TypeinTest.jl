@@ -48,7 +48,8 @@
 using ProjecturedKernel.CellModule: Cell, Computation
 using ProjecturedCollection.CollectionModule: CellVector
 using ProjecturedStyle.StyleModule: StyleFont
-using ProjecturedText.TextModule: TextString, TextBlock, TextDocument, TextGraphics
+using ProjecturedText.TextModule: TextString, TextBlock, TextDocument, TextGraphics, get_flat_string
+using ProjecturedKernel.OperationModule: CompoundOperation, ReplaceReferencedValueOperation
 using ProjecturedSyntax.SyntaxModule: SyntaxNode, SyntaxLeaf
 
 # ── Document-graph walk ──────────────────────────────────────────────────────
@@ -69,10 +70,10 @@ using ProjecturedSyntax.SyntaxModule: SyntaxNode, SyntaxLeaf
 #                     its `.content`. This is the document-domain `TextString`
 #                     case (e.g. `SyntaxLeaf.value`): the cursor convention is
 #                     `.value{k}`, one level above the raw `.content` String.
-#       :texttext   — `cursor` resolves to a `TextBlock`; the characters are the
-#                     flattened concatenation of its `TextString` spans, and the
-#                     cursor convention is a flat `.content{k}` offset across
-#                     them (e.g. `BookParagraph.content`).
+#       :texttext   — `cursor` resolves to a `TextBlock`; the characters are its
+#                     flat string (`get_flat_string`), and the cursor convention
+#                     is a flat `.content{k}` offset into it (e.g.
+#                     `BookParagraph.content`).
 #
 # `StyleFont` is skipped: a font's `filename` is a String, but it is
 # presentation metadata attached to text spans, not editable document content,
@@ -158,8 +159,8 @@ end
 # before it, and a typed character goes into that run, as a word processor gives
 # it the style of the character before it. So such a run is walked from its first
 # interior boundary, and the seam is tested once, as the end of the run before it.
-# An inline image has no width in the caret stream, so the run after an image
-# keeps its first boundary.
+# An inline image is one position of the caret stream, so the caret after an image
+# is the start of the run after it, and that run keeps its first boundary.
 function _walk_span_strings!(spans::CellVector, path, visited, refs)
     id = objectid(spans)
     id in visited && return
@@ -186,11 +187,7 @@ function _read_target_string(document, target)
         return v.content
     elseif target.kind == :texttext
         v isa TextBlock || return nothing
-        buf = IOBuffer()
-        for span in v.elements
-            span isa TextString && print(buf, span.content)
-        end
-        return String(take!(buf))
+        return get_flat_string(v)
     else
         return v
     end
@@ -330,6 +327,27 @@ function _op_desc(op)
     string(nameof(typeof(op)), "(", stripped, ")")
 end
 
+# Backspace at the start of a run that follows an inline image, and Delete at the
+# end of a run that an image follows, delete the image: the operation writes the
+# element list of the run, and its first member removes the image beside the run.
+# The walk asserts that deletion without evaluating it, as it asserts a declined
+# edit, so the document stays as the remaining positions expect it.
+function _is_image_deletion_beside(document, target, op, kind::Symbol)
+    op isa CompoundOperation || return false
+    write = op.operations[1]
+    (write isa ReplaceReferencedValueOperation && isempty(write.value)) || return false
+    steps = get_reference_steps(strip_reference_types(target.cursor))
+    (length(steps) >= 2 && steps[end] isa FieldReferenceStep &&
+     steps[end - 1] isa RangeReferenceStep) || return false
+    container = Reference(steps[1:end - 2]...)
+    run = steps[end - 1].start + 1
+    image = kind === :backspace ? run - 1 : run + 1
+    expected = extend_reference(container, RangeReferenceStep(image - 1, image))
+    is_reference_equal(strip_reference_types(write.reference), expected) || return false
+    elements = evaluate_reference(document, container)
+    1 <= image <= length(elements) && elements[image] isa TextGraphics
+end
+
 # Run one edit round-trip (`kind` at character boundary `k`) for the cursor target
 # `target`. See the file header for the seven steps.
 function _edit_at(document, projection, target, k::Int, ch, kind::Symbol)
@@ -379,7 +397,7 @@ function _edit_at(document, projection, target, k::Int, ch, kind::Symbol)
         # would mutate the neighbouring chrome and drift the document out from under
         # the remaining positions. The string is untouched, so we only confirm the
         # decline and that the caret is still where we set it (`expected_pos == k`).
-        op === nothing ||
+        (op === nothing || _is_image_deletion_beside(document, target, op, kind)) ||
             return _typein_failed("$kind at the boundary produced $(_op_desc(op)), expected no edit")
         selok, selmsg = _selection_caret_ok(document, target, expected_pos)
         return selok ? _typein_ok() : _typein_failed("$kind at the boundary: $selmsg")
@@ -488,8 +506,9 @@ cursor at the boundary, asserts the cursor renders in the Graphics image, drives
 edit's event (`KeyPress` for insert; `KeyDown(:backspace)` / `KeyDown(:delete)` for
 the deletions) through the reader, and verifies **both** the string and the post-edit
 caret: insert → `k+1`, backspace → `k-1`, delete → `k`. At a declined boundary
-(backspace at the start, delete at the end) the reader must produce no edit, and the
-walk asserts that decline without evaluating anything. The insert character is
+(backspace at the start, delete at the end) the reader must produce no edit, or,
+beside an inline image, the deletion of that image; the walk asserts either without
+evaluating anything. The insert character is
 `replacement`'s first character.
 
 `positions` is `:all` (every boundary `0…n` of a string of length `n`), `:ends`

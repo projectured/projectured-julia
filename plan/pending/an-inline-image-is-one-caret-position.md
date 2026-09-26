@@ -413,12 +413,25 @@ Do the work in a git worktree, and commit each step.
   - *Fact:* the four new assertions fail on the code before this step, as §2.3
     said: a range over a `TextNewline` and one over a soft newline paint one
     character too many on the next row, and an image in a range is not painted.
-- [ ] **Step 8. The type-in walk.** At the start of the run after an image, a typed
+- [x] **Step 8. The type-in walk.** At the start of the run after an image, a typed
   character goes into that run, and Backspace yields the deletion of the image;
   Delete at the end of the run before an image yields it too. The walk asserts
   such a deletion without evaluating it, as it asserts a declined edit. The rule
   at `TypeinTest.jl:559-564` that marks Delete at the end of a run as broken is
   read again. The 8 failures of the three examples pass.
+  - *Done.* `_is_image_deletion_beside` (TypeinTest.jl) accepts, at a boundary
+    where the walk expects a decline, the operation whose first member deletes
+    the image next to the run on the side of the key. `_read_target_string`
+    reads a `TextBlock` field as its flat string, the space of Step 1. The rule
+    for Delete at the end of a string stays: it names the value/chrome seam of
+    other domains, and the case beside an image now passes and no longer reaches
+    it.
+  - *Fact:* `test_example`, pass / fail / broken: `text_with_image`
+    1483 / 0 / 0 (base 1479 / 4 / 2), `text_baseline` 2987 / 0 / 8 (base
+    2985 / 2 / 9), `text_line_height` 3487 / 0 / 2 (base 3485 / 2 / 3). Each
+    total moves by +1 per image from Steps 1 and 2 (the caret after the image is
+    a new position) and by -2 per image from Step 5b (the cells of `font` and
+    `font_color`).
 - [ ] **Step 9. The suites** of Step 0 against the baseline, in a fresh process;
   a moved count is explained before it is accepted. Images of the three examples
   with a caret after an image go to the owner.
