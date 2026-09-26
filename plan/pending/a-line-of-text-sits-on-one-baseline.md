@@ -3,7 +3,7 @@
 > **Status:** in progress, in the worktree `projectured-julia-text-baseline` on
 > the branch `text-baseline`, from `c634a718`. Written 2026-09-25. The owner
 > decided the five questions of §5 on 2026-09-25, and asked on the same day to
-> start the work in a worktree. Steps 0 to 5 and 7 are done; Step 6 waits for the owner.
+> start the work in a worktree. Steps 0 to 8 are done; Steps 10 and 11 are in progress.
 
 Text in the editor is laid out by the top of each run, measured with a height
 that is the em size, and drawn by backends that kern and hint as they like. This
@@ -646,7 +646,7 @@ projection holds its measure in one typed field, so the line model can not read 
     dispatcher, and `path_sequences` orders them by a `Dict`. The new types move
     the hash order, so the catalog takes the Julia path first. A fresh process on
     the branch gives the same counts. This is not a change of behavior.
-- [ ] **Step 6. The old contract goes.** `measure_truetype_text` as a pair,
+- [x] **Step 6. The old contract goes.** `measure_truetype_text` as a pair,
   `measure_sdl_text`, `font_logical_size` as a height, and `measure_text` of the
   backends (question 5). The naming guard passes.
   *Part one, done:* the uses of the em size as a height go.
@@ -665,12 +665,14 @@ projection holds its measure in one typed field, so the line model can not read 
   math metrics change it there. A fresh process on the branch counts 3911, as the
   base does. So the typein count follows the history of the process, and a count
   that moves must be measured in a fresh process, as the base was.
-  *Part two, waits for the owner:* `measure_text` is declared in
-  `BackendInterface.jl`, exported by `BackendModule.jl` and named in a comment of
-  `BackendDefaults.jl`. All three are sealed; the permission of §5 names only
-  the first. With it go `measure_truetype_text`, `measure_sdl_text` and the
-  run helpers of SDL, the `measure_text` methods of the SDL, web, video and
-  console backends, and their tests.
+  *Part two, done:* `measure_text` is declared in `BackendInterface.jl`,
+  exported by `BackendModule.jl` and named in a comment of `BackendDefaults.jl`.
+  All three are sealed; the owner gave the permission for the three on
+  2026-09-26. The declaration, the export and the name go, with
+  `measure_truetype_text`, `measure_sdl_text`, the run helpers of SDL, the
+  `measure_text` methods of the SDL, web, video, console and example backends,
+  and their tests. SDL does not turn on the kerning of SDL_ttf: each glyph draws
+  at the pen position of the layout. The naming guard passes.
 - [x] **Step 7. No ink is cut** (R6). A test walks a `WidgetTable` of text, a
   card with a text body, a scroll pane with no height and a Markdown result in
   the chat pane, and asserts that the box of every text ends inside every
@@ -680,8 +682,18 @@ projection holds its measure in one typed field, so the line model can not read 
   the texts of each case, and that it finds the cut of a viewport as high as
   the em size. The test uses the new API, so it does not load on the base; the
   probe of Step 0 found five cut texts in the same Markdown result there.
-- [ ] **Step 8. The suites of Step 0**, compared with the baseline. A moved pass
+- [x] **Step 8. The suites of Step 0**, compared with the baseline. A moved pass
   count is explained before it is accepted.
+  *Done* after the rebase on `main` (`14deb157`), both sides in a fresh process
+  (`/var/tmp/text-baseline-main/` and `/var/tmp/text-baseline-final/`). The
+  failures are the same, 1091 entries at the same files and lines. The moved
+  counts: substrate +77 (the new tests 15, 24 and 21, and 17 more in the font
+  metrics test); sdl +529 (the new tests 519, 4 and 16, less the 10 assertions
+  of the removed tests); write_pdf +3; catalog_markdown +3388, from the
+  deterministic order of the catalog (a separate commit): every Markdown atom
+  takes the Markdown bridge in its `/syntax`, `/text` and `/graphics` variants,
+  and none fails. The `/syntax` variants count what the first base counted; the
+  `/text` and `/graphics` variants took the Julia bridge on the first base too.
 - [ ] **Step 9. The look, in a real window.** The application on `main` and on
   the branch, with the same panes: a code tab, a guide with a table and inline
   code, the chat pane with a result, a form, a heading with kerned pairs, and a
