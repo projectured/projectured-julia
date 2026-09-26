@@ -1,0 +1,59 @@
+# A `;` hides the result, and every form of S7 is a Julia document
+
+**Status: in progress, on the branch `s7-reflective-video`.** The owner asked for
+it on 2026-09-26, after the rehearsal of screenplay S7
+(`plan/pending/feature-video-screenplays.md`): "use the semicolon. Some forms still
+don't parse and turn into Julia documents".
+
+## Problem
+
+The rehearsal of S7 found two faults of the evaluator:
+
+1. **A result that nobody asked to see.** `push!(toolbar.elements, WidgetToolbarItem("Hello"))`
+   returns the `CellVector` of the buttons. That is a document, so the evaluator
+   draws it: a column of nine icons, 300 px high. The Julia REPL hides the result
+   of a line that ends with `;`, and the evaluator does not.
+2. **Forms that keep their string.** A form becomes a Julia document only when the
+   parse prints back the same tokens (`find_form_document`). Two gaps of the Julia
+   domain break that:
+   - `isa`, `in`, `∈`, `=>`, `|>`, `%` and the dotted operators parse to a
+     `JuliaCall` and print as a prefix call: `d isa Workspace` prints as
+     `isa(d, Workspace)`, and `a => b` as `=>(a, b)`.
+   - `Meta.parseall` marks a `;` list on one line with an inner `Expr(:toplevel, …)`.
+     The parser turns it into a `JuliaBlock`, which prints as an indented block of
+     lines, so `a; b` and `x = 1;` lose their `;`.
+
+## Design
+
+1. **The infix operators.** `BINARY_OPERATORS` holds `isa`, `in`, `∈`, `∉`, `=>`,
+   `|>`, `%`, `÷` and the dotted forms of the arithmetic and comparison operators.
+   `_julia_precedence` follows the table of the Julia manual: `=>` binds looser
+   than `||`, `isa`, `in`, `∈` and `∉` are comparisons, `|>` binds tighter than a
+   comparison and looser than `+`, `%` and `÷` bind as `*`, and a dotted operator
+   binds as the operator without the dot. `=>` associates to the right.
+2. **`JuliaToplevel`, the `;` list on one line.** A new node of the Julia domain,
+   named after the `Expr` head that the Julia parser gives it:
+   `JuliaToplevel(statements; trailing_semicolon = false)`. It prints its
+   statements on one line with `; ` between them, and a `;` after the last one
+   when `trailing_semicolon` is true. `parse_julia` sets that field when the last
+   token of the code, apart from a comment, is `;`. A `;` inside a `begin` block
+   still parses to a `:block`, so it stays a `JuliaBlock`.
+3. **The evaluator hides the result of a form that ends with `;`.** The rule is
+   the rule of the Julia REPL: the last token of the code, apart from a comment,
+   is `;`. The code runs, what it prints still shows, and the value is not drawn.
+   The rule reads the source text of the form, so it holds for a string form and
+   for a form that is a Julia document.
+
+## Steps
+
+- [ ] 1. The infix operators parse to `JuliaBinaryOperation`, with the precedence
+  of the Julia manual. Round-trip tests in `test/julia/document/JuliaParserTest.jl`.
+- [ ] 2. `JuliaToplevel`: the node, its parse, its syntax projection and its
+  export. Round-trip tests for `a; b`, `x = 1;` and `x = 1; # c`.
+- [ ] 3. The evaluator hides the result of a form that ends with `;`. Tests in
+  `test/projectured/editor/EvaluatorToplevelTest.jl`: the forms of S7 become
+  Julia documents, and a `;` hides the result but keeps what the code prints.
+- [ ] 4. The documents: `documentation/package/julia/julia.md`, the evaluator
+  document, and the docstring of `find_form_document`.
+- [ ] 5. The S7 forms use `nameof(typeof(…))` (the owner's choice for the type
+  names) and a `;` after `push!`, and the take is recorded.
