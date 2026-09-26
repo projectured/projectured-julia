@@ -11,11 +11,9 @@ The owner found that a row of a popup menu does not light under the pointer.
 
 The owner asked for a study of what is implemented before the refactor is
 designed: [pointer-hover-and-windows-today.md](pointer-hover-and-windows-today.md).
-The owner's first principle of hover, from the conversation of 2026-09-26: hover
-is the person's pointing; the pointer's position is the only state; what the
-pointer is on follows from that position; a pointer that rests on the same thing
-for a while is a gesture, as a click is; the thing pointed at decides what
-pointing and resting mean. The Tab wrap-around is unrelated to hover.
+The design of the refactor, with the owner's decisions and the open questions, is
+[events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md). Step 3
+waits for it.
 
 ## The faults (found 2026-09-26)
 
