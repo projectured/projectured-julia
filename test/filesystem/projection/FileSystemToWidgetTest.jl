@@ -43,7 +43,7 @@ end
         @test [r.path for r in iomap.geometry.rows] == [[1], [1, 1], [1, 2]]
 
         function click_chevron!(row)
-            press = MousePress(:left, (row.chevron_x0 + row.chevron_x1) ÷ 2, row.y0 + 2,
+            press = MouseClick(:left, (row.chevron_x0 + row.chevron_x1) ÷ 2, row.y0 + 2,
                                ModifierKeys(); time = 0.0)
             operation = read_intent(tree_projection, iomap, press)
             operation isa ReplaceViewStateOperation && (operation = get_wrapped_operation(operation))

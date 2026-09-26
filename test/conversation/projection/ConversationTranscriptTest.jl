@@ -41,7 +41,7 @@ function _scan_folds(proj, io)
     found = Any[]
     for y in 2:2:900, x in 16:6:120
         op = try
-            read_intent(proj, io, MousePress(:left, x, y; time = 0.0))
+            read_intent(proj, io, MouseClick(:left, x, y; time = 0.0))
         catch
             nothing
         end
@@ -68,7 +68,7 @@ function _scan_selections(proj, io)
     found = Any[]
     for y in 2:2:600, x in (40, 70, 100, 130)
         op = try
-            read_intent(proj, io, MousePress(:left, x, y; time = 0.0))
+            read_intent(proj, io, MouseClick(:left, x, y; time = 0.0))
         catch
             nothing
         end
@@ -92,7 +92,7 @@ function _scan_whole_selections(proj, io)
     found = Dict{String,Any}()
     for y in 2:2:900, x in (20, 40, 70, 100, 130)
         op = try
-            read_intent(proj, io, MousePress(:left, x, y, _TRANSCRIPT_ALT; time = 0.0))
+            read_intent(proj, io, MouseClick(:left, x, y, _TRANSCRIPT_ALT; time = 0.0))
         catch
             nothing
         end
@@ -259,7 +259,7 @@ function test_conversation_transcript()
         end
         # A plain press on the result still names the part that holds it.
         (_, x, y) = found[string(first(p for p in paths if _is_same_path(p, _section_path(3, 1, "result"))))]
-        plain = read_intent(proj, io, MousePress(:left, x, y; time = 0.0))
+        plain = read_intent(proj, io, MouseClick(:left, x, y; time = 0.0))
         @test plain isa ReplaceSelectionOperation
         @test _is_same_path(plain.path, _part_path(3, 1))
     end

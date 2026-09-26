@@ -35,7 +35,7 @@ struct IdentityProjection <: Projection end
 
 Pass-through. `print_document` returns `SimpleIoMap(p, input, input)` —
 the *same* object on both sides. The reference maps are the identity.
-`read_intent` answers a `KeyPress`, a `KeyDown`, a `MousePress` and a
+`read_intent` answers a `KeyPress`, a `KeyDown`, a `MouseClick` and a
 `CollectIntents` with `read_gesture` of its input document, as the default
 leaf reader of the kernel does; it passes any `Operation` through unchanged;
 and it answers `nothing` for any other payload, such as a `MouseMove`. So a

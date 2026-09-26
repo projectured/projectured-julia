@@ -122,7 +122,7 @@ function test_selection_walking()
         @test get_selection_walk_direction(_walk_key(:left, ModifierKeys())) === nothing
         @test get_selection_walk_direction(_walk_key(:left, ModifierKeys(alt = true, ctrl = true))) === nothing
         @test get_selection_walk_direction(_walk_key(:home)) === nothing
-        @test get_selection_walk_direction(MousePress(:left, 1, 1, ModifierKeys(alt = true); time = 0.0)) === nothing
+        @test get_selection_walk_direction(MouseClick(:left, 1, 1, ModifierKeys(alt = true); time = 0.0)) === nothing
     end
 
     @testset "the projection answers what nothing inside answered" begin

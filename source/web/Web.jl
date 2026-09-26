@@ -555,10 +555,10 @@ _winid(obj)::Symbol = haskey(obj, :window) ? Symbol(String(obj[:window])) : :non
 _get_message_time(obj)::Float64 = haskey(obj, :t) ? Float64(obj[:t]) / 1000 : time()
 
 # Decode one client message and enqueue the resulting WindowInput(s). Only raw
-# device events are emitted; click (`MousePress`) synthesis from a MouseDown/
+# device events are emitted; click (`MouseClick`) synthesis from a MouseDown/
 # MouseUp pair is the editor's `GestureRecognizer`'s job, not the backend's
 # (mirrors `SdlBackend`). Synthesising it here too made every click toggle/select
-# twice — the recogniser's own `MousePress` plus this one — which read as "no
+# twice — the recogniser's own `MouseClick` plus this one — which read as "no
 # change" for togglers (e.g. card collapse flips back immediately).
 function _decode_and_enqueue!(backend::WebBackend, msg)
     obj = JSON3.read(msg)

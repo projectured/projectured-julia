@@ -121,7 +121,7 @@ function _follow_pointer!(p::TooltipProbeProjection, event)
         end
         away = abs(event.x - rest.shown_x) + abs(event.y - rest.shown_y) > p.slop
         return rest.shown && away ? _close_tooltip!(p) : nothing
-    elseif event isa Union{MousePress,MouseDown,KeyDown,KeyPress,MouseScroll}
+    elseif event isa Union{MouseClick,MouseDown,KeyDown,KeyPress,MouseScroll}
         rest.moved_at = nothing
         return rest.shown ? _close_tooltip!(p) : nothing
     end
@@ -140,7 +140,7 @@ function _open_at_rest(p::TooltipProbeProjection, recursion, iomap::TooltipProbe
     rest = p.rest
     rest.moved_at = nothing
     rest.shown && return nothing
-    press = MousePress(:left, event.x, event.y, ModifierKeys(alt = true);
+    press = MouseClick(:left, event.x, event.y, ModifierKeys(alt = true);
                        time = event.time)
     probe = read_intent(iomap.child_iomap.projection, recursion,
                         Intent(press, nothing), iomap.child_iomap)

@@ -188,7 +188,7 @@ end
     # middle of the pane: the tree's rectangles are proportional and ignore the
     # few pixels a border and a splitter take, so an edge is not a place to aim.
     x, y = point(d_group, 0.5, 0.5)
-    press!(MousePress(:left, x, y, ModifierKeys(); time = 0.0))
+    press!(MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
     @test get_pane_focus(tree)[1] === d_group
     press!(ctrl(:w))
 
@@ -207,10 +207,10 @@ end
     # a different group.
     left_group, right_group = get_pane_groups(tree)
     lx, ly = point(left_group, 0.5, 0.5)
-    press!(MousePress(:left, lx, ly, ModifierKeys(); time = 0.0))
+    press!(MouseClick(:left, lx, ly, ModifierKeys(); time = 0.0))
     @test get_pane_focus(tree)[1] === left_group
     rx, ry = point(right_group, 0.5, 0.5)
-    press!(MousePress(:left, rx, ry, ModifierKeys(); time = 0.0))
+    press!(MouseClick(:left, rx, ry, ModifierKeys(); time = 0.0))
     @test get_pane_focus(tree)[1] === right_group
 end
 
@@ -230,13 +230,13 @@ end
     x0, y0 = round(Int, r.x * WIDTH), round(Int, r.y * HEIGHT)
     target = nothing
     for y in y0:2:(y0 + 40), x in x0:2:(x0 + 200)
-        if is_duplicate(read_intent(projection, iomap, MousePress(:left, x, y, ModifierKeys(); time = 0.0)))
+        if is_duplicate(read_intent(projection, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0)))
             target = (x, y)
             break
         end
     end
     @test target !== nothing
-    press!(MousePress(:left, target[1], target[2], ModifierKeys(); time = 0.0))
+    press!(MouseClick(:left, target[1], target[2], ModifierKeys(); time = 0.0))
     @test length(group.tabs) == count + 1
     @test get_pane_tab_title_string(group.tabs[2]) == shown * " (2)"
     @test get_pane_focus(tree) == (group, 2)

@@ -443,7 +443,7 @@ julia> record_example_video("json", gestures, "/tmp/demo.mp4"; fps=30)
 ```
 
 `event` is any backend-agnostic device event (`KeyDown`, `KeyUp`, `KeyPress`,
-`MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseScroll`); `hold` is how
+`MouseDown`, `MouseUp`, `MouseClick`, `MouseMove`, `MouseScroll`); `hold` is how
 many seconds to display the resulting state. The initial state is shown for
 `initial_hold` seconds (default `0.5`). Each gesture runs the full editor cycle
 (`read_intent` → `evaluate_operation` → `print_document`) and `round(hold *
@@ -452,7 +452,7 @@ recording above is `15 + 9 + 9 + 15 = 48` frames at `fps=30`.
 
 Keyboard typein only edits when something is selected — with no caret the reader
 produces no operation and `KeyPress` gestures are silent no-ops. To record a
-typing demo, either make the first gesture a `MousePress` that places the caret,
+typing demo, either make the first gesture a `MouseClick` that places the caret,
 or pass an `initial_selection` (a `Reference` into the document, the same
 kind of value `set_selection!` and `run_example(...; selection=…)` take):
 

@@ -5,13 +5,13 @@ function test_event_case()
 let classify(e) = @event_case e begin
         KeyDown     => :keydown
         KeyPress    => :keypress
-        MousePress  => :press
+        MouseClick  => :press
         MouseScroll => :scroll
         _           => :other
     end
     @test classify(KeyDown(:a, ModifierKeys(); time = 0.0)) == :keydown
     @test classify(KeyPress('a'; time = 0.0)) == :keypress
-    @test classify(MousePress(:left, 1, 2; time = 0.0)) == :press
+    @test classify(MouseClick(:left, 1, 2; time = 0.0)) == :press
     @test classify(MouseScroll(0, -1, 3, 4; time = 0.0)) == :scroll
     @test classify(MouseMove(1, 2; time = 0.0)) == :other
 end
@@ -27,10 +27,10 @@ end
 
 # binding several positional fields
 let at(e) = @event_case e begin
-        MousePress(:left, x, y) => (x, y)
+        MouseClick(:left, x, y) => (x, y)
     end
-    @test at(MousePress(:left, 12, 34; time = 0.0)) == (12, 34)
-    @test at(MousePress(:right, 12, 34; time = 0.0)) === nothing   # button literal mismatch
+    @test at(MouseClick(:left, 12, 34; time = 0.0)) == (12, 34)
+    @test at(MouseClick(:right, 12, 34; time = 0.0)) === nothing   # button literal mismatch
 end
 
 # char binding works regardless of modifiers (capitals carry shift)

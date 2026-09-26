@@ -51,7 +51,7 @@ _is_insert(op) = !isempty(_inserted_titles(op)) && !_is_duplicate(op)
 function _sweep(proj, iomap)
     found = Tuple{Int,Any}[]
     for y in 0:2:40, x in 0:2:400
-        op = read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys(); time = 0.0))
+        op = read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
         op === nothing || push!(found, (x, op))
     end
     found
@@ -175,7 +175,7 @@ end
 
     caret = nothing
     for y in 0:2:300, x in 0:2:400
-        op = read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys(); time = 0.0))
+        op = read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
         op isa ReplaceSelectionOperation || continue
         occursin("PrimitiveString", string(op.path)) || continue
         caret = op
@@ -357,7 +357,7 @@ end
 
 # ── A whole page ─────────────────────────────────────────────────────────
 
-_alt_press(x, y) = MousePress(:left, x, y, ModifierKeys(alt = true); time = 0.0)
+_alt_press(x, y) = MouseClick(:left, x, y, ModifierKeys(alt = true); time = 0.0)
 _page_context() = PrinterContext(EmptyReference(), Cell(400), Cell(300), Dict{Symbol,Any}())
 
 # Where a text is drawn, and the drawn box of every selection ring.

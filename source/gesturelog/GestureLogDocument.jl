@@ -103,20 +103,20 @@ describe_gesture(text::AbstractString) = String(text)
 describe_gesture(event::MouseMove) = string(_describe_event(event), " (", event.x, ",", event.y, ")")
 describe_gesture(event::MouseScroll) = string(_describe_event(event), " (", event.dx, ",", event.dy, ")")
 
-function describe_gesture(event::Union{MouseDown,MouseUp,MousePress})
-    count = event isa MousePress ? event.count : 1
+function describe_gesture(event::Union{MouseDown,MouseUp,MouseClick})
+    count = event isa MouseClick ? event.count : 1
     suffix = count > 1 ? string(" x", count) : ""
     string(_describe_event(event), suffix, " (", event.x, ",", event.y, ")")
 end
 
 const _MODIFIER_FLAGS = (:ctrl, :shift, :alt, :meta)
 
-_describe_event(event::Event) = describe_event_pattern(_gesture_pattern(event))
+_describe_event(event::Union{Event,Gesture}) = describe_event_pattern(_gesture_pattern(event))
 _describe_event(gesture) = string(gesture)
 
 # The pattern that matches exactly this event: the field that names the gesture
 # is constrained, and every modifier that the user holds is listed.
-function _gesture_pattern(event::Event)
+function _gesture_pattern(event::Union{Event,Gesture})
     type = typeof(event)
     fields = hasfield(type, :key)    ? (; key = event.key) :
              hasfield(type, :char)   ? (; char = event.char) :

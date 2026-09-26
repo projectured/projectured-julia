@@ -94,7 +94,7 @@ end # @testset
     # redirects it onto the inner projection's bool cell.
     flipped = false
     for y in 0:4:120, x in 150:5:230
-        op = read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys(); time = 0.0))
+        op = read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
         op isa ReplaceReferencedValueOperation || continue
         evaluate_operation(_PcEditor(doc), op)
         if inner.case_insensitive[] || inner.invert[]

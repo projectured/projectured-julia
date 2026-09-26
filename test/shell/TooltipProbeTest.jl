@@ -147,7 +147,7 @@ end
     scene, composed, feed = _tooltip_scene()
     _move(composed, scene, 20, 10)
     _rest(composed, scene, feed)
-    _tooltip_read(composed, scene, MousePress(:left, 20, 10, 1, ModifierKeys(); time = 0.0))
+    _tooltip_read(composed, scene, MouseClick(:left, 20, 10, 1, ModifierKeys(); time = 0.0))
     @test length(scene.windows) == 1
 end
 
@@ -246,7 +246,7 @@ struct _ContextSelecting <: Projection end
 ProjectionModule.print_document(::_ContextSelecting, recursion, input, ctx) =
     SimpleIoMap(_ContextSelecting(), input, input)
 ProjectionModule.read_intent(::_ContextSelecting, iomap, event) =
-    event isa MousePress ? ReplaceSelectionOperation(EmptyReference()) : nothing
+    event isa MouseClick ? ReplaceSelectionOperation(EmptyReference()) : nothing
 
 function test_context_menu_probe()
 @testset "the context menu probe" begin
@@ -264,7 +264,7 @@ function _read(document; menu = compute_context_menu)
         selection = false, context_menu = menu)(document, make_layout_projection_example())
     iomap = print_document(projection, document)
     answer = read_intent(projection, nothing,
-                         Intent(MousePress(:right, 5, 5, ModifierKeys(); time = 0.0)), iomap)
+                         Intent(MouseClick(:right, 5, 5, ModifierKeys(); time = 0.0)), iomap)
     answer isa Intent ? answer.operation : answer
 end
 
@@ -290,7 +290,7 @@ _opens_popup(operation) = operation isa ReplaceViewStateOperation &&
     probe = ContextMenuProbeProjection(inner = _ContextSelecting(), compute_context_menu = _ -> menu)
     iomap = print_document(probe, PrimitiveString("row"))
     answer(button) = read_intent(probe, nothing,
-                                 Intent(MousePress(button, 7, 9, ModifierKeys(); time = 0.0)), iomap).operation
+                                 Intent(MouseClick(button, 7, 9, ModifierKeys(); time = 0.0)), iomap).operation
     right = answer(:right)
     @test right isa CompoundOperation
     @test right.operations[1] isa ReplaceSelectionOperation

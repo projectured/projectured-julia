@@ -42,7 +42,7 @@ end
     iomap = print_document(proj, select)
 
     # To open a popup is not an edit, so the popup comes marked as view state.
-    marked = read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys(); time = 0.0))
+    marked = read_intent(proj, iomap, MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0))
     @test marked isa ReplaceViewStateOperation
     op = _select_popup(marked)
     @test op isa OpenPopupOperation
@@ -64,13 +64,13 @@ end
 @testset "a select with no options is inert" begin
     select = WidgetSelect("x"; width=120)
     iomap = print_document(proj, select)
-    @test read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, iomap, MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0)) === nothing
 end
 
 @testset "a disabled select swallows the click" begin
     select = WidgetSelect("Apple"; options=["Apple", "Banana"], enabled=false)
     iomap = print_document(proj, select)
-    @test read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, iomap, MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0)) === nothing
 end
 
 @testset "a layout moves the popup of a select into its own frame" begin
@@ -81,7 +81,7 @@ end
     # below the select, in the frame of the layout.
     (x_cell, y_cell, cim) = getfield(_select_iomap_of(iomap, layout), :child_iomaps)[][2]
     ox, oy = Int(x_cell[]), Int(y_cell[])
-    op = _select_popup(read_intent(proj, iomap, MousePress(:left, ox + 5, oy + 5, ModifierKeys(); time = 0.0)))
+    op = _select_popup(read_intent(proj, iomap, MouseClick(:left, ox + 5, oy + 5, ModifierKeys(); time = 0.0)))
     @test op isa OpenPopupOperation
     @test oy > 0
     @test op.x == ox
@@ -97,7 +97,7 @@ end
     # select is drawn 10 pixels higher than the layout places it.
     pane = WidgetScrollPane(layout; size = Point2D(200, 30), scroll_position = Point2D(0, 10))
     iomap = print_document(proj, pane)
-    op = _select_popup(read_intent(proj, iomap, MousePress(:left, 5, oy - 10 + 5, ModifierKeys(); time = 0.0)))
+    op = _select_popup(read_intent(proj, iomap, MouseClick(:left, 5, oy - 10 + 5, ModifierKeys(); time = 0.0)))
     @test op isa OpenPopupOperation
     @test op.x == 0
     @test op.y == oy - 10 + cim.control_height + 4
@@ -111,7 +111,7 @@ end
     iomap = print_document(proj, pane)
     # At twice the size, the select is drawn at twice its extent, and so is the
     # place just below it; the bound of the popup stays in screen pixels.
-    op = _select_popup(read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys(); time = 0.0)))
+    op = _select_popup(read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)))
     @test op isa OpenPopupOperation
     @test op.x == 0
     @test op.y == 2 * (height + 4)
@@ -123,7 +123,7 @@ end
     option = WidgetOption(select, "Banana"; width=180)
     oio = print_document(proj, option)
 
-    op = read_intent(proj, oio, MousePress(:left, 5, 5, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, oio, MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0))
     @test op isa CompoundOperation
     @test length(op.operations) == 2
 
@@ -147,7 +147,7 @@ end
     select = WidgetSelect("Apple"; options=["Apple"], width=120)
     option = WidgetOption(select, "Apple"; width=120)
     oio = print_document(proj, option)
-    @test read_intent(proj, oio, MousePress(:right, 5, 5, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, oio, MouseClick(:right, 5, 5, ModifierKeys(); time = 0.0)) === nothing
     @test select.value == "Apple"
 end
 

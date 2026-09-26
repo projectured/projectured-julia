@@ -673,7 +673,7 @@ end
     function press!(x, y)
         operation = nothing
         for event in (MouseDown(:left, x, y, ModifierKeys(); time = 0.0), MouseUp(:left, x, y, ModifierKeys(); time = 0.0),
-                      MousePress(:left, x, y, 1, ModifierKeys(); time = 0.0))
+                      MouseClick(:left, x, y, 1, ModifierKeys(); time = 0.0))
             change = read_intent(projection, nothing, Intent(event), iomap)
             operation = change isa Intent ? change.operation : change
             operation isa Operation && evaluate_operation(ed, operation)

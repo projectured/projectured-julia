@@ -798,7 +798,7 @@ end
     @test iomap.output === content
     # A press that neither the clipboard nor the content answers gives no
     # operation, and not the press itself.
-    change = read_intent(projection, nothing, Intent(MousePress(:right, 1, 1, ModifierKeys(); time = 0.0)), iomap)
+    change = read_intent(projection, nothing, Intent(MouseClick(:right, 1, 1, ModifierKeys(); time = 0.0)), iomap)
     @test change.operation === nothing
 end
 

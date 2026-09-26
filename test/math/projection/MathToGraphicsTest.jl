@@ -181,7 +181,7 @@ end
     fraction = _print(MathFraction(PrimitiveNumber(1), MathVariable("x")))
     canvas = fraction.output
     _press(x, y) = read_intent(fraction.projection, fraction,
-                               MousePress(:left, Int(x), Int(y); time = 0.0))
+                               MouseClick(:left, Int(x), Int(y); time = 0.0))
 
     numerator_x, numerator_y = _at(canvas, 1)
     operation = _press(numerator_x + 1, numerator_y + 1)

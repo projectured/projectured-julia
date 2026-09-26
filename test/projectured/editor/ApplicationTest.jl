@@ -234,7 +234,7 @@ end
 # the operation it makes. The navigator is the leftmost part of the window.
 function _app_find_file_row(composed, iomap)
     for y in 0:4:400
-        operation = _app_fire(composed, iomap, MousePress(:left, 100, y, 2, ModifierKeys(); time = 0.0))
+        operation = _app_fire(composed, iomap, MouseClick(:left, 100, y, 2, ModifierKeys(); time = 0.0))
         _app_plain(operation) isa OpenFileOperation && return (y, operation)
     end
     (nothing, nothing)
@@ -423,7 +423,7 @@ function test_application()
                 # The verb's operation is the one a press on the title of the tab makes.
                 (_, x, y) = only(item for item in _app_drawn_at(get_iomap_output(iomap).windows[1].content)
                                  if item[1] == "Files")
-                pressed = _app_fire(composed, iomap, MousePress(:left, x + 4, y + 4, 1, ModifierKeys(); time = 0.0))
+                pressed = _app_fire(composed, iomap, MouseClick(:left, x + 4, y + 4, 1, ModifierKeys(); time = 0.0))
                 @test repr(_app_plain(make_focus_pane_operation(editor, files))) == repr(_app_plain(pressed))
                 focus_pane!(editor, files)
                 # Each level from the root down holds its suffix of one path.
@@ -625,7 +625,7 @@ function test_application()
                 # The pixel of the label, found where it is drawn.
                 (x, y) = only((x, y) for (text, x, y) in drawn if text == "File")
                 @test length(scene.windows) == 1
-                _app_fire(composed, iomap, MousePress(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+                _app_fire(composed, iomap, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
                 @test length(scene.windows) == 2
                 window, popup = scene.windows[1], scene.windows[2]
                 @test popup.content isa WidgetMenu
@@ -642,7 +642,7 @@ function test_application()
                 # The press itself came back as the operation, from the identity
                 # stage of a clipboard chain, and a context menu then never opened.
                 document, scene, composed, iomap = _app_make_scene(paths[1:1], dir)
-                @test _app_fire(composed, iomap, MousePress(:right, 900, 300, 1, ModifierKeys(); time = 0.0)) === nothing
+                @test _app_fire(composed, iomap, MouseClick(:right, 900, 300, 1, ModifierKeys(); time = 0.0)) === nothing
             end
 
             @testset "a press on another menu name closes the open menu and opens its own, and Escape closes it" begin
@@ -657,12 +657,12 @@ function test_application()
                 labels(menu) = [string(item.action.label) for item in menu.elements]
                 view = only(item for item in make_window_menu_bar().elements
                             if string(item.action.label) == "View")
-                fire(MousePress(:left, fx + 2, fy + 2, 1, ModifierKeys(); time = 0.0))
+                fire(MouseClick(:left, fx + 2, fy + 2, 1, ModifierKeys(); time = 0.0))
                 @test labels(scene.windows[2].content) == ["New tab", "Close tab"]
                 # The press goes down first, and closes the menu of File.
                 fire(MouseDown(:left, vx + 2, vy + 2; time = 0.0))
                 @test length(scene.windows) == 1
-                fire(MousePress(:left, vx + 2, vy + 2, 1, ModifierKeys(); time = 0.0))
+                fire(MouseClick(:left, vx + 2, vy + 2, 1, ModifierKeys(); time = 0.0))
                 @test labels(scene.windows[2].content) == labels(view.submenu)
                 @test fire(KeyDown(:escape, ModifierKeys(); time = 0.0)) isa DoNothingOperation
                 @test length(scene.windows) == 1
@@ -673,7 +673,7 @@ function test_application()
                 editor = _app_make_editor(scene, composed, iomap)
                 drawn = _app_drawn_at(print_document(composed, scene).output.windows[1].content)
                 (x, y) = only((x, y) for (text, x, y) in drawn if text == "File")
-                _app_fire(composed, iomap, MousePress(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
+                _app_fire(composed, iomap, MouseClick(:left, x + 2, y + 2, 1, ModifierKeys(); time = 0.0))
                 @test length(scene.windows) == 2
                 # The popup window draws the commands of the menu, in its own frame.
                 shown = print_document(composed, scene)
@@ -684,7 +684,7 @@ function test_application()
                 before = _app_count_tabs(_app_window(document))
                 change = read_intent(composed, nothing,
                                      Intent(WindowInput(:widget_popup,
-                                                        MousePress(:left, nx + 2, ny + 2, 1, ModifierKeys(); time = 0.0))),
+                                                        MouseClick(:left, nx + 2, ny + 2, 1, ModifierKeys(); time = 0.0))),
                                      shown)
                 @test length(scene.windows) == 1
                 _app_apply!(editor, change.operation)
@@ -903,7 +903,7 @@ function test_application()
                 (x, y) = only((x, y) for (text, x, y) in
                               _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
                               if text == "Structured forms")
-                @test _app_plain(press!(MousePress(:left, x - 17, y + 12, 1, ModifierKeys(); time = 0.0))) isa
+                @test _app_plain(press!(MouseClick(:left, x - 17, y + 12, 1, ModifierKeys(); time = 0.0))) isa
                       ToggleEvaluatorOptionOperation
                 @test evaluator.type_structured_forms
                 @test evaluator.elements[1].form isa JuliaInsertion
@@ -944,7 +944,7 @@ function test_application()
                 # clipboard holds the file itself.
                 selected() = try_evaluate_reference(scene, getfield(scene, :selection)[], missing)
                 (ax, ay) = first((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
-                press!(MousePress(:left, ax + 5, ay + 5, 1, ModifierKeys(alt = true); time = 0.0))
+                press!(MouseClick(:left, ax + 5, ay + 5, 1, ModifierKeys(alt = true); time = 0.0))
                 @test selected() isa JsonString
                 for _ in 1:8
                     selected() isa JsonFile && break
@@ -961,7 +961,7 @@ function test_application()
                 (group, index) = get_pane_focus(_app_window(document))
                 evaluator = get_wrapped_document(group.tabs[index].content)
                 (sx, sy) = only(at("Structured forms"))
-                press!(MousePress(:left, sx - 17, sy + 12, 1, ModifierKeys(); time = 0.0))
+                press!(MouseClick(:left, sx - 17, sy + 12, 1, ModifierKeys(); time = 0.0))
                 # The application keeps the content of a file in its undo buffer.
                 type!("x.content.content.entries[1].value.value = \"Bob\"")
                 # Tab commits the hole into a tree of the code.
@@ -969,7 +969,7 @@ function test_application()
                 # Alt+click on `x` selects it whole, and Ctrl+V puts the noted file
                 # there, which the code draws as its label.
                 (xx, xy) = only(at("x"))
-                press!(MousePress(:left, xx + 3, xy + 5, 1, ModifierKeys(alt = true); time = 0.0))
+                press!(MouseClick(:left, xx + 3, xy + 5, 1, ModifierKeys(alt = true); time = 0.0))
                 press!(KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
                 @test "⟨a.json⟩" in [text for (text, _, _) in drawn()]
                 @test _app_plain(press!(KeyDown(:return, ModifierKeys(); time = 0.0))) isa
@@ -979,7 +979,7 @@ function test_application()
                 # front again, draws the new value and not the old one.
                 @test occursin("Bob", print_natural_text(noted.content.content))
                 (tx, ty) = last(sort(at("a.json")))
-                press!(MousePress(:left, tx + 5, ty + 5, 1, ModifierKeys(); time = 0.0))
+                press!(MouseClick(:left, tx + 5, ty + 5, 1, ModifierKeys(); time = 0.0))
                 texts = [text for (text, _, _) in drawn()]
                 @test any(text -> occursin("Bob", text), texts)
                 @test !any(text -> occursin("Alice", text), texts)
@@ -1005,7 +1005,7 @@ function test_application()
                     (ax, ay) = first((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
                     # Alt+click selects the string under the pointer, Alt+Up walks out
                     # to the file, and Ctrl+Shift+C copies its reference as code.
-                    press!(MousePress(:left, ax + 5, ay + 5, 1, ModifierKeys(alt = true); time = 0.0))
+                    press!(MouseClick(:left, ax + 5, ay + 5, 1, ModifierKeys(alt = true); time = 0.0))
                     @test selected() isa JsonString
                     for _ in 1:8
                         selected() isa JsonFile && break
@@ -1030,7 +1030,7 @@ function test_application()
                     # it, and delete it again.
                     press!(KeyPress('q'; time = 0.0))
                     (qx, qy) = only((x, y) for (text, x, y) in drawn() if text == "q")
-                    press!(MousePress(:left, qx + 8, qy + 5, 1, ModifierKeys(); time = 0.0))
+                    press!(MouseClick(:left, qx + 8, qy + 5, 1, ModifierKeys(); time = 0.0))
                     press!(KeyDown(:backspace, ModifierKeys(); time = 0.0))
                     @test evaluator.elements[1].form.value == ""
                     press!(KeyDown(:v, ModifierKeys(ctrl = true); time = 0.0))
@@ -1059,7 +1059,7 @@ function test_application()
                     modifiers = ModifierKeys(alt = alt)
                     fire!(MouseDown(:left, x, y, modifiers; time = 0.0))
                     fire!(MouseUp(:left, x, y, modifiers; time = 0.0))
-                    fire!(MousePress(:left, x, y, 1, modifiers; time = 0.0))
+                    fire!(MouseClick(:left, x, y, 1, modifiers; time = 0.0))
                 end
                 key!(name; modifiers...) = fire!(KeyDown(name, ModifierKeys(; modifiers...); time = 0.0))
                 type!(text) = foreach(character -> fire!(KeyPress(character; time = 0.0)), text)
@@ -1238,7 +1238,7 @@ function test_application()
                 # pressing. The toolbar is a band near the top of the window.
                 action_at(x, y) = begin
                     operation = _app_plain(_app_fire(composed, iomap,
-                                                     MousePress(:left, x, y, ModifierKeys(); time = 0.0)))
+                                                     MouseClick(:left, x, y, ModifierKeys(); time = 0.0)))
                     operation isa InvokeActionOperation ? string(operation.action.label) : nothing
                 end
                 row = findfirst(y -> action_at(12, y) == "Explorer", 0:2:120)
@@ -1248,7 +1248,7 @@ function test_application()
                 @test column !== nothing
                 x = (0:3:600)[column]
 
-                operation = _app_fire(composed, iomap, MousePress(:left, x, y, ModifierKeys(); time = 0.0))
+                operation = _app_fire(composed, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
                 _app_apply!(_app_make_editor(scene, composed, iomap), operation)
                 tree = _app_window(document)
                 @test count(tab -> get_wrapped_document(tab.content) === get_session_message_log(),
@@ -1365,7 +1365,7 @@ function test_application()
                 @test length(groups[2].tabs) == 2       # the file joins the files
 
                 # A single click selects the row, and Enter opens it.
-                selection = _app_fire(composed, iomap, MousePress(:left, 100, y, 1, ModifierKeys(); time = 0.0))
+                selection = _app_fire(composed, iomap, MouseClick(:left, 100, y, 1, ModifierKeys(); time = 0.0))
                 @test _app_plain(selection) isa ReplaceSelectionOperation
                 evaluate_operation(editor, selection)
                 opened = _app_fire(composed, iomap, KeyDown(:return, ModifierKeys(); time = 0.0))
@@ -1400,7 +1400,7 @@ function test_application()
                     @test length(history.undo_entries) == steps
                     # A double click opens the file drawn under the pointer.
                     opened = _app_fire(composed, editor.iomap,
-                                       MousePress(:left, 100, last_row + 3, 2, ModifierKeys(); time = 0.0))
+                                       MouseClick(:left, 100, last_row + 3, 2, ModifierKeys(); time = 0.0))
                     @test _app_plain(opened) isa OpenFileOperation
                     @test _app_plain(opened).path == joinpath(tall, "gamma", "file9.jl")
                     # A folder that closes and opens again is view state too.
@@ -1408,7 +1408,7 @@ function test_application()
                     @test rows() == 3
                     # The chevron of `gamma`, read again after each click: a tree that
                     # gets shorter scrolls back, and the row moves.
-                    chevron() = only(MousePress(:left, x - 34, y + 5, 1, ModifierKeys(); time = 0.0)
+                    chevron() = only(MouseClick(:left, x - 34, y + 5, 1, ModifierKeys(); time = 0.0)
                                      for (text, x, y) in drawn() if text == "gamma")
                     _app_apply!(editor, _app_fire(composed, editor.iomap, chevron()))
                     @test rows() == 2
@@ -1446,7 +1446,7 @@ function test_application()
 
                 (x, y) = first((x, y) for (text, x, y) in _app_drawn_at(window())
                                if text == "a.json" && x < 400)
-                @test press!(MousePress(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0)) isa
+                @test press!(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0)) isa
                       ReplaceSelectionOperation
                 @test selected_file() == joinpath(dir, "a.json")
                 @test isempty(ring())
@@ -1455,7 +1455,7 @@ function test_application()
                 opened = _app_fire(composed, editor.iomap, KeyDown(:return, ModifierKeys(); time = 0.0))
                 @test _app_plain(opened).path == joinpath(dir, next)
 
-                @test press!(MousePress(:left, x + 3, y + 3, 1, ModifierKeys(alt = true); time = 0.0)) isa
+                @test press!(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(alt = true); time = 0.0)) isa
                       ReplaceSelectionOperation
                 @test endswith(path(), ".tabs[1].content")
                 @test length(ring()) == 1
@@ -1549,7 +1549,7 @@ function test_application()
                 at = [(x, y) for (text, x, y) in
                       _app_drawn_at(get_iomap_output(w.editor.iomap).windows[1].content)
                       if occursin("Alice", text)]
-                w.press!(MousePress(:left, first(at)[1] + 3, first(at)[2] + 3, 1, ModifierKeys(); time = 0.0))
+                w.press!(MouseClick(:left, first(at)[1] + 3, first(at)[2] + 3, 1, ModifierKeys(); time = 0.0))
                 @test holds_one_path(w)
                 # Ctrl+O answers the reload and a selection of the whole file.
                 reload = w.press!(KeyDown(:o, ModifierKeys(ctrl = true); time = 0.0))
@@ -1594,7 +1594,7 @@ function test_application()
                 at = [(x, y) for (text, x, y) in
                       _app_drawn_at(get_iomap_output(w.editor.iomap).windows[1].content)
                       if text == "a.json"]
-                @test w.press!(MousePress(:left, first(at)[1] + 3, first(at)[2] + 3, 1,
+                @test w.press!(MouseClick(:left, first(at)[1] + 3, first(at)[2] + 3, 1,
                                           ModifierKeys(); time = 0.0)) isa ReplaceSelectionOperation
                 @test holds_one_path(w)
             end
@@ -1613,14 +1613,14 @@ function test_application()
             drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
             carets() = _app_drawn_carets(get_iomap_output(editor.iomap).windows[1].content)
             (x, y) = first((x, y) for (text, x, y) in drawn() if text == "a.json")
-            press!(MousePress(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
+            press!(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
             @test press!(KeyDown(:return, ModifierKeys(); time = 0.0)) isa OpenFileOperation
             file = only(search_documents(document, node -> node isa JsonFile;
                                          descend = _app_is_content_search_step))
             name() = get_wrapped_document(file.content).entries[1].value.value
 
             (x, y) = only((x, y) for (text, x, y) in drawn() if occursin("Alice", text))
-            @test press!(MousePress(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0)) isa ReplaceSelectionOperation
+            @test press!(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0)) isa ReplaceSelectionOperation
             @test occursin(r"\.entries\[1\]\.value\.value\{\d+\}$",
                            repr(strip_reference_types(get_selection(scene))))
             @test length(carets()) == 1
@@ -1628,7 +1628,7 @@ function test_application()
             @test occursin("x", name()) && length(name()) == length("Alice") + 1
 
             (x, y) = only((x, y) for (text, x, y) in drawn() if occursin("lice", text))
-            @test press!(MousePress(:left, x + 3, y + 3, 1, ModifierKeys(alt = true); time = 0.0)) isa
+            @test press!(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(alt = true); time = 0.0)) isa
                   ReplaceSelectionOperation
             @test evaluate_reference(scene, get_selection(scene)) isa JsonString
         end

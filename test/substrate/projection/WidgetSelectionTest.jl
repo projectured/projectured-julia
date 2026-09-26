@@ -80,7 +80,7 @@ function _selection_all_rings(root)
     rings
 end
 
-_press(x, y, modifiers = ModifierKeys()) = MousePress(:left, x, y, modifiers; time = 0.0)
+_press(x, y, modifiers = ModifierKeys()) = MouseClick(:left, x, y, modifiers; time = 0.0)
 
 # The first point, row by row, where a press writes the value of `control`. The
 # reader says where the control is, so the test repeats no layout arithmetic.
@@ -98,7 +98,7 @@ end
 function _selection_click!(projection, iomap, root, x, y; button = :left,
                            modifiers = ModifierKeys())
     for event in (MouseDown(button, x, y, modifiers; time = 0.0), MouseUp(button, x, y, modifiers; time = 0.0),
-                  MousePress(button, x, y, modifiers; time = 0.0))
+                  MouseClick(button, x, y, modifiers; time = 0.0))
         answer = read_intent(projection, iomap, event)
         answer === nothing || evaluate_operation((document = root,), answer)
     end
@@ -170,7 +170,7 @@ function test_widget_selection()
         @test is_whole_selection_press(_press(1, 1, _ALT))
         @test !is_whole_selection_press(_press(1, 1))
         @test !is_whole_selection_press(_press(1, 1, ModifierKeys(alt = true, ctrl = true)))
-        @test !is_whole_selection_press(MousePress(:right, 1, 1, _ALT; time = 0.0))
+        @test !is_whole_selection_press(MouseClick(:right, 1, 1, _ALT; time = 0.0))
     end
 
     @testset "an Alt+click selects the widget under the pointer" begin

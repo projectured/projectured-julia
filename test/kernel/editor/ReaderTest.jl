@@ -27,7 +27,7 @@ const _ALL_MOUSE_EVENTS = vcat(
     [MouseUp(btn, x, y; time = 0.0)
      for btn   in (:left, :middle, :right)
      for (x,y) in _MOUSE_SAMPLE_XY],
-    [MousePress(btn, x, y; time = 0.0)
+    [MouseClick(btn, x, y; time = 0.0)
      for btn   in (:left, :middle, :right)
      for (x,y) in _MOUSE_SAMPLE_XY],
     [MouseMove(x, y; time = 0.0)   for (x,y) in _MOUSE_SAMPLE_XY],

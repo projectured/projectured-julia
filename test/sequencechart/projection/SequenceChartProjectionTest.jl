@@ -348,7 +348,7 @@ function test_sequencechart_projection()
             row = first(g.visible_events)
             flow = to_pixel(g.scale, g.coordinates[row])
             cross = g.lane_of[get_event_axis(chart.events, row)]
-            press = MousePress(:left, round(Int, flow + g.body_x),
+            press = MouseClick(:left, round(Int, flow + g.body_x),
                                round(Int, cross + g.body_y), _sc_no_modifier; time = 0.0)
             op = read_intent(projection, stage2, press)
             @test op isa ReplaceSelectionOperation
@@ -372,7 +372,7 @@ function test_sequencechart_projection()
             plot = _plot_of(iomap)
             plot.view = SequenceChartView(1, 0.0, 0.5)
 
-            press = MousePress(:left, round(Int, g.body_x + g.body_w / 2),
+            press = MouseClick(:left, round(Int, g.body_x + g.body_w / 2),
                                round(Int, g.body_y + g.body_h / 2), 2, _sc_no_modifier; time = 0.0)
             op = read_intent(stage2.projection, stage2, press)
             @test op isa ReplaceViewStateOperation      # a zoom is view state
@@ -435,7 +435,7 @@ function test_sequencechart_projection()
             stage2 = _stage2_iomap(iomap)
             # A click on the background is not a selection of anything.
             @test read_intent(stage2.projection, stage2,
-                              MousePress(:left, 2, 2, _sc_no_modifier; time = 0.0)) === nothing
+                              MouseClick(:left, 2, 2, _sc_no_modifier; time = 0.0)) === nothing
         end
 
         @testset "long arrows split" begin

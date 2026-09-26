@@ -17,7 +17,7 @@ long as a tooltip waits. A [`TooltipFeed`](@ref) reads it through the editor's
 projection when its deadline passes, with the time of that moment, and a
 `TooltipProbeProjection` answers it.
 """
-struct PointerRest <: SyntheticEvent
+struct PointerRest <: Gesture
     x::Int
     y::Int
     time::Float64

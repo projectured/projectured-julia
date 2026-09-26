@@ -8,7 +8,7 @@
 The user asked to quit the whole application. It is a request, and the application
 can ignore it. `time` is the time of the input (see `Event`).
 """
-struct WindowQuit <: DeviceEvent
+struct WindowQuit <: Event
     time::Float64
 end
 
@@ -21,7 +21,7 @@ The user asked to close one window, with its close button. It is a request, and 
 application can ignore it: the event reports what the user did, not what must
 happen. The window is the `window_id` of the `WindowInput` that holds the event.
 """
-struct WindowClose <: DeviceEvent
+struct WindowClose <: Event
     time::Float64
 end
 
@@ -34,7 +34,7 @@ WindowClose(; time::Real) = WindowClose(Float64(time))
 The user changed the size of a window. `width` and `height` are the new size of its
 content area, in pixels.
 """
-struct WindowResize <: DeviceEvent
+struct WindowResize <: Event
     width::Int
     height::Int
     time::Float64
@@ -48,7 +48,7 @@ WindowResize(width::Int, height::Int; time::Real) =
 
 A window lost input focus.
 """
-struct WindowDefocus <: DeviceEvent
+struct WindowDefocus <: Event
     time::Float64
 end
 
@@ -62,7 +62,7 @@ a window moves, and the code that tracks the widgets makes a `MouseLeave` from t
 motion; a pointer that goes out of the window moves over nothing that the window
 sees, so the source reports it as this event.
 """
-struct WindowLeave <: DeviceEvent
+struct WindowLeave <: Event
     time::Float64
 end
 

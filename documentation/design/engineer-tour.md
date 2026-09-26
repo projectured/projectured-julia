@@ -173,7 +173,7 @@ A **gesture** is a backend-independent input event.
 KeyPress('a'; time = t)                             # a character
 KeyDown(:left, ModifierKeys(); time = t)            # an arrow key
 KeyDown(:return, ModifierKeys(ctrl=true); time = t) # Ctrl+Enter
-MousePress(:left, 132, 47; time = t)                # a click at a pixel
+MouseClick(:left, 132, 47; time = t)                # a click at a pixel
 MouseScroll(0, 1, 200, 300; time = t)
 ```
 

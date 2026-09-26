@@ -231,8 +231,8 @@ end
     cx = div(geom.col_x[gc] + geom.col_x[gc+1], 2)
     cy = div(geom.row_y[gr] + geom.row_y[gr+1], 2)
 
-    alt_op   = read_intent(proj, io, MousePress(:left, cx, cy, ModifierKeys(alt=true); time = 0.0))
-    plain_op = read_intent(proj, io, MousePress(:left, cx, cy, ModifierKeys(); time = 0.0))
+    alt_op   = read_intent(proj, io, MouseClick(:left, cx, cy, ModifierKeys(alt=true); time = 0.0))
+    plain_op = read_intent(proj, io, MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0))
 
     @test alt_op isa ReplaceSelectionOperation
     @test string(alt_op.path) == ".rows[2][2]"
@@ -251,19 +251,19 @@ end
     # Column header strip (grid row 1) over data column 3.
     gc = 3 + geom.col_offset
     cx = div(geom.col_x[gc] + geom.col_x[gc+1], 2)
-    col_op = read_intent(proj, io, MousePress(:left, cx, div(geom.row_y[2], 2), ModifierKeys(); time = 0.0))
+    col_op = read_intent(proj, io, MouseClick(:left, cx, div(geom.row_y[2], 2), ModifierKeys(); time = 0.0))
     @test col_op isa ReplaceSelectionOperation
     @test string(col_op.path) == ".column_headers[3]"
 
     # Row header strip (grid column 1) over data row 2.
     gr = 2 + geom.row_offset
     cy = div(geom.row_y[gr] + geom.row_y[gr+1], 2)
-    row_op = read_intent(proj, io, MousePress(:left, div(geom.col_x[2], 2), cy, ModifierKeys(); time = 0.0))
+    row_op = read_intent(proj, io, MouseClick(:left, div(geom.col_x[2], 2), cy, ModifierKeys(); time = 0.0))
     @test row_op isa ReplaceSelectionOperation
     @test string(row_op.path) == ".rows[2]"
 
     # Top-left corner (header intersection) selects the whole table.
-    corner_op = read_intent(proj, io, MousePress(:left, div(geom.col_x[2], 2), div(geom.row_y[2], 2), ModifierKeys(); time = 0.0))
+    corner_op = read_intent(proj, io, MouseClick(:left, div(geom.col_x[2], 2), div(geom.row_y[2], 2), ModifierKeys(); time = 0.0))
     @test corner_op isa ReplaceSelectionOperation
     @test corner_op.path isa EmptyReference
 end

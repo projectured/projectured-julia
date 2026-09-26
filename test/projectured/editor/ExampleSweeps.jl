@@ -359,7 +359,7 @@ function test_click_roundtrips()
             # TextToGraphics step (handled by other readers entirely).
             # Skip:
             #   - widget/layout/table/tooltip/navigator/assistant: no
-            #     TextToGraphics at the top, MousePress is consumed elsewhere
+            #     TextToGraphics at the top, MouseClick is consumed elsewhere
             #   - xml/filesystem/graphics_image: no selection model on output yet
             #   - book/conversation/object/math/julia/line_numbering/word_wrapping:
             #     domain projections do not yet propagate selection through every
@@ -439,7 +439,7 @@ function test_text_navigation_invariants_all()
         for example in examples
             # Skip:
             #   - widget/layout/table/tooltip/navigator/assistant: no
-            #     TextToGraphics at the top, MousePress is consumed elsewhere
+            #     TextToGraphics at the top, MouseClick is consumed elsewhere
             #   - xml/filesystem/graphics_image: no selection model on output yet
             #   - book/conversation/object/math/julia/line_numbering/word_wrapping:
             #     domain projections do not yet propagate selection through every

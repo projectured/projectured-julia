@@ -320,7 +320,7 @@ end
 function read_intent(p::InsertionToSyntaxLeaf, iomap::SimpleIoMap, event)
     op = read_projection_gesture(p, iomap, event)
     op !== nothing && return op
-    event isa Union{KeyPress, KeyDown, MousePress} && iomap.input isa Document ?
+    event isa Union{KeyPress, KeyDown, MouseClick} && iomap.input isa Document ?
         read_gesture(iomap.input, event) : nothing
 end
 

@@ -1,5 +1,5 @@
 """
-The gesture layer: the recognizer makes a `MousePress` from a `MouseDown` and a
+The gesture layer: the recognizer makes a `MouseClick` from a `MouseDown` and a
 `MouseUp`, counts double and triple clicks, makes a `KeyChord` from a sequence of
 the chord table, and `pop_gesture!` delivers in order. A scripted source and the
 times of the events make every case exact, with no backend.
@@ -10,7 +10,7 @@ using ProjecturedKernel
 using ProjecturedKernel.GestureRecognizerModule: GestureRecognizer, recognize_gesture!,
                                                 pop_gesture!
 using ProjecturedKernel.EventModule: WindowInput
-using ProjecturedKernel.EventModule: MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+using ProjecturedKernel.EventModule: MouseDown, MouseUp, MouseClick, MouseMove, MouseScroll
 using ProjecturedKernel.EventModule: MouseButtons
 using ProjecturedKernel.EventModule: KeyDown, KeyPress, KeyChord
 using ProjecturedKernel.EventModule: ModifierKeys, get_event_time
@@ -29,7 +29,7 @@ _gr_key(name, t; modifiers = _GR_CTRL, repeat = false) =
     WindowInput(:win, KeyDown(name, modifiers, repeat; time = t))
 
 # One click through `rec`: a press 0.02 s before `t_up` and a release at `t_up`,
-# both at `(x, y)`. Answers the count of the `MousePress` that follows, or 0 when
+# both at `(x, y)`. Answers the count of the `MouseClick` that follows, or 0 when
 # the release makes no click.
 function _drive_click!(rec, x, y, t_up; button = :left)
     empty!(rec.pending)
@@ -53,7 +53,7 @@ function test_gesture_recognizer()
         @test length(rec.pending) == 1
         press = rec.pending[1]
         @test press.window_id === :win
-        @test press.event isa MousePress
+        @test press.event isa MouseClick
         @test (press.event.button, press.event.x, press.event.y) == (:left, 11, 21)
         @test press.event.count == 1
         @test get_event_time(press.event) === 0.1     # the time of the release
@@ -126,7 +126,7 @@ function test_gesture_recognizer()
         @test pop_gesture!(rec, source).event isa MouseDown
         @test pop_gesture!(rec, source).event isa MouseUp
         @test length(rec.pending) == 1
-        @test pop_gesture!(rec, source).event isa MousePress
+        @test pop_gesture!(rec, source).event isa MouseClick
         @test pop_gesture!(rec, source) === nothing
     end
 

@@ -43,7 +43,7 @@ import ProjecturedKernel.ClockModule: Clock, set_clock_time!
 import ProjecturedKernel.EditorModule: get_frame_clock_time
 import ProjecturedKernel.ReferenceModule: EmptyReference
 import ProjecturedKernel.EventModule: WindowInput, WindowQuit,
-       MouseDown, MouseUp, MousePress, MouseMove, MouseScroll
+       MouseDown, MouseUp, MouseClick, MouseMove, MouseScroll
 import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
 
 import ProjecturedSdl: _open_offscreen_renderer, _close_offscreen_renderer, _emit_frames!,

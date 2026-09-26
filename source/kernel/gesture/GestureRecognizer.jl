@@ -80,7 +80,7 @@ keeps the input. A gesture that follows its input waits in `recognizer.pending`.
 
 - A `MouseDown` starts a possible click of its button.
 - A `MouseUp` answers itself. When it is inside the click window of the
-  `MouseDown` of its button in the same window, a `MousePress` follows it in
+  `MouseDown` of its button in the same window, a `MouseClick` follows it in
   `pending`, at the place and the time of the `MouseUp`, with its modifiers, its
   window and the `count` of a double or triple click.
 - A `KeyDown`, when the chord table is not empty, goes to the chord in progress.
@@ -106,7 +106,7 @@ function recognize_gesture!(recognizer::GestureRecognizer, window_input::WindowI
             count = _count_click!(recognizer, window_input.window_id, event, now)
             push!(recognizer.pending,
                   WindowInput(window_input.window_id,
-                              MousePress(event.button, event.x, event.y, count,
+                              MouseClick(event.button, event.x, event.y, count,
                                          event.modifiers; time = now)))
         end
         return window_input
@@ -196,7 +196,7 @@ waits. The editor gives a function over `read_from_devices`, and a test gives a
 scripted source.
 
 The gestures that wait in `recognizer.pending` come first, before a new input,
-so the reader sees the order of the input: a `MouseUp`, then its `MousePress`.
+so the reader sees the order of the input: a `MouseUp`, then its `MouseClick`.
 A new input then goes through `recognize_gesture!`. An input that the recognizer
 keeps, such as the first key of a chord, does not end the pull: the next input
 follows, so a chord in progress never looks like the end of the input. A

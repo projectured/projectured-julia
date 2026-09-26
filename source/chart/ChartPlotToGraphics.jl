@@ -1382,7 +1382,7 @@ function read_intent(p::ChartPlotToGraphicsCanvas, iomap::ChartPlotToGraphicsCan
     elseif event isa MouseLeave
         # A drag that leaves the chart is abandoned, not committed halfway.
         return _compound(_cancel_drag(plot), _clear_hover(plot))
-    elseif event isa MousePress && event.button === :left
+    elseif event isa MouseClick && event.button === :left
         # A double click anywhere in the plot means "show me everything again".
         if event.count >= 2 && _in_rect(event.x, event.y, g.plot_x, g.plot_y, g.plot_w, g.plot_h)
             return _set_view(plot, nothing)

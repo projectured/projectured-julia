@@ -322,7 +322,7 @@ composes with any higher-order projection.
 | `backend/Pdf.jl` (visual) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
 | `device/Display.jl` | `Display` device |
 | `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord` |
-| `event/MouseEvent.jl` | `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseEnter`, `MouseLeave`, `MouseScroll` |
+| `event/MouseEvent.jl` | `MouseDown`, `MouseUp`, `MouseClick`, `MouseMove`, `MouseEnter`, `MouseLeave`, `MouseScroll` |
 | `event/WindowEvent.jl` | `WindowQuit`, `WindowClose`, `WindowResize`, `WindowDefocus` |
 | `agent/AgentModule.jl` (kernel) | The MCP *seam* — `make_agent_server(:mcp, …)`. The transport (JSON-RPC over HTTP, exposing documents and operations) is the opt-in `package/mcp/` |
 
@@ -366,11 +366,11 @@ includes them in:
  4 struct      @cell_struct, CellStructPlan and the builders of a struct of cells
  5 clock       the animation Clock (a @cell_struct with a reactive time field),
                get_clock_time / set_clock_time!, start_wall_clock! / stop_wall_clock!
- 6 event       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys,
+ 6 event       the input vocabulary (Event/Gesture, ModifierKeys,
                KeyDown/KeyPress/Mouse*/Window*, WindowInput), the event pattern
                language (EventPattern, matches, describe, @event_case)
  7 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
- 8 gesture     event → gesture recognition (MousePress / KeyChord synthesis)
+ 8 gesture     event → gesture recognition (MouseClick / KeyChord synthesis)
  9 backend     the Backend seam (lifecycle, text, device I/O, display size, device
                config, image/video output)
 10 document    the Document supertype, @document, the is_element_collection /

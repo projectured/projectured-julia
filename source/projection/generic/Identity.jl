@@ -14,7 +14,7 @@ function read_intent(::IdentityProjection, iomap, operation)
     # default leaf reader of the kernel answers them. An operation passes through
     # unchanged. Any other payload is not an answer: a pass-through that returned
     # a raw gesture would give the event back as the operation of the whole read.
-    if operation isa Union{KeyPress, KeyDown, MousePress, CollectIntents}
+    if operation isa Union{KeyPress, KeyDown, MouseClick, CollectIntents}
         input = iomap.input
         return input isa Document ? read_gesture(input, operation) : nothing
     end

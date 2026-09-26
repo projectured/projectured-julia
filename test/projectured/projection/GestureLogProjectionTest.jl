@@ -35,7 +35,7 @@ function test_gesture_log()
     @testset "an entry renders the gesture and the operation" begin
         log = GestureLog()
         record_gesture!(log, KeyDown(:c, ModifierKeys(ctrl=true); time = 0.0), ToggleCollapseOperation())
-        record_gesture!(log, MousePress(:left, 412, 88; time = 0.0), DoNothingOperation())
+        record_gesture!(log, MouseClick(:left, 412, 88; time = 0.0), DoNothingOperation())
         @test log.entries[1].gesture == "Ctrl+C"
         @test log.entries[1].operation == "toggle collapse"
         @test log.entries[1].kind === :ToggleCollapseOperation
@@ -208,7 +208,7 @@ function test_gesture_log()
         overlay_iomap = print_document(overlay, nothing, mkarray(), ctx())
 
         for (x, y) in ((4, 4), (12, 8), (30, 6))
-            gesture = MousePress(:left, x, y; time = 0.0)
+            gesture = MouseClick(:left, x, y; time = 0.0)
             expected = read_intent(plain, nothing, Intent(gesture, nothing), plain_iomap)
             actual = read_intent(overlay, nothing, Intent(gesture, nothing), overlay_iomap)
             @test string(actual.operation) == string(expected.operation)

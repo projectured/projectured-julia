@@ -8,7 +8,7 @@
 #   - test_hover_probe: a MouseMove fed to HoverProbeProjection produces an
 #     OpenWindowOperation whose content is a ReferenceInspector carrying the
 #     *same* reference a real left-click at that pixel would select, positioned
-#     at pointer()+offset; a real MousePress still passes through to selection.
+#     at pointer()+offset; a real MouseClick still passes through to selection.
 #
 # Reuses the SegmentCoordinate/measure helpers defined in ClickRoundtripTest.jl (same
 # ProjecturedTest module scope; included after it).
@@ -126,14 +126,14 @@ function test_hover_probe()
             @test mv.x == 7 + 16
             @test mv.y == 9 + 20
             # The displayed reference equals what a real click here selects.
-            press = read_intent(proj, plain, MousePress(:left, cx, cy, ModifierKeys(); time = 0.0))
+            press = read_intent(proj, plain, MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0))
             if press isa ReplaceSelectionOperation
                 @test is_reference_equal(mv.content.reference, press.path)
             end
         end
 
         # A real click is not intercepted — it still selects through the probe.
-        click = read_intent(hp, hpio, MousePress(:left, cx, cy, ModifierKeys(); time = 0.0))
+        click = read_intent(hp, hpio, MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0))
         @test click isa ReplaceSelectionOperation
     end
 end

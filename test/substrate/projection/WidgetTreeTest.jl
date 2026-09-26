@@ -103,17 +103,17 @@ end
     w, io = _fresh()
     r1 = io.geometry.rows[1]
     # Chevron click on the open parent → close it (children hidden).
-    op = _readop(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods; time = 0.0))
+    op = _readop(io, MouseClick(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods; time = 0.0))
     @test op isa ReplaceReferencedValueOperation
     # A folded row is view state, so a history does not record the click.
-    @test _readop_marked(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods; time = 0.0)) isa
+    @test _readop_marked(io, MouseClick(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods; time = 0.0)) isa
           ReplaceViewStateOperation
     getfield(w, :expanded)[] = op.value
     @test !([1] in w.expanded)
     g = io.geometry
     @test length(g.rows) == 2
     # Chevron click again → open.
-    op = _readop(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods; time = 0.0))
+    op = _readop(io, MouseClick(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods; time = 0.0))
     getfield(w, :expanded)[] = op.value
     @test [1] in w.expanded
     @test length(io.geometry.rows) == 4
@@ -121,7 +121,7 @@ end
     # A click on the label (past the chevron column) selects instead of toggling.
     w2, io2 = _fresh()
     r = io2.geometry.rows[1]
-    op = _readop(io2, MousePress(:left, r.chevron_x1 + 20, r.y0 + 2, _mods; time = 0.0))
+    op = _readop(io2, MouseClick(:left, r.chevron_x1 + 20, r.y0 + 2, _mods; time = 0.0))
     @test op isa ReplaceSelectionOperation
 end
 
@@ -155,7 +155,7 @@ end
     _tree() = WidgetTree(Any[
         WidgetTreeNode(:folder, "src", Any[WidgetTreeNode(:file, "a.jl")]),
         WidgetTreeNode(:file, "README")])
-    # Count grid points whose MouseEnter / MousePress reach the tree.
+    # Count grid points whose MouseEnter / MouseClick reach the tree.
     function reach(doc; xs, ys)
         io = print_document(_full, doc)
         enters = clicks = 0
@@ -163,7 +163,7 @@ end
             ce = read_intent(_full, nothing, Intent(MouseEnter(x, y, MouseButtons(), _mods; time = 0.0), nothing), io)
             oe = _view_state_write(ce isa Intent ? ce.operation : ce)
             oe isa ReplaceReferencedValueOperation && oe.document isa WidgetTree && (enters += 1)
-            cp = read_intent(_full, nothing, Intent(MousePress(:left, x, y, _mods; time = 0.0), nothing), io)
+            cp = read_intent(_full, nothing, Intent(MouseClick(:left, x, y, _mods; time = 0.0), nothing), io)
             op = cp isa Intent ? cp.operation : cp
             op isa ReplaceSelectionOperation && (clicks += 1)
         end
@@ -175,7 +175,7 @@ end
                             size = Point2D(400, 300)))
         e, c = reach(doc; xs = 0:6:240, ys = 0:6:200)
         @test e > 0     # MouseEnter reaches the tree (was 0 before the fix)
-        @test c > 0     # MousePress selects a tree node through the container
+        @test c > 0     # MouseClick selects a tree node through the container
     end
 end
 

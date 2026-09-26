@@ -67,7 +67,7 @@ _items(io) = sort!([c for c in map(_unwrap, io.output.elements) if c isa Graphic
                    by = c -> Int(c.x))
 _centre(c) = (Int(c.x) + Int(c.w[]) ÷ 2, Int(c.y) + Int(c.h[]) ÷ 2)
 _press(io, (x, y); modifiers = _mods) = begin
-    answer = read_intent(proj, nothing, Intent(MousePress(:left, x, y, modifiers; time = 0.0), nothing), io)
+    answer = read_intent(proj, nothing, Intent(MouseClick(:left, x, y, modifiers; time = 0.0), nothing), io)
     answer isa Intent ? answer.operation : answer
 end
 

@@ -162,7 +162,7 @@ the backward-flowing dual of the document that flows forward through the printer
 
 ```julia
 struct Intent
-    gesture    # the originating device event (MousePress/KeyDown), threaded UNCHANGED
+    gesture    # the originating device event (MouseClick/KeyDown), threaded UNCHANGED
     operation  # the change in the current projection's input domain; starts nothing
 end
 ```

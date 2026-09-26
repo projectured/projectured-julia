@@ -23,7 +23,7 @@ offscreen software renderer as `ProjecturedSdl.write_image` and assembled with `
 `gestures` is a vector of timed entries. Each entry carries either an `event` or
 an `operation`, plus a `hold`:
 - `(event = …, hold = …)` — `event` is any backend-agnostic device event
-  (`KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`, `MouseUp`, `MousePress`,
+  (`KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`, `MouseUp`, `MouseClick`,
   `MouseMove`, `MouseScroll`), translated to an operation via `read_intent`.
 - `(operation = …, hold = …)` — a domain `Operation` injected straight into
   `evaluate_operation`, skipping the reader (for actions with no single-event
@@ -55,7 +55,7 @@ record_video(doc, proj; gestures, filename = "/tmp/demo.mp4", fps = 30)
 `initial_selection` controls where the caret starts. Keyboard typein (e.g.
 `KeyPress`) only produces an edit when something is selected, so to record a
 typing demo either pass an `initial_selection` (a `Reference` into the
-document) or make the first gesture a `MousePress` that places the caret. When
+document) or make the first gesture a `MouseClick` that places the caret. When
 `initial_selection` is `nothing` (the default) the selection is cleared and the
 recording starts caret-free, mirroring a freshly opened editor.
 

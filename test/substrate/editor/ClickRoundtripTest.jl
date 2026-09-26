@@ -6,7 +6,7 @@
 #
 # For each example:
 #   - test_click_roundtrip walks every character cell in every rendered
-#     SegmentCoordinate, fires a MousePress at the centre of that cell, applies the
+#     SegmentCoordinate, fires a MouseClick at the centre of that cell, applies the
 #     resulting ReplaceSelectionOperation, re-prints, and asserts that the
 #     cursor lands in either the clicked segment's band *or* the immediate
 #     neighbour band (the line-boundary case, where the cursor at end of
@@ -104,7 +104,7 @@ end
 """
     test_click_roundtrip(label, document, projection)
 
-For every character cell rendered by `TextToGraphics`, fire a `MousePress`
+For every character cell rendered by `TextToGraphics`, fire a `MouseClick`
 inside that cell and assert that the resulting selection makes the cursor
 re-appear close to the click. "Close" allows up to one line of vertical
 slack to absorb the end-of-line / start-of-next-line cursor-rendering
@@ -150,7 +150,7 @@ function test_click_roundtrip(label, document, projection; broken=nothing)
             for k in sc.char_start:sc.char_end
                 cx = _segment_x_at(sc, k, measure) + 1
                 cy = sc.y + max(1, line_h ÷ 2)
-                op = read_intent(projection, iomap, MousePress(:left, cx, cy, ModifierKeys(); time = 0.0))
+                op = read_intent(projection, iomap, MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0))
                 # A click on an inline expand/collapse marker (or a collapsed
                 # ellipsis) is a fold gesture, not a cursor move: it yields a
                 # ToggleCollapseOperation. That is a legitimate outcome — skip

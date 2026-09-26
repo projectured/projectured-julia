@@ -23,7 +23,7 @@ _bproj() = ChainingProjection(
 
 @testset "button: a per-instance right-click binding fires (left-click unchanged)" begin
     fired = Ref(false)
-    rc = GestureBinding(MousePressPattern(:right),
+    rc = GestureBinding(MouseClickPattern(:right),
                         (doc, evt) -> InvokeActionOperation(doc.action);
                         applicable = _always, description = "context menu",
                         domain = "test")
@@ -32,16 +32,16 @@ _bproj() = ChainingProjection(
     proj = _bproj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
     # The built-in primary op still handles left-click.
-    @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys(); time = 0.0)) isa InvokeActionOperation
+    @test read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)) isa InvokeActionOperation
     # Right-click fires the custom binding.
-    op = read_intent(proj, iomap, MousePress(:right, 10, 10, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, iomap, MouseClick(:right, 10, 10, ModifierKeys(); time = 0.0))
     @test op isa InvokeActionOperation && op.action === btn.action
     evaluate_operation(_WidgetGestureMockEditor(btn), op)
     @test fired[] == true
 end
 
 @testset "button: an instance binding shadows the default left-click" begin
-    shadow = GestureBinding(MousePressPattern(:left),
+    shadow = GestureBinding(MouseClickPattern(:left),
                             (doc, evt) -> ReplaceReferencedValueOperation(doc, "hovered", true);
                             applicable = _always, description = "custom left",
                             domain = "test")
@@ -50,21 +50,21 @@ end
                        size = Point2D(120, 40), action = (_e) -> (fired[] = true), gestures = [shadow])
     proj = _bproj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
-    op = read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0))
     @test op isa ReplaceReferencedValueOperation                 # the instance binding won…
     @test !(op isa InvokeActionOperation)               # …the default primary op did not fire
 end
 
 @testset "button: suppression via DoNothingOperation makes left-click inert" begin
     fired = Ref(false)
-    suppress = GestureBinding(MousePressPattern(:left),
+    suppress = GestureBinding(MouseClickPattern(:left),
                               (doc, evt) -> DoNothingOperation(); applicable = _always,
                               description = "disabled left", domain = "test")
     btn = WidgetButton("Go";
                        size = Point2D(120, 40), action = (_e) -> (fired[] = true), gestures = [suppress])
     proj = _bproj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
-    op = read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0))
     @test op isa DoNothingOperation                            # consumed, not declined
     evaluate_operation(_WidgetGestureMockEditor(btn), op)   # …and does nothing
     @test fired[] == false
@@ -75,8 +75,8 @@ end
     btn = WidgetButton("Go"; size = Point2D(120, 40), action = (_e) -> (fired[] = true))
     proj = _bproj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
-    @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys(); time = 0.0)) isa InvokeActionOperation
-    @test read_intent(proj, iomap, MousePress(:right, 10, 10, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)) isa InvokeActionOperation
+    @test read_intent(proj, iomap, MouseClick(:right, 10, 10, ModifierKeys(); time = 0.0)) === nothing
 end
 
 # ── WidgetCheckbox / WidgetSwitch (same pattern as the button) ───────────────
@@ -86,28 +86,28 @@ end
 
 @testset "checkbox: a right-click binding fires; left-click still toggles" begin
     fired = Ref(false)
-    rc = GestureBinding(MousePressPattern(:right),
+    rc = GestureBinding(MouseClickPattern(:right),
                         (doc, evt) -> (fired[] = true; DoNothingOperation());
                         applicable = _always, description = "context", domain = "test")
     cb = WidgetCheckbox(false; gestures = [rc])
     proj = _bproj()
     iomap = print_document(proj, nothing, cb, PrinterContext())
-    op = read_intent(proj, iomap, MousePress(:right, 5, 5, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, iomap, MouseClick(:right, 5, 5, ModifierKeys(); time = 0.0))
     @test fired[] == true && op isa DoNothingOperation
-    @test read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys(); time = 0.0)) isa ReplaceReferencedValueOperation
+    @test read_intent(proj, iomap, MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0)) isa ReplaceReferencedValueOperation
 end
 
 @testset "switch: a right-click binding fires; left-click still toggles" begin
     fired = Ref(false)
-    rc = GestureBinding(MousePressPattern(:right),
+    rc = GestureBinding(MouseClickPattern(:right),
                         (doc, evt) -> (fired[] = true; DoNothingOperation());
                         applicable = _always, description = "context", domain = "test")
     sw = WidgetSwitch(; checked = false, gestures = [rc])
     proj = _bproj()
     iomap = print_document(proj, nothing, sw, PrinterContext())
-    op = read_intent(proj, iomap, MousePress(:right, 5, 5, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, iomap, MouseClick(:right, 5, 5, ModifierKeys(); time = 0.0))
     @test fired[] == true && op isa DoNothingOperation
-    @test read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys(); time = 0.0)) isa ReplaceReferencedValueOperation
+    @test read_intent(proj, iomap, MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0)) isa ReplaceReferencedValueOperation
 end
 
 # ── WidgetTree / WidgetTreeNode ──────────────────────────────────────────────
@@ -130,14 +130,14 @@ _pathref(i) = ConcreteReference(FieldReferenceStep("roots"),
 
 @testset "tree: a per-node right-click binding fires on the resolved row" begin
     opened = Ref(false)
-    nb = GestureBinding(MousePressPattern(:right),
+    nb = GestureBinding(MouseClickPattern(:right),
                         (node, evt) -> (opened[] = true; DoNothingOperation());
                         applicable = _always, description = "open", domain = "test-node")
     node = WidgetTreeNode(:file, "a.jl"; gestures = [nb])
     w = WidgetTree(Any[node])
     io = print_document(_treeproj, w)
     row = io.geometry.rows[1]
-    op = _readop(io, MousePress(:right, row.chevron_x1 + 2, row.y0 + 2, ModifierKeys(); time = 0.0))
+    op = _readop(io, MouseClick(:right, row.chevron_x1 + 2, row.y0 + 2, ModifierKeys(); time = 0.0))
     @test opened[] == true
     @test op isa DoNothingOperation
 end
@@ -147,7 +147,7 @@ end
     w = WidgetTree(Any[node])
     io = print_document(_treeproj, w)
     row = io.geometry.rows[1]
-    op = _readop(io, MousePress(:left, row.chevron_x1 + 2, row.y0 + 2, ModifierKeys(); time = 0.0))
+    op = _readop(io, MouseClick(:left, row.chevron_x1 + 2, row.y0 + 2, ModifierKeys(); time = 0.0))
     @test op isa ReplaceSelectionOperation          # built-in select intact
 end
 

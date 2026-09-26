@@ -276,7 +276,7 @@ function read_intent(p::TextHighlighting, iomap::TextHighlightingIoMap, op::Repl
 end
 
 # Forward any Operation (ToggleCollapseOperation, collection ops, etc.) upstream
-# unchanged; a raw gesture (KeyPress/KeyDown/MousePress) falls through to the
+# unchanged; a raw gesture (KeyPress/KeyDown/MouseClick) falls through to the
 # base `Projection.read_intent` which delegates via `read_gesture(input, evt)`.
 read_intent(::TextHighlighting, ::TextHighlightingIoMap, op::Operation) = op
 

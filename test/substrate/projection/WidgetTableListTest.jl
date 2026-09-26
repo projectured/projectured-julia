@@ -152,18 +152,18 @@ end
     x = Int(st.columns[][1]) + st.bw + st.pad_x + 2
     row_height = st.bw + st.pad_y + 16 + st.pad_y
     y = Int(st.header_height[]) + row_height + st.bw + st.pad_y + 2
-    op = read(io, MousePress(:left, x, y, alt; time = 0.0))
+    op = read(io, MouseClick(:left, x, y, alt; time = 0.0))
     @test op isa ReplaceSelectionOperation
     @test op.path.head.name == "rows"
     @test row_of(op.path) == 2
     @test column_of(op.path) == 1
     # A plain click on the box goes to the checkbox, and what it answers —
     # a toggle of its own document — comes back as it is.
-    plain = read(io, MousePress(:left, x + 4, y + 4, mods; time = 0.0))
+    plain = read(io, MouseClick(:left, x + 4, y + 4, mods; time = 0.0))
     @test plain isa ReplaceReferencedValueOperation
     @test plain.document === box
     # A plain click on a label, which declines it, selects the row.
-    on_text = read(io, MousePress(:left, Int(st.columns[][2]) + st.bw + st.pad_x + 2, y, mods; time = 0.0))
+    on_text = read(io, MouseClick(:left, Int(st.columns[][2]) + st.bw + st.pad_x + 2, y, mods; time = 0.0))
     @test on_text isa ReplaceSelectionOperation
     @test on_text.path.head.name == "rows"
     @test row_of(on_text.path) == 2
@@ -185,7 +185,7 @@ end
     # A click near the bottom of row two names row two, not row three.
     x = Int(st.columns[][2]) + st.bw + st.pad_x + 2
     y = Int(st.header_height[]) + Int(second.y) + Int(second.h) - 2
-    op = read(io, MousePress(:left, x, y, alt; time = 0.0))
+    op = read(io, MouseClick(:left, x, y, alt; time = 0.0))
     @test op isa ReplaceSelectionOperation
     @test row_of(op.path) == 2
     @test column_of(op.path) == 2

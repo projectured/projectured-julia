@@ -256,12 +256,12 @@ function _wait_for_entry!(backend::VideoBackend, entry, elapsed::Float64)
 end
 
 function _track_pointer!(backend::VideoBackend, event)
-    event isa Union{MouseDown,MouseUp,MousePress,MouseMove,MouseScroll} || return nothing
+    event isa Union{MouseDown,MouseUp,MouseClick,MouseMove,MouseScroll} || return nothing
     backend.pointer_x = event.x
     backend.pointer_y = event.y
     if event isa MouseDown && event.button === :left
         backend.pointer_held = true
-    elseif event isa Union{MouseUp,MousePress} && event.button === :left
+    elseif event isa Union{MouseUp,MouseClick} && event.button === :left
         backend.pointer_held = false
         backend.pointer_released_at = _get_schedule_seconds(backend)
     end

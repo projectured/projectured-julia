@@ -487,13 +487,52 @@ it holds the example.
 > step that changes a name or a signature also changes omnet-julia. The steps
 > continue on the branch `window-leave`, whose plan this plan takes over.
 
-- [ ] 1. **The gesture type (D3, D31).** `abstract type Gesture end` beside
+- [x] 1. **The gesture type (D3, D31).** `abstract type Gesture end` beside
   `Event`. `MouseClick` (renamed from `MousePress` with `julia-rename.jl`),
   `KeyChord`, `MouseEnter`, `MouseLeave` and `PointerRest` subtype `Gesture`.
   `SyntheticEvent` and `DeviceEvent` go away. The places that take both take
   `Union{Event,Gesture}`. The naming rules get the line for a gesture. No
   behaviour changes. Tests: the event module, the patterns, the naming guard,
   the kernel layering, then the suites of the packages that match `MouseClick`.
+
+  Done on the branch `gesture-type` (worktree
+  `projectured-julia-gesture-type`, started from `window-leave` after its rebase
+  onto `main`), with branches of the same name in omnet-julia and inet-julia.
+  Facts found:
+  - Four files bound a value to `Event`: `EventDefaults.jl`, `WindowInput.jl`,
+    `EventPattern.jl` and the gesture log (`GestureLogDocument.jl:114,119`). The
+    gesture log would have described a click with `string(gesture)`, because its
+    method took `::Event`; it takes the union now.
+  - `WindowInput` keeps the field name `event` for both kinds; its docstring says
+    so.
+  - The rename tool found 363 references in projectured-julia, 64 in omnet-julia
+    and 6 in inet-julia. The text pass renamed the rest: comments, docstrings,
+    Markdown and the precompile statements (a module-qualified name, which the
+    tool skips). No data file names the type.
+  - The test gesture `EmTestRestEvent` is `EmTestRestGesture`, and its
+    description is "em test rest gesture".
+  - The rule `PAR-NO-NEW-SYNTHETIC-EVENT` still names `SyntheticEvent`. Step 10
+    writes it again (D16).
+  - Checks, each compared with the same run on `main` (`a74de4ef`):
+    - the naming guard passes; `Pkg.precompile` of `environment/all` compiles
+      127 packages with no error and no import of a missing name;
+    - `test_kernel` 2407 pass, 3 fail, 3 errors; `test_substrate` 85892 pass,
+      3 fail, 2 errors, 1 broken; `test_shell` 230 pass: the same counts and the
+      same failing tests as `main` (`DocumentMacroTest`, `ReferenceEvalTest`,
+      `SplitPaneDragTest`);
+    - 25 more test functions of the files that use `MouseClick` (JSON, chart,
+      conversation, fault, file system, math, sequence chart, and the umbrella
+      tests): the same summaries and the same failing tests as `main`
+      (`test_application` 2 errors, `test_mouse_clicks` 13 fail,
+      `test_table_selection` 9 fail and 1 error);
+    - `test_input_coalescing` 25 pass (`main` 20: the branch has the tests of
+      `WindowLeave`);
+    - omnet-julia, in a scratch environment on the three worktrees: 82 packages
+      precompile with no error; 27 test functions of the files that use
+      `MouseClick` give the same summaries as `main`, where
+      `test_inspector_disclosure`, `test_playback_mode` and `test_legacy_page`
+      fail in the same way;
+    - inet-julia: the three changed files parse.
 - [ ] 2. **The timer and the display event (D22, D24, D42).** The event
   `TimerExpire` and `SetTimerOperation`. The editor holds the deadlines,
   `compute_wait_timeout` counts them, and the loop reads a `TimerExpire` at each

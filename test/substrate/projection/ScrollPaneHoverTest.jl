@@ -1,6 +1,6 @@
 # A scrolled pane must translate EVERY pointer event, not only the press.
 #
-# The canvas variant of the scroll pane translated `MousePress` and
+# The canvas variant of the scroll pane translated `MouseClick` and
 # `MouseScroll` and forwarded the rest untouched, so motion and the hover
 # crossings reached the content in the pane's own frame: a scrolled list
 # highlighted the row that would be under the pointer if it had never been
@@ -44,13 +44,13 @@ function test_scroll_pane_hover()
 
         y = 100
         getfield(pane, :scroll_position)[] = Point2D(0, 0)
-        press_unscrolled = row_of(MousePress(:left, 20, y; time = 0.0))
+        press_unscrolled = row_of(MouseClick(:left, 20, y; time = 0.0))
         hover_unscrolled = row_of(MouseMove(20, y; time = 0.0))
         @test hover_unscrolled !== nothing
 
         # Scroll by whole rows and ask again at the SAME pixel.
         getfield(pane, :scroll_position)[] = Point2D(0, 120)
-        press_scrolled = row_of(MousePress(:left, 20, y; time = 0.0))
+        press_scrolled = row_of(MouseClick(:left, 20, y; time = 0.0))
         hover_scrolled = row_of(MouseMove(20, y; time = 0.0))
 
         # Scrolling has to change what is under the pointer …
@@ -76,13 +76,13 @@ function test_scroll_pane_hover()
         unscrolled = print_document(projection,
             WidgetScrollPane(_scroll_pane_list(); size = Point2D(200, 200)))
         for y in (10, 100, 190)
-            press = MousePress(:left, 20, y; time = 0.0)
+            press = MouseClick(:left, 20, y; time = 0.0)
             row = _scroll_pane_row(projection, following, press)
             @test row == _scroll_pane_row(projection, scrolled, press)
             @test row != _scroll_pane_row(projection, unscrolled, press)
         end
         # The bottom of the pane is the last row.
-        @test string(_scroll_pane_row(projection, following, MousePress(:left, 20, 190; time = 0.0))) ==
+        @test string(_scroll_pane_row(projection, following, MouseClick(:left, 20, 190; time = 0.0))) ==
               ".content.items[40]"
     end
 
@@ -110,7 +110,7 @@ function test_scroll_pane_hover()
                              scroll_position = Point2D(0, room)))
         # The press lands past the card's padding and chevron column, on the
         # last row of the list.
-        press = MousePress(:left, 60, 160; time = 0.0)
+        press = MouseClick(:left, 60, 160; time = 0.0)
         @test string(_scroll_pane_row(projection, following, press)) ==
               ".content.content.items[40]"
         @test _scroll_pane_row(projection, following, press) ==

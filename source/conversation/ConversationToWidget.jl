@@ -494,7 +494,7 @@ for P in (ConversationConversationToWidgetComposite,
           ConversationPartToWidget)
     # A click that named nothing still landed here, and this node is what it can
     # honestly claim.
-    @eval read_intent(::$P, iomap, ::MousePress) =
+    @eval read_intent(::$P, iomap, ::MouseClick) =
         ReplaceSelectionOperation(EmptyReference())
     # A click that DID name something: say which part it named. The widget path
     # comes up from below and goes down the walk above.
@@ -568,7 +568,7 @@ function read_intent(p::ConversationConversationToWidgetComposite, recursion,
     end
     payload = change.operation === nothing ? gesture : change.operation
     answer = read_intent(p, iomap, payload)
-    if answer isa ReplaceSelectionOperation && gesture isa MousePress &&
+    if answer isa ReplaceSelectionOperation && gesture isa MouseClick &&
        !is_whole_selection_press(gesture)
         answer = ReplaceSelectionOperation(_get_part_prefix(answer.path))
     end

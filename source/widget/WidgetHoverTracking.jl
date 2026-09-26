@@ -30,7 +30,7 @@
 #
 # Mirrors `HoverProbeProjection` in shape (a transparent wrapper whose reader
 # reverse-routes the pointer); here the synthesised events are `MouseEnter` /
-# `MouseLeave` rather than a probe `MousePress`.
+# `MouseLeave` rather than a probe `MouseClick`.
 # The generic focus walk, for the top-level Tab wrap-around rule.
 
 

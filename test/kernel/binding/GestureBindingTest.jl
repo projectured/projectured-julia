@@ -96,11 +96,11 @@ function test_gesture_binding()
         @test !matches_event_pattern(p, KeyDown(:home, ModifierKeys(ctrl=true); time = 0.0))
     end
 
-    @testset "matches: MousePress honours button, ignores position" begin
-        p = MousePressPattern(:left)
-        @test matches_event_pattern(p, MousePress(:left, 10, 20; time = 0.0))
-        @test matches_event_pattern(p, MousePress(:left, 99, 5; time = 0.0))
-        @test !matches_event_pattern(p, MousePress(:right, 10, 20; time = 0.0))
+    @testset "matches: MouseClick honours button, ignores position" begin
+        p = MouseClickPattern(:left)
+        @test matches_event_pattern(p, MouseClick(:left, 10, 20; time = 0.0))
+        @test matches_event_pattern(p, MouseClick(:left, 99, 5; time = 0.0))
+        @test !matches_event_pattern(p, MouseClick(:right, 10, 20; time = 0.0))
     end
 
     @testset "describe renders readable gesture strings" begin
@@ -108,7 +108,7 @@ function test_gesture_binding()
         @test describe_event_pattern(KeyDownPattern(:period; modifiers = [:ctrl])) == "Ctrl+."
         @test describe_event_pattern(KeyDownPattern(:tab)) == "Tab"
         @test describe_event_pattern(KeyDownPattern(:home; modifiers = [:ctrl, :alt])) == "Ctrl+Alt+Home"
-        @test describe_event_pattern(MousePressPattern(:left)) == "Left click"
+        @test describe_event_pattern(MouseClickPattern(:left)) == "Left click"
     end
 
     @testset "@gestures registers an own table; descriptions captured" begin

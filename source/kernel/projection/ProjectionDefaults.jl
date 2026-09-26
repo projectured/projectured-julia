@@ -120,7 +120,7 @@ function read_intent(projection::Projection, iomap, operation)
     # stay in sync with `reroot_operation` (OperationModule, operation/Rerooting.jl).
     # A new path-bearing operation missing from either is silently passed through
     # with its reference left in the wrong domain. See package/kernel/doc/operation.md.
-    if operation isa Union{KeyPress, KeyDown, MousePress, CollectIntents}
+    if operation isa Union{KeyPress, KeyDown, MouseClick, CollectIntents}
         # Generic event fallback: a leaf projection with no authoring reader of
         # its own delegates a raw input gesture to the projection-independent
         # `read_gesture` of its input document. `CollectIntents` rides the same

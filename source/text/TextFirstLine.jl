@@ -126,7 +126,7 @@ function read_intent(p::TextFirstLine, iomap::TextFirstLineIoMap, op::ReplaceStr
 end
 
 # Forward any Operation upstream unchanged; a raw gesture (KeyPress/KeyDown/
-# MousePress) falls through to the base `Projection.read_intent`, which delegates
+# MouseClick) falls through to the base `Projection.read_intent`, which delegates
 # via `read_gesture(input, evt)` — otherwise a wildcard here would echo the raw
 # gesture back as if it were an operation, breaking upstream chain dispatch.
 read_intent(::TextFirstLine, ::TextFirstLineIoMap, op::Operation) = op

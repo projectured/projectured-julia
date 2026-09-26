@@ -1,9 +1,10 @@
-# Fragment of `EventModule` — the mouse events, and the set of mouse buttons that a
-# pointer event holds.
+# Fragment of `EventModule` — the mouse events, the mouse gestures, and the set of
+# mouse buttons that a pointer event holds.
 #
-# An event source that reads the pointer reports `MouseDown`, `MouseUp`, `MouseMove`
-# and `MouseScroll`. `MousePress`, a completed click, comes from a down and up pair,
-# and `MouseEnter` and `MouseLeave` come from motion across the edge of a region.
+# An event source that reads the pointer reports the events `MouseDown`, `MouseUp`,
+# `MouseMove` and `MouseScroll`. The gestures come from them: `MouseClick`, a
+# completed click, from a down and up pair, and `MouseEnter` and `MouseLeave` from
+# motion across the edge of a region.
 
 """
     MouseButtons(left, middle, right)
@@ -49,7 +50,7 @@ A mouse button went down. `button` is `:left`, `:middle` or `:right`, `x` and `y
 are the pixel coordinates in the window, and `time` is the time of the input (see
 `Event`).
 """
-struct MouseDown <: DeviceEvent
+struct MouseDown <: Event
     button::Symbol
     x::Int
     y::Int
@@ -69,7 +70,7 @@ MouseDown(button::Symbol, x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
 
 A mouse button went up. It has the fields of `MouseDown`.
 """
-struct MouseUp <: DeviceEvent
+struct MouseUp <: Event
     button::Symbol
     x::Int
     y::Int
@@ -84,19 +85,19 @@ MouseUp(button::Symbol, x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
     MouseUp(button, x, y, modifiers, Float64(time))
 
 """
-    MousePress(button, x, y[, modifiers]; time)
-    MousePress(button, x, y, count, modifiers; time)
-    MousePress(button, x, y, count, modifiers, time)
+    MouseClick(button, x, y[, modifiers]; time)
+    MouseClick(button, x, y, count, modifiers; time)
+    MouseClick(button, x, y, count, modifiers, time)
 
 A click: a `MouseUp` near the position of the `MouseDown` before it, for the same
 button, within a short time. A pattern that must fire on a click matches
-`MousePress`, not `MouseDown`. `time` is the time of the `MouseUp`.
+`MouseClick`, not `MouseDown`. `time` is the time of the `MouseUp`.
 
 `count` is the number of clicks in a row: `1` for a single click, `2` for a double
 click, `3` for a triple click. The forms without `count` give `1`, so a pattern
 that does not name `count` matches every click.
 """
-struct MousePress <: SyntheticEvent
+struct MouseClick <: Gesture
     button::Symbol
     x::Int
     y::Int
@@ -105,15 +106,15 @@ struct MousePress <: SyntheticEvent
     time::Float64
 end
 
-MousePress(button::Symbol, x::Int, y::Int; time::Real) =
-    MousePress(button, x, y, 1, ModifierKeys(), Float64(time))
+MouseClick(button::Symbol, x::Int, y::Int; time::Real) =
+    MouseClick(button, x, y, 1, ModifierKeys(), Float64(time))
 # @positional: the four of a mouse event, in the order every backend sends them.
-MousePress(button::Symbol, x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
-    MousePress(button, x, y, 1, modifiers, Float64(time))
+MouseClick(button::Symbol, x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
+    MouseClick(button, x, y, 1, modifiers, Float64(time))
 # @positional: the fields of a click, in the order of the struct.
-MousePress(button::Symbol, x::Int, y::Int, count::Int, modifiers::ModifierKeys;
+MouseClick(button::Symbol, x::Int, y::Int, count::Int, modifiers::ModifierKeys;
            time::Real) =
-    MousePress(button, x, y, count, modifiers, Float64(time))
+    MouseClick(button, x, y, count, modifiers, Float64(time))
 
 """
     MouseMove(x, y[, buttons, modifiers]; time)
@@ -122,7 +123,7 @@ MousePress(button::Symbol, x::Int, y::Int, count::Int, modifiers::ModifierKeys;
 The pointer moved. `x` and `y` are the pixel coordinates in the window, `buttons`
 is the `MouseButtons` that are held, and `time` is the time of the input.
 """
-struct MouseMove <: DeviceEvent
+struct MouseMove <: Event
     x::Int
     y::Int
     buttons::MouseButtons
@@ -144,7 +145,7 @@ The pointer crossed into a region. It has the fields of `MouseMove`. The code th
 tracks the region makes it from the motion, with the time of the motion; an event
 source does not report it.
 """
-struct MouseEnter <: SyntheticEvent
+struct MouseEnter <: Gesture
     x::Int
     y::Int
     buttons::MouseButtons
@@ -165,7 +166,7 @@ MouseEnter(x::Int, y::Int, buttons::MouseButtons, modifiers::ModifierKeys; time:
 The pointer crossed out of a region. It has the fields of `MouseMove`, and `x` and
 `y` are the last position inside the region.
 """
-struct MouseLeave <: SyntheticEvent
+struct MouseLeave <: Gesture
     x::Int
     y::Int
     buttons::MouseButtons
@@ -187,7 +188,7 @@ The mouse wheel turned. `dx` and `dy` are the amounts, positive to the right and
 down, `x` and `y` are the position of the pointer, and `time` is the time of the
 input.
 """
-struct MouseScroll <: DeviceEvent
+struct MouseScroll <: Event
     dx::Int
     dy::Int
     x::Int
@@ -203,5 +204,5 @@ MouseScroll(dx::Int, dy::Int, x::Int, y::Int; time::Real) =
 MouseScroll(dx::Int, dy::Int, x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
     MouseScroll(dx, dy, x, y, modifiers, Float64(time))
 
-get_modifier_keys(event::Union{MouseDown,MouseUp,MousePress,MouseMove,
+get_modifier_keys(event::Union{MouseDown,MouseUp,MouseClick,MouseMove,
                                MouseEnter,MouseLeave,MouseScroll}) = event.modifiers

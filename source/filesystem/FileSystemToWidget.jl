@@ -80,7 +80,7 @@ function _make_open_file_bindings(pathname, open_file)
         GestureBinding(KeyDownPattern(:return), make_operation;
                        applicable = is_applicable, description = "Open the file",
                        domain = "file system"),
-        GestureBinding(MousePressPattern(:left; guard = event -> event.count == 2, label = "double click"),
+        GestureBinding(MouseClickPattern(:left; guard = event -> event.count == 2, label = "double click"),
                        make_operation; applicable = is_applicable,
                        description = "Open the file", domain = "file system"),
     ]

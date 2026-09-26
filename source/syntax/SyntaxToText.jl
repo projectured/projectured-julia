@@ -141,7 +141,7 @@ function read_intent(p::SyntaxLeafToText, recursion, change::Intent, iomap::Simp
     # The edit beside an inline image writes the element list of the output, which
     # has no pre-image in the syntax: decline it.
     is_text_element_write(op) && return Intent(gesture, nothing)
-    if op isa ReplaceSelectionOperation && gesture isa MousePress && gesture.modifiers.alt
+    if op isa ReplaceSelectionOperation && gesture isa MouseClick && gesture.modifiers.alt
         return Intent(gesture,
                       ReplaceSelectionOperation(EmptyReference(get_reference_node_type(iomap.input))))
     end
@@ -799,7 +799,7 @@ end
 # Gesture-aware reader. With the originating gesture in hand, all pointer-driven
 # tree behaviour is resolved here — the text/graphics layers below stay dumb and
 # emit only a plain character cursor. Click reinterpretations are keyed off
-# `change.gesture isa MousePress` (the Lisp `(typep -gesture- 'gesture/mouse/click)`)
+# `change.gesture isa MouseClick` (the Lisp `(typep -gesture- 'gesture/mouse/click)`)
 # so keyboard navigation that lands on the same glyph still places the cursor:
 #   1. A click on a node's inline marker (either state) or its collapsed ellipsis
 #      is a fold gesture → toggle that specific node.
@@ -814,7 +814,7 @@ function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::
     # The edit beside an inline image writes the element list of the output, which
     # has no pre-image in the syntax: decline it.
     is_text_element_write(op) && return Intent(gesture, nothing)
-    if op isa ReplaceSelectionOperation && gesture isa MousePress
+    if op isa ReplaceSelectionOperation && gesture isa MouseClick
         resolved = _resolve_click(p, iomap, gesture, op.path)
         resolved !== nothing && return Intent(gesture, resolved)
     end

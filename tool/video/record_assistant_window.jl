@@ -38,7 +38,7 @@ const PROMPTS = [
 ]
 
 function make_timeline()
-    timeline = Any[(event = MousePress(:left, COMPOSER[1], COMPOSER[2], ModifierKeys();
+    timeline = Any[(event = MouseClick(:left, COMPOSER[1], COMPOSER[2], ModifierKeys();
                                        time = time()), hold = 1.0)]
     turns = 1                                        # the greeting
     for prompt in PROMPTS

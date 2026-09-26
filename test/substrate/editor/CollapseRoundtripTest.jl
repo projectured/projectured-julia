@@ -34,7 +34,7 @@ function test_collapse_roundtrip()
         coords = _find_text_iomap(iomap).char_to_coord
         click  = _glyph_click(coords, "▾")               # root's expanded marker
         @test click !== nothing
-        op = read_intent(proj, iomap, MousePress(:left, click[1], click[2], ModifierKeys(); time = 0.0))
+        op = read_intent(proj, iomap, MouseClick(:left, click[1], click[2], ModifierKeys(); time = 0.0))
         @test op isa ToggleCollapseOperation
         @test op.target === doc
         evaluate_operation(nothing, op)
@@ -50,7 +50,7 @@ function test_collapse_roundtrip()
         # ── Mouse: click the ellipsis to expand ────────────────────────────
         eclick = _glyph_click(coords2, "…")
         @test eclick !== nothing
-        op2 = read_intent(proj, iomap2, MousePress(:left, eclick[1], eclick[2], ModifierKeys(); time = 0.0))
+        op2 = read_intent(proj, iomap2, MouseClick(:left, eclick[1], eclick[2], ModifierKeys(); time = 0.0))
         @test op2 isa ToggleCollapseOperation
         @test op2.target === doc
         evaluate_operation(nothing, op2)

@@ -3,10 +3,10 @@
 # state machine's phase transitions, the emitted MoveRangeOperation, and the
 # resulting collection order after evaluation.
 #
-# DraggingProjection resolves the grab/drop targets by synthesising a MousePress
+# DraggingProjection resolves the grab/drop targets by synthesising a MouseClick
 # at the press/release point and delegating it to the inner chain (the real
 # graphics-layer hit-test path). Here a stub inner projection plays the graphics
-# chain: it maps a synthetic MousePress's x coordinate to a content-domain
+# chain: it maps a synthetic MouseClick's x coordinate to a content-domain
 # reference, so the DraggingProjection logic is exercised end-to-end without the
 # full pixel pipeline.
 
@@ -27,7 +27,7 @@ _elem_path(i) = ConcreteReference(FieldReferenceStep("elements"),
                     ConcreteReference(ElementReferenceStep(i), EmptyReference()))
 
 # Build (projection, iomap) for a DraggingState wrapping `content`; the inner
-# stub resolves a synthetic MousePress via `hit` (a `gesture -> op` function).
+# stub resolves a synthetic MouseClick via `hit` (a `gesture -> op` function).
 function _drag_setup(content, hit)
     proj  = DraggingProjection()
     state = DraggingState(content, 5)
@@ -41,8 +41,8 @@ _feed(proj, iomap, evt) = read_intent(proj, iomap, evt)
 function test_dragging()
 @testset "DraggingProjection drag-and-drop" begin
 
-    # Map a synthetic MousePress's x to an element reference: x=100 → 2, x=300 → 4.
-    _hit_2_or_4(g) = g isa MousePress ?
+    # Map a synthetic MouseClick's x to an element reference: x=100 → 2, x=300 → 4.
+    _hit_2_or_4(g) = g isa MouseClick ?
         (g.x == 100 ? ReplaceSelectionOperation(_elem_path(2)) :
          g.x == 300 ? ReplaceSelectionOperation(_elem_path(4)) : nothing) : nothing
 
@@ -77,7 +77,7 @@ function test_dragging()
         @test _feed(proj, iomap, MouseDown(:left, 100, 100, ModifierKeys(); time = 0.0)) === nothing
         @test proj.state.phase === :pending
         # Release within threshold (2px): no drag, no op — the backend's
-        # synthesised MousePress handles the click selection separately.
+        # synthesised MouseClick handles the click selection separately.
         op = _feed(proj, iomap, MouseUp(:left, 102, 100, ModifierKeys(); time = 0.0))
         @test op === nothing
         @test proj.state.phase === :idle
@@ -87,7 +87,7 @@ function test_dragging()
     @testset "drop on an unresolvable target yields no move" begin
         content = JsonArray(JsonNumber(10), JsonNumber(20))
         # Grab resolves (x=100 → element 2), but the drop point (x=999) hits nothing.
-        hit(g) = g isa MousePress && g.x == 100 ? ReplaceSelectionOperation(_elem_path(2)) : nothing
+        hit(g) = g isa MouseClick && g.x == 100 ? ReplaceSelectionOperation(_elem_path(2)) : nothing
         proj, iomap = _drag_setup(content, hit)
 
         _feed(proj, iomap, MouseDown(:left, 100, 100, ModifierKeys(); time = 0.0))

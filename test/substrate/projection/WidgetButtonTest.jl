@@ -45,9 +45,9 @@ end
     proj = _proj()
     iomap = print_document(proj, nothing, button, PrinterContext())
 
-    @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys(); time = 0.0)) !== nothing
+    @test read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)) !== nothing
     for (x, y) in ((200, 10), (10, 300), (900, 500), (-5, 10), (10, -5))
-        @test read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys(); time = 0.0)) === nothing
+        @test read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0)) === nothing
     end
     # The reader is pure (PAR-READER-IS-PURE): it answers with the operation and
     # never performs it, so the action has not run and the count is still zero.
@@ -66,7 +66,7 @@ end
     @test iomap.output isa GraphicsCanvas
 
     # Click inside the button (its canvas is at 0,0 sized 120×40).
-    op = read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0))
     @test op isa InvokeActionOperation
     @test op.action === button.action
 
@@ -80,7 +80,7 @@ end
     button, _ = _button_doc()
     proj = _proj()
     iomap = print_document(proj, nothing, button, PrinterContext())
-    @test read_intent(proj, iomap, MousePress(:right, 10, 10, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, iomap, MouseClick(:right, 10, 10, ModifierKeys(); time = 0.0)) === nothing
 end
 
 @testset "press / release drive the transient pressed flag" begin
@@ -148,7 +148,7 @@ end
     composite = WidgetComposite(Any[button])
     proj = _proj()
     iomap = print_document(proj, nothing, composite, PrinterContext())
-    op = read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0))
     @test op isa InvokeActionOperation && op.action === button.action
     evaluate_operation(_WidgetButtonMockEditor(composite), op)
     @test count[] == 1
@@ -204,7 +204,7 @@ end
     proj = _proj()
     iomap = print_document(proj, nothing, btn, PrinterContext())
     @test iomap.output isa GraphicsCanvas                      # disabled still renders
-    @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)) === nothing
     @test read_intent(proj, iomap, MouseDown(:left, 10, 10, ModifierKeys(); time = 0.0)) === nothing
     @test read_intent(proj, iomap, MouseMove(10, 10, MouseButtons(), ModifierKeys(); time = 0.0)) === nothing
     @test fired[] == false
@@ -216,7 +216,7 @@ end
     proj = _proj()
     iomap = print_document(proj, nothing, cb, PrinterContext())
     @test iomap.output isa GraphicsCanvas
-    @test read_intent(proj, iomap, MousePress(:left, 5, 5, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, iomap, MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0)) === nothing
     @test cb.content === false                                # value unchanged
 end
 
@@ -437,7 +437,7 @@ end
 end
 
 # A button laid out in a VerticalLayout must receive the raw MouseDown/MouseUp that
-# drive its `pressed` cell (the depress feedback), not only the composed MousePress.
+# drive its `pressed` cell (the depress feedback), not only the composed MouseClick.
 # Before the layout routed down/up by coordinate, these fell to selection-only routing
 # and — with no selection on the button — went nowhere, so a nested button never
 # depressed even though its click still fired.
@@ -455,7 +455,7 @@ end
     up = read_intent(proj, iomap, MouseUp(:left, 10, 10, ModifierKeys(); time = 0.0))
     @test _view_state_write(up) isa ReplaceReferencedValueOperation && _view_state_write(up).document === button && _view_state_write(up).value == false
     # The composed click still reaches the action, as before.
-    @test read_intent(proj, iomap, MousePress(:left, 10, 10, ModifierKeys(); time = 0.0)) isa InvokeActionOperation
+    @test read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)) isa InvokeActionOperation
 end
 
 # A WidgetCard used to swallow every pointer event but a click, so an interactive
@@ -487,7 +487,7 @@ end
     dn = read_intent(proj, iomap, MouseDown(:left, cx, cy, ModifierKeys(); time = 0.0))
     @test _view_state_write(dn) isa ReplaceReferencedValueOperation && _view_state_write(dn).document === button && _view_state_write(dn).value == true
     # And a click still reaches the action through the card.
-    @test read_intent(proj, iomap, MousePress(:left, cx, cy, ModifierKeys(); time = 0.0)) isa InvokeActionOperation
+    @test read_intent(proj, iomap, MouseClick(:left, cx, cy, ModifierKeys(); time = 0.0)) isa InvokeActionOperation
 end
 
 # A segmented control that fills an offer must still answer a press with the
@@ -527,7 +527,7 @@ end
         left = 0
         for (i, width) in enumerate(widths)
             centre = left + width ÷ 2
-            answer = read_intent(proj, iomap, MousePress(:left, centre, 30, ModifierKeys(); time = 0.0))
+            answer = read_intent(proj, iomap, MouseClick(:left, centre, 30, ModifierKeys(); time = 0.0))
             # Segment 1 is already selected, and pressing the one that is on is
             # not a change — the reader says so by answering nothing.
             if i == 1
@@ -539,7 +539,7 @@ end
             left += width
         end
         # And the far right edge is inside the last segment, not past every one.
-        answer = read_intent(proj, iomap, MousePress(:left, 895, 30, ModifierKeys(); time = 0.0))
+        answer = read_intent(proj, iomap, MouseClick(:left, 895, 30, ModifierKeys(); time = 0.0))
         @test answer isa ReplaceReferencedValueOperation && answer.value == 3
     end
 end

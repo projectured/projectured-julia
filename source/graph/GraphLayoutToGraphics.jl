@@ -259,7 +259,7 @@ end
 # Route a left click into the node whose content box contains it. Coordinates are
 # translated into the content canvas's local frame (mirrors TableToGraphics).
 function read_intent(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayoutToGraphicsCanvasIoMap, event)
-    if event isa MousePress && event.button === :left
+    if event isa MouseClick && event.button === :left
         op = _route_click(iomap, event)
         op === nothing || return op
         return nothing
@@ -268,7 +268,7 @@ function read_intent(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayoutToGraphic
     _forward_to_selected(iomap, event)
 end
 
-function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MousePress)
+function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MouseClick)
     layout = iomap.input
     entries = iomap.child_iomaps
     for i in 1:length(layout.vertex_layouts)
@@ -282,7 +282,7 @@ function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MousePress)
         canvas = cim.output
         ox = canvas isa GraphicsCanvas ? Int(canvas.x) : 0
         oy = canvas isa GraphicsCanvas ? Int(canvas.y) : 0
-        local_evt = MousePress(g.button, g.x - x - ox, g.y - y - oy, g.count, g.modifiers;
+        local_evt = MouseClick(g.button, g.x - x - ox, g.y - y - oy, g.count, g.modifiers;
                                time = g.time)
         op = read_intent(cim.projection, cim, local_evt)
         # A selection is re-rooted into the graph's own space, because WHERE it

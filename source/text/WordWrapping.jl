@@ -347,7 +347,7 @@ read_intent(p::WordWrapping, iomap::WordWrappingIoMap, evt::Union{KeyPress, KeyD
     _read_lowered_gesture(iomap.input, evt)
 
 # Forward any Operation upstream unchanged; a raw gesture (KeyPress/KeyDown/
-# MousePress) is handled above — otherwise a wildcard here would echo the raw
+# MouseClick) is handled above — otherwise a wildcard here would echo the raw
 # gesture back as if it were an operation, breaking upstream chain dispatch.
 read_intent(::WordWrapping, ::WordWrappingIoMap, op::Operation) = op
 

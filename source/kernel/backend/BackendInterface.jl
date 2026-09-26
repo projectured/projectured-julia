@@ -57,7 +57,7 @@ function open_native_windows! end
     read_from_devices(backend, devices) -> WindowInput or nothing
 
 Poll all input devices in one shot and return the next event — a `WindowInput`
-carrying a `DeviceEvent` — or `nothing` when there is none. A concrete backend
+carrying an `Event` — or `nothing` when there is none. A concrete backend
 adds a method dispatched on its own type (typically polling a shared event queue
 and classifying events across device types), and it is where a platform's raw
 events are translated into that vocabulary: a device reports only what happened,

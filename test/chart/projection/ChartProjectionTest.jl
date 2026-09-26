@@ -558,7 +558,7 @@ function test_chart_projection()
             gg = iomap.step_iomaps[2][].geometry
             band2 = ChartModule._strip_band(gg, 1)
             op = read_intent(proj, iomap,
-                             MousePress(:left,
+                             MouseClick(:left,
                                         round(Int, ChartModule.to_pixel(gg.xs, 2.5)),
                                         (band2[1] + band2[2]) ÷ 2; time = 0.0))
             @test op isa ReplaceSelectionOperation
@@ -653,7 +653,7 @@ function test_chart_projection()
             value_row = first(r for r in rects if r[1] == 0)
 
             op = read_intent(proj, iomap,
-                             MousePress(:left, value_row[2] + 2, value_row[3] + value_row[5] ÷ 2; time = 0.0))
+                             MouseClick(:left, value_row[2] + 2, value_row[3] + value_row[5] ÷ 2; time = 0.0))
             @test op isa ReplaceSelectionOperation
             @test is_reference_equal(strip_reference_types(op.path),
                                      strip_reference_types(@reference ::Chart.legend::ChartLegend))
@@ -667,7 +667,7 @@ function test_chart_projection()
             @test plot.hovered === nothing
 
             op = read_intent(proj, iomap,
-                             MousePress(:left, series_row[2] + 2, series_row[3] + series_row[5] ÷ 2; time = 0.0))
+                             MouseClick(:left, series_row[2] + 2, series_row[3] + series_row[5] ÷ 2; time = 0.0))
             @test op isa ReplaceReferencedValueOperation
             @test op.value == false
 
@@ -768,7 +768,7 @@ function test_chart_projection()
             index, ix, iy, iw, ih = first(get_legend_item_rects(plan))
 
             # Clicking a legend item hides the series it stands for.
-            op = read_intent(proj, iomap, MousePress(:left, ix + 2, iy + ih ÷ 2; time = 0.0))
+            op = read_intent(proj, iomap, MouseClick(:left, ix + 2, iy + ih ÷ 2; time = 0.0))
             @test op isa ReplaceReferencedValueOperation
             @test op.document === chart.series[index]
             @test op.value == false
@@ -797,13 +797,13 @@ function test_chart_projection()
             # A click on the title strip selects the title, on an axis strip the
             # axis — and the reference that comes back is in the chart's own
             # domain, not the plot's, because stage 1 peels its step off.
-            op = read_intent(proj, iomap, MousePress(:left, g.plot_x + 10, 2; time = 0.0))
+            op = read_intent(proj, iomap, MouseClick(:left, g.plot_x + 10, 2; time = 0.0))
             @test op isa ReplaceSelectionOperation
             @test is_reference_equal(strip_reference_types(op.path),
                                      strip_reference_types(@reference ::Chart.title::String))
 
             op = read_intent(proj, iomap,
-                             MousePress(:left, 4, g.plot_y + g.plot_h ÷ 2; time = 0.0))
+                             MouseClick(:left, 4, g.plot_y + g.plot_h ÷ 2; time = 0.0))
             @test op isa ReplaceSelectionOperation
             @test is_reference_equal(strip_reference_types(op.path),
                                      strip_reference_types(@reference ::Chart.y_axis::ChartAxis))
@@ -813,7 +813,7 @@ function test_chart_projection()
             @test !isempty(pts)
             px, py = pts[length(pts) ÷ 2]
             op = read_intent(proj, iomap,
-                             MousePress(:left, px + g.plot_x, py + g.plot_y; time = 0.0))
+                             MouseClick(:left, px + g.plot_x, py + g.plot_y; time = 0.0))
             @test op isa ReplaceSelectionOperation
             chart.selection = op.path
             @test get_selected_sample(chart) !== nothing
@@ -826,7 +826,7 @@ function test_chart_projection()
             # the whole series instead.
             far = _series_hit_away_from_samples(g, pts)
             if far !== nothing
-                op = read_intent(proj, iomap, MousePress(:left, far[1], far[2]; time = 0.0))
+                op = read_intent(proj, iomap, MouseClick(:left, far[1], far[2]; time = 0.0))
                 @test op isa ReplaceSelectionOperation
                 @test is_reference_equal(strip_reference_types(op.path),
                     strip_reference_types(@reference ::Chart.series::CellVector[1]::ChartLineSeries))
@@ -868,7 +868,7 @@ function test_chart_projection()
             g = iomap.step_iomaps[2][].geometry
             target = PlotModule.to_pixel(g.xs, 500.0)
             elapsed = @elapsed op = read_intent(proj, iomap,
-                MousePress(:left, round(Int, target),
+                MouseClick(:left, round(Int, target),
                            round(Int, PlotModule.to_pixel(g.ys, sin(500.0))); time = 0.0))
             @test op isa ReplaceSelectionOperation
             @test elapsed < 0.5
@@ -885,7 +885,7 @@ function test_chart_projection()
             iomap = print_document(proj, proj, cloud, PrinterContext())
             g = iomap.step_iomaps[2][].geometry
             op = read_intent(proj, iomap,
-                MousePress(:left, g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2; time = 0.0))
+                MouseClick(:left, g.plot_x + g.plot_w ÷ 2, g.plot_y + g.plot_h ÷ 2; time = 0.0))
             cloud.selection = op === nothing ? nothing : op.path
             @test get_selected_sample(cloud) === nothing
         end

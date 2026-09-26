@@ -10,7 +10,7 @@ Most events pass through unchanged: `KeyDown`, `KeyUp`, `KeyPress`, `MouseDown`,
 `MouseUp`, `MouseMove`, `MouseScroll` and the window events. Two gestures exist
 only across several events:
 
-- a click, `MousePress`, is a `MouseDown` and a `MouseUp` of the same button in
+- a click, `MouseClick`, is a `MouseDown` and a `MouseUp` of the same button in
   the same window, near each other in place and in time. A click soon after a
   click at the same place is a double or a triple click, and `count` says which;
 - a key chord, `KeyChord`, is a sequence of `KeyDown`s from the chord table of

@@ -79,7 +79,7 @@ mktempdir() do dir
                                               Dict{Symbol,Any}()))
         (x, y) = only((x, y) for (text, x, y) in _app_drawn_at(get_iomap_output(iomap))
                       if occursin("hello", text))
-        answer = read_intent(renderer, iomap, MousePress(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
+        answer = read_intent(renderer, iomap, MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
         @test answer isa ReplaceSelectionOperation
         @test occursin(r"^\.content\.entries\[1\]\.value\.value\{\d+\}$",
                        repr(strip_reference_types(answer.path)))

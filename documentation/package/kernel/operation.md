@@ -201,7 +201,7 @@ needs no prefix.
 ## Reader → operation → evaluate flow
 
 ```
-SDL_EVENT ──read_from_devices──► KeyPress/MousePress/...  ──► Intent(gesture, nothing)
+SDL_EVENT ──read_from_devices──► KeyPress/MouseClick/...  ──► Intent(gesture, nothing)
                                           │
                                           ▼
           read_intent(projection, recursion, change::Intent, iomap)

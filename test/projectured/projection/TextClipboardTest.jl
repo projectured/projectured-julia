@@ -19,7 +19,7 @@ function test_text_clipboard()
                                            make_clipboard_projection(make_json_projection_example()))
             texts = _tr_texts(_tr_window(backend))
             (x, y, _) = texts[findfirst(t -> t[3] == "Alice", texts)]
-            _tr_press!(editor, backend, MousePress(:left, x + first(compute_text_extent("Al", font)), y + 8, none; time = 0.0))
+            _tr_press!(editor, backend, MouseClick(:left, x + first(compute_text_extent("Al", font)), y + 8, none; time = 0.0))
             buf[] = "ZZ"
             _tr_press!(editor, backend, KeyDown(:v, ctrl; time = 0.0))
             @test json.entries[1].value.value == "AlZZice"
@@ -39,7 +39,7 @@ function test_text_clipboard()
                                            make_clipboard_projection(projection))
             (x, y, _) = only(_tr_texts(_tr_window(backend)))
             _tr_press!(editor, backend,
-                       MousePress(:left, x + first(compute_text_extent("hello", font)), y + 8, none; time = 0.0))
+                       MouseClick(:left, x + first(compute_text_extent("hello", font)), y + 8, none; time = 0.0))
             _tr_press!(editor, backend, KeyDown(:left, ModifierKeys(shift = true); time = 0.0))
             _tr_press!(editor, backend, KeyDown(:left, ModifierKeys(shift = true); time = 0.0))
             buf[] = ""

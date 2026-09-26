@@ -7,7 +7,7 @@ The backward-flowing unit of the reader pipeline — the symmetric dual of the
 document that flows forward through the printer. It carries the same user change
 in two coordinate frames:
 
-- `gesture` — the originating input (a device event such as `MousePress`/`KeyDown`,
+- `gesture` — the originating input (a device event such as `MouseClick`/`KeyDown`,
   or an `WindowInput` at the screen layer). **Invariant**: it is threaded
   unchanged through the whole reader chain, so any reader can inspect *what the
   user did*, not just what it currently means.

@@ -183,7 +183,7 @@ function read_intent(p::DraggingProjection, recursion, change::Intent, iomap::Dr
 
     elseif gesture isa MouseUp && st.phase === :pending
         st.phase = :idle                                  # sub-threshold: a click —
-        return Intent(change.gesture, nothing)            # let the synthesised MousePress select
+        return Intent(change.gesture, nothing)            # let the synthesised MouseClick select
 
     elseif gesture isa MouseUp && st.phase === :dragging
         st.phase = :idle
@@ -212,7 +212,7 @@ end
 read_intent(p::DraggingProjection, iomap::DraggingIoMap, payload) =
     read_intent(p, nothing, Intent(payload), iomap).operation
 
-# Hit-test a window pixel `(x, y)` by synthesising a left `MousePress` there and
+# Hit-test a window pixel `(x, y)` by synthesising a left `MouseClick` there and
 # delegating it to the inner chain — exactly the path a real click takes through
 # the graphics layer down to the content domain. The resulting operation is only
 # *read* (never applied), so this is a side-effect-free query for the
@@ -220,7 +220,7 @@ read_intent(p::DraggingProjection, iomap::DraggingIoMap, payload) =
 # when the point resolves to no selectable element (or to a non-selection op,
 # e.g. a collapse-marker toggle).
 function _locate_point(p::DraggingProjection, recursion, iomap::DraggingIoMap, x::Int, y::Int, mods)
-    probe = Intent(MousePress(:left, x, y, mods; time = time()), nothing)
+    probe = Intent(MouseClick(:left, x, y, mods; time = time()), nothing)
     inner = read_intent(iomap.inner_iomap.projection, recursion, probe, iomap.inner_iomap)
     op = inner isa Intent ? inner.operation : inner
     op isa ReplaceSelectionOperation ? op.path : nothing

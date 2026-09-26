@@ -127,7 +127,7 @@ end
 
     # A press on the drawn second line puts the caret into that line.
     _, x, y = first(t for t in _drawn_texts(iomap.output) if occursin("two", t[1]))
-    click = read_intent(_proj(), iomap, MousePress(:left, x + 25, y + 4, ModifierKeys(); time = 0.0))
+    click = read_intent(_proj(), iomap, MouseClick(:left, x + 25, y + 4, ModifierKeys(); time = 0.0))
     @test click isa ReplaceSelectionOperation
     @test click.path.head == FieldReferenceStep("content")
     @test click.path.tail.head isa TextRangeReferenceStep
@@ -148,7 +148,7 @@ _held_caret(widget) = strip_reference_types(widget.selection)
     iomap = print_document(_proj(), nothing, off, PrinterContext())
     @test read_intent(_proj(), iomap, KeyPress('X', "X", ModifierKeys(); time = 0.0)) === nothing
     @test read_intent(_proj(), iomap, KeyDown(:return, ModifierKeys(); time = 0.0)) === nothing
-    @test read_intent(_proj(), iomap, MousePress(:left, 10, 10, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(_proj(), iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)) === nothing
     @test off.content.elements[1].content == "one"
 
     plain = WidgetTextarea("one\ntwo"; enabled = false)
@@ -167,7 +167,7 @@ end
 
     # A press puts the caret into the string, under the pointer.
     _, x, y = first(t for t in _drawn_texts(iomap.output) if startswith(t[1], "edit"))
-    click = read_intent(_proj(), iomap, MousePress(:left, x + 32, y + 4, ModifierKeys(); time = 0.0))
+    click = read_intent(_proj(), iomap, MouseClick(:left, x + 32, y + 4, ModifierKeys(); time = 0.0))
     @test click isa ReplaceSelectionOperation
     @test click.path == _plain_cursor(3)
     evaluate_operation(_WidgetTextMockEditor(doc), click)

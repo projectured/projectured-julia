@@ -19,7 +19,7 @@ using Projectured.EditorModule: Editor, evaluate!, print!
 using Projectured.BackendModule: initialize_backend!, quit_backend!, configure_devices!
 using Projectured.DeviceModule: Device, Display, Keyboard, Mouse
 using Projectured.ClockModule: set_clock_time!
-using Projectured.EventModule: WindowInput, MousePress, MouseMove, MouseScroll,
+using Projectured.EventModule: WindowInput, MouseClick, MouseMove, MouseScroll,
     KeyDown, KeyPress, ModifierKeys
 using Projectured.IntentModule: Intent
 using Projectured.ProjectionModule: read_intent
@@ -49,7 +49,7 @@ t0 = time()
 const GESTURES = Any[
     MouseMove(40, 200; time = t0), MouseMove(400, 300; time = t0),
     MouseMove(800, 500; time = t0),
-    MousePress(:left, 400, 300; time = t0), MousePress(:right, 400, 300; time = t0),
+    MouseClick(:left, 400, 300; time = t0), MouseClick(:right, 400, 300; time = t0),
     MouseScroll(0, -3, 400, 300; time = t0), MouseScroll(0, 3, 400, 300; time = t0),
     KeyDown(:down, ModifierKeys(); time = t0), KeyDown(:up, ModifierKeys(); time = t0),
     KeyDown(:left, ModifierKeys(); time = t0), KeyDown(:right, ModifierKeys(); time = t0),

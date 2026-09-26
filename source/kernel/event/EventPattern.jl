@@ -2,14 +2,15 @@
 # `EventPattern`, the parser of the pattern syntax, and `@event_case`. The syntax is
 # documented on `@event_case`.
 
-# The event type that `name` names: first in `scope`, the module where the pattern
-# is written, and then in `EventModule`. The result is `nothing` for a name that is
-# no concrete event type there.
+# The event or gesture type that `name` names: first in `scope`, the module where
+# the pattern is written, and then in `EventModule`. The result is `nothing` for a
+# name that is no concrete event or gesture type there.
 function _find_event_type(name::Symbol, scope::Module)
     for candidate in (scope, EventModule)
         isdefined(candidate, name) || continue
         value = getfield(candidate, name)
-        value isa Type && value <: Event && isconcretetype(value) && return value
+        value isa Type && value <: Union{Event,Gesture} && isconcretetype(value) &&
+            return value
     end
     nothing
 end
@@ -25,9 +26,9 @@ const _MODIFIER_FLAGS = (:ctrl, :shift, :alt, :meta)
 # ── The reified pattern ─────────────────────────────────────────────────────
 
 """
-    EventPattern{E<:Event}(fields, modifiers, guard[, label])
+    EventPattern{E<:Union{Event,Gesture}}(fields, modifiers, guard[, label])
 
-A pattern as data: an event type `E`, the fields that must hold a value, the
+A pattern as data: an event or gesture type `E`, the fields that must hold a value, the
 modifiers, a guard and a label.
 
 - `fields` is a `NamedTuple` of the fields that must be equal to a value. A field
@@ -52,13 +53,13 @@ and to show the pattern to a person with `describe_event_pattern`.
 
 See also `KeyDownPattern` and the other constructors for one event type.
 """
-struct EventPattern{E<:Event}
+struct EventPattern{E<:Union{Event,Gesture}}
     fields::NamedTuple
     modifiers::Union{Vector{Symbol},Nothing}
     guard::Union{Function,Nothing}
     label::Union{String,Nothing}
 end
-EventPattern{E}(fields, modifiers, guard) where {E<:Event} =
+EventPattern{E}(fields, modifiers, guard) where {E<:Union{Event,Gesture}} =
     EventPattern{E}(fields, modifiers, guard, nothing)
 
 """
@@ -105,7 +106,7 @@ _constrain_field(name::Symbol, value) =
     KeyUpPattern(key; modifiers = nothing, guard = nothing, label = nothing)
     MouseDownPattern(button; modifiers = nothing, guard = nothing, label = nothing)
     MouseUpPattern(button; modifiers = nothing, guard = nothing, label = nothing)
-    MousePressPattern(button; modifiers = nothing, guard = nothing, label = nothing)
+    MouseClickPattern(button; modifiers = nothing, guard = nothing, label = nothing)
     MouseMovePattern(; modifiers = nothing, guard = nothing, label = nothing)
     MouseEnterPattern(; modifiers = nothing, guard = nothing, label = nothing)
     MouseLeavePattern(; modifiers = nothing, guard = nothing, label = nothing)
@@ -119,7 +120,7 @@ Use them to write a pattern without its `NamedTuple` of fields.
 # Example
 
     KeyDownPattern(:period; modifiers = [:ctrl])    # Ctrl+.
-    MousePressPattern(:left)                        # a left click
+    MouseClickPattern(:left)                        # a left click
 
 See also `EventPattern`.
 """
@@ -133,8 +134,8 @@ MouseDownPattern(button; modifiers = nothing, guard = nothing, label = nothing) 
     EventPattern{MouseDown}(_constrain_field(:button, button), modifiers, guard, label)
 MouseUpPattern(button; modifiers = nothing, guard = nothing, label = nothing) =
     EventPattern{MouseUp}(_constrain_field(:button, button), modifiers, guard, label)
-MousePressPattern(button; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{MousePress}(_constrain_field(:button, button), modifiers, guard, label)
+MouseClickPattern(button; modifiers = nothing, guard = nothing, label = nothing) =
+    EventPattern{MouseClick}(_constrain_field(:button, button), modifiers, guard, label)
 MouseMovePattern(; modifiers = nothing, guard = nothing, label = nothing) =
     EventPattern{MouseMove}(NamedTuple(), modifiers, guard, label)
 MouseEnterPattern(; modifiers = nothing, guard = nothing, label = nothing) =
@@ -209,14 +210,14 @@ function _describe(::Type{KeyPress}, pattern)
     _prefix_modifiers(pattern, char === nothing ? "character" : string(char))
 end
 _describe(::Type{KeyChord}, pattern) = "key chord"
-_describe(::Type{MousePress}, pattern) = _describe_button(pattern)
+_describe(::Type{MouseClick}, pattern) = _describe_button(pattern)
 _describe(::Type{MouseDown}, pattern) = "press " * _describe_button(pattern)
 _describe(::Type{MouseUp}, pattern) = "release " * _describe_button(pattern)
 _describe(::Type{MouseMove}, pattern) = _prefix_modifiers(pattern, "move pointer")
 _describe(::Type{MouseEnter}, pattern) = _prefix_modifiers(pattern, "pointer enters")
 _describe(::Type{MouseLeave}, pattern) = _prefix_modifiers(pattern, "pointer leaves")
 _describe(::Type{MouseScroll}, pattern) = _prefix_modifiers(pattern, "scroll")
-_describe(::Type{E}, pattern) where {E<:Event} =
+_describe(::Type{E}, pattern) where {E<:Union{Event,Gesture}} =
     _prefix_modifiers(pattern, _get_type_words(E))
 
 # ── The parser, which `@event_case` and every macro that binds events share ──
@@ -465,20 +466,20 @@ Use it to turn an event into a value, such as an operation, in one expression.
         KeyDown(:period; ctrl)                    => on_toggle()
         when(KeyDown(k; alt), k in (:up, :down))  => on_navigate(k)
         KeyPress(c)                               => insert_char(c)
-        MousePress(:left, x, y)                   => select_at(x, y)
+        MouseClick(:left, x, y)                   => select_at(x, y)
         _                                         => nothing
     end
 
 # The pattern syntax
 
-A pattern is written like the constructor of its event.
+A pattern is written like the constructor of its event or gesture.
 
-- The name selects the event type. It is any concrete `Event` type whose name is
-  visible where the pattern is written, or one of `EventModule`. A bare name, such
-  as `MouseScroll`, tests the type only.
+- The name selects the type. It is any concrete `Event` or `Gesture` type whose
+  name is visible where the pattern is written, or one of `EventModule`. A bare
+  name, such as `MouseScroll`, tests the type only.
 - A positional argument matches or binds a field of the event, in the declared
   order of the fields, without `modifiers` and `time`: `KeyDown(key, repeat)`,
-  `KeyPress(char, text)`, `MousePress(button, x, y, count)`, `MouseScroll(dx, dy, x,
+  `KeyPress(char, text)`, `MouseClick(button, x, y, count)`, `MouseScroll(dx, dy, x,
   y)`. A literal, such as `:period`, `'a'` or `42`, must be equal to the field. A
   bare name, such as `k`, binds the field. `_` ignores the field. `^(expr)`, and any
   other expression, must be `==` to the field at run time.

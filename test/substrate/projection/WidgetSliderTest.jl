@@ -23,7 +23,7 @@ end
     test_widget_slider_drag()
 
 The slider reads the events a real mouse sends: a `MouseDown` takes the knob, a
-move writes while it is held, and a `MouseUp` lets go. The `MousePress` that the
+move writes while it is held, and a `MouseUp` lets go. The `MouseClick` that the
 gesture recognizer makes after a real click takes nothing.
 """
 function test_widget_slider_drag()
@@ -51,7 +51,7 @@ end
     @test clicked != 0.3
     # The press the recognizer makes after the up finds the value in place: it
     # writes only the view state, so the history gets no second step.
-    press = _read_slider_event!(slider, projection, iomap, MousePress(:left, 100, y, ModifierKeys(); time = 0.0))
+    press = _read_slider_event!(slider, projection, iomap, MouseClick(:left, 100, y, ModifierKeys(); time = 0.0))
     @test press isa ReplaceViewStateOperation
     @test slider.dragging === false
     @test read_intent(projection, iomap, MouseMove(200, y, MouseButtons(), ModifierKeys(); time = 0.0)) === nothing
@@ -60,7 +60,7 @@ end
 
 @testset "a press from a script sets the value and takes nothing" begin
     slider, projection, iomap, y = _make_slider_iomap()
-    press = _read_slider_event!(slider, projection, iomap, MousePress(:left, 100, y, ModifierKeys(); time = 0.0))
+    press = _read_slider_event!(slider, projection, iomap, MouseClick(:left, 100, y, ModifierKeys(); time = 0.0))
     @test press isa ReplaceReferencedValueOperation
     @test slider.value != 0.3
     @test slider.dragging === false

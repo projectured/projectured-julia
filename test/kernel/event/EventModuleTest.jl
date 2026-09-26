@@ -7,8 +7,8 @@ pattern syntax, and `@event_case` with an event type that the layer does not def
 using Test
 using ProjecturedKernel.EventModule
 
-# An event type of another module, as a package defines one.
-struct EmTestRestEvent <: SyntheticEvent
+# A gesture type of another module, as a package defines one.
+struct EmTestRestGesture <: Gesture
     x::Int
     y::Int
     time::Float64
@@ -36,9 +36,9 @@ function test_event_module()
     @testset "the short forms of the constructors" begin
         @test KeyDown(:a, ModifierKeys(); time = 0.0).repeat === false
         @test KeyPress('a'; time = 0.0).text == "a"
-        @test MousePress(:left, 1, 2; time = 0.0).count == 1
-        @test MousePress(:left, 1, 2, ModifierKeys(ctrl = true); time = 0.0).count == 1
-        @test MousePress(:left, 1, 2, 2, ModifierKeys(); time = 0.0).count == 2
+        @test MouseClick(:left, 1, 2; time = 0.0).count == 1
+        @test MouseClick(:left, 1, 2, ModifierKeys(ctrl = true); time = 0.0).count == 1
+        @test MouseClick(:left, 1, 2, 2, ModifierKeys(); time = 0.0).count == 2
         @test MouseMove(1, 2; time = 0.0).buttons == MouseButtons()
     end
 
@@ -71,15 +71,15 @@ function test_event_module()
 
     @testset "@event_case matches an event type of another module" begin
         rest(event) = @event_case event begin
-            EmTestRestEvent(x, y) => (x, y)
+            EmTestRestGesture(x, y) => (x, y)
             _                     => nothing
         end
-        @test rest(EmTestRestEvent(3, 4, 0.0)) == (3, 4)
+        @test rest(EmTestRestGesture(3, 4, 0.0)) == (3, 4)
         @test rest(KeyPress('a'; time = 0.0)) === nothing
-        rule = parse_event_pattern_rule(:(EmTestRestEvent(x) => x); scope = @__MODULE__)
-        @test rule.type === EmTestRestEvent
+        rule = parse_event_pattern_rule(:(EmTestRestGesture(x) => x); scope = @__MODULE__)
+        @test rule.type === EmTestRestGesture
         # Without the module of the pattern, the name is not in scope.
-        @test_throws ErrorException parse_event_pattern_rule(:(EmTestRestEvent(x) => x))
+        @test_throws ErrorException parse_event_pattern_rule(:(EmTestRestGesture(x) => x))
     end
 
     @testset "EventPattern matches and describes" begin
@@ -94,14 +94,14 @@ function test_event_module()
         @test describe_event_pattern(KeyPressPattern('a')) == "a"
         @test describe_event_pattern(KeyPressPattern('a'; modifiers = [:ctrl])) == "Ctrl+a"
         @test describe_event_pattern(KeyPressPattern(nothing)) == "character"
-        @test describe_event_pattern(MousePressPattern(:left)) == "Left click"
+        @test describe_event_pattern(MouseClickPattern(:left)) == "Left click"
         @test describe_event_pattern(MouseMovePattern(; modifiers = [:shift])) ==
               "Shift+move pointer"
         @test describe_event_pattern(EventPattern{WindowResize}(NamedTuple(), nothing,
                                                                 nothing)) == "window resize"
-        @test describe_event_pattern(EventPattern{EmTestRestEvent}(NamedTuple(), nothing,
-                                                                   nothing)) ==
-              "em test rest event"
+        @test describe_event_pattern(EventPattern{EmTestRestGesture}(NamedTuple(), nothing,
+                                                                     nothing)) ==
+              "em test rest gesture"
         @test describe_event_pattern(KeyPressPattern(nothing; label = "0-9")) == "0-9"
     end
 
@@ -124,8 +124,8 @@ function test_event_module()
         @test !matches_event_pattern(pattern, KeyDown(:home, ModifierKeys(); time = 0.0))
 
         @test @em_test_bind_fields(KeyPress(c) => c, KeyPress('q'; time = 0.0)) === 'q'
-        @test @em_test_bind_fields(MousePress(b, x, y) => (b, x, y),
-                                   MousePress(:right, 5, 6; time = 0.0)) == (:right, 5, 6)
+        @test @em_test_bind_fields(MouseClick(b, x, y) => (b, x, y),
+                                   MouseClick(:right, 5, 6; time = 0.0)) == (:right, 5, 6)
         # A rule that binds no field leaves the body as it is.
         @test build_event_field_bindings(rule, :event, :body) === :body
     end

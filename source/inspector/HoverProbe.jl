@@ -9,7 +9,7 @@
 # nothing visually). It remembers the inner iomap so the reader can reuse it.
 #
 # **Reader** — on a `MouseMove` it reverse-projects the pointer position by
-# feeding a synthetic `MousePress(:left, x, y)` to the **inner** reader — the
+# feeding a synthetic `MouseClick(:left, x, y)` to the **inner** reader — the
 # exact path a real click would take — and reads the would-be
 # `ReplaceSelectionOperation.path` without committing it. It then drives a
 # follower window (id `id`, `:tooltip` style) via `OpenWindowOperation` /
@@ -82,7 +82,7 @@ function read_intent(p::HoverProbeProjection, recursion, change::Intent, iomap::
     event = change.gesture
     if event isa MouseMove
         # Reverse-project the hover position exactly as a left click would be.
-        press = MousePress(:left, event.x, event.y, event.modifiers; time = event.time)
+        press = MouseClick(:left, event.x, event.y, event.modifiers; time = event.time)
         probe = read_intent(iomap.child_iomap.projection, recursion,
                                 Intent(press, nothing), iomap.child_iomap)
         probe_op = probe isa Intent ? probe.operation : probe

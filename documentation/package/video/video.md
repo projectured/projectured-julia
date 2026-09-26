@@ -27,7 +27,7 @@ record_video(document, projection, gestures, filename;
 | `(operation = op, hold = h)` | evaluates `op`, or `op(document)` when `op` is a function; for an action that no single event makes |
 | `(await = predicate, hold = h)` | emits one frame and yields, again and again, until `predicate(document)` returns `true` or `h` seconds of wall-clock time pass |
 
-The event goes straight to the reader, with no `WindowInput` and no `GestureRecognizer`. So a click is a `MousePress` entry; a `MouseDown` and a `MouseUp` do not make one. `initial_selection` sets the selection before the first frame, and `nothing` clears it. A `KeyPress` edits only when something is selected, so a typing demo needs an `initial_selection` or a first `MousePress`. `make_typein_gestures(text)` in `example/kernel/Harness.jl` makes the `KeyPress` entries of a text, and `timed_await(predicate)` in `example/sdl/LiveExamples.jl` makes an `await` entry.
+The event goes straight to the reader, with no `WindowInput` and no `GestureRecognizer`. So a click is a `MouseClick` entry; a `MouseDown` and a `MouseUp` do not make one. `initial_selection` sets the selection before the first frame, and `nothing` clears it. A `KeyPress` edits only when something is selected, so a typing demo needs an `initial_selection` or a first `MouseClick`. `make_typein_gestures(text)` in `example/kernel/Harness.jl` makes the `KeyPress` entries of a text, and `timed_await(predicate)` in `example/sdl/LiveExamples.jl` makes an `await` entry.
 
 ### Video time
 
@@ -65,7 +65,7 @@ The loop over the entries does not yield, so a task that a gesture started, such
 
 ```julia
 gestures = [
-    (event = MousePress(:left, 120, 40; time = time()), hold = 0.3),   # place the caret
+    (event = MouseClick(:left, 120, 40; time = time()), hold = 0.3),   # place the caret
     (event = KeyPress('h'; time = time()), hold = 0.3),
     (event = KeyPress('i'; time = time()), hold = 0.3),
     (event = KeyDown(:right, ModifierKeys(); time = time()), hold = 0.5),

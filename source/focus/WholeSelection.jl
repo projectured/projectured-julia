@@ -14,7 +14,7 @@ with Alt held and no other modifier. A plain press keeps its own meaning, so a
 button still fires and a caret still lands.
 """
 is_whole_selection_press(event) =
-    event isa MousePress && event.button === :left &&
+    event isa MouseClick && event.button === :left &&
     event.modifiers == ModifierKeys(alt = true)
 
 """

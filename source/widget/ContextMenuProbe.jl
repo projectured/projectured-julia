@@ -57,12 +57,12 @@ function read_intent(p::ContextMenuProbeProjection, recursion, change::Intent,
     # alone is not such an answer: a right press on a row selects the row and
     # opens the menu, in one operation.
     operation = inner_answer isa Intent ? inner_answer.operation : inner_answer
-    is_right = event isa MousePress && event.button === :right
+    is_right = event isa MouseClick && event.button === :right
     selection = is_right && _is_selection_only(operation) ? operation : nothing
     operation === nothing || selection !== nothing || return inner_answer
     is_right || return inner_answer
     # The same Alt press the tooltip probe uses, so both find the same document.
-    press = MousePress(:left, event.x, event.y, ModifierKeys(alt = true);
+    press = MouseClick(:left, event.x, event.y, ModifierKeys(alt = true);
                        time = event.time)
     probe = read_intent(iomap.child_iomap.projection, recursion,
                         Intent(press, nothing), iomap.child_iomap)

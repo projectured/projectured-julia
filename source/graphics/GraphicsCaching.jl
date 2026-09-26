@@ -117,7 +117,7 @@ _rect_hit(r::GraphicsRect, cx::Integer, cy::Integer) =
     cy >= Int(r.y) && cy < Int(r.y) + Int(r.h)
 
 function read_intent(::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, evt)
-    evt isa MousePress || return nothing
+    evt isa MouseClick || return nothing
     canvas = iomap.input
     elems  = canvas.elements
 

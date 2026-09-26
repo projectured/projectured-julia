@@ -185,13 +185,13 @@ reference) lives on the projection instance — one drag at a time, never
 serialised.
 
 **Resolving the grab and drop points.** Mouse events are pixel coordinates; they
-only become document references at the graphics layer, and only for `MousePress`
+only become document references at the graphics layer, and only for `MouseClick`
 (a real drag fires `MouseDown` → `MouseMove*` → `MouseUp`, with no synthesised
-`MousePress`). Rather than teach every graphics reader to hit-test `MouseUp`,
+`MouseClick`). Rather than teach every graphics reader to hit-test `MouseUp`,
 `DraggingProjection` resolves both endpoints itself:
 
 > on the grabbing `MouseDown` and the dropping `MouseUp`, it **synthesises a left
-> `MousePress` at that pixel and delegates it to the inner chain** — the exact
+> `MouseClick` at that pixel and delegates it to the inner chain** — the exact
 > path a real click takes down through the graphics layer to the content domain.
 > The returned `ReplaceSelectionOperation`'s path is the reference under the
 > point.
@@ -200,7 +200,7 @@ The synthetic press is only *read*, never applied, so it is a side-effect-free
 query (a drop onto, say, a collapse marker yields a `ToggleCollapseOperation`,
 which the projection ignores → no move, no toggle). This needs **zero changes
 outside `Dragging.jl`** and works for any domain whose graphics reader already
-hit-tests `MousePress`.
+hit-tests `MouseClick`.
 
 **The move.** A completed drag emits a `MoveRangeOperation` (see
 [operation.md](../kernel/operation.md)). The reader resolves each reference to a

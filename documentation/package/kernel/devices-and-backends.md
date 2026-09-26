@@ -55,7 +55,7 @@ Projection readers only see these events, never SDL-specific structs:
 KeyPress('a'; time = t)                           # character input
 KeyDown(:left, ModifierKeys(); time = t)          # arrow key, no modifiers
 KeyDown(:return, ModifierKeys(ctrl=true); time = t) # Ctrl-Enter
-MousePress(:left, 132, 47; time = t)              # left button at pixel (132, 47)
+MouseClick(:left, 132, 47; time = t)              # left button at pixel (132, 47)
 MouseMove(120, 90; time = t)                      # cursor moved to (120, 90)
 MouseScroll(0, 1, 200, 300; time = t)             # wheel scrolled (dx, dy) at (200, 300)
 WindowQuit(; time = t)                            # the window was closed
@@ -219,7 +219,7 @@ arguments; `WebBackend`'s constructor defaults `host`/`port`.
 - **`read_from_devices`** is non-blocking: a receive task decodes the client's
   JSON events into the backend-agnostic vocabulary (`MouseDown`, `KeyPress`, …)
   wrapped in `WindowInput`s on a `Channel`; the editor drains it each frame.
-  The backend makes no `MousePress`: the gesture recognizer of the editor makes
+  The backend makes no `MouseClick`: the gesture recognizer of the editor makes
   it from a `MouseDown` and a `MouseUp`, as for SDL. [web.md](../web/web.md) is
   its design document.
 - **`wait_for_input`** blocks on an autoreset gate until the receive task puts
@@ -369,14 +369,15 @@ The layer lives in [source/kernel/event/](../../../source/kernel/event/):
 
 ```
 EventModule.jl   (EventModule)        — the input event vocabulary, seven fragments:
-        ├─ EventInterface.jl  — the Event/DeviceEvent/SyntheticEvent types and
-        │                       the get_modifier_keys generic every event answers
+        ├─ EventInterface.jl  — the Event and Gesture types and the
+        │                       get_modifier_keys generic that both answer
         ├─ ModifierKeys.jl       — the Ctrl/Shift/Alt/Meta struct
-        ├─ KeyboardEvent.jl   — KeyDown, KeyUp, KeyPress, KeyChord
-        ├─ MouseEvent.jl      — MouseDown, MouseUp, MousePress, MouseMove,
-        │                       MouseEnter, MouseLeave, MouseScroll
-        ├─ WindowEvent.jl     — WindowQuit, WindowClose, WindowResize, WindowDefocus
-        ├─ WindowInput.jl   — an event plus the id of the window it came from
+        ├─ KeyboardEvent.jl   — the events KeyDown, KeyUp, KeyPress; the gesture KeyChord
+        ├─ MouseEvent.jl      — the events MouseDown, MouseUp, MouseMove, MouseScroll;
+        │                       the gestures MouseClick, MouseEnter, MouseLeave
+        ├─ WindowEvent.jl     — WindowQuit, WindowClose, WindowResize, WindowDefocus,
+        │                       WindowLeave
+        ├─ WindowInput.jl   — an event or a gesture plus the id of the window it came from
         └─ EventDefaults.jl   — the get_modifier_keys fallback and the four
                                 has_*_modifier_key predicates derived over it
 EventModule.jl  (EventModule) — the event pattern language: the reified
@@ -387,13 +388,14 @@ EventModule.jl  (EventModule) — the event pattern language: the reified
 
 ### EventModule
 
-Every concrete event subtypes either `DeviceEvent` (what a device reports —
-`KeyDown`, `MouseDown`, `WindowClose`, …) or `SyntheticEvent` (derived from
-several device events by whoever holds the state spanning them — `MousePress`
-from a down/up pair, `KeyChord` from a key sequence, `MouseEnter`/`MouseLeave`
-from motion crossing a boundary); both are `Event`s. `get_modifier_keys` (and
+An `Event` is a record of what a device reports — `KeyDown`, `MouseDown`,
+`WindowClose`, … A `Gesture` is a pattern that code finds in several events, and
+the code that holds the state across them makes it — `MouseClick` from a down/up
+pair, `KeyChord` from a key sequence, `MouseEnter`/`MouseLeave` from motion across
+a boundary. A gesture is not an event: the two are separate type trees, and a place
+that takes either takes `Union{Event,Gesture}`. `get_modifier_keys` (and
 `has_ctrl_modifier_key`/`has_shift_modifier_key`/`has_alt_modifier_key`/`has_meta_modifier_key` on top of it) is defined once over
-`Event`, so it works for mouse events as well as keyboard ones.
+that union, so it works for every event and every gesture.
 `WindowClose`, `WindowResize`, and `WindowDefocus` live here, not with the
 concrete `ScreenDocument` in `visual` — a window event is report-only input
 vocabulary, not a document type; the window *document* and its operations
@@ -405,7 +407,7 @@ One surface syntax for saying "this kind of event, with these field values
 and these modifiers held", ridden by two consumers: an
 [`EventPattern`](../../../source/kernel/event/EventModule.jl) is
 *data* answering `matches(pattern, event)` and `describe(pattern)` — the
-per-event constructors (`KeyDownPattern`, `MousePressPattern`, …) name the
+per-event constructors (`KeyDownPattern`, `MouseClickPattern`, …) name the
 type and its most-constrained field, all producing the one generic
 `EventPattern{E<:Event}` struct; [`@event_case`](../../../source/kernel/event/EventModule.jl)
 compiles a table of `pattern => result` rules straight to `isa`/field tests,
@@ -458,8 +460,9 @@ independent siblings, bound only by a concrete implementation.
 
 Layer 8 of the kernel — **the recognition of gestures in the event stream**: a
 combination or a sequence that exists only across several events (a click, a
-double click, a key chord) becomes one synthetic event. The recognition takes
-events and gives events, so this layer names no document and no operation. What
+double click, a key chord) becomes one gesture. The recognition takes events and
+gives the events and the gestures, so this layer names no document and no
+operation. What
 a gesture means is decided where it is bound, in the `binding/` layer far above.
 
 The layer lives in [source/kernel/gesture/](../../../source/kernel/gesture/):
@@ -472,7 +475,7 @@ GestureRecognizerModule.jl (GestureRecognizerModule) — the module: its docstri
 `GestureRecognizer` holds the state of the recognition for one editor.
 `recognize_gesture!` takes one `WindowInput` and answers what to deliver now:
 the input itself, a gesture that it completes (a `KeyChord`), or `nothing` when
-the recognizer keeps the input (the first key of a chord). A `MousePress` follows
+the recognizer keeps the input (the first key of a chord). A `MouseClick` follows
 its `MouseUp` in the queue of the recognizer. `pop_gesture!` is the pull of the
 editor: it delivers the queue first, then the next input. A click needs the
 press and the release of the same button in the same window. A gesture carries
@@ -541,7 +544,7 @@ agent, or editor.
 
 Recognising a gesture and giving it *meaning* are different heights: a
 gesture is a combination of events and carries no intent, but deciding what a
-`MousePress` does to a `JsonArray` needs `Document` and `Operation`. That
+`MouseClick` does to a `JsonArray` needs `Document` and `Operation`. That
 pulls gesture bindings up to layer 15 — `binding/` — above `document/`,
 `reference/`, `selection/`, and `operation/`, rather than beside the
 event/device/gesture layers above.

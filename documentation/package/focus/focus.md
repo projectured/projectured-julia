@@ -29,7 +29,7 @@ The focus moves on the down, and a control acts on the press that the gesture re
 
 A whole-element selection is a path that ends at a document. A caret and a range of text end inside a document, so they are not whole. Any document can be selected whole, and no document declares that it can be.
 
-- `is_whole_selection_press(event)` is `true` for a left `MousePress` with Alt and no other modifier. A plain press keeps its meaning, so a button still fires and a caret still lands.
+- `is_whole_selection_press(event)` is `true` for a left `MouseClick` with Alt and no other modifier. A plain press keeps its meaning, so a button still fires and a caret still lands.
 - `is_whole_selection(document, reference)` is `true` when the reference evaluates, inside `document`, to a `Document`.
 - `convert_to_whole_selection(operation, child)` is the answer of a container for an Alt+press that hit `child`, where `operation` is the answer of `child`.
 
@@ -73,7 +73,7 @@ The four files of `source/focus/` hold the parts above: `Focus.jl` the Tab walk 
 ```julia
 FocusModule.is_focusable_document(w::MyControl) = w.enabled   # a domain opts in
 path = get_first_focusable_path(document)                     # a Reference, or nothing
-is_whole_selection_press(MousePress(:left, 10, 20, 1, ModifierKeys(alt = true); time = 0.0))  # true
+is_whole_selection_press(MouseClick(:left, 10, 20, 1, ModifierKeys(alt = true); time = 0.0))  # true
 is_focusing_press(MouseDown(:left, 10, 20, ModifierKeys(); time = 0.0))                        # true
 projection = SelectionWalkingProjection(; inner = make_json_projection_example())
 ```

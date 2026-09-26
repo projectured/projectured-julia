@@ -140,7 +140,7 @@ end
     projection = make_window_scene_projection(content;
         opened_window_projections = make_opened_window_projections(; gesture_help = false))
     iomap = print_document(projection, scene)
-    press = Intent(WindowInput(:shell, MousePress(:left, 5, 5, ModifierKeys(); time = 0.0)))
+    press = Intent(WindowInput(:shell, MouseClick(:left, 5, 5, ModifierKeys(); time = 0.0)))
     change = read_intent(projection, nothing, press, iomap)
     @test (change isa Intent ? change.operation : change) === nothing
     @test length(scene.windows) == 2

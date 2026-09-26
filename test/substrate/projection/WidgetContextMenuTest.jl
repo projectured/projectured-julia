@@ -41,7 +41,7 @@ end
     wrap  = WidgetContextMenu(child, menu)
     iomap = print_document(proj, wrap)
 
-    op = read_intent(proj, iomap, MousePress(:right, 12, 7, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, iomap, MouseClick(:right, 12, 7, ModifierKeys(); time = 0.0))
     # To open a popup is not an edit, so the popup comes marked as view state.
     @test op isa ReplaceViewStateOperation
     popup = get_wrapped_operation(op)
@@ -61,7 +61,7 @@ end
     wrap  = WidgetContextMenu(btn, menu)
     iomap = print_document(proj, wrap)
 
-    op = read_intent(proj, iomap, MousePress(:left, 2, 2, ModifierKeys(); time = 0.0))
+    op = read_intent(proj, iomap, MouseClick(:left, 2, 2, ModifierKeys(); time = 0.0))
     @test !(op isa OpenPopupOperation)
     @test op isa InvokeActionOperation
     @test op.action === btn.action
@@ -73,13 +73,13 @@ end
     menu  = WidgetMenu([WidgetMenuItem("X")])
     wrap  = WidgetContextMenu(WidgetLabel("x"), menu; enabled = false)
     iomap = print_document(proj, wrap)
-    @test read_intent(proj, iomap, MousePress(:right, 5, 5, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, iomap, MouseClick(:right, 5, 5, ModifierKeys(); time = 0.0)) === nothing
 end
 
 @testset "a wrapper with no menu is inert on right click" begin
     wrap  = WidgetContextMenu(WidgetLabel("x"), nothing)
     iomap = print_document(proj, wrap)
-    @test read_intent(proj, iomap, MousePress(:right, 5, 5, ModifierKeys(); time = 0.0)) === nothing
+    @test read_intent(proj, iomap, MouseClick(:right, 5, 5, ModifierKeys(); time = 0.0)) === nothing
 end
 
 @testset "a layout moves the menu of a wrapper into its own frame" begin
@@ -91,7 +91,7 @@ end
     # menu opens at the press, in the frame of the layout.
     (x_cell, y_cell, _) = getfield(_context_iomap_of(iomap, layout), :child_iomaps)[][2]
     ox, oy = Int(x_cell[]), Int(y_cell[])
-    op = get_wrapped_operation(read_intent(proj, iomap, MousePress(:right, ox + 20, oy + 9, ModifierKeys(); time = 0.0)))
+    op = get_wrapped_operation(read_intent(proj, iomap, MouseClick(:right, ox + 20, oy + 9, ModifierKeys(); time = 0.0)))
     @test op isa OpenPopupOperation
     @test op.content === menu
     @test oy > 0

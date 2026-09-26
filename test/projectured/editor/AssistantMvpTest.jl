@@ -664,7 +664,7 @@ end
 
 # ── Collapse-on-header-click (widget presentation) ─────────────────────
 #
-# Projects the conversation through the widget chain and drives a MousePress
+# Projects the conversation through the widget chain and drives a MouseClick
 # on a turn / part header card. The WidgetCard reader emits a
 # ToggleCollapseOperation targeting the card; ConversationToWidget translates
 # it back to the domain turn/part; evaluating it flips `collapsed`.
@@ -675,7 +675,7 @@ end
 function _find_toggle(proj, io, pred)
     for y in 2:3:820, x in 16:4:200
         op = try
-            read_intent(proj, io, MousePress(:left, x, y; time = 0.0))
+            read_intent(proj, io, MouseClick(:left, x, y; time = 0.0))
         catch
             nothing
         end

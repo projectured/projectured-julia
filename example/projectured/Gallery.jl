@@ -47,7 +47,7 @@ When `inspector=true`, a secondary `:inspector` window **follows the mouse**
 and shows the reference a single left-click *would* create at the current
 pointer — without committing it as a selection. Each example window's content
 projection is wrapped in a `HoverProbeProjection`, whose reader reverse-projects
-each idle `MouseMove` (feeding a synthetic `MousePress` to the wrapped reader)
+each idle `MouseMove` (feeding a synthetic `MouseClick` to the wrapped reader)
 and drives the follower window via `OpenWindowOperation` / `CloseWindowOperation`.
 The window's content is a `ReferenceInspector` rendered the same two ways as the
 tooltip (compact `ReferenceToText` + human-readable `ReferenceToHumanReadableText`).

@@ -16,9 +16,9 @@ there's nothing to evaluate or repaint for them.
 
 Raw backend events are first pulled through the editor's `GestureRecognizer`
 (`pop_gesture!`), which is where multi-event combinations become gestures —
-e.g. a `MouseDown`/`MouseUp` pair is recognised as a `MousePress` click. The
+e.g. a `MouseDown`/`MouseUp` pair is recognised as a `MouseClick` click. The
 recogniser returns an `WindowInput` wrapping a backend-agnostic gesture
-(KeyDown, KeyUp, KeyPress, MouseDown, MouseUp, MousePress, MouseMove,
+(KeyDown, KeyUp, KeyPress, MouseDown, MouseUp, MouseClick, MouseMove,
 MouseScroll, WindowQuit, WindowClose, …) together with the originating
 `WindowDocument.id`. The window input is passed to the projection pipeline reader
 which translates it via the last stored IoMap.

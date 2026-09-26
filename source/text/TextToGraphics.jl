@@ -118,10 +118,10 @@ _is_live_selection(value::SelectionDocument) = value.live
 
 const _DORMANT_CURSOR_COLOR = StyleColor(0.55, 0.55, 0.55, 1.0)
 
-# Raw MousePress directly on the canvas (no GraphicsCanvasToGraphicsImage
+# Raw MouseClick directly on the canvas (no GraphicsCanvasToGraphicsImage
 # step above us). Translate to a text-domain selection by picking the
 # segment that owns the click and the character offset within it.
-function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MousePress)
+function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MouseClick)
     evt.button === :left || return nothing
     coord_map = iomap.char_to_coord
     isempty(coord_map) && return nothing
@@ -429,7 +429,7 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
     # highlight element (now the highlight sub-canvas, holding the per-row rects).
     # That path is only reached when a *leaf* canvas is rasterized by
     # GraphicsCanvasToGraphicsImage; this canvas is non-leaf (it nests the highlight
-    # and line sub-canvases), so the bare text examples use the MousePress/coord_map
+    # and line sub-canvases), so the bare text examples use the MouseClick/coord_map
     # reader instead, but the value is preserved for the rasterized-image path.
     highlight_offset = Cell(1)
     canvas_w = Cell(Computation(function ()

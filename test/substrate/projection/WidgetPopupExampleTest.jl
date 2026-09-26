@@ -36,7 +36,7 @@ end
 
     nbefore = length(screen.windows)
     # A left press at (15, 12) lands on the select (top-left of the window content).
-    window_input = WindowInput(:default, MousePress(:left, 15, 12, ModifierKeys(); time = 0.0))
+    window_input = WindowInput(:default, MouseClick(:left, 15, 12, ModifierKeys(); time = 0.0))
     read_intent(proj, nothing, Intent(window_input, nothing), iomap)
 
     @test length(screen.windows) == nbefore + 1

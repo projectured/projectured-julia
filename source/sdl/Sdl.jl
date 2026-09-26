@@ -144,7 +144,7 @@ SDL2 + SDL_ttf backend. Loaded TTF fonts are cached in the module-level
 image rendering.
 
 The backend emits only raw input events; recognising composite gestures
-(e.g. synthesising a `MousePress` click from a `MouseDown`/`MouseUp` pair) is
+(e.g. synthesising a `MouseClick` click from a `MouseDown`/`MouseUp` pair) is
 the editor's `GestureRecognizer`'s job, not the backend's.
 
 `windows` is the live registry of native SDL windows, keyed by the
@@ -3367,7 +3367,7 @@ backend-agnostic inner event, with the time that SDL stamped on it:
 in `backend.window_ids`), or `:none` if the SDL event carries no window
 id or refers to a window the backend does not track.
 
-The backend emits only raw events; the `MousePress` click is synthesised from
+The backend emits only raw events; the `MouseClick` click is synthesised from
 the `MouseDown`/`MouseUp` pair by the editor's `GestureRecognizer`, not here.
 
 ## Pointer motion is coalesced

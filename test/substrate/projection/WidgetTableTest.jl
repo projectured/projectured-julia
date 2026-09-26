@@ -68,7 +68,7 @@ end
     # Clicking the column header still selects the column (hover didn't shadow the
     # click path). A body cell here holds a WidgetLabel, whose click routes into the
     # non-interactive label, so we assert on the header instead.
-    @test _rd(io, MousePress(:left, _bx(g), chy, _mods; time = 0.0)) isa ReplaceSelectionOperation
+    @test _rd(io, MouseClick(:left, _bx(g), chy, _mods; time = 0.0)) isa ReplaceSelectionOperation
     # The hovered column ref differs from a hovered body row.
     @test hov != _rd(io, MouseEnter(_bx(g), _rowy(g, 1), MouseButtons(), _mods; time = 0.0)).value
 end
@@ -93,7 +93,7 @@ end
         for x in xs, y in ys
             oe = _rd(io, MouseEnter(x, y, MouseButtons(), _mods; time = 0.0))
             oe isa ReplaceReferencedValueOperation && oe.document isa WidgetTable && oe.value !== nothing && (e += 1)
-            op = _rd(io, MousePress(:left, x, y, _mods; time = 0.0))
+            op = _rd(io, MouseClick(:left, x, y, _mods; time = 0.0))
             op isa ReplaceSelectionOperation && (c += 1)
         end
         (e, c)
@@ -104,7 +104,7 @@ end
                             size = Point2D(400, 300)))
         e, c = reach(doc; xs = 0:6:240, ys = 0:6:200)
         @test e > 0     # MouseEnter reaches the table (row hover)
-        @test c > 0     # MousePress selects through the container
+        @test c > 0     # MouseClick selects through the container
     end
 end
 
@@ -349,7 +349,7 @@ function test_widget_table_cell_policy()
         geometry = clipped.geometry
         x = geometry.col_x[1] + geometry.bw + geometry.pad_x + 2
         y = geometry.row_y[3] + geometry.bw + geometry.pad_y + 2     # body row two
-        change = read_intent(rec, nothing, Intent(MousePress(:left, x, y, ModifierKeys(); time = 0.0), nothing), clipped)
+        change = read_intent(rec, nothing, Intent(MouseClick(:left, x, y, ModifierKeys(); time = 0.0), nothing), clipped)
         op = change isa Intent ? change.operation : change
         @test op isa ReplaceSelectionOperation
         @test op.path.head.name == "rows"

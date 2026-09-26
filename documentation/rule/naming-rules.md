@@ -244,8 +244,12 @@ alongside it.
   (`WindowClose`) and the completion takes a different, non-synonymous
   action stem (e.g. `WindowDestroy`) — never distinguish the two by
   docstring alone.
-- **Gesture patterns** mirror their event plus `Pattern`: `KeyDownPattern`,
-  `MouseDownPattern`.
+- **Gestures are `<Source><Action>` too**: `MouseClick`, `KeyChord`,
+  `MouseEnter`. A gesture is a pattern that code finds in several events, and it
+  subtypes `Gesture`, not `Event`: the type tells a gesture from an event, not the
+  name.
+- **Gesture patterns** mirror their event or gesture plus `Pattern`:
+  `KeyDownPattern`, `MouseClickPattern`.
 - **`Intent` is the reader pipeline's carrier**: the gesture plus the
   operation-so-far (`nothing` until some reader understands it). It is
   deliberately not an "edit" word — the edit is the operation it carries.
@@ -427,13 +431,13 @@ each document belongs to, are in [README.md](../README.md).
 | `PR-…` / `PAR-…` | a claim the code is checked against | `PAR-PURE-THUNK` |
 | `<Stem>Projection` | projection; gerund stem | `FilteringProjection` |
 | `<Verb><Noun>Operation` | executable edit resolved from an intent; flows out of a reader | `CloseWindowOperation` |
-| `<Source><Action>` | event, flows into a reader | `WindowClose` |
+| `<Source><Action>` | event or gesture, flows into a reader | `WindowClose`, `MouseClick` |
 | `A<Document>` | family, matches every variant | `ACellVector` |
 | `AC<Document>` | cell layout | `ACCellVector` |
 | `M<Document>` | mutable native struct | `MCellVector` |
 | `I<Document>` | immutable native struct | `IEthernetFcs` |
 | `IC<Document>` | cell layout, every field immutable | `ICCellVector` |
-| `<Event>Pattern` | gesture pattern | `KeyDownPattern` |
+| `<Event>Pattern` | pattern of an event or a gesture | `KeyDownPattern` |
 | `get_<stem>` / `set_<stem>!` | getter / setter | `get_selection` |
 | `with_<stem>` | derived copy | `with_property` |
 | `<verb>_<flowing unit>` | pipeline protocol | `print_document`, `read_intent` |

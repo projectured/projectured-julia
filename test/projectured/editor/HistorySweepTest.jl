@@ -56,14 +56,14 @@ function test_history_sweep()
                 alt = ModifierKeys(alt = true)
                 click((x, y); modifiers = none) = [MouseDown(:left, x + 3, y + 3, modifiers; time = 0.0),
                                                    MouseUp(:left, x + 3, y + 3, modifiers; time = 0.0),
-                                                   MousePress(:left, x + 3, y + 3, 1, modifiers; time = 0.0)]
+                                                   MouseClick(:left, x + 3, y + 3, 1, modifiers; time = 0.0)]
                 key_downs(names...; modifiers = none) = [KeyDown(name, modifiers; time = 0.0) for name in names]
                 left, middle, right = 0:400, 400:1100, 1100:1600
 
                 # The chevron left of a folder's name: one click closes it, the next
                 # opens it again.
                 fold_twice() = let (x, y) = place("alpha", left)
-                    [MousePress(:left, x - 34, y + 5, 1, none; time = 0.0), MousePress(:left, x - 34, y + 5, 1, none; time = 0.0)]
+                    [MouseClick(:left, x - 34, y + 5, 1, none; time = 0.0), MouseClick(:left, x - 34, y + 5, 1, none; time = 0.0)]
                 end
 
                 # Each gesture is made when its turn comes, because the one before
@@ -96,7 +96,7 @@ function test_history_sweep()
                         () -> Any[KeyDown(:p, ModifierKeys(ctrl = true, shift = true); time = 0.0), KeyPress('s'; time = 0.0),
                                   KeyDown(:escape, none; time = 0.0)],
                     "the context menu opens and closes" =>
-                        () -> Any[MousePress(:right, 700, 300, 1, none; time = 0.0), KeyDown(:escape, none; time = 0.0)],
+                        () -> Any[MouseClick(:right, 700, 300, 1, none; time = 0.0), KeyDown(:escape, none; time = 0.0)],
                     "Ctrl+C" => () -> key_downs(:c; modifiers = ModifierKeys(ctrl = true)),
                 ]
                 for (gesture, make) in gestures
@@ -136,7 +136,7 @@ function test_history_sweep()
                 drawn() = _app_drawn_at(get_iomap_output(editor.iomap).windows[1].content)
                 click!(matches) = begin
                     (x, y) = first((x, y) for (text, x, y) in drawn() if matches(text, x))
-                    press!(MousePress(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
+                    press!(MouseClick(:left, x + 3, y + 3, 1, ModifierKeys(); time = 0.0))
                 end
                 text = first(repeat("typed text ", 14), 150)
 

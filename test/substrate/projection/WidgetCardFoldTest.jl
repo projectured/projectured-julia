@@ -71,11 +71,11 @@ function test_widget_card_fold()
         # A click on the chevron folds, and so does one at the right edge of its
         # column. A click on the title does not.
         title_x = _fold_title_x(iomap)
-        on_chevron = read_intent(proj, iomap, MousePress(:left, 20, 28, ModifierKeys(); time = 0.0))
+        on_chevron = read_intent(proj, iomap, MouseClick(:left, 20, 28, ModifierKeys(); time = 0.0))
         @test on_chevron isa ToggleCollapseOperation && on_chevron.target === card
-        on_column = read_intent(proj, iomap, MousePress(:left, title_x - 1, 28, ModifierKeys(); time = 0.0))
+        on_column = read_intent(proj, iomap, MouseClick(:left, title_x - 1, 28, ModifierKeys(); time = 0.0))
         @test on_column isa ToggleCollapseOperation && on_column.target === card
-        on_title = read_intent(proj, iomap, MousePress(:left, title_x + 2, 28, ModifierKeys(); time = 0.0))
+        on_title = read_intent(proj, iomap, MouseClick(:left, title_x + 2, 28, ModifierKeys(); time = 0.0))
         @test !(on_title isa ToggleCollapseOperation)
 
         # Folded: the mark points right, and the body is not drawn.
@@ -96,9 +96,9 @@ function test_widget_card_fold()
         # A click left of the title is a click on the padding, not a fold, and a
         # click on the title is not a fold either: a card that draws no chevron
         # does not fold from a click.
-        @test !(read_intent(proj, iomap, MousePress(:left, 4, 28, ModifierKeys(); time = 0.0)) isa ToggleCollapseOperation)
+        @test !(read_intent(proj, iomap, MouseClick(:left, 4, 28, ModifierKeys(); time = 0.0)) isa ToggleCollapseOperation)
         title_x = _fold_title_x(iomap)
-        @test !(read_intent(proj, iomap, MousePress(:left, title_x + 2, 28, ModifierKeys(); time = 0.0)) isa ToggleCollapseOperation)
+        @test !(read_intent(proj, iomap, MouseClick(:left, title_x + 2, 28, ModifierKeys(); time = 0.0)) isa ToggleCollapseOperation)
     end
 
     # A container routes a press to a card only over something the card drew. A
@@ -111,9 +111,9 @@ function test_widget_card_fold()
         title_x = _fold_title_x(print_document(proj, proj, make_card(), PrinterContext()))
         card = make_card()
         iomap = print_document(proj, proj, WidgetComposite(Any[card]), PrinterContext())
-        on_column = read_intent(proj, iomap, MousePress(:left, title_x - 1, 28, ModifierKeys(); time = 0.0))
+        on_column = read_intent(proj, iomap, MouseClick(:left, title_x - 1, 28, ModifierKeys(); time = 0.0))
         @test on_column isa ToggleCollapseOperation && on_column.target === card
-        on_title = read_intent(proj, iomap, MousePress(:left, title_x + 2, 28, ModifierKeys(); time = 0.0))
+        on_title = read_intent(proj, iomap, MouseClick(:left, title_x + 2, 28, ModifierKeys(); time = 0.0))
         @test !(on_title isa ToggleCollapseOperation)
     end
 
@@ -126,7 +126,7 @@ function test_widget_card_fold()
         @test "the first body" in texts && !("the second body" in texts)
         at = _fold_text_positions(iomap.output)
         second = at["Second"]
-        press(x, y; button = :left) = read_intent(proj, iomap, MousePress(button, x, y, ModifierKeys(); time = 0.0))
+        press(x, y; button = :left) = read_intent(proj, iomap, MouseClick(button, x, y, ModifierKeys(); time = 0.0))
 
         # A press on the title of a closed item opens it, and the other one closes.
         # It is view state, so a history does not record it.
@@ -179,7 +179,7 @@ function test_widget_card_fold()
         # A press on a control in the open body reaches the control.
         toggled = nothing
         for y in at["inner body"][2]:2:(at["Plain title"][2] - 1), x in 0:2:60
-            answer = read_intent(proj, iomap, MousePress(:left, x, y, ModifierKeys(); time = 0.0))
+            answer = read_intent(proj, iomap, MouseClick(:left, x, y, ModifierKeys(); time = 0.0))
             if answer isa ReplaceReferencedValueOperation && answer.document === box
                 toggled = answer
                 break
@@ -188,7 +188,7 @@ function test_widget_card_fold()
         @test toggled !== nothing && toggled.value === true
         # A press on the header of the item still closes it.
         title = at["Document title"]
-        closed = read_intent(proj, iomap, MousePress(:left, title[1] + 2, title[2] + 2, ModifierKeys(); time = 0.0))
+        closed = read_intent(proj, iomap, MouseClick(:left, title[1] + 2, title[2] + 2, ModifierKeys(); time = 0.0))
         @test closed isa ReplaceViewStateOperation &&
               get_wrapped_operation(closed).document === accordion &&
               get_wrapped_operation(closed).value == 0

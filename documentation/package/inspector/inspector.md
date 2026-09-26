@@ -36,7 +36,7 @@ A function becomes the computation of a cell in the `source` field. So a read of
 
 `HoverProbeProjection(; inner, pointer, id, offset, size, title)` wraps the content projection of a window. It prints as `inner` and maps references as `inner`. On a `MouseMove`, its reader:
 
-1. makes a plain left `MousePress` at the pointer and reads it through `inner`, without applying the answer;
+1. makes a plain left `MouseClick` at the pointer and reads it through `inner`, without applying the answer;
 2. takes the path of the `ReplaceSelectionOperation` that comes back, if any;
 3. returns an `OpenWindowOperation` with `style = :tooltip` and a `ReferenceInspector(reference = path, target = document)` as content, at `pointer()` plus `offset`;
 4. returns a `CloseWindowOperation` when the press selects nothing and the window is open.

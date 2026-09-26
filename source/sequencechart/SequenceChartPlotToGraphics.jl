@@ -1110,7 +1110,7 @@ end
 # arrow is a line, so where both are within reach the point was almost certainly
 # what was aimed at.
 function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
-                     gesture::MousePress)
+                     gesture::MouseClick)
     g = iomap.geometry
     g === nothing && return nothing
     plot = iomap.input

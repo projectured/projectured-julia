@@ -82,7 +82,7 @@ function test_assistant_composer_panel()
             @test something(a.draft.parts[end].content.value, "") == ""
             texts = _tr_texts(_tr_window(backend))
             (x, y, _) = texts[findfirst(t -> occursin("type here", t[3]), texts)]
-            press(MousePress(:left, x + 30, y + 8, none; time = 0.0))
+            press(MouseClick(:left, x + 30, y + 8, none; time = 0.0))
             foreach(c -> press(KeyPress(c; time = 0.0)), "hi")
             @test a.draft.parts[end].content.value == "hi"
             steps = get_reference_steps(strip_reference_types(editor.document.selection))
@@ -109,7 +109,7 @@ function test_assistant_composer_panel()
             none = ModifierKeys()
             texts = _tr_texts(_tr_window(backend))
             (x, y, _) = texts[findfirst(t -> occursin("type here", t[3]), texts)]
-            press(MousePress(:left, x + 30, y + 8, none; time = 0.0))
+            press(MouseClick(:left, x + 30, y + 8, none; time = 0.0))
             at("", (0, 0))
             foreach(c -> press(KeyPress(c; time = 0.0)), "hello")
             at("hello", (5, 5))
@@ -128,7 +128,7 @@ function test_assistant_composer_panel()
             # A click inside the text lands where it was aimed.
             texts = _tr_texts(_tr_window(backend))
             (x, y, _) = texts[findfirst(t -> t[3] == "hel", texts)]
-            press(MousePress(:left, x + first(compute_text_extent("h", font_ubuntu_monospace_regular_20)),
+            press(MouseClick(:left, x + first(compute_text_extent("h", font_ubuntu_monospace_regular_20)),
                              y + 8, none; time = 0.0))
             at("hel\no", (1, 1))
 

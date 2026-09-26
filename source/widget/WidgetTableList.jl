@@ -455,7 +455,7 @@ end
 # answer; inside it, a press on the margin, the border or the padding is
 # clamped into the grid, like every other reader that maps a position to a
 # row or a column.
-function _wtl_click(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, g::MousePress)
+function _wtl_click(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, g::MouseClick)
     st = iomap.state
     w = iomap.input
     content_x, _ = _content_offset(p, w)
@@ -483,7 +483,7 @@ end
 # the click — a label has nothing to say to one — leaves the click to the row,
 # and the row is selected: a table of text is a table of rows, and a list
 # draws no row-header strip to click on instead.
-function _wtl_route_cell_click(iomap::WidgetTableListIoMap, k::Int, c::Int, g::MousePress, content_x::Int)
+function _wtl_route_cell_click(iomap::WidgetTableListIoMap, k::Int, c::Int, g::MouseClick, content_x::Int)
     st = iomap.state
     _wtl_row_node(st, k) === nothing && return nothing
     canvas, entries = st.built[k]
@@ -494,7 +494,7 @@ function _wtl_route_cell_click(iomap::WidgetTableListIoMap, k::Int, c::Int, g::M
     cell isa GraphicsCanvas || return row
     cell_x = content_x + Int(x_cell[]) + Int(cell.x)
     cell_y = Int(st.header_height[]) + Int(canvas.y) + Int(y_cell[]) + Int(cell.y)
-    op = read_intent(cim.projection, cim, MousePress(g.button, g.x - cell_x, g.y - cell_y, g.count, g.modifiers;
+    op = read_intent(cim.projection, cim, MouseClick(g.button, g.x - cell_x, g.y - cell_y, g.count, g.modifiers;
                                                      time = g.time))
     op === nothing && return row
     op isa ReplaceSelectionOperation || return op
@@ -595,7 +595,7 @@ end
 
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, iomap::WidgetTableListIoMap)
     g = change.gesture
-    if change.operation === nothing && g isa MousePress && g.button === :left
+    if change.operation === nothing && g isa MouseClick && g.button === :left
         return Intent(g, _wtl_click(p, iomap, g))
     end
     change.operation === nothing && g isa MouseEnter && return Intent(g, _wtl_hover(p, iomap, g.x, g.y, true))
@@ -612,7 +612,7 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
 end
 
 function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, event)
-    if event isa MousePress || event isa KeyDown ||
+    if event isa MouseClick || event isa KeyDown ||
        event isa MouseEnter || event isa MouseMove || event isa MouseLeave
         return read_intent(p, nothing, Intent(event, nothing), iomap).operation
     end

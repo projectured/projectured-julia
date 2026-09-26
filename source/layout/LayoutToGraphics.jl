@@ -260,9 +260,9 @@ _route_scroll(entries, evt::MouseScroll) =
     _route_to_children(entries, evt.x, evt.y,
         (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
 
-_route_click(entries, evt::MousePress) =
+_route_click(entries, evt::MouseClick) =
     _route_to_children(entries, evt.x, evt.y,
-        (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
+        (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
 
 # Pointer motion / crossings carry coordinates, so they hit-test the laid-out
 # children exactly like a click — routing to the child *under the pointer*, not the
@@ -281,7 +281,7 @@ _route_crossing(entries, evt) =
                                                   time = evt.time))
 
 # A raw press-down / release also hit-tests by coordinate, so a button laid out in a
-# layout flips its `pressed` cell (the depress feedback). The composed MousePress
+# layout flips its `pressed` cell (the depress feedback). The composed MouseClick
 # click is routed separately by `_route_click`.
 _route_downup(entries, evt) =
     _route_to_children(entries, evt.x, evt.y,
@@ -397,7 +397,7 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
         return _layout_tab(iomap.input, entries, evt)
     end
     res = @event_case evt begin
-        MousePress  => _route_click(entries, evt)
+        MouseClick  => _route_click(entries, evt)
         MouseScroll => _route_scroll(entries, evt)
         MouseMove   => _route_move(entries, evt)
         MouseEnter  => _route_crossing(entries, evt)
@@ -1668,9 +1668,9 @@ _route_scroll_reverse(entries, evt::MouseScroll) =
     _route_to_children_reverse(entries, evt.x, evt.y,
         (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
 
-_route_click_reverse(entries, evt::MousePress) =
+_route_click_reverse(entries, evt::MouseClick) =
     _route_to_children_reverse(entries, evt.x, evt.y,
-        (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
+        (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
 
 function _route_stack_event(iomap::ChildrenIoMap, evt)
     entries = getfield(iomap, :child_iomaps)[]::Vector
@@ -1680,7 +1680,7 @@ function _route_stack_event(iomap::ChildrenIoMap, evt)
         return _layout_tab(iomap.input, entries, evt)
     end
     res = @event_case evt begin
-        MousePress  => _route_click_reverse(entries, evt)
+        MouseClick  => _route_click_reverse(entries, evt)
         MouseScroll => _route_scroll_reverse(entries, evt)
         _ => begin
             # Selection-only: route the coordless event to the child the

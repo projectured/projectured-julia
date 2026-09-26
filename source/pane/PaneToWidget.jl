@@ -621,7 +621,7 @@ function read_intent(p::PaneTreeToWidget, recursion, change::Intent,
     # A press that nothing claimed still says which pane the user pointed at. A
     # pane is mostly empty space — its content is a document that ends where its
     # text ends — so without this a click beside the text would focus nothing.
-    answer === nothing && change.gesture isa MousePress &&
+    answer === nothing && change.gesture isa MouseClick &&
         (answer = _focus_from_press(iomap, change.gesture))
     Intent(change.gesture, answer)
 end

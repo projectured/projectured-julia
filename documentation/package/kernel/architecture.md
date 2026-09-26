@@ -38,9 +38,9 @@ Layer 2  — performance/ the performance counters and the frame measurements of
 Layer 3  — cell/        the Cell kinds — ReactiveCell/MutableCell/ImmutableCell, Computation and @computation
 Layer 4  — struct/      @cell_struct and the builders of a struct of cells (CellStructPlan)
 Layer 5  — clock/       the animation clock — Clock (a @cell_struct), get_reactive_clock_time/get_clock_time, set_clock_time!, start_wall_clock!/stop_wall_clock!
-Layer 6  — event/       the input event vocabulary (Event/DeviceEvent/SyntheticEvent, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*) + WindowInput + the event pattern language (EventPattern, @event_case)
+Layer 6  — event/       the input vocabulary (Event/Gesture, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*) + WindowInput + the event pattern language (EventPattern, @event_case)
 Layer 7  — device/      Device abstract + the Keyboard/Mouse/Display devices (physical properties)
-Layer 8  — gesture/     event → gesture recognition (MousePress/KeyChord synthesis)
+Layer 8  — gesture/     event → gesture recognition (MouseClick/KeyChord synthesis)
 Layer 9  — backend/     Backend + the device I/O, display-size, and device-config seams
 Layer 10 — document/    the Document contract + @document
 Layer 11 — reference/   reference paths + @reference / @reference_case DSLs
@@ -166,7 +166,7 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 | `clock/` | `ClockModule` — the animation `Clock` (a `@cell_struct`), `get_reactive_clock_time`/`get_clock_time`/`set_clock_time!`, and `start_wall_clock!`/`stop_wall_clock!`, the heartbeat that writes real time into a clock |
 | `event/` | the input event vocabulary — `EventModule` (ModifierKeys, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, WindowInput) and `EventModule` (`EventPattern`, `@event_case`) |
 | `device/` | `DeviceModule` — the `Device`, `Keyboard`, `Mouse`, `Display` device types (with physical properties) |
-| `gesture/` | `GestureRecognizerModule` — event → gesture recognition (MousePress/KeyChord synthesis) |
+| `gesture/` | `GestureRecognizerModule` — event → gesture recognition (MouseClick/KeyChord synthesis) |
 | `backend/` | `Backend`, the device I/O + display-size + device-config seams |
 | `document/` | the Document contract (`DocumentInterface.jl`), the `@document` codegen (`DocumentMacro.jl`), the value protocol (`DocumentCopy.jl` / `DocumentSync.jl`), the reflection walk (`DocumentWalk.jl` / `DocumentSearch.jl`), and the protocol forward/adapt helpers (`ForwardProtocol.jl`) |
 | `reference/` | the step/path contract (`ReferenceInterface.jl`), the step and path types, the value protocol, `search_references`, and the `@reference` / `@reference_step` / `@reference_case` DSLs |

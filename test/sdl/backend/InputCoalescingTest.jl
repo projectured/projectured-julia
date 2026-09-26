@@ -128,10 +128,10 @@ function test_input_coalescing()
         for _ in 1:20
             gesture = pop_gesture!(recognizer, source)
             gesture === nothing ? sleep(0.01) : push!(gestures, gesture.event)
-            any(event -> event isa MousePress, gestures) && break
+            any(event -> event isa MouseClick, gestures) && break
         end
         release = findfirst(event -> event isa MouseUp, gestures)
-        press = findfirst(event -> event isa MousePress, gestures)
+        press = findfirst(event -> event isa MouseClick, gestures)
         @test release !== nothing
         @test press !== nothing && gestures[press].count == 1
         # The events are 0.1 s apart, although the release was read 0.6 s later.

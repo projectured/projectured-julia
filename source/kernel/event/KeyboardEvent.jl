@@ -1,6 +1,6 @@
-# Fragment of `EventModule` — the keyboard events. An event source reports
-# `KeyDown`, `KeyUp` and `KeyPress`, and `KeyChord` comes from a sequence of
-# `KeyDown`s.
+# Fragment of `EventModule` — the keyboard events and the keyboard gesture. An
+# event source reports the events `KeyDown`, `KeyUp` and `KeyPress`, and the gesture
+# `KeyChord` comes from a sequence of `KeyDown`s.
 
 """
     KeyDown(key::Symbol, modifiers::ModifierKeys[, repeat::Bool]; time)
@@ -25,7 +25,7 @@ A key went down.
 held. Without `repeat`, the event is not a repeat. `time` is the time of the input
 (see `Event`).
 """
-struct KeyDown <: DeviceEvent
+struct KeyDown <: Event
     key::Symbol
     modifiers::ModifierKeys
     repeat::Bool
@@ -43,7 +43,7 @@ KeyDown(key::Symbol, modifiers::ModifierKeys, repeat::Bool; time::Real) =
 
 A key went up. `key` names the key as for `KeyDown`.
 """
-struct KeyUp <: DeviceEvent
+struct KeyUp <: Event
     key::Symbol
     modifiers::ModifierKeys
     time::Float64
@@ -64,7 +64,7 @@ than one code point.
 `KeyPress(char; time)` has no modifiers, and `KeyPress(char, modifiers; time)`
 takes them. Both set `text` to the character.
 """
-struct KeyPress <: DeviceEvent
+struct KeyPress <: Event
     char::Char
     text::String
     modifiers::ModifierKeys
@@ -82,15 +82,15 @@ KeyPress(char::Char, modifiers::ModifierKeys; time::Real) =
     KeyChord(keys::Vector{KeyDown}; time)
     KeyChord(keys, time)
 
-A sequence of `KeyDown`s as one event, such as Ctrl+C and then Ctrl+K. `keys` holds
-the `KeyDown`s in order, and each holds its own modifiers. `time` is the time of
-the last key.
+A sequence of `KeyDown`s as one gesture, such as Ctrl+C and then Ctrl+K. `keys`
+holds the `KeyDown`s in order, and each holds its own modifiers. `time` is the time
+of the last key.
 
 A chord is only a combination of events, and it carries no intent. Other code
 states which sequences are chords, and the code that reads a chord gives it its
-meaning, as for any other event.
+meaning, as for any other gesture.
 """
-struct KeyChord <: SyntheticEvent
+struct KeyChord <: Gesture
     keys::Vector{KeyDown}
     time::Float64
 end

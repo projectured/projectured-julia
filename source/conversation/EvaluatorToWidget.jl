@@ -66,7 +66,7 @@ function print_document(projection::EvaluatorFormToVerticalLayout,
 end
 
 _is_plain_left_press(event) =
-    event isa MousePress && event.button === :left && event.modifiers == ModifierKeys()
+    event isa MouseClick && event.button === :left && event.modifiers == ModifierKeys()
 
 _make_prompt(text, style) =
     LayoutConstraint(WidgetLabel(text; text_style = style); width = Content)
@@ -111,7 +111,7 @@ end
 # the empty space after its code, puts the caret at the end of the code, so a
 # click on a form is the way back to typing in it. A form whose code is a
 # document selects the code whole instead.
-function read_intent(::EvaluatorFormToVerticalLayout, iomap, event::MousePress)
+function read_intent(::EvaluatorFormToVerticalLayout, iomap, event::MouseClick)
     _is_plain_left_press(event) || return nothing
     code = iomap.input.form
     _is_text_form(code) ||
@@ -176,7 +176,7 @@ function _make_option_checkbox(t::EvaluatorToplevel, option::Symbol)
     toggle = (document, event) -> ToggleEvaluatorOptionOperation(t, option)
     bind(pattern) = GestureBinding(pattern, toggle; description = "Turn the option on or off",
                                    domain = "evaluator")
-    gestures = GestureBinding[bind(MousePressPattern(:left; modifiers = Symbol[])),
+    gestures = GestureBinding[bind(MouseClickPattern(:left; modifiers = Symbol[])),
                               bind(KeyDownPattern(:space; modifiers = Symbol[])),
                               bind(KeyDownPattern(:return; modifiers = Symbol[]))]
     box = WidgetCheckbox( getproperty(t, option) === true; gestures)

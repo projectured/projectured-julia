@@ -1290,9 +1290,9 @@ _route_scroll_to_children(child_entries::Vector, evt::MouseScroll) =
     _route_to_children(child_entries, evt.x, evt.y,
         (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
 
-_route_click_to_children(child_entries::Vector, evt::MousePress) =
+_route_click_to_children(child_entries::Vector, evt::MouseClick) =
     _route_to_children(child_entries, evt.x, evt.y,
-        (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
+        (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
 
 # Route a MouseEnter / MouseLeave crossing to the hit child (for hover feedback,
 # Stage 6) — the child reader flips its `hovered` cell.
@@ -1311,7 +1311,7 @@ _route_move_to_children(child_entries::Vector, evt::MouseMove) =
 
 # Route a raw press-down / release to the hit child (coordinate-translated), so a
 # button nested in a container flips its `pressed` cell (the depress feedback). The
-# composed MousePress click is routed separately via `_route_click_to_children`.
+# composed MouseClick click is routed separately via `_route_click_to_children`.
 _route_downup_to_children(child_entries::Vector, evt) =
     _route_to_children(child_entries, evt.x, evt.y,
         (x, y) -> evt isa MouseDown ? MouseDown(evt.button, x, y, evt.modifiers;
@@ -1451,7 +1451,7 @@ end
 # the container's statement that the pointer arrived or left, and a `MouseLeave`
 # is outside by definition — judging it would suppress the very event that
 # clears a hover. A key carries no position and is routed by selection.
-_positioned_event(evt) = evt isa MousePress || evt isa MouseDown ||
+_positioned_event(evt) = evt isa MouseClick || evt isa MouseDown ||
                          evt isa MouseUp || evt isa MouseMove || evt isa MouseScroll
 
 function _outside_widget(iomap, evt)
@@ -1689,7 +1689,7 @@ function _read_text_content_intent(p, iomap, evt, left::Int, top::Int)
     content_iomap = iomap.content_iomap
     content_iomap === nothing && return nothing
     op = @event_case evt begin
-        MousePress(button, x, y) => begin
+        MouseClick(button, x, y) => begin
             canvas = iomap.output
             cox = Int(canvas.x) + left
             coy = Int(canvas.y) + top
@@ -1707,7 +1707,7 @@ function _read_text_content_intent(p, iomap, evt, left::Int, top::Int)
             end
             answer = shift_operation_position(
                 read_intent(content_iomap.projection, content_iomap,
-                            MousePress(button, lx, ly, evt.count, evt.modifiers;
+                            MouseClick(button, lx, ly, evt.count, evt.modifiers;
                                        time = evt.time)),
                 cox, coy)
             # A document with nothing in it measures nothing, so it has no
@@ -1780,7 +1780,7 @@ end
 _checkbox_toggle(w) = ReplaceReferencedValueOperation(w,
     ConcreteReference(FieldReferenceStep("content"), EmptyReference()), !(w.content === true))
 
-function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
+function read_intent(::WidgetCheckboxToGraphicsCanvas, iomap::SimpleIoMap, evt::MouseClick)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing   # a disabled checkbox swallows the click
@@ -1923,7 +1923,7 @@ function read_intent(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
     op = read_bound_gesture(w, evt)
     op === nothing || return op
     @event_case evt begin
-        MousePress(button, x, y) => button === :left ? _button_primary_op(w) : nothing
+        MouseClick(button, x, y) => button === :left ? _button_primary_op(w) : nothing
         MouseDown(button, x, y)  => button === :left ? _write_view_state(w, "pressed", true) : nothing
         MouseUp(button, x, y)    => button === :left ? _write_view_state(w, "pressed", false) : nothing
         MouseEnter               => _write_view_state(w, "hovered", true)
@@ -2089,7 +2089,7 @@ read_intent(::WidgetContextMenuToGraphicsCanvas, iomap::SimpleIoMap, evt) = noth
 function read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextMenuToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
-    if evt isa MousePress && evt.button === :right
+    if evt isa MouseClick && evt.button === :right
         (w.enabled === false || w.menu === nothing) && return nothing
         return _open_context_menu(w.menu, evt.x, evt.y)
     end
@@ -2097,10 +2097,10 @@ function read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextM
     child_iomap === nothing && return nothing
     cox, coy = _content_offset(p, w)
     op = @event_case evt begin
-        MousePress(button, x, y) =>
+        MouseClick(button, x, y) =>
             shift_operation_position(
                 read_intent(child_iomap.projection, child_iomap,
-                            MousePress(button, x - cox, y - coy, evt.count, evt.modifiers;
+                            MouseClick(button, x - cox, y - coy, evt.count, evt.modifiers;
                                        time = evt.time)),
                 cox, coy)
         MouseScroll(dx, dy, x, y) =>
@@ -2269,7 +2269,7 @@ function read_intent(p::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraph
     if evt isa KeyDown
         return evt.key === :escape ? CloseWindowOperation(pid) : nothing
     end
-    evt isa MousePress || return nothing
+    evt isa MouseClick || return nothing
     evt.button === :left || return nothing
     (cx, cy, cw, ch) = iomap.card
     (cx <= evt.x < cx + cw && cy <= evt.y < cy + ch) || return CloseWindowOperation(pid)
@@ -2278,7 +2278,7 @@ function read_intent(p::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraph
     ce = iomap.content_entry
     ce === nothing && return nothing
     (ox, oy, cim) = ce
-    op = shift_operation_position(read_child_event(cim, MousePress(evt.button, evt.x - ox, evt.y - oy,
+    op = shift_operation_position(read_child_event(cim, MouseClick(evt.button, evt.x - ox, evt.y - oy,
                                                                    evt.count, evt.modifiers; time = evt.time)),
                                   ox, oy)
     _retarget_op(p, iomap, op)
@@ -2404,7 +2404,7 @@ function read_intent(p::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToG
         op = read_bound_gesture(w, evt)
         op === nothing || return op
     end
-    if evt isa MousePress
+    if evt isa MouseClick
         # A left click on an enabled item: open its submenu if it has one, else
         # invoke its bound command (Stage 4) or its plain action, and dismiss the
         # enclosing popup (a no-op when rendered inline). Disabled (item or bound
@@ -2501,7 +2501,7 @@ function read_intent(::WidgetToolbarItemToGraphicsCanvas, iomap::SimpleIoMap, ev
         operation = read_bound_gesture(w, evt)
         operation === nothing || return operation
     end
-    if evt isa MousePress
+    if evt isa MouseClick
         (evt.button === :left && enabled) || return nothing
         return InvokeActionOperation(_toolbar_item_command(w))
     end
@@ -2637,7 +2637,7 @@ end
 function read_intent(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
-    evt isa MousePress && return _route_click_to_children(child_iomaps, evt)
+    evt isa MouseClick && return _route_click_to_children(child_iomaps, evt)
     (evt isa MouseEnter || evt isa MouseLeave) && return _route_crossing_to_children(child_iomaps, evt)
     evt isa MouseScroll || return nothing
     _route_scroll_to_children(child_iomaps, evt)
@@ -2710,7 +2710,7 @@ function map_reference_backward(::WidgetCompositeToGraphicsCanvas, iomap, refere
     return nothing
 end
 
-# Route events to composite children and re-root the returned op. A MousePress
+# Route events to composite children and re-root the returned op. A MouseClick
 # is hit-tested against each child canvas; a coordless event (KeyPress/KeyDown)
 # goes to the child the composite's selection points at, falling back to trying
 # each child. The op a child returns is re-rooted by prepending `elements[i]` —
@@ -2728,8 +2728,8 @@ function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, e
     res = @event_case evt begin
         MouseScroll => _route_composite_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
-        MousePress => _route_composite_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers;
+        MouseClick => _route_composite_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers;
                                  time = evt.time))
         MouseDown => _route_composite_drag(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseDown(evt.button, x, y, evt.modifiers; time = evt.time))
@@ -3140,7 +3140,7 @@ function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     end
     op = @event_case evt begin
         MouseScroll => _route_scroll_to_children(child_iomaps, evt)
-        MousePress  => _route_click_to_children(child_iomaps, evt)
+        MouseClick  => _route_click_to_children(child_iomaps, evt)
         # A down and an up carry coordinates like a press, so they go to the band
         # under the pointer in that band's frame. A down also names the band that
         # owns the drag it may start, and that band keeps it until the up.
@@ -3182,7 +3182,7 @@ end
 # window, and the tooltip probe, which finds the document under the pointer with
 # the same press, never found the button. Only the bands are hit-tested here, so
 # a press over the content reads the content once, on the ordinary route.
-function _select_in_band(shell::WidgetShell, child_iomaps::Vector, evt::MousePress)
+function _select_in_band(shell::WidgetShell, child_iomaps::Vector, evt::MouseClick)
     for entry in child_iomaps
         entry === nothing && continue
         (ox, oy, cim) = entry::Tuple{Int,Int,Any}
@@ -3192,7 +3192,7 @@ function _select_in_band(shell::WidgetShell, child_iomaps::Vector, evt::MousePre
         canvas isa GraphicsCanvas || continue
         lx, ly = evt.x - ox - Int(canvas.x), evt.y - oy - Int(canvas.y)
         hit_element_at(canvas, lx, ly) === nothing && continue
-        answer = read_child_event(cim, MousePress(evt.button, lx, ly, evt.count, evt.modifiers;
+        answer = read_child_event(cim, MouseClick(evt.button, lx, ly, evt.count, evt.modifiers;
                                                   time = evt.time))
         answer === nothing && return nothing
         return reroot_operation(answer, (FieldReferenceStep(field),))
@@ -3814,8 +3814,8 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, e
     res = @event_case evt begin
         MouseScroll => _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
-        MousePress => _route_split_event(child_iomaps, evt.x, evt.y,
-            (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers;
+        MouseClick => _route_split_event(child_iomaps, evt.x, evt.y,
+            (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers;
                                  time = evt.time))
         # Coordinate-bearing pointer events (a non-drag press/release, plain motion,
         # and the hover crossings) route to the slot *under the pointer*, exactly as
@@ -4350,7 +4350,7 @@ end
 function read_intent(p::WidgetTabbedPaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     child_iomaps = getfield(iomap, :child_iomaps)[]::Vector
-    if evt isa MousePress
+    if evt isa MouseClick
         w = iomap.input
         if !(w isa WidgetTabbedPane)
             res = _route_active_tab(iomap, child_iomaps, evt)
@@ -4461,7 +4461,7 @@ function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
     canvas = cim.output
     canvas isa GraphicsCanvas || return nothing
     # Mouse events: translate coords into the tab's local frame before
-    # forwarding. `MousePress`/`MouseScroll` also hit-test (a click/scroll
+    # forwarding. `MouseClick`/`MouseScroll` also hit-test (a click/scroll
     # outside the content is dropped). The drag events `MouseDown`/`MouseUp`/
     # `MouseMove` are translated too but not hit-gated — a splitter drag inside
     # the active tab must keep receiving motion even when the cursor strays off
@@ -4469,10 +4469,10 @@ function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
     # line up with where it is drawn (otherwise the grab region is offset by the
     # tab strip's height). Coordless events (KeyDown, KeyPress, …) pass through.
     child_evt = @event_case evt begin
-        MousePress(button, x, y) => begin
+        MouseClick(button, x, y) => begin
             lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
             hit_element_at(canvas, lx, ly) === nothing && return nothing
-            MousePress(button, lx, ly, evt.count, evt.modifiers; time = evt.time)
+            MouseClick(button, lx, ly, evt.count, evt.modifiers; time = evt.time)
         end
         MouseScroll(dx, dy, x, y) => begin
             lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
@@ -4884,8 +4884,8 @@ end
 function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     canvas = iomap.output
-    # Forward other events (MousePress, KeyDown, KeyPress) to the wrapped
-    # content. Coords for MousePress arrive relative to the scroll pane's
+    # Forward other events (MouseClick, KeyDown, KeyPress) to the wrapped
+    # content. Coords for MouseClick arrive relative to the scroll pane's
     # canvas origin (parent routing has already subtracted the pane's own
     # position); translate into the content's coordinate system by
     # subtracting the content origin (cox, coy) and adding the current
@@ -4917,10 +4917,10 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
     op = @event_case evt begin
         # A popup the content opens goes back by the content origin and the
         # scroll offset, the difference between the two frames of the press.
-        MousePress(button, x, y) => begin
+        MouseClick(button, x, y) => begin
             lx, ly = _local(x, y)
             shift_operation_position(
-                read_child_event(content_iomap, MousePress(button, lx, ly, evt.count, evt.modifiers;
+                read_child_event(content_iomap, MouseClick(button, lx, ly, evt.count, evt.modifiers;
                                                            time = evt.time)),
                 x - lx, y - ly)
         end
@@ -5104,10 +5104,10 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
         (round(Int, px) + cox, round(Int, py) + coy)
     end
     op = content_iomap === nothing ? nothing : @event_case evt begin
-        MousePress(button, x, y) => begin
+        MouseClick(button, x, y) => begin
             lx, ly = _local(x, y)
             map_operation_position(
-                read_child_event(content_iomap, MousePress(button, lx, ly, evt.count, evt.modifiers;
+                read_child_event(content_iomap, MouseClick(button, lx, ly, evt.count, evt.modifiers;
                                                            time = evt.time)),
                 _outer)
         end
@@ -5204,7 +5204,7 @@ end
 function read_intent(::WidgetToolbarToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     entries = getfield(iomap, :child_iomaps)[]::Vector
-    evt isa MousePress && return _route_toolbar_press(iomap.input, entries, evt)
+    evt isa MouseClick && return _route_toolbar_press(iomap.input, entries, evt)
     (evt isa MouseEnter || evt isa MouseLeave) && return _route_crossing_to_children(entries, evt)
     evt isa MouseScroll || return nothing
     _route_scroll_to_children(entries, evt)
@@ -5215,9 +5215,9 @@ end
 # rather than the whole toolbar, and an action travels unchanged. The toolbar
 # lays out only its widget elements, so a laid-out index is mapped back to the
 # element it came from.
-function _route_toolbar_press(toolbar::WidgetToolbar, entries::Vector, evt::MousePress)
+function _route_toolbar_press(toolbar::WidgetToolbar, entries::Vector, evt::MouseClick)
     found = _route_composite_event(entries, evt.x, evt.y,
-                (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers;
+                (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers;
                                      time = evt.time))
     found === nothing && return nothing
     operation, laid_out = found
@@ -5338,7 +5338,7 @@ end
 
 function read_intent(p::WidgetScrollBarToGraphicsCanvas, iomap::SimpleIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
-    evt isa MousePress || return nothing
+    evt isa MouseClick || return nothing
     w = iomap.input
     w isa WidgetScrollBar || return nothing
     sz  = w.size
@@ -5882,7 +5882,7 @@ end
 # Every other click routes into the card: the title and the content each read
 # their own. A Document title is the card's first child entry, and its
 # height is the height of the chevron's column.
-function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::MousePress)
+function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::MouseClick)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     entries = getfield(iomap, :child_iomaps)[]
@@ -5896,7 +5896,7 @@ function read_intent(p::WidgetCardToGraphicsCanvas, iomap::ChildrenIoMap, evt::M
         end
     end
     _card_route(w, entries, evt.x, evt.y,
-                (x, y) -> MousePress(evt.button, x, y, evt.count, evt.modifiers;
+                (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers;
                                      time = evt.time))
 end
 # Pointer events route into the card's content by coordinate, so an interactive
@@ -6040,7 +6040,7 @@ _switch_toggle(w::WidgetSwitch) =
         ConcreteReference(FieldReferenceStep("checked"), EmptyReference()),
         !(w.checked === true))
 
-function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt::MousePress)
+function read_intent(::WidgetSwitchToGraphicsCanvas, iomap::SimpleIoMap, evt::MouseClick)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing   # a disabled switch swallows the click
@@ -6224,8 +6224,8 @@ _slider_value(track_width::Int, x::Real) =
 # track and ignore the gesture a person actually makes.
 #
 # The knob is taken on the raw `MouseDown`. The gesture recognizer makes a
-# `MousePress` only after the `MouseUp`, and only when the up is near the down,
-# which a drag never is. A `MousePress` sets the value and takes nothing: it is
+# `MouseClick` only after the `MouseUp`, and only when the up is near the down,
+# which a drag never is. A `MouseClick` sets the value and takes nothing: it is
 # the click a script sends, and after a real click the knob already has its value.
 #
 # The value write names the slider's `target` when it has one, so a control that
@@ -6249,7 +6249,7 @@ function read_intent(p::WidgetSliderToGraphicsCanvas,
             CompoundOperation(Any[_write_view_state(w, "dragging", true),
                                   ReplaceReferencedValueOperation(document, field, value)])
         end
-        MousePress(button, x, y) => begin
+        MouseClick(button, x, y) => begin
             button === :left || return nothing
             _outside_widget(iomap, evt) && return nothing
             document, field, value = resolve_write_at(x)
@@ -6414,7 +6414,7 @@ function read_intent(::WidgetRadioGroupToGraphicsCanvas,
     count = length(w.options)
     count == 0 && return nothing
     selected = Int(w.selected)
-    option = if evt isa MousePress
+    option = if evt isa MouseClick
         evt.button === :left || return nothing
         _find_row_index(iomap.row_bounds, evt.y - Int(iomap.output.y))
     elseif _is_plain_key(evt, :down, :right)
@@ -6861,7 +6861,7 @@ function read_intent(::WidgetToggleToGraphicsCanvas, iomap::SimpleIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     (w.visible === false || w.enabled === false) && return nothing
-    activated = evt isa MousePress ? evt.button === :left : _is_plain_key(evt, :return, :space)
+    activated = evt isa MouseClick ? evt.button === :left : _is_plain_key(evt, :return, :space)
     activated || return nothing
     ReplaceReferencedValueOperation(w, "pressed", !(w.pressed === true))
 end
@@ -7027,7 +7027,7 @@ function read_intent(p::WidgetToggleGroupToGraphicsCanvas,
     w.enabled === false && return nothing
     content_x, _ = _content_offset(p, w)
     @event_case evt begin
-        MousePress(button, x, y) => begin
+        MouseClick(button, x, y) => begin
             button === :left || return nothing
             canvas = iomap.output
             # The border and the padding belong to the control: a press on them
@@ -7153,7 +7153,7 @@ function read_intent(p::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraph
     w = iomap.input
     w.enabled === false && return nothing
     @event_case evt begin
-        MousePress(button, x, y) => button === :left ? _open_select_popup(w, iomap) : nothing
+        MouseClick(button, x, y) => button === :left ? _open_select_popup(w, iomap) : nothing
         _ => nothing
     end
 end
@@ -7236,7 +7236,7 @@ function read_intent(::WidgetOptionToGraphicsCanvas, iomap::SimpleIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     @event_case evt begin
-        MousePress(button, x, y) => button === :left ? _pick_option(w) : nothing
+        MouseClick(button, x, y) => button === :left ? _pick_option(w) : nothing
         _ => nothing
     end
 end
@@ -7356,7 +7356,7 @@ function read_intent(p::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGra
     sy = content_y - box.padding[2]
     _step(delta) = ReplaceReferencedValueOperation(w, "value", _spin_clamp(w.value + delta, w.min, w.max))
     @event_case evt begin
-        MousePress(button, x, y) =>
+        MouseClick(button, x, y) =>
             (button === :left && x - content_x >= content_width - stepper_w) ?
                 (y - sy < stepper_w ÷ 2 ? _step(w.step) : _step(-w.step)) : nothing
         when(KeyDown(k), _is_plain_key(evt, :up))   => _step(w.step)
@@ -7480,7 +7480,7 @@ function read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsC
     # would write a cell and invalidate the canvas.
     hover_row(r) = r == w.hovered ? nothing : _write_view_state(w, "hovered", r)
     @event_case evt begin
-        MousePress(button, x, y) => button === :left ? click_row(y) : nothing
+        MouseClick(button, x, y) => button === :left ? click_row(y) : nothing
         MouseMove(x, y)          => hover_row(row_at(y))
         MouseLeave()             => hover_row(0)
         when(KeyDown(k), _is_plain_key(evt, :down)) => pick(sel == 0 ? 1 : min(sel + 1, n))
@@ -7778,7 +7778,7 @@ function read_intent(::WidgetAccordionToGraphicsCanvas,
     w = iomap.input
     # A click on a header opens or closes a section of the view. It is view state,
     # so a history does not record it.
-    if evt isa MousePress && evt.button === :left
+    if evt isa MouseClick && evt.button === :left
         item = _find_row_index(iomap.header_bounds, evt.y - Int(iomap.output.y))
         item === nothing ||
             return _write_view_state(w, "expanded", item == Int(w.expanded) ? 0 : item)
@@ -7815,8 +7815,8 @@ function _is_accordion_body_selected(w::WidgetAccordion, index::Int)
 end
 
 # A pointer event moved by `(dx, dy)` into the frame of a child.
-_translate_pointer_event(evt::MousePress, dx, dy) =
-    MousePress(evt.button, evt.x - dx, evt.y - dy, evt.count, evt.modifiers;
+_translate_pointer_event(evt::MouseClick, dx, dy) =
+    MouseClick(evt.button, evt.x - dx, evt.y - dy, evt.count, evt.modifiers;
                time = evt.time)
 _translate_pointer_event(evt::MouseDown, dx, dy) = MouseDown(evt.button, evt.x - dx, evt.y - dy, evt.modifiers;
                                                              time = evt.time)
@@ -8407,7 +8407,7 @@ end
 # live table. Everything else falls through to per-cell editing via the grid.
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, iomap::WidgetTableToGraphicsCanvasIoMap)
     g = change.gesture
-    if change.operation === nothing && g isa MousePress && g.button === :left
+    if change.operation === nothing && g isa MouseClick && g.button === :left
         return Intent(g, _wt_mouse_select(p, iomap, g))
     end
     # Pointer crossings (synthesised by WidgetHoverTrackingProjection) drive the
@@ -8437,7 +8437,7 @@ end
 # Resolve a left click into a selection operation (or nothing). The margin,
 # the border and the padding belong to the table, so a press there is clamped
 # into the grid.
-function _wt_mouse_select(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, g::MousePress)
+function _wt_mouse_select(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, g::MouseClick)
     geom = iomap.geometry
     content_x, content_y = _content_offset(p, iomap.input)
     x = clamp(g.x - content_x, 0, max(0, geom.total_w - 1))
@@ -8529,7 +8529,7 @@ end
 # child), translating the click into the cell's frame, then wrap the resulting
 # operation back into the table domain.
 function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTGeometry,
-                              r::Int, c::Int, g::MousePress, content_x::Int, content_y::Int)
+                              r::Int, c::Int, g::MouseClick, content_x::Int, content_y::Int)
     gim = iomap.grid_iomap
     gim isa GridLayoutIoMap || return nothing
     gr = r + geom.row_offset
@@ -8546,7 +8546,7 @@ function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTG
     # offset + child canvas offset.
     cell_x = content_x + geom.grid_off_x + Int(ox_cell[]) + Int(canvas.x)
     cell_y = content_y + geom.grid_off_y + Int(oy_cell[]) + Int(canvas.y)
-    local_evt = MousePress(g.button, g.x - cell_x, g.y - cell_y, g.count, g.modifiers;
+    local_evt = MouseClick(g.button, g.x - cell_x, g.y - cell_y, g.count, g.modifiers;
                            time = g.time)
     op = read_intent(cim.projection, cim, local_evt)
     # A cell that declines the click — a label has nothing to say to one —
@@ -8677,11 +8677,11 @@ end
 # delegates plain editing events here; (b) a *parent* container (composite, grid,
 # split pane) routes a raw event to this nested table via the 3-arg call. For (b)
 # we must still run the table's own gesture logic (left-click selection, grid
-# navigation), so a bare MousePress/KeyDown is lifted into a Intent and handled by
+# navigation), so a bare MouseClick/KeyDown is lifted into a Intent and handled by
 # the 4-arg reader. Anything else dispatches to the grid and is re-rooted.
 function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
     _outside_widget(iomap, event) && return nothing
-    if event isa MousePress || event isa KeyDown ||
+    if event isa MouseClick || event isa KeyDown ||
        event isa MouseEnter || event isa MouseMove || event isa MouseLeave
         return read_intent(p, nothing, Intent(event, nothing), iomap).operation
     end
@@ -8995,7 +8995,7 @@ function read_intent(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsC
     op === nothing || return op
     nop = _wtree_node_gesture(p, iomap, evt)
     nop === nothing || return nop
-    if evt isa MousePress && evt.button === :left
+    if evt isa MouseClick && evt.button === :left
         return _wtree_mouse_press(p, iomap, evt)
     elseif evt isa MouseEnter
         return _wtree_hover_set(p, iomap, evt.x, evt.y, true)
@@ -9039,7 +9039,7 @@ function _wtree_row_at(geom::WTreeGeometry, y::Int)
 end
 
 # Per-node gesture consult: find the node targeted by `g` — the row under the
-# pointer for a `MousePress` (any button/modifier; the binding's own pattern does
+# pointer for a `MouseClick` (any button/modifier; the binding's own pattern does
 # the matching), or the currently selected node for a `KeyDown` — and fire its
 # `get_instance_gesture_bindings` against the enclosing tree's selection. A node has no
 # `selection` of its own, hence the explicit-selection `read_bound_gesture`. The
@@ -9049,7 +9049,7 @@ function _wtree_node_gesture(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToG
     w = iomap.input
     geom = iomap.geometry
     path = nothing
-    if g isa MousePress
+    if g isa MouseClick
         _, content_y = _content_offset(p, w)
         row = _wtree_row_at(geom, g.y - content_y)
         row === nothing || (path = row.path)
@@ -9065,7 +9065,7 @@ end
 # A left click on the chevron of a row with children opens or closes it; anywhere
 # else on a row selects it. A press on the margin, the border or the padding is
 # clamped into the rows.
-function _wtree_mouse_press(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, g::MousePress)
+function _wtree_mouse_press(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, g::MouseClick)
     w = iomap.input
     content_x, content_y = _content_offset(p, w)
     row = _wtree_row_at(iomap.geometry, g.y - content_y)

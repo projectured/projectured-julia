@@ -328,7 +328,7 @@ caret(block) = [(r.x, r.y, r.h) for r in _rects(print_document(p, block).output)
 # A click on the second row selects inside *that line's* span; Down crosses into
 # it; End goes to the end of the line the caret is already on.
 iomap = print_document(p, with_selection(mkblock(), TextModule.make_flat_caret_reference(fb(Int[1, 1], 0))))
-click = read_intent(p, iomap, MousePress(:left, 31, 20; time = 0.0))
+click = read_intent(p, iomap, MouseClick(:left, 31, 20; time = 0.0))
 @test click isa ReplaceSelectionOperation
 @test coord(click) == ([2, 1], 3)
 @test coord(read_intent(p, iomap, KeyDown(:down, ModifierKeys(); time = 0.0)))[1] == [2, 1]

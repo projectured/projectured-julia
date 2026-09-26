@@ -201,7 +201,7 @@ make_widget_button_document_example() =
                  position = Point2D(40, 40), size = Point2D(180, 56), padding=Inset(4, 4, 8, 8))
 
 # WidgetButton (behaviour) — a button whose `action` increments a counter shown
-# by a sibling label. Click it (real input or a scripted MousePress) and the
+# by a sibling label. Click it (real input or a scripted MouseClick) and the
 # label re-renders; hovering re-styles the button via its transient `hovered`
 # flag (cleared by WidgetHoverTrackingProjection on leave). The action captures
 # the label so it can mutate it when the editor evaluates the

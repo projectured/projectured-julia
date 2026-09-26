@@ -163,7 +163,7 @@ end
 
     # A click on the left half of an image is before it, on the right half after it.
     click(block, x) = (op = read_intent(projection, print_document(projection, block),
-                                        MousePress(:left, x, 5; time = 0.0));
+                                        MouseClick(:left, x, 5; time = 0.0));
                        op isa ReplaceSelectionOperation ? offset(op) : nothing)
     @test click(images, 5) == 0
     @test click(images, 20) == 1

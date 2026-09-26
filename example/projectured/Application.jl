@@ -553,7 +553,7 @@ function warm_application()
         write(joinpath(directory, "d.txt"), "text")
         events = Any[KeyDown(:down, ModifierKeys(); time = time()),
                      KeyPress('x'; time = time()),
-                     MousePress(:left, 100, 84, 1, ModifierKeys(); time = time()),
+                     MouseClick(:left, 100, 84, 1, ModifierKeys(); time = time()),
                      KeyDown(:return, ModifierKeys(); time = time()),
                      KeyDown(:s, ModifierKeys(ctrl = true); time = time()),
                      # Ctrl+T opens a tab on an empty placeholder, Insert turns
