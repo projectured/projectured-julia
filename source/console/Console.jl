@@ -142,15 +142,6 @@ function _set_raw!(backend::ConsoleBackend, on::Bool)
     return
 end
 
-"""
-    measure_text(::ConsoleBackend, text, font) -> (Int, Int)
-
-The console pipeline never measures text (there is no `TextToGraphics` to lay
-out), but the `Backend` interface requires the method. Return a character-cell
-estimate: one cell per character, one row tall.
-"""
-BackendModule.measure_text(::ConsoleBackend, text::AbstractString, font) = (length(text), 1)
-
 # ── ANSI styling ─────────────────────────────────────────────────────────
 
 const _ANSI_RESET = "\e[0m"

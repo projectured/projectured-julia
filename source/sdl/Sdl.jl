@@ -1,11 +1,7 @@
 # A backend's public surface is the generic it extends, not the helper behind
 # it: `BackendModule.render_canvas`, `decode_image` and `get_display_size` are
 # how a caller reaches this backend. The helpers stay module-internal.
-#
-# `measure_sdl_text` is the exception and is exported, because a caller hands it
-# on by value — `TextToGraphics(measure = measure_sdl_text)` — and a generic can
-# not be passed that way. It pairs with `measure_truetype_text`.
-export SdlBackend, measure_sdl_text,
+export SdlBackend,
        write_image, GraphicsCanvasToImageFile,
        _open_offscreen_renderer, _close_offscreen_renderer
 
@@ -754,11 +750,9 @@ const _TTF_HINTING_LIGHT_SUBPIXEL = Cint(4)
 
 # A font draws as the layout measures it (`FontFileMeasure`). Light hinting fits
 # a glyph to the pixel rows only, so its ink keeps the width of the advance that
-# the layout gives it, and `_measure_sdl_text` kerns the pairs of the `kern` table
-# as the layout does. Answers the handle.
+# the layout gives it. Answers the handle.
 function _set_layout_rendering!(f::Ptr{TTF_Font})
     TTF_SetFontHinting(f, _TTF_HINTING_LIGHT_SUBPIXEL)
-    TTF_SetFontKerning(f, Cint(1))
     f
 end
 
@@ -766,9 +760,9 @@ end
 #
 # SDL2_ttf draws a character only in the font it is given, and a font it lacks
 # draws as a `.notdef` box. So `find_glyph_font_file` says which font draws each
-# character: `compute_placed_glyphs` asks it for a drawn text, and `_font_runs`
-# for a text that `_measure_sdl_text` measures. The fallback fonts are
-# monochrome, so every glyph draws through the same blended path.
+# character, and `compute_placed_glyphs` asks it for each glyph of a drawn text.
+# The fallback fonts are monochrome, so every glyph draws through the same
+# blended path.
 
 # Open (and cache) the font file at `path` at `size` device px. C_NULL when the
 # file is absent or fails to load, so a caller draws in the primary font.
@@ -779,48 +773,6 @@ function _get_fallback_font(path::String, size::Int)
         f = isfile(file) ? TTF_OpenFont(file, size) : Ptr{TTF_Font}(C_NULL)
         f == C_NULL ? f : _set_layout_rendering!(f)
     end
-end
-
-# The font that draws codepoint `cp` in a text set in `font`, whose handle is
-# `primary`, at the device size for `ratio`.
-function _glyph_font(cp::UInt32, font::StyleFont, primary::Ptr{TTF_Font}, ratio::Float64)
-    file = find_glyph_font_file(font.filename, cp)
-    (file === nothing || file == font.filename) && return primary
-    handle = _get_fallback_font(file, font_device_size(font, ratio))
-    handle == C_NULL ? primary : handle
-end
-
-# Split `text` into maximal consecutive runs that share one font. Presentation
-# selectors (U+FE0E/U+FE0F) are dropped — zero-width hints that would otherwise
-# draw a stray box; ZWJ (U+200D) and skin-tone modifiers stay in the current run
-# so they bind to the preceding emoji. A text the primary font carries in full is
-# a single run. Without shaping, ZWJ and skin-tone sequences draw as their
-# separate base glyphs. A fallback font opens at the device size for `ratio`.
-function _font_runs(text::AbstractString, font::StyleFont, primary::Ptr{TTF_Font},
-                    ratio::Float64)
-    runs = Tuple{Ptr{TTF_Font},String}[]
-    carried = load_truetype_font(font.filename)
-    buf = IOBuffer()
-    cur = primary
-    started = false
-    for ch in text
-        cp = UInt32(ch)
-        is_presentation_selector(cp) && continue
-        sticky = started && (cp == 0x200D || 0x1F3FB <= cp <= 0x1F3FF)
-        f = sticky ? cur :
-            (cp <= 0xFFFF && has_font_glyph(carried, cp)) ? primary :
-            _glyph_font(cp, font, primary, ratio)
-        if !started
-            cur = f
-        elseif f !== cur
-            push!(runs, (cur, String(take!(buf))))
-            cur = f
-        end
-        print(buf, ch)
-        started = true
-    end
-    started && push!(runs, (cur, String(take!(buf))))
-    return runs
 end
 
 # SDL_ttf, for the functions of it that the generated binding lacks.
@@ -2259,62 +2211,6 @@ function _render_window!(backend::SdlBackend, res::SdlWindowResources,
     end
     SDL_RenderPresent(renderer)
 end
-
-# ════════════════════════════════════════════════════════════════════════
-# Font measurement
-# ════════════════════════════════════════════════════════════════════════
-
-"""
-    measure_text(backend::SdlBackend, text::AbstractString, font::StyleFont) -> (Int, Int)
-
-Return the `(width, height)` of `text` rendered in `font`, in **logical**
-pixels — the space all layout lives in. The glyphs are rasterized at the device
-size for the device pixel ratio of the `Display` of `backend` (for crispness),
-and the device measurement is divided back by that ratio. Font handles are
-cached in the module-level [`_font_cache`](@ref).
-"""
-BackendModule.measure_text(backend::SdlBackend, text::AbstractString, font::StyleFont) =
-    _measure_sdl_text(text, font, get_device_pixel_ratio(backend.display))
-
-# The logical size of `text` in `font`, measured at the device size for `ratio`.
-function _measure_sdl_text(text::AbstractString, font::StyleFont, ratio::Float64)
-    isempty(text) && return (0, font_logical_size(font))
-    primary = _get_font(font, ratio)
-    runs = _font_runs(text, font, primary, ratio)
-    # Fast path: a single run — all in the primary font (the common case) or all
-    # in one fallback font. Measure with that run's own font, not `primary`,
-    # otherwise a pure-emoji span would be sized from the text font's `.notdef` box.
-    if length(runs) == 1
-        f, s = runs[1]
-        w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
-        TTF_SizeUTF8(f, s, w_ref, h_ref)
-        return (_to_logical(Int(w_ref[]), ratio), _to_logical(Int(h_ref[]), ratio))
-    end
-    # Mixed-font span: sum per-run widths, and align the heights on the baseline
-    # by the font ascents.
-    total_w = 0; max_ascent = 0; max_below = 0
-    for (f, s) in runs
-        isempty(s) && continue
-        w_ref, h_ref = Ref{Cint}(0), Ref{Cint}(0)
-        TTF_SizeUTF8(f, s, w_ref, h_ref)
-        asc = Int(TTF_FontAscent(f))
-        total_w += Int(w_ref[])
-        max_ascent = max(max_ascent, asc)
-        max_below = max(max_below, Int(h_ref[]) - asc)
-    end
-    return (_to_logical(total_w, ratio), _to_logical(max_ascent + max_below, ratio))
-end
-
-# ── Standalone convenience function ──────────────────────────────────
-
-"""
-    measure_sdl_text(text, font) -> (Int, Int)
-
-Standalone text measurement using SDL_ttf. Returns `(pixel_width, pixel_height)`
-in logical pixels, measured at the device pixel ratio 1, so the result does not
-depend on the display of the machine. Uses a module-level font cache.
-"""
-measure_sdl_text(text, font) = _measure_sdl_text(text, font, 1.0)
 
 # ── Canvas rasterization ──────────────────────────────────────────────
 

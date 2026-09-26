@@ -29,7 +29,7 @@ function test_font_fallback()
         @test dejavu_arrow > plain ÷ 2
         @test first(compute_text_extent("a→b", regular)) == plain + dejavu_arrow
         # A presentation selector has no width.
-        @test measure_truetype_text("☀️", regular) == measure_truetype_text("☀", regular)
+        @test measure_string(FontFileMeasure(), "☀️", regular) == measure_string(FontFileMeasure(), "☀", regular)
         # A text the font carries in full measures as it did.
         @test first(compute_text_extent("hello", regular)) == 5 * (plain ÷ 2)
     end

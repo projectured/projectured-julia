@@ -29,7 +29,7 @@ using ProjecturedSdl
 import FFMPEG
 
 import ProjecturedKernel.BackendModule: Backend, record_video,
-       initialize_backend!, quit_backend!, measure_text, write_to_devices,
+       initialize_backend!, quit_backend!, write_to_devices,
        read_from_devices, wait_for_input, get_pointer_position, get_display_size
 import ProjecturedGraphics.GraphicsModule: GraphicsCanvas, GraphicsCircle, GraphicsPolygon
 import ProjecturedGraphics.StyleModule: StyleColor, color_black, color_white, color_transparent,

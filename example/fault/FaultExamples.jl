@@ -138,7 +138,6 @@ BrokenWriteBackend(inner::Backend) = BrokenWriteBackend(inner, false)
 
 BackendModule.initialize_backend!(b::BrokenWriteBackend) = initialize_backend!(b.inner)
 BackendModule.quit_backend!(b::BrokenWriteBackend) = quit_backend!(b.inner)
-BackendModule.measure_text(b::BrokenWriteBackend, text, font) = measure_text(b.inner, text, font)
 BackendModule.read_from_devices(b::BrokenWriteBackend, devices) = read_from_devices(b.inner, devices)
 BackendModule.open_native_windows!(b::BrokenWriteBackend, document) = open_native_windows!(b.inner, document)
 BackendModule.configure_devices!(b::BrokenWriteBackend, devices) = configure_devices!(b.inner, devices)

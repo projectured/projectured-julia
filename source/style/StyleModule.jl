@@ -102,7 +102,7 @@ export StyleFont, make_style_font, _FONT_ZOOM, font_logical_size, font_device_si
        font_dejavu_sans_regular_24, font_dejavu_sans_italic_24, font_dejavu_sans_bold_24,
        font_dejavu_sans_regular_36, font_dejavu_sans_italic_36, font_dejavu_sans_bold_36,
        font_lucide_icons_20
-export measure_truetype_text, font_ascent, font_descent, font_line_height,
+export font_ascent, font_descent, font_line_height,
        font_x_height, font_cap_height, font_glyph_bounds, font_file,
        get_fallback_font_files, find_glyph_font_file, has_font_glyph,
        is_presentation_selector

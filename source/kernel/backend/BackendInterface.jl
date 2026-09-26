@@ -26,13 +26,6 @@ Tear down the backend and release resources.
 function quit_backend! end
 
 """
-    measure_text(backend, text, font) -> (Int, Int)
-
-Return the `(pixel_width, pixel_height)` of `text` rendered in `font`.
-"""
-function measure_text end
-
-"""
     write_to_devices(backend, devices, document)
 
 Render `document` to all output devices in `devices` using `backend`. A concrete
@@ -99,8 +92,7 @@ The current global mouse pointer position in screen pixels, or `(-1, -1)` when
 the backend cannot report it — a legal answer, and the one a backend that adds
 no method of its own gives. A caller that needs the position — e.g. to place a
 follower window near the cursor — closes over this behind a `pointer` callback
-so it stays free of any concrete backend dependency (the same indirection as
-`measure_text`).
+so it stays free of any concrete backend dependency.
 """
 function get_pointer_position end
 

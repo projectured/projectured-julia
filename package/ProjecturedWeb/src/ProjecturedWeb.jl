@@ -38,11 +38,6 @@ import ProjecturedKernel.EventModule: WindowInput, ModifierKeys,
 import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
 import ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
 import ProjecturedKernel.EventModule: MouseButtons, MouseDown, MouseUp, MouseMove, MouseScroll
-# SDL-free text measurement: reuse the pure-Julia TrueType metrics measurer from
-# the SDL-free TrueType measurer, so the web backend needs no SDL/SDL_ttf at all.
-# `measure_truetype_text` is the shared font-metrics utility (StyleModule),
-# also used by the PDF backend and every projection example.
-import ProjecturedStyle.StyleModule: measure_truetype_text
 
 include("../../../source/web/Web.jl")
 

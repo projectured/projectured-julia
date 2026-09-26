@@ -41,12 +41,6 @@ function test_headless_backend()
         @test read_from_devices(b, Any[]) === nothing
     end
 
-    @testset "measure_text returns a fixed geometry" begin
-        b = HeadlessBackend()
-        @test measure_text(b, "abc", nothing) == (24, 16)
-        @test measure_text(b, "", nothing) == (0, 16)
-    end
-
     @testset "get_display_size falls back to the display-free default" begin
         b = HeadlessBackend()
         @test get_display_size(b) == (1280, 800)

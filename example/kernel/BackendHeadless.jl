@@ -21,11 +21,6 @@ end
 BackendModule.initialize_backend!(::HeadlessBackend) = nothing
 BackendModule.quit_backend!(::HeadlessBackend) = nothing
 
-# Text measurement: a stub returning a fixed metric per character. Tests that
-# depend on exact geometry are not this backend's job.
-BackendModule.measure_text(::HeadlessBackend, text::AbstractString, font) =
-    (length(text) * 8, 16)
-
 # Batch I/O:
 # - write_to_devices logs the document for later assertion
 # - read_from_devices pops the next scripted event, or nothing on drain

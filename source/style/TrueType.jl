@@ -1,15 +1,11 @@
 # Fragment of `StyleModule`.
 #
-# A minimal read-only TrueType parser and the SDL-free text measurer built on it.
-# Reads advance widths straight from a font's own `hmtx` table (pure Julia — no
-# rasterizer, no display server, no SDL), so any projection pipeline can measure
-# text for layout without a live backend.
-#
-# This machinery is format-neutral: the PDF backend uses it for both measurement
-# and glyph embedding, the web backend uses `measure_truetype_text` for its
-# metrics, and every projection example defaults `measure=measure_truetype_text`.
-# It lives here next to `StyleModule` (which owns `StyleFont` and the font-zoom
-# sizing) rather than inside the PDF backend, which is only one of its consumers.
+# A minimal read-only TrueType parser. It reads the tables of a font file that a
+# layout and a backend need (pure Julia — no rasterizer, no display server, no
+# SDL): the advance widths of `hmtx`, the pairs of `kern`, and the vertical
+# metrics of `hhea` and OS/2. `FontFileMeasure` (TextMeasure.jl) measures text
+# from them, and the PDF backend embeds glyphs with them. It lives here next to
+# `StyleModule`, which owns `StyleFont` and the font-zoom sizing.
 # ════════════════════════════════════════════════════════════════════════
 # Big-endian byte readers over a font's raw bytes (0-based offsets)
 # ════════════════════════════════════════════════════════════════════════
@@ -365,8 +361,8 @@ get_ascent_pixels(f::TrueTypeFont, size::Real) = f.ascent * size / f.units_per_e
 #
 # A font draws only the characters it carries. For a character it lacks, a
 # renderer draws with the font `find_glyph_font_file` names, and
-# `measure_truetype_text` measures with the same font, so a line is drawn as wide
-# as it was measured.
+# `FontFileMeasure` measures with the same font, so a line is drawn as wide as it
+# was measured.
 
 const _EMOJI_FONT_FILE       = joinpath(_FONT_DIR, "NotoEmoji-Regular.ttf")
 const _DEJAVU_MONO_FILE      = joinpath(_FONT_DIR, "DejaVuSansMono.ttf")
@@ -434,51 +430,6 @@ presentation (U+FE0E, U+FE0F). It has no width, and a renderer that does no
 shaping drops it, so a measurer drops it too.
 """
 is_presentation_selector(character::UInt32) = character == 0xFE0E || character == 0xFE0F
-
-"""
-    measure_truetype_text(text, font::StyleFont) -> (Int, Int)
-
-Canonical SDL-free text measurer for layout. Returns `(width, height)` in logical
-pixels — both `Int`, matching `measure_sdl_text`'s contract so the same
-projections can be driven with or without SDL. Reads advance widths from the
-font's own TrueType `hmtx` metrics (pure Julia, no SDL/SDL_ttf), so any pipeline
-can measure text without a live backend. Use it as the default `measure=` for
-projection examples.
-
-Measures at the font's *logical* (font-zoomed) size — [`font_logical_size`](@ref),
-which reads the reactive `_FONT_ZOOM` cell — exactly like `measure_sdl_text`
-(which rasterizes at `font_device_size` and divides back by the device pixel
-ratio).
-This is what makes layout reflow with `Ctrl+Alt` font-zoom even on the SDL path.
-A no-op at the default zoom (`font_logical_size == size`).
-
-A character the font lacks is measured in the font that draws it, which
-[`find_glyph_font_file`](@ref) names, and a presentation selector measures
-nothing: the SDL renderer draws the text the same way.
-"""
-function measure_truetype_text(text, font::StyleFont)
-    size = font_logical_size(font)
-    path = font.filename
-    primary = load_truetype_font(path)
-    primary_units = 0
-    fallback_width = 0.0
-    for c in String(text)
-        character = UInt32(c)
-        is_presentation_selector(character) && continue
-        glyph = get_glyph_id(primary, character)
-        if glyph == 0 || character > 0xFFFF
-            file = find_glyph_font_file(path, character)
-            if file !== nothing && file != path
-                other = load_truetype_font(file)
-                fallback_width += _advance_units(other, get_glyph_id(other, character)) *
-                                  size / other.units_per_em
-                continue
-            end
-        end
-        primary_units += _advance_units(primary, glyph)
-    end
-    (round(Int, primary_units * size / primary.units_per_em + fallback_width), size)
-end
 
 # ════════════════════════════════════════════════════════════════════════
 # Vertical metrics

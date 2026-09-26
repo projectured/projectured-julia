@@ -42,17 +42,9 @@ function test_device_config()
         @test lone.display === own
     end
 
-    @testset "each backend measures at the ratio of its Display" begin
-        font = font_ubuntu_regular_20
-        text = "iiiiiiiiii WWWWW"
-        single = SdlBackend()
-        single.display = Display(scale = 1.0)
+    @testset "the ratio of a Display converts logical and device pixels" begin
         double = SdlBackend()
         double.display = Display(scale = 2.0)
-        @test measure_text(single, text, font) == SDL._measure_sdl_text(text, font, 1.0)
-        @test measure_text(double, text, font) == SDL._measure_sdl_text(text, font, 2.0)
-        # The standalone measure does not depend on the display of the machine.
-        @test measure_sdl_text(text, font) == SDL._measure_sdl_text(text, font, 1.0)
         @test SDL._to_logical(88, get_device_pixel_ratio(double.display)) == 44
         @test SDL._to_device(44, get_device_pixel_ratio(double.display)) == 88
     end

@@ -8,8 +8,8 @@
 # configuration to a no-op (the devices keep their default physical properties),
 # and native windows to a no-op (a backend that has none has nothing to open and
 # no geometry to answer with). The batch generics have no counterpart here on
-# purpose — an unimplemented `measure_text` or `write_image` must raise a
-# `MethodError`, not fabricate a result.
+# purpose — an unimplemented `write_image` must raise a `MethodError`, not
+# fabricate a result.
 # The wait defaults to one 10 ms poll slice, with the wake a matching no-op:
 # a sliced sleep notices pending work on its next slice at the latest, which
 # is the cadence the editor loop has without a real wait.

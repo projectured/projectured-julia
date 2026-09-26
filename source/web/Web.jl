@@ -791,13 +791,6 @@ function BackendModule.quit_backend!(backend::WebBackend)
     return nothing
 end
 
-# `measure_truetype_text` already measures at the font-zoomed logical size (it reads
-# `_FONT_ZOOM` via `font_logical_size`), so web layout reflows with Ctrl+Alt zoom
-# for free (no-op at the default font zoom). Web has no display-scale knob — full
-# zoom is the browser's own; font zoom rides the backend-agnostic `_FONT_ZOOM` cell.
-BackendModule.measure_text(::WebBackend, text::AbstractString, font::StyleFont) =
-    measure_truetype_text(text, font)
-
 # Non-blocking poll: hand back the next decoded event, or nothing.
 BackendModule.read_from_devices(backend::WebBackend, devices) =
     isready(backend.inbound) ? take!(backend.inbound) : nothing

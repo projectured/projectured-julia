@@ -5,7 +5,6 @@ end
 include("backend/DirtyRectTest.jl")
 include("backend/KeysymTest.jl")
 include("backend/DeviceConfigTest.jl")
-include("backend/FontFallbackTest.jl")
 include("backend/FontMetricsAgreementTest.jl")
 include("backend/TextBaselineTest.jl")
 include("backend/InputCoalescingTest.jl")
@@ -37,7 +36,6 @@ function test_sdl()
         test_dirty_rect()
         test_sdl_keysym()
         test_device_config()
-        test_sdl_font_fallback()
         test_sdl_font_metrics_agree()
         test_sdl_text_baseline_ink()
         test_sdl_text_pen_positions()
@@ -48,6 +46,6 @@ function test_sdl()
     end
 end
 
-export test_sdl, test_sdl_layering, test_dirty_rect, test_sdl_keysym, test_device_config, test_sdl_font_fallback, test_sdl_font_metrics_agree, test_sdl_text_baseline_ink,
+export test_sdl, test_sdl_layering, test_dirty_rect, test_sdl_keysym, test_device_config, test_sdl_font_metrics_agree, test_sdl_text_baseline_ink,
        test_sdl_text_pen_positions,
        test_input_coalescing, test_sdl_wait_wake, test_native_window, test_write_image

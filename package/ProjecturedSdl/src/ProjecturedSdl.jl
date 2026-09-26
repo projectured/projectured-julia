@@ -50,9 +50,8 @@ import ProjecturedStyle.StyleModule: StyleFont, font_logical_size, font_device_s
 import ProjecturedStyle.StyleModule: font_file
 # A character the font lacks draws in the font the style package names, and each
 # glyph draws where the layout measures it (`compute_placed_glyphs`).
-import ProjecturedStyle.StyleModule: load_truetype_font, find_glyph_font_file, has_font_glyph,
-                         is_presentation_selector, compute_text_extent,
-                         compute_placed_glyphs, PlacedGlyph, FontFileMeasure
+import ProjecturedStyle.StyleModule: compute_text_extent, compute_placed_glyphs, PlacedGlyph,
+                         FontFileMeasure
 import ProjecturedKernel.EventModule: WindowQuit
 import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
 import ProjecturedKernel.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus
