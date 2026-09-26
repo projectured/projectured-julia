@@ -58,6 +58,26 @@ which is the whole tree, although it draws no pixel.
   `timeline2.jl`. On the web page it replaces `assets/videos/partial-render.mp4`,
   with a poster at 9.8 s, where the folder `chart` opens (commit `cee5b5e` of
   `projectured.github.io`, not pushed).
+- **A review of the walk found three faults, now fixed and tested:**
+  - A viewport inside a list of the second phase pushed its clip after the clip of
+    the viewport around it, so its rectangles were lost. A viewport now keeps the
+    clips of the viewports inside it and runs them before its own.
+  - A container whose list did not change recorded its bounds in the first phase,
+    before a list inside it recorded in the second, so it kept the old extent of
+    that list and a later move left ghosts. A container now queues that record
+    behind the lists inside it (`_defer_refresh!`).
+  - A new order of elements that overlap painted nothing. Where elements can
+    overlap, a kept element that has another place in the order is painted again.
+  - Smaller points: a value that can change in place and keep its hash (a pointer,
+    a large array, a mutable object whose fields are not immutable cells) gives a
+    leaf no signature, so it is painted whenever it is stale; the cache of tree rows
+    drops a path that leaves the open tree; a bar measures an item that is not a
+    menu item or a toolbar item, as a button draws its shadow outside its size; the
+    tree draws its chevron through the icon registry.
+  - A trap met in the fix: the row read the text cell of its chevron and then gave
+    that cell the computation that reads the open set, so the row read the set
+    again. The chevron is now a new text graphic, and the row reads only the two
+    glyphs that it drops.
 - The rebase onto `main` brought a scroll pane around each file tab. The pixel
   check on the rebased branch again finds all 684 frames the same with a full and
   with a partial repaint.

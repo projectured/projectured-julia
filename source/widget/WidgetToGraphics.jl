@@ -2586,9 +2586,11 @@ _menu_item_height(cim) =
         (cim.output isa GraphicsCanvas ? Int(cim.output.h[]) : 0)
 
 # The extent that a bar reaches: the box parts in `box`, and each item of
-# `child_iomaps` at its place with the size it states. A parent that asks the size
-# of the bar then reads no graphic inside an item, such as the layer that a hover
-# changes, so a hover does not move what lies under the bar.
+# `child_iomaps` at its place. A menu item and a toolbar item draw inside the size
+# they state, so the bar takes that size, and a parent that asks the size of the
+# bar reads no graphic inside such an item, such as the layer that a hover
+# changes: a hover does not move what lies under the bar. Any other item is
+# measured, because it can draw outside its size, as the shadow of a button does.
 function _compute_bar_extent(box::Vector, child_iomaps::Vector, measure)
     width, height = 0, 0
     for part in box
@@ -2596,8 +2598,12 @@ function _compute_bar_extent(box::Vector, child_iomaps::Vector, measure)
         width = max(width, part_width); height = max(height, part_height)
     end
     for (x, y, cim) in child_iomaps
-        width = max(width, x + _menu_item_width(cim))
-        height = max(height, y + _menu_item_height(cim))
+        item_width, item_height =
+            get_iomap_input(cim) isa Union{WidgetMenuItem,WidgetToolbarItem} ?
+                (_menu_item_width(cim), _menu_item_height(cim)) :
+            cim.output isa GraphicsDocument ? _element_size(cim.output, measure) : (0, 0)
+        width = max(width, x + item_width)
+        height = max(height, y + item_height)
     end
     (width, height)
 end
@@ -6680,13 +6686,26 @@ function _push_chevron!(elems::Vector, cx::Int, cy::Int, s::Int, dir::Symbol, co
 end
 
 # A chevron at the same place, which points down while `is_open()` answers true
-# and right otherwise. Its glyph is a text cell of its own that calls `is_open`,
-# so a toggle changes the glyph and not the element list that holds it.
+# and right otherwise. When both chevrons of the icon registry are one glyph each
+# of one font file, the chevron is one text whose cell calls `is_open`, so a toggle
+# changes the glyph and not the element list that holds it. Other icons are read
+# here, in the computation of the caller.
 function _push_open_chevron!(elems::Vector, cx::Int, cy::Int, s::Int, color::StyleColor,
                              is_open::Function)
-    glyph() = string(find_icon_character(is_open() ? :chevron_down : :chevron_right))
-    push!(elems, GraphicsText(glyph, cx - 2s, cy - 2s;
-                              font = StyleFont(font_lucide_icons_20.filename, 4s), color))
+    down, right = Any[], Any[]
+    _push_chevron!(down, cx, cy, s, :down, color)
+    _push_chevron!(right, cx, cy, s, :right, color)
+    if length(down) == 1 && length(right) == 1 && only(down) isa GraphicsText &&
+       only(right) isa GraphicsText && only(down).font.filename == only(right).font.filename
+        # The two glyphs are read and dropped: the caller's computation must not
+        # read the cell that reads `is_open`.
+        down_text, right_text = only(down).text, only(right).text
+        glyph = only(right)
+        push!(elems, GraphicsText(() -> is_open() ? down_text : right_text, glyph.x, glyph.y;
+                                  font = glyph.font, color = glyph.color))
+    else
+        append!(elems, is_open() ? down : right)
+    end
     nothing
 end
 
@@ -8959,9 +8978,16 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     # The canvas of each row that was drawn, kept by the path of the row. A toggle
     # computes the rows again, and a row that stays keeps its canvas: the top of
     # the canvas reads where its path is now. So a partial repaint paints a row
-    # that moved at its old and its new place, and no row that kept its place.
+    # that moved at its old and its new place, and no row that kept its place. The
+    # rows of the open tree are the keys of the list, and a path that leaves the
+    # open tree leaves the cache.
     kept_rows = Dict{Vector{Int},GraphicsCanvas}()
     make_row(row::WTreeRow) = get!(() -> make_row_canvas(row), kept_rows, row.path)
+    function get_open_rows()
+        g = geometry[]
+        filter!(entry -> haskey(g.index, entry.first), kept_rows)
+        g.rows
+    end
 
     # One row: a canvas at the place of the row, whose content the renderer reads
     # only when it draws the row. The content reads the node, and whether the node
@@ -9003,7 +9029,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     rows_canvas = GraphicsCanvas(Cell(Int32(content_x)), Cell(Int32(content_y)),
                                  Cell(@computation Int32(width[])),
                                  Cell(@computation Int32(geometry[].total_h)),
-                                 CellVector(@computation(geometry[].rows); element = make_row),
+                                 CellVector(@computation(get_open_rows()); element = make_row),
                                  layout_vertical, false, Cell(nothing))
 
     # Whole-canvas transparent hit target. The tree hit-tests by *row band* (a whole

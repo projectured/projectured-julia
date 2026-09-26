@@ -73,6 +73,16 @@ end
     end
 end
 
+# A toolbar item states its size, and the bar takes it. A button can draw outside
+# its size, as its shadow does, so the bar measures it.
+@testset "a toolbar is as large as what its items draw" begin
+    for items in (Any[WidgetToolbarItem("Run"; icon = :play), WidgetMenuItem("Save")],
+                  Any[WidgetToolbarItem("Run"; icon = :play), WidgetButton("Go")])
+        c = print_document(proj, WidgetToolbar(items)).output
+        @test (Int(c.w[]), Int(c.h[])) == get_graphics_size(c, _det)
+    end
+end
+
 # What a canvas would draw, forced the way a backend forces it.
 _drawn(canvas, ::Type{T}) where {T} = begin
     found = T[]

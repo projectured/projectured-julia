@@ -474,5 +474,65 @@ end
     @test SDL._compute_dirty_rect(res, top) === nothing
 end
 
+@testset "a viewport inside a new list gives its rectangles to the viewport around it" begin
+    # A pane inside a slot of a layout, which clips each slot with a viewport: the
+    # list around the pane changes in the frame where a mark in the pane does.
+    k = Cell(1)
+    mark = GraphicsRect(10, 10, 20, 20; color = color_black)
+    set_cell_computation!(getfield(mark, :color), () -> k[] > 1 ? color_red : color_black)
+    pane = GraphicsViewport(Int32(0), Int32(0), Int32(100), Int32(100),
+                            GraphicsCanvas(CellVector(Cell[Cell(mark)]), layout_none))
+    extra = Cell(false)
+    other = GraphicsRect(200, 10, 20, 20; color = color_black)
+    slots = GraphicsCanvas(CellVector(@computation extra[] ? Any[pane, other] : Any[pane]), layout_none)
+    top = GraphicsCanvas(CellVector(Cell[Cell(GraphicsViewport(Int32(0), Int32(0), Int32(400),
+                                                                Int32(300), slots))]), layout_none)
+    res = make_res()
+    SDL._compute_dirty_rect(res, top)
+    @test SDL._compute_dirty_rect(res, top) === nothing
+    extra[] = true
+    k[] = 2
+    @test sort(SDL._compute_dirty_region(res, top)) == [(8, 8, 32, 32), (198, 8, 222, 32)]
+end
+
+@testset "a container records its bounds after a new list inside it" begin
+    # The list inside grows from one row to three; later the container moves, and
+    # the old place of all three rows is cleared.
+    n = Cell(1)
+    rows = [GraphicsRect(0, 20 * (i - 1), 100, 18) for i in 1:3]
+    stack = GraphicsCanvas(CellVector(@computation Any[rows[i] for i in 1:n[]]);
+                           layout = layout_vertical, overlapping = false)
+    shift = Cell(0)
+    holder = GraphicsCanvas(CellVector(Cell[Cell(stack)]), layout_none)
+    set_cell_computation!(getfield(holder, :x), () -> Int32(shift[]))
+    top = GraphicsCanvas(CellVector(Cell[Cell(holder)]), layout_none)
+    res = make_res()
+    SDL._compute_dirty_rect(res, top)
+    n[] = 3
+    @test SDL._compute_dirty_rect(res, top) == (0, 18, 102, 60)
+    shift[] = 200
+    @test sort(SDL._compute_dirty_region(res, top)) == [(0, 0, 102, 60), (198, 0, 302, 60)]
+end
+
+@testset "a new order of elements that overlap paints them" begin
+    # A card raised over the one it overlaps: the same elements, in another order.
+    a = GraphicsRect(0, 0, 50, 50; color = color_red)
+    b = GraphicsRect(25, 25, 50, 50; color = color_black)
+    front = Cell(false)
+    top = GraphicsCanvas(CellVector(@computation front[] ? Any[b, a] : Any[a, b]), layout_none)
+    res = make_res()
+    SDL._compute_dirty_rect(res, top)
+    front[] = true
+    @test sort(SDL._compute_dirty_region(res, top)) == [(0, 0, 52, 52), (23, 23, 77, 77)]
+end
+
+@testset "a leaf has a signature only when its hash follows what it draws" begin
+    @test SDL._compute_leaf_signature(GraphicsRect(0, 0, 10, 10; color = color_red)) !== nothing
+    @test SDL._compute_leaf_signature(GraphicsText("a", 0, 0; font = font_ubuntu_regular_20)) !== nothing
+    # `hash` reads a sample of a large array, so a change in place could keep it.
+    @test SDL._compute_leaf_signature(GraphicsImage(0, 0, 100, 100, zeros(UInt8, 40_000))) === nothing
+    @test SDL._compute_leaf_signature(GraphicsImage(0, 0, 10, 10, zeros(UInt8, 400))) !== nothing
+end
+
 end # testset
 end # test_dirty_rect
