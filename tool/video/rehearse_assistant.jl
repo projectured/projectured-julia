@@ -6,17 +6,20 @@
 # no recording, and print what it did. The take is recorded only after a
 # rehearsal that works (D9).
 
-using Projectured, ProjecturedExample, ProjecturedSdl, ProjecturedSdlExample, ProjecturedVideo
+using Projectured, ProjecturedExample, ProjecturedOllama, ProjecturedSdl, ProjecturedSdlExample, ProjecturedVideo
 
 const WIDTH, HEIGHT = 1280, 720
 const PROMPT = length(ARGS) >= 1 ? ARGS[1] :
-    "Open people.json sorted by name in a second tab, beside the first one."
-const CAP = 420.0
+    "Open a second tab beside the first one with a table of the people in people.json, sorted by name."
+const CAP = 900.0
 
 function make_editor(directory)
     write(joinpath(directory, "people.json"),
           "[{\"name\": \"Cleo\", \"age\": 29}, {\"name\": \"Ada\", \"age\": 36}, {\"name\": \"Bob\", \"age\": 41}]")
-    assistant = make_application_assistant(:ollama)
+    # The model on the GPU: a context of 32768 fits its memory, and the seed
+    # makes a rehearsal repeatable.
+    assistant = make_application_assistant(:ollama;
+                                           llm = OllamaLlm(context = 32768, seed = 1))
     document, projection = make_application_window([joinpath(directory, "people.json")];
                                                    root = directory, assistant = assistant)
     scene = make_window_scene(document, "ProjecturEd"; width = WIDTH, height = HEIGHT)

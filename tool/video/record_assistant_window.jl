@@ -33,7 +33,7 @@ function turn_finished(turns::Integer)
 end
 
 const PROMPTS = [
-    "Open people.json sorted by name in a second tab, beside the first one.",
+    "Open a second tab beside the first one with a table of the people in people.json, sorted by name.",
     "Add a card with a table of the names and the ages under the tabs.",
 ]
 
