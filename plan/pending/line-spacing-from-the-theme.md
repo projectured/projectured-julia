@@ -1,7 +1,7 @@
 # The theme chooses the line spacing
 
 > **Status:** pending, not started. A follow-up of
-> [a-line-of-text-sits-on-one-baseline.md](a-line-of-text-sits-on-one-baseline.md):
+> [a-line-of-text-sits-on-one-baseline.md](../done/a-line-of-text-sits-on-one-baseline.md):
 > the owner decided on 2026-09-26 to treat the theme value of question 3 there as
 > a separate step.
 

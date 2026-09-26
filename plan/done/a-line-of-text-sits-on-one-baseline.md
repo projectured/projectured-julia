@@ -384,7 +384,7 @@ The implementations:
   fallback font of each glyph that the font lacks, and the ascent, descent and
   line gap by FreeType's rule. It keeps the tables of a font once, and it can
   hold the font zoom of an editor, which is what
-  [font-zoom-per-editor.md](font-zoom-per-editor.md) needs (§7).
+  [font-zoom-per-editor.md](../pending/font-zoom-per-editor.md) needs (§7).
 - **`FixedMeasure(advance, ascent, descent, line_gap; fonts = Dict())`** is the
   measure of a test: every character is `advance` wide, every font has the
   metrics given, and there is no kerning. It replaces the closures such as
@@ -745,7 +745,7 @@ projection holds its measure in one typed field, so the line model can not read 
 
 ## 7. Relations and risks
 
-- [font-zoom-per-editor.md](font-zoom-per-editor.md) (pending) changes the same
+- [font-zoom-per-editor.md](../pending/font-zoom-per-editor.md) (pending) changes the same
   measure. Its option (B) passes the zoom through the measure; a `TextMeasure`
   object can hold it. The two plans must agree on one contract before either
   changes it.
@@ -754,7 +754,7 @@ projection holds its measure in one typed field, so the line model can not read 
   clipping, at a box that now holds the ink.
 - [word-wrapping-projection.md](word-wrapping-projection.md) (pending):
   `WordWrapping` takes the new width, and nothing else in it changes.
-- [sdl-per-editor-state.md](sdl-per-editor-state.md) (pending) changes the font
+- [sdl-per-editor-state.md](../pending/sdl-per-editor-state.md) (pending) changes the font
   cache and the ratio of the SDL backend, which Step 3 also touches.
 - **Every text moves.** Every screenshot, video and image test changes, and the
   pass counts of the printer walks change with the new fields.

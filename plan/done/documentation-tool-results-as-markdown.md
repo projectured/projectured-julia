@@ -487,7 +487,7 @@ that file. All files of `tool/` are `⬜` on 2026-09-25.
   its grid cell, and the last line of a result, by the viewport of the card body,
   in the old route as well. So the row added the cut table entries to the chat
   pane, and not every paragraph. The plan
-  [a-line-of-text-sits-on-one-baseline.md](../pending/a-line-of-text-sits-on-one-baseline.md)
+  [a-line-of-text-sits-on-one-baseline.md](a-line-of-text-sits-on-one-baseline.md)
   holds the fix.
 
 ## 5. The questions
@@ -536,7 +536,7 @@ decision 3). Question 5 came from Step 6, and the owner decided it on 2026-09-25
   it draws is `font_line_height`, 23 (an ascent of 19 and a descent of 4). The
   viewport of a grid cell and the viewport of a card body end at the height the
   text reports. The fix is the plan
-  [a-line-of-text-sits-on-one-baseline.md](../pending/a-line-of-text-sits-on-one-baseline.md).
+  [a-line-of-text-sits-on-one-baseline.md](a-line-of-text-sits-on-one-baseline.md).
 
 - `read_resource` declares one media type for every resource (§3.1).
 - An MCP client does not get the declaration (§3.1).
