@@ -943,9 +943,45 @@ get_lane_cross_position(g, identity::Integer) = get(g.lane_of, Int(identity), no
 # A chart part is not a cursor position: there is nowhere in the canvas for a
 # selection to land, and no output element a reference should follow. Selection
 # is instead expressed by what the reader selects and what the overlay
-# highlights, so both mappers decline.
+# highlights, so a reference maps forward to nothing.
 map_reference_forward(::SequenceChartPlotToGraphicsCanvas, iomap, reference) = nothing
-map_reference_backward(::SequenceChartPlotToGraphicsCanvas, iomap, reference) = nothing
+
+# A point maps back to the part drawn at it, with the hit tests of the reader of
+# a click, in its order: in the body an event, an arrow, a band or a lane, and
+# else the plot at that point, which the cursor readout reads; beside the body,
+# the lane of the label strip.
+function map_reference_backward(::SequenceChartPlotToGraphicsCanvas, iomap, reference)
+    point = find_reference_point(reference)
+    point === nothing && return nothing
+    g = iomap.geometry
+    g === nothing && return nothing
+    plot, x, y = iomap.input, point.x, point.y
+    chart = plot.chart
+    if _in_body(g, x, y)
+        part = _find_sequence_chart_part(g, plot, x, y)
+        part === nothing || return part
+        band = find_band_hit(g, plot, x, y)
+        band === nothing ||
+            return lift_sequence_chart_reference(plot, get_band_reference(chart; band...))
+        lane = find_lane_hit(g, plot, x, y)
+        lane === nothing ||
+            return lift_sequence_chart_reference(plot, get_axis_reference(chart, lane))
+        return ConcreteReference(PointReferenceStep(x, y))
+    end
+    lane = _label_strip_lane(g, x, y)
+    lane === nothing ? nothing : lift_sequence_chart_reference(plot, get_axis_reference(chart, lane))
+end
+
+# The event or the arrow drawn at `(x, y)` of the body, as a reference from the
+# plot, or `nothing`.
+function _find_sequence_chart_part(g, plot, x::Integer, y::Integer)
+    chart = plot.chart
+    row = find_event_hit(g, plot, x, y)
+    row === nothing || return lift_sequence_chart_reference(plot, get_event_reference(chart, row))
+    arrow = find_arrow_hit(g, plot, x, y)
+    arrow === nothing ? nothing :
+        lift_sequence_chart_reference(plot, get_arrow_reference(chart, arrow))
+end
 
 # ── Hit testing ──────────────────────────────────────────────────────────
 #
@@ -1153,17 +1189,7 @@ function read_intent(p::SequenceChartPlotToGraphicsCanvas, iomap,
     chart = plot.chart
     x, y = gesture.x, gesture.y
 
-    hovered = nothing
-    if _in_body(g, x, y)
-        row = find_event_hit(g, plot, x, y)
-        if row !== nothing
-            hovered = lift_sequence_chart_reference(plot, get_event_reference(chart, row))
-        else
-            arrow = find_arrow_hit(g, plot, x, y)
-            arrow === nothing ||
-                (hovered = lift_sequence_chart_reference(plot, get_arrow_reference(chart, arrow)))
-        end
-    end
+    hovered = _in_body(g, x, y) ? _find_sequence_chart_part(g, plot, x, y) : nothing
 
     cursor = nothing
     if _in_body(g, x, y) && chart.gutter.cursor_readout

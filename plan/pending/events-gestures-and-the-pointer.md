@@ -692,6 +692,19 @@ it holds the example.
     A text body that the accordion draws itself is no child, so a point on it
     maps to nothing. Tests: `test_widget_point`, 17 pass. The same suites as in
     4a fail the same tests as `main`.
+  - [x] 4d. The charts. Each maps a point with the hit tests of its reader of a
+    click, in that order, so a point maps to what a click there selects. The
+    chart: a legend item to its series, the rest of the legend to the legend, a
+    part of the frame, a data point, a series line; the sequence chart: an event,
+    an arrow, a band or a lane of the body, and a lane of the label strip. Any
+    other point of the plot area or of the body maps to the plot at the point,
+    `ConcreteReference(PointReferenceStep(x, y))`, which the cursor readout
+    reads. A point past the chart's canvas maps to nothing: a click never arrives
+    there, but the frame tests would name the title. The forward mapping still
+    declines. The move reader of the sequence chart and its mapping share
+    `_find_sequence_chart_part`. Tests: `test_chart` 350 pass and
+    `test_sequencechart` 283 pass (`main` 345 and 279); the mapping equals the
+    path of a click, and the chain carries it on to the chart.
 - [ ] 5. **The start over of Tab leaves the hover tracker (D2, §5 of the plan of
   D33).** A small wrapping step does only the start over at the ends, and the
   hover tracker loses its branch for Tab. Tests: the focus traversal tests; Tab

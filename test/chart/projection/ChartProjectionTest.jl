@@ -320,6 +320,28 @@ function test_chart_projection()
             end
         end
 
+        @testset "a point maps back to the part a click there selects" begin
+            chart = _line_chart()
+            iomap = _chart_iomap(chart)
+            stage = iomap.step_iomaps[2][]
+            g = stage.geometry
+            at(x, y) = map_reference_backward(stage.projection, stage, PointReferenceStep(x, y))
+            pts = _line_points_of(g, 1)
+            sx, sy = pts[3][1] + g.plot_x, pts[3][2] + g.plot_y
+            click = read_intent(stage.projection, stage, MouseClick(:left, sx, sy; time = 0.0))
+            @test click isa ReplaceSelectionOperation
+            @test is_reference_equal(at(sx, sy), click.path)
+            # A legend item maps to its series.
+            if g.legend !== nothing
+                (index, ix, iy, iw, ih) = first(get_legend_item_rects(g.legend))
+                @test is_reference_equal(at(ix + iw ÷ 2, iy + ih ÷ 2),
+                                         get_chart_series_reference(index, stage.input))
+            end
+            # The whole chain maps a data point on to the chart.
+            @test map_reference_backward(iomap.projection, iomap, PointReferenceStep(sx, sy)) !== nothing
+            @test at(-50, -50) === nothing
+        end
+
         @testset "empty chart" begin
             # A placeholder root still draws as a chart-shaped surface rather
             # than collapsing to nothing.

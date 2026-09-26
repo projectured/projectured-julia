@@ -337,6 +337,26 @@ function test_sequencechart_projection()
                   get_event_axis(chart.events, row)
         end
 
+        @testset "a point maps back to the part a click there selects" begin
+            chart = _sc_chart()
+            iomap = _sequencechart_iomap(chart)
+            g = _geometry_of(iomap)
+            stage2 = _stage2_iomap(iomap)
+            projection = stage2.projection
+            row = first(g.visible_events)
+            x = round(Int, to_pixel(g.scale, g.coordinates[row]) + g.body_x)
+            y = round(Int, g.lane_of[get_event_axis(chart.events, row)] + g.body_y)
+            back = map_reference_backward(projection, stage2, PointReferenceStep(x, y))
+            click = read_intent(projection, stage2, MouseClick(:left, x, y, _sc_no_modifier; time = 0.0))
+            @test click isa ReplaceSelectionOperation
+            @test back == click.path
+            # The whole chain maps the point on to the chart's own event.
+            whole = map_reference_backward(iomap.projection, iomap, PointReferenceStep(x, y))
+            @test whole == get_event_reference(chart, row)
+            # Far outside the chart, nothing is there.
+            @test map_reference_backward(projection, stage2, PointReferenceStep(-50, -50)) === nothing
+        end
+
         @testset "click selects" begin
             chart = _sc_chart()
             iomap = _sequencechart_iomap(chart)

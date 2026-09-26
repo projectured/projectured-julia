@@ -1290,9 +1290,37 @@ end
 # A chart part is not a cursor position: there is nowhere in the canvas for a
 # selection to land, and no output element a reference should follow. Selection
 # is instead expressed by what the reader selects and what the frame highlights,
-# so both mappers decline.
+# so a reference maps forward to nothing.
 map_reference_forward(::ChartPlotToGraphicsCanvas, iomap, reference) = nothing
-map_reference_backward(::ChartPlotToGraphicsCanvas, iomap, reference) = nothing
+
+# A point maps back to the part drawn at it, with the hit tests of the reader of
+# a click, in its order: a legend item to its series and the rest of the legend
+# to the legend, a part of the frame to that part, a data point to the point, a
+# series line to its series. Any other point of the plot area maps to the plot
+# at that point, which the cursor readout reads.
+function map_reference_backward(::ChartPlotToGraphicsCanvas, iomap, reference)
+    point = find_reference_point(reference)
+    (point === nothing || !(iomap isa ChartPlotToGraphicsCanvasIoMap)) && return nothing
+    g = iomap.geometry
+    g === nothing && return nothing
+    plot, x, y = iomap.input, point.x, point.y
+    # A click arrives only on what the chart drew; a point past its box is nothing
+    # of the chart, whatever the frame tests say of it.
+    canvas = iomap.output
+    canvas isa GraphicsCanvas && canvas.w > 0 && canvas.h > 0 &&
+        !_in_rect(x, y, Int(canvas.x), Int(canvas.y), Int(canvas.w), Int(canvas.h)) && return nothing
+    index = _legend_hit(g, x, y)
+    index isa Int && return index > 0 ? get_chart_series_reference(index, plot) :
+                                        get_chart_part_reference(:legend, plot)
+    part = _part_hit(g, x, y)
+    part === nothing || return get_chart_part_reference(part, plot)
+    hit = _sample_hit(g, x, y)
+    hit === nothing || return chart_plot_sample_reference(plot, hit[1], hit[2])
+    index = _series_hit(g, x, y)
+    index === nothing || return get_chart_series_reference(index, plot)
+    _in_rect(x, y, g.plot_x, g.plot_y, g.plot_w, g.plot_h) || return nothing
+    ConcreteReference(PointReferenceStep(x, y))
+end
 
 # ── Reader ───────────────────────────────────────────────────────────────
 
