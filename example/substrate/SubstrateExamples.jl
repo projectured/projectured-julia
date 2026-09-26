@@ -11,6 +11,39 @@ const syntax_example         = Example("syntax",         make_syntax_document_ex
 const text_example           = Example("text",           make_text_document_example,           make_text_projection_example)
 const plain_text_example     = Example("plain_text",     make_plain_text_document_example,     make_plain_text_projection_example)
 const text_with_image_example = Example("text_with_image", make_text_with_image_example,       make_text_projection_example)
+
+# How text layout works: one example for each rule of the line model, and one
+# for each line spacing. `run_example(text_spacing_examples)` opens the spacings
+# side by side.
+const text_baseline_example    = Example("text_baseline",    make_text_baseline_document_example,    make_text_layout_projection_example)
+const text_line_height_example = Example("text_line_height", make_text_line_height_document_example, make_text_layout_projection_example)
+const text_kerning_example     = Example("text_kerning",     make_text_kerning_document_example,     make_text_layout_projection_example)
+const text_selection_example   = Example("text_selection",   make_text_selection_document_example,   make_text_layout_projection_example)
+const text_spacing_single_example = Example("text_spacing_single",
+    () -> make_text_spacing_document_example("Single spacing",
+        "Each line is at the natural distance of its fonts: 23 pixels for Ubuntu at 20."),
+    () -> make_text_layout_projection_example(spacing = SingleSpacing()))
+const text_spacing_one_and_a_half_example = Example("text_spacing_one_and_a_half",
+    () -> make_text_spacing_document_example("One and a half",
+        "Each line is 1.5 times the natural distance of its fonts from the next one."),
+    () -> make_text_layout_projection_example(spacing = MultipleSpacing(1.5)))
+const text_spacing_double_example = Example("text_spacing_double",
+    () -> make_text_spacing_document_example("Double spacing",
+        "Each line is 2 times the natural distance of its fonts from the next one."),
+    () -> make_text_layout_projection_example(spacing = MultipleSpacing(2)))
+const text_spacing_exactly_example = Example("text_spacing_exactly",
+    () -> make_text_spacing_document_example("Exactly 20 pixels",
+        "Each line is 20 pixels from the next one, less than the 23 pixels its fonts ask, so descenders touch the next line."),
+    () -> make_text_layout_projection_example(spacing = ExactSpacing(20)))
+const text_spacing_at_least_example = Example("text_spacing_at_least",
+    () -> make_text_spacing_document_example("At least 30 pixels",
+        "Each line is 30 pixels from the next one, because its natural distance is less."),
+    () -> make_text_layout_projection_example(spacing = AtLeastSpacing(30)))
+const text_layout_examples = Example[text_baseline_example, text_line_height_example,
+                                     text_kerning_example, text_selection_example]
+const text_spacing_examples = Example[text_spacing_single_example, text_spacing_one_and_a_half_example,
+                                      text_spacing_double_example, text_spacing_exactly_example,
+                                      text_spacing_at_least_example]
 const object_example         = Example("object",         make_object_document_example,         make_object_projection_example)
 const object_to_widget_example = Example("object_to_widget", make_object_to_widget_document_example, make_object_to_widget_projection_example)
 const nested_object_to_widget_example = Example("nested_object_to_widget", make_nested_object_to_widget_document_example, make_object_to_widget_projection_example)
@@ -82,6 +115,8 @@ const substrate_examples = Example[
     text_example,
     plain_text_example,
     text_with_image_example,
+    text_layout_examples...,
+    text_spacing_examples...,
     object_example,
     object_to_widget_example,
     nested_object_to_widget_example,

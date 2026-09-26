@@ -108,6 +108,7 @@ end
 include("../../../example/substrate/GestureMapDocumentExample.jl")
 include("../../../example/substrate/SyntaxDocumentExample.jl")
 include("../../../example/substrate/TextDocumentExample.jl")
+include("../../../example/substrate/TextLayoutDocumentExample.jl")
 include("../../../example/substrate/ObjectDocumentExample.jl")
 include("../../../example/substrate/ObjectToWidgetDocumentExample.jl")
 include("../../../example/substrate/ObjectFieldDocumentExample.jl")
@@ -126,6 +127,7 @@ include("../../../example/substrate/RotatingVectorDocumentExample.jl")
 
 include("../../../example/substrate/SyntaxProjectionExample.jl")
 include("../../../example/substrate/TextProjectionExample.jl")
+include("../../../example/substrate/TextLayoutProjectionExample.jl")
 include("../../../example/substrate/ObjectProjectionExample.jl")
 include("../../../example/substrate/ObjectToWidgetProjectionExample.jl")
 include("../../../example/substrate/ObjectFieldProjectionExample.jl")
@@ -183,6 +185,13 @@ export make_text_filtering_document_example, make_text_filtering_projection_exam
 export make_text_highlighting_document_example, make_text_highlighting_projection_example
 export make_text_line_atom_document_example, make_text_newline_atom_document_example
 export make_text_projection_example, make_text_string_atom_document_example
+export make_text_layout_projection_example, make_text_baseline_document_example
+export make_text_line_height_document_example, make_text_kerning_document_example
+export make_text_selection_document_example, make_text_spacing_document_example
+export text_baseline_example, text_line_height_example, text_kerning_example, text_selection_example
+export text_spacing_single_example, text_spacing_one_and_a_half_example, text_spacing_double_example
+export text_spacing_exactly_example, text_spacing_at_least_example
+export text_layout_examples, text_spacing_examples
 export make_text_to_string_document_example, make_text_to_string_projection_example
 export make_text_with_image_example, make_tooltip_source_document_example
 export make_vertical_layout_document_example, make_widget_accordion_document_example
