@@ -579,6 +579,23 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
         words. `test_referenced_document()` 51 and
         `test_referenced_document_editor()` 71 pass, with `test_documentation()`,
         `test_naming()` and `test_export_collisions()`.
+      **The rehearsal of both prompts after those changes (2026-09-26,
+      `/var/tmp/referenced/rehearsal_3.log`):**
+      - Prompt 1: right, in 110 s. The model read the guide, searched
+        `open_pane!` and `WidgetTable`, printed the JSON, and built the rows with
+        `.value`: the table holds the five people sorted by name, with the age and
+        the city. It opened it in a new group to the right of "people.json".
+      - Prompt 2: no card; the turn used its 8 rounds and stopped while it still
+        called tools (179 s). The search found `open_pane!` with `target` and
+        `side` first this time; the model called `get_parent` twice and printed
+        the group and the split, then set out to build a split by hand and spent
+        the rest of its rounds on `PaneSplit`, `@reference` and
+        `concat_references`. The cause is the layout that prompt 1 made: "the two
+        tabs" are two groups side by side in the root split, between "Files" and
+        "Assistant", so a pane under both needs a new split around those two
+        groups alone, and `open_pane!` takes one group or one tab as its target.
+        Open for the owner: the words of the prompts in the screenplay, or a verb
+        that puts a pane beside several panes.
       Round 2 answers the typed reference of the new tab, which is long
       (`::ScreenDocument.windows::CellVector[1]::…::PaneTab`); a
       `ReferencedDocument` answer (D10, open) would show the tab.
