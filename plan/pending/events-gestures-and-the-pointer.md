@@ -4,7 +4,7 @@
 > document over several sessions. It records the concepts, what is wrong today,
 > the owner's decisions and the questions that are still open. The steps of the
 > refactor come after the open questions have answers. The owner's model of
-> three tracking projections (D8 to D41) and the steps came on the same day, after the first
+> three tracking projections (D8 to D44) and the steps came on the same day, after the first
 > round of decisions.
 
 The facts of the code are in the study
@@ -184,6 +184,13 @@ All of them are from 2026-09-26.
   to sleep when the view does not change anymore. If the view has changed the
   loop has to run again." So the loop sleeps only after a frame that changed
   nothing.
+- **D43.** The backend sends the display event when it shows a frame that differs
+  from the one before, because only the backend knows what the display shows. The
+  event is `DisplayUpdate`. (Q15.)
+- **D44.** A light never changes the layout: a hover draws a layer over the
+  surface of the part, and no part changes its size or place for it. This stops
+  the loop of D42 from a light that moves another part under the pointer, frame
+  after frame. It becomes a rule of the design documents. (The risk of D42.)
 
 ## 3. What is wrong today
 
@@ -423,21 +430,14 @@ The direction that follows from the decisions so far:
 
 ## 5. Open questions
 
-- **Q15. When a frame counts as changed, and the name of the event (D42).**
-  Claude's suggestion: the backend sends the event when it shows a frame that
-  differs from the one before, because only the backend knows what the display
-  shows; the SDL backend already finds the parts that changed, for its dirty
-  rectangles. The name: `DisplayUpdate`, in the form `<Source><Action>`.
-- **A risk of D42.** A light that changes the layout can move another part under
-  the pointer, which lights and changes the layout again, frame after frame. A
-  browser has the same risk with a hover that changes the layout. The plan must
-  say what stops it: a rule that a light does not change the layout, or a bound.
+No question of this plan is open.
 
 The questions of keyboard navigation are in the plan of D33.
 
 Answered and moved to §2: Q2 (D23), Q3 (D24), Q4 (D25), Q5 (D20), Q6 (D26), Q7
 and Q8 (D27), Q9 (D28), Q10 (D29), Q11 (D30), Q1 (D31), Q12 (D32). Q13 moved to
-the plan of D33. Q14 is kept below, because it holds the example.
+the plan of D33. Q15 and the risk of D42 (D43, D44). Q14 is kept below, because
+it holds the example.
 
 - **Q14 (answered by D41 and D42). The view changes under a pointer that does
   not move.** An example: the
@@ -541,7 +541,7 @@ the plan of D33. Q14 is kept below, because it holds the example.
   the light follows the pointer to the next row; the leave of the window turns
   it off (H3); a row of a list turns off when the pointer moves onto another
   widget (§3.4); a list that scrolls under a still pointer lights the row that is
-  now under it (D41); a live check on the display, with the owner's word for XTest.
+  now under it (D41); a light changes the layout of no widget (D44); a live check on the display, with the owner's word for XTest.
 - [ ] 8. **The probes go away (D7).** A tooltip is the meaning of a `MouseDwell`
   on the target, and `compute_tooltip` stays; the feed, the probe and
   `PointerRest` of the tooltip package go away. The inspector reads the target.
@@ -560,7 +560,7 @@ the plan of D33. Q14 is kept below, because it holds the example.
   it; a drag over a button does not light it; a drag that leaves the window
   ends in one defined way.
 - [ ] 10. **The rules and the documents (D16, D40).** `PAR-NO-NEW-SYNTHETIC-EVENT`
-  is written again; the rule of D40 joins the invariants; the concepts (event,
+  is written again; the rules of D40 and D44 join the invariants; the concepts (event,
   gesture, tracking projection) go into the design documents; the documents of
   the kernel, the widgets, the screen, the tooltip, the dragging and the
   backends change. This step takes step 4 of the plan
