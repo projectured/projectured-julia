@@ -683,8 +683,26 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       the verbs in the editor layer with that routing; then the declaration, the
       guide and the docstrings; tests of a replace, an insert and a delete through
       a referenced document: the document changes, the file's history has one
-      step, the window's has none, the gesture log has a line, and an undo in
-      the file takes it back. Then a rehearsal of the new S2 order.
+      step, the window's has a step that names it (an outer history records
+      that the inner one took a step, `UndoModule`), the gesture log has a
+      line, and an undo in the file takes it back. Then a rehearsal of the new
+      S2 order.
+      **Found (2026-09-26):** `read_rooted_operation` carries an operation up to
+      the root only from the pane tree itself. From every place below it, the
+      root split down to a JSON entry, it answers `nothing`
+      (`/var/tmp/referenced/route_depth.jl`). The window's chain is
+      `ChainingProjection(RecursiveProjection(PaneToWidget()), renderer)`; the
+      chain maps a route forward through a stage while the stage prints the
+      place as the same document (`_read_routed_chain`), and the pane stage does
+      not: its projections (`PaneTreeToWidget`, `PaneSplitToWidgetSplitPane`,
+      `PaneGroupToWidgetTabbedPane`) turn the tree into widgets, and only the
+      tree's reader has four arguments, which reads the operation as its own
+      and ignores the route. The file's own readers, its history among them,
+      are in the second stage, where the renderer prints the content of each
+      tab. So D23 needs a route through the pane stage into the content of a
+      tab: the forward map of a route into a tab's content, and the widget
+      stage carrying it to the content's projection. The pane verbs route to the
+      tree, which is why the window's history records their edits.
 - [ ] **Step 7: the landing,** when the owner says so.
 
 ### Follow-up, after this plan (D21)
