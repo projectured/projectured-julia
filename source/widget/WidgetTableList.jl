@@ -422,10 +422,18 @@ function map_reference_forward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTabl
     nothing
 end
 
-# Backward: a path into the table's own canvas names a row canvas by its index
-# from the head and a cell by its slot, which is what a walk of the list built.
-# Nothing produces such a path today, so it is not answered.
-map_reference_backward(::WidgetTableToGraphicsCanvas, ::WidgetTableListIoMap, reference) = nothing
+# Backward: a point maps to the column header or the cell at it, the reference
+# that an Alt+click there selects. A path into the table's own canvas names a row
+# canvas by its index from the head and a cell by its slot, which is what a walk of
+# the list built; nothing produces such a path, so it is not answered.
+function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, reference)
+    point = find_reference_point(reference)
+    point === nothing && return nothing
+    hit = _find_wtl_hit(p, iomap, point.x, point.y)
+    hit === nothing && return nothing
+    hit[1] === :column ? _wtl_column_reference(hit[2]) :
+                         _wtl_cell_reference(hit[2], hit[3], EmptyReference())
+end
 
 # ── Reading ──────────────────────────────────────────────────────────────────
 
@@ -456,24 +464,33 @@ end
 # clamped into the grid, like every other reader that maps a position to a
 # row or a column.
 function _wtl_click(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, g::MouseClick)
+    hit = _find_wtl_hit(p, iomap, g.x, g.y)
+    hit === nothing && return nothing
+    hit[1] === :column && return ReplaceSelectionOperation(_wtl_column_reference(hit[2]))
+    (_, k, c) = hit
+    g.modifiers.alt && return ReplaceSelectionOperation(_wtl_cell_reference(k, c, EmptyReference()))
+    content_x, _ = _content_offset(p, iomap.input)
+    _wtl_route_cell_click(iomap, k, c, g, content_x)
+end
+
+# What the table holds at `(x, y)` of its canvas: `(:column, c)` on a column
+# header, `(:cell, k, c)` in the body, or `nothing`.
+function _find_wtl_hit(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, x::Int, y::Int)
     st = iomap.state
     w = iomap.input
     content_x, _ = _content_offset(p, w)
     inset_width, _ = _inset_total(p, w)
     edges = st.columns[]
-    (0 <= g.x < last(edges) + st.bw + inset_width) || return nothing
-    x = clamp(g.x - content_x, 0, max(0, last(edges) + st.bw - 1))
-    c = find_axis_band(edges, x)
+    (0 <= x < last(edges) + st.bw + inset_width) || return nothing
+    c = find_axis_band(edges, clamp(x - content_x, 0, max(0, last(edges) + st.bw - 1)))
     c === nothing && return nothing
     header_height = Int(st.header_height[])
-    if g.y < header_height
+    if y < header_height
         header_height > 0 || return nothing
-        return ReplaceSelectionOperation(_wtl_column_reference(c))
+        return (:column, c)
     end
-    k = _wtl_row_at(st, g.y - header_height)
-    k === nothing && return nothing
-    g.modifiers.alt && return ReplaceSelectionOperation(_wtl_cell_reference(k, c, EmptyReference()))
-    _wtl_route_cell_click(iomap, k, c, g, content_x)
+    k = _wtl_row_at(st, y - header_height)
+    k === nothing ? nothing : (:cell, k, c)
 end
 
 # A click inside a cell goes to the cell's own reader, in the cell's own

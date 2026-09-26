@@ -1280,18 +1280,70 @@ _empty_canvas() = GraphicsCanvas(Int32(0), Int32(0), Int32(0), Int32(0),
 
 function _route_to_children(child_entries::Vector, x::Int, y::Int, make_evt)
     for entry in child_entries
-        entry === nothing && continue
-        (ox, oy, cim) = entry::Tuple{Int,Int,Any}
-        canvas = cim.output
-        canvas isa GraphicsCanvas || continue
-        lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
-        hit_element_at(canvas, lx, ly) === nothing && continue
+        point = _find_widget_child_point(entry, x, y)
+        point === nothing && continue
+        (lx, ly) = point
         # A position in the answer, such as a popup the child opens, goes back
         # into this frame by the offset the event came in by.
-        result = shift_operation_position(read_child_event(cim, make_evt(lx, ly)), x - lx, y - ly)
+        result = shift_operation_position(read_child_event(last(entry), make_evt(lx, ly)),
+                                          x - lx, y - ly)
         result !== nothing && return result
     end
     nothing
+end
+
+# The point `(x, y)` of a container's frame in the frame of the child of `entry`,
+# an `(x, y, child_iomap)` triple whose offsets are numbers or cells, when the
+# child drew an element there; `nothing` otherwise. It is the hit test of a
+# pointer event and of the backward mapping of a point, so a point maps to the
+# child that a click there reaches.
+function _find_widget_child_point(entry, x::Int, y::Int)
+    entry isa Tuple && length(entry) == 3 || return nothing
+    (ox, oy, cim) = entry
+    canvas = cim.output
+    canvas isa GraphicsCanvas || return nothing
+    lx = x - Int(ox isa Cell ? ox[] : ox) - Int(canvas.x)
+    ly = y - Int(oy isa Cell ? oy[] : oy) - Int(canvas.y)
+    hit_element_at(canvas, lx, ly) === nothing && return nothing
+    (lx, ly)
+end
+
+# The part of a container at `point` of its canvas: the child that `entries` holds
+# at the point, and on into that child with the point in its frame. A child that
+# maps nothing at its point is itself the part. The steps from `input` to the
+# child are found by identity, as a route reaches a child (`read_routed_child`),
+# so a child held through a node without an IoMap of its own is found too.
+function _map_point_to_child(input, entries, point::PointReferenceStep)
+    for entry in entries
+        local_point = _find_widget_child_point(entry, point.x, point.y)
+        local_point === nothing && continue
+        child = last(entry)
+        steps = _find_child_steps(input, get_iomap_input(child))
+        steps === nothing && return nothing
+        answer = map_reference_backward(get_iomap_projection(child), child,
+                                        PointReferenceStep(local_point...))
+        path = answer === nothing ? EmptyReference() : answer
+        for step in Base.reverse(steps)
+            path = ConcreteReference(step, path)
+        end
+        return annotate_reference_types(input, path)
+    end
+    nothing
+end
+
+# The steps from `input` to `child`, a document it holds within three steps.
+function _find_child_steps(input, child)
+    input === child && return ReferenceStep[]
+    paths = search_references(input, value -> value === child; maxdepth = 3)
+    isempty(paths) ? nothing : collect(get_reference_steps(strip_reference_types(first(paths))))
+end
+
+# A point of a container that keeps its children in a `ChildrenIoMap` maps to the
+# child drawn at it; any other reference maps to nothing.
+function _map_child_point(iomap, reference)
+    point = find_reference_point(reference)
+    (point === nothing || !(iomap isa ChildrenIoMap)) && return nothing
+    _map_point_to_child(iomap.input, getfield(iomap, :child_iomaps)[]::Vector, point)
 end
 
 _route_scroll_to_children(child_entries::Vector, evt::MouseScroll) =
@@ -2012,9 +2064,8 @@ function map_reference_forward(::WidgetTooltipToGraphicsCanvas, iomap, reference
     return nothing
 end
 
-function map_reference_backward(::WidgetTooltipToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_backward(::WidgetTooltipToGraphicsCanvas, iomap, reference) =
+    _map_child_point(iomap, reference)
 
 function read_intent(::WidgetTooltipToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
@@ -2270,8 +2321,13 @@ end
 # A dialog is centered, not anchored, so it is never a popup anchor source.
 map_reference_forward(::WidgetDialogToGraphicsCanvas, iomap, reference) = nothing
 # Content ops (e.g. an editable WidgetText field) re-root by prepending `.content`.
-map_reference_backward(::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraphicsCanvasIoMap, reference) =
-    reference === nothing ? nothing : ConcreteReference(FieldReferenceStep("content"), reference)
+function map_reference_backward(::WidgetDialogToGraphicsCanvas, iomap::WidgetDialogToGraphicsCanvasIoMap, reference)
+    reference === nothing && return nothing
+    point = find_reference_point(reference)
+    point === nothing && return ConcreteReference(FieldReferenceStep("content"), reference)
+    entries = Any[iomap.content_entry; iomap.button_entries]
+    _map_point_to_child(iomap.input, entries, point)
+end
 map_reference_backward(::WidgetDialogToGraphicsCanvas, iomap, reference) = nothing
 
 read_intent(::WidgetDialogToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
@@ -2410,7 +2466,11 @@ end
 map_reference_forward(::WidgetMenuItemToGraphicsCanvas, iomap::WidgetMenuItemToGraphicsCanvasIoMap, reference) =
     _self_point(reference)
 map_reference_forward(::WidgetMenuItemToGraphicsCanvas, iomap::SimpleIoMap, reference) = nothing
-map_reference_backward(::WidgetMenuItemToGraphicsCanvas, iomap, reference) = nothing
+function map_reference_backward(::WidgetMenuItemToGraphicsCanvas, iomap, reference)
+    point = find_reference_point(reference)
+    (point === nothing || !(iomap isa WidgetMenuItemToGraphicsCanvasIoMap)) && return nothing
+    _map_point_to_child(iomap.input, iomap.child_iomaps, point)
+end
 
 # Invisible item (printer returned a bare empty canvas): inert.
 read_intent(::WidgetMenuItemToGraphicsCanvas, ::SimpleIoMap, evt) = nothing
@@ -2650,9 +2710,8 @@ end
 map_reference_forward(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, reference) =
     descend_reference_forward(getfield(iomap, :child_iomaps)[]::Vector, "elements", reference)
 
-function map_reference_backward(::WidgetMenuToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_backward(::WidgetMenuToGraphicsCanvas, iomap, reference) =
+    _map_child_point(iomap, reference)
 
 function read_intent(::WidgetMenuToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
@@ -2726,9 +2785,8 @@ end
 map_reference_forward(::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, reference) =
     descend_reference_forward(getfield(iomap, :child_iomaps)[]::Vector, "elements", reference)
 
-function map_reference_backward(::WidgetCompositeToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_backward(::WidgetCompositeToGraphicsCanvas, iomap, reference) =
+    _map_child_point(iomap, reference)
 
 # Route events to composite children and re-root the returned op. A MouseClick
 # is hit-tested against each child canvas; a coordless event (KeyPress/KeyDown)
@@ -2803,13 +2861,11 @@ end
 # the first child that produced a non-nothing result.
 function _route_composite_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
     for (i, entry) in enumerate(child_iomaps)
-        entry === nothing && continue
-        (ox, oy, cim) = entry::Tuple{Int,Int,Any}
-        canvas = cim.output
-        canvas isa GraphicsCanvas || continue
-        lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
-        hit_element_at(canvas, lx, ly) === nothing && continue
-        result = shift_operation_position(read_child_event(cim, make_evt(lx, ly)), x - lx, y - ly)
+        point = _find_widget_child_point(entry, x, y)
+        point === nothing && continue
+        (lx, ly) = point
+        result = shift_operation_position(read_child_event(last(entry), make_evt(lx, ly)),
+                                          x - lx, y - ly)
         result !== nothing && return (result, i)
     end
     nothing
@@ -3082,6 +3138,7 @@ end
 # shell's input domain.
 function map_reference_backward(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, reference)
     reference === nothing && return nothing
+    find_reference_point(reference) === nothing || return _map_child_point(iomap, reference)
     ConcreteReference(FieldReferenceStep("content"), reference)
 end
 
@@ -3336,9 +3393,8 @@ function map_reference_forward(::WidgetTitlePaneToGraphicsCanvas, iomap, referen
     return nothing
 end
 
-function map_reference_backward(::WidgetTitlePaneToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_backward(::WidgetTitlePaneToGraphicsCanvas, iomap, reference) =
+    _map_child_point(iomap, reference)
 
 function read_intent(::WidgetTitlePaneToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
@@ -3670,6 +3726,7 @@ end
 # re-root the inner path.
 function map_reference_backward(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, reference)
     reference === nothing && return nothing
+    find_reference_point(reference) === nothing || return _map_child_point(iomap, reference)
     # Without a slot index this function can't disambiguate which child;
     # leave path-bearing translation to `read_intent` (which tracks the
     # slot it actually routed to). Cell-cursor mapping for the split's
@@ -3927,15 +3984,11 @@ end
 
 function _route_split_event(child_iomaps::Vector, x::Int, y::Int, make_evt)
     for (i, entry) in enumerate(child_iomaps)
-        entry === nothing && continue
-        (x_cell, y_cell, cim) = entry::Tuple{Cell,Cell,Any}
-        canvas = cim.output
-        canvas isa GraphicsCanvas || continue
-        ox = Int(x_cell[])
-        oy = Int(y_cell[])
-        lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
-        hit_element_at(canvas, lx, ly) === nothing && continue
-        result = shift_operation_position(read_child_event(cim, make_evt(lx, ly)), x - lx, y - ly)
+        point = _find_widget_child_point(entry, x, y)
+        point === nothing && continue
+        (lx, ly) = point
+        result = shift_operation_position(read_child_event(last(entry), make_evt(lx, ly)),
+                                          x - lx, y - ly)
         result !== nothing && return (result, i)
     end
     nothing
@@ -4287,6 +4340,7 @@ end
 # encoded; upstream projections (e.g. `PaneGroupToWidgetTabbedPane`)
 # decode it. Without a slot index this generic mapper has nothing to add.
 function map_reference_backward(::WidgetTabbedPaneToGraphicsCanvas, iomap, reference)
+    find_reference_point(reference) === nothing || return _map_child_point(iomap, reference)
     # A bare `selector_element_pairs[i]` is a tab-strip click. This projection emits
     # it in its own input coordinates, so it maps back as itself; without the case
     # the generic reader re-targets it to `nothing` and the click is dropped before
@@ -4788,9 +4842,47 @@ end
 # input domain (the inner pipeline has already translated it); the scroll
 # pane's contribution is just to prepend `.content` to re-root it in the
 # scroll pane's own input domain.
-function map_reference_backward(::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, reference)
+function map_reference_backward(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPaneToGraphicsCanvasIoMap, reference)
     reference === nothing && return nothing
-    ConcreteReference(FieldReferenceStep("content"), reference)
+    point = find_reference_point(reference)
+    point === nothing && return ConcreteReference(FieldReferenceStep("content"), reference)
+    _is_point_on_canvas(iomap.output, point) || return nothing
+    content_iomap = iomap.content_iomap
+    content_iomap === nothing && return nothing
+    _map_point_into_content(iomap.input, content_iomap,
+                            _find_scroll_pane_local_point(p, iomap, point.x, point.y))
+end
+
+# The point `(x, y)` of the pane in the frame of its content: past the content
+# origin, and moved by the scroll offset that the printer drew with, so a pane
+# that follows the end maps a point to what is drawn at the end.
+function _find_scroll_pane_local_point(p::WidgetScrollPaneToGraphicsCanvas,
+                                       iomap::WidgetScrollPaneToGraphicsCanvasIoMap, x::Int, y::Int)
+    w = iomap.input
+    cox, coy = _content_offset(p, w)
+    sp = getfield(w, :scroll_position)[]::Point2D
+    _, ty = _inset_total(p, w)
+    sy = _pane_scroll_y(w, iomap.content_iomap.output, Int(iomap.output.h) - ty)
+    (x - cox + Int(sp.x[]), y - coy + sy)
+end
+
+# Whether `point` lies on what a widget drew, judged as `_outside_widget` judges a
+# pointer event: in the box of its canvas, and an unsized canvas leaves the
+# decision to its container.
+function _is_point_on_canvas(canvas, point)
+    canvas isa GraphicsCanvas || return false
+    (canvas.w <= 0 || canvas.h <= 0) && return true
+    Int(canvas.x) <= point.x < Int(canvas.x) + Int(canvas.w) &&
+        Int(canvas.y) <= point.y < Int(canvas.y) + Int(canvas.h)
+end
+
+# The part of a pane at `local_point` of its content: on into the content, whose
+# own map names the part; a content that maps nothing there is itself the part.
+function _map_point_into_content(input, content_iomap, local_point)
+    answer = map_reference_backward(get_iomap_projection(content_iomap), content_iomap,
+                                    PointReferenceStep(local_point...))
+    annotate_reference_types(input, ConcreteReference(FieldReferenceStep("content"),
+                                                      answer === nothing ? EmptyReference() : answer))
 end
 
 # A scroll-wheel turn advances `scroll_position` by a delta. Expressed as a write
@@ -4895,14 +4987,7 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
     #
     # The vertical offset is the one the printer drew with, so a pane that
     # follows the end routes a press to what is drawn at the end.
-    _local(x, y) = begin
-        w = iomap.input
-        cox, coy = _content_offset(p, w)
-        sp = getfield(w, :scroll_position)[]::Point2D
-        _, ty = _inset_total(p, w)
-        sy = _pane_scroll_y(w, content_iomap.output, Int(iomap.output.h) - ty)
-        (x - cox + Int(sp.x[]), y - coy + sy)
-    end
+    _local(x, y) = _find_scroll_pane_local_point(p, iomap, x, y)
     op = @event_case evt begin
         # A popup the content opens goes back by the content origin and the
         # scroll offset, the difference between the two frames of the press.
@@ -5032,9 +5117,26 @@ end
 
 # Like the scroll pane: prepend `.content` to re-root a bubbled path in the
 # transform pane's own input domain.
-function map_reference_backward(::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransformPaneToGraphicsCanvasIoMap, reference)
+function map_reference_backward(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransformPaneToGraphicsCanvasIoMap, reference)
     reference === nothing && return nothing
-    ConcreteReference(FieldReferenceStep("content"), reference)
+    point = find_reference_point(reference)
+    point === nothing && return ConcreteReference(FieldReferenceStep("content"), reference)
+    _is_point_on_canvas(iomap.output, point) || return nothing
+    iomap.content_iomap === nothing && return nothing
+    _map_point_into_content(iomap.input, iomap.content_iomap,
+                            _find_transform_pane_local_point(p, iomap, point.x, point.y))
+end
+
+# The point `(x, y)` of the pane in the frame of its content: past the content
+# origin, and through the inverse of the pane's transform.
+function _find_transform_pane_local_point(p::WidgetTransformPaneToGraphicsCanvas,
+                                          iomap::WidgetTransformPaneToGraphicsCanvasIoMap,
+                                          x::Int, y::Int)
+    w = iomap.input
+    M = getfield(w, :transform)[]::AffineTransform
+    cox, coy = _content_offset(p, w)
+    Tuple(round.(Int, apply_affine_transform(compute_affine_inverse(M),
+                                             Float64(x - cox), Float64(y - coy))))
 end
 
 # Zoom about a viewport-space point: scale by `factor` keeping `(ax, ay)` fixed,
@@ -5084,8 +5186,7 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
     # event reaches the content through the inverse transform (screen → content-local),
     # so a down focuses, and a drag moves, what is drawn under the pointer.
     content_iomap = iomap.content_iomap
-    inverse = compute_affine_inverse(M)
-    _local(x, y) = round.(Int, apply_affine_transform(inverse, Float64(x - cox), Float64(y - coy)))
+    _local(x, y) = _find_transform_pane_local_point(p, iomap, x, y)
     # A position in the content's answer goes back through the transform itself,
     # so a popup opens where its widget is drawn; its size stays in screen pixels.
     _outer(x, y) = begin
@@ -5186,9 +5287,8 @@ function map_reference_forward(::WidgetToolbarToGraphicsCanvas, iomap, reference
     return nothing
 end
 
-function map_reference_backward(::WidgetToolbarToGraphicsCanvas, iomap, reference)
-    return nothing
-end
+map_reference_backward(::WidgetToolbarToGraphicsCanvas, iomap, reference) =
+    _map_child_point(iomap, reference)
 
 function read_intent(::WidgetToolbarToGraphicsCanvas, iomap::ChildrenIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
@@ -5954,7 +6054,9 @@ map_reference_forward(::WidgetCardToGraphicsCanvas, iomap, reference) = nothing
 # routed the event itself. The reader does not come through here: it knows which
 # of the two slots answered and prepends that one (`_card_reroot`).
 map_reference_backward(::WidgetCardToGraphicsCanvas, iomap, reference) =
-    reference === nothing ? nothing : ConcreteReference(FieldReferenceStep("content"), reference)
+    reference === nothing ? nothing :
+    find_reference_point(reference) !== nothing ? _map_child_point(iomap, reference) :
+    ConcreteReference(FieldReferenceStep("content"), reference)
 
 # ── WidgetSwitch ────────────────────────────────────────────────────────────
 
@@ -7446,7 +7548,25 @@ end
 
 map_reference_forward(::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap, reference) = _self_point(reference)
 map_reference_forward(::WidgetListToGraphicsCanvas, iomap, reference) = nothing
-map_reference_backward(::WidgetListToGraphicsCanvas, iomap, reference) = nothing
+# A point on a row maps to that item, the reference that a click there selects.
+function map_reference_backward(p::WidgetListToGraphicsCanvas, iomap, reference)
+    point = find_reference_point(reference)
+    (point === nothing || !(iomap isa WidgetListToGraphicsCanvasIoMap)) && return nothing
+    _is_point_on_canvas(iomap.output, point) || return nothing
+    row = _find_list_row_at(p, iomap, point.y)
+    row == 0 ? nothing : make_widget_list_selection(row)
+end
+
+# The row of the list at `y` of its canvas, from the first row down; `0` when no
+# row is there.
+function _find_list_row_at(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap,
+                           y::Int)
+    w = iomap.input
+    n = length(collect(w.items))
+    _, content_y = _content_offset(p, w)
+    r = (y - content_y) ÷ iomap.row_height + 1
+    (1 <= r <= n) ? r : 0
+end
 
 read_intent(::WidgetListToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
 function read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap, evt)
@@ -7456,13 +7576,12 @@ function read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsC
     n = length(collect(w.items))
     n == 0 && return nothing
     sel = get_widget_list_selected(w)
-    _, content_y = _content_offset(p, w)
     # Selection is a selection: like every other widget, the reader reports it as
     # a ReplaceSelectionOperation carrying a reference (`items[i-1:i]`), not as a
     # write to a private index field. That is what lets an enclosing projection
     # map the reference into its own domain (and map it back when printing).
     pick(r) = ReplaceSelectionOperation(make_widget_list_selection(r))
-    row_at(yy) = (r = (yy - content_y) ÷ iomap.row_height + 1; (1 <= r <= n) ? r : 0)
+    row_at(yy) = _find_list_row_at(p, iomap, yy)
     click_row(yy) = (r = row_at(yy); r == 0 ? nothing : pick(r))
     # Hover is per ROW, so it follows motion rather than the shared enter/leave
     # Bool: report it only when the row actually changes, or every mouse move
@@ -7754,7 +7873,39 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
 end
 
 map_reference_forward(::WidgetAccordionToGraphicsCanvas, iomap, reference) = nothing
-map_reference_backward(::WidgetAccordionToGraphicsCanvas, iomap, reference) = nothing
+# A point on a header maps to its item, and a point on the open body on into the
+# body, `items[i].body`, with the point in the body's frame.
+function map_reference_backward(::WidgetAccordionToGraphicsCanvas, iomap, reference)
+    point = find_reference_point(reference)
+    (point === nothing || !(iomap isa WidgetAccordionToGraphicsCanvasIoMap)) && return nothing
+    _is_point_on_canvas(iomap.output, point) || return nothing
+    item = _find_row_index(iomap.header_bounds, point.y - Int(iomap.output.y))
+    item === nothing ||
+        return annotate_reference_types(iomap.input, ConcreteReference(FieldReferenceStep("items"),
+                                        ConcreteReference(RangeReferenceStep(item - 1, item))))
+    entry = iomap.body_entry
+    entry === nothing && return nothing
+    (_, _, index, body_iomap) = entry
+    canvas = body_iomap.output
+    canvas isa GraphicsCanvas || return nothing
+    dx, dy = _get_accordion_body_offset(iomap, entry)
+    lx, ly = point.x - dx, point.y - dy
+    hit_element_at(canvas, lx, ly) === nothing && return nothing
+    answer = map_reference_backward(get_iomap_projection(body_iomap), body_iomap,
+                                    PointReferenceStep(lx, ly))
+    annotate_reference_types(iomap.input,
+        ConcreteReference(FieldReferenceStep("items"),
+            ConcreteReference(RangeReferenceStep(index - 1, index),
+                ConcreteReference(FieldReferenceStep("body"),
+                                  answer === nothing ? EmptyReference() : answer))))
+end
+
+# How far the frame of the open body lies from the frame of the accordion.
+function _get_accordion_body_offset(iomap::WidgetAccordionToGraphicsCanvasIoMap, entry)
+    (x, y, _, body_iomap) = entry
+    canvas = body_iomap.output
+    (Int(iomap.output.x) + x + Int(canvas.x), Int(iomap.output.y) + y + Int(canvas.y))
+end
 
 # Invisible accordion (the printer returned a bare empty canvas): inert.
 read_intent(::WidgetAccordionToGraphicsCanvas, iomap::SimpleIoMap, evt) = nothing
@@ -7778,11 +7929,11 @@ function read_intent(::WidgetAccordionToGraphicsCanvas,
     end
     entry = iomap.body_entry
     entry === nothing && return nothing
-    (x, y, index, body_iomap) = entry
+    (_, _, index, body_iomap) = entry
     answer = if _positioned_event(evt) || evt isa MouseEnter || evt isa MouseLeave
         canvas = body_iomap.output
         canvas isa GraphicsCanvas || return nothing
-        dx, dy = Int(iomap.output.x) + x + Int(canvas.x), Int(iomap.output.y) + y + Int(canvas.y)
+        dx, dy = _get_accordion_body_offset(iomap, entry)
         local_event = _translate_pointer_event(evt, dx, dy)
         (evt isa MouseLeave || hit_element_at(canvas, local_event.x, local_event.y) !== nothing) ||
             return nothing
@@ -8316,7 +8467,37 @@ map_reference_forward(::WidgetTableToGraphicsCanvas, iomap, reference) = nothing
 
 # Backward: a grid-domain reference (`children[gidx].…`) maps back to the table
 # domain (`rows[r][c].…` etc.).
+# What the grid of the table holds at `(x, y)` of its canvas, as `_wt_hit_test`
+# answers it: a press on the margin, the border or the padding is clamped into
+# the grid.
+function _find_wt_hit(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap,
+                      x::Int, y::Int)
+    geom = iomap.geometry
+    content_x, content_y = _content_offset(p, iomap.input)
+    _wt_hit_test(geom, clamp(x - content_x, 0, max(0, geom.total_w - 1)),
+                       clamp(y - content_y, 0, max(0, geom.total_h - 1)))
+end
+
+# A point maps to the cell, the row header, the column header or the corner at
+# it: the reference that an Alt+click there selects.
+function _map_wt_point(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, point)
+    _is_point_on_canvas(iomap.output, point) || return nothing
+    hit = _find_wt_hit(p, iomap, point.x, point.y)
+    kind = hit[1]
+    kind === :corner && return EmptyReference()
+    kind === :row && return ConcreteReference(FieldReferenceStep("rows"),
+                                ConcreteReference(RangeReferenceStep(hit[2] - 1, hit[2])))
+    kind === :col && return ConcreteReference(FieldReferenceStep("column_headers"),
+                                ConcreteReference(RangeReferenceStep(hit[2] - 1, hit[2])))
+    kind === :cell || return nothing
+    r, c = hit[2], hit[3]
+    ConcreteReference(FieldReferenceStep("rows"),
+        ConcreteReference(RangeReferenceStep(r - 1, r), ConcreteReference(RangeReferenceStep(c - 1, c))))
+end
+
 function map_reference_backward(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, reference)
+    point = find_reference_point(reference)
+    point === nothing || return _map_wt_point(p, iomap, point)
     geom = iomap.geometry
     _wt_grid_ref_to_table(reference, geom)
 end
@@ -8433,9 +8614,7 @@ end
 function _wt_mouse_select(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, g::MouseClick)
     geom = iomap.geometry
     content_x, content_y = _content_offset(p, iomap.input)
-    x = clamp(g.x - content_x, 0, max(0, geom.total_w - 1))
-    y = clamp(g.y - content_y, 0, max(0, geom.total_h - 1))
-    hit = _wt_hit_test(geom, x, y)
+    hit = _find_wt_hit(p, iomap, g.x, g.y)
     kind = hit[1]
     if kind === :corner
         return ReplaceSelectionOperation(EmptyReference())
@@ -8967,7 +9146,18 @@ end
 # print time), and nothing flows back from below the graphics layer — so both
 # reference mappers are the empty map, exactly as the table's whole-element case.
 map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap, reference) = nothing
-map_reference_backward(::WidgetTreeToGraphicsCanvas, iomap, reference) = nothing
+# A point on a row maps to its node, the reference that a click there selects.
+function map_reference_backward(p::WidgetTreeToGraphicsCanvas, iomap, reference)
+    point = find_reference_point(reference)
+    (point === nothing || !(iomap isa WidgetTreeToGraphicsCanvasIoMap)) && return nothing
+    _is_point_on_canvas(iomap.output, point) || return nothing
+    row = _find_wtree_row_at(p, iomap, point.y)
+    row === nothing ? nothing : _wtree_path_ref(row.path)
+end
+
+# The row of the tree at `y` of its canvas, or `nothing`.
+_find_wtree_row_at(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, y::Int) =
+    _wtree_row_at(iomap.geometry, y - _content_offset(p, iomap.input)[2])
 
 # Gesture reader: a left click on a parent's chevron opens or closes it, otherwise
 # selects the node under the cursor; pointer crossings (`MouseEnter`/`MouseMove`/
@@ -9060,8 +9250,8 @@ end
 # clamped into the rows.
 function _wtree_mouse_press(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, g::MouseClick)
     w = iomap.input
-    content_x, content_y = _content_offset(p, w)
-    row = _wtree_row_at(iomap.geometry, g.y - content_y)
+    content_x, _ = _content_offset(p, w)
+    row = _find_wtree_row_at(p, iomap, g.y)
     row === nothing && return nothing
     x = clamp(g.x - content_x, 0, max(0, iomap.width - 1))
     if row.chevron_x0 <= x < row.chevron_x1 && _wtree_has_children(_wtree_node_at(w, row.path))

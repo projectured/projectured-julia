@@ -676,6 +676,22 @@ it holds the example.
     nothing is drawn, a stack, an anchored layout (content and annotation), a
     predicate dispatcher and a switcher. The same suites as in 4a fail the same
     tests as `main`.
+  - [x] 4c. The widgets. One hit test, `_find_widget_child_point`, serves the
+    routing of a pointer event and the mapping of a point in every container
+    that keeps `(x, y, child)` entries: the composite, the split pane, the menu,
+    the toolbar, the title pane, the shell, the tooltip, the tabbed pane, the
+    card, the menu item and the dialog. The steps from a container to the child
+    are found by identity (`search_references`), as a route reaches a child, so a
+    child behind a node without an IoMap is found too. The scroll pane and the
+    transform pane map through the translation that their readers use (now named
+    functions); the accordion maps a header to its item and the open body into
+    `items[i].body`. The widgets with parts map to the reference that a click
+    selects, through the hit test that the click uses: a list row to its item, a
+    table (both forms) to a column header, a row header or a cell, a tree row to
+    its node. A leaf widget maps nothing, so its container takes it as the part.
+    A text body that the accordion draws itself is no child, so a point on it
+    maps to nothing. Tests: `test_widget_point`, 17 pass. The same suites as in
+    4a fail the same tests as `main`.
 - [ ] 5. **The start over of Tab leaves the hover tracker (D2, §5 of the plan of
   D33).** A small wrapping step does only the start over at the ends, and the
   hover tracker loses its branch for Tab. Tests: the focus traversal tests; Tab
