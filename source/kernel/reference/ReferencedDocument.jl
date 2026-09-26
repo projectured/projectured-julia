@@ -178,3 +178,44 @@ function find_referenced_document(locator::DocumentLocator)
     document isa _NotReached && return nothing
     ReferencedDocument(document, locator.reference)
 end
+
+# The most layers `get_edited_document` passes through, so a cycle of layers ends.
+const _MAX_EDITED_LAYERS = 16
+
+"""
+    get_edited_document(x) -> ReferencedDocument, or a document
+
+The document that a person edits in `x`. It follows each layer that holds such a
+document, through the field `get_edited_field` names, down to a document that is
+itself what a person edits: from a tab to what it shows, from a file to the
+document read from it, from a history to the document it keeps.
+
+Given a `ReferencedDocument`, it answers a `ReferencedDocument` whose reference goes
+through every layer it passed; given a document, it answers the document.
+
+Use it to read or change the data that a tab or an open file shows, in one call,
+without knowing which layers hold it.
+
+# Example
+
+    data = get_edited_document(tab)      # the document the tab shows, through its layers
+"""
+function get_edited_document(x::ReferencedDocument)
+    for _ in 1:_MAX_EDITED_LAYERS
+        field = get_edited_field(get_document(x))
+        field === nothing && return x
+        inner = getproperty(x, field)
+        inner isa ReferencedDocument || return inner
+        x = inner
+    end
+    x
+end
+
+function get_edited_document(document)
+    for _ in 1:_MAX_EDITED_LAYERS
+        field = get_edited_field(document)
+        field === nothing && return document
+        document = getproperty(document, field)
+    end
+    document
+end

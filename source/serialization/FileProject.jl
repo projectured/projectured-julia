@@ -105,6 +105,10 @@ and builds itself from its text with [`make_file`](@ref).
 """
 is_own_content(::Any) = false
 
+# A person edits the document a file holds, or the file itself when it is its own
+# content.
+get_edited_field(file::FileDocument) = is_own_content(file) ? nothing : :content
+
 """
     emit_text(f) -> String
 

@@ -407,6 +407,24 @@ See also `get_wrapped_document`.
 function replace_wrapped_document! end
 
 """
+    get_edited_field(node) -> Symbol or nothing
+
+The field of `node` that holds the document a person edits in it, or `nothing` when
+`node` is itself what a person edits.
+
+A layer that holds a document for a person to edit answers the name of its field:
+a tab holds what it shows, a file holds the document read from it, a history holds
+the document it keeps the steps of. The default answers `nothing`, so a layer adds
+one method. `get_edited_document` follows these fields down to what a person edits.
+
+# Example
+
+    get_edited_field(tab)          # :content, the field that holds what it shows
+    get_edited_field(document)     # nothing: a person edits the document itself
+"""
+function get_edited_field end
+
+"""
     search_documents(obj, predicate; include_selection=false, maxdepth=64, raw=false,
                      descend=(parent, child) -> true) -> Vector
     search_documents(obj, query::Union{AbstractString,Regex}; …)                      -> Vector

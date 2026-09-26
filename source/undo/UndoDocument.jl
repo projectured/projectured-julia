@@ -85,6 +85,9 @@ UndoBuffer(content::Document; capacity::Integer = 100, selection = nothing) =
 # for the document it stands for and gets what it holds.
 get_wrapped_document(buffer::UndoBuffer) = get_wrapped_document(buffer.content)
 
+# A person edits the document that a history keeps the steps of.
+get_edited_field(::UndoBuffer) = :content
+
 # A buffer survives its document being replaced, and forgets its history: the
 # steps of the old document say nothing about the new one.
 function replace_wrapped_document!(buffer::UndoBuffer, document)

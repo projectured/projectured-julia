@@ -43,7 +43,7 @@ using ..TextModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: is_descendable_for_copy, make_copy_placeholder, get_copy_memo,
-                         get_wrapped_document
+                         get_wrapped_document, get_edited_field
 import ..OperationModule: evaluate_operation, make_inverse_operation
 import ..ProjectionModule: get_projection_gesture_bindings
 import ..SerializationModule: pred_arguments

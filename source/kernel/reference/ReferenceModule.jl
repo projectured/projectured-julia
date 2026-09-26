@@ -109,7 +109,8 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        parse_reference_path, ReferenceSyntaxStep, ReferenceSyntaxField, ReferenceSyntaxIndex,
        @reference_case, @reference_rules, @reference, @reference_step,
        # a document with the reference that reached it, and the address of one
-       ReferencedDocument, get_document, get_reference, DocumentLocator, find_referenced_document
+       ReferencedDocument, get_document, get_reference, DocumentLocator, find_referenced_document,
+       get_edited_document
 
 include("ReferenceInterface.jl")
 include("ReferenceStep.jl")

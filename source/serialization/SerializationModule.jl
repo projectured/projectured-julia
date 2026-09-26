@@ -29,6 +29,7 @@ using ..ReferenceModule
 using Serialization
 
 # Imported to extend: this module adds a method to each of these.
+import ..DocumentModule: get_edited_field
 import ..OperationModule: evaluate_operation, make_inverse_operation
 
 export save_document, load_document, SaveDocumentOperation, LoadDocumentOperation

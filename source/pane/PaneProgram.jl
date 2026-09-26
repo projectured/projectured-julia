@@ -848,6 +848,29 @@ function find_pane_reference(editor, title::AbstractString; descend = is_pane_se
 end
 
 """
+    find_pane(editor, title) -> ReferencedDocument or nothing
+
+The tab whose title is `title`, in any window, together with its complete reference
+from the root of the editor's document: a `ReferencedDocument` that acts like the
+tab. `nothing` when no tab has that title; when two tabs have it, an
+`ArgumentError` names both.
+
+Use it to find a tab by its title: to read the data it shows with
+[`get_edited_document`](@ref), to reach the group that holds it with
+[`get_parent`](@ref), or to hand it to a verb that moves, focuses or closes it.
+
+# Example
+
+    people_tab_1 = find_pane(editor, "people.json")
+    people_1 = get_edited_document(people_tab_1)     # the data the tab shows
+"""
+function find_pane(editor, title::AbstractString)
+    reference = find_pane_reference(editor, title)
+    reference === nothing && return nothing
+    ReferencedDocument(get_referenced_value(editor, reference), reference)
+end
+
+"""
     is_pane_search_step(parent, child) -> Bool
 
 Whether a search for a pane goes from `parent` into `child`. It goes into a

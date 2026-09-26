@@ -32,6 +32,9 @@ end
 # String sugar. More specific than the macro's positional form, so the two
 # coexist (a caller passing a document keeps reaching the raw constructor).
 PaneTab(title::AbstractString, content) = PaneTab(PrimitiveString(String(title)), content)
+
+# A person edits what a tab shows.
+get_edited_field(::PaneTab) = :content
 PaneTab(title::AbstractString, content, icon) =
     PaneTab(PrimitiveString(String(title)), content, icon)
 

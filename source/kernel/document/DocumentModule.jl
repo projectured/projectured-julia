@@ -29,7 +29,7 @@ module DocumentModule
 using ..CellModule
 using ..CellStructModule
 
-export Document, copy_document, get_wrapped_document, replace_wrapped_document!,
+export Document, copy_document, get_wrapped_document, replace_wrapped_document!, get_edited_field,
        sync_document!, get_document_family,
        get_document_cell_type, get_document_native_type, get_document_schema_name,
        get_document_title,

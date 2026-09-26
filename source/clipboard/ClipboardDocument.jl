@@ -38,6 +38,10 @@ get_wrapped_document(slice::ClipboardSlice) = get_wrapped_document(slice.content
 get_wrapped_document(collection::ClipboardCollection) =
     get_wrapped_document(collection.content)
 
+# A person edits the window that a clipboard wraps.
+get_edited_field(::ClipboardSlice) = :content
+get_edited_field(::ClipboardCollection) = :content
+
 # What a saved user interface holds is the window, not what somebody had copied
 # into it a moment before. `content` is the window and it is written; `slice` and
 # `elements` are what a copy put there, and they are dropped, so a file opens

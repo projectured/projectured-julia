@@ -39,7 +39,7 @@ problem", and shaped that API over several messages (2026-09-26):
   `JsonFile`); its `content` is, in the application, an `UndoBuffer`; the
   buffer's `content` is the `JsonArray`. Every layer calls its field `content`.
   `get_file_content(file)` answers the raw field, the `UndoBuffer`, but its
-  docstring (`source/fileformat/DocumentFile.jl:82`) promises "the parsed tree for
+  docstring (`source/serialization/FileProject.jl`) promises "the parsed tree for
   a `JsonFile`" and names the function `content(f)`. The program's own code
   unwraps it: `get_wrapped_document(get_file_content(file))` (`DocumentFile.jl:158`).
   `get_wrapped_document` has a method for each transparent wrapper (a history, a
@@ -256,7 +256,23 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       display; `convert` to a document type and to `Reference`; a locator resolved,
       and one whose reference no longer reaches a node; `get_parent` of a tab, a
       JSON entry and an element.
-- [ ] **Step 2: finding and editing.** D7 and D8: `find_pane` of a title and of a
+- [x] **Step 2: finding and editing.** **Done (2026-09-26).** The seam
+      `get_edited_field(node) -> Symbol or nothing` is declared in
+      `DocumentInterface.jl` with the default `nothing` in `DocumentDefaults.jl`; its
+      methods answer `:content` for a `PaneTab` (pane), an `UndoBuffer` (undo), a
+      `ClipboardSlice` and a `ClipboardCollection` (clipboard), and a
+      `FileDocument` unless `is_own_content` (serialization, where `FileDocument`
+      and `get_file_content` live, in `FileProject.jl`). `get_edited_document`
+      follows the seam in the kernel, for a referenced document and for a plain one,
+      at most 16 layers deep. Its kernel docstring names the layers as concepts (a
+      tab, a file, a history), as PAR-NO-CONSUMER-DOCS allows and as
+      `get_wrapped_document` already does; each package's method has its own
+      comment. `find_pane` is in `PaneProgram.jl`. `test_referenced_document_editor()`
+      passes 13 checks on a real application window; the substrate layering guards,
+      `test_naming`, `test_export_collisions` and `test_documentation` pass;
+      `test_exports` has 3 failures in `source/help/HelpModule.jl`, which is on
+      `main` and not touched here.
+      The step as planned: D7 and D8: `find_pane` of a title and of a
       missing title; `get_edited_document` of a file tab reaches the `JsonArray`,
       and its reference evaluates to it; of a tab that holds a widget; of a file
       document and of a history.
