@@ -201,7 +201,7 @@ A path to a node that the tree does not hold is not fully typed, and every verb 
 
 `pred_arguments` of `PaneTree` writes only `root`, because a drag is not layout. The `__init__` registers `PaneTree`, `PaneSplit`, `PaneGroup` and `PaneTab` as `.pred` types. The functions name no screen type, so an editor that holds a bare `PaneTree` saves and loads the same way.
 
-`get_pane_file_group(editor)` returns the group for a newly opened file: a group that holds a file already, else a group whose tabs all answer `accepts_opened_file`, the focused one first. The file-system package pairs its `OpenFileOperation` with this answer, because this package can not name a type of a package that it does not depend on.
+`get_pane_file_group(editor)` returns the group for a newly opened file: a group that holds a file already, as the content of a tab or through a layer that `get_edited_field` names, such as the scroll pane of a file tab, else a group whose tabs all answer `accepts_opened_file`, the focused one first. The file-system package pairs its `OpenFileOperation` with this answer, because this package can not name a type of a package that it does not depend on.
 
 ## How it fits
 

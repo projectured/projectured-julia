@@ -4,11 +4,13 @@
 
 using Test
 
-function _make_referenced_application(directory)
-    write(joinpath(directory, "people.json"),
-          "[{\"name\": \"Cleo\", \"age\": 29}, {\"name\": \"Ada\", \"age\": 36}]")
-    document, projection = make_application_window([joinpath(directory, "people.json")];
-                                                    root = directory, assistant = nothing)
+function _make_referenced_application(directory; paths = nothing)
+    if paths === nothing
+        write(joinpath(directory, "people.json"),
+              "[{\"name\": \"Cleo\", \"age\": 29}, {\"name\": \"Ada\", \"age\": 36}]")
+        paths = [joinpath(directory, "people.json")]
+    end
+    document, projection = make_application_window(paths; root = directory, assistant = nothing)
     editor = make_editor(document, projection, "ProjecturEd"; backend = HeadlessBackend(),
                          width = 1280, height = 720,
                          opened_window_projections = make_opened_window_projections(;
@@ -233,7 +235,7 @@ function test_referenced_document_editor()
     @testset "an operation routed into a file tab is recorded in the file's history" begin
         people_tab = find_pane(editor, "people.json")
         people = get_edited_document(people_tab)
-        file_history = get_document(people_tab).content.content
+        file_history = get_document(people_tab).content.content.content   # the scroll pane, the file, its history
         steps = (length(history.undo_entries), length(file_history.undo_entries))
         name = extend_reference(EmptyReference(), ElementReferenceStep(2), FieldReferenceStep("entries"),
                                 ElementReferenceStep(1), FieldReferenceStep("value"))
@@ -249,7 +251,7 @@ function test_referenced_document_editor()
     @testset "the editing verbs record an edit in the history of the file, and an undo takes it back" begin
         people_tab = find_pane(editor, "people.json")
         people = get_edited_document(people_tab)
-        file_history = get_document(people_tab).content.content
+        file_history = get_document(people_tab).content.content.content
         count = length(get_document(people))
         steps = (length(history.undo_entries), length(file_history.undo_entries))
         frank = JsonObject("name" => JsonString("Frank"), "age" => JsonNumber(30))
@@ -280,6 +282,53 @@ function test_referenced_document_editor()
         text = get_edited_document(make_file_tab(path))
         @test text isa PrimitiveString
         @test occursin("hello", repr(text))
+    end
+
+    # A file tab shows its file in a scroll pane, made where the tab is made.
+    @testset "a long file tab scrolls, and an edit, a save and an open go through its scroll pane" begin
+        long_directory = mktempdir()
+        long_path = joinpath(long_directory, "long.json")
+        write(long_path, "[" * join(("{\"n\": $i}" for i in 1:60), ", ") * "]")
+        long_editor = _make_referenced_application(long_directory; paths = [long_path])
+        long_tab = find_pane(long_editor, "long.json")
+        pane = get_document(long_tab).content
+        @test pane isa WidgetScrollPane && is_file_document(pane.content)
+        items = get_edited_document(long_tab)
+        @test get_document(items) isa JsonArray
+        window_history = only(search_documents(long_editor.document,
+                                               node -> node isa UndoBuffer && node.content isa PaneTree))
+        steps = length(window_history.undo_entries)
+        for _ in 1:10
+            wheel = MouseScroll(0, -3, 700, 400; time = 0.0)
+            change = read_intent(long_editor.projection, nothing,
+                                 Intent(WindowInput(:ProjecturEd, wheel)), long_editor.iomap)
+            operation = change isa Intent ? change.operation : change
+            operation isa Operation && (evaluate_operation(long_editor, operation); drain_operations!(long_editor))
+            run_frame!(long_editor)
+        end
+        @test pane.scroll_position.y[] > 0
+        @test length(window_history.undo_entries) == steps       # a scroll is no edit
+
+        file_history = pane.content.content
+        insert_elements!(long_editor, items, 61, [JsonObject("n" => JsonNumber(61))])
+        @test length(get_document(items)) == 61
+        @test length(file_history.undo_entries) == 1
+        save = read_intent(long_editor.projection, nothing,
+                           Intent(WindowInput(:ProjecturEd, KeyDown(:s, ModifierKeys(; ctrl = true); time = 0.0))),
+                           long_editor.iomap)
+        operation = save isa Intent ? save.operation : save
+        operation isa Operation && (evaluate_operation(long_editor, operation); drain_operations!(long_editor))
+        @test occursin("61", read(long_path, String))
+
+        other_path = joinpath(long_directory, "other.json")
+        write(other_path, "[]")
+        evaluate_operation(long_editor, OpenFileOperation(other_path))
+        drain_operations!(long_editor)
+        run_frame!(long_editor)
+        tree = window_history.content
+        @test any(group -> any(tab -> get_pane_tab_title_string(tab) == "long.json", group.tabs) &&
+                           any(tab -> get_pane_tab_title_string(tab) == "other.json", group.tabs),
+                  get_pane_groups(tree))
     end
 end
 end # test_referenced_document_editor

@@ -13,7 +13,8 @@
 
 The group a newly opened file belongs in, in the pane tree that holds the focus
 ([`find_pane_tree_reference`](@ref)): a group that already holds a file — any
-tab whose content [`is_file_document`](@ref) answers `true` for — else a group
+tab that shows a file, as its content or through a layer such as a scroll pane,
+which [`is_file_document`](@ref) answers `true` for — else a group
 every one of whose tabs [`accepts_opened_file`](@ref), focused first. `nothing`
 leaves the choice to [`open_pane!`](@ref). A file must not cover the explorer it
 was opened from, nor a running conversation.
@@ -24,12 +25,24 @@ function get_pane_file_group(editor)
     tree = last(found)
     groups = get_pane_groups(tree)
     for group in groups
-        any(tab -> is_file_document(tab.content), group.tabs) && return group
+        any(tab -> _find_tab_file(tab.content) !== nothing, group.tabs) && return group
     end
     free = [group for group in groups if _is_free_group(group)]
     isempty(free) && return nothing
     focused = get_pane_focused_group(tree)
     focused in free ? focused : first(free)
+end
+
+# The file a tab shows, through the layers it keeps it in, such as a scroll pane;
+# `nothing` when it shows no file.
+function _find_tab_file(content)
+    for _ in 1:8
+        is_file_document(content) && return content
+        field = get_edited_field(content)
+        field === nothing && return nothing
+        content = getproperty(content, field)
+    end
+    nothing
 end
 
 # Whether a new tab may go in beside every tab of `group`: each content

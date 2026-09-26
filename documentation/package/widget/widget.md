@@ -191,6 +191,8 @@ The `rows` of a `WidgetTable` can be a `ListNode`. `WidgetTableList.jl` then wal
 
 `ProjecturedWidget` depends on the kernel and on `ProjecturedCollection`, `ProjecturedFocus`, `ProjecturedGraphics`, `ProjecturedLayout`, `ProjecturedDomain`, `ProjecturedPrimitive`, `ProjecturedProjection`, `ProjecturedScreen`, `ProjecturedSerialization`, `ProjecturedStyle` and `ProjecturedText`. `ProjecturedPane`, `ProjecturedShell`, `ProjecturedReflection`, `ProjecturedNatural`, `ProjecturedConversation`, `ProjecturedAssistant` and `ProjecturedFileSystem` use it. A page of `markdown` or `rst` puts a block of another domain in the card that `make_embed_card` builds.
 
+A scroll pane is a layer that a person sees through: `get_edited_field` of a `WidgetScrollPane` answers `:content`, and its title is the title of its content. So a file tab, whose content is a file in a scroll pane, is called by the name of the file, and `get_edited_document` of it reaches the document of the file. The widget stage routes an operation through a scroll pane to its content, as it does through a composite, a split pane and a tabbed pane.
+
 The `__init__` registers `WidgetShell` and `WidgetScrollPane` as `.pred` types. Each writes its content only: the bands of a shell, and the scroll position and the size of a scroll pane, belong to the window that opens them. The widgets register no natural row: `NaturalToGraphics` adds the rules of `WidgetToGraphics` to its own table. A widget answers `compute_tooltip` with its `tooltip` field, and `WidgetShell` answers `compute_context_menu` with its `context_menu` field.
 
 ## Design decisions

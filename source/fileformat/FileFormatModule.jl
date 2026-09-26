@@ -49,7 +49,7 @@ import ..ProjectionModule: print_document, read_intent, map_reference_forward,
 export import_document, export_document,
        ImportDocumentOperation, ExportDocumentOperation
 export write_document_file, read_document_file, make_document_for, make_document_seed,
-       make_file_tab
+       make_file_tab, make_file_tab_content
 export export_document
 export SaveFileOperation, ReloadFileOperation
 export FileToContent

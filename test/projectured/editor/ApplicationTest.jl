@@ -761,8 +761,10 @@ function test_application()
                 (group, index) = get_pane_focus(tree)
                 @test get_wrapped_document(group.tabs[index].content) isa EvaluatorToplevel
                 @test group !== explorer
-                # The group of the files, where a file from the explorer opens too.
-                @test any(tab -> is_file_document(tab.content), group.tabs)
+                # The group of the files, where a file from the explorer opens too. A
+                # file tab shows its file in a scroll pane.
+                @test any(tab -> tab.content isa WidgetScrollPane && is_file_document(tab.content.content),
+                          group.tabs)
             end
 
             @testset "the Evaluator button opens an evaluator, and Enter evaluates what is typed" begin

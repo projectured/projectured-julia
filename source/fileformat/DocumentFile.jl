@@ -125,6 +125,19 @@ without this layer naming one.
 make_file_tab(path::AbstractString, wrap = identity) =
     get_file_document_type(path)(abspath(path), wrap(read_document_file(path)))
 
+"""
+    make_file_tab_content(path, wrap = identity) -> WidgetScrollPane
+
+The content of a tab that shows the file at `path`: the file document of
+[`make_file_tab`](@ref) in a scroll pane, so a file longer than its tab scrolls.
+The scroll is made here, where a file tab is made, and not by the tab: a tab page
+gets no scroll of its own, because a page can hold two parts that each scroll.
+
+Use it to open a file in a tab.
+"""
+make_file_tab_content(path::AbstractString, wrap = identity) =
+    WidgetScrollPane(make_file_tab(path, wrap))
+
 # ── What a file is called ────────────────────────────────────────────────────
 
 # A tab with no name of its own is called after what it holds, and a file holds

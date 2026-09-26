@@ -64,17 +64,40 @@ default, no?", then "yes and do it before the take".
 
 ## 4. Steps
 
-- [ ] **Step 1: the content of a file tab** (D1, D2): the function, the two
-      makers, the methods of the scroll pane.
-- [ ] **Step 2: the readers** (D3, D4).
-- [ ] **Step 3: the tests.** A file tab longer than its pane scrolls with the
+- [x] **Step 1: the content of a file tab** (D1, D2). Done (2026-09-26):
+      `make_file_tab_content` in `DocumentFile.jl`, exported by
+      `FileFormatModule`; `make_application_document` and `OpenFileOperation` use
+      it; `WidgetDocument.jl` gives the scroll pane `get_edited_field` and
+      `get_document_title`.
+- [x] **Step 2: the readers** (D3, D4). Done: `_find_tab_file` in
+      `PaneFile.jl`; `WidgetScrollPaneToGraphicsCanvas` has a four-argument reader
+      that follows a route to its `content_iomap`, and `_read_routed_child` takes
+      the input and the list of children, so both readers share it.
+- [x] **Step 3: the tests.** Done: a test in
+      `ReferencedDocumentEditorTest.jl` opens a window on a JSON file of sixty
+      records and checks each part: the tab holds the file in a scroll pane,
+      `get_edited_document` reaches the array, ten turns of the wheel over it
+      scroll it and add no step to the window's history, `insert_elements!` puts
+      one step in the file's history, Ctrl+S saves the file with the new record,
+      and a file that `OpenFileOperation` opens goes into the same group. Two
+      tests read the tab's content as the file and now look into the scroll pane
+      (`ApplicationTest.jl`, the history in `ReferencedDocumentEditorTest.jl`).
+      Pass: `test_referenced_document_editor()` 95, `test_file_tab()`,
+      `test_filesystem()`, `test_file_dialog()`, `test_window_shell()`,
+      `test_tool_views()`, `test_gesture_log_in_tab()`, `test_gesture_log()`, the
+      pane tests, `test_scroll_pane_axis_size()`, `test_scroll_pane_hover()`, the
+      substrate layering, `test_naming()`, `test_documentation()`;
+      `test_application()` 336 of 338, its 2 errors the same on `main`.
+      The step as planned: A file tab longer than its pane scrolls with the
       wheel; Ctrl+S saves a file in a scroll pane; `get_edited_document` of a file
       tab reaches its document; a file opened from the navigator goes to the
       group of files; an edit through `insert_elements!` into a file that scrolls
       is recorded in the file's history. Then `test_application()`, the pane,
       file-tab, window-shell, gesture-log and referenced-document tests.
-- [ ] **Step 4: the documentation**: the file format, file system and pane
-      package documents, and the orientation guide if it names the content of a
-      file tab.
+- [x] **Step 4: the documentation.** Done: `fileformat.md`
+      (`make_file_tab_content`, and why the scroll is made there), `filesystem.md`,
+      `pane.md` (`get_pane_file_group`), `widget.md` (a scroll pane is a layer a
+      person sees through). The orientation guide does not name the content of a
+      file tab. The writing guard counts the same lines as `main`.
 - [ ] **Step 5: the landing**, when the owner says so. Then the S2 take, on the
       s2-video branch rebased onto it.

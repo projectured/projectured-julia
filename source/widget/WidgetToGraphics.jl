@@ -3053,13 +3053,21 @@ const _RoutingContainerProjection = Union{WidgetCompositeToGraphicsCanvas,
 function read_intent(p::_RoutingContainerProjection, recursion, change::Intent,
                      iomap::ChildrenIoMap)
     change.route === nothing && return @invoke read_intent(p::Projection, recursion, change::Intent, iomap)
-    _read_routed_child(recursion, change, iomap)
-end
-
-function _read_routed_child(recursion, change::Intent, iomap::ChildrenIoMap)
     children = Any[entry[3] for entry in getfield(iomap, :child_iomaps)[]::Vector
                    if entry isa Tuple && length(entry) == 3]
-    node, route, taken = iomap.input, change.route, ReferenceStep[]
+    _read_routed_child(recursion, change, iomap.input, children)
+end
+
+# A scroll pane holds one child, its content.
+function read_intent(p::WidgetScrollPaneToGraphicsCanvas, recursion, change::Intent,
+                     iomap::WidgetScrollPaneToGraphicsCanvasIoMap)
+    change.route === nothing && return @invoke read_intent(p::Projection, recursion, change::Intent, iomap)
+    content = iomap.content_iomap
+    _read_routed_child(recursion, change, iomap.input, content === nothing ? Any[] : Any[content])
+end
+
+function _read_routed_child(recursion, change::Intent, input, children::Vector)
+    node, route, taken = input, change.route, ReferenceStep[]
     while route isa ConcreteReference
         step = get_reference_head(route)
         node = try

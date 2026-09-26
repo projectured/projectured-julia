@@ -77,7 +77,7 @@ exist opens as the empty seed of its extension.
 """
 function make_application_document(paths::AbstractVector;
                                    root::AbstractString = pwd(), assistant = nothing)
-    tabs = [make_file_tab(path, UndoBuffer) for path in paths]
+    tabs = [make_file_tab_content(path, UndoBuffer) for path in paths]
     navigator = _make_application_navigator(root)
     content = _make_application_pane_tree(tabs, navigator, assistant)
     # Two levels of history, and the four rules of the undo slice make them one

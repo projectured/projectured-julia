@@ -33,7 +33,7 @@ The selection of the computed directory is a computed cell: the image of the fol
 
 ### Open a file
 
-Enter on a row, or a double click, makes an `OpenFileOperation(path; wrap)`. The operation names the file and nothing else. When the editor applies it, `make_file_tab` reads the file into the document type that its extension registers, and `open_pane!` asks the pane tree where a file goes. The `wrap` function lets an application put every opened file in an overlay, for example an undo history.
+Enter on a row, or a double click, makes an `OpenFileOperation(path; wrap)`. The operation names the file and nothing else. When the editor applies it, `make_file_tab_content` reads the file into the document type that its extension registers, in a scroll pane, and `open_pane!` asks the pane tree where a file goes. The `wrap` function lets an application put every opened file in an overlay, for example an undo history.
 
 ### Choose a file
 

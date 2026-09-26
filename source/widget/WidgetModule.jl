@@ -33,7 +33,8 @@ using ..TextModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
-import ..DocumentModule: has_document_duplicate, get_wrapped_document
+import ..DocumentModule: has_document_duplicate, get_wrapped_document, get_edited_field,
+                         get_document_title
 import ..DomainModule: compute_tooltip, compute_context_menu
 import ..SerializationModule: pred_arguments
 import ..GestureBindingModule: get_instance_gesture_bindings
