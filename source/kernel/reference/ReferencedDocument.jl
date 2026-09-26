@@ -209,23 +209,25 @@ get_wrapped_document(x::ReferencedDocument) = get_wrapped_document(get_document(
 """
     DocumentLocator(start, reference)
 
-The address of a document: the document a reference is read from, and the
-reference. It is not resolved: [`find_referenced_document`](@ref) reads it when the
-document is needed, so it still finds the document after the tree around it
-changed, as long as the reference reaches a node.
+The address of a document: where a reference is read from, and the reference. It
+is not resolved: [`find_referenced_document`](@ref) reads it when the document is
+needed, so it still finds the document after the tree around it changed, as long
+as the reference reaches a node.
 
-`start` is usually the editor's document; it is any document a reference is read
-from, such as the root that an operation carries.
+`start` is usually the editor, whose document is read when the locator is
+resolved, so the locator stays right when the editor's document is replaced. It
+can be any document a reference is read from, such as the root that an operation
+carries.
 
 Use it to keep where a document is, and to find the document there again later.
 
 # Example
 
-    locator = DocumentLocator(editor.document, get_reference(people_tab))
+    locator = DocumentLocator(editor, get_reference(people_tab))
     people_tab = find_referenced_document(locator)
 """
-struct DocumentLocator
-    start::Any
+struct DocumentLocator{S}
+    start::S
     reference::Reference
 end
 
@@ -247,6 +249,41 @@ function find_referenced_document(locator::DocumentLocator)
     document = try_evaluate_reference(locator.start, locator.reference, _NotReached())
     document isa _NotReached && return nothing
     ReferencedDocument(document, annotate_reference_types(locator.start, locator.reference))
+end
+
+# A node that a parent is looked past: a collection, which holds the elements of
+# the document around it.
+_is_collection(node) = is_element_collection(node) || node isa AbstractVector ||
+                       node isa AbstractDict || node isa Tuple
+
+"""
+    get_parent(root, x) -> ReferencedDocument or nothing
+
+The document that holds `x`, read from `root` now: one step up the reference of
+`x`, and past each collection on the way, so the parent of a tab is its group and
+not the vector of its tabs. `x` is a `ReferencedDocument` or a `Reference` from
+`root`. `root` is the document the reference starts at, or the editor, whose
+document is read at the call. `nothing` when `x` is the root, or when the reference
+no longer reaches a node.
+
+Use it to reach the group that holds a tab, the object that holds a field, or the
+document around any part, for example to open a new tab in the group of a tab.
+
+# Example
+
+    people_group_1 = get_parent(editor, find_pane(editor, "people.json"))
+"""
+function get_parent(root, x::Union{Reference, ReferencedDocument})
+    steps = get_reference_steps(strip_reference_types(convert(Reference, x)))
+    while !isempty(steps)
+        pop!(steps)
+        reference = extend_reference(EmptyReference(), steps...)
+        node = try_evaluate_reference(root, reference, _NotReached())
+        node isa _NotReached && return nothing
+        (isempty(steps) || !_is_collection(node)) &&
+            return ReferencedDocument(node, annotate_reference_types(root, reference))
+    end
+    nothing
 end
 
 # The most layers `get_edited_document` passes through, so a cycle of layers ends.

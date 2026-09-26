@@ -425,9 +425,19 @@ type asks `get_document(x)` first. `convert` to a document type converts
 `get_document(x)` to it, and `convert` to `Reference` converts `get_reference(x)`
 to it, so a `ReferencedDocument` fits where either is wanted.
 
+`get_parent(root, x)` answers the document that holds `x`, read from `root` at the
+call: one step up the reference of `x`, and past each collection on the way, so
+the parent of an element of a vector field is the document that has the field,
+not the vector. `x` is a `ReferencedDocument` or a `Reference`; it answers
+`nothing` at the root. `root` is the document the reference starts at; the editor
+layer adds a method that takes the editor and reads its document at the call.
+
 `DocumentLocator(start, reference)` is the address of a document, not resolved:
-`start` is the document the reference is read from, and the reference is read
-from it only when `find_referenced_document(locator)` is called. That function
+`start` is where the reference is read from, and the reference is read from it
+only when `find_referenced_document(locator)` is called. The editor layer adds a
+method for a locator whose `start` is an editor, which reads the document the
+editor holds at that time, so the locator stays right when the editor's document
+is replaced. That function
 answers a `ReferencedDocument`, or `nothing` when the reference no longer reaches
 a node, so a `ReferencedDocument` found before an edit is brought up to date
 after it: `find_referenced_document(DocumentLocator(start, get_reference(old)))`

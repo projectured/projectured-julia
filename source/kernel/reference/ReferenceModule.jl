@@ -60,9 +60,9 @@ The module lives in twelve fragments that share this namespace:
   construction DSL (compact surface syntax for building paths).
 - [`ReferencedDocument.jl`](ReferencedDocument.jl) — `ReferencedDocument`, a
   document together with the reference that reached it, which acts like the
-  document; `DocumentLocator`, the address of a document; and
-  `get_edited_document`, which follows `get_edited_field` to the document a person
-  edits.
+  document; `DocumentLocator`, the address of a document; `get_parent`, the
+  document that holds a part; and `get_edited_document`, which follows
+  `get_edited_field` to the document a person edits.
 
 The linked-list *shape* is persistent — extending a path reuses the existing
 tail rather than copying. The reactive step structs are mutable and store
@@ -118,7 +118,7 @@ export ReferenceStep, ElementReferenceStep, PositionReferenceStep, TypeReference
        @reference_case, @reference_rules, @reference, @reference_step,
        # a document with the reference that reached it, and the address of one
        ReferencedDocument, get_document, get_reference, DocumentLocator, find_referenced_document,
-       get_edited_document
+       get_edited_document, get_parent
 
 include("ReferenceInterface.jl")
 include("ReferenceStep.jl")

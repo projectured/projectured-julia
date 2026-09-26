@@ -1,4 +1,4 @@
-# Fragment of `EditorModule` — the `Editor` itself: the struct, its construction, and the projection invalidation hook.
+# Fragment of `EditorModule` — the `Editor` itself: the struct, its construction, the projection invalidation hook, and the editor as the start of a reference.
 
 """
     Editor(backend, document, projection, devices;
@@ -111,3 +111,11 @@ end
 # is what an operation like a whole-root `ReplaceReferencedValueOperation` swap
 # actually reaches when it runs against a real `Editor`.
 OperationModule.invalidate_projection!(editor::Editor) = (editor.iomap = nothing)
+
+# An editor is where a model reads a reference from: its document, read at the
+# call, so a reference is read from the document the editor holds now and not
+# from one that it replaced.
+ReferenceModule.get_parent(editor::Editor, x::Union{Reference, ReferencedDocument}) =
+    get_parent(editor.document, x)
+ReferenceModule.find_referenced_document(locator::DocumentLocator{<:Editor}) =
+    find_referenced_document(DocumentLocator(locator.start.document, locator.reference))

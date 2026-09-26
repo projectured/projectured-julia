@@ -197,6 +197,21 @@ function test_referenced_document_editor()
         @test find_pane(editor, "By operation") !== nothing
     end
 
+    @testset "get_parent of an editor reads its document, and a locator can start at the editor" begin
+        people_tab = find_pane(editor, "people.json")
+        group = get_parent(editor, people_tab)
+        @test get_document(group) isa PaneGroup
+        @test any(tab -> tab === get_document(people_tab), get_document(group).tabs)
+        @test get_document(get_parent(editor, get_reference(people_tab))) === get_document(group)
+        people = get_edited_document(people_tab)
+        @test get_document(get_parent(editor, people[1])) === get_document(people)
+        last_tab = open_pane!(editor, PrimitiveString("end"); title = "At the end", target = group)
+        @test get_document(group).tabs[end] === get_referenced_value(editor, last_tab)
+        found = find_referenced_document(DocumentLocator(editor, get_reference(people_tab)))
+        @test get_document(found) === get_document(people_tab)
+        @test find_referenced_document(DocumentLocator(editor, get_reference(people_tab))) isa ReferencedDocument
+    end
+
     @testset "a value found by identity at two places has no reference" begin
         path = joinpath(directory, "nulls.json")
         write(path, "{\"a\": null, \"b\": null}")

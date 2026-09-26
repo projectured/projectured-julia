@@ -100,7 +100,7 @@ Round 2, reuse `people_tab_1` and `people_1`:
 rows_1 = [[person["name"].value, person["age"].value] for person in people_1]
 sort!(rows_1; by = first)
 table_tab_1 = open_pane!(editor, WidgetTable(["name", "age"], rows_1);
-                         title = "People by name", target = get_parent(people_tab_1))
+                         title = "People by name", target = get_parent(editor, people_tab_1))
 ```
 
 `people_1` iterates its elements, because `JsonArray` acts as a vector; each `person` a
@@ -175,10 +175,21 @@ whose reference reaches that entry's value; `.value` the plain `String`.
   `DocumentInterface.jl`, is not), with a method in each package that has such a
   layer: the pane tab, the file document, the history, the clipboard slice. A need
   to change a sealed file stops the work and goes to the owner.
-- **D9. `get_parent(x) -> ReferencedDocument` or `nothing` at the root.** The
-  enclosing document, one step up the reference, and past a collection: a tab's
-  parent is its group, a JSON entry's parent is its object, an element's parent is
-  its array.
+- **D9. `get_parent(root, x) -> ReferencedDocument` or `nothing` at the root.**
+  The enclosing document, read from `root` at the call: one step up the
+  reference, and past each collection on the way (`is_element_collection`, or a
+  Julia vector, dictionary or tuple): a tab's parent is its group, a JSON entry's
+  parent is its object, an element's parent is its array. `x` is a
+  `ReferencedDocument` or a `Reference`. The root is an argument, because a
+  referenced document keeps only its reference (D1); the owner chose on
+  2026-09-26 that `get_parent` takes a document and an editor. The reference layer
+  has `get_parent(document, x)`; the editor layer has `get_parent(editor::Editor,
+  x)`, which reads `editor.document` at the call, so it is right after the root is
+  replaced. For the same reason `DocumentLocator` has a type parameter for its
+  start, and the editor layer adds `find_referenced_document` for a locator that
+  starts at an editor: a locator made from `editor.document` would keep the old
+  root. Both editor methods are methods of reference-layer functions for the
+  `Editor` type, so no new generic function is needed.
 - **D10. `open_pane!(editor, document; title, target = nothing, side = nothing)`**
   places the new tab as `move_pane!` places a pane (a group: at its end; a tab:
   before it; with `side`, beside it in a new split) and answers the new tab as a
@@ -239,6 +250,15 @@ whose reference reaches that entry's value; `.value` the plain `String`.
 
 ### Not done
 
+- **D20. No `document` binding in `execute_julia_code`** (the owner,
+  2026-09-26). The root of the editor can be replaced: by an import, by a load of
+  a saved editor, and by a `ReplaceReferencedValueOperation` at the empty
+  reference and its undo. A `document` bound once would then read an old tree with
+  no error. A binding made again at each call is still stale inside a call, and it
+  overwrites a variable that the model named `document` itself, against the rule
+  of D12. The functions that need a root take `editor`, which reads the current
+  root at the call.
+
 - **D19.** No conversion of a document to plain Julia data: the owner rejected it,
   it is a second shape to learn. A leaf keeps its `.value`: making `object[key]`
   answer the plain value would be that conversion, and would lose the leaf
@@ -250,7 +270,7 @@ Each step: tests first where they fit, the change, the narrowest tests that cove
 it, and a commit with explicit paths and no attribution line. Work in a worktree of
 its own, from `main`. Check each file against `SEALING.md` before editing it.
 
-- [ ] **Step 1: the two types.** **In progress (2026-09-26).** Done:
+- [x] **Step 1: the two types.** **Done (2026-09-26).**
       `source/kernel/reference/ReferencedDocument.jl` holds `ReferencedDocument`,
       its forwarding, display and `convert`, `DocumentLocator` and
       `find_referenced_document`; `test_referenced_document()` passes 25 checks,
@@ -260,11 +280,13 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       `CellVector` is a `Document`. A property that is not a field of its document
       has no step a reference can record, so its value is answered plain. A key
       that is neither a position nor a dictionary key is found in the document by
-      identity (`search_references`). Open: `get_parent` must evaluate a shorter
-      reference, which needs the root, and a `ReferencedDocument` keeps only its
-      reference (D1); the owner chooses between `get_parent(editor, x)` and a
-      referenced document that also keeps its root.
-      The rest of the step: D1 to D6 and D9 in the reference layer, with
+      identity (`search_references`). `get_parent` is done as D9 says, with the
+      two editor methods in `source/kernel/editor/Editor.jl`; the kernel test
+      covers a part, a reference, a collection, the root and a reference that no
+      longer reaches a node, and the editor test a tab, an element of the JSON, a
+      new tab at the end of the parent group, and a locator that starts at the
+      editor (127 checks with the layering guard and `test_naming()`).
+      The step as planned: D1 to D6 and D9 in the reference layer, with
       tests: forwarding of a property, a write, indexing and iteration, and the
       referenced answer for a document and the plain answer for a leaf; the
       display; `convert` to a document type and to `Reference`; a locator resolved,

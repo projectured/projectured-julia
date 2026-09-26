@@ -136,6 +136,20 @@ function test_referenced_document()
         @test only(leaves) === root.children[1]
     end
 
+    @testset "get_parent answers the document that holds a part, past a collection" begin
+        root = _make_referenced_tree()
+        tree = ReferencedDocument(root, EmptyReference())
+        grandchild = tree.children[2].children[1]
+        parent = get_parent(root, grandchild)
+        @test get_document(parent) === root.children[2]
+        @test is_fully_typed_reference(get_reference(parent))
+        @test get_document(get_parent(root, get_reference(tree.children[1]))) === root
+        @test get_document(get_parent(root, tree.children)) === root
+        @test get_parent(root, tree) === nothing
+        gone = extend_reference(EmptyReference(), FieldReferenceStep("missing"), FieldReferenceStep("name"))
+        @test get_parent(root, gone) === nothing
+    end
+
     @testset "a locator finds its document again, or answers nothing" begin
         root = _make_referenced_tree()
         first_child = ReferencedDocument(root, EmptyReference()).children[1]

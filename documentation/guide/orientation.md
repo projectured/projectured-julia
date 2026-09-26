@@ -18,7 +18,7 @@ browsing tools below. Do not guess names — search for them.
 | Projection (interface) | `Projection`, `print_document`, `read_intent`, `map_reference_forward`, `map_reference_backward`, `PrinterContext`, `IoMap`/`SimpleIoMap`/`ChildrenIoMap` | `kernel/projection-system` |
 | Projection composition | `ChainingProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, `NestingProjection`, `SwitchingProjection`; generic: `CopyingProjection`, `SortingProjection`, `FilteringProjection`, `FocusingProjection` | `projection/higher-order-projections`, `projection/generic-projections` |
 | Reference | `Reference`, `EmptyReference`, `ConcreteReference`; steps `FieldReferenceStep`, `RangeReferenceStep` (`ElementReferenceStep`/`PositionReferenceStep`), `ProjectionReferenceStep`, `TypeReferenceStep`; DSL `@reference`, `@reference_case`, `@reference_rules`; `evaluate_reference` | `kernel/reference` |
-| Referenced document | `ReferencedDocument`, `get_document`, `get_reference`, `find_pane`, `get_edited_document`, `DocumentLocator`, `find_referenced_document` | `kernel/reference`, `guide/orientation` |
+| Referenced document | `ReferencedDocument`, `get_document`, `get_reference`, `find_pane`, `get_edited_document`, `get_parent`, `DocumentLocator`, `find_referenced_document` | `kernel/reference`, `guide/orientation` |
 | Selection | `set_selection!`, `clear_selection!`, `replace_selection!`, `get_selection` | `kernel/selection` |
 | Search (by content) | `search_references`, `search_documents`, `print_object` (search a document **or an iomap** — the whole pipeline) | `kernel/finding-and-selecting`, `guide/debugging-guide` |
 | Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation` (+ `replace_document` / `insert_elements` / `delete_elements`), `ReplaceStringRangeOperation`, `CompoundOperation` | `kernel/operation` |
@@ -83,7 +83,9 @@ table_tab_1 = open_pane!(editor, WidgetTable(["name", "age"], rows_1); title = "
 
 `open_pane!` puts the new tab where the focus is. To put it before a tab, or at
 the end of a group, give that tab or group as `target`; add `side = :right` to put
-it beside the target in a new split.
+it beside the target in a new split. `get_parent(editor, people_tab_1)` answers the
+group that holds the tab, so `target = get_parent(editor, people_tab_1)` puts the
+new tab at the end of that group.
 
 Each call runs in the same module, so a variable that one call binds at the top
 level is still there in every later call. Keep each object that you find or make

@@ -98,7 +98,7 @@ make_pane_api() = Any[
     # the document a tab shows through it.
     ReferenceModule => (Symbol("@reference"), :ReferencedDocument, :get_document,
                         :get_reference, :DocumentLocator, :find_referenced_document,
-                        :get_edited_document),
+                        :get_edited_document, :get_parent),
 ]
 
 """
@@ -922,9 +922,9 @@ tab. `nothing` when no tab has that title; when two tabs have it, an
 `ArgumentError` names both.
 
 Use it to find a tab by its title: to read the data it shows with
-[`get_edited_document`](@ref), to open a new tab beside it with
-[`open_pane!`](@ref) and its `target`, or to hand it to a verb that moves,
-focuses or closes it.
+[`get_edited_document`](@ref), to reach the group that holds it with
+[`get_parent`](@ref), to open a new tab beside it with [`open_pane!`](@ref) and its
+`target`, or to hand it to a verb that moves, focuses or closes it.
 
 # Example
 
