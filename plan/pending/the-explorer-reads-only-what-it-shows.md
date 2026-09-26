@@ -312,11 +312,25 @@ approval of the owner and an idle machine.
   and a computed list of 1,000 rows as one dirty unit read no row. Substrate
   85,095 (5 new), SDL 699 (5 new), file system 78; the faults are the 5 of the
   baseline.
-- [ ] **Step 6. The tree draws its rows lazily (3.4, tree).** The tree takes
+- [x] **Step 6. The tree draws its rows lazily (3.4, tree).** The tree takes
   the width that the pane offers (Q1). Test: the Explorer over a fixture folder
   with 1,000 entries, in a pane of 10 rows. After a render, only the entries in the viewport are read, and
   among them only the folders read a listing. A press and the arrow keys select
   the correct row. Selection and hover bands are drawn on the correct row.
+  *Done.* The rows are `CellVector(@computation(geometry[].rows); element =
+  make_row)`, so the canvas of a row is made at its first read, and its content
+  when the renderer draws it. The row canvases are not kept across a toggle: a
+  toggle makes new ones, and the renderer computes the content of the rows it
+  draws, about the rows of the viewport. The icon column is decided by the
+  roots, because a row below them is read only when it is drawn. With no offer
+  of a width the tree is as wide as its widest row, which reads every row of the
+  open tree; in the Explorer the pane offers the width. `test_tree_render()` in
+  `test/sdl/projection/TreeRenderTest.jl` renders a folder of 1,000 entries in a
+  pane of 240 pixels: about 10 entries are read, and after a scroll to row 501
+  about 11 more, fewer than 30 in all. File system 80, substrate 85,623, SDL
+  707; the faults are the 5 of the baseline. The example sweep counts 527 more
+  checks, because a tree now has one canvas for each row, and the sweep counts
+  cells.
 - [ ] **Step 7. Check it in the live editor.** Open the Explorer on this
   repository with `DISPLAY=:0`. Open `build/`, scroll to its end, and close it.
   Count the listings that were read.

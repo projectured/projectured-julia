@@ -8658,34 +8658,31 @@ function _tree_children(node)
     end
 end
 
-# One flattened, rendered row. `path` is the 1-based index chain from the roots
-# down to this node (`[i]`, `[i, j]`, …); `y0`/`height` are its band in
-# outer-canvas coordinates. `depth`, `icon`, `label`, `has_children` carry
-# everything the element pass needs so it never re-walks the node tree.
-# `expanded` (true only for a parent whose children show) drives the
-# chevron direction; `chevron_x0`/`chevron_x1` are its horizontal click hit-box,
-# so the reader can distinguish a chevron toggle from a row select.
+# One row of the open tree, placed by arithmetic alone. `path` is the 1-based
+# index chain from the roots down to the node (`[i]`, `[i, j]`, …), `depth` its
+# level, and `y0`/`height` its band in content-local coordinates.
+# `chevron_x0`/`chevron_x1` are the horizontal hit-box of its chevron, so the
+# reader can tell a toggle from a select. A row holds no node: the node, and with
+# it the label, the icon and whether the row has children, is read when the row
+# is drawn.
 struct WTreeRow
     path::Vector{Int}
     depth::Int
-    icon::Any
-    label::String
-    has_children::Bool
-    expanded::Bool
     chevron_x0::Int
     chevron_x1::Int
     y0::Int
     height::Int
 end
 
-# Geometry snapshot: the flattened rows plus the canvas extent. Persisted on the
-# iomap so the reader can hit-test clicks and resolve keyboard navigation (the
-# tree analog of the table's `WTGeometry`).
+# The rows of the open tree in order, the index of each path, the height of one
+# row and of all of them. Every row is as high as the others, so the row under a
+# point is arithmetic. Persisted on the iomap so the reader can hit-test clicks
+# and resolve keyboard navigation.
 struct WTreeGeometry
     rows::Vector{WTreeRow}
-    total_w::Int
+    index::Dict{Vector{Int},Int}
+    row_height::Int
     total_h::Int
-    icon_column::Int   # the width before a label: an icon and its gap
 end
 
 @iomap struct WidgetTreeToGraphicsCanvasIoMap
@@ -8693,6 +8690,7 @@ end
     input::Any
     output::Any
     geometry::Cell
+    width::Cell
 end
 
 # ── Node-path ⇄ WidgetTree reference ─────────────────────────────────────────
@@ -8727,18 +8725,6 @@ function _wtree_ref_path(reference)
     isempty(path) ? nothing : path
 end
 
-# (y0, height) of the selected row's highlight band, or (0, 0) when no node is
-# selected — a 0-height rect the renderer skips. Drawn as a persistent overlay so
-# a selection move never rebuilds the tree's content vector (dimension A).
-function _wtree_highlight_band(sel, geom)
-    sel_path = _wtree_ref_path(sel)
-    sel_path === nothing && return (0, 0)
-    for row in geom.rows
-        row.path == sel_path && return (row.y0, row.height)
-    end
-    (0, 0)
-end
-
 function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree, ctx)
     w.visible == false && return SimpleIoMap(p, w, _empty_canvas())
     position = w.position::Point2D
@@ -8757,129 +8743,134 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
     row_selected_color = _get_state_color(p, w, :row; state = :selected)
     _, line_height = _text_size(p.measure, label_style.font, "M")
     row_height = line_height + 2 * pad
+    avail_w = ctx === nothing ? nothing : get_exact_width(ctx)
 
-    # Flatten the node tree into rows once; both the geometry (hit-testing) and the
-    # element pass (drawing) read these rows, so they can never drift apart. Reading
-    # `w.expanded` here ties the flattened geometry to the open nodes, so a
-    # chevron toggle re-runs the walk (hiding / revealing subtrees) reactively.
-    # Rows stay content-local (starting at the origin); the content offset is
-    # added where they are drawn and where a reader turns a position into a row.
+    # The rows of the open tree. The walk reads the children of an open node and
+    # nothing of a closed one: a closed row is a path, and its node is read when
+    # the renderer draws the row. Reading `w.expanded` here ties the rows to the
+    # open nodes, so a chevron toggle walks again. Rows stay content-local; the
+    # content offset is added where they are drawn and where a reader turns a
+    # position into a row.
     geometry = Cell(@computation begin
         expanded = w.expanded
         rows = WTreeRow[]
-        label_widths = Int[]
-        y = Ref(0)
-        function walk(node, depth, path)
+        index = Dict{Vector{Int},Int}()
+        function visit(path, depth, node)
             x = depth * indent
-            label = _tree_label(node)
+            push!(rows, WTreeRow(path, depth, x, x + chevron_column, length(rows) * row_height, row_height))
+            index[path] = length(rows)
+            node === nothing && return
             kids = _tree_children(node)
-            has_kids = kids !== nothing && !isempty(kids)
-            is_open = has_kids && (path in expanded)
-            label_width, _ = _text_size(p.measure, label_style.font, label)
-            push!(rows, WTreeRow(path, depth, _tree_icon(node), label,
-                                 has_kids, is_open, x, x + chevron_column, y[], row_height))
-            push!(label_widths, label_width)
-            y[] += row_height
-            if is_open
-                for (i, c) in enumerate(kids)
-                    walk(c, depth + 1, vcat(path, i))
-                end
+            kids === nothing && return
+            for i in 1:length(kids)
+                child = vcat(path, i)
+                visit(child, depth + 1, child in expanded ? kids[i] : nothing)
             end
         end
-        for (i, n) in enumerate(w.roots)
-            walk(n, 0, [i])
+        roots = w.roots
+        for i in 1:length(roots)
+            visit([i], 0, [i] in expanded ? roots[i] : nothing)
         end
-        # A named icon is as tall as a line, so a tree that shows one reserves a
-        # column that holds it and a gap; a tree of plain labels keeps the column
-        # of its theme.
-        column = any(row -> row.icon isa Symbol, rows) ?
-                 max(icon_column, line_height + _sc(6)) : icon_column
-        max_width = 0
-        for (row, label_width) in zip(rows, label_widths)
-            max_width = max(max_width, row.depth * indent + chevron_column + column + label_width)
-        end
-        WTreeGeometry(rows, max_width, y[], column)
+        WTreeGeometry(rows, index, row_height, length(rows) * row_height)
     end)
 
+    # A named icon is as tall as a line, so a tree whose roots show one reserves a
+    # column that holds it and a gap; a tree of plain labels keeps the column of
+    # its theme. The roots decide, because a row below them is read only when it
+    # is drawn, and every row takes the same column.
+    column = Cell(@computation any(node -> _tree_icon(node) isa Symbol, w.roots) ?
+                  max(icon_column, line_height + _sc(6)) : icon_column)
+
+    # The tree takes the width that its parent offers, and what holds the tree
+    # clips a longer label. With no offer the tree is as wide as its widest row,
+    # which reads the node of every row of the open tree.
+    width = Cell(@computation begin
+        avail_w === nothing || return max(1, Int(avail_w[]) - inset_width)
+        widest = 1
+        for row in geometry[].rows
+            label_width, _ = _text_size(p.measure, label_style.font,
+                                        _tree_label(_wtree_node_at(w, row.path)))
+            widest = max(widest, row.depth * indent + chevron_column + column[] + label_width)
+        end
+        widest
+    end)
+
+    # The band of a row: as wide as the tree, and as high as the row while `read`
+    # answers the path of the row. A band reads the selection or the pointer in a
+    # cell of its own, so a selection move redraws two bands and no label.
+    function make_band(row::WTreeRow, color, read)
+        band = GraphicsRect(0, 0, 0, 0; color = color, radius = _WT_ROW_RADIUS)
+        set_cell_computation!(getfield(band, :w), () -> Int32(width[]))
+        set_cell_computation!(getfield(band, :h),
+                              () -> Int32(_wtree_ref_path(read()) == row.path ? row.height : 0))
+        band
+    end
+
+    # One row: a canvas at the place of the row, whose content the renderer reads
+    # only when it draws the row. The content reads the node, and whether the node
+    # has children, which for a folder is one read of its listing.
+    function make_row(row::WTreeRow)
+        content = CellVector(Computation(function ()
+            node = _wtree_node_at(w, row.path)
+            result = Any[make_band(row, p.layer_hovered_color, () -> w.hovered),
+                         make_band(row, row_selected_color, () -> w.selection)]
+            x = row.depth * indent
+            if _wtree_has_children(node)
+                _push_chevron!(result, x + chevron_column ÷ 2, row_height ÷ 2, chevron_size,
+                               row.path in w.expanded ? :down : :right, chevron_color)
+            end
+            icon = _tree_icon(node)
+            if icon isa Symbol
+                # A registered icon name: a glyph, tinted to the icon color.
+                _push_icon!(result, icon, x + chevron_column, pad, line_height, icon_style.color)
+            elseif icon isa AbstractString && !isempty(icon)
+                # A literal glyph string (e.g. an emoji), drawn as text.
+                _push_text!(result, p.measure, icon_style.font, icon, x + chevron_column, pad,
+                            icon_style.color)
+            end
+            _push_text!(result, p.measure, label_style.font, _tree_label(node),
+                        x + chevron_column + column[], pad, label_style.color)
+            result
+        end))
+        GraphicsCanvas(Cell(Int32(0)), Cell(Int32(row.y0)), Cell(@computation Int32(width[])),
+                       Cell(Int32(row.height)), content, layout_none, true, Cell(nothing))
+    end
+
+    # The rows lie along the vertical axis without overlap, so the renderer draws
+    # the rows between the edges of its clip, and a query of the size takes the
+    # declared box and reads no row. The canvas of a row is made at its first
+    # read, so a toggle makes the rows that the renderer reaches and no others.
+    rows_canvas = GraphicsCanvas(Cell(Int32(content_x)), Cell(Int32(content_y)),
+                                 Cell(@computation Int32(width[])),
+                                 Cell(@computation Int32(geometry[].total_h)),
+                                 CellVector(@computation(geometry[].rows); element = make_row),
+                                 layout_vertical, false, Cell(nothing))
 
     # Whole-canvas transparent hit target. The tree hit-tests by *row band* (a whole
     # row is clickable/hoverable, not just its glyphs), but a parent container gates
     # routing on `hit_element_at`, which only fires over an actual element — so a tree
     # nested in a layout/tab would ignore clicks/hover on the empty part of a row.
     # A full-size (invisible) rect makes the whole canvas a hit target, matching the
-    # top-level tree. Its geometry reads `geometry[]` so it tracks size reactively.
+    # top-level tree.
     hit_target = GraphicsRect(0, 0, 0, 0; color = color_transparent, radius = 0)
-    set_cell_computation!(getfield(hit_target, :w),
-                          () -> Int32(geometry[].total_w + inset_width))
-    set_cell_computation!(getfield(hit_target, :h),
-                          () -> Int32(geometry[].total_h + inset_height))
-
-    # Persistent selection-band overlay: one full-width rect whose y/height read
-    # the selection (0 height when no node is selected → the renderer skips it).
-    # Keeping the selection read OUT of the elements thunk means a node move
-    # invalidates only this rect's geometry, not the content vector (dimension A;
-    # the focus-ring / text-cursor overlay pattern). Bounds are content-local, so
-    # the band is shifted by the content offset.
-    band_yh = Cell(@computation _wtree_highlight_band(w.selection, geometry[]))
-    selection_band = GraphicsRect(0, 0, 0, 0; color = row_selected_color, radius = _WT_ROW_RADIUS)
-    set_cell_computation!(getfield(selection_band, :x), () -> Int32(content_x))
-    set_cell_computation!(getfield(selection_band, :y),
-                          () -> Int32(band_yh[][1] + content_y))
-    set_cell_computation!(getfield(selection_band, :h), () -> Int32(band_yh[][2]))
-    set_cell_computation!(getfield(selection_band, :w), () -> Int32(geometry[].total_w))
-
-    # Persistent hover-band overlay, same pattern as the selection band but reading
-    # `w.hovered` (the row under the pointer). Drawn behind the selection band so a
-    # selected+hovered row still reads as selected.
-    hover_yh = Cell(@computation _wtree_highlight_band(w.hovered, geometry[]))
-    hover_band = GraphicsRect(0, 0, 0, 0; color = p.layer_hovered_color, radius = _WT_ROW_RADIUS)
-    set_cell_computation!(getfield(hover_band, :x), () -> Int32(content_x))
-    set_cell_computation!(getfield(hover_band, :y),
-                          () -> Int32(hover_yh[][1] + content_y))
-    set_cell_computation!(getfield(hover_band, :h), () -> Int32(hover_yh[][2]))
-    set_cell_computation!(getfield(hover_band, :w), () -> Int32(geometry[].total_w))
+    set_cell_computation!(getfield(hit_target, :w), () -> Int32(width[] + inset_width))
+    set_cell_computation!(getfield(hit_target, :h), () -> Int32(geometry[].total_h + inset_height))
 
     elements = CellVector(@computation begin
-        geom = geometry[]
-        result = Any[]
-        # 0. Invisible whole-canvas hit target (behind everything) so a nested tree
-        #    is clickable/hoverable over the whole box, not just over its glyphs.
-        push!(result, hit_target)
-        # 1. The box: margin, border, padding and content, from the outside in.
-        #    Transparent and zero-width by default, so it costs nothing.
-        _push_box_parts!(result, box, colors, geom.total_w, geom.total_h)
-        # 2. Hover + selection band overlays (persistent; their geometry reads the
-        #    hovered / selected node so this thunk does not), behind the row content.
-        push!(result, hover_band)
-        push!(result, selection_band)
-        # 3. Per-row decoration: chevron (parents) + icon glyph + label.
-        for row in geom.rows
-            x = content_x + row.depth * indent
-            y0 = content_y + row.y0
-            if row.has_children
-                _push_chevron!(result, x + chevron_column ÷ 2, y0 + row_height ÷ 2,
-                               chevron_size, row.expanded ? :down : :right, chevron_color)
-            end
-            icon = row.icon
-            if icon isa Symbol
-                # A registered icon name: a glyph, tinted to the icon color.
-                _push_icon!(result, icon, x + chevron_column, y0 + pad, line_height, icon_style.color)
-            elseif icon isa AbstractString && !isempty(icon)
-                # A literal glyph string (e.g. an emoji), drawn as text.
-                _push_text!(result, p.measure, icon_style.font, icon, x + chevron_column, y0 + pad, icon_style.color)
-            end
-            _push_text!(result, p.measure, label_style.font, row.label, x + chevron_column + geom.icon_column,
-                       y0 + pad, label_style.color)
-        end
+        # The hit target behind everything, then the box: margin, border, padding
+        # and content, from the outside in (transparent and zero-width by default),
+        # then the rows.
+        result = Any[hit_target]
+        _push_box_parts!(result, box, colors, width[], geometry[].total_h)
+        push!(result, rows_canvas)
         result
     end)
 
     canvas = GraphicsCanvas(Cell(Int32(_origin(position)[1])), Cell(Int32(_origin(position)[2])),
-                            Cell(@computation Int32(geometry[].total_w + inset_width)),
-                            Cell(@computation(Int32(geometry[].total_h +
-                                                    inset_height))),
+                            Cell(@computation Int32(width[] + inset_width)),
+                            Cell(@computation Int32(geometry[].total_h + inset_height)),
                             elements, layout_none, true, Cell(nothing))
-    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry)
+    WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width)
 end
 
 # Whole-node handles have no in-canvas cursor image (the band is drawn in place at
@@ -8888,7 +8879,7 @@ end
 map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap, reference) = nothing
 map_reference_backward(::WidgetTreeToGraphicsCanvas, iomap, reference) = nothing
 
-# Gesture reader: a left click on a parent's chevron toggles collapse, otherwise
+# Gesture reader: a left click on a parent's chevron opens or closes it, otherwise
 # selects the node under the cursor; pointer crossings (`MouseEnter`/`MouseMove`/
 # `MouseLeave`, synthesised by `WidgetHoverTrackingProjection`) drive the hover
 # band; ↑/↓ walk the flattened rows. Handled in the 3-arg form (like the other
@@ -8936,6 +8927,20 @@ function _wtree_node_at(w::WidgetTree, path::Vector{Int})
     return node
 end
 
+# Whether `node` has children. For a node whose children are computed, this reads
+# them: a folder reads its listing.
+function _wtree_has_children(node)
+    kids = _tree_children(node)
+    kids !== nothing && !isempty(kids)
+end
+
+# The row under the content-local `y`, clamped into the rows, or `nothing` when
+# the tree has no rows. Every row is as high as the others, so this is arithmetic.
+function _wtree_row_at(geom::WTreeGeometry, y::Int)
+    isempty(geom.rows) && return nothing
+    geom.rows[clamp(fld(y, geom.row_height) + 1, 1, length(geom.rows))]
+end
+
 # Per-node gesture consult: find the node targeted by `g` — the row under the
 # pointer for a `MousePress` (any button/modifier; the binding's own pattern does
 # the matching), or the currently selected node for a `KeyDown` — and fire its
@@ -8949,13 +8954,8 @@ function _wtree_node_gesture(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToG
     path = nothing
     if g isa MousePress
         _, content_y = _content_offset(p, w)
-        y = clamp(g.y - content_y, 0, max(0, geom.total_h - 1))
-        for row in geom.rows
-            if row.y0 <= y < row.y0 + row.height
-                path = row.path
-                break
-            end
-        end
+        row = _wtree_row_at(geom, g.y - content_y)
+        row === nothing || (path = row.path)
     elseif g isa KeyDown
         path = _wtree_ref_path(w.selection)
     end
@@ -8965,23 +8965,19 @@ function _wtree_node_gesture(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToG
     return read_bound_gesture(node, g, w.selection)
 end
 
-# A left click on a parent row's chevron column toggles its collapse; anywhere
+# A left click on the chevron of a row with children opens or closes it; anywhere
 # else on a row selects it. A press on the margin, the border or the padding is
 # clamped into the rows.
 function _wtree_mouse_press(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, g::MousePress)
-    geom = iomap.geometry
-    content_x, content_y = _content_offset(p, iomap.input)
-    x = clamp(g.x - content_x, 0, max(0, geom.total_w - 1))
-    y = clamp(g.y - content_y, 0, max(0, geom.total_h - 1))
-    for row in geom.rows
-        if row.y0 <= y < row.y0 + row.height
-            if row.has_children && row.chevron_x0 <= x < row.chevron_x1
-                return _wtree_toggle_expanded(iomap, row.path)
-            end
-            return ReplaceSelectionOperation(_wtree_path_ref(row.path))
-        end
+    w = iomap.input
+    content_x, content_y = _content_offset(p, w)
+    row = _wtree_row_at(iomap.geometry, g.y - content_y)
+    row === nothing && return nothing
+    x = clamp(g.x - content_x, 0, max(0, iomap.width - 1))
+    if row.chevron_x0 <= x < row.chevron_x1 && _wtree_has_children(_wtree_node_at(w, row.path))
+        return _wtree_toggle_expanded(iomap, row.path)
     end
-    return nothing
+    ReplaceSelectionOperation(_wtree_path_ref(row.path))
 end
 
 # Toggle `path`'s membership in the tree's set of open nodes. Stores a *new* Set
@@ -9001,18 +8997,12 @@ end
 # and returns nothing when the tree has no rows.
 function _wtree_hover_set(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap,
                           x::Int, y::Int, force::Bool)
-    geom = iomap.geometry
     w = iomap.input
-    isempty(geom.rows) && return nothing
     _, content_y = _content_offset(p, w)
-    ly = clamp(y - content_y, 0, max(0, geom.total_h - 1))
-    for row in geom.rows
-        if row.y0 <= ly < row.y0 + row.height
-            (!force && _wtree_ref_path(w.hovered) == row.path) && return nothing
-            return _write_view_state(w, "hovered", _wtree_path_ref(row.path))
-        end
-    end
-    return nothing
+    row = _wtree_row_at(iomap.geometry, y - content_y)
+    row === nothing && return nothing
+    (!force && _wtree_ref_path(w.hovered) == row.path) && return nothing
+    _write_view_state(w, "hovered", _wtree_path_ref(row.path))
 end
 
 function _wtree_hover_clear(iomap::WidgetTreeToGraphicsCanvasIoMap)
@@ -9026,7 +9016,7 @@ function _wtree_key_navigate(iomap::WidgetTreeToGraphicsCanvasIoMap, g::KeyDown)
     geom = iomap.geometry
     isempty(geom.rows) && return nothing
     cur = _wtree_ref_path(iomap.input.selection)
-    idx = cur === nothing ? 0 : something(findfirst(r -> r.path == cur, geom.rows), 0)
+    idx = cur === nothing ? 0 : get(geom.index, cur, 0)
     ni = g.key === :down ? (idx == 0 ? 1 : min(length(geom.rows), idx + 1)) :
                            (idx <= 1 ? 1 : idx - 1)
     ReplaceSelectionOperation(_wtree_path_ref(geom.rows[ni].path))

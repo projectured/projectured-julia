@@ -70,19 +70,30 @@ end
         pane = print_document(RecursiveProjection(FileSystemToWidget()), folder).output
         widgets = WidgetToGraphics(font_ubuntu_regular_20; measure = FixedMeasure(8, 12, 4, 0))
         tree_projection = only(pr for (T, pr) in widgets.dispatch if T === WidgetTree)
-        rows = print_document(tree_projection, pane.content).geometry.rows
-
-        @test [r.path for r in rows] == [[1], [1, 1], [1, 2], [1, 3]]
-        @test [r.label for r in rows[2:end]] == ["full", "none", "top.jl"]
-        @test rows[1].expanded && !rows[2].expanded
-        # A folder with entries has a chevron, and an empty folder has none.
-        @test rows[2].has_children && !rows[3].has_children && !rows[4].has_children
-
+        tree = pane.content
+        iomap = print_document(tree_projection, tree)
         is_listing_read(d) = is_cell_up_to_date(getfield(d.elements, :elements))
+
+        # The rows are made from the listing of the root, and read no entry.
+        @test [r.path for r in iomap.geometry.rows] == [[1], [1, 1], [1, 2], [1, 3]]
+        @test is_listing_read(folder)
+        @test !any(is_cell_up_to_date, getfield(folder.elements, :elements)[])
+
+        # Draw the rows, as the renderer does: a row reads its node, and a folder
+        # row reads the listing of its folder to know if it has a chevron.
+        rows_canvas = only(el for el in iomap.output.elements
+                           if el isa GraphicsCanvas && el.layout == layout_vertical)
+        foreach(row -> collect(row.elements), rows_canvas.elements)
         full = folder.elements[1]
-        inner = full.elements[2]
-        @test is_listing_read(folder) && is_listing_read(full)
-        @test !is_listing_read(inner)
+        @test is_listing_read(full) && is_listing_read(folder.elements[2])
+        @test !is_listing_read(full.elements[2])            # `inner`, not shown
+
+        node(path) = ProjecturedFileSystem.WidgetModule._wtree_node_at(tree, path)
+        has_children(path) = ProjecturedFileSystem.WidgetModule._wtree_has_children(node(path))
+        @test [node([1, k]).label for k in 1:3] == ["full", "none", "top.jl"]
+        @test [1] in tree.expanded && !([1, 1] in tree.expanded)
+        # A folder with entries has a chevron, and an empty folder has none.
+        @test has_children([1, 1]) && !has_children([1, 2]) && !has_children([1, 3])
     end
 end
 end

@@ -33,6 +33,13 @@ _fresh() = begin
     w = WidgetTree(Any[("src", Any["a.jl", "b.jl"]), "README"]; expanded = Set([[1]]))
     (w, print_document(_treeproj, w))
 end
+# Whether the node at `path` has children. A row holds no node, so this reads it.
+_has_children(w, path) = WidgetModule._wtree_has_children(WidgetModule._wtree_node_at(w, path))
+# The canvas of the rows, and the bands of row `k`: each row draws its own.
+_rows_canvas(io) = only(el for el in io.output.elements
+                        if el isa GraphicsCanvas && el.layout == layout_vertical)
+_bands(io, k) = [r for r in _rows_canvas(io).elements[k].elements
+                 if r isa GraphicsRect && r.color.alpha[] > 0]
 # GraphicsRect overlays in the canvas (the hover + selection bands). Canvas
 # elements may be raw graphics or Cell-wrapped, so unwrap defensively.
 function _rects(io)
@@ -48,7 +55,7 @@ end
     w = WidgetTree(Any[("src", Any["a.jl", "b.jl"]), "README"])
     geom = print_document(_treeproj, w).geometry
     @test [r.path for r in geom.rows] == [[1], [2]]    # src and README, src closed
-    @test geom.rows[1].has_children && !geom.rows[1].expanded
+    @test _has_children(w, [1]) && !([1] in w.expanded)
 end
 
 @testset "flatten records rows, chevron box, and open flag" begin
@@ -56,8 +63,8 @@ end
     geom = io.geometry
     @test length(geom.rows) == 4                       # src, a.jl, b.jl, README
     @test [r.path for r in geom.rows] == [[1], [1, 1], [1, 2], [2]]
-    @test geom.rows[1].has_children && geom.rows[1].expanded
-    @test !geom.rows[4].has_children                   # README is a leaf
+    @test _has_children(w, [1]) && [1] in w.expanded
+    @test !_has_children(w, [2])                       # README is a leaf
     @test geom.rows[1].chevron_x0 == 0 && geom.rows[1].chevron_x1 == 18
     @test geom.rows[2].chevron_x0 == 22                # indented one level
 end
@@ -104,7 +111,7 @@ end
     getfield(w, :expanded)[] = op.value
     @test !([1] in w.expanded)
     g = io.geometry
-    @test length(g.rows) == 2 && !g.rows[1].expanded
+    @test length(g.rows) == 2
     # Chevron click again → open.
     op = _readop(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods; time = 0.0))
     getfield(w, :expanded)[] = op.value
@@ -118,19 +125,15 @@ end
     @test op isa ReplaceSelectionOperation
 end
 
-# Only the translucent bands (alpha > 0); excludes the invisible whole-canvas hit
-# target, which is always full-height.
-_bands(io) = [r for r in _rects(io) if r.color.alpha[] > 0]
-
-@testset "hover band overlay tracks w.hovered" begin
+@testset "each row draws its hover band and its selection band" begin
     w, io = _fresh()
-    _ = io.geometry
-    bands = _bands(io)
+    bands = _bands(io, 1)
     @test length(bands) == 2                            # hover + selection bands
     @test all(Int(r.h[]) == 0 for r in bands)           # neither active yet
-    # Hover row 1 → one band gains the row's height.
+    # Hover row 1 → one of its bands gains the row's height.
     getfield(w, :hovered)[] = _readop(io, MouseEnter(2, io.geometry.rows[1].y0 + 2, MouseButtons(), _mods; time = 0.0)).value
-    @test any(Int(r.h[]) == 24 for r in _bands(io))
+    @test any(Int(r.h[]) == 24 for r in _bands(io, 1))
+    @test all(Int(r.h[]) == 0 for r in _bands(io, 2))   # the next row stays dark
 end
 
 @testset "the whole tree canvas is a hit target (nested routability)" begin
@@ -140,7 +143,7 @@ end
     # when nested in a container that gates on hit_element_at.
     hit = [r for r in _rects(io) if r.color.alpha[] == 0]
     @test length(hit) == 1
-    @test Int(hit[1].w[]) == io.geometry.total_w && Int(hit[1].h[]) == io.geometry.total_h
+    @test Int(hit[1].w[]) == io.width && Int(hit[1].h[]) == io.geometry.total_h
 end
 
 # Regression: a tree nested in a layout / tabbed pane / shell must still receive
