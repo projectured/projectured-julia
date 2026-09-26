@@ -135,6 +135,11 @@ so the model sees the tab, and `table_tab_1` is a target like `people_tab_1`.
 Before D10, the answer was the typed path
 `::ScreenDocument.windows::CellVector[1]::…::PaneGroup.tabs::CellVector[2]::PaneTab`.
 
+`println(print_natural_text(people_1))` stays here: `print_natural_text` answers
+a `String`. The owner decided on 2026-09-26 that a `print_` function writes; the
+rename to `print_natural_string` and `make_natural_string` is its own plan,
+`a-print-writes-and-a-make-answers.md`, after this one.
+
 Not shown by the headless run: what qwen writes. The system prompt is not changed
 (D18) and names the older path, so the rehearsal of Step 6 shows which path the
 model takes.
