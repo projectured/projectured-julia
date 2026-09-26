@@ -365,6 +365,21 @@ end
     @test SDL._compute_dirty_region(res, top) == [(0, 98, 82, 112)]
 end
 
+@testset "the outline of rects that overlap is one shape" begin
+    # Two boxes that overlap: each keeps only the parts of its edges that lie on
+    # the boundary of their union, so no line is drawn inside it.
+    bars = SDL._compute_union_outline([(0, 0, 10, 10), (5, 5, 15, 15)], 1)
+    @test sort(bars) == sort([(0, 0, 10, 1), (0, 9, 5, 10), (0, 0, 1, 10), (9, 0, 10, 5),
+                              (10, 5, 15, 6), (5, 14, 15, 15), (5, 10, 6, 15), (14, 5, 15, 15)])
+    # A box inside another adds nothing to the outline.
+    @test sort(SDL._compute_union_outline([(0, 0, 20, 20), (5, 5, 10, 10)], 1)) ==
+          sort([(0, 0, 20, 1), (0, 19, 20, 20), (0, 0, 1, 20), (19, 0, 20, 20)])
+    # Two boxes that touch are outlined as one: the edges they share are inside.
+    @test sort(SDL._compute_union_outline([(0, 0, 10, 10), (0, 10, 10, 20)], 1)) ==
+          sort([(0, 0, 10, 1), (0, 19, 10, 20), (0, 0, 1, 10), (9, 0, 10, 10),
+                (0, 10, 1, 20), (9, 10, 10, 20)])
+end
+
 @testset "a scaled viewport repaints its box when its content moves" begin
     offset = Cell(0)
     content = GraphicsCanvas(CellVector(Cell[Cell(GraphicsRect(0, 0, 50, 10))]);

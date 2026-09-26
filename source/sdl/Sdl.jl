@@ -2593,13 +2593,59 @@ function _paint_dirty_rects!(renderer::Ptr{SDL_Renderer}, canvas::GraphicsCanvas
     nothing
 end
 
-# Outline each rect in red, `thickness` logical pixels wide, inside the rect.
+# Outline the union of `rects` in red, `thickness` logical pixels wide, inside
+# it: rects that overlap or touch are outlined as one shape, with no line inside.
 function _outline_dirty_rects!(renderer::Ptr{SDL_Renderer}, rects, thickness::Int)
     SDL_SetRenderDrawColor(renderer, 0xff, 0x00, 0x00, 0xff)
-    for r in rects, i in 0:(thickness - 1)
-        SDL_RenderDrawRect(renderer, Ref(_to_sdl_rect((r[1] + i, r[2] + i, r[3] - i, r[4] - i))))
+    for bar in _compute_union_outline(rects, thickness)
+        SDL_RenderFillRect(renderer, Ref(_to_sdl_rect(bar)))
     end
     nothing
+end
+
+# The outline of the union of `rects` (each `(x0, y0, x1, y1)`, covering the
+# pixels x0 ≤ x < x1 and y0 ≤ y < y1), as bars `thickness` pixels wide on the
+# inside of its boundary. An edge of a rect is kept only where the pixels just
+# beyond it are outside every rect: the top edge where the row above is not
+# covered, the right edge where the column after it is not covered, and so on.
+function _compute_union_outline(rects, thickness::Int)
+    bars = NTuple{4,Int}[]
+    t = max(1, thickness)
+    for (x0, y0, x1, y1) in rects
+        (x1 > x0 && y1 > y0) || continue
+        # The spans of the rects that cover the row or the column just beyond an edge.
+        across_row(y) = [(q[1], q[3]) for q in rects if q[2] <= y < q[4]]
+        across_column(x) = [(q[2], q[4]) for q in rects if q[1] <= x < q[3]]
+        for (a, b) in _subtract_spans(x0, x1, across_row(y0 - 1))
+            push!(bars, (a, y0, b, min(y1, y0 + t)))
+        end
+        for (a, b) in _subtract_spans(x0, x1, across_row(y1))
+            push!(bars, (a, max(y0, y1 - t), b, y1))
+        end
+        for (a, b) in _subtract_spans(y0, y1, across_column(x0 - 1))
+            push!(bars, (x0, a, min(x1, x0 + t), b))
+        end
+        for (a, b) in _subtract_spans(y0, y1, across_column(x1))
+            push!(bars, (max(x0, x1 - t), a, x1, b))
+        end
+    end
+    bars
+end
+
+# The parts of the span `lo ≤ v < hi` that none of `cuts` (each `(a, b)`, a ≤ v < b)
+# covers.
+function _subtract_spans(lo::Int, hi::Int, cuts)
+    parts = Tuple{Int,Int}[]
+    start = lo
+    for (a, b) in sort(cuts)
+        b <= start && continue
+        a >= hi && break
+        a > start && push!(parts, (start, a))
+        start = max(start, b)
+        start >= hi && break
+    end
+    start < hi && push!(parts, (start, hi))
+    parts
 end
 
 # ── Per-window paint ──────────────────────────────────────────────────────
