@@ -1,7 +1,7 @@
 # An inline image is one caret position
 
 > **Status:** done, 2026-09-26, on the branch `inline-image` (worktree
-> `projectured-julia-inline-image`), rebased on `main` `bde5620d`; not landed.
+> `projectured-julia-inline-image`), rebased on `main` `a893fc2a`; not landed.
 > Written 2026-09-26. The owner asked for this
 > plan after the text layout examples showed the fault
 > ([text-layout-examples.md](../done/text-layout-examples.md), Step 2), and
@@ -514,6 +514,21 @@ It found four faults:
 4. *Fixed.* `splice_value!` over a `TextBlock` lost an insertion beside an image
    with no run, and put the run of a block of one image after it.
    `_splice_beside_image!` makes the edits of `_make_image_edit` in place.
+
+*After the fixes,* the suites of Step 0 and the extra sweeps ran again in fresh
+processes (`/var/tmp/inline-image/final2/`, `/var/tmp/inline-image/extras/final2/`).
+The failure sets are the same as on `main`. `substrate` is 85335 (+257 on the base:
+`InlineImageCaretTest` 261, the wrap test +3, the line numbering test +1, less the
+8 style cells of four images); `markdown`, `catalog_text` and the extra sweeps
+move as in Step 9. `main` moved to `a893fc2a` during the runs, and the branch is
+rebased on it. `test_sdl` alone gives 748 on `main` and on the rebased branch, with
+the same tree of testsets; the 731 of the runs before the rebase lacked two
+testsets of the new commits of `main` (17 tests). On the rebased tree the image
+tests pass and the three examples give the counts of Step 8.
+
+*Fact:* the counts of `test_example` drift in a warm session (+26 for each of the
+three examples in one session), because the printer walk follows weak dependents
+that earlier tests left. The counts of this plan come from fresh processes.
 
 ## 7. Relations and risks
 
