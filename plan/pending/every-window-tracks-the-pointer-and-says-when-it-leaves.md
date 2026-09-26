@@ -1,9 +1,10 @@
 # Every window tracks the pointer, and says when the pointer leaves it
 
-> **Status (2026-09-26): proposed** on the branch `window-leave`, worktree
+> **Status (2026-09-26): in progress** on the branch `window-leave`, worktree
 > `projectured-julia-window-leave`. The owner chose the correct design for the
-> leave of a window, and allowed the unsealing of the kernel files it needs.
-> Two choices are open: see "Decisions to make".
+> leave of a window, allowed the unsealing of the kernel files it needs, named the
+> event `WindowLeave`, and chose (B). A fact found after the choice reopens (B):
+> see "Decisions".
 
 Follows [a-popup-shows-every-item-on-a-popover-and-a-help-page-scrolls.md](../done/a-popup-shows-every-item-on-a-popover-and-a-help-page-scrolls.md).
 The owner found that a row of a popup menu does not light under the pointer.
@@ -56,7 +57,19 @@ The owner found that a row of a popup menu does not light under the pointer.
 - **H2:** event 13 becomes `WindowDefocus`, and 12 becomes nothing.
 - **H1:** every window tracks the pointer. See "Decisions to make" for where.
 
-## Decisions to make
+## Decisions
+
+- **The owner, 2026-09-26:** the event is `WindowLeave`; the window route tracks
+  the pointer (B).
+- **Found after the choice:** `WidgetHoverTrackingProjection` is also a standalone
+  hover tracker, used with no window scene: in the gallery, two pane examples,
+  the widget projection example, and the tests of the button and of the
+  gestures; in omnet-julia in the presentation example, Qtenv, the campaign
+  window, the build program and a demo. (B) as written, with the widget tracker
+  reduced to the wrap-around of Tab, takes the hover from all of them. The choice
+  goes back to the owner before step 3. Steps 0 to 2 do not depend on it.
+
+## The choices as they were put
 
 1. **The name of the event.** My proposal is `WindowLeave`: it sits in the family
    `WindowClose`, `WindowResize`, `WindowDefocus`, and it says what SDL and X11
