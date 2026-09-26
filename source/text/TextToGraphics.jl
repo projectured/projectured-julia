@@ -161,7 +161,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     declined === nothing || return nothing
 
     styled = iomap.input
-    _has_text_span(styled) || return nothing
+    _has_caret_span(styled) || return nothing
 
     # Shift moves one end of the selection: Home and Up the start, End and Down
     # the stop, as the geometry-free Shift keys of the text domain do.
@@ -825,12 +825,13 @@ function _element_font(line::TextLine)
     nothing
 end
 
-# At least one `TextString` to put a caret in, at either depth.
-_has_text_span(styled::TextBlock) =
+# At least one span to put a caret beside, at either depth: a `TextString`, or an
+# inline image, which has a caret before and after it.
+_has_caret_span(styled::TextBlock) =
     any(styled.elements) do element
-        element isa TextString ||
-            (element isa TextLine && any(span -> span isa TextString, element.elements))
+        _is_caret_span(element) || (element isa TextLine && any(_is_caret_span, element.elements))
     end
+_is_caret_span(span) = span isa Union{TextString, TextGraphics}
 
 # ── Persistent per-segment graphics (printer locality — dimension C) ───────────
 #

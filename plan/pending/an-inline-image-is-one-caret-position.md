@@ -206,7 +206,7 @@ The owner answered questions 1 to 6 on 2026-09-26.
 
 Do the work in a git worktree, and commit each step.
 
-- [ ] **Step 0. The baseline.** On the base commit, in a fresh process in the
+- [x] **Step 0. The baseline.** On the base commit, in a fresh process in the
   network namespace: the suites of the text line plan
   (`/var/tmp/text-baseline-base/baseline.jl`), `test_example` of
   `text_with_image`, `text_baseline` and `text_line_height`, and the navigation
@@ -223,7 +223,16 @@ Do the work in a git worktree, and commit each step.
 
     The navigation walks of `text_baseline` and `text_line_height` fail on `main`
     too: the right walk and the left walk do not agree (`same_length`, and each
-    walk ends where the other starts). The sweep has no marker for them.
+    walk ends where the other starts). No suite runs them: the list `examples` of
+    the sweep does not name the layout examples.
+  - *Done for the suites* (`/var/tmp/inline-image/base/test-counts.tsv`), pass /
+    fail / error / broken: substrate 85078 / 3 / 2 / 1, formula 104 / 12 / 0 / 0,
+    sdl 690, write_pdf 43, assistant_mvp 127 / 4, example_conversation_widget
+    4694 / 1060 (at `TypeinTest.jl:587`), example_assistant 13310 / 2,
+    example_markdown 3911, example_markdown_rendered 3660 / 8 / 0 / 86,
+    catalog_markdown 30080, catalog_text 10498 / 0 / 0 / 12. 1091 fail and error
+    entries in all, the same set as at `f5955aef`; `sdl` has 4 more passes from
+    `ee1e494d`.
 - [x] **Step 1. The caret stream counts an image** (§3.1).
   `get_flat_length(::TextGraphics) = 1`, U+FFFC in `_push_flat_chars!`, the
   comments that say zero, and `splice_value!` over a `TextBlock` in the caret
@@ -262,10 +271,26 @@ Do the work in a git worktree, and commit each step.
     image now declines (the range covers the image) where it deleted the first
     character after the image before; Step 4 makes it delete the image. The
     navigation counts do not change.
-- [ ] **Step 3. Motion** (§3.3). Left, Right, Ctrl+arrow, Ctrl+Home, Ctrl+End, and
+- [x] **Step 3. Motion** (§3.3). Left, Right, Ctrl+arrow, Ctrl+Home, Ctrl+End, and
   the geometric Home, End, Up, Down and click. `TextToGraphicsTest.jl:198-225`
   keeps its numbers, and its comment says what they mean. Tests: a walk with
   Right from 0 to the total visits each caret once, and Left walks back.
+  - *Done.* Left, Right, Ctrl+Home, Ctrl+End, Home, End, Up, Down and a click
+    needed no change after Steps 1 and 2: the geometric keys already took an
+    image segment as `0..1`. Word motion has a third class, `_is_image_char`:
+    Ctrl+Right skips one image, then the separators, so it stops before and
+    after an image that touches a word. The reader guard of the geometric keys
+    is `_has_caret_span` (a text run or an image), so a line of images has
+    carets.
+  - *Fact:* the walks of the navigation sweep stop for two reasons that are not
+    images. In `text_with_image` the left walk stops at 152, at a soft wrap:
+    Left from the start of a wrapped line maps back to the same input offset
+    (the stall of `NAV_LEFT_WALK_STALLS`, owned by
+    [left-motion-stalls-on-introduced-text.md](left-motion-stalls-on-introduced-text.md)).
+    In `text_baseline` the right walk stops at 225, before an empty line of two
+    `TextNewline`s: `WordWrapping` maps an offset in a gap back to the nearest
+    run (`convert_flat_offset_to_element`), so the caret can not stand on the
+    empty line. This plan does not fix either.
 - [ ] **Step 4. Edits** (§3.4). The reader of the text domain types beside an
   image, starts a new run with `insert_elements`, and deletes an image with
   `delete_elements`, each followed by the caret. The operations go through the

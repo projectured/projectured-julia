@@ -216,9 +216,9 @@ left  = read_intent(p, iomap, click(10))
 right = read_intent(p, iomap, click(50))
 @test left isa ReplaceSelectionOperation
 @test right isa ReplaceSelectionOperation
-# Left half → cursor before the image (flat 2, end of "ab"); right half → the
-# offset past it (flat 3). The image is zero-width in the caret stream, but the
-# hit-test still resolves the two halves to distinct flat offsets.
+# Left half → the caret before the image (flat 2, the end of "ab"); right half →
+# the caret after it (flat 3, the start of "cd"). The image is one position of the
+# caret stream.
 @test is_reference_equal(left.path,  TextModule.make_flat_caret_reference(2))
 @test is_reference_equal(right.path, TextModule.make_flat_caret_reference(3))
 

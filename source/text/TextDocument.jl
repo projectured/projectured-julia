@@ -523,23 +523,34 @@ function get_flat_cursor_coordinate(text::TextBlock, selection)
 end
 
 # Standard editor word class: letters, digits, and underscore are "word" chars;
-# everything else (including breaks and spacing) is a separator.
+# an inline image is a word of its own; everything else (including breaks and
+# spacing) is a separator.
 _is_word_char(c) = isletter(c) || isdigit(c) || c == '_'
+_is_image_char(c) = c == OBJECT_REPLACEMENT_CHARACTER
+_is_separator_char(c) = !_is_word_char(c) && !_is_image_char(c)
 
-# Ctrl+Right: from flat `f`, skip the current word run then the separator run →
-# next word start. `chars` is the flat stream (`chars[f+1]` is the char right of
-# caret `f`); `n == length(chars)`.
+# Ctrl+Right: from flat `f`, skip the current word run (or the one image) then the
+# separator run → next word start. `chars` is the flat stream (`chars[f+1]` is
+# the char right of caret `f`); `n == length(chars)`.
 function _word_right_flat(chars, f::Int, n::Int)
-    while f < n && _is_word_char(chars[f + 1]); f += 1; end
-    while f < n && !_is_word_char(chars[f + 1]); f += 1; end
+    if f < n && _is_image_char(chars[f + 1])
+        f += 1
+    else
+        while f < n && _is_word_char(chars[f + 1]); f += 1; end
+    end
+    while f < n && _is_separator_char(chars[f + 1]); f += 1; end
     f
 end
 
-# Ctrl+Left: skip the separator run then the word run (`chars[f]` is the char
-# left of caret `f`).
+# Ctrl+Left: skip the separator run then the word run, or the one image
+# (`chars[f]` is the char left of caret `f`).
 function _word_left_flat(chars, f::Int)
-    while f > 0 && !_is_word_char(chars[f]); f -= 1; end
-    while f > 0 && _is_word_char(chars[f]); f -= 1; end
+    while f > 0 && _is_separator_char(chars[f]); f -= 1; end
+    if f > 0 && _is_image_char(chars[f])
+        f -= 1
+    else
+        while f > 0 && _is_word_char(chars[f]); f -= 1; end
+    end
     f
 end
 
