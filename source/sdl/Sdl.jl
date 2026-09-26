@@ -3093,6 +3093,7 @@ function BackendModule.write_to_devices(backend::SdlBackend, devices::Vector{Dev
             backend.window_ids[res.sdl_id] = res.id
             _show_painted_window!(backend, res, w)
         else
+            _adopt_native_position!(res, w)
             _update_window_geometry!(res, w, ratio)
         end
         _render_window!(backend, res, canvas)
@@ -3128,10 +3129,11 @@ end
     _place_fitted_window!(backend::SdlBackend, w::WindowDocument) -> w
 
 Keep a window that fits its content on the screen. A window that would cross the
-right or the bottom edge of the work area is moved inside it, and one that would
-then hold the pointer goes to the side of the pointer instead: a window under the
-pointer covers the very thing it is about, and the next move of the pointer
-closes it.
+right or the bottom edge of the work area is moved inside it. A tooltip that would
+then hold the pointer goes to the side of the pointer instead: a tooltip under
+the pointer covers the very thing it is about, and the next move of the pointer
+closes it. A popup stays under the pointer, because the pointer goes into it to
+choose.
 
 A window of a fixed size is left alone, and so is one that asks the backend to
 place it (`x` or `y` below zero).
@@ -3144,10 +3146,29 @@ function _place_fitted_window!(backend::SdlBackend, w::WindowDocument)
     (x, y) = compute_window_place(Int(w.x), Int(w.y), Int(w.width), Int(w.height);
                                   area_width = Int(area[1]),
                                   area_height = Int(area[2]),
-                                  pointer = get_pointer_position(backend))
+                                  pointer = w.style === :tooltip ?
+                                            get_pointer_position(backend) : nothing)
     (w.x == x && w.y == y) && return w
     w.x = x
     w.y = y
+    w
+end
+
+# The place of a window that the window manager chose. It can put a window
+# elsewhere than asked, at the first frame or when a person moves it. The document
+# takes that place when it asks for no place of its own, so a popup opens at the
+# window and not where the window was first asked to be.
+function _adopt_native_position!(res::SdlWindowResources, w::WindowDocument)
+    x_ref, y_ref = Ref{Cint}(0), Ref{Cint}(0)
+    SDL_GetWindowPosition(res.win, x_ref, y_ref)
+    x, y = Int(x_ref[]), Int(y_ref[])
+    (x == res.x && y == res.y) && return w
+    if w.x == res.x && w.y == res.y
+        w.x = x
+        w.y = y
+    end
+    res.x = x
+    res.y = y
     w
 end
 

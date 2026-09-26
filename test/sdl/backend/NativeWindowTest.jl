@@ -154,4 +154,52 @@ end
     @test place(900, 100, 200, 80; area..., pointer = (850, 120)) == (642, 100)
     @test place(0, 100, 200, 80; area..., pointer = (40, 120)) == (48, 100)
 end
+
+@testset "a tooltip goes beside the pointer, and a popup stays under it" begin
+    # The pointer goes into a popup to choose, so only a tooltip moves away from
+    # it. The test reads the real pointer and never moves it.
+    SDL = ProjecturedSdl
+    backend = SdlBackend()
+    initialize_backend!(backend)
+    (px, py) = get_pointer_position(backend)
+    (area_width, area_height) = get_display_size(backend)
+    x, y = clamp(px - 20, 0, area_width - 200), clamp(py - 20, 0, area_height - 100)
+    held(style) = WindowDocument(; id = :place_test, title = "place_test", x = x, y = y,
+                                   width = 200, height = 100, maximum_size = (200, 100),
+                                   style = style, content = "content")
+    if x <= px < x + 200 && y <= py < y + 100
+        popup = SDL._place_fitted_window!(backend, held(:popup))
+        @test (popup.x, popup.y) == (x, y)
+        tooltip = SDL._place_fitted_window!(backend, held(:tooltip))
+        @test !(tooltip.x <= px < tooltip.x + 200)
+    end
+    quit_backend!(backend)
+end
+
+@testset "a window takes the place that the window manager gives it" begin
+    # A window manager can put a window elsewhere than asked, and a person can move
+    # it. The document takes that place, so a popup opens at the window; a place
+    # the document asks for itself still moves the window.
+    LibSDL2 = ProjecturedSdl.SimpleDirectMediaLayer.LibSDL2
+    backend = SdlBackend()
+    initialize_backend!(backend)
+    canvas = GraphicsCanvas(CellVector(Any[GraphicsRect(10, 10, 60, 20)]), layout_none)
+    window = WindowDocument(; id = :moved_window_test, title = "moved_window_test",
+                              x = 100, y = 100, width = 200, height = 100, content = canvas)
+    screen = ScreenDocument([window])
+    write_to_devices(backend, Device[Display()], screen)
+    resource = backend.windows[:moved_window_test]
+    placed() = (x = Ref{Cint}(0); y = Ref{Cint}(0);
+                LibSDL2.SDL_GetWindowPosition(resource.win, x, y); (Int(x[]), Int(y[])))
+    # The window manager moves it.
+    LibSDL2.SDL_SetWindowPosition(resource.win, Int32(300), Int32(200))
+    moved = placed()
+    write_to_devices(backend, Device[Display()], screen)
+    @test (window.x, window.y) == moved
+    # The document asks for a place of its own, and the window goes there.
+    window.x = moved[1] + 50
+    write_to_devices(backend, Device[Display()], screen)
+    @test placed()[1] == window.x
+    quit_backend!(backend)
+end
 end # test_native_window
