@@ -18,8 +18,8 @@ The module lives in eight fragments that share this namespace:
 - [`MouseEvent.jl`](MouseEvent.jl) — `MouseButtons`, and the mouse events
   `MouseDown`, `MouseUp`, `MousePress`, `MouseMove`, `MouseEnter`, `MouseLeave` and
   `MouseScroll`.
-- [`WindowEvent.jl`](WindowEvent.jl) — `WindowQuit`, `WindowClose`, `WindowResize`
-  and `WindowDefocus`.
+- [`WindowEvent.jl`](WindowEvent.jl) — `WindowQuit`, `WindowClose`, `WindowResize`,
+  `WindowDefocus` and `WindowLeave`.
 - [`WindowInput.jl`](WindowInput.jl) — an event and the id of the window that it
   came from.
 - [`EventDefaults.jl`](EventDefaults.jl) — the fallback of `get_modifier_keys`,
@@ -35,7 +35,7 @@ export ModifierKeys
 export KeyDown, KeyUp, KeyPress, KeyChord
 export MouseButtons, MouseDown, MouseUp, MousePress, MouseMove, MouseEnter, MouseLeave,
        MouseScroll
-export WindowQuit, WindowClose, WindowResize, WindowDefocus
+export WindowQuit, WindowClose, WindowResize, WindowDefocus, WindowLeave
 export WindowInput
 export has_ctrl_modifier_key, has_shift_modifier_key, has_alt_modifier_key,
        has_meta_modifier_key

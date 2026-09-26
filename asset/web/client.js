@@ -615,6 +615,10 @@
       send({ type: "mousemove", window: idFn(), x, y, buttons: ev.buttons, mods: mods(ev),
              t: stamp(ev) });
     });
+    // The pointer went out of the window: a tracker unlights what it lit.
+    canvas.addEventListener("mouseleave", (ev) => {
+      send({ type: "leave", window: idFn(), t: stamp(ev) });
+    });
     canvas.addEventListener("wheel", (ev) => {
       ev.preventDefault();
       const { x, y } = pos(ev, canvas);

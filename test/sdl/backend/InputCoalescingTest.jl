@@ -175,5 +175,14 @@ function test_input_coalescing()
         _reset_input!(backend)
     end
 
+    @testset "the pointer that leaves a window is a window event" begin
+        _reset_input!(backend)
+        _push_window_event!(_SDL.SDL_WINDOWEVENT_LEAVE)
+        input = read_from_devices(backend, Device[])
+        @test input isa WindowInput
+        @test input.event isa WindowLeave
+        _reset_input!(backend)
+    end
+
 end
 end # test_input_coalescing

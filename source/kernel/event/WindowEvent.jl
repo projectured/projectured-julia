@@ -53,3 +53,17 @@ struct WindowDefocus <: DeviceEvent
 end
 
 WindowDefocus(; time::Real) = WindowDefocus(Float64(time))
+
+"""
+    WindowLeave(; time)
+
+The pointer left a window. A pointer that crosses from one widget to another inside
+a window moves, and the code that tracks the widgets makes a `MouseLeave` from the
+motion; a pointer that goes out of the window moves over nothing that the window
+sees, so the source reports it as this event.
+"""
+struct WindowLeave <: DeviceEvent
+    time::Float64
+end
+
+WindowLeave(; time::Real) = WindowLeave(Float64(time))

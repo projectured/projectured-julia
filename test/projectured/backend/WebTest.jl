@@ -63,6 +63,14 @@ function test_web_backend()
         @test read_from_devices(backend, Device[]) === nothing
     end
 
+    @testset "the pointer that leaves a window is a window event of that window" begin
+        backend = WebBackend(port = 0)
+        _WEB._decode_and_enqueue!(backend, """{"type":"leave","window":"main","t":2500}""")
+        window_input = read_from_devices(backend, Device[])
+        @test window_input.window_id === :main
+        @test window_input.event == WindowLeave(; time = 2.5)
+    end
+
     # Timing assertions are one-sided and generous: a bound says "far less
     # than the full timeout", never "exactly this fast".
     @testset "wait and wake" begin

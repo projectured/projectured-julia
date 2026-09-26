@@ -112,11 +112,20 @@ The owner found that a row of a popup menu does not light under the pointer.
   real SDL queue: 23 pass. A popup now closes when the person switches to another
   program, as the rule meant; a press in the first window still closes it by the
   rule of a press.
-- [ ] 2. **H3, the event.** The new event in `WindowEvent.jl`, exported and named
+- [x] 2. **H3, the event.** The new event in `WindowEvent.jl`, exported and named
   in the list of window events of `EventModule.jl`. The SDL backend reports it
   from event 11; the web client and the web backend report it from `mouseleave`.
   Tests: the SDL event 11 reads as the new event; the web backend reads a
   `leave` message as it.
+
+  Done. `WindowLeave(; time)` in `WindowEvent.jl`, exported and listed in
+  `EventModule.jl`. The SDL backend reads `SDL_WINDOWEVENT_LEAVE` as it; the web
+  client sends `leave` on `mouseleave` of a canvas, and the web backend reads it.
+  The web client forwards a pointer move only while a button is held, so the web
+  backend has no hover yet; the event is there for when it has. Tests:
+  `test_input_coalescing`, `test_web_backend` and `test_native_window`, 99 pass;
+  the event module, the patterns, the export collisions and the kernel layering,
+  90 pass; the naming guard passes.
 - [ ] 3. **H1 and H3, the tracking.** The tracking of the chosen place: a move
   over a row of the popup lights it, a move to the next row moves the light, and
   the leave of the window unlights it; the first window keeps its hover and its

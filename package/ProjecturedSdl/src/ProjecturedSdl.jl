@@ -55,7 +55,7 @@ import ProjecturedStyle.StyleModule: compute_text_extent, compute_placed_glyphs,
                          FontFileMeasure
 import ProjecturedKernel.EventModule: WindowQuit
 import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
-import ProjecturedKernel.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus
+import ProjecturedKernel.EventModule: WindowInput, WindowClose, WindowResize, WindowDefocus, WindowLeave
 import ProjecturedKernel.EventModule: ModifierKeys
 import ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
 import ProjecturedKernel.EventModule: MouseButtons, MouseDown, MouseUp, MousePress, MouseMove,

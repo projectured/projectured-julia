@@ -3459,6 +3459,8 @@ function _poll_window_input(backend::SdlBackend)
                 return (WindowInput(wid, WindowClose(; time = event_time)), nothing)
             elseif sub == UInt8(SDL_WINDOWEVENT_FOCUS_LOST)
                 return (WindowInput(wid, WindowDefocus(; time = event_time)), nothing)
+            elseif sub == UInt8(SDL_WINDOWEVENT_LEAVE)
+                return (WindowInput(wid, WindowLeave(; time = event_time)), nothing)
             elseif sub == UInt8(SDL_WINDOWEVENT_RESIZED)  # external/user only
                 # SDL reports device pixels; the document works in logical pixels.
                 nw = _to_logical(Int(evt.window.data1), ratio)

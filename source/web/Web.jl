@@ -617,6 +617,9 @@ function _decode_and_enqueue!(backend::WebBackend, msg)
     elseif typ == "blur"
         put!(backend.inbound, WindowInput(wid, WindowDefocus(; time = at)))
 
+    elseif typ == "leave"
+        put!(backend.inbound, WindowInput(wid, WindowLeave(; time = at)))
+
     elseif typ == "quit"
         put!(backend.inbound, WindowInput(:none, WindowQuit(; time = at)))
 

@@ -34,7 +34,8 @@ import ProjecturedStyle.StyleModule: StyleFont, font_logical_size, compute_text_
                                     compute_caret_offsets, FontFileMeasure, get_fallback_font_files
 import ProjecturedKernel.CellModule: Cell, Computation, is_cell_up_to_date
 import ProjecturedKernel.EventModule: WindowInput, ModifierKeys,
-                               WindowQuit, WindowClose, WindowResize, WindowDefocus
+                               WindowQuit, WindowClose, WindowResize, WindowDefocus,
+                               WindowLeave
 import ProjecturedScreen.ScreenModule: ScreenDocument, WindowDocument
 import ProjecturedKernel.EventModule: KeyDown, KeyUp, KeyPress
 import ProjecturedKernel.EventModule: MouseButtons, MouseDown, MouseUp, MouseMove, MouseScroll
