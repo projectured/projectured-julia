@@ -331,9 +331,22 @@ approval of the owner and an idle machine.
   707; the faults are the 5 of the baseline. The example sweep counts 527 more
   checks, because a tree now has one canvas for each row, and the sweep counts
   cells.
-- [ ] **Step 7. Check it in the live editor.** Open the Explorer on this
+- [x] **Step 7. Check it in the live editor.** Open the Explorer on this
   repository with `DISPLAY=:0`. Open `build/`, scroll to its end, and close it.
   Count the listings that were read.
+  *Done offscreen, not in a live window,* so that no window took the keyboard
+  focus from the owner's desktop. `make_application_window(String[]; root)` and
+  `write_image` at 1600 × 1000 draw the real window with its Explorer, and a
+  redefined `_read_folder_names` and `make_filesystem_pathname` count the
+  reads. Over the main checkout (27,986 entries in 3,092 folders) the window
+  read 14 listings and made 21 entries: the root, and each folder of the first
+  level for its chevron. Over the worktree (2,500 entries in 577 folders): 12
+  listings and 20 entries. The image shows the root open, each folder closed
+  with a chevron, each file without one, and the long root name clipped at the
+  pane. A probe showed that a new folder path prints a new `WidgetTree`, whose
+  open set is `{[1]}` again, so step 2 needs no reset. Not done: a press of a
+  real pointer in a live window, and the open of `build/` in it; the render
+  test of step 6 covers the scroll of a large folder.
 - [ ] **Step 8. Documents.** Update `filesystem.md` (the tree, the duplicate,
   D7, the limits), `widget.md` (`expanded`, the lazy children), and
   `graphics.md` (the two edges of the limit, the declared extent). Move the plan
