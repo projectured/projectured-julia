@@ -262,6 +262,22 @@ fault 1 hid both.
   - A scan of the take at 4 frames a second finds the red rows 234–258 (the
     caret), 210–258 (paragraph 2), 210–442 (the wrap and the unwrap) and 690–718
     (the status line), and nothing else after the first paint.
+  - **The owner, after the first take, 2026-09-26:** "is it possible and simple to
+    merge the resulting boxes in a way that the inner lines are not drawn?" and
+    "the type-in speed is quite weird … we need the jitter but it should be more
+    realistic like a human. The json type-in example video does it right."
+    - The outline is the outline of the union of the rectangles
+      (`_compute_union_outline`): an edge is kept only where the pixels just
+      beyond it are outside every rectangle. The live window and the video both
+      draw it.
+    - The typing follows the JSON example: phrases of up to three words, cut at
+      a comma or a period, at one speed for the whole take (0.14 s a character,
+      jitter 0.45), a gap of 0.35 s between phrases, and a fixed seed. The
+      uneven speed of the first take was the timeline: a pause after each word,
+      and three different speeds. It was not the editor: a take in video time
+      fires each event at its video second, however long a frame takes.
+    - The second take: 30.4 s; the scan finds the caret, paragraph 2, the wrap
+      and the unwrap (paragraphs 2 to 5 as one outline) and the status line.
   - `debug_dirty_hold` is new: the outline of the last repaint changes with the
     next key, so the frame where the paragraphs below move lasted 1/30 s. With a
     hold, a video outlines every repaint of the last 0.6 s as well. The default
