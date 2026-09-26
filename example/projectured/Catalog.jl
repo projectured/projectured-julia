@@ -27,16 +27,20 @@ const _TEXT_TO_GRAPHICS = () -> ChainingProjection(
     WordWrapping(measure = FontFileMeasure()),
     TextToGraphics(measure = FontFileMeasure()))
 
+# The search tries the bridges in this order and keeps the paths in the order it
+# finds them, so a domain's own bridge to syntax comes before `JuliaToSyntax`:
+# the Julia bridge draws any document as one object leaf, so it reaches syntax
+# from every domain.
 const BRIDGES = Function[
     () -> RecursiveProjection(JsonToSyntax()),
     () -> RecursiveProjection(XmlToSyntax()),
     () -> RecursiveProjection(YamlToSyntax()),
-    () -> RecursiveProjection(JuliaToSyntax()),
     () -> RecursiveProjection(MarkdownToSyntax()),
     () -> RecursiveProjection(MathToSyntax()),
     () -> RecursiveProjection(BookToSyntax()),
     () -> RecursiveProjection(FileSystemToSyntax()),
     () -> RecursiveProjection(SqlToSyntax()),
+    () -> RecursiveProjection(JuliaToSyntax()),
     () -> RecursiveProjection(SyntaxToText()),
     # text → graphics: WordWrapping + TextToGraphics, measured with the headless
     # `FontFileMeasure` (the same default `run_example` uses). Output is an
@@ -72,13 +76,16 @@ is_graphics(@nospecialize T) = T isa Type && T <: GraphicsDocument
 is_syntax(@nospecialize T)   = T isa Type && T <: SyntaxDocument
 
 # All-shortest-paths BFS from `start` to the first frontier where `reached(T)` holds.
-# Returns each path as an ordered vector of bridge thunks (empty ⇒ already there).
+# Returns each path as an ordered vector of bridge thunks (empty ⇒ already there),
+# in the order the search finds them: by the order of `BRIDGES`, whatever the
+# hashes of the types.
 function path_sequences(start, reached)
     T0 = typeof(start)
     reached(T0) && return [Function[]]
     inst  = Dict{DataType,Any}(T0 => start)
     dist  = Dict{DataType,Int}(T0 => 0)
     preds = Dict{DataType,Vector{Tuple{DataType,Int}}}()
+    found = DataType[]                                   # the types in the order they are found
     queue = DataType[T0]; goal = nothing
     while !isempty(queue)
         T = popfirst!(queue)
@@ -87,7 +94,7 @@ function path_sequences(start, reached)
             out = _step(i, inst[T]); out === nothing && continue
             Tp = typeof(out); d = dist[T] + 1
             if !haskey(dist, Tp)                                 # first discovery of Tp
-                dist[Tp] = d; inst[Tp] = out; preds[Tp] = [(T, i)]
+                dist[Tp] = d; inst[Tp] = out; preds[Tp] = [(T, i)]; push!(found, Tp)
                 reached(Tp) ? (goal = d) : push!(queue, Tp)
             elseif dist[Tp] == d                                 # another equally-short path
                 push!(preds[Tp], (T, i))
@@ -96,8 +103,8 @@ function path_sequences(start, reached)
     end
     goal === nothing && return Vector{Function}[]
     seqs = Vector{Function}[]
-    for (Tp, d) in dist
-        (d == goal && reached(Tp)) || continue
+    for Tp in found
+        (dist[Tp] == goal && reached(Tp)) || continue
         append!(seqs, _chains_to(Tp, T0, preds))
     end
     seqs
