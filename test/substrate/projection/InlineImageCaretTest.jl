@@ -6,6 +6,11 @@ _image() = TextGraphics(ImageMemory(nothing), 24, 24)
 _run(text) = TextString(text, font_ubuntu_monospace_regular_20, color_default)
 const _splice_value! = ProjecturedKernel.OperationModule.splice_value!
 
+# The editor an operation is applied against: the document, and no view.
+mutable struct _InlineImageEditor
+    document::Any
+end
+
 function test_inline_image_caret()
 @testset "Inline image caret" begin
 
@@ -145,6 +150,101 @@ end
     @test click(images, 20) == 1
     @test click(images, 30) == 1
     @test click(images, 44) == 2
+end
+
+@testset "an edit beside an image" begin
+    measure = FixedMeasure(10, 12, 4, 0)
+    key(k) = KeyDown(k, ModifierKeys(); time = 0.0)
+    type(c) = KeyPress(c; time = 0.0)
+    caret_of(block) = get_flat_selection(block)
+    # Read `event` at `selection` through `projection` and apply the operation
+    # with its inverse taken first. Answers the operation and the inverse.
+    function edit!(editor, projection, selection, event)
+        block = editor.document
+        clear_selection!(block)
+        set_selection!(block, selection)
+        op = read_intent(projection, print_document(projection, block), event)
+        op === nothing && return (nothing, nothing)
+        (op, ProjecturedKernel.OperationModule.evaluate_invertible_operation!(editor, op))
+    end
+    at(k) = TextModule.make_flat_caret_reference(k)
+    over(s, e) = TextModule.make_flat_range_reference(s, e)
+    undo!(editor, inverse) = evaluate_operation(editor, inverse)
+
+    for projection in (TextToGraphics(measure = measure),
+                       ChainingProjection(WordWrapping(measure = measure, max_width = 1000),
+                                          TextToGraphics(measure = measure)))
+        editor(block) = _InlineImageEditor(block)
+
+        # A character after an image with no run after it starts a new run, in
+        # the style of the run before the image.
+        e = editor(TextBlock(TextString("ab", font_ubuntu_regular_20, color_red), _image()))
+        op, inverse = edit!(e, projection, at(3), type('x'))
+        @test TextModule.is_text_element_write(op)
+        @test get_flat_string(e.document) == "ab\uFFFCx"
+        @test e.document.elements[3].font == font_ubuntu_regular_20
+        @test e.document.elements[3].font_color == color_red
+        @test caret_of(e.document) == (4, 4, true)
+        undo!(e, inverse)
+        @test get_flat_string(e.document) == "ab\uFFFC"
+        @test length(e.document.elements) == 2
+
+        # Before an image with no run before it, the new run takes the style of
+        # the run after the image.
+        e = editor(TextBlock(_image(), TextString("ab", font_ubuntu_regular_20, color_red)))
+        edit!(e, projection, at(0), type('x'))
+        @test get_flat_string(e.document) == "x\uFFFCab"
+        @test e.document.elements[1].font_color == color_red
+        @test caret_of(e.document) == (1, 1, true)
+
+        # Where a run touches the image, the character goes into that run.
+        e = editor(TextBlock(_run("ab"), _image(), _run("cd")))
+        edit!(e, projection, at(3), type('x'))
+        @test get_flat_string(e.document) == "ab\uFFFCxcd"
+        @test length(e.document.elements) == 3
+        edit!(e, projection, at(2), type('y'))
+        @test get_flat_string(e.document) == "aby\uFFFCxcd"
+
+        # Backspace after an image and Delete before it delete the image; undo
+        # puts the same image back.
+        for (k, event) in ((3, key(:backspace)), (2, key(:delete)))
+            image = _image()
+            e = editor(TextBlock(_run("ab"), image, _run("cd")))
+            op, inverse = edit!(e, projection, at(k), event)
+            @test get_flat_string(e.document) == "abcd"
+            @test caret_of(e.document) == (2, 2, true)
+            undo!(e, inverse)
+            @test get_flat_string(e.document) == "ab\uFFFCcd"
+            @test e.document.elements[2] === image
+        end
+        e = editor(TextBlock(_image(), _run("ab")))
+        edit!(e, projection, at(1), key(:backspace))
+        @test get_flat_string(e.document) == "ab"
+        @test caret_of(e.document) == (0, 0, true)
+
+        # A range of text and an image does nothing; a range of only images is
+        # deleted, or replaced by a run of the typed text.
+        e = editor(TextBlock(_run("ab"), _image(), _run("cd")))
+        edit!(e, projection, over(1, 3), key(:backspace))
+        @test get_flat_string(e.document) == "ab\uFFFCcd"
+        e = editor(TextBlock(_run("ab"), _image(), _image(), _run("cd")))
+        edit!(e, projection, over(2, 4), type('x'))
+        @test get_flat_string(e.document) == "abxcd"
+        @test length(e.document.elements) == 3
+        @test caret_of(e.document) == (3, 3, true)
+    end
+
+    # A soft wrap before the image: the edit of the wrapped block names other
+    # element indices, so `WordWrapping` declines it and the edit is made on its
+    # input. "aaaa" is 40 wide and the image 24, so the image goes to line 2.
+    wrapped = ChainingProjection(WordWrapping(measure = measure, max_width = 50),
+                                 TextToGraphics(measure = measure))
+    image = _image()
+    e = _InlineImageEditor(TextBlock(_run("aaaa"), image, _run("b")))
+    op, inverse = edit!(e, wrapped, at(5), key(:backspace))
+    @test get_flat_string(e.document) == "aaaab"
+    undo!(e, inverse)
+    @test e.document.elements[2] === image
 end
 
 end # @testset "Inline image caret"

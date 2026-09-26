@@ -95,6 +95,10 @@ function _highlight(text::TextBlock, pattern, color::StyleColor)
             else
                 _highlight_string!(result, segs, elem, in_span, pattern, fill_cell)
             end
+        elseif elem isa TextGraphics
+            # An inline image is one position: the carets before and after it map.
+            push!(result, elem)
+            push!(segs, HighlightSegment(length(result), in_span, 0, 1))
         else
             push!(result, elem)
         end
@@ -275,5 +279,11 @@ end
 # unchanged; a raw gesture (KeyPress/KeyDown/MousePress) falls through to the
 # base `Projection.read_intent` which delegates via `read_gesture(input, evt)`.
 read_intent(::TextHighlighting, ::TextHighlightingIoMap, op::Operation) = op
+
+# An element write of the output (the edit beside an inline image) names output
+# element indices, which this stage changes. Decline it: the chain then reads the
+# gesture again against the input of this stage.
+read_intent(::TextHighlighting, ::TextHighlightingIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
+    is_text_element_write(op) ? nothing : op
 
 # ── Path helpers ────────────────────────────────────────────────────────────

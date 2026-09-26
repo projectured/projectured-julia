@@ -106,6 +106,8 @@ function _invert(p::SelectionInverting, text::TextBlock)
             base = _invert_string!(p, result, segs, elem, in_span, base, hl)
         else
             push!(result, elem)
+            # An inline image is one position: the carets before and after it map.
+            elem isa TextGraphics && push!(segs, SelectionSegment(length(result), in_span, 0, 1))
             base += get_flat_length(elem)
         end
     end
@@ -245,6 +247,12 @@ end
 # unchanged. Raw gestures (KeyDown, KeyPress, …) return nothing so the
 # ChainingProjection tries earlier steps (e.g. SyntaxToText's console fallback).
 read_intent(::SelectionInverting, ::SelectionInvertingIoMap, op::Operation) = op
+
+# An element write of the output (the edit beside an inline image) names output
+# element indices, which this stage changes. Decline it: the chain then reads the
+# gesture again against the input of this stage.
+read_intent(::SelectionInverting, ::SelectionInvertingIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
+    is_text_element_write(op) ? nothing : op
 read_intent(::SelectionInverting, ::SelectionInvertingIoMap, op) = nothing
 
 # ── Path helpers ────────────────────────────────────────────────────────────

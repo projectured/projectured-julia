@@ -785,9 +785,10 @@ end
     make_text_insert_operation(text::TextBlock, str) -> Union{Operation,Nothing}
 
 The `ReplaceStringRangeOperation` that inserts `str` at the text cursor, replacing
-any selected range. `nothing` when the selection is not a character cursor/range
-(or the range crosses a span boundary). The caret advances past the inserted text
-automatically on evaluation. Used by the clipboard to paste text — the flat edit is
+any selected range. Beside an inline image, where no text run holds the caret, it
+is the element write that starts a new run there, with the caret after it. `nothing`
+when the selection is not a character cursor/range (or the range crosses a span
+boundary). The caret advances past the inserted text automatically on evaluation. Used by the clipboard to paste text — the flat edit is
 lowered to the structural single-span form here so the clipboard stays unchanged.
 """
 function make_text_insert_operation(text::TextBlock, str::AbstractString)
@@ -904,12 +905,14 @@ end
 """
     convert_flat_offset_to_element(block, flat) -> (element_index, char) | nothing
 
-The `TextString` element a flat offset lands in and the char offset within it. A
-gap offset (on a break/spacing element) clamps to the nearest `TextString`
-boundary; `nothing` only when the block has no `TextString`.
+The `TextString` element a flat offset lands in and the char offset within it, or
+the inline image beside it where no `TextString` holds the offset (char 0 before
+the image, char 1 after it). A gap offset (on a break/spacing element) clamps to
+the nearest `TextString` boundary; `nothing` only when the block has no
+`TextString`.
 """
 function convert_flat_offset_to_element(block::TextBlock, flat::Int)
-    loc = _flat_to_span(block, flat)
+    loc = _find_flat_place(block, flat)
     loc !== nothing && length(loc[1]) == 1 && return (loc[1][1], loc[2])
     best = nothing
     bestd = typemax(Int)
@@ -1122,6 +1125,11 @@ function evaluate_operation(editor, op::ReplaceTextRangeOperation)
         return
     end
     block isa TextBlock || return
+    image_edit = _make_image_edit(block, start, stop, op.replacement)
+    if image_edit !== nothing
+        evaluate_operation(editor, reroot_operation(image_edit, Tuple(get_reference_steps(block_path))))
+        return
+    end
     a = _flat_to_span(block, start)
     b = _flat_to_span(block, stop)
     (a === nothing || b === nothing || a[1] != b[1]) && return   # off-span / cross-span: v1 decline
@@ -1195,6 +1203,8 @@ function _lower_text_range(block::TextBlock, op::ReplaceTextRangeOperation)
     r = strip_reference_types(op.reference)
     (r isa ConcreteReference && r.head isa TextRangeReferenceStep && r.tail isa EmptyReference) || return nothing
     s, e = r.head.start, r.head.stop
+    image_edit = _make_image_edit(block, s, e, op.replacement)
+    image_edit === nothing || return image_edit
     if s == e
         # Zero-width (an insertion): keep the plain resolution — a caret on a delimiter|value
         # seam lands on the delimiter's end, which the domain's `read_intent` (SyntaxToText's
@@ -1220,3 +1230,112 @@ function _lower_text_range(block::TextBlock, op::ReplaceTextRangeOperation)
     (s != e && a[2] == b[2]) && return nothing
     ReplaceStringRangeOperation(_text_replace_path(a[1], a[2], b[2]), op.replacement)
 end
+
+# ── The edit beside an inline image ────────────────────────────────────────
+#
+# An inline image is one position of the flat caret space, but it holds no
+# character, so some edits beside it are not a splice of one run. They write the
+# element list of the block instead:
+#   • a character typed beside an image, where no text run holds the caret,
+#     starts a new run there (`insert_elements`);
+#   • a range that covers only images deletes them (`delete_elements`), and a
+#     replacement puts a new run in their place.
+# Each leaves the flat caret after it. A new run takes the style of the nearest
+# text run (`_find_style_span`). Every other edit is a splice of one run.
+
+# The element write for the flat edit `s..e ← replacement` of `text`, rooted at
+# `text`, or `nothing` when the edit is not one beside an image.
+function _make_image_edit(text::TextBlock, s::Int, e::Int, replacement::AbstractString)
+    caret = make_flat_caret_reference(s + length(replacement))
+    if s == e
+        isempty(replacement) && return nothing
+        _flat_to_span(text, s) === nothing || return nothing
+        place = _find_flat_image_place(text, s)
+        place === nothing && return nothing
+        path, char = place
+        run = _make_styled_run(replacement, _find_style_span(text, path))
+        return insert_elements(_get_container_reference(path), path[end] - 1 + char, Any[run];
+                               selection = caret)
+    end
+    paths = _find_image_range(text, s, e)
+    paths === nothing && return nothing
+    container = _get_container_reference(paths[1])
+    index = paths[1][end] - 1
+    write = if isempty(replacement)
+        delete_elements(container, index, length(paths))
+    else
+        run = _make_styled_run(replacement, _find_style_span(text, paths[1]))
+        ReplaceReferencedValueOperation(nothing,
+            extend_reference(container, RangeReferenceStep(index, index + length(paths))), Any[run])
+    end
+    CompoundOperation(Any[write, ReplaceSelectionOperation(caret)])
+end
+
+# The images that fill the flat range `s..e` exactly, as the paths of consecutive
+# siblings of one container; `nothing` when anything else is in the range.
+function _find_image_range(text::TextBlock, s::Int, e::Int)
+    paths = SpanPath[]
+    for path in _text_image_paths(text)
+        base = get_flat_base(text, path)
+        (base !== nothing && s <= base < e) && push!(paths, path)
+    end
+    length(paths) == e - s || return nothing
+    for (k, path) in enumerate(paths)
+        (path[1:end-1] == paths[1][1:end-1] && path[end] == paths[1][end] + k - 1) || return nothing
+    end
+    paths
+end
+
+# The element list that holds the span at `path`: `.elements` of the block, or
+# `.elements[i].elements` of a line.
+_get_container_reference(path::SpanPath) =
+    _elements_prefix(path[1:end-1], ConcreteReference(FieldReferenceStep("elements"), EmptyReference()))
+
+# The span whose style a new run beside the image at `path` takes: the nearest
+# text run of the image's line, the run before the image first; on a line with no
+# text run, the first text run of the block, else its first `TextNewline`;
+# `nothing` when the block has neither.
+function _find_style_span(text::TextBlock, path::SpanPath)
+    siblings = length(path) == 1 ? text.elements : text.elements[path[1]].elements
+    k = path[end]
+    for i in (k - 1):-1:1
+        el = siblings[i]
+        el isa TextString && return el
+        el isa Union{TextNewline, TextLine} && break
+    end
+    for i in (k + 1):length(siblings)
+        el = siblings[i]
+        el isa TextString && return el
+        el isa Union{TextNewline, TextLine} && break
+    end
+    infos = _text_span_infos(text)
+    isempty(infos) || return _span_at(text, infos[1][1])
+    for el in text.elements
+        el isa TextNewline && return el
+    end
+    nothing
+end
+
+# A new run of `content` in the style of `span` (a `TextString` or a
+# `TextNewline`), or in the default style when there is none.
+_make_styled_run(content::AbstractString, ::Nothing) = TextString(content)
+_make_styled_run(content::AbstractString, span::Union{TextString, TextNewline}) =
+    TextString(Cell(content), span.font, span.font_color, Cell(span.fill_color),
+               Cell(span.line_color), Cell(span.padding), Cell(nothing))
+
+"""
+    is_text_element_write(op) -> Bool
+
+Whether `op` writes the element list of a text block, as the edit beside an
+inline image does: a document-rooted `ReplaceReferencedValueOperation` under
+`.elements`, alone or in a `CompoundOperation` with its caret. A stage whose output
+is a text block with other element indices than its input declines such a write;
+the chain then reads the gesture again against the input of that stage.
+"""
+is_text_element_write(op) = false
+is_text_element_write(op::ReplaceReferencedValueOperation) =
+    op.document === nothing && _starts_with_elements(strip_reference_types(op.reference))
+is_text_element_write(op::CompoundOperation) = any(is_text_element_write, op.operations)
+_starts_with_elements(reference) =
+    reference isa ConcreteReference && reference.head isa FieldReferenceStep &&
+    reference.head.name == "elements"

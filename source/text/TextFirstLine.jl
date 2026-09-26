@@ -130,3 +130,9 @@ end
 # via `read_gesture(input, evt)` — otherwise a wildcard here would echo the raw
 # gesture back as if it were an operation, breaking upstream chain dispatch.
 read_intent(::TextFirstLine, ::TextFirstLineIoMap, op::Operation) = op
+
+# An element write of the output (the edit beside an inline image) names output
+# element indices, which this stage changes. Decline it: the chain then reads the
+# gesture again against the input of this stage.
+read_intent(::TextFirstLine, ::TextFirstLineIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
+    is_text_element_write(op) ? nothing : op

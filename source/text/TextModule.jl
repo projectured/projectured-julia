@@ -54,7 +54,7 @@ export set_cell_computation!, get_flat_length, get_flat_offsets, get_flat_string
        get_selection_substring, make_text_insert_operation, ReplaceTextRangeOperation,
        convert_flat_offset_to_element, convert_element_to_flat_offset, get_flat_caret, _lower_text_range
 export SpanPath, get_flat_base, make_flat_caret_reference, make_flat_range_reference,
-       get_flat_cursor_coordinate, is_structural_selection
+       get_flat_cursor_coordinate, is_structural_selection, is_text_element_write
 export TextToGraphics, TextToGraphicsIoMap
 export TextBlockToString, TextStringToString, TextNewlineToString, TextLineToString, TextToString
 export TextLineNumbering, LineNumbering

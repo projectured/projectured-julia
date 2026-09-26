@@ -138,6 +138,9 @@ end
 function read_intent(p::SyntaxLeafToText, recursion, change::Intent, iomap::SimpleIoMap)
     op = change.operation
     gesture = change.gesture
+    # The edit beside an inline image writes the element list of the output, which
+    # has no pre-image in the syntax: decline it.
+    is_text_element_write(op) && return Intent(gesture, nothing)
     if op isa ReplaceSelectionOperation && gesture isa MousePress && gesture.modifiers.alt
         return Intent(gesture,
                       ReplaceSelectionOperation(EmptyReference(get_reference_node_type(iomap.input))))
@@ -189,7 +192,7 @@ end
 # lower it against this leaf's own output block and re-dispatch.
 function read_intent(p::SyntaxLeafToText, iomap::SimpleIoMap, op::ReplaceTextRangeOperation)
     lowered = _lower_text_range(iomap.output, op)
-    lowered === nothing ? nothing : read_intent(p, iomap, lowered)
+    (lowered === nothing || is_text_element_write(lowered)) ? nothing : read_intent(p, iomap, lowered)
 end
 
 # A KeyDown on a leaf first offers itself to the Syntax domain's reified leaf gesture
@@ -808,6 +811,9 @@ end
 function read_intent(p::SyntaxCompoundToText, recursion, change::Intent, iomap::SyntaxCompoundToTextIoMap)
     op = change.operation
     gesture = change.gesture
+    # The edit beside an inline image writes the element list of the output, which
+    # has no pre-image in the syntax: decline it.
+    is_text_element_write(op) && return Intent(gesture, nothing)
     if op isa ReplaceSelectionOperation && gesture isa MousePress
         resolved = _resolve_click(p, iomap, gesture, op.path)
         resolved !== nothing && return Intent(gesture, resolved)
@@ -993,7 +999,7 @@ end
 # this method is reached only by the console path.
 function read_intent(p::SyntaxCompoundToText, iomap::SyntaxCompoundToTextIoMap, op::ReplaceTextRangeOperation)
     lowered = _lower_text_range(iomap.output, op)
-    lowered === nothing ? nothing : read_intent(p, iomap, lowered)
+    (lowered === nothing || is_text_element_write(lowered)) ? nothing : read_intent(p, iomap, lowered)
 end
 
 # `.elements[idx].content{s:e}` — the single-span replace-range reference shape.

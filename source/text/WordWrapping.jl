@@ -348,6 +348,12 @@ end
 # gesture back as if it were an operation, breaking upstream chain dispatch.
 read_intent(::WordWrapping, ::WordWrappingIoMap, op::Operation) = op
 
+# An element write of the output (the edit beside an inline image) names output
+# element indices, which this stage changes. Decline it: the chain then reads the
+# gesture again against the input of this stage.
+read_intent(::WordWrapping, ::WordWrappingIoMap, op::Union{ReplaceReferencedValueOperation, CompoundOperation}) =
+    is_text_element_write(op) ? nothing : op
+
 # ── Path helpers ────────────────────────────────────────────────────────────
 
 # The `(span_idx, char_start, char_stop)` of a `.elements[i].content[s:e]` path:

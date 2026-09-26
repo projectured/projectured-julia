@@ -291,11 +291,49 @@ Do the work in a git worktree, and commit each step.
     `TextNewline`s: `WordWrapping` maps an offset in a gap back to the nearest
     run (`convert_flat_offset_to_element`), so the caret can not stand on the
     empty line. This plan does not fix either.
-- [ ] **Step 4. Edits** (§3.4). The reader of the text domain types beside an
+- [x] **Step 4. Edits** (§3.4). The reader of the text domain types beside an
   image, starts a new run with `insert_elements`, and deletes an image with
   `delete_elements`, each followed by the caret. The operations go through the
   decorators (`WordWrapping` lowers them against its input) and undo. Tests: each
   edit and its undo, directly and through `WordWrapping` and `TextToGraphics`.
+  - *Done.* The gesture table still makes a flat `ReplaceTextRangeOperation`.
+    Its lowering decides: `_make_image_edit` (TextDocument.jl), called first by
+    `_lower_text_range` and by `evaluate_operation(::ReplaceTextRangeOperation)`,
+    answers an element write for an insertion beside an image where no run holds
+    the caret (`insert_elements` with the flat caret after it) and for a range of
+    only images (`delete_elements`, or a splice to one new run when the range is
+    replaced, with the caret after it). Every other edit lowers as before.
+  - *Decision:* a range of only images with a replacement puts one new run of the
+    replacement in their place, as a word processor replaces a selected picture
+    with the typed text. The plan said only "deletes it".
+  - *Decision:* a new run copies all five style fields (`font`, `font_color`,
+    `fill_color`, `line_color`, `padding`) of the span that `_find_style_span`
+    finds, as a character typed into that run would have them. On a line with no
+    run, the first run of the block, else its first `TextNewline`, else the
+    default `TextString(content)`.
+  - *Decision:* a stage that changes the element indices declines an element
+    write of its output, and the chain reads the gesture again against its input
+    (`ChainingProjection`: "a claim that no step can carry is no claim"). The
+    predicate is the new exported `is_text_element_write`. `WordWrapping`,
+    `TextFiltering`, `TextFirstLine`, `TextHighlighting` and `SelectionInverting`
+    each have a method for it; they passed every operation up unchanged before.
+    `TextLineNumbering` declines through the kernel default, because its backward
+    map answers `nothing` for a bare `.elements{a:b}`. `SyntaxToText` declines it
+    in the gesture readers of a leaf and a compound, and after its own lowering
+    (question 5).
+  - *Part of Step 5 done here,* because an edit through `WordWrapping` needs it:
+    `convert_flat_offset_to_element` answers the image beside an offset (through
+    `_find_flat_place`), and `TextHighlighting` and `SelectionInverting` record a
+    segment of length 1 for an image, as `WordWrapping` did.
+  - *Fact:* the clipboard paste (`make_text_insert_operation`) beside an image
+    now starts a new run too.
+  - *Fact:* a flat `ReplaceTextRangeOperation` that reaches the editor unlowered
+    has no inverse (`make_inverse_operation`), on `main` too. Through
+    `TextToGraphics` the edit arrives lowered, and undo works.
+  - *Fact:* the type-in walks fail again, 2 / 1 / 1 in the three examples:
+    "backspace at the boundary produced CompoundOperation, expected no edit". The
+    walk expects no edit where Backspace now deletes the image; Step 8 teaches
+    it.
 - [ ] **Step 5. The decorators and `SyntaxToText`** (§3.1, question 5). The runs of
   `WordWrapping`, `TextFiltering`, `TextFirstLine`, `TextLineNumbering` and
   `SelectionInverting` hold an image as a run of length 1, and the mapping of a
