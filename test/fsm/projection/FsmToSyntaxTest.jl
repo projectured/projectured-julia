@@ -98,14 +98,14 @@ end
     @test roundtrips(@reference ::FsmComponent.machines::CellVector[1]::FsmMachine.states::CellVector[2]::FsmState.transitions::CellVector[1]::FsmTransition)
 end
 
-# ── the julia parser gap this notation depends on ────────────────────────
+# ── the julia parse this notation depends on ─────────────────────────────
 # A transition action is naturally written as a semicolon-separated group on
-# one line; that parses to a `:toplevel` nested inside the outer one, which the
-# parser used to reject outright.
+# one line; that parses to a `:toplevel` nested inside the outer one, which is a
+# `JuliaToplevel` of the statements.
 @testset "semicolon statement groups parse" begin
-    block = parse_julia("a!(m); b!(m)")
-    @test block isa JuliaBlock
-    @test length(block.statements) == 2
+    group = parse_julia("a!(m); b!(m)")
+    @test group isa JuliaToplevel
+    @test length(group.statements) == 2
 end
 
 end # @testset "FsmToSyntax"
