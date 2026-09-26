@@ -78,6 +78,9 @@ which is the whole tree, although it draws no pixel.
     that cell the computation that reads the open set, so the row read the set
     again. The chevron is now a new text graphic, and the row reads only the two
     glyphs that it drops.
+- After the review fixes, the pixel check again finds all 684 frames the same,
+  and a new take (`build/video/s10/take5.mp4`) draws the same 1779 frames as
+  `take4.mp4`, which is on the web page.
 - The rebase onto `main` brought a scroll pane around each file tab. The pixel
   check on the rebased branch again finds all 684 frames the same with a full and
   with a partial repaint.
