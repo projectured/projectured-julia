@@ -360,7 +360,7 @@ Do the work in a git worktree, and commit each step.
     end: `"ab"` at 2 gives 3 on `main` too. Its end segment takes the flat offset
     as the character offset of the last element. The test uses
     `block_cursor = false`.
-- [ ] **Step 5b. The style beside an image** (§3.5, question 7). The caret beside
+- [x] **Step 5b. The style beside an image** (§3.5, question 7). The caret beside
   an image, the prevailing font of a block and the height of a line with no
   glyph take the style of the nearest text run, by the rule of §3.4.
   `TextGraphics` loses `font` and `font_color`, and every producer stops passing
@@ -371,6 +371,28 @@ Do the work in a git worktree, and commit each step.
   (`TypeinTest.jl:125-126`, `SelectionEnumeration.jl`) are read again. Tests: the
   caret height beside an image in a line of a small font, a line that holds only
   an image, and a new run typed after an image at the end of a line.
+  - *Done.* `TextGraphics` has the fields `content`, `width`, `height`,
+    `fill_color`, `line_color` and `padding`; its two constructors take the three
+    style keywords. The four producers pass no font (`BookToSyntax`,
+    `MarkdownToSyntax`, `RstToSyntax`), and their helpers `_picture_leaf_value`,
+    `_md_image_value` and `_rst_picture` lose the `style` argument that only the
+    font of the image used. omnet-julia and inet-julia name `TextGraphics` only
+    in a comment and in generated precompile statements.
+  - *Decision:* one rule gives the style beside an image, in two places.
+    `_find_style_span` (TextDocument.jl, the new run and the soft newline of
+    `WordWrapping`) and `_get_image_caret_font` (TextToGraphics.jl, the caret
+    and the font of the image segment) take the nearest text run of the line,
+    the run before the image first. On a line with no run, the block: the first
+    `TextString` or `TextNewline` in document order, the order of `_block_font`.
+    With no font in the block, the font of `TextString(content)`.
+  - *Decision:* the segment of an image keeps a font, the one a caret beside it
+    takes, because the click round trip test reads `sc.font.size` of every
+    segment. No reader uses it for the image itself.
+  - *Fact:* the walks that skip the style fields of a span need no change: the
+    skip in `TypeinTest.jl` names fields that an image no longer has. The walk of
+    `SelectionEnumeration.jl` counted the `font_color` string `""` of an image as
+    a text leaf, one position per image, which goes away; Step 9 sees it in the
+    counts.
 - [ ] **Step 6. The string of a text** (§3.6). `TextToString` gives an image U+FFFC.
   Test: the string of `text_with_image` and its length against the total.
 - [ ] **Step 7. The paint of a selection** (§3.7, question 6). A caret-space range

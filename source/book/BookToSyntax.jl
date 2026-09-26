@@ -545,7 +545,7 @@ end
 # (which `SyntaxToText`/`WordWrapping`/`TextToGraphics` render as an image, sized
 # to its natural extent capped at `max_w`); otherwise the path/placeholder text.
 # The field type on `SyntaxLeaf.value` is only a hint — the Cell holds either.
-function _picture_leaf_value(content, style::StyleText, placeholder::StyleText; max_w::Int = 640)
+function _picture_leaf_value(content, placeholder::StyleText; max_w::Int = 640)
     if content isa GraphicsDocument
         # A pre-projected sub-document (e.g. a `WidgetTable` run through
         # `WidgetToGraphics`, or any ad-hoc `GraphicsCanvas`): embed the graphics
@@ -554,8 +554,7 @@ function _picture_leaf_value(content, style::StyleText, placeholder::StyleText; 
         # canvas's own `w`/`h` (a `GraphicsCanvas` carries them; else zero).
         gw = Cell(@computation Int32(hasproperty(content, :w) ? Int(content.w) : 0))
         gh = Cell(@computation Int32(hasproperty(content, :h) ? Int(content.h) : 0))
-        return TextGraphics(Cell(content), gw, gh, Cell(style.font), Cell(""),
-                            Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+        return TextGraphics(Cell(content), gw, gh, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     end
     if content isa AbstractString && !isempty(content) && isfile(String(content))
         path = String(content)
@@ -565,8 +564,7 @@ function _picture_leaf_value(content, style::StyleText, placeholder::StyleText; 
         _nat(i, fb) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fb)
         dw = Cell(@computation Int32(min(_nat(2, 720), max_w)))
         dh = Cell(@computation begin w = min(_nat(2, 720), max_w); Int32(round(Int, _nat(3, 460) * w / _nat(2, 720))) end)
-        return TextGraphics(Cell(img), dw, dh, Cell(style.font), Cell(""),
-                            Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+        return TextGraphics(Cell(img), dw, dh, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     end
     TextString(content === nothing ? "enter picture path" : string(content), placeholder)
 end
@@ -583,7 +581,7 @@ end
         [ SyntaxLeaf(bound(:title, String,
                            TextString(() -> isempty(doc.title) ? "untitled" : doc.title, prj.style))),
           SyntaxLeaf(bound(:content, String,
-                           _picture_leaf_value(doc.content, prj.style, prj.placeholder))) ],
+                           _picture_leaf_value(doc.content, prj.placeholder))) ],
         0, false, nothing)
 
 # The newline `sep` between caption and figure is a projection-introduced position

@@ -543,7 +543,7 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
     is_caret_at(path, k) = cursor_pos !== nothing && g.cursor === nothing && g.caret === nothing &&
                            cursor_pos.span == path && cursor_pos.char == k
 
-    for (path, span) in group.spans
+    for (index, (path, span)) in enumerate(group.spans)
         if span isa TextGraphics
             width = Int(span.width::Int32)
             height = Int(span.height::Int32)
@@ -551,10 +551,12 @@ function _layout_group(p::TextToGraphics, group, y0::Int, cursor_pos,
             # An inline image sits on the baseline, as a picture in line with text
             # does: its ascent is its height.
             push!(g.boxes, FontMetrics(height, 0, 0))
-            push!(g.pieces, (kind = :image, path = path, span = span, x = x, width = width, height = height))
+            font = _get_image_caret_font(group, index, block_font)
+            push!(g.pieces, (kind = :image, path = path, span = span, x = x, width = width, height = height,
+                             font = font))
             if cursor_pos !== nothing && g.cursor === nothing && g.caret === nothing && cursor_pos.span == path
                 # The caret sits before or after the image, never inside it.
-                g.caret = (cursor_pos.char == 0 ? x : x + width, span.font::StyleFont)
+                g.caret = (cursor_pos.char == 0 ? x : x + width, font)
             end
             g.pen += width
             g.max_x = max(g.max_x, round(Int, g.pen))
@@ -705,9 +707,10 @@ function _close_line!(g::_GroupLayout, p::TextToGraphics, font, counts::Bool, co
             collect_spans && push!(g.result, _graphics_span_element(piece.span, piece.x,
                                                                     baseline - piece.height,
                                                                     piece.width, piece.height))
-            # Hit-testing takes an image as one atomic position (0..1).
+            # Hit-testing takes an image as one atomic position (0..1). The font is
+            # the one a caret beside the image takes.
             push!(g.coord_map, SegmentCoordinate(piece.path, 0, 1, piece.x, top,
-                                                 piece.span.font::StyleFont, "", piece.width, height))
+                                                 piece.font, "", piece.width, height))
         else
             push!(g.coord_map, SegmentCoordinate(piece.path, piece.char, piece.char, piece.x, top,
                                                  piece.font, "", 0, height))
@@ -813,7 +816,6 @@ function _block_font(styled::TextBlock)
 end
 
 _element_font(span::TextString) = span.font::StyleFont
-_element_font(span::TextGraphics) = span.font::StyleFont
 _element_font(newline::TextNewline) = newline.font::StyleFont
 _element_font(::TextDocument) = nothing
 
@@ -823,6 +825,24 @@ function _element_font(line::TextLine)
         font === nothing || return font
     end
     nothing
+end
+
+# The font of a caret beside the image at `index` of `group`. An image has no
+# font, so the caret takes the one of the nearest text run of its line, the run
+# before the image first; on a line with no text run, the prevailing font of the
+# block; in a block with no font at all, the font of `TextString(content)`. A run
+# typed beside the image takes its style by the same rule (`_find_style_span`).
+function _get_image_caret_font(group, index::Int, block_font::Cell)
+    spans = group.spans
+    for k in (index - 1):-1:1
+        span = spans[k][2]
+        span isa TextString && return span.font::StyleFont
+    end
+    for k in (index + 1):length(spans)
+        span = spans[k][2]
+        span isa TextString && return span.font::StyleFont
+    end
+    something(block_font[], font_ubuntu_monospace_regular_20)
 end
 
 # At least one span to put a caret beside, at either depth: a `TextString`, or an

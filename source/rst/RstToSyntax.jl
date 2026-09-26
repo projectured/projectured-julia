@@ -1130,7 +1130,7 @@ end
 # width; a path that is not on disk falls back to the path as text. Modelled on
 # the markdown rendered image.
 
-function _rst_picture(path, style::StyleText, placeholder::StyleText; max_w::Int = 640)
+function _rst_picture(path, placeholder::StyleText; max_w::Int = 640)
     if path isa AbstractString && !isempty(path) && isfile(String(path))
         file = String(path)
         image = ImageFile(file)
@@ -1142,8 +1142,7 @@ function _rst_picture(path, style::StyleText, placeholder::StyleText; max_w::Int
             w = min(natural(2, 720), max_w)
             Int32(round(Int, natural(3, 460) * w / natural(2, 720)))
         end)
-        return TextGraphics(Cell(image), width, height, Cell(style.font), Cell(""),
-                            Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+        return TextGraphics(Cell(image), width, height, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     end
     TextString(isempty(String(path)) ? "image" : String(path), placeholder)
 end
@@ -1155,7 +1154,7 @@ end
 
 @rst_flat RstFigureToStyledNode RstFigure (prj, doc, indent) ->
     SyntaxConcatenation([
-        SyntaxLeaf(_rst_picture(doc.path, StyleText(_MONO, color_black), prj.placeholder)),
+        SyntaxLeaf(_rst_picture(doc.path, prj.placeholder)),
         SyntaxNode(collection(:caption);
                    open=TextString(() -> isempty(doc.caption) ? "" : "\n" * indent, prj.caption_style),
                    sep=TextString("\n" * indent, prj.caption_style),
@@ -1202,7 +1201,7 @@ end
 end
 
 @rst_flat RstImageToStyledNode RstImage (prj, doc, indent) ->
-    SyntaxLeaf(_rst_picture(doc.path, StyleText(_MONO, color_black), prj.placeholder))
+    SyntaxLeaf(_rst_picture(doc.path, prj.placeholder))
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Dispatcher

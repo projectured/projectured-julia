@@ -97,7 +97,7 @@ function _wrap(text::TextBlock, wrap_w::Int, measure_fn::TextMeasure)
             _pass_through!(result, segs, elem, in_span)
             cx = 0
         elseif elem isa TextGraphics
-            cx = _wrap_graphics!(result, segs, elem, in_span, cx, wrap_w)
+            cx = _wrap_graphics!(result, segs, text, in_span, cx, wrap_w)
         else
             _pass_through!(result, segs, elem, in_span)
         end
@@ -174,17 +174,18 @@ function _wrap_string!(result::Vector{TextDocument}, segs::Vector{WrapSegment},
     return cx
 end
 
-# Place a TextGraphics image as a single unbreakable token. If it would
-# overflow the current visual line, insert a soft TextNewline before it so the
-# image drops whole onto the next line (it is never split). The image keeps its
-# single atomic cursor range [0, 1), recorded as a zero-based WrapSegment so
-# selection mapping can locate it in the wrapped output. Returns the updated
-# column offset.
+# Place the TextGraphics image at `in_span` of `text` as a single unbreakable
+# token. If it would overflow the current visual line, insert a soft TextNewline
+# before it so the image drops whole onto the next line (it is never split). The
+# image keeps its single atomic cursor range [0, 1), recorded as a zero-based
+# WrapSegment so selection mapping can locate it in the wrapped output. Returns
+# the updated column offset.
 function _wrap_graphics!(result::Vector{TextDocument}, segs::Vector{WrapSegment},
-                         image::TextGraphics, in_span::Int, cx::Int, wrap_w::Int)
+                         text::TextBlock, in_span::Int, cx::Int, wrap_w::Int)
+    image = text.elements[in_span]::TextGraphics
     img_w = Int(image.width::Int32)
     if cx > 0 && wrap_w > 0 && cx + img_w > wrap_w
-        push!(result, _make_image_newline(image))
+        push!(result, _make_image_newline(text, in_span))
         cx = 0
     end
     push!(result, image)
@@ -192,12 +193,16 @@ function _wrap_graphics!(result::Vector{TextDocument}, segs::Vector{WrapSegment}
     return cx + img_w
 end
 
-function _make_image_newline(image::TextGraphics)
-    TextNewline(font=image.font,
-                font_color=image.font_color,
-                fill_color=image.fill_color,
-                line_color=image.line_color,
-                padding=image.padding)
+# The soft newline before the image at `in_span`. An image has no style, so the
+# newline takes the one a run typed beside the image takes (`_find_style_span`).
+function _make_image_newline(text::TextBlock, in_span::Int)
+    span = _find_style_span(text, Int[in_span])
+    span === nothing && return TextNewline(font = font_ubuntu_monospace_regular_20)
+    TextNewline(font=span.font,
+                font_color=span.font_color,
+                fill_color=span.fill_color,
+                line_color=span.line_color,
+                padding=span.padding)
 end
 
 function _flush!(result::Vector{TextDocument}, segs::Vector{WrapSegment},

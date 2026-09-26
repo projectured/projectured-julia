@@ -293,5 +293,64 @@ end
     end
 end
 
+@testset "beside an image, the style of the nearest text run" begin
+    # `small` has ascent 12 and descent 4, `large` ascent 16, descent 6 and a
+    # line gap of 2; every character is 10 wide.
+    small = font_ubuntu_regular_20
+    large = font_ubuntu_monospace_regular_20
+    measure = FixedMeasure(10, 12, 4, 0; fonts = Dict(large => FontMetrics(16, 6, 2)))
+    projection = TextToGraphics(measure = measure)
+    caret(block, k) = begin
+        clear_selection!(block)
+        set_selection!(block, TextModule.make_flat_caret_reference(k))
+        canvas = print_document(projection, block).output
+        out = Any[]
+        walk(c, x0, y0) = for e in c.elements
+            if e isa GraphicsCanvas
+                walk(e, x0 + Int(e.x), y0 + Int(e.y))
+            elseif e isa GraphicsRect && Int(e.w) == 2
+                push!(out, (x0 + Int(e.x), y0 + Int(e.y), Int(e.h)))
+            end
+        end
+        walk(canvas, 0, 0)
+        out
+    end
+
+    # The image is 30 high, so the baseline is 30 below the top; the caret after
+    # it has the height of `small`, the font of the run before it.
+    block = TextBlock(TextString("ab", small, color_black), TextGraphics(ImageMemory(nothing), 24, 30))
+    @test caret(block, 2) == [(20, 30 - 12, 16)]
+    @test caret(block, 3) == [(44, 30 - 12, 16)]
+
+    # A line that holds only an image: the caret takes the prevailing font of
+    # the block, `large`. Line 2 begins at 24 and its baseline is the bottom of
+    # the image.
+    block = TextBlock(TextString("x", large, color_black), TextNewline(font = large), _image())
+    @test caret(block, 3) == [(24, 24 + 24 - 16, 22)]
+    # A block with no font at all: the font of `TextString(content)`, which is
+    # `large` here.
+    @test caret(TextBlock(_image()), 1) == [(24, 24 - 16, 22)]
+
+    # A run typed after the image of that line takes the style of the block.
+    editor = _InlineImageEditor(TextBlock(TextString("x", large, color_red), TextNewline(font = small),
+                                          _image()))
+    clear_selection!(editor.document)
+    set_selection!(editor.document, TextModule.make_flat_caret_reference(3))
+    evaluate_operation(editor, read_intent(projection, print_document(projection, editor.document),
+                                           KeyPress('y'; time = 0.0)))
+    @test get_flat_string(editor.document) == "x\n\uFFFCy"
+    @test editor.document.elements[4].font == large
+    @test editor.document.elements[4].font_color == color_red
+
+    # The soft newline that `WordWrapping` puts before an image takes the style
+    # of the run before the image.
+    wrapped = print_document(WordWrapping(measure = measure, max_width = 50),
+                             TextBlock(TextString("aaaa", small, color_red), _image())).output
+    newline = wrapped.elements[2]
+    @test newline isa TextNewline
+    @test newline.font == small
+    @test newline.font_color == color_red
+end
+
 end # @testset "Inline image caret"
 end # test_inline_image_caret

@@ -166,40 +166,40 @@ end
 
 Embeds a graphics document (typically an `ImageDocument`) within text as an
 inline image or icon. The image flows as a single unbreakable glyph: it
-contributes its height to the line and occupies one atomic cursor position.
+contributes its height to the line and occupies one position of the flat caret
+space, so a caret stands before it and after it.
+
+An image has no font and no colour. A caret beside it, and a run typed beside
+it, take the style of the nearest text run of its line.
 
 # Fields
 
 - `content::Cell` — holds the embedded `Document` (e.g. `ImageFile`, `ImageMemory`)
 - `width::Cell{Int32}` — display width in pixels
 - `height::Cell{Int32}` — display height in pixels
-- `font::Cell{StyleFont}` — font specification (unused for images, kept for uniformity)
-- `font_color::Cell` — text color (unused for images)
 - `fill_color::Cell` — background fill color
 - `line_color::Cell` — border/line color
 - `padding::Cell` — inset/padding value
 
 # Constructors
 
-- `TextGraphics(content, width, height; font, font_color, fill_color, line_color, padding)`
-- `TextGraphics(content; font, font_color, fill_color, line_color, padding)` — zero size
+- `TextGraphics(content, width, height; fill_color, line_color, padding)`
+- `TextGraphics(content; fill_color, line_color, padding)` — zero size
 """
 @document struct TextGraphics <: TextDocument
     content::Document
     width::Int32
     height::Int32
-    font::StyleFont
-    font_color::StyleColor
     fill_color::StyleColor
     line_color::StyleColor
     padding::Inset
 end
 
-TextGraphics(content, width::Integer, height::Integer; font=font_ubuntu_monospace_regular_20, font_color="", fill_color=nothing, line_color=nothing, padding=nothing) =
-    TextGraphics(Cell(content), Cell(Int32(width)), Cell(Int32(height)), Cell(font), Cell(font_color), Cell(fill_color), Cell(line_color), Cell(padding), Cell(nothing))
+TextGraphics(content, width::Integer, height::Integer; fill_color=nothing, line_color=nothing, padding=nothing) =
+    TextGraphics(Cell(content), Cell(Int32(width)), Cell(Int32(height)), Cell(fill_color), Cell(line_color), Cell(padding), Cell(nothing))
 
-TextGraphics(content; font, font_color="", fill_color=nothing, line_color=nothing, padding=nothing) =
-    TextGraphics(Cell(content), Cell(Int32(0)), Cell(Int32(0)), Cell(font), Cell(font_color), Cell(fill_color), Cell(line_color), Cell(padding), Cell(nothing))
+TextGraphics(content; fill_color=nothing, line_color=nothing, padding=nothing) =
+    TextGraphics(Cell(content), Cell(Int32(0)), Cell(Int32(0)), Cell(fill_color), Cell(line_color), Cell(padding), Cell(nothing))
 
 # The character that stands for an inline image in the flat characters and in the
 # string of a text: U+FFFC OBJECT REPLACEMENT CHARACTER, the Unicode character for
@@ -1293,8 +1293,9 @@ _get_container_reference(path::SpanPath) =
 
 # The span whose style a new run beside the image at `path` takes: the nearest
 # text run of the image's line, the run before the image first; on a line with no
-# text run, the first text run of the block, else its first `TextNewline`;
-# `nothing` when the block has neither.
+# text run, the first `TextString` or `TextNewline` of the block in document order,
+# where `TextToGraphics` finds the prevailing font of a block; `nothing` when the
+# block has neither.
 function _find_style_span(text::TextBlock, path::SpanPath)
     siblings = length(path) == 1 ? text.elements : text.elements[path[1]].elements
     k = path[end]
@@ -1308,10 +1309,12 @@ function _find_style_span(text::TextBlock, path::SpanPath)
         el isa TextString && return el
         el isa Union{TextNewline, TextLine} && break
     end
-    infos = _text_span_infos(text)
-    isempty(infos) || return _span_at(text, infos[1][1])
     for el in text.elements
-        el isa TextNewline && return el
+        el isa Union{TextString, TextNewline} && return el
+        el isa TextLine || continue
+        for span in el.elements
+            span isa TextString && return span
+        end
     end
     nothing
 end

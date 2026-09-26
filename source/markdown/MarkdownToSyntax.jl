@@ -434,7 +434,7 @@ end
 # The image span: an inline `TextGraphics` with a lazily-decoded `ImageFile` when
 # `url` names a file on disk (sized to its natural extent, capped at `max_w`);
 # otherwise the url / a placeholder as text.
-function _md_image_value(url, style::StyleText, placeholder::StyleText; max_w::Int = 640)
+function _md_image_value(url, placeholder::StyleText; max_w::Int = 640)
     if url isa AbstractString && !isempty(url) && isfile(String(url))
         path = String(url)
         img  = ImageFile(path)
@@ -443,8 +443,7 @@ function _md_image_value(url, style::StyleText, placeholder::StyleText; max_w::I
         _nat(i, fb) = (r = raw[]; (r isa Tuple && length(r) == 3) ? Int(r[i]) : fb)
         dw = Cell(@computation Int32(min(_nat(2, 720), max_w)))
         dh = Cell(@computation begin w = min(_nat(2, 720), max_w); Int32(round(Int, _nat(3, 460) * w / _nat(2, 720))) end)
-        return TextGraphics(Cell(img), dw, dh, Cell(style.font), Cell(""),
-                            Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
+        return TextGraphics(Cell(img), dw, dh, Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing))
     end
     TextString(isempty(String(url)) ? "image" : String(url), placeholder)
 end
@@ -465,7 +464,7 @@ function print_document(p::MarkdownImageToStyledNode, recursion, doc::MarkdownIm
                          placeholder = "image",
                          style = p.caption_style);
         selection=alt_sel)
-    img_leaf = SyntaxLeaf(_md_image_value(doc.url, p.caption_style, p.placeholder); selection=url_sel)
+    img_leaf = SyntaxLeaf(_md_image_value(doc.url, p.placeholder); selection=url_sel)
     node = SyntaxNode(CellVector(Cell[Cell(alt_leaf), Cell(img_leaf)]); sep=TextString("\n", p.placeholder))
     SimpleIoMap(p, doc, node)
 end
