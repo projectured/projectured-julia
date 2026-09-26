@@ -201,6 +201,11 @@ TextGraphics(content, width::Integer, height::Integer; font=font_ubuntu_monospac
 TextGraphics(content; font, font_color="", fill_color=nothing, line_color=nothing, padding=nothing) =
     TextGraphics(Cell(content), Cell(Int32(0)), Cell(Int32(0)), Cell(font), Cell(font_color), Cell(fill_color), Cell(line_color), Cell(padding), Cell(nothing))
 
+# The character that stands for an inline image in the flat characters and in the
+# string of a text: U+FFFC OBJECT REPLACEMENT CHARACTER, the Unicode character for
+# an object in text.
+const OBJECT_REPLACEMENT_CHARACTER = '\uFFFC'
+
 # ── TextBlock ───────────────────────────────────────────────────────────
 
 """
@@ -309,21 +314,20 @@ const SpanPath = Vector{Int}
 splice_value!(owner, field::Symbol, span::TextString, s::Int, e::Int, replacement::AbstractString) =
     (span.content = splice_string(span.content::AbstractString, s, e, replacement); span)
 
-# Field value is a flat span sequence: the incoming `[s, e]` is a flat offset
-# across the concatenated spans (spans inside a `TextLine` included, in document
-# order). Locate the single `TextString` span the range falls inside and edit it;
-# an empty sequence grows a fresh span. Ranges that straddle two spans are left
-# for a later multi-span editing pass.
+# Field value is a flat span sequence: the incoming `[s, e]` is a range of the
+# flat caret space (`get_flat_offsets`), the space of `get_flat_string`. Locate
+# the single `TextString` span the range falls inside and edit it; at the seam of
+# two spans, the earlier one. An empty sequence grows a fresh span. Ranges that
+# straddle two spans are left for a later multi-span editing pass.
 function splice_value!(owner, field::Symbol, text::TextBlock, s::Int, e::Int, replacement::AbstractString)
-    pos = 0
     infos = _text_span_infos(text)
     for (path, len) in infos
-        if s >= pos && e <= pos + len
+        base = get_flat_base(text, path)
+        if s >= base && e <= base + len
             span = _span_at(text, path)
-            span.content = splice_string(span.content::AbstractString, s - pos, e - pos, replacement)
+            span.content = splice_string(span.content::AbstractString, s - base, e - base, replacement)
             return text
         end
-        pos += len
     end
     isempty(infos) && push!(text.elements, TextString(replacement))
     text
@@ -407,7 +411,8 @@ end
 _push_flat_chars!(chars, s::TextString) = append!(chars, collect(s.content::AbstractString))
 _push_flat_chars!(chars, ::TextNewline)  = push!(chars, '\n')
 _push_flat_chars!(chars, ::TextSpacing)  = push!(chars, ' ')
-_push_flat_chars!(chars, ::TextDocument) = chars          # TextGraphics etc.: 0-width, matches get_flat_length
+_push_flat_chars!(chars, ::TextGraphics) = push!(chars, OBJECT_REPLACEMENT_CHARACTER)
+_push_flat_chars!(chars, ::TextDocument) = chars          # no position, as in get_flat_length
 function _push_flat_chars!(chars, line::TextLine)
     for _ in 1:line.indentation
         push!(chars, ' ')
@@ -417,6 +422,16 @@ function _push_flat_chars!(chars, line::TextLine)
     end
     chars
 end
+
+"""
+    get_flat_string(text::TextBlock) -> String
+
+The text as one string, one character for each position of the flat caret space
+(`get_flat_offsets`): a break for a `TextNewline` and for the break before a
+`TextLine`, a space for a `TextSpacing` and for each column of indentation, and
+U+FFFC for an inline image. An offset into the string is a flat offset.
+"""
+get_flat_string(text::TextBlock) = String(_flat_chars(text))
 
 # The flat text selection `(start, stop)` — from a flat `TextRangeReferenceStep` head,
 # or a structural `.content{a:b}` caret canonicalised to its flat offsets — else
@@ -780,7 +795,8 @@ set_cell_computation!(st::TextBlock, f::Function) = (set_cell_computation!(getfi
 
 # The flat length a span contributes to the rendered character stream, matching
 # how the selection's offsets are counted: TextString → its content length,
-# TextNewline / TextSpacing → 1, anything else → 0.
+# TextNewline / TextSpacing / TextGraphics → 1, anything else → 0. An inline image
+# is one position, so the caret before it and the caret after it differ.
 #
 # A `TextLine` contributes its indentation (which the renderers emit as leading
 # spaces, so it occupies characters even though no span holds it) plus its spans'
@@ -790,6 +806,7 @@ set_cell_computation!(st::TextBlock, f::Function) = (set_cell_computation!(getfi
 get_flat_length(span::TextString) = length(span.content::AbstractString)
 get_flat_length(::TextNewline) = 1
 get_flat_length(::TextSpacing) = 1
+get_flat_length(::TextGraphics) = 1
 get_flat_length(line::TextLine) =
     line.indentation + sum(get_flat_length(s) for s in line.elements; init = 0)
 get_flat_length(::TextDocument) = 0
@@ -923,7 +940,7 @@ end
 # The runs that carry the offsets of `from_block` to `to_block`, one for each
 # entry `(from_element, from_char, to_element, length)`: the run starts at
 # `from_char` of the one element and at the start of the other. An element that
-# the flat stream counts as zero, such as an image, is a run of length zero.
+# the flat stream counts as zero is a run of length zero.
 function _make_flat_runs(from_block::TextBlock, to_block::TextBlock, entries)
     from_offsets = get_flat_offsets(from_block)
     to_offsets = get_flat_offsets(to_block)

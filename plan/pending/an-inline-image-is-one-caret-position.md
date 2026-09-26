@@ -1,6 +1,7 @@
 # An inline image is one caret position
 
-> **Status:** pending, not started. Written 2026-09-26. The owner asked for this
+> **Status:** in progress in the worktree `projectured-julia-inline-image`, branch
+> `inline-image`, from `main` `90748061`. Written 2026-09-26. The owner asked for this
 > plan after the text layout examples showed the fault
 > ([text-layout-examples.md](../done/text-layout-examples.md), Step 2), and
 > answered the seven questions of §5 on 2026-09-26.
@@ -211,11 +212,35 @@ Do the work in a git worktree, and commit each step.
   `text_with_image`, `text_baseline` and `text_line_height`, and the navigation
   sweep of `text_with_image`
   ([ExampleSweeps.jl:404-408](../../test/projectured/editor/ExampleSweeps.jl#L404-L408)).
-- [ ] **Step 1. The caret stream counts an image** (§3.1).
+  - *Done for the examples* (`/var/tmp/inline-image/base/check.log`). Pass, fail
+    and broken counts:
+
+    | Example | `test_example` | navigation, with the markers of the sweep | navigation, no markers |
+    | --- | --- | --- | --- |
+    | `text_with_image` | 1479 / 4 / 2 | 9 / 0 / 2 | 9 / 2 / 0 |
+    | `text_baseline` | 2985 / 2 / 9 | 8 / 3 / 0 | 8 / 3 / 0 |
+    | `text_line_height` | 3485 / 2 / 3 | 8 / 3 / 0 | 8 / 3 / 0 |
+
+    The navigation walks of `text_baseline` and `text_line_height` fail on `main`
+    too: the right walk and the left walk do not agree (`same_length`, and each
+    walk ends where the other starts). The sweep has no marker for them.
+- [x] **Step 1. The caret stream counts an image** (§3.1).
   `get_flat_length(::TextGraphics) = 1`, U+FFFC in `_push_flat_chars!`, the
   comments that say zero, and `splice_value!` over a `TextBlock` in the caret
   space. Tests: the offsets, the total, the characters and the base of a block
   with images at the start, in the middle and at the end, and in a `TextLine`.
+  - *Done.* The character is the constant `OBJECT_REPLACEMENT_CHARACTER` of
+    `TextDocument.jl`. The tests of this plan are in one file,
+    [InlineImageCaretTest.jl](../../test/substrate/projection/InlineImageCaretTest.jl)
+    (`test_inline_image_caret`, in `test_substrate`).
+  - *Decision:* the only producer of an edit that reaches `splice_value!` over a
+    `TextBlock` is the leaf of a book paragraph, and that leaf held only the
+    characters of the text runs. So the leaf now holds the flat string of the
+    text, from a new exported `get_flat_string(::TextBlock)`, and the leaf and
+    `splice_value!` count in one space. A paragraph of text runs only renders as
+    before. Test: `BookToSyntaxTest`, a paragraph with a `TextNewline`.
+  - The text projection tests (`test_text_to_graphics`, `test_word_wrapping`,
+    the decorators, `test_syntax_to_text`) pass with no change after this step.
 - [ ] **Step 2. From an offset to a place** (§3.2). `_flat_to_span` and the
   functions beside it answer the caret before or after an image where no text
   run holds the offset; `get_flat_cursor_coordinate` passes it on, and the caret

@@ -615,14 +615,13 @@ end
 
 # ── Utility ───────────────────────────────────────────────────────────────────
 
+# The string of a paragraph. Of a `TextBlock`, the flat string, so an offset in
+# the leaf is an offset of the caret space, the space in which `splice_value!`
+# writes an edit back into the block.
 function _render_paragraph_content(content)
     content === nothing && return ""
     content isa TextBlock || return string(content)
-    buf = IOBuffer()
-    for span in content.elements
-        span isa TextString && print(buf, span.content)
-    end
-    String(take!(buf))
+    get_flat_string(content)
 end
 
 # ── Natural-projection registration ─────────────────────────────────────────

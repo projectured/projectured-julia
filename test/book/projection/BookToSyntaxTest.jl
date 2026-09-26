@@ -71,6 +71,15 @@ para(text) = BookParagraph(TextBlock(TextString(text)))
         @test length(two) > length(one)
     end
 
+    @testset "a paragraph renders the flat string of its text" begin
+        # An edit of the leaf goes back into the text by `splice_value!` at the
+        # same offset, so the leaf holds one character for each flat position:
+        # here the break of the `TextNewline` between the two runs.
+        content = TextBlock(TextString("ab"), TextNewline(font = font_ubuntu_monospace_regular_20),
+                            TextString("cd"))
+        @test occursin("ab\ncd", render(BookParagraph(content)))
+    end
+
     @testset "an empty book still prints" begin
         # A book with no elements is a reachable intermediate state, so it must
         # render rather than throw.
