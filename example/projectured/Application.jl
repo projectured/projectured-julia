@@ -337,20 +337,24 @@ three descriptions of one thing, so all three change together.
 const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
     "THIS WINDOW SHOWS FILES. Its verbs are the functions of the modules " *
     "PaneModule, WidgetModule, LayoutModule, FileFormatModule and " *
-    "FileSystemModule. PaneModule arranges the window and places a document in " *
-    "it: open_pane! puts a document in a tab, find_pane_reference names a pane " *
-    "by its title, focus_pane!, move_pane! and close_pane! bring one forward, " *
-    "move it and close it, and show_layout prints what is where. " *
-    "WidgetModule and LayoutModule build what a " *
+    "FileSystemModule, and the names that search_api lists. Read the guide " *
+    "resource://guide/guide/orientation first: it shows each step below in code. " *
+    "find_pane(editor, title) answers a tab by its title, and " *
+    "get_edited_document(tab) answers the document that the tab shows, which acts " *
+    "like the data: index it, iterate it, read a field. print_natural_text(document) " *
+    "answers its text. To change a document, use a verb, so the change is an edit " *
+    "that Ctrl+Z takes back: replace_referenced_value!(editor, part, new_value), " *
+    "insert_elements!(editor, collection, index, values) and " *
+    "delete_elements!(editor, collection, index). open_pane!(editor, document; " *
+    "title, target, side) puts a document in a tab, beside or under another tab, " *
+    "and get_parent(editor, tab) answers the group that holds a tab; focus_pane!, " *
+    "move_pane! and close_pane! bring a pane forward, move it and close it, and " *
+    "show_layout prints what is where. WidgetModule and LayoutModule build what a " *
     "pane shows — a card, a button, a table, a row or a column of them. " *
-    "FileFormatModule opens a path as a tab with make_file_tab, writes one " *
-    "back with write_document_file, and answers what a file tab holds with " *
-    "get_file_content. FileSystemModule names the workspace the navigator " *
-    "lists. To read what a tab holds, in one round: " *
-    "`tab = get_referenced_value(editor, find_pane_reference(editor, \"people.json\"))` " *
-    "answers the tab of that title, and `print_natural_text(tab.content)` answers " *
-    "the text of the file it holds, which parse_natural_text reads back. " *
-    "search_documents finds a document in the window when no tab names it. " *
+    "FileFormatModule opens a path as a tab with make_file_tab_content and writes a " *
+    "document back with write_document_file. FileSystemModule names the workspace " *
+    "the navigator lists. search_documents finds a document in the window when no " *
+    "tab names it. " *
     "Call one tool per round, and put the whole Julia source " *
     "in the code argument of execute_julia_code: a call with no code does " *
     "nothing and costs the round."
