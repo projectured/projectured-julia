@@ -314,12 +314,41 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 - **Beats:** note the address, paste it as the address of the second person, change the city in one place: both places change. Paste a copy with Ctrl+Shift+V into a third place, change it: only that one changes.
 - **Acceptance:** both pastes work with the keys of the application. Save and load of the shared object is not in this video.
 
-#### S7. A window on a running object
+#### S7. The editor is reflective
 
-- **Feature:** a view on demand. The program shows any value, one level at a time, with no view written for it.
-- **Setup:** the application with a JSON file open, and the evaluator in a second tab.
-- **Beats:** in the evaluator, open a reflection view of `editor` in a new tab. Open it level by level: the panes, the tab with the JSON file, its document, its entries. Change a value in the JSON tab, and bring the view up to date.
-- **Acceptance:** Step 8 finds the call that opens the reflection view in a tab (`reflect_document`, `sync_reflection!`, `open_pane!`) and records it here.
+- **Feature:** the window is a value. The evaluator walks from `editor` to the parts of the window and shows each part as itself. A part that the evaluator shows still works: the toolbar opens a tool, the explorer opens a file, and an edit of a document in one view shows in the other view.
+- **Claim:** the editor is made of documents, and the evaluator reaches all of them, the editor itself too.
+- **The screenplay of the owner, 2026-09-26:** evaluate `typeof(editor.document)`, go down with the properties and `typeof` to the toolbar, and evaluate it: the toolbar appears in the evaluator, and a click on it works. Search for the files pane and evaluate it, and open a JSON file from it. Find the document of the JSON file, move the JSON tab so that the evaluator and the JSON tab are both visible, and edit a string: both views change. On the same day the owner accepted these changes:
+  - `propertynames` shows the fields on the way down.
+  - The press is on a toolbar button that has an effect that the viewer can see.
+  - The tab is dragged before the search for its document.
+  - The edit goes in both directions, and a `Ctrl+Z` ends it.
+  - A form adds a button to the toolbar, and the real toolbar and its copy change together.
+
+  This screenplay takes the place of the reflection view that S7 held before.
+- **Do not evaluate a container of the evaluator.** The evaluator draws a `Document` result as itself (`source/conversation/Evaluator.jl`, `evaluate_operation`). `editor.document` and `editor.document.content` both hold the evaluator, so their result would draw the window inside itself. That is why the way down uses `typeof` and `propertynames`.
+- **Setup:** `bin/projectured` over a folder that holds `people.json`, 1280×720, with no assistant. The Files pane is on the left.
+- **Beats:**
+
+| # | Action | On the screen | What the viewer learns |
+| --- | --- | --- | --- |
+| 1 | Hold, then click the Evaluator button of the toolbar. | The evaluator opens in a tab. | |
+| 2 | `typeof(editor.document)`, then `typeof(editor.document.content)` | `WidgetShell` | `editor` is this window, and it is a value. |
+| 3 | `propertynames(editor.document.content)` | `(:content, :menu_bar, :toolbar, :status_bar, :context_menu)` | The parts of the window are fields. |
+| 4 | `toolbar = editor.document.content.toolbar` | The toolbar draws in the result row. | |
+| 5 | Click "Frame plot" in the copy. | The frame plot opens in the window. | It is the real toolbar. |
+| 6 | `push!(toolbar.elements, WidgetToolbarItem("Hello"))` | A "Hello" button appears in the toolbar of the window and in its copy. | Code changes the editor itself. |
+| 7 | `files = first(search_documents(editor.document, d -> d isa Workspace))` | The explorer draws in the result row. | A search finds a part of the window. |
+| 8 | Double-click `people.json` in the copy of the explorer. | A tab opens. | It is the real explorer. |
+| 9 | Drag the new tab to the right edge. | The evaluator on the left, `people.json` on the right. | |
+| 10 | `json = first(search_documents(editor.document, d -> d isa JsonFile))` | The JSON document draws in the result row. | |
+| 11 | Edit a name in the tab, then another name in the result row. | Each edit shows in both views. | One document, two views. |
+| 12 | `Ctrl+Z` in the tab, then hold. | Both views go back. | |
+
+- **Acceptance:**
+  - Beats 5 and 8 work from the copy in the evaluator. No test did this before this video. If a click fails, it is a product gap to fix, not a reason to change the beat.
+  - `search_documents` also walks the undo buffer. The rehearsal checks with `===` that each search finds the object that the window shows.
+  - The video lasts at most 3 min (D5), and it types with the rhythm of D13.
 
 #### S9. The editor from a plain Julia REPL
 
