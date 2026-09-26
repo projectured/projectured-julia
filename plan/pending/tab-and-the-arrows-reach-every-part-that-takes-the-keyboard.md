@@ -1,10 +1,11 @@
 # Tab and the arrows reach every part that takes the keyboard
 
-> **Status (2026-09-26): design, no code.** Split on the same day from
-> [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md), where
-> the decisions N1 to N6 of this plan were D33 and D35 to D39. The two subjects
-> are unrelated (D2 of that plan), but the refactor of that plan removes the
-> projection that holds the wrap-around of Tab today (§5).
+> **Status (2026-09-26): deferred by the owner.** The owner focuses on
+> [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md), and
+> every decision of this plan waits, except the one step that the other plan
+> needs (§5). This plan was split on the same day from that plan, where its
+> decisions N1 to N6 were D33 and D35 to D39. The two subjects are unrelated (D2
+> of that plan).
 
 ## 1. The purpose
 
@@ -25,8 +26,8 @@ All of them are from 2026-09-26.
   - cursor keys with modifiers move in the plane to the stop that is next in
     that direction, found with the mapping of references;
   - it works with any document that accepts it, not only with widgets.
-- **N2** (was D35). One Tab walker does the whole walk of Tab, if it can. The owner
-  is not sure that it can (Q1).
+- **N2** (was D35). ~~One Tab walker does the whole walk of Tab, if it can.~~
+  Replaced by N7.
 - **N3** (was D36). Shift + Alt + arrow moves in the plane. No code uses this key
   today. Alt + arrow walks the structure (`SelectionWalkingProjection`).
 - **N4** (was D37). A part that uses a key answers it first, and the navigation
@@ -37,7 +38,21 @@ All of them are from 2026-09-26.
 - **N6** (was D39). A move in the plane maps the current stop forward to its drawn
   element. Then a search looks around it, in the direction of the key, for the
   closest graphical element that maps back to a document that takes the
-  keyboard. The backward mapping of a point is D11 of the other plan.
+  keyboard. The owner later said that the widgets can maybe do this move too,
+  each one inside itself and recursively (N7). Deferred.
+- **N7.** The walk stays in the parts. Each container walks Tab inside itself, as
+  today, and the wrapping step does hardly anything on its own. The owner's
+  reasons:
+  - the wrapping projection does not know all the state that matters, nor how to
+    interpret it;
+  - any projection can skip any part of a document for any reason, and a wrapper
+    has no way to know it;
+  - that a part maps forward to the graphics does not mean that it can take the
+    focus.
+- **N8.** A general rule, in the owner's words: "anything which can be done
+  locally should be done locally because it combines better". It must become a
+  rule of the design documents. It is near `PAR-DELEGATE-ONE-LEVEL` of
+  `architecture-invariants.md`, which says the same for printers and mappers.
 
 ## 3. What exists today
 
@@ -77,46 +92,38 @@ All of them are from 2026-09-26.
   no flat enumeration table". It kept the start over at the ends as the one
   global rule. N1 changes that choice.
 
-## 4. Open questions
+## 4. Deferred questions
 
-- **Q1. Can one Tab walker do the whole walk (N2)?** The facts of §3 give this
-  answer, which is Claude's judgement:
-  - A walk over the document does what the composite, the split pane and the
-    layouts do today: their code is that walk, in document order.
-  - A walk over the document can not see the view. It walks every page of a
-    tabbed pane and every section of an accordion, also the hidden ones, because
-    they are in the document. The same walk enters a sibling today
-    (`get_first_focusable_path`), so today Tab can already land in a hidden
-    page. No run confirmed this yet.
-  - "Is drawn" by the forward mapping is not a test that works today: the
-    accordion, the list, the tree and the dialog answer `nothing`
-    (`WidgetToGraphics.jl:7666` for the accordion).
-  - Claude's recommendation: the walker enumerates the drawn elements and maps
-    each one back to a document with D11 of the other plan. The stops are the
-    parts that take the keyboard among them, in document order. A hidden page
-    and a closed section are not drawn, so they are not stops, and no container
-    needs code for Tab. The same list of drawn stops, with their boxes, serves
-    the move in the plane (N6), and the box of the current stop is the box of
-    the drawn element that maps back to the selection. So neither Tab nor the
-    move in the plane needs the forward mapping.
-  - So one walker can do it, but only after the backward mapping of D11 works
-    in every projection that ends in graphics.
-- **Q2. Which parts are stops?** By the purpose (§1), every part that takes the
+- **Which parts are stops?** By the purpose (§1), every part that takes the
   keyboard in a meaningful way. Today the list, the table, the tree, the
   accordion and the charts are not stops, and no document of a domain is a stop
-  (N5 wants the JSON document to be one). Which of them get a method of the
-  trait, and does the trait mark the whole JSON document and not each of its
-  elements?
+  (N5 wants the JSON document to be one).
+- **Does Tab land in a hidden page today?** A container enters a sibling with
+  `get_first_focusable_path`, which walks every page of a tabbed pane and every
+  section of an accordion. A reading of the code suggests it; no run confirmed
+  it.
+- **The move in the plane (N6):** by a search from the wrapper, or by the widgets,
+  recursively.
 
-## 5. The order with the other plan
+A rejected alternative: Claude proposed on 2026-09-26 that one walker lists the
+drawn elements, maps each one back, and takes the stops among them, so that no
+container needs code for Tab. The owner rejected it for the reasons of N7.
+
+## 5. The one step that the other plan needs
 
 The refactor of [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md)
-removes `WidgetHoverTrackingProjection`, which holds the wrap-around of Tab
-today. So the navigation step of this plan must exist before that removal, or
-come in the same change. Otherwise Tab stops at the ends.
+removes `WidgetHoverTrackingProjection`, which holds the start over at the ends
+of Tab today. So that start over must leave it first, or in the same change,
+into a small wrapping step of its own. Otherwise Tab stops at the ends.
+
+Today the start over walks the whole document with `get_first_focusable_path`,
+which N7 says a wrapper can not know. The containers already choose their first
+stop themselves when nothing is selected (the comment at
+`WidgetHoverTracking.jl:74-78`). So the step can hand the declined Tab back
+to the parts as a Tab with no selection, and let each container choose. Claude
+noted this on 2026-09-26; it waits with the rest.
 
 ## 6. Next steps
 
-1. Answer Q1 and Q2 with the owner, and record each answer in §2.
-2. Collect the facts that an answer needs at the time it needs them.
-3. Then write the steps, each with its test.
+Deferred. When the owner takes this plan up again, answer §4 and write the steps,
+each with its test.

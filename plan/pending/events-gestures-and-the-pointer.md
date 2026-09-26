@@ -4,7 +4,7 @@
 > document over several sessions. It records the concepts, what is wrong today,
 > the owner's decisions and the questions that are still open. The steps of the
 > refactor come after the open questions have answers. The owner's model of
-> three tracking projections (D8 to D39) came on the same day, after the first
+> three tracking projections (D8 to D40) came on the same day, after the first
 > round of decisions.
 
 The facts of the code are in the study
@@ -170,6 +170,10 @@ All of them are from 2026-09-26.
   names `DeviceEvent`). `event/WindowEvent.jl` and `event/EventModule.jl` were
   unsealed before, for `WindowLeave`, and stay unsealed too.
 - **D35 to D39** moved to the plan of D33, as N2 to N6.
+- **D40.** "Anything which can be done locally should be done locally because it
+  combines better", in the owner's words. It must become a rule of the design
+  documents, near `PAR-DELEGATE-ONE-LEVEL`. It holds for this plan too: a
+  tracking projection does only what no part can do alone.
 
 ## 3. What is wrong today
 
@@ -390,9 +394,10 @@ The direction that follows from the decisions so far:
    the five probes (D7).
 8. The dwell moves from the tooltip package into a tracking projection (D4, D17).
    A tooltip is then one meaning of a dwell, which the target gives.
-9. The Tab wrap-around leaves the hover tracker (D2) for the navigation step of
-   D33. That step must exist before the hover tracker goes away, or come in the
-   same change, so that Tab still starts over at the ends.
+9. The Tab wrap-around leaves the hover tracker (D2) for a small wrapping step
+   of its own (§5 of the plan of D33). That step must exist before the hover
+   tracker goes away, or come in the same change, so that Tab still starts over
+   at the ends. The rest of that plan is deferred.
 10. A utility function composes the tracking projections (D15), and the rules and
     documents change (D16).
 11. Each tracking projection gets a package of its own (D30). The packages that
