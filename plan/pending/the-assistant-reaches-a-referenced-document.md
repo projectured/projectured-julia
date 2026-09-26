@@ -678,7 +678,8 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       table after "people.json". Then a rehearsal of S2 with qwen on the GPU
       (context 32768, seed 1): the rounds it takes and whether the tab opens are
       recorded here and in the video plan.
-- [ ] **Step 6a: the editing verbs** (D23, D24). First find how an edit of a
+- [x] **Step 6a: the editing verbs** (D23, D24). **Done (2026-09-26);** see
+      the notes under Step 6. First find how an edit of a
       person inside a file reaches the file's history and not the window's; then
       the verbs in the editor layer with that routing; then the declaration, the
       guide and the docstrings; tests of a replace, an insert and a delete through
@@ -771,6 +772,27 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       names the verbs only when they are declared. 711 pass with the tool,
       layering, naming, export, documentation, application, pane and file-tab
       tests.
+      **The rehearsal of the new S2 order (2026-09-26,
+      `/var/tmp/referenced/rehearse_three.jl`, `rehearsal_4.log`):** qwen3.8:27b on
+      the GPU, context 32768, seed 1, the system prompt unchanged.
+      1. "Add Frank, 30, from Paris to people.json.": 70 s. The model printed the
+         JSON, then ran
+         `frank_1 = JsonObject("name" => JsonString("Frank"), "age" => JsonNumber(30), "city" => JsonString("Paris"))`
+         and `insert_elements!(editor, people_1, length(people_1) + 1, [frank_1])`.
+         Frank is the sixth person; the file's history has one step, the
+         window's one.
+      2. The undo in the file's history (evaluated by the script; the take
+         presses the keys): Frank is gone.
+      3. The table prompt: 111 s. The model used `people_1` again, the values by
+         `.value`, sorted by name, and
+         `open_pane!(…; title = "People by name", target = get_parent(editor, people_tab_1))`:
+         the tab opened in the group of "people.json", and the answer showed the
+         tab as a `ReferencedDocument{PaneTab}`.
+      The two turns took 7 rounds together. The script's print of the table
+      failed (a `WidgetLabel` holds its text in `content`), so the rows are known
+      from the code, not read back. Open: the take itself, with the log panel
+      and real keys, in the s2-video worktree, which needs this branch; and the
+      text of a log line (the owner's question 4).
 - [ ] **Step 7: the landing,** when the owner says so.
 
 ### Follow-up, after this plan (D21)
