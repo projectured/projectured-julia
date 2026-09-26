@@ -333,5 +333,11 @@ the binary, and every prose chain that holds more than one paragraph):
   Leaves are small, so the cost is small.
 - The caret overlay of `TextToGraphics` lays out the whole block again on each key
   (`_layout_overlay`). It repaints only the caret, but the work is not local.
+- A take in video time that faults in `print!` never ends: the fault barrier
+  keeps the loop going, no frame is written, and the schedule moves only with the
+  frames. After the rebase the pointer of a partial take called the render with
+  its old signature, and the take ran 14 minutes on its first mouse event with an
+  empty log. The call is fixed and a partial take with a mouse event is tested;
+  the loop itself is unchanged.
 - The web backend (`source/web/Web.jl`) has its own dirty walk, with the model
   of main: it tests the `x` and `y` cells for staleness and keys by `objectid`.

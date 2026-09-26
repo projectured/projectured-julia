@@ -168,7 +168,9 @@ end
 end
 @testset "a partial repaint draws what a full repaint draws" begin
     width, height = 480, 360
+    # A mouse event first: from it on, the pointer is drawn over each frame.
     timeline = Any[
+        (event = MouseMove(300, 200, MouseButtons(), ModifierKeys(); time = 0.0), hold = 0.2),
         (event = KeyDown(:t, ModifierKeys(ctrl = true); time = 0.0), hold = 0.3),
         (event = KeyDown(:insert, ModifierKeys(); time = 0.0),        hold = 0.3),
         make_typein_gestures("repl"; hold = 0.1, jitter = 0.0)...,

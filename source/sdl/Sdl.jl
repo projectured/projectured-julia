@@ -3175,7 +3175,8 @@ function _emit_frame_with_overlay!(off, width::Integer, height::Integer, overlay
             renderer = SDL_CreateSoftwareRenderer(out)
             SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND)
             SDL_RenderSetScale(renderer, Float32(off.sc), Float32(off.sc))
-            overlay === nothing || _render_canvas!(renderer, overlay, 0, 0, Int(width), Int(height), off.sc)
+            overlay === nothing ||
+                _render_canvas!(renderer, overlay, 0, 0, _ClipEdges(0, 0, Int(width), Int(height)), off.sc)
             # Two pixels: a video halves the resolution of its colours, and a
             # line of one pixel fades to a trace.
             _outline_dirty_rects!(renderer, outline, 2)
