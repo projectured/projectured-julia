@@ -104,15 +104,28 @@ end
 
 # ── API ───────────────────────────────────────────────────────────────────────
 
+"""
+    make_filesystem_pathname(pathname) -> FileSystemDocument
+
+The file or the folder at `pathname`. A folder is read at the first read of its
+`elements`, and each entry at its own first read: a read of the length is one
+`readdir`, and a read of an entry is one `isdir` of it. A folder that nothing
+reads costs one `isdir`. A folder is read once and not watched.
+"""
 function make_filesystem_pathname(pathname::AbstractString)
     p = String(pathname)
-    if isdir(p)
-        children = FileSystemDocument[]
-        for entry in readdir(p; join=true)
-            push!(children, make_filesystem_pathname(entry))
-        end
-        FileSystemDirectory(p, children)
-    else
-        FileSystemFile(p)
+    isdir(p) || return FileSystemFile(p)
+    FileSystemDirectory(p, CellVector(@computation(_read_folder_names(p));
+                                      element = name -> make_filesystem_pathname(joinpath(p, name))))
+end
+
+# The names in the folder at `p`. A folder that can not be read, because of a
+# permission or because it is gone, has no names.
+function _read_folder_names(p::String)
+    try
+        readdir(p)
+    catch exception
+        exception isa Base.IOError || rethrow()
+        String[]
     end
 end

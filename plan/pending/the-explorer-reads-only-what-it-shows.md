@@ -1,6 +1,9 @@
 # The Explorer reads only what it shows
 
-> **Status:** pending, not started. Written 2026-09-26. The owner asked: "the
+> **Status:** in progress, in the worktree `projectured-julia-explorer-lazy` on
+> the branch `explorer-reads-only-what-it-shows`, from `6a511ab0`. Written
+> 2026-09-26. The owner approved the plan and the three contract changes on
+> 2026-09-26. The owner asked: "the
 > workspace file explorer seems to be non-lazy, if there are many files in the
 > worskpace recursively it gets slow. The explorer should be open with only the
 > first level expanded and all other levels collapsed, this would immiately make
@@ -245,15 +248,26 @@ before step 1: `test_filesystem()`, `WidgetTreeTest.jl`,
 `ReflectionToWidgetTest.jl`, `test_graphics()`, and the text-to-graphics and SDL
 render tests that step 4 touches.
 
+- [x] **Step 0. The baseline.** `test_filesystem()`, `test_substrate()` and
+  `test_sdl()` on `6a511ab0`, in the worktree before any change.
+  *Result:* file system 54 pass. Substrate 85,078 pass, 3 fail, 2 errors, 1
+  broken; the 5 faults are all in `SplitPaneDragTest.jl` (lines 83, 85, 118,
+  136 and 137). SDL 690 pass.
+
 A test checks laziness with `is_cell_up_to_date`: a listing that nothing read
 is not up to date. A test does not measure time. A time measurement needs the
 approval of the owner and an idle machine.
 
-- [ ] **Step 1. A folder is read at its first read (3.1).** Add the form of D8
+- [x] **Step 1. A folder is read at its first read (3.1).** Add the form of D8
   to `CellVector`. Find out first if the `@document` constructor of
   `FileSystemDirectory` takes a computed `CellVector`. Test: `make_filesystem_pathname` on the fixture reads no listing
   below the root. A folder without read permission gives an empty listing.
   `FileSystemToSyntax` still prints the whole fixture.
+  *Done.* The positional constructor of `FileSystemDirectory` takes the
+  computed `CellVector` as it is. `test_filesystem_document()` in
+  `test/filesystem/document/FileSystemDocumentTest.jl` checks the reads, a
+  folder without permission and a folder that is gone. `test_filesystem()`: 67
+  pass (54 before, and 13 new).
 - [ ] **Step 2. Nodes are closed until they are opened (3.2).** `expanded`
   replaces `collapsed` in `WidgetTree`, in its reader, in its printer and in
   each caller. Find out if a new path of the workspace folder prints a new

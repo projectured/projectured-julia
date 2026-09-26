@@ -77,15 +77,32 @@ CellVector(::UndefInitializer, n::Integer) = CellVector(Cell([Cell(nothing) for 
 CellVector(items...)                = CellVector(Cell[Cell(x) for x in items])
 """
     CellVector(@computation expr) -> CellVector
+    CellVector(@computation(keys); element) -> CellVector
 
 A `CellVector` whose elements are derived: `expr` computes the element list, and
 each element gets a slot cell of its own on every computation. The counterpart
 of `Cell(@computation expr)` for a collection.
+
+With `element`, the elements are derived one at a time. `keys` computes one key
+for each element, and the slot of a key computes `element(key)` at its first
+read. So a read of the length computes the keys and nothing else, and a read of
+one element computes that element and no other. Use it for a collection that is
+costly to fill and of which a reader reads a few elements: the entries of a
+folder, the children of a tree node.
+
+# Example
+
+    entries = CellVector(@computation(readdir(folder)); element = name -> stat(joinpath(folder, name)))
+    length(entries)      # one readdir
+    entries[3]           # one stat, of the third entry
 """
-function CellVector(marker::Computation)
+function CellVector(marker::Computation; element = nothing)
     cv = CellVector(Cell(Cell[]), Cell(nothing))
     f = marker.computation
-    set_cell_computation!(getfield(cv, :elements), () -> Cell[Cell(x) for x in f()])
+    slots = element === nothing ?
+        () -> Cell[Cell(x) for x in f()] :
+        () -> Cell[Cell(@computation element(key)) for key in f()]
+    set_cell_computation!(getfield(cv, :elements), slots)
     cv
 end
 # A `Function` needs no method of its own: it is an element like any other value, and the
