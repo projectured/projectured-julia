@@ -1,10 +1,11 @@
 # Every window tracks the pointer, and says when the pointer leaves it
 
-> **Status (2026-09-26): in progress** on the branch `window-leave`, worktree
-> `projectured-julia-window-leave`. The owner chose the correct design for the
-> leave of a window, allowed the unsealing of the kernel files it needs, named the
-> event `WindowLeave`, and chose (B). A fact found after the choice reopens (B):
-> see "Decisions".
+> **Status (2026-09-26): taken over.** Steps 1 and 2 are done on the branch
+> `window-leave`. The owner approved the plan
+> [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) on the
+> same day, and it takes over the rest: step 3 of this plan is its step 7, step 4
+> is its step 10, and the live check of step 5 is part of its step 7. This plan
+> moves to `plan/done/` with that plan.
 
 Follows [a-popup-shows-every-item-on-a-popover-and-a-help-page-scrolls.md](../done/a-popup-shows-every-item-on-a-popover-and-a-help-page-scrolls.md).
 The owner found that a row of a popup menu does not light under the pointer.
