@@ -541,6 +541,29 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       6. an answer that says so.
       It read "beside the first one" as `side = :right`, a new split, and not
       as the next tab of the same group; both fit the prompt.
+      **The rehearsal of both prompts (2026-09-26),** the five people of the
+      screenplay, one conversation (`/var/tmp/referenced/rehearse_two.jl`):
+      - Prompt 1: a tab opened, in 155 s, by the same path; but the rows were
+        `string(person["name"])` and not `person["name"].value`. `string` of a
+        referenced document is its display, `"ReferencedDocument{JsonString} at
+        .windows[1]…entries[1].value: JsonString(\"Cleo\")"`, so each cell holds
+        that text, and the sort by it keeps the order of the file. `string` of a
+        plain `JsonString` is `JsonString("Cleo")`, not the name either. The
+        model said the table was sorted; it was not.
+      - Prompt 2 ("Under the two tabs, add a card …"): no card, 489 s, 6 rounds,
+        and the turn ended with `max_tokens` in a thinking block. The model
+        searched "move_pane! open_pane! target split below nested group", which
+        answered `move_pane!` first, read the pane design document, and set out
+        to build a `PaneSplit` by hand with `replace_referenced_value!`. It then
+        called `get_document` on what `get_referenced_value` answered, a plain
+        `PaneSplit`, and got a `MethodError`: it took every part to be a
+        referenced document. `open_pane!` with `target` and `side = :below`
+        would have done it in one call; the guide shows only `side = :right`.
+      Findings for the owner, not decided: `print` of a referenced document and
+      of a JSON leaf; `get_document` of a plain document; `get_referenced_value`
+      under D21; the guide's example of `side`; the `WidgetTable` docstring,
+      which calls `WidgetTable(headers, rows)` a "string convenience shim",
+      although it takes any value (so the model converted with `String`).
       Round 2 answers the typed reference of the new tab, which is long
       (`::ScreenDocument.windows::CellVector[1]::…::PaneTab`); a
       `ReferencedDocument` answer (D10, open) would show the tab.
