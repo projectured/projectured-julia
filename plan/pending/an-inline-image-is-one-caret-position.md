@@ -241,12 +241,27 @@ Do the work in a git worktree, and commit each step.
     before. Test: `BookToSyntaxTest`, a paragraph with a `TextNewline`.
   - The text projection tests (`test_text_to_graphics`, `test_word_wrapping`,
     the decorators, `test_syntax_to_text`) pass with no change after this step.
-- [ ] **Step 2. From an offset to a place** (§3.2). `_flat_to_span` and the
+- [x] **Step 2. From an offset to a place** (§3.2). `_flat_to_span` and the
   functions beside it answer the caret before or after an image where no text
   run holds the offset; `get_flat_cursor_coordinate` passes it on, and the caret
   of `_layout_group` is drawn beside the image. Tests: every caret of
   `"ab"[image]"cd"`, `[image]"ab"`, `"ab"[image]` and `[image][image]`, and where
   each is drawn.
+  - *Done.* *Decision:* `_flat_to_span` still answers text runs only, because
+    the edit code (`evaluate_operation`, `_lower_text_range`) splices the run it
+    returns. A new `_find_flat_place` answers the run, else the image beside the
+    offset (`_find_flat_image_place`, over `_text_image_paths`); between two
+    images, the caret after the earlier one. `get_flat_cursor_coordinate` and
+    `_text_flat_span` use it. The caret branch of `_layout_group` needed no
+    change.
+  - *Fact:* after Steps 1 and 2 the type-in walks of the three examples have no
+    failure (`test_example`, pass / fail / broken): `text_with_image`
+    1487 / 0 / 0, `text_baseline` 2989 / 0 / 8, `text_line_height`
+    3489 / 0 / 2. A typed character after an image now goes into the run after
+    it. Fewer rules are broken because Delete at the end of a run before an
+    image now declines (the range covers the image) where it deleted the first
+    character after the image before; Step 4 makes it delete the image. The
+    navigation counts do not change.
 - [ ] **Step 3. Motion** (§3.3). Left, Right, Ctrl+arrow, Ctrl+Home, Ctrl+End, and
   the geometric Home, End, Up, Down and click. `TextToGraphicsTest.jl:198-225`
   keeps its numbers, and its comment says what they mean. Tests: a walk with

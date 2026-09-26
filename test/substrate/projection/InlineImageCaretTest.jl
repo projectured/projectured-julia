@@ -43,5 +43,50 @@ end
     @test get_flat_string(block) == "abY\uFFFCXcd"
 end
 
+@testset "an offset beside an image is a place of the image" begin
+    place(block, k) = TextModule.get_flat_cursor_coordinate(
+        with_selection(block, TextModule.make_flat_caret_reference(k)))
+    # A text run holds the offsets at its ends, so the image of "ab"[image]"cd"
+    # has no place of its own: 2 is the end of "ab", 3 the start of "cd".
+    middle = TextBlock(_run("ab"), _image(), _run("cd"))
+    @test [place(middle, k) for k in 0:5] ==
+          [(span = [1], char = 0), (span = [1], char = 1), (span = [1], char = 2),
+           (span = [3], char = 0), (span = [3], char = 1), (span = [3], char = 2)]
+    # With no run on one side, the offset on that side is the image's.
+    @test place(TextBlock(_image(), _run("ab")), 0) == (span = [1], char = 0)
+    @test place(TextBlock(_image(), _run("ab")), 1) == (span = [2], char = 0)
+    @test place(TextBlock(_run("ab"), _image()), 3) == (span = [2], char = 1)
+    # Between two images, the caret after the earlier one.
+    @test [place(TextBlock(_image(), _image()), k) for k in 0:2] ==
+          [(span = [1], char = 0), (span = [1], char = 1), (span = [2], char = 1)]
+    # In a line, after its indentation.
+    line = TextBlock(TextLine(_run("ab")), TextLine(_image(); indentation = 2))
+    @test place(line, 5) == (span = [2, 1], char = 0)
+    @test place(line, 6) == (span = [2, 1], char = 1)
+    @test place(line, 4) === nothing
+end
+
+@testset "the caret beside an image is drawn at its edge" begin
+    # Every character is 10 pixels wide and the image 24.
+    measure = FixedMeasure(10, 12, 4, 0)
+    rects(canvas, x0 = 0, out = Any[]) = begin
+        for element in canvas.elements
+            if element isa GraphicsCanvas
+                rects(element, x0 + Int(element.x), out)
+            elseif element isa GraphicsRect && Int(element.w) == 2
+                push!(out, x0 + Int(element.x))
+            end
+        end
+        out
+    end
+    caret_x(block, k) = rects(print_document(TextToGraphics(measure = measure),
+        with_selection(block, TextModule.make_flat_caret_reference(k))).output)
+    @test [caret_x(TextBlock(_run("ab"), _image(), _run("cd")), k) for k in 0:5] ==
+          [[0], [10], [20], [44], [54], [64]]
+    @test [caret_x(TextBlock(_image(), _run("ab")), k) for k in 0:3] == [[0], [24], [34], [44]]
+    @test [caret_x(TextBlock(_run("ab"), _image()), k) for k in 0:3] == [[0], [10], [20], [44]]
+    @test [caret_x(TextBlock(_image(), _image()), k) for k in 0:2] == [[0], [24], [48]]
+end
+
 end # @testset "Inline image caret"
 end # test_inline_image_caret

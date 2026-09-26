@@ -504,13 +504,14 @@ end
 
 # The flat caret resolved to a `(span, char)` pair for the renderer / line-motion
 # geometry, or `nothing` when there is no caret, the selection is a range, or the
-# caret falls in a break / indentation gap with no owning span. `get_flat_base`
-# supplies the span's flat base, `_flat_to_span` the inverse.
+# caret falls in a break / indentation gap with no owning span. The span is a text
+# run, or an inline image with char 0 before it and char 1 after it
+# (`_find_flat_place`). `get_flat_base` supplies the span's flat base.
 get_flat_cursor_coordinate(text::TextBlock) = get_flat_cursor_coordinate(text, text.selection)
 # The span and the character a flat offset lands on, in the shape of
 # `get_flat_cursor_coordinate`, or `nothing` on a break or gap.
 function _text_flat_span(text::TextBlock, flat::Int)
-    loc = _flat_to_span(text, flat)
+    loc = _find_flat_place(text, flat)
     loc === nothing ? nothing : (span = loc[1], char = loc[2])
 end
 
@@ -518,9 +519,7 @@ function get_flat_cursor_coordinate(text::TextBlock, selection)
     sel = _text_flat_selection(text, selection)
     sel === nothing && return nothing
     sel[1] == sel[2] || return nothing            # a range has no single char cursor
-    loc = _flat_to_span(text, sel[1])
-    loc === nothing && return nothing
-    (span = loc[1], char = loc[2])
+    _text_flat_span(text, sel[1])
 end
 
 # Standard editor word class: letters, digits, and underscore are "word" chars;
@@ -566,6 +565,21 @@ function _text_span_infos(text::TextBlock)
         end
     end
     infos
+end
+
+# The path of every inline image, in document order, at either depth.
+function _text_image_paths(text::TextBlock)
+    paths = SpanPath[]
+    for (i, el) in enumerate(text.elements)
+        if el isa TextGraphics
+            push!(paths, Int[i])
+        elseif el isa TextLine
+            for (j, span) in enumerate(el.elements)
+                span isa TextGraphics && push!(paths, Int[i, j])
+            end
+        end
+    end
+    paths
 end
 
 # Insert (replace the selected flat range with) `str` at the text cursor. Produces
@@ -1051,8 +1065,9 @@ end
 
 # Resolve a flat offset (canonical break/indentation-aware space) to the
 # `(span_path, local_char)` of the `TextString` span it falls in, or `nothing`
-# when it lands on a break / spacing / indentation gap (no editable span) or out
-# of range. Boundary offsets resolve to the earlier span's end.
+# when it lands on a break / spacing / indentation gap (no editable span), beside
+# an inline image with no text run on that side, or out of range. Boundary offsets
+# resolve to the earlier span's end.
 function _flat_to_span(text::TextBlock, flat::Int)
     for (span_path, len) in _text_span_infos(text)
         base = get_flat_base(text, span_path)
@@ -1061,6 +1076,24 @@ function _flat_to_span(text::TextBlock, flat::Int)
     end
     nothing
 end
+
+# The inline image that a flat offset touches, as `(span_path, char)`: char 0 is
+# the caret before the image and char 1 the caret after it. Between two images,
+# the caret after the earlier one. `nothing` when no image touches the offset.
+function _find_flat_image_place(text::TextBlock, flat::Int)
+    for path in _text_image_paths(text)
+        base = get_flat_base(text, path)
+        base === nothing && continue
+        base <= flat <= base + 1 && return (path, flat - base)
+    end
+    nothing
+end
+
+# The place of a flat offset, as `(span_path, char)`: the text run that holds it
+# (`_flat_to_span`), else the inline image beside it (`_find_flat_image_place`).
+# `nothing` on a break or a gap that no run and no image touches.
+_find_flat_place(text::TextBlock, flat::Int) =
+    something(_flat_to_span(text, flat), _find_flat_image_place(text, flat), Some(nothing))
 
 # Standalone-TextBlock application. For a projected document the op is lowered
 # upstream and never arrives here. v1 handles the in-span case (caret or range
