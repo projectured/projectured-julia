@@ -316,8 +316,13 @@ last rung, builds the projection itself and runs the engine.
 """
 function print_natural_text(document)
     projection = make_natural_projection(document, :string)
-    projection === nothing &&
+    if projection === nothing
+        # A layer a person sees through, such as the scroll pane of a file tab,
+        # prints as what it shows.
+        field = get_edited_field(document)
+        field === nothing || return print_natural_text(getproperty(document, field))
         error("print_natural_text: no natural text for $(typeof(document))")
+    end
     String(print_document(projection, document).output)
 end
 

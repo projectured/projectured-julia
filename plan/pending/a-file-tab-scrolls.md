@@ -99,5 +99,15 @@ default, no?", then "yes and do it before the take".
       `pane.md` (`get_pane_file_group`), `widget.md` (a scroll pane is a layer a
       person sees through). The orientation guide does not name the content of a
       file tab. The writing guard counts the same lines as `main`.
+- **Found in the S2 take (2026-09-26), and fixed.** The system text of the
+  application tells the model to read a tab with `print_natural_text(tab.content)`
+  and to use `get_file_content`; with a scroll pane as the content of a file tab,
+  the first failed ("no natural text for WidgetScrollPane") and the second
+  answered the file and not its content. Both now see through a layer that
+  `get_edited_field` names (`NaturalNotation.jl`, `FileProject.jl`), as D2 says a
+  scroll pane is. The scroll test checks both; `test_referenced_document_editor()`
+  97, `test_file_tab()`, `test_filesystem()`, `test_file_project()` 134,
+  `test_json()` 194 and `test_naming()` pass, `test_application()` 336 of 338 as on
+  `main`.
 - [ ] **Step 5: the landing**, when the owner says so. Then the S2 take, on the
       s2-video branch rebased onto it.

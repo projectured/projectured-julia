@@ -295,6 +295,9 @@ function test_referenced_document_editor()
         @test pane isa WidgetScrollPane && is_file_document(pane.content)
         items = get_edited_document(long_tab)
         @test get_document(items) isa JsonArray
+        # The path to a tab's text that the system text of the application names.
+        @test startswith(print_natural_text(pane), "[")
+        @test get_file_content(pane) === pane.content.content
         window_history = only(search_documents(long_editor.document,
                                                node -> node isa UndoBuffer && node.content isa PaneTree))
         steps = length(window_history.undo_entries)

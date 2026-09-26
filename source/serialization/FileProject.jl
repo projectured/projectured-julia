@@ -86,14 +86,22 @@ The value of the `content` field of `file`: what the file holds, as its format
 reads it — the parsed tree for a `JsonFile`, a raw `String` for a `TextFile`. An
 application that keeps a history of each file keeps the history in this field,
 so the answer is then the history and not the tree. To reach the document a
-person edits, through the history too, use [`get_edited_document`](@ref).
+person edits, through the history too, use [`get_edited_document`](@ref). Given a
+layer that shows a file, such as the scroll pane of a file tab, it answers the
+content of that file.
 
 Default reads through the `content` field: the save copies it, and the load
 fills it. A file whose whole node is its content — a `NedFile`, whose children
 and version are the file — answers with the node itself and says so with
 [`is_own_content`](@ref).
 """
-get_file_content(f) = unwrap_cell(getfield(f, :content))
+function get_file_content(f)
+    is_file_document(f) && return unwrap_cell(getfield(f, :content))
+    # A layer a person sees through, such as the scroll pane of a file tab, answers
+    # the content of the file it shows.
+    field = get_edited_field(f)
+    field === nothing ? unwrap_cell(getfield(f, :content)) : get_file_content(getproperty(f, field))
+end
 get_file_content(file::ReferencedDocument) = get_file_content(get_document(file))
 
 """
