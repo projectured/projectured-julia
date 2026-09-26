@@ -308,6 +308,9 @@ make_application_api() = Any[
     Projectured.DocumentModule => (:search_documents, :get_wrapped_document),
     Projectured.FileFormatModule => (:get_file_content,),
     Projectured.NaturalModule => (:print_natural_text, :parse_natural_text),
+    # The shape of a JSON file, which a model reads to find the fields of a record.
+    Projectured.JsonModule => (:JsonArray, :JsonObject, :JsonObjectEntry, :JsonString,
+                               :JsonNumber, :JsonBool, :JsonNull),
 ]
 
 """

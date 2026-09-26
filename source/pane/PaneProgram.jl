@@ -89,12 +89,16 @@ make_pane_api() = Any[
     # a model names a part by a complete reference from the root.
     PaneModule => (:show_layout, :get_referenced_value, :replace_referenced_value!,
                           :open_pane!, :focus_pane!, :close_pane!, :move_pane!,
-                          :duplicate_pane!, :find_pane_reference, :find_pane_tree_reference,
-                          :describe_document),
+                          :duplicate_pane!, :find_pane, :find_pane_reference,
+                          :find_pane_tree_reference, :describe_document),
     PaneModule      => (:PaneTree, :PaneSplit, :PaneGroup, :PaneTab),
     LayoutModule    => (:GridLayout, :HorizontalLayout, :VerticalLayout,
                         :FlowLayout, :StackLayout),
-    ReferenceModule => (Symbol("@reference"),),
+    # `find_pane` answers a referenced document, and `get_edited_document` reaches
+    # the document a tab shows through it.
+    ReferenceModule => (Symbol("@reference"), :ReferencedDocument, :get_document,
+                        :get_reference, :DocumentLocator, :find_referenced_document,
+                        :get_edited_document),
 ]
 
 """
@@ -440,6 +444,9 @@ the reference `show_layout` printed, `open_pane!` answered or
 `find_pane_reference` found, so that you can act on it: stop the set, add a
 series to the plot, ask the table how many rows it has.
 
+`reference` can also be a `ReferencedDocument`, such as the tab that
+[`find_pane`](@ref) answers.
+
 # Example
 
     plot = get_referenced_value(editor, find_pane_reference(editor, "Delay"))
@@ -482,6 +489,9 @@ Use it to change the layout: move a pane beside another in a split, resize a
 split by its weights, or replace what a pane holds, by writing a value at a
 reference `show_layout` printed. One call, one undo. To close a pane, use
 [`close_pane!`](@ref).
+
+`reference` can also be a `ReferencedDocument`, such as the tab that
+[`find_pane`](@ref) answers, and `value` can be one too: its document is written.
 
 # Example
 
@@ -658,6 +668,9 @@ layout, as [`show_layout`](@ref) prints it.
 Use it to bring a pane to the front, select its tab, or show the person a pane
 that is open behind another.
 
+`reference` can also be a `ReferencedDocument`, such as the tab that
+[`find_pane`](@ref) answers.
+
 # Example
 
     focus_pane!(editor, find_pane_reference(editor, "Files"))
@@ -823,6 +836,9 @@ Close the pane `reference` names, and answer the new layout, as
 
 Use it to close, remove or dismiss a pane, a tab or a document that is open.
 
+`reference` can also be a `ReferencedDocument`, such as the tab that
+[`find_pane`](@ref) answers.
+
 # Example
 
     close_pane!(editor, find_pane_reference(editor, "Files"))
@@ -905,8 +921,9 @@ tab. `nothing` when no tab has that title; when two tabs have it, an
 `ArgumentError` names both.
 
 Use it to find a tab by its title: to read the data it shows with
-[`get_edited_document`](@ref), to reach the group that holds it with
-[`get_parent`](@ref), or to hand it to a verb that moves, focuses or closes it.
+[`get_edited_document`](@ref), to open a new tab beside it with
+[`open_pane!`](@ref) and its `target`, or to hand it to a verb that moves,
+focuses or closes it.
 
 # Example
 
@@ -961,6 +978,9 @@ Use it to duplicate, copy or clone a pane: another plot like this one, a second
 runner, or another assistant that knows this conversation. The duplicate is a
 pane the person controls on its own. It owns what they can change in it, and it
 reads what the original reads.
+
+`reference` can also be a `ReferencedDocument`, such as the tab that
+[`find_pane`](@ref) answers.
 
 # Example
 
@@ -1040,6 +1060,9 @@ Move the pane `reference` names to `target`, and answer the window's new layout.
 
 Use it to move a tab to another group, to put it before another tab, or to put
 it beside a group in a split of its own.
+
+`reference` and `target` can also be a `ReferencedDocument`, such as the tab that
+[`find_pane`](@ref) answers.
 
 # Example
 

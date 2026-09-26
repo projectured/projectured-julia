@@ -137,6 +137,11 @@ Evaluate `code` in the editor process, with `target` bound as `editor` and the
 Projectured names in scope. Statements run at the top level of `set`'s persistent
 scratch module, so top-level assignments stay bound for later calls.
 
+**A variable is how a caller keeps what it found.** The description the model
+reads tells it to keep each object it finds or makes in its own variable, named by
+what it holds and numbered (`people_tab_1`, `rows_1`, then `rows_2`), and to use
+the variable in a later call instead of finding the object again.
+
 **The answer is what the code printed, whole, then the value of the last
 statement on its own.** What the code prints is what the caller asked for, so
 it is never cut. The value of the last statement comes unasked, and it is what
@@ -157,12 +162,12 @@ Never throws: an error comes back as its formatted message, because the caller i
 usually an agent that must be able to read the failure and try again.
 
 **A call with no code answers that, rather than answering nothing.** Empty source
-evaluates to nothing and printed nothing, so the tool used to return an empty
-string — which a model reads as a broken tool rather than as its own mistake, and
-then it stops writing code at all. Measured against a local model asked to run a
-set of simulations: it wrote an empty call, got a blank back, said "the tool seems
-to not be returning the output", and spent every remaining round searching instead
-of running anything. The one line back is what lets it correct itself.
+evaluates to nothing and prints nothing, and a model reads an empty answer as a
+broken tool rather than as its own mistake, and then stops writing code at all. A
+local model asked to run a set of simulations wrote an empty call, got a blank
+back, said "the tool seems to not be returning the output", and spent every
+remaining round searching instead of running anything. The one line back is what
+lets it correct itself.
 """
 function execute_julia_code(set::ToolSet, target, code;
                              describe_value::Function = _describe_value_for_model)

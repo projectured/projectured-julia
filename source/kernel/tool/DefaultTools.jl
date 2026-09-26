@@ -1,5 +1,21 @@
 # Fragment of `ToolModule` — the tools and resources an editor ships with.
 
+# What the tool answers, as both descriptions say it.
+const _ANSWER_DESCRIPTION =
+    "The tool answers what your code prints, whole, and then the value of the last " *
+    "expression: a short value as it is, and a long one as the Julia REPL shows it, " *
+    "trimmed with a note when it is still long. " *
+    "Print what you want to read: println(x), show(x) or @show x.\n\n"
+
+# How the model keeps what it found between calls, as both descriptions say it.
+const _VARIABLES_DESCRIPTION =
+    "Each call runs in the same module, so a variable that one call binds at the top " *
+    "level is still there in every later call. Keep each object that you find or make " *
+    "in its own variable, named by what it holds and numbered: `people_tab_1`, " *
+    "`people_1`, `rows_1`. When you make another object of the same kind, give it the " *
+    "next number, `rows_2`, and do not overwrite the first. Use a variable again in a " *
+    "later call instead of finding its object again.\n\n"
+
 # What the model is told about the code it may write. It follows the declaration,
 # because a description that names a surface the `ToolSet` does not have is an
 # instruction to waste a round.
@@ -10,9 +26,8 @@ const _WHOLE_SURFACE_DESCRIPTION =
     "Projectured is already imported with `using Projectured` before executing the code, " *
     "making all Projectured exports available. Do NOT add `using Projectured` to your code - " *
     "it is already included automatically.\n\n" *
-    "The tool answers what your code prints, whole. The value of the last " *
-    "expression is described in one line, and shown only when it is short. " *
-    "Print what you want to read: println(x), show(x) or @show x.\n\n" *
+    _ANSWER_DESCRIPTION *
+    _VARIABLES_DESCRIPTION *
     "MANDATORY — read these resources BEFORE writing any code:\n" *
     "1. resource://guides\n" *
     "2. resource://modules\n" *
@@ -77,9 +92,8 @@ function _execute_julia_code_description(set::ToolSet)
     "say it in a sentence.\n" *
     "- `read_function_documentation` reads one in full and says what its " *
     "arguments are.\n\n" *
-    "The tool answers what your code prints, whole. The value of the last " *
-    "expression is described in one line, and shown only when it is short. " *
-    "Print what you want to read: println(x), show(x) or @show x.\n\n" *
+    _ANSWER_DESCRIPTION *
+    _VARIABLES_DESCRIPTION *
     "NEVER guess a name — search for it. NEVER write comments."
 end
 

@@ -404,6 +404,18 @@ function test_declared_api()
         @test occursin("1 names this editor declares", text)
     end
 
+    # A model that finds an object again in every call spends a round on each, so
+    # both descriptions tell it to keep what it found in numbered variables.
+    @testset "the description tells the model to keep objects in numbered variables" begin
+        for set in (ToolSet(), ToolSet(; api = Module[ToyApi]))
+            register_default_tools!(set)
+            text = only([t for t in set.tools if t.name == "execute_julia_code"]).description
+            @test occursin("still there in every later call", text)
+            @test occursin("`rows_2`, and do not overwrite the first", text)
+            @test occursin("as the Julia REPL shows it", text)
+        end
+    end
+
     @testset "a name outside the declaration fails in the round that used it" begin
         set = ToolSet(; api = Module[ToyApi])
         answer = execute_julia_code(set, nothing, "Cell(1)")

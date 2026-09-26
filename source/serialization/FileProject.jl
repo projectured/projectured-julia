@@ -80,10 +80,13 @@ underlying reactive cell — works for any type that has one (both
 get_filename(f) = unwrap_cell(getfield(f, :filename))
 
 """
-    content(f) -> Any
+    get_file_content(file) -> Any
 
-The format-native content of this file document — the parsed tree for a
-`JsonFile`, a raw `String` for a `TextFile`.
+The value of the `content` field of `file`: what the file holds, as its format
+reads it — the parsed tree for a `JsonFile`, a raw `String` for a `TextFile`. An
+application that keeps a history of each file keeps the history in this field,
+so the answer is then the history and not the tree. To reach the document a
+person edits, through the history too, use [`get_edited_document`](@ref).
 
 Default reads through the `content` field: the save copies it, and the load
 fills it. A file whose whole node is its content — a `NedFile`, whose children

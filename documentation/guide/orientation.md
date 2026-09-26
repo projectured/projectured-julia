@@ -18,6 +18,7 @@ browsing tools below. Do not guess names — search for them.
 | Projection (interface) | `Projection`, `print_document`, `read_intent`, `map_reference_forward`, `map_reference_backward`, `PrinterContext`, `IoMap`/`SimpleIoMap`/`ChildrenIoMap` | `kernel/projection-system` |
 | Projection composition | `ChainingProjection`, `RecursiveProjection`, `TypeDispatchingProjection`, `NestingProjection`, `SwitchingProjection`; generic: `CopyingProjection`, `SortingProjection`, `FilteringProjection`, `FocusingProjection` | `projection/higher-order-projections`, `projection/generic-projections` |
 | Reference | `Reference`, `EmptyReference`, `ConcreteReference`; steps `FieldReferenceStep`, `RangeReferenceStep` (`ElementReferenceStep`/`PositionReferenceStep`), `ProjectionReferenceStep`, `TypeReferenceStep`; DSL `@reference`, `@reference_case`, `@reference_rules`; `evaluate_reference` | `kernel/reference` |
+| Referenced document | `ReferencedDocument`, `get_document`, `get_reference`, `find_pane`, `get_edited_document`, `DocumentLocator`, `find_referenced_document` | `kernel/reference`, `guide/orientation` |
 | Selection | `set_selection!`, `clear_selection!`, `replace_selection!`, `get_selection` | `kernel/selection` |
 | Search (by content) | `search_references`, `search_documents`, `print_object` (search a document **or an iomap** — the whole pipeline) | `kernel/finding-and-selecting`, `guide/debugging-guide` |
 | Operation | `Operation`, `evaluate_operation`, `ReplaceSelectionOperation`, `ReplaceReferencedValueOperation` (+ `replace_document` / `insert_elements` / `delete_elements`), `ReplaceStringRangeOperation`, `CompoundOperation` | `kernel/operation` |
@@ -51,10 +52,52 @@ browsing tools below. Do not guess names — search for them.
   change the document; operations carry their own target, so they work through any
   `ScreenDocument`/`WindowDocument` wrapping.
 
+## Reach what a tab holds
+
+`find_pane(editor, title)` answers the tab of that title as a
+`ReferencedDocument`: the tab, and the reference to it from the root of
+`editor.document`. A referenced document acts like its document: read a field,
+index it, iterate it. Every document or collection that a read answers is a
+referenced document too, so it still knows where it is; a string, a number or a
+`Bool` comes back plain. `get_edited_document(tab)` answers the data that the tab
+shows, through the file and the history that hold it. The pane verbs and
+`print_natural_text` take a referenced document where they take a reference or a
+document.
+
+Look at the data first, in one call:
+
+```julia
+people_tab_1 = find_pane(editor, "people.json")
+people_1 = get_edited_document(people_tab_1)
+print_natural_text(people_1)
+```
+
+Then use the same variables in the next call. A `JsonArray` acts as a vector, and
+a `JsonObject` as a map from key to value:
+
+```julia
+rows_1 = [[person["name"].value, person["age"].value] for person in people_1]
+sort!(rows_1; by = first)
+table_tab_1 = open_pane!(editor, WidgetTable(["name", "age"], rows_1); title = "People by name")
+```
+
+`open_pane!` puts the new tab where the focus is. To put it before a tab, or at
+the end of a group, give that tab or group as `target`; add `side = :right` to put
+it beside the target in a new split.
+
+Each call runs in the same module, so a variable that one call binds at the top
+level is still there in every later call. Keep each object that you find or make
+in its own variable, named by what it holds and numbered: `people_tab_1`,
+`people_1`, `rows_1`. When you make another object of the same kind, give it the
+next number, `rows_2`, and do not overwrite the first. Use a variable again in a
+later call instead of finding its object again.
+
 ### Gotchas
 
 - Property access already unwraps `Cell`s — write `node.field`, **not** `node.field[]`.
 - A pane tree can mirror the **same** document into two tabs at once, so a bare
   value match hits both — scope by **domain node type** (`v isa JsonString`).
 - `execute_julia_code` keeps top-level bindings between calls, so build state up
-  incrementally (`paths = …` in one call, use `paths` in the next).
+  in numbered variables (`people_1 = …` in one call, use `people_1` in the next).
+- A referenced document is not an instance of its document's type:
+  `people_1 isa JsonArray` is false. Ask `get_document(people_1) isa JsonArray`.

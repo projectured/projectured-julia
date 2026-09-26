@@ -130,6 +130,18 @@ function test_referenced_document_editor()
         @test describe_document(beside) == describe_document(get_document(beside))
     end
 
+    @testset "the application declares the new names, and a search finds them" begin
+        set = ToolSet(; api = make_application_api())
+        register_default_tools!(set)
+        first_names(query; mode) = [m.captures[1] for m in eachmatch(r"^- `([^(`{]+)"m,
+            string(search_api(set, query; mode = mode, detail = "names", limit = 3)))]
+        @test first(first_names("edited document"; mode = "keywords")) == "get_edited_document"
+        @test first(first_names("find pane"; mode = "keywords")) == "find_pane"
+        @test "ReferencedDocument" in first_names("a document and where it is"; mode = "description")
+        @test first(first_names("the address of a document"; mode = "description")) == "DocumentLocator"
+        @test first(first_names("the fields of a JSON object"; mode = "description")) == "JsonObject"
+    end
+
     @testset "the document functions take a referenced document" begin
         people_tab = find_pane(editor, "people.json")
         people = get_edited_document(people_tab)

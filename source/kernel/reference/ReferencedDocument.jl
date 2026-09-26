@@ -228,10 +228,11 @@ const _MAX_EDITED_LAYERS = 16
 """
     get_edited_document(x) -> ReferencedDocument, or a document
 
-The document that a person edits in `x`. It follows each layer that holds such a
-document, through the field `get_edited_field` names, down to a document that is
-itself what a person edits: from a tab to what it shows, from a file to the
-document read from it, from a history to the document it keeps.
+The data that a tab or an open file shows: the document that a person edits in
+`x`. It follows each layer that holds such a document, through the field
+`get_edited_field` names, down to a document that is itself what a person edits:
+from a tab to what it shows, from a file to the document read from it, from a
+history to the document it keeps.
 
 Given a `ReferencedDocument`, it answers a `ReferencedDocument` whose reference goes
 through every layer it passed; given a document, it answers the document.
