@@ -66,8 +66,8 @@ fault 1 hid both.
   the same. A cutoff by value in the engine would change decision 10 and the
   sealed files of `source/kernel/cell/`.
 - **The word wrap for each paragraph is deferred.** The owner said yes to its plan
-  before the Markdown answer. It is written below, and it is not needed for the
-  video.
+  before the Markdown answer. It is not needed for the video, and it is its own
+  plan now: [word-wrap-for-each-paragraph.md](../pending/word-wrap-for-each-paragraph.md).
 
 ## Steps
 
@@ -309,23 +309,8 @@ rectangle. `WidgetToGraphics.jl` merged by itself. After each resolved commit
 
 ## Deferred: the word wrap for each paragraph
 
-For a `TextBlock` of spans and `TextNewline` elements (the `TextDocument` row of
-the binary, and every prose chain that holds more than one paragraph):
-
-- `WordWrapping` groups its input into hard paragraphs at `TextNewline` elements.
-  The grouping reads the structure only, as `_line_groups` of `TextToGraphics`
-  does. Each paragraph has its own wrap cell, which reads only its own spans and
-  the wrap width, and its own table of `WrapSegment`s.
-- The output keeps one container for each paragraph, so a content edit does not
-  change the membership of the output. **Open choice for the owner:** a nested
-  `TextBlock` for each paragraph, or a `TextLine` that may hold soft breaks. Both
-  change the flat offsets (`get_flat_offsets`, `TextBlockToString`) and the
-  mapping of the selection.
-- `TextToGraphics` gives each paragraph container its own canvas and its own line
-  cells, with a `y` chain of paragraphs. The stack reads only the count of
-  paragraphs.
-- A `.txt` file stays one cell, so it stays whole-dirty. Only a change of what a
-  `.txt` opens as would change that.
+The design moved to its own plan,
+[word-wrap-for-each-paragraph.md](../pending/word-wrap-for-each-paragraph.md).
 
 ## Known limits
 
