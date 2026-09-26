@@ -208,17 +208,25 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 
 #### S2. The assistant arranges the window
 
-- **Feature:** the assistant changes the user interface itself: it opens tabs and builds a card with a table, with `open_pane!` and the widget and layout modules.
+- **Feature:** the assistant works in the window and in the documents of the person: it opens a tab with a table built from a file, and it edits the file.
 - **Claim:** the assistant works on the same window as you, and `Ctrl+Z` takes its change back.
-- **Setup:** `bin/projectured people.json`, 1280×720, with the assistant pane on the right. `people.json` holds five people with a name, an age and a city.
+- **Setup:** `bin/projectured people.json`, 1280×720, with the assistant pane on the right. `people.json` holds five people with a name, an age and a city; Ada lives in London:
+
+  ```json
+  [{"name": "Cleo", "age": 29, "city": "Lyon"}, {"name": "Ada", "age": 36, "city": "London"},
+   {"name": "Bob", "age": 41, "city": "Oslo"}, {"name": "Eve", "age": 25, "city": "Rome"},
+   {"name": "Dan", "age": 33, "city": "Madrid"}]
+  ```
 - **Beats:**
 
 | # | Action | On the screen | Caption |
 | --- | --- | --- | --- |
-| 1 | Hold 2 s. | The file in a tab, the assistant on the right. | The assistant: qwen3.8:27b through Ollama, on the CPU of this machine. |
-| 2 | Type the prompt "Open a second tab with people.json sorted by name, beside the first one." Enter. | The tool calls stream into the conversation, at the speed of the real turn. A new tab opens beside the first. | It searches the API, writes Julia and runs it. |
-| 3 | Type the prompt "Under the two tabs, add a card with a table of the names and the ages." Enter. | The same, for the card with the table. | |
-| 4 | Press Ctrl+Z. | The card goes away. | A change of the assistant is taken back like one of yours. |
+| 1 | Hold 2 s. | The file in a tab, the assistant on the right. | The assistant: qwen3.8:27b through Ollama, on the GPU of this machine. |
+| 2 | Type the prompt "Open a second tab beside the first one with a table of the people in people.json, sorted by name." Enter. | The tool calls stream into the conversation, at the speed of the real turn. A new tab opens beside the first. | It searches the API, writes Julia and runs it. |
+| 3 | Type the prompt "Ada moved to Paris. Change it in people.json." Enter. | The tool calls stream in. In the tab of `people.json`, the city of Ada changes from "London" to "Paris". | It edits your document, as you would. |
+| 4 | Press Ctrl+Z. | "Paris" goes back to "London". The video ends. | A change of the assistant is taken back like one of yours. |
+
+- **The owner's decision, 2026-09-26:** the step "Under the two tabs, add a card with a table of the names and the ages." is gone: it "barely adds anything to this video and is not really meaningful", and it was not clear which place "the two tabs" names. In its place the assistant changes the data, the step that shows the claim most directly: it edits the document you edit, and your undo takes the edit back. The video ends after the `Ctrl+Z`. Open for the owner: whether the table of beat 2 follows the file, so it shows "Paris" too.
 
 - **The rehearsals of 2026-09-23, with `qwen3.8:27b` on the CPU.** Four turns, none of them opened a tab. The model reads the guides, prints the pane tree with `show_layout`, searches the API, and then spends its rounds on names it can not call (F6) and on field names it guesses wrong.
 
