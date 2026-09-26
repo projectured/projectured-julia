@@ -300,6 +300,23 @@ model takes.
   `get_referenced_value`, `print_natural_text(tab.content)`), which still works;
   whether it names the new one is the owner's choice after Step 6.
 
+- **D22. The model knows from the start that it changes the editor's document
+  through a verb or an operation** (the owner, 2026-09-26: "It should not discover
+  that fact by seeing a failure, it should know this from the beginning", and "it's
+  not like directly editing is forbidden but discouraged because the editor's
+  default behaviour will not apply (such as undo, filtering out operations due to
+  permissions, transforming operations, etc.)"). A direct write, also one through a
+  referenced document (D2), stays possible. Both descriptions of
+  `execute_julia_code` say it (`_make_editing_description` in `DefaultTools.jl`):
+  the declared one names `replace_referenced_value!` only when the tool set
+  declares it, and the whole surface also names `evaluate_operation`. The
+  orientation guide says it under "Acting on the document" and shows the S2 edit,
+  `replace_referenced_value!(editor, people_1[2]["city"], JsonString("Paris"))`; the
+  docstring of `ReferencedDocument` says it in the concepts of the kernel.
+  `test_declared_api()` checks both descriptions and that a declaration without
+  the verb does not name it; 284 checks pass with the editor, reference, code
+  execution, documentation and naming tests.
+
 ### Not done
 
 - **D20. No `document` binding in `execute_julia_code`** (the owner,

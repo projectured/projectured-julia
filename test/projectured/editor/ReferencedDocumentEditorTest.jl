@@ -137,6 +137,8 @@ function test_referenced_document_editor()
     @testset "the application declares the new names, and a search finds them" begin
         set = ToolSet(; api = make_application_api())
         register_default_tools!(set)
+        description = only([t for t in set.tools if t.name == "execute_julia_code"]).description
+        @test occursin("replace_referenced_value!(editor, part, new_value)", description)
         first_names(query; mode) = [m.captures[1] for m in eachmatch(r"^- `([^(`{]+)"m,
             string(search_api(set, query; mode = mode, detail = "names", limit = 3)))]
         @test first(first_names("edited document"; mode = "keywords")) == "get_edited_document"

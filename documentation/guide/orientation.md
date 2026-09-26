@@ -48,9 +48,13 @@ browsing tools below. Do not guess names — search for them.
   pipeline — a debugging move for "where did the value go?" (see `guide/debugging-guide`).
 - **Resolve** — `evaluate_reference(editor.document, path)` → the node at a path.
 - **Intent** — build an `Operation`, then `evaluate_operation(editor, op)`
-  (e.g. `ReplaceSelectionOperation(path)` to select). This is the *one* way to
-  change the document; operations carry their own target, so they work through any
-  `ScreenDocument`/`WindowDocument` wrapping.
+  (e.g. `ReplaceSelectionOperation(path)` to select), or call a verb that makes
+  one, such as `replace_referenced_value!`. This is how to change the document;
+  operations carry their own target, so they work through any
+  `ScreenDocument`/`WindowDocument` wrapping. A direct write to a document, such as
+  `part.value = new_value`, works, but the editor does not handle it as an edit:
+  Ctrl+Z can not undo it, and the editor does not check its permissions or
+  transform it, as it does for an operation.
 
 ## Reach what a tab holds
 
@@ -80,6 +84,16 @@ rows_1 = [[person["name"].value, person["age"].value] for person in people_1]
 sort!(rows_1; by = first)
 table_tab_1 = open_pane!(editor, WidgetTable(["name", "age"], rows_1); title = "People by name")
 ```
+
+To change what a tab shows, give the part and its new value to
+`replace_referenced_value!`, so the change is an edit that Ctrl+Z can undo:
+
+```julia
+replace_referenced_value!(editor, people_1[2]["city"], JsonString("Paris"))
+```
+
+and not `people_1[2]["city"].value = "Paris"`, which changes the document outside
+the editor's handling of an edit.
 
 `open_pane!` puts the new tab where the focus is. To put it before a tab, or at
 the end of a group, give that tab or group as `target`. To put it in a new pane

@@ -16,6 +16,24 @@ const _VARIABLES_DESCRIPTION =
     "next number, `rows_2`, and do not overwrite the first. Use a variable again in a " *
     "later call instead of finding its object again.\n\n"
 
+# How the model changes the editor's document, as both descriptions say it. A direct
+# write works, but the editor does not handle it as an edit, so the model is told
+# before its first write and does not learn it from a failure. `ways` names only
+# what the model can call: a description that names what it can not call wastes a
+# round.
+_make_editing_description(ways::AbstractString) =
+    "Change the editor's document through " * ways * ", and not by a direct write " *
+    "such as `part.value = new_value`. A direct write works, but the editor does not " *
+    "handle it as an edit: Ctrl+Z can not undo it, and the editor does not check its " *
+    "permissions or transform it, as it does for an operation.\n\n"
+
+const _REPLACE_VERB = "`replace_referenced_value!(editor, part, new_value)`"
+
+function _make_editing_description(set::ToolSet)
+    declared = any(entry -> :replace_referenced_value! in get_api_entry_names(entry), set.api)
+    _make_editing_description(declared ? "a verb, such as " * _REPLACE_VERB : "a verb that changes it")
+end
+
 # What the model is told about the code it may write. It follows the declaration,
 # because a description that names a surface the `ToolSet` does not have is an
 # instruction to waste a round.
@@ -28,6 +46,8 @@ const _WHOLE_SURFACE_DESCRIPTION =
     "it is already included automatically.\n\n" *
     _ANSWER_DESCRIPTION *
     _VARIABLES_DESCRIPTION *
+    _make_editing_description("a verb, such as " * _REPLACE_VERB *
+                              ", or an operation that `evaluate_operation(editor, operation)` runs") *
     "MANDATORY — read these resources BEFORE writing any code:\n" *
     "1. resource://guides\n" *
     "2. resource://modules\n" *
@@ -94,6 +114,7 @@ function _execute_julia_code_description(set::ToolSet)
     "arguments are.\n\n" *
     _ANSWER_DESCRIPTION *
     _VARIABLES_DESCRIPTION *
+    _make_editing_description(set) *
     "NEVER guess a name — search for it. NEVER write comments."
 end
 

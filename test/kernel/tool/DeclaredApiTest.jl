@@ -413,7 +413,17 @@ function test_declared_api()
             @test occursin("still there in every later call", text)
             @test occursin("`rows_2`, and do not overwrite the first", text)
             @test occursin("as the Julia REPL shows it", text)
+            @test occursin("not by a direct write", text)
         end
+        whole = ToolSet()
+        register_default_tools!(whole)
+        @test occursin("evaluate_operation(editor, operation)",
+                       only([t for t in whole.tools if t.name == "execute_julia_code"]).description)
+        narrow = ToolSet(; api = Module[ToyApi])
+        register_default_tools!(narrow)
+        text = only([t for t in narrow.tools if t.name == "execute_julia_code"]).description
+        @test !occursin("replace_referenced_value!", text)
+        @test !occursin("evaluate_operation", text)
     end
 
     @testset "a name outside the declaration fails in the round that used it" begin

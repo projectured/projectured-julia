@@ -17,6 +17,12 @@ the field or the index; a read that answers any other value — a string, a numb
 `Bool`, `nothing` — answers that value. So a chain of reads looks like code on the
 document itself, and every value in it but the last holds the reference to its place.
 
+A write through it is a direct write to the document. It works, but the editor does
+not handle it as an edit: it can not be undone, and the editor does not check or
+transform it as it does an operation. To change the editor's document, give the
+referenced document to a verb that makes an operation, or build one at
+`get_reference(x)`, such as a `ReplaceReferencedValueOperation`.
+
 Read its two parts with [`get_document`](@ref) and [`get_reference`](@ref); every
 property name goes to the document. A referenced document is not an instance of the
 type of its document, so code that checks a type asks `get_document(x)`.
