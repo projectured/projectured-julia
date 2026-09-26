@@ -80,7 +80,7 @@ function test_text_line_model()
     @testset "a click picks the line whose box holds it" begin
         projection = TextToGraphics(measure = measure)
         iomap = print_document(projection, three_lines())
-        click(x, y) = read_intent(projection, iomap, MousePress(:left, x, y)).path
+        click(x, y) = read_intent(projection, iomap, MousePress(:left, x, y; time = 0.0)).path
         is_caret(path, k) = is_reference_equal(path, TextModule.make_flat_caret_reference(k))
         # The last row of the first line, and the first row of the second.
         @test is_caret(click(12, 15), 1)
