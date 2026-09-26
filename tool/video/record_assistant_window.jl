@@ -51,8 +51,12 @@ end
 
 # The window of the take: the Files tab closed, so the file and the assistant have
 # its room, and the session's gesture log in a pane below the file, with 20% of the
-# height, with the focus back on the file.
+# height, with the focus back on the file. The thinking of the model is shown open,
+# so the viewer reads it.
 function prepare_window!(document)
+    for assistant in search_documents(document, node -> node isa Assistant)
+        assistant.collapse_thinking = false
+    end
     log = get_session_gesture_log()
     clear_gesture_log!(log)
     log.count = 0
