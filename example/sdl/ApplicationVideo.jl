@@ -52,11 +52,6 @@ that in red on the frames, and `debug_dirty_hold` keeps each outline that many
 seconds (see `VideoBackend`). `status_bar = false` leaves out the status bar
 of the window (see [`make_application_window`](@ref)).
 
-`wrap_projection` takes the projection of the window and answers the one the
-take draws, such as the window with a panel of the gesture and operation log
-over it. A wrapper at the root reads every operation, also one that a verb of
-the assistant makes.
-
 `prepare` is called with the document of the window before the editor is made,
 so a take starts from the layout it wants, such as a pane with the session's
 gesture log below a file.
