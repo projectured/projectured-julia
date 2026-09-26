@@ -324,6 +324,25 @@ model takes.
   `replace_referenced_value!` records its step in the history of the window,
   not in the history of the file. To do.
 
+- **D24. The editing verbs of the editor** (the owner, 2026-09-26: "sounds
+  right"). A small set of verbs in the editor layer, not in the pane package,
+  next to `get_parent` and the moved `get_referenced_value`:
+  - `replace_referenced_value!(editor, part, value)` keeps its name; its general
+    part moves to the editor layer, and its checks of a write into a pane tree
+    stay in the pane package.
+  - `insert_elements!(editor, collection, index, values)` and
+    `delete_elements!(editor, collection, index, count)` are new. They pair with
+    the kernel operations `insert_elements` and `delete_elements`: the kernel
+    function makes the operation, and the verb with `!` runs it through the
+    editor.
+  - Each takes a `ReferencedDocument` or a `Reference`, as
+    `insert_elements!(editor, people_1, 6, [frank_1])`.
+  - Each goes through the readers of the editor, so each edit has a line in the
+    gesture log and gets the checks and the transforms of an operation (D22).
+  - Each records into the history of the document it changes (D23).
+  - The orientation guide names them beside the text of D22, and the application
+    declares them.
+
 ### Not done
 
 - **D20. No `document` binding in `execute_julia_code`** (the owner,
@@ -659,6 +678,13 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
       table after "people.json". Then a rehearsal of S2 with qwen on the GPU
       (context 32768, seed 1): the rounds it takes and whether the tab opens are
       recorded here and in the video plan.
+- [ ] **Step 6a: the editing verbs** (D23, D24). First find how an edit of a
+      person inside a file reaches the file's history and not the window's; then
+      the verbs in the editor layer with that routing; then the declaration, the
+      guide and the docstrings; tests of a replace, an insert and a delete through
+      a referenced document: the document changes, the file's history has one
+      step, the window's has none, the gesture log has a line, and an undo in
+      the file takes it back. Then a rehearsal of the new S2 order.
 - [ ] **Step 7: the landing,** when the owner says so.
 
 ### Follow-up, after this plan (D21)
