@@ -334,12 +334,32 @@ Do the work in a git worktree, and commit each step.
     "backspace at the boundary produced CompoundOperation, expected no edit". The
     walk expects no edit where Backspace now deletes the image; Step 8 teaches
     it.
-- [ ] **Step 5. The decorators and `SyntaxToText`** (§3.1, question 5). The runs of
+- [x] **Step 5. The decorators and `SyntaxToText`** (§3.1, question 5). The runs of
   `WordWrapping`, `TextFiltering`, `TextFirstLine`, `TextLineNumbering` and
   `SelectionInverting` hold an image as a run of length 1, and the mapping of a
   caret lands beside it. `_text_elem_path_to_flat` and `_flat_to_span_char` count
   an image as 1. Tests: a caret beside an image through each decorator, and a
   walk over a Markdown picture leaf with a real image file.
+  - *Done.* The runs count an image as 1 through `get_flat_length` with no
+    change; the caret mapping was done in Step 4. `_flat_to_span_char` and
+    `_text_elem_path_to_flat` count each span with `_span_len`.
+  - *Tests:* through each of the six decorators, Right and Left over
+    `[image]"ab"[image]` visit every caret, and each caret is drawn once, further
+    right than the one before. The new
+    [MarkdownImageLeafTest.jl](../../test/markdown/MarkdownImageLeafTest.jl)
+    (`test_markdown_image_leaf`, in `test_markdown`) walks a paragraph with a
+    real image in the plain and the rendered view: printer, REPL, position and
+    caret walks give no error, and at each caret of the rendered view Backspace
+    and Delete make no element write and leave the image in the document.
+  - *Fact:* only the rendered view shows the image; the plain view shows the url
+    as text. With the old type assertions the rendered view throws a
+    `TypeError` in the REPL walk, the caret walk and the position walk; this was
+    checked once in the session.
+  - *Fact, not fixed:* at the end of a text, the block caret of
+    `SelectionInverting` adds an inverted space, and Right there maps past the
+    end: `"ab"` at 2 gives 3 on `main` too. Its end segment takes the flat offset
+    as the character offset of the last element. The test uses
+    `block_cursor = false`.
 - [ ] **Step 5b. The style beside an image** (§3.5, question 7). The caret beside
   an image, the prevailing font of a block and the height of a line with no
   glyph take the style of the nearest text run, by the rule of §3.4.

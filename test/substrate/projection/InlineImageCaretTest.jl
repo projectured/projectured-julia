@@ -247,5 +247,51 @@ end
     @test e.document.elements[2] === image
 end
 
+@testset "a caret beside an image passes each decorator" begin
+    measure = FixedMeasure(10, 12, 4, 0)
+    key(k) = KeyDown(k, ModifierKeys(); time = 0.0)
+    offset(op) = (r = strip_reference_types(op.path); (r.head::TextRangeReferenceStep).start)
+    caret_rects(canvas, x0 = 0, out = Int[]) = begin
+        for element in canvas.elements
+            if element isa GraphicsCanvas
+                caret_rects(element, x0 + Int(element.x), out)
+            elseif element isa GraphicsRect && Int(element.w) == 2
+                push!(out, x0 + Int(element.x))
+            end
+        end
+        out
+    end
+    # The block caret of `SelectionInverting` adds an inverted space at the end of
+    # the text, and Right there maps past the end, with or without an image; the
+    # plain caret keeps that fault out of this test.
+    for decorator in (WordWrapping(measure = measure, max_width = 1000), TextFiltering(r"ab"),
+                      TextFirstLine(), TextLineNumbering(), TextHighlighting(r"b"),
+                      SelectionInverting(block_cursor = false))
+        name = string(nameof(typeof(decorator)))
+        projection = ChainingProjection(decorator, TextToGraphics(measure = measure))
+        block = TextBlock(_image(), _run("ab"), _image())
+        # The flat offset after `event` from caret `k`, back in the document, and
+        # the x of the caret drawn at `k`.
+        function after(k, event)
+            clear_selection!(block)
+            set_selection!(block, TextModule.make_flat_caret_reference(k))
+            op = read_intent(projection, print_document(projection, block), event)
+            op isa ReplaceSelectionOperation ? offset(op) : nothing
+        end
+        function drawn(k)
+            clear_selection!(block)
+            set_selection!(block, TextModule.make_flat_caret_reference(k))
+            caret_rects(print_document(projection, block).output)
+        end
+        @testset "$name" begin
+            @test [after(k, key(:right)) for k in 0:4] == [1, 2, 3, 4, 4]
+            @test [after(k, key(:left)) for k in 0:4] == [0, 0, 1, 2, 3]
+            xs = [drawn(k) for k in 0:4]
+            @test all(x -> length(x) == 1, xs)
+            @test issorted(first.(xs); lt = <=) && allunique(first.(xs))
+        end
+    end
+end
+
 end # @testset "Inline image caret"
 end # test_inline_image_caret

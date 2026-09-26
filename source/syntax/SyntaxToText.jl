@@ -1383,9 +1383,9 @@ end
 function _span_len(s::TextString)
     length(s.content::AbstractString)
 end
-# An embedded graphic (e.g. a `BookPicture` image placed in a leaf's value)
-# occupies exactly one column in the flat character space — matching how
-# `TextToGraphics` advances its cursor over an image span.
+# An embedded graphic (e.g. a `BookPicture` image placed in a leaf's value) is one
+# position of the flat character space, as it is in the text domain
+# (`get_flat_length`).
 _span_len(::TextGraphics) = 1
 
 
@@ -1578,7 +1578,7 @@ function _flat_to_span_char(spans, flat_pos::Int)
     last_nonempty = nothing
     first_span = nothing
     for (i, s) in enumerate(spans)
-        len = length((s::TextString).content::AbstractString)
+        len = _span_len(s)
         first_span === nothing && (first_span = (i, cumulative))
         len > 0 && (last_nonempty = (i, cumulative))
         flat_pos < cumulative + len && return (i, flat_pos - cumulative)
@@ -1595,7 +1595,7 @@ function _text_elem_path_to_flat(spans, span_idx::Int, char_idx::Int)
     span_idx > length(spans) && return -1
     flat = char_idx
     for i in 1:(span_idx - 1)
-        flat += length((spans[i]::TextString).content::AbstractString)
+        flat += _span_len(spans[i])
     end
     return flat
 end
