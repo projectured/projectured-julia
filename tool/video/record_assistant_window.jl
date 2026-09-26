@@ -7,8 +7,9 @@
 # person's side is scripted: a prompt, the assistant adds Frank to people.json,
 # the person scrolls to him, clicks in the file and presses Ctrl+Z, then a second
 # prompt, and the assistant opens a tab with a table. The session's gesture log is
-# in a pane below the file. The take waits 4 s before each call of the model, so
-# the viewer reads each block of code and its answer. A warm-up with a scripted model runs the same steps
+# in a pane below the file. Before each call of the model, the take shows each new
+# block of code with its answer closed, then open, so the viewer reads the code and
+# then sees what it returned. A warm-up with a scripted model runs the same steps
 # first, so the take does not fire its entries in a burst after a slow start.
 
 using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedOllama,
@@ -60,6 +61,7 @@ end
 function prepare_window!(document)
     for assistant in search_documents(document, node -> node isa Assistant)
         assistant.collapse_thinking = false
+        ASSISTANT[] = assistant
     end
     log = get_session_gesture_log()
     clear_gesture_log!(log)
@@ -102,16 +104,35 @@ function make_timeline(; typing, read, cap)
      (await = turn_finished(5), hold = cap)]
 end
 
-# The model of the take, which waits `pause` seconds before each of its calls, so
-# the viewer reads each block of code and its answer before the model goes on.
-# What the model does is its own; only the time between its rounds is longer.
+# The assistant of the take, which `prepare_window!` finds, so the model of the
+# take can reach the blocks of code in its conversation.
+const ASSISTANT = Ref{Any}(nothing)
+
+# The model of the take. Before each of its calls, it shows each new block of code
+# with its answer closed for `code_pause` seconds, so the viewer reads the code,
+# then with its answer open for `result_pause` seconds, so the viewer sees what the
+# code returned. What the model does is its own; only the time between its rounds
+# is longer.
 const LlmModule = Projectured.LlmModule
 struct PacedLlm <: LlmModule.Llm
     inner::LlmModule.Llm
-    pause::Float64
+    code_pause::Float64
+    result_pause::Float64
+    seen::Base.RefValue{Int}
 end
+PacedLlm(inner; code_pause = 3.0, result_pause = 3.0) = PacedLlm(inner, code_pause, result_pause, Ref(0))
+
 function LlmModule.stream_turn(llm::PacedLlm, request; on_event)
-    sleep(llm.pause)
+    forms = ASSISTANT[] === nothing ? Any[] :
+            search_documents(ASSISTANT[].conversation, node -> node isa EvaluatorForm)
+    fresh = forms[(llm.seen[] + 1):end]
+    llm.seen[] = length(forms)
+    if !isempty(fresh)
+        foreach(form -> form.result_collapsed = true, fresh)
+        sleep(llm.code_pause)
+        foreach(form -> form.result_collapsed = false, fresh)
+        sleep(llm.result_pause)
+    end
     LlmModule.stream_turn(llm.inner, request; on_event)
 end
 LlmModule.render_tool_schema(llm::PacedLlm, tools) = LlmModule.render_tool_schema(llm.inner, tools)
@@ -161,7 +182,7 @@ function main()
     rm(warm_up; force = true)
     println("warm-up: ", round(time() - started; digits = 1), " s")
     started = time()
-    path = record(OUTPUT, PacedLlm(OllamaLlm(context = 32768, seed = 1), 4.0),
+    path = record(OUTPUT, PacedLlm(OllamaLlm(context = 32768, seed = 1)),
                   make_timeline(; typing = (hold = 0.15, jitter = 0.6), read = 3.0, cap = TURN_CAP);
                   initial_hold = 2.0, final_hold = 5.0)
     println("recorded: ", path, " in ", round(time() - started; digits = 1), " s")
