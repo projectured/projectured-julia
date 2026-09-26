@@ -343,10 +343,8 @@ end
 # output). In a pure-text pipeline there is no syntax stage beneath to lower it, so
 # without this the caret at a wrap boundary keeps a flat `TextRangeReferenceStep` and the
 # edit surfaces as a raw `ReplaceTextRangeOperation`.
-function read_intent(p::WordWrapping, iomap::WordWrappingIoMap, evt::Union{KeyPress, KeyDown})
-    op = read_gesture(iomap.input, evt)
-    op isa ReplaceTextRangeOperation ? _lower_text_range(iomap.input, op) : op
-end
+read_intent(p::WordWrapping, iomap::WordWrappingIoMap, evt::Union{KeyPress, KeyDown}) =
+    _read_lowered_gesture(iomap.input, evt)
 
 # Forward any Operation upstream unchanged; a raw gesture (KeyPress/KeyDown/
 # MousePress) is handled above — otherwise a wildcard here would echo the raw

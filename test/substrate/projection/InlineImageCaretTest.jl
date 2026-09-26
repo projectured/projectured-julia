@@ -43,9 +43,24 @@ end
     @test block.elements[3].content == "Xcd"
     _splice_value!(nothing, :content, block, 2, 2, "Y")
     @test block.elements[1].content == "abY"
-    # A range over the image straddles two spans and changes nothing.
+    # A range over the image and a character straddles two spans and changes
+    # nothing.
     _splice_value!(nothing, :content, block, 2, 4, "")
     @test get_flat_string(block) == "abY\uFFFCXcd"
+    # Beside an image, where no run holds the offset, the edit is made as the
+    # reader makes it: a new run, or the image removed or replaced.
+    only = TextBlock(_image())
+    _splice_value!(nothing, :content, only, 0, 0, "x")
+    @test get_flat_string(only) == "x\uFFFC"
+    after = TextBlock(_run("ab"), _image())
+    _splice_value!(nothing, :content, after, 3, 3, "x")
+    @test get_flat_string(after) == "ab\uFFFCx"
+    _splice_value!(nothing, :content, after, 2, 3, "")
+    @test get_flat_string(after) == "abx"
+    replaced = TextBlock(_run("ab"), _image(), _image(), _run("cd"))
+    _splice_value!(nothing, :content, replaced, 2, 4, "y")
+    @test get_flat_string(replaced) == "abycd"
+    @test length(replaced.elements) == 3
 end
 
 @testset "an offset beside an image is a place of the image" begin
@@ -128,6 +143,10 @@ end
     ends = TextBlock(_image(), _run("ab"), _image())
     @test after(ends, 2, key(:home)) == 0
     @test after(ends, 2, key(:end)) == 4
+    # An image of zero width still has its carets for the geometric keys.
+    flat = TextBlock(_run("ab"), TextGraphics(ImageMemory(nothing)))
+    @test after(flat, 3, key(:home)) == 0
+    @test after(flat, 0, key(:end)) == 3
     # A line of images only has carets too.
     images = TextBlock(_image(), _image())
     @test after(images, 0, key(:end)) == 2
@@ -171,9 +190,12 @@ end
     over(s, e) = TextModule.make_flat_range_reference(s, e)
     undo!(editor, inverse) = evaluate_operation(editor, inverse)
 
+    # Each decorator declines the edit of its output and lowers the key against
+    # its input, so the edit and its undo work through every chain.
+    decorators = (WordWrapping(measure = measure, max_width = 1000), TextHighlighting(r"b"),
+                  TextFiltering(r""), TextFirstLine(), TextLineNumbering())
     for projection in (TextToGraphics(measure = measure),
-                       ChainingProjection(WordWrapping(measure = measure, max_width = 1000),
-                                          TextToGraphics(measure = measure)))
+                       (ChainingProjection(d, TextToGraphics(measure = measure)) for d in decorators)...)
         editor(block) = _InlineImageEditor(block)
 
         # A character after an image with no run after it starts a new run, in

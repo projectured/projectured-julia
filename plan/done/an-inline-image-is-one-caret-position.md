@@ -480,6 +480,41 @@ Do the work in a git worktree, and commit each step.
     name starts with a verb (`julia-rename.jl`, 3 references). The naming guard
     (`test/suite/naming.jl`) passes.
 
+### The review
+
+A reviewer agent read the source diff after Step 9. It found no element write that
+reaches a document with the indices of an output, and it confirmed the offset
+tables of `_layout_overlay`, the insert index inside a `TextLine`, that no reader of
+`font` or `font_color` of an image is left, and the choice of `_find_flat_image_place`.
+It found four faults:
+
+1. *Fixed.* `TextHighlighting`, `TextFiltering`, `TextFirstLine` and
+   `TextLineNumbering` declined the element write but then read the key without
+   lowering it. The flat `ReplaceTextRangeOperation` reached the document, where it
+   has no inverse, so undo could not take the edit back. Each now reads a key with
+   `_read_lowered_gesture` (TextDocument.jl), which `WordWrapping` and
+   `TextToGraphics` use too. `SelectionInverting` still returns `nothing` for a key,
+   for the console pipeline; no chain puts it before `TextToGraphics`.
+   - *Found beside it, fixed:* through `TextLineNumbering` and `TextToGraphics`,
+     every typed character was lost, on `main` too. The kernel default re-targeted
+     the string edit of the output to a flat caret (`ReplaceStringRangeOperation(⌶{3},
+     "x")`), which no evaluation handles. `TextLineNumbering` now declines a string
+     edit of its output, and the chain reads the key again against its input. The
+     type-in sweep does not cover `line_numbering`, so no test saw it.
+     `TextLineNumberingTest` expects the lowered edit now.
+2. *Not fixed.* At a soft wrap before an image, Right does not move: the caret at
+   the end of the line before the wrap maps to the soft newline and back to itself.
+   `main` has the same stall in another form. Preferring the other side of the seam
+   stalls Left there instead, the fault of
+   [left-motion-stalls-on-introduced-text.md](../pending/left-motion-stalls-on-introduced-text.md),
+   which owns both. `text.md` lists it.
+3. *Fixed.* Beside an image of zero width, Home, End, Up and Down did nothing: the
+   coordinate table dropped the zero-width segment, but the caret resolves to the
+   image. `_draws_glyph` counts a segment with a range as drawn.
+4. *Fixed.* `splice_value!` over a `TextBlock` lost an insertion beside an image
+   with no run, and put the run of a block of one image after it.
+   `_splice_beside_image!` makes the edits of `_make_image_edit` in place.
+
 ## 7. Relations and risks
 
 - [text-domain-kit.md](../pending/text-domain-kit.md) (pending) argues to keep the two

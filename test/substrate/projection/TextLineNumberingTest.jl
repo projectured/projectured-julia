@@ -53,11 +53,12 @@ end
     input = TextBlock(_span("abc"), TextNewline(font = _font), _span("def"))
     iomap = print_document(proj, input)
     set_selection!(input, _caret(5))
-    # A key with a rule of the text is an edit at the caret of the input.
+    # A key with a rule of the text is an edit at the caret of the input, lowered
+    # to the span that holds it: "def", character 0.
     op = read_intent(proj, iomap, KeyDown(:backspace, ModifierKeys(); time = 0.0))
-    @test op isa ReplaceTextRangeOperation
-    @test op isa ReplaceTextRangeOperation &&
-          strip_reference_types(op.reference) == make_flat_range_reference(4, 5) && op.replacement == ""
+    @test op isa ReplaceStringRangeOperation
+    @test op isa ReplaceStringRangeOperation && op.replacement == "" &&
+          is_reference_equal(strip_reference_types(op.reference), TextModule._text_replace_path(Int[3], 0, 1))
     # A key with no rule gets no operation, and the gesture is never the answer.
     @test read_intent(proj, iomap, KeyDown(:tab, ModifierKeys(); time = 0.0)) === nothing
     # In a chain, the stage before the numbering then gets the key.
@@ -66,6 +67,11 @@ end
     chain_iomap = print_document(chain, input)
     @test read_intent(chain, chain_iomap, KeyDown(:tab, ModifierKeys(); time = 0.0)) === nothing
     @test read_intent(chain, chain_iomap, KeyDown(:return, ModifierKeys(); time = 0.0)) === nothing
+    # A typed key: the string edit of the numbered output is declined, and the key
+    # is read again against the input, so it types into "def" at character 1.
+    op = read_intent(chain, chain_iomap, KeyPress('x'; time = 0.0))
+    @test op isa ReplaceStringRangeOperation &&
+          is_reference_equal(strip_reference_types(op.reference), TextModule._text_replace_path(Int[3], 1, 1))
 end
 
 end # test_text_line_numbering

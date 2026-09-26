@@ -119,9 +119,17 @@ function read_intent(p::TextLineNumbering, iomap::SimpleIoMap, op::ReplaceSelect
     ReplaceSelectionOperation(input_path)
 end
 
-# A raw gesture falls through to the base `Projection.read_intent`, which reads it
-# with `read_gesture` of the input block: a key is an edit at the caret of the
-# input, or `nothing`, so the stage before this one gets it.
+# A key reaches this stage only when the stages after it gave no operation, or one
+# this stage declines, such as the edit beside an inline image. Read it against the
+# input and lower it there, as `WordWrapping` does: a key is an edit at the caret of
+# the input, or `nothing`, so the stage before this one gets it.
+read_intent(::TextLineNumbering, iomap::SimpleIoMap, evt::Union{KeyPress, KeyDown}) =
+    _read_lowered_gesture(iomap.input, evt)
+
+# A string edit of the output names an output span, and the number spans of this
+# stage move the spans. Decline it: the chain then reads the key again against the
+# input, where the edit is made.
+read_intent(::TextLineNumbering, ::SimpleIoMap, ::ReplaceStringRangeOperation) = nothing
 
 # Walk the input element list mirroring the printer's prefix-insertion
 # logic. For each emitted output element, record the corresponding input

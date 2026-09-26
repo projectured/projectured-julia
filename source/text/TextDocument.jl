@@ -317,8 +317,11 @@ splice_value!(owner, field::Symbol, span::TextString, s::Int, e::Int, replacemen
 # Field value is a flat span sequence: the incoming `[s, e]` is a range of the
 # flat caret space (`get_flat_offsets`), the space of `get_flat_string`. Locate
 # the single `TextString` span the range falls inside and edit it; at the seam of
-# two spans, the earlier one. An empty sequence grows a fresh span. Ranges that
-# straddle two spans are left for a later multi-span editing pass.
+# two spans, the earlier one. Beside an inline image, the edit of
+# `_make_image_edit` is made in place: a new run where no span holds an insertion,
+# and a range of only images removed, or replaced by one run. An empty sequence
+# grows a fresh span. Ranges that straddle two spans are left for a later
+# multi-span editing pass.
 function splice_value!(owner, field::Symbol, text::TextBlock, s::Int, e::Int, replacement::AbstractString)
     infos = _text_span_infos(text)
     for (path, len) in infos
@@ -329,9 +332,37 @@ function splice_value!(owner, field::Symbol, text::TextBlock, s::Int, e::Int, re
             return text
         end
     end
+    _splice_beside_image!(text, s, e, replacement) && return text
     isempty(infos) && push!(text.elements, TextString(replacement))
     text
 end
+
+# The in-place form of `_make_image_edit`. Answers whether the edit was one beside
+# an image.
+function _splice_beside_image!(text::TextBlock, s::Int, e::Int, replacement::AbstractString)
+    if s == e
+        isempty(replacement) && return false
+        place = _find_flat_image_place(text, s)
+        place === nothing && return false
+        path, char = place
+        insert!(_get_container(text, path), path[end] + char,
+                _make_styled_run(replacement, _find_style_span(text, path)))
+        return true
+    end
+    paths = _find_image_range(text, s, e)
+    paths === nothing && return false
+    container = _get_container(text, paths[1])
+    run = isempty(replacement) ? nothing : _make_styled_run(replacement, _find_style_span(text, paths[1]))
+    for _ in paths
+        deleteat!(container, paths[1][end])
+    end
+    run === nothing || insert!(container, paths[1][end], run)
+    true
+end
+
+# The element list that holds the span at `path`.
+_get_container(text::TextBlock, path::SpanPath) =
+    length(path) == 1 ? text.elements : text.elements[path[1]].elements
 
 # The span document at `path` (the caller has already established it is one).
 _span_at(text::TextBlock, path::SpanPath) =
@@ -1197,6 +1228,15 @@ function _flat_to_span_nearest(block::TextBlock, flat::Int)
         end
     end
     best
+end
+
+# A key read with the gesture table of `block`, a flat edit lowered to the
+# operation `_lower_text_range` makes of it. A text stage that gets a key reads it
+# against its input this way, so the edit reaches the document as an operation that
+# the stages before it carry and undo can take back.
+function _read_lowered_gesture(block::TextBlock, evt)
+    op = read_gesture(block, evt)
+    op isa ReplaceTextRangeOperation ? _lower_text_range(block, op) : op
 end
 
 function _lower_text_range(block::TextBlock, op::ReplaceTextRangeOperation)

@@ -93,10 +93,7 @@ end
 # form over the input block (== the outermost text stage's output), so the existing
 # `ReplaceStringRangeOperation` chain carries it up. A declined (cross-span) edit
 # lowers to `nothing`, so the caller lets the gesture propagate.
-function _gesture_op(iomap::TextToGraphicsIoMap, evt)
-    op = read_gesture(iomap.input, evt)
-    op isa ReplaceTextRangeOperation ? _lower_text_range(iomap.input, op) : op
-end
+_gesture_op(iomap::TextToGraphicsIoMap, evt) = _read_lowered_gesture(iomap.input, evt)
 
 function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::KeyPress)
     return _gesture_op(iomap, evt)
@@ -812,9 +809,10 @@ _line_height_font(group, block_font::Cell) =
 
 _has_text_span(group) = any(entry -> entry[2] isa TextString, group.spans)
 
-# Whether a coordinate stands for something drawn: text, or an embedded image.
-# The zero-width coordinate of an empty line draws nothing.
-_draws_glyph(sc::SegmentCoordinate) = sc.width > 0 || !isempty(sc.text)
+# Whether a coordinate stands for something drawn: text, or an embedded image, which
+# covers the range 0..1 even at zero width. The zero-width coordinate of an empty
+# line draws nothing.
+_draws_glyph(sc::SegmentCoordinate) = sc.width > 0 || !isempty(sc.text) || sc.char_end > sc.char_start
 
 # The block's prevailing font — the first font any element offers, in document
 # order, or `nothing` for a block that has none. It sizes an empty `TextLine`,

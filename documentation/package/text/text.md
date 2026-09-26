@@ -154,6 +154,7 @@ projection = ChainingProjection(WordWrapping(measure = FontFileMeasure()),
 - An edit over a range that crosses two spans does nothing, also a range of text and an image.
 - Through `SyntaxToText`, an image in a leaf is not edited: Backspace and Delete beside it make no element write.
 - Through `WordWrapping`, a caret can not stand on an empty line between two `TextNewline`s: the backward map takes an offset in a gap to the nearest run.
+- Through `WordWrapping`, Right does not move at the end of a line when a soft wrap puts an image at the start of the next line.
 - At the end of a text, the block caret of `SelectionInverting` adds an inverted space, and Right there maps past the end.
 - `TextColumnReferenceStep` has no gesture that makes it.
 - No code in `source/` or `example/` uses `TextFirstLine`.
