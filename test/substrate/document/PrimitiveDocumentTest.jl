@@ -1,3 +1,7 @@
+# A document that holds a string, as a container on the path of a caret does.
+@document struct _PrimitiveEditHolder <: Document
+    text::Any
+end
 
 function _value_range_ref(start::Int, stop::Int)
     ConcreteReference(FieldReferenceStep("value"),
@@ -27,6 +31,23 @@ function test_primitive()
     @test doc.value == "xab"
     range = _cursor_at(doc)
     @test range.start == 1 && range.stop == 1
+end
+
+@testset "a string edit moves the caret in place" begin
+    # Only the terminal step of the caret moves: the selection of the container
+    # above the string is not written again, so what reads it — as a tabbed pane
+    # reads its selection for its active tab — is not computed again, as it is
+    # after a clear and a set.
+    holder = _PrimitiveEditHolder(PrimitiveString("ab"))
+    at(k) = ConcreteReference(FieldReferenceStep("text"), _value_range_ref(k, k))
+    replace_selection!(holder, at(1))
+    reader = Cell(@computation getfield(holder, :selection)[])
+    reader[]
+    evaluate_operation((document = holder,), ReplaceStringRangeOperation(at(1), "x"))
+    @test holder.text.value == "axb"
+    @test is_cell_up_to_date(reader)
+    range = _cursor_at(holder.text)
+    @test range.start == 2 && range.stop == 2
 end
 
 @testset "string insert in middle" begin

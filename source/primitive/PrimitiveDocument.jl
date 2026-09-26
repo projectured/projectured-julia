@@ -230,13 +230,15 @@ function _is_number_field(target, field::Symbol)
     !(String <: declared) && Int <: declared
 end
 
-# Propagate a zero-width cursor selection at the post-edit position down
-# the full path so every node along the way (root, intermediates, target)
-# holds the suffix relevant to its subtree.
+# Put a zero-width cursor selection at the post-edit position, so every node
+# along the path (root, intermediates, target) holds the suffix relevant to its
+# subtree. `replace_selection!` stores what a clear and a set would store, but it
+# writes only the cells whose value changes: a caret that moves within the text
+# it edits changes the terminal step alone, so no container on the path that
+# reads its selection is computed again.
 function _replace_selection_with_cursor!(document, op)
     new_path = _replace_terminal_with_cursor(op.reference, op.replacement)
-    clear_selection!(document)
-    set_selection!(document, new_path)
+    replace_selection!(document, new_path)
 end
 
 # Text/number edits to PrimitiveString / PrimitiveNumber are handled generically
