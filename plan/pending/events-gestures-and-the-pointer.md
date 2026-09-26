@@ -413,20 +413,103 @@ The direction that follows from the decisions so far:
 
 ## 5. Open questions
 
-No question of this plan is open. The questions of keyboard navigation are in
-the plan of D33.
+- **Q14. The view changes under a pointer that does not move.** A list scrolls, a
+  popup opens, a content changes, and the pointer stays still. The target
+  tracker runs only when an event comes, so it does not see that the target
+  changed, and the light stays on the old part (§3.4). A tracker that is read
+  again after each print would see it, but no event comes then, and a fake move
+  is not allowed (D3). How does the tracker learn that the view changed?
+
+The questions of keyboard navigation are in the plan of D33.
 
 Answered and moved to §2: Q2 (D23), Q3 (D24), Q4 (D25), Q5 (D20), Q6 (D26), Q7
 and Q8 (D27), Q9 (D28), Q10 (D29), Q11 (D30), Q1 (D31), Q12 (D32). Q13 moved to
 the plan of D33.
 
-## 6. Next steps
+## 6. Steps
 
-1. Answer the open questions with the owner, one at a time, and record each
-   answer in §2.
-2. Collect the facts that an answer needs at the time it needs them.
-3. Then write the steps of the refactor in this document, each with its test.
+> **Proposed by Claude on 2026-09-26. The owner has not approved them.** Each
+> step keeps every suite green, and each step ends with a commit. A step that
+> changes a name or a signature also changes omnet-julia.
+
+- [ ] 1. **The gesture type (D3, D31).** `abstract type Gesture end` beside
+  `Event`. `MouseClick` (renamed from `MousePress` with `julia-rename.jl`),
+  `KeyChord`, `MouseEnter`, `MouseLeave` and `PointerRest` subtype `Gesture`.
+  `SyntheticEvent` and `DeviceEvent` go away. The places that take both take
+  `Union{Event,Gesture}`. The naming rules get the line for a gesture. No
+  behaviour changes. Tests: the event module, the patterns, the naming guard,
+  the kernel layering, then the suites of the packages that match `MouseClick`.
+- [ ] 2. **The timer (D22, D24).** The event `TimerExpire` and
+  `SetTimerOperation`. The editor holds the deadlines, `compute_wait_timeout`
+  counts them, and the loop reads a `TimerExpire` at each deadline. Tests: a
+  reader that answers `SetTimerOperation` gets `TimerExpire` at that time; a new
+  deadline replaces the old one; an idle editor with no deadline still sleeps.
+- [ ] 3. **A gesture follows a route (D12, D28).** An intent with a route can
+  carry a gesture. The last reader on the route reads the gesture, with the rest
+  of the route as the part. Every widget container and every layout follows a
+  route. A domain projection does not have to: its reader gets the gesture with
+  the rest of the route and can ignore it. Tests: an enter with a route reaches
+  a button inside a composite inside a split pane; a route that ends in a row of
+  a list gives the list the rest of the route.
+- [ ] 4. **The part at a point (D11).** `map_reference_backward` from a
+  `PointReferenceStep` in each projection that ends in graphics. The hit test of
+  each one moves into the mapping, and a reader of a click that has the same hit
+  test uses the mapping, so each projection keeps one hit test. One commit for
+  each package: 4a the graphics leaf and text to graphics; 4b the layouts; 4c the
+  widgets; 4d the charts; 4e the screen and the window scene; 4f the projections
+  of omnet-julia. Tests: for each projection, a point maps to the expected
+  reference, and its click tests still pass.
+- [ ] 5. **The start over of Tab leaves the hover tracker (D2, §5 of the plan of
+  D33).** A small wrapping step does only the start over at the ends, and the
+  hover tracker loses its branch for Tab. Tests: the focus traversal tests; Tab
+  at the last stop goes to the first, and Shift+Tab goes the other way.
+- [ ] 6. **The gesture tracking package (D8, D9, D25, D30, D32).**
+  `ProjecturedGestureTracking`, with `GestureTrackingState` and
+  `GestureTrackingProjection`: the click with its count, the chord and the dwell
+  (steps 2 and 1). The editor no longer owns a recognizer, and the gesture layer
+  leaves the kernel. The composition function of the screen package wraps the
+  screen, and every host uses it, also those of omnet-julia. The tests of the
+  recognizer move to the package. Tests: the moved tests of the recognizer, the
+  test of the input of SDL, the application.
+- [ ] 7. **The mouse target tracking package (D6, D13, D17, D27, D29).**
+  `ProjecturedMouseTargetTracking`, with `MouseTargetTrackingState` and
+  `MouseTargetTrackingProjection`. On each move, it maps the point backward (step
+  4). It sends a leave and an enter along the path that changes, by route (step
+  3), and a `MouseHover` on a move over the same target. `WindowLeave` clears the
+  target. The list, the table, the tree and the charts answer the gestures of
+  their rows and points, so the two styles of hover become one.
+  `WidgetHoverTrackingProjection` goes away. Tests: a row of a popup lights (H1);
+  the light follows the pointer to the next row; the leave of the window turns
+  it off (H3); a row of a list turns off when the pointer moves onto another
+  widget (§3.4); a live check on the display, with the owner's word for XTest.
+- [ ] 8. **The probes go away (D7).** A tooltip is the meaning of a `MouseDwell`
+  on the target, and `compute_tooltip` stays; the feed, the probe and
+  `PointerRest` of the tooltip package go away. The inspector reads the target.
+  The context menu is the meaning of a right click at the part. Tests: a tooltip
+  opens after a dwell in any window, not only the first; the inspector shows the
+  part under the pointer; the context menu opens for the part.
+- [ ] 9. **The drag tracking package (D14, D19, D20, D21, D26, D29).**
+  `ProjecturedDragTracking`, with `DragTrackingState` and
+  `DragTrackingProjection`. A drag starts after a small move; the reader answers
+  a drag start operation that names the target; then `DragMove`, `DragHover`
+  (the part under the pointer, by step 4) and `DragEnd`. While a drag is on, the
+  click is swallowed and the target tracker is quiet. The five drags move to it:
+  the reorder of the dragging package (and its probe goes away), the splitter,
+  the tab of a pane, the slider, the pan and the zoom of the chart. Their own
+  drag state goes away. Tests: each drag; a short press on a tab still selects
+  it; a drag over a button does not light it; a drag that leaves the window
+  ends in one defined way.
+- [ ] 10. **The rules and the documents (D16, D40).** `PAR-NO-NEW-SYNTHETIC-EVENT`
+  is written again; the rule of D40 joins the invariants; the concepts (event,
+  gesture, tracking projection) go into the design documents; the documents of
+  the kernel, the widgets, the screen, the tooltip, the dragging and the
+  backends change. This step takes step 4 of the plan
+  [every-window-tracks-the-pointer-and-says-when-it-leaves.md](every-window-tracks-the-pointer-and-says-when-it-leaves.md).
+- [ ] 11. **The check against `main`, and the move of this plan and of the plan of
+  `WindowLeave` to `plan/done/`.**
+
+Not in the steps: the web client sends no motion while no button is held (study
+§4), so the browser has no hover. That needs a decision of its own.
 
 The files of the kernel that the refactor changes are unsealed, and they stay
-unsealed after the work (D34). The rule `PAR-NO-NEW-SYNTHETIC-EVENT` changes too
-(D16).
+unsealed after the work (D34).
