@@ -14,7 +14,7 @@
                              fps=30, assistant=:none, model="", context=0,
                              root=pwd(), initial_hold=0.5, final_hold=1.0,
                              supersample=2, scale=1, video_time=false, pointer=true,
-                             partial_render=false, debug_dirty=false,
+                             partial_render=false, debug_dirty=false, debug_dirty_hold=0,
                              measure=FontFileMeasure()) -> String
 
 Record the application window of [`run_application`](@ref) — built the same
@@ -48,7 +48,8 @@ frames are slow to make. A take that waits for a model keeps the wall clock.
 
 `partial_render = true` repaints only what changed from one frame to the next,
 as a live window with `partial_render` does, and `debug_dirty = true` outlines
-that in red on the frames (see `VideoBackend`).
+that in red on the frames, and `debug_dirty_hold` keeps each outline that many
+seconds (see `VideoBackend`).
 
 The frames land in a temporary directory the backend owns and are encoded with
 the same `ffmpeg` call [`record_video`](@ref) uses
@@ -64,6 +65,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   supersample::Integer = 2, scale::Real = 1,
                                   video_time::Bool = false, pointer::Bool = true,
                                   partial_render::Bool = false, debug_dirty::Bool = false,
+                                  debug_dirty_hold::Real = 0,
                                   measure = FontFileMeasure())
     lowercase(splitext(filename)[2]) == ".mp4" ||
         error("record_application_video: only .mp4 output is supported (got \"$filename\")")
@@ -76,7 +78,7 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                            fps = fps, initial_hold = initial_hold, final_hold = final_hold,
                            supersample = supersample, scale = scale, video_time = video_time,
                            pointer = pointer, partial_render = partial_render,
-                           debug_dirty = debug_dirty)
+                           debug_dirty = debug_dirty, debug_dirty_hold = debug_dirty_hold)
     try
         run_with_window_tools() do feeds, start
             editor = make_editor(document, projection, title; backend = backend,

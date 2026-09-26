@@ -8,7 +8,7 @@
     VideoBackend(timeline, window_id; width=1280, height=720, fps=30,
                 initial_hold=0.5, final_hold=initial_hold,
                 supersample=2, scale=1, video_time=false, pointer=true,
-                partial_render=false, debug_dirty=false,
+                partial_render=false, debug_dirty=false, debug_dirty_hold=0,
                 frames_dir=mktempdir()) -> VideoBackend
 
 A `Backend` whose input is a scripted `timeline` and whose output is one PNG
@@ -59,7 +59,9 @@ pixels, and the dirty walk of `ProjecturedSdl` finds what to paint again. The
 pointer is then drawn on the written frame and not into the surface. With
 `debug_dirty = true` as well, each frame outlines in red the rects of the last
 frame that repainted something, as the window keeps its last picture with its
-outline until the next repaint.
+outline until the next repaint. `debug_dirty_hold` seconds keeps each outline on
+the frames for that long as well, so a repaint of a single frame, such as the one
+where a paragraph grows and the ones below move, stays long enough to be seen.
 """
 mutable struct VideoBackend <: Backend
     width::Int
@@ -108,7 +110,10 @@ mutable struct VideoBackend <: Backend
     # outlines that in red, and what the offscreen paint keeps between frames.
     partial_render::Bool
     debug_dirty::Bool
+    debug_dirty_hold::Float64
     paint_state::Any
+    # The rects of each recent repaint, with its schedule second, for the hold.
+    recent_repaints::Vector{Tuple{Float64,Vector{NTuple{4,Int}}}}
 end
 
 function VideoBackend(timeline::AbstractVector, window_id::Symbol;
@@ -117,6 +122,7 @@ function VideoBackend(timeline::AbstractVector, window_id::Symbol;
                       supersample::Integer = 2, scale::Real = 1,
                       video_time::Bool = false, pointer::Bool = true,
                       partial_render::Bool = false, debug_dirty::Bool = false,
+                      debug_dirty_hold::Real = 0,
                       frames_dir::AbstractString = mktempdir())
     n = length(timeline)
     entries = Vector{Any}(undef, n + 1)
@@ -137,7 +143,8 @@ function VideoBackend(timeline::AbstractVector, window_id::Symbol;
     VideoBackend(Int(width), Int(height), Int(fps), String(frames_dir), window_id,
                 entries, 1, false, -1, -1, 0.0, 0.0, -1.0, nothing, Ref(0), nothing, nothing,
                 Int(supersample), Float64(scale), video_time, pointer, false, -Inf,
-                partial_render, debug_dirty, nothing)
+                partial_render, debug_dirty, Float64(debug_dirty_hold), nothing,
+                Tuple{Float64,Vector{NTuple{4,Int}}}[])
 end
 
 # The video time of the frame about to be written: the frames written so far,
@@ -347,13 +354,28 @@ function _write_partial_frame!(backend::VideoBackend, canvas::GraphicsCanvas, ba
     backend.paint_state === nothing &&
         (backend.paint_state = _make_offscreen_paint_state(backend.off, backend.width, backend.height))
     state = backend.paint_state
-    _render_canvas_offscreen_partial!(backend.off, state, canvas, background)
+    painted = _render_canvas_offscreen_partial!(backend.off, state, canvas, background)
     pointer = backend.pointer && backend.pointer_x >= 0 ?
               GraphicsCanvas(_make_pointer_graphics(backend); w = backend.width, h = backend.height) :
               nothing
-    outline = backend.debug_dirty ? state.last_rects : NTuple{4,Int}[]
+    outline = backend.debug_dirty ? _get_held_outline(backend, painted, state.last_rects) :
+              NTuple{4,Int}[]
     _emit_frame_with_overlay!(backend.off, backend.width, backend.height, pointer, outline,
                               backend.frames_dir, backend.frame)
+end
+
+# The rects to outline on this frame: those of the last repaint, and those of every
+# repaint of the last `debug_dirty_hold` seconds.
+function _get_held_outline(backend::VideoBackend, painted, last_rects)
+    backend.debug_dirty_hold > 0 || return last_rects
+    now = _get_schedule_seconds(backend)
+    isempty(painted) || push!(backend.recent_repaints, (now, painted))
+    filter!(entry -> now - entry[1] <= backend.debug_dirty_hold, backend.recent_repaints)
+    held = copy(last_rects)
+    for (_, rects) in backend.recent_repaints
+        append!(held, rects)
+    end
+    unique(held)
 end
 
 function _select_window(backend::VideoBackend, screen::ScreenDocument)
