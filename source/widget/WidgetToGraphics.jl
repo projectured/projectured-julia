@@ -3010,6 +3010,49 @@ function read_intent(p::WidgetShellToGraphicsCanvas, recursion, change::Intent,
     Intent(change.gesture, nothing)
 end
 
+# ── Routes through a container ─────────────────────────────────────────────
+#
+# An operation with a route goes on to the child the route names, and comes back
+# rerooted by the steps it took, as the answer to a gesture does. The route is
+# read from the container's input one step at a time, until the node it reaches is
+# the input of a child: a container can hold a child through a node that has no
+# IoMap of its own, as a split pane holds each pane in a `LayoutConstraint` and a
+# tabbed pane each page in a `WidgetTabPage`. A route that reaches no child
+# reaches nothing this container prints, and it is answered with no operation.
+const _RoutingContainerProjection = Union{WidgetCompositeToGraphicsCanvas,
+                                          WidgetSplitPaneToGraphicsCanvas,
+                                          WidgetTabbedPaneToGraphicsCanvas}
+
+function read_intent(p::_RoutingContainerProjection, recursion, change::Intent,
+                     iomap::ChildrenIoMap)
+    change.route === nothing && return @invoke read_intent(p::Projection, recursion, change::Intent, iomap)
+    _read_routed_child(recursion, change, iomap)
+end
+
+function _read_routed_child(recursion, change::Intent, iomap::ChildrenIoMap)
+    children = Any[entry[3] for entry in getfield(iomap, :child_iomaps)[]::Vector
+                   if entry isa Tuple && length(entry) == 3]
+    node, route, taken = iomap.input, change.route, ReferenceStep[]
+    while route isa ConcreteReference
+        step = get_reference_head(route)
+        node = try
+            evaluate_reference_step(step, node)
+        catch
+            return Intent(change.gesture, nothing)
+        end
+        push!(taken, step)
+        route = get_reference_tail(route)
+        for child in children
+            child.input === node || continue
+            steps = Tuple(taken)
+            inner = read_routed_intent(child.projection, recursion,
+                                       follow_intent_route(change, steps...), child)
+            return Intent(change.gesture, reroot_operation(inner.operation, steps))
+        end
+    end
+    Intent(change.gesture, nothing)
+end
+
 # The shell wraps a single child widget as its `.content` field. A path
 # coming up from the child's reader lives at `.content.<rest>` in the
 # shell's input domain.

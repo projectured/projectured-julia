@@ -228,6 +228,25 @@ function test_referenced_document_editor()
               occursin("[2]", repr(strip_reference_types(get_reference(second))))
     end
 
+    # A route passes the pane stage and the widget containers down to a tab's
+    # content, so the history of the file records the edit, and the window's
+    # history records that the file's history took a step.
+    @testset "an operation routed into a file tab is recorded in the file's history" begin
+        people_tab = find_pane(editor, "people.json")
+        people = get_edited_document(people_tab)
+        file_history = get_document(people_tab).content.content
+        steps = (length(history.undo_entries), length(file_history.undo_entries))
+        name = extend_reference(EmptyReference(), ElementReferenceStep(2), FieldReferenceStep("entries"),
+                                ElementReferenceStep(1), FieldReferenceStep("value"))
+        operation = ReplaceReferencedValueOperation(nothing,
+            annotate_reference_types(get_document(people), name), JsonString("Adele"))
+        rooted = read_rooted_operation(editor, get_reference(people), operation)
+        @test rooted isa RecordUndoOperation
+        evaluate_operation(editor, rooted)
+        @test get_document(people)[2]["name"].value == "Adele"
+        @test (length(history.undo_entries), length(file_history.undo_entries)) == steps .+ 1
+    end
+
     @testset "a text file answers the document of its text" begin
         path = joinpath(directory, "notes.txt")
         write(path, "hello")

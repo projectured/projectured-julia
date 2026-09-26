@@ -405,25 +405,28 @@ function map_reference_forward(::PaneGroupToWidgetTabbedPane,
             k = _find_title_caret_position(rest)
             k === nothing ||
                 return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.selector::String{k}::Position
-            inner = _tab_forward(entries[i].iomap, rest)
-            # The node at `[i]` is the tab's own content widget, whose type differs
-            # from tab to tab, so the checkpoint is read off the document rather
+            # The node at `[i]` is the tab page, and the content is its `element`. A
+            # selection that names the tab whole, or its title whole, names the page.
+            inside = _get_tab_content_path(rest)
+            inside === nothing &&
+                return @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage
+            inner = _child_forward(entries[i].iomap, inside)
+            # The content's type differs from tab to tab, so the checkpoint of the
+            # element is read off the document the tab prints.
             image = inner isa EmptyReference ?
                     EmptyReference(get_reference_node_type(entries[i].pane)) :
                     _typed_head(inner, entries[i].pane)
-            @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i].^(image)
+            @reference ::WidgetTabbedPane.selector_element_pairs::CellVector[i]::WidgetTabPage.element.^(image)
         end
     end
 end
 
-# The widget image of a selection inside a tab. Only the content has one here: a
-# selection that names the tab whole, or its title whole, has no image of its own.
-# A caret in the title is mapped before this, to the name of the tab page.
-function _tab_forward(content_iomap, rest)
-    image = @reference_case rest begin
-        ::PaneTab.content.inner... => _child_forward(content_iomap, inner)
+# The path inside the content of a tab, or `nothing` when `rest` does not enter the
+# content: a selection of the tab whole, or of its title.
+function _get_tab_content_path(rest)
+    @reference_case rest begin
+        ::PaneTab.content.inner... => inner
     end
-    image === nothing ? EmptyReference(WidgetDocument) : image
 end
 
 function map_reference_backward(::PaneGroupToWidgetTabbedPane,

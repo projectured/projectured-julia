@@ -728,6 +728,26 @@ its own, from `main`. Check each file against `SEALING.md` before editing it.
          so the helper is in the widget stage.
       3. **The verbs** of D24, rooted at the document that the history of the
          file holds.
+      **Parts 1 and 2 done (2026-09-26).** The pane group's forward map writes
+      `selector_element_pairs[i]::WidgetTabPage.element` and then the content's
+      image (`_get_tab_content_path` in `PaneToWidget.jl`); a selection of the
+      tab whole or of its title names the page. The backward map already took
+      `.element`, and the widget stage already wrote it for a page that holds a
+      document that is not a widget. `WidgetToGraphics.jl` has
+      `_RoutingContainerProjection` (the composite, the split pane, the tabbed
+      pane) with a four-argument reader that routes by `_read_routed_child`, the
+      rule of the shell made general. Measured with
+      `/var/tmp/referenced/route_depth.jl`: an operation rooted at the tab's file,
+      at the file's history or at the JSON array now comes back as a
+      `RecordUndoOperation`; below the array, inside the JSON, it does not, because
+      the JSON projection follows no route; at a pane node below the tree it does
+      not either, and the pane verbs root at the tree. Rooted at the array, the
+      Paris write changes the city, and both histories have one step. Tests: a
+      route into a file tab is recorded in the file's history
+      (`test_referenced_document_editor()`, 76 with `test_naming()`); the pane,
+      tab, split, file-tab, gesture-log and application tests pass (1291);
+      `test_split_pane_drag()` has 3 failures and 2 errors, the same on `main`
+      (a893fc2a).
 - [ ] **Step 7: the landing,** when the owner says so.
 
 ### Follow-up, after this plan (D21)
