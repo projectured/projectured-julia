@@ -141,8 +141,10 @@ fault 1 hid both.
     `(0,18,332,103)`, which covers the moved paragraphs; the first edit shrinks →
     `(0,18,332,43)`; Markdown, same height → `(0,75,704,148)`; Markdown, grows →
     `(0,75,657,325)`; Markdown, shrinks → `(0,75,657,302)`.
-- [ ] **2. Check it in the binary.** *In progress, 2026-09-26; a decision of the
-  owner is open (below).*
+- [x] **2. Check it in the binary.** The owner asked for the video API instead of
+  a screen capture, so the check is the probe with no window over the window
+  scene of `run_application`, and the take itself, which `record_application_video`
+  records from the same window.
   - The live run works: `build/video/s10/drive.jl` (ignored by git) opens the
     application on `example/markdown/paragraphs.md` with `partial_render` and
     `debug_dirty` on, pushes SDL events from a command file, and logs each dirty
@@ -244,9 +246,31 @@ fault 1 hid both.
 - [x] **3. The Markdown file for the take**: `example/markdown/paragraphs.md`, a
   heading and five paragraphs of prose that wrap at the width of the tab and say
   what the viewer sees.
-- [ ] **4. Record the take** with `record_application_video(...; partial_render =
-  true, debug_dirty = true)`, the video API of the repository (the owner,
-  2026-09-26), and not from the screen. The beats of S10: the arrow keys move the caret (a small red
+- [x] **4. Record the take** with `record_application_video(...; partial_render =
+  true, debug_dirty = true, debug_dirty_hold = 0.6)`, the video API of the
+  repository (the owner, 2026-09-26), and not from the screen.
+  - The take of 2026-09-26: `build/video/s10/s10_partial_render.mp4` of the
+    worktree, 1280×720, 30 fps, 46.1 s, recorded by `build/video/s10/take.jl`
+    (ignored by git, as the scripts of the other takes are). The beats: the
+    first paint outlines the whole window; a click on the second line of
+    paragraph 2 outlines the caret and the status line; four arrow keys outline
+    the old and the new place of the caret; `End`, then " Only this one."
+    outlines paragraph 2 and the status line on each key; a sentence typed word
+    by word makes paragraph 2 one line taller, and the key of the wrap outlines
+    paragraphs 2 to 5 at their old and their new places; deleted word by word,
+    the key of the unwrap does the same; each other key outlines paragraph 2.
+  - A scan of the take at 4 frames a second finds the red rows 234–258 (the
+    caret), 210–258 (paragraph 2), 210–442 (the wrap and the unwrap) and 690–718
+    (the status line), and nothing else after the first paint.
+  - `debug_dirty_hold` is new: the outline of the last repaint changes with the
+    next key, so the frame where the paragraphs below move lasted 1/30 s. With a
+    hold, a video outlines every repaint of the last 0.6 s as well. The default
+    is 0, and a live window does not change.
+  - `_DIRTY_RECT_LIMIT` is 32, not 8: the wrap gives 10 rectangles (the old and
+    the new place of paragraphs 2 to 5, the caret, the status line), and a limit
+    of 8 painted them as the box that spans the window. Each rectangle is one
+    walk of the render; merging overlapping rectangles would be cheaper, and it
+    is a change of the owner's rule, so it is not done. The beats of S10: the arrow keys move the caret (a small red
   box at the old and at the new place), then a word is typed into the second
   paragraph (the red box covers that paragraph only), then a line is typed that
   makes the paragraph one line taller (the red box reaches the paragraphs below,
