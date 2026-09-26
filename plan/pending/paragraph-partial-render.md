@@ -141,7 +141,50 @@ fault 1 hid both.
     `(0,18,332,103)`, which covers the moved paragraphs; the first edit shrinks →
     `(0,18,332,43)`; Markdown, same height → `(0,75,704,148)`; Markdown, grows →
     `(0,75,657,325)`; Markdown, shrinks → `(0,75,657,302)`.
-- [ ] **2. Check it in the binary.** Open a Markdown file of several paragraphs in
+- [ ] **2. Check it in the binary.** *In progress, 2026-09-26; a decision of the
+  owner is open (below).*
+  - The live run works: `build/video/s10/drive.jl` (ignored by git) opens the
+    application on `example/markdown/paragraphs.md` with `partial_render` and
+    `debug_dirty` on, pushes SDL events from a command file, and logs each dirty
+    rectangle and unit. The desktop is Wayland with Xwayland on `:0`, so a grab
+    of the root window is black; `ffmpeg -f x11grab -window_id <id>` grabs the
+    SDL window itself. F1 of the screenplays is fixed: a click and a key reach
+    the Markdown file tab.
+  - **A click or a key repaints the whole window in the binary.** A probe with no
+    window (`make_application_window` and the window scene, as
+    `ApplicationTest.jl` builds them) lists the stale canvases and the chain of
+    stale cells behind each. Three causes:
+    1. The window shell (`WidgetShellToGraphicsCanvas`) built its band wrappers in
+       one cell that read the height of each band. The status bar shows the
+       selection, so its height cell goes stale on each key, and the shell made
+       new wrappers for every band. Fixed in the worktree, not committed: the
+       list reads which bands exist, each band keeps its wrapper, and its top is
+       a cell of its own.
+    2. The composite that holds the pane tree (`WidgetCompositeToGraphicsCanvas`)
+       sizes its box from its children with `get_graphics_size`, in the same cell
+       that makes its wrappers, so any change inside it rebuilds it whole. A box in
+       a canvas of its own was tried and taken back: the walk visits the box first,
+       and its size computation reads every graphic below the children, so their
+       stale cells were computed again before the walk reached them, and the typed
+       text was drawn but not found. The walk depends on the order of reads.
+    3. The backend repaints one bounding rectangle. The status bar at the bottom
+       changes on each key, so the rectangle of any key reaches the bottom of the
+       window, over every paragraph below the edit.
+  - **Open decision: what the red box means.**
+    - *Staleness (the model now).* The box shows what the reactive graph made
+      stale, plus the graphics that moved. It is the honest picture of the
+      reactivity the video is about. It needs: a dirty region of several
+      rectangles; a walk in two phases, which finds every unit before it records
+      any, so a recording cannot compute cells that the walk has still to test;
+      and each container of the window chrome changed so that its element list
+      depends only on which children it has (the shell is done; the composite, the
+      split pane, the tab group and the scroll pane are next).
+    - *Value.* The walk compares what is drawn with what was painted, keyed by
+      the place in the tree: the element list, the origin, and the field values of
+      each leaf. It does not depend on the order of reads, and a container that
+      rebuilds with the same content costs no paint. But the box then shows what
+      changed on the screen, not what the graph made stale, so it proves less
+      about the reactivity. Open a Markdown file of several paragraphs in
   `bin/projectured` with both variables set, on the live display, and type into
   the second paragraph with pushed SDL events. Find every other unit that a key
   repaints: the caret, the tab title if it marks a change, a status line, the
