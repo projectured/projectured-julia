@@ -4,7 +4,7 @@
 > document over several sessions. It records the concepts, what is wrong today,
 > the owner's decisions and the questions that are still open. The steps of the
 > refactor come after the open questions have answers. The owner's model of
-> three tracking projections (D8 to D28) came on the same day, after the first
+> three tracking projections (D8 to D30) came on the same day, after the first
 > round of decisions.
 
 The facts of the code are in the study
@@ -136,6 +136,10 @@ All of them are from 2026-09-26.
   the events hold it.
 - **D28.** At the end of a route, the last reader on the route reads the
   gesture, and the rest of the route names the part.
+- **D29.** While a drag is on, the target tracker sends no enter, no leave and
+  no hover: the drag gets the moves, and the drag hover takes the place of the
+  hover. The order from the outside in is: gesture, drag, target, screen.
+- **D30.** Each tracking projection has a package of its own.
 
 ## 3. What is wrong today
 
@@ -360,6 +364,16 @@ The direction that follows from the decisions so far:
    of the focus traversal, not of this design.
 10. A utility function composes the tracking projections (D15), and the rules and
     documents change (D16).
+11. Each tracking projection gets a package of its own (D30). The packages that
+    hold the parts today change with it:
+    - the widget package loses `WidgetHoverTrackingProjection`, and its widgets
+      answer the gestures of the target tracker;
+    - the tooltip package loses its feed, its probe and `PointerRest`; the
+      tooltip becomes the meaning of a dwell, and `compute_tooltip` stays;
+    - the dragging package keeps the reorder as a meaning of the drag gestures,
+      and loses its own tracking and its probe;
+    - the splitter, the tab of a pane, the slider and the chart read the drag
+      gestures, and their own drag state goes away.
 
 ## 5. Open questions
 
@@ -379,23 +393,21 @@ The direction that follows from the decisions so far:
     `SetTimerOperation`, and the event `TimerExpire`. The projections:
     `GestureTrackingProjection`, `MouseTargetTrackingProjection` and
     `DragTrackingProjection`, with the wrapper documents `GestureTrackingState`,
-    `MouseTargetTrackingState` and `DragTrackingState`.
+    `MouseTargetTrackingState` and `DragTrackingState`. The packages (D30):
+    `ProjecturedGestureTracking`, `ProjecturedMouseTargetTracking` and
+    `ProjecturedDragTracking`, in `source/gesturetracking/`,
+    `source/mousetargettracking/` and `source/dragtracking/`.
   - As a separate choice: rename `MousePress` to `MouseClick`. D18 keeps
     `KeyPress` as an event, so today "Press" names an event for a key and a
     gesture for the mouse.
-- **Q10. Hover during a drag.** Does the target tracker still send an enter, a
-  leave and a hover while a drag is on? Claude recommends no: the drag gets the
-  moves, as with the pointer capture of Qt and of the DOM, and the drag hover
-  takes the place of the hover. Otherwise a splitter drag lights each button
-  that it passes. The order from the outside in is then: gesture, drag, target,
-  screen.
-- **Q11. Where the tracking projections live.** Their parts are in the widget,
-  tooltip and dragging packages today. Claude recommends one new package above
-  the kernel and the graphics package (the target tracker needs
-  `PointReferenceStep`), so that a host can use them with no widgets.
+- **Q12. Where the composition utility lives (D15).** It needs all three
+  tracking packages. Claude recommends the screen package, next to
+  `make_window_scene_projection` (`WindowScene.jl:76`), because the default
+  composition wraps the screen (D27). The three packages then do not depend on
+  the screen package, and it depends on them.
 
 Answered and moved to §2: Q2 (D23), Q3 (D24), Q4 (D25), Q5 (D20), Q6 (D26), Q7
-and Q8 (D27), Q9 (D28).
+and Q8 (D27), Q9 (D28), Q10 (D29), Q11 (D30).
 
 ## 6. Next steps
 
