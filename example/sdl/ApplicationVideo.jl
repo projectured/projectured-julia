@@ -15,7 +15,7 @@
                              root=pwd(), initial_hold=0.5, final_hold=1.0,
                              supersample=2, scale=1, video_time=false, pointer=true,
                              partial_render=false, debug_dirty=false, debug_dirty_hold=0,
-                             measure=FontFileMeasure()) -> String
+                             status_bar=true, measure=FontFileMeasure()) -> String
 
 Record the application window of [`run_application`](@ref) — built the same
 way, over `paths` and `root`, with the same `assistant`/`model`/`context` — and
@@ -49,7 +49,8 @@ frames are slow to make. A take that waits for a model keeps the wall clock.
 `partial_render = true` repaints only what changed from one frame to the next,
 as a live window with `partial_render` does, and `debug_dirty = true` outlines
 that in red on the frames, and `debug_dirty_hold` keeps each outline that many
-seconds (see `VideoBackend`).
+seconds (see `VideoBackend`). `status_bar = false` leaves out the status bar
+of the window (see [`make_application_window`](@ref)).
 
 The frames land in a temporary directory the backend owns and are encoded with
 the same `ffmpeg` call [`record_video`](@ref) uses
@@ -65,13 +66,14 @@ function record_application_video(paths::AbstractVector, timeline::AbstractVecto
                                   supersample::Integer = 2, scale::Real = 1,
                                   video_time::Bool = false, pointer::Bool = true,
                                   partial_render::Bool = false, debug_dirty::Bool = false,
-                                  debug_dirty_hold::Real = 0,
+                                  debug_dirty_hold::Real = 0, status_bar::Bool = true,
                                   measure = FontFileMeasure())
     lowercase(splitext(filename)[2]) == ".mp4" ||
         error("record_application_video: only .mp4 output is supported (got \"$filename\")")
     chat = make_application_assistant(assistant; model = model, context = context)
     document, projection = make_application_window(collect(String, paths);
                                                     root = root, assistant = chat,
+                                                    status_bar = status_bar,
                                                     measure = measure)
     title = "ProjecturEd"
     backend = VideoBackend(timeline, Symbol(title); width = width, height = height,

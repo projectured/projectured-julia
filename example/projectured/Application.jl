@@ -199,7 +199,8 @@ end
 
 """
     make_application_window(paths; root = pwd(), assistant = nothing,
-                            pointer = nothing, measure = FontFileMeasure())
+                            pointer = nothing, status_bar = true,
+                            measure = FontFileMeasure())
         -> (document, projection)
 
 The application window, wrappers and all: the document of
@@ -218,6 +219,10 @@ pointer once it rests, so a caller that cannot say where the pointer is, or that
 runs no loop to wait in, gets no tooltip. A window scene built without a backend
 — the warm-up of a build, the suite — passes neither.
 
+`status_bar = false` leaves out the status bar at the bottom of the window. A
+video that shows what the window paints again uses it, because the status bar
+changes with every move of the caret.
+
 **The clipboard offers all six of its gestures here**, cut and the view toggle
 included. A person who edits a file expects `Ctrl+X` to cut, and the toggle shows
 what is stored. An interface over a record of a run leaves those two out, because
@@ -226,6 +231,7 @@ a cut would write into the record.
 function make_application_window(paths::AbstractVector;
                                  root::AbstractString = pwd(), assistant = nothing,
                                  pointer = nothing, tooltip_feed = nothing,
+                                 status_bar::Bool = true,
                                  measure = FontFileMeasure())
     document = make_application_document(paths; root = root, assistant = assistant)
     projection = make_application_projection(; measure = measure)
@@ -236,7 +242,8 @@ function make_application_window(paths::AbstractVector;
                                  nothing : compute_tooltip,
                        pointer = pointer, tooltip_feed = tooltip_feed,
                        context_menu = compute_context_menu,
-                       shell = document -> _make_application_shell(document, assistant, root),
+                       shell = document -> _make_application_shell(document, assistant, root,
+                                                                     status_bar),
                        measure = measure)(document, projection)
 end
 
@@ -248,11 +255,11 @@ end
 # The toolbar's assistant is a fresh one with the backend, the model and the
 # greeting of the one the window opened with, and its explorer lists `root`. A
 # window opened with no assistant has no assistant button.
-_make_application_shell(document, assistant, root) =
+_make_application_shell(document, assistant, root, status_bar::Bool) =
     (make_window_menu_bar(),
      make_window_toolbar(; assistant = _make_assistant_factory(assistant),
                            explorer = _ -> _make_application_navigator(root)),
-     make_window_status_bar(document), nothing, nothing)
+     status_bar ? make_window_status_bar(document) : nothing, nothing, nothing)
 
 _make_assistant_factory(::Nothing) = nothing
 _make_assistant_factory(assistant::Assistant) =
