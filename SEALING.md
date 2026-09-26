@@ -79,14 +79,14 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `clock/Clock.jl`
 - **Layer 6 — event** (`event/`)
   - ⬜ `event/EventModule.jl`
-  - 🔒 `event/EventInterface.jl`
+  - ⬜ `event/EventInterface.jl`
   - 🔒 `event/ModifierKeys.jl`
-  - 🔒 `event/KeyboardEvent.jl`
-  - 🔒 `event/MouseEvent.jl`
+  - ⬜ `event/KeyboardEvent.jl`
+  - ⬜ `event/MouseEvent.jl`
   - ⬜ `event/WindowEvent.jl`
-  - 🔒 `event/WindowInput.jl`
-  - 🔒 `event/EventDefaults.jl`
-  - 🔒 `event/EventPattern.jl`
+  - ⬜ `event/WindowInput.jl`
+  - ⬜ `event/EventDefaults.jl`
+  - ⬜ `event/EventPattern.jl`
 - **Layer 7 — device** (`device/`)
   - 🔒 `device/DeviceModule.jl`
   - 🔒 `device/DeviceInterface.jl`
@@ -94,11 +94,11 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `device/Mouse.jl`
   - 🔒 `device/Display.jl`
 - **Layer 8 — gesture** (`gesture/`)
-  - 🔒 `gesture/GestureRecognizerModule.jl`
-  - 🔒 `gesture/GestureRecognizer.jl`
+  - ⬜ `gesture/GestureRecognizerModule.jl`
+  - ⬜ `gesture/GestureRecognizer.jl`
 - **Layer 9 — backend** (`backend/`)
   - 🔒 `backend/BackendModule.jl`
-  - 🔒 `backend/BackendInterface.jl`
+  - ⬜ `backend/BackendInterface.jl`
   - 🔒 `backend/BackendDefaults.jl`
 - **Layer 10 — document** (`document/`)
   - ⬜ `document/DocumentModule.jl`

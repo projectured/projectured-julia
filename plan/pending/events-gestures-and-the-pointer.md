@@ -4,7 +4,7 @@
 > document over several sessions. It records the concepts, what is wrong today,
 > the owner's decisions and the questions that are still open. The steps of the
 > refactor come after the open questions have answers. The owner's model of
-> three tracking projections (D8 to D33) came on the same day, after the first
+> three tracking projections (D8 to D39) came on the same day, after the first
 > round of decisions.
 
 The facts of the code are in the study
@@ -167,6 +167,25 @@ All of them are from 2026-09-26.
   - cursor keys, probably with modifiers, move in the plane to the part that is
     next in that direction, found with the mapping of references;
   - it works with any document that accepts it, not only with widgets.
+- **D34.** The owner allows the unsealing of every kernel file that the design
+  needs, and the files stay unsealed after the work. Unsealed in `SEALING.md` on
+  2026-09-26: `event/EventInterface.jl`, `event/KeyboardEvent.jl`,
+  `event/MouseEvent.jl`, `event/WindowInput.jl`, `event/EventDefaults.jl`,
+  `event/EventPattern.jl`, `gesture/GestureRecognizerModule.jl`,
+  `gesture/GestureRecognizer.jl` and `backend/BackendInterface.jl` (its docstring
+  names `DeviceEvent`). `event/WindowEvent.jl` and `event/EventModule.jl` were
+  unsealed before, for `WindowLeave`, and stay unsealed too.
+- **D35.** One Tab walker does the whole walk of Tab, if it can; the owner is not
+  sure that it can (Q13).
+- **D36.** Shift + Alt + arrow moves in the plane. No code uses this key yet.
+- **D37.** A part that uses a key answers it first; the navigation step gets only
+  what no part answered. So no key always leaves a part: a part that takes Tab
+  keeps Tab.
+- **D38.** A JSON document is one stop. Inside it, its own cursor keys move.
+- **D39.** A move in the plane maps the current stop forward to its drawn
+  element. Then a search looks around it, in the direction of the key, for the
+  closest graphical element that maps back (D11) to a document that takes the
+  keyboard.
 
 ## 3. What is wrong today
 
@@ -404,7 +423,7 @@ The direction that follows from the decisions so far:
 
 ## 5. Open questions
 
-- **Q13. The keyboard navigation of D33.** The facts of today:
+- **Q13. Can one Tab walker do the whole walk (D35)?** The facts of today:
   - The package `ProjecturedFocus` holds the open trait `is_focusable_document`,
     to which a domain adds a method; the widgets mark each enabled interactive
     leaf (`WidgetDocument.jl:2795`). It also holds the walks
@@ -417,21 +436,14 @@ The direction that follows from the decisions so far:
     step: a transparent wrapper that answers the Alt + arrow keys that nothing
     inside answered, with a walk over the structure of any document.
 
-  The questions, for the design of the step:
-  - Does the step do the whole walk of Tab, so the code of Tab in the
-    containers goes away? Claude recommends yes, so one place does it for every
-    document.
-  - Which keys move in the plane? Alt + arrow already walks the structure.
-  - A part that uses a key itself (Tab in a text, arrows in a list) answers it
-    first, and the step gets only what nothing answered. Which key always
-    leaves such a part?
-  - Is `is_focusable_document` the test of "can interact using the keyboard in
-    a meaningful way"? Is a JSON editor one stop, or is each of its elements?
-  - The move in the plane needs the drawn box of each stop: the forward mapping
-    of a reference to the output. Claude did not check yet how far it reaches.
+  A walk over the document can reach a part that is not drawn: a hidden page of
+  a tabbed pane, a closed section of an accordion. The containers know this. If
+  the walker counts only the stops that are drawn, as the search of D39 does, it
+  can know it too. The facts to collect: the special cases that the Tab code of
+  each container holds.
 
 Answered and moved to §2: Q2 (D23), Q3 (D24), Q4 (D25), Q5 (D20), Q6 (D26), Q7
-and Q8 (D27), Q9 (D28), Q10 (D29), Q11 (D30), Q1 (D31), Q12 (D32).
+and Q8 (D27), Q9 (D28), Q10 (D29), Q11 (D30), Q1 (D31), Q12 (D32), and the parts 2 to 5 of Q13 (D36 to D39).
 
 ## 6. Next steps
 
@@ -440,13 +452,6 @@ and Q8 (D27), Q9 (D28), Q10 (D29), Q11 (D30), Q1 (D31), Q12 (D32).
 2. Collect the facts that an answer needs at the time it needs them.
 3. Then write the steps of the refactor in this document, each with its test.
 
-The refactor changes sealed files. The owner allows the unsealing of the two
-files of `gesture/` (D8). These sealed files of `event/` change too, and each
-needs the owner's word before a change ([SEALING.md](../../SEALING.md)):
-- `EventInterface.jl`: `SyntheticEvent` and `DeviceEvent` go, `Gesture` comes;
-- `MouseEvent.jl` and `KeyboardEvent.jl`: the supertypes of the gestures, and
-  `MouseClick`;
-- `EventPattern.jl`: a pattern takes a gesture, and `MouseClickPattern`;
-- `EventDefaults.jl` and `WindowInput.jl`: they take `Union{Event,Gesture}`.
-
-The rule `PAR-NO-NEW-SYNTHETIC-EVENT` changes too (D16).
+The files of the kernel that the refactor changes are unsealed, and they stay
+unsealed after the work (D34). The rule `PAR-NO-NEW-SYNTHETIC-EVENT` changes too
+(D16).

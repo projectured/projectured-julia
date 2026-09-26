@@ -141,7 +141,7 @@ waits for it.
 - [ ] 5. A live check on the display. Pushed SDL events do not move the real
   pointer; with the owner's word, the XTest library moves it, and the script
   clicks only where the window under the pointer is the application's.
-- [ ] 6. The audit of `WindowEvent.jl` and `EventModule.jl` against
-  `architecture-invariants.md`, reported to the owner, and the seal again with the
-  owner's word. The verification against `main`, and the move of this plan to
-  `plan/done/`.
+- [ ] 6. The verification against `main`, and the move of this plan to
+  `plan/done/`. `WindowEvent.jl` and `EventModule.jl` stay unsealed: the owner
+  said on 2026-09-26 that the files of the refactor stay unsealed (D34 of
+  [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md)).
