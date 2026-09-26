@@ -130,4 +130,23 @@ end
     @test get_graphics_size(GraphicsCanvas(elements; w = 100, h = 30)) == (500, 30)
 end
 
+@testset "the graphics leaf maps a point to the element at it" begin
+    # The hit test of a rasterized canvas is its backward mapping, and the reader of
+    # a click reads it: the element at the point, and the point inside that element.
+    rect = GraphicsRect(10, 10, 30, 20)
+    text = GraphicsText("ab", 50, 0; font = font_ubuntu_monospace_regular_20)
+    canvas = GraphicsCanvas(CellVector(Cell[Cell(rect), Cell(text)]))
+    p = GraphicsCanvasToGraphicsImage()
+    iomap = print_document(p, canvas)
+    at_rect = map_reference_backward(p, iomap, PointReferenceStep(15, 12))
+    @test at_rect == ConcreteReference(ElementReferenceStep(1),
+                                       ConcreteReference(PointReferenceStep(5, 2)))
+    at_text = map_reference_backward(p, iomap, ConcreteReference(PointReferenceStep(60, 5)))
+    @test at_text == ConcreteReference(ElementReferenceStep(2),
+                                       ConcreteReference(PointReferenceStep(10, 5)))
+    @test map_reference_backward(p, iomap, PointReferenceStep(5, 200)) === nothing
+    click = read_intent(p, iomap, MouseClick(:left, 15, 12; time = 0.0))
+    @test click isa ReplaceSelectionOperation && click.path == at_rect
+end
+
 end # test_graphics

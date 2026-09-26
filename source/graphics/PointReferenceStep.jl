@@ -18,6 +18,20 @@ function Base.show(io::IO, s::PointReferenceStep)
     print(io, "@(", s.x, ",", s.y, ")")
 end
 
+"""
+    find_reference_point(reference) -> PointReferenceStep or nothing
+
+The point that `reference` names when it names nothing but a point: a
+`PointReferenceStep`, or a reference whose one step is one; `nothing` for every
+other reference. A projection that maps a point of its output back to the part
+of its input at that point reads the point with it.
+"""
+find_reference_point(reference::PointReferenceStep) = reference
+find_reference_point(reference::ConcreteReference) =
+    get_reference_tail(reference) isa EmptyReference ?
+        find_reference_point(get_reference_head(reference)) : nothing
+find_reference_point(reference) = nothing
+
 # ── DSL registrations ──────────────────────────────────────────────────────
 
 ReferenceModule.build_reference_step(::Val{:point}, xex, yex) =

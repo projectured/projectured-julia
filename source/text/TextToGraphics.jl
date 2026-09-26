@@ -77,12 +77,21 @@ function map_reference_forward(::TextToGraphics, iomap, reference)
     return nothing
 end
 
-function map_reference_backward(::TextToGraphics, iomap, reference)
-    return nothing
+# A point of the canvas maps to the caret nearest to it: the segment on the band
+# of the point's line, or of the nearest line, and the character boundary nearest
+# to its x. The path of an element and a point inside it, which the graphics leaf
+# answers for a click on a rasterized canvas, maps to the caret in that element.
+# The reader of a click and the reader of that path read this map.
+function map_reference_backward(p::TextToGraphics, iomap, reference)
+    iomap isa TextToGraphicsIoMap || return nothing
+    point = find_reference_point(reference)
+    point === nothing || return _find_caret_at_point(p, iomap, point.x, point.y)
+    _find_caret_at_element_point(p, iomap, reference)
 end
 
 function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, op::ReplaceSelectionOperation)
-    return _translate_click(p, iomap, op.path)
+    path = map_reference_backward(p, iomap, op.path)
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
 end
 
 # KeyPress producer: the character-insert mapping is geometry-free, so it lives
@@ -99,13 +108,19 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::KeyPres
     return _gesture_op(iomap, evt)
 end
 
-# A `ReplaceSelectionOperation` selecting the flat caret at `char` in the span at
-# `span_path`, or `nothing` when the span has no flat base. The graphics layer
-# resolves clicks/line-motion to a `(span, char)` hit; this converts it to the
-# canonical flat selection (`get_flat_base + char`).
-function _flat_hit_op(text::TextBlock, span_path::SpanPath, char::Int)
+# The flat caret at `char` in the span at `span_path`, or `nothing` when the span
+# has no flat base. The graphics layer resolves clicks and line motion to a
+# `(span, char)` hit; this converts it to the canonical flat selection
+# (`get_flat_base + char`).
+function _find_flat_caret(text::TextBlock, span_path::SpanPath, char::Int)
     base = get_flat_base(text, span_path)
-    base === nothing ? nothing : ReplaceSelectionOperation(make_flat_caret_reference(base + char))
+    base === nothing ? nothing : make_flat_caret_reference(base + char)
+end
+
+# A `ReplaceSelectionOperation` selecting that caret, or `nothing`.
+function _flat_hit_op(text::TextBlock, span_path::SpanPath, char::Int)
+    caret = _find_flat_caret(text, span_path, char)
+    caret === nothing ? nothing : ReplaceSelectionOperation(caret)
 end
 
 # What a selection cell holds, past the live/dormant wrapper, and whether it is
@@ -119,18 +134,23 @@ _is_live_selection(value::SelectionDocument) = value.live
 const _DORMANT_CURSOR_COLOR = StyleColor(0.55, 0.55, 0.55, 1.0)
 
 # Raw MouseClick directly on the canvas (no GraphicsCanvasToGraphicsImage
-# step above us). Translate to a text-domain selection by picking the
-# segment that owns the click and the character offset within it.
+# step above us): the caret at the point of the click. A click always becomes a
+# plain character cursor; whole-element promotion (Alt+click) is decided in
+# SyntaxToText, where the tree is in hand.
 function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt::MouseClick)
     evt.button === :left || return nothing
+    path = map_reference_backward(p, iomap, PointReferenceStep(evt.x, evt.y))
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
+end
+
+# The caret at `(x, y)`: the segment that owns the point, and the character
+# offset within it.
+function _find_caret_at_point(p::TextToGraphics, iomap::TextToGraphicsIoMap, x::Int, y::Int)
     coord_map = iomap.char_to_coord
     isempty(coord_map) && return nothing
-    sc = _hit_segment(coord_map, evt.x, evt.y)
+    sc = _hit_segment(coord_map, x, y)
     sc === nothing && return nothing
-    # A click always becomes a plain character cursor; whole-element promotion
-    # (Alt+click) is decided in SyntaxToText, where the tree is in hand.
-    char_pos = _char_position_at_x(sc, evt.x, p.measure)
-    return _flat_hit_op(iomap.input, sc.span_path, char_pos)
+    _find_flat_caret(iomap.input, sc.span_path, _char_position_at_x(sc, x, p.measure))
 end
 
 function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
@@ -424,9 +444,10 @@ function print_document(p::TextToGraphics, recursion, styled::TextBlock, ctx)
         end
         out
     end))
-    # `highlight_offset` keeps its value of 1 — the rasterized-image click
-    # path (`_translate_click`) indexes the coord_map past the single leading
-    # highlight element (now the highlight sub-canvas, holding the per-row rects).
+    # `highlight_offset` keeps its value of 1 — the rasterized-image click path
+    # (`_find_caret_at_element_point`) indexes the coord_map past the single
+    # leading highlight element (the highlight sub-canvas, holding the per-row
+    # rects).
     # That path is only reached when a *leaf* canvas is rasterized by
     # GraphicsCanvasToGraphicsImage; this canvas is non-leaf (it nests the highlight
     # and line sub-canvases), so the bare text examples use the MouseClick/coord_map
@@ -1141,18 +1162,12 @@ function _char_position_at_x(sc::SegmentCoordinate, target_x::Int, measure::Text
     sc.char_start + best_k
 end
 
-# Translate a downstream ReplaceSelectionOperation whose path encodes a mouse click
-# (ElementReferenceStep(segment_i) → PointReferenceStep(rx, ry)) back into a flat
-# character-position selection on the Text domain.
-#
-# The path is produced by GraphicsCanvasToGraphicsImage.read_intent:
-#   ElementReferenceStep(i)   — 1-based index of the graphics element that was hit
-#   PointReferenceStep(rx,…) — pixel offset within that element
-#
-# We look up the matching SegmentCoordinate in char_to_coord, convert the pixel
-# x-offset to a character position using _char_position_at_x, and return
-# a fresh ReplaceSelectionOperation on the flat PositionReferenceStep domain.
-function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
+# The caret that a path of the graphics leaf names: an element
+# (`ElementReferenceStep(segment_i)`, 1-based) and a pixel offset inside it
+# (`PointReferenceStep(rx, ry)`), as `GraphicsCanvasToGraphicsImage` maps a point.
+# The matching SegmentCoordinate in char_to_coord gives the segment, and the
+# x-offset gives the character position with `_char_position_at_x`.
+function _find_caret_at_element_point(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     path isa ConcreteReference || return nothing
     h1 = get_reference_head(path)
     h1 isa RangeReferenceStep || return nothing
@@ -1172,7 +1187,7 @@ function _translate_click(p::TextToGraphics, iomap::TextToGraphicsIoMap, path)
     h2 isa PointReferenceStep || return nothing
     rx = h2.x::Int
     char_pos = _char_position_at_x(seg, seg.x + rx, p.measure)
-    return _flat_hit_op(iomap.input, seg.span_path, char_pos)
+    _find_flat_caret(iomap.input, seg.span_path, char_pos)
 end
 
 # Pick the segment a (canvas-x, canvas-y) click landed on. Matches the

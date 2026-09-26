@@ -6,9 +6,10 @@
 # cached image. Non-leaf or infinite canvases are preserved as-is via
 # `IdentityProjection` so that recursion can process their children.
 #
-# The reader performs mouse hit-testing: click coordinates are matched against
-# canvas elements and translated into a pixel-offset selection path that
-# upstream projection readers interpret as a character position.
+# The backward mapping of a point does the hit test: a point is matched against
+# the canvas elements and translated into the path of an element and a pixel
+# offset in it, which upstream projections interpret as a character position.
+# The reader of a click reads that mapping.
 # ── Predicates ──────────────────────────────────────────────────────────────
 
 # A canvas with no end: its elements are a list the renderer walks and stops
@@ -40,8 +41,13 @@ function map_reference_forward(::GraphicsCanvasToGraphicsImage, iomap, reference
     return nothing
 end
 
+# A point of the image maps to the element of the canvas at that point and the
+# point inside that element: the path that an upstream reader turns into a place
+# of its own input. The click reader reads the same map.
 function map_reference_backward(::GraphicsCanvasToGraphicsImage, iomap, reference)
-    return nothing
+    point = find_reference_point(reference)
+    point === nothing && return nothing
+    _find_element_at_point(iomap.input, point.x, point.y)
 end
 
 # Color palette for distinguishing cached images
@@ -116,42 +122,43 @@ _rect_hit(r::GraphicsRect, cx::Integer, cy::Integer) =
     cx >= Int(r.x) && cx < Int(r.x) + Int(r.w) &&
     cy >= Int(r.y) && cy < Int(r.y) + Int(r.h)
 
-function read_intent(::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, evt)
+function read_intent(p::GraphicsCanvasToGraphicsImage, iomap::SimpleIoMap, evt)
     evt isa MouseClick || return nothing
-    canvas = iomap.input
-    elems  = canvas.elements
-
     # Always emit a plain click (element + pixel offset). Whole-element promotion
     # (Alt+click) is decided in SyntaxToText off the originating gesture.
-    # Check precise-bounds rects first (e.g. cursor highlights)
+    path = map_reference_backward(p, iomap, PointReferenceStep(evt.x, evt.y))
+    path === nothing ? nothing : ReplaceSelectionOperation(path)
+end
+
+# The element of `canvas` at `(x, y)`, and the point inside it, as a path; `nothing`
+# when no element is there. A rect is hit by its precise bounds first (a cursor
+# highlight). A text is hit by the segment with the largest x at or left of the
+# point, on the vertical band of its line.
+function _find_element_at_point(canvas::GraphicsCanvas, x::Int, y::Int)
+    elems = canvas.elements
     for (i, elem) in enumerate(elems)
         elem isa GraphicsRect || continue
-        _rect_hit(elem, evt.x, evt.y) || continue
+        _rect_hit(elem, x, y) || continue
         ox, oy = Int(elem.x), Int(elem.y)
-        path = ConcreteReference(ElementReferenceStep(i),
-                   ConcreteReference(PointReferenceStep(evt.x - ox, evt.y - oy)))
-        return ReplaceSelectionOperation(path)
+        return ConcreteReference(ElementReferenceStep(i),
+                   ConcreteReference(PointReferenceStep(x - ox, y - oy)))
     end
-
-    # For text elements: pick the segment with the largest x ≤ click_x
-    # on the matching vertical band — that is the segment the click landed on.
     best_i  = nothing
     best_x  = -1
     for (i, elem) in enumerate(elems)
         elem isa GraphicsText || continue
-        x, y = Int(elem.x), Int(elem.y)
+        ex, ey = Int(elem.x), Int(elem.y)
         _, ascent, descent = compute_text_extent(elem.text, elem.font)
-        evt.y >= y && evt.y < y + ascent + descent || continue
-        x <= evt.x && x > best_x || continue
-        best_x = x
+        y >= ey && y < ey + ascent + descent || continue
+        ex <= x && ex > best_x || continue
+        best_x = ex
         best_i = i
     end
     best_i === nothing && return nothing
     elem = elems[best_i]
     ox, oy = Int(elem.x), Int(elem.y)
-    path = ConcreteReference(ElementReferenceStep(best_i),
-               ConcreteReference(PointReferenceStep(evt.x - ox, evt.y - oy)))
-    return ReplaceSelectionOperation(path)
+    ConcreteReference(ElementReferenceStep(best_i),
+        ConcreteReference(PointReferenceStep(x - ox, y - oy)))
 end
 
 # ── Compound convenience constructor ────────────────────────────────────────

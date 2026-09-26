@@ -221,8 +221,32 @@ right = read_intent(p, iomap, click(50))
 # caret stream.
 @test is_reference_equal(left.path,  TextModule.make_flat_caret_reference(2))
 @test is_reference_equal(right.path, TextModule.make_flat_caret_reference(3))
+# The reader of that path reads the backward mapping of the element path.
+@test is_reference_equal(map_reference_backward(p, iomap, click(10).path), left.path)
 
 end # @testset "TextToGraphics inline image hit-test"
+
+@testset "TextToGraphics maps a point back to the caret at it" begin
+
+m = _test_measure(10, 18)
+p = TextToGraphics(measure=m)
+st = TextBlock(TextString("abc", font_ubuntu_monospace_regular_20, color_white))
+iomap = print_document(p, st)
+# Ten pixels to a character, from where the segment starts: a point 12 pixels in
+# is nearest the boundary after "a", and one 28 pixels in the end of "abc".
+segment = first(iomap.char_to_coord)
+at(dx) = PointReferenceStep(segment.x + dx, segment.y + 5)
+caret = map_reference_backward(p, iomap, at(12))
+@test is_reference_equal(caret, TextModule.make_flat_caret_reference(1))
+@test is_reference_equal(map_reference_backward(p, iomap, ConcreteReference(at(28))),
+                         TextModule.make_flat_caret_reference(3))
+# The reader of a click reads the same map.
+click = read_intent(p, iomap, MouseClick(:left, segment.x + 12, segment.y + 5; time = 0.0))
+@test is_reference_equal(click.path, caret)
+# A reference that names neither a point nor an element maps to nothing.
+@test map_reference_backward(p, iomap, EmptyReference()) === nothing
+
+end # @testset "TextToGraphics maps a point back to the caret at it"
 
 @testset "TextToGraphics renders fill_color as a background rect" begin
 

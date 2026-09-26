@@ -649,6 +649,19 @@ it holds the example.
   widgets; 4d the charts; 4e the screen and the window scene; 4f the projections
   of omnet-julia. Tests: for each projection, a point maps to the expected
   reference, and its click tests still pass.
+
+  - [x] 4a. The graphics leaf and text to graphics. `find_reference_point`
+    (graphics package) reads the point that a reference names: a bare
+    `PointReferenceStep`, or a reference whose one step is one. The graphics leaf
+    maps a point to the element at it and the point inside that element; text to
+    graphics maps a point to the caret nearest to it, and the element path of
+    the graphics leaf to the caret in that element. The readers of a click and
+    of that path read the maps, so each projection keeps one hit test. Tests:
+    the graphics leaf (a rect, a text, nothing), text to graphics (a point, a
+    one-step reference, the click, the element path, a reference that names
+    neither). The substrate, JSON, click, selection, clipboard, probe, dragging,
+    gesture log, application, conversation and math suites fail the same tests
+    as `main`.
 - [ ] 5. **The start over of Tab leaves the hover tracker (D2, §5 of the plan of
   D33).** A small wrapping step does only the start over at the ends, and the
   hover tracker loses its branch for Tab. Tests: the focus traversal tests; Tab
