@@ -69,6 +69,43 @@ print to print, no?", then:
 - **D4. The other `print_` functions** follow D1: each one that answers a value
   becomes a `make_`, and each one that writes takes an `io`. The inventory of §2
   decides which is which.
+- **D5. `print` of any document writes its natural text** (the owner,
+  2026-09-26: "print should call print_natural_string by default for any
+  document"). The Julia contract, as found before the decision:
+  - `print(io, x)` writes the plain text for a reader, "canonical
+    (un-decorated)", and falls back to `show(io, x)`; `string(x)`, `"$x"`,
+    `println` and `join` use it.
+  - `show(io, x)`, with two arguments, writes a short, one-line form with type
+    information, parseable where it can be; `repr(x)` and an element inside a
+    container use it.
+  - `show(io, MIME"text/plain"(), x)`, with three, writes the full form for a
+    person; `display(x)`, the REPL and the last value of `execute_julia_code` use
+    it, and it falls back to the two-argument `show`.
+  - Documents had only a two-argument `show`, the depth-limited debug form in
+    `DocumentDefaults.jl`, so `string(JsonString("Cleo"))` was
+    `JsonString("Cleo")`.
+  So `Base.print(io, document)` writes what `print_natural_string(io, document)`
+  writes, and `string(document)` is the natural text. The points to keep:
+  1. `print` never fails: string interpolation, `join` and error messages call
+     it. A document type with no natural text falls back to `show`.
+  2. The method `Base.print(io, ::Document)` goes in `ProjecturedNatural`,
+     because the kernel does not know natural text. That is a method of a Base
+     function on a kernel type, which Julia calls type piracy; no rule of the
+     project forbids it. Without `ProjecturedNatural` loaded, `print` of a
+     document is `show`.
+  3. Every place that makes a document into a string changes: each `"$(node)"`,
+     `string(node)` or `join` of documents in an error message or a log gives the
+     natural text, which can be long, in place of the debug form. A printer of a
+     projection that calls `string` on a document would start the natural
+     printer inside a printer. An inventory of these places comes first.
+  4. A JSON string leaf prints as its JSON literal, with the quotes:
+     `string(JsonString("Cleo"))` is `"Cleo"` with the two quotes. The bare text
+     stays `.value`, as the orientation guide shows.
+  In the same step, a `ReferencedDocument` follows the contract: `print` of it
+  prints its document; its long form `ReferencedDocument{T} at …: …` moves to
+  the three-argument `show`; its two-argument `show` becomes short. Found in the
+  S2 rehearsal of 2026-09-26: `string(person["name"])` printed the long form into
+  every cell of the table, because `print` fell back to the two-argument `show`.
 
 ## 4. Steps
 
@@ -81,6 +118,13 @@ print to print, no?", then:
       first; a second pass for the prose and the docstrings; a search for the
       old name in strings, guides and the system texts.
 - [ ] **Step 3: the other `print_` functions** (D4).
+- [ ] **Step 3a: `print` of a document** (D5). First the inventory of the places
+      that make a document into a string, and of the printers that call `string`
+      or `print` on a document; then the method in `ProjecturedNatural` with the
+      fallback to `show`; then the `show` and `print` of `ReferencedDocument`.
+      Tests: `string` of a JSON array and of a JSON string leaf, of a document
+      with no natural text, of a referenced document, and `repr` of a vector of
+      referenced documents.
 - [ ] **Step 4: omnet-julia.** The NED and INI methods and every call; the two
       repositories land together.
 - [ ] **Step 5: the texts the model reads.** The orientation guide, the S2 code
