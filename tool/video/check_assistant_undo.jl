@@ -6,9 +6,9 @@
 # people.json, the person clicks in the tab of the file and presses Ctrl+Z, and
 # the person is gone. A scripted model stands in for the real one and runs the
 # code that qwen wrote in the rehearsal, so the check needs no model and no free
-# memory for one. The take draws the panel of the gesture and operation log at
-# the bottom left, and prints the people, the steps of each history and the lines
-# of the log after each beat.
+# memory for one. The session's gesture log is in a pane below the file, and the
+# take prints the people, the steps of each history and the lines of the log
+# after each beat.
 
 using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedSdl,
       ProjecturedSdlExample, ProjecturedVideo
@@ -16,7 +16,7 @@ using Projectured, ProjecturedExample, ProjecturedKernelExample, ProjecturedSdl,
 const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "assistant_undo.mp4") : ARGS[1]
 const COMPOSER = (1000, 518)          # read off a frame of the window
 const FILE = (300, 120)               # a point on the text of people.json
-const OPERATION_WIDTH = 60            # the characters of an operation in the panel
+const FILE_DOWN = (500, 300)          # where the wheel scrolls the file
 
 const PEOPLE = """
 [{"name": "Cleo", "age": 29, "city": "Lyon"}, {"name": "Ada", "age": 36, "city": "London"},
@@ -47,19 +47,25 @@ function turn_finished(turns::Integer)
     end
 end
 
-# The panel of the log. The recorder at the root writes each key with the operation
-# it made, and each operation of a verb with its description; the overlay draws
-# the newest lines at the bottom left, over the lower part of the navigator.
-const LOG = Ref{Any}(nothing)
-_shows_in_overlay(gesture, operation) = !(operation === nothing || operation isa DoNothingOperation)
-function _with_gesture_overlay(projection)
-    log = GestureLog(; capacity = 8)
-    LOG[] = log
-    GestureLogRecordingProjection(
-        inner = GestureLogOverlayProjection(inner = projection, log = log, anchor = :bottom_left,
-                    content = make_gesture_log_content_projection(; measure = FontFileMeasure(),
-                                                                    operation_width = OPERATION_WIDTH)),
-        log = log, filter = _shows_in_overlay, fold_typing = true)
+# The session's gesture log in a pane below the file, with 30% of the height, and
+# the focus back on the file. The window records into that log from its start.
+function put_log_below_the_file!(document)
+    # The selection is a path through the tree, so it is set again after the split
+    # moves the group of the file one level down.
+    selected = try_evaluate_reference(document, get_selection(document), nothing)
+    tree = only(search_documents(document, node -> node isa PaneTree))
+    group = only(g for g in get_pane_groups(tree)
+                 if any(tab -> get_pane_tab_title_string(tab) == "people.json", g.tabs))
+    apply_pane_operation!(tree, make_pane_split_operation(tree, group; orientation = :horizontal,
+                                                          side = :below,
+                                                          tab = PaneTab("Gestures", get_session_gesture_log())))
+    split, _ = get_pane_parent(tree, group)
+    split.weights = [0.7, 0.3]
+    apply_pane_operation!(tree, make_pane_focus_operation(tree, group, 1))
+    selected === nothing ||
+        set_selection!(document, annotate_reference_types(document,
+                                    first(search_references(document, node -> node === selected))))
+    nothing
 end
 
 # An entry that prints what the window holds now and lets the take go on.
@@ -70,7 +76,7 @@ function say(label)
         window = only(search_documents(editor.document, node -> node isa UndoBuffer && node.content isa PaneTree))
         println(rpad(label, 24), "people ", [person["name"].value for person in people],
                 "; steps (window, file) ", (length(window.undo_entries), length(tab.content.content.undo_entries)))
-        LOG[] === nothing || for entry in LOG[].entries
+        for entry in get_session_gesture_log().entries
             println("    log: ", entry)
         end
         true
@@ -84,6 +90,7 @@ function make_timeline()
      _key(:return; hold = 1.0),
      (await = turn_finished(3), hold = 60.0),
      (await = say("after the turn"), hold = 1.5),
+     (event = MouseScroll(0, -10, FILE_DOWN...; time = time()), hold = 1.5),
      _click(FILE...; hold = 1.0),
      _key(:z; ctrl = true, hold = 1.5),
      (await = say("after Ctrl+Z in the file"), hold = 1.5)]
@@ -102,7 +109,7 @@ function main()
                                     width = 1280, height = 720, fps = 30,
                                     assistant = :ollama, llm = llm, root = directory,
                                     initial_hold = 1.0, final_hold = 1.0,
-                                    wrap_projection = _with_gesture_overlay)
+                                    prepare = put_log_below_the_file!)
     println("recorded: ", path)
 end
 

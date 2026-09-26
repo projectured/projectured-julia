@@ -121,8 +121,9 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
         command_palette &&
             (projection = CommandPaletteDecoratorProjection(inner = projection, measure = measure))
         # The recorder is outermost, where it sees every operation the window
-        # makes, and it is always there.
-        projection = GestureLogRecordingProjection(inner = projection, log = log)
+        # makes, and it is always there. A typed run is one entry: a person reads
+        # what was typed, not one line for each letter.
+        projection = GestureLogRecordingProjection(inner = projection, log = log, fold_typing = true)
         (document, projection)
     end
 end
