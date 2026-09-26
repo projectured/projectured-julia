@@ -20,10 +20,10 @@
 #
 # # The round trip
 #
-# `WidgetTree` keeps its expansion state as `collapsed`, a set of index paths, and
-# its chevron emits a `ReplaceReferencedValueOperation` writing a new set. That
+# `WidgetTree` keeps its open nodes as `expanded`, a set of index paths, and its
+# chevron emits a `ReplaceReferencedValueOperation` writing a new set. That
 # state is *derived* here, not owned: the printer collects the path of every node
-# standing on a marker, and the reader diffs the incoming set against it to find
+# whose children show, and the reader diffs the incoming set against it to find
 # the paths that toggled and RETURNS a `SetReflectedDisclosureOperation` naming
 # them; evaluating that is what writes the shadow. The widget's own copy is never
 # written to — the shadow is the only place expansion is recorded.
@@ -43,7 +43,8 @@ end
 ReflectionToWidget(; show_kind::Bool = true) = ReflectionToWidget(show_kind)
 
 # `tree` is a cell of the walk: `root`, the root row; `nodes`, tree path → the
-# ReflectedNode it came from; and `collapsed`, the paths standing on a marker.
+# ReflectedNode it came from; and `expanded`, the paths of the nodes whose
+# children show.
 @iomap struct ReflectionToWidgetIoMap
     projection::Any
     input::Any
@@ -56,31 +57,30 @@ end
 function print_document(p::ReflectionToWidget, recursion, node, ctx)
     tree = Cell(@computation begin
         nodes = Dict{Vector{Int}, Any}()
-        collapsed = Set{Vector{Int}}()
-        root = _tree_node(p, node, Int[1], nodes, collapsed)
-        (root = root, nodes = nodes, collapsed = collapsed)
+        expanded = Set{Vector{Int}}()
+        root = _tree_node(p, node, Int[1], nodes, expanded)
+        (root = root, nodes = nodes, expanded = expanded)
     end)
     # Positional, so every declared field is named here in order: position,
-    # roots, visible, margin, border, padding, style, hovered, collapsed,
+    # roots, visible, margin, border, padding, style, hovered, expanded,
     # gestures, tooltip.
     output = WidgetTree(Cell(Point2D(0, 0)), CellVector(@computation Any[tree[].root]),
                         Cell(true), Cell(nothing), Cell(nothing), Cell(nothing), Cell(nothing),
-                        Cell(nothing), Cell(@computation tree[].collapsed),
+                        Cell(nothing), Cell(@computation tree[].expanded),
                         Cell(GestureBinding[]), Cell(nothing))
     ReflectionToWidgetIoMap(p, node, output, tree)
 end
 
 print_document(p::ReflectionToWidget, node) = print_document(p, nothing, node, nothing)
 
-function _tree_node(p::ReflectionToWidget, node, path::Vector{Int}, nodes, collapsed)
+function _tree_node(p::ReflectionToWidget, node, path::Vector{Int}, nodes, expanded)
     nodes[copy(path)] = node
     kids = node.children
 
     if kids isa AUnsyncedDocument
-        push!(collapsed, copy(path))
-        # A chevron is drawn only for a node that has children, so a collapsed
-        # node needs one to stand on. It is never rendered — the path is in
-        # `collapsed` — so its only job is to say how much is behind the chevron.
+        # A chevron is drawn only for a node that has children, so a closed
+        # node needs one to stand on. It is never rendered — the path is not in
+        # `expanded` — so its only job is to say how much is behind the chevron.
         return WidgetTreeNode(_icon(node), _label(p, node),
                               Any[WidgetTreeNode("", _hidden_summary(kids))])
     end
@@ -93,9 +93,10 @@ function _tree_node(p::ReflectionToWidget, node, path::Vector{Int}, nodes, colla
         push!(path, i)
         push!(children, child isa AUnsyncedDocument ?
                         WidgetTreeNode("", _hidden_summary(child)) :
-                        _tree_node(p, child, path, nodes, collapsed))
+                        _tree_node(p, child, path, nodes, expanded))
         pop!(path)
     end
+    isempty(children) || push!(expanded, copy(path))
     WidgetTreeNode(_icon(node), _label(p, node), children)
 end
 
@@ -128,24 +129,24 @@ _text(x) = x === nothing ? "" : (x isa AbstractString ? String(x) : string(x))
 
 # ── read_intent ───────────────────────────────────────────────────────────────
 
-# The chevron writes a whole new `collapsed` set. Exactly one path differs from
+# The chevron writes a whole new `expanded` set. Exactly one path differs from
 # what the printer derived, and that path names the node the user acted on.
 function read_intent(p::ReflectionToWidget, iomap::ReflectionToWidgetIoMap,
                      op::ReplaceReferencedValueOperation)
-    (op.document === iomap.output && _field_name(op) == "collapsed") || return op
+    (op.document === iomap.output && _field_name(op) == "expanded") || return op
     next = op.value
     next isa AbstractSet || return op
 
     # PAR-READER-IS-PURE: collect what changed and RETURN the edit; the shadow is
     # written by evaluating SetReflectedDisclosureOperation, never here. The
-    # widget's own `collapsed` is still never written — the returned operation
+    # widget's own `expanded` is still never written — the returned operation
     # targets the shadow, so expansion stays recorded there.
     tree = iomap.tree
     changes = Pair{Any,Bool}[]
-    for path in symdiff(next, tree.collapsed)
+    for path in symdiff(next, tree.expanded)
         node = get(tree.nodes, path, nothing)
         node === nothing && continue
-        push!(changes, node => !(path in next))
+        push!(changes, node => (path in next))
     end
     isempty(changes) ? nothing : SetReflectedDisclosureOperation(changes)
 end
@@ -156,7 +157,7 @@ read_intent(::ReflectionToWidget, ::ReflectionToWidgetIoMap, ::ReplaceSelectionO
 read_intent(::ReflectionToWidget, ::ReflectionToWidgetIoMap, op) = op
 
 # The operation carries a `Reference`; the writes we care about are the
-# single-field form `tree.collapsed`.
+# single-field form `tree.expanded`.
 function _field_name(op::ReplaceReferencedValueOperation)
     r = op.reference
     r isa ConcreteReference || return ""

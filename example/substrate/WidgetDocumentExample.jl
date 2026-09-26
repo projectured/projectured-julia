@@ -77,7 +77,7 @@ function make_widget_document_example(; width=1024, height=768)
                     WidgetTreeNode(:file, "card.jl")]),
                 WidgetTreeNode(:file, "app.jl")]),
             WidgetTreeNode(:file, "README.md"),
-        ]),
+        ]; expanded = Set([[1], [1, 1]])),
         WidgetAccordion([
             ("Is it accessible?", "Yes. It adheres to the WAI-ARIA design pattern."),
             ("Is it styled?",     "Yes. It matches the theme."),
@@ -581,7 +581,7 @@ make_widget_tree_document_example() =
         ]),
         ("test", Any["runtests.jl"]),
         "README.md",
-    ]; position = Point2D(40, 40))
+    ]; position = Point2D(40, 40), expanded = Set([[1], [1, 1], [2]]))
 
 # Interaction state — each control shown enabled then disabled, stacked by a
 # VerticalLayout. The disabled variants render with the theme's muted tokens and

@@ -268,13 +268,21 @@ approval of the owner and an idle machine.
   `test/filesystem/document/FileSystemDocumentTest.jl` checks the reads, a
   folder without permission and a folder that is gone. `test_filesystem()`: 67
   pass (54 before, and 13 new).
-- [ ] **Step 2. Nodes are closed until they are opened (3.2).** `expanded`
+- [x] **Step 2. Nodes are closed until they are opened (3.2).** `expanded`
   replaces `collapsed` in `WidgetTree`, in its reader, in its printer and in
   each caller. Find out if a new path of the workspace folder prints a new
   `WidgetTree`. If it does not, set `expanded` back to `{[1]}` when the root
   changes. Test: the Explorer on the fixture shows the root row and its entries,
   and nothing below them. A click on a chevron opens the folder and closes it
   again.
+  *Done.* The keyword constructor of `WidgetTree` takes `expanded`. The
+  reader of `ReflectionToWidget` reads a write of `expanded`, and a toggled path
+  that is in the new set opens its node. The two trees of
+  `WidgetDocumentExample.jl` and the tree of `WidgetIconTest.jl` name the nodes
+  that they open, so they look as before. The file system, WidgetTree,
+  ReflectionToWidget, icon and gesture tests pass. *For the landing:*
+  omnet-julia `test/presentation/WatchExampleTest.jl` writes the tree's
+  `collapsed` and must write `expanded`.
 - [ ] **Step 3. The children are read only when they are needed (3.3).** Test:
   after a print of the Explorer on the fixture, only the listings of the root
   and of the folders under the root are read. An empty folder has no chevron.

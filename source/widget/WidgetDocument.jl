@@ -2402,12 +2402,13 @@ an expand chevron; an icon (when present) is drawn in its own column before the
 label; children are indented. (A widget-styled counterpart to the file-system /
 navigator trees.)
 
-`hovered` and `collapsed` are **transient UI state** (like [`WidgetButton`](@ref)'s
+`hovered` and `expanded` are **transient UI state** (like [`WidgetButton`](@ref)'s
 `hovered`): `hovered` holds the node-path reference of the row under the pointer
 (or `nothing`), written by the reader from `MouseEnter`/`MouseMove`/`MouseLeave`
-crossings; `collapsed` is the set of node paths (1-based index chains) whose
-children are currently hidden, toggled by clicking a parent's chevron. Neither is
-part of the tree's content.
+crossings; `expanded` is the set of node paths (1-based index chains) whose
+children show, toggled by clicking a parent's chevron. A node is closed until its
+path is in `expanded`, so the owner of a tree names the nodes it opens at the
+start. Neither is part of the tree's content.
 
 `margin`, `border` and `padding` are `nothing` or an `Inset`, each `nothing`
 taking the projection's default (transparent, zero width); `style` is `nothing`,
@@ -2422,16 +2423,16 @@ a `WidgetStyle`, or a `WidgetTreeStyle`, overriding one color of the projection.
     padding::Inset
     style::Any
     hovered::Union{Nothing, Reference}           # transient: node-path ref of the row under the pointer, or nothing
-    collapsed::Set{Vector{Int}}  # transient: node paths whose children are hidden
+    expanded::Set{Vector{Int}}   # transient: node paths whose children show
     gestures::Any                # per-instance tree-level gesture bindings
     tooltip::Any
 end
 WidgetTree(roots::Vector; position::Point2D=Point2D(0, 0), visible::Bool=true,
            margin=nothing, border=nothing, padding=nothing, style=nothing,
-           gestures=GestureBinding[], tooltip=nothing) =
+           expanded=Set{Vector{Int}}(), gestures=GestureBinding[], tooltip=nothing) =
     WidgetTree(Cell(position), CellVector(Cell[Cell(n) for n in roots]), Cell(visible),
                Cell(margin), Cell(border), Cell(padding), Cell(style),
-               Cell(nothing), Cell(Set{Vector{Int}}()), Cell(gestures), Cell(tooltip))
+               Cell(nothing), Cell(Set{Vector{Int}}(expanded)), Cell(gestures), Cell(tooltip))
 
 # Tree-level gestures (over the whole tree); per-node gestures live on each
 # `WidgetTreeNode`. See `get_instance_gesture_bindings` / `read_bound_gesture`.

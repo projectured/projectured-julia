@@ -26,4 +26,34 @@ function test_filesystem_to_widget()
     # The case of the extension does not matter.
     @test icon("NETWORK.NED") === :hexagon
 end
+
+# The tree opens its root and shows each entry under it closed. A click on the
+# chevron of a folder opens it, and a second click closes it.
+@testset "FileSystemToWidget opens the first level" begin
+    mktempdir() do dir
+        mkpath(joinpath(dir, "full", "inner"))
+        write(joinpath(dir, "full", "a.jl"), "")
+        write(joinpath(dir, "top.jl"), "")
+        pane = print_document(RecursiveProjection(FileSystemToWidget()), make_filesystem_pathname(dir)).output
+        tree = pane.content
+        @test tree.expanded == Set([[1]])
+        widgets = WidgetToGraphics(font_ubuntu_regular_20; measure = FixedMeasure(8, 12, 4, 0))
+        tree_projection = only(pr for (T, pr) in widgets.dispatch if T === WidgetTree)
+        iomap = print_document(tree_projection, tree)
+        @test [r.path for r in iomap.geometry.rows] == [[1], [1, 1], [1, 2]]
+
+        function click_chevron!(row)
+            press = MousePress(:left, (row.chevron_x0 + row.chevron_x1) ÷ 2, row.y0 + 2,
+                               ModifierKeys(); time = 0.0)
+            operation = read_intent(tree_projection, iomap, press)
+            operation isa ReplaceViewStateOperation && (operation = get_wrapped_operation(operation))
+            getfield(tree, :expanded)[] = operation.value
+        end
+        click_chevron!(iomap.geometry.rows[2])
+        @test [1, 1] in tree.expanded
+        @test [r.path for r in iomap.geometry.rows] == [[1], [1, 1], [1, 1, 1], [1, 1, 2], [1, 2]]
+        click_chevron!(iomap.geometry.rows[2])
+        @test [r.path for r in iomap.geometry.rows] == [[1], [1, 1], [1, 2]]
+    end
+end
 end

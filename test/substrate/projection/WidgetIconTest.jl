@@ -142,7 +142,7 @@ end
 @testset "a tree node draws its registered icon" begin
     tr = WidgetTree(Any[
         WidgetTreeNode(:folder, "src", Any[WidgetTreeNode(:file, "a.jl")]),
-    ])
+    ]; expanded = Set([[1]]))
     canvas = print_document(proj, tr).output
     glyphs = _glyphs_of(canvas)
     @test _glyph(:folder) in glyphs && _glyph(:file) in glyphs

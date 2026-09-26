@@ -30,7 +30,7 @@ end
 _readop(io, g) = (op = _readop_marked(io, g);
                   op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op)
 _fresh() = begin
-    w = WidgetTree(Any[("src", Any["a.jl", "b.jl"]), "README"])
+    w = WidgetTree(Any[("src", Any["a.jl", "b.jl"]), "README"]; expanded = Set([[1]]))
     (w, print_document(_treeproj, w))
 end
 # GraphicsRect overlays in the canvas (the hover + selection bands). Canvas
@@ -44,12 +44,19 @@ function _rects(io)
     out
 end
 
-@testset "flatten records rows, chevron box, and collapse flag" begin
+@testset "a node is closed until its path is in expanded" begin
+    w = WidgetTree(Any[("src", Any["a.jl", "b.jl"]), "README"])
+    geom = print_document(_treeproj, w).geometry
+    @test [r.path for r in geom.rows] == [[1], [2]]    # src and README, src closed
+    @test geom.rows[1].has_children && !geom.rows[1].expanded
+end
+
+@testset "flatten records rows, chevron box, and open flag" begin
     w, io = _fresh()
     geom = io.geometry
     @test length(geom.rows) == 4                       # src, a.jl, b.jl, README
     @test [r.path for r in geom.rows] == [[1], [1, 1], [1, 2], [2]]
-    @test geom.rows[1].has_children && !geom.rows[1].collapsed
+    @test geom.rows[1].has_children && geom.rows[1].expanded
     @test !geom.rows[4].has_children                   # README is a leaf
     @test geom.rows[1].chevron_x0 == 0 && geom.rows[1].chevron_x1 == 18
     @test geom.rows[2].chevron_x0 == 22                # indented one level
@@ -88,20 +95,20 @@ end
 @testset "clicking a chevron collapses/expands; clicking a label selects" begin
     w, io = _fresh()
     r1 = io.geometry.rows[1]
-    # Chevron click on the parent → collapse (children hidden, flag set).
+    # Chevron click on the open parent → close it (children hidden).
     op = _readop(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods; time = 0.0))
     @test op isa ReplaceReferencedValueOperation
     # A folded row is view state, so a history does not record the click.
     @test _readop_marked(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods; time = 0.0)) isa
           ReplaceViewStateOperation
-    getfield(w, :collapsed)[] = op.value
-    @test [1] in w.collapsed
+    getfield(w, :expanded)[] = op.value
+    @test !([1] in w.expanded)
     g = io.geometry
-    @test length(g.rows) == 2 && g.rows[1].collapsed
-    # Chevron click again → expand.
+    @test length(g.rows) == 2 && !g.rows[1].expanded
+    # Chevron click again → open.
     op = _readop(io, MousePress(:left, (r1.chevron_x0 + r1.chevron_x1) ÷ 2, r1.y0 + 2, _mods; time = 0.0))
-    getfield(w, :collapsed)[] = op.value
-    @test !([1] in w.collapsed)
+    getfield(w, :expanded)[] = op.value
+    @test [1] in w.expanded
     @test length(io.geometry.rows) == 4
 
     # A click on the label (past the chevron column) selects instead of toggling.

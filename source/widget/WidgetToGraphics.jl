@@ -8660,7 +8660,7 @@ end
 # down to this node (`[i]`, `[i, j]`, …); `y0`/`height` are its band in
 # outer-canvas coordinates. `depth`, `icon`, `label`, `has_children` carry
 # everything the element pass needs so it never re-walks the node tree.
-# `collapsed` (true only for a parent whose children are hidden) drives the
+# `expanded` (true only for a parent whose children show) drives the
 # chevron direction; `chevron_x0`/`chevron_x1` are its horizontal click hit-box,
 # so the reader can distinguish a chevron toggle from a row select.
 struct WTreeRow
@@ -8669,7 +8669,7 @@ struct WTreeRow
     icon::Any
     label::String
     has_children::Bool
-    collapsed::Bool
+    expanded::Bool
     chevron_x0::Int
     chevron_x1::Int
     y0::Int
@@ -8758,12 +8758,12 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
 
     # Flatten the node tree into rows once; both the geometry (hit-testing) and the
     # element pass (drawing) read these rows, so they can never drift apart. Reading
-    # `w.collapsed` here ties the flattened geometry to the collapse state, so a
+    # `w.expanded` here ties the flattened geometry to the open nodes, so a
     # chevron toggle re-runs the walk (hiding / revealing subtrees) reactively.
     # Rows stay content-local (starting at the origin); the content offset is
     # added where they are drawn and where a reader turns a position into a row.
     geometry = Cell(@computation begin
-        collapsed = w.collapsed
+        expanded = w.expanded
         rows = WTreeRow[]
         label_widths = Int[]
         y = Ref(0)
@@ -8772,13 +8772,13 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
             label = _tree_label(node)
             kids = _tree_children(node)
             has_kids = kids !== nothing && !isempty(kids)
-            is_collapsed = has_kids && (path in collapsed)
+            is_open = has_kids && (path in expanded)
             label_width, _ = _text_size(p.measure, label_style.font, label)
             push!(rows, WTreeRow(path, depth, _tree_icon(node), label,
-                                 has_kids, is_collapsed, x, x + chevron_column, y[], row_height))
+                                 has_kids, is_open, x, x + chevron_column, y[], row_height))
             push!(label_widths, label_width)
             y[] += row_height
-            if has_kids && !is_collapsed
+            if is_open
                 for (i, c) in enumerate(kids)
                     walk(c, depth + 1, vcat(path, i))
                 end
@@ -8856,7 +8856,7 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
             y0 = content_y + row.y0
             if row.has_children
                 _push_chevron!(result, x + chevron_column ÷ 2, y0 + row_height ÷ 2,
-                               chevron_size, row.collapsed ? :right : :down, chevron_color)
+                               chevron_size, row.expanded ? :down : :right, chevron_color)
             end
             icon = row.icon
             if icon isa Symbol
@@ -8974,7 +8974,7 @@ function _wtree_mouse_press(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGr
     for row in geom.rows
         if row.y0 <= y < row.y0 + row.height
             if row.has_children && row.chevron_x0 <= x < row.chevron_x1
-                return _wtree_toggle_collapse(iomap, row.path)
+                return _wtree_toggle_expanded(iomap, row.path)
             end
             return ReplaceSelectionOperation(_wtree_path_ref(row.path))
         end
@@ -8982,14 +8982,14 @@ function _wtree_mouse_press(p::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGr
     return nothing
 end
 
-# Toggle `path`'s membership in the tree's collapse set. Stores a *new* Set so the
-# backing cell invalidates and the geometry thunk re-flattens. A folded row is
-# view state, so a history does not record it.
-function _wtree_toggle_collapse(iomap::WidgetTreeToGraphicsCanvasIoMap, path::Vector{Int})
+# Toggle `path`'s membership in the tree's set of open nodes. Stores a *new* Set
+# so the backing cell invalidates and the geometry thunk re-flattens. An open or
+# a closed row is view state, so a history does not record it.
+function _wtree_toggle_expanded(iomap::WidgetTreeToGraphicsCanvasIoMap, path::Vector{Int})
     w = iomap.input
-    next = copy(w.collapsed)
+    next = copy(w.expanded)
     path in next ? delete!(next, path) : push!(next, path)
-    _write_view_state(w, "collapsed", next)
+    _write_view_state(w, "expanded", next)
 end
 
 # Set the hovered row to the one under (x, y), clamped from the margin, the

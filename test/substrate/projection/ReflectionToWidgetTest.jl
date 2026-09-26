@@ -3,7 +3,7 @@
 where a chevron drives the sync instead of merely hiding a row.
 
 The thing under test is the *round trip*, because that is where this design
-differs from an ordinary tree. `WidgetTree` owns a `collapsed` set; here that set
+differs from an ordinary tree. `WidgetTree` owns an `expanded` set; here that set
 is derived from the shadow on every print and never written back. A chevron click must therefore reach the shadow — setting a marker's `requested`
 so the next sync opens one more level — and must never edit the widget's own
 copy, or the widget and the shadow would hold two disagreeing versions of the
@@ -37,9 +37,9 @@ end
 
 # The operation a chevron click produces: the printed set with `path` toggled.
 function chevron(tree, path::Vector{Int})
-    next = copy(tree.collapsed)
+    next = copy(tree.expanded)
     path in next ? delete!(next, path) : push!(next, path)
-    ReplaceReferencedValueOperation(tree, "collapsed", next)
+    ReplaceReferencedValueOperation(tree, "expanded", next)
 end
 
 # Click a chevron the way the editor would: read the intent, then evaluate what
@@ -67,8 +67,9 @@ projection = ReflectionToWidget()
     @test "inner: TreeReflectInner" in labels
     @test "100 items not loaded" in labels           # ...a marker says what it hides
 
-    # The collapse set is derived from the shadow: exactly the nodes on markers.
-    @test tree.collapsed == Set([[1, 2], [1, 3]])
+    # The open set is derived from the shadow: exactly the nodes whose children
+    # show. The two nodes on markers are closed.
+    @test tree.expanded == Set([[1]])
 end
 
 @testset "a chevron reaches the shadow and is swallowed" begin
@@ -102,18 +103,18 @@ end
 @testset "the printed tree follows a sync" begin
     shadow = reflect_document(obj, policy)
     iomap = print_document(projection, nothing, shadow, nothing)
-    @test [1, 2] in iomap.output.collapsed
+    @test !([1, 2] in iomap.output.expanded)
 
     apply_chevron!(projection, iomap, [1, 2])
     sync_reflection!(shadow, obj, policy)
 
-    @test !([1, 2] in iomap.output.collapsed)
+    @test [1, 2] in iomap.output.expanded
     @test "a = 1" in tree_labels(iomap.output.roots[1])
     # The reader diffs against the tree as it is now, so the same chevron closes
     # the node it opened.
     @test apply_chevron!(projection, iomap, [1, 2]) isa SetReflectedDisclosureOperation
     @test shadow.children[2].children isa AUnsyncedDocument
-    @test [1, 2] in iomap.output.collapsed
+    @test !([1, 2] in iomap.output.expanded)
 end
 
 @testset "collapsing puts a marker back" begin
@@ -123,13 +124,13 @@ end
     sync_reflection!(shadow, obj, policy)
 
     iomap = print_document(projection, nothing, shadow, nothing)
-    @test !([1, 2] in iomap.output.collapsed)        # now expanded
+    @test [1, 2] in iomap.output.expanded            # now open
 
     apply_chevron!(projection, iomap, [1, 2])
     sync_reflection!(shadow, obj, policy)
     iomap = print_document(projection, nothing, shadow, nothing)
 
-    @test [1, 2] in iomap.output.collapsed
+    @test !([1, 2] in iomap.output.expanded)
     @test !("a = 1" in tree_labels(iomap.output.roots[1]))
     @test shadow.children[2].children isa AUnsyncedDocument
 end
