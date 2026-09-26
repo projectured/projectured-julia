@@ -3,7 +3,7 @@
 > **Status:** pending, not started. Written 2026-09-26. The owner asked for this
 > plan after the text layout examples showed the fault
 > ([text-layout-examples.md](../done/text-layout-examples.md), Step 2), and
-> answered the six questions of §5 on 2026-09-26. Question 7 is open.
+> answered the seven questions of §5 on 2026-09-26.
 
 An inline image (`TextGraphics`, a span of a `TextBlock`) has no width in the
 flat caret stream. So the caret after an image is the caret before it: a
@@ -156,9 +156,9 @@ a font where it meets an image today: the caret beside an image takes the font o
 the image span (TextToGraphics.jl:557), and `_element_font(::TextGraphics)`
 (:816) lets an image give the prevailing font of a block and the height of a line
 with no glyph. With the owner's statement, each of these takes the style of the
-nearest text run instead, by the rule of §3.4. Whether `TextGraphics` keeps its
-`font`, `font_color`, `fill_color`, `line_color` and `padding` fields is
-question 7.
+nearest text run instead, by the rule of §3.4. `TextGraphics` loses its `font`
+and `font_color` fields, and keeps `fill_color`, `line_color` and `padding`, which
+a box around a picture can use (question 7).
 
 ### 3.6 The string of a text
 
@@ -197,15 +197,9 @@ The owner answered questions 1 to 6 on 2026-09-26.
    Book and reStructuredText stop throwing and count the image as 1; an edit of
    the image through its syntax is deferred to a plan of each domain.
 6. **The paint of a selection.** *Decided:* fixed in this plan (Step 7).
-7. **The style fields of `TextGraphics`** (open). An image has no font and no
-   colour, but `TextGraphics` has `font`, `font_color`, `fill_color`, `line_color`
-   and `padding`, and every producer passes a font. Do the fields go, or does an
-   image keep only `fill_color`, `line_color` and `padding`, which a box around a
-   picture can use? My recommendation: remove `font` and `font_color`, keep the
-   three box fields, and make the readers of §3.5 take the style of the nearest
-   text run. It changes every producer of `TextGraphics`
-   (`BookToSyntax.jl:557, 568`, `MarkdownToSyntax.jl:446`, `RstToSyntax.jl:1145`
-   and the examples), so it is its own step.
+7. **The style fields of `TextGraphics`.** *Decided:* `font` and `font_color`
+   go; `fill_color`, `line_color` and `padding` stay; the readers of §3.5 take
+   the style of the nearest text run. The change is part of this plan (Step 5b).
 
 ## 6. Steps
 
@@ -243,12 +237,17 @@ Do the work in a git worktree, and commit each step.
   caret lands beside it. `_text_elem_path_to_flat` and `_flat_to_span_char` count
   an image as 1. Tests: a caret beside an image through each decorator, and a
   walk over a Markdown picture leaf with a real image file.
-- [ ] **Step 5b. The style beside an image** (§3.5). The caret beside an image,
-  the prevailing font of a block and the height of a line with no glyph take the
-  style of the nearest text run, by the rule of §3.4; with question 7, the fields
-  of `TextGraphics` that it decides go. Tests: the caret height beside an image
-  in a line of a small font, a line that holds only an image, and a new run typed
-  after an image at the end of a line.
+- [ ] **Step 5b. The style beside an image** (§3.5, question 7). The caret beside
+  an image, the prevailing font of a block and the height of a line with no
+  glyph take the style of the nearest text run, by the rule of §3.4.
+  `TextGraphics` loses `font` and `font_color`, and every producer stops passing
+  them: `BookToSyntax.jl:557, 568`, `MarkdownToSyntax.jl:446`,
+  `RstToSyntax.jl:1145`, the examples (`TextDocumentExample.jl:38, 40, 94`,
+  `TextLayoutDocumentExample.jl:30, 56`), the tests, and omnet-julia and
+  inet-julia if they make one. The walks that skip the style fields of a span
+  (`TypeinTest.jl:125-126`, `SelectionEnumeration.jl`) are read again. Tests: the
+  caret height beside an image in a line of a small font, a line that holds only
+  an image, and a new run typed after an image at the end of a line.
 - [ ] **Step 6. The string of a text** (§3.6). `TextToString` gives an image U+FFFC.
   Test: the string of `text_with_image` and its length against the total.
 - [ ] **Step 7. The paint of a selection** (§3.7, question 6). A caret-space range
