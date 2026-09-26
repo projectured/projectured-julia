@@ -4,7 +4,7 @@
 > document over several sessions. It records the concepts, what is wrong today,
 > the owner's decisions and the questions that are still open. The steps of the
 > refactor come after the open questions have answers. The owner's model of
-> three tracking projections (D8 to D22) came on the same day, after the first
+> three tracking projections (D8 to D28) came on the same day, after the first
 > round of decisions.
 
 The facts of the code are in the study
@@ -117,6 +117,25 @@ All of them are from 2026-09-26.
   tracker matches "no motion, then this event" as a dwell. The reader does not
   read a clock, so a replay gives the same answer. How a deadline is set is
   open (Q3).
+- **D23.** A reader receives both events and gestures.
+- **D24.** A reader sets a timer with an operation that it answers. The editor
+  holds the deadline, because the loop owns the wait and already computes it from
+  the clock and the feeds. The wrapper document of the tracker keeps only what
+  the check of its pattern needs: the time and the position of the last motion.
+  A new motion answers a new deadline, and a time event that comes after a newer
+  motion matches nothing, so no cancel is needed.
+- **D25.** The mouse dwell is a gesture of the gesture tracking projection.
+- **D26.** The drag tracking projection is inside the gesture tracking
+  projection. While a drag is on, it gets the click and drops it (D14).
+- **D27.** The state documents of D10 are the wrapper documents of the tracking
+  projections, as `DraggingState` wraps its content. The place of a wrapper
+  decides its scope: around the screen, one target serves every window and a
+  gesture can cross windows; around one window, neither holds. Claude proposes
+  that the default composition of D15 puts the wrappers around the screen, and
+  that the pointer position is the window id and the position in that window, as
+  the events hold it.
+- **D28.** At the end of a route, the last reader on the route reads the
+  gesture, and the rest of the route names the part.
 
 ## 3. What is wrong today
 
@@ -344,44 +363,39 @@ The direction that follows from the decisions so far:
 
 ## 5. Open questions
 
-- **Q1. The names.** The root type of a gesture; the names of the three tracking
-  projections and of their gestures. The naming law has a form for an event and
-  none for a gesture. Does it need one?
-- **Q2. What a reader receives.** Only gestures, or gestures and the events that
-  no tracking projection takes? A drag reads `MouseDown`, `MouseMove` and
-  `MouseUp` today; with D9 it reads the drag gestures. What about the other
-  events?
-- **Q3. How a deadline is set (D22).** Two ways:
-  - **A timer operation.** On a motion, the reader answers an operation that sets
-    the deadline, with a new time that replaces the one before. The editor
-    evaluates it and wakes at the deadline. No cancel is needed: when the time
-    event comes, the tracker checks its state, and a motion after the deadline
-    was set makes the event match nothing. This is Claude's recommendation. The
-    same operation serves a chord timeout, a long press and the auto-scroll of a
-    drag.
-  - **A minimum rate.** The loop reads a time event every N ms. The loop has no
-    such rate today (§3.3), so this adds a wake and a read through the chain
-    while nothing happens, a time event in a replay for each wake, and a delay of
-    up to N ms for a dwell.
+- **Q1. The gesture type and the names.** Claude's suggestion:
+  - `abstract type Gesture end`, beside `Event` and not under it. About 15 places
+    bind a value to `Event` and must take a gesture too: the pattern language,
+    `WindowInput`, the getters of the time and the modifiers, and the gesture
+    log. They take `Union{Event,Gesture}`. No third, common root type.
+  - Remove `DeviceEvent`: after D3 every event is a device event, and only one
+    docstring names the type.
+  - The gesture types stay in the event layer of the kernel, because readers in
+    about 20 packages match them. Only the recognition leaves the kernel (D8).
+  - A gesture has the name form of an event, `<Source><Action>`, and the type
+    tree tells the two apart. One line in the naming rules says so. New
+    gestures: `MouseHover`, `MouseDwell`, `DragStart`, `DragMove`, `DragHover`,
+    `DragEnd`. `MouseEnter`, `MouseLeave` and `KeyChord` stay. The timer:
+    `SetTimerOperation`, and the event `TimerExpire`. The projections:
+    `GestureTrackingProjection`, `MouseTargetTrackingProjection` and
+    `DragTrackingProjection`, with the wrapper documents `GestureTrackingState`,
+    `MouseTargetTrackingState` and `DragTrackingState`.
+  - As a separate choice: rename `MousePress` to `MouseClick`. D18 keeps
+    `KeyPress` as an event, so today "Press" names an event for a key and a
+    gesture for the mouse.
+- **Q10. Hover during a drag.** Does the target tracker still send an enter, a
+  leave and a hover while a drag is on? Claude recommends no: the drag gets the
+  moves, as with the pointer capture of Qt and of the DOM, and the drag hover
+  takes the place of the hover. Otherwise a splitter drag lights each button
+  that it passes. The order from the outside in is then: gesture, drag, target,
+  screen.
+- **Q11. Where the tracking projections live.** Their parts are in the widget,
+  tooltip and dragging packages today. Claude recommends one new package above
+  the kernel and the graphics package (the target tracker needs
+  `PointReferenceStep`), so that a host can use them with no widgets.
 
-  With a timer operation, who holds the deadline: the editor, or the state
-  document of the tracker, which the loop reads?
-- **Q4. Where the dwell is made.** D4 says that the dwell does not depend on the
-  view, so Claude reads it as a gesture of the gesture tracking projection.
-- **Q6. The order of the gesture tracker and the drag tracker.** The drag tracker
-  swallows the click (D14). It can be inside the gesture tracker, where it gets
-  the click and drops it, or outside, where it keeps the up of a drag from the
-  gesture tracker. (Q5 became D20. The target of the drag start became D21, and
-  a tracker that needs the part at a point uses D11, so no tracker needs another
-  for a target.)
-- **Q7. Where the state documents sit.** One target for the screen, or one for
-  each window; the pointer position, in which coordinates.
-- **Q8. A gesture across windows.** A drag can start in one window and end in
-  another. Which window owns the gesture?
-- **Q9. The end of a route.** The most specific part often has no reader of its
-  own: a row of a list is a string that the list draws. Claude reads D12 so: the
-  last reader on the route reads the gesture, with the rest of the route as the
-  part.
+Answered and moved to §2: Q2 (D23), Q3 (D24), Q4 (D25), Q5 (D20), Q6 (D26), Q7
+and Q8 (D27), Q9 (D28).
 
 ## 6. Next steps
 
