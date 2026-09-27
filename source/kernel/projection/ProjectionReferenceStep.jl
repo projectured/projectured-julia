@@ -76,6 +76,21 @@ is_introduced_reference(reference, projection) =
     is_introduced_reference(reference) && reference.head.projection === projection
 
 """
+    find_introduced_path(projection, reference) -> Union{Reference,Nothing}
+
+The path in the output of `projection` that `reference` names, when `reference`
+is an introduced reference of `projection`, and `nothing` for any other
+reference.
+
+A view that maps no part of its input into its output maps these references,
+and only these, forward. The default `map_reference_backward` names a part of
+the view's output by an introduced reference, so the part under a point can be
+named and a gesture can be routed to it, and no caret goes into the view.
+"""
+find_introduced_path(projection, reference) =
+    is_introduced_reference(reference, projection) ? reference.head.output_path : nothing
+
+"""
     normalize_named_node_reference(reference) -> Reference
 
 The reference of the document node this caret **names**.
