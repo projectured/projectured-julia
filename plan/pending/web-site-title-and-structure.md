@@ -785,17 +785,38 @@ the live site, so each push waits for the owner's word.
 
 ### Step 4: the picture of the three loops (version 5, §7.4b)
 
-- [ ] Put the generator of §7.4b into the site repository as
+- [x] Put the generator of §7.4b into the site repository as
       `tool/make-repl-loops.py`.
-- [ ] Add a phone layout to the generator: the three loops one above the
+- [x] Add a phone layout to the generator: the three loops one above the
       other, with vertical two-way arrows. CSS shows one of the two SVG
       elements.
-- [ ] Add the dashed arc "conversation" of §7.4c to both layouts.
-- [ ] Put both SVG elements and the caption of §7.4c in "The idea". The owner
+- [x] Add the dashed arc "conversation" of §7.4c to both layouts.
+- [x] Put both SVG elements and the caption of §7.4c in "The idea". The owner
       reads a render at desktop width and at phone width before the commit.
-- [ ] A still of the rotating vector in "The idea": the evaluator and the
+- [x] A still of the rotating vector in "The idea": the evaluator and the
       picture pane only (W14).
-- [ ] A credit line for the Lucide icons (ISC licence) in the footer.
+- [x] A credit line for the Lucide icons (ISC licence) in the footer.
+
+      **Done** as site commit `5b60017`. The generator of §7.4b became
+      `tool/make-repl-loops.py` of the site, with two changes:
+
+      - a tall layout for a phone: the three loops one above the other, the
+        two-way arrows vertical between them, and the conversation arc on the
+        right with its label turned along it. The text of the tall layout is
+        a little larger, because a phone scales it down more.
+      - an output mode for `index.html`: it puts both layouts between
+        `<!-- repl-loops:begin -->` and `<!-- repl-loops:end -->`, with a
+        comment that names the Lucide licences. CSS shows the tall layout
+        below 641 px.
+
+      The wide layout draws version 6: a pixel comparison found 91 pixels
+      that differ, all in the label "conversation", which moved by half a
+      pixel. Two of the icons (`monitor` and the terminal shape) come from
+      Feather under the MIT licence, so `assets/Lucide-ISC.txt` of the site
+      holds the whole licence file of the font, with both notices. The still
+      of the rotating vector is the frame at 95 s, cut to the evaluator and the
+      picture pane: it shows the forms from the ring on, and it is not the
+      poster frame.
 
 ### Step 5: the title T2
 
