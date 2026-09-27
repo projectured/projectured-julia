@@ -174,3 +174,79 @@ function make_lazy_bidirectional_document_example()
 
     head
 end
+
+# ── The primes around a number ──────────────────────────────────────────────
+
+# Whether `n` is prime, by trial division by 2 and by the odd numbers up to its
+# square root. It reads nothing but `n`, so a number near one trillion costs the
+# same whatever was computed before it.
+function is_prime_number(n::Integer)
+    n < 2 && return false
+    n < 4 && return true
+    iseven(n) && return false
+    divisor = 3
+    while divisor * divisor <= n
+        n % divisor == 0 && return false
+        divisor += 2
+    end
+    true
+end
+
+# The smallest prime greater than `n`.
+function compute_next_prime(n::Integer)
+    candidate = n + 1
+    while !is_prime_number(candidate)
+        candidate += 1
+    end
+    candidate
+end
+
+# The largest prime less than `n`, or `nothing` when there is none.
+function find_previous_prime(n::Integer)
+    candidate = n - 1
+    while candidate >= 2
+        is_prime_number(candidate) && return candidate
+        candidate -= 1
+    end
+    nothing
+end
+
+"""
+    make_primes_around(n) -> ListNode
+
+The primes around `n`, as a chain that reaches both ways. The node is the first
+prime that is not less than `n`, each `next` is the next prime, and each `prev` is
+the prime before it, down to 2. A link is computed when it is first read, and each
+prime is found by a test of that number alone, so the chain around one trillion
+costs only the links that a reader reads.
+
+# Example
+
+    around = make_primes_around(10^12)
+    around.value.value           # 1000000000039, the first prime after one trillion
+    around.prev.value.value      # 999999999989, the last one before it
+"""
+make_primes_around(n::Integer) =
+    _make_prime_node(is_prime_number(n) ? n : compute_next_prime(n), nothing, nothing)
+
+# The node of the prime `p`. A neighbour that is given is linked as a value; the
+# other link computes its neighbour when it is first read, and the neighbour links
+# back to this node, so a walk forward and back meets the same nodes.
+function _make_prime_node(p::Integer, before, after)
+    node = ListNode(PrimitiveNumber(p))
+    if after === nothing
+        set_cell_computation!(getfield(node, :next),
+                              () -> _make_prime_node(compute_next_prime(p), node, nothing))
+    else
+        set_cell_value!(getfield(node, :next), after)
+    end
+    if before === nothing
+        set_cell_computation!(getfield(node, :prev), () -> begin
+            q = find_previous_prime(p)
+            q === nothing ? nothing : _make_prime_node(q, nothing, node)
+        end)
+    else
+        set_cell_value!(getfield(node, :prev), before)
+    end
+    node
+end

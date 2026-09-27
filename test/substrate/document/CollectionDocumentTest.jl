@@ -122,6 +122,55 @@ first_5_from_100 = take_first(inf_ints_100, 5, :next)
 @test first_5_from_100[4].value == 103
 @test first_5_from_100[5].value == 104
 
+# ── The count of the links that exist ───────────────────────────────────────
+
+counted = lazy_integers_from(1)
+@test count_computed_nodes(counted) == 1
+@test counted[5].value == 5                       # reads four links
+@test count_computed_nodes(counted) == 5
+# The count computes nothing: the `next` of the fifth link is still not run.
+fifth = counted.next.next.next.next
+@test !is_cell_up_to_date(getfield(fifth, :next))
+@test count_computed_nodes(counted) == 5
+# A link that holds its neighbour as a value counts too, in either direction:
+# the fifth link counts itself and the one link back that it holds.
+fifth.prev = counted.next.next.next
+@test count_computed_nodes(fifth) == 2
+
+# ── The primes around a number, both ways ───────────────────────────────────
+
+# The primes that the tests expect, found by a test that shares no code with the
+# example: no divisor from 2 to the number less one.
+is_prime_by_all_divisors(n) = n >= 2 && all(d -> n % d != 0, 2:n-1)
+around = make_primes_around(1000)
+@test around.value.value == 1009
+@test count_computed_nodes(around) == 1
+@test around.next.value.value == 1013
+@test around.prev.value.value == 997
+# A link and the link back meet the same node.
+@test around.next.prev === around
+@test around.prev.next === around
+@test count_computed_nodes(around) == 3
+# Twenty links each way are the primes in order, and none is skipped.
+forward, back = around, around
+for _ in 1:20
+    @test all(n -> !is_prime_by_all_divisors(n), forward.value.value+1:forward.next.value.value-1)
+    @test all(n -> !is_prime_by_all_divisors(n), back.prev.value.value+1:back.value.value-1)
+    forward, back = forward.next, back.prev
+end
+@test all(is_prime_by_all_divisors, [n.value.value for n in (forward, back)])
+@test count_computed_nodes(around) == 41
+# The chain ends at 2, whose `prev` is `nothing`.
+low = make_primes_around(3)
+@test low.value.value == 3
+@test low.prev.value.value == 2
+@test low.prev.prev === nothing
+# A start far away costs the links that are read, and no prefix.
+far = make_primes_around(10^12)
+@test far.value.value == 1_000_000_000_039
+@test far.prev.value.value == 999_999_999_989
+@test count_computed_nodes(far) == 2
+
 # ── Bidirectional lazy list (simple test) ───────────────────────────────────
 
 # Note: Bidirectional lazy lists are not fully implemented/tested yet

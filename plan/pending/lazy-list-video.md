@@ -1,7 +1,7 @@
 # A count of what a lazy list computed, for the video S11
 
-**Status: pending, not started.** It waits for the owner to say that it is to be
-implemented. The screenplay is S11 in
+**Status: in progress, on the branch `s11-lazy-video`.** The owner said on
+2026-09-27: "yes, agreed, do it and take the video", and chose design 2a. The screenplay is S11 in
 [feature-video-screenplays.md](feature-video-screenplays.md), which the owner
 accepted on 2026-09-27.
 
@@ -68,7 +68,7 @@ make the laziness visible or easy to type:
    `make_lazy_list_card(list, title)` answers a `WidgetCard` whose title reads
    "<title>, computed: N" and whose content is a `WidgetScrollPane` of the list,
    drawn by the chain of `make_lazy_projection_example`.
-4. **`primes_around(n) -> ListNode`**, in `example/substrate/LazyDocumentExample.jl`.
+4. **`make_primes_around(n) -> ListNode`**, in `example/substrate/LazyDocumentExample.jl`.
    The node is the first prime that is not less than `n`. Each `next` is the next
    prime, and each `prev` is the prime before it, down to 2, whose `prev` is
    `nothing`. Each prime is found by a test of that number alone, trial division by
@@ -91,11 +91,20 @@ make the laziness visible or easy to type:
 
 ## Steps
 
-- [ ] 1. `count_computed_nodes`, with a test: a count before and after the first
-  node's `next` is read, and a count that does not change while nothing reads.
-- [ ] 2. The owner's choice for the label (design 2), then the label and the card.
-- [ ] 3. `primes_around`, with a test of the primes on both sides of one million
-  and of one trillion.
+- [x] 1. `count_computed_nodes`, with a test: a count before and after four links
+  are read, a `next` that the count leaves not run, and a link held as a value.
+- [x] 2. The owner chose design 2a, the label that reads the clock. The view is
+  `make_lazy_list_view(list, title; clock)`: a `GridLayout` of one column, as the
+  evaluator lays out its own rows, with the label in a `Content` row and the
+  `WidgetScrollPane` of the list in a `Fill` row, because a `WidgetCard` with no
+  height takes the height of its content and gives a scroll pane nothing to scroll
+  against. `show_lazy_list!(editor, list, title; below)` opens it to the right of
+  the evaluator, or under an earlier list, and gives the focus back to the
+  evaluator, which it finds again by its title because the split moves it.
+- [x] 3. `make_primes_around`, named with a verb as the naming rules ask, with a
+  test of twenty primes each way around 1000 against a test that shares no code,
+  the end at 2, and a start at one trillion that computes two links.
+  `test_collection()`: 155 pass.
 - [ ] 4. The sieve in the scope of the evaluator (design 5).
 - [ ] 5. The test of an infinite result (design 6), and a fix if it hangs.
 - [ ] 6. A rehearsal of S11 in a warm session, as for S7, and the take script

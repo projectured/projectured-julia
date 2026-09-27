@@ -467,7 +467,7 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
 | 2 | A form opens `primes` in a pane to the right of the evaluator. | A card with the title "Primes, computed: N" over a scroll pane of 2, 3, 5, …; N is about the number of rows that fill the pane. | Only what the pane shows is computed. |
 | 3 | Scroll down three screens, then back to the top. | N grows while the pane shows new rows, and stays the same on the way back. | The count follows the view, and a node is computed once. |
 | 4 | `sevens = lazy_filter(primes, p -> p.value % 10 == 7);`, and a form opens it under the first pane. Scroll it. | 7, 17, 37, 47, …; the counts of both cards grow. | A lazy list made from a lazy list pulls only what its view needs. |
-| 5 | `around = primes_around(10^12);`, and a form opens it. Scroll up, then down. | The first prime after one trillion, with the smaller primes above it and the larger ones below; its count stays small. | A far start costs only the rows on the screen, in both directions. |
+| 5 | `around = make_primes_around(10^12);`, and a form opens it. Scroll up, then down. | The first prime after one trillion, with the smaller primes above it and the larger ones below; its count stays small. | A far start costs only the rows on the screen, in both directions. |
 | 6 | Hold on the three cards. | | |
 
 - **Acceptance:**
