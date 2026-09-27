@@ -447,6 +447,27 @@ The direction that follows from the decisions so far:
   rendering is off, which is the default; so "a frame that differs" must come
   from the dirty walk, which then runs in both modes.
 
+- **Q17. The part at a point inside a view that maps nothing back (found in
+  step 4f).** A view prints a domain document as widgets, and its
+  `map_reference_backward` answers `nothing` on purpose, with comments such as
+  "no caret into a log (v1)". A point on a button of such a view stops there,
+  so the part under the pointer is the whole view. With the mouse target
+  tracker of step 7, an enter and a leave then reach the view and not the
+  button, so the button does not light. Today the hover tracker finds the
+  button by its position, so nothing shows the fault yet. Three ways:
+  - **Claude's recommendation: an introduced reference.** The view maps a
+    widget part back to `proj(view projection, ^(widget path))`, the kernel
+    default that the file explorer already uses. Forward, the view maps only
+    that form back to the widget path, and still maps nothing else, so no
+    caret goes into the view. It needs no new mechanism, only one small shared
+    function for the forward half, and two lines in each view.
+  - **A domain part.** The view maps a widget part to the domain part that it
+    shows (a log line, a module, a result row), and chrome to an introduced
+    reference. This is the most exact answer, but each of the 45 views needs
+    its own knowledge. It can come later, view by view, in a plan of its own.
+  - **No change.** The whole view is the part, and the buttons of a view do
+    not light on hover after step 7.
+
 The questions of keyboard navigation are in the plan of D33.
 
 Answered and moved to §2: Q2 (D23), Q3 (D24), Q4 (D25), Q5 (D20), Q6 (D26), Q7
@@ -723,6 +744,24 @@ it holds the example.
     word of a JSON tab to its text position. A JSON bracket maps to nothing: it
     is chrome, with no part in the domain. Test: `test_command_palette_decorator`
     66 pass.
+
+    A search for backward mappings that always answer `nothing` found 45 in
+    omnet-julia and 54 in projectured-julia. Most are correct: a leaf widget
+    maps nothing, and its container takes it as the part; a text-to-string
+    stage ends in no graphics. Two were gaps of the kind of 4b and 4c, and they
+    are fixed. The graph layout maps a point to the vertex whose box holds it,
+    with the hit test of a click (`_find_vertex_at`), and on into the content
+    of the vertex; a point in the box on no part of the content is the vertex.
+    The configuring projection maps a reference into its document side back
+    through the inner projection, and the control maps nothing. Tests:
+    `test_graph` 377 pass, `test_projection_configuring` 2 more pass.
+
+    Open (Q17): the views that print a domain document as widgets and map
+    nothing back, on purpose ("no caret into the view"). They are 45 views in
+    omnet-julia and about 8 in projectured-julia (`ObjectToWidget`, the floor
+    of every omnet-julia view kind, is one). Their readers pass an operation
+    back unchanged, so the mapping is not in their click path. But a point
+    stops at them, so the part under the pointer is the whole view.
 - [ ] 5. **The start over of Tab leaves the hover tracker (D2, §5 of the plan of
   D33).** A small wrapping step does only the start over at the ends, and the
   hover tracker loses its branch for Tab. Tests: the focus traversal tests; Tab
