@@ -1,6 +1,6 @@
 # A count of what a lazy list computed, for the video S11
 
-**Status: in progress, on the branch `s11-lazy-video`.** The owner said on
+**Status: done, landed on `main` at 96fe9e34 on 2026-09-27.** The owner said on
 2026-09-27: "yes, agreed, do it and take the video", and chose design 2a. The screenplay is S11 in
 [feature-video-screenplays.md](feature-video-screenplays.md), which the owner
 accepted on 2026-09-27.
@@ -130,8 +130,8 @@ make the laziness visible or easy to type:
   - The primes around one trillion are drawn from their first node, so the take
     scrolls up three steps, which shows the crossing of one trillion
     (999999999989, then 1000000000039), and then down.
-- [ ] 7. The take is done: 92.2 s, `build/video/s11/s11_lazy_primes.mp4` of the
-  worktree. The web page waits for the owner.
+- [x] 7. The take: 92.2 s, `build/video/s11/s11_lazy_primes.mp4` of the main
+  checkout. The web page shows it after the S7 article (`assets/videos/lazy-primes.mp4`).
 
 ## Open
 
