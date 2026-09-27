@@ -22,7 +22,7 @@ https://projectured.org/assets/videos/queue-study.mp4
 
 How it works, in short. The data is the source, and every view is computed from it. A projection turns the data into a view. It also turns your edits in the view back into typed operations on the data. Projections can be chained, for example JSON goes to syntax, then to text, then to graphics. Every field is a reactive cell. A computed value stays until something it depends on changes. What's not on the screen is not computed, and a view never shows stale data.
 
-The most important part for me is that you can add your own domain. A domain is a package with its document types, projections, operations and key bindings. Navigation, search, copy and paste, sorting, filtering, files, all the backends and the assistant work with it, with little or no extra code. The whole JSON domain is about 560 lines. The web page shows how it's built.
+The most important part for me is that you can add your own domain. A domain is a package with its document types, projections, operations and key bindings. Navigation, search, copy and paste, sorting, filtering, files, all the backends and the assistant work with it, with little or no extra code. The whole JSON domain is a few hundred lines. The web page shows how it's built.
 
 The assistant runs Julia code inside the editor, so it uses the same API as you do. It can search the API by name, by pattern or by meaning. It can also open tabs and arrange the window. You can undo its changes with Ctrl+Z, like your own. By default it uses a local model through Ollama, but it also works with Claude. Other AI tools can use the same tools through MCP. Note that it's not a sandbox, and the MCP server has no authentication. Please don't run it on a shared machine.
 
