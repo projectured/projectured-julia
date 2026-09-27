@@ -1,6 +1,6 @@
 # The web site: the title, and a page that a newcomer can follow
 
-**Status (2026-09-27): in progress; Steps 1 to 5 and 7 are landed and pushed.**
+**Status (2026-09-27): every step is implemented; site commits `e6a5eb2` and `fb97cda` wait for the owner to land them.**
 Every question has an answer (§4.1). The owner said to implement the plan in
 worktrees, and to wait with every part that needs the M/M/1/K video (S0), which
 is still being made. Only those parts of Step 6 remain. The work is on the
@@ -271,7 +271,24 @@ After the landing, the same day:
 
 | # | Decision |
 | --- | --- |
-| W17 | The web page does not list its limits. The status section keeps the notice, which links to the roadmap and the issues, and the licence as a sentence of its own. This replaces the part of Step 1 that made the list of the page agree with the README; the README keeps its list. Site commit `4f7b653`, on the branch `site-no-limits`. |
+| W17 | The web page does not list its limits. The status section keeps the notice, which links to the roadmap and the issues, and the licence as a sentence of its own. This replaces the part of Step 1 that made the list of the page agree with the README; the README keeps its list. Site commit `e6a5eb2` (`4f7b653` before a rebase), on the branch `site-no-limits`. |
+
+Later the same day, after another session put S0 into the hero:
+
+> the hero is in, the table is editable, you can rebase and continue
+>
+> the hero video doesn't have a text description what is it about, should be
+> added
+>
+> in the leading text "ProjecturEd is an application to view and edit
+> structured data: JSON, XML, Markdown, SQL, Julia code, math, charts and
+> more. " we should mention: your own data, with your own views, in combination
+> with everything else
+
+| # | Decision |
+| --- | --- |
+| W18 | Two paragraphs under the hero video say what it shows, what is scripted and what is not, that nothing is sped up, and that the tool for OMNeT++ in it is not in the public repository (D11 of the screenplay plan). |
+| W19 | The lede says that your own data comes in too, with views that you define, and that one document can combine it with every other kind of data. |
 
 ### 4.2 The review: what we do and what we do not do
 
@@ -868,10 +885,22 @@ the live site, so each push waits for the owner's word.
 
 ### Step 6: the videos (after S0 and S11 exist)
 
-- [ ] S0 in the hero, with a poster and a play control (W7). The poster is an
+- [x] S0 in the hero, with a poster and a play control (W7). The poster is an
       early frame (W13). The caption follows D11 of the screenplay plan. The
       assistant picture moves to the AI section.
-- [ ] A still of the last frame of S0 in "The idea" (W11, W13).
+
+      **Done by another session** as site commit `31c956f`, with two
+      differences from the plan. The poster is the last frame of the video,
+      not an early one. `assets/assistant.jpg` is deleted, not moved to the AI
+      section; the owner decides whether it comes back. The caption names
+      no private product. Site commit `fb97cda` adds the description of W18.
+- [x] A still of the last frame of S0 in "The idea" (W11, W13).
+
+      **Done** as site commit `fb97cda`, with the frame at 5:38 instead of
+      the last one: the poster of the hero is the last frame, and W13 was
+      there so that the page does not show one picture twice. The frame shows
+      the plot of the queue length, the check that holds, and the code that
+      made them. The same commit adds W18 and W19.
 - [x] S11 in the Videos section. The card about incremental update links to it.
       S11 came from another session (site commit `839316e`); the link is in `a7622ef`.
 
