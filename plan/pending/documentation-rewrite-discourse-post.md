@@ -1,4 +1,4 @@
-Title: ProjecturEd: view and edit structured data as data, not as text, with an AI assistant
+Title: ProjecturEd: one structure, many editable views — with an AI assistant
 
 Category: Tooling
 Tags: gui, llm, mcp, ai
@@ -7,7 +7,7 @@ Paste everything below the line. Each paragraph is one line, because Discourse t
 
 ---
 
-ProjecturEd is an application to view, edit and transform structured data, with an AI assistant built in. It's written in Julia, so it's also a generic user interface for your own Julia programs. It isn't finished, but most of it works, and I think it's far enough along to show and to get some feedback.
+ProjecturEd is an application to view and edit structured data, with an AI assistant built in: one structure, many editable views. It's written in Julia, so it's also a generic user interface for your own Julia programs. It isn't finished, but most of it works, and I think it's far enough along to show and to get some feedback.
 
 Some background on why. Structured data almost always ends up as text. You print it, or you write it to a file and edit the characters, or you write a GUI for that one type and then maintain it. An LLM has the same limit: it writes characters, and you find out afterwards whether the result parses. I wanted the data itself to be the thing you look at and change, with the keyboard or through a model, and I wanted a view to be cheap enough that any value can have one.
 

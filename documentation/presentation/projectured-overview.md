@@ -1,7 +1,7 @@
 ---
 marp: true
 title: ProjecturEd
-description: An application to view, edit and transform structured data with an AI assistant, and a generic user interface for Julia programs.
+description: One structure, many editable views — with an AI assistant. An application to view and edit structured data, and a generic user interface for Julia programs.
 author: ProjecturEd
 paginate: true
 theme: uncover
@@ -90,8 +90,10 @@ style: |
 
 # ProjecturEd
 
-An application to view, edit and transform structured data
-with an AI assistant, and a generic user interface for any Julia program.
+One structure, many editable views — with an AI assistant.
+
+An application to view and edit structured data,
+and a generic user interface for any Julia program.
 
 <br>
 

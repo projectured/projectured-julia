@@ -1,10 +1,10 @@
 # ProjecturEd
 
-ProjecturEd: an application to view, edit and transform structured data with an AI assistant, and a generic user interface for any Julia program.
+ProjecturEd: one structure, many editable views — with an AI assistant. It is an application to view and edit structured data, and a generic user interface for any Julia program.
 
 > **Status: under development.** Most features work, but ProjecturEd is not a finished product. Some parts are incomplete, and names and interfaces can still change. The [roadmap](documentation/requirement/delivery-roadmap.md) lists what works today and what comes next. Problem reports and questions are welcome as GitHub issues.
 
-ProjecturEd is an application to view, edit and transform structured data, with an AI assistant. It works with about twenty kinds of data, among them JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia code, math formulas, charts, graphs and state machines. It shows them in one window, in tabs and split panes, and one document can mix kinds: JSON inside XML inside prose. ProjecturEd is written in Julia. So it is also a generic user interface for your own Julia programs: it shows your documents, and the values of a running program, in the same way.
+ProjecturEd is an application to view and edit structured data, with an AI assistant. It works with about twenty kinds of data, among them JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia code, math formulas, charts, graphs and state machines. It shows them in one window, in tabs and split panes, and one document can mix kinds: JSON inside XML inside prose. ProjecturEd is written in Julia. So it is also a generic user interface for your own Julia programs: it shows your documents, and the values of a running program, in the same way.
 
 A view can be a tree, a statement with syntax colours, a chart, a diagram, a form or a table. When the data changes, its views change with it. Most views are also editors: an edit in a view changes the data itself, not a text copy of it. You can design your own user interface from views and widgets. For data that has no view yet, you get one on demand: a generic view that ProjecturEd makes by reflection over the value, or a view that the assistant opens for you.
 

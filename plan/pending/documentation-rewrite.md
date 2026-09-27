@@ -89,6 +89,14 @@ Points that the owner set during the drafts:
 > ProjecturEd: an application to view, edit and transform structured data with
 > an AI assistant, and a generic user interface for any Julia program.
 
+**Replaced on 2026-09-27.** The owner chose a new title for the web site,
+"One structure, many editable views — with an AI assistant", and said that it
+also replaces this tagline in the README, the deck and the posts
+([web-site-title-and-structure.md](web-site-title-and-structure.md), W6 and
+W10). The README now opens with that title, and the introduction below no
+longer says "transform". The texts here stay as the record of the approval of
+2026-09-17.
+
 **Short tagline** (approved with the tagline). The GitHub description:
 
 > An application to view and edit structured data with an AI assistant, and a
@@ -1430,8 +1438,8 @@ posted.
 
 ### 9.1 r/Julia
 
-> **Title:** ProjecturEd: an application to view, edit and transform structured
-> data with an AI assistant, and a generic user interface for any Julia program
+> **Title:** ProjecturEd: one structure, many editable views — with an AI
+> assistant
 >
 > I have been building ProjecturEd for a while, and it is now far enough to
 > show.
@@ -1487,14 +1495,14 @@ posted.
 
 ### 9.2 Julia Discourse
 
-> **Title:** ProjecturEd — structured data, editable views, and an AI assistant
-> in one window
+> **Title:** ProjecturEd — one structure, many editable views, with an AI
+> assistant
 >
 > **Category:** Community → Show and tell
 >
-> ProjecturEd is an application to view, edit and transform structured data
-> with an AI assistant. It is written in Julia, and it is also a generic user
-> interface for a Julia program.
+> ProjecturEd is an application to view and edit structured data with an AI
+> assistant: one structure, many editable views. It is written in Julia, and it
+> is also a generic user interface for a Julia program.
 >
 > **The idea.** The data is the source, and every view is computed from it. A
 > projection is a pair of functions: a printer that makes the view, and a
