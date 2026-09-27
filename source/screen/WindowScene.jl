@@ -97,7 +97,8 @@ function make_window_scene_projection(projection;
 end
 
 """
-    make_tracking_screen(document, projection; gesture_tracking = true)
+    make_tracking_screen(document, projection; gesture_tracking = true,
+                         recognitions = make_standard_recognitions())
         -> (document, projection)
 
 Put the tracking projections around a screen: `document` is the screen, and
@@ -106,17 +107,21 @@ Put the tracking projections around a screen: `document` is the screen, and
 the pair, and its state document around the screen, so one tracker serves every
 window:
 
-- `gesture_tracking` — the gesture tracking projection, which recognizes the
-  click with its count, the key chord and the mouse dwell. An editor with no
-  gesture tracker gets the events of its devices and no gesture.
+- `gesture_tracking` — the gesture tracking projection, which runs
+  `recognitions`: by default the click with its count, the key chord and the
+  mouse dwell. A host adds the recognition of a gesture of its own to the list.
+  An editor with no gesture tracker gets the events of its devices and no
+  gesture.
 
 Use it wherever a host makes an editor over a screen. The document of the editor
 is then the outermost state document; `get_wrapped_document` of it answers the
 screen.
 """
-function make_tracking_screen(document, projection; gesture_tracking::Bool = true)
+function make_tracking_screen(document, projection; gesture_tracking::Bool = true,
+                              recognitions::Vector = make_standard_recognitions())
     gesture_tracking || return (document, projection)
-    (make_gesture_tracking_document(document), make_gesture_tracking_projection(projection))
+    (make_gesture_tracking_document(document),
+     make_gesture_tracking_projection(projection; recognitions))
 end
 
 """

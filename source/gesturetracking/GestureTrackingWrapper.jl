@@ -18,10 +18,11 @@ function make_gesture_tracking_document(document)
 end
 
 """
-    make_gesture_tracking_projection(projection; keywords...) -> GestureTrackingProjection
+    make_gesture_tracking_projection(projection; recognitions = make_standard_recognitions())
+        -> GestureTrackingProjection
 
 The projection half of the same wrapper: `projection` shows the content, and the
-keywords go to [`GestureTrackingProjection`](@ref).
+projection runs `recognitions`, in their order.
 """
 make_gesture_tracking_projection(projection; keywords...) =
     GestureTrackingProjection(; inner = projection, keywords...)

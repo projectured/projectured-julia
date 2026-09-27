@@ -220,9 +220,10 @@ because a timer belongs to no window. Otherwise `read_from_devices(backend,
 devices)` polls the backend's event queue (in the SDL case, `SDL_PollEvent`)
 for a `WindowInput` wrapping a backend-agnostic event: `KeyDown`, `KeyUp`,
 `KeyPress`, `MouseDown`, `MouseUp`, `MouseMove`, `MouseScroll`, `WindowQuit`,
-or `WindowClose`. The editor recognizes no gesture: a projection does, such as
-the gesture tracking projection that the screen package puts around the
-screen; see [gesturetracking.md](../gesturetracking/gesturetracking.md).
+or `WindowClose`. The editor recognizes no gesture: a projection runs the
+recognitions of the gesture layer, such as the gesture tracking projection
+that the screen package puts around the screen; see
+[gesturetracking.md](../gesturetracking/gesturetracking.md).
 
 The window input is wrapped in an `Intent` and passed through
 `read_intent(editor.projection, nothing, Intent(window_input, nothing), editor.iomap)`
@@ -544,7 +545,7 @@ ticked once per frame with `set_clock_time!(editor.clock, Base.time() - t_start)
 - `..BackendModule` — `Backend`, `initialize_backend!`, `quit_backend!`,
   `read_from_devices`, `write_to_devices`.
 - `..EventModule` — `WindowInput`, `WindowQuit`, and the event type
-  predicates (`KeyDown`, `MouseClick`, …).
+  predicates (`KeyDown`, `MouseDown`, …).
 - `..PerformanceModule` — the counters bumped inline in the loop.
 - `..ClockModule` — `Clock`, `set_clock_time!`, `get_reactive_clock_time`.
 - `..DocumentModule` — the abstract `Document` type.

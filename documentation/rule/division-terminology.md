@@ -20,8 +20,8 @@ and no synonyms.
 - **Layer** — a horizontal stratum inside a package, and it holds exactly one
   module. Layers are **ordered**: a layer may depend only on **lower** layers,
   never sideways or up. The kernel is the one layered package, with
-  twenty-two layers (`fault` → `performance` → `cell` → `struct` → `clock` →
-  `event` → `device` → `backend` → `document` → `reference` →
+  twenty-three layers (`fault` → `performance` → `cell` → `struct` → `clock` →
+  `event` → `device` → `gesture` → `backend` → `document` → `reference` →
   `selection` → `operation` → `intent` → `binding` → `iomap` → `projection` →
   `tool` → `llm` → `agent` → `feed` → `editor` → `playback`). Every other
   package is one concept and declares no layer.

@@ -350,12 +350,13 @@ is the contract that keeps backends interchangeable.
 # Internals
 
 The remainder of this guide documents the kernel-internal module structure
-behind the two abstractions: **devices** — the input event vocabulary and the
-device types, spread across two layers (`event/`, `device/`) — and the
-**backend layer**. They are independent siblings: the event/device layers
-name no backend type, and the two abstractions only come together in a
-concrete implementation. Gesture recognition — a click, a double click, a key
-chord, a dwell — is not a kernel layer; see
+behind the three abstractions: **devices** — the input event vocabulary, the
+device types, and the gesture vocabulary, spread across three layers
+(`event/`, `device/`, `gesture/`) — and the **backend layer**. They are
+independent siblings: the event/device/gesture layers name no backend type,
+and the two abstractions only come together in a concrete implementation.
+Gesture recognition — a click, a double click, a key chord, a dwell — is the
+gesture layer (`gesture/`); see
 [Where gestures are recognized](#where-gestures-are-recognized) below. Gesture
 *bindings*, where a gesture acquires meaning against a document, are a
 separate, much higher layer (`binding/`); see
@@ -363,73 +364,58 @@ separate, much higher layer (`binding/`); see
 
 ## The event layer (layer 6)
 
-Layer 6 of the kernel — **input events and the pattern language**. The layer
-depends on nothing: an event is data, and carries no reference to the device
-that produced it, nor to the document it will end up changing.
+Layer 6 of the kernel — **input events**. The layer depends on nothing: an
+event is data, and carries no reference to the device that produced it, nor to
+the document it will end up changing. The layer names no gesture: the gesture
+layer above finds the gestures that several events make, and holds the
+pattern language that matches both.
 
 The layer lives in [source/kernel/event/](../../../source/kernel/event/):
 
 ```
-EventModule.jl   (EventModule)        — the input event vocabulary, seven fragments:
-        ├─ EventInterface.jl  — the Event and Gesture types and the
-        │                       get_modifier_keys generic that both answer
+EventModule.jl   (EventModule)        — the input event vocabulary, nine fragments:
+        ├─ EventInterface.jl  — the Event type and the get_modifier_keys /
+        │                       get_event_time generics that every input answers
         ├─ ModifierKeys.jl       — the Ctrl/Shift/Alt/Meta struct
-        ├─ KeyboardEvent.jl   — the events KeyDown, KeyUp, KeyPress; the gesture KeyChord
-        ├─ MouseEvent.jl      — the events MouseDown, MouseUp, MouseMove, MouseScroll;
-        │                       the gestures MouseClick, MouseEnter, MouseLeave
+        ├─ KeyboardEvent.jl   — the events KeyDown, KeyUp, KeyPress
+        ├─ MouseEvent.jl      — MouseButtons, and the events MouseDown, MouseUp,
+        │                       MouseMove, MouseScroll
         ├─ WindowEvent.jl     — WindowQuit, WindowClose, WindowResize, WindowDefocus,
         │                       WindowLeave
         ├─ TimerEvent.jl      — TimerExpire, the event of a timer that a reader set
         ├─ DisplayEvent.jl    — DisplayUpdate, a display shows a new frame of a window
         ├─ WindowInput.jl   — an event or a gesture plus the id of the window it came from
-        └─ EventDefaults.jl   — the get_modifier_keys fallback and the four
-                                has_*_modifier_key predicates derived over it
-EventModule.jl  (EventModule) — the event pattern language: the reified
-                                        GesturePattern, matches/describe, the
-                                        @gesture_case macro, and the parser API
-                                        @gestures is built on
+        └─ EventDefaults.jl   — the get_modifier_keys / get_event_time fallback and
+                                the four has_*_modifier_key predicates derived over it
 ```
 
 ### EventModule
 
 An `Event` is a record of what a device reports — `KeyDown`, `MouseDown`,
-`WindowClose`, … A `Gesture` is a pattern that code finds in several events, and
-the code that holds the state across them makes it — `MouseClick` from a down/up
-pair, `KeyChord` from a key sequence, `MouseEnter`/`MouseLeave` from motion across
-a boundary. A gesture is not an event: the two are separate type trees, and a place
-that takes either takes `Union{Event,Gesture}`. `get_modifier_keys` (and
-`has_ctrl_modifier_key`/`has_shift_modifier_key`/`has_alt_modifier_key`/`has_meta_modifier_key` on top of it) is defined once over
-that union, so it works for every event and every gesture.
+`WindowClose`, … An event is plain data: its fields hold symbols, numbers,
+characters, modifier keys and the time of the input, and it holds no
+reference to the source that made it, or to the document it will end up
+changing. `get_modifier_keys` and `get_event_time` (and
+`has_ctrl_modifier_key`/`has_shift_modifier_key`/`has_alt_modifier_key`/`has_meta_modifier_key`
+on top of `get_modifier_keys`) are defined over `Event`, and the gesture layer
+gives them methods for `Gesture` too, so a caller that holds either kind reads
+them the same way.
 `WindowClose`, `WindowResize`, and `WindowDefocus` live here, not with the
 concrete `ScreenDocument` in `visual` — a window event is report-only input
 vocabulary, not a document type; the window *document* and its operations
 (`OpenWindowOperation`, `CloseWindowOperation`, …) stay in `source/screen/`.
 
-### EventModule
-
-One surface syntax for saying "this kind of event, with these field values
-and these modifiers held", ridden by two consumers: an
-[`GesturePattern`](../../../source/kernel/event/EventModule.jl) is
-*data* answering `matches(pattern, event)` and `describe(pattern)` — the
-per-event constructors (`KeyDownPattern`, `MouseClickPattern`, …) name the
-type and its most-constrained field, all producing the one generic
-`GesturePattern{E<:Event}` struct; [`@gesture_case`](../../../source/kernel/event/EventModule.jl)
-compiles a table of `pattern => result` rules straight to `isa`/field tests,
-first match wins. Both ride on one parser — exported as a macro-authoring API
-(`parse_event_rule`, `event_pattern_expr`, `event_field_bindings`) — so the
-`@gestures` DSL in the binding layer reuses the surface syntax instead of
-reimplementing it. The field table each pattern may bind is *derived* from
-`EventModule`'s own exports, so a new event type is matchable the moment it
-is exported, with no entry to add here.
-
 ### WindowInput
 
-`WindowInput` wraps every event with the id of the window it came from. It
-lives in `EventModule`, not in the concrete `ScreenModule` document,
-because it is a protocol type consumed by the editor loop, a gesture
-tracking projection, and the window-input-unwrapping projection — a plain struct
-declaration for a protocol type does not belong inside a concrete
-document; keeping it here means the kernel has no edge onto `ScreenDocument`.
+`WindowInput{E}` wraps an input with the id of the window it came from. An
+event source makes one with an event; the recognition of gestures makes one
+with a gesture; the field is named `event` for both kinds, and the type is
+generic over it, so this layer names no gesture. It lives in `EventModule`,
+not in the concrete `ScreenModule` document, because it is a protocol type
+consumed by the editor loop, the recognitions of the gesture layer, and the
+window-input-unwrapping projection — a plain struct declaration for a
+protocol type does not belong inside a concrete document; keeping it here
+means the kernel has no edge onto `ScreenDocument`.
 
 (This is the canonical statement of the `WindowInput`-placement rationale;
 other package docs defer here rather than repeat it.)
@@ -454,29 +440,79 @@ DeviceModule.jl (DeviceModule) — the module: its docstring, exports, and fragm
 ```
 
 The devices carry their physical properties but no behaviour. The batch I/O
-that drives them — `read_from_devices` / `write_to_devices` — is declared one
-layer up in the backend interface (see [Backends](#backends)) and dispatched on
+that drives them — `read_from_devices` / `write_to_devices` — is declared
+higher, in the backend interface (see [Backends](#backends)), and dispatched on
 the concrete backend, which also fills in the physical properties at start-up
 via `configure_devices!`. That keeps the device and backend abstractions
 independent siblings, bound only by a concrete implementation.
 
 ## Where gestures are recognized
 
-The kernel has no gesture layer. `read!` gives the projection each input of the
-backend, a `WindowInput` with an event and a window id, or a due timer, a
-`TimerExpire`. The editor recognizes no gesture.
+Layer 8 of the kernel, `gesture/`, holds **the gestures, the pattern language
+and the recognitions**. A gesture is a pattern that several events make — a
+click with its count, a key chord, a mouse dwell — and the code that holds the
+state across the events makes it. A gesture is not an event: the two are
+separate type trees, and a place that takes either takes `Union{Event,Gesture}`.
 
-A projection recognizes a gesture that several events make: a click with its
-count, a key chord, a mouse dwell. It is `GestureTrackingProjection` in the
-substrate package `ProjecturedGestureTracking`, and a host wraps the document of
-the editor in its `GestureTrackingState`. An editor whose projection has no
-gesture tracker gets events and no gestures. See
-[gesturetracking.md](../gesturetracking/gesturetracking.md). The meaning of a
-gesture is decided where it is bound, in the `binding/` layer.
+The layer lives in [source/kernel/gesture/](../../../source/kernel/gesture/):
 
-## The backend layer (layer 8)
+```
+GestureModule.jl        (GestureModule) — the aggregator, eight fragments:
+        ├─ GestureInterface.jl   — Gesture, and the methods of get_modifier_keys
+        │                          and get_event_time for a gesture
+        ├─ MouseGesture.jl       — MouseClick, MouseEnter, MouseLeave, MouseDwell
+        ├─ KeyboardGesture.jl    — KeyChord
+        ├─ GesturePattern.jl     — the pattern language: GesturePattern, the
+        │                          parser, and @gesture_case
+        ├─ GestureRecognition.jl — GestureRecognition, make_recognition_state,
+        │                          recognize, RecognitionStep, make_standard_recognitions
+        ├─ ClickRecognition.jl   — ClickRecognition
+        ├─ ChordRecognition.jl   — ChordRecognition
+        └─ DwellRecognition.jl   — DwellRecognition
+```
 
-Layer 8 of the kernel — **rendering targets**. The layer carries the abstract
+**The pattern language.** One surface syntax for saying "this kind of event or
+gesture, with these field values and these modifiers held", ridden by two
+consumers: a [`GesturePattern`](../../../source/kernel/gesture/GesturePattern.jl)
+is *data* answering `matches_gesture_pattern(pattern, input)` and
+`describe_gesture_pattern(pattern)` — the per-kind constructors
+(`KeyDownPattern`, `MouseClickPattern`, …) name the type and its
+most-constrained field, all producing the one generic
+`GesturePattern{E<:Union{Event,Gesture}}` struct;
+[`@gesture_case`](../../../source/kernel/gesture/GesturePattern.jl) compiles a
+table of `pattern => result` rules straight to `isa`/field tests, first match
+wins. Both ride on one parser — exported as a macro-authoring API
+(`GesturePatternRule`, `parse_gesture_pattern_rule`, `build_gesture_pattern_expr`,
+`build_gesture_field_bindings`) — so the `@gestures` DSL in the binding layer
+reuses the surface syntax instead of reimplementing it. The field table each
+pattern may bind is *derived* from the exports of `EventModule` and
+`GestureModule`, so a new event or gesture type is matchable the moment it is
+exported, with no entry to add here.
+
+**The recognitions.** A `GestureRecognition` is a pure rule:
+`make_recognition_state(recognition)` gives its first, immutable state, and
+`recognize(recognition, state, input, window)` reads one input — an event or a
+gesture, with the id of the window it came from — and answers a
+`RecognitionStep`: the next state, the inputs that follow (the gesture the
+input completes, or inputs it kept and gives back), a deadline or `nothing`,
+and whether it holds the input from the recognitions after it.
+`make_standard_recognitions()` lists the three standard recognitions in order:
+`ChordRecognition`, `ClickRecognition`, `DwellRecognition`. A package adds a
+gesture with a gesture type and a recognition; see
+[gesturetracking.md](../gesturetracking/gesturetracking.md) for the full
+protocol.
+
+`read!` gives the projection each input of the backend: a `WindowInput` with
+an event or a gesture and a window id, or a due timer, a `TimerExpire`. The
+editor recognizes no gesture. `GestureTrackingProjection`, in the substrate
+package `ProjecturedGestureTracking`, runs the recognitions over the inputs,
+and a host wraps the document of the editor in its `GestureTrackingState`. An
+editor whose projection has no gesture tracker gets events and no gestures.
+The meaning of a gesture is decided where it is bound, in the `binding/` layer.
+
+## The backend layer (layer 9)
+
+Layer 9 of the kernel — **rendering targets**. The layer carries the abstract
 `Backend` type and the backend generics; the concrete backends live in opt-in
 packages, and the dependency-free `HeadlessBackend` test double lives in
 `ProjecturedKernelExample` (PAR-NO-TEST-DOUBLES-IN-MAIN keeps doubles out of `main`).
@@ -538,9 +574,9 @@ agent, or editor.
 Recognising a gesture and giving it *meaning* are different heights: a
 gesture is a combination of events and carries no intent, but deciding what a
 `MouseClick` does to a `JsonArray` needs `Document` and `Operation`. That
-pulls gesture bindings up to layer 14 — `binding/` — above `document/`,
+pulls gesture bindings up to layer 15 — `binding/` — above `document/`,
 `reference/`, `selection/`, and `operation/`, rather than beside the
-event/device layers above.
+event/device/gesture layers below.
 
 The layer lives in [source/kernel/binding/](../../../source/kernel/binding/):
 
@@ -623,6 +659,6 @@ The command palette in the domain package lists these by name; see
 
 ### Downward edges
 
-- `..EventModule`, `..EventModule` — the pattern a binding matches on.
+- `..EventModule`, `..GestureModule` — the pattern a binding matches on.
 - `..DocumentModule: Document` — the catch-all `read_gesture(::Document, …)`
   method.

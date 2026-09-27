@@ -1,15 +1,16 @@
 """
     GestureTrackingModule
 
-The gesture tracking projection: it reads the events of the devices and gives
-the content the gestures that the events make, a click with its count, a key
-chord and a mouse dwell, after the events themselves.
+The gesture tracking projection: it runs the recognitions of the kernel gesture
+layer over the inputs of the devices, and gives the content each input and the
+gestures that the recognitions find, a click with its count, a key chord, a
+mouse dwell, or a gesture that a package adds.
 
-The state of the recognition is a document, `GestureTrackingState`, which wraps
-the document that the projection shows, and operations write it. So no state is
-on the projection. A gesture that an event completes reaches the content after
-the operation of that event: the state keeps the gestures that wait, and a timer
-of the editor at the time of the event brings them in, one in each read.
+The states of the recognitions are a document, `GestureTrackingState`, which
+wraps the document that the projection shows, and operations write it. So no
+state is on the projection. An input that the recognitions give reaches the
+content after the operation of the input before it: the state keeps the inputs
+that wait, and a timer of the editor brings them in, one in each read.
 
 - [`GestureTrackingDocument.jl`](GestureTrackingDocument.jl) — `GestureTrackingState`.
 - [`GestureTracking.jl`](GestureTracking.jl) — `GestureTrackingProjection`: the

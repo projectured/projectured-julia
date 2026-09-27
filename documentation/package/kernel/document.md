@@ -2,7 +2,7 @@
 
 > **Kind:** reference · **Status:** current · **Stands on:** [system-anatomy.md](../../design/system-anatomy.md)
 
-Layer 9 of the kernel — the **document contract** every concrete document
+Layer 10 of the kernel — the **document contract** every concrete document
 subtypes and every projection consumes. This page is the layer's structural
 overview; for the plain-English "what is a document" guide (domain, document,
 selection, operation, projection) see the repo-level
@@ -44,9 +44,9 @@ contract**; concrete documents belong to the packages built on top of it.
    names what is selected *inside* this node — a `Reference`, or `nothing`.
    `Reference` is emitted as a **bare symbol**, resolved in the domain's own
    scope, so the document layer takes no upward dependency on the reference layer
-   (Layer 10) that defines the type. The generics that *read and write* the
+   (Layer 11) that defines the type. The generics that *read and write* the
    selection — `get_selection` / `clear_selection!` / `set_selection!` /
-   `with_selection` — are the **selection layer's** (Layer 11), not this one's; see
+   `with_selection` — are the **selection layer's** (Layer 12), not this one's; see
    [selection.md](selection.md).
 2. **Field names ARE the reference vocabulary.** A `FieldReferenceStep("foo")` in a
    reference path is resolved by `getfield(document, :foo)` — so struct field

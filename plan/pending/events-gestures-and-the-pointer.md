@@ -980,13 +980,64 @@ it holds the example.
   `test_qtenv` give the same summaries as on `main`; omnet-julia and inet-julia
   need no change, because their windows open through the screen's
   `make_editor` and the gallery.
-- [ ] 7. **The gesture layer of the kernel (D49 to D56).** Added with the
+- [x] 7. **The gesture layer of the kernel (D49 to D56).** Added with the
   owner's agreement on 2026-09-27, before the next tracker, so that the next
   trackers are built on it. Two parts, each with its commits:
-  - [ ] 7a. The layer, the move and the renames of D54 and D55, with no change
+  - [x] 7a. The layer, the move and the renames of D54 and D55, with no change
     of behavior: the suites give the same results as before the move.
-  - [ ] 7b. The recognition protocol, the standard recognitions, and the
-    projection that runs them.
+    `source/kernel/gesture/` holds `GestureModule` in five fragments
+    (`GestureInterface.jl`, `MouseGesture.jl`, `KeyboardGesture.jl`,
+    `GesturePattern.jl`, moved from the event layer, and later the
+    recognitions). `WindowInput{E}` is generic. The rename tool renamed the
+    code, and a text pass renamed the prose outside the plans. A script added
+    `using ..GestureModule` to the 26 modules that use a moved name, split the
+    import lists and added the alias `GestureModule` to the packages. Facts
+    found on the way:
+    - An import list across two lines lost its second line in the split
+      (5 places), and one moved name on a second line was missed (the video
+      package): Julia only warns about such an import, so a name that a method
+      body reads is found only at run time. The global name check of
+      omnet-julia (`test/globals.jl`, run over the 120 packages of
+      projectured-julia too) found it; it finds the same 9 older names on the
+      branch and on the commit before, and one older name in omnet-julia
+      (`OmnetLegacySimulator.omnetpp`).
+    - The generated files `asset/precompile/PrecompileStatements.jl` and
+      `WorkloadStatements.jl` name module paths of the time they were recorded;
+      they stay as they are, and the statements that name a moved type do
+      nothing until the files are recorded again.
+    - The tests of the event module split: `EventModuleTest.jl` tests the
+      events, and `GestureModuleTest.jl` and `GestureCaseTest.jl` (moved) test
+      the gesture layer.
+    Checks, against a baseline worktree at the commit before: the same results
+    in the kernel, substrate, shell, JSON, math, conversation, chart, sequence
+    chart, file system, graph, application, mouse click, click round trip,
+    gesture log, hover probe, dragging, table, text, construct, type-in,
+    assistant, evaluator, file tab, inspector, palette, gesture help and SDL
+    input suites; the naming guard and the layering guards pass; the 64 test
+    functions of omnet-julia and `test_qtenv` as before; the demo of inet-julia
+    219.
+  - [x] 7b. The recognition protocol, the standard recognitions, and the
+    projection that runs them. `GestureRecognition.jl`, `ClickRecognition.jl`,
+    `ChordRecognition.jl` and `DwellRecognition.jl` in the gesture layer; the
+    standard list is the chord, the click, the dwell. `GestureTrackingState`
+    keeps `states` (one for each recognition, made on the first read) and
+    `waiting`. The projection runs the list for each input; the inputs that a
+    recognition gives run through the recognitions after it; the content reads
+    the input, or, when a recognition holds it, the first input given; the rest
+    waits for the timer `:gesture_tracking_waiting`. The timer of a recognition
+    is `:gesture_tracking_<index>` and goes to it alone. The states are written
+    only when they change. `make_tracking_screen` takes `recognitions`.
+    Tests: each standard recognition alone (28 pass); the projection (47 pass),
+    with the order of the recognitions, a recognition that holds the click, and
+    a long press that a test package adds, which its reader then receives; the
+    tracking screen through a real editor; the kernel layering guard, the
+    naming guard and the global name check (the same 9 older names). The
+    kernel, substrate, shell and application suites fail the same tests as
+    before the step; the 64 test functions of omnet-julia and `test_qtenv` as
+    before; the demo of inet-julia 219.
+  - The guides describe the twenty-three layers with the gesture layer, the
+    event layer of records, the pattern language and the recognitions, and the
+    tracking package that runs them.
 
   The content of the step:
   - A kernel layer `gesture/`, right above `event/`, holds `Gesture`, the

@@ -60,7 +60,7 @@ depend on, and why the leaf the alias loads is the only place a
 
 ProjecturEd is organized as **one engine, twenty-nine substrate packages and
 twenty domain packages**, plus an umbrella and the opt-in packages. The kernel
-is the one *layered* package: its twenty-two layers depend only downward,
+is the one *layered* package: its twenty-three layers depend only downward,
 and the ordering is enforced statically by the shared
 [layered-architecture guard](../../test/kernel/layering/CheckLayering.jl).
 Each layer holds exactly one module, so the root's include list is the layer
@@ -80,8 +80,8 @@ for the rules.
 
 ```
 ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
-        ▲                      22 layers: fault → performance → cell → struct → clock → event →
-        │                      device → backend → document → reference →
+        ▲                      23 layers: fault → performance → cell → struct → clock → event →
+        │                      device → gesture → backend → document → reference →
         │                      selection → operation → intent → binding → iomap →
         │                      projection → tool → llm → agent → feed → editor → playback
         │                      Zero runtime deps, zero concrete documents.
@@ -351,7 +351,7 @@ The substrate packages form their own DAG, and so do the twenty domains.
 [package-rules.md](../rule/package-rules.md) has the substrate table; [domain-inventory.md](domain-inventory.md)
 has the domain table.
 
-### The 22 kernel layers
+### The 23 kernel layers
 
 In include order, each importing only layers above it in this list — the order
 [package/ProjecturedKernel/src/ProjecturedKernel.jl](../../package/ProjecturedKernel/src/ProjecturedKernel.jl)
@@ -368,37 +368,41 @@ includes them in:
  4 struct      @cell_struct, CellStructPlan and the builders of a struct of cells
  5 clock       the animation Clock (a @cell_struct with a reactive time field),
                get_clock_time / set_clock_time!, start_wall_clock! / stop_wall_clock!
- 6 event       the input vocabulary (Event/Gesture, ModifierKeys,
-               KeyDown/KeyPress/Mouse*/Window*, WindowInput), the event pattern
-               language (GesturePattern, matches, describe, @gesture_case)
+ 6 event       the input events (Event, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*,
+               WindowInput)
  7 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
- 8 backend     the Backend seam (lifecycle, text, device I/O, display size, device
+ 8 gesture     the gestures (Gesture, MouseClick/MouseEnter/MouseLeave/MouseDwell,
+               KeyChord), the pattern language (GesturePattern, matches_gesture_pattern,
+               describe_gesture_pattern, @gesture_case) and the recognitions
+               (GestureRecognition, ChordRecognition, ClickRecognition, DwellRecognition,
+               make_standard_recognitions)
+ 9 backend     the Backend seam (lifecycle, text, device I/O, display size, device
                config, image/video output)
- 9 document    the Document supertype, @document, the is_element_collection /
+10 document    the Document supertype, @document, the is_element_collection /
                is_walk_opaque traits, search_documents
-10 reference   ReferenceStep / Reference and the step seam, evaluate_reference,
+11 reference   ReferenceStep / Reference and the step seam, evaluate_reference,
                search_references, the @reference / @reference_case /
                @reference_rules DSLs
-11 selection   get_selection / set_selection! / clear_selection! / with_selection
-12 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
-13 intent      Intent and ClaimedGesture, the unit that flows back through the
+12 selection   get_selection / set_selection! / clear_selection! / with_selection
+13 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
+14 intent      Intent and ClaimedGesture, the unit that flows back through the
                readers, CollectIntents and CollectedIntentsOperation
-14 binding     GestureBinding, the per-document-type registry, @gestures /
+15 binding     GestureBinding, the per-document-type registry, @gestures /
                @gesture_set, read_gesture / read_bound_gesture
-15 iomap       the IoMap contract (IoMap + accessors) and the concrete IO maps
+16 iomap       the IoMap contract (IoMap + accessors) and the concrete IO maps
                (SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap)
-16 projection  the four interface functions, @projection, ProjectionTemplate,
+17 projection  the four interface functions, @projection, ProjectionTemplate,
                ProjectionReferenceStep
-17 tool        the editor's capability surface: Tool / Resource / ToolSet,
+18 tool        the editor's capability surface: Tool / Resource / ToolSet,
                execute_julia_code, doc/API search, register_default_tools!
-18 llm         the LLM provider abstraction: Llm, stream_turn, render_tool_schema,
+19 llm         the LLM provider abstraction: Llm, stream_turn, render_tool_schema,
                LlmMessage / LlmRequest, LlmEvent
-19 agent       the AI control surface: AgentModule (inbound, the MCP
+20 agent       the AI control surface: AgentModule (inbound, the MCP
                seam) and AgentModule (outbound, the Agent and run_turn! loop)
-20 feed        the feed contract: a registered inflow that the editor moves into a
+21 feed        the feed contract: a registered inflow that the editor moves into a
                target document once per frame
-21 editor      run_editor!, the read-eval-print loop
-22 playback    scripted live playback: a timeline that fires in the editor loop on a
+22 editor      run_editor!, the read-eval-print loop
+23 playback    scripted live playback: a timeline that fires in the editor loop on a
                wall-clock schedule
 ```
 
@@ -418,8 +422,8 @@ concept, and each declares the exact set of packages it imports:
    reflection      BoundedSync and DocumentReflection
    dragging        DraggingState and its press-drag-drop reader
    focus           the generic focus walk and the is_focusable_document trait
-   gesturetracking the click, the key chord and the mouse dwell from the events, and
-                   their state document
+   gesturetracking the projection that runs the recognitions of the kernel
+                   gesture layer over the inputs, and its state document
    versioning      VersionedObject and its version-eliminating projection
    plot            the plot arithmetic and the colour and marker vocabulary
    graphics        Graphics, GraphicsCaching, PointReferenceStep
@@ -500,7 +504,7 @@ for adding one.
 | Web backend (browser renderer) | `backend/Web.jl` | ✅ (new in Julia port) |
 | PDF export backend | `backend/Pdf.jl` | ✅ |
 | IO Maps | `IoMapDefaults.jl` + per-projection | ✅ |
-| References | `reference/` (layer 10) | ✅ |
+| References | `reference/` (layer 11) | ✅ |
 | Navigation operations | `Operations.jl` (`ReplaceSelectionOperation`) | ✅ |
 | Editor REPL | `EditorModule.jl` | ✅ |
 | All higher-order projections | `projection/higherorder/` | ✅ |

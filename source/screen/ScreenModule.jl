@@ -28,6 +28,7 @@ using ..EditorModule
 using ..EventModule
 using ..FaultModule
 using ..FeedModule
+using ..GestureModule
 using ..GestureTrackingModule
 using ..GraphicsModule
 using ..IntentModule
