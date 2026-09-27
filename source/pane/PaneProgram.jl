@@ -1173,13 +1173,13 @@ change it.
 
 ```
 (root)                                        ::ScreenDocument  # the editor's document
-  .windows[1]                                 ::WindowDocument  # ProjecturEd
+  .windows[1]                                 ::WindowDocument  # title "ProjecturEd"
     .content.content.content.content          ::PaneTree        # inside ClipboardSlice › WidgetShell › UndoBuffer
       .root                                   ::PaneSplit       # side by side: 20% | 80%
         .elements[1]                          ::PaneGroup       # 1 tab
-          .tabs[1]                            ::PaneTab         # Files — Workspace (focused)
+          .tabs[1]                            ::PaneTab         # title "Files", shows Workspace (focused)
         .elements[2]                          ::PaneGroup       # 1 tab
-          .tabs[1]                            ::PaneTab         # a.json — JsonFile
+          .tabs[1]                            ::PaneTab         # title "a.json", shows JsonFile
 ```
 
 See also `find_pane_reference`, `focus_pane!`, `close_pane!`, `move_pane!`,
@@ -1192,9 +1192,10 @@ the first argument is the root, and the path starts after it. To name a pane
 there is a shorter way: [`find_pane_reference`](@ref) answers the reference of
 a pane by its title.
 
-The type is the type of the node the line reaches. The note says the node's name
-(`get_document_title`), what it is (`describe_document`), and which tab has the
-focus. A line whose steps go through wrappers, such as a history, names them.
+The type is the type of the node the line reaches. The note says the node's
+title after `title`, quoted as `find_pane` takes it (`get_document_title`), what
+it shows after `shows` (`describe_document`), and which tab has the focus. A line
+whose steps go through wrappers, such as a history, names them.
 
 `include(node)` says which nodes get a line, and `descend(parent, child)` where
 the walk goes. The defaults show the windows, the pane trees, the splits, the
@@ -1254,18 +1255,19 @@ function _find_focused_pane_tab(root)
     focused
 end
 
-# The note of a line: the root says what it is; any other node says its name,
-# what it is when that says more than its type, the wrappers its steps go
-# through, and whether it is the tab with the focus.
+# The note of a line: the root says what it is; any other node says its title,
+# quoted after `title` so that a reader does not take the rest of the note for
+# a part of it, what it shows when that says more than its type, the wrappers its
+# steps go through, and whether it is the tab with the focus. A node with no
+# title, such as a group or a split, says only what it is.
 function _format_layout_note(root, node, steps, from, focused)
     node === root && return "the editor's document"
-    parts = String[]
     name = get_document_title(node)
     what = describe_document(node)
     what == String(nameof(typeof(node))) && (what = "")
-    (name === nothing || isempty(String(name))) || push!(parts, String(name))
-    isempty(what) || push!(parts, what)
-    note = join(parts, " — ")
+    has_title = !(name === nothing || isempty(String(name)))
+    note = has_title && !isempty(what) ? "title " * repr(String(name)) * ", shows " * what :
+           has_title                   ? "title " * repr(String(name)) : what
     wrappers = String[]
     for n in (from + 1):(length(steps) - 1)
         passed = try_evaluate_reference(root, foldr(ConcreteReference, steps[1:n]; init = EmptyReference()), nothing)

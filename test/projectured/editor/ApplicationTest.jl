@@ -515,11 +515,14 @@ function test_application()
                 @test any(line -> occursin("::PaneTree", line) &&
                                   occursin("inside ClipboardSlice › WidgetShell › UndoBuffer", line), lines)
                 @test count(line -> occursin("(focused)", line), lines) == 1
+                # The title of a tab is quoted after `title`, apart from what the tab shows.
+                @test any(line -> occursin("::PaneTab", line) &&
+                                  occursin("# title \"Files\", shows ", line), lines)
                 # The path of a tab is the steps of the lines on its branch, joined.
                 indent(line) = length(line) - length(lstrip(line))
                 step(line) = first(split(strip(line)))
                 function joined_path(title)
-                    at = findfirst(line -> occursin("::PaneTab", line) && occursin("# " * title * " —", line), lines)
+                    at = findfirst(line -> occursin("::PaneTab", line) && occursin("# title " * repr(title) * ",", line), lines)
                     steps, depth = String[step(lines[at])], indent(lines[at])
                     for line in reverse(lines[1:(at - 1)])
                         indent(line) < depth || continue
