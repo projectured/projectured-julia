@@ -1178,6 +1178,24 @@ function _read_addressed_resource(set::ToolSet, uri::AbstractString)
     nothing
 end
 
+"""
+    read_guide_section(guide_name, heading) -> String
+
+Read one section of a guide: its heading and its text up to the next heading, as
+`read_resource("resource://guide/<guide_name>#<heading>")` reads it. `heading`
+is the heading itself or its slug. A guide or a section that is not there
+answers a sentence that says so, and the sections the guide has.
+
+Use it to put a section of a guide into a text that is made from it, such as the
+system text of an assistant, so the guide stays the one place of that text.
+
+# Example
+
+    read_guide_section("guide/orientation", "Reach what a tab holds")
+"""
+read_guide_section(guide_name::AbstractString, heading::AbstractString) =
+    _read_guide_section(guide_name, heading)
+
 function _read_guide_section(guide::AbstractString, fragment::AbstractString)
     sections = _GuideSection[section for section in _guide_index() if section.guide == guide]
     isempty(sections) && return "Documentation '$guide' not found."
