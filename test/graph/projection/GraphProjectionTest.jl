@@ -703,6 +703,34 @@ end
     @test length(unique(objectid.(boxes))) == length(boxes)
 end
 
+@testset "a point maps to the vertex drawn at it, and on into its content" begin
+    # The hit test is the one a click takes, so a point maps to the part that a
+    # click there reaches, and the chain carries it back to the graph.
+    g = make_graph_document_example()
+    proj = make_graph_projection_example(measure=FixedMeasure(10, 15, 5, 0))
+    iomap = print_document(proj, g)
+    layout = iomap.child_iomap.step_iomaps[1][].output
+    _steps(reference) = collect(get_reference_steps(strip_reference_types(reference)))
+    _content(i) = _steps(@reference(g, vertices[i].content))
+
+    for i in 1:length(g.vertices)
+        vl = layout.vertex_layouts[i]
+        middle = PointReferenceStep(Int(vl.x) + Int(vl.w) ÷ 2, Int(vl.y) + Int(vl.h) ÷ 2)
+        back = map_reference_backward(proj, iomap, middle)
+        @test back !== nothing
+        back === nothing && continue
+        # The middle of a box is on its content, so the point reaches a part inside it.
+        steps = _steps(back)
+        @test length(steps) > length(_content(i)) && steps[1:length(_content(i))] == _content(i)
+    end
+    # The corner of the second box is on no part of its content: the point is the vertex.
+    vl = layout.vertex_layouts[2]
+    corner = map_reference_backward(proj, iomap, PointReferenceStep(Int(vl.x) + 3, Int(vl.y) + 3))
+    @test is_reference_equal(strip_reference_types(corner),
+                             strip_reference_types(@reference(g, vertices[2])))
+    @test map_reference_backward(proj, iomap, PointReferenceStep(5000, 5000)) === nothing
+end
+
 @testset "the natural renderer draws a graph as a diagram" begin
     # A diagram is one of the things "almost any document" has to cover, and the
     # vertex content is where it matters: the graph stages take the natural

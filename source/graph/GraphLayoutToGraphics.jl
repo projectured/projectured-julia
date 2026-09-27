@@ -252,9 +252,24 @@ function map_reference_forward(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayou
     end
 end
 
-function map_reference_backward(::GraphLayoutToGraphicsCanvas, iomap, reference)
-    return nothing
+# A point maps to the vertex whose box holds it, with the hit test of a click, and
+# on into the content of the vertex with the point in the frame of its canvas. A
+# point in the box but on no part of the content is the vertex itself.
+function map_reference_backward(::GraphLayoutToGraphicsCanvas,
+                                iomap::GraphLayoutToGraphicsCanvasIoMap, reference)
+    point = find_reference_point(reference)
+    point === nothing && return nothing
+    hit = _find_vertex_at(iomap, point.x, point.y)
+    hit === nothing && return nothing
+    (i, cim, x, y) = hit
+    inner = cim === nothing ? nothing :
+            map_reference_backward(cim.projection, cim, PointReferenceStep(x, y))
+    inner === nothing &&
+        return @reference iomap.input vertex_layouts[i].vertex
+    @reference iomap.input vertex_layouts[i].vertex.content.^(inner)
 end
+
+map_reference_backward(::GraphLayoutToGraphicsCanvas, iomap, reference) = nothing
 
 # Route a left click into the node whose content box contains it. Coordinates are
 # translated into the content canvas's local frame (mirrors TableToGraphics).
@@ -268,35 +283,45 @@ function read_intent(p::GraphLayoutToGraphicsCanvas, iomap::GraphLayoutToGraphic
     _forward_to_selected(iomap, event)
 end
 
-function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MouseClick)
+# The vertex whose box holds the point `(px, py)`: its index, the IO map of its
+# content (`nothing` when the content printed none), and the point in the frame
+# of the content canvas. A click and a point find a vertex with this one hit test.
+function _find_vertex_at(iomap::GraphLayoutToGraphicsCanvasIoMap, px, py)
     layout = iomap.input
     entries = iomap.child_iomaps
     for i in 1:length(layout.vertex_layouts)
         vl = layout.vertex_layouts[i]
         vl isa VertexLayout || continue
         x, y, w, h = Int(vl.x), Int(vl.y), Int(vl.w), Int(vl.h)
-        (g.x >= x && g.x < x + w && g.y >= y && g.y < y + h) || continue
+        (px >= x && px < x + w && py >= y && py < y + h) || continue
         entry = i <= length(entries) ? entries[i] : nothing
-        (entry === nothing || entry[3] === nothing) && return nothing
+        (entry === nothing || entry[3] === nothing) && return (i, nothing, 0, 0)
         cim = entry[3]
         canvas = cim.output
         ox = canvas isa GraphicsCanvas ? Int(canvas.x) : 0
         oy = canvas isa GraphicsCanvas ? Int(canvas.y) : 0
-        local_evt = MouseClick(g.button, g.x - x - ox, g.y - y - oy, g.count, g.modifiers;
-                               time = g.time)
-        op = read_intent(cim.projection, cim, local_evt)
-        # A selection is re-rooted into the graph's own space, because WHERE it
-        # points is a place inside a node and the graph is what knows where that
-        # node is. An operation that carries its own subject has nothing to
-        # re-root, so it travels — which is what `operation_travels_unchanged`
-        # says and what a node meaning "go into me" needs. Anything else is
-        # dropped, as before: a node that answers an operation nobody can place
-        # is worse than a node that declines.
-        op isa ReplaceSelectionOperation ||
-            return op !== nothing && operation_travels_unchanged(op) ? op : nothing
-        return ReplaceSelectionOperation(@reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(op.path))
+        return (i, cim, px - x - ox, py - y - oy)
     end
     nothing
+end
+
+function _route_click(iomap::GraphLayoutToGraphicsCanvasIoMap, g::MouseClick)
+    hit = _find_vertex_at(iomap, g.x, g.y)
+    hit === nothing && return nothing
+    (i, cim, x, y) = hit
+    cim === nothing && return nothing
+    local_evt = MouseClick(g.button, x, y, g.count, g.modifiers; time = g.time)
+    op = read_intent(cim.projection, cim, local_evt)
+    # A selection is re-rooted into the graph's own space, because WHERE it
+    # points is a place inside a node and the graph is what knows where that
+    # node is. An operation that carries its own subject has nothing to
+    # re-root, so it travels — which is what `operation_travels_unchanged`
+    # says and what a node meaning "go into me" needs. Anything else is
+    # dropped, as before: a node that answers an operation nobody can place
+    # is worse than a node that declines.
+    op isa ReplaceSelectionOperation ||
+        return op !== nothing && operation_travels_unchanged(op) ? op : nothing
+    return ReplaceSelectionOperation(@reference ::GraphLayout.vertex_layouts::CellVector[i]::VertexLayout.vertex::GraphVertex.content.^(op.path))
 end
 
 # Dispatch a coordless event to every node's content reader; the active node (the
