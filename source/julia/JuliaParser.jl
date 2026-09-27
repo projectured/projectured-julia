@@ -149,8 +149,14 @@ function _convert_head(::Val{:call}, x::Expr)
         end
     end
     if callee isa Symbol
-        if length(args) == 2 && callee in BINARY_OPERATORS
-            return JuliaBinaryOperation(callee, convert_expr(args[1]), convert_expr(args[2]))
+        if length(args) >= 2 && callee in BINARY_OPERATORS
+            # `a + b + c` is one call of `+` with three operands. It folds to the
+            # left, so it prints as it is written.
+            result = JuliaBinaryOperation(callee, convert_expr(args[1]), convert_expr(args[2]))
+            for operand in args[3:end]
+                result = JuliaBinaryOperation(callee, result, convert_expr(operand))
+            end
+            return result
         elseif length(args) == 1 && callee in UNARY_OPERATORS
             return JuliaUnaryOperation(callee, convert_expr(args[1]))
         end

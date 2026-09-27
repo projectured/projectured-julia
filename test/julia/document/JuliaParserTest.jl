@@ -38,6 +38,28 @@ function test_julia_parser()
         @test _julia_round_trip("-x^2") == "-(x ^ 2)"
     end
 
+    @testset "every infix operator prints between its operands" begin
+        @test _julia_round_trip("JsonObject(\"name\" => JsonString(\"Frank\"))") ==
+              "JsonObject(\"name\" => JsonString(\"Frank\"))"
+        @test _julia_round_trip("ok = x in xs") == "ok = x in xs"
+        @test _julia_round_trip("ok = x isa Int") == "ok = x isa Int"
+        @test _julia_round_trip("r = a % b") == "r = a % b"
+        @test _julia_round_trip("y = x |> f |> g") == "y = x |> f |> g"
+        @test _julia_round_trip("y = a .+ b") == "y = a .+ b"
+        # `a + b + c` is one call of `+` with three operands.
+        @test _julia_round_trip("s = a + b + c") == "s = a + b + c"
+        @test _julia_round_trip("s = a * b * c * d") == "s = a * b * c * d"
+        @test _julia_round_trip("s = a + (b + c)") == "s = a + (b + c)"
+        # A pair binds to the right, and more loosely than a comparison.
+        @test _julia_round_trip("p = a => b => c") == "p = a => b => c"
+        @test _julia_round_trip("p = (a => b) => c") == "p = (a => b) => c"
+        @test _julia_round_trip("p = a == b => c") == "p = a == b => c"
+        # `&&`, `||` and `-` keep the parentheses that their grouping needs.
+        @test _julia_round_trip("y = !(a || b)") == "y = !(a || b)"
+        @test _julia_round_trip("y = (a || b) && c") == "y = (a || b) && c"
+        @test _julia_round_trip("y = a - (b - c)") == "y = a - (b - c)"
+    end
+
     @testset "splat, broadcast and interpolation" begin
         @test _julia_round_trip("f(xs...)") == "f(xs...)"
         @test _julia_round_trip("y = f.(xs)") == "y = f.(xs)"
