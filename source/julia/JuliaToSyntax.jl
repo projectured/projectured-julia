@@ -911,7 +911,21 @@ read_intent(::JuliaObjectToSyntaxLeaf, iomap, ::Union{KeyPress, KeyDown}) = noth
 
 # ── JuliaToSyntax (composite) ───────────────────────────────────────────────
 
-function JuliaToSyntax()
+"""
+    JuliaToSyntax(entries::Pair...) -> TypeDispatchingProjection
+
+The Julia notation, one entry for each type of the domain. A domain that embeds
+Julia code, such as a state machine, a process or a formula, passes the entries
+of its own types. They come after the entries of the Julia nodes and before the
+last entry, which draws any other document as an object that stands in the code.
+The dispatch takes the first entry that matches, so a node of the embedding
+domain never reaches the last entry.
+
+# Example
+
+    FsmToSyntax() = JuliaToSyntax(FsmState => FsmStateToSyntaxNode(), …)
+"""
+function JuliaToSyntax(entries::Pair...)
     TypeDispatchingProjection(
         JuliaInsertion       => JuliaInsertionToSyntaxLeaf(),
         JuliaIdentifier      => JuliaIdentifierToSyntaxLeaf(),
@@ -969,6 +983,8 @@ function JuliaToSyntax()
         JuliaUsing           => JuliaUsingToSyntaxNode(),
         JuliaModuleDefinition       => JuliaModuleDefinitionToSyntaxNode(),
         JuliaLambda          => JuliaLambdaToSyntaxNode(),
+        # The types of a domain that embeds Julia code.
+        entries...,
         # Last, because the first entry that matches is the one used: a node that
         # is not Julia is an object that stands in the code.
         Document             => JuliaObjectToSyntaxLeaf(),
