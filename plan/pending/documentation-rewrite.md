@@ -92,7 +92,7 @@ Points that the owner set during the drafts:
 **Replaced on 2026-09-27.** The owner chose a new title for the web site,
 "One structure, many editable views — with an AI assistant", and said that it
 also replaces this tagline in the README, the deck and the posts
-([web-site-title-and-structure.md](web-site-title-and-structure.md), W6 and
+([web-site-title-and-structure.md](../done/web-site-title-and-structure.md), W6 and
 W10). The README now opens with that title, and the introduction below no
 longer says "transform". The texts here stay as the record of the approval of
 2026-09-17.

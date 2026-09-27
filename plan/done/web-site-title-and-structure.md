@@ -1,6 +1,6 @@
 # The web site: the title, and a page that a newcomer can follow
 
-**Status (2026-09-27): every step is implemented; site commits `e6a5eb2` and `fb97cda` wait for the owner to land them.**
+**Status (2026-09-27): done.** Every step is landed on `main` of both repositories and pushed; the last site commit is `fb97cda`. One question stays with the owner: whether the picture of the assistant conversation, which another session deleted in `31c956f`, comes back in the AI section (Step 6).
 Every question has an answer (§4.1). The owner said to implement the plan in
 worktrees, and to wait with every part that needs the M/M/1/K video (S0), which
 is still being made. Only those parts of Step 6 remain. The work is on the
