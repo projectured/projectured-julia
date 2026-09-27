@@ -40,6 +40,8 @@ function test_event_module()
         @test MouseClick(:left, 1, 2, ModifierKeys(ctrl = true); time = 0.0).count == 1
         @test MouseClick(:left, 1, 2, 2, ModifierKeys(); time = 0.0).count == 2
         @test MouseMove(1, 2; time = 0.0).buttons == MouseButtons()
+        @test MouseDwell(1, 2; time = 0.0).modifiers == ModifierKeys()
+        @test MouseDwell(1, 2; time = 0.0) isa Gesture
     end
 
     @testset "MouseButtons holds every held button" begin
@@ -103,6 +105,8 @@ function test_event_module()
                                                                      nothing)) ==
               "em test rest gesture"
         @test describe_event_pattern(KeyPressPattern(nothing; label = "0-9")) == "0-9"
+        @test describe_event_pattern(MouseDwellPattern()) == "pointer dwells"
+        @test matches_event_pattern(MouseDwellPattern(), MouseDwell(3, 4; time = 0.0))
     end
 
     @testset "the pattern constructors take their options as keywords" begin

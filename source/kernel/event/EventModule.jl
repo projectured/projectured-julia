@@ -18,7 +18,7 @@ The module lives in ten fragments that share this namespace:
   `KeyPress`, and the gesture `KeyChord`.
 - [`MouseEvent.jl`](MouseEvent.jl) — `MouseButtons`, the mouse events `MouseDown`,
   `MouseUp`, `MouseMove` and `MouseScroll`, and the gestures `MouseClick`,
-  `MouseEnter` and `MouseLeave`.
+  `MouseEnter`, `MouseLeave` and `MouseDwell`.
 - [`WindowEvent.jl`](WindowEvent.jl) — `WindowQuit`, `WindowClose`, `WindowResize`,
   `WindowDefocus` and `WindowLeave`.
 - [`TimerEvent.jl`](TimerEvent.jl) — `TimerExpire`, the event of a timer that a
@@ -39,7 +39,7 @@ export Event, Gesture, get_modifier_keys, get_event_time
 export ModifierKeys
 export KeyDown, KeyUp, KeyPress, KeyChord
 export MouseButtons, MouseDown, MouseUp, MouseClick, MouseMove, MouseEnter, MouseLeave,
-       MouseScroll
+       MouseDwell, MouseScroll
 export WindowQuit, WindowClose, WindowResize, WindowDefocus, WindowLeave
 export TimerExpire, DisplayUpdate
 export WindowInput
@@ -48,7 +48,8 @@ export has_ctrl_modifier_key, has_shift_modifier_key, has_alt_modifier_key,
 export EventPattern, matches_event_pattern,
        KeyPressPattern, KeyDownPattern, KeyUpPattern,
        MouseDownPattern, MouseUpPattern, MouseClickPattern,
-       MouseMovePattern, MouseEnterPattern, MouseLeavePattern, MouseScrollPattern,
+       MouseMovePattern, MouseEnterPattern, MouseLeavePattern, MouseDwellPattern,
+       MouseScrollPattern,
        describe_event_pattern, EventPatternRule, parse_event_pattern_rule,
        build_event_pattern_expr, build_event_field_bindings, @event_case
 

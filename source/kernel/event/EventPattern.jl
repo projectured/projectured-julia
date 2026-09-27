@@ -110,6 +110,7 @@ _constrain_field(name::Symbol, value) =
     MouseMovePattern(; modifiers = nothing, guard = nothing, label = nothing)
     MouseEnterPattern(; modifiers = nothing, guard = nothing, label = nothing)
     MouseLeavePattern(; modifiers = nothing, guard = nothing, label = nothing)
+    MouseDwellPattern(; modifiers = nothing, guard = nothing, label = nothing)
     MouseScrollPattern(; modifiers = nothing, guard = nothing, label = nothing)
 
 An `EventPattern` for one event type. The first argument, when there is one, is
@@ -142,6 +143,8 @@ MouseEnterPattern(; modifiers = nothing, guard = nothing, label = nothing) =
     EventPattern{MouseEnter}(NamedTuple(), modifiers, guard, label)
 MouseLeavePattern(; modifiers = nothing, guard = nothing, label = nothing) =
     EventPattern{MouseLeave}(NamedTuple(), modifiers, guard, label)
+MouseDwellPattern(; modifiers = nothing, guard = nothing, label = nothing) =
+    EventPattern{MouseDwell}(NamedTuple(), modifiers, guard, label)
 MouseScrollPattern(; modifiers = nothing, guard = nothing, label = nothing) =
     EventPattern{MouseScroll}(NamedTuple(), modifiers, guard, label)
 
@@ -216,6 +219,7 @@ _describe(::Type{MouseUp}, pattern) = "release " * _describe_button(pattern)
 _describe(::Type{MouseMove}, pattern) = _prefix_modifiers(pattern, "move pointer")
 _describe(::Type{MouseEnter}, pattern) = _prefix_modifiers(pattern, "pointer enters")
 _describe(::Type{MouseLeave}, pattern) = _prefix_modifiers(pattern, "pointer leaves")
+_describe(::Type{MouseDwell}, pattern) = _prefix_modifiers(pattern, "pointer dwells")
 _describe(::Type{MouseScroll}, pattern) = _prefix_modifiers(pattern, "scroll")
 _describe(::Type{E}, pattern) where {E<:Union{Event,Gesture}} =
     _prefix_modifiers(pattern, _get_type_words(E))

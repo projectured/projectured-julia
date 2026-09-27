@@ -181,6 +181,28 @@ MouseLeave(x::Int, y::Int, buttons::MouseButtons, modifiers::ModifierKeys; time:
     MouseLeave(x, y, buttons, modifiers, Float64(time))
 
 """
+    MouseDwell(x, y[, modifiers]; time)
+    MouseDwell(x, y, modifiers, time)
+
+The pointer did not move for a short time. `x` and `y` are its position in the
+window, `modifiers` are the keys held at its last motion, and `time` is when the
+wait ended. A dwell does not depend on what is drawn under the pointer: a reader
+finds the part at the position. The code that tracks the motion makes it; an
+event source does not report it.
+"""
+struct MouseDwell <: Gesture
+    x::Int
+    y::Int
+    modifiers::ModifierKeys
+    time::Float64
+end
+
+MouseDwell(x::Int, y::Int; time::Real) = MouseDwell(x, y, ModifierKeys(), Float64(time))
+# @positional: the position and the keys of a pointer event.
+MouseDwell(x::Int, y::Int, modifiers::ModifierKeys; time::Real) =
+    MouseDwell(x, y, modifiers, Float64(time))
+
+"""
     MouseScroll(dx, dy, x, y[, modifiers]; time)
     MouseScroll(dx, dy, x, y, modifiers, time)
 
