@@ -258,6 +258,24 @@ All of them are from 2026-09-26.
   2026-09-27.)
 - **D53.** `WindowInput` is generic over its input, so it stays in the event
   layer and names no gesture. (Owner 2026-09-27.)
+- **D54.** The whole pattern language is in the gesture layer: the pattern of
+  one input, its constructors, its parser, its descriptions and
+  `@gesture_case`. The event layer holds only records: the events,
+  `ModifierKeys`, `MouseButtons`, `WindowInput`, and `get_event_time` and
+  `get_modifier_keys` for events, which the gesture layer extends for gestures.
+  The one matcher of D50 matches both kinds, so it belongs where both kinds are
+  known, and it needs no extension point. This refines D49, whose event layer
+  kept the pattern of one event. (Q25, owner 2026-09-27.)
+- **D55.** The names of the pattern language follow D50, because an event is
+  the gesture of one event: `EventPattern` becomes `GesturePattern`,
+  `matches_event_pattern` becomes `matches_gesture_pattern`,
+  `describe_event_pattern` becomes `describe_gesture_pattern`, and the names of
+  the parser change the same way. `KeyDownPattern`, `MouseClickPattern` and the
+  other constructors keep their names. (Q26, owner 2026-09-27.)
+- **D56.** The gesture layer is layer 8, after the device layer. The device
+  layer and the gesture layer depend only on the event layer, so their order is
+  free, and in this place the later layers keep their numbers. (Claude,
+  2026-09-27, with no objection from the owner.)
 
 ## 3. What is wrong today
 
@@ -962,9 +980,15 @@ it holds the example.
   `test_qtenv` give the same summaries as on `main`; omnet-julia and inet-julia
   need no change, because their windows open through the screen's
   `make_editor` and the gallery.
-- [ ] 7. **The gesture layer of the kernel (D49 to D53).** Added with the
+- [ ] 7. **The gesture layer of the kernel (D49 to D56).** Added with the
   owner's agreement on 2026-09-27, before the next tracker, so that the next
-  trackers are built on it.
+  trackers are built on it. Two parts, each with its commits:
+  - [ ] 7a. The layer, the move and the renames of D54 and D55, with no change
+    of behavior: the suites give the same results as before the move.
+  - [ ] 7b. The recognition protocol, the standard recognitions, and the
+    projection that runs them.
+
+  The content of the step:
   - A kernel layer `gesture/`, right above `event/`, holds `Gesture`, the
     standard gesture types and their patterns, `@gesture_case`, and the
     recognition protocol with the recognitions of the click, the chord and the
