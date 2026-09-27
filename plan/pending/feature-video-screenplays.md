@@ -475,6 +475,7 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
   - The sieve scrolls a few hundred primes at most. Each prime adds one filter to the chain of the stream, so a far scroll makes the chain deep and slow.
   - The video lasts at most 3 min (D5), and it types with the rhythm of the S7 take.
   - The product work is in `plan/pending/lazy-list-video.md`.
+- **The take of 2026-09-27**: `tool/video/record_lazy_primes.jl`, 1280×720, 92.2 s, recorded in video time in a warm session after a fast run of the same script. The forms, as typed: `using ProjecturedSubstrateExample;`, `primes = sieve(integers_from(2));`, `show_lazy_list!(editor, primes, "Primes");`, `sevens = lazy_filter(primes, p -> p.value % 10 == 7);`, `show_lazy_list!(editor, sevens, "Sevens");`, `around = make_primes_around(10^12);`, `show_lazy_list!(editor, around, "Around one trillion");`. The counts in the take: Primes 31 when it opens, 126 after thirty steps of the wheel and the same after the way back, 251 after Sevens scrolls; Sevens 15, then 62; Around one trillion 17, 26 after three steps up, which show the crossing of one trillion, and 64 after fifteen steps down. The take is `build/video/s11/s11_lazy_primes.mp4` of the worktree `projectured-julia-s11-lazy-video`.
 
 ### Considered, and not chosen now
 

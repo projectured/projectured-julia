@@ -105,11 +105,42 @@ make the laziness visible or easy to type:
   test of twenty primes each way around 1000 against a test that shares no code,
   the end at 2, and a start at one trillion that computes two links.
   `test_collection()`: 155 pass.
-- [ ] 4. The sieve in the scope of the evaluator (design 5).
-- [ ] 5. The test of an infinite result (design 6), and a fix if it hangs.
-- [ ] 6. A rehearsal of S11 in a warm session, as for S7, and the take script
-  `tool/video/record_lazy_primes.jl`.
-- [ ] 7. The take, the plan of S11, and the web page.
+- [x] 4. The sieve in the scope of the evaluator (design 5): the form
+  `using ProjecturedSubstrateExample;` works in the application window, so the
+  video starts with it.
+- [x] 5. The test of an infinite result (design 6). The evaluator does not hang,
+  but it draws the result wrong: a bare `primes` gets a result row one line high,
+  and the rest of the list draws over the next prompt and below it. The take does
+  not meet this, because every form ends with `;`. The fix is not made; it is the
+  owner's call, see "Open" below.
+- [x] 6. The rehearsal, in a warm session, and the take script
+  `tool/video/record_lazy_primes.jl`. What the rehearsal settled:
+  - The count reads what the view read: 30 or 31 when the pane shows about 28
+    rows, the rows on the screen and about one row past each edge. Five steps of
+    the wheel add about 15.5, and a scroll back adds nothing.
+  - The filter pulls from the sieve: while Sevens scrolls, the count of Primes
+    grows, from 126 to 251 in the take.
+  - The window starts with the Files pane closed (`prepare`, as the S2 take
+    does, which sets the selection again after the close), and with no status
+    bar, so each form fits on its line in the half of the window that the
+    evaluator keeps.
+  - With no `below`, `show_lazy_list!` places the lists by their order: the first
+    to the right of the evaluator, the second under it, the third under the
+    evaluator. The forms stay short, and the window is a grid of two by two.
+  - The primes around one trillion are drawn from their first node, so the take
+    scrolls up three steps, which shows the crossing of one trillion
+    (999999999989, then 1000000000039), and then down.
+- [ ] 7. The take is done: 92.2 s, `build/video/s11/s11_lazy_primes.mp4` of the
+  worktree. The web page waits for the owner.
+
+## Open
+
+- **An infinite result in a result row.** A result whose graphics have no end
+  needs a bounded window, such as a scroll pane of a fixed height. The result
+  row passes the rest of a `result` path through to the document, so a wrapper
+  there changes the mapping of the selection, and it needs the rules of
+  `documentation/package/kernel/reference.md` and `selection.md`. The owner
+  decides whether it is made, and when.
 
 ## Limits
 
