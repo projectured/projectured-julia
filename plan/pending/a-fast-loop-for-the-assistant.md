@@ -135,3 +135,29 @@ The fewest rounds are 2 for each prompt: one call of code and the answer.
   section "Reach what a tab holds" of the orientation guide, read with the new
   public `read_guide_section` of the kernel, so the guide stays the one place of
   the section. The rehearsal now runs with it by default.
+
+### The count in the last message (take 9)
+
+Take 9 had every beat and ended with "showing all six people sorted by name"
+while the table showed five. The owner chose to fix the cause (2026-09-27, "Option
+2"). The rehearsal now also checks the count that the last message of each turn
+states (6 after turn 1, 5 after turn 2; a message that states no count passes).
+
+| Condition (S2, seeds 1–10) | Passed | What failed |
+|---|---|---|
+| The system text with the section of the guide | 6 of 10 | 4 wrong counts, each naming Frank from turn 1 |
+| F1: and "Tell the person only what the answers of your calls showed: a count or a value that no answer printed is a guess." | 3 of 10 | 7 wrong counts: the sentence does not help |
+| F2: a short form of a tab and a table in the two-argument `show`, set at run time | 9 of 10 | 1 wrong count |
+| The product: the `text/plain` display of a tab, a table and a referenced document (a2ad3898) | 8 of 10 | 2 wrong counts |
+
+- **The model reports what the answer of its last call shows.** The answer of
+  `open_pane!` was the whole tab in its internal form, trimmed, which says nothing
+  of the rows; the model then took the count and even the names from turn 1. With
+  "WidgetTable(5 rows × 3 columns: name, age, city)" in the answer it says five.
+- **The product change is in the display of the REPL** (`text/plain`), which the
+  answer of a call uses for its last value: `PaneTab("People", WidgetTable(5 rows ×
+  3 columns: name, age, city))`. The two-argument `show`, and so `print`, is as it
+  was. Seed 5 printed the tab with `println` and read the internal form, which F2
+  covered and the product does not. Whether `print` and the two-argument `show` of a
+  tab and a table become short too is a decision for the owner, with the plan of
+  what a print writes (`plan/pending/a-print-writes-and-a-make-answers.md`, D5).
