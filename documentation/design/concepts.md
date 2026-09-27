@@ -101,7 +101,7 @@ ProjecturEd is under development. Today:
 - Undo and redo work where a program installs a history. The application does, one around each file and one around the window.
 - A failure in a view, an edit or a tool does not stop the editor: it takes the broken change back and shows what went wrong.
 - Type-in of single characters does not work the same way in every domain.
-- A table does not take an edit yet, and a click selects only where a view wires it.
+- A click selects only where a view wires it, and a drag inside a table cell does not select text.
 
 The [roadmap](../requirement/delivery-roadmap.md) says what comes next.
 

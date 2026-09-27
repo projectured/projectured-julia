@@ -97,7 +97,7 @@ ProjecturEd is under development. These limits are true today:
 
 - Undo and redo work in the application, which puts a history around each file and one around the window. A window of your own has none until you put one there.
 - Type-in of single characters does not work the same way in every domain.
-- A table renders and navigates, but a cell does not take an edit.
+- A drag inside a table cell does not select text. A click, the arrows and typing edit the cell.
 - A click selects where a projection wires it, and elsewhere it does nothing.
 - The assistant needs a local Ollama server with a pulled model, or an Anthropic API key.
 - The packages are not in the General registry. You clone the repository and use `environment/all`.
