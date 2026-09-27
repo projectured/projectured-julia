@@ -276,6 +276,28 @@ All of them are from 2026-09-26.
   layer and the gesture layer depend only on the event layer, so their order is
   free, and in this place the later layers keep their numbers. (Claude,
   2026-09-27, with no objection from the owner.)
+- **D57.** The mouse target tracker is a projection of its own, with its own
+  logic, and not a user of the recognition protocol: its work is the view (the
+  part at a point, by `map_reference_backward`) and the delivery of each
+  gesture by route to its part, and the protocol has neither. The drag tracker
+  decides for itself at step 10. (Q27, answers D52, owner 2026-09-27.)
+- **D58.** An enter goes to each part of the new path that is not on the old
+  one, the outer parts first; a leave goes to each part of the old path that is
+  not on the new one, the inner parts first (D13). A part is a prefix of the
+  path that names a document. A point step at the end of a path is not a part of
+  the target, so a plot is the same target at every point of it. A `MouseHover`
+  goes to the deepest part on each move over the same target, with the
+  position. (Q28, and Q4 of the plan of the domain part, owner 2026-09-27.)
+- **D59.** The crossings that one input makes wait in the state of the tracker
+  and reach the content one in each read, after the operation of the input, as
+  D46 says. The loop reads until the input runs out and prints once, so they
+  cost no frame. (Q29, owner 2026-09-27.)
+- **D60.** The `hover` flag of the gallery and of the campaign window chooses
+  the target tracker, through the keyword `mouse_target_tracking` of
+  `make_tracking_screen`. `FocusCyclingProjection` stays in every window wrap
+  whatever the flag (D2). (Q30, owner 2026-09-27.)
+- **D61.** The live check of step 8 moves the real pointer with XTest. (Owner
+  2026-09-27.)
 
 ## 3. What is wrong today
 
@@ -1057,7 +1079,7 @@ it holds the example.
     package, for example a long press, that a host adds and that its reader
     then receives, which proves the extension; the tracking screen test; the
     kernel layering guard; no `@event_case` is left.
-- [ ] 8. **The mouse target tracking package (D6, D13, D17, D27, D29, D52).**
+- [ ] 8. **The mouse target tracking package (D6, D13, D17, D27, D29, D52, D57 to D61).**
   `ProjecturedMouseTargetTracking`, with `MouseTargetTrackingState` and
   `MouseTargetTrackingProjection`. On each move, it maps the point backward (step
   4). It sends a leave and an enter along the path that changes, by route (step
