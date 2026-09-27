@@ -161,3 +161,15 @@ states (6 after turn 1, 5 after turn 2; a message that states no count passes).
   covered and the product does not. Whether `print` and the two-argument `show` of a
   tab and a table become short too is a decision for the owner, with the plan of
   what a print writes (`plan/pending/a-print-writes-and-a-make-answers.md`, D5).
+
+### The note of a line of `show_layout`
+
+The owner (2026-09-27): "show_layout can confuse the agent what is the title of a
+pane, it should be explicitly mention title or something in the comment part. I
+saw the agent confusing Files - Workspace and thought this is the title." The
+note of a tab was `Files — Workspace (focused)`, the title and what the tab
+shows joined by a dash. It is now `title "Files", shows Workspace (focused)`:
+the title quoted after `title`, as `find_pane` takes it, and what the tab shows
+after `shows`. A node with no title, a group or a split, says only what it is.
+Two tests of omnet-julia compare this text (`test/campaign/PaneProgramTest.jl`)
+and change with it, after projectured-julia lands it.
