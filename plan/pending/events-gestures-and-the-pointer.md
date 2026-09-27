@@ -1117,7 +1117,7 @@ it holds the example.
     package, for example a long press, that a host adds and that its reader
     then receives, which proves the extension; the tracking screen test; the
     kernel layering guard; no `@event_case` is left.
-- [ ] 8. **The mouse target tracking package (D6, D13, D17, D27, D29, D52, D57 to D62).**
+- [x] 8. **The mouse target tracking package (D6, D13, D17, D27, D29, D52, D57 to D62).**
   `ProjecturedMouseTargetTracking`, with `MouseTargetTrackingState` and
   `MouseTargetTrackingProjection`. On each move, it maps the point backward (step
   4). It sends a leave and an enter along the path that changes, by route (step
@@ -1218,11 +1218,18 @@ it holds the example.
       findings; the naming guard passes. omnet: the three known failures, and
       the four tests that step 8 added pass; its global check gives its one
       known finding. inet: the demo passes 219.
-  - [ ] 8d. The live check. XTest is out (D61 withdrawn): the first run opened the
-    X display, and the desktop asked to allow remote interaction. No pointer
-    moved. That run also found that the window with no file open draws no row of
-    the navigator named `notes.txt` (13 texts in all), so a live check must first
-    find what the window shows.
+  - [x] 8d. The live check, by pushed SDL events (the owner's choice,
+    2026-09-28). XTest is out (D61 withdrawn): a first run opened the X display,
+    and the desktop asked to allow remote interaction; no pointer moved. The
+    check opens the real application window with one file open, finds the
+    places by the texts that the window draws (also inside a viewport), and
+    pushes `SDL_MouseMotionEvent`, `SDL_MouseButtonEvent` and the window leave
+    into the SDL queue, in device pixels. It reads each light through the IO
+    maps, because a view makes the lit widget. 7 of 7 pass: a row of the
+    navigator lights, and its pixels change; the menu item File lights and the
+    row turns off; a click opens the popup, and its item Close tab lights (H1);
+    the leave of the window turns every light off (H3). A pushed event does not
+    pass the X server, so a fault of the window manager stays out of reach.
 - [ ] 9. **The probes go away (D7).** A tooltip is the meaning of a `MouseDwell`
   on the target, and `compute_tooltip` stays; the feed, the probe and
   `PointerRest` of the tooltip package go away. The inspector reads the target.
