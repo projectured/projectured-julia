@@ -246,7 +246,9 @@ function make_editor(backend::Backend, projection, document::Document;
     initialize_backend!(backend)
     try
         configure_devices!(backend, devices)
-        open_native_windows!(backend, document)
+        # A wrapper around the screen, such as the state of a tracker, is not
+        # drawn: the backend opens the windows of the screen inside it.
+        open_native_windows!(backend, get_wrapped_document(document))
         editor = Editor(backend, document, projection, devices;
                         feeds = feeds, fault_policy = fault_policy)
         _run_barrier(editor, :print; origin = typeof(editor.projection)) do

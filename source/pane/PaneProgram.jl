@@ -160,8 +160,10 @@ function get_window_tree(editor)
     hasfield(typeof(editor), :document) || return _get_wrapped_window_tree(editor)
     document = getfield(editor, :document)
     document isa PaneTree && return document
-    hasproperty(document, :windows) || return _get_wrapped_window_tree(document)
-    windows = document.windows
+    # The screen can be inside wrappers, such as the state of a tracker.
+    screen = get_wrapped_document(document)
+    hasproperty(screen, :windows) || return _get_wrapped_window_tree(document)
+    windows = screen.windows
     isempty(windows) && error("The editor shows no window.")
     get_window_tree(first(windows).content)
 end

@@ -16,6 +16,7 @@ using ..OperationModule
 using ..ReferenceModule
 using ..BackendModule
 using ..DeviceModule
+using ..DocumentModule
 
 export play_live!
 

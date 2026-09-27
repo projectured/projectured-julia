@@ -90,7 +90,7 @@ function drain_changes!(feed::TooltipFeed, editor)
     rest = feed.rest
     rest.moved_at = nothing
     editor.iomap === nothing && return 0
-    window = something(feed.window, first(editor.document.windows).id)
+    window = something(feed.window, first(get_wrapped_document(editor.document).windows).id)
     gesture = PointerRest(rest.x, rest.y; time = time())
     change = read_intent(editor.projection, nothing,
                          Intent(WindowInput(window, gesture), nothing), editor.iomap)
