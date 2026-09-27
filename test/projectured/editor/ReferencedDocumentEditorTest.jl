@@ -115,6 +115,20 @@ function test_referenced_document_editor()
                                               target = find_pane(editor, "Last"))
     end
 
+    @testset "the answer of open_pane! with a table says how many rows it shows" begin
+        table_tab = open_pane!(editor, WidgetTable(["name", "age"], [["Ada", 36], ["Bob", 41]]);
+                               title = "Table")
+        # What the REPL and the answer of `execute_julia_code` show.
+        shown = repr(MIME"text/plain"(), table_tab)
+        @test startswith(shown, "ReferencedDocument{PaneTab} at ")
+        @test endswith(shown, "PaneTab(\"Table\", WidgetTable(2 rows × 2 columns: name, age))")
+        @test occursin("WidgetTable(2 rows × 2 columns: name, age)",
+                       execute_julia_code(editor.tools, editor, "find_pane(editor, \"Table\")"))
+        # The form a `print` and a `show` write is as it was.
+        @test !occursin("rows ×", repr(table_tab))
+        close_pane!(editor, find_pane(editor, "Table"))
+    end
+
     @testset "the pane verbs take a referenced document" begin
         focus_pane!(editor, find_pane(editor, "Before"))
         @test focused_title() == "Before"

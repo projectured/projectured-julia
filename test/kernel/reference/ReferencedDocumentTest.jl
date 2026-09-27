@@ -124,6 +124,8 @@ function test_referenced_document()
         first_child = ReferencedDocument(root, EmptyReference()).children[1]
         shown = repr(first_child)
         @test startswith(shown, "ReferencedDocument{ReferencedLeaf} at .children[1]: ")
+        # The display of the REPL has the same header, then the document as the REPL shows it.
+        @test startswith(repr(MIME"text/plain"(), first_child), "ReferencedDocument{ReferencedLeaf} at .children[1]: ")
         @test propertynames(first_child) == propertynames(root.children[1])
     end
 

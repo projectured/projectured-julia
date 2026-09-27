@@ -201,10 +201,21 @@ end
 _get_short_type_name(T) = T isa DataType ? nameof(T) : T
 
 function Base.show(io::IO, x::ReferencedDocument{T}) where {T}
-    print(io, "ReferencedDocument{", _get_short_type_name(T), "} at ",
-          strip_reference_types(get_reference(x)), ": ")
+    _show_referenced_document_header(io, x)
     show(io, get_document(x))
 end
+
+# The display of the REPL and of the answer of a tool: the document as the REPL
+# shows it, so a document with a display of its own, such as a table that says
+# how many rows it has, is read that way through the reference too.
+function Base.show(io::IO, mime::MIME"text/plain", x::ReferencedDocument)
+    _show_referenced_document_header(io, x)
+    show(io, mime, get_document(x))
+end
+
+_show_referenced_document_header(io::IO, x::ReferencedDocument{T}) where {T} =
+    print(io, "ReferencedDocument{", _get_short_type_name(T), "} at ",
+          strip_reference_types(get_reference(x)), ": ")
 
 Base.convert(::Type{T}, x::ReferencedDocument) where {T <: Document} = convert(T, get_document(x))
 Base.convert(::Type{T}, x::ReferencedDocument) where {T <: Reference} = convert(T, get_reference(x))

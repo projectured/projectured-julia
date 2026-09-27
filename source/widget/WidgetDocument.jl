@@ -2365,6 +2365,29 @@ function WidgetTable(headers::Vector, rows::Vector; position::Point2D=Point2D(0,
                 tooltip=tooltip)
 end
 
+# What the REPL and the answer of a tool show of a table: how many rows and
+# columns it has, and its column headers, which say what it holds. The rows are
+# in the tab, and a model that reads this answer can say how many there are
+# without a guess. Julia's own display of a value, so a `print` or a `show` of the
+# table is as it was.
+function Base.show(io::IO, ::MIME"text/plain", table::WidgetTable)
+    headers = [_describe_table_header(header) for header in table.column_headers]
+    columns = isempty(headers) ? table.column_count : length(headers)
+    print(io, "WidgetTable(", _count_table_rows(table.rows), " rows × ", columns, " columns")
+    isempty(headers) || print(io, ": ", join(headers, ", "))
+    print(io, ")")
+end
+
+_count_table_rows(rows) = try count(_ -> true, rows) catch; 0 end
+
+_describe_table_header(header::Cell) = _describe_table_header(header[])
+_describe_table_header(header::AbstractString) = String(header)
+_describe_table_header(header::WidgetLabel) = _describe_table_header(header.content)
+_describe_table_header(::Nothing) = ""
+_describe_table_header(header) =
+    hasproperty(header, :value) && header.value isa AbstractString ? String(header.value) :
+                                                                     string(nameof(typeof(header)))
+
 # ── WidgetTree ──────────────────────────────────────────────────────────────
 
 """
