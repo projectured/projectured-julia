@@ -242,11 +242,25 @@ The second answers, the same day:
 | W11 | The pictures of "The idea" are a still of the M/M/1/K study, with the complex window and the assistant, and perhaps a still of the Julia evaluator. They replace the picture of one document in two views. |
 | W12 | "Lineage & status" does not show the original picture of the loops (Q8). The owner, the same day: "we don't need the original picture in the lineage". It does not link to it either. |
 
+The last answers, the same day:
+
+> for Q9, yes
+> for Q10, no keep the still for the rotating example too, it's fancy and easy
+> to understand, the video is long and maybe skipped
+> for Q11, dashed arc labelled "conversation" and explained in the text
+>
+> I accept the rest
+
+| # | Decision |
+| --- | --- |
+| W13 | The hero poster is an early frame of S0: the request to the assistant. The still in "The idea" is the last frame: the finished study with its chart (Q9). |
+| W14 | "The idea" also has a still of the rotating vector, because it is easy to understand and a visitor can skip the long video (Q10). The still shows only the evaluator and the picture pane, so it is not the same picture as the poster of the video, which is the whole window. |
+| W15 | The picture of the loops gets a dashed arc from the human loop to the assistant loop, over the editor, with the label "conversation". The caption explains it (Q11, §7.4c). |
+| W16 | The owner accepts the rest: the social card as an HTML template (W9), and the rows R1 to R14 of §4.2. |
+
 ### 4.2 The review: what we do and what we do not do
 
-The owner answered the four questions and did not comment on the other rows.
-So the rows below are my recommendations, and the owner can change any of them
-before Step 1.
+The rows below were my recommendations. The owner accepted them (W16).
 
 | # | Point of the review | What we do | Why |
 | --- | --- | --- | --- |
@@ -312,7 +326,7 @@ replaces it in the hero.
 
 ## 6. Open questions for the owner
 
-Q1 to Q6 have answers (W6 to W11 in §4.1).
+Every question has an answer (W6 to W16 in §4.1).
 
 | # | Question | My recommendation |
 | --- | --- | --- |
@@ -323,10 +337,12 @@ Q1 to Q6 have answers (W6 to W11 in §4.1).
 | Q5 | Does the new title also replace the approved tagline in the README, the deck and the posts (§3.6)? | Answered: yes (W10). |
 | Q6 | Which pictures go in "The idea"? | Answered: a still of S0 and perhaps a still of the evaluator (W11). |
 | Q7 | The loops of §7: three in a row, or a triangle around the data? | Answered: three separate loops in a row, with synchronization points and no data (§7.4a). |
-| Q11 | The assistant also reads the words of the person. Does the picture draw a synchronization point from you to the assistant? | Not as a direct line. In ProjecturEd the request is typed into the assistant pane, so it passes through the editor. If it is drawn, it is a dashed arc over the editor, labeled "a request". Version 5 does not draw it, and the owner accepted version 5. |
 | Q8 | Does the original picture go into "Lineage & status"? | Answered: no (W12). |
-| Q9 | The hero poster and the still of "The idea" both come from S0. Which frames? | The poster is an early frame: the request to the assistant. The still of "The idea" is the last frame: the finished study with its chart. So the page does not show the same picture twice. |
-| Q10 | The page already has a video of the evaluator ("The rotating vector, form by form"). Is a still of it in "The idea" still needed? | No. The loops and the S0 still are enough. The video stays in "Videos". |
+| Q9 | The hero poster and the still of "The idea" both come from S0. Which frames? | Answered: an early frame and the last frame (W13). |
+| Q10 | The page already has a video of the evaluator ("The rotating vector, form by form"). Is a still of it in "The idea" still needed? | Answered: yes (W14). |
+| Q11 | The assistant also reads the words of the person. Does the picture draw a synchronization point from you to the assistant? | Answered: a dashed arc labeled "conversation", explained in the caption (W15). |
+
+No question is open.
 
 ## 7. The picture of the three loops
 
@@ -505,7 +521,8 @@ clicks" says what passes. The owner kept the labels of the owner's version.
 **Not done:** the layout for a phone (§7.4). At 343 px the text of this layout is
 about 7 px high, so a phone needs the three loops one above the other (Step 4).
 
-**The generator.** It makes version 5 byte for byte, and it needs `fontTools`.
+**The generator.** It makes version 6 byte for byte: version 5 and the arc of
+§7.4c. It needs `fontTools`.
 Step 4 puts it into the site repository as `tool/make-repl-loops.py`, and runs it
 with the font of a `projectured-julia` checkout beside the site:
 
@@ -535,7 +552,7 @@ BAND = 16          # width of an arrow band
 HEAD = 30          # length of the head of a band
 CY = 250
 CENTERS = (230, 750, 1270)
-VIEW = (40, 34, 1420, 392)   # x, y, width, height
+VIEW = (40, -66, 1420, 492)   # x, y, width, height
 ANGLE = {"Read": 90, "Eval": -30, "Print": -150}
 LOOPS = [
     ("human", ("Human", "Loop"), {"Read": ["eye"], "Eval": ["face-slightly-smiling"], "Print": ["pointer"]}),
@@ -543,6 +560,7 @@ LOOPS = [
     ("ai", ("AI Assistant", "Loop"), {"Read": ["scan-text"], "Eval": ["bot"], "Print": ["square-terminal"]}),
 ]
 LINKS = ("user interaction", "tool calls")
+CONVERSATION = "conversation"
 
 STYLE = """
   .repl-loops { --loop-human: #5b82ff; --loop-editor: #36ad80; --loop-ai: #e3a236; }
@@ -560,12 +578,14 @@ STYLE = """
   .repl-loops .node.ai { fill: var(--loop-ai); fill-opacity: .22; }
   .repl-loops .sync { fill: none; stroke: var(--ink-faint, #8a919c); stroke-width: 5; }
   .repl-loops .sync-head { fill: var(--ink-faint, #8a919c); }
+  .repl-loops .conversation { fill: none; stroke: var(--ink-faint, #8a919c); stroke-width: 4; stroke-dasharray: 12 10; stroke-linecap: round; }
 """
 DESCRIPTION = (
     "Three separate read-eval-print loops in a row: the human, the editor and the AI assistant. "
     "The human reads with the eyes, decides, and acts with the hand. The editor reads the keyboard and the mouse, "
     "evaluates, and prints to the screen. The AI assistant reads text, the model decides, and it prints a tool call. "
-    "The human and the editor meet at the user interaction; the editor and the AI assistant meet at the tool calls.")
+    "The human and the editor meet at the user interaction; the editor and the AI assistant meet at the tool calls. "
+    "A dashed arc over the editor joins the human and the AI assistant: the conversation.")
 
 
 def make_icon(glyphs, name, cx, cy, size):
@@ -612,6 +632,26 @@ def make_sync(x0, x1, y):
             f'<path class="sync-head" d="M{x1} {y} L{x1 - h} {y - w} L{x1 - h} {y + w} z"/>')
 
 
+def make_conversation(x0, x1, y, rise):
+    """A dashed two-way arc over the editor, from the loop of the human to the loop of the assistant."""
+    c0, c1 = (x0 + 100, y - rise), (x1 - 100, y - rise)
+    h, w = 16, 9
+    heads = []
+    for (tip_x, tip_y), (from_x, from_y) in (((x0, y), c0), ((x1, y), c1)):
+        dx, dy = tip_x - from_x, tip_y - from_y
+        n = math.hypot(dx, dy)
+        dx, dy = dx / n, dy / n
+        bx, by = tip_x - dx * h, tip_y - dy * h
+        heads.append(f'<path class="sync-head" d="M{tip_x:.1f} {tip_y:.1f} L{bx - dy * w:.1f} {by + dx * w:.1f} '
+                     f'L{bx + dy * w:.1f} {by - dx * w:.1f} z"/>')
+    # the dashed line stops short of each tip, so the dash does not show through the head
+    s0 = (x0 + (c0[0] - x0) * 0.1, y + (c0[1] - y) * 0.1)
+    s1 = (x1 + (c1[0] - x1) * 0.1, y + (c1[1] - y) * 0.1)
+    peak = y - rise * 0.75
+    return (f'<path class="conversation" d="M{s0[0]:.1f} {s0[1]:.1f} C{c0[0]:.1f} {c0[1]:.1f} {c1[0]:.1f} {c1[1]:.1f} '
+            f'{s1[0]:.1f} {s1[1]:.1f}"/>' + "".join(heads) + make_text((x0 + x1) / 2, peak - 14, CONVERSATION, "link-label"))
+
+
 def make_text(x, y, content, cls):
     return f'<text x="{x:.1f}" y="{y:.1f}" class="{cls}">{content}</text>'
 
@@ -641,6 +681,7 @@ def make_svg(glyphs):
         x0, x1 = a + reach, b - reach
         parts.append(make_sync(x0, x1, CY + 20))
         parts.append(make_text((x0 + x1) / 2, CY - 2, label, "link-label"))
+    parts.append(make_conversation(CENTERS[0] + 108, CENTERS[-1] - 108, CY - 170, 150))
     x, y, w, h = VIEW
     return (f'<svg class="repl-loops" viewBox="{x} {y} {w} {h}" role="img" aria-labelledby="repl-loops-title" '
             f'xmlns="http://www.w3.org/2000/svg">\n'
@@ -653,6 +694,28 @@ if __name__ == "__main__":
     with open(output_path, "w") as output:
         output.write(make_svg(TTFont(font_path).getGlyphSet()))
 ```
+
+### 7.4c The conversation arc (W15)
+
+The assistant also reads the words of the person. The owner chose to show this
+as a dashed arc from the human loop to the assistant loop, over the editor,
+with the label "conversation", and to explain it in the text.
+
+- The arc points both ways: the person asks, and the assistant answers.
+- It is dashed and gray, as the synchronization arrows are gray, so it does
+  not compete with the three loops.
+- Its ends stand clear of the Read discs and of the heads of the bands.
+
+The caption under the picture:
+
+> You, ProjecturEd and the AI assistant each run a loop of their own: read,
+> evaluate, print. The loops meet at synchronization points. You and the editor
+> meet at the screen, the keyboard and the mouse. The editor and the assistant
+> meet at tool calls and their results. The dashed arc is the conversation: you
+> ask the assistant in plain words, and it answers. The conversation is a
+> document in the editor too, so these words also pass through the editor.
+
+Version 6 is version 5 with this arc. The generator of §7.4b makes it.
 
 ### 7.5 The original picture in "Lineage & status"
 
@@ -701,8 +764,11 @@ the live site, so each push waits for the owner's word.
 - [ ] Add a phone layout to the generator: the three loops one above the
       other, with vertical two-way arrows. CSS shows one of the two SVG
       elements.
-- [ ] Put both SVG elements and a caption in "The idea". The owner reads a
-      render at desktop width and at phone width before the commit.
+- [ ] Add the dashed arc "conversation" of §7.4c to both layouts.
+- [ ] Put both SVG elements and the caption of §7.4c in "The idea". The owner
+      reads a render at desktop width and at phone width before the commit.
+- [ ] A still of the rotating vector in "The idea": the evaluator and the
+      picture pane only (W14).
 - [ ] A credit line for the Lucide icons (ISC licence) in the footer.
 
 ### Step 5: the title T2
@@ -717,9 +783,9 @@ the live site, so each push waits for the owner's word.
 ### Step 6: the videos (after S0 and S11 exist)
 
 - [ ] S0 in the hero, with a poster and a play control (W7). The poster is an
-      early frame (Q9). The caption follows D11 of the screenplay plan. The
+      early frame (W13). The caption follows D11 of the screenplay plan. The
       assistant picture moves to the AI section.
-- [ ] A still of the last frame of S0 in "The idea" (W11, Q9).
+- [ ] A still of the last frame of S0 in "The idea" (W11, W13).
 - [ ] S11 in the Videos section. The card about incremental update links to it.
 
 ### Step 7: after a table takes an edit (W3)
