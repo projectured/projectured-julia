@@ -31,6 +31,6 @@ function make_pane_projection_example(; measure=FontFileMeasure(), new_tab=defau
     # widget gallery's projection does.
     ChainingProjection(
         RecursiveProjection(PaneToWidget(; new_tab=new_tab)),
-        WidgetHoverTrackingProjection(inner=renderer),
+        WidgetHoverTrackingProjection(inner=FocusCyclingProjection(inner=renderer)),
     )
 end

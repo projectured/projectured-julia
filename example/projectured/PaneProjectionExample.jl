@@ -20,7 +20,7 @@ function make_pane_json_projection_example(; measure=FontFileMeasure(), new_tab=
     # visual tier's pane projection does.
     ChainingProjection(
         RecursiveProjection(PaneToWidget(; new_tab=new_tab)),
-        WidgetHoverTrackingProjection(inner=renderer),
+        WidgetHoverTrackingProjection(inner=FocusCyclingProjection(inner=renderer)),
     )
 end
 
@@ -29,7 +29,7 @@ end
 # and, through the same recursion, whichever domain document each tab holds.
 function make_widget_tabs_projection_example(; measure=FontFileMeasure())
     renderer = NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20)
-    WidgetHoverTrackingProjection(inner=renderer)
+    WidgetHoverTrackingProjection(inner=FocusCyclingProjection(inner=renderer))
 end
 
 # The projection of `make_widget_split_document_example`. Like the tabbed-pane
@@ -37,7 +37,7 @@ end
 # split and each side's own domain through the same recursion.
 function make_widget_split_projection_example(; measure=FontFileMeasure())
     renderer = NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20)
-    WidgetHoverTrackingProjection(inner=renderer)
+    WidgetHoverTrackingProjection(inner=FocusCyclingProjection(inner=renderer))
 end
 
 # The projection of `make_widget_split_tabs_document_example`. Same shape as the
@@ -45,5 +45,5 @@ end
 # split, the two tab groups, and each page's own domain.
 function make_widget_split_tabs_projection_example(; measure=FontFileMeasure())
     renderer = NaturalToGraphics(measure=measure, font=font_ubuntu_regular_20)
-    WidgetHoverTrackingProjection(inner=renderer)
+    WidgetHoverTrackingProjection(inner=FocusCyclingProjection(inner=renderer))
 end

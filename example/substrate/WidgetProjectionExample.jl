@@ -14,8 +14,9 @@ function make_widget_projection_example(; measure=FontFileMeasure())
     )))
     # Wrap in the hover tracker so a button's `hovered` flag clears when the
     # pointer leaves it (container routing only delivers a move to the hit child).
+    # Tab starts over at the ends.
     ChainingProjection(
-        WidgetHoverTrackingProjection(inner = inner),
+        WidgetHoverTrackingProjection(inner = FocusCyclingProjection(inner = inner)),
     )
 end
 

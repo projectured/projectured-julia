@@ -23,10 +23,12 @@ function _canvas_has_image(canvas)
     false
 end
 
-# The standard widget renderer used by the button examples.
+# The standard widget renderer used by the button examples, with the hover
+# tracker and the start over of Tab at the ends.
 _proj() = ChainingProjection(
-    WidgetHoverTrackingProjection(inner = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(_font; measure=_stub).dispatch))))
+    WidgetHoverTrackingProjection(inner = FocusCyclingProjection(inner =
+        RecursiveProjection(TypeDispatchingProjection(
+            WidgetToGraphics(_font; measure=_stub).dispatch)))))
 
 # A lone button with a side-effecting action over a captured counter.
 function _button_doc()
@@ -409,6 +411,30 @@ end
     @test _slot(_read(comp2, tab)) == 3              # slot 2 skipped
 end
 
+# The start over at the ends belongs to the cycling wrapper, and the hover
+# tracker passes Tab through: at the last stop, Tab gets no answer from the hover
+# tracker alone.
+@testset "Tab starts over in the cycling wrapper, and the hover tracker passes it through" begin
+    _mk(i) = ConcreteReference(FieldReferenceStep("elements"),
+                ConcreteReference(RangeReferenceStep(i - 1, i), EmptyReference()))
+    _btn(t) = WidgetButton(t; size = Point2D(80, 30))
+    _slot(op) = op.path.tail.head.start + 1
+    tab  = KeyDown(:tab, ModifierKeys(); time = 0.0)
+    stab = KeyDown(:tab, ModifierKeys(shift=true); time = 0.0)
+    _renderer() = RecursiveProjection(TypeDispatchingProjection(
+        WidgetToGraphics(_font; measure=_stub).dispatch))
+    _read(proj, c, ev) = read_intent(proj, print_document(proj, nothing, c, PrinterContext()), ev)
+
+    comp = WidgetComposite(Any[_btn("A"), _btn("B")])
+    getfield(comp, :selection)[] = _mk(2)
+    @test _read(WidgetHoverTrackingProjection(inner = _renderer()), comp, tab) === nothing
+    cycling = FocusCyclingProjection(inner = _renderer())
+    op = _read(cycling, comp, tab)
+    @test op isa ReplaceSelectionOperation && _slot(op) == 1      # last starts over at first
+    getfield(comp, :selection)[] = _mk(1)
+    @test _slot(_read(cycling, comp, stab)) == 2                  # first starts over at last
+end
+
 # Stage 2, Step 3: the same distributed Tab in the LayoutDocument readers. Layout
 # children sit under `children[i]` (vs the composite's `elements[i]`), so this
 # exercises the layout-specific path shape and the cross-module focus helpers.
@@ -418,8 +444,8 @@ end
     _btn(t) = WidgetButton(t; size = Point2D(80, 30))
     _slot(op) = op.path.tail.head.start + 1
     # A renderer that dispatches both layout nodes and widget nodes (as the widget
-    # examples do), wrapped in the hover tracker for the top-level Tab wrap-around.
-    lproj = ChainingProjection(WidgetHoverTrackingProjection(inner =
+    # examples do), wrapped for the start over of Tab at the ends.
+    lproj = ChainingProjection(FocusCyclingProjection(inner =
         RecursiveProjection(TypeDispatchingProjection(vcat(
             LayoutToGraphics().dispatch,
             WidgetToGraphics(_font; measure=_stub).dispatch)))))

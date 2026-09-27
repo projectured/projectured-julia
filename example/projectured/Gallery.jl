@@ -296,7 +296,7 @@ function make_example_editor(documents::Vector, projections::Vector, names::Vect
             projection = make_graphics_caching(projection)
         end
         if hover
-            projection = WidgetHoverTrackingProjection(inner = projection)
+            projection = WidgetHoverTrackingProjection(inner = FocusCyclingProjection(inner = projection))
         end
         if gesture_help
             # One shared state for every window, so F1 toggles one help window.

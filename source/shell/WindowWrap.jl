@@ -98,8 +98,8 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
         end
         # The hover tracker sees the whole window, the bands with the panes: only
         # something that sees all of it can tell that the pointer left a button in
-        # the toolbar for a row in a pane.
-        projection = WidgetHoverTrackingProjection(inner = projection)
+        # the toolbar for a row in a pane. Tab starts over at the ends of the window.
+        projection = WidgetHoverTrackingProjection(inner = FocusCyclingProjection(inner = projection))
         if selection
             projection = make_clipboard_projection(SelectionWalkingProjection(inner = projection);
                                                    offered_gestures = clipboard_gestures)

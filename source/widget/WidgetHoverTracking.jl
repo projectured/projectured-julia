@@ -31,7 +31,6 @@
 # Mirrors `HoverProbeProjection` in shape (a transparent wrapper whose reader
 # reverse-routes the pointer); here the synthesised events are `MouseEnter` /
 # `MouseLeave` rather than a probe `MouseClick`.
-# The generic focus walk, for the top-level Tab wrap-around rule.
 
 
 struct WidgetHoverTrackingProjection <: Projection
@@ -70,21 +69,6 @@ end
 function read_intent(p::WidgetHoverTrackingProjection, recursion, change::Intent,
                          iomap::WidgetHoverTrackingIoMap)
     event = change.gesture
-    # Top-level Tab wrap-around (Stage 2): the only non-local part of focus
-    # traversal. Containers advance the selection locally and decline (return
-    # nothing) when focus runs off the end of the whole tree. Here, at the outer
-    # widget seam, a declined Tab wraps to the first focusable leaf (last for
-    # Shift-Tab). Bootstrap (no selection) is handled by the containers themselves,
-    # so this only fires for genuine wrap-around. See
-    # plan/done/widget-focus-traversal.md.
-    if event isa KeyDown && event.key === :tab
-        res = read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
-        op = res isa Intent ? res.operation : res
-        op === nothing || return res
-        root = iomap.child_iomap.input
-        wrap = event.modifiers.shift ? get_last_focusable_path(root) : get_first_focusable_path(root)
-        return Intent(event, wrap === nothing ? nothing : ReplaceSelectionOperation(wrap))
-    end
     event isa MouseMove || return read_intent(iomap.child_iomap.projection, recursion, change, iomap.child_iomap)
 
     child = iomap.child_iomap
