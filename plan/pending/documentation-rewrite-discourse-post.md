@@ -26,6 +26,8 @@ The most important part for me is that you can add your own domain. A domain is 
 
 The assistant runs Julia code inside the editor, so it uses the same API as you do. It can search the API by name, by pattern or by meaning. It can also open tabs and arrange the window. You can undo its changes with Ctrl+Z, like your own. By default it uses a local model through Ollama, but it also works with Claude. Other AI tools can use the same tools through MCP. Note that it's not a sandbox, and the MCP server has no authentication. Please don't run it on a shared machine.
 
+ProjecturEd also comes with its own Julia REPL. You open it in a tab and type Julia, like in the normal REPL. But a result that is a document or a picture shows as itself, not as text. And you can edit it right there.
+
 It's under development, the README lists what doesn't work yet.
 
 * Web page with more videos: https://projectured.org
