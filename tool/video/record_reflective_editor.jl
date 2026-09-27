@@ -20,7 +20,7 @@ const OUTPUT = isempty(ARGS) ? joinpath(pwd(), "reflective_editor.mp4") : ARGS[1
 const FAST = get(ENV, "PROJECTURED_TAKE_FAST", "") == "1"
 
 const EVALUATOR_BUTTON = (54, 52)       # the toolbar of the window
-const FRAME_PLOT_COPY = (498, 541)      # the Frame plot button in the copy of the toolbar
+const GESTURE_LOG_COPY = (399, 541)     # the Gesture log button in the copy of the toolbar
 const EVALUATOR_TAB = (437, 94)
 const PEOPLE_COPY = (403, 640)          # people.json in the copy of the explorer
 const PEOPLE_TAB = (707, 94)            # the tab that the double-click opens
@@ -140,7 +140,7 @@ function make_timeline()
         form(FORMS.shell_type)...,
         form(FORMS.shell_fields; hold = 3.0)...,
         form(FORMS.toolbar; hold = 2.5)...,                  # 4. the toolbar draws as itself
-        click(FRAME_PLOT_COPY; hold = 2.5)...,               # 5. it is the real toolbar
+        click(GESTURE_LOG_COPY; hold = 3.0)...,              # 5. it is the real toolbar
         click(EVALUATOR_TAB; hold = 1.0)...,
         glide(REST)...,
         form(FORMS.button; hold = 2.5)...,                   # 6. code changes the editor
