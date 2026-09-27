@@ -71,7 +71,7 @@ A key has no coordinate. `WidgetComposite`, `WidgetSplitPane`, `WidgetTabbedPane
 
 `WidgetShell` is the one exception. It fires the `Action` of its menu bar or toolbar whose `shortcut` matches the key. Then it gives the key to each band and to the content in order, and takes the first operation.
 
-Tab moves the selection to the next focusable widget. A container gives Tab to its selected child first. When the child returns `nothing`, the container selects the first focusable document of the next sibling with `get_next_focusable_index`. At the end of the tree, `WidgetHoverTrackingProjection` wraps the selection to the first focusable document. The focusable types are the enabled controls of the `FocusableWidget` union in `WidgetDocument.jl`.
+Tab moves the selection to the next focusable widget. A container gives Tab to its selected child first. When the child returns `nothing`, the container selects the first focusable document of the next sibling with `get_next_focusable_index`. At the end of the tree, `FocusCyclingProjection` of the focus package starts over at the first focusable document; see [focus.md](../focus/focus.md). The focusable types are the enabled controls of the `FocusableWidget` union in `WidgetDocument.jl`.
 
 A tabbed pane draws its first tab when its selection names no tab. `has_dormant_selection` is `true` for `WidgetTabbedPane`, `WidgetTabPage` and `WidgetSplitPane`, so a pane that loses the focus keeps the tab that it shows and the caret in that tab.
 

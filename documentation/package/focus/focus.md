@@ -16,7 +16,7 @@
 
 The walk keeps a set of the `objectid` of each node that it visited. A `ListNode` has `prev` and `next`, and both hold documents, so a walk without the set goes from `next` to `prev` and back until the stack overflows. Text and syntax content embed a `ListNode`, so a Tab in a file tab or in the assistant needs the set. A tree without a cycle visits each node once in both cases.
 
-The containers apply the walk. A layout, a `WidgetComposite` and a `WidgetSplitPane` give Tab to the selected child first. When the child returns `nothing`, the container selects the first focusable document of the next sibling. `WidgetHoverTrackingProjection` wraps the selection to the first focusable document at the end of the tree.
+The containers apply the walk. A layout, a `WidgetComposite` and a `WidgetSplitPane` give Tab to the selected child first. When the child returns `nothing`, the container selects the first focusable document of the next sibling. At the end of the tree every container returns `nothing`, and `FocusCyclingProjection` starts over: it selects the first focusable document of its input, or the last one for Shift+Tab. It is a transparent wrapper, as `SelectionWalkingProjection` is, and it answers only a Tab that nothing inside answered.
 
 ### A press gives the focus
 
@@ -57,7 +57,7 @@ A projection can draw a widget that no document of the domain stands behind, suc
 
 ## How it fits
 
-The four files of `source/focus/` hold the parts above: `Focus.jl` the Tab walk and the press that gives the focus, `WholeSelection.jl`, `SelectionWalking.jl` and `OutputSelection.jl`. `ProjecturedFocus` depends only on the kernel and on `ProjecturedCollection`. `ProjecturedLayout` and `ProjecturedWidget` call the Tab walk and the whole-element functions. `ProjecturedShell` puts a `SelectionWalkingProjection` into the fold of a window when its `selection` keyword is set; see [shell.md](../shell/shell.md). The package registers nothing. A domain extends it through two open functions, `is_focusable_document` and `is_selection_walk_stop`.
+The five files of `source/focus/` hold the parts above: `Focus.jl` the Tab walk and the press that gives the focus, `FocusCycling.jl` the start over at the ends, `WholeSelection.jl`, `SelectionWalking.jl` and `OutputSelection.jl`. `ProjecturedFocus` depends only on the kernel and on `ProjecturedCollection`. `ProjecturedLayout` and `ProjecturedWidget` call the Tab walk and the whole-element functions. `ProjecturedShell` puts a `SelectionWalkingProjection` into the fold of a window when its `selection` keyword is set; see [shell.md](../shell/shell.md). The package registers nothing. A domain extends it through two open functions, `is_focusable_document` and `is_selection_walk_stop`.
 
 ## Design decisions
 
