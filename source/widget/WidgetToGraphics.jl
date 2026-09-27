@@ -8438,8 +8438,14 @@ function _wt_grid_ref_to_table(reference, geom::WTGeometry)
     t = reference.tail
     t isa ConcreteReference || return nothing
     (t.head isa RangeReferenceStep && is_element_reference_step(t.head)) || return nothing
-    gidx = t.head.start + 1
-    tail = t.tail
+    steps = _wt_find_grid_steps(t.head.start + 1, geom)
+    steps === nothing ? nothing : reroot_reference(t.tail, steps)
+end
+
+# The steps from the table to grid child `gidx`: `column_headers[c]`,
+# `row_headers[r]` or `rows[r][c]`. The corner holds no document of the table,
+# so it has none.
+function _wt_find_grid_steps(gidx::Int, geom::WTGeometry)
     geom.grid_cols <= 0 && return nothing
     gr = div(gidx - 1, geom.grid_cols) + 1
     gc = mod(gidx - 1, geom.grid_cols) + 1
@@ -8449,27 +8455,24 @@ function _wt_grid_ref_to_table(reference, geom::WTGeometry)
         return nothing
     elseif header_row
         c = gc - geom.col_offset
-        return ConcreteReference(FieldReferenceStep("column_headers"),
-                ConcreteReference(RangeReferenceStep(c - 1, c), tail))
+        return (FieldReferenceStep("column_headers"), RangeReferenceStep(c - 1, c))
     elseif header_col
         r = gr - geom.row_offset
-        return ConcreteReference(FieldReferenceStep("row_headers"),
-                ConcreteReference(RangeReferenceStep(r - 1, r), tail))
-    else
-        r = gr - geom.row_offset
-        c = gc - geom.col_offset
-        return ConcreteReference(FieldReferenceStep("rows"),
-                ConcreteReference(RangeReferenceStep(r - 1, r),
-                ConcreteReference(RangeReferenceStep(c - 1, c), tail)))
+        return (FieldReferenceStep("row_headers"), RangeReferenceStep(r - 1, r))
     end
+    _wt_get_cell_steps(gr - geom.row_offset, gc - geom.col_offset)
 end
+
+# The steps from the table to the body cell in row `r` and column `c`.
+_wt_get_cell_steps(r::Int, c::Int) =
+    (FieldReferenceStep("rows"), RangeReferenceStep(r - 1, r), RangeReferenceStep(c - 1, c))
 
 # ── Reading (gestures) ───────────────────────────────────────────────────────
 # Gesture-aware reader. Left clicks resolve here (header/corner → row/column/
 # table; Alt+click promotes a data cell to a whole cell; a plain click routes
 # into the cell content). Keyboard grid navigation
 # (Alt+arrows, Ctrl+Alt+Home, Shift/Ctrl+Space, Enter) is resolved against the
-# live table. Everything else falls through to per-cell editing via the grid.
+# live table. Every other event goes to a cell (`_wt_route_event`).
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, iomap::WidgetTableToGraphicsCanvasIoMap)
     g = change.gesture
     if change.operation === nothing && g isa MousePress && g.button === :left
@@ -8492,11 +8495,10 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
         op = _wt_key_navigate(iomap, g, iomap.geometry)
         op === nothing || return Intent(g, op)
     end
-    # Fall through: plain editing keys route into the active cell via the grid; an
-    # already-produced operation passes straight through. Use the grid passthrough
-    # directly (not the 3-arg reader) to avoid re-entering this gesture logic.
-    payload = change.operation === nothing ? g : change.operation
-    return Intent(g, _wt_grid_passthrough(p, iomap, payload))
+    # An already-produced operation passes through the grid. The route is called
+    # directly, not through the 3-arg reader, so this gesture logic runs once.
+    change.operation === nothing || return Intent(g, _wt_grid_passthrough(p, iomap, change.operation))
+    return Intent(g, _wt_route_event(p, iomap, g))
 end
 
 # Resolve a left click into a selection operation (or nothing). The margin,
@@ -8616,15 +8618,11 @@ function _wt_route_cell_click(iomap::WidgetTableToGraphicsCanvasIoMap, geom::WTG
     op = read_intent(cim.projection, cim, local_evt)
     # A cell that declines the click — a label has nothing to say to one —
     # leaves it to the row, and the row is selected: a table of text is a
-    # table of rows. A selection the cell answers is re-rooted under the cell;
-    # any other operation names its own document and is answered as it is, so
-    # a checkbox in a cell toggles.
+    # table of rows. The answer of the cell is re-rooted under the cell; an
+    # operation that names its own document, such as the toggle of a checkbox,
+    # stays as it is.
     op === nothing && return ReplaceSelectionOperation(_wt_row_ref(r))
-    op isa ReplaceSelectionOperation || return op
-    table_ref = _wt_grid_ref_to_table(
-        ConcreteReference(FieldReferenceStep("children"),
-            ConcreteReference(RangeReferenceStep(gidx - 1, gidx), op.path)), geom)
-    table_ref === nothing ? nothing : ReplaceSelectionOperation(table_ref)
+    reroot_operation(op, _wt_get_cell_steps(r, c))
 end
 
 # Keyboard grid navigation, addressed via rows[r][c].
@@ -8732,25 +8730,52 @@ function _wt_enter_cell_content(iomap::WidgetTableToGraphicsCanvasIoMap, geom::W
     op = read_intent(cim.projection, cim, KeyDown(:home, ModifierKeys(ctrl=true);
                                                   time = time()))
     op isa ReplaceSelectionOperation || return nothing
-    table_ref = _wt_grid_ref_to_table(
-        ConcreteReference(FieldReferenceStep("children"),
-            ConcreteReference(RangeReferenceStep(gidx - 1, gidx), op.path)), geom)
-    table_ref === nothing ? nothing : ReplaceSelectionOperation(table_ref)
+    reroot_operation(op, _wt_get_cell_steps(r, c))
 end
 
-# 3-arg fall-through form. Reached two ways: (a) the 4-arg gesture reader above
-# delegates plain editing events here; (b) a *parent* container (composite, grid,
-# split pane) routes a raw event to this nested table via the 3-arg call. For (b)
-# we must still run the table's own gesture logic (left-click selection, grid
-# navigation), so a bare MousePress/KeyDown is lifted into a Intent and handled by
-# the 4-arg reader. Anything else dispatches to the grid and is re-rooted.
+# 3-arg form: a *parent* container (composite, grid, split pane) routes a raw
+# event to this nested table. The table's own gesture logic (left-click
+# selection, grid navigation) must still run, so a bare MousePress/KeyDown is
+# lifted into an Intent and handled by the 4-arg reader. An operation goes to
+# the grid, and every other event to a cell.
 function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
     _outside_widget(iomap, event) && return nothing
     if event isa MousePress || event isa KeyDown ||
        event isa MouseEnter || event isa MouseMove || event isa MouseLeave
         return read_intent(p, nothing, Intent(event, nothing), iomap).operation
     end
-    return _wt_grid_passthrough(p, iomap, event)
+    event isa Operation && return _wt_grid_passthrough(p, iomap, event)
+    return _wt_route_event(p, iomap, event)
+end
+
+# An event that is not a gesture of the table's own goes to a cell. One with a
+# position goes through the grid, which finds the cell under it. One with no
+# position, such as a key or a character, goes to the cell the selection is in.
+function _wt_route_event(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableToGraphicsCanvasIoMap, event)
+    (_positioned_event(event) || event isa MouseEnter || event isa MouseLeave) &&
+        return _wt_grid_passthrough(p, iomap, event)
+    _wt_route_to_selected_cell(iomap, event)
+end
+
+# The cell the selection is in reads the event, whether the whole cell is
+# selected or a caret is inside it, and its answer is re-rooted under the cell.
+# A selected row, column or table is in no cell, and the event goes to none.
+function _wt_route_to_selected_cell(iomap::WidgetTableToGraphicsCanvasIoMap, event)
+    gim = iomap.grid_iomap
+    gim isa GridLayoutIoMap || return nothing
+    geom = iomap.geometry
+    selection = iomap.input.selection
+    shape = _wt_selection_shape(selection, geom)
+    (shape === nothing || shape[1] === :cell) || return nothing
+    target = _wt_ref_to_grid_index(selection, geom)
+    target === nothing && return nothing
+    gidx = target[1]
+    entries = gim.child_iomaps::Vector
+    (1 <= gidx <= length(entries)) || return nothing
+    entry = entries[gidx]
+    entry === nothing && return nothing
+    cim = entry[3]
+    reroot_operation(read_intent(cim.projection, cim, event), _wt_find_grid_steps(gidx, geom))
 end
 
 # Dispatch a non-gesture event to the grid; the active cell answers and the grid

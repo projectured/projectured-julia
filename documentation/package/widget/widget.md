@@ -67,7 +67,7 @@ A container routes a `MouseMove` only to the child under the pointer, so a widge
 
 ### A key goes by selection
 
-A key has no coordinate. `WidgetComposite`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetCard` and the layouts give a key only to the child that their own `selection` names. When the selection is not inside the container, the container returns `nothing`. No container gives a key to a default child, to the first child, or to every child. The selection is the focus, and no widget has a `focused` field. [focus.md](../focus/focus.md) describes the functions.
+A key has no coordinate. `WidgetComposite`, `WidgetSplitPane`, `WidgetTabbedPane`, `WidgetCard` and the layouts give a key only to the child that their own `selection` names. `WidgetTable` gives a key that it does not take itself to the cell that its selection is in, as a whole or with a caret in it, so the readers of the domain of the cell edit it. A selected row, column or table is in no cell. When the selection is not inside the container, the container returns `nothing`. No container gives a key to a default child, to the first child, or to every child. The selection is the focus, and no widget has a `focused` field. [focus.md](../focus/focus.md) describes the functions.
 
 `WidgetShell` is the one exception. It fires the `Action` of its menu bar or toolbar whose `shortcut` matches the key. Then it gives the key to each band and to the content in order, and takes the first operation.
 
@@ -181,7 +181,7 @@ Three projections turn objects of a domain into widgets:
 
 ### The table as a list
 
-The `rows` of a `WidgetTable` can be a `ListNode`. `WidgetTableList.jl` then walks the list from its `head` in both directions and builds only the rows that the viewport shows. Each column must have a `Fixed` width or a weight, because a column that is as wide as its content would read rows that were never built. The list places its cells itself, and `column_align` moves each one inside its column as the grid does. The table reports a width and no height, so it goes inside a `WidgetScrollPane`.
+The `rows` of a `WidgetTable` can be a `ListNode`. `WidgetTableList.jl` then walks the list from its `head` in both directions and builds only the rows that the viewport shows. Each column must have a `Fixed` width or a weight, because a column that is as wide as its content would read rows that were never built. The list places its cells itself, and `column_align` moves each one inside its column as the grid does. The table reports a width and no height, so it goes inside a `WidgetScrollPane`. A cell of a list gets no caret: `set_selection!` does not step into a `ListNode`, which has no `length`, so the cell does not know where the caret is, and a key in it edits nothing.
 
 ### The transform pane
 

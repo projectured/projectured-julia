@@ -477,9 +477,9 @@ function _wtl_click(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap,
 end
 
 # A click inside a cell goes to the cell's own reader, in the cell's own
-# coordinates. A selection it answers is re-rooted under `rows[k][c]`; any
-# other operation names its own document and is answered as it is, which is
-# what lets a checkbox or a button in a cell be pressed. A cell that declines
+# coordinates. Its answer is re-rooted under `rows[k][c]`; an operation that
+# names its own document stays as it is, which is what lets a checkbox or a
+# button in a cell be pressed. A cell that declines
 # the click — a label has nothing to say to one — leaves the click to the row,
 # and the row is selected: a table of text is a table of rows, and a list
 # draws no row-header strip to click on instead.
@@ -497,8 +497,7 @@ function _wtl_route_cell_click(iomap::WidgetTableListIoMap, k::Int, c::Int, g::M
     op = read_intent(cim.projection, cim, MousePress(g.button, g.x - cell_x, g.y - cell_y, g.count, g.modifiers;
                                                      time = g.time))
     op === nothing && return row
-    op isa ReplaceSelectionOperation || return op
-    ReplaceSelectionOperation(_wtl_cell_reference(k, c, op.path))
+    reroot_operation(op, _wt_get_cell_steps(k, c))
 end
 
 # The row, or the row and the cell, under the pointer, written to `hovered`.
@@ -577,7 +576,7 @@ function _wtl_enter_cell(iomap::WidgetTableListIoMap, k::Int, c::Int)
 end
 
 # An event that is not a gesture of the table's own goes to the cell the
-# selection is in, and a selection it answers is re-rooted under that cell.
+# selection is in, and its answer is re-rooted under that cell.
 function _wtl_passthrough(iomap::WidgetTableListIoMap, event)
     st = iomap.state
     prefix = _wt_cell_prefix(iomap.input.selection)
@@ -588,9 +587,7 @@ function _wtl_passthrough(iomap::WidgetTableListIoMap, event)
     (1 <= c <= length(entries)) || return nothing
     cim = entries[c][3]
     cim === nothing && return nothing
-    op = read_intent(cim.projection, cim, event)
-    op isa ReplaceSelectionOperation || return op
-    ReplaceSelectionOperation(_wtl_cell_reference(k, c, op.path))
+    reroot_operation(read_intent(cim.projection, cim, event), _wt_get_cell_steps(k, c))
 end
 
 function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, iomap::WidgetTableListIoMap)
