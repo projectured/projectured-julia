@@ -448,6 +448,34 @@ Every screenplay has the same parts: the feature, the claim of the post that it 
   - [x] **The final take**: `build/video/s10/take4.mp4`, 59.3 s, with the wheel over the navigator after the folders, recorded on the branch rebased onto `main`. A take with a full repaint and one with the partial repaint of the same timeline draw the same 684 frames (`build/video/s10/check2.jl`). On the web page it replaces the first take (commit `cee5b5e` of `projectured.github.io`).
   - Found in the draft, and not in the take: in a Markdown file, Down on the last line of a paragraph does not go to the next paragraph, Shift+Ctrl+Right does not extend a selection, and Enter in a paragraph makes no operation.
 
+#### S11. Only what you look at is computed
+
+- **Feature:** a document can be infinite. The view asks only for the rows that it shows, and the list computes only the rows that the view asks for. A list made from a lazy list is lazy too.
+- **Claim:** laziness is visible. A count beside each list says how many of its nodes exist, and it grows only when the view reaches new rows.
+- **The owner's idea, 2026-09-27:** the sieve of Eratosthenes of the examples, made in the evaluator and shown in a scroll pane; first a list that is infinite in one direction, then one that is infinite in both; a list that skips its first N elements, or a subsequence made by a filter. "The goal is to demonstrate the laziness." On the same day the owner accepted this proposal:
+  - A count of the computed nodes is the proof on the screen. Without it, a lazy list and a list that was computed before the take look the same.
+  - The evaluator holds the forms, and each list opens in a scroll pane of its own beside the evaluator, as the results of S1, S4 and S7 do. A result row is narrow, it scrolls inside the scroll pane of the evaluator, and the evaluator follows its end.
+  - The sieve is the first list. Programmers know it, and one form defines all the primes.
+  - The far jump and the list that is infinite in both directions are the primes around one trillion, not the negative primes of `make_lazy_bidirectional_document_example`. Each prime of the sieve depends on all the primes before it, so a skip of N primes computes N primes; and the negative primes are a mirror that means nothing, whose node chaining the test file says has faults. A prime around one trillion is found by a test of that number alone, so the list starts in the middle and costs only the rows on the screen, in both directions.
+  - The filter is in: the primes that end in 7 are a lazy list made from the lazy sieve, and when it scrolls, both counts grow.
+- **Setup:** `bin/projectured`, 1280×720, with no assistant, and the evaluator open in a tab. The lists open to its right.
+- **Beats:**
+
+| # | Action | On the screen | What the viewer learns |
+| --- | --- | --- | --- |
+| 1 | `primes = sieve(integers_from(2));` | The form runs, and no result row shows. | One line defines all the primes. |
+| 2 | A form opens `primes` in a pane to the right of the evaluator. | A card with the title "Primes, computed: N" over a scroll pane of 2, 3, 5, …; N is about the number of rows that fill the pane. | Only what the pane shows is computed. |
+| 3 | Scroll down three screens, then back to the top. | N grows while the pane shows new rows, and stays the same on the way back. | The count follows the view, and a node is computed once. |
+| 4 | `sevens = lazy_filter(primes, p -> p.value % 10 == 7);`, and a form opens it under the first pane. Scroll it. | 7, 17, 37, 47, …; the counts of both cards grow. | A lazy list made from a lazy list pulls only what its view needs. |
+| 5 | `around = primes_around(10^12);`, and a form opens it. Scroll up, then down. | The first prime after one trillion, with the smaller primes above it and the larger ones below; its count stays small. | A far start costs only the rows on the screen, in both directions. |
+| 6 | Hold on the three cards. | | |
+
+- **Acceptance:**
+  - The count never computes a node: it walks only the nodes whose cells are up to date. Check it with a count taken before and after the take draws a frame without a scroll.
+  - The sieve scrolls a few hundred primes at most. Each prime adds one filter to the chain of the stream, so a far scroll makes the chain deep and slow.
+  - The video lasts at most 3 min (D5), and it types with the rhythm of the S7 take.
+  - The product work is in `plan/pending/lazy-list-video.md`.
+
 ### Considered, and not chosen now
 
 | Feature | Why not now |
@@ -547,7 +575,7 @@ The number of the frames follows the wall clock, so one second of the session is
 
 ### Step 8: tier 2
 
-- [ ] S5, S6, S7, S8, each with the checks of its acceptance.
+- [ ] S5, S6, S8, each with the checks of its acceptance. S7 is done: it landed and is on the web page (2026-09-27).
 - [ ] S9, the editor from a plain Julia REPL. It needs G6 first: choose the tool that captures the screen of the desktop session, and check that the terminal and the window are both legible at 1920×1080.
 
 ### Step 9: publish and close
