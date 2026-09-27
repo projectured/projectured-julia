@@ -1,7 +1,7 @@
 # Fragment of `SelectionModule` — the default implementations of the selection
 # generics declared in `SelectionInterface.jl`, plus the private path-walking helpers they
-# share (`_selection_child`, `_set_selection_walk!`, `_sync_selection!`,
-# `_mutate_terminal_step!`). All read and write the conventional
+# share (`_selection_child`, `_find_indexed_child`, `_set_selection_walk!`,
+# `_sync_selection!`, `_mutate_terminal_step!`). All read and write the conventional
 # `document.selection` field and descend the folded reference path.
 
 get_selection(document::Document) = document.selection
@@ -323,13 +323,29 @@ function _selection_child(document, path::ConcreteReference)
         unwrap_cell(getfield(document, sym))
     elseif h isa RangeReferenceStep
         document isa AbstractString && return nothing
-        idx = h.start + 1
-        (!applicable(length, document) || idx < 1 || idx > length(document)) && return nothing
-        document[idx]
+        _find_indexed_child(document, h.start + 1)
     else
         return nothing
     end
     child isa Document ? child : nothing
+end
+
+# The element at `index` of a sequence, or `nothing` past its ends. A sequence
+# with a length is checked against it. One with none, such as a link of a list
+# that can be endless, is indexed as `evaluate_reference_step` indexes it, and
+# an index past its ends names no child.
+function _find_indexed_child(document, index::Integer)
+    if applicable(length, document)
+        (1 <= index <= length(document)) || return nothing
+        return document[index]
+    end
+    applicable(getindex, document, index) || return nothing
+    try
+        document[index]
+    catch exception
+        exception isa BoundsError || rethrow()
+        nothing
+    end
 end
 
 # Mutate a terminal cursor step `old` in place to match `new`, returning `true`
