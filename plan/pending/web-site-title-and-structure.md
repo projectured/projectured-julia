@@ -820,12 +820,41 @@ the live site, so each push waits for the owner's word.
 
 ### Step 5: the title T2
 
-- [ ] Change every place of §3.6 in `index.html`, with the sub-line of §3.4.
-- [ ] Draw `assets/og.png` again from an HTML template in `assets/og/` (W9).
-- [ ] In `projectured-julia`: the first line of the README, the introduction
+- [x] Change every place of §3.6 in `index.html`, with the sub-line of §3.4.
+- [x] Draw `assets/og.png` again from an HTML template in `assets/og/` (W9).
+- [x] In `projectured-julia`: the first line of the README, the introduction
       (take "transform" out), the title slide of the deck, and the post drafts.
       This is one commit in that repository.
-- [ ] Give the owner the new description of the GitHub repository.
+- [x] Give the owner the new description of the GitHub repository.
+
+      **Done** as site commit `f862b6e` and projectured-julia commit
+      `79ddc44a`.
+
+      - `<title>` and the meta titles read "ProjecturEd — one structure, many
+        editable views, with an AI assistant". The `<h1>` keeps its three
+        lines. The text column of the hero was 52ch wide, so the heading broke
+        into six lines, as the old one did; the column is now 60rem wide, and
+        the lede keeps its own width of 44ch.
+      - `og:url`, `og:image` and `twitter:image` name `https://projectured.org`.
+        `projectured.github.io` answers 301 to `http://projectured.org/`: the
+        redirect goes to `http`, which is the setting "Enforce HTTPS" of
+        GitHub Pages, for the owner.
+      - The social card has the eyebrow "A projectional editor, written in
+        Julia", the title, and `projectured.org`. `assets/og/og.html` says how
+        to render it again.
+      - In projectured-julia: the first line of the README, its introduction,
+        the description and the title slide of the deck, both post titles and
+        the first sentence of each post. §2.1 of the documentation rewrite
+        keeps the approved texts as a record, with a note.
+        `plan/pending/nlnet-application.md` also quotes the old framing, in
+        its brief for the application; it is another plan, so it is not
+        changed here.
+      - The documentation guard (`julia test/suite/documentation.jl`) passes on
+        the branch.
+      - The description proposed for the GitHub repository: "One structure,
+        many editable views — with an AI assistant. A projectional editor
+        written in Julia: view and edit structured data, and a generic user
+        interface for Julia programs." The website field: `https://projectured.org`.
 
 ### Step 6: the videos (after S0 and S11 exist)
 
