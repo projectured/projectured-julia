@@ -1,8 +1,9 @@
 # The web site: the title, and a page that a newcomer can follow
 
-**Status (2026-09-27): in progress.** Every question has an answer (§4.1). The
-owner said to implement the plan in worktrees, and to wait with every part that
-needs the M/M/1/K video (S0), which is still being made. The work is on the
+**Status (2026-09-27): in progress; Steps 1 to 5 and 7 are landed and pushed.**
+Every question has an answer (§4.1). The owner said to implement the plan in
+worktrees, and to wait with every part that needs the M/M/1/K video (S0), which
+is still being made. Only those parts of Step 6 remain. The work is on the
 branch `web-site-title` of `projectured.github.io` and of `projectured-julia`,
 in the worktrees `projectured.github.io-web-site-title` and
 `projectured-julia-web-site-title`.
@@ -828,7 +829,7 @@ the live site, so each push waits for the owner's word.
 - [x] Give the owner the new description of the GitHub repository.
 
       **Done** as site commit `f862b6e` and projectured-julia commit
-      `79ddc44a`.
+      `52e836fd` (`79ddc44a` before the rebase on `main`).
 
       - `<title>` and the meta titles read "ProjecturEd — one structure, many
         editable views, with an AI assistant". The `<h1>` keeps its three
@@ -867,7 +868,16 @@ the live site, so each push waits for the owner's word.
 
 ### Step 7: after a table takes an edit (W3)
 
-- [ ] Take "a table does not take an edit yet" out of "Lineage & status".
+- [x] Take "a table does not take an edit yet" out of "Lineage & status".
+
+      **Done** as site commit `fc8657e`. The table edit landed on `main` of
+      projectured-julia while this plan ran
+      (`plan/done/edit-inside-a-table-cell.md`): a click, the arrows, typed
+      characters and Backspace edit a cell, and only a drag inside a cell does
+      not select text. The README, `documentation/design/concepts.md` and the
+      roadmap still said that a cell takes no edit; projectured-julia commit
+      `6c0e02b8` corrects them, and the roadmap lists the table cell as
+      delivered. The site links to that roadmap as the list of what works.
 
 ### Step 8: the review
 
@@ -884,7 +894,10 @@ the live site, so each push waits for the owner's word.
       a frame of 390, 360 and 320 px finds no element wider than the page.
       Chrome in headless mode does not make a window narrower than 485 px, so
       the check loads the page in an iframe of the width to test.
-- [ ] The owner reads the page. The owner says when it is pushed.
+- [x] The owner reads the page. The owner says when it is pushed.
+      The owner read the preview and approved the landing and the push on
+      2026-09-27. The owner also set the description of the GitHub repository
+      and turned on "Enforce HTTPS" of GitHub Pages.
 - [ ] Move this plan to `plan/done/`.
 
 ## 9. Risks
