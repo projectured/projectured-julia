@@ -118,17 +118,13 @@ print to print, no?", then:
   S2 rehearsal of 2026-09-26: `string(person["name"])` printed the long form into
   every cell of the table, because `print` fell back to the two-argument `show`.
 
-- **D6. A form that returns a widget shows it drawn, not printed** (the owner,
-  2026-09-27: "when a form returns a table widget it should be displayed as a
-  table and not printed"). What exists: the evaluator and a block of code of the
-  assistant embed a returned `Document` as the result, so it draws as itself; the
-  model then receives the natural text of that result, or the debug form when
-  the document has none, which a table needs D5 point 5 for. A
-  `ReferencedDocument`, which `find_pane`, `get_edited_document` and `open_pane!`
-  answer, is not a `Document`, so it shows as text. To decide: whether a
-  referenced document draws its document in the block, for a widget or for any
-  document, with the text for the model kept apart; a block that draws a live
-  document shows it as it is now, not as it was when the code ran.
+- **D6. The display of a returned document does not change** (the owner,
+  2026-09-27: "All documents should display with their natural notation and they
+  already do. A table widget and all widgets display as widgets and that is good
+  as it is today."). The natural string of D5 is for `print` and for text only.
+  Where the two meet: a form that returns a document shows it drawn, and the
+  model receives it as text, its natural string; a table has none now, so the
+  model receives the debug form, and with point 5 of D5 it receives the rows.
 
 ## 4. Steps
 
@@ -149,8 +145,6 @@ print to print, no?", then:
       with no natural text, of a referenced document, and `repr` of a vector of
       referenced documents. The natural text of a table (point 5), and `string` of a
       table and of a tab that holds one.
-- [ ] **Step 3b: a returned widget is drawn** (D6), after the owner decides its
-      open question.
 - [ ] **Step 4: omnet-julia.** The NED and INI methods and every call; the two
       repositories land together.
 - [ ] **Step 5: the texts the model reads.** The orientation guide, the S2 code
