@@ -101,11 +101,34 @@ print to print, no?", then:
   4. A JSON string leaf prints as its JSON literal, with the quotes:
      `string(JsonString("Cleo"))` is `"Cleo"` with the two quotes. The bare text
      stays `.value`, as the orientation guide shows.
+  5. **A table prints as its rows** (the owner, 2026-09-27: "Yes, natural table
+     printing is right"). A `WidgetTable` has no natural text now
+     (`print_natural_text` fails: "no natural text for WidgetTable"), so without
+     one `print` of a table falls back to the debug form. Its natural text is its
+     column headers and its rows, one line each, with the cells of a column
+     lined up. A tab prints as what it shows. Found in the rehearsal of S2
+     (`plan/pending/a-fast-loop-for-the-assistant.md`): a model that wrote
+     `println(table_tab)` read the debug form, and stated the count of an earlier
+     turn; with the rows it reads the count and the names. The three-argument
+     `show` of a tab and a table stays the summary that landed on 2026-09-27
+     (a2ad3898), `PaneTab("People", WidgetTable(5 rows × 3 columns: name, age, city))`.
   In the same step, a `ReferencedDocument` follows the contract: `print` of it
   prints its document; its long form `ReferencedDocument{T} at …: …` moves to
   the three-argument `show`; its two-argument `show` becomes short. Found in the
   S2 rehearsal of 2026-09-26: `string(person["name"])` printed the long form into
   every cell of the table, because `print` fell back to the two-argument `show`.
+
+- **D6. A form that returns a widget shows it drawn, not printed** (the owner,
+  2026-09-27: "when a form returns a table widget it should be displayed as a
+  table and not printed"). What exists: the evaluator and a block of code of the
+  assistant embed a returned `Document` as the result, so it draws as itself; the
+  model then receives the natural text of that result, or the debug form when
+  the document has none, which a table needs D5 point 5 for. A
+  `ReferencedDocument`, which `find_pane`, `get_edited_document` and `open_pane!`
+  answer, is not a `Document`, so it shows as text. To decide: whether a
+  referenced document draws its document in the block, for a widget or for any
+  document, with the text for the model kept apart; a block that draws a live
+  document shows it as it is now, not as it was when the code ran.
 
 ## 4. Steps
 
@@ -124,7 +147,10 @@ print to print, no?", then:
       fallback to `show`; then the `show` and `print` of `ReferencedDocument`.
       Tests: `string` of a JSON array and of a JSON string leaf, of a document
       with no natural text, of a referenced document, and `repr` of a vector of
-      referenced documents.
+      referenced documents. The natural text of a table (point 5), and `string` of a
+      table and of a tab that holds one.
+- [ ] **Step 3b: a returned widget is drawn** (D6), after the owner decides its
+      open question.
 - [ ] **Step 4: omnet-julia.** The NED and INI methods and every call; the two
       repositories land together.
 - [ ] **Step 5: the texts the model reads.** The orientation guide, the S2 code
