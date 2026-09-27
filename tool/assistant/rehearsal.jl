@@ -215,7 +215,7 @@ end
 # One rehearsal with `seed`: the three steps and their checks. Answers a named
 # tuple of what each step did, and writes the conversation to `transcript`.
 function run_s2_rehearsal(seed; transcript, max_rounds = 8, max_seconds = 600.0,
-                          context = 32768, temperature = nothing)
+                          context = 32768, temperature = nothing, system = identity)
     directory = mktempdir()
     state = Dict{Symbol,Any}(:editor => nothing, :rounds_at_turn => 0,
                              :max_rounds => max_rounds, :max_seconds => max_seconds,
@@ -225,6 +225,7 @@ function run_s2_rehearsal(seed; transcript, max_rounds = 8, max_seconds = 600.0,
     llm = WatchedLlm(inner; watch = make_watch(state))
     state[:llm] = llm
     editor, assistant = make_rehearsal_editor(directory, llm)
+    assistant.system = system(assistant.system)
     state[:editor] = editor
     result = Dict{Symbol,Any}(:seed => seed)
 
@@ -291,7 +292,7 @@ end
 # The memory that a run of the model needs: the cap of this process, the model
 # when it is not loaded yet, and a margin (see the note on the crashes of the
 # machine). A model that the run before loaded is already counted as used.
-const PROCESS_CAP_GB = 8
+const PROCESS_CAP_GB = 3
 const MODEL_GB = 17
 const MARGIN_GB = 10
 
@@ -308,6 +309,18 @@ function get_available_gb()
         startswith(line, "MemAvailable:") && return parse(Int, split(line)[2]) ÷ 1024^2
     end
     0
+end
+
+# The guides and the API are indexed once in a process. A guide or a docstring
+# that changed since then is in the next search only after this.
+function reset_documentation_indexes!()
+    tool = Projectured.ToolModule
+    lock(tool._INDEX_LOCK) do
+        tool._GUIDE_INDEX[] = nothing
+        tool._API_INDEX[] = nothing
+        empty!(tool._DECLARED_INDEX)
+    end
+    nothing
 end
 
 function unload_models!()
@@ -333,6 +346,7 @@ function run_s2_rehearsals(seeds; directory, kwargs...)
     open(summary, "w") do io
         println(io, "S2 rehearsal, ", Dates.now(), ", seeds ", collect(seeds))
     end
+    reset_documentation_indexes!()
     passed = 0
     try
         for seed in seeds
@@ -359,6 +373,153 @@ function run_s2_rehearsals(seeds; directory, kwargs...)
     end
     open(io -> println(io, "passed ", passed, " of ", length(seeds)), summary, "a")
     read(summary, String)
+end
+
+# ── Tasks of one prompt ─────────────────────────────────────────────────────
+#
+# Other tasks on the same window, one prompt each, so a change of the
+# documentation is measured on more than the steps of S2.
+
+struct SingleTask
+    name::String
+    prompt::String
+    check::Any          # (editor, steps_before) -> nothing, or what is wrong
+end
+
+# The field `field` of the record whose name is `name`, in the text of the file.
+function find_record_field(text, name, field)
+    for record in eachmatch(r"\{[^{}]*\}", text)
+        occursin(Regex("\"name\"\\s*:\\s*\"$(name)\""), record.match) || continue
+        found = match(Regex("\"$(field)\"\\s*:\\s*(\"[^\"]*\"|[^,}\\s]+)"), record.match)
+        return found === nothing ? nothing : strip(found.captures[1], '"')
+    end
+    nothing
+end
+
+function check_file_edit(editor, steps_before)
+    steps = length(get_file_history(editor).undo_entries) - steps_before
+    steps >= 1 || return "the file history took no step: the change is not an edit"
+    nothing
+end
+
+function check_city_changed(editor, steps_before)
+    text = try compute_people_text(editor) catch e; return "the file does not print: " * first(sprint(showerror, e), 160) end
+    find_names(text) == NAMES || return "the names are $(find_names(text))"
+    city = find_record_field(text, "Ada", "city")
+    city == "Berlin" || return "Ada's city is $(repr(city))"
+    find_record_field(text, "Bob", "city") == "Oslo" || return "Bob's city changed"
+    check_file_edit(editor, steps_before)
+end
+
+function check_record_removed(editor, steps_before)
+    text = try compute_people_text(editor) catch e; return "the file does not print: " * first(sprint(showerror, e), 160) end
+    names = find_names(text)
+    names == filter(!=("Bob"), NAMES) || return "the names are $(names)"
+    check_file_edit(editor, steps_before)
+end
+
+# Every text of the tabs other than the file, the assistant and the log.
+function find_other_tab_texts(editor)
+    texts = String[]
+    for group in get_pane_groups(get_pane_tree(editor)), tab in group.tabs
+        get_pane_tab_title_string(tab) in ("people.json", "Assistant", "Gestures") && continue
+        for node in search_documents(tab, node -> node isa Union{WidgetLabel, TextString, PrimitiveString})
+            push!(texts, compute_node_text(node isa WidgetLabel ? node.content : node))
+        end
+        push!(texts, compute_node_text(tab.content))
+    end
+    texts
+end
+
+function check_average_shown(editor, steps_before)
+    texts = find_other_tab_texts(editor)
+    isempty(texts) && return "no new tab"
+    any(text -> occursin("32.8", text), texts) || return "no tab shows 32.8: $(first(join(texts, " | "), 300))"
+    nothing
+end
+
+function check_pane_closed(editor, steps_before)
+    titles = [get_pane_tab_title_string(tab) for group in get_pane_groups(get_pane_tree(editor)) for tab in group.tabs]
+    "Gestures" in titles && return "the tabs are $(titles)"
+    "people.json" in titles || return "people.json was closed too: $(titles)"
+    nothing
+end
+
+const TASKS = [
+    SingleTask("change", "Change the city of Ada to Berlin in people.json.", check_city_changed),
+    SingleTask("remove", "Remove Bob from people.json.", check_record_removed),
+    SingleTask("average", "Show the average age of the people in people.json in a new tab.", check_average_shown),
+    SingleTask("close", "Close the Gestures pane.", check_pane_closed),
+]
+
+function run_task_rehearsal(task::SingleTask, seed; transcript, max_rounds = 8, max_seconds = 300.0,
+                            context = 32768, system = identity)
+    state = Dict{Symbol,Any}(:editor => nothing, :rounds_at_turn => 0,
+                             :max_rounds => max_rounds, :max_seconds => max_seconds,
+                             :started => time())
+    llm = WatchedLlm(OllamaLlm(context = context, seed = seed); watch = make_watch(state))
+    state[:llm] = llm
+    editor, assistant = make_rehearsal_editor(mktempdir(), llm)
+    assistant.system = system(assistant.system)
+    state[:editor] = editor
+    steps_before = length(get_file_history(editor).undo_entries)
+    seconds = run_turn!(editor, assistant, task.prompt; cap = max_seconds)
+    outcome = llm.stopped === nothing ? task.check(editor, steps_before) : "stopped: " * llm.stopped
+    open(io -> write_conversation(io, assistant), transcript, "w")
+    (outcome = outcome, rounds = llm.rounds, seconds = seconds, tools = find_tool_names(assistant))
+end
+
+"""
+    run_task_rehearsals(seeds; directory, tasks = TASKS)
+
+Run each task of one prompt once for each seed, and write `tasks.txt` and one
+transcript for each run into `directory`. The models are unloaded at the end.
+"""
+function run_task_rehearsals(seeds; directory, tasks = TASKS, kwargs...)
+    mkpath(directory)
+    summary = joinpath(directory, "tasks.txt")
+    open(io -> println(io, "tasks, ", Dates.now(), ", seeds ", collect(seeds)), summary, "w")
+    reset_documentation_indexes!()
+    passed = 0
+    runs = 0
+    try
+        for task in tasks, seed in seeds
+            available, needed = get_available_gb(), get_needed_available_gb()
+            if available < needed
+                open(io -> println(io, task.name, " seed ", seed, ": not run, ", available, " GB available"), summary, "a")
+                continue
+            end
+            runs += 1
+            result = try
+                run_task_rehearsal(task, seed; transcript = joinpath(directory, "$(task.name)_$(seed).txt"), kwargs...)
+            catch e
+                (outcome = "the run failed: " * first(sprint(showerror, e), 300), rounds = 0, seconds = 0.0, tools = "")
+            end
+            result.outcome === nothing && (passed += 1)
+            open(summary, "a") do io
+                println(io, rpad(task.name, 8), " seed ", seed, ": ", _describe_check(result.outcome),
+                        "  (", result.rounds, " rounds, ", result.seconds, " s)  ", result.tools)
+            end
+        end
+    finally
+        unload_models!()
+    end
+    open(io -> println(io, "passed ", passed, " of ", runs), summary, "a")
+    read(summary, String)
+end
+
+# ── Documentation by name ────────────────────────────────────────────────────
+
+# The docstring of each name of the flat namespace, as Markdown, under a heading
+# with its name: what an oracle gives the model at the start.
+function format_named_documentation(names)
+    io = IOBuffer()
+    for name in names
+        value = getfield(Projectured, name)
+        println(io, "### `", name, "`\n")
+        println(io, strip(string(Base.Docs.doc(value))), "\n")
+    end
+    String(take!(io))
 end
 
 # ── The transcript ───────────────────────────────────────────────────────────
