@@ -195,6 +195,24 @@ All of them are from 2026-09-26.
   time interval, so that a frame that a display event causes does not feed the
   next one (D42). The fix stays in each feed (D40). The owner chose this rule
   over a special frame and over a limit of display rounds (Q16).
+- **D46.** A gesture that an event completes reaches the content after the
+  operation of that event, as it does today. The tracker keeps the waiting
+  gestures in its state document and answers a `SetTimerOperation` at the time
+  of the event (step 2). The editor reads a due timer before new input, and the
+  tracker then gives the next waiting gesture to the content. A chord that
+  breaks gives out its kept keys the same way, one in each read. (Q18, owner
+  2026-09-27.)
+- **D47.** The state document of the gesture tracker wraps the screen, as D27
+  says: the document of the editor is `GestureTrackingState(screen)`. Code that
+  needs the screen finds it with `get_wrapped_document`, and the screen package
+  has the path from the root to the screen, so every reference from the root
+  gets the steps of the wrappers. (Q19, owner 2026-09-27.)
+- **D48.** The names: `make_gesture_tracking_document(document)` and
+  `make_gesture_tracking_projection(projection)` in the tracking package, the
+  pattern of the dragging wrappers, and `make_tracking_screen(document,
+  projection)` in the screen package, the function of D15, with a keyword for
+  each tracker (`gesture_tracking = true` in step 6). `make_editor`, the gallery
+  and every host that makes an editor call it. (Q20, owner 2026-09-27.)
 
 ## 3. What is wrong today
 
