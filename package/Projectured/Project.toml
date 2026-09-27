@@ -24,6 +24,7 @@ ProjecturedFormula = "5b0a9501-da97-468b-b7ab-96b2aab72c39"
 ProjecturedFsm = "9482bca5-e1c6-47fd-ab22-f4512ed15b91"
 ProjecturedGestureHelp = "d8e6961d-7c29-43d8-bf9a-3394cc5f023b"
 ProjecturedGestureLog = "4fa8205f-3512-4016-add3-a8e2144efbf1"
+ProjecturedGestureTracking = "d677152d-0bb6-4d22-933a-4307a7c10075"
 ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
 ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
 ProjecturedHelp = "054ae1ca-906b-4e99-b707-58959c3973f3"
@@ -81,6 +82,7 @@ ProjecturedFormula = {path = "../ProjecturedFormula"}
 ProjecturedFsm = {path = "../ProjecturedFsm"}
 ProjecturedGestureHelp = {path = "../ProjecturedGestureHelp"}
 ProjecturedGestureLog = {path = "../ProjecturedGestureLog"}
+ProjecturedGestureTracking = {path = "../ProjecturedGestureTracking"}
 ProjecturedGraph = {path = "../ProjecturedGraph"}
 ProjecturedGraphics = {path = "../ProjecturedGraphics"}
 ProjecturedHelp = {path = "../ProjecturedHelp"}

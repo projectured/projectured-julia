@@ -45,6 +45,7 @@ ProjecturedFsmExample = "b1ba53a3-461e-4ef7-8c9b-f3916bec3479"
 ProjecturedFsmTest = "01095f28-dae7-4131-b352-cd496415c16e"
 ProjecturedGestureHelp = "d8e6961d-7c29-43d8-bf9a-3394cc5f023b"
 ProjecturedGestureLog = "4fa8205f-3512-4016-add3-a8e2144efbf1"
+ProjecturedGestureTracking = "d677152d-0bb6-4d22-933a-4307a7c10075"
 ProjecturedGraph = "cfb0314b-b1fd-4c94-91d2-2de69579dcb1"
 ProjecturedGraphExample = "0de1adc3-7512-4c4a-bda3-e5e1bc893aff"
 ProjecturedGraphTest = "13deb21d-971d-427d-98f1-3c3c5c103438"
@@ -176,6 +177,7 @@ ProjecturedFsmExample = {path = "../../package/ProjecturedFsmExample"}
 ProjecturedFsmTest = {path = "../../package/ProjecturedFsmTest"}
 ProjecturedGestureHelp = {path = "../../package/ProjecturedGestureHelp"}
 ProjecturedGestureLog = {path = "../../package/ProjecturedGestureLog"}
+ProjecturedGestureTracking = {path = "../../package/ProjecturedGestureTracking"}
 ProjecturedGraph = {path = "../../package/ProjecturedGraph"}
 ProjecturedGraphExample = {path = "../../package/ProjecturedGraphExample"}
 ProjecturedGraphTest = {path = "../../package/ProjecturedGraphTest"}

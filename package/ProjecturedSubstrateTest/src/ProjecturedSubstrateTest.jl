@@ -1,13 +1,13 @@
 """
     ProjecturedSubstrateTest
 
-The test package of the substrate: the twenty-eight packages between the kernel
+The test package of the substrate: the twenty-nine packages between the kernel
 and the twenty domains. It is the second tier of the test-package DAG
 (kernel ← substrate ← domain ← umbrella). It hosts:
 
 - the unit tests of every substrate package, from the reactive containers to
   the widget projections, aggregated by `test_substrate()`;
-- the static layering guard of each of the twenty-eight packages
+- the static layering guard of each of the twenty-nine packages
   (`test_substrate_layering`, over `ProjecturedKernelTest.check_layering`);
 - the **generic document-walk selection enumerators**: the CellVector-aware
   `_walk_document` and the ground-truth `collect_position_selections` /
@@ -35,6 +35,7 @@ import ProjecturedProjection
 import ProjecturedReflection
 import ProjecturedDragging
 import ProjecturedFocus
+import ProjecturedGestureTracking
 import ProjecturedVersioning
 import ProjecturedPlot
 import ProjecturedGraphics
@@ -104,7 +105,7 @@ const _SOURCES = (ProjecturedKernel,
                   ProjecturedProjection,
                   ProjecturedReflection,
                   ProjecturedDragging,
-                  ProjecturedFocus,
+                  ProjecturedFocus, ProjecturedGestureTracking,
                   ProjecturedVersioning,
                   ProjecturedPlot,
                   ProjecturedGraphics,
@@ -207,6 +208,7 @@ include("../../../test/substrate/projection/SizeRangeMainAxisTest.jl")
 include("../../../test/substrate/projection/WidgetCardFoldTest.jl")
 include("../../../test/substrate/projection/WidgetSelectionTest.jl")
 include("../../../test/substrate/projection/SelectionWalkingTest.jl")
+include("../../../test/substrate/projection/GestureTrackingTest.jl")
 include("../../../test/substrate/projection/WidgetGestureTest.jl")
 include("../../../test/substrate/projection/WidgetSelectTest.jl")
 include("../../../test/substrate/projection/WidgetMenuTest.jl")

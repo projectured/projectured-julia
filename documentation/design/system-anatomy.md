@@ -58,7 +58,7 @@ The **kinds** of package (main, example, test, repl, build), what each may
 depend on, and why the leaf the alias loads is the only place a
 `@compile_workload` may live, are in [package-rules.md](../rule/package-rules.md).
 
-ProjecturEd is organized as **one engine, twenty-eight substrate packages and
+ProjecturEd is organized as **one engine, twenty-nine substrate packages and
 twenty domain packages**, plus an umbrella and the opt-in packages. The kernel
 is the one *layered* package: its twenty-three layers depend only downward,
 and the ordering is enforced statically by the shared
@@ -85,7 +85,7 @@ ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
         │                      selection → operation → intent → binding → iomap →
         │                      projection → tool → llm → agent → feed → editor → playback
         │                      Zero runtime deps, zero concrete documents.
-The substrate: 28 packages     one concept each, an acyclic package graph
+The substrate: 29 packages     one concept each, an acyclic package graph
         ▲                      the vocabulary — collection, primitive, domain,
         │                      serialization;
         │                      the algebra — projection, reflection, dragging,
@@ -403,7 +403,7 @@ includes them in:
                wall-clock schedule
 ```
 
-**The twenty-eight substrate packages**, in a topological order. Each is one
+**The twenty-nine substrate packages**, in a topological order. Each is one
 concept, and each declares the exact set of packages it imports:
 
 ```
@@ -419,6 +419,8 @@ concept, and each declares the exact set of packages it imports:
    reflection      BoundedSync and DocumentReflection
    dragging        DraggingState and its press-drag-drop reader
    focus           the generic focus walk and the is_focusable_document trait
+   gesturetracking the click, the key chord and the mouse dwell from the events, and
+                   their state document
    versioning      VersionedObject and its version-eliminating projection
    plot            the plot arithmetic and the colour and marker vocabulary
    graphics        Graphics, GraphicsCaching, PointReferenceStep

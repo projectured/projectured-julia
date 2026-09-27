@@ -34,6 +34,7 @@ import ProjecturedProjection
 import ProjecturedReflection
 import ProjecturedDragging
 import ProjecturedFocus
+import ProjecturedGestureTracking
 import ProjecturedVersioning
 import ProjecturedPlot
 import ProjecturedGraphics
