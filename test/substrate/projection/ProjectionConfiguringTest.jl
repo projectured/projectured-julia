@@ -106,6 +106,30 @@ end # @testset
 
 end # @testset
 
+@testset "a point on the document maps to the text position drawn there, and a point on the control to nothing" begin
+
+    stub = FixedMeasure(10, 18, 6, 0)
+    font = font_ubuntu_monospace_regular_20
+    pcp  = ProjectionConfiguringProjection(inner=TextHighlighting("dolor"))
+    w2g  = WidgetToGraphics(font; measure=stub)
+    renderer = RecursiveProjection(TypeDispatchingProjection(vcat(
+        w2g.dispatch,
+        Pair{Type,Any}[TextBlock => TextToGraphics(measure=stub)])))
+    proj  = ChainingProjection(pcp, renderer)
+    doc   = TextBlock(TextString("alpha dolor", font, color_default))
+    iomap = print_document(proj, nothing, doc, PrinterContext())
+    # The control takes the first 120 pixels, and the document starts below the
+    # divider, at 121.
+    iomap.step_iomaps[1][].output.sizes = [120, 300]
+
+    # Six characters of 10 pixels from the left edge: the caret after "alpha ".
+    @test is_reference_equal(map_reference_backward(proj, iomap, PointReferenceStep(65, 132)),
+                             TextModule.make_flat_caret_reference(6))
+    # The control shows the inner projection, not the document.
+    @test map_reference_backward(proj, iomap, PointReferenceStep(15, 60)) === nothing
+
+end # @testset
+
 @testset "end-to-end: typing edits the inner projection's pattern live" begin
 
     stub = FixedMeasure(10, 18, 6, 0)

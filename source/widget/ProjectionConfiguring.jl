@@ -144,8 +144,22 @@ function _toggle_operation(gesture, control_widget)
 end
 
 # ── Reference mapping ─────────────────────────────────────────────────────
-# v1: no cursor mapping through the split pane (document editing still works via
-# the reader routing above). Mirrors ConversationToWidget's minimal v1 mapping.
+# No cursor maps forward through the split pane; document editing works through
+# the reader routing above.
 
 map_reference_forward(::ProjectionConfiguringProjection, iomap::ProjectionConfiguringIoMap, reference) = nothing
-map_reference_backward(::ProjectionConfiguringProjection, iomap::ProjectionConfiguringIoMap, reference) = nothing
+
+# A reference into the document side maps back through the inner projection, so a
+# point on the document reaches the part drawn there. The control shows the inner
+# projection, not the input, so no reference into it maps back.
+function map_reference_backward(p::ProjectionConfiguringProjection,
+                                iomap::ProjectionConfiguringIoMap, reference)
+    prefix = _find_child_steps(iomap.output, iomap.inner_iomap.output)
+    prefix === nothing && return nothing
+    rest = reference
+    for step in prefix
+        (rest isa ConcreteReference && rest.head == step) || return nothing
+        rest = rest.tail
+    end
+    map_reference_backward(p.inner, iomap.inner_iomap, rest)
+end
