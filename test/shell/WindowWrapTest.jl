@@ -38,18 +38,16 @@ _under_recorder(projection) = begin
     projection.inner
 end
 
-@testset "every wrapper is off, so only the recorder, the hover tracker and the start over of Tab are added" begin
+@testset "every wrapper is off, so only the recorder and the start over of Tab are added" begin
     document, base = _document(), IdentityProjection()
     answer_document, answer_projection =
         make_window_wrap(; gesture_help = false, command_palette = false,
                            selection = false)(document, base)
     @test answer_document === document
-    # A window that shows a button must light it, so the tracker takes no keyword.
-    tracker = _under_recorder(answer_projection)
-    @test tracker isa WidgetHoverTrackingProjection
-    # Tab starts over at the ends of the window.
-    @test tracker.inner isa FocusCyclingProjection
-    @test tracker.inner.inner === base
+    # Tab starts over at the ends of the window, so the cycling takes no keyword.
+    cycling = _under_recorder(answer_projection)
+    @test cycling isa FocusCyclingProjection
+    @test cycling.inner === base
 end
 
 @testset "a keyword adds the wrapper it names" begin
@@ -63,7 +61,7 @@ end
     # The history is a wrapper the host gives, and the default changes nothing.
     marked = wrap(; history = projection -> GestureHelpDecoratorProjection(
                       inner = projection, state = GestureHelpState()))[2]
-    @test _under_recorder(marked).inner.inner isa GestureHelpDecoratorProjection
+    @test _under_recorder(marked).inner isa GestureHelpDecoratorProjection
     # The clipboard is the one wrapper that wraps the document as well.
     @test wrap(; selection = true)[1] isa ClipboardSlice
 end
@@ -111,6 +109,41 @@ end
     @test at(2, 5, 30) == extend_reference(EmptyReference(), window(2)..., FieldReferenceStep("elements"),
                                            RangeReferenceStep(1, 2))
     @test at(2, 5, 140) === nothing
+end
+
+@testset "every window lights the part under the pointer, and its leave turns the light off" begin
+    # One target for the whole screen: a popup lights its item as the first
+    # window lights its row, and the light moves from one window to the other.
+    list = WidgetList(Any["a", "b", "c"])
+    shell = WidgetShell(list; size = Point2D(400, 300))
+    document, projection = make_window_wrap(; gesture_help = false, command_palette = false,
+                                              selection = false)(shell, make_layout_projection_example())
+    scene = make_window_scene(document, "shell"; width = 400, height = 300)
+    menu = WidgetMenu(Any[WidgetMenuItem("Alpha"), WidgetMenuItem("Beta"), WidgetMenuItem("Gamma")];
+                      orientation = :vertical)
+    push!(scene.windows, WindowDocument(; id = :widget_popup, title = "popup", x = 50, y = 50,
+                                          width = 200, height = 150, style = :popup, content = menu))
+    composed = make_window_scene_projection(projection;
+        opened_window_projections = make_opened_window_projections(; gesture_help = false))
+    tracked, tracking = make_tracking_screen(scene, composed)
+    backend = HeadlessBackend()
+    editor = Editor(backend, tracked, tracking, Device[Keyboard(), Mouse()])
+    run_frame!(editor)
+    move!(window, x, y, time) = (push_event!(backend, WindowInput(window, MouseMove(x, y; time))); run_frame!(editor))
+    lit() = [item.action.label for item in menu.elements if item.hovered]
+
+    move!(:widget_popup, 5, 30, 1.0)
+    @test lit() == ["Beta"]
+    move!(:widget_popup, 5, 10, 1.1)
+    @test lit() == ["Alpha"]
+    # Into the first window: the item goes off, and the row lights.
+    move!(:shell, 5, 45, 1.2)
+    @test isempty(lit()) && list.hovered == 2
+    # The leave of the window of the pointer turns every light off (H3).
+    push_event!(backend, WindowInput(:shell, WindowLeave(; time = 1.3)))
+    run_frame!(editor)
+    @test list.hovered == 0
+    @test isempty(editor.timers)
 end
 
 @testset "the palette sits outside the help" begin

@@ -518,24 +518,20 @@ function _wtl_route_cell_click(iomap::WidgetTableListIoMap, k::Int, c::Int, g::M
     ReplaceSelectionOperation(_wtl_cell_reference(k, c, op.path))
 end
 
-# The row, or the row and the cell, under the pointer, written to `hovered`.
-# Outside the table's own box there is no row to hover.
-function _wtl_hover(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, x::Int, y::Int, force::Bool)
-    st = iomap.state
+# The row of the place that `route` names, written to `hovered`, only when it
+# changes. A place that is in no row (a column header) has no row to hover.
+function _wtl_hover(iomap::WidgetTableListIoMap, route)
     w = iomap.input
-    inset_width, _ = _inset_total(p, w)
-    edges = st.columns[]
-    inside = 0 <= x < last(edges) + st.bw + inset_width && y >= Int(st.header_height[])
-    k = inside ? _wtl_row_at(st, y - Int(st.header_height[])) : nothing
-    reference = k === nothing ? nothing : _wtl_row_reference(k)
-    current = w.hovered
-    if !force
-        same = (current === nothing && reference === nothing) ||
-               (current !== nothing && reference !== nothing &&
-                _widget_element_selected(current, "rows") == k)
-        same && return nothing
-    end
+    k = _widget_element_selected(route, "rows")
+    reference = k > 0 ? _wtl_row_reference(k) : nothing
+    reference == w.hovered && return nothing
     _write_view_state(w, "hovered", reference)
+end
+
+# Whether `route` names the row that the table lights.
+function _is_wtl_lit_row(iomap::WidgetTableListIoMap, route)
+    k = _widget_element_selected(route, "rows")
+    k > 0 && _wtl_row_reference(k) == iomap.input.hovered
 end
 
 function _wtl_key_navigate(iomap::WidgetTableListIoMap, evt::KeyDown)
@@ -615,11 +611,15 @@ function read_intent(p::WidgetTableToGraphicsCanvas, recursion, change::Intent, 
     if change.operation === nothing && g isa MouseClick && g.button === :left
         return Intent(g, _wtl_click(p, iomap, g))
     end
-    change.operation === nothing && g isa MouseEnter && return Intent(g, _wtl_hover(p, iomap, g.x, g.y, true))
-    change.operation === nothing && g isa MouseMove && return Intent(g, _wtl_hover(p, iomap, g.x, g.y, false))
+    # The crossings come by route from the mouse target tracking: a MouseHover
+    # lights the row that its route names, a MouseLeave of the table, or of the lit
+    # row, clears it.
+    change.operation === nothing && g isa MouseHover && return Intent(g, _wtl_hover(iomap, change.route))
     change.operation === nothing && g isa MouseLeave &&
+        (_is_route_at_place(change.route) || _is_wtl_lit_row(iomap, change.route)) &&
         return Intent(g, iomap.input.hovered === nothing ? nothing :
                          _write_view_state(iomap.input, "hovered", nothing))
+    change.operation === nothing && g isa Union{MouseEnter,MouseLeave,MouseMove} && return Intent(g, nothing)
     if change.operation === nothing && g isa KeyDown
         op = _wtl_key_navigate(iomap, g)
         op === nothing || return Intent(g, op)
@@ -630,7 +630,7 @@ end
 
 function read_intent(p::WidgetTableToGraphicsCanvas, iomap::WidgetTableListIoMap, event)
     if event isa MouseClick || event isa KeyDown ||
-       event isa MouseEnter || event isa MouseMove || event isa MouseLeave
+       event isa MouseEnter || event isa MouseMove || event isa MouseLeave || event isa MouseHover
         return read_intent(p, nothing, Intent(event, nothing), iomap).operation
     end
     _wtl_passthrough(iomap, event)

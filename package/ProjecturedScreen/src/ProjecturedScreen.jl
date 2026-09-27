@@ -15,6 +15,7 @@ using ProjecturedCollection
 using ProjecturedGestureTracking
 using ProjecturedGraphics
 using ProjecturedKernel
+using ProjecturedMouseTargetTracking
 using ProjecturedPrimitive
 # Already in this package's closure through ProjecturedGraphics; named directly
 # because `WindowScene.jl` uses its combinators.
@@ -40,6 +41,7 @@ const FaultModule = ProjecturedKernel.FaultModule
 const FeedModule = ProjecturedKernel.FeedModule
 const SerializationModule = ProjecturedSerialization.SerializationModule
 const GestureTrackingModule = ProjecturedGestureTracking.GestureTrackingModule
+const MouseTargetTrackingModule = ProjecturedMouseTargetTracking.MouseTargetTrackingModule
 
 include("../../../source/screen/ScreenModule.jl")
 # One window on one document, for a program rather than for the gallery.

@@ -12,11 +12,10 @@ function make_widget_projection_example(; measure=FontFileMeasure())
         LayoutToGraphics().dispatch,
         w2g.dispatch,
     )))
-    # Wrap in the hover tracker so a button's `hovered` flag clears when the
-    # pointer leaves it (container routing only delivers a move to the hit child).
-    # Tab starts over at the ends.
+    # Tab starts over at the ends. The light under the pointer comes from the
+    # mouse target tracking of the screen.
     ChainingProjection(
-        WidgetHoverTrackingProjection(inner = FocusCyclingProjection(inner = inner)),
+        FocusCyclingProjection(inner = inner),
     )
 end
 

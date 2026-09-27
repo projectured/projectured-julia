@@ -3,9 +3,10 @@
 # Hovering a body cell (or row header) highlights that row; a column header
 # highlights its column; the corner / empty space clears. Hover is transient state
 # (`WidgetTable.hovered`) rendered as a faint band, mirroring the selection band.
-# Driven by MouseEnter/MouseMove/MouseLeave, which WidgetHoverTrackingProjection
-# synthesises. Must also work when the table is nested in a layout / tabbed pane /
-# shell (routed via the container crossing routing + the table's 3-arg bridge).
+# Driven by the MouseHover and the MouseLeave that the mouse target tracking gives
+# by route: the route of a hover names the place under the pointer. Must also work
+# when the table is nested in a layout / tabbed pane / shell (a point maps backward
+# through the containers, and the route reaches the table).
 
 using ProjecturedKernel.CellModule: Cell, Computation
 using ProjecturedCollection.CollectionModule: ListNode
@@ -21,13 +22,22 @@ _rec = RecursiveProjection(TypeDispatchingProjection(vcat(LayoutToGraphics().dis
 _mods = ModifierKeys()
 _mktable() = WidgetTable(["ID", "Name"],
                          [["1", "Ada"], ["2", "Bob"], ["3", "Cy"]])
-_rd_marked(io, g) = begin
-    ch = read_intent(_rec, nothing, Intent(g, nothing), io)
+_rd_marked(io, g, route = nothing) = begin
+    ch = read_intent(_rec, nothing, Intent(g, nothing, "", "", route), io)
     ch isa Intent ? ch.operation : ch
 end
 # The answer, looking through the mark a hover carries as view state.
-_rd(io, g) = (op = _rd_marked(io, g);
-              op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op)
+_rd(io, g, route = nothing) = (op = _rd_marked(io, g, route);
+                               op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op)
+# A hover and a leave, as the mouse target tracking gives them, and the routes of
+# a body cell and of a column header: what a point there maps to.
+_hover = MouseHover(0, 0, MouseButtons(), _mods; time = 0.0)
+_leave = MouseLeave(0, 0, MouseButtons(), _mods; time = 0.0)
+_cell(r, c) = ConcreteReference(FieldReferenceStep("rows"),
+                  ConcreteReference(RangeReferenceStep(r - 1, r),
+                      ConcreteReference(RangeReferenceStep(c - 1, c))))
+_column(c) = ConcreteReference(FieldReferenceStep("column_headers"),
+                 ConcreteReference(RangeReferenceStep(c - 1, c)))
 # Centre coordinate of body row r's band, and of a body column.
 _bx(g) = (g.col_x[g.col_offset + 1] + g.col_x[g.col_offset + 2]) ÷ 2
 _rowy(g, r) = let gr = r + g.row_offset; (g.row_y[gr] + g.row_y[gr + 1]) ÷ 2 end
@@ -40,29 +50,37 @@ function _rects(io)
     out
 end
 
-@testset "MouseEnter/Move/Leave drive the whole-row hover" begin
+@testset "a hover by route lights the whole row; a leave of the table clears it" begin
     w = _mktable(); io = print_document(_rec, w); g = io.geometry
-    # Enter a body cell → its whole row.
+    # A hover of a body cell → its whole row.
     # A hover is view state, and marked so that no history records it.
-    @test _rd_marked(io, MouseEnter(_bx(g), _rowy(g, 1), MouseButtons(), _mods; time = 0.0)) isa ReplaceViewStateOperation
-    op = _rd(io, MouseEnter(_bx(g), _rowy(g, 1), MouseButtons(), _mods; time = 0.0))
+    @test _rd_marked(io, _hover, _cell(1, 2)) isa ReplaceViewStateOperation
+    op = _rd(io, _hover, _cell(1, 2))
     @test op isa ReplaceReferencedValueOperation && op.document === w && op.value !== nothing
     getfield(w, :hovered)[] = op.value
     row1 = op.value
-    # Move within the same row → no churn.
-    @test _rd(io, MouseMove(_bx(g) + 2, _rowy(g, 1), MouseButtons(), _mods; time = 0.0)) === nothing
-    # Move to another row → a fresh, different write.
-    op2 = _rd(io, MouseMove(_bx(g), _rowy(g, 2), MouseButtons(), _mods; time = 0.0))
+    # Another cell of the same row → no churn.
+    @test _rd(io, _hover, _cell(1, 1)) === nothing
+    # A motion lights nothing: the light comes by route.
+    @test _rd(io, MouseMove(_bx(g), _rowy(g, 2), MouseButtons(), _mods; time = 0.0)) === nothing
+    # Another row → a fresh, different write.
+    op2 = _rd(io, _hover, _cell(2, 1))
     @test op2 isa ReplaceReferencedValueOperation && op2.value !== nothing && op2.value != row1
+    getfield(w, :hovered)[] = op2.value
+    # The leave of another row changes nothing; the leave of a cell of the lit
+    # row turns the light off.
+    @test _rd(io, _leave, _cell(1, 1)) === nothing
+    lit = _rd(io, _leave, _cell(2, 1))
+    @test lit isa ReplaceReferencedValueOperation && lit.value === nothing
     # Leave → clear.
-    op3 = _rd(io, MouseLeave(0, 0, MouseButtons(), _mods; time = 0.0))
+    op3 = _rd(io, _leave, EmptyReference())
     @test op3 isa ReplaceReferencedValueOperation && op3.value === nothing
 end
 
 @testset "column header hovers the column; a click still selects" begin
     w = _mktable(); io = print_document(_rec, w); g = io.geometry
     chy = (g.row_y[1] + g.row_y[2]) ÷ 2    # grid row 1 = the column-header strip
-    op = _rd(io, MouseEnter(_bx(g), chy, MouseButtons(), _mods; time = 0.0))
+    op = _rd(io, _hover, _column(1))
     @test op isa ReplaceReferencedValueOperation && op.value !== nothing
     hov = op.value
     # Clicking the column header still selects the column (hover didn't shadow the
@@ -70,7 +88,7 @@ end
     # non-interactive label, so we assert on the header instead.
     @test _rd(io, MouseClick(:left, _bx(g), chy, _mods; time = 0.0)) isa ReplaceSelectionOperation
     # The hovered column ref differs from a hovered body row.
-    @test hov != _rd(io, MouseEnter(_bx(g), _rowy(g, 1), MouseButtons(), _mods; time = 0.0)).value
+    @test hov != _rd(io, _hover, _cell(1, 1)).value
 end
 
 @testset "hover band renders (faint overlay follows w.hovered)" begin
@@ -80,30 +98,34 @@ end
     # is collapsed to 0 height.
     _hover_band(io) = only(r for r in _rects(io) if 0.1 < r.color.alpha[] < 0.2)
     @test Int(_hover_band(io).h[]) == 0
-    getfield(w, :hovered)[] = _rd(io, MouseEnter(_bx(g), _rowy(g, 1), MouseButtons(), _mods; time = 0.0)).value
+    getfield(w, :hovered)[] = _rd(io, _hover, _cell(1, 1)).value
     b = _hover_band(io)
     @test Int(b.h[]) > 0                       # gained the row's height
     @test Int(b.y[]) == g.row_y[1 + g.row_offset]
 end
 
 @testset "hover + click reach a table nested in containers" begin
-    function reach(doc; xs, ys)
+    # Count grid points where a move lights a row and a click selects.
+    function reach(table, doc; xs, ys)
         io = print_document(_rec, doc)
+        driver = MttDriver(_rec, doc)
         e = c = 0
+        time = 0.0
         for x in xs, y in ys
-            oe = _rd(io, MouseEnter(x, y, MouseButtons(), _mods; time = 0.0))
-            oe isa ReplaceReferencedValueOperation && oe.document isa WidgetTable && oe.value !== nothing && (e += 1)
+            _mtt_move!(driver, x, y, time += 0.01)
+            table.hovered !== nothing && (e += 1)
             op = _rd(io, MouseClick(:left, x, y, _mods; time = 0.0))
             op isa ReplaceSelectionOperation && (c += 1)
         end
         (e, c)
     end
-    for doc in (VerticalLayout(Any[_mktable()]),
-                WidgetTabbedPane([("Data", VerticalLayout(Any[_mktable()]))]),
-                WidgetShell(WidgetTabbedPane([("Data", VerticalLayout(Any[_mktable()]))]);
-                            size = Point2D(400, 300)))
-        e, c = reach(doc; xs = 0:6:240, ys = 0:6:200)
-        @test e > 0     # MouseEnter reaches the table (row hover)
+    for wrap in (table -> VerticalLayout(Any[table]),
+                 table -> WidgetTabbedPane([("Data", VerticalLayout(Any[table]))]),
+                 table -> WidgetShell(WidgetTabbedPane([("Data", VerticalLayout(Any[table]))]);
+                                      size = Point2D(400, 300)))
+        table = _mktable()
+        e, c = reach(table, wrap(table); xs = 0:6:240, ys = 0:6:200)
+        @test e > 0     # a move lights a row of the table
         @test c > 0     # MouseClick selects through the container
     end
 end

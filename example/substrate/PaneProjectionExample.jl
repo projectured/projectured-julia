@@ -27,10 +27,9 @@ function make_pane_projection_example(; measure=FontFileMeasure(), new_tab=defau
         LayoutToGraphics().dispatch,
         widget.dispatch,
     )))
-    # The hover tracker gives the strip's buttons their crossings, exactly as the
-    # widget gallery's projection does.
+    # Tab starts over at the ends, exactly as in the widget gallery's projection.
     ChainingProjection(
         RecursiveProjection(PaneToWidget(; new_tab=new_tab)),
-        WidgetHoverTrackingProjection(inner=FocusCyclingProjection(inner=renderer)),
+        FocusCyclingProjection(inner=renderer),
     )
 end

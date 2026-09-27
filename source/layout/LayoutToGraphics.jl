@@ -264,21 +264,11 @@ _route_click(entries, evt::MouseClick) =
     _route_to_children(entries, evt.x, evt.y,
         (x, y) -> MouseClick(evt.button, x, y, evt.count, evt.modifiers; time = evt.time))
 
-# Pointer motion / crossings carry coordinates, so they hit-test the laid-out
-# children exactly like a click — routing to the child *under the pointer*, not the
-# selected one. Without this a hovered child inside a layout never sees the
-# MouseEnter/MouseMove/MouseLeave the hover tracker synthesises. Mirrors
-# WidgetComposite's crossing routing.
+# A pointer motion carries coordinates, so it hit-tests the laid-out children like
+# a click: it goes to the child under the pointer, not to the selected one.
 _route_move(entries, evt::MouseMove) =
     _route_to_children(entries, evt.x, evt.y,
         (x, y) -> MouseMove(x, y, evt.buttons, evt.modifiers; time = evt.time))
-
-_route_crossing(entries, evt) =
-    _route_to_children(entries, evt.x, evt.y,
-        (x, y) -> evt isa MouseEnter ? MouseEnter(x, y, evt.buttons, evt.modifiers;
-                                                  time = evt.time) :
-                                       MouseLeave(x, y, evt.buttons, evt.modifiers;
-                                                  time = evt.time))
 
 # A raw press-down / release also hit-tests by coordinate, so a button laid out in a
 # layout flips its `pressed` cell (the depress feedback). The composed MouseClick
@@ -400,8 +390,6 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
         MouseClick  => _route_click(entries, evt)
         MouseScroll => _route_scroll(entries, evt)
         MouseMove   => _route_move(entries, evt)
-        MouseEnter  => _route_crossing(entries, evt)
-        MouseLeave  => _route_crossing(entries, evt)
         MouseDown   => _route_downup(entries, evt)
         MouseUp     => _route_downup(entries, evt)
         _ => begin

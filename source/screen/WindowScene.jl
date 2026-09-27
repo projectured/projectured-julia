@@ -97,7 +97,8 @@ function make_window_scene_projection(projection;
 end
 
 """
-    make_tracking_screen(document, projection; gesture_tracking = true,
+    make_tracking_screen(document, projection; mouse_target_tracking = true,
+                         gesture_tracking = true,
                          recognitions = make_standard_recognitions())
         -> (document, projection)
 
@@ -105,8 +106,13 @@ Put the tracking projections around a screen: `document` is the screen, and
 `projection` draws it, for example the one of
 [`make_window_scene_projection`](@ref). Each keyword puts one tracker around
 the pair, and its state document around the screen, so one tracker serves every
-window:
+window. The gesture tracker is outside the mouse target tracker, so the target
+tracker reads the inputs that the recognitions pass:
 
+- `mouse_target_tracking` — the mouse target tracking projection, which keeps
+  the part under the pointer and gives its parts the enter, the leave and the
+  hover by route. A button lights and a row of a list lights with it. With no
+  target tracker, no part gets a crossing.
 - `gesture_tracking` — the gesture tracking projection, which runs
   `recognitions`: by default the click with its count, the key chord and the
   mouse dwell. A host adds the recognition of a gesture of its own to the list.
@@ -117,11 +123,18 @@ Use it wherever a host makes an editor over a screen. The document of the editor
 is then the outermost state document; `get_wrapped_document` of it answers the
 screen.
 """
-function make_tracking_screen(document, projection; gesture_tracking::Bool = true,
+function make_tracking_screen(document, projection; mouse_target_tracking::Bool = true,
+                              gesture_tracking::Bool = true,
                               recognitions::Vector = make_standard_recognitions())
-    gesture_tracking || return (document, projection)
-    (make_gesture_tracking_document(document),
-     make_gesture_tracking_projection(projection; recognitions))
+    if mouse_target_tracking
+        document = make_mouse_target_tracking_document(document)
+        projection = make_mouse_target_tracking_projection(projection)
+    end
+    if gesture_tracking
+        document = make_gesture_tracking_document(document)
+        projection = make_gesture_tracking_projection(projection; recognitions)
+    end
+    (document, projection)
 end
 
 """
@@ -150,7 +163,8 @@ here — that is `ProjecturedExample`'s, and naming it would bring the example
 umbrella back.
 
 The screen goes through [`make_tracking_screen`](@ref), so the editor recognizes
-clicks, chords and dwells, and its document is the state of the gesture tracker
+clicks, chords and dwells and lights the part under the pointer, and its document
+is the state of the gesture tracker around the state of the target tracker
 around the screen.
 
 `opened_window_projections` and `screen_wrap` go to

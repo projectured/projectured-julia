@@ -1,6 +1,6 @@
 # A press and a release on a button, through the loop of a real editor. The
 # tracking screen of the screen package recognizes the click; the editor itself
-# recognizes none, so a screen with no gesture tracker gets no click.
+# recognizes none, so a screen with no tracker gets no click.
 
 function _ts_editor(tracking::Bool)
     count = Ref(0)
@@ -8,7 +8,8 @@ function _ts_editor(tracking::Bool)
     scene = make_window_scene(button, "W"; width = 400, height = 300)
     composed = make_window_scene_projection(
         make_widget_projection_example(measure = FixedMeasure(10, 18, 6, 0)))
-    document, projection = make_tracking_screen(scene, composed; gesture_tracking = tracking)
+    document, projection = make_tracking_screen(scene, composed; gesture_tracking = tracking,
+                                                mouse_target_tracking = tracking)
     backend = HeadlessBackend()
     editor = Editor(backend, document, projection, Device[Keyboard(), Mouse()])
     run_frame!(editor)
@@ -22,7 +23,9 @@ function test_tracking_screen()
 @testset "the tracking screen recognizes a click through the editor's loop" begin
     @testset "with the tracker, a press and a release in place click the button once" begin
         editor, backend, count = _ts_editor(true)
+        # The gesture tracker is outside the mouse target tracker.
         @test editor.document isa GestureTrackingState
+        @test editor.document.content isa MouseTargetTrackingState
         @test get_wrapped_document(editor.document) isa ScreenDocument
         _ts_press!(editor, backend, MouseDown(:left, 10, 10, ModifierKeys(); time = 1.0))
         @test count[] == 0

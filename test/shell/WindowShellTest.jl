@@ -302,8 +302,9 @@ end
 end
 
 @testset "the pointer lights what it is over, in the bands and in the content" begin
-    # The whole fold, with a toolbar and a tooltip, because the hover tracker has
-    # to see the bands and the probe must not take the moves it needs.
+    # The whole fold, with a toolbar and a tooltip, because the mouse target
+    # tracking of the screen must see the bands and the probe must not take the
+    # moves it needs.
     press = WidgetButton("Press"; size = Point2D(120, 40))
     command = make_window_command("Run", editor -> nothing)
     bands(document) = (nothing, WidgetToolbar(Any[command]), nothing, nothing, nothing)
@@ -315,13 +316,13 @@ end
     scene = make_window_scene(document, "shell"; width = 400, height = 300)
     composed = make_window_scene_projection(projection;
         opened_window_projections = make_opened_window_projections())
-    editor = _ShellFakeEditor(scene)
-    function move!(x, y)
-        change = read_intent(composed, nothing, Intent(WindowInput(:shell, MouseMove(x, y; time = 0.0))),
-                             print_document(composed, scene))
-        operation = change isa Intent ? change.operation : change
-        operation isa Operation && evaluate_operation(editor, operation)
-    end
+    tracked, tracking = make_tracking_screen(scene, composed)
+    backend = HeadlessBackend()
+    editor = Editor(backend, tracked, tracking, Device[Keyboard(), Mouse()])
+    run_frame!(editor)
+    time = Ref(0.0)
+    move!(x, y) = (push_event!(backend, WindowInput(:shell, MouseMove(x, y; time = time[] += 0.01)));
+                   run_frame!(editor))
     value(v) = v isa Cell ? value(v[]) : v
     function place_of(text, node = print_document(composed, scene).output.windows[1].content,
                       ox = 0, oy = 0)

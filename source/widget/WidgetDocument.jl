@@ -2413,8 +2413,8 @@ navigator trees.)
 
 `hovered` and `expanded` are **transient UI state** (like [`WidgetButton`](@ref)'s
 `hovered`): `hovered` holds the node-path reference of the row under the pointer
-(or `nothing`), written by the reader from `MouseEnter`/`MouseMove`/`MouseLeave`
-crossings; `expanded` is the set of node paths (1-based index chains) whose
+(or `nothing`), written by the reader from the `MouseHover` and the `MouseLeave`
+that the mouse target tracking gives by route; `expanded` is the set of node paths (1-based index chains) whose
 children show, toggled by clicking a parent's chevron. A node is closed until its
 path is in `expanded`, so the owner of a tree names the nodes it opens at the
 start. Neither is part of the tree's content.

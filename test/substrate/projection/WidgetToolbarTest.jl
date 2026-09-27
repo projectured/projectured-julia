@@ -1,9 +1,8 @@
-# WidgetToolbar pointer routing. A toolbar lays its items out horizontally, so a
-# crossing (MouseEnter/MouseLeave, synthesised by WidgetHoverTrackingProjection)
-# must land on the item actually under the pointer. Regression guard: the item
-# canvas used to be auto-sized (w=h=0), and since a GraphicsText has no right edge
-# hit_element_at then let the leftmost item swallow every crossing — hover always
-# lit the first button. Bounding the item canvas to its footprint fixes it.
+# WidgetToolbar pointer routing. A toolbar lays its items out horizontally, so the
+# light of the mouse target tracking must land on the item actually under the
+# pointer. The item canvas is bounded to its footprint: a GraphicsText has no right
+# edge, so an auto-sized item canvas (w=h=0) would take every point to its right,
+# and the first button would light wherever the pointer is.
 
 using ProjecturedKernel.CellModule: Cell, Computation
 
@@ -22,7 +21,7 @@ _unwrap(el) = el isa Cell ? el[] : el
     @test Int(c.w[]) > 0 && Int(c.h[]) > 0
 end
 
-@testset "MouseEnter lands on the item under the pointer, not the first" begin
+@testset "the light lands on the item under the pointer, not the first" begin
     labels = ["New", "Open", "Save", "Undo", "Redo"]
     tb = WidgetToolbar([WidgetMenuItem(l) for l in labels]; padding = Inset(4, 4, 4, 4))
     io = print_document(proj, tb)
@@ -35,19 +34,12 @@ end
     sort!(wrappers, by = c -> Int(c.x))
     @test length(wrappers) == length(labels)
 
-    # Route a crossing just inside each button; scan a few y offsets so the test
-    # doesn't hard-code the item's vertical padding.
-    hovered_at(c) = begin
-        for dy in (4, 6, 8, 10, 12)
-            g = MouseEnter(Int(c.x) + 6, Int(c.y) + dy, MouseButtons(), _mods; time = 0.0)
-            ch = read_intent(proj, nothing, Intent(g, nothing), io)
-            op = ch isa Intent ? ch.operation : ch
-            _view_state_write(op) isa ReplaceReferencedValueOperation && return _view_state_write(op).document.action.label
-        end
-        return nothing
-    end
+    # Move just inside each button, at the middle of its height, and read which
+    # items are lit.
+    driver = MttDriver(proj, tb)
     for (i, c) in enumerate(wrappers)
-        @test hovered_at(c) == labels[i]
+        _mtt_move!(driver, Int(c.x) + 6, Int(c.y) + Int(c.h[]) ÷ 2, 1.0 + i)
+        @test [item.action.label for item in tb.elements if item.hovered] == [labels[i]]
     end
 end
 
@@ -102,13 +94,13 @@ end
     tb = WidgetToolbar(Any[WidgetToolbarItem(l; icon = i) for (l, i) in zip(labels, icons)];
                        padding = Inset(4, 4, 4, 4))
     io = print_document(proj, tb)
+    driver = MttDriver(proj, tb)
     items = _items(io)
     @test length(items) == length(labels)
     for (i, c) in enumerate(items)
         x, y = _centre(c)
-        crossing = read_intent(proj, nothing, Intent(MouseEnter(x, y, MouseButtons(), _mods; time = 0.0), nothing), io)
-        op = crossing isa Intent ? crossing.operation : crossing
-        @test _view_state_write(op) isa ReplaceReferencedValueOperation && _view_state_write(op).document.action.label == labels[i]
+        _mtt_move!(driver, x, y, 1.0 + i)
+        @test [item.action.label for item in tb.elements if item.hovered] == [labels[i]]
         # A left press invokes the action of that item, and only reads it: the
         # reader answers the operation and runs nothing.
         op = _press(io, (x, y))

@@ -203,7 +203,7 @@ make_widget_button_document_example() =
 # WidgetButton (behaviour) — a button whose `action` increments a counter shown
 # by a sibling label. Click it (real input or a scripted MouseClick) and the
 # label re-renders; hovering re-styles the button via its transient `hovered`
-# flag (cleared by WidgetHoverTrackingProjection on leave). The action captures
+# flag (cleared by the MouseLeave of the mouse target tracking). The action captures
 # the label so it can mutate it when the editor evaluates the
 # InvokeWidgetActionOperation.
 function make_widget_button_action_document_example()

@@ -23,12 +23,12 @@ function _canvas_has_image(canvas)
     false
 end
 
-# The standard widget renderer used by the button examples, with the hover
-# tracker and the start over of Tab at the ends.
+# The standard widget renderer used by the button examples, with the start over
+# of Tab at the ends.
 _proj() = ChainingProjection(
-    WidgetHoverTrackingProjection(inner = FocusCyclingProjection(inner =
+    FocusCyclingProjection(inner =
         RecursiveProjection(TypeDispatchingProjection(
-            WidgetToGraphics(_font; measure=_stub).dispatch)))))
+            WidgetToGraphics(_font; measure=_stub).dispatch))))
 
 # A lone button with a side-effecting action over a captured counter.
 function _button_doc()
@@ -55,9 +55,9 @@ end
     # never performs it, so the action has not run and the count is still zero.
     @test count[] == 0
 
-    # A crossing is the container saying the pointer arrived or left, and a
-    # leave is outside by definition — judging it would suppress the very event
-    # that clears the hover.
+    # A crossing comes by route from the mouse target tracking, which already
+    # found the widget, and a leave is outside by definition — judging it would
+    # suppress the very event that clears the hover.
     @test read_intent(proj, iomap, MouseLeave(900, 500, MouseButtons(), ModifierKeys(); time = 0.0)) !== nothing
 end
 
@@ -103,43 +103,36 @@ end
     @test button.pressed == false
 end
 
-@testset "a move over the button sets its hovered flag" begin
+@testset "an enter sets the hovered flag of the button, as view state" begin
     button, _ = _button_doc()
     proj = _proj()
     iomap = print_document(proj, nothing, button, PrinterContext())
-    op = read_intent(proj, iomap, MouseMove(10, 10, MouseButtons(), ModifierKeys(); time = 0.0))
+    op = read_intent(proj, iomap, MouseEnter(10, 10, MouseButtons(), ModifierKeys(); time = 0.0))
     @test _view_state_write(op) isa ReplaceReferencedValueOperation
     @test _view_state_write(op).document === button && _view_state_write(op).value == true
     evaluate_operation(_WidgetButtonMockEditor(button), op)
     @test button.hovered == true
+    # A motion alone lights nothing: the enter comes from the mouse target tracking.
+    @test read_intent(proj, iomap, MouseMove(10, 10, MouseButtons(), ModifierKeys(); time = 0.0)) === nothing
 end
 
-@testset "the hover tracker clears the previously-hovered button on leave" begin
+@testset "the mouse target tracking clears the previously-hovered button on leave" begin
     # Two buttons side by side inside a composite.
     a = WidgetButton("A"; size = Point2D(100, 40), action = (_e) -> nothing)
     b = WidgetButton("B"; position = Point2D(120, 0), size = Point2D(100, 40), action = (_e) -> nothing)
-    composite = WidgetComposite(Any[a, b])
-    proj = _proj()                          # one tracker instance, reused across reads
-    ed = _WidgetButtonMockEditor(composite)
+    driver = MttDriver(_proj(), WidgetComposite(Any[a, b]))
 
-    iomap = print_document(proj, nothing, composite, PrinterContext())
-    op_a = read_intent(proj, iomap, MouseMove(10, 10, MouseButtons(), ModifierKeys(); time = 0.0))
-    @test _view_state_write(op_a) isa ReplaceReferencedValueOperation && _view_state_write(op_a).document === a
-    evaluate_operation(ed, op_a)
+    _mtt_move!(driver, 10, 10, 1.0)
     @test a.hovered == true
 
     # Move onto B: the tracker clears A (hover + press) and sets B.
-    iomap2 = print_document(proj, nothing, composite, PrinterContext())
-    op_b = read_intent(proj, iomap2, MouseMove(130, 10, MouseButtons(), ModifierKeys(); time = 0.0))
-    @test op_b isa CompoundOperation
-    evaluate_operation(ed, op_b)
-    @test a.hovered == false
+    getfield(a, :pressed)[] = true
+    _mtt_move!(driver, 130, 10, 1.1)
+    @test a.hovered == false && a.pressed == false
     @test b.hovered == true
 
     # Move into dead space: B clears, nothing new hovered.
-    iomap3 = print_document(proj, nothing, composite, PrinterContext())
-    op_void = read_intent(proj, iomap3, MouseMove(300, 300, MouseButtons(), ModifierKeys(); time = 0.0))
-    evaluate_operation(ed, op_void)
+    _mtt_move!(driver, 300, 300, 1.2)
     @test b.hovered == false
 end
 
@@ -411,10 +404,9 @@ end
     @test _slot(_read(comp2, tab)) == 3              # slot 2 skipped
 end
 
-# The start over at the ends belongs to the cycling wrapper, and the hover
-# tracker passes Tab through: at the last stop, Tab gets no answer from the hover
-# tracker alone.
-@testset "Tab starts over in the cycling wrapper, and the hover tracker passes it through" begin
+# The start over at the ends belongs to the cycling wrapper: at the last stop,
+# Tab gets no answer from the renderer alone.
+@testset "Tab starts over in the cycling wrapper" begin
     _mk(i) = ConcreteReference(FieldReferenceStep("elements"),
                 ConcreteReference(RangeReferenceStep(i - 1, i), EmptyReference()))
     _btn(t) = WidgetButton(t; size = Point2D(80, 30))
@@ -427,7 +419,7 @@ end
 
     comp = WidgetComposite(Any[_btn("A"), _btn("B")])
     getfield(comp, :selection)[] = _mk(2)
-    @test _read(WidgetHoverTrackingProjection(inner = _renderer()), comp, tab) === nothing
+    @test _read(_renderer(), comp, tab) === nothing
     cycling = FocusCyclingProjection(inner = _renderer())
     op = _read(cycling, comp, tab)
     @test op isa ReplaceSelectionOperation && _slot(op) == 1      # last starts over at first
@@ -470,10 +462,10 @@ end
 @testset "a button inside a layout depresses (press-down/up routed by coordinate)" begin
     button = WidgetButton("Go"; size = Point2D(120, 40), action = (_e) -> nothing)
     layout = VerticalLayout(Any[button]; gap = 8)                 # single child at origin
-    proj = ChainingProjection(WidgetHoverTrackingProjection(inner =
+    proj = ChainingProjection(
         RecursiveProjection(TypeDispatchingProjection(vcat(
             LayoutToGraphics().dispatch,
-            WidgetToGraphics(_font; measure=_stub).dispatch)))))
+            WidgetToGraphics(_font; measure=_stub).dispatch))))
     iomap = print_document(proj, nothing, layout, PrinterContext())
 
     dn = read_intent(proj, iomap, MouseDown(:left, 10, 10, ModifierKeys(); time = 0.0))
@@ -484,10 +476,10 @@ end
     @test read_intent(proj, iomap, MouseClick(:left, 10, 10, ModifierKeys(); time = 0.0)) isa InvokeActionOperation
 end
 
-# A WidgetCard used to swallow every pointer event but a click, so an interactive
-# widget nested in a card never saw hover crossings or the press-down/up. It now
-# routes them to the hit child. The button is located from the card's rendered child
-# entries so the test does not hard-code the header/padding offset.
+# A WidgetCard routes the press-down/up to the hit child, and a point on the button
+# maps backward through the card, so the mouse target tracking lights it. The button
+# is located from the card's rendered child entries so the test does not hard-code
+# the header/padding offset.
 @testset "a button inside a card receives hover + press through the card" begin
     button = WidgetButton("Go"; size = Point2D(120, 40), action = (_e) -> nothing)
     card = WidgetCard(; title = "T", content = button, width = 240)
@@ -508,8 +500,8 @@ end
     @test bw > 0 && bh > 0                                        # the button was found
     cx = bx + bw ÷ 2; cy = by + bh ÷ 2
 
-    hov = read_intent(proj, iomap, MouseEnter(cx, cy, MouseButtons(), ModifierKeys(); time = 0.0))
-    @test _view_state_write(hov) isa ReplaceReferencedValueOperation && _view_state_write(hov).document === button && _view_state_write(hov).value == true
+    _mtt_move!(MttDriver(proj, card), cx, cy, 1.0)
+    @test button.hovered == true
     dn = read_intent(proj, iomap, MouseDown(:left, cx, cy, ModifierKeys(); time = 0.0))
     @test _view_state_write(dn) isa ReplaceReferencedValueOperation && _view_state_write(dn).document === button && _view_state_write(dn).value == true
     # And a click still reaches the action through the card.

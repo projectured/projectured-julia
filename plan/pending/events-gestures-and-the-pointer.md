@@ -298,6 +298,14 @@ All of them are from 2026-09-26.
   whatever the flag (D2). (Q30, owner 2026-09-27.)
 - **D61.** The live check of step 8 moves the real pointer with XTest. (Owner
   2026-09-27.)
+- **D62.** A crossing reaches a widget that a view makes by its route (Q31,
+  way A). A routed gesture goes forward through the stages of a chain as far as
+  the forward maps answer; the deepest stage reads it first, and an earlier
+  stage reads it when the later answers nothing. A routed operation keeps to
+  the stages that show the place as the same document. The prefixes of the
+  path inside a projection step are parts too, and a list, a table or a tree
+  turns its light off on the leave of the lit row. (Owner 2026-09-27, "let's
+  try A".)
 
 ## 3. What is wrong today
 
@@ -619,6 +627,34 @@ it holds the example.
     model gives the light to the reader of the part (the meaning belongs to the
     thing), and a target that depends on the view and a view that depends on the
     target can form a cycle of cells.
+
+- **Q31 (answered by D62, found in step 8b, 2026-09-27). A crossing does not reach a
+  widget that a view makes.** A point on a widget inside a view maps back to a
+  domain part, or to an introduced reference of the view. The widget is then
+  no part of the target, and a crossing stops at the view:
+  - The Files navigator (`FileSystemToWidgetTree`) maps a row back to its file,
+    through a `ProjectionReferenceStep` of the folder view. The chain routes a
+    change only while each stage shows the place as the same document, so the
+    hover stops at the view that shows a file as a row.
+  - The campaign's Run button maps back to `SimulationFilter` and the
+    introduced reference of `SimulationFilterToWidgetForm`. A projection step
+    evaluates to its output path, not to the widget, so the button is no part
+    (it gets no enter), and the same check stops the hover at the view.
+  - So no widget inside a view lights: the campaign, the IDE and the
+    application windows. A widget that no view makes (a shell, a list in a
+    layout, a popup menu) lights. The old tracker sent crossings by position in
+    the widget tree, and it had no such gap.
+  - The ways, for the owner:
+    - A. A crossing goes forward through every stage whose forward map answers,
+      and a row widget turns its light off on the leave of the node that holds
+      the lit row. Plus: an introduced reference of a stage passes the check of
+      the chain, and a part can be an introduced widget.
+    - B. Each view reads the crossings of its parts and writes the light of its
+      own widgets.
+    - C. Two targets: the widget under the pointer for the light, and the part
+      of the document for the meaning (tooltip, context menu, agent), as a
+      toolkit keeps them. The widget target needs a backward mapping that stops
+      at the widget layer.
 
 
 ## 6. Steps
@@ -1079,7 +1115,7 @@ it holds the example.
     package, for example a long press, that a host adds and that its reader
     then receives, which proves the extension; the tracking screen test; the
     kernel layering guard; no `@event_case` is left.
-- [ ] 8. **The mouse target tracking package (D6, D13, D17, D27, D29, D52, D57 to D61).**
+- [ ] 8. **The mouse target tracking package (D6, D13, D17, D27, D29, D52, D57 to D62).**
   `ProjecturedMouseTargetTracking`, with `MouseTargetTrackingState` and
   `MouseTargetTrackingProjection`. On each move, it maps the point backward (step
   4). It sends a leave and an enter along the path that changes, by route (step
@@ -1091,6 +1127,96 @@ it holds the example.
   it off (H3); a row of a list turns off when the pointer moves onto another
   widget (§3.4); a list that scrolls under a still pointer lights the row that is
   now under it (D41); a light changes the layout of no widget (D44); a live check on the display, with the owner's word for XTest.
+  - [x] 8a. The package (commit 53854015): `MouseTargetTrackingState` (target,
+    parts, position, waiting), the projection, and `MouseHover` in the gesture
+    layer. Nothing used it yet.
+  - [x] 8b. The rows, the containers and the rule of the hover. **Q31**: a widget
+    that a view makes got no crossing; D62 answers it. Facts found and decisions made:
+    - A row of a list or a table and a node of a tree is no document, so the
+      list, the table and the tree are the deepest part. **The route of the
+      `MouseHover` is the whole target**, not the deepest part, so the widget
+      reads its row from the rest of the route (`items[2]`, `rows[1][2]`,
+      `column_headers[1]`, `roots[1].children[2]`). The route of step 3 gives
+      that rest to a widget that holds no child IO map.
+    - **The hover comes on each move, after the enters**, and not only on a
+      move over the same target: else a row does not light on the move that
+      enters its list. A `DisplayUpdate` gives a hover when the target changed
+      (D41). This changes the letter of D58, not its intent. (Claude,
+      2026-09-27, for the owner to confirm.)
+    - A `MouseLeave` whose route ends at the widget turns its light off; a
+      leave of a part inside it does not. A bare `MouseMove` lights no row.
+    - No container sends a crossing by position: the composite, the shell, the
+      split, the tabbed pane, the scroll and transform panes, the toolbar, the
+      card, the accordion, the menu and the layouts lost their `MouseEnter` and
+      `MouseLeave` arms. A `MouseMove` still goes by position, for the drags of
+      step 10.
+    - A menu item holds child IO maps, and the kernel gives a routed change to
+      a child, so a gesture at the item's own place got no answer. The menu
+      item has a 4-arg reader that reads a crossing at its own place. A button
+      and a toolbar item hold no child IO map and need none.
+    - The charts keep their light by `MouseMove` until step 10, which moves
+      their pan and zoom; their `MouseLeave` comes by route.
+    - `WidgetHoverTrackingProjection` is removed. `FocusCyclingProjection`
+      stays in every window wrap (D60).
+    - A lone widget that is the whole content of a window gets no light: the
+      root of the content is no part, and the widget maps a point to nothing.
+      A window of the product holds a container, so the tests use one.
+    - The tracker delivers a route with the type of each node, because a view
+      that maps a route forward checks the types (the pane views do). A crossing
+      whose part is gone is not delivered: no reader can reach it.
+    - A point that a layout passes to a `WidgetText` or a `WidgetTextarea` as a
+      bare step made a path whose tail was a step, and the layout failed to type
+      it. A point on a text now maps to its content, at the point.
+    - D62, as built. `_read_routed_chain` maps a routed gesture forward while
+      the forward map answers a reference that names a node of the next stage;
+      `_read_routed_gesture` reads from the deepest stage back and carries the
+      answer back, as `_read_chain_from` does. A routed operation keeps the
+      check of the same document.
+    - D62, the parts. The kernel has no walk over every IO map (only a
+      container names its children, for a route), so the tracker does not
+      evaluate a path inside a view's output. Each prefix of that path is a part
+      instead, and a crossing of a prefix that names no widget reaches no
+      reader. So no new kernel helper was needed. (Claude, 2026-09-27; this
+      differs from the walk through the IO maps that Claude proposed with A.)
+    - D62, the rows. A list, a table (both IO maps) and a tree turn the light
+      off on a leave whose route names the lit row, and on a leave at their
+      own place.
+    - D62, the introduced reference. A view can name a widget by an introduced
+      reference and map only its own input forward (the runner form of omnet,
+      `SimulationFilterToWidgetForm`). When the forward map of a stage answers
+      nothing for a routed gesture, the chain takes `find_introduced_path` of
+      that stage, so no view needs code of its own for it.
+    - Tests that read a widget that a view makes find it through the IO maps,
+      because it is in no document (the navigator of the application, the Run
+      button of the IDE window).
+  - [x] 8c. The screen and the hosts:
+    - `make_tracking_screen(...; mouse_target_tracking = true)` puts the target
+      tracker inside the gesture tracker: gesture(target(screen)) (D29).
+      `ProjecturedScreen` depends on `ProjecturedMouseTargetTracking`.
+    - The `hover` flag of the gallery chooses the target tracker (D60), and
+      **its default is now `true`**: the widget examples and the omnet and inet
+      hosts had the old tracker in their own projections, and they keep the
+      light. `hover = false` turns it off. (Claude, 2026-09-27, for the owner to
+      confirm.)
+    - omnet: the campaign keyword `hover` is now `focus_cycling`, and the build
+      wrapper `:hover` is now `:focus_cycling`. Both only kept a second wrapper
+      out, and the light is on the screen now. (Claude, 2026-09-27, for the
+      owner to confirm; D60 named the campaign flag.)
+    - Tests (2026-09-27): a row of a popup lights, and the light moves to the
+      list of the first window (H1); the leave of the window turns it off (H3);
+      the light follows from row to row; a row turns off when the pointer moves
+      onto another widget (§3.4); a list that scrolls under a still pointer
+      lights the row now under it (D41); a light changes the layout of no
+      widget (D44); a row of a part and a button of a view light (D62); the
+      navigator of the application, and the buttons and the run table of the
+      campaign, light. Suites against the baseline: kernel, substrate (164 cell
+      assertions fewer: the removed wrapper had them), shell, application,
+      mouse clicks, click round-trips, and the rest of the sweep, the same
+      known failures and no new one; the global name check the same 9
+      findings; the naming guard passes. omnet: the three known failures, and
+      the four tests that step 8 added pass; its global check gives its one
+      known finding. inet: the demo passes 219.
+  - [ ] 8d. The live check with XTest (D61).
 - [ ] 9. **The probes go away (D7).** A tooltip is the meaning of a `MouseDwell`
   on the target, and `compute_tooltip` stays; the feed, the probe and
   `PointerRest` of the tooltip package go away. The inspector reads the target.

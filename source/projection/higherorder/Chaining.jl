@@ -159,30 +159,79 @@ function _read_chain_from(seq::ChainingProjection, recursion, change::Intent,
     return out
 end
 
-# An operation with a route to a place in the chain's input. The route is mapped
-# forward through each stage that prints the place as the same document, as the
-# printer maps a reference; the first stage that does not, or the last stage, is
-# the one whose readers hold the place. From that stage the operation comes back
-# up through the earlier stages, as an answer does.
+# What a step of a route that reaches no node evaluates to.
+const _NO_NODE = gensym(:no_node)
+
+# A change with a route to a place in the chain's input. The route is mapped
+# forward stage by stage, as the printer maps a reference, and each stage that it
+# reaches holds the place in its own input.
+#
+# An operation keeps to the stages that print the place as the same document: the
+# first stage that does not, or the last stage, is the one whose readers hold the
+# place, and from it the operation comes back up through the earlier stages, as
+# an answer does.
+#
+# A gesture goes forward as far as the forward maps answer, also into a stage
+# that shows the place as something else, such as a widget that a view makes for
+# a part of its input. An introduced reference of a stage goes on to the place in
+# its output. The deepest stage reads it first, and an earlier stage reads it
+# when the later answers nothing, as a chain reads a gesture with no route
+# (`_read_chain_from`).
 function _read_routed_chain(seq::ChainingProjection, recursion, change::Intent,
                             iomap::ChainingIoMap)
     n = length(seq.projections)
     place = try_evaluate_reference(iomap.input, change.route, nothing)
     place === nothing && return Intent(change.gesture, nothing)
-    stage, route = 1, change.route
-    while stage < n
+    is_gesture = change.operation === nothing
+    routes = Reference[change.route]
+    while length(routes) < n
+        stage = length(routes)
         stage_iomap = iomap.step_iomaps[stage][]
         next_iomap = iomap.step_iomaps[stage + 1][]
-        forward = map_reference_forward(stage_iomap.projection, stage_iomap, route)
-        forward === nothing && break
-        try_evaluate_reference(next_iomap.input, forward, nothing) === place || break
-        stage, route = stage + 1, forward
+        forward = map_reference_forward(stage_iomap.projection, stage_iomap, routes[stage])
+        # A place that the stage names by an introduced reference is in its output,
+        # also when its forward map answers only for its input.
+        forward === nothing && is_gesture &&
+            (forward = find_introduced_path(stage_iomap.projection, routes[stage]))
+        forward isa Reference || break
+        node = try_evaluate_reference(next_iomap.input, forward, _NO_NODE)
+        node === _NO_NODE && break
+        is_gesture || node === place || break
+        push!(routes, forward)
     end
-    routed = Intent(change.gesture, change.operation, change.description, change.domain, route)
+    is_gesture && return _read_routed_gesture(seq, recursion, change, iomap, routes, length(routes))
+    stage = length(routes)
+    routed = Intent(change.gesture, change.operation, change.description, change.domain, routes[stage])
     out = read_routed_intent(seq.projections[stage], recursion, routed, iomap.step_iomaps[stage][])
     for i in (stage - 1):-1:1
         out.operation === nothing && return out
         out = read_intent(seq.projections[i], recursion, out, iomap.step_iomaps[i][])
+    end
+    out
+end
+
+# A routed gesture, read from stage `last_i` back to the first: each stage reads it
+# at its own route, the first that answers gives the operation, and the stages
+# before it carry the operation back. A stage that can not carry it reads the
+# gesture itself, together with the stages before it.
+function _read_routed_gesture(seq::ChainingProjection, recursion, change::Intent,
+                              iomap::ChainingIoMap, routes::Vector{Reference}, last_i::Int)
+    read_at(i) = read_routed_intent(seq.projections[i], recursion,
+                                    Intent(change.gesture, nothing, change.description,
+                                           change.domain, routes[i]),
+                                    iomap.step_iomaps[i][])
+    start_i = last_i
+    out = read_at(start_i)
+    while out.operation === nothing && start_i > 1
+        start_i -= 1
+        out = read_at(start_i)
+    end
+    out.operation === nothing && return out
+    for i in (start_i - 1):-1:1
+        carried = read_intent(seq.projections[i], recursion, out, iomap.step_iomaps[i][])
+        carried.operation === nothing &&
+            return _read_routed_gesture(seq, recursion, change, iomap, routes, i)
+        out = carried
     end
     out
 end

@@ -23,12 +23,12 @@
 | `tooltip`, `pointer` and `tooltip_feed` | what the document under the pointer says about itself, once it rests |
 | `context_menu` | the menu of the document under the pointer on a right press |
 
-**The order is fixed.** From the inside out: the history, the shell, the start over of Tab, the hover tracker, the selection walk with the clipboard, the tooltip probe, the context menu probe, the help, the palette, and the recorder of the gesture log.
+**The order is fixed.** From the inside out: the history, the shell, the start over of Tab, the selection walk with the clipboard, the tooltip probe, the context menu probe, the help, the palette, and the recorder of the gesture log.
 
 - The **history** is innermost because it is a recursive type dispatch over the tree. A wrapper between it and the tree prints that subtree itself, and the recursion never reaches the type that it dispatches on.
 - The **shell** is outside the document of the window and inside everything that acts on a window. So the walk and the clipboard reach into the chrome, and a verb that reads the pane tree goes past it with `get_wrapped_document`.
-- The **hover tracker** is around the shell, so it sees the whole window: only something that sees the bands and the panes can tell that the pointer left a toolbar button for a row in a pane. It takes no keyword, because a window that shows a button must light it.
-- The **start over of Tab** (`FocusCyclingProjection`) is just inside the hover tracker. It sees the whole window too, so Tab at the last stop of the window goes to the first stop, and Shift+Tab goes the other way. It takes no keyword.
+- The **start over of Tab** (`FocusCyclingProjection`) is around the shell, so it sees the whole window: Tab at the last stop of the window goes to the first stop, and Shift+Tab goes the other way. It takes no keyword.
+- **The light under the pointer is not in the wrap.** The mouse target tracking of the screen (`make_tracking_screen`) sees every window, so it can tell that the pointer left a toolbar button for a row in a pane, or a window for a popup. [mousetargettracking.md](../mousetargettracking/mousetargettracking.md) describes it.
 - The **probes** are over the walk, because a probe reads the document that the walk selects in. They are under the help and the palette, because a probe must not answer for a window that one of those opened. **A probe passes every event on**: the tooltip probe only watches the pointer, and a tooltip opens when the pointer rests, at a deadline its `tooltip_feed` names in the loop. The host hands the same feed to `run_window_editor(feeds = …)`. [tooltip.md](../tooltip/tooltip.md) describes the rest.
 - The **recorder** is outermost, where it sees every operation of the window. It takes no keyword and writes into the log of the session, and **View → Gesture log** opens that log in a tab. So the tab holds what happened before it opened, and a person can open it after a fault.
 

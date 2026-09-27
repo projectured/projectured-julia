@@ -460,7 +460,7 @@ The layer lives in [source/kernel/gesture/](../../../source/kernel/gesture/):
 GestureModule.jl        (GestureModule) — the aggregator, eight fragments:
         ├─ GestureInterface.jl   — Gesture, and the methods of get_modifier_keys
         │                          and get_event_time for a gesture
-        ├─ MouseGesture.jl       — MouseClick, MouseEnter, MouseLeave, MouseDwell
+        ├─ MouseGesture.jl       — MouseClick, MouseEnter, MouseLeave, MouseHover, MouseDwell
         ├─ KeyboardGesture.jl    — KeyChord
         ├─ GesturePattern.jl     — the pattern language: GesturePattern, the
         │                          parser, and @gesture_case

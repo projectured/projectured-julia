@@ -4,7 +4,7 @@
 The mouse target tracking projection: it keeps the part under the pointer, the
 target, and gives each part of the target the crossings: a `MouseEnter` when
 the pointer comes onto it, a `MouseLeave` when the pointer goes off it, and a
-`MouseHover` to the deepest part when the pointer moves over the same target.
+`MouseHover` to the deepest part on each move, whose route is the whole target.
 A crossing goes to its part by route, never by a position.
 
 The target is the part that a point maps to backward, through every projection

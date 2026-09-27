@@ -67,9 +67,10 @@ function test_gallery_wrappers()
         @test _gw_count_texts(_gw_render(projection, document)) == bare + 8
     end
 
-    @testset "hover tracking leaves the render unchanged" begin
-        projection = WidgetHoverTrackingProjection(inner = make_json_projection_example())
-        @test _gw_count_texts(_gw_render(projection, make_json_document_example())) == bare
+    @testset "the mouse target tracking leaves the render unchanged" begin
+        projection = make_mouse_target_tracking_projection(make_json_projection_example())
+        document = make_mouse_target_tracking_document(make_json_document_example())
+        @test _gw_count_texts(_gw_render(projection, document)) == bare
     end
 
     @testset "the command type-in overlay leaves the render unchanged while closed" begin

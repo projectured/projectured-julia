@@ -1378,7 +1378,7 @@ uuid = "40366416-8a51-4b61-9ebb-c3640b2257e4"
 version = "0.1.0"
 
 [[deps.ProjecturedScreen]]
-deps = ["ProjecturedCollection", "ProjecturedGestureTracking", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization"]
+deps = ["ProjecturedCollection", "ProjecturedGestureTracking", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedMouseTargetTracking", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedSerialization"]
 path = "../../package/ProjecturedScreen"
 uuid = "f8594ae0-60c0-455d-b3a8-9bd84b5c43cb"
 version = "0.1.0"

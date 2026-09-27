@@ -1,12 +1,11 @@
-# A scrolled pane must translate EVERY pointer event, not only the press.
+# A scrolled pane must give the light and the press the same row.
 #
-# The canvas variant of the scroll pane translated `MouseClick` and
-# `MouseScroll` and forwarded the rest untouched, so motion and the hover
-# crossings reached the content in the pane's own frame: a scrolled list
-# highlighted the row that would be under the pointer if it had never been
-# scrolled, while a click on the same pixel selected the row that was really
-# there. Hover and click disagreeing by exactly the scroll offset is the
-# signature.
+# The light under the pointer comes from the mouse target tracking, which maps
+# the point backward through the pane to the row it draws there; the press is
+# translated by the pane. A scrolled list that lit the row that would be under
+# the pointer if it had never been scrolled, while a click on the same pixel
+# selected the row that was really there, is the signature of a pane that does
+# not map by its scroll offset.
 #
 # The offset a pane translates by is the one it draws with. A pane that follows
 # the end draws its end whatever `scroll_position` holds, so a press there must
@@ -32,32 +31,37 @@ end
 _scroll_pane_viewport(iomap) = only(e for e in iomap.output.elements if e isa GraphicsViewport)
 
 function test_scroll_pane_hover()
-    @testset "a scrolled pane translates motion, not just presses" begin
+    @testset "a list that scrolls under a still pointer lights the row now under it" begin
         list = _scroll_pane_list()
         pane = WidgetScrollPane(list; size = Point2D(200, 200))
         projection = _scroll_pane_projection()
         iomap = print_document(projection, pane)
+        driver = MttDriver(projection, pane)
 
-        # The row a press resolves to is the reference standard: it was correct
-        # before this fix and must stay correct after it.
+        # The row a press resolves to is the reference standard.
         row_of(evt) = _scroll_pane_row(projection, iomap, evt)
+        last_row(path) = last(collect(get_reference_steps(strip_reference_types(path))))
 
         y = 100
         getfield(pane, :scroll_position)[] = Point2D(0, 0)
         press_unscrolled = row_of(MouseClick(:left, 20, y; time = 0.0))
-        hover_unscrolled = row_of(MouseMove(20, y; time = 0.0))
-        @test hover_unscrolled !== nothing
+        _mtt_move!(driver, 20, y, 1.0)
+        hover_unscrolled = list.hovered
+        @test hover_unscrolled > 0
+        @test last_row(press_unscrolled) == ElementReferenceStep(hover_unscrolled)
 
-        # Scroll by whole rows and ask again at the SAME pixel.
+        # Scroll by whole rows under the still pointer: the new frame finds the
+        # row that is now under it (D41).
         getfield(pane, :scroll_position)[] = Point2D(0, 120)
+        _mtt_play!(driver, WindowInput(:win, DisplayUpdate(1.1)))
         press_scrolled = row_of(MouseClick(:left, 20, y; time = 0.0))
-        hover_scrolled = row_of(MouseMove(20, y; time = 0.0))
+        hover_scrolled = list.hovered
 
         # Scrolling has to change what is under the pointer …
-        @test hover_scrolled != hover_unscrolled
-        # … and hover must agree with the press, which is what broke.
-        @test hover_scrolled isa Integer
+        @test hover_scrolled > hover_unscrolled
         @test press_scrolled != press_unscrolled
+        # … and the light must agree with the press.
+        @test last_row(press_scrolled) == ElementReferenceStep(hover_scrolled)
     end
 
     # A pane that follows the end draws its end, and its `scroll_position`

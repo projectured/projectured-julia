@@ -33,6 +33,7 @@ using ..GestureTrackingModule
 using ..GraphicsModule
 using ..IntentModule
 using ..IoMapModule
+using ..MouseTargetTrackingModule
 using ..OperationModule
 using ..PrimitiveModule
 using ..ProjectionModule

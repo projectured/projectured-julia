@@ -232,6 +232,27 @@ end
 
 # The first height at which a double click on the navigator opens a file, and
 # the operation it makes. The navigator is the leftmost part of the window.
+# The trees that the views under `iomap` draw in a scroll pane, as the navigator
+# draws the files: a view makes them, so they are in no document.
+function _app_find_view_trees(iomap, found = Any[], seen = IdDict())
+    haskey(seen, iomap) && return found
+    seen[iomap] = true
+    output = get_iomap_output(iomap)
+    output = output isa Cell ? output[] : output
+    output isa WidgetScrollPane && output.content isa WidgetTree && push!(found, output.content)
+    for field in fieldnames(typeof(iomap))
+        value = getfield(iomap, field)
+        value = value isa Cell ? value[] : value
+        for candidate in (value isa AbstractVector ? value : (value,))
+            candidate = candidate isa Cell ? candidate[] : candidate
+            candidate isa Tuple && !isempty(candidate) && (candidate = last(candidate))
+            candidate = candidate isa Cell ? candidate[] : candidate
+            candidate isa IoMap && _app_find_view_trees(candidate, found, seen)
+        end
+    end
+    found
+end
+
 function _app_find_file_row(composed, iomap)
     for y in 0:4:400
         operation = _app_fire(composed, iomap, MouseClick(:left, 100, y, 2, ModifierKeys(); time = 0.0))
@@ -447,12 +468,13 @@ function test_application()
                                      opened_window_projections = make_opened_window_projections())
                 @test editor.iomap !== nothing
                 focus_pane!(editor, find_pane_reference(editor, "Files"))
-                # The screen is inside the state of the gesture tracker, and the
-                # state holds the same path under its `content` step.
+                # The screen is inside the state of the mouse target tracker,
+                # inside the state of the gesture tracker, and each state holds
+                # the same path under its `content` step.
                 screen = get_wrapped_document(editor.document)
                 @test _app_is_one_path(screen)
                 @test repr(strip_reference_types(get_selection(editor.document))) ==
-                      ".content" * repr(strip_reference_types(get_selection(screen)))
+                      ".content.content" * repr(strip_reference_types(get_selection(screen)))
                 @test isempty(_app_find_stray_live_selections(editor.document))
             end
 
@@ -1314,14 +1336,23 @@ function test_application()
                 tree = _app_window(document)
                 held(x, y) = MouseMove(x, y, MouseButtons(:left), ModifierKeys(); time = 0.0)
 
-                # A row of the navigator lights up, and the history does not grow.
+                # A row of the navigator lights up through the mouse target
+                # tracking of the screen, and the history does not grow.
+                pointer = ProjecturedSubstrateTest.MttDriver(composed, scene)
+                hover!(x, y, time) = ProjecturedSubstrateTest._mtt_play!(pointer,
+                    WindowInput(:ProjecturEd, MouseMove(x, y; time)))
                 y, _ = _app_find_file_row(composed, io)
                 before = steps()
-                lit = fire(MouseMove(100, y; time = 0.0))
-                @test holds(lit, ReplaceViewStateOperation)
-                apply(lit)
-                apply(fire(MouseMove(100, y + 40; time = 0.0)))
+                hover!(100, y, 1.0)
+                # The file is the target, and the chain carries the hover on to
+                # the row of the tree that the navigator's view makes for it.
+                navigator = only(_app_find_view_trees(pointer.iomap))
+                @test navigator.hovered !== nothing
+                hover!(100, y + 40, 1.1)
                 @test steps() == before
+                # Off the navigator, the leave of the file turns the row off.
+                hover!(900, 500, 1.2)
+                @test navigator.hovered === nothing
 
                 # The divider between the navigator and the files follows the
                 # pointer, and the history does not grow: a drag is view state.

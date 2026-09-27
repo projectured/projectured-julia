@@ -58,6 +58,16 @@ can not carry an edit of a delimiter, so it reads the `,` itself and inserts the
 next entry. A key that some step carries, such as a `,` inside the string, is
 not changed.
 
+**A change with a route.** The chain maps the route forward, stage by stage, as
+the printer maps a reference. An operation keeps to the stages that print the
+place as the same document, and the last of them reads it. A gesture goes on as
+far as the forward maps answer, also into a stage that shows the place as
+something else: a widget that a view makes for a part of its input, or for a
+place that the view names with an introduced reference. The deepest stage reads
+the gesture first, and an earlier stage reads it when the later answers nothing,
+as for a gesture with no route. So a `MouseHover` of a file reaches the row of the
+tree that shows the file.
+
 ## TypeDispatchingProjection
 
 ```julia

@@ -286,7 +286,10 @@ change that a gesture starts, and, for an operation that code already made,
 the path from the current reader's input to `place`. A reader that passes the
 `Intent` to a child gives it the route that remains below that child
 (`follow_intent_route`) — it drops its own step, or, in a chain, maps the
-route forward through the earlier stages, as the printer maps a reference.
+route forward through the earlier stages, as the printer maps a reference. A
+gesture with a route goes on into a stage that shows the place as something
+else, as far as the forward maps answer, and the deepest stage reads it first
+([higher-order-projections.md](../projection/higher-order-projections.md)).
 Where the route that remains for a child is empty, that child is the place:
 the parent does not call it, and takes `change.operation` as the child's
 answer instead (`read_routed_intent` in

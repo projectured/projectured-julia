@@ -68,6 +68,15 @@ end
           _path(FieldReferenceStep("roots"), _at(1), FieldReferenceStep("children"), _at(1))
 end
 
+@testset "a text maps to its content, at the point, as a path a layout can type" begin
+    # A layout passes its child the point as a bare step; the text answers a
+    # path that ends in the point, so the layout can put the node types on it.
+    answer = _map(VerticalLayout(Any[WidgetText("hello")]), 3, 3)
+    steps = collect(get_reference_steps(answer))
+    @test steps[1:3] == [FieldReferenceStep("children"), _at(1), FieldReferenceStep("content")]
+    @test last(steps) isa PointReferenceStep
+end
+
 @testset "an accordion maps a header to its item" begin
     accordion = WidgetAccordion([("First?", "Yes, first."), ("Second?", "No.")])
     @test _map(accordion, 10, 5) == _path(FieldReferenceStep("items"), _at(1))

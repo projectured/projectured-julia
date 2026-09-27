@@ -218,10 +218,10 @@ end
     menu = WidgetMenu([item, WidgetMenuItem("Open")])
     iomap = print_document(proj, menu)
     xy = _first_text_xy(iomap.output)
-    # The menu routes the crossing to the hit item, which flips `hovered`.
-    op = read_intent(proj, iomap, MouseEnter(xy[1] + 2, xy[2] + 2, MouseButtons(), ModifierKeys(); time = 0.0))
-    @test _view_state_write(op) isa ReplaceReferencedValueOperation
-    @test _view_state_write(op).value === true
+    # A point on the item maps backward to it, so the mouse target tracking
+    # gives it the enter, which flips `hovered`.
+    _mtt_move!(MttDriver(proj, menu), xy[1] + 2, xy[2] + 2, 1.0)
+    @test item.hovered === true
 
     # A hovered item renders an extra (hover surface) element vs an un-hovered one.
     plain = print_document(proj, WidgetMenuItem("New"))

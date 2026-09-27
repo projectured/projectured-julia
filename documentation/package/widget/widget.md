@@ -63,7 +63,11 @@ Each widget also compares the point with its own canvas in `_outside_widget`. A 
 
 **A drag is not hit-tested.** `WidgetComposite` and `WidgetSplitPane` give `MouseDown`, `MouseMove` and `MouseUp` to the hit child first, and to each child in order when no child is hit. `WidgetShell` does the same with `MouseDown` and `MouseUp`, in the frame of each band. `WidgetTabbedPane` gives them to the tab that it shows. Two cases need this. A slot is drawn only where its content draws, so a splitter dragged past the text loses its release. The divider of a nested split is in the gap between two panes, and a hit test of the parent finds no element there.
 
-A container routes a `MouseMove` only to the child under the pointer, so a widget gets no event when the pointer leaves it. `WidgetHoverTrackingProjection` wraps a widget chain for this. On each `MouseMove`, it gives the move to the chain, then routes a synthetic `MouseEnter` at the pointer. When the widget that answers is a different one, it routes a `MouseLeave` to the last widget, and returns the operations together. The tracker makes no widget operation of its own: `WidgetButton` sets `hovered` on an enter and clears it on a leave.
+A container routes a `MouseMove` only to the child under the pointer, so a widget gets no event when the pointer leaves it. **No container sends a crossing.** The mouse target tracking of the screen maps the point backward to the part under it, and gives the part a `MouseEnter`, a `MouseLeave` and a `MouseHover` by route ([mousetargettracking.md](../mousetargettracking/mousetargettracking.md)). The tracker makes no widget operation of its own:
+
+- `WidgetButton`, `WidgetMenuItem` and `WidgetToolbarItem` set `hovered` on an enter and clear it on a leave. A menu item holds child IO maps, so it has a 4-arg reader that reads a crossing at its own place.
+- `WidgetList`, `WidgetTable` (both IO maps) and `WidgetTree` light a row. A point on a row maps to the row, for example `items[2]`, which is no document, so the list is the deepest part. The route of the `MouseHover` is the whole target, and the reader reads the row from it. A `MouseLeave` whose route ends at the widget itself, or names the lit row, turns the light off: a view that shows a part of its input as a row sends the leave of that part to the row. A leave of another row does not. A bare `MouseMove` lights nothing.
+- A light never changes the layout: the hover draws a layer over the surface or the row.
 
 ### A key goes by selection
 

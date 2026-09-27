@@ -18,8 +18,8 @@ _always(_doc, _sel) = true
 _bfont = font_ubuntu_monospace_regular_20
 _bstub = FixedMeasure(10, 18, 6, 0)
 _bproj() = ChainingProjection(
-    WidgetHoverTrackingProjection(inner = RecursiveProjection(TypeDispatchingProjection(
-        WidgetToGraphics(_bfont; measure = _bstub).dispatch))))
+    RecursiveProjection(TypeDispatchingProjection(
+        WidgetToGraphics(_bfont; measure = _bstub).dispatch)))
 
 @testset "button: a per-instance right-click binding fires (left-click unchanged)" begin
     fired = Ref(false)

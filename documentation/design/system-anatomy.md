@@ -321,8 +321,8 @@ composes with any higher-order projection.
 | `Web.jl` (opt-in `package/web/`) | Web backend: HTTP + WebSocket server, JSON draw-list (with dirty-rect patches), browser renderer in [package/web/assets/](../../asset/web) |
 | `backend/Pdf.jl` (visual) | SDL-free vector-PDF export (`write_pdf`); hand-rolled TrueType embedding |
 | `device/Display.jl` | `Display` device |
-| `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress`, `KeyChord` |
-| `event/MouseEvent.jl` | `MouseDown`, `MouseUp`, `MouseClick`, `MouseMove`, `MouseEnter`, `MouseLeave`, `MouseScroll` |
+| `event/KeyboardEvent.jl` | `KeyDown`, `KeyUp`, `KeyPress` |
+| `event/MouseEvent.jl` | `MouseButtons`, `MouseDown`, `MouseUp`, `MouseMove`, `MouseScroll` |
 | `event/WindowEvent.jl` | `WindowQuit`, `WindowClose`, `WindowResize`, `WindowDefocus`, `WindowLeave` |
 | `event/TimerEvent.jl` | `TimerExpire` |
 | `event/DisplayEvent.jl` | `DisplayUpdate` |
@@ -371,7 +371,7 @@ includes them in:
  6 event       the input events (Event, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*,
                WindowInput)
  7 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
- 8 gesture     the gestures (Gesture, MouseClick/MouseEnter/MouseLeave/MouseDwell,
+ 8 gesture     the gestures (Gesture, MouseClick/MouseEnter/MouseLeave/MouseHover/MouseDwell,
                KeyChord), the pattern language (GesturePattern, matches_gesture_pattern,
                describe_gesture_pattern, @gesture_case) and the recognitions
                (GestureRecognition, ChordRecognition, ClickRecognition, DwellRecognition,

@@ -16,12 +16,15 @@ its path that name a document, the outer first.
 
 **The crossings.** When the target changes, each part of the old target that is
 not on the new one gets a `MouseLeave`, the inner first, and each part of the
-new target that is not on the old one gets a `MouseEnter`, the outer first. When
-the target stays, its deepest part gets a `MouseHover`, at the point step of the
-answer when there is one, and at the point in the window otherwise. A
+new target that is not on the old one gets a `MouseEnter`, the outer first. Then,
+on each move, the deepest part gets a `MouseHover`, at the point step of the
+answer when there is one, and at the point in the window otherwise. The route of
+the hover is the whole target, so a part learns the place in it that is under
+the pointer, for example a row of a list, which is no document. A
 `DisplayUpdate` of the window of the pointer finds the target again at the last
-position, because the view can change under a still pointer. A `WindowLeave` of
-that window gives every part a leave and clears the target.
+position, because the view can change under a still pointer; it gives a hover
+when the target changed. A `WindowLeave` of that window gives every part a leave
+and clears the target.
 
 **The delivery.** Each crossing goes to its part by route. The content reads the
 input first; the crossings wait in the state, and a timer at the time of the
@@ -144,20 +147,54 @@ function _find_target(p::MouseTargetTrackingProjection, iomap::MouseTargetTracki
 end
 
 # The prefixes of `target` that name a document of `content`, the outer first.
-# The content itself is no part: every target is on it.
+# The content itself is no part: every target is on it. A projection step names a
+# place in the output of the view that made it, which is in no document, so each
+# prefix of the path in that output is a part: a crossing of one that names no
+# widget reaches no reader.
 function _find_parts(content, target)
     target === nothing && return ()
     steps = collect(get_reference_steps(target))
     parts = Reference[]
     for length_ in 1:length(steps)
-        prefix = extend_reference(EmptyReference(), steps[1:length_]...)
-        try_evaluate_reference(content, prefix, nothing) isa Document && push!(parts, prefix)
+        before = steps[1:(length_ - 1)]
+        step = steps[length_]
+        if step isa ProjectionReferenceStep
+            for inner in _find_output_prefixes(step.output_path)
+                push!(parts, extend_reference(EmptyReference(), before...,
+                                              ProjectionReferenceStep(step.projection, inner)))
+            end
+        else
+            prefix = extend_reference(EmptyReference(), before..., step)
+            try_evaluate_reference(content, prefix, nothing) isa Document && push!(parts, prefix)
+        end
     end
     Tuple(parts)
 end
 
+# The prefixes of `path` in the output of a view, the empty one first: the root of
+# the output, and each place on the way to the end. A projection step inside it
+# gives the prefixes of its own path.
+function _find_output_prefixes(path::Reference)
+    steps = collect(get_reference_steps(strip_reference_types(path)))
+    prefixes = Reference[EmptyReference()]
+    for length_ in 1:length(steps)
+        before = steps[1:(length_ - 1)]
+        step = steps[length_]
+        if step isa ProjectionReferenceStep
+            for inner in _find_output_prefixes(step.output_path)
+                push!(prefixes, extend_reference(EmptyReference(), before...,
+                                                 ProjectionReferenceStep(step.projection, inner)))
+            end
+        else
+            push!(prefixes, extend_reference(EmptyReference(), before..., step))
+        end
+    end
+    prefixes
+end
+
 # The writes of the target at `position`, and its crossings. `hover` says whether
-# a target that stays gets a `MouseHover`: a motion does, a new frame does not.
+# a target that stays gets a `MouseHover`: a motion does, and a new frame gives
+# one only when the target changed.
 function _track(p::MouseTargetTrackingProjection, iomap::MouseTargetTrackingIoMap,
                 position::_Position, time::Float64; hover::Bool)
     state = iomap.input
@@ -172,9 +209,9 @@ function _track(p::MouseTargetTrackingProjection, iomap::MouseTargetTrackingIoMa
     for part in parts
         part in old || push!(crossings, _Crossing(part, MouseEnter(x, y, b, m; time)))
     end
-    if hover && isempty(crossings) && !isempty(parts)
+    if !isempty(parts) && (hover || !isequal(target, state.target))
         hx, hy = local_point === nothing ? (x, y) : (local_point.x, local_point.y)
-        push!(crossings, _Crossing(last(parts), MouseHover(hx, hy, b, m; time)))
+        push!(crossings, _Crossing(target, MouseHover(hx, hy, b, m; time)))
     end
     writes = Any[]
     isequal(target, state.target) || push!(writes, _write_state(state, "target", target))
@@ -199,10 +236,22 @@ function _read_waiting(p::MouseTargetTrackingProjection, recursion,
     state = iomap.input
     isempty(state.waiting) && return nothing
     next, rest = first(state.waiting), Base.tail(state.waiting)
-    routed = Intent(next.gesture, nothing, "", "", next.route)
-    _join_operations(_read_content(p, recursion, routed, iomap),
-                     _write_state(state, "waiting", rest),
+    route = _find_typed_route(state.content, next.route)
+    content = route === nothing ? nothing :
+              _read_content(p, recursion, Intent(next.gesture, nothing, "", "", route), iomap)
+    _join_operations(content, _write_state(state, "waiting", rest),
                      isempty(rest) ? nothing : SetTimerOperation(_WAITING_TIMER, timer.time))
+end
+
+# What a step of a route that reaches no node evaluates to.
+const _NO_NODE = gensym(:no_node)
+
+# `route` with the type of each node of `content` on its steps, because a view
+# that maps a route forward checks them; `nothing` when the route reaches no node
+# of `content`, because the part is gone and no reader can reach it.
+function _find_typed_route(content, route::Reference)
+    try_evaluate_reference(content, route, _NO_NODE) === _NO_NODE && return nothing
+    annotate_reference_types(content, route)
 end
 
 # ── Reference mapping (transparent, through the `content` field) ───────────

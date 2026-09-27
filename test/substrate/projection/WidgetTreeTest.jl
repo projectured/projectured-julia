@@ -1,10 +1,9 @@
 # WidgetTree hover feedback + click-to-collapse/expand.
 #
 # The tree renders a faint hover band behind the row under the pointer (driven by
-# `MouseEnter`/`MouseMove`/`MouseLeave` crossings, which the
-# `WidgetHoverTrackingProjection` synthesises from motion) and toggles a parent's
-# children when its chevron is clicked. Both reuse the same `geom.rows` hit-test as
-# selection, so they are coordinate-space-agnostic. Here we drive the WidgetTree
+# the `MouseHover` and the `MouseLeave` that the mouse target tracking gives by
+# route: the route of a hover names the node under the pointer) and toggles a
+# parent's children when its chevron is clicked. Here we drive the WidgetTree
 # projection directly with a deterministic text measure so row geometry is exact.
 
 using ProjecturedKernel.CellModule: Cell, Computation
@@ -22,13 +21,18 @@ end
 @test _treeproj !== nothing
 
 _mods = ModifierKeys()
-_readop_marked(io, g) = begin
-    ch = read_intent(_treeproj, nothing, Intent(g, nothing), io)
+_readop_marked(io, g, route = nothing) = begin
+    ch = read_intent(_treeproj, nothing, Intent(g, nothing, "", "", route), io)
     ch isa Intent ? ch.operation : ch
 end
 # The answer, looking through the mark a hover carries as view state.
-_readop(io, g) = (op = _readop_marked(io, g);
-                  op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op)
+_readop(io, g, route = nothing) = (op = _readop_marked(io, g, route);
+                                   op isa ReplaceViewStateOperation ? get_wrapped_operation(op) : op)
+# A hover and a leave, as the mouse target tracking gives them; the route says
+# where they go.
+_hover = MouseHover(0, 0, MouseButtons(), _mods; time = 0.0)
+_leave = MouseLeave(0, 0, MouseButtons(), _mods; time = 0.0)
+_node(path) = WidgetModule._wtree_path_ref(path)
 _fresh() = begin
     w = WidgetTree(Any[("src", Any["a.jl", "b.jl"]), "README"]; expanded = Set([[1]]))
     (w, print_document(_treeproj, w))
@@ -69,34 +73,40 @@ end
     @test geom.rows[2].chevron_x0 == 22                # indented one level
 end
 
-@testset "MouseEnter sets the hovered row; a leave clears it" begin
+@testset "a hover lights the row that its route names; a leave of the tree clears it" begin
     w, io = _fresh()
-    r1 = io.geometry.rows[1]
     # A hover is view state, and marked so that no history records it.
-    @test _readop_marked(io, MouseEnter(r1.chevron_x1 + 2, r1.y0 + 2, MouseButtons(), _mods; time = 0.0)) isa ReplaceViewStateOperation
-    op = _readop(io, MouseEnter(r1.chevron_x1 + 2, r1.y0 + 2, MouseButtons(), _mods; time = 0.0))
-    @test op isa ReplaceReferencedValueOperation && op.value !== nothing
+    @test _readop_marked(io, _hover, _node([1])) isa ReplaceViewStateOperation
+    op = _readop(io, _hover, _node([1]))
+    @test op isa ReplaceReferencedValueOperation && op.value == _node([1])
     getfield(w, :hovered)[] = op.value
-    @test w.hovered !== nothing
 
-    op = _readop(io, MouseLeave(0, 0, MouseButtons(), _mods; time = 0.0))
+    # The leave of another node changes nothing; the leave of the lit node, which
+    # a view sends for the part that the row shows, turns the light off.
+    @test _readop(io, _leave, _node([2])) === nothing
+    op = _readop(io, _leave, _node([1]))
+    @test op isa ReplaceReferencedValueOperation && op.value === nothing
+    op = _readop(io, _leave, EmptyReference())
     @test op isa ReplaceReferencedValueOperation && op.value === nothing
     getfield(w, :hovered)[] = op.value
     @test w.hovered === nothing
     # A leave with nothing already hovered is a no-op.
-    @test _readop(io, MouseLeave(0, 0, MouseButtons(), _mods; time = 0.0)) === nothing
+    @test _readop(io, _leave, EmptyReference()) === nothing
 end
 
-@testset "MouseMove updates hover only when the row changes" begin
+@testset "a hover writes only when the row changes, and a motion lights nothing" begin
     w, io = _fresh()
-    rows = io.geometry.rows
-    r1, r2 = rows[1], rows[2]
-    getfield(w, :hovered)[] = _readop(io, MouseEnter(r1.chevron_x1 + 2, r1.y0 + 2, MouseButtons(), _mods; time = 0.0)).value
+    r1 = io.geometry.rows[1]
+    getfield(w, :hovered)[] = _readop(io, _hover, _node([1])).value
     # Same row again → nothing (no churn).
-    @test _readop(io, MouseMove(r1.chevron_x1 + 5, r1.y0 + 5, MouseButtons(), _mods; time = 0.0)) === nothing
+    @test _readop(io, _hover, _node([1])) === nothing
+    # A route that names no node keeps the light.
+    @test _readop(io, _hover, EmptyReference()) === nothing
     # Different row → a fresh write.
-    op = _readop(io, MouseMove(r2.chevron_x1 + 5, r2.y0 + 5, MouseButtons(), _mods; time = 0.0))
-    @test op isa ReplaceReferencedValueOperation && op.value !== nothing
+    op = _readop(io, _hover, _node([1, 1]))
+    @test op isa ReplaceReferencedValueOperation && op.value == _node([1, 1])
+    # The tree does not read a motion: the light comes by route.
+    @test _readop(io, MouseMove(r1.chevron_x1 + 5, r1.y0 + 5, MouseButtons(), _mods; time = 0.0)) === nothing
 end
 
 @testset "clicking a chevron collapses/expands; clicking a label selects" begin
@@ -131,7 +141,7 @@ end
     @test length(bands) == 2                            # hover + selection bands
     @test all(Int(r.h[]) == 0 for r in bands)           # neither active yet
     # Hover row 1 → one of its bands gains the row's height.
-    getfield(w, :hovered)[] = _readop(io, MouseEnter(2, io.geometry.rows[1].y0 + 2, MouseButtons(), _mods; time = 0.0)).value
+    getfield(w, :hovered)[] = _readop(io, _hover, _node([1])).value
     @test any(Int(r.h[]) == 24 for r in _bands(io, 1))
     @test all(Int(r.h[]) == 0 for r in _bands(io, 2))   # the next row stays dark
 end
@@ -146,35 +156,36 @@ end
     @test Int(hit[1].w[]) == io.width && Int(hit[1].h[]) == io.geometry.total_h
 end
 
-# Regression: a tree nested in a layout / tabbed pane / shell must still receive
-# the pointer. Containers used to route MouseEnter/MouseMove/MouseLeave via the
-# coordless, selection-only path (so a hovered tree in a tab stayed unlit), and the
-# tree's gesture logic lived only in the 4-arg reader (which containers don't call).
-@testset "crossings + clicks reach a tree nested in containers" begin
+# A tree nested in a layout / tabbed pane / shell must still light under the
+# pointer and take a click: a point maps backward through the containers to the
+# node, and the hover goes to the tree by route.
+@testset "the light and a click reach a tree nested in containers" begin
     _full = make_widget_projection_example(measure = _det)
     _tree() = WidgetTree(Any[
         WidgetTreeNode(:folder, "src", Any[WidgetTreeNode(:file, "a.jl")]),
         WidgetTreeNode(:file, "README")])
-    # Count grid points whose MouseEnter / MouseClick reach the tree.
-    function reach(doc; xs, ys)
+    # Count grid points where a move lights the tree and a click selects in it.
+    function reach(tree, doc; xs, ys)
         io = print_document(_full, doc)
-        enters = clicks = 0
+        driver = MttDriver(_full, doc)
+        lit = clicks = 0
+        time = 0.0
         for x in xs, y in ys
-            ce = read_intent(_full, nothing, Intent(MouseEnter(x, y, MouseButtons(), _mods; time = 0.0), nothing), io)
-            oe = _view_state_write(ce isa Intent ? ce.operation : ce)
-            oe isa ReplaceReferencedValueOperation && oe.document isa WidgetTree && (enters += 1)
+            _mtt_move!(driver, x, y, time += 0.01)
+            tree.hovered !== nothing && (lit += 1)
             cp = read_intent(_full, nothing, Intent(MouseClick(:left, x, y, _mods; time = 0.0), nothing), io)
             op = cp isa Intent ? cp.operation : cp
             op isa ReplaceSelectionOperation && (clicks += 1)
         end
-        (enters, clicks)
+        (lit, clicks)
     end
-    for doc in (VerticalLayout(Any[_tree()]),
-                WidgetTabbedPane([("Data", VerticalLayout(Any[_tree()]))]),
-                WidgetShell(WidgetTabbedPane([("Data", VerticalLayout(Any[_tree()]))]);
-                            size = Point2D(400, 300)))
-        e, c = reach(doc; xs = 0:6:240, ys = 0:6:200)
-        @test e > 0     # MouseEnter reaches the tree (was 0 before the fix)
+    for wrap in (tree -> VerticalLayout(Any[tree]),
+                 tree -> WidgetTabbedPane([("Data", VerticalLayout(Any[tree]))]),
+                 tree -> WidgetShell(WidgetTabbedPane([("Data", VerticalLayout(Any[tree]))]);
+                                     size = Point2D(400, 300)))
+        tree = _tree()
+        e, c = reach(tree, wrap(tree); xs = 0:6:240, ys = 0:6:200)
+        @test e > 0     # a move lights a row of the tree
         @test c > 0     # MouseClick selects a tree node through the container
     end
 end
