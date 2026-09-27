@@ -29,7 +29,8 @@ The packages below every domain. [package-rules.md](../rule/package-rules.md) ha
 | `ProjecturedProjection` | [projection.md](projection/projection.md), with [generic-projections.md](projection/generic-projections.md) and [higher-order-projections.md](projection/higher-order-projections.md) | the generic and the higher-order projections |
 | `ProjecturedDragging` | [dragging.md](dragging/dragging.md) | reorder by drag and drop |
 | `ProjecturedFocus` | [focus.md](focus/focus.md) | the focus walk and the whole selection by Alt+press |
-| `ProjecturedGestureTracking` | [gesturetracking.md](gesturetracking/gesturetracking.md) | the click, the key chord and the mouse dwell from the events |
+| `ProjecturedGestureTracking` | [gesturetracking.md](gesturetracking/gesturetracking.md) | runs the recognitions of gestures over the inputs |
+| `ProjecturedMouseTargetTracking` | [mousetargettracking.md](mousetargettracking/mousetargettracking.md) | the part under the pointer, and its crossings by route |
 | `ProjecturedVersioning` | [versioning.md](versioning/versioning.md) | the versions of a document |
 | `ProjecturedPlot` | [plot.md](plot/plot.md) | the axis arithmetic and the colour and marker cycles of the charts |
 | `ProjecturedGraphics` | [graphics.md](graphics/graphics.md) | the graphics documents, the hit test and the selection ring |

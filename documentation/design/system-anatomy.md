@@ -58,7 +58,7 @@ The **kinds** of package (main, example, test, repl, build), what each may
 depend on, and why the leaf the alias loads is the only place a
 `@compile_workload` may live, are in [package-rules.md](../rule/package-rules.md).
 
-ProjecturEd is organized as **one engine, twenty-nine substrate packages and
+ProjecturEd is organized as **one engine, thirty substrate packages and
 twenty domain packages**, plus an umbrella and the opt-in packages. The kernel
 is the one *layered* package: its twenty-three layers depend only downward,
 and the ordering is enforced statically by the shared
@@ -85,7 +85,7 @@ ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
         │                      selection → operation → intent → binding → iomap →
         │                      projection → tool → llm → agent → feed → editor → playback
         │                      Zero runtime deps, zero concrete documents.
-The substrate: 29 packages     one concept each, an acyclic package graph
+The substrate: 30 packages     one concept each, an acyclic package graph
         ▲                      the vocabulary — collection, primitive, domain,
         │                      serialization;
         │                      the algebra — projection, reflection, dragging,
@@ -340,7 +340,7 @@ enforces.
 **Between packages:**
 
 ```
-ProjecturedKernel ◄── the 29 substrate packages ◄── the 20 domains ◄── Projectured
+ProjecturedKernel ◄── the 30 substrate packages ◄── the 20 domains ◄── Projectured
        ▲                          ▲                        ▲            (umbrella)
        │                          │                        │
    Mcp, Llm             Sdl, Web, Video, Tulip      Odbc, Adaptagrams
@@ -406,7 +406,7 @@ includes them in:
                wall-clock schedule
 ```
 
-**The twenty-nine substrate packages**, in a topological order. Each is one
+**The thirty substrate packages**, in a topological order. Each is one
 concept, and each declares the exact set of packages it imports:
 
 ```
@@ -427,6 +427,8 @@ concept, and each declares the exact set of packages it imports:
    versioning      VersionedObject and its version-eliminating projection
    plot            the plot arithmetic and the colour and marker vocabulary
    graphics        Graphics, GraphicsCaching, PointReferenceStep
+   mousetargettracking the part under the pointer, and the crossings that its parts
+                   get by route, with their state document
    screen          ScreenDocument, WindowManaging, ScreenToScreen
    layout          Layout, the constraint solver, LayoutToGraphics, CollectionToLayout
    text            Text, TextToGraphics, the decorators, the three reference steps,

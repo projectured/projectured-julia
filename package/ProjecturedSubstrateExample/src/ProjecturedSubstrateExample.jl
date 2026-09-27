@@ -35,6 +35,7 @@ import ProjecturedGestureTracking
 import ProjecturedVersioning
 import ProjecturedPlot
 import ProjecturedGraphics
+import ProjecturedMouseTargetTracking
 import ProjecturedScreen
 import ProjecturedLayout
 import ProjecturedText
@@ -72,7 +73,7 @@ const _SOURCES = (ProjecturedKernel,
                   ProjecturedFocus, ProjecturedGestureTracking,
                   ProjecturedVersioning,
                   ProjecturedPlot,
-                  ProjecturedGraphics,
+                  ProjecturedGraphics, ProjecturedMouseTargetTracking,
                   ProjecturedScreen,
                   ProjecturedLayout,
                   ProjecturedText,

@@ -36,6 +36,7 @@ ProjecturedLayout = "131aea98-bff0-4be4-86bf-c6e8c408eb61"
 ProjecturedLog = "afbb0e85-b78b-48af-ad63-1ba46eea4377"
 ProjecturedMarkdown = "0d968d4c-e8d6-48b2-bf35-e636991e1b44"
 ProjecturedMath = "80f7b254-0441-42e3-ab4d-62a480615fad"
+ProjecturedMouseTargetTracking = "87a499b1-801b-4f04-a98c-56187a2b9450"
 ProjecturedNatural = "09daa789-626e-40de-aeba-3b7256e1b478"
 ProjecturedPane = "6bac0b38-2033-4280-9d64-c7881579a7c3"
 ProjecturedPdf = "18e37c66-e2b2-4424-ab73-223891693292"
@@ -94,6 +95,7 @@ ProjecturedLayout = {path = "../ProjecturedLayout"}
 ProjecturedLog = {path = "../ProjecturedLog"}
 ProjecturedMarkdown = {path = "../ProjecturedMarkdown"}
 ProjecturedMath = {path = "../ProjecturedMath"}
+ProjecturedMouseTargetTracking = {path = "../ProjecturedMouseTargetTracking"}
 ProjecturedNatural = {path = "../ProjecturedNatural"}
 ProjecturedPane = {path = "../ProjecturedPane"}
 ProjecturedPdf = {path = "../ProjecturedPdf"}

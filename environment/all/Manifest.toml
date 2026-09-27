@@ -2,7 +2,7 @@
 
 julia_version = "1.13.0"
 manifest_format = "2.1"
-project_hash = "9671f3bb42c626d7fd39f13c3188033f529d24e1"
+project_hash = "15be405303d260586d249017808478f015182a5c"
 
 [[deps.AMD]]
 deps = ["LinearAlgebra", "SparseArrays", "SuiteSparse_jll"]
@@ -827,7 +827,7 @@ uuid = "9abbd945-dff8-562f-b5e8-e1ebf5ef1b79"
 version = "1.11.0"
 
 [[deps.Projectured]]
-deps = ["ProjecturedAssistant", "ProjecturedBook", "ProjecturedChart", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedConversation", "ProjecturedDatabase", "ProjecturedDbCatalog", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFault", "ProjecturedFileFormat", "ProjecturedFileSystem", "ProjecturedFocus", "ProjecturedFormula", "ProjecturedFsm", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGestureTracking", "ProjecturedGraph", "ProjecturedGraphics", "ProjecturedHelp", "ProjecturedInspector", "ProjecturedJson", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedLog", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProcess", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedRst", "ProjecturedScreen", "ProjecturedSequenceChart", "ProjecturedSerialization", "ProjecturedShell", "ProjecturedSql", "ProjecturedStatistics", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedUndo", "ProjecturedVersioning", "ProjecturedWidget", "ProjecturedXml", "ProjecturedYaml"]
+deps = ["ProjecturedAssistant", "ProjecturedBook", "ProjecturedChart", "ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedConversation", "ProjecturedDatabase", "ProjecturedDbCatalog", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFault", "ProjecturedFileFormat", "ProjecturedFileSystem", "ProjecturedFocus", "ProjecturedFormula", "ProjecturedFsm", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGestureTracking", "ProjecturedGraph", "ProjecturedGraphics", "ProjecturedHelp", "ProjecturedInspector", "ProjecturedJson", "ProjecturedJulia", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedLog", "ProjecturedMarkdown", "ProjecturedMath", "ProjecturedMouseTargetTracking", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProcess", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedRst", "ProjecturedScreen", "ProjecturedSequenceChart", "ProjecturedSerialization", "ProjecturedShell", "ProjecturedSql", "ProjecturedStatistics", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedUndo", "ProjecturedVersioning", "ProjecturedWidget", "ProjecturedXml", "ProjecturedYaml"]
 path = "../../package/Projectured"
 uuid = "92922de3-b970-4d9a-8b2a-9d6f361397b5"
 version = "0.1.0"
@@ -1257,6 +1257,12 @@ path = "../../package/ProjecturedMcp"
 uuid = "2b4e36b2-6b10-43fd-9b63-0a09efcd22da"
 version = "0.1.0"
 
+[[deps.ProjecturedMouseTargetTracking]]
+deps = ["ProjecturedGraphics", "ProjecturedKernel"]
+path = "../../package/ProjecturedMouseTargetTracking"
+uuid = "87a499b1-801b-4f04-a98c-56187a2b9450"
+version = "0.1.0"
+
 [[deps.ProjecturedNatural]]
 deps = ["ProjecturedCollection", "ProjecturedDomain", "ProjecturedGraphics", "ProjecturedKernel", "ProjecturedLayout", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedStyle", "ProjecturedText", "ProjecturedWidget"]
 path = "../../package/ProjecturedNatural"
@@ -1462,13 +1468,13 @@ uuid = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
 version = "0.1.0"
 
 [[deps.ProjecturedSubstrateExample]]
-deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFault", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGestureTracking", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget"]
+deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFault", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGestureTracking", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedKernel", "ProjecturedKernelExample", "ProjecturedLayout", "ProjecturedMouseTargetTracking", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget"]
 path = "../../package/ProjecturedSubstrateExample"
 uuid = "5049da3f-9201-47d6-95d8-24bb99c7096c"
 version = "0.1.0"
 
 [[deps.ProjecturedSubstrateTest]]
-deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFault", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGestureTracking", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedLayout", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSubstrateExample", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "Test"]
+deps = ["ProjecturedClipboard", "ProjecturedCollection", "ProjecturedComponent", "ProjecturedConsole", "ProjecturedDomain", "ProjecturedDragging", "ProjecturedFault", "ProjecturedFileFormat", "ProjecturedFocus", "ProjecturedGestureHelp", "ProjecturedGestureLog", "ProjecturedGestureTracking", "ProjecturedGraphics", "ProjecturedInspector", "ProjecturedKernel", "ProjecturedKernelTest", "ProjecturedLayout", "ProjecturedMouseTargetTracking", "ProjecturedNatural", "ProjecturedPane", "ProjecturedPdf", "ProjecturedPlot", "ProjecturedPrimitive", "ProjecturedProjection", "ProjecturedReflection", "ProjecturedScreen", "ProjecturedSerialization", "ProjecturedStyle", "ProjecturedSubstrateExample", "ProjecturedSyntax", "ProjecturedText", "ProjecturedTooltip", "ProjecturedVersioning", "ProjecturedWidget", "Test"]
 path = "../../package/ProjecturedSubstrateTest"
 uuid = "38f1c7f4-274b-4c10-ad20-becff0e69ef8"
 version = "0.1.0"

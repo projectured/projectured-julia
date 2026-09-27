@@ -25,6 +25,7 @@ ProjecturedGestureTracking = "d677152d-0bb6-4d22-933a-4307a7c10075"
 ProjecturedGestureHelp = "d8e6961d-7c29-43d8-bf9a-3394cc5f023b"
 ProjecturedGestureLog = "4fa8205f-3512-4016-add3-a8e2144efbf1"
 ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
+ProjecturedMouseTargetTracking = "87a499b1-801b-4f04-a98c-56187a2b9450"
 ProjecturedInspector = "5159cf42-a4ae-453b-9ac3-8695502aad43"
 ProjecturedLayout = "131aea98-bff0-4be4-86bf-c6e8c408eb61"
 ProjecturedNatural = "09daa789-626e-40de-aeba-3b7256e1b478"
@@ -59,6 +60,7 @@ ProjecturedGestureTracking = {path = "../ProjecturedGestureTracking"}
 ProjecturedGestureHelp = {path = "../ProjecturedGestureHelp"}
 ProjecturedGestureLog = {path = "../ProjecturedGestureLog"}
 ProjecturedGraphics = {path = "../ProjecturedGraphics"}
+ProjecturedMouseTargetTracking = {path = "../ProjecturedMouseTargetTracking"}
 ProjecturedInspector = {path = "../ProjecturedInspector"}
 ProjecturedLayout = {path = "../ProjecturedLayout"}
 ProjecturedNatural = {path = "../ProjecturedNatural"}

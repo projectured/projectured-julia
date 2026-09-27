@@ -15,8 +15,8 @@ The module lives in eight fragments that share this namespace:
 
 - [`GestureInterface.jl`](GestureInterface.jl) — `Gesture`, and the methods of
   `get_modifier_keys` and `get_event_time` for a gesture.
-- [`MouseGesture.jl`](MouseGesture.jl) — `MouseClick`, `MouseEnter`, `MouseLeave`
-  and `MouseDwell`.
+- [`MouseGesture.jl`](MouseGesture.jl) — `MouseClick`, `MouseEnter`, `MouseLeave`,
+  `MouseHover` and `MouseDwell`.
 - [`KeyboardGesture.jl`](KeyboardGesture.jl) — `KeyChord`.
 - [`GesturePattern.jl`](GesturePattern.jl) — the pattern language:
   `GesturePattern`, its parser, and `@gesture_case`, whose docstring documents
@@ -35,11 +35,12 @@ import ..EventModule: get_modifier_keys, get_event_time
 
 export Gesture
 export KeyChord
-export MouseClick, MouseEnter, MouseLeave, MouseDwell
+export MouseClick, MouseEnter, MouseLeave, MouseHover, MouseDwell
 export GesturePattern, matches_gesture_pattern,
        KeyPressPattern, KeyDownPattern, KeyUpPattern,
        MouseDownPattern, MouseUpPattern, MouseClickPattern,
-       MouseMovePattern, MouseEnterPattern, MouseLeavePattern, MouseDwellPattern,
+       MouseMovePattern, MouseEnterPattern, MouseLeavePattern, MouseHoverPattern,
+       MouseDwellPattern,
        MouseScrollPattern,
        describe_gesture_pattern, GesturePatternRule, parse_gesture_pattern_rule,
        build_gesture_pattern_expr, build_gesture_field_bindings, @gesture_case

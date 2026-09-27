@@ -10,7 +10,7 @@ and no synonyms.
 ## The terms
 
 - **Package** — a Julia package with its own `Project.toml`. The project
-  consists of packages: the `ProjecturedKernel` engine, the twenty-nine
+  consists of packages: the `ProjecturedKernel` engine, the thirty
   packages of the substrate, the twenty domain packages, the `Projectured`
   umbrella, their sibling test and example packages, and the opt-in packages
   (`sdl`, `web`, `odbc`, `video`, `tulip`, `llm`, `mcp`, …). A package is one
