@@ -7,30 +7,37 @@ Paste everything below the line. Each paragraph is one line, because Discourse t
 
 ---
 
-I'd like to show you ProjecturEd, the projectional editor I've been working on. It's an application to view and edit structured data, and I made it to be extended: you define your own data structures as documents and their views as projections, and they combine with the twenty or so domains that come with it, from JSON and Markdown to Julia code, math and charts. You and an AI assistant work together on the same data and the same views, with the same typed edits. It's written in Julia, so it's also a generic user interface for your own Julia programs. It isn't finished, but most of it works, and I think it's far enough to show it and to ask for feedback.
+I'd like to show you ProjecturEd, a projectional editor I've been working on.
 
-I started ProjecturEd in Common Lisp in 2013, and the reason hasn't changed since. Structured data almost always ends up as text. You print it, you edit the characters of a file, or you write a GUI for that one type and then maintain it. An LLM has the same limit: it writes characters, and you find out afterwards whether the result parses. I wanted the data itself to be the thing you look at and change, with the keyboard or through a model, and I wanted a view to be cheap enough that any value can have one. I created the Julia version for a new port of a well-known and widely used discrete event simulator. It's a new implementation of the same idea, with a lot more domains, more backends and the assistant.
+It's an application to view and edit structured data. You can define your own data structures and your own views for them. They work together with the domains that come with it, like JSON, Markdown, Julia code, math and charts. An AI assistant works with you on the same data and the same views. It's written in Julia, so you can also use it as a user interface for your own Julia programs.
 
-In this video a local model (qwen3.8:27b through Ollama) builds a study of an M/M/1/K queue from seven requests: it writes the model and the formulas, runs OMNeT++, plots the results and finds the answer. The OMNeT++ tool in the video is something I built on ProjecturEd, and its code isn't in the public repository. https://projectured.org/assets/videos/queue-study.mp4
+It's not finished, but most of it works. I think it's ready to show, and I'd like to get some feedback.
 
-In ProjecturEd the data is the source, and every view is computed from it. A projection is a pair of functions: the printer makes the view and records which part of it came from which part of the data, and the reader uses that record to turn a key press or a click into a typed operation on the data. Projections chain, so JSON reaches the screen as JSON → syntax → text → graphics, and a key goes back the same way. Every field is a reactive cell: a computed value stays until something it depends on changes, the parts off screen cost nothing, and no view can show a stale value.
+Some history. I started ProjecturEd in Common Lisp in 2013. Structured data almost always ends up as text. You print it, you edit a file, or you write a GUI just for that one type. An LLM has the same problem, it writes text and you only find out later if it parses. I wanted to look at and change the data itself, with the keyboard or through a model. And I wanted any value to have a view.
 
-The part I care about most is that you can add your own. A domain of your own is a package: its document types, projections, operations and key bindings. Navigation, search, the clipboard, sorted and filtered views, files, every backend and the assistant come with little or no extra code. The JSON domain is about 560 lines; the web page walks through it, and the repository has a guide for a new domain.
+I created the Julia version for a new port of a well known and widely used discrete event simulator. It's a complete rewrite, with many more domains, more backends and the AI assistant.
 
-The assistant runs Julia in the editor process with `editor` bound, so it calls the same API you would, and there's no fixed list of commands. It finds functions by name, by pattern or by meaning, it can open tabs and arrange the window, and Ctrl+Z takes back its change like one of yours. It runs on a local model through Ollama by default, or on Claude, and an MCP client gets the same tools. It isn't a sandbox, it's a tool for your own machine, and the MCP server has no authentication, so please don't run it on a machine you share.
+In this video a local model builds a study of an M/M/1/K queue from seven requests. It writes the model and the formulas, runs OMNeT++, plots the results and finds the answer. The model is qwen3.8:27b in Ollama, on my machine. The OMNeT++ tool in the video is built on ProjecturEd, but its code is not public.
+https://projectured.org/assets/videos/queue-study.mp4
 
-It's under development, and the README says what doesn't work yet.
+How it works, in short. The data is the source, and every view is computed from it. A projection turns the data into a view. It also turns your edits in the view back into typed operations on the data. Projections can be chained, for example JSON goes to syntax, then to text, then to graphics. Every field is a reactive cell. A computed value stays until something it depends on changes. What's not on the screen is not computed, and a view never shows stale data.
 
-* The web page, with more videos: https://projectured.org
-* The code and the guides: https://github.com/projectured/projectured-julia
-* The Common Lisp original: https://github.com/projectured/projectured-lisp
+The most important part for me is that you can add your own domain. A domain is a package with its document types, projections, operations and key bindings. Navigation, search, copy and paste, sorting, filtering, files, all the backends and the assistant work with it, with little or no extra code. The whole JSON domain is about 560 lines. The web page shows how it's built.
 
-It's free for noncommercial use, modification included. Commercial use needs a licence from me, so it isn't open source in the OSI sense, and I'd rather say that up front. Forks and pull requests are welcome. I wrote the Julia code, about 125k lines plus 63k lines of tests, with Claude Code, and I haven't typed any of it by hand.
+The assistant runs Julia code inside the editor, so it uses the same API as you do. It can search the API by name, by pattern or by meaning. It can also open tabs and arrange the window. You can undo its changes with Ctrl+Z, like your own. By default it uses a local model through Ollama, but it also works with Claude. Other AI tools can use the same tools through MCP. Note that it's not a sandbox, and the MCP server has no authentication. Please don't run it on a shared machine.
 
-### What I'd like to hear from you
+It's under development, the README lists what doesn't work yet.
 
-* Would you use it for your own data, and for what kind of data?
-* Does the projection model make sense to you, or does it look like too much machinery for what it gives?
-* What would you expect from an assistant that edits the data instead of the text?
+* Web page with more videos: https://projectured.org
+* Code and guides: https://github.com/projectured/projectured-julia
+* The original Common Lisp version: https://github.com/projectured/projectured-lisp
 
-I'm happy to answer questions about the projections, the reactive cells, or how a domain of your own would fit.
+It's free for noncommercial use, including modifications. For commercial use you need a licence from me, so it's not open source in the OSI sense. Forks and pull requests are welcome. The Julia code is about 125k lines plus 63k lines of tests. I wrote it with Claude Code, I didn't type any of it by hand.
+
+What I'd like to hear from you:
+
+* Would you use it for your own data? What kind of data?
+* Does the projection model make sense to you, or is it too much machinery?
+* What would you expect from an assistant that edits data instead of text?
+
+I'm happy to answer any questions.
