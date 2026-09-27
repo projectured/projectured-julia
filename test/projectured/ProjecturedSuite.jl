@@ -179,6 +179,7 @@ include("projection/TextInkTest.jl")
 include("projection/SyntaxTreeSelectionTest.jl")
 include("projection/TableNavigationTest.jl")
 include("projection/TableSelectionTest.jl")
+include("projection/TableCellEditingTest.jl")
 include("serializer/FileProjectTest.jl")
 include("serializer/MarkerVocabularyTest.jl")
 include("serializer/SerializationTest.jl")
@@ -482,6 +483,7 @@ function test_all()
     test_tree_navigations()
     test_tree_navigations_complete()
     test_table_navigation()
+    test_table_cell_editing()
     test_odbc_database_no_db()
     end
 end
@@ -490,12 +492,14 @@ end
     test_table()
 
 Narrow runner for the table selection + grid-navigation suites
-(`test_table_selection` and `test_table_navigation`).
+(`test_table_selection` and `test_table_navigation`), and the editing inside a
+cell (`test_table_cell_editing`).
 """
 function test_table()
     @testset "Table" begin
         test_table_selection()
         test_table_navigation()
+        test_table_cell_editing()
     end
 end
 
@@ -508,7 +512,7 @@ export test_type_reference, test_event_case, test_gesture_binding, test_focusing
 export test_json_document, test_syntax, test_text, test_graphics, test_affine_transform, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_constraint_solver, test_collection, test_primitive, test_json_parser, test_xml_parser, test_sql_parser, test_serialization
 export test_formula_to_syntax, test_projection_template_hygiene
 export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection, test_gesture_map, test_gesture_help, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_selection_inverting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_widget_button_behavior, test_widget_gestures, test_widget_select_dropdown, test_widget_menu, test_widget_context_menu, test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree, test_widget_toolbar, test_widget_table, test_layout_closeout, test_widget_forms, test_widget_popup_example, test_copying_projection, test_clipboard, test_versioning_to_any, test_write_image, test_record_video, test_tooltip, test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline, test_text_ink_inside_viewports, test_split_pane_drag, test_widget_transform_pane, test_dragging, test_anchor_point, test_write_pdf, test_dirty_rect, test_web_backend
-export test_table, test_table_selection, test_table_navigation, explore_table_selections
+export test_table, test_table_selection, test_table_navigation, test_table_cell_editing, explore_table_selections
 export test_graph_projection
 export test_examples, test_position_navigations, test_position_navigations_complete
 export test_printer, test_printers, test_example, test_position_navigation

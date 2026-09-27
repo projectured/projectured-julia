@@ -434,3 +434,83 @@ end
 
 end # @testset
 end # function
+
+# A caret in a cell is edited by the readers of the cell. A key the table does not
+# take, such as a character, an arrow or Backspace, goes to the cell the selection
+# is in, and the answer comes back under `rows[r][c]`. In a table whose rows are
+# a list, the cell does not get the caret, which the marker below records.
+function test_widget_table_cell_editing()
+@testset "a key edits the cell the caret is in" begin
+    projection = NaturalToGraphics(measure = FixedMeasure(8, 12, 4, 0), font = font_ubuntu_regular_20)
+    context = with_exact_size(PrinterContext(); width = Cell(Int32(600)), height = Cell(Int32(300)))
+    mods = ModifierKeys()
+    make_cells() = Any[WidgetText("abc"; width = 80),
+                       TextBlock(TextString("prose", font_ubuntu_regular_20, color_default))]
+    get_text(cell::WidgetText) = cell.content
+    get_text(cell::TextBlock) = cell.elements[1].content
+    get_cell(table, c) = table.rows isa ListNode ? table.rows.value[c] : table.rows[1][c]
+    # Every text the table drew, through the viewports of its cells.
+    function collect_drawn_texts(node, found = String[])
+        if node isa GraphicsCanvas
+            foreach(element -> collect_drawn_texts(element, found), node.elements)
+        elseif node isa GraphicsViewport
+            collect_drawn_texts(node.content, found)
+        elseif node isa GraphicsText
+            push!(found, string(node.text))
+        end
+        found
+    end
+    # The row and the column of the cell a selection `rows[r][c].…` is in.
+    get_selected_cell(path) = (path.tail.head.start + 1, path.tail.tail.head.start + 1)
+    forms = [
+        "rows are a vector" => () -> WidgetTable(Any["A", "B"], Any[make_cells()]),
+        "rows are a list" => () -> WidgetTable(; column_headers = Any["A", "B"],
+                                               rows = ListNode(make_widget_table_row(make_cells())),
+                                               column_count = 2, column_policies = Any[Fixed(120), Fixed(120)]),
+    ]
+    # A point four pixels inside the left edge of body cell (1, c).
+    function get_cell_point(iomap, c)
+        if hasproperty(iomap, :geometry)
+            g = iomap.geometry
+            return (g.col_x[c] + g.grid_off_x + 4, g.row_y[2] + g.grid_off_y + 4)
+        end
+        st = iomap.state
+        (Int(st.columns[][c]) + st.bw + st.pad_x + 4, Int(st.header_height[]) + st.bw + st.pad_y + 4)
+    end
+    for (form, make_table) in forms, (c, original, edited) in ((1, "abc", "aYbc"), (2, "prose", "pYrose"))
+        @testset "$form, cell $c" begin
+            table = make_table()
+            editor = _WidgetTextMockEditor(table)
+            iomap = print_document(projection, nothing, table, context)
+            read_key(event) = read_intent(projection, iomap, event)
+            x, y = get_cell_point(iomap, c)
+            click = read_key(MousePress(:left, x, y, mods; time = 0.0))
+            @test click isa ReplaceSelectionOperation
+            evaluate_operation(editor, click)
+            @test get_selected_cell(table.selection) == (1, c)
+            if table.rows isa ListNode
+                # @broken: the selection walk does not step into a ListNode, which has no `length`, so the cell holds no caret; plan/pending/edit-inside-a-table-cell.md
+                @test_broken get_cell(table, c).selection !== nothing
+            else
+                # The cell holds the caret, at the start of the text. An arrow
+                # moves it, and a character goes in where it is.
+                @test get_cell(table, c).selection !== nothing
+                evaluate_operation(editor, read_key(KeyDown(:right, mods; time = 0.0)))
+                typed = read_key(KeyPress('Y', "Y", mods; time = 0.0))
+                @test typed isa ReplaceStringRangeOperation
+                @test typed.reference.head.name == "rows"
+                evaluate_operation(editor, typed)
+                @test get_text(get_cell(table, c)) == edited
+                @test edited in collect_drawn_texts(iomap.output)
+                @test get_selected_cell(table.selection) == (1, c)
+                evaluate_operation(editor, read_key(KeyDown(:backspace, mods; time = 0.0)))
+                @test get_text(get_cell(table, c)) == original
+                @test original in collect_drawn_texts(iomap.output)
+            end
+            # A selected row is in no cell, and a character goes nowhere.
+            evaluate_operation(editor, ReplaceSelectionOperation(make_widget_table_row_selection(1)))
+            @test read_key(KeyPress('Z', "Z", mods; time = 0.0)) === nothing
+        end
+    end
+end
+end
