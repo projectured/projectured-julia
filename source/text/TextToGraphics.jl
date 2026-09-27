@@ -158,6 +158,10 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     declined === nothing || return nothing
 
     styled = iomap.input
+    # A block whose elements are a list is drawn paragraph by paragraph and keeps
+    # no line geometry, so no key moves along its lines. The list can be endless,
+    # so it is not walked either.
+    styled.elements isa ListNode && return nothing
     _has_caret_span(styled) || return nothing
 
     # Shift moves one end of the selection: Home and Up the start, End and Down

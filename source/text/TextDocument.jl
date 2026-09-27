@@ -1234,7 +1234,12 @@ end
 # operation `_lower_text_range` makes of it. A text stage that gets a key reads it
 # against its input this way, so the edit reaches the document as an operation that
 # the stages before it carry and undo can take back.
+#
+# A block whose elements are a list has no flat caret stream: the list can be
+# endless, so it has no end to go to, and a flat offset would walk it. Such a
+# block reads no key.
 function _read_lowered_gesture(block::TextBlock, evt)
+    block.elements isa ListNode && return nothing
     op = read_gesture(block, evt)
     op isa ReplaceTextRangeOperation ? _lower_text_range(block, op) : op
 end
