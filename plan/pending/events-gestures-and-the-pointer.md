@@ -447,8 +447,9 @@ The direction that follows from the decisions so far:
   rendering is off, which is the default; so "a frame that differs" must come
   from the dirty walk, which then runs in both modes.
 
-- **Q17. The part at a point inside a view that maps nothing back (found in
-  step 4f).** A view prints a domain document as widgets, and its
+- **Q17 (answered 2026-09-27: the introduced reference now, the domain part
+  later in [a-view-names-the-domain-part-under-a-point.md](a-view-names-the-domain-part-under-a-point.md)).
+  The part at a point inside a view that maps nothing back (found in step 4f).** A view prints a domain document as widgets, and its
   `map_reference_backward` answers `nothing` on purpose, with comments such as
   "no caret into a log (v1)". A point on a button of such a view stops there,
   so the part under the pointer is the whole view. With the mouse target
@@ -662,7 +663,7 @@ it holds the example.
   - Compared with `main`: the kernel, substrate, shell, referenced document,
     application, mouse click and history sweep suites fail the same tests;
     omnet-julia's 27 test functions give the same summaries.
-- [ ] 4. **The part at a point (D11).** `map_reference_backward` from a
+- [x] 4. **The part at a point (D11).** `map_reference_backward` from a
   `PointReferenceStep` in each projection that ends in graphics. The hit test of
   each one moves into the mapping, and a reader of a click that has the same hit
   test uses the mapping, so each projection keeps one hit test. One commit for
@@ -735,7 +736,7 @@ it holds the example.
     anywhere in it maps to that widget, and a click there reaches the same
     widget. Test: `test_shell` 236 pass (a list row and the list itself in the
     first window, a menu item in a popup, nothing past the menu).
-  - [ ] 4f. The projections outside the substrate. A walk of the real
+  - [x] 4f. The projections outside the substrate. A walk of the real
     application window found one stage that stopped every point: the command
     palette decorator. It now passes a point to its content in the same frame
     while the palette is closed, and maps nothing while it is open, because the
@@ -753,15 +754,38 @@ it holds the example.
     with the hit test of a click (`_find_vertex_at`), and on into the content
     of the vertex; a point in the box on no part of the content is the vertex.
     The configuring projection maps a reference into its document side back
-    through the inner projection, and the control maps nothing. Tests:
+    through the inner projection; its control is a view, below. Tests:
     `test_graph` 377 pass, `test_projection_configuring` 2 more pass.
 
-    Open (Q17): the views that print a domain document as widgets and map
-    nothing back, on purpose ("no caret into the view"). They are 45 views in
-    omnet-julia and about 8 in projectured-julia (`ObjectToWidget`, the floor
-    of every omnet-julia view kind, is one). Their readers pass an operation
-    back unchanged, so the mapping is not in their click path. But a point
-    stops at them, so the part under the pointer is the whole view.
+    The views that print a domain document as widgets mapped nothing back on
+    purpose ("no caret into the view"), so a point stopped at them (Q17). The
+    owner chose the introduced reference now, and a plan of its own for the
+    domain part: [a-view-names-the-domain-part-under-a-point.md](a-view-names-the-domain-part-under-a-point.md).
+    `find_introduced_path(projection, reference)` (kernel, beside
+    `make_introduced_reference`) gives the output path of an introduced
+    reference of `projection`, and `nothing` for any other. Each view now maps
+    back by the kernel default, which names a widget part by an introduced
+    reference, and maps forward only such a reference, so still no caret goes
+    in. 5 views in projectured-julia work so (the file chooser, the cell table,
+    the object form, the query result, the control of a configuring
+    projection), and 41 in omnet-julia. Four stay as they are:
+    `HanoiToGraphics`, `ModuleAppearanceToGraphicsCanvas` and
+    `TimelineStripToGraphics` print graphics directly, and
+    `SimulationResultFrameToWidgetTable` sends a selection that is not a row
+    pick to the kernel default reader, which would put a caret into the view.
+
+    A fact found: 32 view printers of omnet-julia built their IO map with no
+    projection (`SimpleIoMap(nothing, view, body)`). In projectured-julia that
+    form means a pass-through, whose output is its input. The type dispatcher
+    maps a reference through `iomap.projection`, so a point on such a view
+    failed there. Each of these IO maps now names its projection.
+
+    Tests: `test_introduced_path` 6 pass; `test_cell_table_to_widget_table` 4
+    more; `test_projection_configuring` 3 (the control maps to the control);
+    in omnet-julia, a point on each button of the session bar names that
+    button (8 pass). `test_application` fails the same 2 tests as `main`. The
+    64 test functions of omnet-julia that touch the views and the pointer give
+    the same summaries as on `main` (the 3 known failures), plus the new test.
 - [ ] 5. **The start over of Tab leaves the hover tracker (D2, §5 of the plan of
   D33).** A small wrapping step does only the start over at the ends, and the
   hover tracker loses its branch for Tab. Tests: the focus traversal tests; Tab
