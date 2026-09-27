@@ -527,15 +527,15 @@ The number of the frames follows the wall clock, so one second of the session is
 
 ### Step 5: the real model in a take
 
-- [ ] Start the assistant of a take as `OllamaLlm` with a `seed` and a `temperature` of the screenplay.
+- [x] Start the assistant of a take as `OllamaLlm` with a `seed` and a `temperature` of the screenplay. Done for S2: the `llm` keyword of `record_application_video`, `OllamaLlm(context = 32768, seed = 1)` in `tool/video/record_assistant_window.jl`.
 - [ ] Save the turn log of a take beside the video: the model, the seed, the rounds, the tool calls, the tokens and the seconds of each turn.
-- [ ] A rehearsal runs the screenplay without a video, turn by turn, until each turn succeeds. Record the seed of the rehearsal that works.
+- [x] A rehearsal runs the screenplay without a video, turn by turn, until each turn succeeds. Record the seed of the rehearsal that works. Done (2026-09-27): `tool/assistant/rehearsal.jl` in a warm session (`plan/pending/a-fast-loop-for-the-assistant.md`) runs S2 on many seeds with checks of each step and of the last message; seed 1 is the seed of the take that is kept.
 
 ### Step 6: S2, the assistant arranges the window
 
 - [x] Check that `Ctrl+Z` takes back a change of the panes that the assistant made. Record the result in §5.
   **Yes (2026-09-26).** `tool/video/check_assistant_undo.jl` records a take in which a scripted model (`ScriptedLlm`, through the new `llm` keyword of `record_application_video` and `make_application_assistant`) makes the tool call of S2: `open_pane!` with a card that holds a table. The tab "People" opens beside the assistant with the table, and one `Ctrl+Z` removes it and selects the assistant again. A second `Ctrl+Z` takes nothing back: the newest step is then the submission of the prompt. Two traps of the check, recorded so the next one does not fall in them: a take with no warm-up fires its entries in a burst after the slow start, so a frame read at a guessed time can show the window before a change; and `search_documents` from the root also finds the tabs that the undo buffer holds for a redo, so the check counts the tabs inside the pane tree.
-- [ ] Rehearse (Step 5), record, and give the video to the owner.
+- [x] Rehearse (Step 5), record, and give the video to the owner. Done (2026-09-27): take 10, `/var/tmp/s2/s2_take10.mp4`, 136.8 s; on the owner's word ("Land it and add the video to the web page") it is the first video of the Videos section of `projectured.github.io`, "The assistant edits a file".
 
 ### Step 7: S0, the M/M/1/K study with the real model (in omnet-julia)
 
@@ -660,7 +660,7 @@ Important before less important, and within the same importance, easy before har
 
 **Stage 5: the videos that wait for the stages before.**
 
-- [ ] S2, the assistant arranges the window, with qwen: after F6, X1 and maybe A4.
+- [x] S2, the assistant arranges the window, with qwen: on the web page (2026-09-27), take 10.
 - [ ] S0, the M/M/1/K study with qwen, in omnet-julia.
 - [ ] Tier 2, S5 to S8: after F1.
 - [ ] S10, a new screenplay the owner proposed on 2026-09-23: an edit reaches every earlier result that shows the same object, and copy and paste shows the same thing, for example a widget pasted into the evaluator as the argument of a function call that changes it. A check comes first: whether a widget noted with `Ctrl+N` pastes into a form of the evaluator. The select-and-paste work pastes into a tab.
