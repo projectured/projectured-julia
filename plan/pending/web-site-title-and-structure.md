@@ -758,11 +758,18 @@ the live site, so each push waits for the owner's word.
 
 ### Step 2: "Try it" and "What you can do with it"
 
-- [ ] A "Try it" section from the quick start of the README: what it needs
+- [x] A "Try it" section from the quick start of the README: what it needs
       (Julia 1.11 or later, SDL2 and SDL_ttf), the three commands, the assistant
       (Ollama or `ANTHROPIC_API_KEY`), and the binary (`bin/build_projectured`).
-- [ ] A section "What you can do with it", from the README list. Keep the items
+- [x] A section "What you can do with it", from the README list. Keep the items
       that a newcomer understands without a link.
+
+      **Done** as site commit `c3606b5`. "Uses" keeps six of the eleven
+      items of the README. It leaves out the MCP client, because a newcomer
+      does not know the word, and the other backends, because a large card
+      says it. It also leaves out undo, the fault barrier and the tools by
+      name, which are details. The navigation dropped "Compared" to keep its
+      length; the section stays on the page.
 
 ### Step 3: the capabilities
 
