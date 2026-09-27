@@ -1,8 +1,8 @@
-function test_event_case()
-@testset "EventCase" begin
+function test_gesture_case()
+@testset "GestureCase" begin
 
 # ── type-only dispatch ──────────────────────────────────────────────────
-let classify(e) = @event_case e begin
+let classify(e) = @gesture_case e begin
         KeyDown     => :keydown
         KeyPress    => :keypress
         MouseClick  => :press
@@ -17,7 +17,7 @@ let classify(e) = @event_case e begin
 end
 
 # ── literal field match and binding ─────────────────────────────────────
-let nav(e) = @event_case e begin
+let nav(e) = @gesture_case e begin
         KeyDown(:home) => :home
         KeyDown(key)   => key
     end
@@ -26,7 +26,7 @@ let nav(e) = @event_case e begin
 end
 
 # binding several positional fields
-let at(e) = @event_case e begin
+let at(e) = @gesture_case e begin
         MouseClick(:left, x, y) => (x, y)
     end
     @test at(MouseClick(:left, 12, 34; time = 0.0)) == (12, 34)
@@ -34,7 +34,7 @@ let at(e) = @event_case e begin
 end
 
 # char binding works regardless of modifiers (capitals carry shift)
-let typed(e) = @event_case e begin
+let typed(e) = @gesture_case e begin
         KeyPress(c) => c
     end
     @test typed(KeyPress('a'; time = 0.0)) == 'a'
@@ -42,7 +42,7 @@ let typed(e) = @event_case e begin
 end
 
 # ── exact modifier matching ─────────────────────────────────────────────
-let chord(e) = @event_case e begin
+let chord(e) = @gesture_case e begin
         KeyDown(:period; ctrl)      => :ctrl_period
         KeyDown(:home; ctrl, alt)   => :ctrl_alt_home
     end
@@ -54,7 +54,7 @@ let chord(e) = @event_case e begin
 end
 
 # omitting the `;` block leaves modifiers unconstrained
-let any_mod(e) = @event_case e begin
+let any_mod(e) = @gesture_case e begin
         KeyDown(:tab) => :tab
     end
     @test any_mod(KeyDown(:tab, ModifierKeys(); time = 0.0)) == :tab
@@ -62,7 +62,7 @@ let any_mod(e) = @event_case e begin
 end
 
 # ── when-guards (with bound variables) ──────────────────────────────────
-let arrows(e) = @event_case e begin
+let arrows(e) = @gesture_case e begin
         when(KeyDown(k; alt), k in (:up, :down, :left, :right)) => (:arrow, k)
         KeyDown(k; alt) => (:other, k)
     end
@@ -72,14 +72,14 @@ let arrows(e) = @event_case e begin
 end
 
 # ── first match wins, fallthrough to nothing ────────────────────────────
-let order(e) = @event_case e begin
+let order(e) = @gesture_case e begin
         KeyDown(key)        => :specific
         KeyDown(:ignored)   => :unreachable
     end
     @test order(KeyDown(:x, ModifierKeys(); time = 0.0)) == :specific
 end
 
-let m(e) = @event_case e begin
+let m(e) = @gesture_case e begin
         MouseScroll(dx, dy) => (dx, dy)
     end
     @test m(MouseScroll(2, -3, 0, 0; time = 0.0)) == (2, -3)
@@ -87,7 +87,7 @@ let m(e) = @event_case e begin
 end
 
 # wildcard field ignores a slot
-let scroll_dir(e) = @event_case e begin
+let scroll_dir(e) = @gesture_case e begin
         MouseScroll(_, dy) => dy
     end
     @test scroll_dir(MouseScroll(99, -1, 0, 0; time = 0.0)) == -1
@@ -95,7 +95,7 @@ end
 
 # interpolated value compared against a runtime binding
 let want = :delete
-    del(e) = @event_case e begin
+    del(e) = @gesture_case e begin
         KeyDown(^(want)) => :matched
         _                => :no
     end
@@ -106,4 +106,4 @@ end
 end
 end
 
-export test_event_case
+export test_gesture_case

@@ -29,6 +29,7 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..EventModule
+using ..GestureModule
 using ..IntentModule
 using ..IoMapModule
 using ..OperationModule

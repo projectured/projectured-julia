@@ -363,7 +363,7 @@ function sdl_keysym_to_symbol(keysym::Int32)::Symbol
     keysym == Int32(46)         && return :period   # '.' — used by the Ctrl+. fold chord
     # Clipboard projection chords (ClipboardModule): the letter and
     # punctuation keys it binds need distinct symbols rather than the `:char`
-    # fallback so `@event_case` can tell them apart under Ctrl.
+    # fallback so `@gesture_case` can tell them apart under Ctrl.
     keysym == Int32(116)        && return :t        # Ctrl+T — open a pane tab
     keysym == Int32(119)        && return :w        # Ctrl+W — close a pane tab
     keysym == Int32(92)         && return :backslash # Ctrl+\\ — split a pane group

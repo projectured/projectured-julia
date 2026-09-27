@@ -15,6 +15,7 @@ using ..CellModule
 using ..DocumentModule
 using ..EventModule
 using ..GestureBindingModule
+using ..GestureModule
 using ..OperationModule
 using ..ProjectionModule
 using ..ReferenceModule

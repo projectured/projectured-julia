@@ -25,6 +25,7 @@ using ..EventModule
 using ..EventModule
 using ..FocusModule
 using ..GestureBindingModule
+using ..GestureModule
 using ..IntentModule
 using ..IoMapModule
 using ..LayoutModule

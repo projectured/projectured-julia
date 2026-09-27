@@ -26,6 +26,7 @@ const DocumentModule = ProjecturedKernel.DocumentModule
 const DomainModule = ProjecturedDomain.DomainModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const EventModule = ProjecturedKernel.EventModule
+const GestureModule = ProjecturedKernel.GestureModule
 const EventModule = ProjecturedKernel.EventModule
 const OperationModule = ProjecturedKernel.OperationModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule

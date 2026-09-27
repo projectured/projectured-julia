@@ -44,6 +44,7 @@ using ProjecturedKernel.ReferenceModule
 using ProjecturedKernel.SelectionModule
 using ProjecturedKernel.OperationModule
 using ProjecturedKernel.EventModule
+using ProjecturedKernel.GestureModule
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.EventModule
@@ -76,7 +77,8 @@ include("../../../test/kernel/operation/RerootingTest.jl")
 include("../../../test/kernel/operation/InversionTest.jl")
 include("../../../test/kernel/operation/TraversalTest.jl")
 include("../../../test/kernel/event/EventModuleTest.jl")
-include("../../../test/kernel/event/EventCaseTest.jl")
+include("../../../test/kernel/gesture/GestureModuleTest.jl")
+include("../../../test/kernel/gesture/GestureCaseTest.jl")
 include("../../../test/kernel/device/DeviceModuleTest.jl")
 include("../../../test/kernel/binding/GestureBindingTest.jl")
 include("../../../test/kernel/backend/HeadlessBackendTest.jl")

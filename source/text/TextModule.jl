@@ -32,6 +32,7 @@ using ..DomainModule
 using ..EventModule
 using ..EventModule
 using ..GestureBindingModule
+using ..GestureModule
 using ..GraphicsModule
 using ..IoMapModule
 using ..OperationModule

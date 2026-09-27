@@ -23,6 +23,7 @@ const CollectionModule = ProjecturedCollection.CollectionModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const CellModule = ProjecturedKernel.CellModule
 const EventModule = ProjecturedKernel.EventModule
+const GestureModule = ProjecturedKernel.GestureModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const OperationModule = ProjecturedKernel.OperationModule
 const SelectionModule = ProjecturedKernel.SelectionModule

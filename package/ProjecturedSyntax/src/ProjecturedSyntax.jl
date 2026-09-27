@@ -30,6 +30,7 @@ const TextModule = ProjecturedText.TextModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const OperationModule = ProjecturedKernel.OperationModule
 const EventModule = ProjecturedKernel.EventModule
+const GestureModule = ProjecturedKernel.GestureModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const StyleModule = ProjecturedStyle.StyleModule
 const StyleModule = ProjecturedStyle.StyleModule

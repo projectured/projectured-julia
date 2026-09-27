@@ -1,12 +1,13 @@
-# Fragment of `EventModule` — the event pattern language: the reified
-# `EventPattern`, the parser of the pattern syntax, and `@event_case`. The syntax is
-# documented on `@event_case`.
+# Fragment of `GestureModule` — the pattern language: the reified `GesturePattern`,
+# the parser of the pattern syntax, and `@gesture_case`. The syntax is documented on
+# `@gesture_case`. A pattern matches one input, an event or a gesture.
 
 # The event or gesture type that `name` names: first in `scope`, the module where
-# the pattern is written, and then in `EventModule`. The result is `nothing` for a
-# name that is no concrete event or gesture type there.
+# the pattern is written, and then in `GestureModule`, which sees the events too.
+# The result is `nothing` for a name that is no concrete event or gesture type
+# there.
 function _find_event_type(name::Symbol, scope::Module)
-    for candidate in (scope, EventModule)
+    for candidate in (scope, GestureModule)
         isdefined(candidate, name) || continue
         value = getfield(candidate, name)
         value isa Type && value <: Union{Event,Gesture} && isconcretetype(value) &&
@@ -26,7 +27,7 @@ const _MODIFIER_FLAGS = (:ctrl, :shift, :alt, :meta)
 # ── The reified pattern ─────────────────────────────────────────────────────
 
 """
-    EventPattern{E<:Union{Event,Gesture}}(fields, modifiers, guard[, label])
+    GesturePattern{E<:Union{Event,Gesture}}(fields, modifiers, guard[, label])
 
 A pattern as data: an event or gesture type `E`, the fields that must hold a value, the
 modifiers, a guard and a label.
@@ -37,33 +38,33 @@ modifiers, a guard and a label.
   must match exactly: every listed flag held, and every other flag not held.
 - `guard` is `nothing` or a function `event -> Bool` for a condition that the
   fields can not state.
-- `label` is `nothing` or the text that `describe_event_pattern` returns. A guard has
+- `label` is `nothing` or the text that `describe_gesture_pattern` returns. A guard has
   no text of its own, so a pattern for the digits reads better as `"0-9"` than as
   `"character"`.
 
-Use it to keep a pattern as a value: to test an event with `matches_event_pattern`,
-and to show the pattern to a person with `describe_event_pattern`.
+Use it to keep a pattern as a value: to test an event with `matches_gesture_pattern`,
+and to show the pattern to a person with `describe_gesture_pattern`.
 
 # Example
 
-    pattern = EventPattern{KeyDown}((key = :period,), [:ctrl], nothing)
+    pattern = GesturePattern{KeyDown}((key = :period,), [:ctrl], nothing)
     event = KeyDown(:period, ModifierKeys(ctrl = true); time = time())
-    matches_event_pattern(pattern, event)       # true
-    describe_event_pattern(pattern)             # "Ctrl+."
+    matches_gesture_pattern(pattern, event)       # true
+    describe_gesture_pattern(pattern)             # "Ctrl+."
 
 See also `KeyDownPattern` and the other constructors for one event type.
 """
-struct EventPattern{E<:Union{Event,Gesture}}
+struct GesturePattern{E<:Union{Event,Gesture}}
     fields::NamedTuple
     modifiers::Union{Vector{Symbol},Nothing}
     guard::Union{Function,Nothing}
     label::Union{String,Nothing}
 end
-EventPattern{E}(fields, modifiers, guard) where {E<:Union{Event,Gesture}} =
-    EventPattern{E}(fields, modifiers, guard, nothing)
+GesturePattern{E}(fields, modifiers, guard) where {E<:Union{Event,Gesture}} =
+    GesturePattern{E}(fields, modifiers, guard, nothing)
 
 """
-    matches_event_pattern(pattern::EventPattern, event) -> Bool
+    matches_gesture_pattern(pattern::GesturePattern, event) -> Bool
 
 Whether `event` matches `pattern`: the event has the type of the pattern, every field
 of the pattern is equal, the modifiers match, and the guard, if any, holds.
@@ -72,11 +73,11 @@ Use it to find the pattern that an event fires, in a table of patterns.
 
 # Example
 
-    matches_event_pattern(KeyPressPattern('a'), KeyPress('a'; time = time()))   # true
+    matches_gesture_pattern(KeyPressPattern('a'), KeyPress('a'; time = time()))   # true
 
-See also `describe_event_pattern`.
+See also `describe_gesture_pattern`.
 """
-function matches_event_pattern(pattern::EventPattern{E}, event) where {E}
+function matches_gesture_pattern(pattern::GesturePattern{E}, event) where {E}
     event isa E || return false
     for (name, value) in pairs(pattern.fields)
         getfield(event, name) == value || return false
@@ -113,7 +114,7 @@ _constrain_field(name::Symbol, value) =
     MouseDwellPattern(; modifiers = nothing, guard = nothing, label = nothing)
     MouseScrollPattern(; modifiers = nothing, guard = nothing, label = nothing)
 
-An `EventPattern` for one event type. The first argument, when there is one, is
+An `GesturePattern` for one event type. The first argument, when there is one, is
 the value of the field that the pattern constrains; `nothing` matches any value.
 
 Use them to write a pattern without its `NamedTuple` of fields.
@@ -123,35 +124,35 @@ Use them to write a pattern without its `NamedTuple` of fields.
     KeyDownPattern(:period; modifiers = [:ctrl])    # Ctrl+.
     MouseClickPattern(:left)                        # a left click
 
-See also `EventPattern`.
+See also `GesturePattern`.
 """
 KeyPressPattern(char; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{KeyPress}(_constrain_field(:char, char), modifiers, guard, label)
+    GesturePattern{KeyPress}(_constrain_field(:char, char), modifiers, guard, label)
 KeyDownPattern(key; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{KeyDown}(_constrain_field(:key, key), modifiers, guard, label)
+    GesturePattern{KeyDown}(_constrain_field(:key, key), modifiers, guard, label)
 KeyUpPattern(key; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{KeyUp}(_constrain_field(:key, key), modifiers, guard, label)
+    GesturePattern{KeyUp}(_constrain_field(:key, key), modifiers, guard, label)
 MouseDownPattern(button; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{MouseDown}(_constrain_field(:button, button), modifiers, guard, label)
+    GesturePattern{MouseDown}(_constrain_field(:button, button), modifiers, guard, label)
 MouseUpPattern(button; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{MouseUp}(_constrain_field(:button, button), modifiers, guard, label)
+    GesturePattern{MouseUp}(_constrain_field(:button, button), modifiers, guard, label)
 MouseClickPattern(button; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{MouseClick}(_constrain_field(:button, button), modifiers, guard, label)
+    GesturePattern{MouseClick}(_constrain_field(:button, button), modifiers, guard, label)
 MouseMovePattern(; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{MouseMove}(NamedTuple(), modifiers, guard, label)
+    GesturePattern{MouseMove}(NamedTuple(), modifiers, guard, label)
 MouseEnterPattern(; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{MouseEnter}(NamedTuple(), modifiers, guard, label)
+    GesturePattern{MouseEnter}(NamedTuple(), modifiers, guard, label)
 MouseLeavePattern(; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{MouseLeave}(NamedTuple(), modifiers, guard, label)
+    GesturePattern{MouseLeave}(NamedTuple(), modifiers, guard, label)
 MouseDwellPattern(; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{MouseDwell}(NamedTuple(), modifiers, guard, label)
+    GesturePattern{MouseDwell}(NamedTuple(), modifiers, guard, label)
 MouseScrollPattern(; modifiers = nothing, guard = nothing, label = nothing) =
-    EventPattern{MouseScroll}(NamedTuple(), modifiers, guard, label)
+    GesturePattern{MouseScroll}(NamedTuple(), modifiers, guard, label)
 
 # ── The description of a pattern ────────────────────────────────────────────
 
 """
-    describe_event_pattern(pattern::EventPattern) -> String
+    describe_gesture_pattern(pattern::GesturePattern) -> String
 
 The input of `pattern`, written for a person: `"n"`, `"Ctrl+."`, `"Left click"`,
 `"scroll"`. The label of the pattern, when it has one, is the text. Otherwise the
@@ -163,11 +164,11 @@ key bindings.
 
 # Example
 
-    describe_event_pattern(KeyPressPattern('a'; modifiers = [:ctrl]))    # "Ctrl+a"
+    describe_gesture_pattern(KeyPressPattern('a'; modifiers = [:ctrl]))    # "Ctrl+a"
 
-See also `matches_event_pattern`.
+See also `matches_gesture_pattern`.
 """
-describe_event_pattern(pattern::EventPattern{E}) where {E} =
+describe_gesture_pattern(pattern::GesturePattern{E}) where {E} =
     pattern.label === nothing ? _describe(E, pattern) : pattern.label
 
 # The prefix for a set of modifiers: "Ctrl+", "Ctrl+Alt+", or "".
@@ -196,7 +197,7 @@ _get_button_label(button::Symbol) =
 _get_type_words(type::Type) =
     lowercase(replace(string(nameof(type)), r"(?<=[a-z0-9])(?=[A-Z])" => " "))
 
-_get_field(pattern::EventPattern, name::Symbol) = get(pattern.fields, name, nothing)
+_get_field(pattern::GesturePattern, name::Symbol) = get(pattern.fields, name, nothing)
 
 # The text of a pattern: the prefix of its modifiers, and then `text`.
 _prefix_modifiers(pattern, text) = _get_modifier_prefix(pattern.modifiers) * text
@@ -224,7 +225,7 @@ _describe(::Type{MouseScroll}, pattern) = _prefix_modifiers(pattern, "scroll")
 _describe(::Type{E}, pattern) where {E<:Union{Event,Gesture}} =
     _prefix_modifiers(pattern, _get_type_words(E))
 
-# ── The parser, which `@event_case` and every macro that binds events share ──
+# ── The parser, which `@gesture_case` and every macro that binds events share ──
 
 # One positional field of a pattern.
 abstract type FieldPattern end
@@ -234,7 +235,7 @@ struct LiteralField    <: FieldPattern; value; end
 struct ExpressionField <: FieldPattern; expr; end
 
 """
-    EventPatternRule(type, fields, modifiers, guard, result)
+    GesturePatternRule(type, fields, modifiers, guard, result)
 
 One parsed `pattern => result` rule.
 
@@ -244,12 +245,12 @@ One parsed `pattern => result` rule.
 - `guard` is the condition of `when(pattern, condition)`, or `nothing`.
 - `result` is the right side of the rule, not evaluated.
 
-Use it to write a macro on the pattern syntax: `parse_event_pattern_rule` makes it,
-and `build_event_pattern_expr` and `build_event_field_bindings` read it.
+Use it to write a macro on the pattern syntax: `parse_gesture_pattern_rule` makes it,
+and `build_gesture_pattern_expr` and `build_gesture_field_bindings` read it.
 
-See also `@event_case`, which documents the syntax.
+See also `@gesture_case`, which documents the syntax.
 """
-struct EventPatternRule
+struct GesturePatternRule
     type::Union{DataType,Nothing}
     fields::Vector{FieldPattern}
     modifiers::Union{Vector{Symbol},Nothing}
@@ -320,7 +321,7 @@ function _parse_pattern(ex, scope::Module)
 end
 
 """
-    parse_event_pattern_rule(expr; scope = EventModule) -> EventPatternRule
+    parse_gesture_pattern_rule(expr; scope = EventModule) -> GesturePatternRule
 
 Parse one rule of the pattern syntax, `pattern => result` or
 `when(pattern, condition) => result`. The name of the event type resolves in
@@ -330,9 +331,9 @@ no concrete event type.
 Use it in a macro on the pattern syntax, with `scope = __module__`, so that an event
 type of the package that uses the macro is matchable.
 
-See also `build_event_pattern_expr`, `build_event_field_bindings` and `@event_case`.
+See also `build_gesture_pattern_expr`, `build_gesture_field_bindings` and `@gesture_case`.
 """
-function parse_event_pattern_rule(ex; scope::Module = EventModule)
+function parse_gesture_pattern_rule(ex; scope::Module = EventModule)
     (ex isa Expr && ex.head == :call && ex.args[1] == :(=>)) ||
         error("event pattern: expected `pattern => result`, got `$ex`")
     lhs, rhs = ex.args[2], ex.args[3]
@@ -340,10 +341,10 @@ function parse_event_pattern_rule(ex; scope::Module = EventModule)
         length(lhs.args) == 3 ||
             error("event pattern: when(pattern, condition) expects exactly two arguments")
         type, fields, modifiers = _parse_pattern(lhs.args[2], scope)
-        return EventPatternRule(type, fields, modifiers, lhs.args[3], rhs)
+        return GesturePatternRule(type, fields, modifiers, lhs.args[3], rhs)
     else
         type, fields, modifiers = _parse_pattern(lhs, scope)
-        return EventPatternRule(type, fields, modifiers, nothing, rhs)
+        return GesturePatternRule(type, fields, modifiers, nothing, rhs)
     end
 end
 
@@ -354,17 +355,17 @@ _get_constraint_expr(field::LiteralField) = QuoteNode(field.value)
 _get_constraint_expr(field::ExpressionField) = esc(field.expr)
 
 """
-    build_event_pattern_expr(rule::EventPatternRule, guard_expr) -> Expr
+    build_gesture_pattern_expr(rule::GesturePatternRule, guard_expr) -> Expr
 
-The expression that makes the `EventPattern` of `rule`, with `guard_expr` as its
+The expression that makes the `GesturePattern` of `rule`, with `guard_expr` as its
 guard: a closure expression `event -> Bool`, or `:nothing`. The event type is in
 the expression as a value, so the expression resolves in any module.
 
 Use it in a macro on the pattern syntax that keeps its patterns as data.
 
-See also `parse_event_pattern_rule`.
+See also `parse_gesture_pattern_rule`.
 """
-function build_event_pattern_expr(rule::EventPatternRule, guard_expr)
+function build_gesture_pattern_expr(rule::GesturePatternRule, guard_expr)
     rule.type === nothing && error("event pattern: `_` catch-all has no reified pattern")
     declared = _get_positional_event_fields(rule.type)
     names, values = Symbol[], Any[]
@@ -376,11 +377,11 @@ function build_event_pattern_expr(rule::EventPatternRule, guard_expr)
     fields = :($(NamedTuple{Tuple(names)})(($(values...),)))
     modifiers = rule.modifiers === nothing ? :nothing :
                 Expr(:vect, QuoteNode.(rule.modifiers)...)
-    :($(EventPattern{rule.type})($fields, $modifiers, $guard_expr))
+    :($(GesturePattern{rule.type})($fields, $modifiers, $guard_expr))
 end
 
 """
-    build_event_field_bindings(rule::EventPatternRule, event_symbol, body) -> Expr
+    build_gesture_field_bindings(rule::GesturePatternRule, event_symbol, body) -> Expr
 
 `body` inside the `let` bindings of the bound positional fields of `rule`, read
 from `event_symbol`. So a guard and a result can name a field, as `c` in
@@ -389,9 +390,9 @@ from `event_symbol`. So a guard and a result can name a field, as `c` in
 Use it in a macro on the pattern syntax, around the code of a rule. The result is
 `body` itself when the rule binds no field.
 
-See also `parse_event_pattern_rule`.
+See also `parse_gesture_pattern_rule`.
 """
-function build_event_field_bindings(rule::EventPatternRule, event_symbol, body)
+function build_gesture_field_bindings(rule::GesturePatternRule, event_symbol, body)
     declared = _get_positional_event_fields(rule.type)
     for i in length(rule.fields):-1:1
         field = rule.fields[i]
@@ -402,7 +403,7 @@ function build_event_field_bindings(rule::EventPatternRule, event_symbol, body)
     body
 end
 
-# ── @event_case, the compiled table ─────────────────────────────────────────
+# ── @gesture_case, the compiled table ─────────────────────────────────────────
 
 # A generated rule evaluates to the escaped result when the event matches, and to
 # the `_nomatch` sentinel otherwise.
@@ -423,7 +424,7 @@ function _build_modifier_test(event, modifiers::Vector{Symbol})
     foldr((a, b) -> :($a && $b), tests)
 end
 
-function _build_rule(event, rule::EventPatternRule)
+function _build_rule(event, rule::GesturePatternRule)
     success = rule.guard === nothing ? esc(rule.result) :
               :($(esc(rule.guard)) ? $(esc(rule.result)) : _nomatch)
 
@@ -453,7 +454,7 @@ function _build_rule(event, rule::EventPatternRule)
 end
 
 """
-    @event_case event begin
+    @gesture_case event begin
         pattern => result
         …
     end
@@ -466,7 +467,7 @@ Use it to turn an event into a value, such as an operation, in one expression.
 
 # Example
 
-    @event_case event begin
+    @gesture_case event begin
         KeyDown(:period; ctrl)                    => on_toggle()
         when(KeyDown(k; alt), k in (:up, :down))  => on_navigate(k)
         KeyPress(c)                               => insert_char(c)
@@ -498,12 +499,12 @@ A pattern is written like the constructor of its event or gesture.
 An event type of another package is matchable where its name is visible, and it
 must exist before the macro expands.
 
-See also `parse_event_pattern_rule`, the parser for a macro on the same syntax, and
-`EventPattern`, a pattern as data.
+See also `parse_gesture_pattern_rule`, the parser for a macro on the same syntax, and
+`GesturePattern`, a pattern as data.
 """
-macro event_case(scrutinee, block)
+macro gesture_case(scrutinee, block)
     entries = block isa Expr && block.head == :block ? block.args : [block]
-    rules = [parse_event_pattern_rule(entry; scope = __module__)
+    rules = [parse_gesture_pattern_rule(entry; scope = __module__)
              for entry in entries if !(entry isa LineNumberNode)]
 
     event = gensym(:event)

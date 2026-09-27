@@ -24,6 +24,7 @@ const ReferenceModule = ProjecturedKernel.ReferenceModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const IntentModule = ProjecturedKernel.IntentModule
 const EventModule = ProjecturedKernel.EventModule
+const GestureModule = ProjecturedKernel.GestureModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const TextModule = ProjecturedText.TextModule

@@ -20,6 +20,7 @@ using ..DocumentModule
 using ..EventModule
 using ..EventModule
 using ..FocusModule
+using ..GestureModule
 using ..GraphicsModule
 using ..IoMapModule
 using ..OperationModule

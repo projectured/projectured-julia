@@ -36,6 +36,7 @@ const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const StyleModule = ProjecturedStyle.StyleModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const EventModule = ProjecturedKernel.EventModule
+const GestureModule = ProjecturedKernel.GestureModule
 const EventModule = ProjecturedKernel.EventModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule

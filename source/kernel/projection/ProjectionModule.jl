@@ -77,6 +77,7 @@ using ..ClockModule
 using ..DocumentModule
 using ..EventModule
 using ..GestureBindingModule
+using ..GestureModule
 using ..IntentModule
 using ..IoMapModule
 using ..OperationModule

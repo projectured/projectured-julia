@@ -91,7 +91,7 @@ _operation_kind(operation) = nameof(typeof(operation))
 How the gesture is written for a human: `"Ctrl+C"`, `"←"`, `"a"`,
 `"Left click (412,88)"`.
 
-The phrasing comes from [`describe_event_pattern`](@ref): the event is turned
+The phrasing comes from [`describe_gesture_pattern`](@ref): the event is turned
 into the pattern that matches exactly it, so one table of key names and button
 names serves both the gesture help and this log.
 """
@@ -111,7 +111,7 @@ end
 
 const _MODIFIER_FLAGS = (:ctrl, :shift, :alt, :meta)
 
-_describe_event(event::Union{Event,Gesture}) = describe_event_pattern(_gesture_pattern(event))
+_describe_event(event::Union{Event,Gesture}) = describe_gesture_pattern(_gesture_pattern(event))
 _describe_event(gesture) = string(gesture)
 
 # The pattern that matches exactly this event: the field that names the gesture
@@ -124,7 +124,7 @@ function _gesture_pattern(event::Union{Event,Gesture})
              NamedTuple()
     held = hasfield(type, :modifiers) ? get_modifier_keys(event) : ModifierKeys()
     modifiers = Symbol[flag for flag in _MODIFIER_FLAGS if getfield(held, flag)]
-    EventPattern{type}(fields, modifiers, nothing, nothing)
+    GesturePattern{type}(fields, modifiers, nothing, nothing)
 end
 
 # ── The session's log ────────────────────────────────────────────────────────

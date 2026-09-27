@@ -22,6 +22,7 @@ module GestureTrackingModule
 using ..CellModule
 using ..DocumentModule
 using ..EventModule
+using ..GestureModule
 using ..IntentModule
 using ..IoMapModule
 using ..OperationModule

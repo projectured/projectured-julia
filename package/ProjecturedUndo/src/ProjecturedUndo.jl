@@ -21,6 +21,7 @@ const CellModule = ProjecturedKernel.CellModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const EventModule = ProjecturedKernel.EventModule
+const GestureModule = ProjecturedKernel.GestureModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const IntentModule = ProjecturedKernel.IntentModule
 const IoMapModule = ProjecturedKernel.IoMapModule

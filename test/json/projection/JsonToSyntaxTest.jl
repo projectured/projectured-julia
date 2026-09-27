@@ -236,7 +236,7 @@ end # test_json_to_syntax_reader
 # reified JSON tables, and get_applicable_gesture_bindings reflects the current selection —
 # the data-driven dual of what the reader could fire.
 # How a collected intent renders its key; empty when the rule has no gesture.
-_gesture_of(intent) = intent.gesture === nothing ? "" : describe_event_pattern(intent.gesture)
+_gesture_of(intent) = intent.gesture === nothing ? "" : describe_gesture_pattern(intent.gesture)
 
 function test_json_gesture_collection()
 @testset "JsonToSyntax gesture collection" begin

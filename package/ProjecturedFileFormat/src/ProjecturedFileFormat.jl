@@ -27,6 +27,7 @@ const NaturalModule = ProjecturedNatural.NaturalModule
 const NaturalModule = ProjecturedNatural.NaturalModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const EventModule = ProjecturedKernel.EventModule
+const GestureModule = ProjecturedKernel.GestureModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const OperationModule = ProjecturedKernel.OperationModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule

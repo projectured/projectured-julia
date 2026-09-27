@@ -1,6 +1,5 @@
-# Fragment of `EventModule` — the keyboard events and the keyboard gesture. An
-# event source reports the events `KeyDown`, `KeyUp` and `KeyPress`, and the gesture
-# `KeyChord` comes from a sequence of `KeyDown`s.
+# Fragment of `EventModule` — the keyboard events. An event source reports the
+# events `KeyDown`, `KeyUp` and `KeyPress`.
 
 """
     KeyDown(key::Symbol, modifiers::ModifierKeys[, repeat::Bool]; time)
@@ -77,24 +76,5 @@ KeyPress(char::Char; time::Real) =
     KeyPress(char, string(char), ModifierKeys(), Float64(time))
 KeyPress(char::Char, modifiers::ModifierKeys; time::Real) =
     KeyPress(char, string(char), modifiers, Float64(time))
-
-"""
-    KeyChord(keys::Vector{KeyDown}; time)
-    KeyChord(keys, time)
-
-A sequence of `KeyDown`s as one gesture, such as Ctrl+C and then Ctrl+K. `keys`
-holds the `KeyDown`s in order, and each holds its own modifiers. `time` is the time
-of the last key.
-
-A chord is only a combination of events, and it carries no intent. Other code
-states which sequences are chords, and the code that reads a chord gives it its
-meaning, as for any other gesture.
-"""
-struct KeyChord <: Gesture
-    keys::Vector{KeyDown}
-    time::Float64
-end
-
-KeyChord(keys::Vector{KeyDown}; time::Real) = KeyChord(keys, Float64(time))
 
 get_modifier_keys(event::Union{KeyDown,KeyUp,KeyPress}) = event.modifiers

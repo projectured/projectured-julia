@@ -15,6 +15,7 @@ using ProjecturedKernel
 const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const EventModule = ProjecturedKernel.EventModule
+const GestureModule = ProjecturedKernel.GestureModule
 const IntentModule = ProjecturedKernel.IntentModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const OperationModule = ProjecturedKernel.OperationModule

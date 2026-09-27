@@ -370,7 +370,7 @@ includes them in:
                get_clock_time / set_clock_time!, start_wall_clock! / stop_wall_clock!
  6 event       the input vocabulary (Event/Gesture, ModifierKeys,
                KeyDown/KeyPress/Mouse*/Window*, WindowInput), the event pattern
-               language (EventPattern, matches, describe, @event_case)
+               language (GesturePattern, matches, describe, @gesture_case)
  7 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
  8 backend     the Backend seam (lifecycle, text, device I/O, display size, device
                config, image/video output)

@@ -35,7 +35,7 @@ const HELP_GESTURE = KeyDownPattern(:f1)
 
 True when `event` is the gesture that summons the help window.
 """
-is_help_gesture(event) = matches_event_pattern(HELP_GESTURE, event)
+is_help_gesture(event) = matches_gesture_pattern(HELP_GESTURE, event)
 
 """
     GestureHelpState(open=false)

@@ -29,6 +29,7 @@ const IoMapModule = ProjecturedKernel.IoMapModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 const IntentModule = ProjecturedKernel.IntentModule
 const EventModule = ProjecturedKernel.EventModule
+const GestureModule = ProjecturedKernel.GestureModule
 const OperationModule = ProjecturedKernel.OperationModule
 const ScreenModule = ProjecturedScreen.ScreenModule
 const NaturalModule = ProjecturedNatural.NaturalModule

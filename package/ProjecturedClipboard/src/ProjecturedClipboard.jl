@@ -33,6 +33,7 @@ const IoMapModule = ProjecturedKernel.IoMapModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const EventModule = ProjecturedKernel.EventModule
 
+const GestureModule = ProjecturedKernel.GestureModule
 include("../../../source/clipboard/ClipboardModule.jl")
 
 end # module ProjecturedClipboard

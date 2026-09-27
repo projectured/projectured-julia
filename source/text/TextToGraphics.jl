@@ -169,7 +169,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     # up/down, plain Home/End). Re-apply the decline guards so the geometry arms
     # below never mis-handle a declined tree gesture as line motion. (`Ctrl+.` is
     # already consumed by `read_gesture`, so it cannot reach here.)
-    declined = @event_case evt begin
+    declined = @gesture_case evt begin
         when(KeyDown(k), evt.modifiers.alt && k in (:up, :down, :left, :right, :home)) => :decline
         when(KeyDown(k), k in (:up, :down, :left, :right) &&
                          is_structural_selection(iomap.input.selection)) => :decline
@@ -194,7 +194,7 @@ function read_intent(p::TextToGraphics, iomap::TextToGraphicsIoMap, evt)
     end
     current === nothing && return nothing
 
-    target = @event_case evt begin
+    target = @gesture_case evt begin
         when(KeyDown(k), k === :home || k === :end) => begin
             coord_map = iomap.char_to_coord
             isempty(coord_map) && return nothing

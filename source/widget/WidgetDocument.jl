@@ -2666,9 +2666,9 @@ function Shortcut(key::Symbol; ctrl::Bool=false, alt::Bool=false, shift::Bool=fa
 end
 
 # True when `evt` fires `action`'s shortcut and the action is enabled. Reuses the
-# gesture-layer `matches_event_pattern` (exact-modifier `KeyDownPattern` matching).
+# gesture-layer `matches_gesture_pattern` (exact-modifier `KeyDownPattern` matching).
 matches_action_shortcut(action::Action, evt) =
-    action.shortcut !== nothing && !(action.enabled === false) && matches_event_pattern(action.shortcut, evt)
+    action.shortcut !== nothing && !(action.enabled === false) && matches_gesture_pattern(action.shortcut, evt)
 
 """
     InvokeActionOperation(action)

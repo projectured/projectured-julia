@@ -19,8 +19,9 @@ using Projectured.EditorModule: Editor, evaluate!, print!
 using Projectured.BackendModule: initialize_backend!, quit_backend!, configure_devices!
 using Projectured.DeviceModule: Device, Display, Keyboard, Mouse
 using Projectured.ClockModule: set_clock_time!
-using Projectured.EventModule: WindowInput, MouseClick, MouseMove, MouseScroll,
+using Projectured.EventModule: WindowInput, MouseMove, MouseScroll,
     KeyDown, KeyPress, ModifierKeys
+using Projectured.GestureModule: MouseClick
 using Projectured.IntentModule: Intent
 using Projectured.ProjectionModule: read_intent
 using Projectured.OperationModule: Operation

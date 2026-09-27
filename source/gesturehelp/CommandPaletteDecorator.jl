@@ -48,7 +48,7 @@ const PALETTE_PADDING = 10
 
 True when `event` is the gesture that summons the palette.
 """
-is_command_palette_gesture(event) = matches_event_pattern(COMMAND_PALETTE_GESTURE, event)
+is_command_palette_gesture(event) = matches_gesture_pattern(COMMAND_PALETTE_GESTURE, event)
 
 """
     CommandPaletteState()

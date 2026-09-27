@@ -592,7 +592,7 @@ set_cell_computation!(n::SyntaxSequence, f::Function) = (set_cell_computation!(g
 #
 # Gestures match modifiers *exactly*: each rule names its exact modifier set, so a
 # bare arrow (`KeyDown(k;)` — note the `;`: no modifiers held) and an `Alt+arrow`
-# are *distinct* gestures. The old `@event_case` reader matched arrows loosely (any
+# are *distinct* gestures. The old `@gesture_case` reader matched arrows loosely (any
 # modifiers); exact matching is equivalent for every tested/real input (none
 # carries an extra incidental modifier) and is the cleaner model — an unbound combo
 # (e.g. Shift+arrow) simply declines instead of being filtered out by an explicit

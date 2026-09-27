@@ -40,6 +40,7 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..EventModule
+using ..GestureModule
 using ..GraphicsModule
 using ..IoMapModule
 using ..OperationModule

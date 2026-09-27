@@ -14,6 +14,7 @@ using ..DocumentModule
 using ..DomainModule
 using ..EventModule
 using ..GestureBindingModule
+using ..GestureModule
 using ..IntentModule
 using ..IoMapModule
 using ..OperationModule

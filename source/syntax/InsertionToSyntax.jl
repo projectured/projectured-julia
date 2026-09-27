@@ -241,7 +241,7 @@ end
 # Commit / Cancel are projection-specific (they call `p.commit` / abort to a
 # `DocumentNothing`), which is why this stays a projection table rather than a
 # document-level `@gestures`. ModifierKeys are matched loosely (`mods=nothing`) to
-# preserve the old bare `@event_case` patterns exactly. Operations capture `p`/`ins`
+# preserve the old bare `@gesture_case` patterns exactly. Operations capture `p`/`ins`
 # and return `nothing` to decline (no value cursor / commit refused).
 function get_projection_gesture_bindings(p::InsertionToSyntaxLeaf, iomap)
     ins = iomap.input

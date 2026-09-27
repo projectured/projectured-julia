@@ -30,6 +30,7 @@ module UndoModule
 using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
+using ..GestureModule
 using ..GraphicsModule
 using ..StyleModule
 using ..SyntaxModule

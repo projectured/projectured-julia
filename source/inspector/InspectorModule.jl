@@ -11,6 +11,7 @@ using ..CellModule
 using ..DocumentModule
 using ..DomainModule
 using ..EventModule
+using ..GestureModule
 using ..IntentModule
 using ..IoMapModule
 using ..NaturalModule

@@ -396,7 +396,7 @@ function _route_layout_event(iomap::_LayoutChildrenIoMap, evt)
         end
         return _layout_tab(iomap.input, entries, evt)
     end
-    res = @event_case evt begin
+    res = @gesture_case evt begin
         MouseClick  => _route_click(entries, evt)
         MouseScroll => _route_scroll(entries, evt)
         MouseMove   => _route_move(entries, evt)
@@ -1720,7 +1720,7 @@ function _route_stack_event(iomap::ChildrenIoMap, evt)
     if evt isa KeyDown && evt.key === :tab
         return _layout_tab(iomap.input, entries, evt)
     end
-    res = @event_case evt begin
+    res = @gesture_case evt begin
         MouseClick  => _route_click_reverse(entries, evt)
         MouseScroll => _route_scroll_reverse(entries, evt)
         _ => begin

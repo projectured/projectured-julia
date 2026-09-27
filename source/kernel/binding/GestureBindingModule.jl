@@ -8,7 +8,7 @@ that handles a key both edits the document and can be listed to a user.
 
 The pieces:
 
-- **`GestureBinding`** — an `EventPattern` (what input fires it, and how it is
+- **`GestureBinding`** — an `GesturePattern` (what input fires it, and how it is
   described) + `operation(document, event) -> Operation | Nothing` (build the edit)
   + `applicable(document, selection) -> Bool` (an *event-independent* state
   precondition) + a human `description` + a `domain` tag + an optional `name`.
@@ -30,6 +30,7 @@ module GestureBindingModule
 
 using ..DocumentModule
 using ..EventModule
+using ..GestureModule
 using ..IntentModule
 
 export GestureBinding,

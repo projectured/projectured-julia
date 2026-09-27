@@ -23,7 +23,7 @@ end
 # An intent with no pattern has no keystroke to render, so its gesture column is
 # empty. The intent's `gesture` field carries the binding's pattern, which is what
 # a listing renders — the input that *would* fire it.
-_row_gesture(pattern) = pattern === nothing ? "" : describe_event_pattern(pattern)
+_row_gesture(pattern) = pattern === nothing ? "" : describe_gesture_pattern(pattern)
 
 """
     make_gesture_row(intent) -> GestureRow

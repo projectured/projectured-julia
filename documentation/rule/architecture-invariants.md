@@ -1012,7 +1012,7 @@ and must be **exported**; reaching into an internal is the smell, never the
 fix. The only way to share a helper without exporting it is to make the sharers
 **fragments of one module** (same namespace by construction, so nothing is
 imported); otherwise sink the machinery to a module at or below both users and
-export it. Precedents: the `@event_case`/`@gestures` parser (same-module
+export it. Precedents: the `@gesture_case`/`@gestures` parser (same-module
 fragments); the transparent-Cell struct codegen — `@cell_struct` +
 `build_cell_struct_exprs`/`build_cell_struct_keyword_parameters`/`build_cell_struct_keyword_constructor` exported from
 `CellStructModule` (struct layer), built on by `@document`/`@iomap`/`@projection`.

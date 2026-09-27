@@ -194,7 +194,7 @@ package whose document walk can express them.
   module may `import` a name another module does not export — not across layers, and
   not between sibling modules in the same layer. If code outside a module needs a
   symbol, export it. To share a helper without exporting it, the sharers must be
-  fragments of one module (the `@event_case` / `@gestures` parser, in-namespace by
+  fragments of one module (the `@gesture_case` / `@gestures` parser, in-namespace by
   construction); otherwise sink the machinery to a module at or below both users and
   export it (the transparent-Cell struct codegen: `@cell_struct` + builders in the
   struct layer, built on by `@document`, `@iomap`, and `@projection`).
@@ -233,7 +233,7 @@ belongs to a declared layer/slice, every edge points to the same or a lower laye
 and slice→slice edges are acyclic. Where enabled (the kernel today;
 base/visual/domain as they come clean), it also asserts that **imports name only
 exported symbols** — a non-exported name is a module-internal detail, so share a
-private helper via same-module fragments (the `@event_case` / `@gestures` parser
+private helper via same-module fragments (the `@gesture_case` / `@gestures` parser
 precedent) or sink the seam below both users as exported API (the `@cell_struct`
 precedent), never lend it across a module boundary. The guard enforces the
 cross-*layer* case today; the same-layer case (a sibling module reaching into a

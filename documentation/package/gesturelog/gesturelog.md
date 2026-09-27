@@ -28,7 +28,7 @@ It belongs at the root of the composed projection, because every operation passe
 
 `record_gesture!(log, gesture, operation)` appends one `GestureLogEntry` and deletes the oldest entries above `capacity`. `count` counts every entry that was recorded, also the entries that the buffer dropped, so the index of a line still says how many gestures came before it.
 
-An entry holds text: the gesture, the operation and the name of the operation type. `describe_gesture` builds the `EventPattern` that matches exactly the event and writes it with `describe_event_pattern`, so the log and the gesture help use one table of key names. A mouse event adds its coordinates, and a double click adds `x2`. `describe_operation` comes from the kernel.
+An entry holds text: the gesture, the operation and the name of the operation type. `describe_gesture` builds the `GesturePattern` that matches exactly the event and writes it with `describe_gesture_pattern`, so the log and the gesture help use one table of key names. A mouse event adds its coordinates, and a double click adds `x2`. `describe_operation` comes from the kernel.
 
 ### The panel
 

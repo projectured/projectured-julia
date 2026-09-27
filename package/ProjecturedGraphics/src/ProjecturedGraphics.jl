@@ -32,6 +32,7 @@ const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const OperationModule = ProjecturedKernel.OperationModule
 const EventModule = ProjecturedKernel.EventModule
 
+const GestureModule = ProjecturedKernel.GestureModule
 include("../../../source/graphics/GraphicsModule.jl")
 
 end # module ProjecturedGraphics

@@ -29,7 +29,7 @@ using ProjecturedKernel.SelectionModule: set_selection!, clear_selection!
 using ProjecturedKernel.OperationModule: evaluate_operation
 using ProjecturedKernel.EventModule: KeyPress, KeyDown, ModifierKeys
 using ProjecturedKernel.GestureBindingModule: get_document_gesture_bindings
-using ProjecturedKernel.EventModule: EventPattern
+using ProjecturedKernel.GestureModule: GesturePattern
 using ProjecturedKernel.ProjectionModule: print_document, read_intent
 using ProjecturedKernel.CellModule: Cell, Computation
 using ProjecturedProjection.ProjectionAlgebraModule: ChainingProjection
@@ -117,7 +117,7 @@ _mods(v::Vector{Symbol}) =
     ModifierKeys(ctrl = :ctrl in v, shift = :shift in v, alt = :alt in v, meta = :meta in v)
 
 function _synth_event(pattern)
-    pattern isa EventPattern || return nothing
+    pattern isa GesturePattern || return nothing
     haskey(pattern.fields, :char) && return KeyPress(pattern.fields.char; time = 0.0)
     haskey(pattern.fields, :key)  && return KeyDown(pattern.fields.key, _mods(pattern.modifiers); time = 0.0)
     nothing
@@ -192,7 +192,7 @@ end
 
 # The constrained character of a `KeyPress` gesture pattern (`nothing` for a `KeyDown`,
 # or an unconstrained `KeyPress(c) when isdigit(c)`).
-_keypress_char(pat) = (pat isa EventPattern && haskey(pat.fields, :char)) ? pat.fields.char : nothing
+_keypress_char(pat) = (pat isa GesturePattern && haskey(pat.fields, :char)) ? pat.fields.char : nothing
 
 # The single keystroke that turns this domain's empty placeholder into a document of
 # `target`'s kind — discovered by trying each character the placeholder's create gestures

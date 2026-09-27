@@ -3,7 +3,7 @@
 # answers with.
 
 struct GestureBinding
-    pattern::Union{EventPattern,Nothing}
+    pattern::Union{GesturePattern,Nothing}
     operation::Function
     applicable::Function
     description::String
@@ -125,7 +125,7 @@ function fire_gesture_bindings(bindings, target, event; selection, claimed = not
     for binding in bindings
         binding.pattern === nothing && continue
         claimed === nothing || binding.override || continue
-        if matches_event_pattern(binding.pattern, event) && binding.applicable(target, selection)
+        if matches_gesture_pattern(binding.pattern, event) && binding.applicable(target, selection)
             operation = binding.operation(target, event)
             operation === nothing || return operation
         end

@@ -1748,7 +1748,7 @@ end
 function _read_text_content_intent(p, iomap, evt, left::Int, top::Int)
     content_iomap = iomap.content_iomap
     content_iomap === nothing && return nothing
-    op = @event_case evt begin
+    op = @gesture_case evt begin
         MouseClick(button, x, y) => begin
             canvas = iomap.output
             cox = Int(canvas.x) + left
@@ -1982,7 +1982,7 @@ function read_intent(::WidgetButtonToGraphicsCanvas, iomap::SimpleIoMap, evt)
     # `nothing` immediately, so a plain button behaves exactly as before.
     op = read_bound_gesture(w, evt)
     op === nothing || return op
-    @event_case evt begin
+    @gesture_case evt begin
         MouseClick(button, x, y) => button === :left ? _button_primary_op(w) : nothing
         MouseDown(button, x, y)  => button === :left ? _write_view_state(w, "pressed", true) : nothing
         MouseUp(button, x, y)    => button === :left ? _write_view_state(w, "pressed", false) : nothing
@@ -2159,7 +2159,7 @@ function read_intent(p::WidgetContextMenuToGraphicsCanvas, iomap::WidgetContextM
     child_iomap = iomap.child_iomap
     child_iomap === nothing && return nothing
     cox, coy = _content_offset(p, w)
-    op = @event_case evt begin
+    op = @gesture_case evt begin
         MouseClick(button, x, y) =>
             shift_operation_position(
                 read_intent(child_iomap.projection, child_iomap,
@@ -2803,7 +2803,7 @@ function read_intent(p::WidgetCompositeToGraphicsCanvas, iomap::ChildrenIoMap, e
     if iomap.input isa WidgetComposite && evt isa KeyDown && evt.key === :tab
         return _composite_tab(iomap.input, child_iomaps, evt)
     end
-    res = @event_case evt begin
+    res = @gesture_case evt begin
         MouseScroll => _route_composite_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
         MouseClick => _route_composite_event(child_iomaps, evt.x, evt.y,
@@ -3184,7 +3184,7 @@ function read_intent(p::WidgetShellToGraphicsCanvas, iomap::ChildrenIoMap, evt)
         selected = _select_in_band(iomap.input, child_iomaps, evt)
         selected === nothing || return selected
     end
-    op = @event_case evt begin
+    op = @gesture_case evt begin
         MouseScroll => _route_scroll_to_children(child_iomaps, evt)
         MouseClick  => _route_click_to_children(child_iomaps, evt)
         # A down and an up carry coordinates like a press, so they go to the band
@@ -3857,7 +3857,7 @@ function read_intent(p::WidgetSplitPaneToGraphicsCanvas, iomap::ChildrenIoMap, e
     if w isa WidgetSplitPane && evt isa KeyDown && evt.key === :tab
         return _split_tab(w, child_iomaps, evt)
     end
-    res = @event_case evt begin
+    res = @gesture_case evt begin
         MouseScroll => _route_split_event(child_iomaps, evt.x, evt.y,
             (x, y) -> MouseScroll(evt.dx, evt.dy, x, y; time = evt.time))
         MouseClick => _route_split_event(child_iomaps, evt.x, evt.y,
@@ -4511,7 +4511,7 @@ function _route_active_tab(iomap::ChildrenIoMap, child_iomaps::Vector, evt)
     # the content, and the translation is what lets the tab's own splitter band
     # line up with where it is drawn (otherwise the grab region is offset by the
     # tab strip's height). Coordless events (KeyDown, KeyPress, …) pass through.
-    child_evt = @event_case evt begin
+    child_evt = @gesture_case evt begin
         MouseClick(button, x, y) => begin
             lx, ly = x - ox - Int(canvas.x), y - oy - Int(canvas.y)
             hit_element_at(canvas, lx, ly) === nothing && return nothing
@@ -4988,7 +4988,7 @@ function read_intent(p::WidgetScrollPaneToGraphicsCanvas, iomap::WidgetScrollPan
     # The vertical offset is the one the printer drew with, so a pane that
     # follows the end routes a press to what is drawn at the end.
     _local(x, y) = _find_scroll_pane_local_point(p, iomap, x, y)
-    op = @event_case evt begin
+    op = @gesture_case evt begin
         # A popup the content opens goes back by the content origin and the
         # scroll offset, the difference between the two frames of the press.
         MouseClick(button, x, y) => begin
@@ -5167,7 +5167,7 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
     M = getfield(w, :transform)[]::AffineTransform
     cox, coy = _content_offset(p, w)
     # MouseScroll is consumed here (zoom or pan); each matched branch `return`s.
-    @event_case evt begin
+    @gesture_case evt begin
         # Ctrl+wheel: zoom about the cursor.
         MouseScroll(dx, dy, x, y; ctrl) => begin
             hit_element_at(canvas, x, y) === nothing && return nothing
@@ -5193,7 +5193,7 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
         px, py = apply_affine_transform(M, Float64(x), Float64(y))
         (round(Int, px) + cox, round(Int, py) + coy)
     end
-    op = content_iomap === nothing ? nothing : @event_case evt begin
+    op = content_iomap === nothing ? nothing : @gesture_case evt begin
         MouseClick(button, x, y) => begin
             lx, ly = _local(x, y)
             map_operation_position(
@@ -5237,7 +5237,7 @@ function read_intent(p::WidgetTransformPaneToGraphicsCanvas, iomap::WidgetTransf
     tx, ty = _inset_total(p, w)
     cw = Int(canvas.w); ch = Int(canvas.h)
     acx, acy = (cw - tx) / 2.0, (ch - ty) / 2.0
-    @event_case evt begin
+    @gesture_case evt begin
         KeyDown(:equals; ctrl) => return _zoom_op(w, M, 1, acx, acy)
         KeyDown(:minus; ctrl)  => return _zoom_op(w, M, -1, acx, acy)
         KeyDown(:zero; ctrl)   => return M === affine_identity ? nothing :
@@ -6329,7 +6329,7 @@ function read_intent(p::WidgetSliderToGraphicsCanvas,
     width  = Int(iomap.track_width)
     content_x, _ = _content_offset(p, w)
     resolve_write_at(x) = resolve_slider_write(w, _slider_value(width, x - Int(canvas.x[]) - content_x))
-    @event_case evt begin
+    @gesture_case evt begin
         MouseDown(button, x, y) => begin
             button === :left || return nothing
             _outside_widget(iomap, evt) && return nothing
@@ -7117,7 +7117,7 @@ function read_intent(p::WidgetToggleGroupToGraphicsCanvas,
     w = iomap.input
     w.enabled === false && return nothing
     content_x, _ = _content_offset(p, w)
-    @event_case evt begin
+    @gesture_case evt begin
         MouseClick(button, x, y) => begin
             button === :left || return nothing
             canvas = iomap.output
@@ -7243,7 +7243,7 @@ function read_intent(p::WidgetSelectToGraphicsCanvas, iomap::WidgetSelectToGraph
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
     w.enabled === false && return nothing
-    @event_case evt begin
+    @gesture_case evt begin
         MouseClick(button, x, y) => button === :left ? _open_select_popup(w, iomap) : nothing
         _ => nothing
     end
@@ -7326,7 +7326,7 @@ _pick_option(w::WidgetOption) = CompoundOperation(Any[
 function read_intent(::WidgetOptionToGraphicsCanvas, iomap::SimpleIoMap, evt)
     _outside_widget(iomap, evt) && return nothing
     w = iomap.input
-    @event_case evt begin
+    @gesture_case evt begin
         MouseClick(button, x, y) => button === :left ? _pick_option(w) : nothing
         _ => nothing
     end
@@ -7446,7 +7446,7 @@ function read_intent(p::WidgetSpinBoxToGraphicsCanvas, iomap::WidgetSpinBoxToGra
     stepper_w = Int(iomap.stepper_w)
     sy = content_y - box.padding[2]
     _step(delta) = ReplaceReferencedValueOperation(w, "value", _spin_clamp(w.value + delta, w.min, w.max))
-    @event_case evt begin
+    @gesture_case evt begin
         MouseClick(button, x, y) =>
             (button === :left && x - content_x >= content_width - stepper_w) ?
                 (y - sy < stepper_w ÷ 2 ? _step(w.step) : _step(-w.step)) : nothing
@@ -7587,7 +7587,7 @@ function read_intent(p::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsC
     # Bool: report it only when the row actually changes, or every mouse move
     # would write a cell and invalidate the canvas.
     hover_row(r) = r == w.hovered ? nothing : _write_view_state(w, "hovered", r)
-    @event_case evt begin
+    @gesture_case evt begin
         MouseClick(button, x, y) => button === :left ? click_row(y) : nothing
         MouseMove(x, y)          => hover_row(row_at(y))
         MouseLeave()             => hover_row(0)

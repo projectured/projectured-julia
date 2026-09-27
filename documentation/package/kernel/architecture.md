@@ -38,7 +38,7 @@ Layer 2  — performance/ the performance counters and the frame measurements of
 Layer 3  — cell/        the Cell kinds — ReactiveCell/MutableCell/ImmutableCell, Computation and @computation
 Layer 4  — struct/      @cell_struct and the builders of a struct of cells (CellStructPlan)
 Layer 5  — clock/       the animation clock — Clock (a @cell_struct), get_reactive_clock_time/get_clock_time, set_clock_time!, start_wall_clock!/stop_wall_clock!
-Layer 6  — event/       the input vocabulary (Event/Gesture, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*) + WindowInput + the event pattern language (EventPattern, @event_case)
+Layer 6  — event/       the input vocabulary (Event/Gesture, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*) + WindowInput + the event pattern language (GesturePattern, @gesture_case)
 Layer 7  — device/      Device abstract + the Keyboard/Mouse/Display devices (physical properties)
 Layer 8  — backend/     Backend + the device I/O, display-size, and device-config seams
 Layer 9  — document/    the Document contract + @document
@@ -163,7 +163,7 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 | `cell/` | the reactive engine — `AbstractCell` and the `ReactiveCell` / `MutableCell` / `ImmutableCell` kinds (see [cell.md](cell.md)) |
 | `struct/` | `CellStructModule` — `@cell_struct` and the builders of a struct of cells (see [cell.md](cell.md)) |
 | `clock/` | `ClockModule` — the animation `Clock` (a `@cell_struct`), `get_reactive_clock_time`/`get_clock_time`/`set_clock_time!`, and `start_wall_clock!`/`stop_wall_clock!`, the heartbeat that writes real time into a clock |
-| `event/` | the input event vocabulary — `EventModule` (ModifierKeys, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, WindowInput) and `EventModule` (`EventPattern`, `@event_case`) |
+| `event/` | the input event vocabulary — `EventModule` (ModifierKeys, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, WindowInput) and `EventModule` (`GesturePattern`, `@gesture_case`) |
 | `device/` | `DeviceModule` — the `Device`, `Keyboard`, `Mouse`, `Display` device types (with physical properties) |
 | `backend/` | `Backend`, the device I/O + display-size + device-config seams |
 | `document/` | the Document contract (`DocumentInterface.jl`), the `@document` codegen (`DocumentMacro.jl`), the value protocol (`DocumentCopy.jl` / `DocumentSync.jl`), the reflection walk (`DocumentWalk.jl` / `DocumentSearch.jl`), and the protocol forward/adapt helpers (`ForwardProtocol.jl`) |

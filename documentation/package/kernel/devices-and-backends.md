@@ -385,8 +385,8 @@ EventModule.jl   (EventModule)        — the input event vocabulary, seven frag
         └─ EventDefaults.jl   — the get_modifier_keys fallback and the four
                                 has_*_modifier_key predicates derived over it
 EventModule.jl  (EventModule) — the event pattern language: the reified
-                                        EventPattern, matches/describe, the
-                                        @event_case macro, and the parser API
+                                        GesturePattern, matches/describe, the
+                                        @gesture_case macro, and the parser API
                                         @gestures is built on
 ```
 
@@ -409,11 +409,11 @@ vocabulary, not a document type; the window *document* and its operations
 
 One surface syntax for saying "this kind of event, with these field values
 and these modifiers held", ridden by two consumers: an
-[`EventPattern`](../../../source/kernel/event/EventModule.jl) is
+[`GesturePattern`](../../../source/kernel/event/EventModule.jl) is
 *data* answering `matches(pattern, event)` and `describe(pattern)` — the
 per-event constructors (`KeyDownPattern`, `MouseClickPattern`, …) name the
 type and its most-constrained field, all producing the one generic
-`EventPattern{E<:Event}` struct; [`@event_case`](../../../source/kernel/event/EventModule.jl)
+`GesturePattern{E<:Event}` struct; [`@gesture_case`](../../../source/kernel/event/EventModule.jl)
 compiles a table of `pattern => result` rules straight to `isa`/field tests,
 first match wins. Both ride on one parser — exported as a macro-authoring API
 (`parse_event_rule`, `event_pattern_expr`, `event_field_bindings`) — so the
@@ -551,7 +551,7 @@ GestureBindingModule.jl (GestureBindingModule)   — the aggregator
         └─ Gestures.jl — the @gestures / @gesture_set authoring DSL
 ```
 
-A `GestureBinding` is reified *data*: an `EventPattern` (what fires it, and
+A `GestureBinding` is reified *data*: an `GesturePattern` (what fires it, and
 how it is described) + `operation(document, event) -> Operation | Nothing` +
 an `applicable(document, selection) -> Bool` precondition + a human
 `description` + a `domain` tag + an optional `name` — the same declaration both

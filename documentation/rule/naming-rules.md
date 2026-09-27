@@ -390,7 +390,7 @@ Two shapes are exempt from the verb-first rule, and only these:
   `SyntaxLeaf(bound(:value, Bool, ...))` says what the leaf is bound to, and
   `make_bound` would say it worse.
 - **Declarative macros** are noun-named: `@document`, `@iomap`,
-  `@projection`, `@gestures`, `@reference`, `@reference_step`, `@event_case`. A macro
+  `@projection`, `@gestures`, `@reference`, `@reference_step`, `@gesture_case`. A macro
   is a DSL keyword — `@document` reads as "here is a document definition" —
   not an action.
 

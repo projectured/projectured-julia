@@ -31,6 +31,7 @@ const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IntentModule = ProjecturedKernel.IntentModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const EventModule = ProjecturedKernel.EventModule
+const GestureModule = ProjecturedKernel.GestureModule
 const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const PrimitiveModule = ProjecturedPrimitive.PrimitiveModule
 const BackendModule = ProjecturedKernel.BackendModule

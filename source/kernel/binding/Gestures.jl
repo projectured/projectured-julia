@@ -1,7 +1,7 @@
 # Fragment of `GestureBindingModule` — the `@gestures` / `@gesture_set` authoring
 # DSL. The left-hand side of a rule is the event pattern syntax, parsed by
-# `EventModule`'s exported parser (`parse_event_pattern_rule`, `build_event_pattern_expr`,
-# `build_event_field_bindings`) rather than re-implemented here.
+# `EventModule`'s exported parser (`parse_gesture_pattern_rule`, `build_gesture_pattern_expr`,
+# `build_gesture_field_bindings`) rather than re-implemented here.
 #
 # Surface:
 #
@@ -92,7 +92,7 @@ function _parse_gesture_block(entries, domain::String; scope::Module)
             push!(items, _command_binding_expr(e.args[3], domain))
             continue
         end
-        rule = parse_event_pattern_rule(e; scope = scope)
+        rule = parse_gesture_pattern_rule(e; scope = scope)
         rule.type === nothing && error("@gestures: `_` catch-all is not allowed")
 
         # Split an optional leading "description" out of the right side.
@@ -108,21 +108,21 @@ function _parse_gesture_block(entries, domain::String; scope::Module)
 
         # Per-rule event guard closure (from `when(PATTERN, cond)`).
         guard = rule.guard === nothing ? :nothing :
-            :($event -> $(build_event_field_bindings(rule, event, esc(rule.guard))))
+            :($event -> $(build_gesture_field_bindings(rule, event, esc(rule.guard))))
 
-        pattern = build_event_pattern_expr(rule, guard)
+        pattern = build_gesture_pattern_expr(rule, guard)
 
         # Operation closure: (doc, event) -> rhs, with bound fields in scope.
-        # `build_event_field_bindings` returns the body untouched when the rule binds
+        # `build_gesture_field_bindings` returns the body untouched when the rule binds
         # no pattern variable, and wraps it in a `let` when it does. Identity of the
         # result is therefore the answer to "does this rhs read the event?", asked
         # through the parser's own exported form rather than its field types.
         escaped_body = esc(body)
-        bound_body = build_event_field_bindings(rule, event, escaped_body)
+        bound_body = build_gesture_field_bindings(rule, event, escaped_body)
         reads_event = bound_body !== escaped_body
         operation = :(($document, $event) -> $bound_body)
 
-        description_expr = description === nothing ? :(describe_event_pattern($pattern)) : description
+        description_expr = description === nothing ? :(describe_gesture_pattern($pattern)) : description
 
         # The name a user types to run the rule from a command list. A rule with no
         # authored description has no name to type: its description is the gesture

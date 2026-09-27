@@ -74,7 +74,7 @@ import ProjecturedSubstrateTest: test_substrate
 import ProjecturedKernelTest: test_printer, test_reader, test_repl,
                               explore_selections, test_navigation,
                               walk_printer_output, walk_reader_events, walk_repl_loop,
-                              test_event_case, test_gesture_binding,
+                              test_gesture_case, test_gesture_binding,
                               WalkStatus, _walk!, _WALK_MAX_DEPTH, _WALK_MAX_NODES,
                               _ALL_READER_EVENTS, _assert_reaches_all
 import ProjecturedSubstrateTest: collect_position_selections, collect_tree_selections,
@@ -503,7 +503,7 @@ export test_all, test_domain_examples, test_package_graph, test_tree, test_namin
 export test_kernel, test_substrate, test_domain
 export test_export_collisions, test_export_collision_checker, export_collisions
 export test_search_scale
-export test_type_reference, test_event_case, test_gesture_binding, test_focusing, test_console_backend, test_message_log_feed, test_frame_statistics_feed
+export test_type_reference, test_gesture_case, test_gesture_binding, test_focusing, test_console_backend, test_message_log_feed, test_frame_statistics_feed
 export test_json_document, test_syntax, test_text, test_graphics, test_affine_transform, test_graphics_layout, test_layout_allocator, test_layout_constraint_helpers, test_constraint_solver, test_collection, test_primitive, test_json_parser, test_xml_parser, test_sql_parser, test_serialization
 export test_formula_to_syntax, test_projection_template_hygiene
 export test_json_to_syntax, test_json_to_syntax_reader, test_json_gesture_collection, test_gesture_map, test_gesture_help, test_syntax_to_text, test_syntax_tree_selection, test_filesystem_to_syntax, test_primitive_to_text, test_text_to_graphics, test_word_wrapping, test_text_filtering, test_text_highlighting, test_selection_inverting, test_object_to_widget, test_projection_configuring, test_widget_text_editing, test_widget_button_behavior, test_widget_gestures, test_widget_select_dropdown, test_widget_menu, test_widget_context_menu, test_widget_dialog, test_widget_action, test_widget_icon, test_widget_tree, test_widget_toolbar, test_widget_table, test_layout_closeout, test_widget_forms, test_widget_popup_example, test_copying_projection, test_clipboard, test_versioning_to_any, test_write_image, test_record_video, test_tooltip, test_reference_inspector_text, test_hover_probe, test_hover_probe_pipeline, test_text_ink_inside_viewports, test_split_pane_drag, test_widget_transform_pane, test_dragging, test_anchor_point, test_write_pdf, test_dirty_rect, test_web_backend

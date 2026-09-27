@@ -22,6 +22,7 @@ using ..DocumentModule
 using ..EventModule
 using ..EventModule
 using ..GestureBindingModule
+using ..GestureModule
 using ..IntentModule
 using ..IoMapModule
 using ..OperationModule

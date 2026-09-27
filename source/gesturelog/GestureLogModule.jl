@@ -25,6 +25,7 @@ using ..DocumentModule
 using ..DomainModule
 using ..EventModule
 using ..EventModule
+using ..GestureModule
 using ..GraphicsModule
 using ..IntentModule
 using ..IoMapModule

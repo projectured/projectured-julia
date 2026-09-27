@@ -10,6 +10,7 @@ module TooltipModule
 using ..CellModule
 using ..DocumentModule
 using ..EventModule
+using ..GestureModule
 using ..SelectionModule
 using ..IntentModule
 using ..IoMapModule

@@ -7,7 +7,7 @@ the map, which the rest of the slice is written in terms of.
 
 A `GestureMap` is a read-only document listing the gesture bindings available in some context — the
 rendered face of the reified `GestureBinding` data. Each [`GestureRow`](@ref)
-pairs a gesture rendering (`describe_event_pattern(pattern)`) with what it does and whether it
+pairs a gesture rendering (`describe_gesture_pattern(pattern)`) with what it does and whether it
 is currently applicable; [`GestureMapToSyntax`](@ref)
 projects a `GestureMap` onto the existing Syntax → Text → Graphics pipeline so the
 help window reuses the normal display path.
@@ -25,6 +25,7 @@ using ..DocumentModule
 using ..EventModule
 using ..EventModule
 using ..GestureBindingModule
+using ..GestureModule
 using ..GraphicsModule
 using ..IntentModule
 using ..IoMapModule

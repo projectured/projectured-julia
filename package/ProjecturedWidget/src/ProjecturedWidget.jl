@@ -28,6 +28,7 @@ const DocumentModule = ProjecturedKernel.DocumentModule
 const CollectionModule = ProjecturedCollection.CollectionModule
 const SelectionModule = ProjecturedKernel.SelectionModule
 const EventModule = ProjecturedKernel.EventModule
+const GestureModule = ProjecturedKernel.GestureModule
 const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const FocusModule = ProjecturedFocus.FocusModule
 const StyleModule = ProjecturedStyle.StyleModule
