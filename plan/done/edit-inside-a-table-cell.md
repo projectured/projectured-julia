@@ -49,8 +49,8 @@ No new event, payload or channel.
 - [x] 3. A test: a JSON, an XML, a `WidgetText` and a `TextBlock` cell take a
       character, an arrow and Backspace, in both forms of the table.
 - [x] 4. Run the table tests and the REPL loop of the table examples.
-- [ ] 5. A cell of a list table gets the caret. Blocked: needs a change in a
-      sealed kernel file; see "Open" below.
+- [x] 5. A cell of a list table gets the caret. The owner gave permission for
+      the sealed `selection/SelectionDefaults.jl` on 2026-09-27.
 
 ## What was done
 
@@ -71,13 +71,12 @@ No new event, payload or channel.
 - A header cell with a caret in it (`column_headers[c].…`) also gets its keys,
   but a click on a header selects the column, so no caret reaches a header by a
   click today.
-- `widget.md` says that the table gives a key to the cell its selection is in,
-  and that a cell of a list gets no caret.
+- `widget.md` says that the table gives a key to the cell its selection is in.
 
 ## Test results (2026-09-27)
 
 - `test_widget_table_cell_editing()` (substrate): 42 pass, 2 broken (the list
-  form, below). `test_table_cell_editing()` (umbrella, JSON and XML cells):
+  form, fixed in step 5). `test_table_cell_editing()` (umbrella, JSON and XML cells):
   pass.
 - The table suites of the substrate and `test_table_selection`,
   `test_table_navigation`: the same counts as `main` (`TableSelection` has 9
@@ -91,18 +90,39 @@ No new event, payload or channel.
   The same edit gives `nothing` outside a table, so they belong to the math
   projection.
 
-## Open
+## Step 5: the selection walk steps into a list
 
-- **A cell of a list table gets no caret.** `set_selection!` walks the path
-  with `_selection_child` in `source/kernel/selection/SelectionDefaults.jl`
-  (🔒). For a range step it needs `applicable(length, document)`, and a
-  `ListNode` has no `length` (it can be lazy and endless), so the walk stops at
-  the list and the cell's own `selection` stays `nothing`. The reference
-  evaluation of the same step (`evaluate_reference_step`) indexes with
-  `document[start + 1]` and has no such check. A fix is in the sealed file and
-  needs the owner's permission for that file.
+`set_selection!` walks the path with `_selection_child` in
+`source/kernel/selection/SelectionDefaults.jl` (🔒). For a range step it needed
+`applicable(length, document)`, and a `ListNode` has no `length` (it can be lazy
+and endless), so the walk stopped at the list and the cell's own `selection`
+stayed `nothing`. The reference evaluation of the same step
+(`evaluate_reference_step`) indexes with `document[start + 1]` and has no such
+check.
+
+`_find_indexed_child(document, index)` now answers the child: a sequence with a
+length is checked against it as before; one with none is indexed as
+`evaluate_reference_step` indexes it, and a `BoundsError` means no child. The
+kernel can not name `ListNode`, which lives in the collection package, so the
+check is by what the node answers, not by its type. The other types with an
+integer `getindex` and no `length` of their own are `HiddenElements`, an
+`AbstractVector` that has a length, and `_Repeated`, a helper of the reflection
+walk that no selection passes. The owner gave permission for the sealed file.
+
+Results on the branch rebased on `main` at 4d9f08e3, against the same sets on
+`main` in the same process: `test_widget_table_cell_editing()` passes in both
+forms; `test_kernel()` has the six known failures of `main`; `test_substrate()`
+has only the `AnchorPointTest` and `SplitPaneDragTest` failures that `main` has;
+the table and `collection` examples have the counts of the first run.
+
+`lazy_example` is left out of the sweep: its reader never ends on `main` too.
+`read_intent` of `TextToGraphics` calls `_has_caret_span`, which runs `any` over
+an endless `ListNode` of text. That is not part of this change.
+
+## Not done
+
 - **A drag in a cell does not reach the cell.** The table takes every
   `MouseMove` for its hover band, and `_wt_grid_passthrough` gives the grid
   table coordinates, not grid coordinates, for `MouseDown`, `MouseUp` and
-  `MouseScroll`. So a text selection by drag inside a cell does not work. This
-  is not part of this change.
+  `MouseScroll`. So a text selection by drag inside a cell does not work. The
+  owner chose to leave it out on 2026-09-27.
