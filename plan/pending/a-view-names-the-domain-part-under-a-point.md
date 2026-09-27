@@ -126,7 +126,7 @@ reader, which uses the mapping.
   at that point, a reference that ends in a point step. Inside a view, every
   move of the pointer then gives a new path, and the target tracker sends a
   leave and an enter at each move. Claude's recommendation: the tracker
-  compares targets without a trailing point step. This belongs to step 7 of
+  compares targets without a trailing point step. This belongs to step 8 of
   the events plan, and it is recorded here because a view with a chart shows
   it first.
 - **Q5. The order of work.** Claude's recommendation: first the views that a

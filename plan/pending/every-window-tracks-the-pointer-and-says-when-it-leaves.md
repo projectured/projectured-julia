@@ -3,8 +3,8 @@
 > **Status (2026-09-26): taken over.** Steps 1 and 2 are done on the branch
 > `window-leave`. The owner approved the plan
 > [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) on the
-> same day, and it takes over the rest: step 3 of this plan is its step 7, step 4
-> is its step 10, and the live check of step 5 is part of its step 7. This plan
+> same day, and it takes over the rest: step 3 of this plan is its step 8, step 4
+> is its step 11, and the live check of step 5 is part of its step 8. This plan
 > moves to `plan/done/` with that plan.
 
 Follows [a-popup-shows-every-item-on-a-popover-and-a-help-page-scrolls.md](../done/a-popup-shows-every-item-on-a-popover-and-a-help-page-scrolls.md).

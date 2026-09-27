@@ -77,7 +77,8 @@ All of them are from 2026-09-26.
   possible questions?"
 - **D8.** Gesture recognition leaves the kernel, and projections do it. The owner
   allows the unsealing of `gesture/GestureRecognizerModule.jl` and
-  `gesture/GestureRecognizer.jl`.
+  `gesture/GestureRecognizer.jl`. (Refined by D51: the mechanism of the
+  recognition is in the kernel gesture layer, and a projection uses it.)
 - **D9.** Three tracking projections, as §1 lists them. The gesture tracking
   projection is the one that most hosts use, but a host does not have to.
 - **D10.** The state of a tracking projection is a document, written by an
@@ -144,7 +145,8 @@ All of them are from 2026-09-26.
   - `abstract type Gesture end`, beside `Event` and not under it. A place that
     takes both takes `Union{Event,Gesture}`; there is no common root type.
   - `DeviceEvent` goes away.
-  - The gesture types stay in the event layer of the kernel.
+  - The gesture types stay in the event layer of the kernel. (Changed by D49:
+    they are in the gesture layer.)
   - A gesture has the name form of an event, `<Source><Action>`, and the naming
     rules say so. The new gestures: `MouseHover`, `MouseDwell`, `DragStart`,
     `DragMove`, `DragHover`, `DragEnd`. `MouseEnter`, `MouseLeave` and
@@ -213,6 +215,49 @@ All of them are from 2026-09-26.
   projection)` in the screen package, the function of D15, with a keyword for
   each tracker (`gesture_tracking = true` in step 6). `make_editor`, the gallery
   and every host that makes an editor call it. (Q20, owner 2026-09-27.)
+- **D49.** The kernel has an event layer and, right above it, a gesture layer,
+  because they hold different things. The event layer holds the records of what
+  the hardware or the system did, with no meaning: the events, `ModifierKeys`,
+  `MouseButtons`, and the pattern of one event, which names no gesture. The
+  gesture layer holds `abstract type Gesture` and the standard gesture types,
+  also the ones that the trackers make (`MouseClick`, `KeyChord`, `MouseDwell`,
+  `MouseEnter`, `MouseLeave`, and the hover and drag gestures when they come),
+  the recognition protocol of D51 and the case macro of D50. The binding layer
+  stays above the intent layer, because the meaning of a gesture is an
+  operation. The layers follow the ladder of the naming rules: Event → Gesture →
+  Intent → Operation. This changes D31, which kept the gesture types in the
+  event layer. (Q21, owner 2026-09-27.)
+- **D50.** One case macro for the readers, `@gesture_case`, in the gesture
+  layer. It matches events and gestures, because a reader receives both (D23),
+  and an event is the gesture of one event. It takes the place of
+  `@event_case`. (Q22, owner 2026-09-27.)
+- **D51.** The recognition machinery is in the kernel gesture layer, open to new
+  gestures, and a projection uses it. Each kind of gesture is one pure
+  recognition: `abstract type GestureRecognition`, a function that makes its
+  first state, and `recognize(recognition, state, input, window)`, which answers
+  a `RecognitionStep` with the next state, the gestures that the input
+  completes, a deadline or `nothing`, and whether the input is held (a key of a
+  chord, a click during a drag). A timer is one more input: at the deadline, the
+  recognition reads the `TimerExpire`. A recognition answers a deadline and not
+  an operation, so the gesture layer needs nothing above it. The click, the
+  chord and the dwell are standard recognitions of the kernel.
+  `GestureTrackingProjection(; inner, recognitions)` runs the recognitions in
+  order, so the gestures of one are inputs of the next; it keeps the state of
+  each recognition in its wrapper document (D10), turns a deadline into a timer,
+  and gives the gestures to the content after the event (D46). A package adds a
+  gesture with a gesture type, a recognition and its methods, and a host adds
+  the recognition to the list, as a package extends the case macro. This
+  refines D8: the editor recognizes nothing, a projection recognizes, and the
+  mechanism that it uses is in the kernel. The names are Claude's proposal, and
+  the naming guard checks them when they are written. (Q23, owner 2026-09-27.)
+- **D52.** The mouse target tracker and the drag tracker do more than recognize:
+  they need the part under the point, and they give their gestures by route to
+  that part (D12, D13). Whether their state machines use the recognition
+  protocol with a view context is decided at step 8, when the first of them is
+  built. Their delivery by route stays in their own projections. (Q24, owner
+  2026-09-27.)
+- **D53.** `WindowInput` is generic over its input, so it stays in the event
+  layer and names no gesture. (Owner 2026-09-27.)
 
 ## 3. What is wrong today
 
@@ -417,7 +462,8 @@ The direction that follows from the decisions so far:
 1. Remove `SyntheticEvent` (D3). The events stay under `Event`, and the gestures
    get a type tree of their own.
 2. Remove the gesture layer from the kernel (D8). The editor gives events to the
-   projection; the tracking projections make the gestures (D9).
+   projection; the tracking projections make the gestures (D9), with the
+   recognitions of the kernel's new gesture layer (D49, D51).
 3. Keep the state of each tracking projection in a document, written by view
    state operations (D10).
 4. Make every projection that ends in graphics map a `PointReferenceStep`
@@ -471,7 +517,7 @@ The direction that follows from the decisions so far:
   `map_reference_backward` answers `nothing` on purpose, with comments such as
   "no caret into a log (v1)". A point on a button of such a view stops there,
   so the part under the pointer is the whole view. With the mouse target
-  tracker of step 7, an enter and a leave then reach the view and not the
+  tracker of step 8, an enter and a leave then reach the view and not the
   button, so the button does not light. Today the hover tracker finds the
   button by its position, so nothing shows the fault yet. Three ways:
   - **Claude's recommendation: an introduced reference.** The view maps a
@@ -485,7 +531,7 @@ The direction that follows from the decisions so far:
     reference. This is the most exact answer, but each of the 45 views needs
     its own knowledge. It can come later, view by view, in a plan of its own.
   - **No change.** The whole view is the part, and the buttons of a view do
-    not light on hover after step 7.
+    not light on hover after step 8.
 
 The questions of keyboard navigation are in the plan of D33.
 
@@ -566,7 +612,7 @@ it holds the example.
     tool skips). No data file names the type.
   - The test gesture `EmTestRestEvent` is `EmTestRestGesture`, and its
     description is "em test rest gesture".
-  - The rule `PAR-NO-NEW-SYNTHETIC-EVENT` still names `SyntheticEvent`. Step 10
+  - The rule `PAR-NO-NEW-SYNTHETIC-EVENT` still names `SyntheticEvent`. Step 11
     writes it again (D16).
   - Checks, each compared with the same run on `main` (`a74de4ef`):
     - the naming guard passes; `Pkg.precompile` of `environment/all` compiles
@@ -676,7 +722,7 @@ it holds the example.
     `test_routed_gesture` (substrate, 7 pass: a routed enter lights the button
     that it names inside a composite inside a split pane, and no other; a routed
     leave clears it wherever the pointer is; a route to nothing answers
-    nothing). The list reads no route until step 7, so the kernel test covers a
+    nothing). The list reads no route until step 8, so the kernel test covers a
     route deeper than a leaf with a probe leaf.
   - Compared with `main`: the kernel, substrate, shell, referenced document,
     application, mouse click and history sweep suites fail the same tests;
@@ -826,9 +872,9 @@ it holds the example.
     inet-julia. So Tab starts over as before. The program builder and the
     campaign window reach it as `ProjecturedWidget.FocusModule`, because they
     load `ProjecturedWidget` and not `ProjecturedFocus`.
-  - A fact for step 7: the gallery and the campaign window add the hover
+  - A fact for step 8: the gallery and the campaign window add the hover
     tracker only with their `hover` flag, so the start over still comes and
-    goes with that flag (D2 says they are unrelated). Step 7 changes these
+    goes with that flag (D2 says they are unrelated). Step 8 changes these
     compositions, and must keep the start over when it removes the hover
     tracker.
   - The focus, widget and shell guides name the new wrapper.
@@ -876,7 +922,7 @@ it holds the example.
     it; one motion, one dwell), but **a key does not stop it**: a dwell is no
     motion of the mouse (D4), and a write of the state on a key would make the
     answer to every key an operation, which hides Escape and the zoom keys from
-    the editor. Step 8 decides whether a key closes a tooltip. With a chord
+    the editor. Step 9 decides whether a key closes a tooltip. With a chord
     table, a kept or a broken chord writes the state, so Escape and the zoom keys
     can not follow a kept key; no running editor has a chord table.
   - [x] 6c. The code that reads the root of the editor as the screen finds it
@@ -916,7 +962,27 @@ it holds the example.
   `test_qtenv` give the same summaries as on `main`; omnet-julia and inet-julia
   need no change, because their windows open through the screen's
   `make_editor` and the gallery.
-- [ ] 7. **The mouse target tracking package (D6, D13, D17, D27, D29).**
+- [ ] 7. **The gesture layer of the kernel (D49 to D53).** Added with the
+  owner's agreement on 2026-09-27, before the next tracker, so that the next
+  trackers are built on it.
+  - A kernel layer `gesture/`, right above `event/`, holds `Gesture`, the
+    standard gesture types and their patterns, `@gesture_case`, and the
+    recognition protocol with the recognitions of the click, the chord and the
+    dwell, which move out of the package of step 6.
+  - The event layer keeps the events, `ModifierKeys`, `MouseButtons`, the
+    pattern of one event, and `WindowInput`, generic over its input.
+  - `@gesture_case` takes the place of `@event_case` in the three repositories,
+    with the rename tool.
+  - `GestureTrackingProjection(; inner, recognitions)` runs the recognitions in
+    order, and `GestureTrackingState` keeps one state for each recognition and
+    the inputs that wait. `make_tracking_screen` gives the standard list.
+  - Tests: each standard recognition alone, inputs in and gestures out; the
+    projection (the order of the recognitions, a held input, a deadline that
+    becomes a timer, the delivery after the event); a recognition of a test
+    package, for example a long press, that a host adds and that its reader
+    then receives, which proves the extension; the tracking screen test; the
+    kernel layering guard; no `@event_case` is left.
+- [ ] 8. **The mouse target tracking package (D6, D13, D17, D27, D29, D52).**
   `ProjecturedMouseTargetTracking`, with `MouseTargetTrackingState` and
   `MouseTargetTrackingProjection`. On each move, it maps the point backward (step
   4). It sends a leave and an enter along the path that changes, by route (step
@@ -928,13 +994,13 @@ it holds the example.
   it off (H3); a row of a list turns off when the pointer moves onto another
   widget (§3.4); a list that scrolls under a still pointer lights the row that is
   now under it (D41); a light changes the layout of no widget (D44); a live check on the display, with the owner's word for XTest.
-- [ ] 8. **The probes go away (D7).** A tooltip is the meaning of a `MouseDwell`
+- [ ] 9. **The probes go away (D7).** A tooltip is the meaning of a `MouseDwell`
   on the target, and `compute_tooltip` stays; the feed, the probe and
   `PointerRest` of the tooltip package go away. The inspector reads the target.
   The context menu is the meaning of a right click at the part. Tests: a tooltip
   opens after a dwell in any window, not only the first; the inspector shows the
   part under the pointer; the context menu opens for the part.
-- [ ] 9. **The drag tracking package (D14, D19, D20, D21, D26, D29).**
+- [ ] 10. **The drag tracking package (D14, D19, D20, D21, D26, D29, D52).**
   `ProjecturedDragTracking`, with `DragTrackingState` and
   `DragTrackingProjection`. A drag starts after a small move; the reader answers
   a drag start operation that names the target; then `DragMove`, `DragHover`
@@ -945,13 +1011,13 @@ it holds the example.
   drag state goes away. Tests: each drag; a short press on a tab still selects
   it; a drag over a button does not light it; a drag that leaves the window
   ends in one defined way.
-- [ ] 10. **The rules and the documents (D16, D40).** `PAR-NO-NEW-SYNTHETIC-EVENT`
+- [ ] 11. **The rules and the documents (D16, D40).** `PAR-NO-NEW-SYNTHETIC-EVENT`
   is written again; the rules of D40 and D44 join the invariants; the concepts (event,
   gesture, tracking projection) go into the design documents; the documents of
   the kernel, the widgets, the screen, the tooltip, the dragging and the
   backends change. This step takes step 4 of the plan
   [every-window-tracks-the-pointer-and-says-when-it-leaves.md](every-window-tracks-the-pointer-and-says-when-it-leaves.md).
-- [ ] 11. **The check against `main`, and the move of this plan and of the plan of
+- [ ] 12. **The check against `main`, and the move of this plan and of the plan of
   `WindowLeave` to `plan/done/`.**
 
 Not in the steps: the web client sends no motion while no button is held (study
