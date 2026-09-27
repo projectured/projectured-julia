@@ -201,6 +201,21 @@ function execute_julia_expression(set::ToolSet, target, expression;
     output
 end
 
+# A statement of a call runs with the scope rule of the Julia REPL: an assignment
+# in a loop at the top level assigns the global of that name, as it does at the
+# prompt. Evaluated as it is, the loop makes a new local variable instead and
+# leaves the global as it was, which a caller reads as data that changed under
+# it. The mark in front of the statement is the one `REPL.softscope` puts there,
+# and the lowering of Julia reads it.
+function _make_soft_scope(statement)
+    statement isa Expr || return statement
+    statement.head in (:meta, :import, :using, :export, :module, :error, :incomplete, :thunk) &&
+        return statement
+    statement.head === :global && all(argument -> argument isa Symbol, statement.args) &&
+        return statement
+    Expr(:block, Expr(:softscope, true), statement)
+end
+
 # Everything an evaluation does after the parse. `make_expression` runs inside
 # the guard, so a failure to make the expression is answered like any other.
 # `describe_value` renders the last value once the capture is closed, so its
@@ -224,10 +239,10 @@ function _run_expression(set::ToolSet, target, make_expression::Function;
             if expr isa Expr && expr.head == :toplevel
                 for e in expr.args
                     e isa LineNumberNode && continue
-                    result = Core.eval(m, e)
+                    result = Core.eval(m, _make_soft_scope(e))
                 end
             else
-                result = Core.eval(m, expr)
+                result = Core.eval(m, _make_soft_scope(expr))
             end
         end
         set.last_value = result

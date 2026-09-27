@@ -44,6 +44,14 @@ function test_code_execution()
         @test startswith(printed, join(string.(1:300), '\n') * "\n(1, 2, 3")
     end
 
+    @testset "a loop at the top level assigns the global, as at the prompt" begin
+        @test run("found = nothing\nfor i in 1:3\n    if i == 2\n        found = i\n        break\n    end\nend\nfound") == "2\n"
+        @test run("total = 0\nfor i in 1:4\n    total += i\nend\ntotal") == "10\n"
+        # A definition and a constant still work at the top level.
+        @test run("const LIMIT = 3\nf(x) = x + LIMIT\nf(1)") == "4\n"
+        @test run("struct Point\n    x::Int\nend\nPoint(5).x") == "5\n"
+    end
+
     @testset "a short value is unchanged" begin
         @test run("1 + 1") == "2\n"
         @test run("\"a word\"") == "\"a word\"\n"
