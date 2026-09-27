@@ -67,7 +67,7 @@ the input from its own stamps: SDL converts the ticks of its events, the web pag
 sends the time of each browser event, and the console takes the time when it
 reads the bytes. Code that makes an event from another event, such as a reader
 that moves a pointer event into the space of a child, gives the time of that
-event. The gesture recognizer compares these times, so a slow frame between a
+event. A gesture tracking projection compares these times, so a slow frame between a
 press and its release does not lose a click.
 
 This vocabulary is what insulates a `TextToGraphics.read_intent` (which
@@ -219,7 +219,7 @@ arguments; `WebBackend`'s constructor defaults `host`/`port`.
 - **`read_from_devices`** is non-blocking: a receive task decodes the client's
   JSON events into the backend-agnostic vocabulary (`MouseDown`, `KeyPress`, …)
   wrapped in `WindowInput`s on a `Channel`; the editor drains it each frame.
-  The backend makes no `MouseClick`: the gesture recognizer of the editor makes
+  The backend makes no `MouseClick`: a gesture tracking projection makes
   it from a `MouseDown` and a `MouseUp`, as for SDL. [web.md](../web/web.md) is
   its design document.
 - **`wait_for_input`** blocks on an autoreset gate until the receive task puts
@@ -350,11 +350,13 @@ is the contract that keeps backends interchangeable.
 # Internals
 
 The remainder of this guide documents the kernel-internal module structure
-behind the two abstractions: **devices** — the input event vocabulary, the
-device types, and gesture recognition, spread across three layers (`event/`,
-`device/`, `gesture/`) — and the **backend layer**. They are independent
-siblings: the event/device/gesture layers name no backend type, and the two
-abstractions only come together in a concrete implementation. Gesture
+behind the two abstractions: **devices** — the input event vocabulary and the
+device types, spread across two layers (`event/`, `device/`) — and the
+**backend layer**. They are independent siblings: the event/device layers
+name no backend type, and the two abstractions only come together in a
+concrete implementation. Gesture recognition — a click, a double click, a key
+chord, a dwell — is not a kernel layer; see
+[Where gestures are recognized](#where-gestures-are-recognized) below. Gesture
 *bindings*, where a gesture acquires meaning against a document, are a
 separate, much higher layer (`binding/`); see
 [below](#gesture-bindings-a-separate-higher-layer).
@@ -424,8 +426,8 @@ is exported, with no entry to add here.
 
 `WindowInput` wraps every event with the id of the window it came from. It
 lives in `EventModule`, not in the concrete `ScreenModule` document,
-because it is a protocol type consumed by the editor loop, the gesture
-recognizer, and the window-input-unwrapping projection — a plain struct
+because it is a protocol type consumed by the editor loop, a gesture
+tracking projection, and the window-input-unwrapping projection — a plain struct
 declaration for a protocol type does not belong inside a concrete
 document; keeping it here means the kernel has no edge onto `ScreenDocument`.
 
@@ -458,34 +460,23 @@ the concrete backend, which also fills in the physical properties at start-up
 via `configure_devices!`. That keeps the device and backend abstractions
 independent siblings, bound only by a concrete implementation.
 
-## The gesture layer (layer 8)
+## Where gestures are recognized
 
-Layer 8 of the kernel — **the recognition of gestures in the event stream**: a
-combination or a sequence that exists only across several events (a click, a
-double click, a key chord) becomes one gesture. The recognition takes events and
-gives the events and the gestures, so this layer names no document and no
-operation. What
-a gesture means is decided where it is bound, in the `binding/` layer far above.
+The kernel has no gesture layer. `read!` gives the projection each input of the
+backend, a `WindowInput` with an event and a window id, or a due timer, a
+`TimerExpire`. The editor recognizes no gesture.
 
-The layer lives in [source/kernel/gesture/](../../../source/kernel/gesture/):
+A projection recognizes a gesture that several events make: a click with its
+count, a key chord, a mouse dwell. It is `GestureTrackingProjection` in the
+substrate package `ProjecturedGestureTracking`, and a host wraps the document of
+the editor in its `GestureTrackingState`. An editor whose projection has no
+gesture tracker gets events and no gestures. See
+[gesturetracking.md](../gesturetracking/gesturetracking.md). The meaning of a
+gesture is decided where it is bound, in the `binding/` layer.
 
-```
-GestureRecognizerModule.jl (GestureRecognizerModule) — the module: its docstring, exports, and fragment
-        └─ GestureRecognizer.jl — the recognizer, recognize_gesture! and pop_gesture!
-```
+## The backend layer (layer 8)
 
-`GestureRecognizer` holds the state of the recognition for one editor.
-`recognize_gesture!` takes one `WindowInput` and answers what to deliver now:
-the input itself, a gesture that it completes (a `KeyChord`), or `nothing` when
-the recognizer keeps the input (the first key of a chord). A `MouseClick` follows
-its `MouseUp` in the queue of the recognizer. `pop_gesture!` is the pull of the
-editor: it delivers the queue first, then the next input. A click needs the
-press and the release of the same button in the same window. A gesture carries
-no intent. The only import of the layer is `EventModule`.
-
-## The backend layer (layer 9)
-
-Layer 9 of the kernel — **rendering targets**. The layer carries the abstract
+Layer 8 of the kernel — **rendering targets**. The layer carries the abstract
 `Backend` type and the backend generics; the concrete backends live in opt-in
 packages, and the dependency-free `HeadlessBackend` test double lives in
 `ProjecturedKernelExample` (PAR-NO-TEST-DOUBLES-IN-MAIN keeps doubles out of `main`).
@@ -547,9 +538,9 @@ agent, or editor.
 Recognising a gesture and giving it *meaning* are different heights: a
 gesture is a combination of events and carries no intent, but deciding what a
 `MouseClick` does to a `JsonArray` needs `Document` and `Operation`. That
-pulls gesture bindings up to layer 15 — `binding/` — above `document/`,
+pulls gesture bindings up to layer 14 — `binding/` — above `document/`,
 `reference/`, `selection/`, and `operation/`, rather than beside the
-event/device/gesture layers above.
+event/device layers above.
 
 The layer lives in [source/kernel/binding/](../../../source/kernel/binding/):
 

@@ -60,7 +60,7 @@ The walk runs in both modes, because it also tells whether a frame differs from 
 | window close, window resize | `WindowClose`, `WindowResize` |
 | `SDL_QUIT` | `WindowQuit` on the id `:none` |
 
-Escape is an ordinary `KeyDown`. The backend makes no `MouseClick`: the `GestureRecognizer` of the editor builds a click from a down and an up. A run of motion events gives only its newest sample. An event that ends the run waits in `pending_input` for the next call, so a click never comes before the motion that led to it. Motion with no button held gives at most one sample in 30 ms, and a held sample is kept, so the last position of a pointer that stops arrives. `pending_input` and `pending_motion` are fields of the backend, so two backends in one process never share an event.
+Escape is an ordinary `KeyDown`. The backend makes no `MouseClick`: a gesture tracking projection builds a click from a down and an up. A run of motion events gives only its newest sample. An event that ends the run waits in `pending_input` for the next call, so a click never comes before the motion that led to it. Motion with no button held gives at most one sample in 30 ms, and a held sample is kept, so the last position of a pointer that stops arrives. `pending_input` and `pending_motion` are fields of the backend, so two backends in one process never share an event.
 
 ### Wait and wake
 

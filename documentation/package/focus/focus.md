@@ -23,7 +23,7 @@ The containers apply the walk. A layout, a `WidgetComposite` and a `WidgetSplitP
 - `is_focusing_press(event)` is `true` for a left `MouseDown` with no modifier.
 - `convert_to_focus_selection(operation, child)` is the answer of a container for such a down that hit `child`, where `operation` is the answer of `child`. A focusable `child` that answered `nothing` and holds no selection gets `ReplaceSelectionOperation` of itself as a whole, the selection that Tab gives it. Every other answer is kept.
 
-The focus moves on the down, and a control acts on the press that the gesture recognizer makes after the up. So the move of the focus is an operation of its own, and a projection that can not map it drops only the move. A control that answers the down itself keeps its answer, so it does not take the focus from a press. The rule is applied in `read_child_event`, with the Alt+press rule below.
+The focus moves on the down, and a control acts on the press that a gesture tracking projection makes after the up. So the move of the focus is an operation of its own, and a projection that can not map it drops only the move. A control that answers the down itself keeps its answer, so it does not take the focus from a press. The rule is applied in `read_child_event`, with the Alt+press rule below.
 
 ### The whole-element selection
 

@@ -10,7 +10,7 @@ and no synonyms.
 ## The terms
 
 - **Package** — a Julia package with its own `Project.toml`. The project
-  consists of packages: the `ProjecturedKernel` engine, the twenty-eight
+  consists of packages: the `ProjecturedKernel` engine, the twenty-nine
   packages of the substrate, the twenty domain packages, the `Projectured`
   umbrella, their sibling test and example packages, and the opt-in packages
   (`sdl`, `web`, `odbc`, `video`, `tulip`, `llm`, `mcp`, …). A package is one
@@ -20,8 +20,8 @@ and no synonyms.
 - **Layer** — a horizontal stratum inside a package, and it holds exactly one
   module. Layers are **ordered**: a layer may depend only on **lower** layers,
   never sideways or up. The kernel is the one layered package, with
-  twenty-three layers (`fault` → `performance` → `cell` → `struct` → `clock` →
-  `event` → `device` → `gesture` → `backend` → `document` → `reference` →
+  twenty-two layers (`fault` → `performance` → `cell` → `struct` → `clock` →
+  `event` → `device` → `backend` → `document` → `reference` →
   `selection` → `operation` → `intent` → `binding` → `iomap` → `projection` →
   `tool` → `llm` → `agent` → `feed` → `editor` → `playback`). Every other
   package is one concept and declares no layer.

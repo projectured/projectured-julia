@@ -47,7 +47,7 @@ A layer holds **exactly one module**, and the package top file includes one
 module file per layer, in layer order — so the top file reads as the layer
 diagram, and each module file reads as its layer's table of contents through
 its fragment include list (the kernel does this: `ProjecturedKernel.jl` is
-twenty-three module includes). Two sibling modules in one folder mean either
+twenty-two module includes). Two sibling modules in one folder mean either
 one concept split in two — merge them — or two layers sharing a folder —
 give each its own.
 

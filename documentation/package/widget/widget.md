@@ -79,7 +79,7 @@ A tabbed pane draws its first tab when its selection names no tab. `has_dormant_
 
 A left button down with no modifier gives the focus to the control under the pointer. The rule is in `read_child_event`, which every widget container calls to give a press or a down to a child. When the down lands on a focusable child that answers nothing and holds no selection, `convert_to_focus_selection` of the focus package answers `ReplaceSelectionOperation` of the child as a whole. That is the selection that Tab gives the child. So a key after the click goes to the control that was pressed.
 
-The focus moves on the down, and the control acts on the press that the gesture recognizer makes after the up. So the move of the focus and the action are two operations. A projection that can not map the selection, such as `ObjectToWidget`, drops the move of the focus, and the press still acts. A control that answers the down itself keeps its answer and does not take the focus: a button answers the down with its pressed look. `WidgetMenu` and `WidgetToolbar` give no down to their items, so a menu item and a toolbar item leave the focus in the content.
+The focus moves on the down, and the control acts on the press that a gesture tracking projection makes after the up. So the move of the focus and the action are two operations. A projection that can not map the selection, such as `ObjectToWidget`, drops the move of the focus, and the press still acts. A control that answers the down itself keeps its answer and does not take the focus: a button answers the down with its pressed look. `WidgetMenu` and `WidgetToolbar` give no down to their items, so a menu item and a toolbar item leave the focus in the content.
 
 ### Selecting a whole widget
 

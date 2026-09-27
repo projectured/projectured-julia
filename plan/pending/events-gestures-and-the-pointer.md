@@ -847,7 +847,7 @@ it holds the example.
   tracker over the new wrapper. In inet-julia, `test/presentation/demo.jl`
   passes 219, as on `main`, in a scratch environment on the three worktrees.
 
-- [ ] 6. **The gesture tracking package (D8, D9, D25, D30, D32).**
+- [x] 6. **The gesture tracking package (D8, D9, D25, D30, D32).**
   `ProjecturedGestureTracking`, with `GestureTrackingState` and
   `GestureTrackingProjection`: the click with its count, the chord and the dwell
   (steps 2 and 1). The editor no longer owns a recognizer, and the gesture layer
@@ -855,6 +855,67 @@ it holds the example.
   screen, and every host uses it, also those of omnet-julia. The tests of the
   recognizer move to the package. Tests: the moved tests of the recognizer, the
   test of the input of SDL, the application.
+
+  Done on the branch `gesture-type`, with the decisions D46 to D48:
+
+  - [x] 6a. `MouseDwell(x, y, modifiers, time)`, a gesture of the kernel event
+    layer, with `MouseDwellPattern`.
+  - [x] 6b. `ProjecturedGestureTracking` (`source/gesturetracking/`), a
+    substrate package that depends only on the kernel. `GestureTrackingState`
+    wraps the content and keeps `presses`, `last_click`, `chord_keys`, `waiting`
+    and `motion`, each an immutable value that a view state operation replaces.
+    `GestureTrackingProjection` prints the content through `inner` (not through
+    the recursion, so the screen stays the root of its own world), gives every
+    event to the content and adds the `content` step to the answer, and follows
+    a route through `get_child_iomaps` and `read_routed_child`. The click and the
+    kept keys of a broken chord wait in `waiting`; the timer
+    `:gesture_tracking_waiting` at the time of the event brings them in, one in
+    each read. The dwell timer is `:gesture_tracking_dwell`. A dwell follows the
+    rules of the tooltip probe for the mouse (a move with no button starts the
+    wait; a move with a button, a down, a click, a scroll and `WindowLeave` stop
+    it; one motion, one dwell), but **a key does not stop it**: a dwell is no
+    motion of the mouse (D4), and a write of the state on a key would make the
+    answer to every key an operation, which hides Escape and the zoom keys from
+    the editor. Step 8 decides whether a key closes a tooltip. With a chord
+    table, a kept or a broken chord writes the state, so Escape and the zoom keys
+    can not follow a kept key; no running editor has a chord table.
+  - [x] 6c. The code that reads the root of the editor as the screen finds it
+    with `get_wrapped_document`: the kernel opens the native windows of the
+    screen (`make_editor`, `play_live!`), `get_window_tree` finds the tree, and
+    the tooltip feed reads the first window. The code that searches from the
+    root works unchanged, except that a pane search did not step from a wrapper
+    into a screen: `_can_hold_pane` now counts a document with `windows`.
+  - [x] 6d. The kernel has no gesture layer: `source/kernel/gesture/` is gone,
+    the editor has no `recognizer`, and `read!` gives each input of the backend,
+    or a due timer, to the projection; the kernel has twenty-two layers. The
+    screen package depends on the tracking package and has
+    `make_tracking_screen`; its `make_editor` and the gallery
+    (`_make_window_scene_editor`, behind `make_example_editor` and `run_example`)
+    use it, so every host of the three repositories that opens a window gets
+    the tracker. `run_frame!` reads the waiting click in the same frame as the
+    release. The SDL test keeps its check of the times that SDL stamps.
+  - Not changed: the precompile workloads and the warm-ups
+    (`source/repl/record/driver.jl`, `Application.jl`, `FileEditor.jl`, the
+    workloads of omnet-julia and inet-julia) drive `read_intent` with events
+    that they build, never through `read!`, so they never used the recognizer.
+    They do not compose the tracker, so the first press of a new session
+    compiles its reader. Adding it to them, and a timing check, waits for the
+    owner.
+  - The guides describe the kernel of twenty-two layers, the read loop with no
+    recognizer, the tracking projection, and the root of the editor under the
+    state; `SEALING.md` has no gesture layer, and its later layers moved down.
+
+  Tests: `test_gesture_tracking` 39 pass; the new `test_tracking_screen` presses
+  a button through a real editor and a headless backend, and it clicks once with
+  the tracker and never without it; `test_shell`, `test_input_coalescing`,
+  `test_referenced_document_editor`, `test_history_sweep`, the layering guards
+  and the naming guard pass; `test_kernel`, `test_substrate`,
+  `test_mouse_clicks` and `test_application` fail the same tests as `main`
+  (the application test that makes its editor with `make_editor` now finds the
+  screen under the state). In omnet-julia the 64 test functions and
+  `test_qtenv` give the same summaries as on `main`; omnet-julia and inet-julia
+  need no change, because their windows open through the screen's
+  `make_editor` and the gallery.
 - [ ] 7. **The mouse target tracking package (D6, D13, D17, D27, D29).**
   `ProjecturedMouseTargetTracking`, with `MouseTargetTrackingState` and
   `MouseTargetTrackingProjection`. On each move, it maps the point backward (step

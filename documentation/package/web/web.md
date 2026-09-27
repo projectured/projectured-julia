@@ -51,7 +51,7 @@ Each client message holds `t`: the time of its browser event in milliseconds sin
 | `quit` | `WindowQuit` |
 | `resync` | no event; the next frame goes in full |
 
-`convert_web_key_to_symbol` maps the `key` and `code` of a browser key event to the key symbols that `sdl_keysym_to_symbol` gives, so both backends speak one vocabulary. Escape is an ordinary key. The backend makes no `MouseClick`: the `GestureRecognizer` of the editor builds the click, as for SDL.
+`convert_web_key_to_symbol` maps the `key` and `code` of a browser key event to the key symbols that `sdl_keysym_to_symbol` gives, so both backends speak one vocabulary. Escape is an ordinary key. The backend makes no `MouseClick`: a gesture tracking projection builds the click, as for SDL.
 
 ### Wait and wake
 

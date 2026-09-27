@@ -902,7 +902,7 @@ thousands of `computes` means something reads more cells than necessary).
 **No process-global state in the editor or the machinery it drives; one process
 must run many editors at once.** Every piece of mutable runtime state an editor
 touches — its `document`, `selection`, `iomap`, in-flight `operation`,
-`GestureRecognizer`, animation clock, and per-frame performance counters — must
+animation clock, and per-frame performance counters — must
 live on the `Editor` instance (or on values reachable only from it), never in a
 module-level `const` cell, `Ref`, `Dict`, or counter. This is a correctness
 requirement, not a style preference: it is what lets one Julia process host

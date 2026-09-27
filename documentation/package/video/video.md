@@ -27,7 +27,7 @@ record_video(document, projection, gestures, filename;
 | `(operation = op, hold = h)` | evaluates `op`, or `op(document)` when `op` is a function; for an action that no single event makes |
 | `(await = predicate, hold = h)` | emits one frame and yields, again and again, until `predicate(document)` returns `true` or `h` seconds of wall-clock time pass |
 
-The event goes straight to the reader, with no `WindowInput` and no `GestureRecognizer`. So a click is a `MouseClick` entry; a `MouseDown` and a `MouseUp` do not make one. `initial_selection` sets the selection before the first frame, and `nothing` clears it. A `KeyPress` edits only when something is selected, so a typing demo needs an `initial_selection` or a first `MouseClick`. `make_typein_gestures(text)` in `example/kernel/Harness.jl` makes the `KeyPress` entries of a text, and `timed_await(predicate)` in `example/sdl/LiveExamples.jl` makes an `await` entry.
+The event goes straight to the reader, with no `WindowInput` and no gesture tracking projection. So a click is a `MouseClick` entry; a `MouseDown` and a `MouseUp` do not make one. `initial_selection` sets the selection before the first frame, and `nothing` clears it. A `KeyPress` edits only when something is selected, so a typing demo needs an `initial_selection` or a first `MouseClick`. `make_typein_gestures(text)` in `example/kernel/Harness.jl` makes the `KeyPress` entries of a text, and `timed_await(predicate)` in `example/sdl/LiveExamples.jl` makes an `await` entry.
 
 ### Video time
 
@@ -80,6 +80,6 @@ record_assistant_conversation_video("assistant.mp4")
 ## Limits
 
 - `_VideoEditor` has only `document` and `iomap`. An operation whose evaluation reads any other field of the editor fails.
-- No `GestureRecognizer` runs, so no click, double click or key chord is built from the raw events.
+- No gesture tracking projection runs, so no click, double click or key chord is built from the raw events.
 - No test covers an `await` entry, and the docstring of `record_video` does not describe it.
 - Only `.mp4` is written.

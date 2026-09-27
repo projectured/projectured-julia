@@ -165,17 +165,18 @@ Each verb makes its edit at the pane tree and carries it to the root through the
 `show_layout` prints the layout as a tree of reference steps, one line for each window, pane tree, split, group and tab it descends into:
 
 ```
-(root)                                        ::ScreenDocument  # the editor's document
-  .windows[1]                                 ::WindowDocument  # ProjecturEd
-    .content.content.content.content          ::PaneTree        # inside ClipboardSlice › WidgetShell › UndoBuffer
-      .root                                   ::PaneSplit       # side by side: 20% | 80%
-        .elements[1]                          ::PaneGroup       # 1 tab
-          .tabs[1]                            ::PaneTab         # Files — Workspace (focused)
-        .elements[2]                          ::PaneGroup       # 1 tab
-          .tabs[1]                            ::PaneTab         # a.json — JsonFile
+(root)                                          ::GestureTrackingState  # the editor's document
+  .content                                      ::ScreenDocument
+    .windows[1]                                 ::WindowDocument        # ProjecturEd
+      .content.content.content.content          ::PaneTree              # inside ClipboardSlice › WidgetShell › UndoBuffer
+        .root                                   ::PaneSplit             # side by side: 20% | 80%
+          .elements[1]                          ::PaneGroup             # 1 tab
+            .tabs[1]                            ::PaneTab               # Files — Workspace (focused)
+          .elements[2]                          ::PaneGroup             # 1 tab
+            .tabs[1]                            ::PaneTab               # a.json — JsonFile
 ```
 
-A line's steps are those after the nearest printed line whose path is a prefix of its own, so the path of a part is the steps of the lines on its branch, joined in order: `@reference(editor.document, windows[1].content.content.content.content.root.elements[2].tabs[1])`. To name a pane there is a shorter way: `find_pane_reference` answers the reference of a pane by its title. The type on each line is `nameof(typeof(node))`; the note names the node (`get_document_title`), what it is (`describe_document`) when that says more than the type, the wrappers a line's steps pass through, and the deepest focused tab. `include(node)` says which nodes get a line and `descend(parent, child)` where the walk goes; the defaults show the windows, the pane trees, the splits, the groups and the tabs, and a pane tree inside a tab below that tab. It answers a `Text` and not a `String`, so the tree arrives as the lines it is and not as one line of `\n` escapes.
+A line's steps are those after the nearest printed line whose path is a prefix of its own, so the path of a part is the steps of the lines on its branch, joined in order: `@reference(editor.document, content.windows[1].content.content.content.content.root.elements[2].tabs[1])`. To name a pane there is a shorter way: `find_pane_reference` answers the reference of a pane by its title. The type on each line is `nameof(typeof(node))`; the note names the node (`get_document_title`), what it is (`describe_document`) when that says more than the type, the wrappers a line's steps pass through, and the deepest focused tab. `include(node)` says which nodes get a line and `descend(parent, child)` where the walk goes; the defaults show the windows, the pane trees, the splits, the groups and the tabs, and a pane tree inside a tab below that tab. It answers a `Text` and not a `String`, so the tree arrives as the lines it is and not as one line of `\n` escapes.
 
 A path written by hand is typed against the tree it names a part of, then set after the path to that tree: resolve `find_pane_tree_reference(editor)` to the tree object with `evaluate_reference`, type the rest with `@reference(tree, …)`, and join the two with `concat_references`:
 

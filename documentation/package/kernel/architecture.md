@@ -28,8 +28,8 @@ the dependency-free in-memory `HeadlessBackend` test double lives in
 ## Layered structure
 
 The package is organized around a strict layered architecture with per-layer
-guards, docs, and tests. [system-anatomy.md](../../design/system-anatomy.md#the-23-kernel-layers)
-carries the same 23 layers as a repository-wide table; this list adds the
+guards, docs, and tests. [system-anatomy.md](../../design/system-anatomy.md#the-22-kernel-layers)
+carries the same 22 layers as a repository-wide table; this list adds the
 per-layer key types and files a kernel contributor needs:
 
 ```
@@ -40,22 +40,21 @@ Layer 4  — struct/      @cell_struct and the builders of a struct of cells (Ce
 Layer 5  — clock/       the animation clock — Clock (a @cell_struct), get_reactive_clock_time/get_clock_time, set_clock_time!, start_wall_clock!/stop_wall_clock!
 Layer 6  — event/       the input vocabulary (Event/Gesture, ModifierKeys, KeyDown/KeyPress/Mouse*/Window*) + WindowInput + the event pattern language (EventPattern, @event_case)
 Layer 7  — device/      Device abstract + the Keyboard/Mouse/Display devices (physical properties)
-Layer 8  — gesture/     event → gesture recognition (MouseClick/KeyChord synthesis)
-Layer 9  — backend/     Backend + the device I/O, display-size, and device-config seams
-Layer 10 — document/    the Document contract + @document
-Layer 11 — reference/   reference paths + @reference / @reference_case DSLs
-Layer 12 — selection/   the selection primitives (get/clear/set/replace_selection!) — a document's current-focus state, a reference stored on a document
-Layer 13 — operation/   Operation + evaluate_operation + the traversal and reroot seams
-Layer 14 — intent/      Intent and ClaimedGesture, the unit that flows back through the readers, and CollectIntents
-Layer 15 — binding/     gesture → operation bindings, @gestures/@gesture_set, read_gesture
-Layer 16 — iomap/       the IoMap contract (IoMap + accessors) + the concrete IO maps (SimpleIoMap/ChildrenIoMap/ContentIoMap, @iomap)
-Layer 17 — projection/  ProjectionInterface/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedProjection)
-Layer 18 — tool/        the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code, doc/API search, register_default_tools! (side-stack)
-Layer 19 — llm/         the LLM provider abstraction — Llm, stream_turn/render_tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
-Layer 20 — agent/       the AI control surface — AgentModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
-Layer 21 — feed/        the feed contract — a registered inflow that the editor moves into a target document once per frame
-Layer 22 — editor/      the run_editor! loop — read!, evaluate!, print! and the frame
-Layer 23 — playback/    scripted live playback — a timeline that fires in the editor loop on a wall-clock schedule
+Layer 8  — backend/     Backend + the device I/O, display-size, and device-config seams
+Layer 9  — document/    the Document contract + @document
+Layer 10 — reference/   reference paths + @reference / @reference_case DSLs
+Layer 11 — selection/   the selection primitives (get/clear/set/replace_selection!) — a document's current-focus state, a reference stored on a document
+Layer 12 — operation/   Operation + evaluate_operation + the traversal and reroot seams
+Layer 13 — intent/      Intent and ClaimedGesture, the unit that flows back through the readers, and CollectIntents
+Layer 14 — binding/     gesture → operation bindings, @gestures/@gesture_set, read_gesture
+Layer 15 — iomap/       the IoMap contract (IoMap + accessors) + the concrete IO maps (SimpleIoMap/ChildrenIoMap/ContentIoMap, @iomap)
+Layer 16 — projection/  ProjectionInterface/PrinterContext + @projection macro + ProjectionTemplate + the projection-typed gesture-binding seam (the concrete combinators live in ProjecturedProjection)
+Layer 17 — tool/        the editor's capability surface — Tool/Resource/ToolSet, execute_julia_code, doc/API search, register_default_tools! (side-stack)
+Layer 18 — llm/         the LLM provider abstraction — Llm, stream_turn/render_tool_schema, LlmMessage/LlmRequest, LlmEvent (side-stack)
+Layer 19 — agent/       the AI control surface — AgentModule (inbound, the MCP seam) + AgentModule (outbound, the Agent and run_turn! loop) (side-stack)
+Layer 20 — feed/        the feed contract — a registered inflow that the editor moves into a target document once per frame
+Layer 21 — editor/      the run_editor! loop — read!, evaluate!, print! and the frame
+Layer 22 — playback/    scripted live playback — a timeline that fires in the editor loop on a wall-clock schedule
 ```
 
 Every kernel file lives under a declared layer folder. The **layered guard** in
@@ -74,7 +73,7 @@ include-order guard (see below).
 
 ## Dependency diagram — what depends on what
 
-**The twenty-three layers *are* the dependency diagram.** A layer imports only layers below
+**The twenty-two layers *are* the dependency diagram.** A layer imports only layers below
 it. That is the whole rule, and the static guard enforces it exactly, so there is
 no second grouping to learn. What the plain stack does not show is the two places
 the shape is more interesting than "N depends on N−1":
@@ -87,12 +86,12 @@ the shape is more interesting than "N depends on N−1":
 generic *declarations* (`function f end`) and nothing else. A higher layer, or a
 higher *package*, extends them by adding methods at its own definition site, so a
 lower layer never names its implementors and no cycle is needed. `ReferenceStep` is
-the clearest case: `ProjectionReferenceStep` (layer 17), `PointReferenceStep`, and the
+the clearest case: `ProjectionReferenceStep` (layer 16), `PointReferenceStep`, and the
 text-selection siblings `TextRangeReferenceStep`/`TextColumnReferenceStep`/`TextSpanReferenceStep`
 (all in the substrate) subtype it and register
-their navigation through `evaluate_reference_step`, with no edit to layer 11.
+their navigation through `evaluate_reference_step`, with no edit to layer 10.
 
-**The agent stack is a side-stack.** The editor (layer 22) reaches it only through
+**The agent stack is a side-stack.** The editor (layer 21) reaches it only through
 the factory seam `make_agent_server(:mcp, editor)` declared in `agent/AgentModule.jl`
 (`AgentModule`), so the editor does **not** depend on `Mcp` / `Llm`. The real
 transports are the opt-in `package/mcp/` and `package/llm/`, which register their
@@ -166,7 +165,6 @@ Each layer lives in its own folder under [source/kernel/](../../../source/kernel
 | `clock/` | `ClockModule` — the animation `Clock` (a `@cell_struct`), `get_reactive_clock_time`/`get_clock_time`/`set_clock_time!`, and `start_wall_clock!`/`stop_wall_clock!`, the heartbeat that writes real time into a clock |
 | `event/` | the input event vocabulary — `EventModule` (ModifierKeys, KeyDown/KeyUp/KeyPress/KeyChord, Mouse*, Window*, WindowInput) and `EventModule` (`EventPattern`, `@event_case`) |
 | `device/` | `DeviceModule` — the `Device`, `Keyboard`, `Mouse`, `Display` device types (with physical properties) |
-| `gesture/` | `GestureRecognizerModule` — event → gesture recognition (MouseClick/KeyChord synthesis) |
 | `backend/` | `Backend`, the device I/O + display-size + device-config seams |
 | `document/` | the Document contract (`DocumentInterface.jl`), the `@document` codegen (`DocumentMacro.jl`), the value protocol (`DocumentCopy.jl` / `DocumentSync.jl`), the reflection walk (`DocumentWalk.jl` / `DocumentSearch.jl`), and the protocol forward/adapt helpers (`ForwardProtocol.jl`) |
 | `reference/` | the step/path contract (`ReferenceInterface.jl`), the step and path types, the value protocol, `search_references`, and the `@reference` / `@reference_step` / `@reference_case` DSLs |

@@ -95,14 +95,11 @@ include order — the source files state their dependencies, never their index.
   - 🔒 `device/Keyboard.jl`
   - 🔒 `device/Mouse.jl`
   - 🔒 `device/Display.jl`
-- **Layer 8 — gesture** (`gesture/`)
-  - ⬜ `gesture/GestureRecognizerModule.jl`
-  - ⬜ `gesture/GestureRecognizer.jl`
-- **Layer 9 — backend** (`backend/`)
+- **Layer 8 — backend** (`backend/`)
   - 🔒 `backend/BackendModule.jl`
   - ⬜ `backend/BackendInterface.jl`
   - 🔒 `backend/BackendDefaults.jl`
-- **Layer 10 — document** (`document/`)
+- **Layer 9 — document** (`document/`)
   - ⬜ `document/DocumentModule.jl`
   - ⬜ `document/DocumentInterface.jl`
   - ⬜ `document/DocumentDefaults.jl`
@@ -113,7 +110,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `document/DocumentWalk.jl`
   - 🔒 `document/DocumentSearch.jl`
   - 🔒 `document/ForwardProtocol.jl`
-- **Layer 11 — reference** (`reference/`)
+- **Layer 10 — reference** (`reference/`)
   - ⬜ `reference/ReferenceModule.jl`
   - 🔒 `reference/ReferenceInterface.jl`
   - ⬜ `reference/ReferenceStep.jl`
@@ -127,11 +124,11 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `reference/ReferencePatternString.jl`
   - ⬜ `reference/ReferenceBuilder.jl`
   - ⬜ `reference/ReferencedDocument.jl`
-- **Layer 12 — selection** (`selection/`)
+- **Layer 11 — selection** (`selection/`)
   - 🔒 `selection/SelectionModule.jl`
   - 🔒 `selection/SelectionInterface.jl`
   - 🔒 `selection/SelectionDefaults.jl`
-- **Layer 13 — operation** (`operation/`)
+- **Layer 12 — operation** (`operation/`)
   - ⬜ `operation/OperationModule.jl`
   - ⬜ `operation/OperationInterface.jl`
   - ⬜ `operation/OperationDefaults.jl`
@@ -139,20 +136,20 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `operation/Rerooting.jl`
   - ⬜ `operation/Inversion.jl`
   - ⬜ `operation/Description.jl`
-- **Layer 14 — intent** (`intent/`)
+- **Layer 13 — intent** (`intent/`)
   - ⬜ `intent/IntentModule.jl`
   - ⬜ `intent/Intent.jl`
-- **Layer 15 — binding** (`binding/`)
+- **Layer 14 — binding** (`binding/`)
   - ⬜ `binding/GestureBindingModule.jl`
   - ⬜ `binding/GestureBindingInterface.jl`
   - ⬜ `binding/GestureBinding.jl`
   - ⬜ `binding/Gestures.jl`
-- **Layer 16 — iomap** (`iomap/`)
+- **Layer 15 — iomap** (`iomap/`)
   - 🔒 `iomap/IoMapModule.jl`
   - 🔒 `iomap/IoMapInterface.jl`
   - ⬜ `iomap/IoMapDefaults.jl`
   - ⬜ `iomap/IoMapReconcile.jl`
-- **Layer 17 — projection** (`projection/`)
+- **Layer 16 — projection** (`projection/`)
   - ⬜ `projection/ProjectionModule.jl`
   - ⬜ `projection/ChildrenContainer.jl`
   - ⬜ `projection/PrinterContext.jl`
@@ -162,7 +159,7 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `projection/ProjectionMacro.jl`
   - ⬜ `projection/GestureBindings.jl`
   - ⬜ `projection/ProjectionTemplate.jl`
-- **Layer 18 — tool** (`tool/`)
+- **Layer 17 — tool** (`tool/`)
   - ⬜ `tool/ToolModule.jl`
   - ⬜ `tool/Tool.jl`
   - ⬜ `tool/ToolSet.jl`
@@ -171,24 +168,24 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `tool/Documentation.jl`
   - ⬜ `tool/MeaningSearch.jl`
   - ⬜ `tool/DefaultTools.jl`
-- **Layer 19 — llm** (`llm/`)
+- **Layer 18 — llm** (`llm/`)
   - ⬜ `llm/LlmModule.jl`
   - ⬜ `llm/LlmInterface.jl`
   - ⬜ `llm/LlmDefaults.jl`
   - ⬜ `llm/Llm.jl`
   - ⬜ `llm/LlmMessage.jl`
   - ⬜ `llm/LlmEvent.jl`
-- **Layer 20 — agent** (`agent/`)
+- **Layer 19 — agent** (`agent/`)
   - ⬜ `agent/AgentModule.jl`
   - ⬜ `agent/AgentInterface.jl`
   - ⬜ `agent/AgentDefaults.jl`
   - ⬜ `agent/Agent.jl`
   - ⬜ `agent/AgentLoop.jl`
-- **Layer 21 — feed** (`feed/`)
+- **Layer 20 — feed** (`feed/`)
   - ⬜ `feed/FeedModule.jl`
   - ⬜ `feed/FeedInterface.jl`
   - ⬜ `feed/FeedDefaults.jl`
-- **Layer 22 — editor** (`editor/`)
+- **Layer 21 — editor** (`editor/`)
   - ⬜ `editor/EditorModule.jl`
   - ⬜ `editor/Editor.jl`
   - ⬜ `editor/Inbox.jl`
@@ -198,6 +195,6 @@ include order — the source files state their dependencies, never their index.
   - ⬜ `editor/SafeMode.jl`
   - ⬜ `editor/FaultBarriers.jl`
   - ⬜ `editor/EditorLoop.jl`
-- **Layer 23 — playback** (`playback/`)
+- **Layer 22 — playback** (`playback/`)
   - ⬜ `playback/PlaybackModule.jl`
   - ⬜ `playback/Playback.jl`

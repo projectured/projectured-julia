@@ -14,9 +14,9 @@ structs, per-domain path tables, and searching (`search_references`). For how a 
 is *stored, propagated, and forward-projected* as the current selection, see
 the sibling [selection guide](selection.md).
 
-## The reference layer (kernel layer 11)
+## The reference layer (kernel layer 10)
 
-References are **layer 11 of the kernel** — paths into documents. The layer lives
+References are **layer 10 of the kernel** — paths into documents. The layer lives
 in [source/kernel/reference/](../../../source/kernel/reference/), inside one aggregator module
 (`ReferenceModule`) split across eleven fragments that share its namespace:
 

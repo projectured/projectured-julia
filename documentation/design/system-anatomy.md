@@ -60,7 +60,7 @@ depend on, and why the leaf the alias loads is the only place a
 
 ProjecturEd is organized as **one engine, twenty-nine substrate packages and
 twenty domain packages**, plus an umbrella and the opt-in packages. The kernel
-is the one *layered* package: its twenty-three layers depend only downward,
+is the one *layered* package: its twenty-two layers depend only downward,
 and the ordering is enforced statically by the shared
 [layered-architecture guard](../../test/kernel/layering/CheckLayering.jl).
 Each layer holds exactly one module, so the root's include list is the layer
@@ -80,8 +80,8 @@ for the rules.
 
 ```
 ProjecturedKernel (kernel/)    the engine — machinery + interfaces only
-        ▲                      23 layers: fault → performance → cell → struct → clock → event →
-        │                      device → gesture → backend → document → reference →
+        ▲                      22 layers: fault → performance → cell → struct → clock → event →
+        │                      device → backend → document → reference →
         │                      selection → operation → intent → binding → iomap →
         │                      projection → tool → llm → agent → feed → editor → playback
         │                      Zero runtime deps, zero concrete documents.
@@ -340,7 +340,7 @@ enforces.
 **Between packages:**
 
 ```
-ProjecturedKernel ◄── the 28 substrate packages ◄── the 20 domains ◄── Projectured
+ProjecturedKernel ◄── the 29 substrate packages ◄── the 20 domains ◄── Projectured
        ▲                          ▲                        ▲            (umbrella)
        │                          │                        │
    Mcp, Llm             Sdl, Web, Video, Tulip      Odbc, Adaptagrams
@@ -351,7 +351,7 @@ The substrate packages form their own DAG, and so do the twenty domains.
 [package-rules.md](../rule/package-rules.md) has the substrate table; [domain-inventory.md](domain-inventory.md)
 has the domain table.
 
-### The 23 kernel layers
+### The 22 kernel layers
 
 In include order, each importing only layers above it in this list — the order
 [package/ProjecturedKernel/src/ProjecturedKernel.jl](../../package/ProjecturedKernel/src/ProjecturedKernel.jl)
@@ -372,34 +372,33 @@ includes them in:
                KeyDown/KeyPress/Mouse*/Window*, WindowInput), the event pattern
                language (EventPattern, matches, describe, @event_case)
  7 device      Device abstract + Keyboard / Mouse / Display devices (physical properties)
- 8 gesture     event → gesture recognition (MouseClick / KeyChord synthesis)
- 9 backend     the Backend seam (lifecycle, text, device I/O, display size, device
+ 8 backend     the Backend seam (lifecycle, text, device I/O, display size, device
                config, image/video output)
-10 document    the Document supertype, @document, the is_element_collection /
+ 9 document    the Document supertype, @document, the is_element_collection /
                is_walk_opaque traits, search_documents
-11 reference   ReferenceStep / Reference and the step seam, evaluate_reference,
+10 reference   ReferenceStep / Reference and the step seam, evaluate_reference,
                search_references, the @reference / @reference_case /
                @reference_rules DSLs
-12 selection   get_selection / set_selection! / clear_selection! / with_selection
-13 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
-14 intent      Intent and ClaimedGesture, the unit that flows back through the
+11 selection   get_selection / set_selection! / clear_selection! / with_selection
+12 operation   the Operation supertype, evaluate_operation, the reroot_operation seam
+13 intent      Intent and ClaimedGesture, the unit that flows back through the
                readers, CollectIntents and CollectedIntentsOperation
-15 binding     GestureBinding, the per-document-type registry, @gestures /
+14 binding     GestureBinding, the per-document-type registry, @gestures /
                @gesture_set, read_gesture / read_bound_gesture
-16 iomap       the IoMap contract (IoMap + accessors) and the concrete IO maps
+15 iomap       the IoMap contract (IoMap + accessors) and the concrete IO maps
                (SimpleIoMap, ChildrenIoMap, ContentIoMap, @iomap)
-17 projection  the four interface functions, @projection, ProjectionTemplate,
+16 projection  the four interface functions, @projection, ProjectionTemplate,
                ProjectionReferenceStep
-18 tool        the editor's capability surface: Tool / Resource / ToolSet,
+17 tool        the editor's capability surface: Tool / Resource / ToolSet,
                execute_julia_code, doc/API search, register_default_tools!
-19 llm         the LLM provider abstraction: Llm, stream_turn, render_tool_schema,
+18 llm         the LLM provider abstraction: Llm, stream_turn, render_tool_schema,
                LlmMessage / LlmRequest, LlmEvent
-20 agent       the AI control surface: AgentModule (inbound, the MCP
+19 agent       the AI control surface: AgentModule (inbound, the MCP
                seam) and AgentModule (outbound, the Agent and run_turn! loop)
-21 feed        the feed contract: a registered inflow that the editor moves into a
+20 feed        the feed contract: a registered inflow that the editor moves into a
                target document once per frame
-22 editor      run_editor!, the read-eval-print loop
-23 playback    scripted live playback: a timeline that fires in the editor loop on a
+21 editor      run_editor!, the read-eval-print loop
+22 playback    scripted live playback: a timeline that fires in the editor loop on a
                wall-clock schedule
 ```
 
@@ -501,7 +500,7 @@ for adding one.
 | Web backend (browser renderer) | `backend/Web.jl` | ✅ (new in Julia port) |
 | PDF export backend | `backend/Pdf.jl` | ✅ |
 | IO Maps | `IoMapDefaults.jl` + per-projection | ✅ |
-| References | `reference/` (layer 11) | ✅ |
+| References | `reference/` (layer 10) | ✅ |
 | Navigation operations | `Operations.jl` (`ReplaceSelectionOperation`) | ✅ |
 | Editor REPL | `EditorModule.jl` | ✅ |
 | All higher-order projections | `projection/higherorder/` | ✅ |
