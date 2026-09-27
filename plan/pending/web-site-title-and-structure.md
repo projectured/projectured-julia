@@ -1,8 +1,9 @@
 # The web site: the title, and a page that a newcomer can follow
 
 **Status (2026-09-27): pending, not started.** The owner chose the title T2
-(§3) and answered Q1 to Q6 (§4.1). The picture of the three loops (§7) waits
-for the owner. The implementation starts only when the owner says so.
+(§3) and answered Q1 to Q6 (§4.1). The owner accepted version 5 of the picture
+of the three loops (§7.4b). The implementation starts only when the owner says
+so.
 
 **Goal:** a visitor of `projectured.org` who does not know the project
 understands in a few seconds what ProjecturEd is and what is different about
@@ -321,7 +322,7 @@ Q1 to Q6 have answers (W6 to W11 in §4.1).
 | Q5 | Does the new title also replace the approved tagline in the README, the deck and the posts (§3.6)? | Answered: yes (W10). |
 | Q6 | Which pictures go in "The idea"? | Answered: a still of S0 and perhaps a still of the evaluator (W11). |
 | Q7 | The loops of §7: three in a row, or a triangle around the data? | Answered: three separate loops in a row, with synchronization points and no data (§7.4a). |
-| Q11 | The assistant also reads the words of the person. Does the picture draw a synchronization point from you to the assistant? | Not as a direct line. In ProjecturEd the request is typed into the assistant pane, so it passes through the editor. If it is drawn, it is a dashed arc over the editor, labeled "a request". |
+| Q11 | The assistant also reads the words of the person. Does the picture draw a synchronization point from you to the assistant? | Not as a direct line. In ProjecturEd the request is typed into the assistant pane, so it passes through the editor. If it is drawn, it is a dashed arc over the editor, labeled "a request". Version 5 does not draw it, and the owner accepted version 5. |
 | Q8 | Does the original picture go into "Lineage & status"? | Only if the owner knows where its icons come from (§7.5). If not, a link to it. |
 | Q9 | The hero poster and the still of "The idea" both come from S0. Which frames? | The poster is an early frame: the request to the assistant. The still of "The idea" is the last frame: the finished study with its chart. So the page does not show the same picture twice. |
 | Q10 | The page already has a video of the evaluator ("The rotating vector, form by form"). Is a still of it in "The idea" still needed? | No. The loops and the S0 still are enough. The video stays in "Videos". |
@@ -401,9 +402,8 @@ too, because the conversation is a document.
 
 ### 7.4 How the picture is drawn
 
-- **An inline SVG in the line style of the icons of the page.** It uses
-  `currentColor` and the accent color, so it works in the light and the dark
-  theme.
+- **An inline SVG.** Its text and its icons use the colors of the page, so it
+  follows the light and the dark theme (§7.4b).
 - **No clip art from the original.** Nobody recorded where its icons come from.
   A new drawing avoids the question of their licences.
 - **A second layout for a phone.** At phone width, the three loops go one above
@@ -443,6 +443,215 @@ So the design of §7.3 is replaced. Version 2 has these properties:
 
 The generator of both versions is a Python script with `fontTools`. The
 request of the person to the assistant is not drawn yet (§6, Q11).
+
+### 7.4b Version 5, accepted (2026-09-27)
+
+The owner then gave a third version, made by the other agent (`/tmp/repl.svg`),
+and said:
+
+> I don't really like the icons for input/output of the AI agent but the rest is
+> good, maybe you want to tune the colors
+
+Then the owner asked for a human face in place of a brain, and for icons that
+are centered in their discs. The owner accepted version 5:
+
+> it's good enough fold it in the plan
+
+Version 5 keeps the layout of the owner's version:
+
+- three loops in a row, each one a clockwise band from Read to Eval to Print;
+- a tinted disc with an icon at each step;
+- the name of the loop in its center;
+- a two-way arrow between two loops, with the labels "user interaction" and
+  "tool calls".
+
+| Loop | Color | Read | Eval | Print |
+| --- | --- | --- | --- | --- |
+| Human | blue `#5b82ff` | `eye` | `face-slightly-smiling` | `pointer` |
+| Editor | green `#36ad80` | `keyboard` and `mouse` | `settings` | `monitor` |
+| AI Assistant | amber `#e3a236` | `scan-text` | `bot` | `square-terminal` |
+
+The icon names are glyph names of the Lucide font.
+
+What version 5 changes in the owner's version, and why:
+
+- **The arrowheads are shapes, not SVG markers.** The owner's file used
+  `markerUnits="strokeWidth"` on a band 18 wide, so Chrome and librsvg drew each
+  head about 216 px wide.
+- **The two-way arrows point both ways.** In the owner's file, the start head
+  was reversed twice, by a reversed path and by
+  `orient="auto-start-reverse"`, so both heads pointed right.
+- **Each band ends in a head that is visible.** In the owner's file, the head
+  into Print was under the Print disc, and the bottom band had a gap.
+- **The text and the icons use the colors of the page,** so the picture follows
+  the dark theme. A disc is the color of its loop at 18 % to 22 % opacity. The
+  owner's file had a white background and fixed colors.
+- **No title inside the picture.** The heading of the section says it, and a
+  title in the picture shrinks to about 12 px at phone width.
+- **New icons for Read and Print of the assistant, and a face for Eval of the
+  human,** as the owner asked.
+
+**A fact found on the way:** the Lucide font stores a box for each glyph that
+always starts at (0, 0). The real outline starts elsewhere, for example at
+(42, 167) for `eye`. An icon centered on the stored box is off by up to 4 px in a
+disc of 104 px. The generator measures the outline with `BoundsPen`. On the
+rendered pixels, every icon of version 5 is within 0.5 px of the center of its
+disc.
+
+**Not changed:** the label "user interaction" is vague; "the view · keys and
+clicks" says what passes. The owner kept the labels of the owner's version.
+
+**Not done:** the layout for a phone (§7.4). At 343 px the text of this layout is
+about 7 px high, so a phone needs the three loops one above the other (Step 4).
+
+**The generator.** It makes version 5 byte for byte, and it needs `fontTools`.
+Step 4 puts it into the site repository as `tool/make-repl-loops.py`, and runs it
+with the font of a `projectured-julia` checkout beside the site:
+
+```sh
+python3 tool/make-repl-loops.py ../projectured-julia/asset/font/lucide.ttf repl-loops.svg
+```
+
+```python
+"""Draw the three read-eval-print loops of the web site as one SVG.
+
+Usage: python3 make-repl-loops.py <lucide.ttf> <output.svg>
+
+The icons are glyphs of the Lucide font (ISC licence) that ProjecturEd uses.
+Text and icons take the colors of the page (--ink, --ink-soft, --ink-faint,
+--sans), so the picture follows the light and the dark theme.
+"""
+import math
+import sys
+
+from fontTools.pens.boundsPen import BoundsPen
+from fontTools.pens.svgPathPen import SVGPathPen
+from fontTools.ttLib import TTFont
+
+R = 150            # radius of a loop
+NODE = 52          # radius of the disc behind a step icon
+BAND = 16          # width of an arrow band
+HEAD = 30          # length of the head of a band
+CY = 250
+CENTERS = (230, 750, 1270)
+VIEW = (40, 34, 1420, 392)   # x, y, width, height
+ANGLE = {"Read": 90, "Eval": -30, "Print": -150}
+LOOPS = [
+    ("human", ("Human", "Loop"), {"Read": ["eye"], "Eval": ["face-slightly-smiling"], "Print": ["pointer"]}),
+    ("editor", ("Editor", "Loop"), {"Read": ["keyboard", "mouse"], "Eval": ["settings"], "Print": ["monitor"]}),
+    ("ai", ("AI Assistant", "Loop"), {"Read": ["scan-text"], "Eval": ["bot"], "Print": ["square-terminal"]}),
+]
+LINKS = ("user interaction", "tool calls")
+
+STYLE = """
+  .repl-loops { --loop-human: #5b82ff; --loop-editor: #36ad80; --loop-ai: #e3a236; }
+  .repl-loops text { font-family: var(--sans, system-ui, -apple-system, "Segoe UI", sans-serif); text-anchor: middle; fill: var(--ink, #15181d); }
+  .repl-loops .loop-title { font-size: 28px; font-weight: 700; }
+  .repl-loops .stage { font-size: 19px; font-weight: 700; }
+  .repl-loops .link-label { font-size: 18px; font-weight: 600; fill: var(--ink-soft, #545b66); }
+  .repl-loops .icon { fill: var(--ink, #15181d); }
+  .repl-loops .band { fill: none; stroke-width: 16; }
+  .repl-loops .band.human { stroke: var(--loop-human); }  .repl-loops .band-head.human { fill: var(--loop-human); }
+  .repl-loops .band.editor { stroke: var(--loop-editor); } .repl-loops .band-head.editor { fill: var(--loop-editor); }
+  .repl-loops .band.ai { stroke: var(--loop-ai); }        .repl-loops .band-head.ai { fill: var(--loop-ai); }
+  .repl-loops .node.human { fill: var(--loop-human); fill-opacity: .18; }
+  .repl-loops .node.editor { fill: var(--loop-editor); fill-opacity: .18; }
+  .repl-loops .node.ai { fill: var(--loop-ai); fill-opacity: .22; }
+  .repl-loops .sync { fill: none; stroke: var(--ink-faint, #8a919c); stroke-width: 5; }
+  .repl-loops .sync-head { fill: var(--ink-faint, #8a919c); }
+"""
+DESCRIPTION = (
+    "Three separate read-eval-print loops in a row: the human, the editor and the AI assistant. "
+    "The human reads with the eyes, decides, and acts with the hand. The editor reads the keyboard and the mouse, "
+    "evaluates, and prints to the screen. The AI assistant reads text, the model decides, and it prints a tool call. "
+    "The human and the editor meet at the user interaction; the editor and the AI assistant meet at the tool calls.")
+
+
+def make_icon(glyphs, name, cx, cy, size):
+    """The glyph `name`, centered on (cx, cy), with its larger side equal to `size`."""
+    path = SVGPathPen(glyphs)
+    glyphs[name].draw(path)
+    # The box that the font stores for a glyph starts at (0, 0), so measure the outline itself.
+    bounds = BoundsPen(glyphs)
+    glyphs[name].draw(bounds)
+    x_min, y_min, x_max, y_max = bounds.bounds
+    width, height = x_max - x_min, y_max - y_min
+    scale = size / max(width, height)
+    tx = cx - scale * (x_min + width / 2)
+    ty = cy + scale * (y_min + height / 2)
+    return (f'<path class="icon" transform="translate({tx:.2f} {ty:.2f}) scale({scale:.5f} {-scale:.5f})" '
+            f'd="{path.getCommands()}"/>')
+
+
+def get_point(cx, theta):
+    t = math.radians(theta)
+    return (cx + R * math.cos(t), CY - R * math.sin(t))
+
+
+def make_band(cx, start, end, loop):
+    """A clockwise band on a loop from angle `start` down to angle `end`, which ends in a wide head."""
+    t = math.radians(end)
+    dx, dy = math.sin(t), math.cos(t)
+    x1, y1 = get_point(cx, end)
+    xs, ys = get_point(cx, end + math.degrees(HEAD * 0.8 / R))
+    x0, y0 = get_point(cx, start)
+    nx, ny = -dy, dx
+    bx, by = x1 - dx * HEAD, y1 - dy * HEAD
+    w = BAND * 1.25
+    head = f"M{x1:.1f} {y1:.1f} L{bx + nx * w:.1f} {by + ny * w:.1f} L{bx - nx * w:.1f} {by - ny * w:.1f} z"
+    return (f'<path class="band {loop}" d="M{x0:.1f} {y0:.1f} A{R} {R} 0 0 1 {xs:.1f} {ys:.1f}"/>'
+            f'<path class="band-head {loop}" d="{head}"/>')
+
+
+def make_sync(x0, x1, y):
+    """A two-way arrow between two loops."""
+    h, w = 16, 9
+    return (f'<path class="sync" d="M{x0 + h * 0.8:.1f} {y} H{x1 - h * 0.8:.1f}"/>'
+            f'<path class="sync-head" d="M{x0} {y} L{x0 + h} {y - w} L{x0 + h} {y + w} z"/>'
+            f'<path class="sync-head" d="M{x1} {y} L{x1 - h} {y - w} L{x1 - h} {y + w} z"/>')
+
+
+def make_text(x, y, content, cls):
+    return f'<text x="{x:.1f}" y="{y:.1f}" class="{cls}">{content}</text>'
+
+
+def make_svg(glyphs):
+    gap = math.degrees((NODE + 12) / R)
+    parts = []
+    for cx, (loop, title, steps) in zip(CENTERS, LOOPS):
+        parts.append(make_band(cx, ANGLE["Read"] - gap, ANGLE["Eval"] + gap, loop))
+        parts.append(make_band(cx, ANGLE["Eval"] - gap, ANGLE["Print"] + gap, loop))
+        parts.append(make_band(cx, ANGLE["Print"] - gap + 360, ANGLE["Read"] + gap, loop))
+        for stage, theta in ANGLE.items():
+            x, y = get_point(cx, theta)
+            parts.append(f'<circle class="node {loop}" cx="{x:.1f}" cy="{y:.1f}" r="{NODE}"/>')
+            names = steps[stage]
+            if len(names) == 1:
+                parts.append(make_icon(glyphs, names[0], x, y, 46))
+            else:
+                # a keyboard and a small mouse, centered together
+                parts.append(make_icon(glyphs, names[0], x - 13, y, 42))
+                parts.append(make_icon(glyphs, names[1], x + 25, y + 4, 24))
+            parts.append(make_text(x, y + NODE + 26, stage, "stage"))
+        parts.append(make_text(cx, CY + 8, title[0], "loop-title"))
+        parts.append(make_text(cx, CY + 42, title[1], "loop-title"))
+    reach = R * math.cos(math.radians(30)) + NODE + 14
+    for a, b, label in zip(CENTERS, CENTERS[1:], LINKS):
+        x0, x1 = a + reach, b - reach
+        parts.append(make_sync(x0, x1, CY + 20))
+        parts.append(make_text((x0 + x1) / 2, CY - 2, label, "link-label"))
+    x, y, w, h = VIEW
+    return (f'<svg class="repl-loops" viewBox="{x} {y} {w} {h}" role="img" aria-labelledby="repl-loops-title" '
+            f'xmlns="http://www.w3.org/2000/svg">\n'
+            f'<title id="repl-loops-title">{DESCRIPTION}</title>\n<style>{STYLE}</style>\n'
+            + "\n".join(parts) + "\n</svg>\n")
+
+
+if __name__ == "__main__":
+    font_path, output_path = sys.argv[1], sys.argv[2]
+    with open(output_path, "w") as output:
+        output.write(make_svg(TTFont(font_path).getGlyphSet()))
+```
 
 ### 7.5 The original picture in "Lineage & status"
 
@@ -484,11 +693,16 @@ the live site, so each push waits for the owner's word.
 - [ ] The card about incremental update says the result first, with the words
       of the approved text (R8).
 
-### Step 4: the picture of the three loops (after Q7)
+### Step 4: the picture of the three loops (version 5, §7.4b)
 
-- [ ] Draw the two SVG layouts of §7.4. The owner reads a render at desktop
-      width and at phone width before the commit.
-- [ ] Put the picture and its caption in "The idea".
+- [ ] Put the generator of §7.4b into the site repository as
+      `tool/make-repl-loops.py`.
+- [ ] Add a phone layout to the generator: the three loops one above the
+      other, with vertical two-way arrows. CSS shows one of the two SVG
+      elements.
+- [ ] Put both SVG elements and a caption in "The idea". The owner reads a
+      render at desktop width and at phone width before the commit.
+- [ ] A credit line for the Lucide icons (ISC licence) in the footer.
 - [ ] "Lineage & status": the original picture, or a link to it (Q8).
 
 ### Step 5: the title T2
