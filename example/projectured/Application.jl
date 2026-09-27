@@ -67,7 +67,7 @@ function make_application_assistant(backend::Symbol; model::AbstractString = "",
     greeting = ConversationConversation([
         ConversationTurn(:assistant, [ConversationPart(get_application_greeting_text(backend))])])
     Assistant(; conversation = greeting, backend = backend, model = String(model),
-                context = context, system = APPLICATION_SYSTEM,
+                context = context, system = make_application_system(),
                 api_key = get(ENV, "ANTHROPIC_API_KEY", ""), llm = llm)
 end
 
@@ -358,6 +358,24 @@ const APPLICATION_SYSTEM = DEFAULT_ASSISTANT_SYSTEM * "\n\n" *
     "Call one tool per round, and put the whole Julia source " *
     "in the code argument of execute_julia_code: a call with no code does " *
     "nothing and costs the round."
+
+"""
+    make_application_system() -> String
+
+The system text of the assistant of this application: [`APPLICATION_SYSTEM`](@ref),
+then the section "Reach what a tab holds" of the orientation guide, which shows in
+code how to read what a tab holds, change a part of it with a verb, add a record and
+open a table beside a tab.
+
+The section is in the text from the first round, because a model that is only told
+to read the guide sometimes starts without it, guesses how to make a value, and
+fails. Measured with the rehearsal of the assistant (`tool/assistant/rehearsal.jl`):
+with the section, S2 passed 10 of 10 seeds and the tasks of one prompt 12 of 12;
+without it, 4 of 5 and 4 of 6. The guide stays the one place of the section.
+"""
+make_application_system() =
+    APPLICATION_SYSTEM * "\n\nHOW TO WORK IN THIS WINDOW, from the orientation guide:\n\n" *
+    read_guide_section("guide/orientation", "Reach what a tab holds")
 
 """
     run_application(paths...; backend = nothing,
