@@ -320,7 +320,8 @@ Q1 to Q6 have answers (W6 to W11 in §4.1).
 | Q4 | How is the social card made? | Answered: an HTML template in `assets/og/` of the site, rendered by a headless browser (W9). |
 | Q5 | Does the new title also replace the approved tagline in the README, the deck and the posts (§3.6)? | Answered: yes (W10). |
 | Q6 | Which pictures go in "The idea"? | Answered: a still of S0 and perhaps a still of the evaluator (W11). |
-| Q7 | The loops of §7: three in a row, or a triangle around the data? | Three in a row, with the data in the middle loop (§7.3). |
+| Q7 | The loops of §7: three in a row, or a triangle around the data? | Answered: three separate loops in a row, with synchronization points and no data (§7.4a). |
+| Q11 | The assistant also reads the words of the person. Does the picture draw a synchronization point from you to the assistant? | Not as a direct line. In ProjecturEd the request is typed into the assistant pane, so it passes through the editor. If it is drawn, it is a dashed arc over the editor, labeled "a request". |
 | Q8 | Does the original picture go into "Lineage & status"? | Only if the owner knows where its icons come from (§7.5). If not, a link to it. |
 | Q9 | The hero poster and the still of "The idea" both come from S0. Which frames? | The poster is an early frame: the request to the assistant. The still of "The idea" is the last frame: the finished study with its chart. So the page does not show the same picture twice. |
 | Q10 | The page already has a video of the evaluator ("The rotating vector, form by form"). Is a still of it in "The idea" still needed? | No. The loops and the S0 still are enough. The video stays in "Videos". |
@@ -412,6 +413,36 @@ too, because the conversation is a document.
   words.
 - **The editor does not draw it.** Curved arrows and icons cost more in the
   editor than the picture is worth. §4.3 allows a diagram of a concept.
+
+### 7.4a The owner's correction of §7.3 (2026-09-27)
+
+The owner compared version 1 (§7.3) with a picture from another agent, and
+answered:
+
+> for 1, it's not true, a human is reading with her eye not by print_document
+> which is the printer of the editor, the agent LLM is reading the tokens on its
+> input from the tool call or from the human, same issue
+> for 2, data is not needed, this is better
+> for 3, maybe we could have those better icons
+> for 4, they are separate processes with synchronization points
+
+So the design of §7.3 is replaced. Version 2 has these properties:
+
+- **Three separate loops.** Each one turns clockwise: Read, Eval, Print. The
+  Read of one loop is not the Print of another; each participant reads with its
+  own means.
+- **Synchronization points between the loops,** as arrows with a direction:
+  "the view" and "keys and clicks" between you and ProjecturEd, "tool results"
+  and "tool calls" between ProjecturEd and the assistant.
+- **No data in the center.** The center of the editor loop is the mark of
+  ProjecturEd and its name.
+- **An icon at each step, from the Lucide font** of the repository
+  (`asset/font/lucide.ttf`, ISC licence): eye, brain and pointer for you;
+  keyboard, settings and monitor for ProjecturEd; file-text, bot and code for
+  the assistant. The page must carry a credit line for Lucide.
+
+The generator of both versions is a Python script with `fontTools`. The
+request of the person to the assistant is not drawn yet (§6, Q11).
 
 ### 7.5 The original picture in "Lineage & status"
 
