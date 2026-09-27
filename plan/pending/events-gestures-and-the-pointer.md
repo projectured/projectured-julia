@@ -786,10 +786,49 @@ it holds the example.
     button (8 pass). `test_application` fails the same 2 tests as `main`. The
     64 test functions of omnet-julia that touch the views and the pointer give
     the same summaries as on `main` (the 3 known failures), plus the new test.
-- [ ] 5. **The start over of Tab leaves the hover tracker (D2, §5 of the plan of
+- [x] 5. **The start over of Tab leaves the hover tracker (D2, §5 of the plan of
   D33).** A small wrapping step does only the start over at the ends, and the
   hover tracker loses its branch for Tab. Tests: the focus traversal tests; Tab
   at the last stop goes to the first, and Shift+Tab goes the other way.
+
+  Done on the branch `gesture-type`:
+
+  - `FocusCyclingProjection` (`source/focus/FocusCycling.jl`, beside
+    `SelectionWalkingProjection`, the same shape) answers a Tab that nothing
+    inside answered with the first stop of its input, and a Shift+Tab with the
+    last stop. Its reader is the branch of the hover tracker, moved without a
+    change, so it still walks the whole input with `get_first_focusable_path`.
+    The other way, to give the declined Tab back to the parts with no selection
+    (§5 of the plan of D33), waits with that plan.
+  - The hover tracker passes every event other than a move straight through.
+  - The new wrapper is just inside the hover tracker in each of the 15
+    compositions that held the hover tracker: the window wrap, the examples,
+    the gallery; in omnet-julia the Qtenv window, the campaign window, the
+    embed, the examples, the watch demo and the program builder; the demo of
+    inet-julia. So Tab starts over as before. The program builder and the
+    campaign window reach it as `ProjecturedWidget.FocusModule`, because they
+    load `ProjecturedWidget` and not `ProjecturedFocus`.
+  - A fact for step 7: the gallery and the campaign window add the hover
+    tracker only with their `hover` flag, so the start over still comes and
+    goes with that flag (D2 says they are unrelated). Step 7 changes these
+    compositions, and must keep the start over when it removes the hover
+    tracker.
+  - The focus, widget and shell guides name the new wrapper.
+
+  Tests: a new test shows that the hover tracker alone passes Tab through at
+  the last stop and the new wrapper starts over, in both directions; the
+  composite and layout Tab tests pass with the new wrapper; the window wrap
+  tests check the new order. `test_widget_button_behavior`,
+  `test_selection_walking`, `test_pane_gestures`, `test_tool_views`,
+  `test_assistant_composer_panel`, `test_widget_text_editing`,
+  `test_gallery_wrappers` and `test_shell` (237) pass; `test_application`
+  fails the same 2 tests as `main`; the naming guard passes. In omnet-julia the
+  64 test functions of step 4f and `test_qtenv` give the same summaries as on
+  `main` (one test of the demo catalog walked the IO map to a fixed depth, and
+  now walks one level more); the fold of the `:hover` wrapper builds the hover
+  tracker over the new wrapper. In inet-julia, `test/presentation/demo.jl`
+  passes 219, as on `main`, in a scratch environment on the three worktrees.
+
 - [ ] 6. **The gesture tracking package (D8, D9, D25, D30, D32).**
   `ProjecturedGestureTracking`, with `GestureTrackingState` and
   `GestureTrackingProjection`: the click with its count, the chord and the dwell
