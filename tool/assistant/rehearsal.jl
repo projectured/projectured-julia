@@ -181,6 +181,50 @@ function check_table(editor)
     "no table with the five names sorted: $(tables)"
 end
 
+# ── What the model tells the person ──────────────────────────────────────────
+
+# The last text that the model wrote in its answer to the last prompt: the text
+# after its last call, which is what the person reads.
+function find_final_message(assistant)
+    turns = collect(assistant.conversation.turns)
+    last_user = findlast(turn -> turn.role === :user, turns)
+    last_user === nothing && return ""
+    text = ""
+    for turn in turns[(last_user + 1):end], part in turn.parts
+        content = part.content
+        content isa Union{EvaluatorForm, ConversationThinking} && continue
+        candidate = strip(compute_node_text(content))
+        isempty(candidate) || (text = candidate)
+    end
+    String(text)
+end
+
+const _NUMBER_WORDS = Dict("one" => 1, "two" => 2, "three" => 3, "four" => 4, "five" => 5,
+                           "six" => 6, "seven" => 7, "eight" => 8, "nine" => 9, "ten" => 10)
+
+_read_count(word) = get(_NUMBER_WORDS, lowercase(word), tryparse(Int, word))
+
+# Each count of people that the message states: "six people", "6 entries",
+# "all five", "5 rows".
+function find_stated_counts(text)
+    number = "(\\d+|one|two|three|four|five|six|seven|eight|nine|ten)"
+    counts = Int[]
+    for m in eachmatch(Regex("\\b" * number * "\\s+(people|persons|records|entries|rows|elements|items)\\b", "i"), text)
+        push!(counts, _read_count(m.captures[1]))
+    end
+    for m in eachmatch(Regex("\\ball\\s+" * number * "\\b", "i"), text)
+        push!(counts, _read_count(m.captures[1]))
+    end
+    filter(!isnothing, counts)
+end
+
+function check_final_count(assistant, expected)
+    text = find_final_message(assistant)
+    counts = find_stated_counts(text)
+    all(==(expected), counts) && return nothing
+    "the last message says $(counts), not $(expected): $(repr(first(text, 200)))"
+end
+
 # ── A run ────────────────────────────────────────────────────────────────────
 
 # The watch of a run: the file prints, the turn is under its rounds, and the run
@@ -234,6 +278,7 @@ function run_s2_rehearsal(seed; transcript, max_rounds = 8, max_seconds = 600.0,
     result[:seconds_1] = run_turn!(editor, assistant, PROMPTS[1]; cap = max_seconds)
     result[:rounds_1] = llm.rounds - state[:rounds_at_turn]
     result[:turn_1] = llm.stopped === nothing ? check_frank_added(editor, steps_before) : "stopped: " * llm.stopped
+    result[:turn_1] === nothing && (result[:turn_1] = check_final_count(assistant, 6))
 
     if result[:turn_1] === nothing
         evaluate_operation(editor, UndoOperation(get_file_history(editor)))
@@ -247,6 +292,7 @@ function run_s2_rehearsal(seed; transcript, max_rounds = 8, max_seconds = 600.0,
         result[:seconds_2] = run_turn!(editor, assistant, PROMPTS[2]; cap = max_seconds)
         result[:rounds_2] = llm.rounds - state[:rounds_at_turn]
         result[:turn_2] = llm.stopped === nothing ? check_table(editor) : "stopped: " * llm.stopped
+        result[:turn_2] === nothing && (result[:turn_2] = check_final_count(assistant, 5))
     else
         result[:turn_2] = "not run"
     end
