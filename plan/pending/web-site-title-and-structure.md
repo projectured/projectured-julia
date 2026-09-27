@@ -1,9 +1,14 @@
 # The web site: the title, and a page that a newcomer can follow
 
-**Status (2026-09-27): pending, not started.** The owner chose the title T2
-(§3) and answered Q1 to Q6 (§4.1). The owner accepted version 5 of the picture
-of the three loops (§7.4b). The implementation starts only when the owner says
-so.
+**Status (2026-09-27): in progress.** Every question has an answer (§4.1). The
+owner said to implement the plan in worktrees, and to wait with every part that
+needs the M/M/1/K video (S0), which is still being made. The work is on the
+branch `web-site-title` of `projectured.github.io` and of `projectured-julia`,
+in the worktrees `projectured.github.io-web-site-title` and
+`projectured-julia-web-site-title`.
+
+The video S11 about laziness is already on the page: another session added it
+to `main` of the site as commit `839316e`, "Only what you look at is computed".
 
 **Goal:** a visitor of `projectured.org` who does not know the project
 understands in a few seconds what ProjecturEd is and what is different about
@@ -731,16 +736,25 @@ the live site, so each push waits for the owner's word.
 
 ### Step 1: the changes that do not depend on the title
 
-- [ ] The status line at the top (W4). Move the full text to "Lineage &
+- [x] The status line at the top (W4). Move the full text to "Lineage &
       status", and make its limits agree with "Status and limits" of the README.
-- [ ] Links to `projectured-julia`: in the navigation, in the hero, and in
+- [x] Links to `projectured-julia`: in the navigation, in the hero, and in
       "Lineage & status".
-- [ ] Take "transform" out of the meta text. Add "projectional editor" and
+- [x] Take "transform" out of the meta text. Add "projectional editor" and
       "Julia" to the meta description (W5).
-- [ ] Delete "See it in action" (the picture is the same as the hero picture).
-- [ ] Delete the card "One set of operations", a duplicate of §2.1 (W8).
-- [ ] The headings of R13.
-- [ ] The head "Build with ProjecturEd" over the examples and the catalog.
+- [x] Delete "See it in action" (the picture is the same as the hero picture).
+- [x] Delete the card "One set of operations", a duplicate of §2.1 (W8).
+- [x] The headings of R13.
+- [x] The head "Build with ProjecturEd" over the examples and the catalog.
+
+      **Done** as site commit `13bb2fe`. The status section is now "Status &
+      lineage", with the heading "Under development, and the successor of a
+      Common Lisp editor." The hero eyebrow links "under development" to it.
+      The footer got a "Source" cell. The card grid got a CSS rule that lets
+      the last card fill its row, because the AI section now has five cards
+      and an empty cell showed the grid color. A headless browser can not
+      scroll to an anchor here, so the review renders a copy of the page that
+      hides every other section.
 
 ### Step 2: "Try it" and "What you can do with it"
 
