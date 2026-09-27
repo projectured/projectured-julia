@@ -321,9 +321,10 @@ _coerce(cur::AbstractFloat, v) = v isa AbstractFloat ? v : something(tryparse(Fl
 _coerce(_, v) = v
 
 # ── Reference mapping ─────────────────────────────────────────────────────
-# Caret/selection navigation into the object tree is deferred to a later stage; the
-# control subtree does not map into the projected object's reference space (v1),
-# mirroring ConversationToWidget.
+# No caret goes into the object tree: the controls do not map into the reference
+# space of the object. The default backward mapping names a part of the controls
+# by an introduced reference, so a point names the control under it, and only
+# such a reference maps forward again.
 
-map_reference_forward(::ObjectToWidget, ::ObjectToWidgetIoMap, reference) = nothing
-map_reference_backward(::ObjectToWidget, ::ObjectToWidgetIoMap, reference) = nothing
+map_reference_forward(p::ObjectToWidget, ::ObjectToWidgetIoMap, reference) =
+    find_introduced_path(p, reference)

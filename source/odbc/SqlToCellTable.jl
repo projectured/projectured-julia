@@ -3,7 +3,7 @@
 import ProjecturedKernel.CellModule: Cell, Computation, @computation
 import ProjecturedCollection.CollectionModule: CellVector, CellTable
 import ProjecturedKernel.ProjectionModule: print_document, read_intent,
-                              map_reference_forward, map_reference_backward, Projection
+                              map_reference_forward, Projection, find_introduced_path
 import ProjecturedSql.SqlModule: SqlSelectStatement
 import ProjecturedSql.SqlModule: SqlToSyntax
 import ProjecturedSyntax.SyntaxModule: SyntaxToText
@@ -40,6 +40,8 @@ function print_document(p::SqlToCellTable, recursion, stmt::SqlSelectStatement, 
     SimpleIoMap(p, stmt, CellTable(rows, Cell(nothing)))
 end
 
-map_reference_forward(::SqlToCellTable, iomap, ref) = nothing
-map_reference_backward(::SqlToCellTable, iomap, ref) = nothing
+# No caret goes into the result. The default backward mapping names a part of the
+# result table by an introduced reference, and only such a reference maps forward
+# again.
+map_reference_forward(p::SqlToCellTable, iomap, reference) = find_introduced_path(p, reference)
 read_intent(::SqlToCellTable, iomap, op) = nothing

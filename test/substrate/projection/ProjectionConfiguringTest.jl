@@ -106,7 +106,7 @@ end # @testset
 
 end # @testset
 
-@testset "a point on the document maps to the text position drawn there, and a point on the control to nothing" begin
+@testset "a point on the document maps to the text position drawn there, and a point on the control to the control" begin
 
     stub = FixedMeasure(10, 18, 6, 0)
     font = font_ubuntu_monospace_regular_20
@@ -125,8 +125,14 @@ end # @testset
     # Six characters of 10 pixels from the left edge: the caret after "alpha ".
     @test is_reference_equal(map_reference_backward(proj, iomap, PointReferenceStep(65, 132)),
                              TextModule.make_flat_caret_reference(6))
-    # The control shows the inner projection, not the document.
-    @test map_reference_backward(proj, iomap, PointReferenceStep(15, 60)) === nothing
+    # The control shows the inner projection, not the document, so the widget of the
+    # control under the point is named by an introduced reference.
+    control = map_reference_backward(proj, iomap, PointReferenceStep(15, 60))
+    @test is_introduced_reference(control, pcp)
+    @test strip_reference_types(find_introduced_path(pcp, control)) ==
+          extend_reference(EmptyReference(), FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
+                           FieldReferenceStep("elements"), RangeReferenceStep(0, 1),
+                           FieldReferenceStep("children"), RangeReferenceStep(2, 3))
 
 end # @testset
 

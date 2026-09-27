@@ -55,6 +55,9 @@ function evaluate_operation(editor, operation::WriteChosenNameOperation)
     nothing
 end
 
-map_reference_forward(::FileSystemChooserToWidget, iomap, reference) = nothing
-map_reference_backward(::FileSystemChooserToWidget, iomap, reference) = nothing
+# No caret goes into the chooser. The default backward mapping names a part of its
+# widgets by an introduced reference, so a point names the widget under it, and
+# only such a reference maps forward again.
+map_reference_forward(p::FileSystemChooserToWidget, iomap, reference) =
+    find_introduced_path(p, reference)
 read_intent(::FileSystemChooserToWidget, iomap, operation) = nothing

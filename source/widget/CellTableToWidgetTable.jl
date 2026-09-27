@@ -63,6 +63,8 @@ function print_document(p::CellTableToWidgetTable, recursion, ct::CellTable, ctx
     SimpleIoMap(p, ct, table)
 end
 
-map_reference_forward(::CellTableToWidgetTable, iomap, ref) = nothing
-map_reference_backward(::CellTableToWidgetTable, iomap, ref) = nothing
+# No caret goes into the table. The default backward mapping names a part of the
+# widget table by an introduced reference, so a point names the cell under it, and
+# only such a reference maps forward again.
+map_reference_forward(p::CellTableToWidgetTable, iomap, reference) = find_introduced_path(p, reference)
 read_intent(::CellTableToWidgetTable, iomap, op) = nothing

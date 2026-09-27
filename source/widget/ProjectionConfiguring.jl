@@ -145,15 +145,27 @@ end
 
 # ── Reference mapping ─────────────────────────────────────────────────────
 # No cursor maps forward through the split pane; document editing works through
-# the reader routing above.
+# the reader routing above. Only a part of the control, named by an introduced
+# reference, maps forward again.
 
-map_reference_forward(::ProjectionConfiguringProjection, iomap::ProjectionConfiguringIoMap, reference) = nothing
+map_reference_forward(p::ProjectionConfiguringProjection, iomap::ProjectionConfiguringIoMap, reference) =
+    find_introduced_path(p, reference)
 
 # A reference into the document side maps back through the inner projection, so a
 # point on the document reaches the part drawn there. The control shows the inner
-# projection, not the input, so no reference into it maps back.
+# projection, not the input, so the default mapping names a part of it by an
+# introduced reference.
 function map_reference_backward(p::ProjectionConfiguringProjection,
                                 iomap::ProjectionConfiguringIoMap, reference)
+    rest = _find_document_rest(iomap, reference)
+    rest === nothing &&
+        return invoke(map_reference_backward, Tuple{Projection,Any,Any}, p, iomap, reference)
+    map_reference_backward(p.inner, iomap.inner_iomap, rest)
+end
+
+# The rest of `reference` below the document side of the split pane, or `nothing`
+# when `reference` does not go into the document.
+function _find_document_rest(iomap::ProjectionConfiguringIoMap, reference)
     prefix = _find_child_steps(iomap.output, iomap.inner_iomap.output)
     prefix === nothing && return nothing
     rest = reference
@@ -161,5 +173,5 @@ function map_reference_backward(p::ProjectionConfiguringProjection,
         (rest isa ConcreteReference && rest.head == step) || return nothing
         rest = rest.tail
     end
-    map_reference_backward(p.inner, iomap.inner_iomap, rest)
+    rest
 end
