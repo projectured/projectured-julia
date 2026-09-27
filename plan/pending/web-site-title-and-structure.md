@@ -1,7 +1,8 @@
 # The web site: the title, and a page that a newcomer can follow
 
-**Status (2026-09-27): pending, not started.** The owner chooses the title
-(§3) first. The implementation starts only when the owner says so.
+**Status (2026-09-27): pending, not started.** The owner chose the title T2
+(§3) and answered Q1 to Q6 (§4.1). The picture of the three loops (§7) waits
+for the owner. The implementation starts only when the owner says so.
 
 **Goal:** a visitor of `projectured.org` who does not know the project
 understands in a few seconds what ProjecturEd is and what is different about
@@ -151,7 +152,8 @@ same faults as T9.
 
 ### 3.3 My recommendation
 
-This is my recommendation. The choice is the owner's.
+**The owner chose T2 on 2026-09-27**, in the form "One structure, many editable
+views — with an AI assistant." My recommendation, from before the choice:
 
 - **Shortlist:** T2, T4 and T5, with T1 as the control.
 - **My first choice is T2.** It carries the one idea that no other tool has, in
@@ -174,6 +176,9 @@ text, and it uses the approved words of §2.1 of the documentation rewrite:
 > is written in Julia.
 
 ### 3.5 How to choose
+
+The owner chose T2 without the render of the shortlist. The steps below stay as
+the method for a later change of the title.
 
 1. Render each title of the shortlist in the real hero: the `<h1>` with its
    three lines, the sub-line and the hero picture. Make one picture at desktop
@@ -214,6 +219,27 @@ that was the reason for this plan.
 | W4 | The status notice becomes one short line at the top. The full text goes to "Lineage & status" at the bottom. |
 | W5 | The meta description contains "projectional editor" and "Julia". The hero keeps "projectional editor" out, as D3 says. |
 
+The second answers, the same day:
+
+> for 1, I chose T2 for title
+> for 2, yes
+> for 3, An assistant on the same data, Domains nest, Composable projections,
+> Four backends. Why? because AI is a hot topic and remaing 3 combines in
+> multiplicative way
+> for 4, yes
+> for 5, yes
+> for 6, the M/M/1/K study showing the complex UI with assistant and all,
+> another one with the Julia evaluator perhaps
+
+| # | Decision |
+| --- | --- |
+| W6 | The title is T2: "One structure, many editable views — with an AI assistant." |
+| W7 | The hero shows S0 as a poster with a play control. The caption gives the length. No autoplay and no excerpt. |
+| W8 | The four large cards are "An assistant on the same data", "Domains nest", "Composable projections" and "Four backends". The reason: AI is a topic that readers look for, and the other three multiply: each domain goes through each chain of projections to each backend. The text over the four cards says that they multiply. So the card "An assistant on the same data" stays, and only the card "One set of operations" goes away as a duplicate. |
+| W9 | The social card is an HTML template that a headless browser renders. The owner answered "yes" to a question with two choices; I read it as my recommendation. |
+| W10 | The new title also replaces the approved tagline in the README, the deck and the posts (§3.6). |
+| W11 | The pictures of "The idea" are a still of the M/M/1/K study, with the complex window and the assistant, and perhaps a still of the Julia evaluator. They replace the picture of one document in two views. |
+
 ### 4.2 The review: what we do and what we do not do
 
 The owner answered the four questions and did not comment on the other rows.
@@ -224,10 +250,10 @@ before Step 1.
 | --- | --- | --- | --- |
 | R1 | A hero around "one structure, many views"; "projectional editor" as the main identity | The title of §3. "Projectional editor" stays in "The idea" and in the meta description. | D3, and W5. |
 | R2 | The status notice before the product | Do it (W4). | |
-| R3, R4 | One data with several views, as the main picture | One picture in "The idea", drawn by the editor: one document in two views that both take edits. Not two sections. | The page says that the editor draws every picture, so a hand-made diagram breaks that claim. |
-| R5 | Put the AI after the projection story | Do not change the order. Delete the duplicates of §2.1. | The idea already comes before the AI section. Only the hero puts AI first. |
+| R3, R4 | One data with several views, as the main picture | "The idea" gets the picture of the three loops (§7) and the stills of W11. Not two sections. | The loops show the idea with the names that the code uses. The stills show it in the program. |
+| R5 | Put the AI after the projection story | Do not change the order. Delete the card "One set of operations" (W8). | The idea already comes before the AI section. Only the hero puts AI first. |
 | R6 | A section "What can you use it for?" | Do it, from the README list "What you can do with it". | Each item of that list names code that exists. The review's list has items that nobody checked. |
-| R7 | Too many cards of equal size | Four large cards, and the others in a smaller grid. | My four: several views of one data; edits are operations, for you and for the assistant; only what is on the screen is computed; your own domain. |
+| R7 | Too many cards of equal size | Four large cards, and the others in a smaller grid. | The owner chose the four (W8). |
 | R8 | The result first, then the mechanism | Only where the result is a fact. | The approved text has one: "Parts of a document that are not on the screen cost nothing". Do not add a claim without a measurement. |
 | R9 | A demo video under the hero | The hero is S0 (W2). The table demo of the review waits for W3. | |
 | R10 | A head "Build with ProjecturEd" over the examples and the catalog | Do it. | It shows where the page changes from the user to the developer. |
@@ -252,7 +278,11 @@ The headings (R13):
 ### 4.3 What we do not do
 
 - **No "every view" or "any view".** It is false until every view takes edits.
-- **No hand-made diagram.** Every picture on the page comes from the editor.
+- **No hand-made picture of the program.** Every screenshot and every video
+  comes from the editor. A diagram of a concept, such as the loops of §7, can be
+  drawn by hand, because it does not claim to show the program. The caption
+  "every picture on this page is" drawn by the editor goes away with "See it in
+  action" in Step 1.
 - **No "semantic" and no "environment" in the title.** A reader can not tell
   what the program does from these words.
 - **No sales voice.** No "revolutionize", no "unlock", no benefit that was not
@@ -265,7 +295,7 @@ The headings (R13):
 1. Hero: the title, the sub-line, one short status line, the S0 video (a
    picture until it exists), and the links "Try it", "GitHub" and "See the
    idea".
-2. The idea, with the picture of one document in two views.
+2. The idea, with the picture of the three loops (§7) and the stills of W11.
 3. What you can do with it.
 4. Compared.
 5. Capabilities: four large cards, then the other cards.
@@ -280,16 +310,116 @@ replaces it in the hero.
 
 ## 6. Open questions for the owner
 
+Q1 to Q6 have answers (W6 to W11 in §4.1).
+
 | # | Question | My recommendation |
 | --- | --- | --- |
-| Q1 | Which title? | T2 (§3.3). Render the shortlist first (§3.5). |
-| Q2 | S0 lasts 10 min to 25 min. How does the hero show it? | A poster that tells the story alone, and a play control. The caption gives the length. No autoplay and no excerpt (§4.3). |
-| Q3 | Which four capabilities are large? | The four of R7. |
-| Q4 | How is the social card made? | An HTML template in `assets/og/` of the site, rendered by a headless browser. Then the next change of the title is one edit and one command. |
-| Q5 | Does the new title also replace the approved tagline in the README, the deck and the posts (§3.6)? | Yes, so that the texts stay the same everywhere. |
-| Q6 | Which two views go in the picture of "The idea"? | JSON beside a sorted view of the same data, because the page already says that a sorted view takes edits. Test first that both take edits in the application. After W3, a table can replace the sorted view. |
+| Q1 | Which title? | Answered: T2 (W6). |
+| Q2 | S0 lasts 10 min to 25 min. How does the hero show it? | Answered: a poster and a play control (W7). |
+| Q3 | Which four capabilities are large? | Answered (W8). |
+| Q4 | How is the social card made? | Answered: an HTML template in `assets/og/` of the site, rendered by a headless browser (W9). |
+| Q5 | Does the new title also replace the approved tagline in the README, the deck and the posts (§3.6)? | Answered: yes (W10). |
+| Q6 | Which pictures go in "The idea"? | Answered: a still of S0 and perhaps a still of the evaluator (W11). |
+| Q7 | The loops of §7: three in a row, or a triangle around the data? | Three in a row, with the data in the middle loop (§7.3). |
+| Q8 | Does the original picture go into "Lineage & status"? | Only if the owner knows where its icons come from (§7.5). If not, a link to it. |
+| Q9 | The hero poster and the still of "The idea" both come from S0. Which frames? | The poster is an early frame: the request to the assistant. The still of "The idea" is the last frame: the finished study with its chart. So the page does not show the same picture twice. |
+| Q10 | The page already has a video of the evaluator ("The rotating vector, form by form"). Is a still of it in "The idea" still needed? | No. The loops and the S0 still are enough. The video stays in "Videos". |
 
-## 7. Steps
+## 7. The picture of the three loops
+
+### 7.1 The original
+
+The Common Lisp ProjecturEd has a picture with the title "Human-Computer
+Communication". It has two loops of read, eval and print, and the two loops
+touch:
+
+- **The loop of the person:** Read with the eye, Eval in the head, Print with
+  the hand.
+- **The loop of the computer:** Read from the keyboard and the mouse, Eval on
+  the document, Print to the screen.
+
+The screen feeds the eye, and the hand feeds the keyboard. So the two loops make
+one cycle.
+
+The owner asked on 2026-09-27:
+
+> which shows the original idea of projectured lisp, should we add it but extend
+> it first by adding a third participant the AI assistant. The AI agent also has
+> its own loop, and there could be the data in the center
+
+### 7.2 Why the picture goes on the page
+
+- **The words of the picture are the words of the code.** A projection is a
+  printer and a reader. So the picture explains "The idea" with the names that a
+  developer finds later in the source.
+- **It adds the assistant without a separate story.** The assistant is a third
+  participant in the same cycle, not a feature beside the editor.
+- **It connects the Julia version to the original.**
+
+### 7.3 The design: three loops in a row, the data in the middle
+
+The loops go from left to right: the person, the editor, the assistant. They do
+not make a triangle. The person and the assistant never talk directly: a request
+to the assistant is a gesture into the conversation, and the conversation is a
+document in the editor. A triangle draws a direct line that does not exist.
+
+The middle loop is the editor. It meets the person on its left side and the
+assistant on its right side, so its Eval can not be outside, as in the original.
+The Eval goes to the center: an operation changes the data. So the data is in
+the center of the picture, as the owner suggested. This is also true to the
+original, where the computer evaluates on the document.
+
+```text
+              the view                          the result as text
+   ┌────── Read ◀────────── Print ──────────▶ Read ──────┐
+   ▼                          ▲                          ▼
+ Eval    the person      Eval: an operation      the assistant    Eval
+   │                      changes the DATA                        │
+   ▼                          ▲                          ▼
+   └─────▶ Print ─────────▶ Read ◀────────── Print ◀─────┘
+              a gesture                          a tool call
+                            the editor
+```
+
+| Loop | Read | Eval | Print |
+| --- | --- | --- | --- |
+| The person | the view, with the eyes | in the head | a gesture: a key or a click |
+| The editor, for the person | a gesture: the reader makes an operation | the operation changes the data | the printer makes the view |
+| The editor, for the assistant | a tool call: its Julia code runs and makes an operation | `evaluate_operation(editor, operation)` changes the data, as it does for a key | the result as text |
+| The assistant | the result as text | in the model | a tool call with Julia code |
+
+The code supports each row. The printer and the reader are the two functions
+of a projection. The description of the code tool in
+`source/kernel/tool/DefaultTools.jl` tells the model to change the data with an
+operation that `evaluate_operation(editor, operation)` runs.
+
+The caption says the one idea of the picture: the person and the assistant are
+two users of the same editor. Each reads a print of the data and sends edits
+back through the editor. A request to the assistant goes through the center
+too, because the conversation is a document.
+
+### 7.4 How the picture is drawn
+
+- **An inline SVG in the line style of the icons of the page.** It uses
+  `currentColor` and the accent color, so it works in the light and the dark
+  theme.
+- **No clip art from the original.** Nobody recorded where its icons come from.
+  A new drawing avoids the question of their licences.
+- **A second layout for a phone.** At phone width, the three loops go one above
+  the other. The page has two SVG elements, and CSS shows one of them.
+- **The labels are text in the SVG,** so a screen reader and a search engine
+  can read them. The figure has a text alternative that says the cycle in
+  words.
+- **The editor does not draw it.** Curved arrows and icons cost more in the
+  editor than the picture is worth. §4.3 allows a diagram of a concept.
+
+### 7.5 The original picture in "Lineage & status"
+
+The original picture can stand beside the text about the Common Lisp editor.
+It must go there only if the owner knows the source and the licence of its
+icons. If not, the section links to it.
+
+## 8. Steps
 
 The work goes in a git worktree of `projectured.github.io`, as a sibling in
 `workspace/`. Each step is one commit, with explicit paths. A push publishes
@@ -304,8 +434,7 @@ the live site, so each push waits for the owner's word.
 - [ ] Take "transform" out of the meta text. Add "projectional editor" and
       "Julia" to the meta description (W5).
 - [ ] Delete "See it in action" (the picture is the same as the hero picture).
-- [ ] Delete the duplicates of §2.1: the card "One set of operations", and the
-      card "An assistant on the same data" in the capabilities.
+- [ ] Delete the card "One set of operations", a duplicate of §2.1 (W8).
 - [ ] The headings of R13.
 - [ ] The head "Build with ProjecturEd" over the examples and the catalog.
 
@@ -319,20 +448,22 @@ the live site, so each push waits for the owner's word.
 
 ### Step 3: the capabilities
 
-- [ ] Four large cards (Q3), then the other cards in a smaller grid.
+- [ ] The four large cards of W8, then the other cards in a smaller grid. The
+      text over the four says that the last three multiply.
 - [ ] The card about incremental update says the result first, with the words
       of the approved text (R8).
 
-### Step 4: the picture of "The idea"
+### Step 4: the picture of the three loops (after Q7)
 
-- [ ] Test in the application that both views of Q6 take edits.
-- [ ] Draw the picture with the editor, and put it in "The idea".
+- [ ] Draw the two SVG layouts of §7.4. The owner reads a render at desktop
+      width and at phone width before the commit.
+- [ ] Put the picture and its caption in "The idea".
+- [ ] "Lineage & status": the original picture, or a link to it (Q8).
 
-### Step 5: the title (after Q1)
+### Step 5: the title T2
 
-- [ ] Render the shortlist in the real hero (§3.5). The owner chooses.
-- [ ] Change every place of §3.6 in `index.html`.
-- [ ] Draw `assets/og.png` again (Q4).
+- [ ] Change every place of §3.6 in `index.html`, with the sub-line of §3.4.
+- [ ] Draw `assets/og.png` again from an HTML template in `assets/og/` (W9).
 - [ ] In `projectured-julia`: the first line of the README, the introduction
       (take "transform" out), the title slide of the deck, and the post drafts.
       This is one commit in that repository.
@@ -340,15 +471,15 @@ the live site, so each push waits for the owner's word.
 
 ### Step 6: the videos (after S0 and S11 exist)
 
-- [ ] S0 in the hero, with a poster and a play control (Q2). The caption follows
-      D11 of the screenplay plan. The assistant picture moves to the AI section.
-- [ ] S11 in the Videos section. The large card about incremental update links
-      to it.
+- [ ] S0 in the hero, with a poster and a play control (W7). The poster is an
+      early frame (Q9). The caption follows D11 of the screenplay plan. The
+      assistant picture moves to the AI section.
+- [ ] A still of the last frame of S0 in "The idea" (W11, Q9).
+- [ ] S11 in the Videos section. The card about incremental update links to it.
 
 ### Step 7: after a table takes an edit (W3)
 
 - [ ] Take "a table does not take an edit yet" out of "Lineage & status".
-- [ ] If the owner wants it: the picture of "The idea" shows JSON and a table.
 
 ### Step 8: the review
 
@@ -358,7 +489,7 @@ the live site, so each push waits for the owner's word.
 - [ ] The owner reads the page. The owner says when it is pushed.
 - [ ] Move this plan to `plan/done/`.
 
-## 8. Risks
+## 9. Risks
 
 - **The texts drift apart.** If only the site gets the new title, the README,
   the deck and the posts keep the old one. §3.6 lists every place.
