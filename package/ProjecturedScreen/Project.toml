@@ -8,6 +8,7 @@ authors = []
 
 [deps]
 ProjecturedCollection = "8bcd16db-087d-4f4f-9083-436e400a73ed"
+ProjecturedGestureTracking = "d677152d-0bb6-4d22-933a-4307a7c10075"
 ProjecturedGraphics = "1c8b1e52-4ccf-4c64-9c0e-2a7ed969bd51"
 ProjecturedKernel = "a3e3499a-684d-4df9-a0d6-de2d1797b1f3"
 ProjecturedProjection = "a1f769f1-b8c6-4a84-a219-e21aa25c8d5d"
@@ -18,6 +19,7 @@ ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
 ProjecturedKernel = {path = "../ProjecturedKernel"}
 ProjecturedCollection = {path = "../ProjecturedCollection"}
 ProjecturedGraphics = {path = "../ProjecturedGraphics"}
+ProjecturedGestureTracking = {path = "../ProjecturedGestureTracking"}
 ProjecturedPrimitive = {path = "../ProjecturedPrimitive"}
 ProjecturedProjection = {path = "../ProjecturedProjection"}
 ProjecturedSerialization = {path = "../ProjecturedSerialization"}

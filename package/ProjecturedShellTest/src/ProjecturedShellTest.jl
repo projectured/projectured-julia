@@ -70,6 +70,7 @@ include("../../../test/shell/JuliaTooltipTest.jl")
 include("../../../test/shell/TooltipProbeTest.jl")
 include("../../../test/shell/WindowShellTest.jl")
 include("../../../test/shell/FileDialogTest.jl")
+include("../../../test/shell/TrackingScreenTest.jl")
 
 include("../../../test/shell/ShellSuite.jl")
 

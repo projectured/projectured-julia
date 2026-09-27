@@ -992,8 +992,10 @@ function is_pane_search_step(parent, child)
     true
 end
 
+# A screen holds its panes in its windows, as `get_window_tree` reads it.
 _can_hold_pane(document) =
     document isa Union{PaneDocument,WidgetDocument,CellVector} ||
+    hasproperty(document, :windows) ||
     get_wrapped_document(document) !== document
 
 # ── The duplicate ───────────────────────────────────────────────────────────
@@ -1174,14 +1176,15 @@ change it.
     show_layout(editor)
 
 ```
-(root)                                        ::ScreenDocument  # the editor's document
-  .windows[1]                                 ::WindowDocument  # ProjecturEd
-    .content.content.content.content          ::PaneTree        # inside ClipboardSlice › WidgetShell › UndoBuffer
-      .root                                   ::PaneSplit       # side by side: 20% | 80%
-        .elements[1]                          ::PaneGroup       # 1 tab
-          .tabs[1]                            ::PaneTab         # Files — Workspace (focused)
-        .elements[2]                          ::PaneGroup       # 1 tab
-          .tabs[1]                            ::PaneTab         # a.json — JsonFile
+(root)                                  ::GestureTrackingState  # the editor's document
+  .content                              ::ScreenDocument
+    .windows[1]                         ::WindowDocument        # ProjecturEd
+      .content.content.content.content  ::PaneTree              # inside ClipboardSlice › WidgetShell › UndoBuffer
+        .root                           ::PaneSplit             # side by side: 20% | 80%
+          .elements[1]                  ::PaneGroup             # 1 tab
+            .tabs[1]                    ::PaneTab               # Files — Workspace (focused)
+          .elements[2]                  ::PaneGroup             # 1 tab
+            .tabs[1]                    ::PaneTab               # a.json — WidgetScrollPane
 ```
 
 See also `find_pane_reference`, `focus_pane!`, `close_pane!`, `move_pane!`,
@@ -1189,7 +1192,7 @@ See also `find_pane_reference`, `focus_pane!`, `close_pane!`, `move_pane!`,
 
 **A line is the steps from its parent line.** The path of a part is the steps of
 the lines on its branch, joined in order. Write it as
-`@reference(editor.document, windows[1].content.content.content.content.root.elements[2].tabs[1])`:
+`@reference(editor.document, content.windows[1].content.content.content.content.root.elements[2].tabs[1])`:
 the first argument is the root, and the path starts after it. To name a pane
 there is a shorter way: [`find_pane_reference`](@ref) answers the reference of
 a pane by its title.

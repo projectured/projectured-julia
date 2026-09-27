@@ -28,6 +28,7 @@ using ..EditorModule
 using ..EventModule
 using ..FaultModule
 using ..FeedModule
+using ..GestureTrackingModule
 using ..GraphicsModule
 using ..IntentModule
 using ..IoMapModule
@@ -49,7 +50,8 @@ export OpenWindowOperation, OpenPopupOperation, CloseWindowOperation,
        ResizeWindowOperation
 export WindowManagingProjection, WindowManagingIoMap
 export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
-export make_window_scene, make_window_scene_projection, make_editor, run_window_editor
+export make_window_scene, make_window_scene_projection, make_tracking_screen, make_editor,
+       run_window_editor
 export ScreenDocument, WindowDocument
 
 

@@ -14,14 +14,12 @@ Window inputs that don't yield an operation (no iomap yet, or a projection
 reader that passed the event through unchanged) are silently consumed;
 there's nothing to evaluate or repaint for them.
 
-Raw backend events are first pulled through the editor's `GestureRecognizer`
-(`pop_gesture!`), which is where multi-event combinations become gestures —
-e.g. a `MouseDown`/`MouseUp` pair is recognised as a `MouseClick` click. The
-recogniser returns an `WindowInput` wrapping an event or a gesture (KeyDown,
-KeyUp, KeyPress, MouseDown, MouseUp, MouseClick, MouseMove, MouseScroll,
-WindowQuit, WindowClose, …) together with the originating `WindowDocument.id`.
-The window input is passed to the projection pipeline reader which translates it
-via the last stored IoMap.
+Each input of the backend is a `WindowInput`: an event (KeyDown, KeyUp,
+KeyPress, MouseDown, MouseUp, MouseMove, MouseScroll, WindowQuit, WindowClose,
+…) and the id of the `WindowDocument` it came from. The window input is passed
+to the reader of the projection, which translates it through the last stored
+IoMap. The editor recognizes no gesture: a projection does, such as the gesture
+tracking projection that the screen package puts around the screen.
 
 A timer of `editor.timers` whose time has come is read first, as a bare
 `TimerExpire`: a timer belongs to no window. The earliest one goes first, and it
@@ -30,9 +28,7 @@ leaves the timers when it is read.
 function read!(editor::Editor)
     while true
         window_input = _pop_due_timer!(editor)
-        window_input === nothing &&
-            (window_input = pop_gesture!(editor.recognizer,
-                                         () -> _read_from_devices_guarded(editor)))
+        window_input === nothing && (window_input = _read_from_devices_guarded(editor))
         if window_input === nothing
             editor.operation = nothing
             return false

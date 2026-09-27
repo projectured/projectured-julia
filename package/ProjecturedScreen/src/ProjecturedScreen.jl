@@ -11,6 +11,8 @@ relative `..XxxModule` references.
 module ProjecturedScreen
 
 using ProjecturedCollection
+# The trackers that `make_tracking_screen` puts around a screen.
+using ProjecturedGestureTracking
 using ProjecturedGraphics
 using ProjecturedKernel
 using ProjecturedPrimitive
@@ -36,6 +38,7 @@ const EditorModule = ProjecturedKernel.EditorModule
 const FaultModule = ProjecturedKernel.FaultModule
 const FeedModule = ProjecturedKernel.FeedModule
 const SerializationModule = ProjecturedSerialization.SerializationModule
+const GestureTrackingModule = ProjecturedGestureTracking.GestureTrackingModule
 
 include("../../../source/screen/ScreenModule.jl")
 # One window on one document, for a program rather than for the gallery.

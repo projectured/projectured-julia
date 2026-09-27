@@ -109,34 +109,29 @@ function test_input_coalescing()
         _reset_input!(backend)
     end
 
-    @testset "a click keeps the times that SDL stamps on its events" begin
+    @testset "a press and a release keep the times that SDL stamps on them" begin
         # SDL stamps an event when it is pushed. The press is read at once, the
-        # release is pushed 0.1 s later and read after a slow frame of 0.5 s:
-        # the stamps are 0.1 s apart, so the recognizer makes a click.
+        # release is pushed 0.1 s later and read after a slow frame of 0.5 s: the
+        # stamps are 0.1 s apart, inside the click window of a gesture tracker
+        # (0.3 s), although the release was read 0.6 s after the press.
         _reset_input!(backend)
-        recognizer = GestureRecognizer()
-        source = () -> read_from_devices(backend, Device[])
         _push_button_down!(10, 10)
-        down = pop_gesture!(recognizer, source)
+        down = read_from_devices(backend, Device[])
         @test down.event isa MouseDown
         sleep(0.1)
         _push_button_up!(10, 10)
         sleep(0.5)
         # Read what waits, for a bounded number of reads: an idle motion that the
         # rate limit holds back can make a read answer nothing.
-        gestures = Any[]
+        release = nothing
         for _ in 1:20
-            gesture = pop_gesture!(recognizer, source)
-            gesture === nothing ? sleep(0.01) : push!(gestures, gesture.event)
-            any(event -> event isa MouseClick, gestures) && break
+            input = read_from_devices(backend, Device[])
+            input === nothing && (sleep(0.01); continue)
+            input.event isa MouseUp && (release = input.event; break)
         end
-        release = findfirst(event -> event isa MouseUp, gestures)
-        press = findfirst(event -> event isa MouseClick, gestures)
         @test release !== nothing
-        @test press !== nothing && gestures[press].count == 1
-        # The events are 0.1 s apart, although the release was read 0.6 s later.
         @test release !== nothing &&
-              0.05 < get_event_time(gestures[release]) - get_event_time(down.event) < 0.3
+              0.05 < get_event_time(release) - get_event_time(down.event) < 0.3
         _reset_input!(backend)
     end
 

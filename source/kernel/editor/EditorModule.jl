@@ -19,7 +19,6 @@ using ..PerformanceModule
 using ..ClockModule
 using ..DocumentModule
 using ..OperationModule
-using ..GestureRecognizerModule
 using ..ToolModule
 using ..AgentModule
 using ..FaultModule

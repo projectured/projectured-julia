@@ -24,7 +24,6 @@ Holds the state for a read-eval-print loop:
                    [`post_operation!`](@ref).
   - `iomap`      — the latest IoMap from the printer (internal)
   - `operation`  — the latest operation from the reader (internal)
-  - `recognizer` — the event → gesture recogniser (internal)
   - `faults`     — the per-editor `FaultStore` every barrier writes to, and the
                    frame drains once. Per editor, so two editors in one process
                    never read each other's faults.
@@ -67,7 +66,6 @@ mutable struct Editor
     inbox::Channel{Operation}
     iomap::Union{IoMap, Nothing}
     operation::Union{Operation, Nothing}
-    recognizer::GestureRecognizer
     faults::FaultStore
     fault_policy::FaultPolicy
     replaced_projection::Union{Projection, Nothing}
@@ -91,7 +89,7 @@ function Editor(backend, document, projection, devices;
                 feeds::Vector{Feed} = Feed[])
     editor = Editor(backend, document, projection, devices, clock, tools,
                     Channel{Operation}(INBOX_CAPACITY),
-                    nothing, nothing, GestureRecognizer(), faults, fault_policy, nothing,
+                    nothing, nothing, faults, fault_policy, nothing,
                     # The wake starts pending: the first frame runs before the
                     # first wait, so the editor paints once before anything
                     # has happened.

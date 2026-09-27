@@ -448,13 +448,15 @@ function _prefix_content_fields(document, fields, selection)
 end
 
 # Build the scene (above), compose the screen projection via `compose(projs, backend)`,
-# and make the editor on `backend`, printed once. The shared start of
-# `make_example_editor` and `run_file_editor`.
+# put the trackers around both, and make the editor on `backend`, printed once. The
+# shared start of `make_example_editor` and `run_file_editor`.
 function _make_window_scene_editor(docs, projs, names; width, height, backend, compose,
                                    content_unwrap::Vector{Symbol}=Symbol[],
                                    feeds::Vector{Feed}=Feed[])
-    screen = _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap)
-    make_editor(backend, compose(projs, backend), screen; feeds=feeds)
+    screen, composed = make_tracking_screen(
+        _build_window_scene(docs, names; width=width, height=height, content_unwrap=content_unwrap),
+        compose(projs, backend))
+    make_editor(backend, composed, screen; feeds=feeds)
 end
 
 # Run the loop of `editor`, under the profiler when `profile` is set.

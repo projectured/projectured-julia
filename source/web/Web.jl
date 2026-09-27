@@ -556,10 +556,9 @@ _get_message_time(obj)::Float64 = haskey(obj, :t) ? Float64(obj[:t]) / 1000 : ti
 
 # Decode one client message and enqueue the resulting WindowInput(s). Only raw
 # device events are emitted; click (`MouseClick`) synthesis from a MouseDown/
-# MouseUp pair is the editor's `GestureRecognizer`'s job, not the backend's
-# (mirrors `SdlBackend`). Synthesising it here too made every click toggle/select
-# twice — the recogniser's own `MouseClick` plus this one — which read as "no
-# change" for togglers (e.g. card collapse flips back immediately).
+# MouseUp pair is the job of the gesture tracking projection, not the backend's
+# (mirrors `SdlBackend`). A click made here too would reach a reader twice, and a
+# toggle, such as the fold of a card, would flip back at once.
 function _decode_and_enqueue!(backend::WebBackend, msg)
     obj = JSON3.read(msg)
     typ = String(obj[:type])

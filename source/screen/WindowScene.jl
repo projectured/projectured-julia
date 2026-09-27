@@ -97,6 +97,29 @@ function make_window_scene_projection(projection;
 end
 
 """
+    make_tracking_screen(document, projection; gesture_tracking = true)
+        -> (document, projection)
+
+Put the tracking projections around a screen: `document` is the screen, and
+`projection` draws it, for example the one of
+[`make_window_scene_projection`](@ref). Each keyword puts one tracker around
+the pair, and its state document around the screen, so one tracker serves every
+window:
+
+- `gesture_tracking` — the gesture tracking projection, which recognizes the
+  click with its count, the key chord and the mouse dwell. An editor with no
+  gesture tracker gets the events of its devices and no gesture.
+
+Use it wherever a host makes an editor over a screen. The document of the editor
+is then the outermost state document; `get_wrapped_document` of it answers the
+screen.
+"""
+function make_tracking_screen(document, projection; gesture_tracking::Bool = true)
+    gesture_tracking || return (document, projection)
+    (make_gesture_tracking_document(document), make_gesture_tracking_projection(projection))
+end
+
+"""
     make_editor(document, projection, title; backend, width, height,
                 opened_window_projections, screen_wrap, feeds, fault_policy) -> Editor
 
@@ -121,6 +144,10 @@ caller loads the one it draws on. There is no reflection over the loaded backend
 here — that is `ProjecturedExample`'s, and naming it would bring the example
 umbrella back.
 
+The screen goes through [`make_tracking_screen`](@ref), so the editor recognizes
+clicks, chords and dwells, and its document is the state of the gesture tracker
+around the screen.
+
 `opened_window_projections` and `screen_wrap` go to
 [`make_window_scene_projection`](@ref). `feeds` and `fault_policy` go to the
 kernel's `make_editor`; pass `make_strict_fault_policy()` to stop at the first
@@ -140,13 +167,12 @@ function make_editor(document, projection, title::AbstractString;
         width = something(width, display_width)
         height = something(height, display_height)
     end
-    scene = make_window_scene(document, title; width = width, height = height)
-    make_editor(backend,
-                make_window_scene_projection(projection;
-                    opened_window_projections = opened_window_projections,
-                    screen_wrap = screen_wrap),
-                scene;
-                feeds = feeds, fault_policy = fault_policy)
+    scene, composed = make_tracking_screen(
+        make_window_scene(document, title; width = width, height = height),
+        make_window_scene_projection(projection;
+            opened_window_projections = opened_window_projections,
+            screen_wrap = screen_wrap))
+    make_editor(backend, composed, scene; feeds = feeds, fault_policy = fault_policy)
 end
 
 """

@@ -145,7 +145,7 @@ image rendering.
 
 The backend emits only raw input events; recognising composite gestures
 (e.g. synthesising a `MouseClick` click from a `MouseDown`/`MouseUp` pair) is
-the editor's `GestureRecognizer`'s job, not the backend's.
+the job of the gesture tracking projection, not the backend's.
 
 `windows` is the live registry of native SDL windows, keyed by the
 `WindowDocument.id` they mirror. `window_ids` is the reverse map from
@@ -3386,7 +3386,7 @@ in `backend.window_ids`), or `:none` if the SDL event carries no window
 id or refers to a window the backend does not track.
 
 The backend emits only raw events; the `MouseClick` click is synthesised from
-the `MouseDown`/`MouseUp` pair by the editor's `GestureRecognizer`, not here.
+the `MouseDown`/`MouseUp` pair by the gesture tracking projection, not here.
 
 ## Pointer motion is coalesced
 
