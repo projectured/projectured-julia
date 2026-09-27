@@ -871,9 +871,19 @@ the live site, so each push waits for the owner's word.
 
 ### Step 8: the review
 
-- [ ] Render the page with a headless browser at desktop width and at phone
+- [x] Render the page with a headless browser at desktop width and at phone
       width, in the light and the dark theme. Read every section.
-- [ ] Request every link of the page and check that each one answers 200.
+- [x] Request every link of the page and check that each one answers 200.
+
+      **Done for Steps 1 to 5** (2026-09-27). The ten external links answer
+      200, and the 25 local files exist. The review found one fault that was
+      already on `main`: each video article was about 650 px wide, because a
+      grid item is as wide as its widest code line by default, and the page
+      cut the text off at the right edge of a phone. Site commit `a945574` gives
+      the video articles and the parts of "Try it" `min-width: 0`. A check in
+      a frame of 390, 360 and 320 px finds no element wider than the page.
+      Chrome in headless mode does not make a window narrower than 485 px, so
+      the check loads the page in an iframe of the width to test.
 - [ ] The owner reads the page. The owner says when it is pushed.
 - [ ] Move this plan to `plan/done/`.
 
