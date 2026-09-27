@@ -240,6 +240,7 @@ The second answers, the same day:
 | W9 | The social card is an HTML template that a headless browser renders. The owner answered "yes" to a question with two choices; I read it as my recommendation. |
 | W10 | The new title also replaces the approved tagline in the README, the deck and the posts (§3.6). |
 | W11 | The pictures of "The idea" are a still of the M/M/1/K study, with the complex window and the assistant, and perhaps a still of the Julia evaluator. They replace the picture of one document in two views. |
+| W12 | "Lineage & status" does not show the original picture of the loops (Q8). The owner, the same day: "we don't need the original picture in the lineage". It does not link to it either. |
 
 ### 4.2 The review: what we do and what we do not do
 
@@ -323,7 +324,7 @@ Q1 to Q6 have answers (W6 to W11 in §4.1).
 | Q6 | Which pictures go in "The idea"? | Answered: a still of S0 and perhaps a still of the evaluator (W11). |
 | Q7 | The loops of §7: three in a row, or a triangle around the data? | Answered: three separate loops in a row, with synchronization points and no data (§7.4a). |
 | Q11 | The assistant also reads the words of the person. Does the picture draw a synchronization point from you to the assistant? | Not as a direct line. In ProjecturEd the request is typed into the assistant pane, so it passes through the editor. If it is drawn, it is a dashed arc over the editor, labeled "a request". Version 5 does not draw it, and the owner accepted version 5. |
-| Q8 | Does the original picture go into "Lineage & status"? | Only if the owner knows where its icons come from (§7.5). If not, a link to it. |
+| Q8 | Does the original picture go into "Lineage & status"? | Answered: no (W12). |
 | Q9 | The hero poster and the still of "The idea" both come from S0. Which frames? | The poster is an early frame: the request to the assistant. The still of "The idea" is the last frame: the finished study with its chart. So the page does not show the same picture twice. |
 | Q10 | The page already has a video of the evaluator ("The rotating vector, form by form"). Is a still of it in "The idea" still needed? | No. The loops and the S0 still are enough. The video stays in "Videos". |
 
@@ -655,9 +656,9 @@ if __name__ == "__main__":
 
 ### 7.5 The original picture in "Lineage & status"
 
-The original picture can stand beside the text about the Common Lisp editor.
-It must go there only if the owner knows the source and the licence of its
-icons. If not, the section links to it.
+The original picture does not go into "Lineage & status", and the section does
+not link to it (W12). The section keeps its text and its links to the Common
+Lisp editor.
 
 ## 8. Steps
 
@@ -703,7 +704,6 @@ the live site, so each push waits for the owner's word.
 - [ ] Put both SVG elements and a caption in "The idea". The owner reads a
       render at desktop width and at phone width before the commit.
 - [ ] A credit line for the Lucide icons (ISC licence) in the footer.
-- [ ] "Lineage & status": the original picture, or a link to it (Q8).
 
 ### Step 5: the title T2
 
