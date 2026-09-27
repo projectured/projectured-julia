@@ -296,8 +296,10 @@ All of them are from 2026-09-26.
   the target tracker, through the keyword `mouse_target_tracking` of
   `make_tracking_screen`. `FocusCyclingProjection` stays in every window wrap
   whatever the flag (D2). (Q30, owner 2026-09-27.)
-- **D61.** The live check of step 8 moves the real pointer with XTest. (Owner
-  2026-09-27.)
+- **D61 (withdrawn).** The live check of step 8 moves the real pointer with
+  XTest. (Owner 2026-09-27.) On this desktop XTest asks to allow "remote
+  interaction", and the owner does not allow it (owner 2026-09-27: "I don't want
+  to allow remote interaction"). The way of the live check is open.
 - **D62.** A crossing reaches a widget that a view makes by its route (Q31,
   way A). A routed gesture goes forward through the stages of a chain as far as
   the forward maps answer; the deepest stage reads it first, and an earlier
@@ -1216,7 +1218,11 @@ it holds the example.
       findings; the naming guard passes. omnet: the three known failures, and
       the four tests that step 8 added pass; its global check gives its one
       known finding. inet: the demo passes 219.
-  - [ ] 8d. The live check with XTest (D61).
+  - [ ] 8d. The live check. XTest is out (D61 withdrawn): the first run opened the
+    X display, and the desktop asked to allow remote interaction. No pointer
+    moved. That run also found that the window with no file open draws no row of
+    the navigator named `notes.txt` (13 texts in all), so a live check must first
+    find what the window shows.
 - [ ] 9. **The probes go away (D7).** A tooltip is the meaning of a `MouseDwell`
   on the target, and `compute_tooltip` stays; the feed, the probe and
   `PointerRest` of the tooltip package go away. The inspector reads the target.
