@@ -773,10 +773,15 @@ the live site, so each push waits for the owner's word.
 
 ### Step 3: the capabilities
 
-- [ ] The four large cards of W8, then the other cards in a smaller grid. The
+- [x] The four large cards of W8, then the other cards in a smaller grid. The
       text over the four says that the last three multiply.
-- [ ] The card about incremental update says the result first, with the words
+- [x] The card about incremental update says the result first, with the words
       of the approved text (R8).
+
+      **Done** as site commit `a7622ef`. The incremental card now has the heading
+      "Only what you look at is computed", the title of the video S11, and it
+      links to that video. The rule that lets the last card fill its row does
+      not apply to the large grid, which has two columns.
 
 ### Step 4: the picture of the three loops (version 5, §7.4b)
 
@@ -807,7 +812,8 @@ the live site, so each push waits for the owner's word.
       early frame (W13). The caption follows D11 of the screenplay plan. The
       assistant picture moves to the AI section.
 - [ ] A still of the last frame of S0 in "The idea" (W11, W13).
-- [ ] S11 in the Videos section. The card about incremental update links to it.
+- [x] S11 in the Videos section. The card about incremental update links to it.
+      S11 came from another session (site commit `839316e`); the link is in `a7622ef`.
 
 ### Step 7: after a table takes an edit (W3)
 
