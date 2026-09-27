@@ -27,7 +27,7 @@ The AI assistant runs inside the application, with a local model through Ollama 
 
 ## What you can do with it
 
-- **Build an editor for your own data.** Define the structure of your data as documents and its views as projections, in a package of its own. [new-domain-guide.md](documentation/guide/new-domain-guide.md) walks through a whole domain, and [view-your-data-guide.md](documentation/guide/view-your-data-guide.md) shows your own Julia values with no new domain.
+- **Build an application for your own data.** Define the structure of your data as documents and its views as projections, in a package of its own. [new-domain-guide.md](documentation/guide/new-domain-guide.md) walks through a whole domain, and [view-your-data-guide.md](documentation/guide/view-your-data-guide.md) shows your own Julia values with no new domain.
 - **Edit files as structures.** The domains that come with ProjecturEd open, change and save their files through their own parsers, among them JSON, YAML, XML, Markdown, reStructuredText, SQL, Julia and a math notation. See [the domain inventory](documentation/design/domain-inventory.md).
 - **Design a tool window without a GUI toolkit.** Widgets, tables, cards, tabs, split panes and a pane tree come from the [widget](documentation/package/widget/widget.md) and [pane](documentation/package/pane/pane.md) packages. ProjecturEd's own window is a complete application of this kind.
 - **Look into a running Julia program.** A reflection view shows any object as a tree that opens one level at a time.
