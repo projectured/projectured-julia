@@ -264,6 +264,15 @@ The last answers, the same day:
 | W15 | The picture of the loops gets a dashed arc from the human loop to the assistant loop, over the editor, with the label "conversation". The caption explains it (Q11, §7.4c). |
 | W16 | The owner accepts the rest: the social card as an HTML template (W9), and the rows R1 to R14 of §4.2. |
 
+After the landing, the same day:
+
+> you don't have to list what does not work in the projection web page, there
+> are many small details that doesn't work
+
+| # | Decision |
+| --- | --- |
+| W17 | The web page does not list its limits. The status section keeps the notice, which links to the roadmap and the issues, and the licence as a sentence of its own. This replaces the part of Step 1 that made the list of the page agree with the README; the README keeps its list. Site commit `4f7b653`, on the branch `site-no-limits`. |
+
 ### 4.2 The review: what we do and what we do not do
 
 The rows below were my recommendations. The owner accepted them (W16).
