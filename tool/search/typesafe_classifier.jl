@@ -10,6 +10,7 @@
 # See plan/pending/a-classifier-ranks-the-search.md.
 
 using SHA: sha256
+import ProjecturedKernel
 import ProjecturedOllama
 const _TYPESAFE_HTTP = ProjecturedOllama.HTTP
 const _TYPESAFE_JSON3 = ProjecturedOllama.JSON3
@@ -179,4 +180,19 @@ function make_typesafe_choose(ask::Function)
         probabilities = answers.which.probabilities
         ([Float64(get(probabilities, Symbol(first(option)), 0.0)) for option in options], used)
     end
+end
+
+"""
+    make_jev_relevance_model(ask) -> RelevanceModel
+
+The kernel's `RelevanceModel` on Jev: its `score` sends a `noul` per text, and
+its `choose` one `choice`, through `ask` of [`make_typesafe_client`](@ref).
+"""
+function make_jev_relevance_model(ask::Function)
+    noul_score = make_typesafe_noul_score(ask)
+    choice = make_typesafe_choose(ask)
+    question(query, context) = (sentence = String(query), context = String(context))
+    ProjecturedKernel.ToolModule.RelevanceModel("openrouter/typesafe/jev-1.13",
+                   (query, context, texts) -> first(noul_score(question(query, context), texts)),
+                   (query, context, options) -> first(choice(question(query, context), options)))
 end

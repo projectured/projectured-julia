@@ -730,9 +730,11 @@ end
 Every name a declaration gives, grouped by module: one signature line each, or
 just the names when `signatures` is false.
 
-**It is what a search answers when it matched nothing.** A search that says only
-"no match" costs a round and teaches nothing, and the round after it is a guess.
-The names are short, and they are the answer to "then what may I write?".
+**It is what a search answers when it matched nothing**, while the declaration
+is small. A search that says only "no match" costs a round and teaches nothing,
+and the round after it is a guess. The names are short, and they are the answer
+to "then what may I write?". A declaration of thousands of names is not listed:
+the miss names its modules instead.
 
 **It is not carried in a prompt.** The surface is 43 names and 900 tokens today,
 and it grows with the application; a menu in every round is a cost that never
@@ -1350,7 +1352,7 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detai
     # carried in every prompt.
     if isempty(ranked)
         suffix = kind === nothing ? "" : " (kind=$kind)"
-        names = isempty(api) ? "" : describe_api(api; signatures = false)
+        names = isempty(api) ? "" : _describe_api_for_miss(api)
         return _prefix_note(note, "No API matches $(repr(query))$suffix. " *
                                   "A guide may say it: `search_guides` with the same words." *
                                   (isempty(names) ? "" : "\n\nWhat you may write:\n\n" * names))
@@ -1382,6 +1384,22 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detai
     end
     body = String(take!(io))
     body * _make_footer(_get_entry_uri(first(shown)), length(body); what = "one")
+end
+
+# The most names a miss lists. An application declares thousands, and a list of
+# them all is some 25,000 tokens: one answer would fill the context of a model.
+const _MISS_NAME_LIMIT = 300
+
+# What a miss says of the declaration: every name, grouped by module, while there
+# are few; the modules alone when there are more.
+function _describe_api_for_miss(api)
+    entries = _api_entries(api)
+    count = sum(length(api_entry_bindings(entry)) for entry in entries; init = 0)
+    count <= _MISS_NAME_LIMIT && return describe_api(api; signatures = false)
+    modules = unique(String(nameof(entry.module_)) for entry in entries)
+    "The declaration gives " * string(count) * " names in " * string(length(modules)) *
+    " modules, too many to list. The modules: " * join(modules, ", ") *
+    ". Say in a sentence what you want, with mode \"description\"."
 end
 
 # A hit is two lines: what a caller writes, and what it does.

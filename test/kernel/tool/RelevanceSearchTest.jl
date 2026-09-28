@@ -35,7 +35,7 @@ end
 
 # A declaration larger than one choice holds.
 module RelevanceBigToy
-for index in 1:300
+for index in 1:320
     name = Symbol("tool_", index)
     text = "    tool_$(index)()\n\nDo the step number $(index)."
     @eval begin
@@ -122,9 +122,15 @@ function test_relevance_search()
         set_relevance_model!(big, RelevanceModel("fake/big", big_score, big_choose))
         answer = search_api(big, "the step two hundred and seventy-seven"; mode = "description")
         @test _get_first_relevance_hit(answer) == "tool_277"
-        # 301 entries: the module and its 300 names, in groups of 255.
-        @test sort(groups) == [46, 255]
+        # 321 entries: the module and its 320 names, in groups of 255.
+        @test sort(groups) == [66, 255]
         @test scored[] == 6
+        # A miss lists the modules of a declaration too large to list by name.
+        miss = search_api(big, "+zzqx")
+        @test occursin("320 names in 1 modules, too many to list", miss)
+        @test !occursin("tool_17", miss)
+        small_miss = search_api(set, "+zzqx")
+        @test occursin("measure_utilization", small_miss)
     end
 
     @testset "a guide search lets the relevance model order its first hits" begin
