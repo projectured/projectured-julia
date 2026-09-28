@@ -482,8 +482,9 @@ A take of S0 with the search that Stage 2 kept. The owner decides if it runs.
 
 Each step says what stops the stage.
 
-- [ ] **Step 0. The probes.** No code in the repository. Item 2 is done; item 1
-  waits for a key that the server accepts (§10).
+- [x] **Step 0. The probes.** No code in the repository. Done 2026-09-28 (§10):
+  the key is an OpenRouter key, and Jev is reached through the Decisions API of
+  OpenRouter.
   1. B1, with the key of D8: ask ten questions in the layouts L1 and L2. Read
      `usage.input_tokens`, to learn if the state is paid once per question. Ask
      each twice, to learn if the answer is the same. Find the limit of questions
@@ -860,3 +861,36 @@ in `/var/tmp/classifier-search/rankings/ollama-classifier-cache.ndjson`.
 - The seconds: the classifier took 1,700 to 3,300 s for 71 questions, 25 to 45 s
   a question. Too slow for a round of the agent at this depth; the pool of three
   rankers is larger still.
+
+### Step 0, item 1: Jev through OpenRouter, 2026-09-28
+
+**The key was an OpenRouter key.** The owner's colleague saw that the workspace
+of the key allows one model, Jev 1.13 of the provider TypeSafe. OpenRouter
+serves Jev at `POST https://openrouter.ai/api/alpha/decisions`, with the key as
+the bearer token and the request shape of TypeSafe (`model`, `state`,
+`questions`). The model is `typesafe/jev-1.13`, the exact id the workspace
+allows; the answer says `typesafe/jev-1.13-20260917`, the provider `TypeSafe`,
+and `usage.cost` in dollars, which the ledger now keeps. The key limit of the
+account is $50 a month, and it showed $0.20 used before this work began.
+
+The probe (`probe_b1.py`), on the ten questions of item 2, cost $0.0075:
+
+| probe | result |
+| --- | --- |
+| L1, one request per candidate, 160 requests | 9 of 10 first (`declare_api!` second); 86,608 tokens; 0.37 s a request |
+| L2, one request per question, 16 nouls | **10 of 10 first; 46,513 tokens**; 0.38 s a request |
+| the state, with 1 and with 10 short questions | 1,925 and 2,072 tokens: the state is paid once per request |
+| the same request twice | 0.97 and 0.97 |
+| questions in one request | 100, 256, 512 and 1,024 accepted; 1,024 took 1.44 s |
+| one `choice` of 255 short lines | 7,584 tokens, 0.79 s; `WidgetCard` second, at 0.13 after 0.21 |
+
+- **L2, the fan-out layout, is the layout**: half the tokens of L1 and at least
+  as good. `make_typesafe_noul_score` sends 150 candidates per request, well
+  under the 64k tokens of a request.
+- A `choice` over short lines is weaker than a `noul` over full texts, as the
+  skill-suggestion cookbook expects: it is a first stage that keeps a few, and
+  the cascade keeps three of each group.
+- **The budget of §8b is too high.** A docstring is short (§10, Step 0, item 2)
+  and the state is paid once, so a two-stage question costs about 30,000
+  tokens, a tree about 35,000, a cascade about 175,000, and a flat question over
+  5,187 entries about 1.3 million. The whole stage `hosted` is about $3.
