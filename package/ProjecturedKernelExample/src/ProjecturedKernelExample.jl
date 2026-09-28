@@ -41,6 +41,8 @@ include("../../../example/kernel/LlmFake.jl")         # FakeLlm — canned-reply
 include("../../../example/kernel/LlmScripted.jl")     # ScriptedLlm + scripted-round builders
 include("../../../example/kernel/BackendHeadless.jl") # HeadlessBackend — in-memory backend test double
 include("../../../example/kernel/SearchScaleMeasurement.jl") # what a search costs on a large corpus
+include("../../../example/kernel/SearchCorpus.jl")           # the corpus of a whole application
+include("../../../example/kernel/CallSite.jl")               # where a caller writes each name
 
 export Example, AtomicDocument, force_projected
 export write_example_image, record_example_video, make_typein_gestures
@@ -48,5 +50,8 @@ export FakeLlm, ScriptedLlm,
        make_scripted_turn, make_scripted_think, make_scripted_say, make_scripted_run
 export HeadlessBackend, rendered_output, push_event!
 export ScaleQuestion, measure_search_scale!
+export collect_package_modules, make_corpus_declaration, make_corpus_tool_set,
+       describe_search_corpus
+export CallSite, collect_call_sites, find_module_folder, rank_call_sites, format_call_sites
 
 end # module ProjecturedKernelExample

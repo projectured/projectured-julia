@@ -292,8 +292,17 @@ word makes the measurement test memory and not relevance. The tool excludes:
 - the S0 scripts and their checks (`tool/video/study_*`,
   `tool/video/record_study_take.jl`, `tool/assistant/study_rehearsal.jl` in
   omnet-julia);
+- the other files that script the S0 study word for word:
+  `test/ide/AssistantStudyTest.jl` and `example/ide/StudyRecording.jl` of
+  omnet-julia (found in Step 1);
 - `tool/assistant/rehearsal.jl` and its checks;
-- the files that hold the questions of the corpora, and their tests.
+- the files that hold the questions of the corpora, and their tests
+  (`test/ide/AssistantSessionTest.jl` holds the eleven problems);
+- the fragments of the measurement itself, which call `search_api` and
+  `declare_api!`.
+
+The M/M/1/K model is the standard test model of the simulator, and about 80
+files name it. Only the files above script the study; the others stay.
 
 A guide section that a question expects stays a call site source for the API
 questions, because the agent can read the guides too. The report says how many
@@ -483,9 +492,10 @@ Each step says what stops the stage.
      the tokens per second. From it, fill the B2 column of §5c with numbers. If
      no shape fits a round of the agent at the full scale, name a smaller local
      model for the owner. The memory rule of §7 applies.
-- [ ] **Step 1. The corpora and the call sites.**
-  1. The full corpus of §5c, and its count by kind and by package. The sizes of
-     the ladder, each with every expected name of every question.
+- [x] **Step 1. The corpora and the call sites.** Done 2026-09-28 (§10). The
+  sizes of the ladder need the expected names of Step 2, so Step 3 builds them.
+  1. The full corpus of §5c, and its count by kind and by package. ~~The sizes of
+     the ladder, each with every expected name of every question.~~
   2. The call-site tool of §5a, and one file for the full corpus. The report:
      how many entries have a call site, how many have one from outside their
      package, how many short names are shared.
@@ -672,3 +682,53 @@ than 20 minutes on 1,360. So B2 with the 27B model fits a round of the agent
 (about 50 s) only in two stages over about 30 candidates, where the vectors
 cap the recall. A smaller model is the local option for the other shapes. I
 will name a candidate when Step 4 shows which shape wins.
+
+### Step 1, 2026-09-28
+
+The code: `example/kernel/SearchCorpus.jl` and `example/kernel/CallSite.jl`,
+fragments of `ProjecturedKernelExample`, with `test/projectured/SearchCorpusTest.jl`
+(6 pass) and `test/projectured/CallSiteTest.jl` (17 pass). The tests ran against
+the main environment, with the fragments included from the worktree, so nothing
+recompiled; they are in `ProjecturedSuite.jl` too. The naming guard passes. The
+run script is `/var/tmp/classifier-search/step1/build_corpus.jl`, and it writes
+`corpus.ndjson` with the three best call sites of each entry.
+
+**The full corpus: 5,185 entries.** The script loads `OmnetIde`, `Omnet`,
+`Projectured`, `OmnetLegacy`, `OmnetLegacyModel`, `OmnetRunner`, `OmnetStudy`,
+`OmnetDynamics` and `OmnetMeasure`, and `collect_package_modules` takes every
+module of the packages named `Projectured…` and `Omnet…`, except the example,
+test and benchmark packages.
+
+| corpus | modules | entries | functions | types | values |
+| --- | --- | --- | --- | --- | --- |
+| the window of the study | 13 | 131 | 64 | 53 | 2 |
+| `using OmnetIde` alone | 150 | 2,650 | 1,130 | 1,053 | 317 |
+| the full corpus | 280 | 5,185 | 2,559 | 1,894 | 452 |
+
+The largest packages of the full corpus are `OmnetSimulator` (1,092 entries),
+`ProjecturedKernel` (524), `OmnetPresentation` (419) and `ProjecturedStyle`
+(326). 18 names were dropped because a second module exports another binding
+under the same name. The declaration takes 45 s and the index 1 s.
+
+**A decision: a name comes from the module that owns it.** The umbrella modules
+`Projectured` and `Omnet` re-export the names of their packages and come first in
+the order of full names. The first run gave them 2,760 and 1,409 names, so a hit
+read `Projectured.open_pane!` and the folder of its call sites was the umbrella.
+`make_corpus_declaration` now gives a name from the module that owns its binding
+(`Base.binding_module`) when that module exports it.
+
+**The call sites.** The roots are `source`, `example`, `test`, `tool`, `package`
+and `documentation` of both repositories. 133,711 calls of 12,479 names, parsed
+in 1.1 s. **3,983 of the 4,905 names have a call site (81 %)**, and 2,945 (60 %)
+have one from outside the folder of their module. `open_pane!` has 17, `Cell`
+766, `make_study!` 3.
+
+- A parser fact: in Julia 1.13 the parser gives `f(x) = y` as a `function`
+  node, like the long form. The first version counted every call in the body of
+  a short definition as a definition, and the test found it.
+- **The assistant guide of omnet-julia shows the S0 study.** The best call site
+  of `make_study!`, `add_expectation!` and `make_result_plot` is its code:
+  `make_study!(editor; title = "An M/M/1/K queue", …`. It stays a source (§5a),
+  because the guide is real and the agent reads it. So Step 4 asks the S0
+  questions a second time without the call sites of the guides, to learn how
+  much of a gain is the guide.
