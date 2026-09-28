@@ -147,10 +147,14 @@ end
 end
 
 @testset "a toolbar item says its label when it has no tooltip" begin
-    @test compute_tooltip(WidgetToolbarItem("Gesture log"; icon = :keyboard)).value == "Gesture log"
-    @test compute_tooltip(WidgetToolbarItem("Gesture log"; icon = :keyboard,
-                                            tooltip = "Every gesture")).value == "Every gesture"
-    @test compute_tooltip(WidgetToolbarItem(""; icon = :keyboard)) === nothing
+    # The content of the one layer that the dwell binding answers.
+    dwell(item) = let operation = read_gesture(item, MouseDwell(0, 0; time = 0.0))
+        operation === nothing ? nothing : only(get_wrapped_operation(operation).layers)[2]
+    end
+    @test dwell(WidgetToolbarItem("Gesture log"; icon = :keyboard)).value == "Gesture log"
+    @test dwell(WidgetToolbarItem("Gesture log"; icon = :keyboard,
+                                  tooltip = "Every gesture")).value == "Every gesture"
+    @test dwell(WidgetToolbarItem(""; icon = :keyboard)) === nothing
 end
 
 end # @testset

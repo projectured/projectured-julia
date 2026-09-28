@@ -1,60 +1,80 @@
 # Tooltip
 
-> **Kind:** design · **Status:** current · **Stands on:** [screen.md](../screen/screen.md), [shell.md](../shell/shell.md)
+> **Kind:** design · **Status:** current · **Stands on:** [screen.md](../screen/screen.md), [mousetargettracking.md](../mousetargettracking/mousetargettracking.md)
 
-`ProjecturedTooltip` shows a tooltip in a window of its own. It has two mechanisms: a probe that asks the document under the pointer for its tooltip, and a wrapper document with an explicit trigger. This document says how each one works and why both exist.
+`ProjecturedTooltip` shows what a part says about itself in a window of its own. The meaning is in the gesture table of the part: a part answers a dwell with an operation. A wrapper at the screen keeps the one tooltip window. This document says how the two meet, and why the tooltip is a binding and not a central lookup.
 
 ## How it works
 
-### The probe
+### A part answers a dwell
 
-`TooltipProbeProjection` wraps the content projection of a window. It has no document of its own and it prints the content unchanged. **It gives every event to the content first**, so a hover, a drag and a click work under it as they do without it. It only watches the pointer: a move notes where the pointer is and when, and a move away from an open tooltip, a press, a key and a scroll close it.
+A part that has something to say declares a binding in its own gesture table:
 
-**A tooltip opens only after the pointer rests.** A resting pointer sends no event, so the time comes from the editor's loop. A `TooltipFeed`, made with `make_tooltip_feed(; delay = 0.5)`, names a deadline: the last move plus the delay, while no tooltip is shown. The loop sleeps until that deadline and no longer, and an idle window names none. At the deadline the feed reads a `PointerRest(x, y)` through the editor's projection and posts the operation that comes back. The probe answers the rest:
+```julia
+get_document_gesture_bindings_own(::Type{JuliaFunction}) = GestureBinding[
+    make_tooltip_binding(function_ -> _julia_tooltip_text(compute_julia_signature(function_));
+                         description = "Show the signature")]
+```
 
-1. it makes a left press with the Alt key at the resting point and reads it through the content chain, without applying it;
-2. it takes the path of the `ReplaceSelectionOperation` that comes back, which names the innermost document under the pointer;
-3. it calls `compute_tooltip(document)` on that document;
-4. it opens a window with the answer next to the pointer, or nothing when the answer is `nothing`.
+`make_tooltip_binding(compute; description)` binds a `MouseDwell`. The binding answers `ReplaceViewStateOperation(OpenTooltipOperation(layers, source, point))` when `compute(document)` answers a document, and nothing when it answers `nothing`. The binding is `applicable` only where the part has something to say.
 
-The press has the Alt key because a plain press is the action gesture of a widget: it would press a button. An Alt+press only selects. The probe and the feed share one `TooltipRest`, so the host hands the same feed to the probe and to `run_window_editor(feeds = …)`.
+`OpenTooltipOperation` holds:
 
-`compute_tooltip` is a generic function of `ProjecturedDomain`, and a document gives its own tooltip: a widget returns the text in its `tooltip` field, and a `JuliaFunction` returns its signature. The host gives the generic to the probe as a function value, so this package needs no dependency on the domains that answer it. [shell.md](../shell/shell.md) describes how the shell puts the probe and its twin, the context menu probe, into the window.
+- `layers`: the `(title, content)` pairs, the nearest part first. The title is `get_document_title` of the part, or the name of its type;
+- `source`: the path of the nearest part. A reader reroots it and retargets it on the way up, as it does any path;
+- `point`: where the pointer rested, or `nothing` when a command runs the binding.
 
-### The wrapper
+`ReplaceViewStateOperation` marks the tooltip as not an edit, so a history does not record it.
 
-`TooltipSource` wraps a `child`, which stays on the screen, and a `content`, which the tooltip window shows. `TooltipDecoratorProjection` prints the child and calls its `trigger(source, event)` function on each event. When the trigger is true for `delay_ms`, the reader makes an `OpenWindowOperation` with the `id`, the `style` and the content of the source; when it is false again, a `CloseWindowOperation`. The reader of the child comes first: if the child returns an operation, the tooltip change waits for the next event. One decorator keeps a state for each `id`, so sibling sources are independent.
+### The dwell goes to the part, and out through the parts around it
 
-Both mechanisms make ordinary window operations. `WindowManagingProjection` adds or removes a `WindowDocument` with `style = :tooltip`, and the backend shows it.
+The gesture tracker recognizes the dwell when the pointer rests. The mouse target tracker sends it by route to its target, the deepest part under the pointer. So the tooltip needs no press to find its part, and a part that a view makes gets the dwell as well.
+
+**The parts around add their layers.** `OpenTooltipOperation` collects (`is_collecting_operation`). The kernel reads a routed gesture outward from the deepest part: when the deeper answer is nothing, the next document around reads the gesture with its own table; when the deeper answer collects, the next document reads it too, and `join_collected_operations` adds its layer after the nearer ones; any other answer stops the walk. So a label in a group with a tooltip gives two layers, and a label that says nothing gives the layer of the group.
+
+### The window
+
+`TooltipWindowProjection` keeps the tooltip window. It sits at the screen, inside the gesture tracker and around the mouse target tracker. `make_tracking_screen` puts it there when `inner_wrappers` holds `wrap_tooltip_window`.
+
+- **Opening.** The wrapper takes the `OpenTooltipOperation` out of the answer of its content and opens a window with `style = :tooltip`, `offset` from the point, in screen coordinates. The window of the pointer moves the point from its own frame to the screen. With no point, the window opens at the forward image of the part.
+- **What it shows.** The window holds a `TooltipContent`: all the layers, and how many of them show. The natural projection draws it: the content of each shown layer, and a separator and the title before each layer when more than one shows. The row is `make_natural_tooltip_row(; measure)`, and a host gives it in `make_opened_window_projections(; content)`.
+- **More and fewer.** F2 shows the next layer outward, and Shift+F2 one fewer. `TooltipWindowState` declares both keys in its gesture table while a tooltip is open, so the gesture help lists them. So F2 does not reach the part under the tooltip while the tooltip is open.
+- **Closing.** A move off the part closes the window: the wrapper maps the point backward, and the path does not go through the source. Escape closes it, and the wrapper takes the Escape. A press, a scroll and the leave of a window close it too. Any other key passes on and leaves it open.
+
+The state of the wrapper, `TooltipWindowState`, holds the layers, the count that shows, the source and the window operation. A view state operation writes each field.
+
+### A command runs the same binding
+
+The command palette lists the binding by its `description` on the selection, and greys it where the part says nothing. It runs the binding with no gesture, so the answer has no point, and the wrapper opens the window at the part. A command that an agent runs goes by route through the wrapper, and the wrapper takes the tooltip from that answer as well.
+
+### The decorator
+
+`TooltipSource` wraps a `child`, which stays on the screen, and a `content`, which the tooltip window shows. `TooltipDecoratorProjection` prints the child and calls its `trigger(source, event)` function on each event. When the trigger is true for `delay_ms`, the reader makes an `OpenWindowOperation` with the `id`, the `style` and the content of the source; when it is false again, a `CloseWindowOperation`. It is for a tooltip with its own trigger.
 
 ## How it fits
 
-`ProjecturedTooltip` depends on the kernel and on `ProjecturedScreen` for the window operations. `ProjecturedShell` puts a `TooltipProbeProjection` into the projection of every window. The package registers nothing.
+`ProjecturedTooltip` depends on the kernel, `ProjecturedGraphics` and `ProjecturedScreen`. It cannot depend on `ProjecturedNatural` or `ProjecturedWidget`, because both use it. So the natural package draws `TooltipContent`, and the widget, Julia and fault packages declare their bindings with `make_tooltip_binding`.
 
 ## Design decisions
 
-- **A tooltip is a window.** A tooltip can extend past the edge of the window it describes, and it needs no drawing layer inside the window. See the invariant `PAR-MANY-WINDOWS` and [plan/done/tooltip.md](../../../plan/done/tooltip.md).
-- **The document computes its tooltip.** The probe needs no wrapper around each node, so every document can have a tooltip without a change of its tree. The wrapper is the older mechanism, and it stays for a tooltip with its own trigger.
-- **The state is on the projection.** The open window and the last document are not data of the document, as for a drag.
+- **The meaning belongs to the part.** A part answers a dwell from its own gesture table, and each projection on the way up can change or drop the answer. A central lookup that asks the document under the pointer gives no projection on the path that chance. The command palette can run a binding, but not a lookup.
+- **A tooltip is a window.** A tooltip can extend past the edge of the window it describes, and it needs no drawing layer inside the window. See the invariant `PAR-MANY-WINDOWS`.
+- **One wrapper keeps the window.** A part cannot close its own tooltip when the pointer goes to another part, and a window belongs to the screen. The wrapper does only this global piece.
+- **The layers are collected at once.** F2 and Shift+F2 choose from what the dwell collected, so they read no part again.
 
 ## Usage
 
 ```julia
-feed = make_tooltip_feed()
-probe = TooltipProbeProjection(; inner = content_projection,
-                               compute_tooltip = compute_tooltip,
-                               pointer = () -> get_pointer_position(backend),
-                               feed = feed)
-run_window_editor(document, probe, "Title"; backend = backend, feeds = Feed[feed])
+editor = make_editor(document, projection, "Title"; backend = backend,
+    opened_window_projections = make_opened_window_projections(;
+        content = Pair{Type,Any}[make_natural_tooltip_row(measure = measure)]),
+    inner_wrappers = [wrap_tooltip_window])
 ```
 
-**The window fits what it says.** The probe gives the window `minimum_size = (120, 32)` and `maximum_size = (560, 400)`, both keywords of the probe. The screen prints the window at the maximum, so a long text wraps there, and the backend gives the window the extent of what it printed. So a tooltip of one word is small and a docstring is tall, and neither is cut.
+**The window fits what it says.** The wrapper gives the window `minimum_size = (120, 32)` and `maximum_size = (560, 400)`, both keywords of `TooltipWindowProjection`. The screen prints the window at the maximum, so a long text wraps there, and the backend gives the window the extent of what it printed. So a tooltip of one word is small and a docstring is tall, and neither is cut.
 
-`pointer` returns the pointer in screen coordinates; the host supplies it. `ProjecturedShell` builds the probe for you when the fold gets `tooltip`, `pointer` and `tooltip_feed`.
-
-- Tests: `test_tooltip()` for the wrapper; `test_tooltip_probe()`, `test_tooltip_feed()`, `test_widget_tooltip()` and `test_julia_tooltip()` for the probe and its feed.
+- Tests: `test_tooltip_window()` for the window, through a real editor; `test_widget_tooltip()` and `test_julia_tooltip()` for the bindings; `test_tooltip()` for the decorator.
 
 ## Limits
 
-- The default `position` of the wrapper is a fixed rectangle at the corner. A caller must give a position function.
-- [plan/pending/tooltip.md](../../../plan/pending/tooltip.md) lists the open steps of the wrapper: the window flags of the `:tooltip` style in the SDL backend, and more examples and tests.
+- The default `position` of the decorator is a fixed rectangle at the corner. A caller must give a position function.

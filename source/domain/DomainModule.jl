@@ -35,7 +35,7 @@ export var"@domain", var"@insertion",
        insert_document_operation, append_insertion_operation, move_to_field,
        replace_selected_document
 export DocumentNothing, DocumentInsertion
-export compute_tooltip, compute_context_menu
+export compute_context_menu
 export accepts_pasted_document, accepts_pasted_replacement, accepts_pasted_text,
        accepts_opened_file
 

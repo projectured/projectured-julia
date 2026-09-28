@@ -56,7 +56,9 @@ format_fault_report_message(report::FaultReport) =
 # What a mark says about itself when the pointer rests on it: the whole fault,
 # as text, which is a document every host draws. The one line a mark draws is cut
 # where the mark ends, and a message is the part worth reading.
-compute_tooltip(report::FaultReport) = TextString(format_fault_report_message(report))
+get_document_gesture_bindings_own(::Type{FaultReport}) = GestureBinding[
+    make_tooltip_binding(report -> TextString(format_fault_report_message(report));
+                         description = "Show the fault")]
 
 # ── The log ──────────────────────────────────────────────────────────────────
 

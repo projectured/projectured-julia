@@ -201,7 +201,7 @@ function read_intent(p::ScreenToScreen, recursion, change::Intent, iomap::Screen
         routed === nothing && return Intent(change.gesture, nothing)
         cim = iomap.content_iomap
         inner = read_routed_intent(cim.projection, recursion, routed, cim)
-        return Intent(change.gesture, _prefix_op(inner.operation, steps))
+        return Intent(change.gesture, _open_popup_windows(_prefix_op(inner.operation, steps), iomap.input))
     end
     window_input = change.gesture
     if window_input isa WindowInput
@@ -219,12 +219,15 @@ end
 # screen origin of this window plus its position, and it takes the extent of
 # what it draws, up to the size of the popup. The mark that kept it out of a history is not needed above the
 # window, so a popup inside `ReplaceViewStateOperation` opens bare, and the
-# window manager finds it.
+# window manager finds it. Any other operation that holds a point, such as a
+# tooltip, has it moved into the screen here too (`map_operation_position`); an
+# answer to a routed gesture holds a point in the frame of the window, because a
+# route moves no point.
 _open_popup_windows(op, window::WindowDocument) =
     _open_popup_window(op, _wval(getfield(window, :x)), _wval(getfield(window, :y)))
 _open_popup_windows(op, window) = op
 
-_open_popup_window(op, x, y) = op
+_open_popup_window(op, x, y) = map_operation_position(op, (px, py) -> (px + x, py + y))
 _open_popup_window(op::OpenPopupOperation, x, y) =
     OpenWindowOperation(; id = op.id, x = x + op.x, y = y + op.y,
                           width = op.width, height = op.height,
@@ -264,7 +267,7 @@ function _prefix_op(op, steps::Tuple)
     elseif op isa WrappingOperation
         return rewrap_operation(op, _prefix_op(get_wrapped_operation(op), steps))
     else
-        return op
+        return reroot_operation(op, steps)
     end
 end
 

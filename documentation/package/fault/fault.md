@@ -81,7 +81,7 @@ The reader and the two reference mappers catch too. A reader that throws returns
 
 **A mark is a thing on the screen like any other, so an Alt+press names it.** The report is no child of the node that failed, and no field or index reaches it, so the path is a drawn-object step (`OutputReferenceStep`) from that node to the report. The barrier keeps the report it printed, because a selection names an object by identity: a report made again for each press would name a different object every frame, and the selection would be lost. The barrier maps that path forward to the whole image of the node, so the container that holds the mark rings it.
 
-**A mark says the whole fault when the pointer rests on it.** A mark draws one line, which a long message does not fit in. `compute_tooltip` of a `FaultReport` answers what failed, where it was caught and the whole message, as a `TextString`, and the selection above is what brings the pointer to the report. `FaultToWidget` gives its alert the same text as its own `tooltip` as well, so the widget answers whether the press names the alert or the report.
+**A mark says the whole fault when the pointer rests on it.** A mark draws one line, which a long message does not fit in. The tooltip binding of a `FaultReport`, "Show the fault", answers what failed, where it was caught and the whole message, as a `TextString`. `FaultToWidget` gives its alert the same text as its own `tooltip` as well, so the widget answers whether the press names the alert or the report.
 
 ### Why the store is not made of cells
 

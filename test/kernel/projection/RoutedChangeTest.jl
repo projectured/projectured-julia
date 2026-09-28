@@ -120,6 +120,14 @@ function ProjectionModule.print_document(p::OutProbeHolderProjection, recursion,
     ChildrenIoMap(p, input, input, Any[(0, 0, child)])
 end
 
+# A leaf with a reader of its own that declines every change, as the reader of a
+# widget declines a dwell.
+struct OutProbeDecliningProjection <: Projection end
+ProjectionModule.print_document(p::OutProbeDecliningProjection, recursion, input, ctx) =
+    SimpleIoMap(p, input, input)
+ProjectionModule.read_intent(::OutProbeDecliningProjection, recursion, change::Intent, iomap) =
+    Intent(change.gesture, nothing)
+
 function _out_probe_setup()
     empty!(OUT_PROBE_LOG)
     room = OutProbeRoom(box = OutProbeBox(leaf = OutProbeLeaf(name = "leaf")))
@@ -160,6 +168,16 @@ function test_routed_change()
                                     Intent(MouseDwell(1, 2; time = 0.0), nothing, "", "", EmptyReference()),
                                     box_iomap).operation
         @test answer isa OutProbeLayers && answer.names == ["box"]
+    end
+
+    @testset "the input of a child whose reader declines reads with its own table" begin
+        empty!(OUT_PROBE_LOG)
+        projection = OutProbeHolderProjection(:box, OutProbeDecliningProjection())
+        iomap = print_document(projection, projection, OutProbeRoom(), PrinterContext())
+        answer = _out_probe_read(projection, iomap, MouseDwell(1, 2; time = 0.0),
+                                 _route_probe_path(FieldReferenceStep("box")))
+        @test answer isa OutProbeLayers && answer.names == ["box", "room"]
+        @test OUT_PROBE_LOG == ["box", "room"]
     end
 
     @testset "an operation on its way to its place is read by no table" begin

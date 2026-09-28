@@ -22,6 +22,7 @@ using ProjecturedScreen
 using ProjecturedSerialization
 using ProjecturedStyle
 using ProjecturedText
+using ProjecturedTooltip
 
 const CellModule = ProjecturedKernel.CellModule
 const DocumentModule = ProjecturedKernel.DocumentModule
@@ -54,6 +55,7 @@ const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const LayoutModule = ProjecturedLayout.LayoutModule
 const LayoutModule = ProjecturedLayout.LayoutModule
 const TextModule = ProjecturedText.TextModule
+const TooltipModule = ProjecturedTooltip.TooltipModule
 
 include("../../../source/widget/WidgetModule.jl")
 

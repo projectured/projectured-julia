@@ -31,14 +31,15 @@ using ..ScreenModule
 using ..SelectionModule
 using ..StyleModule
 using ..TextModule
+using ..TooltipModule
 
 # Imported to extend: this module adds a method to each of these.
 import ..CellModule: set_cell_computation!
 import ..DocumentModule: has_document_duplicate, get_wrapped_document, get_edited_field,
                          get_document_title
-import ..DomainModule: compute_tooltip, compute_context_menu
+import ..DomainModule: compute_context_menu
 import ..SerializationModule: pred_arguments
-import ..GestureBindingModule: get_instance_gesture_bindings
+import ..GestureBindingModule: get_instance_gesture_bindings, get_document_gesture_bindings_own
 import ..OperationModule: evaluate_operation
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SelectionModule: has_dormant_selection

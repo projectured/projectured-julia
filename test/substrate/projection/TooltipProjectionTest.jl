@@ -123,6 +123,25 @@ read_intent(projection, iomap, WindowInput(:default, MouseMove(0, 0; time = 0.0)
 
 end # @testset
 
+@testset "a window operation that reaches the editor applies to the screen it wraps" begin
+    screen = ScreenDocument([WindowDocument(; id = :default, content = PrimitiveString("a"))])
+    # The document of the editor wraps the screen, as the state of a tracker does.
+    editor = (document = make_mouse_target_tracking_document(screen),)
+    evaluate_operation(editor, OpenWindowOperation(; id = :tip, x = 5, y = 6, width = 70, height = 80,
+                                                     content = PrimitiveString("b")))
+    @test length(screen.windows) == 2
+    @test screen.windows[2].id === :tip && (screen.windows[2].x, screen.windows[2].y) == (5, 6)
+    # The same id updates the window in place.
+    evaluate_operation(editor, OpenWindowOperation(; id = :tip, x = 9, y = 6, width = 70, height = 80,
+                                                     content = PrimitiveString("c")))
+    @test length(screen.windows) == 2 && screen.windows[2].x == 9
+    evaluate_operation(editor, CloseWindowOperation(:tip))
+    @test length(screen.windows) == 1
+    # With no editor there is no screen, and nothing changes.
+    evaluate_operation(nothing, CloseWindowOperation(:default))
+    @test length(screen.windows) == 1
+end # @testset
+
 @testset "WindowClose removes the matching window" begin
 
 # A bare WindowManager over a two-window screen: the native close button on a

@@ -2806,15 +2806,12 @@ FocusModule.is_focusable_document(w::FocusableWidget) = !(getfield(w, :enabled)[
 
 # ── What a widget says about itself ──────────────────────────────────────────
 
-"""
-A widget stores what it says about itself, where every other document computes
-it: whoever places a widget knows why it is there, and the widget does not. Both
-fields hold `nothing` until somebody sets one.
-
-A `String` is wrapped, because most tooltips are one line and
-`tooltip = "Run the selected configurations"` is what a caller wants to write.
-"""
-compute_tooltip(widget::WidgetDocument) = _as_tooltip_document(widget.tooltip)
+# A widget stores what it says about itself, where every other document computes
+# it: whoever places a widget knows why it is there, and the widget does not. Both
+# fields hold `nothing` until somebody sets one. A `String` is wrapped, because most
+# tooltips are one line and `tooltip = "Run the selected configurations"` is what
+# a caller wants to write.
+_find_widget_tooltip(widget::WidgetDocument) = _as_tooltip_document(widget.tooltip)
 
 _as_tooltip_document(::Nothing) = nothing
 _as_tooltip_document(text::AbstractString) = PrimitiveString(String(text))
@@ -2823,12 +2820,17 @@ _as_tooltip_document(document) = document
 # A toolbar item that shows only a picture still says what it does: with no
 # tooltip of its own, it says the label of its action. An empty label says
 # nothing.
-function compute_tooltip(item::WidgetToolbarItem)
+function _find_widget_tooltip(item::WidgetToolbarItem)
     item.tooltip === nothing || return _as_tooltip_document(item.tooltip)
     label = item.action.label
     label isa AbstractString || return _as_tooltip_document(label)
     isempty(label) ? nothing : _as_tooltip_document(label)
 end
+
+# A widget says it when the pointer rests on it: the dwell is a gesture of every
+# widget, and a command runs it on the selected one.
+get_document_gesture_bindings_own(::Type{WidgetDocument}) =
+    GestureBinding[make_tooltip_binding(_find_widget_tooltip)]
 
 # The shell is the window's own frame, so the menu it holds is the window's: what
 # opens where no widget under the pointer offers one.

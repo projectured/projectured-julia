@@ -59,6 +59,7 @@ using ..ProjectionAlgebraModule
 using ..ProjectionModule
 using ..StyleModule
 using ..TextModule
+using ..TooltipModule
 using ..WidgetModule
 using ..ReferenceModule
 
@@ -75,10 +76,12 @@ export register_natural_syntax!, register_natural_graphics!, register_natural_fa
        get_natural_syntax_entries, get_natural_graphics_entries, get_natural_fallback_entries
 export NaturalToGraphics,
        register_natural_syntax!, register_natural_graphics!, register_natural_fallback!
+export TooltipContentToVerticalLayout, make_natural_tooltip_row
 
 
 include("NaturalNotation.jl")
 include("NaturalRegistry.jl")
 include("NaturalProjection.jl")
+include("TooltipContentToLayout.jl")
 
 end # module

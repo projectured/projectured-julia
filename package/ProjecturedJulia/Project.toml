@@ -16,6 +16,7 @@ ProjecturedSerialization = "3c9285e7-ddf3-413d-b1b6-6222cb841d6f"
 ProjecturedStyle = "dbc249a4-36d3-4338-9eae-7cc9f61f07b1"
 ProjecturedSyntax = "98402e06-2a56-4e2c-83c3-b2840758e8f3"
 ProjecturedText = "2d3f4b4d-5576-4044-8c5c-d91689d6f4b3"
+ProjecturedTooltip = "999c5553-b481-430d-b45f-24840119fc11"
 
 [sources]
 ProjecturedCollection = {path = "../ProjecturedCollection"}
@@ -28,3 +29,4 @@ ProjecturedSerialization = {path = "../ProjecturedSerialization"}
 ProjecturedStyle = {path = "../ProjecturedStyle"}
 ProjecturedSyntax = {path = "../ProjecturedSyntax"}
 ProjecturedText = {path = "../ProjecturedText"}
+ProjecturedTooltip = {path = "../ProjecturedTooltip"}

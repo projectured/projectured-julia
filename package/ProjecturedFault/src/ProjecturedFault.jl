@@ -20,6 +20,7 @@ using ProjecturedSerialization
 using ProjecturedStyle
 using ProjecturedSyntax
 using ProjecturedText
+using ProjecturedTooltip
 using ProjecturedWidget
 
 const CellModule = ProjecturedKernel.CellModule
@@ -32,6 +33,7 @@ const ProjectionModule = ProjecturedKernel.ProjectionModule
 const IoMapModule = ProjecturedKernel.IoMapModule
 const IntentModule = ProjecturedKernel.IntentModule
 const FaultModule = ProjecturedKernel.FaultModule
+const GestureBindingModule = ProjecturedKernel.GestureBindingModule
 const ProjectionAlgebraModule = ProjecturedProjection.ProjectionAlgebraModule
 const SerializationModule = ProjecturedSerialization.SerializationModule
 const SyntaxModule = ProjecturedSyntax.SyntaxModule
@@ -41,6 +43,7 @@ const GraphicsModule = ProjecturedGraphics.GraphicsModule
 const WidgetModule = ProjecturedWidget.WidgetModule
 const FocusModule = ProjecturedFocus.FocusModule
 const NaturalModule = ProjecturedNatural.NaturalModule
+const TooltipModule = ProjecturedTooltip.TooltipModule
 
 include("../../../source/fault/FaultViewModule.jl")
 

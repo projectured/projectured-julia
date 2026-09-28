@@ -1253,9 +1253,7 @@ function test_application()
 
             @testset "a press on the picture opens the tool, and the pointer at rest names it" begin
                 document, projection = make_application_window(paths[1:1]; root = dir,
-                                                               assistant = nothing,
-                                                               pointer = () -> (300, 400),
-                                                               tooltip_feed = make_tooltip_feed())
+                                                               assistant = nothing)
                 scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
                 composed = make_window_scene_projection(projection;
                     opened_window_projections = make_opened_window_projections(;
@@ -1282,40 +1280,49 @@ function test_application()
                             [tab for group in get_pane_groups(tree) for tab in group.tabs]) == 1
 
                 # The pointer at rest on the picture opens a window of its own
-                # that says the name of the tool and what it shows. A move only
-                # says where the pointer is; the rest is what the window's feed
-                # reads once the delay has passed.
+                # that says the name of the tool and what it shows, in the editor
+                # that `run_application` makes: the wrapper of the tooltip window
+                # sits in the tracking screen. The time of the move is long past,
+                # so the wait of the dwell ends in the same frame.
+                document, projection = make_application_window(paths[1:1]; root = dir,
+                                                               assistant = nothing)
+                backend = HeadlessBackend()
+                editor = make_editor(document, projection, "ProjecturEd";
+                    backend = backend, width = 1600, height = 1000,
+                    opened_window_projections = make_opened_window_projections(;
+                        content = vcat(Pair{Type,Any}[make_natural_tooltip_row(measure = FontFileMeasure())],
+                                       make_application_content_projections())),
+                    inner_wrappers = [wrap_tooltip_window])
+                scene = get_wrapped_document(editor.document)
+                history = document
+                while !(history isa UndoBuffer) && hasproperty(history, :content)
+                    history = history.content
+                end
+                steps = length(history.undo_entries)
                 before = length(scene.windows)
-                read_intent(composed, nothing,
-                            Intent(WindowInput(:ProjecturEd, MouseMove(x, y; time = 0.0))),
-                            print_document(composed, scene))
-                @test length(scene.windows) == before
-                read_intent(composed, nothing,
-                            Intent(WindowInput(:ProjecturEd, PointerRest(x, y; time = 0.0))),
-                            print_document(composed, scene))
+                push_event!(backend, WindowInput(:ProjecturEd, MouseMove(x, y; time = 1.0)))
+                run_frame!(editor)
                 @test length(scene.windows) == before + 1
                 tip = last(scene.windows)
                 @test tip.style === :tooltip
-                output = print_document(composed, scene).output
-                @test any(text -> startswith(text, "Message log:"),
-                          _app_drawn_strings(output.windows[end].content))
+                # A tooltip is view state, so the history does not grow.
+                @test length(history.undo_entries) == steps
+                value(v) = v isa Cell ? value(v[]) : v
+                output = value(get_iomap_output(editor.iomap))
+                canvas = value(value(output.windows)[end].content)
+                @test any(text -> startswith(text, "Message log:"), _app_drawn_strings(canvas))
                 # The window says its bounds and is printed at its maximum, so
                 # what it holds fits: a name of one line needs neither the whole
                 # width nor the whole height a tooltip may take.
                 @test tip.maximum_size == (560, 400)
                 @test tip.minimum_size == (120, 32)
-                canvas = output.windows[end].content
-                canvas = canvas isa Cell ? canvas[] : canvas
                 @test 0 < Int(canvas.w[]) < tip.maximum_size[1]
                 @test 0 < Int(canvas.h[]) < tip.maximum_size[2]
             end
 
-            @testset "with the tooltip on, the pointer drags, lights, and leaves no history" begin
-                # The window as the binary opens it: a pointer and a feed, so the
-                # tooltip's probe sits over everything and must pass the pointer on.
+            @testset "the pointer drags, lights, and leaves no history" begin
                 document, projection = make_application_window(paths[1:1]; root = dir,
-                    assistant = nothing, pointer = () -> (0, 0),
-                    tooltip_feed = make_tooltip_feed())
+                    assistant = nothing)
                 scene = make_window_scene(document, "ProjecturEd"; width = 1600, height = 1000)
                 composed = make_window_scene_projection(projection;
                     opened_window_projections = make_opened_window_projections())

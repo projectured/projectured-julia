@@ -98,7 +98,7 @@ end
 
 """
     make_tracking_screen(document, projection; mouse_target_tracking = true,
-                         gesture_tracking = true,
+                         inner_wrappers = [], gesture_tracking = true,
                          recognitions = make_standard_recognitions())
         -> (document, projection)
 
@@ -113,6 +113,11 @@ tracker reads the inputs that the recognitions pass:
   the part under the pointer and gives its parts the enter, the leave and the
   hover by route. A button lights and a row of a list lights with it. With no
   target tracker, no part gets a crossing.
+- `inner_wrappers` — `(document, projection) -> (document, projection)`
+  functions that go around the target tracker and inside the gesture tracker,
+  the first innermost. A wrapper there sees each gesture before the target
+  tracker routes it, and each answer after it comes back, in every window: the
+  wrapper that keeps a tooltip window goes there.
 - `gesture_tracking` — the gesture tracking projection, which runs
   `recognitions`: by default the click with its count, the key chord and the
   mouse dwell. A host adds the recognition of a gesture of its own to the list.
@@ -124,11 +129,15 @@ is then the outermost state document; `get_wrapped_document` of it answers the
 screen.
 """
 function make_tracking_screen(document, projection; mouse_target_tracking::Bool = true,
+                              inner_wrappers::Vector = [],
                               gesture_tracking::Bool = true,
                               recognitions::Vector = make_standard_recognitions())
     if mouse_target_tracking
         document = make_mouse_target_tracking_document(document)
         projection = make_mouse_target_tracking_projection(projection)
+    end
+    for wrap in inner_wrappers
+        document, projection = wrap(document, projection)
     end
     if gesture_tracking
         document = make_gesture_tracking_document(document)
@@ -139,7 +148,8 @@ end
 
 """
     make_editor(document, projection, title; backend, width, height,
-                opened_window_projections, screen_wrap, feeds, fault_policy) -> Editor
+                opened_window_projections, screen_wrap, inner_wrappers, feeds,
+                fault_policy) -> Editor
 
 Open a window that holds `document`, drawn through `projection`, and answer its
 editor, printed once, before its loop runs.
@@ -168,7 +178,9 @@ is the state of the gesture tracker around the state of the target tracker
 around the screen.
 
 `opened_window_projections` and `screen_wrap` go to
-[`make_window_scene_projection`](@ref). `feeds` and `fault_policy` go to the
+[`make_window_scene_projection`](@ref), and `inner_wrappers` to
+`make_tracking_screen`, for example the wrapper that keeps a tooltip window.
+`feeds` and `fault_policy` go to the
 kernel's `make_editor`; pass `make_strict_fault_policy()` to stop at the first
 fault instead of surviving it.
 """
@@ -177,6 +189,7 @@ function make_editor(document, projection, title::AbstractString;
                      opened_window_projections = Pair{Type,Any}[],
                      feeds::Vector{Feed} = Feed[],
                      screen_wrap = identity,
+                     inner_wrappers::Vector = [],
                      fault_policy::FaultPolicy = FaultPolicy())
     backend === nothing &&
         error("make_editor: name the backend to draw on, " *
@@ -190,14 +203,15 @@ function make_editor(document, projection, title::AbstractString;
         make_window_scene(document, title; width = width, height = height),
         make_window_scene_projection(projection;
             opened_window_projections = opened_window_projections,
-            screen_wrap = screen_wrap))
+            screen_wrap = screen_wrap);
+        inner_wrappers = inner_wrappers)
     make_editor(backend, composed, scene; feeds = feeds, fault_policy = fault_policy)
 end
 
 """
     run_window_editor(document, projection, title; backend, width, height,
                       mcp, mcp_instructions, mcp_host, mcp_port,
-                      opened_window_projections, screen_wrap, fault_policy)
+                      opened_window_projections, screen_wrap, inner_wrappers, fault_policy)
 
 Open the window and run the loop until the person closes it: [`make_editor`](@ref)
 with the same arguments, then `run_editor!`. A caller with work to do before the
@@ -219,11 +233,13 @@ function run_window_editor(document, projection, title::AbstractString;
                            opened_window_projections = Pair{Type,Any}[],
                            feeds::Vector{Feed} = Feed[],
                            screen_wrap = identity,
+                           inner_wrappers::Vector = [],
                            fault_policy::FaultPolicy = FaultPolicy())
     editor = make_editor(document, projection, title;
                          backend = backend, width = width, height = height,
                          opened_window_projections = opened_window_projections,
                          feeds = feeds, screen_wrap = screen_wrap,
+                         inner_wrappers = inner_wrappers,
                          fault_policy = fault_policy)
     run_editor!(editor; mcp = mcp, mcp_instructions = mcp_instructions,
                 mcp_host = mcp_host, mcp_port = mcp_port)

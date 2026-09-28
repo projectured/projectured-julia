@@ -84,7 +84,9 @@ get_document_title(window::WindowDocument) = window.title
 Request that a new `WindowDocument` (with the given fields) be added to the
 screen. The fields mirror `WindowDocument`'s schema 1:1. A window-manager
 projection intercepts it and appends (or updates) the matching `WindowDocument`
-on its `ScreenDocument.windows`; it does not reach `evaluate_operation`.
+on its `ScreenDocument.windows`. One that reaches the editor, from a wrapper
+outside the screen projection or from a verb, is applied by `evaluate_operation`
+to the screen that the editor's document wraps.
 """
 struct OpenWindowOperation <: Operation
     id::Symbol
@@ -163,8 +165,9 @@ end
     CloseWindowOperation(id)
 
 Request that the `WindowDocument` with the matching `id` be removed from the
-screen. Intercepted by a window-manager projection; a close for an unknown id is
-silently ignored.
+screen. Intercepted by a window-manager projection, or applied by
+`evaluate_operation` to the screen that the editor's document wraps, as an
+`OpenWindowOperation` is; a close for an unknown id is silently ignored.
 """
 struct CloseWindowOperation <: Operation
     id::Symbol

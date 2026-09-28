@@ -89,6 +89,13 @@ _make_tolerant_context(store) =
                   :fault_policy, FaultPolicy(is_console_enabled = false,
                                              is_sound_enabled = false))
 
+# The content of the one layer that the dwell binding of `document` answers, or
+# `nothing` when the binding does not answer.
+function _read_fault_tooltip(document)
+    operation = read_gesture(document, MouseDwell(0, 0; time = 0.0))
+    operation === nothing ? nothing : only(get_wrapped_operation(operation).layers)[2]
+end
+
 # The drawn children of the printed output. Every cell on the way is forced,
 # because the failure this suite is about happens when a cell is READ and a test
 # that stops at the cell would never see it.
@@ -156,7 +163,7 @@ function test_fault_catching()
         @test operation isa ReplaceSelectionOperation
         report = evaluate_reference(leaf, operation.path)
         @test report isa FaultReport
-        @test occursin("leaf 1 is odd", compute_tooltip(report).content)
+        @test occursin("leaf 1 is odd", _read_fault_tooltip(report).content)
 
         # The same path, twice: a selection that named a new report on every
         # frame would be lost on the next one.
@@ -179,7 +186,7 @@ function test_fault_catching()
                              message = "BoundsError: index 4 of a vector of 3")
         # The one line a mark draws is cut where the mark ends; the window says
         # what failed, where it was caught, and the whole message.
-        said = compute_tooltip(report)
+        said = _read_fault_tooltip(report)
         @test said isa TextString
         text = string(said.content)
         @test occursin("OddLeafBreaker", text)
@@ -192,7 +199,7 @@ function test_fault_catching()
         alert = print_document(FaultToWidget(), FaultToWidget(), report,
                                PrinterContext()).output
         @test alert isa WidgetAlert
-        @test String(compute_tooltip(alert).value) == text
+        @test String(_read_fault_tooltip(alert).value) == text
     end
 
     @testset "the barrier needs no store to work" begin

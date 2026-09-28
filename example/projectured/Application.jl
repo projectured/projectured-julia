@@ -199,7 +199,7 @@ end
 
 """
     make_application_window(paths; root = pwd(), assistant = nothing,
-                            pointer = nothing, measure = FontFileMeasure())
+                            measure = FontFileMeasure())
         -> (document, projection)
 
 The application window, wrappers and all: the document of
@@ -211,13 +211,6 @@ The application window, wrappers and all: the document of
 warm-up of a build and the suite all come here, so none of them can hold a list
 of its own that drifts from the others.
 
-`pointer` answers where the pointer is, in screen coordinates, and
-`tooltip_feed` is the `TooltipFeed` that says when the pointer has rested. The two
-together turn the tooltip on: a tooltip is shown in a window of its own beside the
-pointer once it rests, so a caller that cannot say where the pointer is, or that
-runs no loop to wait in, gets no tooltip. A window scene built without a backend
-— the warm-up of a build, the suite — passes neither.
-
 **The clipboard offers all six of its gestures here**, cut and the view toggle
 included. A person who edits a file expects `Ctrl+X` to cut, and the toggle shows
 what is stored. An interface over a record of a run leaves those two out, because
@@ -225,16 +218,12 @@ a cut would write into the record.
 """
 function make_application_window(paths::AbstractVector;
                                  root::AbstractString = pwd(), assistant = nothing,
-                                 pointer = nothing, tooltip_feed = nothing,
                                  measure = FontFileMeasure())
     document = make_application_document(paths; root = root, assistant = assistant)
     projection = make_application_projection(; measure = measure)
     make_window_wrap(; gesture_help = true, command_palette = true,
                        selection = true,
                        history = _with_window_history,
-                       tooltip = pointer === nothing || tooltip_feed === nothing ?
-                                 nothing : compute_tooltip,
-                       pointer = pointer, tooltip_feed = tooltip_feed,
                        context_menu = compute_context_menu,
                        shell = document -> _make_application_shell(document, assistant, root),
                        measure = measure)(document, projection)
@@ -383,13 +372,8 @@ function run_application(paths::AbstractString...;
                          measure = FontFileMeasure())
     chat = make_application_assistant(assistant; model = model, context = context)
     backend === nothing && (backend = default_backend())
-    # The tooltip waits for the pointer to rest, and the loop is what keeps time,
-    # so the feed goes to the fold and to the window both.
-    tooltip_feed = make_tooltip_feed()
     document, projection = make_application_window(collect(String, paths);
                                                    root = root, assistant = chat,
-                                                   pointer = () -> get_pointer_position(backend),
-                                                   tooltip_feed = tooltip_feed,
                                                    measure = measure)
     # The tools of the toolbar are filled by the window: the message log by a
     # capture of the Julia logger and a feed, the statistics by a feed, and the
@@ -397,13 +381,15 @@ function run_application(paths::AbstractString...;
     run_with_window_tools() do feeds, start
         editor = make_editor(document, projection, "ProjecturEd";
                              backend = backend, width = width, height = height,
-                             feeds = push!(copy(feeds), tooltip_feed),
-                             # A tooltip holds a document of one of this
-                             # application's own domains, so the window a wrapper
-                             # opens draws with the rows a pane draws with.
+                             feeds = feeds,
+                             # The tooltip window is kept at the screen, so a
+                             # tooltip opens in every window; the natural
+                             # projection draws what it holds.
+                             inner_wrappers = [wrap_tooltip_window],
                              opened_window_projections =
                                  make_opened_window_projections(;
-                                     content = make_application_content_projections(measure = measure),
+                                     content = vcat(Pair{Type,Any}[make_natural_tooltip_row(measure = measure)],
+                                                    make_application_content_projections(measure = measure)),
                                      measure = measure),
                              fault_policy = fault_policy)
         start(editor)

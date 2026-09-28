@@ -24,6 +24,7 @@ using ProjecturedPrimitive
 using ProjecturedProjection
 using ProjecturedStyle
 using ProjecturedText
+using ProjecturedTooltip
 using ProjecturedWidget
 
 const StyleModule = ProjecturedStyle.StyleModule
@@ -41,6 +42,7 @@ const TextModule = ProjecturedText.TextModule
 const StyleModule = ProjecturedStyle.StyleModule
 const StyleModule = ProjecturedStyle.StyleModule
 const DomainModule = ProjecturedDomain.DomainModule
+const TooltipModule = ProjecturedTooltip.TooltipModule
 const DocumentModule = ProjecturedKernel.DocumentModule
 const ReferenceModule = ProjecturedKernel.ReferenceModule
 const ProjectionModule = ProjecturedKernel.ProjectionModule

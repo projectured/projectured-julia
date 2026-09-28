@@ -42,7 +42,7 @@ The `@gestures` tables of the domains call three functions of this package. Each
 
 ### Paste and open hooks
 
-`accepts_pasted_document`, `accepts_pasted_replacement`, `accepts_pasted_text` and `accepts_opened_file` default to `true`. A domain adds a method to refuse a paste or a file. `compute_tooltip` and `compute_context_menu` default to `nothing`; a document that has a tooltip computes it from its own fields.
+`accepts_pasted_document`, `accepts_pasted_replacement`, `accepts_pasted_text` and `accepts_opened_file` default to `true`. A domain adds a method to refuse a paste or a file. `compute_context_menu` defaults to `nothing`; a document that has a menu computes it from its own fields. A tooltip is not here: a document declares a binding of the tooltip package in its own gesture table ([tooltip.md](../tooltip/tooltip.md)).
 
 ## How it fits
 

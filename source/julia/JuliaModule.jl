@@ -13,6 +13,7 @@ using ..DocumentModule
 using ..DomainModule
 using ..EventModule
 using ..GestureBindingModule
+using ..TooltipModule
 using ..IoMapModule
 using ..NaturalModule
 using ..OperationModule
@@ -28,7 +29,7 @@ using ..ReferenceModule   # `@document` injects the implicit `selection::Union{N
 
 # Imported to extend: this module adds a method to each of these.
 import ..DocumentModule: has_document_duplicate
-import ..DomainModule: compute_tooltip
+import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..FileFormatModule: make_document_seed
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 import ..SerializationModule: emit_text,

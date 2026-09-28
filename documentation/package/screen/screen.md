@@ -41,6 +41,8 @@ Its reader routes a `WindowInput` event by the window id, not by the position in
 
 The projection changes only the input screen. `ScreenToScreen` then updates the output.
 
+**A window operation that reaches the editor opens the window too.** A wrapper outside the screen projection, such as the one that keeps the tooltip window, and a verb, such as `open_file_dialog!`, answer an `OpenWindowOperation` or a `CloseWindowOperation` that passes no window manager. `evaluate_operation` applies it to the screen that the editor's document wraps (`get_wrapped_document`), with the same code as the window manager.
+
 ### One window on one document
 
 `make_window_scene(document, title)` makes a screen with one window. `make_window_scene_projection(projection)` makes the matching projection, and it decides by the place of the content before its type: the content of the first window always goes through `projection`, and only the content of a window opened later goes through the projection of its content type, from `opened_window_projections`. So an entry of `opened_window_projections` for a type that the first window's content also has, such as a widget, draws only the windows that open later.

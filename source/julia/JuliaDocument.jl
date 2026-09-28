@@ -611,16 +611,18 @@ function compute_julia_signature(function_::JuliaFunction)
     isempty(result) ? signature : signature * "::" * result
 end
 
-# A function answers its signature. It cannot answer its prose: a docstring is a
-# node ABOVE it, holding the function as its subject, and a document does not
-# look up.
-compute_tooltip(function_::JuliaFunction) =
-    _julia_tooltip_text(compute_julia_signature(function_))
+# A function answers a dwell with its signature. Its prose is in the docstring, a
+# node ABOVE it that holds the function as its subject, and the docstring adds its
+# own layer when the tooltip goes out from the function.
+get_document_gesture_bindings_own(::Type{JuliaFunction}) = GestureBinding[
+    make_tooltip_binding(function_ -> _julia_tooltip_text(compute_julia_signature(function_));
+                         description = "Show the signature")]
 
 # A documented definition answers both, which is the whole point of a
 # documentation tooltip: what to pass, and what it is for.
-compute_tooltip(docstring::JuliaDocstring) =
-    _julia_tooltip_text(_julia_documentation_text(docstring))
+get_document_gesture_bindings_own(::Type{JuliaDocstring}) = GestureBinding[
+    make_tooltip_binding(docstring -> _julia_tooltip_text(_julia_documentation_text(docstring));
+                         description = "Show the documentation")]
 
 _julia_documentation_text(docstring::JuliaDocstring) =
     docstring.subject isa JuliaFunction ?

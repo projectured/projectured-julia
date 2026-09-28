@@ -20,19 +20,19 @@
 | `clipboard_gestures` | which of the six gestures of `CLIPBOARD_GESTURES` the window has |
 | `history` | a `projection -> projection` wrapper for what the window remembers |
 | `shell` | the chrome: `(document) -> (menu_bar, toolbar, status_bar, context_menu, size)` |
-| `tooltip`, `pointer` and `tooltip_feed` | what the document under the pointer says about itself, once it rests |
 | `context_menu` | the menu of the document under the pointer on a right press |
 
-**The order is fixed.** From the inside out: the history, the shell, the start over of Tab, the selection walk with the clipboard, the tooltip probe, the context menu probe, the help, the palette, and the recorder of the gesture log.
+**The order is fixed.** From the inside out: the history, the shell, the start over of Tab, the selection walk with the clipboard, the context menu probe, the help, the palette, and the recorder of the gesture log.
 
 - The **history** is innermost because it is a recursive type dispatch over the tree. A wrapper between it and the tree prints that subtree itself, and the recursion never reaches the type that it dispatches on.
 - The **shell** is outside the document of the window and inside everything that acts on a window. So the walk and the clipboard reach into the chrome, and a verb that reads the pane tree goes past it with `get_wrapped_document`.
 - The **start over of Tab** (`FocusCyclingProjection`) is around the shell, so it sees the whole window: Tab at the last stop of the window goes to the first stop, and Shift+Tab goes the other way. It takes no keyword.
 - **The light under the pointer is not in the wrap.** The mouse target tracking of the screen (`make_tracking_screen`) sees every window, so it can tell that the pointer left a toolbar button for a row in a pane, or a window for a popup. [mousetargettracking.md](../mousetargettracking/mousetargettracking.md) describes it.
-- The **probes** are over the walk, because a probe reads the document that the walk selects in. They are under the help and the palette, because a probe must not answer for a window that one of those opened. **A probe passes every event on**: the tooltip probe only watches the pointer, and a tooltip opens when the pointer rests, at a deadline its `tooltip_feed` names in the loop. The host hands the same feed to `run_window_editor(feeds = …)`. [tooltip.md](../tooltip/tooltip.md) describes the rest.
+- The **context menu probe** is over the walk, because it reads the document that the walk selects in. It is under the help and the palette, because it must not answer for a window that one of those opened. It passes every event on.
+- **The tooltip is not in the wrap.** A part answers a dwell from its own gesture table, and the wrapper that keeps the tooltip window sits at the screen, in `make_tracking_screen(; inner_wrappers = [wrap_tooltip_window])`. [tooltip.md](../tooltip/tooltip.md) describes it.
 - The **recorder** is outermost, where it sees every operation of the window. It takes no keyword and writes into the log of the session, and **View → Gesture log** opens that log in a tab. So the tab holds what happened before it opened, and a person can open it after a fault.
 
-A wrapper that opens a window of its own needs `make_opened_window_projections()`, the value of the `opened_window_projections` keyword of `run_window_editor`. A host that turns the tooltip on passes the rows that draw its own documents as `content`, because a tooltip can hold a document of any domain. **A popup holds widgets**: the menu of a menu bar or of a context menu, and the options of a `WidgetSelect`, in a layout. So `make_opened_window_projections` ends with the rows of `WidgetToGraphics`, one for each widget and each layout, in the font and the measure the shell draws its bands with; the rows of `content` come before them, so a host decides first. A popup needs no wrapper of its own: a trigger answers its position in its own frame, each reader on the way up moves the position into its own frame, and the window opens the popup at its screen position. [widget.md](../widget/widget.md) describes the popup operation and how a reader moves it.
+A wrapper that opens a window of its own needs `make_opened_window_projections()`, the value of the `opened_window_projections` keyword of `run_window_editor`. A host that turns the tooltip on passes `make_natural_tooltip_row(; measure)` in `content`, and the rows that draw its own documents, because a tooltip can hold a document of any domain. **A popup holds widgets**: the menu of a menu bar or of a context menu, and the options of a `WidgetSelect`, in a layout. So `make_opened_window_projections` ends with the rows of `WidgetToGraphics`, one for each widget and each layout, in the font and the measure the shell draws its bands with; the rows of `content` come before them, so a host decides first. A popup needs no wrapper of its own: a trigger answers its position in its own frame, each reader on the way up moves the position into its own frame, and the window opens the popup at its screen position. [widget.md](../widget/widget.md) describes the popup operation and how a reader moves it.
 
 ### The chrome is a document
 
@@ -90,7 +90,7 @@ end
 
 The capture is removed when the window closes, also when it throws, so the logger that the window replaced comes back. [log.md](../log/log.md) and [statistics.md](../statistics/statistics.md) describe the two feeds.
 
-**An Alt+click on a band selects in that band.** A band is not the `content` of the shell, so an Alt+press over the menu bar, the toolbar or the status bar names a field of that band. On the toolbar it names the button under the pointer, `toolbar.elements[i]`. The tooltip probe finds the document under the pointer with the same press, so a button shows its name as a tooltip.
+**An Alt+click on a band selects in that band.** A band is not the `content` of the shell, so an Alt+press over the menu bar, the toolbar or the status bar names a field of that band. On the toolbar it names the button under the pointer, `toolbar.elements[i]`. A button of the toolbar answers a dwell with its name, so it shows its name as a tooltip.
 
 ### The pointer in a shell
 
@@ -98,9 +98,9 @@ The shell hands a press, a down, an up, a move, a scroll and a crossing to the b
 
 A hover, a held button, a tab drag in flight and a divider drag are **view state**. The readers that write them mark the write with `ReplaceViewStateOperation`, and a history does not record it, so Ctrl+Z after a hover takes back the edit before it.
 
-### The two probes
+### The context menu probe
 
-The document under the pointer gives its tooltip and its context menu. `compute_tooltip` and `compute_context_menu` are generic functions of `ProjecturedDomain`, and the fold gives them to the two probes; [tooltip.md](../tooltip/tooltip.md) describes the probe. Only `WidgetShell` carries a `context_menu` field, which holds the menu of the window itself. The context menu probe calls the function on the document under the pointer, and then on the root. So a right press on empty space also gets a menu. A tooltip is always a window of its own, which is the rule `PAR-MANY-WINDOWS`. `pointer` gives the pointer in screen coordinates, because only a backend has it.
+The document under the pointer gives its context menu. `compute_context_menu` is a generic function of `ProjecturedDomain`, and the fold gives it to the probe. Only `WidgetShell` carries a `context_menu` field, which holds the menu of the window itself. The context menu probe calls the function on the document under the pointer, and then on the root. So a right press on empty space also gets a menu.
 
 ### The file dialogs
 
@@ -135,7 +135,7 @@ run_with_window_tools() do feeds, start
 end
 ```
 
-- Tests: `test_shell()` runs the layering guard, `test_shell_completeness()`, `test_window_wrap()`, `test_widget_tooltip()`, `test_julia_tooltip()`, `test_tooltip_probe()`, `test_tooltip_feed()`, `test_context_menu_probe()`, `test_window_shell()` and `test_file_dialog()`. `test_shell_completeness()` fails when a `test_*` function under `test/shell/` is not called by `test_shell()` exactly once. The layout of the shell and how it hands the pointer to its bands are in the substrate suite, `test_widget_shell_layout()` and `test_widget_shell_pointer()`, and the whole window in `test_application()`.
+- Tests: `test_shell()` runs the layering guard, `test_shell_completeness()`, `test_window_wrap()`, `test_widget_tooltip()`, `test_julia_tooltip()`, `test_tooltip_window()`, `test_context_menu_probe()`, `test_window_shell()` and `test_file_dialog()`. `test_shell_completeness()` fails when a `test_*` function under `test/shell/` is not called by `test_shell()` exactly once. The layout of the shell and how it hands the pointer to its bands are in the substrate suite, `test_widget_shell_layout()` and `test_widget_shell_pointer()`, and the whole window in `test_application()`.
 - No example of its own: the application is the example.
 
 ## Limits

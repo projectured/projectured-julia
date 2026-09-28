@@ -5,8 +5,7 @@
     make_window_wrap(; gesture_help = true, command_palette = true,
                      selection = true,
                      clipboard_gestures = CLIPBOARD_GESTURES,
-                     history = identity, tooltip = nothing, pointer = nothing,
-                     tooltip_feed = nothing, context_menu = nothing, shell = nothing,
+                     history = identity, context_menu = nothing, shell = nothing,
                      measure::TextMeasure = FontFileMeasure()) -> Function
 
 The wrappers a window gets, as the fold `(document, projection) -> (document,
@@ -17,16 +16,6 @@ projection)` that a window entry applies before it opens.
   [`make_opened_window_projections`](@ref).
 - `command_palette`: Ctrl+Shift+P opens a field over the window. Typing narrows
   the commands that work here, Enter runs the selected one, Escape closes it.
-- `tooltip`: what the document under the pointer says about itself, shown in a
-  window of its own beside the pointer (`PAR-MANY-WINDOWS`). It is the function
-  the probe asks, `(document) -> Document | Nothing`; `compute_tooltip` is the
-  one every document answers. `nothing` leaves the wrapper out. It needs
-  `pointer`, because a window is placed in screen coordinates and only a backend
-  knows where the pointer is, and `tooltip_feed`, a `TooltipFeed` from
-  `make_tooltip_feed`. A tooltip opens once the pointer has rested, and a resting
-  pointer sends nothing, so the time comes from the loop: the entry hands the same
-  feed to `run_window_editor(feeds = …)`, and the feed wakes the loop when the
-  rest is long enough.
 - `shell`: the window's chrome. It is `(document) -> (menu_bar, toolbar,
   status_bar, context_menu, size)`, so a host says what its window offers and
   this package names none of it. It is given the window's own document, because
@@ -57,8 +46,8 @@ document as it is. The clipboard wraps the document too, so a verb that walks th
 must look inside it.
 
 The order is the history innermost, the shell over it, the focus cycling over the
-shell, the walk and the clipboard over that, the tooltip probe over them, the help
-over that, the palette over it, and the log's recorder outermost, where it sees
+shell, the walk and the clipboard over that, the context menu probe over them, the
+help over that, the palette over it, and the log's recorder outermost, where it sees
 every operation the window makes. The focus cycling is always there, so Tab
 starts over at the ends of every window. A window gets its light under the
 pointer from the mouse target tracking of the screen (`make_tracking_screen`).
@@ -67,13 +56,8 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
                             selection::Bool = true,
                             clipboard_gestures::Tuple = CLIPBOARD_GESTURES,
                             history = identity,
-                            tooltip = nothing, pointer = nothing, tooltip_feed = nothing,
                             context_menu = nothing, shell = nothing,
                             measure::TextMeasure = FontFileMeasure())
-    tooltip === nothing || pointer !== nothing ||
-        error("make_window_wrap: a tooltip is placed beside the pointer, so it needs `pointer`")
-    tooltip === nothing || tooltip_feed !== nothing ||
-        error("make_window_wrap: a tooltip opens when the pointer has rested, so it needs `tooltip_feed`")
     # One flag for the help window, which the decorator reads each time F1 comes.
     help_state = GestureHelpState()
     # The session's own log, and not one this fold made: a tab that opens a
@@ -107,11 +91,6 @@ function make_window_wrap(; gesture_help::Bool = true, command_palette::Bool = t
         # Over the walk, because the probe asks the document the walk selects in;
         # under the help and the palette, because a probe must not answer for a
         # window that one of them opened.
-        tooltip === nothing ||
-            (projection = TooltipProbeProjection(inner = projection,
-                                                 compute_tooltip = tooltip,
-                                                 pointer = pointer,
-                                                 feed = tooltip_feed))
         context_menu === nothing ||
             (projection = ContextMenuProbeProjection(inner = projection,
                                                      compute_context_menu = context_menu))
@@ -135,11 +114,10 @@ opens. It is the value of the `opened_window_projections` keyword of
 `run_window_editor`.
 
 **A window whose content type is named by no row draws nothing.** The help
-window holds a `GestureMap`, which this function names. A tooltip holds whatever
-the document under the pointer answered — a string, a block of prose, a document
-of any domain the host has — so **a host that turns the tooltip on passes the
-rows that draw its own documents** as `content`. They are the rows the window
-already draws a pane's content with.
+window holds a `GestureMap`, which this function names. A tooltip window holds a
+`TooltipContent`, which the natural projection draws, so **a host that shows
+tooltips passes the natural rows** as `content`, with the rows that draw its own
+documents. They are the rows the window already draws a pane's content with.
 
 The help window holds a `GestureMap`. The palette and the log draw into the
 window they wrap and open none.

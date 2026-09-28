@@ -1377,7 +1377,56 @@ it holds the example.
     two layers; the nearest right click wins; a container reads its own table; an
     operation is not read). The kernel suite has 8 more passes, and every other
     suite of the sweep has the counts of step 8.
-  - [ ] 9b/9c. The tooltip as bindings, and the tooltip window.
+  - [x] 9b/9c. **The tooltip as bindings, and the tooltip window (D63, D65 to
+    D67, D72, D73).** The target tracker routes a `MouseDwell` to its target
+    (`_read_dwell`). `ProjecturedTooltip` holds `OpenTooltipOperation` (it
+    collects; the join adds the outer layers after the inner ones),
+    `make_tooltip_binding`, `TooltipContent` and `TooltipWindowProjection`,
+    which `make_tracking_screen(; inner_wrappers = [wrap_tooltip_window])` puts
+    around the target tracker. The natural projection draws `TooltipContent`
+    (`TooltipContentToVerticalLayout`, `make_natural_tooltip_row`). The window
+    of the pointer moves the point of a routed answer to the screen
+    (`_open_popup_window` in `ScreenToScreen.jl`). The bindings: a widget "Show
+    the tooltip", a Julia function "Show the signature", a docstring "Show the
+    documentation", a fault report "Show the fault". `compute_tooltip`, the
+    probe, the feed, `TooltipRest` and `PointerRest` are gone, and so are the
+    `tooltip`, `pointer` and `tooltip_feed` keywords of the window wrap and of
+    the application window. Found in the work:
+    - A reader that an author wrote, such as the reader of a widget leaf, does
+      not ask the table of its input. So the outward walk of 9a also reads the
+      input of the child that took the route when that child answered nothing.
+      A default leaf then reads its table twice when it answers nothing, which
+      changes no answer.
+    - A command that an agent runs goes by route (`read_rooted_operation`), and
+      a routed change passes the tooltip wrapper on its routed branch. So the
+      wrapper takes a tooltip from a routed answer too; else the editor gets an
+      operation that it can not evaluate.
+    - The window manager applies an `OpenWindowOperation` only when it passes it
+      on the way up, and the tooltip wrapper is outside the screen projection.
+      So `evaluate_operation` of the screen package now opens, updates and closes
+      a window on the screen that the editor's document wraps, with the same
+      code as the manager (way A, owner 2026-09-28). This also makes
+      `open_file_dialog!` open its window, which it did not do before: no test
+      checked the window, and `test_file_dialog()` now does.
+    - No projection that ends in graphics maps a widget forward, so a tooltip
+      that a command opens with no point stands at the corner of the screen.
+      The owner chose to complete the forward map (way (c), 2026-09-28):
+      [the-forward-image-of-a-part.md](the-forward-image-of-a-part.md). Until
+      then that one assertion of `test_tooltip_window()` is `@test_broken`.
+    - The omnet IDE moves to the wrapper in this part, not in 9f, so omnet
+      loads after each commit: `make_ide_window_wrap` loses `pointer` and
+      `tooltip_feed`, `run_omnet_ide` gives `inner_wrappers =
+      [wrap_tooltip_window]` to the editor and loses its named `backend`, and
+      `make_ide_opened_window_projections` starts with the natural tooltip row
+      (`OmnetIde` depends on `ProjecturedNatural`).
+    - `test/shell/TooltipProbeTest.jl` is now `ContextMenuProbeTest.jl`, with
+      only the context menu probe, until 9d. `test_tooltip_window()` drives a
+      real editor with a headless backend: the times of the events are long
+      past, so the wait of the dwell ends in the same frame.
+    - Checks: the sweep has the counts of 9a, except the kernel (+2), the
+      substrate (+5) and the shell (265 passes and the one broken placement,
+      no failure); the naming guard passes; the omnet tests of step 8 pass
+      (186 in 8 tests).
   - [ ] 9d. The context menu as bindings.
   - [ ] 9e. The hover inspector goes away.
   - [ ] 9f. The hosts, the checks and the documents.

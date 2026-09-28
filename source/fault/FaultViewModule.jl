@@ -42,6 +42,7 @@ using ..CellModule
 using ..CollectionModule
 using ..DocumentModule
 using ..FaultModule
+using ..GestureBindingModule
 using ..GraphicsModule
 using ..IntentModule
 using ..IoMapModule
@@ -53,6 +54,7 @@ using ..OperationModule
 using ..StyleModule
 using ..SyntaxModule
 using ..TextModule
+using ..TooltipModule
 using ..WidgetModule
 using ..FocusModule
 
@@ -62,7 +64,8 @@ using ..FocusModule
 # then never finds it. PAR-QUALIFIED-EXTENSION is the rule, and the layering
 # guard is what catches a file that forgets.
 import ..DocumentModule: get_document_title
-import ..DomainModule: get_insertion_aliases, make_insertion_document, compute_tooltip
+import ..DomainModule: get_insertion_aliases, make_insertion_document
+import ..GestureBindingModule: get_document_gesture_bindings_own
 import ..FaultModule: append_fault!
 import ..SerializationModule: pred_arguments
 import ..ProjectionModule: print_document, read_intent,

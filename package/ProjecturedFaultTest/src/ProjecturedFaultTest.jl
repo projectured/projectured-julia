@@ -22,6 +22,7 @@ using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.EditorModule
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.FaultModule
+using ProjecturedKernel.GestureModule
 using ProjecturedKernel.IntentModule
 using ProjecturedKernel.IoMapModule
 using ProjecturedKernel.ProjectionModule
@@ -30,9 +31,11 @@ using ProjecturedKernelExample
 using ProjecturedProjection.ProjectionAlgebraModule
 using ProjecturedSyntax.SyntaxModule
 using ProjecturedText.TextModule
-# Through the package under test, which declares both: the tooltip generic that
-# a fault report answers, and the widget a mark is drawn as.
+# Through the package under test, which uses both: the tooltip binding that a
+# fault report declares, and the widget a mark is drawn as.
 using ProjecturedFault.DomainModule
+using ProjecturedFault.GestureBindingModule
+using ProjecturedFault.TooltipModule
 using ProjecturedFault.WidgetModule
 using ProjecturedFault.FocusModule
 using ProjecturedFault.OperationModule

@@ -150,12 +150,14 @@ read_intent(p::WindowManagingProjection, iomap::WindowManagingIoMap, payload) =
 # reflows), re-projects a window's content when it is replaced, and shares each
 # window's metadata cells — so the manager never touches the output.
 
-function _apply_open!(iomap::WindowManagingIoMap, op::OpenWindowOperation)
-    input = iomap.input
-    input isa ScreenDocument || return
+_apply_open!(iomap::WindowManagingIoMap, op::OpenWindowOperation) =
+    _open_screen_window!(iomap.input, op)
+
+function _open_screen_window!(screen, op::OpenWindowOperation)
+    screen isa ScreenDocument || return
 
     # Existing window with this id → update in place.
-    in_wins = input.windows
+    in_wins = screen.windows
     for i in 1:length(in_wins)
         existing_in = in_wins[i]
         existing_in isa WindowDocument || continue
@@ -193,11 +195,13 @@ end
 # Apply Close: remove the matching window from the input; the inner stage's
 # window reconcile drops it from the output.
 
-function _apply_close!(iomap::WindowManagingIoMap, op::CloseWindowOperation)
-    input = iomap.input
-    input isa ScreenDocument || return
+_apply_close!(iomap::WindowManagingIoMap, op::CloseWindowOperation) =
+    _close_screen_window!(iomap.input, op)
 
-    in_wins = input.windows
+function _close_screen_window!(screen, op::CloseWindowOperation)
+    screen isa ScreenDocument || return
+
+    in_wins = screen.windows
     for i in 1:length(in_wins)
         existing = in_wins[i]
         existing isa WindowDocument || continue
@@ -206,6 +210,18 @@ function _apply_close!(iomap::WindowManagingIoMap, op::CloseWindowOperation)
         return
     end
 end
+
+# A window operation that reaches the editor applies to the screen that the
+# editor's document wraps, as the window manager applies one that passes it. It
+# comes from a wrapper outside the screen projection, such as the one that keeps
+# the tooltip window, or from a verb, such as the one that opens a file dialog.
+evaluate_operation(editor, op::OpenWindowOperation) =
+    _open_screen_window!(_find_editor_screen(editor), op)
+evaluate_operation(editor, op::CloseWindowOperation) =
+    _close_screen_window!(_find_editor_screen(editor), op)
+
+_find_editor_screen(editor) =
+    hasproperty(editor, :document) ? get_wrapped_document(editor.document) : nothing
 
 # Close every window that dismisses itself (`auto_dismiss`), or only those of
 # `style` when it is given, and answer whether one closed.

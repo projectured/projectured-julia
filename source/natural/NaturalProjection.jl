@@ -158,6 +158,10 @@ function NaturalToGraphics(; measure::TextMeasure,
             # JSON→JSON, widget→widget), instead of collapsing to one syntax tree.
             CellVector      => ChainingProjection(CellVectorToVerticalLayout(),
                                                  VerticalLayoutToGraphicsCanvas()),
+            # A tooltip window: a column of what the parts say, each in its own
+            # domain.
+            TooltipContent  => ChainingProjection(TooltipContentToVerticalLayout(),
+                                                 VerticalLayoutToGraphicsCanvas()),
         ],
         # The fallback's own tail, then this one. A session that loaded a package
         # that can draw anything reaches its tail; one that did not reaches the

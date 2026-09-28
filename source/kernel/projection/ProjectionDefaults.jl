@@ -271,12 +271,13 @@ input is the input of the container gets the whole route.
 **A gesture goes out from its part.** When the route reaches no child, the deepest
 node it reached is the part, and it may be the container itself. Then, and after
 a child answers, the documents that the walk passed read the gesture with their
-own tables (`read_gesture`), the deepest first, up to the input of the container;
-the child reads its own input. The answer decides how far this goes: a document
-reads when nothing deeper answered, and the nearest that answers wins; after an
-answer that collects ([`is_collecting_operation`](@ref)), it reads too, and an
-answer of the same kind is joined ([`join_collected_operations`](@ref)); any
-other answer ends it. The tables of the documents are asked, not the readers of
+own tables (`read_gesture`), the deepest first, up to the input of the container.
+The input of a child that answered nothing reads too, because the reader of a
+projection need not ask that table. The answer decides how far this goes: a
+document reads when nothing deeper answered, and the nearest that answers wins;
+after an answer that collects ([`is_collecting_operation`](@ref)), it reads too,
+and an answer of the same kind is joined ([`join_collected_operations`](@ref));
+any other answer ends it. The tables of the documents are asked, not the readers of
 the projections: a projection changes an answer on its way up. A change that
 already carries an operation goes to its place and is not read.
 """
@@ -292,7 +293,8 @@ function read_routed_child(recursion, change::Intent, iomap)
             inner = read_routed_intent(get_iomap_projection(child), recursion,
                                        follow_intent_route(change, steps...), child)
             answer = reroot_operation(inner.operation, steps)
-            return Intent(change.gesture, _read_outward(change, answer, nodes, taken, false))
+            return Intent(change.gesture,
+                          _read_outward(change, answer, nodes, taken, !(answer isa Operation)))
         end
         route isa ConcreteReference || break
         step = get_reference_head(route)
@@ -310,10 +312,11 @@ end
 
 # The documents of a walk read the gesture of `change`, from the deepest out to
 # the input of the container: `nodes[i]` is reached by `taken[1:i-1]`. The last
-# node is the input of the child that answered, which read it itself, unless
-# `with_last`, when no child took the route. An answer that is no operation, such
-# as the gesture that a reader hands back when it declines, counts as none, and
-# comes back when no document answers.
+# node reads only `with_last`: when no child took the route, or when the child
+# that took it answered nothing, because the reader of a projection need not ask
+# the table of its input. An answer that is no operation, such as the gesture
+# that a reader hands back when it declines, counts as none, and comes back when
+# no document answers.
 function _read_outward(change::Intent, answer, nodes, taken, with_last::Bool)
     change.operation === nothing && change.gesture !== nothing || return answer
     found = answer isa Operation ? answer : nothing
