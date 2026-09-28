@@ -12,6 +12,11 @@ using ProjecturedKernel.DocumentModule
 using ProjecturedKernel.EventModule
 using ProjecturedKernel.ReferenceModule
 import ProjecturedKernel.OperationModule: ReplaceSelectionOperation
+using ProjecturedKernel.GestureModule
+import ProjecturedKernel.GestureBindingModule
+import ProjecturedKernel.GestureBindingModule: GestureBinding
+import ProjecturedKernel.OperationModule
+import ProjecturedKernel.OperationModule: Operation
 
 @document struct RouteProbeLeaf
     name::String = ""
@@ -64,8 +69,107 @@ function _route_probe_setup()
     (log, box, projection, print_document(projection, projection, box, PrinterContext()))
 end
 
+# A room holds a box, and the box holds a leaf. The leaf has no table; the box and
+# the room answer a dwell with a layer that collects, and a right click with an
+# operation that does not. The log names each table that is read.
+@document struct OutProbeLeaf
+    name::String = ""
+end
+@document struct OutProbeBox
+    leaf::OutProbeLeaf = OutProbeLeaf()
+end
+@document struct OutProbeRoom
+    box::OutProbeBox = OutProbeBox()
+end
+
+# An operation that collects: the names of the parts that answered, inner first.
+struct OutProbeLayers <: Operation
+    names::Vector{String}
+end
+OperationModule.is_collecting_operation(::OutProbeLayers) = true
+OperationModule.join_collected_operations(inner::OutProbeLayers, outer::OutProbeLayers) =
+    OutProbeLayers(vcat(inner.names, outer.names))
+
+const OUT_PROBE_LOG = String[]
+
+function _out_probe_bindings(name)
+    GestureBinding[
+        GestureBinding(MouseDwellPattern(),
+                       (document, gesture) -> (push!(OUT_PROBE_LOG, name); OutProbeLayers([name]));
+                       description = "Show the layer of the $name", domain = "test"),
+        GestureBinding(MouseClickPattern(:right),
+                       (document, gesture) -> (push!(OUT_PROBE_LOG, name);
+                                               ReplaceSelectionOperation(EmptyReference()));
+                       description = "Select the $name", domain = "test"),
+    ]
+end
+GestureBindingModule.get_document_gesture_bindings_own(::Type{OutProbeBox}) = _out_probe_bindings("box")
+GestureBindingModule.get_document_gesture_bindings_own(::Type{OutProbeRoom}) = _out_probe_bindings("room")
+
+# A leaf with no reader of its own, so the default reader asks its table; and a
+# container of one child in `field`, with no reader of its own.
+struct OutProbeLeafProjection <: Projection end
+ProjectionModule.print_document(p::OutProbeLeafProjection, recursion, input, ctx) =
+    SimpleIoMap(p, input, input)
+struct OutProbeHolderProjection <: Projection
+    field::Symbol
+    inner::Projection
+end
+function ProjectionModule.print_document(p::OutProbeHolderProjection, recursion, input, ctx)
+    child = print_document(p.inner, recursion, getproperty(input, p.field), ctx)
+    ChildrenIoMap(p, input, input, Any[(0, 0, child)])
+end
+
+function _out_probe_setup()
+    empty!(OUT_PROBE_LOG)
+    room = OutProbeRoom(box = OutProbeBox(leaf = OutProbeLeaf(name = "leaf")))
+    projection = OutProbeHolderProjection(:box, OutProbeHolderProjection(:leaf, OutProbeLeafProjection()))
+    (room, projection, print_document(projection, projection, room, PrinterContext()))
+end
+
+_out_probe_read(projection, iomap, gesture, route) =
+    read_intent(projection, projection, Intent(gesture, nothing, "", "", route), iomap).operation
+
 function test_routed_change()
 @testset "a change with a route" begin
+    @testset "a dwell that its part does not answer goes out, and each part that collects adds its layer" begin
+        room, projection, iomap = _out_probe_setup()
+        route = _route_probe_path(FieldReferenceStep("box"), FieldReferenceStep("leaf"))
+        answer = _out_probe_read(projection, iomap, MouseDwell(1, 2; time = 0.0), route)
+        # The leaf has no table; the box answers, and the room adds its layer.
+        @test answer isa OutProbeLayers
+        @test answer.names == ["box", "room"]
+        @test OUT_PROBE_LOG == ["box", "room"]
+    end
+
+    @testset "the nearest part that answers wins, and an answer that does not collect ends the search" begin
+        room, projection, iomap = _out_probe_setup()
+        route = _route_probe_path(FieldReferenceStep("box"), FieldReferenceStep("leaf"))
+        answer = _out_probe_read(projection, iomap, MouseClick(:right, 1, 2, 1, ModifierKeys(); time = 0.0),
+                                 route)
+        @test answer isa ReplaceSelectionOperation
+        # The box answered for itself: its path is the step to it.
+        @test answer.path == _route_probe_path(FieldReferenceStep("box"))
+        @test OUT_PROBE_LOG == ["box"]
+    end
+
+    @testset "a gesture for a container itself is read with its own table" begin
+        room, projection, iomap = _out_probe_setup()
+        box_iomap = only(get_child_iomaps(iomap))
+        answer = read_routed_intent(box_iomap.projection, projection,
+                                    Intent(MouseDwell(1, 2; time = 0.0), nothing, "", "", EmptyReference()),
+                                    box_iomap).operation
+        @test answer isa OutProbeLayers && answer.names == ["box"]
+    end
+
+    @testset "an operation on its way to its place is read by no table" begin
+        room, projection, iomap = _out_probe_setup()
+        route = _route_probe_path(FieldReferenceStep("box"), FieldReferenceStep("leaf"))
+        prepared = ReplaceSelectionOperation(EmptyReference())
+        read_intent(projection, projection, Intent(nothing, prepared, "", "", route), iomap)
+        @test isempty(OUT_PROBE_LOG)
+    end
+
     @testset "a gesture reaches the child its route names, and the child reads it" begin
         log, box, projection, iomap = _route_probe_setup()
         route = _route_probe_path(FieldReferenceStep("second"))

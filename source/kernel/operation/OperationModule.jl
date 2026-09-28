@@ -42,6 +42,7 @@ using ..ReferenceModule
 using ..SelectionModule
 
 export Operation, WrappingOperation, get_wrapped_operation, rewrap_operation,
+       is_collecting_operation, join_collected_operations,
        evaluate_operation, invalidate_projection!,
        # from Operations.jl
        DoNothingOperation, ReplaceSelectionOperation, QuitEditorOperation,

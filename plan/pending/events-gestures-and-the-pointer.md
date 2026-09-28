@@ -1364,6 +1364,23 @@ it holds the example.
   4. ~~a run without a pointer~~: settled by D73;
   5. ~~the context menu~~: settled by D74;
   6. ~~the inspector~~: settled by D75 (it goes away).
+
+  The parts, with a commit for each:
+  - [x] 9a. **The outward search in the kernel (D64).** `is_collecting_operation`
+    and `join_collected_operations` in `OperationModule`; a wrapping operation
+    asks and joins through what it wraps. `read_routed_child` keeps the documents
+    on the route and walks outward from the deepest (`_read_outward` in
+    `ProjectionDefaults.jl`). The walk runs only for a gesture with no operation,
+    so an operation keeps the same-document rule. The default leaf reader reads
+    any `Gesture` with its table (`read_gesture`), not only the keys and
+    `CollectIntents`. Tests: four cases in `test_routed_change` (a dwell collects
+    two layers; the nearest right click wins; a container reads its own table; an
+    operation is not read). The kernel suite has 8 more passes, and every other
+    suite of the sweep has the counts of step 8.
+  - [ ] 9b/9c. The tooltip as bindings, and the tooltip window.
+  - [ ] 9d. The context menu as bindings.
+  - [ ] 9e. The hover inspector goes away.
+  - [ ] 9f. The hosts, the checks and the documents.
 - [ ] 10. **The drag tracking package (D14, D19, D20, D21, D26, D29, D52).**
   `ProjecturedDragTracking`, with `DragTrackingState` and
   `DragTrackingProjection`. A drag starts after a small move; the reader answers

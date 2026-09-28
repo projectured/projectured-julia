@@ -72,6 +72,31 @@ See also `WrappingOperation` and `reroot_operation`.
 function rewrap_operation end
 
 """
+    is_collecting_operation(operation) -> Bool
+
+Whether `operation` collects: whether the parts around the part that gave it
+may add their own answers to it. A gesture that goes out from the part it lands
+on reads each enclosing document in turn; after an answer that collects, the next
+document reads the gesture too, and an answer of the same kind is joined with
+[`join_collected_operations`](@ref). Any other answer ends the search, so the
+nearest part that answers wins. A tooltip collects the tooltip of each part
+around the one under the pointer, which a person then shows one layer at a time.
+
+The default is `false`. A package answers `true` for an operation type of its own.
+"""
+function is_collecting_operation end
+
+"""
+    join_collected_operations(inner, outer) -> Operation
+
+One operation that holds what the collecting operations `inner` and `outer` hold,
+`inner` first: `inner` comes from a part, `outer` from a document around it. A
+package declares it for its own collecting operation type, with
+[`is_collecting_operation`](@ref).
+"""
+function join_collected_operations end
+
+"""
     evaluate_operation(editor, operation::Operation)
 
 Carry out a change: the one place where a document is written.
