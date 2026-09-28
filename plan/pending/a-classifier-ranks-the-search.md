@@ -588,7 +588,49 @@ the tree are what a product can use.
 - **D8. The key** is in `~/.config/typesafe/api.env`, as the line
   `TYPESAFE_API_KEY=<key>`, with mode 600. A run reads it through
   `EnvironmentFile=` of `systemd-run`. The key never enters the conversation, a
-  log, or the repository.
+  log, or the repository. It is an OpenRouter key (§10, Step 0, item 1).
+- **D9. Stage 2 goes, with the recommendation of Step 6** (the owner,
+  2026-09-28: "let's go"): `search_api` gets the optional `context` and ranks
+  with Jev through OpenRouter; `search_guides` keeps the meaning vectors and
+  lets Jev rank a pool of them; the local classifier is only a fallback.
+
+### 8c. The design of Stage 2, as built
+
+These are my decisions inside D5 and D9; each says the fact it rests on.
+
+1. **`RelevanceModel`** in the tool layer, beside `MeaningModel`: a name, a
+   `score(query, context, texts)` that answers a probability per text, and a
+   `choose(query, context, options)` that answers a probability per option. A
+   `ToolSet` holds one or none; `set_relevance_model!` gives one. The kernel
+   holds no HTTP code.
+2. **The classifier ranks a search by description** (`mode = "description"`).
+   A keyword search stays as it is: its exact-name answer is right for a name
+   the model knows, and most logged queries name the verb (§10, Step 2).
+3. **The shape follows the size of the declaration.** Up to 255 entries, every
+   entry gets a `noul` (the flat shape, one request); above, the cascade: a
+   `choice` per group of 255, the best 3 of each, then a `noul` each. Stage 1:
+   the cascade was the best shape at 5,187 entries, and flat is the most exact
+   where it is cheap.
+4. **`search_guides` by description with a relevance model**: a pool of the
+   first 50 by words and 50 by meaning (with the context), then a `noul` each.
+   Stage 1: two stages beat the cascade on the guides.
+5. **The context** is an optional argument of both tools. The meaning vector of
+   a search reads it too when there is no relevance model: on the context
+   pairs of Stage 1 it took the vectors from 3 to 9 first.
+6. **A failed relevance model falls back** to the ranking by meaning, and the
+   first line of the answer says so, as a failed meaning model does now.
+7. **No call sites in Stage 2.** Stage 1 found no gain from them, for the
+   vectors or for Jev.
+8. **The backend of Stage 2 is the script** `tool/search/typesafe_classifier.jl`,
+   which makes a `RelevanceModel`. A package (`ProjecturedOpenRouter`, say) is
+   made only when Stage 2 shows a gain at the level of the agent; a package
+   before that result could be one to delete.
+9. **The conditions of the fast loop that change what the model sends** (no
+   context, the request of the person as the context) are made by the harness,
+   which registers a wrapper of the search tool under the same name. No product
+   mechanism passes the request.
+10. **The declared API of the rehearsal is the full corpus** (§5c), 5,187
+    entries, beside the window of the study (131) as a control.
 
 ### 8b. The budget of D7
 
