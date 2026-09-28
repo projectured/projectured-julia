@@ -471,7 +471,8 @@ A take of S0 with the search that Stage 2 kept. The owner decides if it runs.
 
 Each step says what stops the stage.
 
-- [ ] **Step 0. The probes.** No code in the repository.
+- [ ] **Step 0. The probes.** No code in the repository. Item 2 is done; item 1
+  waits for a key that the server accepts (§10).
   1. B1, with the key of D8: ask ten questions in the layouts L1 and L2. Read
      `usage.input_tokens`, to learn if the state is paid once per question. Ask
      each twice, to learn if the answer is the same. Find the limit of questions
@@ -604,3 +605,70 @@ before Step 4.
 - **The model does not search.** A better rank helps only when the model calls
   the search. Stage 2 counts the calls, and it runs without the guide section in
   the system text too.
+
+## 10. Findings
+
+### Step 0, 2026-09-28
+
+The probes are in `/var/tmp/classifier-search/step0/`, outside the repository:
+`dump_corpus.jl`, `typesafe.py`, `probe_b1.py`, `probe_b2.py`, and their logs.
+
+**The corpus of the probes.** `dump_corpus.jl` declares the 25 modules of the
+projectured scale corpus, and the index holds **1,360 entries**: 569 functions,
+511 types, 255 values, 25 modules. The dump took less than a minute with the
+main checkout. A docstring is short: the median is 181 characters, the tenth
+from the top is 819, and the whole corpus is 459,430 characters, about 115,000
+tokens. So a full text is about 115 tokens without call sites, and the 400
+tokens of §5c hold three call sites with room to spare.
+
+**B1, TypeSafe: the key is refused.** The header is right:
+`Authorization: Bearer <key>` answers 401 "Cannot authenticate with the server.
+Please check your API key", and `x-api-key`, `api-key` and a bare
+`Authorization` answer 403 "Must supply an API key!". The key in the file is 73
+characters, with no white space and no quotes. Nothing was spent. The owner
+checks the key.
+
+**B2, the local classifier: it works, and it is fast enough for small pools.**
+Ten questions of the scale corpus, 16 candidates each: the expected name and
+the best 15 other names by words. The candidate text is the name, the kind, the
+signature and the docstring cut at 1,500 characters. No call site and no
+context.
+
+| question | the expected name | rank by words in the corpus | rank by B2 of 16 | noul of the expected, and of the next |
+| --- | --- | --- | --- | --- |
+| put widgets beside each other in one row | `HorizontalLayout` | 81 | 1 | 1.00, 0.92 |
+| a surface with a heading around a table | `WidgetCard` | 28 | 1 | 0.89, 0.45 |
+| let a person scroll over content taller than the space | `WidgetScrollPane` | 2 | 1 | 1.00, 0.94 |
+| show a document in a new tab of the window | `open_pane!` | 139 | 1 | 1.00, 0.42 |
+| write a new value where a reference points | `replace_referenced_value!` | 3 | 1 | 0.99, 0.98 |
+| a value that is computed again when what it reads changes | `Cell` | 112 | 1 | 0.98, 0.37 |
+| make a field of a document computed | `set_cell_computation!` | 284 | 1 | 0.99, 0.09 |
+| turn a key press into an edit of the document | `read_intent` | 116 | 1 | 1.00, 0.42 |
+| read a saved document back from its text | `parse_pred_text` | 10 | 1 | 0.98, 0.07 |
+| say which names a model may write | `declare_api!` | 9 | 1 | 0.97, 0.90 |
+
+- **10 of 10 first.** The distractors are the best by words, so they share
+  words with the question. They are not the best by meaning, so this pool is
+  easier than the pools of Step 4. What it shows: the classifier reads the
+  question and the docstring together, and three names that the earlier plan
+  could not find by either mode (`Cell`, `set_cell_computation!`,
+  `parse_pred_text`) rank first here with a wide margin.
+- **The second place is often a real neighbour**: `ReplaceReferencedValueOperation`
+  at 0.98, `WidgetScrollBar` at 0.94, `list_types` at 0.90. So a threshold does
+  not separate the answer; the order does.
+- **The answer token is always there.** With `think` off, "yes" or "no" was in
+  the 20 top tokens of the first position in all 160 calls. The first position
+  also holds "Yes", " yes" and "No", so the sum over the forms of a word is
+  right.
+- **The rate.** 39,082 tokens of prompt in 156 s: **250 tokens a second**. Ollama
+  reuses the shared start of the prompt, so a call evaluated 244 new tokens on
+  average. The 160 calls took 181 s, with the load of the model. So one
+  candidate costs about one second.
+
+**The B2 column of §5c, measured.** At one second a candidate: two stages over
+30 candidates take about 30 s, and over 100 about 100 s; the tree takes about
+100 s; the flat shape takes about 2 minutes on the window of 131 names and more
+than 20 minutes on 1,360. So B2 with the 27B model fits a round of the agent
+(about 50 s) only in two stages over about 30 candidates, where the vectors
+cap the recall. A smaller model is the local option for the other shapes. I
+will name a candidate when Step 4 shows which shape wins.
