@@ -818,3 +818,45 @@ every expected name in the first eight.
   questions have their name in the first ten. So a classifier over the first 20
   of two rankers can reach at most what those pools hold. The flat shape on B1
   measures what that cap costs.
+
+### Step 4, the local classifier on the questions with a context, 2026-09-28
+
+B2 (`qwen3.8:27b`, `think` off) in two stages: the pool is the first 20 by words
+and the first 20 by meaning, both of the sentence alone. 71 questions, 5,187
+entries; 8,500 answers of the model at about 46 a minute (about 3 hours), kept
+in `/var/tmp/classifier-search/rankings/ollama-classifier-cache.ndjson`.
+
+| questions | ranker | first / 5 / 8 / 10 | reciprocal | all in 8 |
+| --- | --- | --- | --- | --- |
+| study, 14 | meaning, context (the best control) | 3 / 8 / 8 / 8 | 0.37 | 5 |
+| | local classifier, documentation | 11 / 11 / 11 / 11 | 0.79 | 8 |
+| | local classifier, call sites | 11 / 11 / 11 / 11 | 0.79 | 8 |
+| | local classifier, call sites, context | 10 / 11 / 11 / 11 | 0.75 | 8 |
+| pair, 16 | meaning, context (the best control) | 9 / 13 / 14 / 14 | 0.66 | 14 |
+| | local classifier, documentation | 4 / 9 / 11 / 11 | 0.42 | 11 |
+| | local classifier, call sites | 6 / 10 / 10 / 11 | 0.49 | 10 |
+| | local classifier, call sites, context | **13 / 15 / 15 / 15** | 0.86 | 15 |
+| log, 41 | meaning (the best control) | 35 / 38 / 40 / 40 | 0.90 | 6 |
+| | local classifier, call sites, context | 36 / 40 / 41 / 41 | 0.92 | 8 |
+
+- **Inside its pool, the classifier is nearly always right.** On the study
+  questions it put the name first in every one of the 11 whose name was in the
+  pool; on the pairs, with the context, in 13 of the 15.
+- **Every miss is a miss of the pool.** The three study questions that no
+  classifier answered have ranks such as 37 and 53 by meaning of the sentence,
+  outside a pool of 20. By meaning with the context the same names stand at 2,
+  4 and 7. `insert_elements!` for "add one more row to it" in the JSON context
+  is at 101 and 184, so no pool holds it. **The decision of Step 3 to take the
+  pool from the sentence alone hid this**; the stage `local-pool` of the run
+  script takes it from words, meaning, and meaning with the context.
+- **The context is read.** On the pairs the classifier without the context puts
+  4 or 6 first, which is the most a reader of the sentence alone can reach in
+  pairs whose two answers differ; with it, 13.
+- **The call sites change little for the classifier here**: two more first on
+  the pairs without the context, one more in ten on the logged questions, none
+  on the study.
+- The logged questions mostly name the verb (§10, Step 2), so every ranker does
+  well on them, and they separate the rankers little.
+- The seconds: the classifier took 1,700 to 3,300 s for 71 questions, 25 to 45 s
+  a question. Too slow for a round of the agent at this depth; the pool of three
+  rankers is larger still.
