@@ -278,16 +278,17 @@ its docstring), so getting it right gives the forward cursor mapping for free.
   other domains (see [package/kernel/doc/projection-system.md](../../doc/projection-system.md)).
 - **The map does not depend on what is printed.** It answers from the input and
   from the projection's own mapping, which is usually an index mapping, and it
-  gives the same path whether the printer computed the part or a lazy printer
-  left it out. It may read the output when it must, but most of the time it does
-  not. So a part that is scrolled out of view, or that a lazy printer left out,
-  has its path too.
-- **In graphics, the image of a part is the path of the node that draws it**, not
-  a point. A container maps its own step to the path of its child's node in its
-  output and delegates the rest of the reference to that child; a leaf answers
-  the empty path for itself. The place of a part on the screen is not an answer
-  of this map: a caller that needs it reads the places of the printed nodes on
-  the path, and a path that reaches no printed node has no place. So no
+  gives the same reference whether the printer computed the part or a lazy
+  printer left it out. It may read the output when it must, but most of the time
+  it does not. So a part that is scrolled out of view, or that a lazy printer
+  left out, has its output reference too.
+- **In graphics, the image of a part is the reference of the node that draws
+  it**, not a point. A container maps its own step to the step of its child's
+  node in its output and delegates the rest of the reference to that child; a
+  leaf answers the empty reference for itself. The place of a part on the screen
+  is not an answer of this map: a caller that needs it reads the places of the
+  printed nodes that the output reference reaches, and a reference that reaches
+  no printed node has no place. So no
   projection implements a second generic for positions, and every wrapper
   (chaining, recursive, type-dispatching, …) takes part just by mapping its own
   step.
