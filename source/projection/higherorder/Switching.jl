@@ -73,11 +73,14 @@ read_intent(ap::SwitchingProjection, recursion, change::Intent, iomap::Switching
 read_intent(ap::SwitchingProjection, iomap::SwitchingIoMap, payload) =
     read_intent(ap, nothing, Intent(payload), iomap).operation
 
+# A reference maps forward and back through the active branch, whose IoMap it
+# holds.
 function map_reference_forward(::SwitchingProjection, iomap, reference)
-    return nothing
+    inner = iomap.inner_iomap
+    inner === nothing && return nothing
+    map_reference_forward(get_iomap_projection(inner), inner, reference)
 end
 
-# A reference maps back through the active branch, whose IoMap it holds.
 function map_reference_backward(::SwitchingProjection, iomap, reference)
     inner = iomap.inner_iomap
     inner === nothing && return nothing

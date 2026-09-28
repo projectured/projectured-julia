@@ -58,13 +58,16 @@ end
 read_intent(pdp::PredicateDispatchingProjection, iomap, payload) =
     read_intent(pdp, nothing, Intent(payload), iomap).operation
 
-function map_reference_forward(::PredicateDispatchingProjection, iomap, reference)
-    return nothing
+# It answers the IoMap of the projection whose predicate matched the input, so a
+# reference maps forward and back through that projection, chosen again as the
+# reader chooses it.
+function map_reference_forward(pdp::PredicateDispatchingProjection, iomap, reference)
+    for (pred, proj) in pdp.dispatch
+        pred(iomap.input) && return map_reference_forward(proj, iomap, reference)
+    end
+    nothing
 end
 
-# It answers the IoMap of the projection whose predicate matched the input, so a
-# reference maps back through that projection, chosen again as the reader
-# chooses it.
 function map_reference_backward(pdp::PredicateDispatchingProjection, iomap, reference)
     for (pred, proj) in pdp.dispatch
         pred(iomap.input) && return map_reference_backward(proj, iomap, reference)
