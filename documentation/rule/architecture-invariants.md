@@ -461,14 +461,14 @@ applies to both the printer (do not flatten a child subtree) and the mappers
 ### PAR-DECIDE-LOCALLY
 
 **Nothing is decided globally that can be decided locally.** A central component
-(a wrapper that decides for the parts, a walker over the parts, a registry that
-answers for them) gives a behavior only when no part can give it, and it says
-why. The work that a part can do stays in the part, and a wrapper does only the
+(a wrapper that gives one answer for all the parts, a walker over the parts, a
+registry that answers for them) gives a behavior only when no part can give it,
+and its documentation says why. The work that a part can do stays in the part, and a wrapper does only the
 piece that spans the parts, such as keeping one window for the whole screen.
 The projections on the path must be able to change and control what an input
 means: a meaning is an operation that goes up through them, and each can change
-it, drop it, or answer in its place. A component that decides for them takes
-this away, and the projections stop composing, because a projection can skip or
+it, drop it, or answer in its place. A central component that gives the answer
+for them takes this away, and the projections stop composing, because a projection can skip or
 change any part for its own reason, which a central component can not see.
 
 ### PAR-NO-GLOBAL-ROUTING
@@ -485,10 +485,10 @@ other input travels with no route decided:
 - a key goes where each projection sends it, which is usually along the
   selection.
 
-No global component, such as a tracker or a wrapper at the screen, decides where
-an input goes. When one does, the part is chosen before the readers run, and no
-projection on the path can take the input or send it to another child
-(PAR-DECIDE-LOCALLY).
+The path of an input is never fixed by a global component, such as a tracker or
+a wrapper at the screen. With such a component, the part is chosen before the
+readers run, and no projection on the path can take the input or send it to
+another child (PAR-DECIDE-LOCALLY).
 
 ### PAR-RECURSE-VIA-PRINT-CHILD
 

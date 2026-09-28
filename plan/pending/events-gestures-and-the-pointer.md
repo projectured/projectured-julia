@@ -1474,7 +1474,12 @@ it holds the example.
     selection, and the dwell and the click travel by position. That plan
     replaces the mouse target tracker of step 8, so steps 8 to 12 are planned
     again from it before 9d goes on.
-  - [ ] 9d. The context menu as bindings. The right click travels by position,
+  - [ ] 9d. The context menu as bindings. The code written so far (the shared
+    layer helper `WindowLayers.jl` of the screen, `OpenContextMenuOperation`,
+    `ContextMenuWindowProjection`, the bindings of `WidgetContextMenu` and of the
+    shell, and the removal of the probe from the window wrap) is kept out of the
+    branch until 9d goes on, as `/var/tmp/gesture-type/9d-partial/`: a patch of
+    the changed files and copies of the three new ones. The right click travels by position,
     as today, and reaches the same outward reading (D76; owner 2026-09-28).
   - [ ] 9e. The hover inspector goes away.
   - [ ] 9f. The hosts, the checks and the documents.

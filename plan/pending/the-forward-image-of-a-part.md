@@ -78,7 +78,7 @@ Facts from a search on 2026-09-28, with the two central ones read again:
 
 ## 4. The steps
 
-- [ ] 1. **The contract.** The docstring of `map_reference_forward` and
+- [x] 1. **The contract.** The docstring of `map_reference_forward` and
   [reference.md](../../documentation/package/kernel/reference.md) say the model
   of section 2.
 - [ ] 2. **The three wrappers map forward through their child**, as they map
@@ -88,7 +88,9 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   maps its own step to the path of its child's node in its output, and a leaf
   answers the empty path for itself. The helpers that add points
   (`shift_child_image`, `_self_point`, the point in `_map_window`) change to
-  paths. A part that is not printed still has its path (Q2).
+  paths. A part that is not printed still has its path (Q2). A closed tab needs
+  a decision in this step: its content has no node of its own in the output,
+  because the tabbed pane shows only the open tab in one slot.
 - [ ] 4. **The place of a part.** A function reads the box of the printed node
   at a forward path, with the origin of the window, and `find_part_point`
   becomes the place below that box (Q3). The tooltip window and the context

@@ -276,28 +276,21 @@ its docstring), so getting it right gives the forward cursor mapping for free.
   re-walk the input document dispatching on each child's concrete type — that
   couples the projection to its children's domains and breaks composition with
   other domains (see [package/kernel/doc/projection-system.md](../../doc/projection-system.md)).
-- **The output domain may be coordinates, not only structure.** "Output
-  reference" means *whatever reference addresses this projection's output
-  domain*. At the bottom of a render chain that is a **coordinate** domain, where
-  a positioned element's image is a `PointReferenceStep` (its location), not a
-  structural path. So a forward map legitimately returns a `PointReferenceStep` once
-  the chain reaches that coordinate domain. A container that places a child at a
-  pixel offset then contributes **only its own offset**: if the child's image is a
-  `PointReferenceStep` (a coordinate), add this container's offset to it; if it is a
-  structural path, prepend / pass the structural steps unchanged. Distinguish by
-  the *result*, never by the child's type — **coordinates accumulate, paths stay
-  paths**. This is what lets the one mapper serve both selection wiring (paths)
-  and position resolution (coordinates — e.g. anchoring a follower element to the
-  one that triggered it).
-- **Do not add a parallel "resolve position" generic.** Because forward mapping
-  is this *single* recursive map method, every compositional wrapper
-  (chaining, recursive, type-dispatching, …)
-  already threads or composes it for free. A second generic for coordinate
-  resolution would force each of those wrappers to re-implement the same
-  composition. Reuse `map_reference_forward` instead: a projection takes part
-  just by mapping its own one step. An element nests in any container and vice
-  versa precisely because each step is self-contained — peel your step, delegate
-  the tail, add only your own contribution.
+- **The map does not depend on what is printed.** It answers from the input and
+  from the projection's own mapping, which is usually an index mapping, and it
+  gives the same path whether the printer computed the part or a lazy printer
+  left it out. It may read the output when it must, but most of the time it does
+  not. So a part that is scrolled out of view, or that a lazy printer left out,
+  has its path too.
+- **In graphics, the image of a part is the path of the node that draws it**, not
+  a point. A container maps its own step to the path of its child's node in its
+  output and delegates the rest of the reference to that child; a leaf answers
+  the empty path for itself. The place of a part on the screen is not an answer
+  of this map: a caller that needs it reads the places of the printed nodes on
+  the path, and a path that reaches no printed node has no place. So no
+  projection implements a second generic for positions, and every wrapper
+  (chaining, recursive, type-dispatching, …) takes part just by mapping its own
+  step.
 - **A popup is not placed by a reference.** The widget that opens one answers
   its position in its own frame, and each reader that read the widget with a
   press moves that position back into its own frame on the way up, with

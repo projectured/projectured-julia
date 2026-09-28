@@ -467,6 +467,16 @@ reference. `map_reference_backward` takes an output reference and returns an
 input reference. These are the only two functions that translate between the two
 roles, and each projection defines its own rules for how the translation works.
 
+**The forward map takes a path and returns a path, independently of what is
+printed.** A projection answers from its input and its own mapping, which is
+usually an index mapping: a container maps its own step to the path of its
+child's node in the output, and delegates the rest to the child. It gives the
+same path whether the printer computed the part or a lazy printer left it out.
+In graphics the answer is the path
+of the node that draws the part, not a point. A caller that needs the place of
+a part on the screen reads the places of the printed nodes on that path; a path
+that reaches no printed node has no place.
+
 A `ProjectionReferenceStep(P, output_path)` *step* embeds an output reference inside
 an input reference, meaning: from this position, jump through projection `P`,
 then continue with `output_path` in `P`'s output. This lets an input reference
