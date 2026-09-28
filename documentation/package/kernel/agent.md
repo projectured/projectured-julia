@@ -220,8 +220,9 @@ nomic-embed-text`.
 before their words do.** A `RelevanceModel` is a classifier: it reads the query,
 its context and one thing a search could find together, and answers how likely
 that thing does what was asked. Keywords go to it because a model searches with
-keywords far more than with a sentence; a keyword query whose words spell exactly
-one name is answered with that name in full, as before, and the `+word` and
+keywords far more than with a sentence; a keyword query whose words match one
+name as strongly as the name itself would, and no other name so, is answered
+with that name in full, as before, and the `+word` and
 `-word` filters still say which entries it may rank. A pattern never goes to it. A meaning vector is made from one text alone, so it cannot weigh a
 docstring against the question it is asked for. `set_relevance_model!` gives a
 tool set one; the kernel holds its two functions and no client of a server.

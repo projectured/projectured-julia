@@ -1309,7 +1309,8 @@ default, a pattern with `"regex"` or a `Regex`, and a sentence with
 for a written word only: a pattern ranks by where it matches.
 
 A `relevance_model` ranks a description before the meaning model does, and
-keywords before their words do, unless their words name exactly one entry: it
+keywords before their words do, unless their words match one name as strongly
+as that name itself would and no other name so: it
 reads the query, the `context` and each entry together. The filters of a
 keyword query (`+word`, `-word`) still say which entries it may rank. It scores
 every entry of a declaration of up to 255, and of a larger one it scores the
@@ -1363,7 +1364,7 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detai
                 (length(scored) == 1 || scored[2][1][1] < 100)
         alone = length(scored) == 1 || named
         # **Keywords are asked of the relevance model too**, among the entries
-        # their filters let pass, unless they name one entry. A model searches
+        # their filters let pass, unless they name one entry as `named` says. A model searches
         # with keywords far more than with a sentence: measured 2026-09-28, the
         # rehearsals of a study searched only by keywords, with a context. On 41
         # such logged searches the classifier put the needed name first in 35,
