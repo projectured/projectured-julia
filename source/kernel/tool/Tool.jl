@@ -168,7 +168,33 @@ struct MeaningModel
 end
 
 """
-    ToolSet(; api = ApiEntry[], meaning_model = nothing)
+    RelevanceModel(name, score, choose)
+
+What reads a search and each thing it could find **together**, and says how
+likely each thing is what the search wants: a classifier, where a
+[`MeaningModel`](@ref) compares two vectors made apart.
+
+- `name` says which model, as `"openrouter/typesafe/jev-1.13"`.
+- `score(query, context, texts)` answers a `Vector{Float64}`, one probability per
+  text that the thing it describes does what `query` asks, or a step of it.
+  `context` is what the search is asked in, such as the request of the person,
+  and it is empty when there is none.
+- `choose(query, context, options)` answers a `Vector{Float64}`, one probability
+  per option, which add up to one: which option holds what `query` asks. An
+  option is an identifier and one short line; a call holds at most 255.
+
+A `ToolSet` holds one or none; [`set_relevance_model!`](@ref) gives one. A
+search by description ranks with it when it has one, and a model that throws
+leaves the ranking to the meaning model.
+"""
+struct RelevanceModel
+    name::String
+    score::Function
+    choose::Function
+end
+
+"""
+    ToolSet(; api = ApiEntry[], meaning_model = nothing, relevance_model = nothing)
 
 The tools and resources one editor exposes, plus the state its built-in tools
 need to keep between calls.
@@ -203,6 +229,10 @@ thousands of names that mean nothing to the task.
 `meaning_model` is the [`MeaningModel`](@ref) a search by description ranks with,
 or `nothing`, where such a search ranks by its words alone.
 [`set_meaning_model!`](@ref) gives one.
+
+`relevance_model` is the [`RelevanceModel`](@ref) that ranks a search by
+description before the meaning model does, or `nothing`.
+[`set_relevance_model!`](@ref) gives one.
 """
 mutable struct ToolSet
     tools::Vector{Tool}
@@ -215,10 +245,13 @@ mutable struct ToolSet
     # `api` is the whole surface — see `declare_api!`.
     api::Vector{ApiEntry}
     meaning_model::Union{Nothing,MeaningModel}
+    relevance_model::Union{Nothing,RelevanceModel}
 end
 
-ToolSet(; api = ApiEntry[], meaning_model::Union{Nothing,MeaningModel} = nothing) =
-    ToolSet(Tool[], Resource[], nothing, nothing, Any[], _api_entries(api), meaning_model)
+ToolSet(; api = ApiEntry[], meaning_model::Union{Nothing,MeaningModel} = nothing,
+        relevance_model::Union{Nothing,RelevanceModel} = nothing) =
+    ToolSet(Tool[], Resource[], nothing, nothing, Any[], _api_entries(api), meaning_model,
+            relevance_model)
 
 """
     observe_evaluations!(f, set) -> f

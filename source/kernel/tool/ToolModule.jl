@@ -2,11 +2,11 @@
     ToolModule
 
 The **capability surface**: what the editor can be asked to do, and what it can
-be asked to read. Seven fragments share this namespace:
+be asked to read. Eight fragments share this namespace:
 
 - [`Tool.jl`](Tool.jl) — `Tool` (an action), `Resource` (a read-only datum), the
-  `MeaningModel` a search by description ranks with, and the `ToolSet` that holds
-  them.
+  `MeaningModel` and the `RelevanceModel` a search by description ranks with, and
+  the `ToolSet` that holds them.
 - [`ToolSet.jl`](ToolSet.jl) — registering, listing, finding, and calling them.
 - [`CodeExecution.jl`](CodeExecution.jl) — the `execute_julia_code` tool and its
   persistent scratch namespace.
@@ -17,6 +17,8 @@ be asked to read. Seven fragments share this namespace:
 - [`MeaningSearch.jl`](MeaningSearch.jl) — how a description is ranked by what it
   means, where the vectors of that rank are kept, and how a guide section's
   meaning rank joins the rank of its words.
+- [`RelevanceSearch.jl`](RelevanceSearch.jl) — how a `RelevanceModel` ranks a
+  description, its context and each thing a search could find, read together.
 - [`DefaultTools.jl`](DefaultTools.jl) — `register_default_tools!`, which puts the
   above into a `ToolSet`.
 
@@ -35,6 +37,7 @@ process never share a tool registry or evaluate into each other's namespace.
 module ToolModule
 
 export Tool, Resource, ToolSet, ApiEntry, MeaningModel, set_meaning_model!,
+       RelevanceModel, set_relevance_model!,
        get_api_modules, get_api_entry_names,
        api_entry_bindings, api_source_name, describe_api, register_guide_root!,
        register_tool!, register_tools!, list_tools, find_tool, call_tool, declare_api!,
@@ -57,6 +60,7 @@ include("CodeExecution.jl")
 include("SearchQuery.jl")
 include("Documentation.jl")
 include("MeaningSearch.jl")
+include("RelevanceSearch.jl")
 include("DefaultTools.jl")
 
 end # module

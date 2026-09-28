@@ -58,6 +58,18 @@ function set_meaning_model!(set::ToolSet, model::Union{Nothing,MeaningModel})
 end
 
 """
+    set_relevance_model!(set, model) -> set
+
+Give `set` the [`RelevanceModel`](@ref) its searches by description rank with.
+`nothing` takes the model away, and such a search then ranks by meaning, or by
+its words.
+"""
+function set_relevance_model!(set::ToolSet, model::Union{Nothing,RelevanceModel})
+    set.relevance_model = model
+    set
+end
+
+"""
     register_tool!(set, tool) -> tool
 
 Add `tool` to `set`, replacing any tool already registered under the same name.

@@ -83,6 +83,7 @@ include("../../../test/kernel/agent/AgentSeamTest.jl")
 include("../../../test/kernel/tool/DeclaredApiTest.jl")
 include("../../../test/kernel/tool/SearchQueryTest.jl")
 include("../../../test/kernel/tool/MeaningSearchTest.jl")
+include("../../../test/kernel/tool/RelevanceSearchTest.jl")
 include("../../../test/kernel/tool/SearchAnswerTest.jl")
 include("../../../test/kernel/tool/CodeExecutionTest.jl")
 

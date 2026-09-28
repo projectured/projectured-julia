@@ -150,6 +150,12 @@ const _DETAIL_PARAMETER = (name = "detail", type = "string",
 const _LIMIT_PARAMETER = (name = "limit", type = "number",
     description = "How many hits; the detail decides when absent.", required = false)
 
+const _CONTEXT_PARAMETER = (name = "context", type = "string",
+    description = "Optional: what you are doing, in a sentence or two: the request " *
+                  "of the person and what the window holds. A search by description " *
+                  "reads it to rank the hits.",
+    required = false)
+
 # What the documentation tools answer: a guide is a Markdown file, a docstring is
 # Markdown, and a list of hits is written as Markdown around them.
 const _DOCUMENTATION_MIME_TYPE = "text/markdown"
@@ -187,13 +193,15 @@ function register_default_tools!(set::ToolSet)
         NamedTuple[
             _QUERY_PARAMETER,
             _MODE_PARAMETER,
+            _CONTEXT_PARAMETER,
             _DETAIL_PARAMETER,
             _LIMIT_PARAMETER,
         ],
         (target, args) -> search_guides(set, _get_query_argument(args);
                                         mode = get(args, "mode", nothing),
                                         detail = get(args, "detail", nothing),
-                                        limit = _arg_limit(get(args, "limit", nothing)));
+                                        limit = _arg_limit(get(args, "limit", nothing)),
+                                        context = get(args, "context", nothing));
         result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
 
@@ -206,6 +214,7 @@ function register_default_tools!(set::ToolSet)
         NamedTuple[
             _QUERY_PARAMETER,
             _MODE_PARAMETER,
+            _CONTEXT_PARAMETER,
             _DETAIL_PARAMETER,
             (name = "kind", type = "string",
              description = "Optional filter: \"module\", \"type\", or \"function\"", required = false),
@@ -215,7 +224,8 @@ function register_default_tools!(set::ToolSet)
                                      mode   = get(args, "mode", nothing),
                                      detail = get(args, "detail", nothing),
                                      kind   = _arg_kind(get(args, "kind", nothing)),
-                                     limit  = _arg_limit(get(args, "limit", nothing)));
+                                     limit  = _arg_limit(get(args, "limit", nothing)),
+                                     context = get(args, "context", nothing));
         result_mime_type = _DOCUMENTATION_MIME_TYPE,
     ))
 

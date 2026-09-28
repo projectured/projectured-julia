@@ -85,6 +85,7 @@ function test_kernel()
         test_declared_api()
         test_search_query()
         test_meaning_search()
+        test_relevance_search()
         test_search_answer()
         test_code_execution()
         test_construct_oracle()
@@ -104,7 +105,8 @@ export test_fault_defaults, test_fault_record, test_fault_store,
        test_inversion, test_traversal, test_event_module, test_event_case,
        test_device_module, test_gesture_binding, test_gesture_recognizer,
        test_headless_backend, test_agent_seam,
-       test_declared_api, test_search_query, test_meaning_search, test_search_answer,
+       test_declared_api, test_search_query, test_meaning_search, test_relevance_search,
+       test_search_answer,
        test_code_execution,
        test_editor_inbox, test_editor_frame_drain, test_editor_feeds,
        test_editor_wait, test_frame_measurements

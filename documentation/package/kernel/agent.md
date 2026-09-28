@@ -27,12 +27,13 @@ on both.
 ## `tool/`: what the editor can be asked to do
 
 ```
-Tool.jl           Tool (an action), Resource (a read-only datum), MeaningModel, ToolSet
+Tool.jl           Tool (an action), Resource (a read-only datum), MeaningModel, RelevanceModel, ToolSet
 ToolSet.jl        register / list / find / call — all on a ToolSet
 CodeExecution.jl  execute_julia_code and execute_julia_expression, and their persistent scratch namespace
 SearchQuery.jl    what a search query says: keywords with classes, a pattern, a description
 Documentation.jl  guide / module / type / function docs, and search over them
 MeaningSearch.jl  the rank of a description by its meaning, and the stores of vectors
+RelevanceSearch.jl the rank of a description by a classifier that reads it with each hit
 DefaultTools.jl   register_default_tools!, which puts the above into a ToolSet
 ```
 
@@ -108,8 +109,15 @@ the list says how to read a hit in full: a function with
 meaning model ranked says so in its first line, and says what to do instead.
 
 `search_api(set, query; …)` and `search_guides(set, query; …)` search as
-the tools of `set` do, with its declaration and its meaning model, so a call
-from the REPL answers what a model is answered.
+the tools of `set` do, with its declaration, its meaning model and its
+relevance model, so a call from the REPL answers what a model is answered.
+
+**A search can say what it is asked in.** Both tools take an optional
+`context`: a sentence or two of what the model is doing, such as the request of
+the person and what the window holds. A description reads it, and a keyword or
+a pattern search does not. One sentence can mean two names: "save it" is
+`save_document` for a document open in a pane and `save_user_interface` for the
+arrangement of the windows, and only the context tells them apart.
 
 **Two searches, two intents.** `search_api` finds the name to call, and
 `search_guides` says how the parts fit together; their descriptions say so in
@@ -207,6 +215,28 @@ words of the description rank the hits as optional keywords, and the first line
 of the answer says why. For a model
 that is not installed, the reason says how to install it: `Run ollama pull
 nomic-embed-text`.
+
+**A relevance model ranks a description before the meaning does.** A
+`RelevanceModel` is a classifier: it reads the description, its context and one
+thing a search could find together, and answers how likely that thing does what
+was asked. A meaning vector is made from one text alone, so it cannot weigh a
+docstring against the question it is asked for. `set_relevance_model!` gives a
+tool set one; the kernel holds its two functions and no client of a server.
+
+- **`search_api`** has the model score every entry of a declaration of up to
+  255. Above that, the model first chooses among the entries by their first
+  sentences, in groups of 255 asked at once, keeps the best 3 of each group, and
+  scores those.
+- **`search_guides`** has the model score the first 50 sections by words and the
+  first 50 by meaning. The meaning vectors already rank the sections of a guide
+  well, so the model orders their first hits rather than choosing among all.
+- **A model that throws leaves the ranking to the meaning model**, and the first
+  line of the answer says why, as it does for a meaning model.
+
+Measured on the 5,187 names of an IDE and 131 questions, 2026-09-28: the meaning
+vectors put 30 of 60 questions' names in the first ten; a classifier that scores
+the first fifty of words and meaning put 43; the choice and then the score, 54.
+On the sections of the guides the gain is small: 10 of 13 first against 9.
 
 ## `llm/`: how the editor talks to a model
 

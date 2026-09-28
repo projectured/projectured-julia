@@ -904,7 +904,8 @@ end
 
 """
     search_guides(query; mode = "keywords", detail = "summary", limit = nothing,
-                  meaning_model = nothing) -> String
+                  meaning_model = nothing, relevance_model = nothing,
+                  context = nothing) -> String
 
 Search the guides. They are split into sections at their headings, and the hits
 are sections, each with the URI `read_resource` reads it by:
@@ -926,12 +927,20 @@ An answer that is long ends with what to do next.
   of the sentence rank the sections as keywords do, and `meaning_model` ranks
   them by what the sentence means; the two ranks are merged, and the words count
   twice. Without a meaning model, or when it fails, the words alone rank them,
-  and the first line of the answer says why.
+  and the first line of the answer says why. With a `relevance_model`, the
+  first 50 sections by words and the first 50 by meaning go to it, and it
+  orders them; when it fails, the ranks above stand, and the first line says so.
+
+`context` is what the search is asked in, such as the request of the person. A
+description reads it: the meaning vector of the query reads it before the
+sentence, and the relevance model reads it beside the sentence. A keyword or a
+pattern search does not read it.
 
 A query that can not be read answers the reason as text, and never throws.
 """
 function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
-                       detail = "summary", limit = nothing, meaning_model = nothing)
+                       detail = "summary", limit = nothing, meaning_model = nothing,
+                       relevance_model = nothing, context = nothing)
     read = _read_search_query(query, mode)
     read isa String && return read
     level = _read_search_detail(detail)
@@ -942,9 +951,23 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
     ranked = _GuideSection[section for (_, section) in _rank_guide_sections(read, sections)]
     note = nothing
     if read isa _DescriptionQuery
-        by_meaning, note = _rank_guide_sections_by_meaning(read, sections, meaning_model)
+        context_text = _get_context_text(context)
+        by_words = ranked
+        by_meaning, note = _rank_guide_sections_by_meaning(_add_query_context(read, context_text),
+                                                           sections, meaning_model)
         by_meaning === nothing ||
             (ranked = _fuse_rankings(ranked, by_meaning; word_weight = _GUIDE_WORD_WEIGHT))
+        if relevance_model !== nothing
+            pool = _make_relevance_pool(by_words, something(by_meaning, _GuideSection[]))
+            by_relevance, relevance_note = _rank_guide_sections_by_relevance(read, context_text, pool,
+                                                                             relevance_model)
+            if by_relevance === nothing
+                note = _join_notes(relevance_note, note)
+            else
+                ranked = by_relevance
+                note = nothing
+            end
+        end
     end
     isempty(ranked) && return _prefix_note(note, "No documentation matches $(repr(query)).\n" *
                                                  "A verb may do it: `search_api` with the same words.")
@@ -1248,7 +1271,8 @@ end
 
 """
     search_api(query; mode = "keywords", detail = "summary", kind = nothing, limit = nothing,
-               api = ApiEntry[], meaning_model = nothing) -> String
+               api = ApiEntry[], meaning_model = nothing, relevance_model = nothing,
+               context = nothing) -> String
 
 Search modules, types, and functions by name and docstring. Ranks exact name
 matches above name substrings above docstring matches and returns the top `limit`
@@ -1267,9 +1291,20 @@ sees the whole project.
 default, a pattern with `"regex"` or a `Regex`, and a sentence with
 `"description"`, which `meaning_model` ranks by meaning. The exact-name bonus is
 for a written word only: a pattern ranks by where it matches.
+
+A `relevance_model` ranks a description before the meaning model does: it reads
+the sentence, the `context` and each entry together. It scores every entry of a
+declaration of up to 255, and of a larger one it scores the best few of each
+group of 255 that it chose among by their first sentences. When it fails, the
+meaning model ranks, and the first line of the answer says why.
+
+`context` is what the search is asked in, such as the request of the person and
+what the window holds. A description reads it; a keyword or a pattern search
+does not.
 """
 function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detail = "summary",
-                    kind = nothing, limit = nothing, api = ApiEntry[], meaning_model = nothing)
+                    kind = nothing, limit = nothing, api = ApiEntry[], meaning_model = nothing,
+                    relevance_model = nothing, context = nothing)
     read = _read_search_query(query, mode)
     read isa String && return read
     level = _read_search_detail(detail)
@@ -1290,8 +1325,17 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detai
         # the five weightings of a rank fusion that were tried, none put a verb
         # above where the meaning alone put it, and each put three or four of
         # eight test sentences' verbs below it.
-        by_meaning, note = _rank_api_entries_by_meaning(read, entries, meaning_model)
-        by_meaning === nothing || (ranked = by_meaning)
+        context_text = _get_context_text(context)
+        by_relevance, relevance_note = relevance_model === nothing ? (nothing, nothing) :
+            _rank_api_entries_by_relevance(read, context_text, entries, relevance_model)
+        if by_relevance === nothing
+            by_meaning, note = _rank_api_entries_by_meaning(_add_query_context(read, context_text),
+                                                            entries, meaning_model)
+            by_meaning === nothing || (ranked = by_meaning)
+            note = _join_notes(relevance_note, note)
+        else
+            ranked = by_relevance
+        end
         # A sentence names no verb, so only a single hit is a clear answer.
         alone = length(ranked) == 1
     else
@@ -1362,27 +1406,31 @@ end
 
 """
     search_api(set::ToolSet, query; mode = "keywords", detail = "summary", kind = nothing,
-               limit = nothing) -> String
+               limit = nothing, context = nothing) -> String
 
-Search what the tools of `set` search: its declared API, ranked by its meaning
-model when it has one. This is what the `search_api` tool answers, so a call
-from the REPL and a call from a model answer the same text.
+Search what the tools of `set` search: its declared API, ranked by its relevance
+model and its meaning model when it has them. This is what the `search_api` tool
+answers, so a call from the REPL and a call from a model answer the same text.
 """
 search_api(set::ToolSet, query::Union{AbstractString,Regex}; mode = "keywords",
-           detail = "summary", kind = nothing, limit = nothing) =
+           detail = "summary", kind = nothing, limit = nothing, context = nothing) =
     search_api(query; mode = mode, detail = detail, kind = kind, limit = limit, api = set.api,
-               meaning_model = set.meaning_model)
+               meaning_model = set.meaning_model, relevance_model = set.relevance_model,
+               context = context)
 
 """
-    search_guides(set::ToolSet, query; mode = "keywords", detail = "summary", limit = nothing) -> String
+    search_guides(set::ToolSet, query; mode = "keywords", detail = "summary", limit = nothing,
+                  context = nothing) -> String
 
 Search the guides as the tools of `set` search them, ranked by its meaning model
-when it has one. This is what the `search_guides` tool answers.
+and its relevance model when it has them. This is what the `search_guides` tool
+answers.
 """
 search_guides(set::ToolSet, query::Union{AbstractString,Regex}; mode = "keywords",
-              detail = "summary", limit = nothing) =
+              detail = "summary", limit = nothing, context = nothing) =
     search_guides(query; mode = mode, detail = detail, limit = limit,
-                  meaning_model = set.meaning_model)
+                  meaning_model = set.meaning_model, relevance_model = set.relevance_model,
+                  context = context)
 
 # ── Tool-argument coercion ─────────────────────────────────────────────────
 # A tool argument arrives from JSON, so it may be a number, a string, or nothing.
