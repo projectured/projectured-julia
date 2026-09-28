@@ -140,10 +140,12 @@ system text also says: when you do not know the name of a verb, search with mode
 "description" and say in a sentence what you want done.
 
 **The logs of the rehearsals.** `/var/tmp/s2/study/out/<experiment>/seed_<n>.txt`
-holds 21 transcripts with search calls: 108 calls of `search_api` and 36 of
-`search_guides`. A line of the thinking of the model (`∴ …`) comes before each
-call, so each query has a real context. A long query is cut with "…" in the
-transcript.
+holds 21 transcripts with search calls: 82 calls of `search_api` and 24 of
+`search_guides`, 106 in all. (A first count of 144 counted every mention of the
+two names, in the system text and in the thinking too.) A line of the thinking
+of the model (`∴ …`) comes before each call, so each query has a real context.
+A long query is cut with "…" in the header, and the full query is on the
+`query:` line under it.
 
 Most queries already name the verb, because the guide sections in the system
 text taught it: `"make_study! start a study"`, `"write_ned_file! study network
@@ -425,7 +427,7 @@ nothing and gives the same numbers.
    several thousand.
 3. **The context pairs**: one sentence with two contexts that need different
    names. If the context does nothing, a pair shows it at once. About ten pairs.
-4. **The real queries**: the 144 search calls of the logs of §2c. The context
+4. **The real queries**: the 106 search calls of the logs of §2c. The context
    of each is the request of the person and the line of thinking before the
    call. The expected name is the one the model called next with success. A
    query that the transcript cut is read in full from the record of the seed,
@@ -499,13 +501,17 @@ Each step says what stops the stage.
   2. The call-site tool of §5a, and one file for the full corpus. The report:
      how many entries have a call site, how many have one from outside their
      package, how many short names are shared.
-- [ ] **Step 2. The questions.** The S0 questions, the context pairs, and the
+- [x] **Step 2. The questions.** The S0 questions, the context pairs, and the
   real queries (§5e), in a fragment beside `SearchScaleCorpus.jl` and in
-  `OmnetIdeExample`.
-- [ ] **Step 3. The harness.** `measure_search_rankers!` beside
-  `measure_search_scale!`: a ranker is a function of the question, the context
-  and the entries that answers them in order. It prints the table of §5e for
-  each ranker, the paired comparison, and the tokens and seconds of each.
+  `OmnetIdeExample`. Done 2026-09-28 (§10): the three files are in
+  `example/ide/` of the omnet-julia branch, and `OmnetIdeExample` includes them
+  after the projectured side lands.
+- [x] **Step 3. The harness.** ~~`measure_search_rankers!`~~
+  `measure_search_rankings` beside `measure_search_scale!`: a ranker is a
+  function of the question, the context and the entries that answers them in
+  order. It prints the table of §5e for each ranker, the paired comparison, and
+  the tokens and seconds of each. Done 2026-09-28 (§10). The ladder of §5c is
+  not built yet.
 - [ ] **Step 4. The API ranks.** In this order:
   1. Words and meaning on every size of the ladder, with and without the call
      sites, with and without the context (the controls of §4). The recall of the
@@ -732,3 +738,83 @@ have one from outside the folder of their module. `open_pane!` has 17, `Cell`
   because the guide is real and the agent reads it. So Step 4 asks the S0
   questions a second time without the call sites of the guides, to learn how
   much of a gain is the guide.
+
+### Step 2 and Step 3, 2026-09-28
+
+**The questions** are in `example/ide/` of the omnet-julia branch
+`classifier-search`:
+
+| file | constant | questions | context | expected |
+| --- | --- | --- | --- | --- |
+| `SearchContextCorpus.jl` | `STUDY_SEARCH_QUESTIONS` | 14, one per step of the study that needs a name | the request of the person and what the window holds | every name the step calls, 1 to 3 |
+| `SearchContextCorpus.jl` | `CONTEXT_PAIR_SEARCH_QUESTIONS` | 16: 8 sentences, each with two contexts | a situation in two sentences | one name, another for each context |
+| `SearchLogCorpus.jl` | `LOG_SEARCH_QUESTIONS` | 41 | the request and the thinking of the model before the call | the names of the corpus that the next working code called |
+
+- The 41 logged questions are the `search_api` calls whose next code worked
+  and called a name of the corpus. 6 more had a next call that worked but the
+  parser did not find its code. The expected set of a logged question can hold
+  names the model knew already, so only the best place counts for them, not
+  "all in eight". Most of their queries name the verb already (49 of 82 hold a
+  `!` or a `_`), so they measure a lookup more than a discovery.
+- The pairs are: "stop it now", "save it", "run it", "open it", "add one more
+  row to it", "get its current value", "read that file" and "write it to a
+  file".
+- `OmnetIdeExample` does not include the files yet: they use `SearchQuestion`
+  of the projectured branch, and omnet-julia sees only the main checkout of
+  projectured-julia. The run script includes them directly.
+
+**The harness** is `example/kernel/SearchRanking.jl` in `ProjecturedKernelExample`:
+`SearchQuestion`, `SearchRanker`, `make_word_ranker`, `make_meaning_ranker`,
+`make_classifier_ranker`, `make_candidate_text` and `measure_search_rankings`.
+The classifier ranker takes the score function as an argument, so the example
+package holds no HTTP code. The run script is `tool/search/measure_rankings.jl`
+of the omnet branch, and the local classifier is `tool/search/ollama_classifier.jl`
+of the projectured branch; both take `HTTP` and `JSON3` from `ProjecturedOllama`,
+so no environment changes.
+
+- **A decision: the first stage of the classifier reads the sentence alone**:
+  the first 20 by words and the first 20 by meaning. So the three classifiers
+  differ only in what the classifier reads: the documentation; the call sites
+  too; the context too.
+
+### Step 4, the free rankers at the full scale, 2026-09-28
+
+5,187 entries (the full corpus and the two names of `ProjecturedOllama`, which
+the script loads), 3,984 with call sites, 90 questions. First / five / eight /
+ten; the mean reciprocal rank of the best expected name; the questions with
+every expected name in the first eight.
+
+| questions | ranker | first / 5 / 8 / 10 | reciprocal | all in 8 |
+| --- | --- | --- | --- | --- |
+| scale, 60, no context | words | 6 / 14 / 14 / 16 | 0.16 | 14 |
+| | meaning | 13 / 26 / 28 / 30 | 0.33 | 28 |
+| | meaning, call sites | 14 / 24 / 27 / 29 | 0.31 | 27 |
+| study, 14 | words | 2 / 6 / 6 / 7 | 0.23 | 4 |
+| | words, context | 0 / 4 / 7 / 8 | 0.14 | 3 |
+| | meaning | 4 / 6 / 7 / 7 | 0.38 | 7 |
+| | meaning, call sites | 4 / 6 / 6 / 8 | 0.36 | 6 |
+| | meaning, context | 3 / 8 / 8 / 8 | 0.37 | 5 |
+| | meaning, call sites, context | 3 / 7 / 8 / 8 | 0.35 | 5 |
+| pair, 16 | words | 3 / 6 / 7 / 8 | 0.31 | 7 |
+| | words, context | 5 / 11 / 13 / 13 | 0.48 | 13 |
+| | meaning | 3 / 4 / 9 / 11 | 0.29 | 9 |
+| | meaning, call sites | 3 / 6 / 11 / 11 | 0.31 | 11 |
+| | meaning, context | 9 / 13 / 14 / 14 | 0.66 | 14 |
+| | meaning, call sites, context | 7 / 14 / 15 / 15 | 0.62 | 15 |
+
+- **The meaning vectors are the control to beat, and with the context.** At
+  5,187 names they put half of the scale questions in the first ten, and words
+  put a quarter there. Against words per question, meaning is better on 61 of
+  90 and worse on 23.
+- **The call sites do not help a vector.** On the scale questions they cost a
+  little (26 against 24 in five); on the pairs they gain two in eight. A vector
+  of one text averages the call sites into the docstring, and the words of a
+  call site (`editor`, `card`, `title`) are the words of every call site.
+- **The context helps a vector much.** On the pairs, 9 first against 3, and 14
+  in eight against 9. So the context is worth giving to the search whatever the
+  scorer is. On the study questions it helps less (8 in five against 6),
+  because the request of the person names the whole study and not the step.
+- The recall of the first stage is visible here: by meaning, 30 of 60 scale
+  questions have their name in the first ten. So a classifier over the first 20
+  of two rankers can reach at most what those pools hold. The flat shape on B1
+  measures what that cap costs.
