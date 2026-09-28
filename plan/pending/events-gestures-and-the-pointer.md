@@ -337,7 +337,9 @@ All of them are from 2026-09-26.
 - **D67.** While a tooltip is open, F2 shows one more of the collected layers,
   outward, and Shift+F2 one fewer; nothing is sent down again, so there is no
   synthetic event. The wrapper declares both keys, so the gesture help lists
-  them. (Owner 2026-09-28.)
+  them. F2 also renames a tab (`PaneGestures.jl`); while a tooltip is open the
+  tooltip takes F2, so the rename waits until it closes. (Owner 2026-09-28: "I
+  don't see a problem there".)
 - **D68.** No central component gives a behavior that the projections on the
   path can give. A central piece exists only where no local one can do the
   work, and it says why. The projections on the path must be able to transform
