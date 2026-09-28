@@ -395,6 +395,21 @@ All of them are from 2026-09-26.
   first layer's source, in screen coordinates. A named run fires one binding on
   one document, so it has one layer; the closers of D66 hold, so a move of the
   mouse closes it. The context menu works the same way. (Owner 2026-09-28.)
+- **D74.** A right click never moves the selection; only a left click does.
+  The light already shows the part under the pointer, and each layer of a menu
+  carries the source path of its part (D71), so its items act on that part
+  without the selection. So no selection is joined with a menu, and the outward
+  search of D64 has no exception. This drops D10 of
+  [a-press-on-a-menu-name-opens-its-menu.md](../done/a-press-on-a-menu-name-opens-its-menu.md)
+  (a right press on a row selected it and opened its menu). (Owner 2026-09-28:
+  "the light already shows what's under the cursor, I think there's no need to
+  merge selection with context menu operation".) With it, as Claude proposed
+  and the owner did not object: a `WidgetContextMenu` answers with the
+  collecting menu operation of D70 instead of a raw `OpenPopupOperation`, so it
+  gives the nearest layer; and the window's own menu, today
+  `compute_context_menu(shell)`, becomes the shell's right-click binding, the
+  outermost layer, so F2 always reaches it. The text view already answers only
+  a left press.
 - **D62.** A crossing reaches a widget that a view makes by its route (Q31,
   way A). A routed gesture goes forward through the stages of a chain as far as
   the forward maps answer; the deepest stage reads it first, and an earlier
@@ -1325,7 +1340,7 @@ it holds the example.
     row turns off; a click opens the popup, and its item Close tab lights (H1);
     the leave of the window turns every light off (H3). A pushed event does not
     pass the X server, so a fault of the window manager stays out of reach.
-- [ ] 9. **The probes go away (D7, D63 to D73).** A tooltip is the meaning of a
+- [ ] 9. **The probes go away (D7, D63 to D74).** A tooltip is the meaning of a
   `MouseDwell` at the part, given by the part's gesture table (D63); the feed,
   the probe, `TooltipRest` and `PointerRest` of the tooltip package go away. The
   inspector reads the target. The context menu is the meaning of a right click
@@ -1340,8 +1355,7 @@ it holds the example.
      a separator and a source mark);
   3. ~~the tooltip wrapper~~: settled by D72;
   4. ~~a run without a pointer~~: settled by D73;
-  5. the context menu: the join of a selection and a menu, and the
-     `WidgetContextMenu`;
+  5. ~~the context menu~~: settled by D74;
   6. the inspector.
 - [ ] 10. **The drag tracking package (D14, D19, D20, D21, D26, D29, D52).**
   `ProjecturedDragTracking`, with `DragTrackingState` and
