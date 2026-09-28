@@ -55,6 +55,7 @@ export collect_package_modules, make_corpus_declaration, make_corpus_tool_set,
        describe_search_corpus
 export CallSite, collect_call_sites, find_module_folder, rank_call_sites, format_call_sites
 export SearchQuestion, make_search_question, make_candidate_text, SearchRanker,
-       make_word_ranker, make_meaning_ranker, make_classifier_ranker, measure_search_rankings
+       make_word_ranker, make_meaning_ranker, make_classifier_ranker, make_cascade_ranker,
+       make_tree_ranker, measure_search_rankings
 
 end # module ProjecturedKernelExample

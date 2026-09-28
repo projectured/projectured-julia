@@ -167,13 +167,7 @@ function make_classifier_ranker(name::AbstractString, score::Function;
             end
             [pool[qualname] for qualname in order]
         end
-        texts = String[make_candidate_text(entry; call_sites = call_sites === nothing ? "" :
-                                                  get(call_sites, entry.qualname, ""))
-                       for entry in candidates]
-        asked = context ? question : SearchQuestion((question.sentence, "", question.expected,
-                                                     question.kind, question.source))
-        probabilities, tokens = score(asked, texts)
-        (candidates[sortperm(probabilities; rev = true, alg = MergeSort)], tokens)
+        _score_candidates(score, question, candidates, call_sites, context)
     end)
 end
 
@@ -263,4 +257,131 @@ function _print_ranking_table(io::IO, rows, names)
         println(io, "  ", rpad(name, 44), better, " / ", worse, " / ", same,
                 "; ", round(seconds; digits = 1), " s, ", tokens, " tokens")
     end
+end
+
+# ═══════════════════════════════════════════════════════════════════════
+# The shapes that choose before they score
+# ═══════════════════════════════════════════════════════════════════════
+
+# The most options one choice holds.
+const _CHOICE_OPTION_LIMIT = 255
+
+# The short line of an entry that a choice shows: its qualified name and the
+# first sentence of its documentation.
+_make_choice_line(entry) =
+    isempty(entry.summary) ? entry.qualname : entry.qualname * ": " * first(entry.summary, 100)
+
+# The entries in the order of `probabilities`, best first.
+_order_by(entries, probabilities) =
+    entries[sortperm(probabilities; rev = true, alg = MergeSort)]
+
+# Score `candidates` with `score`, and answer them best first, and the tokens.
+function _score_candidates(score::Function, question::SearchQuestion, candidates, call_sites,
+                           context::Bool)
+    isempty(candidates) && return (candidates, 0)
+    texts = String[make_candidate_text(entry; call_sites = call_sites === nothing ? "" :
+                                              get(call_sites, entry.qualname, ""))
+                   for entry in candidates]
+    asked = context ? question : SearchQuestion((question.sentence, "", question.expected,
+                                                 question.kind, question.source))
+    probabilities, tokens = score(asked, texts)
+    (_order_by(candidates, probabilities), tokens)
+end
+
+"""
+    make_cascade_ranker(name, choose, score; keep = 3, call_sites = nothing,
+                        context = true) -> SearchRanker
+
+The shape of a choice and then a score. `choose(question, options)` answers a
+probability for each option of one choice, and the tokens it read; an option is
+an identifier and a short line. The entries go to the choice in groups of 255,
+and the `keep` best of each group go to `score`, with their full text. The
+probabilities of one choice add up to one within its group, so they are not
+compared across groups: each group gives its best few.
+"""
+function make_cascade_ranker(name::AbstractString, choose::Function, score::Function;
+                             keep::Int = 3, call_sites = nothing, context::Bool = true)
+    SearchRanker(String(name), (question, entries) -> begin
+        tokens = 0
+        kept = Any[]
+        for group in Iterators.partition(entries, _CHOICE_OPTION_LIMIT)
+            options = [(entry.qualname, _make_choice_line(entry)) for entry in group]
+            probabilities, used = choose(question, options)
+            tokens += used
+            append!(kept, first(_order_by(collect(group), probabilities), keep))
+        end
+        ranked, used = _score_candidates(score, question, kept, call_sites, context)
+        (ranked, tokens + used)
+    end)
+end
+
+"""
+    make_tree_ranker(name, choose, score; package_of, descriptions, beam = 3, keep = 20,
+                     call_sites = nothing, context = true) -> SearchRanker
+
+The owner's divide and conquer: a choice over the packages, then over the modules
+of each package kept, then over the names of each module kept, and a score of
+the `keep` best names with their full text. `package_of` maps the name of a
+module to the name of its package, and `descriptions` maps a package or a module
+to the line a choice shows of it. A path scores as the geometric mean of the
+probabilities along it, and each level keeps the `beam` best paths, so a
+doubtful choice high up can be repaired lower down. A module of more than 255
+names is chosen from in groups.
+"""
+function make_tree_ranker(name::AbstractString, choose::Function, score::Function;
+                          package_of::Dict{String,String}, descriptions::Dict{String,String},
+                          beam::Int = 3, keep::Int = 20, call_sites = nothing,
+                          context::Bool = true)
+    SearchRanker(String(name), (question, entries) -> begin
+        tokens = 0
+        # The entries of each module, and the modules of each package.
+        by_module = Dict{String,Vector{Any}}()
+        for entry in entries
+            entry.kind == "module" && continue
+            push!(get!(() -> Any[], by_module, String(first(split(entry.qualname, '.')))), entry)
+        end
+        by_package = Dict{String,Vector{String}}()
+        for module_name in sort(collect(keys(by_module)))
+            push!(get!(() -> String[], by_package, get(package_of, module_name, module_name)),
+                  module_name)
+        end
+        describe(key) = get(descriptions, key, key)
+        # A path is its probabilities and its last node.
+        function choose_among(keys)
+            length(keys) == 1 && return [1.0]
+            probabilities, used = choose(question, [(key, describe(key)) for key in keys])
+            tokens += used
+            probabilities
+        end
+        mean(path) = prod(path) ^ (1 / length(path))
+        packages = sort(collect(keys(by_package)))
+        paths = [([p], package) for (p, package) in zip(choose_among(packages), packages)]
+        paths = first(sort(paths; by = path -> -mean(first(path))), beam)
+        module_paths = Tuple{Vector{Float64},String}[]
+        for (probabilities, package) in paths
+            modules = by_package[package]
+            for (p, module_name) in zip(choose_among(modules), modules)
+                push!(module_paths, (vcat(probabilities, p), module_name))
+            end
+        end
+        module_paths = first(sort(module_paths; by = path -> -mean(first(path))), beam)
+        entry_paths = Tuple{Vector{Float64},Any}[]
+        for (probabilities, module_name) in module_paths
+            for group in Iterators.partition(by_module[module_name], _CHOICE_OPTION_LIMIT)
+                group = collect(group)
+                options = [(entry.qualname, _make_choice_line(entry)) for entry in group]
+                chosen = length(group) == 1 ? [1.0] : begin
+                    found, used = choose(question, options)
+                    tokens += used
+                    found
+                end
+                for (p, entry) in zip(chosen, group)
+                    push!(entry_paths, (vcat(probabilities, p), entry))
+                end
+            end
+        end
+        kept = [last(path) for path in first(sort(entry_paths; by = path -> -mean(first(path))), keep)]
+        ranked, used = _score_candidates(score, question, kept, call_sites, context)
+        (ranked, tokens + used)
+    end)
 end
