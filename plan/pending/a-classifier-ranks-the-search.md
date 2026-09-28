@@ -536,10 +536,19 @@ Each step says what stops the stage.
   sizes of §5a. Done 2026-09-28 (§10), with words, meaning, and Jev in two
   stages and as a cascade; the tree and the local classifier were not run on
   the guides.
-- [ ] **Step 6. The decision.** The owner reads the tables and decides if
-  Stage 2 runs, and with which backend.
-- [ ] **Step 7. Stage 2** (§5f). The mechanism is approved (D5); the step
+- [x] **Step 6. The decision.** The owner reads the tables and decides if
+  Stage 2 runs, and with which backend. Done 2026-09-28: D9.
+- [ ] **Step 7. Stage 2** (§5f, §8c). The mechanism is approved (D5); the step
   starts when Step 6 says so.
+  - [x] The kernel: `RelevanceModel`, `set_relevance_model!`, the `context` of
+    both searches, the ranking by relevance, and a miss of a large declaration
+    that names its modules (`3fc6a999`, `b9a7cbb9`); `test_relevance_search`
+    (29), and the search suites pass.
+  - [x] The backend: `make_jev_relevance_model` in `tool/search/typesafe_classifier.jl`.
+  - [x] The harness: the conditions in `tool/assistant/study_rehearsal.jl` of
+    omnet-julia (`e531c0e6`), and `/var/tmp/classifier-search/stage2/run_conditions.jl`.
+  - [ ] The runs: six conditions, seeds 1 to 5, in a warm session of the scratch
+    environment of the two worktrees.
 - [ ] **Step 8. Stage 3** (§5g), if the owner asks for it.
 
 ## 7. Rules of a run
@@ -1050,3 +1059,27 @@ failed on an HTTP 520; the client now retries a server error too.
   classifier over a pool of the vectors, with the context, puts the right
   section first a little more often, and it keeps the study questions at 9 of
   9. The case for the classifier is the API, not the guides.
+
+### Step 7, the conditions of the runs, 2026-09-28
+
+All six declare the full corpus, 5,187 entries (§8c, item 10):
+
+| | ranking of a search by description | context the relevance model reads | the guide sections in the system text |
+| --- | --- | --- | --- |
+| c1 | meaning | (none: no relevance model; the vector reads what the model writes) | yes |
+| c2 | Jev | none | yes |
+| c3 | Jev | what the model writes | yes |
+| c4 | Jev | the request of the person, from the harness | yes |
+| c5 | meaning | (as c1) | no |
+| c6 | Jev | what the model writes | no |
+
+- **c1 is not the search of `main`**: the tool schema has the `context`
+  argument in every condition, so the conditions differ only in the ranking
+  and the context the ranking reads.
+- **c6 runs c3 without the guide sections, not c2** as §5f said: c3 is the form
+  the product would have.
+- The runs go seed by seed across the conditions, so a stop leaves comparable
+  results, and they stop before a seed when the ledger holds $9.50: the limit
+  of D7 covers Stage 2 too, until the owner sets another.
+- The local classifier run of the pool with the context was stopped for Stage
+  2 at 7,784 answers, because the agent of the rehearsal uses the same model.
