@@ -300,6 +300,14 @@ All of them are from 2026-09-26.
   XTest. (Owner 2026-09-27.) On this desktop XTest asks to allow "remote
   interaction", and the owner does not allow it (owner 2026-09-27: "I don't want
   to allow remote interaction"). The way of the live check is open.
+- **D63.** The tooltip is a projection at the screen, inside the target tracker:
+  target(tooltip(screen)). The target tracker sends the dwell to the target by
+  route, as it sends the crossings; the tooltip reads the route, a field of the
+  `Intent`, and knows nothing of the tracker. It places its window from the
+  `WindowDocument` that the route names and the point of the dwell, so the
+  `pointer` closure goes away. A dwell with no route opens no tooltip. The owner's
+  rule behind it: projections are as independent as possible, and a projection
+  does not read the state document of another. (Q32, way A2, owner 2026-09-28.)
 - **D62.** A crossing reaches a widget that a view makes by its route (Q31,
   way A). A routed gesture goes forward through the stages of a chain as far as
   the forward maps answer; the deepest stage reads it first, and an earlier
