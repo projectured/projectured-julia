@@ -371,6 +371,21 @@ All of them are from 2026-09-26.
   shows it has no mark; once F2 adds a layer, every layer has its mark. (Owner
   2026-09-28; the rule for the first layer is Claude's suggestion, for the owner
   to confirm.)
+- **D72.** A small wrapper keeps the tooltip window, the one central piece,
+  because a window belongs to the screen and no part can close its own tooltip
+  when the pointer goes to another part (D68). It sits at the screen outside the
+  target tracker, gesture(tooltip(target(screen))), with a wrapper document of
+  its own: whether a tooltip is open and its window id, the collected layers with
+  their source paths, and how many show. It passes the dwell down, takes its own
+  `OpenTooltipOperation` out of the answer, and opens the window at the point
+  that the readers moved up into screen coordinates (`map_operation_position`).
+  While a tooltip is open it maps each move's point backward (D11) and closes the
+  tooltip when the path leaves the source of the first layer; it closes it on
+  Escape (taken), a press, a scroll and the leave of the window; F2 and Shift+F2
+  change how many layers show and update the window in place. The context menu
+  has a wrapper of its own, because the two are alike but not the same (a menu
+  closes on a choice, a click outside it or Escape); a small shared helper holds
+  the layers and the F2 logic. (Owner 2026-09-28.)
 - **D62.** A crossing reaches a widget that a view makes by its route (Q31,
   way A). A routed gesture goes forward through the stages of a chain as far as
   the forward maps answer; the deepest stage reads it first, and an earlier
@@ -1301,7 +1316,7 @@ it holds the example.
     row turns off; a click opens the popup, and its item Close tab lights (H1);
     the leave of the window turns every light off (H3). A pushed event does not
     pass the X server, so a fault of the window manager stays out of reach.
-- [ ] 9. **The probes go away (D7, D63 to D71).** A tooltip is the meaning of a
+- [ ] 9. **The probes go away (D7, D63 to D72).** A tooltip is the meaning of a
   `MouseDwell` at the part, given by the part's gesture table (D63); the feed,
   the probe, `TooltipRest` and `PointerRest` of the tooltip package go away. The
   inspector reads the target. The context menu is the meaning of a right click
@@ -1314,8 +1329,7 @@ it holds the example.
   1. ~~the outward search~~: settled by D64 (driven by the answer);
   2. ~~how a level adds its layer~~: settled by D64 and D71 (the package's join,
      a separator and a source mark);
-  3. the tooltip wrapper: its state, and how it sees a move off the part (a
-     backward mapping of the point while a tooltip is open);
+  3. ~~the tooltip wrapper~~: settled by D72;
   4. from the palette there is no pointer: the operation carries the part, and
      the window opens at the forward image of the part;
   5. the context menu: the join of a selection and a menu, and the
