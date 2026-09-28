@@ -894,3 +894,73 @@ The probe (`probe_b1.py`), on the ten questions of item 2, cost $0.0075:
   and the state is paid once, so a two-stage question costs about 30,000
   tokens, a tree about 35,000, a cascade about 175,000, and a flat question over
   5,187 entries about 1.3 million. The whole stage `hosted` is about $3.
+
+### Step 4, Jev through OpenRouter at the full scale, 2026-09-28
+
+The stage `hosted`, on the 131 questions and the 5,187 entries. The first run
+lost 26 cascade questions and 11 of the 20 flat questions to connection errors,
+because the client retried only a status of 429 or 529 and one failed request
+failed its question. The client now retries a connection error too, with a wait
+that doubles, and the second run sent only what had failed; one tree question
+still failed on an HTTP 520 of the server. **The whole of Stage 1 on Jev so far,
+Step 0 included, cost $3.24.**
+
+The two stages read a pool of the first 50 by words, by meaning, and by meaning
+with the context. The cascade keeps the 3 best of each group of 255. The tree
+keeps a beam of 3 and scores the best 20.
+
+| questions | ranker | first / 5 / 8 / 10 | reciprocal | all in 8 |
+| --- | --- | --- | --- | --- |
+| scale, 60 | meaning (the best control) | 13 / 26 / 28 / 30 | 0.33 | 28 |
+| | Jev, two stages, documentation | 35 / 43 / 43 / 43 | 0.63 | 43 |
+| | Jev, two stages, call sites | 35 / 42 / 43 / 43 | 0.63 | 43 |
+| | Jev, two stages, call sites, context | 35 / 42 / 43 / 43 | 0.63 | 43 |
+| | **Jev, cascade, call sites, context** | **44 / 49 / 52 / 54** | 0.78 | 52 |
+| | Jev, tree, call sites, context | 28 / 32 / 33 / 33 | 0.49 | 33 |
+| study, 14 | meaning, context (the best control) | 3 / 8 / 8 / 8 | 0.37 | 5 |
+| | Jev, two stages, documentation | 11 / 13 / 13 / 14 | 0.84 | 9 |
+| | Jev, two stages, call sites | 12 / 14 / 14 / 14 | 0.89 | 10 |
+| | Jev, two stages, call sites, context | 10 / 14 / 14 / 14 | 0.82 | 11 |
+| | Jev, cascade, call sites, context | 8 / 13 / 13 / 13 | 0.70 | 9 |
+| | Jev, tree, call sites, context | 9 / 10 / 10 / 10 | 0.67 | 8 |
+| pair, 16 | meaning, context (the best control) | 9 / 13 / 14 / 14 | 0.66 | 14 |
+| | Jev, two stages, documentation | 3 / 7 / 9 / 9 | 0.34 | 9 |
+| | Jev, two stages, call sites, context | **14 / 15 / 15 / 15** | 0.91 | 15 |
+| | Jev, cascade, call sites, context | 13 / 15 / 15 / 15 | 0.88 | 15 |
+| | Jev, tree, call sites, context | 7 / 9 / 9 / 9 | 0.50 | 9 |
+| log, 41 | meaning (the best control) | 35 / 38 / 40 / 40 | 0.90 | 6 |
+| | Jev, two stages, call sites, context | 35 / 39 / 40 / 41 | 0.90 | 5 |
+| | Jev, cascade, call sites, context | 34 / 39 / 39 / 40 | 0.88 | 5 |
+| | Jev, tree, call sites, context | 30 / 31 / 33 / 33 | 0.74 | 10 |
+
+The flat shape, on 20 questions (the first 5 of each group), against the same
+questions: meaning with the context 7 / 16 / 18 / 18; Jev in two stages
+16 / 18 / 19 / 20; **Jev flat 16 / 18 / 18 / 19**. Flat cost 16.3 million
+tokens for the 20 questions, $0.034 a question, and 12 s a question.
+
+- **A classifier ranks far better than the meaning vectors at the full scale.**
+  On the scale questions, which have no context, Jev puts 35 or 44 first where
+  the vectors put 13, and 43 or 54 in ten where they put 30. On the study
+  questions, 10 to 12 first against 3 or 4.
+- **The cascade is the best shape at scale.** Its first stage is the classifier
+  itself, so it does not inherit the recall of the vectors: 54 of 60 in ten,
+  against 43 for two stages. On the study questions it is a little behind two
+  stages (13 against 14 in ten). It costs about $0.009 a question and 22
+  requests, which run one after another here; in parallel they take about one
+  second.
+- **The flat shape adds nothing over two stages on the sample**, at thirty times
+  the cost. The pool of 150 holds the answer as often as the whole corpus does,
+  for these 20 questions.
+- **The tree is the weakest shape of Jev.** A choice among the packages and then
+  among the modules, from a line of each, loses the answer early: 33 of 60 in
+  ten, less than two stages. A beam of 3 does not repair it. The divide and
+  conquer of the owner was measured, and in this form it is not the shape to
+  use. A wider beam or a better line per module could change that; it is not
+  measured.
+- **The call sites do not help Jev either.** On the scale questions, 35 / 43
+  with and without them; on the study questions one more first; on the pairs
+  without the context one fewer. The gain is the classifier reading the
+  question and the documentation together, not the call sites.
+- **The context decides the pairs**: 3 first without it, 14 with it.
+- The logged questions name their verb, so every ranker answers them; only the
+  tree loses there.

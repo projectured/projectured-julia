@@ -209,8 +209,9 @@ function measure_search_rankings(; entries, questions, rankers, io::IO = stdout)
             ranked, tokens = ranker.rank(question, entries)
             ranks = _get_expected_ranks(question, ranked)
         catch err
+            reason = replace(strip(sprint(showerror, err)), r"\s*\n\s*" => " / ")
             println(io, "The ranker ", ranker.name, " failed on ", repr(question.sentence), ": ",
-                    first(split(sprint(showerror, err), '\n')))
+                    first(reason, 300))
         end
         push!(rows, (sentence = question.sentence, source = question.source,
                      expected = question.expected, ranker = ranker.name, ranks = ranks,

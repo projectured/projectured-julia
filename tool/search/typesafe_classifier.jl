@@ -90,11 +90,19 @@ function make_typesafe_client(; ledger::AbstractString, cache_path::AbstractStri
         spent >= limit_dollars && throw(TypeSafeBudgetExceeded(spent, Float64(limit_dollars)))
         headers = ["Authorization" => "Bearer " * ENV["TYPESAFE_API_KEY"],
                    "Content-Type" => "application/json"]
+        # A refused connection or a cut answer is tried again, as a busy server
+        # (429, 529) is; each wait doubles.
         response = nothing
         for attempt in 1:6
-            response = _TYPESAFE_HTTP.post(TYPESAFE_URL, headers, body; status_exception = false,
-                                           readtimeout = 180, retry = false)
-            response.status in (429, 529) || break
+            response = try
+                _TYPESAFE_HTTP.post(TYPESAFE_URL, headers, body; status_exception = false,
+                                    readtimeout = 180, retry = false)
+            catch err
+                (err isa _TYPESAFE_HTTP.RequestError || err isa Base.IOError ||
+                 err isa EOFError) && attempt < 6 || rethrow()
+                nothing
+            end
+            response !== nothing && !(response.status in (429, 529)) && break
             sleep(2.0^attempt)
         end
         response.status == 200 ||
