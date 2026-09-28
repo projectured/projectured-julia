@@ -300,22 +300,59 @@ All of them are from 2026-09-26.
   XTest. (Owner 2026-09-27.) On this desktop XTest asks to allow "remote
   interaction", and the owner does not allow it (owner 2026-09-27: "I don't want
   to allow remote interaction"). The way of the live check is open.
-- **D63.** The tooltip is a projection at the screen, inside the target tracker:
-  target(tooltip(screen)). The target tracker sends the dwell to the target by
-  route, as it sends the crossings; the tooltip reads the route, a field of the
-  `Intent`, and knows nothing of the tracker. It places its window from the
-  `WindowDocument` that the route names and the point of the dwell, so the
-  `pointer` closure goes away. A dwell with no route opens no tooltip. The owner's
-  rule behind it: projections are as independent as possible, and a projection
-  does not read the state document of another. (Q32, way A2, owner 2026-09-28.)
-- **D64.** A tooltip describes the nearest part that has something to say: from
-  the deepest part of the route outward, the first part whose `compute_tooltip`
-  answers. (Q33, way a, owner 2026-09-28.) The owner asked whether a key can
-  extend it to every part that answers, stacked outer to inner (way c); that is
-  open with Q34.
+- **D63.** A tooltip is the meaning of a dwell at the part under the pointer,
+  and the part's own gesture table gives it: a type binds `MouseDwellPattern()`
+  to an `OpenTooltipOperation` in its `@gestures` table, with a description. So
+  the command palette, the gesture help and an agent see it and can run it, and
+  the meaning belongs to the thing. The target tracker sends the dwell to the
+  target by route, as it sends the crossings. The tooltip package owns the
+  operation and the pattern helpers, and a domain that has a tooltip depends on
+  it; `compute_tooltip` is no longer the interface. (Q32, owner 2026-09-28.)
+  The ways that were weighed and dropped: a tooltip projection at the screen
+  that read the target tracker's state (a projection must not read the state
+  of another, D68); a tooltip projection that read the route of the dwell (a
+  central component, which the projections on the path can not control); and a
+  requested intent on the carrier, which a wrapper writes and each part answers
+  by dispatch (more mechanism, and the palette can run only bindings).
+- **D64.** The dwell is searched outward and collects: when the part at the end
+  of the route answers nothing, its container reads the dwell at its own place,
+  and so on outward; and the search does not stop at the first answer, because
+  each level whose table binds the dwell adds its layer to the tooltip
+  operation as it goes up. So the operation holds every part that has
+  something to say, nearest first (way c of Q33, collected at once), and the
+  window first shows the nearest (way a). The rule is for the dwell, whose only
+  meaning is "what is this"; a leave is never read by the parent. (Q33, owner
+  2026-09-28.)
 - **D65.** A tooltip is drawn by the natural projection, so it can be any
   document that the natural projection draws, for example markdown, and not
   only text. (Owner 2026-09-28.)
+- **D66.** A small tooltip wrapper keeps the life of the window, with its own
+  state only: it sees the `OpenTooltipOperation` go up and opens the window, and
+  it sees the inputs come down. It closes the window on a move of the pointer off
+  the described part, on Escape (which it takes, so the first Escape closes only
+  the tooltip), on a press, a scroll and the leave of the window; every other key
+  passes on and leaves it open, so a person can type while it shows. (Q34, owner
+  2026-09-28; Claude read "the closers" as the move rule that Claude suggested, a
+  move off the part, and not a move of 4 px.)
+- **D67.** While a tooltip is open, F2 shows one more of the collected layers,
+  outward, and Shift+F2 one fewer; nothing is sent down again, so there is no
+  synthetic event. The wrapper declares both keys, so the gesture help lists
+  them. (Owner 2026-09-28.)
+- **D68.** No central component gives a behavior that the projections on the
+  path can give. A central piece exists only where no local one can do the
+  work, and it says why. The projections on the path must be able to transform
+  and control what a gesture means: a meaning is an operation that bubbles up
+  through them. A meaning is a gesture binding, so the palette, the help and an
+  agent can see and run it. This extends D40, and step 11 writes it into the
+  rules. (Owner 2026-09-28: "there should be no central component which
+  provides global behavior unless there's no other way.")
+- **D69.** The context menu works the same way: a type binds
+  `MouseClickPattern(:right)` to an `OpenContextMenuOperation`, a
+  `WidgetContextMenu` has its own binding, and the nearest part wins by the
+  outward search. A right press that selects a row and opens a menu: the row
+  answers the selection, and the view that knows what the row shows adds that
+  thing's menu to the answer on the way up. (Owner 2026-09-28, "this could also
+  be done for the context menu"; the details are open in step 9.)
 - **D62.** A crossing reaches a widget that a view makes by its route (Q31,
   way A). A routed gesture goes forward through the stages of a chain as far as
   the forward maps answer; the deepest stage reads it first, and an earlier
@@ -1246,12 +1283,27 @@ it holds the example.
     row turns off; a click opens the popup, and its item Close tab lights (H1);
     the leave of the window turns every light off (H3). A pushed event does not
     pass the X server, so a fault of the window manager stays out of reach.
-- [ ] 9. **The probes go away (D7).** A tooltip is the meaning of a `MouseDwell`
-  on the target, and `compute_tooltip` stays; the feed, the probe and
-  `PointerRest` of the tooltip package go away. The inspector reads the target.
-  The context menu is the meaning of a right click at the part. Tests: a tooltip
-  opens after a dwell in any window, not only the first; the inspector shows the
-  part under the pointer; the context menu opens for the part.
+- [ ] 9. **The probes go away (D7, D63 to D69).** A tooltip is the meaning of a
+  `MouseDwell` at the part, given by the part's gesture table (D63); the feed,
+  the probe, `TooltipRest` and `PointerRest` of the tooltip package go away. The
+  inspector reads the target. The context menu is the meaning of a right click
+  at the part (D69). Tests: a tooltip opens after a dwell in any window, not
+  only the first; F2 and Shift+F2 show more and fewer layers; the closers of
+  D66; a view changes a tooltip on the way up; the palette runs "show the
+  tooltip" on the selection; the inspector shows the part under the pointer;
+  the context menu opens for the part, and a nearer `WidgetContextMenu` wins.
+  Open points, to settle one by one before the code:
+  1. the outward search in the kernel's routed reading: the exact rule, and
+     for the right click a rule on the gesture value, because `MouseClick` is
+     one type for every button;
+  2. how a level adds its layer to the tooltip operation on the way up;
+  3. the tooltip wrapper: its state, and how it sees a move off the part (a
+     backward mapping of the point while a tooltip is open);
+  4. from the palette there is no pointer: the operation carries the part, and
+     the window opens at the forward image of the part;
+  5. the context menu: the join of a selection and a menu, and the
+     `WidgetContextMenu`;
+  6. the inspector.
 - [ ] 10. **The drag tracking package (D14, D19, D20, D21, D26, D29, D52).**
   `ProjecturedDragTracking`, with `DragTrackingState` and
   `DragTrackingProjection`. A drag starts after a small move; the reader answers
