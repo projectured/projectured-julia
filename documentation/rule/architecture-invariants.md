@@ -93,6 +93,8 @@ requirement; the rule is its own lead sentence.
 | [PAR-FOUR-FUNCTIONS](#par-four-functions) | The four functions are the entire projection interface |
 | [PAR-RECURSION-CONTRACT](#par-recursion-contract) | All recursion flows through those four functions, and only those four (the recursion contract) |
 | [PAR-DELEGATE-ONE-LEVEL](#par-delegate-one-level) | Recurse as little as possible — one level, then delegate ("School A") |
+| [PAR-DECIDE-LOCALLY](#par-decide-locally) | Nothing is decided globally that can be decided locally |
+| [PAR-NO-GLOBAL-ROUTING](#par-no-global-routing) | A route is fixed in advance only to return an operation from one place; every other input travels by position or by the choice of each projection |
 | [PAR-RECURSE-VIA-PRINT-CHILD](#par-recurse-via-print-child) | Recurse through `print_child`, never open-coded |
 | [PAR-BIDIRECTIONAL-PROJECTION](#par-bidirectional-projection) | Every projection is bidirectional: a printer needs its inverse |
 | [PAR-MAPPERS-ARE-INVERSES](#par-mappers-are-inverses) | `print_document` uses `map_reference_forward`; `read_intent` uses `map_reference_backward`, and the two mappers are mutual inverses |
@@ -455,6 +457,38 @@ into your result ("School B") — that hard-codes which projection renders each
 descendant and forecloses unforeseen document/projection combinations. This
 applies to both the printer (do not flatten a child subtree) and the mappers
 (do not re-walk the input by type).
+
+### PAR-DECIDE-LOCALLY
+
+**Nothing is decided globally that can be decided locally.** A central component
+(a wrapper that decides for the parts, a walker over the parts, a registry that
+answers for them) gives a behavior only when no part can give it, and it says
+why. The work that a part can do stays in the part, and a wrapper does only the
+piece that spans the parts, such as keeping one window for the whole screen.
+The projections on the path must be able to change and control what an input
+means: a meaning is an operation that goes up through them, and each can change
+it, drop it, or answer in its place. A component that decides for them takes
+this away, and the projections stop composing, because a projection can skip or
+change any part for its own reason, which a central component can not see.
+
+### PAR-NO-GLOBAL-ROUTING
+
+**A route is fixed in advance only to return an operation from one place.** An
+intent carries a route (`Intent.route`) when an operation must come back from
+one specific projection: a verb that the assistant or a command calls acts at a
+place, and `read_rooted_operation` carries the operation there and back. Every
+other input travels with no route decided:
+
+- a mouse event and a mouse gesture, such as a click or a dwell, go down by
+  position: each container chooses the child at the point, moves the point into
+  the frame of the child, and can take the input itself;
+- a key goes where each projection sends it, which is usually along the
+  selection.
+
+No global component, such as a tracker or a wrapper at the screen, decides where
+an input goes. When one does, the part is chosen before the readers run, and no
+projection on the path can take the input or send it to another child
+(PAR-DECIDE-LOCALLY).
 
 ### PAR-RECURSE-VIA-PRINT-CHILD
 

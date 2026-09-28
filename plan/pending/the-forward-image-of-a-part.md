@@ -11,7 +11,7 @@ tooltip window must open beside the part, in screen coordinates.
 
 D73 of [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md)
 says how: at the forward image of the part. The tooltip wrapper already asks
-for it (`_find_part_point` in `source/tooltip/TooltipWindow.jl`). But no widget
+for it (`find_part_point` in `source/screen/WindowLayers.jl`). But no widget
 path has a forward image today, so the window opens at the corner of the
 screen, and one assertion of `test_tooltip_window()` is `@test_broken`.
 
@@ -19,6 +19,10 @@ The same map serves every follower that must stand at a part with no pointer:
 the context menu from the palette (D73 too), and later a scroll into view.
 
 ## 2. The model exists
+
+> Q6 changes this model: the image is a path into the output, not a point, and
+> a caller reads the place of the printed node. Sections 2 to 4 are rewritten
+> when Q3 to Q5 are settled.
 
 The kernel contract of `map_reference_forward`
 (`source/kernel/projection/ProjectionInterface.jl`, the docstring) already
@@ -80,10 +84,11 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   now answers.
 - [ ] 2. **Each widget container maps its own step and adds its own offset**, the
   way the composite does, from the child entries of its IO map. The scroll pane
-  and the transform pane move the point by the scroll and the transform. A part
-  that is not shown answers `nothing` (Q1, Q2).
+  and the transform pane move the point by the scroll and the transform, which
+  they hold in their input, and do not test whether the point is visible (Q1). A
+  part that is not printed answers `nothing` (Q2).
 - [ ] 3. **Each widget leaf answers its own point** for the empty path.
-- [ ] 4. **The tooltip opens at the part.** `_find_part_point` then works, and the
+- [ ] 4. **The tooltip opens at the part.** `find_part_point` then works, and the
   `@test_broken` of `test_tooltip_window()` becomes `@test`. The placement of
   the window relative to the image is Q3.
 - [ ] 5. **Text and syntax, if Q4 takes them in.**
@@ -96,13 +101,27 @@ Facts from a search on 2026-09-28, with the two central ones read again:
 
 ## 5. Open questions
 
-- **Q1. A part that is scrolled out of view.** Its point is outside the clip box
-  of the viewport. Does it have an image? Claude's recommendation: `nothing`,
-  because the contract says a projection answers `nothing` for a place it does
-  not show, and a tooltip at a place the person can not see helps no one.
-- **Q2. A part on a hidden tab, in a closed card, or under a closed tree node.**
-  Claude's recommendation: `nothing`, for the same reason. This follows from the
-  contract, so it needs only a confirmation.
+- ~~**Q1. A part that is scrolled out of view.**~~ **Settled with Q6.** It has a
+  forward path, as every part has.
+- ~~**Q2. A part on a hidden tab, in a closed card, or under a closed tree
+  node.**~~ **Settled with Q6.** It has a forward path too, although the printer
+  did not print it.
+- ~~**Q6. What the forward map answers.**~~ **Settled.** The forward map takes a
+  path and returns a path. It works independently of what the printer computed
+  and of what a lazy printer left out. It may read the output when it must, but
+  most of the time it does not; an index mapping is the usual case. (Owner
+  2026-09-28: "you can map forward if you can without looking at the output and
+  usually you can. For example, index mapping"; "The map forward should work
+  independently of what is printed"; "The map may read the output if needed,
+  but most of the time it is not. The map forward takes a path and returns a
+  path. It should work independently of what the printer actually computed and
+  what's left out due to being lazy.") Claude's recommendation of `nothing` for
+  a part out of view, and its reading of a point as the image in graphics, are
+  dropped. So the contract text of `map_reference_forward` that makes the image
+  in graphics a `PointReferenceStep` ("coordinates accumulate") changes: the
+  image is a path into the output. A caller that needs a place on the screen,
+  such as `find_part_point`, reads the positions of the printed nodes on that
+  path and the origin of the window; a node that is not printed gives no place.
 - **Q3. Where the window stands relative to the image.** The image is the top left
   point of the part. A tooltip at that point plus the offset of the pointer
   covers the part. Claude's recommendation: the wrapper keeps the point, and
@@ -115,7 +134,7 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   recommendation: steps 1 to 4 and 6 first, on the branch `gesture-type`
   before step 9d, and the text chain as step 5 in the same plan, after the
   widgets work.
-- **Q5. Where it is built.** On the branch `gesture-type`, as a part of step 9 of
-  the plan of the pointer, or on a branch of its own after that plan. Claude's
-  recommendation: on `gesture-type`, because step 9d (the context menu from the
-  palette) needs it too.
+- ~~**Q5. Where it is built.**~~ **Settled** (owner 2026-09-29): on the branch
+  `gesture-type`, before the mouse target of
+  [a-document-knows-the-part-under-the-pointer.md](a-document-knows-the-part-under-the-pointer.md),
+  because a widget that a view makes gets its mouse target by the forward map.

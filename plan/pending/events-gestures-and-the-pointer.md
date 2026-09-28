@@ -417,6 +417,22 @@ All of them are from 2026-09-26.
   tool (`SelectionInspector`) and the `ReferenceInspector` document, which are no
   probes. (Owner 2026-09-28: "we can remove the inspector feature as a whole";
   Claude read it as the hover inspector, for the owner to confirm.)
+- **D76.** A route is fixed in advance only to return an operation from one
+  place. "The predefined route is only for the case when the operation is to be
+  returned from that specific projection. It's enforcing that because the
+  function called by the assistant is a verb which needs to return the operation
+  from that place. In all other cases the route is not yet decided and should
+  follow the normal routing based on position for mouse events and gestures. For
+  keyboard gestures each projection decides, but they usually take the selection
+  path. But again this the composition, there should be no global component to
+  decide the route. [...] Nothing is decided globally which can be done
+  locally." (Owner 2026-09-28.) Written as `PAR-NO-GLOBAL-ROUTING` and
+  `PAR-DECIDE-LOCALLY` in
+  [architecture-invariants.md](../../documentation/rule/architecture-invariants.md).
+  It supersedes the part of D63 that made the target tracker send the dwell to
+  its target by route, and Claude's proposal to route the right click to the
+  lit part (way (a) of the question of step 9d), which the owner rejected. The
+  consequences are in step 9 and in Q35.
 - **D62.** A crossing reaches a widget that a view makes by its route (Q31,
   way A). A routed gesture goes forward through the stages of a chain as far as
   the forward maps answer; the deepest stage reads it first, and an earlier
@@ -775,6 +791,23 @@ it holds the example.
       toolkit keeps them. The widget target needs a backward mapping that stops
       at the widget layer.
 
+
+- **Q35 (answered 2026-09-28: the leave keeps its route). The crossings under D76.** Step 8 makes the target tracker send
+  `MouseEnter`, `MouseLeave` and `MouseHover` to the parts by route (D62, way A
+  of Q31). Under D76 a hover and an enter can travel by position, from the point
+  of the move. A leave can not simply do so: the pointer is no longer over the
+  part it left, so the point of the move does not reach that part. The ways that
+  Claude sees: keep the crossings routed as the one exception, because the
+  tracker only tells each part what changed and chooses no part for a click;
+  send a leave by position at the point that the pointer left; or let each
+  container keep which of its children the pointer is over and send the
+  crossings to its own children, which §3.4 described as the state before step
+  8. The owner: "if it can only reasonably done by a global component then
+  that's what needs to be done. So the leave can be routes by path, it's fine
+  because that's exactly what needs to be done." Claude's reading, for the owner
+  to correct: the hover and the enter travel by position, and a part knows from
+  its own state (`hovered`) that the pointer entered it; only the leave is routed
+  by the target tracker, which keeps the path that the pointer was over.
 
 ## 6. Steps
 
@@ -1427,7 +1460,22 @@ it holds the example.
       substrate (+5) and the shell (265 passes and the one broken placement,
       no failure); the naming guard passes; the omnet tests of step 8 pass
       (186 in 8 tests).
-  - [ ] 9d. The context menu as bindings.
+  - [ ] **D76 changes 9a to 9c.** The dwell travels by position, as a click
+    does: the target tracker no longer sends it by route (`_read_dwell` goes).
+    The outward reading of the gesture tables (D64) then runs in the shared
+    helpers that hand a pointer gesture to the child at its point, in the
+    widget and the layout packages, as D64 named; when no gesture travels by
+    route, the walk in `read_routed_child` of 9a has no use, unless Q35 keeps
+    the crossings routed.
+  - [ ] 9b′. **Replaced before it started** by
+    [a-document-knows-the-part-under-the-pointer.md](a-document-knows-the-part-under-the-pointer.md)
+    (owner 2026-09-28): every document stores the path of the part under the
+    pointer like its selection, a move becomes that path as a click becomes the
+    selection, and the dwell and the click travel by position. That plan
+    replaces the mouse target tracker of step 8, so steps 8 to 12 are planned
+    again from it before 9d goes on.
+  - [ ] 9d. The context menu as bindings. The right click travels by position,
+    as today, and reaches the same outward reading (D76; owner 2026-09-28).
   - [ ] 9e. The hover inspector goes away.
   - [ ] 9f. The hosts, the checks and the documents.
 - [ ] 10. **The drag tracking package (D14, D19, D20, D21, D26, D29, D52).**
