@@ -410,6 +410,13 @@ All of them are from 2026-09-26.
   `compute_context_menu(shell)`, becomes the shell's right-click binding, the
   outermost layer, so F2 always reaches it. The text view already answers only
   a left press.
+- **D75.** The hover inspector goes away as a whole: `HoverProbeProjection`,
+  the gallery's `inspector` option and `_multi_window_projection_inspector`,
+  `test_hover_probe` and `test_hover_probe_pipeline`, and the text about it in
+  the documents. The rest of the inspector package stays: the shell's Selection
+  tool (`SelectionInspector`) and the `ReferenceInspector` document, which are no
+  probes. (Owner 2026-09-28: "we can remove the inspector feature as a whole";
+  Claude read it as the hover inspector, for the owner to confirm.)
 - **D62.** A crossing reaches a widget that a view makes by its route (Q31,
   way A). A routed gesture goes forward through the stages of a chain as far as
   the forward maps answer; the deepest stage reads it first, and an earlier
@@ -1340,15 +1347,15 @@ it holds the example.
     row turns off; a click opens the popup, and its item Close tab lights (H1);
     the leave of the window turns every light off (H3). A pushed event does not
     pass the X server, so a fault of the window manager stays out of reach.
-- [ ] 9. **The probes go away (D7, D63 to D74).** A tooltip is the meaning of a
+- [ ] 9. **The probes go away (D7, D63 to D75).** A tooltip is the meaning of a
   `MouseDwell` at the part, given by the part's gesture table (D63); the feed,
   the probe, `TooltipRest` and `PointerRest` of the tooltip package go away. The
-  inspector reads the target. The context menu is the meaning of a right click
-  at the part (D69). Tests: a tooltip opens after a dwell in any window, not
+  hover inspector goes away (D75). The context menu is the meaning of a right
+  click at the part (D69, D74). Tests: a tooltip opens after a dwell in any window, not
   only the first; F2 and Shift+F2 show more and fewer layers; the closers of
   D66; a view changes a tooltip on the way up; the palette runs "show the
-  tooltip" on the selection; the inspector shows the part under the pointer;
-  the context menu opens for the part, and a nearer `WidgetContextMenu` wins.
+  tooltip" on the selection; the context menu opens for the part, a nearer
+  `WidgetContextMenu` wins, and F2 adds the window's menu.
   Open points, to settle one by one before the code:
   1. ~~the outward search~~: settled by D64 (driven by the answer);
   2. ~~how a level adds its layer~~: settled by D64 and D71 (the package's join,
@@ -1356,7 +1363,7 @@ it holds the example.
   3. ~~the tooltip wrapper~~: settled by D72;
   4. ~~a run without a pointer~~: settled by D73;
   5. ~~the context menu~~: settled by D74;
-  6. the inspector.
+  6. ~~the inspector~~: settled by D75 (it goes away).
 - [ ] 10. **The drag tracking package (D14, D19, D20, D21, D26, D29, D52).**
   `ProjecturedDragTracking`, with `DragTrackingState` and
   `DragTrackingProjection`. A drag starts after a small move; the reader answers
