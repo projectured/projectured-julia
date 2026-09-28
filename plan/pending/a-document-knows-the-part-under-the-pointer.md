@@ -177,4 +177,7 @@ One at a time, with the owner.
 
 ## 7. Steps
 
-Written when the open points are settled.
+Written when this plan starts. The last step writes the design and the user
+interface documents of the mouse target, as step 11 of
+[events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) lists
+them.

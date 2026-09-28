@@ -1495,6 +1495,40 @@ it holds the example.
   the kernel, the widgets, the screen, the tooltip, the dragging and the
   backends change. This step takes step 4 of the plan
   [every-window-tracks-the-pointer-and-says-when-it-leaves.md](every-window-tracks-the-pointer-and-says-when-it-leaves.md).
+
+  **Each feature of this work is documented on its own, twice** (owner
+  2026-09-29: "document the features separately: tooltip, mouse target, popup
+  window, context menu, etc. implemented here. We need both design and user
+  interface documentation."):
+
+  - a **design document**, for a developer: how the feature works, how it fits
+    with the others, why it is built so, how to use it from code, and its
+    limits, in the form of the package documents;
+  - a **user interface document**, for a person who uses the editor: what the
+    person does, what the person sees, and which keys and clicks work, as
+    numbered steps, with the gesture help and the command palette as the way to
+    find the rest. Each one is linked from
+    [keyboard-and-mouse-guide.md](../../documentation/guide/keyboard-and-mouse-guide.md).
+
+  The features and their places (Claude's proposal; owner 2026-09-29: "Yes"):
+
+  | Feature | Design document | User interface document |
+  | --- | --- | --- |
+  | Gestures: the event and the gesture, the click, the chord and the dwell, the gesture tables, and the outward reading of D64 | `package/kernel/gesture.md` (new), `package/gesturetracking/gesturetracking.md` | `guide/gestures-guide.md` (new) |
+  | The mouse target: the part under the pointer, stored like the selection, and the light | `package/kernel/mouse-target.md` (new, beside `selection.md`) | `guide/pointer-guide.md` (new) |
+  | The tooltip: the dwell, the layers, F2 and Shift+F2, the closers, the command | `package/tooltip/tooltip.md` | `guide/tooltip-guide.md` (new) |
+  | The popup window: a menu, a list of a select, a dialog, a tooltip and a context menu, each in a window of its own; how it opens, where it stands and how it closes | `package/screen/popup-window.md` (new) | `guide/popup-window-guide.md` (new) |
+  | The context menu: the right click, the layers, F2 and Shift+F2, the window menu, the command | `package/widget/context-menu.md` (new) | `guide/context-menu-guide.md` (new) |
+  | The place of a part: the forward path and the box of a part, and a window that a command opens below it | `package/kernel/reference.md` (a section) | in the tooltip and context menu guides |
+  | The timer and the display event | `package/kernel/editor.md` (a section) | none: a person does not see them |
+  | Dragging (step 10) | `package/dragging/` | `guide/dragging-guide.md` (new) |
+
+  Each path is under `documentation/`. The folder `package/<package>/` may hold
+  more than one document, as `package/kernel/` does. The paths go into
+  [documentation/README.md](../../documentation/README.md) and
+  [package/README.md](../../documentation/package/README.md). The named paths of
+  [named-paths-in-a-document.md](../tentative/named-paths-in-a-document.md) are
+  an idea, and get no document until they are planned.
 - [ ] 12. **The check against `main`, and the move of this plan and of the plan of
   `WindowLeave` to `plan/done/`.**
 

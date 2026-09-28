@@ -103,6 +103,10 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   together, so a later change that breaks one of them fails it.
 - [ ] 7. **The documents:** the widget, layout, screen and text documents say
   which projections map forward, and how a caller finds the place of a part.
+  The feature "the place of a part" gets its design and user interface
+  documents as step 11 of
+  [events-gestures-and-the-pointer.md](events-gestures-and-the-pointer.md) lists
+  them.
 
 ## 5. Open questions
 
