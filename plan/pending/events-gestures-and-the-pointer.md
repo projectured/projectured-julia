@@ -386,6 +386,15 @@ All of them are from 2026-09-26.
   has a wrapper of its own, because the two are alike but not the same (a menu
   closes on a choice, a click outside it or Escape); a small shared helper holds
   the layers and the F2 logic. (Owner 2026-09-28.)
+- **D73.** A tooltip or a menu runs without a pointer too, from the command
+  palette or from an agent: its binding works with the event and without it (the
+  palette gives `nothing`), so it keeps its name. The operation carries the
+  layers, the source path of each, and a point that may be missing. From the
+  palette the answer goes up the same path to the wrapper, which opens the window
+  beside the pointer when there is a point, and else at the forward image of the
+  first layer's source, in screen coordinates. A named run fires one binding on
+  one document, so it has one layer; the closers of D66 hold, so a move of the
+  mouse closes it. The context menu works the same way. (Owner 2026-09-28.)
 - **D62.** A crossing reaches a widget that a view makes by its route (Q31,
   way A). A routed gesture goes forward through the stages of a chain as far as
   the forward maps answer; the deepest stage reads it first, and an earlier
@@ -1316,7 +1325,7 @@ it holds the example.
     row turns off; a click opens the popup, and its item Close tab lights (H1);
     the leave of the window turns every light off (H3). A pushed event does not
     pass the X server, so a fault of the window manager stays out of reach.
-- [ ] 9. **The probes go away (D7, D63 to D72).** A tooltip is the meaning of a
+- [ ] 9. **The probes go away (D7, D63 to D73).** A tooltip is the meaning of a
   `MouseDwell` at the part, given by the part's gesture table (D63); the feed,
   the probe, `TooltipRest` and `PointerRest` of the tooltip package go away. The
   inspector reads the target. The context menu is the meaning of a right click
@@ -1330,8 +1339,7 @@ it holds the example.
   2. ~~how a level adds its layer~~: settled by D64 and D71 (the package's join,
      a separator and a source mark);
   3. ~~the tooltip wrapper~~: settled by D72;
-  4. from the palette there is no pointer: the operation carries the part, and
-     the window opens at the forward image of the part;
+  4. ~~a run without a pointer~~: settled by D73;
   5. the context menu: the join of a selection and a menu, and the
      `WidgetContextMenu`;
   6. the inspector.
