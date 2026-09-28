@@ -1083,3 +1083,31 @@ All six declare the full corpus, 5,187 entries (§8c, item 10):
   of D7 covers Stage 2 too, until the owner sets another.
 - The local classifier run of the pool with the context was stopped for Stage
   2 at 7,784 answers, because the agent of the rehearsal uses the same model.
+
+**The smoke run changed the conditions.** c3, seed 1: 7 of 7 turns in 432 s,
+two rounds and one call of code per turn, **and not one search**. With the
+guide sections in its system text the model writes every step from the guide,
+so c1 to c4 can not differ. The runs are now:
+
+| | ranking | context | guide sections | seeds |
+| --- | --- | --- | --- | --- |
+| c5 | meaning | as the model writes it | no | 1–10 |
+| c6 | Jev | as the model writes it | no | 1–10 |
+| c7 | Jev | none | no | 1–10 |
+| c8 | Jev | the request of the person | no | 1–10 |
+| c1 | meaning | as the model writes it | yes | 1–3 |
+| c3 | Jev | as the model writes it | yes | 1–3 |
+
+c5 to c8 answer the question; c1 and c3 confirm that Jev does no harm where
+the model does not search. Two faults of a declaration of the whole
+application showed on the way, and the harness works around the first:
+
+- **The scratch module can not be built** when a declaration gives a name the
+  module defines itself (`read_function_documentation`, `search_api`,
+  `list_modules`, `list_types`, `list_functions`): "cannot declare
+  ToolScratch.read_function_documentation constant; it was already declared as
+  an import". `ToolModule` exports those names, so a declaration of every module
+  holds them. The harness leaves them out; the kernel still has the fault.
+- **The `search_api` of the scratch module passed the meaning model and not the
+  relevance model**, so a search written as code skipped Jev. Fixed
+  (`1263eed6`).
