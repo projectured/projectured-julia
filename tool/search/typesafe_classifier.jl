@@ -91,7 +91,7 @@ function make_typesafe_client(; ledger::AbstractString, cache_path::AbstractStri
         headers = ["Authorization" => "Bearer " * ENV["TYPESAFE_API_KEY"],
                    "Content-Type" => "application/json"]
         # A refused connection or a cut answer is tried again, as a busy server
-        # (429, 529) is; each wait doubles.
+        # (429, 529) and a failed one (5xx) are; each wait doubles.
         response = nothing
         for attempt in 1:6
             response = try
@@ -102,7 +102,7 @@ function make_typesafe_client(; ledger::AbstractString, cache_path::AbstractStri
                  err isa EOFError) && attempt < 6 || rethrow()
                 nothing
             end
-            response !== nothing && !(response.status in (429, 529)) && break
+            response !== nothing && !(response.status == 429 || response.status >= 500) && break
             sleep(2.0^attempt)
         end
         response.status == 200 ||
