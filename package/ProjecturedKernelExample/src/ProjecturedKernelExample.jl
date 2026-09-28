@@ -43,6 +43,7 @@ include("../../../example/kernel/BackendHeadless.jl") # HeadlessBackend — in-m
 include("../../../example/kernel/SearchScaleMeasurement.jl") # what a search costs on a large corpus
 include("../../../example/kernel/SearchCorpus.jl")           # the corpus of a whole application
 include("../../../example/kernel/CallSite.jl")               # where a caller writes each name
+include("../../../example/kernel/SearchRanking.jl")          # rankings of a search compared
 
 export Example, AtomicDocument, force_projected
 export write_example_image, record_example_video, make_typein_gestures
@@ -53,5 +54,7 @@ export ScaleQuestion, measure_search_scale!
 export collect_package_modules, make_corpus_declaration, make_corpus_tool_set,
        describe_search_corpus
 export CallSite, collect_call_sites, find_module_folder, rank_call_sites, format_call_sites
+export SearchQuestion, make_search_question, make_candidate_text, SearchRanker,
+       make_word_ranker, make_meaning_ranker, make_classifier_ranker, measure_search_rankings
 
 end # module ProjecturedKernelExample
