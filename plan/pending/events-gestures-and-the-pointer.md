@@ -308,6 +308,14 @@ All of them are from 2026-09-26.
   `pointer` closure goes away. A dwell with no route opens no tooltip. The owner's
   rule behind it: projections are as independent as possible, and a projection
   does not read the state document of another. (Q32, way A2, owner 2026-09-28.)
+- **D64.** A tooltip describes the nearest part that has something to say: from
+  the deepest part of the route outward, the first part whose `compute_tooltip`
+  answers. (Q33, way a, owner 2026-09-28.) The owner asked whether a key can
+  extend it to every part that answers, stacked outer to inner (way c); that is
+  open with Q34.
+- **D65.** A tooltip is drawn by the natural projection, so it can be any
+  document that the natural projection draws, for example markdown, and not
+  only text. (Owner 2026-09-28.)
 - **D62.** A crossing reaches a widget that a view makes by its route (Q31,
   way A). A routed gesture goes forward through the stages of a chain as far as
   the forward maps answer; the deepest stage reads it first, and an earlier
