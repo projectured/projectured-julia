@@ -314,15 +314,22 @@ All of them are from 2026-09-26.
   central component, which the projections on the path can not control); and a
   requested intent on the carrier, which a wrapper writes and each part answers
   by dispatch (more mechanism, and the palette can run only bindings).
-- **D64.** The dwell is searched outward and collects: when the part at the end
-  of the route answers nothing, its container reads the dwell at its own place,
-  and so on outward; and the search does not stop at the first answer, because
-  each level whose table binds the dwell adds its layer to the tooltip
-  operation as it goes up. So the operation holds every part that has
-  something to say, nearest first (way c of Q33, collected at once), and the
-  window first shows the nearest (way a). The rule is for the dwell, whose only
-  meaning is "what is this"; a leave is never read by the parent. (Q33, owner
-  2026-09-28.)
+- **D64.** The outward search is driven by the answer. At each enclosing
+  document on the route, deepest first: when the deeper part answered nothing,
+  the document reads the gesture with its own table, and the nearest that
+  answers wins; when the deeper answer is an operation that collects (a trait
+  of the operation type, which its package owns, such as `OpenTooltipOperation`),
+  the document also reads the gesture, and an answer of the same kind is joined
+  by the package's join (it adds a layer); any other answer stops the search, as
+  today. So the tooltip holds every part that has something to say, nearest
+  first (way c of Q33, collected at once), and the window first shows the
+  nearest (way a). The walk asks the documents' tables (`read_gesture`), not the
+  projections' readers; a projection changes an answer on the way up. It runs
+  in `read_routed_child` for each container's own stretch of the route, and in
+  the shared click-routing helpers for a gesture that goes by position. A
+  gesture needs no mode of its own. (Q33, owner 2026-09-28: "I think the mode
+  depends on the operation"; an earlier proposal of a mode for each gesture,
+  `:none`, `:first` and `:collect`, was dropped.)
 - **D65.** A tooltip is drawn by the natural projection, so it can be any
   document that the natural projection draws, for example markdown, and not
   only text. (Owner 2026-09-28.)
@@ -355,6 +362,15 @@ All of them are from 2026-09-26.
   answers the selection, and the view that knows what the row shows adds that
   thing's menu to the answer on the way up. (Owner 2026-09-28, "this could also
   be done for the context menu"; the details are open in step 9.)
+- **D70.** The context menu collects too, as the tooltip does (D64), and while
+  it is open F2 shows the next outer layer and Shift+F2 one fewer (D67). (Owner
+  2026-09-28.)
+- **D71.** In a tooltip and in a context menu, each extended layer starts with a
+  separator and a mark that names its source, `get_document_title` of the part
+  that answered; the layers carry that part's path. While only the first layer
+  shows it has no mark; once F2 adds a layer, every layer has its mark. (Owner
+  2026-09-28; the rule for the first layer is Claude's suggestion, for the owner
+  to confirm.)
 - **D62.** A crossing reaches a widget that a view makes by its route (Q31,
   way A). A routed gesture goes forward through the stages of a chain as far as
   the forward maps answer; the deepest stage reads it first, and an earlier
@@ -1285,7 +1301,7 @@ it holds the example.
     row turns off; a click opens the popup, and its item Close tab lights (H1);
     the leave of the window turns every light off (H3). A pushed event does not
     pass the X server, so a fault of the window manager stays out of reach.
-- [ ] 9. **The probes go away (D7, D63 to D69).** A tooltip is the meaning of a
+- [ ] 9. **The probes go away (D7, D63 to D71).** A tooltip is the meaning of a
   `MouseDwell` at the part, given by the part's gesture table (D63); the feed,
   the probe, `TooltipRest` and `PointerRest` of the tooltip package go away. The
   inspector reads the target. The context menu is the meaning of a right click
@@ -1295,10 +1311,9 @@ it holds the example.
   tooltip" on the selection; the inspector shows the part under the pointer;
   the context menu opens for the part, and a nearer `WidgetContextMenu` wins.
   Open points, to settle one by one before the code:
-  1. the outward search in the kernel's routed reading: the exact rule, and
-     for the right click a rule on the gesture value, because `MouseClick` is
-     one type for every button;
-  2. how a level adds its layer to the tooltip operation on the way up;
+  1. ~~the outward search~~: settled by D64 (driven by the answer);
+  2. ~~how a level adds its layer~~: settled by D64 and D71 (the package's join,
+     a separator and a source mark);
   3. the tooltip wrapper: its state, and how it sees a move off the part (a
      backward mapping of the point while a tooltip is open);
   4. from the palette there is no pointer: the operation carries the part, and
