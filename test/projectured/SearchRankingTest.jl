@@ -66,6 +66,30 @@ function test_search_ranking()
         @test [entry.qualname for entry in ranked] == ["Panes.open_pane!", "Panes.close_pane!"]
     end
 
+    @testset "the guides are cut into parts of three sizes, and ranked at the size asked" begin
+        section(guide, heading, body) = ToolModule._GuideSection(guide, heading, body)
+        sections = [section("g1", "A", "cells are computed\n\nagain when read"),
+                    section("g1", "B", "a selection goes back"), section("g2", "C", "a key press")]
+        @test length(make_guide_units(:section; sections = sections)) == 3
+        paragraphs = make_guide_units(:paragraph; sections = sections)
+        @test [unit.body for unit in paragraphs] ==
+              ["cells are computed", "again when read", "a selection goes back", "a key press"]
+        guides = make_guide_units(:guide; sections = sections)
+        @test [(unit.guide, unit.heading) for unit in guides] == [("g1", ""), ("g2", "")]
+        @test endswith(guides[1].body, "Sections: B")
+        ranked = paragraphs[[4, 1, 2, 3]]
+        by_section = SearchQuestion(("q", "", ["g1#B"], :guide, :guide))
+        by_guide = SearchQuestion(("q", "", ["g1"], :guide, :guide))
+        @test _get_expected_ranks(by_section, ranked) == [3]
+        @test _get_expected_ranks(by_guide, ranked) == [2]
+        # Parts of whole guides answer a section question by its guide.
+        @test _get_expected_ranks(by_section, guides[[2, 1]]) == [2]
+        words, _ = make_word_ranker().rank(SearchQuestion(("selection", "", ["g1#B"], :guide, :guide)),
+                                           make_guide_units(:section; sections = sections))
+        @test first(words).heading == "B"
+        @test startswith(make_candidate_text(sections[2]), "guide: g1\nsection: B\ntext:\n")
+    end
+
     @testset "the measurement counts places per question and per ranker" begin
         by_score = make_classifier_ranker("score", score)
         reversed = SearchRanker("reversed", (q, e) -> (reverse(e), 0))

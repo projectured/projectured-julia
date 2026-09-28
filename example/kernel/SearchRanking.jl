@@ -55,8 +55,22 @@ function make_candidate_text(entry; call_sites::AbstractString = "")
     String(rstrip(String(take!(io))))
 end
 
+"""
+    make_candidate_text(unit::ToolModule._GuideSection; call_sites = "") -> String
+
+What a classifier reads of a part of a guide: the guide, the heading, and the
+text cut at 1,500 characters. A guide has no call sites.
+"""
+make_candidate_text(unit::ToolModule._GuideSection; call_sites::AbstractString = "") =
+    "guide: " * unit.guide * (isempty(unit.heading) ? "" : "\nsection: " * unit.heading) *
+    "\ntext:\n" * first(unit.body, _CANDIDATE_DOCUMENTATION_LIMIT)
+
 # The text a meaning vector reads of one entry: the text of the search, with the
-# call sites after it, cut to the length a vector reads well.
+# call sites after it, cut to the length a vector reads well. A part of a guide
+# reads as the search reads its first chunk.
+_make_meaning_candidate_text(unit::ToolModule._GuideSection, call_sites::AbstractString) =
+    first(ToolModule._get_meaning_texts(unit))
+
 function _make_meaning_candidate_text(entry, call_sites::AbstractString)
     isempty(call_sites) && return ToolModule._get_meaning_text(entry)
     calls = "\n\ncalls:\n" * call_sites
@@ -73,6 +87,21 @@ _make_query_text(question::SearchQuestion, with_context::Bool) =
 # ═══════════════════════════════════════════════════════════════════════
 # The rankers
 # ═══════════════════════════════════════════════════════════════════════
+
+# What tells two units apart, and the call sites of a unit as text.
+_get_unit_key(entry::ToolModule._ApiEntry) = entry.qualname
+_get_unit_key(unit::ToolModule._GuideSection) =
+    unit.guide * "#" * unit.heading * "#" * string(hash(unit.body); base = 16)
+_get_unit_call_sites(call_sites, entry::ToolModule._ApiEntry) =
+    call_sites === nothing ? "" : get(call_sites, entry.qualname, "")
+_get_unit_call_sites(call_sites, unit::ToolModule._GuideSection) = ""
+
+# The units by their words, as each search ranks its own: an API entry by its
+# name and its prose, a part of a guide by its heading and its body.
+_rank_units_by_words(query, entries::Vector{ToolModule._ApiEntry}) =
+    [entry for (_, entry) in ToolModule._rank_api_entries(query, entries)]
+_rank_units_by_words(query, units::Vector{ToolModule._GuideSection}) =
+    [unit for (_, unit) in ToolModule._rank_guide_sections(query, units)]
 
 """
     SearchRanker(name, rank)
@@ -96,7 +125,7 @@ make_word_ranker(; context::Bool = false) =
     SearchRanker(context ? "words, context" : "words",
                  (question, entries) -> begin
                      query = ToolModule._DescriptionQuery(_make_query_text(question, context))
-                     ([entry for (_, entry) in ToolModule._rank_api_entries(query, entries)], 0)
+                     (_rank_units_by_words(query, entries), 0)
                  end)
 
 """
@@ -113,8 +142,7 @@ function make_meaning_ranker(model; call_sites = nothing, context::Bool = false,
                              vectors::Dict{String,Vector{Float32}} = Dict{String,Vector{Float32}}())
     name = "meaning" * (call_sites === nothing ? "" : ", call sites") * (context ? ", context" : "")
     SearchRanker(name, (question, entries) -> begin
-        texts = String[_make_meaning_candidate_text(entry,
-                           call_sites === nothing ? "" : get(call_sites, entry.qualname, ""))
+        texts = String[_make_meaning_candidate_text(entry, _get_unit_call_sites(call_sites, entry))
                        for entry in entries]
         _compute_missing_vectors!(vectors, model, texts)
         query = only(ToolModule._normalize_meaning_columns(
@@ -161,11 +189,12 @@ function make_classifier_ranker(name::AbstractString, score::Function;
             pool = Dict{String,Any}()
             order = String[]
             for ranker in first_stage, entry in first(first(ranker.rank(question, entries)), depth)
-                haskey(pool, entry.qualname) && continue
-                pool[entry.qualname] = entry
-                push!(order, entry.qualname)
+                key = _get_unit_key(entry)
+                haskey(pool, key) && continue
+                pool[key] = entry
+                push!(order, key)
             end
-            [pool[qualname] for qualname in order]
+            [pool[key] for key in order]
         end
         _score_candidates(score, question, candidates, call_sites, context)
     end)
@@ -177,10 +206,24 @@ end
 
 _get_short_name(qualname::AbstractString) = String(last(split(qualname, '.')))
 
-# The place of each expected name among the answer, 0 where it is not there.
+# The place of each expected name among the answer, 0 where it is not there. A
+# guide question names a guide, or a section as `guide#heading`, and its place
+# counts guides or sections, each once: the three paragraphs of one section are
+# one place. Units of whole guides answer a section question by its guide.
 function _get_expected_ranks(question::SearchQuestion, ranked)
+    if question.kind === :guide
+        sections = any(unit -> !isempty(unit.heading), ranked)
+        return Int[_get_guide_rank(expected, ranked, sections) for expected in question.expected]
+    end
     names = [_get_short_name(entry.qualname) for entry in ranked]
     Int[something(findfirst(==(expected), names), 0) for expected in question.expected]
+end
+
+function _get_guide_rank(expected::AbstractString, ranked, sections::Bool)
+    by_section = sections && occursin('#', expected)
+    wanted = by_section ? expected : String(first(split(expected, '#')))
+    places = unique([by_section ? unit.guide * "#" * unit.heading : unit.guide for unit in ranked])
+    something(findfirst(==(wanted), places), 0)
 end
 
 # The best place of any expected name, 0 when none is there.
@@ -271,6 +314,15 @@ const _CHOICE_OPTION_LIMIT = 255
 # first sentence of its documentation.
 _make_choice_line(entry) =
     isempty(entry.summary) ? entry.qualname : entry.qualname * ": " * first(entry.summary, 100)
+_make_choice_line(unit::ToolModule._GuideSection) =
+    unit.guide * (isempty(unit.heading) ? "" : " › " * unit.heading) * ": " *
+    first(replace(unit.body, r"\s+" => " "), 100)
+
+# The identifier of an option of a choice: the qualified name of an entry, and
+# the place of a part of a guide in its group, since two parts can share a
+# heading.
+_get_option_id(entry, index::Int) = entry.qualname
+_get_option_id(unit::ToolModule._GuideSection, index::Int) = "part " * string(index)
 
 # The entries in the order of `probabilities`, best first.
 _order_by(entries, probabilities) =
@@ -280,8 +332,7 @@ _order_by(entries, probabilities) =
 function _score_candidates(score::Function, question::SearchQuestion, candidates, call_sites,
                            context::Bool)
     isempty(candidates) && return (candidates, 0)
-    texts = String[make_candidate_text(entry; call_sites = call_sites === nothing ? "" :
-                                              get(call_sites, entry.qualname, ""))
+    texts = String[make_candidate_text(entry; call_sites = _get_unit_call_sites(call_sites, entry))
                    for entry in candidates]
     asked = context ? question : SearchQuestion((question.sentence, "", question.expected,
                                                  question.kind, question.source))
@@ -291,28 +342,30 @@ end
 
 """
     make_cascade_ranker(name, choose, score; keep = 3, call_sites = nothing,
-                        context = true) -> SearchRanker
+                        context = true, parallel = 1) -> SearchRanker
 
 The shape of a choice and then a score. `choose(question, options)` answers a
 probability for each option of one choice, and the tokens it read; an option is
 an identifier and a short line. The entries go to the choice in groups of 255,
 and the `keep` best of each group go to `score`, with their full text. The
 probabilities of one choice add up to one within its group, so they are not
-compared across groups: each group gives its best few.
+compared across groups: each group gives its best few. `parallel` choices are
+asked at once.
 """
 function make_cascade_ranker(name::AbstractString, choose::Function, score::Function;
-                             keep::Int = 3, call_sites = nothing, context::Bool = true)
+                             keep::Int = 3, call_sites = nothing, context::Bool = true,
+                             parallel::Int = 1)
     SearchRanker(String(name), (question, entries) -> begin
-        tokens = 0
-        kept = Any[]
-        for group in Iterators.partition(entries, _CHOICE_OPTION_LIMIT)
-            options = [(entry.qualname, _make_choice_line(entry)) for entry in group]
+        groups = [collect(group) for group in Iterators.partition(entries, _CHOICE_OPTION_LIMIT)]
+        chosen = asyncmap(groups; ntasks = parallel) do group
+            options = [(_get_option_id(entry, index), _make_choice_line(entry))
+                       for (index, entry) in enumerate(group)]
             probabilities, used = choose(question, options)
-            tokens += used
-            append!(kept, first(_order_by(collect(group), probabilities), keep))
+            (first(_order_by(group, probabilities), keep), used)
         end
+        kept = reduce(vcat, [first(pair) for pair in chosen]; init = Any[])
         ranked, used = _score_candidates(score, question, kept, call_sites, context)
-        (ranked, tokens + used)
+        (ranked, sum(last, chosen; init = 0) + used)
     end)
 end
 
@@ -385,4 +438,47 @@ function make_tree_ranker(name::AbstractString, choose::Function, score::Functio
         ranked, used = _score_candidates(score, question, kept, call_sites, context)
         (ranked, tokens + used)
     end)
+end
+
+# ═══════════════════════════════════════════════════════════════════════
+# The parts of the guides
+# ═══════════════════════════════════════════════════════════════════════
+
+"""
+    make_guide_units(size; sections = the sections the search reads) -> Vector
+
+The guides cut into parts of one `size`, for a ranking of `search_guides`:
+
+- `:guide`: one part per guide, with an empty heading: the text of its first
+  section, cut at 600 characters, and the headings of the others;
+- `:section`: the sections as the search cuts them, at every heading;
+- `:paragraph`: each paragraph of each section, with the heading of its section.
+"""
+function make_guide_units(size::Symbol; sections = ToolModule._guide_index())
+    size === :section && return copy(sections)
+    if size === :paragraph
+        units = ToolModule._GuideSection[]
+        for section in sections, paragraph in split(section.body, r"\n\s*\n")
+            text = strip(paragraph)
+            isempty(text) || push!(units, ToolModule._GuideSection(section.guide, section.heading,
+                                                                   String(text)))
+        end
+        return units
+    end
+    size === :guide || error("A part of a guide is :guide, :section or :paragraph, not " * repr(size))
+    by_guide = Dict{String,Vector{ToolModule._GuideSection}}()
+    order = String[]
+    for section in sections
+        haskey(by_guide, section.guide) || push!(order, section.guide)
+        push!(get!(() -> ToolModule._GuideSection[], by_guide, section.guide), section)
+    end
+    ToolModule._GuideSection[_make_whole_guide_unit(guide, by_guide[guide]) for guide in order]
+end
+
+# One part for a whole guide: its first section cut at 600 characters, and the
+# headings of the others.
+function _make_whole_guide_unit(guide::AbstractString, parts)
+    opening = first(parts).heading * "\n" * first(first(parts).body, 600)
+    others = join([part.heading for part in parts[2:end] if !isempty(part.heading)], "; ")
+    ToolModule._GuideSection(guide, "", isempty(others) ? opening : opening * "\n\nSections: " * others)
 end
