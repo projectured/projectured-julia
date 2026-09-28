@@ -532,8 +532,10 @@ Each step says what stops the stage.
   **Stop** if no classifier shape with the call sites and the context beats
   the best control at the full scale on the report half. Then the result is the
   text or nothing.
-- [ ] **Step 5. The guide ranks.** The same for `search_guides`, at the three
-  sizes of §5a.
+- [x] **Step 5. The guide ranks.** The same for `search_guides`, at the three
+  sizes of §5a. Done 2026-09-28 (§10), with words, meaning, and Jev in two
+  stages and as a cascade; the tree and the local classifier were not run on
+  the guides.
 - [ ] **Step 6. The decision.** The owner reads the tables and decides if
   Stage 2 runs, and with which backend.
 - [ ] **Step 7. Stage 2** (§5f). The mechanism is approved (D5); the step
@@ -964,3 +966,45 @@ tokens for the 20 questions, $0.034 a question, and 12 s a question.
 - **The context decides the pairs**: 3 first without it, 14 with it.
 - The logged questions name their verb, so every ranker answers them; only the
   tree loses there.
+
+### Step 5, the guides, 2026-09-28
+
+34 questions: the 12 guide questions of the two scale corpora, which name a
+guide; `GUIDE_SEARCH_QUESTIONS`, 13 questions of the projectured guides, each
+with its section; and `STUDY_GUIDE_SEARCH_QUESTIONS`, 9 questions of the steps
+of the study, each with its section of the assistant guide and the request of
+the person as its context. The guides of the IDE are the projectured
+documentation and `omnet/…`: **120 guides, 1,707 sections, 4,931 paragraphs**.
+Jev read the pool of words, meaning, and meaning with the context, 50 each; the
+cascade kept 3 of each group of 255. The run cost $0.62. Two cascade requests
+failed on an HTTP 520; the client now retries a server error too.
+
+| part | questions | best of words and meaning | Jev, two stages | Jev, cascade |
+| --- | --- | --- | --- | --- |
+| guide, 120 | scale, 12 (a guide) | meaning 9 / 9 / 9 / 9 | 9 / 12 / 12 / 12 | 11 / 11 / 11 / 11 |
+| | guide, 13 (by its guide) | words 4 / 7 / 9 / 9 | **9 / 12 / 12 / 12** | 6 / 7 / 7 / 7 |
+| | study, 9 (by its guide) | words 3 / 8 / 8 / 8; meaning, context 1 / 3 / 3 / 5 | **7 / 9 / 9 / 9** | 4 / 5 / 5 / 5 |
+| section, 1,707 | scale, 12 | meaning 7 / 11 / 11 / 11 | 6 / 10 / 12 / 12 | 5 / 8 / 8 / 9 |
+| | guide, 13 | meaning 9 / 10 / 10 / 10 | 10 / 11 / 12 / 12 | 9 / 12 / 13 / 13 |
+| | study, 9 | meaning, context 7 / 9 / 9 / 9 | **9 / 9 / 9 / 9** | 9 / 9 / 9 / 9 |
+| paragraph, 4,931 | scale, 12 | meaning 5 / 11 / 12 / 12 | 3 / 12 / 12 / 12 | 2 / 10 / 10 / 10 |
+| | guide, 13 | meaning 8 / 11 / 12 / 12 | 9 / 12 / 12 / 13 | 9 / 11 / 11 / 11 |
+| | study, 9 | meaning, context 6 / 9 / 9 / 9 | **9 / 9 / 9 / 9** | 6 / 8 / 8 / 8 |
+
+- **On the guides the vectors are already good, and the classifier gains
+  less than on the API.** At the size of a section the meaning vectors put 9
+  of 13 section questions first and Jev 10; on the study questions, 7 of 9
+  against 9 of 9. At these counts, one or two questions are noise.
+- **The gain is large where a part is long and mixed**: a whole guide. There
+  the vectors put 1 of the 9 study questions first, and Jev in two stages 7.
+- **Two stages beat the cascade on the guides**, the other way round from the
+  API. A choice reads a line of a part, and the first hundred characters of a
+  paragraph say less of it than the first sentence of a docstring says of a
+  name.
+- The questions that name only a guide (scale) are answered better when the
+  parts are whole guides; at the size of a section, Jev puts a section of
+  another guide first more often than the vectors do (6 against 7 first).
+- **What this says for `search_guides`**: the section stays the part; a
+  classifier over a pool of the vectors, with the context, puts the right
+  section first a little more often, and it keeps the study questions at 9 of
+  9. The case for the classifier is the API, not the guides.
