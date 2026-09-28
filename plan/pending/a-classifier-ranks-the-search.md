@@ -612,9 +612,17 @@ These are my decisions inside D5 and D9; each says the fact it rests on.
    `choose(query, context, options)` that answers a probability per option. A
    `ToolSet` holds one or none; `set_relevance_model!` gives one. The kernel
    holds no HTTP code.
-2. **The classifier ranks a search by description** (`mode = "description"`).
+2. ~~**The classifier ranks a search by description** (`mode = "description"`).
    A keyword search stays as it is: its exact-name answer is right for a name
-   the model knows, and most logged queries name the verb (§10, Step 2).
+   the model knows, and most logged queries name the verb (§10, Step 2).~~
+   **Changed on the first runs, 2026-09-28: the classifier ranks keywords too.**
+   In the runs without the guide sections the model searched only by keywords,
+   always with a `context`, so no search reached Jev and c6 to c8 were c5. On the
+   41 logged keyword searches of Stage 1, Jev put the name first in 35, the
+   words in 26. A keyword query whose words spell exactly one name keeps its
+   answer in full, the `+word` and `-word` filters still bound what Jev ranks,
+   and a pattern never goes to it. The runs of c6 to c8 made before the change
+   were deleted.
 3. **The shape follows the size of the declaration.** Up to 255 entries, every
    entry gets a `noul` (the flat shape, one request); above, the cascade: a
    `choice` per group of 255, the best 3 of each, then a `noul` each. Stage 1:

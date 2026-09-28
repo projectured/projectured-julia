@@ -91,10 +91,24 @@ function test_relevance_search()
         @test asked[].context == "The person looks at the traffic of a link."
     end
 
-    @testset "a keyword search does not ask the relevance model" begin
+    @testset "keywords that name one entry answer it, and do not ask the relevance model" begin
         asked[] = nothing
         answer = search_api(set, "close_window"; context = "traffic")
         @test _get_first_relevance_hit(answer) == "close_window"
+        @test asked[] === nothing
+    end
+
+    @testset "other keywords are ranked by the relevance model, within their filters" begin
+        answer = search_api(set, "busy server"; context = "The person looks at the traffic of a link.")
+        @test _get_first_relevance_hit(answer) == "count_packets"
+        @test asked[].query == "busy server"
+        @test asked[].count == 4
+        # `+window` lets one entry pass, and only that one is scored.
+        search_api(set, "+window busy")
+        @test asked[].count == 1
+        # A pattern is not asked of it.
+        asked[] = nothing
+        search_api(set, r"count_"; context = "traffic")
         @test asked[] === nothing
     end
 
@@ -151,6 +165,12 @@ function test_relevance_search()
         @test endswith(first_hit.match, "— Functions")
         # The pool is the first hits of the words, since no meaning model is set.
         @test 0 < seen[] <= 50
+        # Keywords go to it too.
+        seen[] = 0
+        answer = search_guides(guides, "function name verb"; detail = "names")
+        first_hit = match(r"^- (resource://guide/\S+).*$"m, answer)
+        @test occursin("rule/naming-rules", first_hit.captures[1])
+        @test seen[] > 0
     end
 
     @testset "both search tools take a context" begin

@@ -929,14 +929,16 @@ An answer that is long ends with what to do next.
   of the sentence rank the sections as keywords do, and `meaning_model` ranks
   them by what the sentence means; the two ranks are merged, and the words count
   twice. Without a meaning model, or when it fails, the words alone rank them,
-  and the first line of the answer says why. With a `relevance_model`, the
-  first 50 sections by words and the first 50 by meaning go to it, and it
-  orders them; when it fails, the ranks above stand, and the first line says so.
+  and the first line of the answer says why.
 
-`context` is what the search is asked in, such as the request of the person. A
-description reads it: the meaning vector of the query reads it before the
-sentence, and the relevance model reads it beside the sentence. A keyword or a
-pattern search does not read it.
+With a `relevance_model`, a description or keywords go to it with the first 50
+sections by words and the first 50 by meaning, and it orders them; when it
+fails, the ranks above stand, and the first line says so. A pattern does not go
+to it.
+
+`context` is what the search is asked in, such as the request of the person. The
+meaning vector of the query reads it before the sentence, and the relevance
+model reads it beside the query. A pattern search does not read it.
 
 A query that can not be read answers the reason as text, and never throws.
 """
@@ -951,24 +953,36 @@ function search_guides(query::Union{AbstractString,Regex}; mode = "keywords",
     refusal === nothing || return refusal
     sections = _guide_index()
     ranked = _GuideSection[section for (_, section) in _rank_guide_sections(read, sections)]
+    by_words = ranked
     note = nothing
+    context_text = _get_context_text(context)
+    by_meaning = nothing
     if read isa _DescriptionQuery
-        context_text = _get_context_text(context)
-        by_words = ranked
         by_meaning, note = _rank_guide_sections_by_meaning(_add_query_context(read, context_text),
                                                            sections, meaning_model)
         by_meaning === nothing ||
             (ranked = _fuse_rankings(ranked, by_meaning; word_weight = _GUIDE_WORD_WEIGHT))
-        if relevance_model !== nothing
-            pool = _make_relevance_pool(by_words, something(by_meaning, _GuideSection[]))
-            by_relevance, relevance_note = _rank_guide_sections_by_relevance(read, context_text, pool,
-                                                                             relevance_model)
-            if by_relevance === nothing
-                note = _join_notes(relevance_note, note)
-            else
-                ranked = by_relevance
-                note = nothing
-            end
+    end
+    # **Keywords are asked of the relevance model too.** A model searches with
+    # keywords far more than with a sentence, and names its intent in them.
+    if relevance_model !== nothing && !(read isa Regex)
+        described = read isa _DescriptionQuery ? read : _DescriptionQuery(String(query))
+        if read isa KeywordQuery
+            fold = _get_query_fold(read)
+            by_meaning, _ = _rank_guide_sections_by_meaning(_add_query_context(described, context_text),
+                                                            sections, meaning_model)
+            by_meaning === nothing ||
+                (by_meaning = filter(section -> _is_passing(read, fold(section.heading),
+                                                            fold(section.body)), by_meaning))
+        end
+        pool = _make_relevance_pool(by_words, something(by_meaning, _GuideSection[]))
+        by_relevance, relevance_note = _rank_guide_sections_by_relevance(described, context_text, pool,
+                                                                         relevance_model)
+        if by_relevance === nothing
+            note = _join_notes(relevance_note, note)
+        elseif !isempty(by_relevance)
+            ranked = by_relevance
+            note = nothing
         end
     end
     isempty(ranked) && return _prefix_note(note, "No documentation matches $(repr(query)).\n" *
@@ -1294,15 +1308,18 @@ default, a pattern with `"regex"` or a `Regex`, and a sentence with
 `"description"`, which `meaning_model` ranks by meaning. The exact-name bonus is
 for a written word only: a pattern ranks by where it matches.
 
-A `relevance_model` ranks a description before the meaning model does: it reads
-the sentence, the `context` and each entry together. It scores every entry of a
-declaration of up to 255, and of a larger one it scores the best few of each
-group of 255 that it chose among by their first sentences. When it fails, the
-meaning model ranks, and the first line of the answer says why.
+A `relevance_model` ranks a description before the meaning model does, and
+keywords before their words do, unless their words name exactly one entry: it
+reads the query, the `context` and each entry together. The filters of a
+keyword query (`+word`, `-word`) still say which entries it may rank. It scores
+every entry of a declaration of up to 255, and of a larger one it scores the
+best few of each group of 255 that it chose among by their first sentences.
+When it fails, the meaning model or the words rank, and the first line of the
+answer says why.
 
 `context` is what the search is asked in, such as the request of the person and
-what the window holds. A description reads it; a keyword or a pattern search
-does not.
+what the window holds. A description and the relevance model read it; a pattern
+search does not.
 """
 function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detail = "summary",
                     kind = nothing, limit = nothing, api = ApiEntry[], meaning_model = nothing,
@@ -1342,8 +1359,29 @@ function search_api(query::Union{AbstractString,Regex}; mode = "keywords", detai
         alone = length(ranked) == 1
     else
         # One hit, or one whose NAME is exactly what was asked while no other's is.
-        alone = length(scored) == 1 ||
-                (length(scored) > 1 && scored[1][1][1] >= 100 && scored[2][1][1] < 100)
+        named = !isempty(scored) && scored[1][1][1] >= 100 &&
+                (length(scored) == 1 || scored[2][1][1] < 100)
+        alone = length(scored) == 1 || named
+        # **Keywords are asked of the relevance model too**, among the entries
+        # their filters let pass, unless they name one entry. A model searches
+        # with keywords far more than with a sentence: measured 2026-09-28, the
+        # rehearsals of a study searched only by keywords, with a context. On 41
+        # such logged searches the classifier put the needed name first in 35,
+        # the words in 26.
+        if relevance_model !== nothing && read isa KeywordQuery && !named
+            fold = _get_query_fold(read)
+            passing = _ApiEntry[entry for entry in entries
+                                if _is_passing(read, fold(entry.qualname), fold(entry.text))]
+            by_relevance, relevance_note = isempty(passing) ? (nothing, nothing) :
+                _rank_api_entries_by_relevance(_DescriptionQuery(String(query)),
+                                               _get_context_text(context), passing, relevance_model)
+            if by_relevance === nothing
+                note = relevance_note
+            else
+                ranked = by_relevance
+                alone = length(ranked) == 1
+            end
+        end
     end
     # **A miss answers what there IS.** A search that says only "no match" costs a
     # round and teaches nothing, and the round after it is a guess. The names of

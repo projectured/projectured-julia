@@ -216,10 +216,13 @@ of the answer says why. For a model
 that is not installed, the reason says how to install it: `Run ollama pull
 nomic-embed-text`.
 
-**A relevance model ranks a description before the meaning does.** A
-`RelevanceModel` is a classifier: it reads the description, its context and one
-thing a search could find together, and answers how likely that thing does what
-was asked. A meaning vector is made from one text alone, so it cannot weigh a
+**A relevance model ranks a description before the meaning does, and keywords
+before their words do.** A `RelevanceModel` is a classifier: it reads the query,
+its context and one thing a search could find together, and answers how likely
+that thing does what was asked. Keywords go to it because a model searches with
+keywords far more than with a sentence; a keyword query whose words spell exactly
+one name is answered with that name in full, as before, and the `+word` and
+`-word` filters still say which entries it may rank. A pattern never goes to it. A meaning vector is made from one text alone, so it cannot weigh a
 docstring against the question it is asked for. `set_relevance_model!` gives a
 tool set one; the kernel holds its two functions and no client of a server.
 
