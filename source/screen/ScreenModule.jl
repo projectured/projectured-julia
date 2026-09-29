@@ -55,12 +55,14 @@ export ScreenToScreen, ScreenToScreenIoMap, ScreenWindowIoMap
 export make_window_scene, make_window_scene_projection, make_tracking_screen, make_editor,
        run_window_editor
 export ScreenDocument, WindowDocument
+export find_part_place
 
 
 include("ScreenDocument.jl")
 include("WindowManaging.jl")
 include("ScreenToScreen.jl")
 include("WindowScene.jl")
+include("PartPlace.jl")
 
 # A file may name a screen and a window. The registry is runtime state, so the
 # offer is made here and not at the top level.

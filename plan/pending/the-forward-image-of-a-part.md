@@ -145,11 +145,20 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   the examples, which assert per output node and now meet a canvas per row; the
   shell and application suites have their counts; the omnet tests of step 8
   pass (186 in 8).
-- [ ] 4. **The place of a part.** A function reads the box of the printed node
-  at a forward reference, with the origin of the window, and `find_part_point`
-  becomes the place below that box (Q3). The tooltip window and the context
-  menu window use it, and the `@test_broken` of `test_tooltip_window()` becomes
-  `@test`.
+- [x] 4. **The place of a part.** `find_part_place` of the screen package
+  (`source/screen/PartPlace.jl`) maps the part forward from the input of a
+  wrapper at the screen, reads the box of the node with `find_reference_box`,
+  in screen coordinates, and answers its bottom left corner. The tooltip window
+  opens a window that has no point there, 4 pixels lower (`_PART_GAP`), and the
+  `@test_broken` of `test_tooltip_window()` is a test again, with the exact
+  place below a button of 80 by 24. The context menu window uses the same
+  function when step 9d goes on; the parked code of 9d has a point version
+  (`find_part_point` in `WindowLayers.jl`), which this replaces. Found in the
+  work: a `WidgetComposite` offers each child the whole window as its size, so
+  a label in a composite has a canvas as large as the window (400 by 300 in the
+  test) while the composite reports 62 by 63; a window below such a label
+  stands at the bottom of the window. That is how the composite sizes its
+  children, not a fault of the forward map, and it is not changed here.
 - [ ] 5. **Text** (Q4). `TextToGraphics` maps a text reference to the reference of the
   printed line or segment, so a window opens below a part of a Julia or JSON
   pane too.

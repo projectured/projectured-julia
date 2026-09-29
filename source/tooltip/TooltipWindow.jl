@@ -38,7 +38,8 @@ another part.
 adds its layer. This projection takes that operation out of the answer and opens
 the window with the nearest layer, `offset` from the point where the pointer
 rested, in screen coordinates. A command that runs the binding answers with no
-point, and the window opens at the forward image of the part.
+point, and the window opens below the part, with the left edges aligned
+(`find_part_place`), so it does not cover the part.
 The window is printed at `maximum_size` and ends with the extent of what it
 holds, never smaller than `minimum_size`.
 
@@ -194,12 +195,18 @@ function _take_tooltip(answer::CompoundOperation)
 end
 _take_tooltip(answer) = (nothing, answer)
 
-# Open the window of `tooltip`, and keep what it shows.
+# Open the window of `tooltip`, and keep what it shows. It stands `offset` from
+# the point where the pointer rested; with no point, below the part with the left
+# edges aligned and `_PART_GAP` between them; with neither, at the corner.
 function _open_tooltip(p::TooltipWindowProjection, iomap::TooltipWindowIoMap, tooltip::OpenTooltipOperation)
     state = iomap.input
-    x, y = something(tooltip.point, _find_part_point(p, iomap, tooltip.source), (0, 0))
-    window = OpenWindowOperation(; id = p.id, title = p.title,
-                                   x = x + p.offset[1], y = y + p.offset[2],
+    x, y = if tooltip.point !== nothing
+        (tooltip.point[1] + p.offset[1], tooltip.point[2] + p.offset[2])
+    else
+        below = find_part_place(p, iomap, tooltip.source)
+        below === nothing ? p.offset : (below[1], below[2] + _PART_GAP)
+    end
+    window = OpenWindowOperation(; id = p.id, title = p.title, x = x, y = y,
                                    width = p.maximum_size[1], height = p.maximum_size[2],
                                    minimum_size = p.minimum_size, maximum_size = p.maximum_size,
                                    style = :tooltip,
@@ -211,19 +218,8 @@ function _open_tooltip(p::TooltipWindowProjection, iomap::TooltipWindowIoMap, to
                           window])
 end
 
-# The screen point of the part at `source`, a path from the state: its forward
-# image, or `nothing`. The path carries the type of each node, because a view
-# checks them when it maps a path forward.
-function _find_part_point(p::TooltipWindowProjection, iomap::TooltipWindowIoMap, source)
-    source isa ConcreteReference || return nothing
-    try_evaluate_reference(iomap.input, source, _NO_PART) === _NO_PART && return nothing
-    image = map_reference_forward(p, iomap, annotate_reference_types(iomap.input, source))
-    point = find_reference_point(image)
-    point === nothing ? nothing : (point.x, point.y)
-end
-
-# What a step of a path that reaches no node evaluates to.
-const _NO_PART = gensym(:no_part)
+# The pixels between a part and a window that stands below it.
+const _PART_GAP = 4
 
 function _close_tooltip(p::TooltipWindowProjection, state::TooltipWindowState)
     CompoundOperation(Any[_write_state(state, "layers", Tuple{String,Document}[]),

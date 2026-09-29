@@ -187,30 +187,30 @@ end
     @test only(tip.content.layers)[2].value == "the group"
 end
 
-@testset "a command runs the binding with no pointer, and the window opens at the part" begin
-    editor, backend, scene = _tw_editor()
-    # The path of the label from the root of the editor: through the gesture
+@testset "a command runs the binding with no pointer, and the window opens below the part" begin
+    # A button of its own size, so its box is exact: 80 by 24 at (10, 30) of the
+    # window at (100, 100).
+    button = WidgetButton("Run"; size = Point2D(80, 24), position = Point2D(10, 30),
+                          tooltip = "what this button is for")
+    editor, backend, scene = _tw_editor(WidgetComposite(Any[button]))
+    # The path of the button from the root of the editor: through the gesture
     # tracker, the tooltip wrapper and the target tracker to the screen.
     place = extend_reference(EmptyReference(),
                              FieldReferenceStep("content"), FieldReferenceStep("content"),
                              FieldReferenceStep("content"), FieldReferenceStep("windows"),
                              ElementReferenceStep(1), FieldReferenceStep("content"),
                              FieldReferenceStep("elements"), ElementReferenceStep(1))
-    label = evaluate_reference(editor.document, place)
-    @test label isa WidgetLabel
+    @test evaluate_reference(editor.document, place) === button
     binding = only(filter(binding -> binding.domain == "tooltip",
-                          get_document_gesture_bindings(WidgetLabel)))
-    operation = read_rooted_operation(editor, place, binding.operation(label, nothing))
+                          get_document_gesture_bindings(WidgetButton)))
+    operation = read_rooted_operation(editor, place, binding.operation(button, nothing))
     @test operation !== nothing
     evaluate_operation(editor, operation)
     tip = only(_tw_tooltips(scene))
-    @test only(tip.content.layers)[2].value == "what this label is for"
-    # With no point, the window opens beside the image of the part, in the window
-    # at (100, 100).
-    # @broken: no projection that ends in graphics maps a widget forward to its
-    # image, so the window opens at the corner of the screen
-    # (plan/pending/the-forward-image-of-a-part.md).
-    @test_broken tip.x >= 100 + 16 && tip.y >= 100 + 20
+    @test only(tip.content.layers)[2].value == "what this button is for"
+    # With no point, the window stands below the button, with the left edges
+    # aligned and a gap of 4 pixels.
+    @test (tip.x, tip.y) == (100 + 10, 100 + 30 + 24 + 4)
 end
 
 end # @testset
