@@ -52,7 +52,7 @@ function test_kernel()
         test_fault_defaults()
         test_fault_record()
         test_fault_store()
-        test_fault_report()
+        test_fault_cascade()
         test_fault_barrier()
         test_cell()
         test_cell_struct()
@@ -96,7 +96,7 @@ export test_kernel, test_kernel_layering
 export check_layering, get_package_source_root, test_layering_checkers
 # kernel unit suites
 export test_fault_defaults, test_fault_record, test_fault_store,
-       test_fault_report, test_fault_barrier,
+       test_fault_cascade, test_fault_barrier,
        test_cell, test_cell_struct, test_cell_struct_plan, test_performance_counter, test_clock, test_printer_context_range,
        test_document_contract, test_document_macro,
        test_reference_builder, test_reference_evaluation, test_reference_rules, test_referenced_document,
