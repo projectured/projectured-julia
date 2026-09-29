@@ -3,8 +3,8 @@
 # the Decisions API of OpenRouter, with the request shape of TypeSafe.
 #
 # Include it in a script that has loaded `ProjecturedOllama`; it takes `HTTP` and
-# `JSON3` from there. The key is an OpenRouter key in `ENV["TYPESAFE_API_KEY"]`,
-# which a run reads from `~/.config/typesafe/api.env`; it is never printed. Every answer is kept in
+# `JSON3` from there. The key is an OpenRouter key in `ENV["OPENROUTER_API_KEY"]`,
+# which a run reads from `~/.config/openrouter/api.env`; it is never printed. Every answer is kept in
 # a file by the hash of its request, and every request adds its input tokens to
 # a ledger that the Python probes share, so the limit of cost holds for both.
 # See plan/pending/a-classifier-ranks-the-search.md.
@@ -89,7 +89,7 @@ function make_typesafe_client(; ledger::AbstractString, cache_path::AbstractStri
         haskey(cache, key) && return (cache[key], 0)
         spent = get_typesafe_spent_dollars(ledger)
         spent >= limit_dollars && throw(TypeSafeBudgetExceeded(spent, Float64(limit_dollars)))
-        headers = ["Authorization" => "Bearer " * ENV["TYPESAFE_API_KEY"],
+        headers = ["Authorization" => "Bearer " * ENV["OPENROUTER_API_KEY"],
                    "Content-Type" => "application/json"]
         # A refused connection or a cut answer is tried again, as a busy server
         # (429, 529) and a failed one (5xx) are; each wait doubles.
