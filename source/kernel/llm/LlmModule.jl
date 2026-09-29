@@ -32,7 +32,7 @@ turn.
 
 Concrete backends live outside `main`: the real provider adapters in their own
 opt-in packages, the test doubles in an example package, never in a `main`
-package. A caller that must build one names it by symbol — `make_llm(:ollama)` —
+package. A caller that must build one names it by symbol — `make_llm(kind)` —
 and never its type, which is what lets the adapter live in a package whose types
 cannot be referenced at load time.
 """

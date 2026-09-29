@@ -1,7 +1,7 @@
 # Fragment of `LlmModule` — the provider **contract**: the abstract `Llm` type
 # and the open generics a provider package answers with a method for its own
-# type. Nothing here carries a body — the fallback behaviours for the parts a
-# provider may decline sit in `LlmDefaults.jl`.
+# type. Nothing here carries a body — the fallback behaviours for the parts that a
+# provider can leave out sit in `LlmDefaults.jl`.
 
 """
     Llm
@@ -11,8 +11,8 @@ provider's *configuration* — its API key, model name, endpoint, token budget �
 and implements two methods:
 
 - `stream_turn(llm, request; on_event)` — run one turn, emitting `LlmEvent`s.
-- `render_tool_schema(llm, tools)` — render `Tool`s into whatever shape this provider's
-  API wants for them.
+- `render_tool_schema(llm, tools)` — render `Tool`s into the provider-specific
+  tool list that the API of this provider takes.
 
 A backend that also has a meaning model implements three more:
 `has_meaning_model`, `get_meaning_model_name` and `compute_meaning_vectors`.
@@ -40,11 +40,11 @@ function stream_turn end
 """
     render_tool_schema(llm::Llm, tools::AbstractVector{Tool})
 
-Render `tools` into the shape this provider's API expects (for Anthropic, a
-JSON-Schema-shaped `Vector{Dict}`).
+Render `tools` into the provider-specific tool list that the API of this provider
+takes, such as a `Vector{Dict}` in the form of a JSON Schema.
 
-This is the provider adapter's job. A `Tool` itself describes its parameters
-abstractly and knows no wire format at all.
+The provider adapter does this. A `Tool` describes its parameters abstractly and
+holds no wire format.
 """
 function render_tool_schema end
 
@@ -80,7 +80,7 @@ function compute_meaning_vectors end
 """
     make_llm(kind::Symbol; model, api_key, context, kwargs...) -> Llm
 
-Construct the backend registered under `kind` (`:anthropic`, `:ollama`).
+Construct the backend that its package registered under the symbol `kind`.
 
 **Every backend accepts the same three keywords, and uses the ones that apply to
 it.** They are what a caller can hold without knowing which provider will answer:
@@ -97,11 +97,10 @@ price of a seam a caller can use without a provider in mind, and it is a smaller
 price than a caller that must know.
 
 A backend lives in an opt-in package, so nothing here can name its type. The
-factory is keyed by symbol and dispatched on `Val`, exactly as
-`make_agent_server(:mcp, editor)` is: each opt-in package adds one method, and
-the method table IS the registry — there is no dictionary to keep in step, and
-no process-global state. A missing method — its opt-in package is not loaded —
-raises an error that lists the backends that are (`LlmDefaults.jl`).
+factory is keyed by symbol and dispatched on `Val`: each opt-in package adds one
+method, and the method table IS the registry — there is no dictionary to keep in
+step, and no process-global state. A missing method — its opt-in package is not
+loaded — raises an error that lists the backends that are (`LlmDefaults.jl`).
 """
 function make_llm end
 
