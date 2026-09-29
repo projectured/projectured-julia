@@ -73,28 +73,6 @@ const _WHOLE_SURFACE_DESCRIPTION =
     "NEVER guess names or signatures — search for them.\n" *
     "NEVER include code comments."
 
-# The modules a `ToolSet` publishes as resources: the ones it declared, or every
-# module of the whole surface when it declared none.
-_api_modules(set::ToolSet) =
-    isempty(set.api) ? _collect_surface_modules() :
-                       [(nameof(e.module_), e.module_) for e in set.api]
-
-# The types of one module a model may name. An empty declaration is the whole
-# surface, where every type of the module is one.
-function _api_types(set::ToolSet, mod::Module)
-    # A generated schema variant is no resource of its own, as it is no hit.
-    all = [pair for pair in _struct_types(mod)
-           if !_is_schema_variant(mod, first(pair), last(pair))]
-    isempty(set.api) && return all
-    # A module two entries name gives the names of both.
-    given = Set{Symbol}()
-    for entry in set.api
-        entry.module_ === mod || continue
-        union!(given, get_api_entry_names(entry))
-    end
-    [pair for pair in all if first(pair) in given]
-end
-
 # What a declaration can be said in one sentence. A module that gave every name
 # it exports is named; a module that gave a few is not, because "the functions of
 # DataFrames" would be false of eight of its eighty-six. The few are counted
@@ -305,13 +283,13 @@ function register_default_tools!(set::ToolSet)
                                          provider = () -> list_modules(; api = declared)))
     end
 
-    for (mod_sym, mod) in _api_modules(set)
+    for (mod_sym, mod) in _api_modules(set.api)
         let mn = String(mod_sym)
             register_resource!(set, Resource("resource://module/$mn", "Module: $mn";
                                              description = "Full documentation for the $mn module.",
                                              provider = () -> read_module_documentation(mn; api = set.api)))
         end
-        for (cls_sym, _) in _api_types(set, mod)
+        for (cls_sym, _) in _api_types(set.api, mod)
             let mn = String(mod_sym), cn = String(cls_sym)
                 register_resource!(set, Resource("resource://type/$mn/$cn", "Type: $mn.$cn";
                                                  description = "Full documentation for the $cn type in module $mn.",

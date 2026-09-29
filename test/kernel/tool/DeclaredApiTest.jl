@@ -344,6 +344,17 @@ function test_declared_api()
                        execute_julia_code(set, nothing, "string(DCToyBox)"))
     end
 
+    @testset "the module catalogue names each module once, with its declared types" begin
+        set = register_default_tools!(ToolSet(; api = [ToyStorage => (:ToyBox, :MToyBox),
+                                                       ToyStorage => (:Action,)]))
+        listed = read_resource(set, "resource://modules")
+        @test count("**ToyStorage**", listed) == 1
+        # The two declared types, and not the schema variant that the first
+        # entry also names.
+        @test occursin("Types: Action, ToyBox\n", listed * "\n")
+        @test !occursin("MToyBox", listed)
+    end
+
     @testset "a name two modules re-export is one hit, and one binding" begin
         set = register_default_tools!(ToolSet())
         declare_api!(set, [ToyApi, ToyEcho])

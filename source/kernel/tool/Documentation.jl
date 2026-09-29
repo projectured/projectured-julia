@@ -184,6 +184,19 @@ end
 
 _projectured() = parentmodule(@__MODULE__)
 
+# The names of `mod` that a declaration gives, or `nothing` when no declaration
+# narrows the module: an empty API is the whole surface. A module that two
+# entries name gives the names of both.
+function _find_declared_names(mod::Module, api)
+    isempty(api) && return nothing
+    given = Set{Symbol}()
+    for entry in api
+        entry.module_ === mod || continue
+        union!(given, get_api_entry_names(entry))
+    end
+    given
+end
+
 # Is this name one the declaration gives? An empty declaration is the whole
 # surface, where every name of a reachable module is.
 #
@@ -191,9 +204,8 @@ _projectured() = parentmodule(@__MODULE__)
 # learning that it cannot, which is the same waste `_index_declared` avoids by
 # indexing only what is declared.
 function _is_declared(api, mod::Module, name::Symbol)
-    isempty(api) && return true
-    # A module two entries name gives the names of both.
-    any(entry -> entry.module_ === mod && name in get_api_entry_names(entry), api)
+    declared = _find_declared_names(mod, api)
+    declared === nothing || name in declared
 end
 
 # The module the declaration gives `name` in, or `nothing`.
@@ -460,40 +472,45 @@ function _module_functions(mod::Module)
     fns
 end
 
+# The modules of a declaration, each once and under its own name, or every module
+# of the whole surface when the declaration is empty.
+function _api_modules(api)
+    isempty(api) && return _collect_surface_modules()
+    modules = unique(entry.module_ for entry in api)
+    Pair{Symbol,Module}[nameof(mod) => mod for mod in modules]
+end
+
+# The types of one module a model may name: the ones the declaration gives, or
+# every type of the module when the declaration is empty. A generated schema
+# variant is no resource and no catalogue entry of its own, as it is no hit.
+function _api_types(api, mod::Module)
+    declared = _find_declared_names(mod, api)
+    [pair for pair in _struct_types(mod)
+     if !_is_schema_variant(mod, first(pair), last(pair)) &&
+        (declared === nothing || first(pair) in declared)]
+end
+
 # ═══════════════════════════════════════════════════════════════════════
 # Documentation readers
 # ═══════════════════════════════════════════════════════════════════════
 
 """
-    list_modules() -> String
+    list_modules(; api = ApiEntry[]) -> String
 
-List all modules with one-paragraph documentation for each and a list of its
-top-level types.
+List the modules of `api`, each once, with its one-paragraph documentation and
+the types of it that a model may name: the ones the declaration gives, and no
+generated schema variant. An empty `api` lists the modules of the whole surface.
 """
 function list_modules(; api = ApiEntry[])
     modules_info = String[]
-    for (name, mod) in (isempty(api) ? _collect_surface_modules() :
-                        [(nameof(e.module_), e.module_) for e in api])
+    for (name, mod) in _api_modules(api)
         summary = _get_catalogue_summary(_doc_string(mod), String(name))
-        structs = [String(n) for (n, _) in _struct_types(mod)]
+        structs = [String(n) for (n, _) in _api_types(api, mod)]
         struct_list = isempty(structs) ? "" : "\n\nTypes: $(join(structs, ", "))"
         push!(modules_info, "**$name**: $summary$struct_list")
     end
     isempty(modules_info) && return "No modules found."
     "Available Modules\n\n" * join(modules_info, "\n\n---\n\n")
-end
-
-# The names of `mod` that a declaration gives, or `nothing` when no declaration
-# narrows the module: an empty API is the whole surface. A module that two
-# entries name gives the names of both.
-function _find_declared_names(mod::Module, api)
-    isempty(api) && return nothing
-    given = Set{Symbol}()
-    for entry in api
-        entry.module_ === mod || continue
-        union!(given, get_api_entry_names(entry))
-    end
-    given
 end
 
 """
