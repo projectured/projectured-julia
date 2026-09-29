@@ -63,10 +63,10 @@ for the selection mechanism.
 | [`ChildrenContainer.jl`](ChildrenContainer.jl) | the open generics for the children container a template rule holds |
 | [`PrinterContext.jl`](PrinterContext.jl) | `PrinterContext` — the range of each axis, the clock and the properties a printer carries down the tree |
 | [`ProjectionReferenceStep.jl`](ProjectionReferenceStep.jl) | `ProjectionReferenceStep` — a reference step pointing at an element a projection introduced |
-| [`ProjectionInterface.jl`](ProjectionInterface.jl) | the `Projection` supertype and the four open generics |
+| [`ProjectionInterface.jl`](ProjectionInterface.jl) | the `Projection` supertype, the four open generics and the open seams |
 | [`ProjectionDefaults.jl`](ProjectionDefaults.jl) | the fallback method of each generic |
 | [`ProjectionMacro.jl`](ProjectionMacro.jl) | `@projection` — the projection codegen |
-| [`GestureBindings.jl`](GestureBindings.jl) | the open generics for a projection's gesture-binding tables |
+| [`GestureBindings.jl`](GestureBindings.jl) | the default gesture table of a projection, and `read_projection_gesture` |
 | [`ProjectionTemplate.jl`](ProjectionTemplate.jl) | `@projection_template` — the builder-and-walk engine every structural projection is written with |
 """
 module ProjectionModule
@@ -90,8 +90,9 @@ export ProjectionReferenceStep, make_introduced_reference, is_introduced_referen
        normalize_named_node_reference
 export PrinterContext, make_child_context, with_exact_size, with_bounded_size, with_size_range,
        with_inner_size, get_exact_width, get_exact_height, withhold_offer, with_clock, with_property, get_property
-export make_children_container, get_children_container_type
-export get_projection_gesture_bindings, read_projection_gesture
+export make_children_container, get_children_container_type,
+       get_projection_gesture_bindings
+export read_projection_gesture
 export RuleIoMap, var"@projection_template"
 export print_template_rule, read_template_intent, make_template_builder, find_template_value_retype
 

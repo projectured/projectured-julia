@@ -1,7 +1,8 @@
 # Fragment of `ProjectionModule` — the projection **contract**: the `Projection`
-# abstract type every projection subtypes, and the four open generics every one
-# of them implements. Nothing here carries a body — the fallback of each generic
-# lives in `ProjectionDefaults.jl`, the `@projection` codegen in
+# abstract type every projection subtypes, the four open generics every one of
+# them implements, and the open seams of the layer. Nothing here carries a body —
+# the fallback of each generic lives in `ProjectionDefaults.jl`, the default of the
+# gesture-binding seam in `GestureBindings.jl`, the `@projection` codegen in
 # `ProjectionMacro.jl`, and the template engine that writes most concrete
 # projections in `ProjectionTemplate.jl`.
 
@@ -377,3 +378,16 @@ The concrete children container type a registrant supplies. Used by the
 template engine for `TypeReferenceStep(...)` markers.
 """
 function get_children_container_type end
+
+# ── The gesture-binding seam (default in GestureBindings.jl) ───────────────
+
+"""
+    get_projection_gesture_bindings(projection, iomap) -> Vector{GestureBinding}
+
+Gestures owned by a *projection* rather than a document (focus, collapse
+glyph, clipboard, …). The default answers an empty vector; a projection adds a
+method to contribute its own rows to a listing. `read_projection_gesture` fires
+them and answers a `CollectIntents` payload with all of them, so the reader
+gathers them across the chain with no second traversal.
+"""
+function get_projection_gesture_bindings end
