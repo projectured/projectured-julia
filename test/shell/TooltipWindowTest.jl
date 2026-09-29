@@ -15,15 +15,16 @@ _tw_labels(; group = nothing) = WidgetComposite(Any[
 
 _tw_measure() = FixedMeasure(10, 18, 6, 0)
 
-# The window `W` at (100, 100) holds `document`, and the window `V`, when asked
-# for, holds `other` at (600, 100).
-function _tw_editor(document = _tw_labels(); other = nothing)
+# The window `W` at (100, 100) holds `document`, drawn with `projection`, and the
+# window `V`, when asked for, holds `other` at (600, 100).
+function _tw_editor(document = _tw_labels(); other = nothing,
+                    projection = make_widget_projection_example(measure = _tw_measure()))
     scene = make_window_scene(document, "W"; width = 400, height = 300)
     other === nothing ||
         push!(scene.windows, WindowDocument(; id = :V, title = "V", x = 600, y = 100,
                                               width = 300, height = 200, content = other))
     composed = make_window_scene_projection(
-        make_widget_projection_example(measure = _tw_measure());
+        projection;
         opened_window_projections = make_opened_window_projections(;
             content = Pair{Type,Any}[make_natural_tooltip_row(measure = _tw_measure())],
             measure = _tw_measure()))
@@ -211,6 +212,43 @@ end
     # With no point, the window stands below the button, with the left edges
     # aligned and a gap of 4 pixels.
     @test (tip.x, tip.y) == (100 + 10, 100 + 30 + 24 + 4)
+end
+
+@testset "a command opens the signature of a Julia function below the function" begin
+    # A pane of Julia source, drawn as syntax, text and graphics; the layout and
+    # the box read the same font files. A line follows the function, so the image
+    # of the function is the region of its rows and not the whole text.
+    source = parse_julia("function add(a, b)\n    a + b\nend\nx = 1")
+    julia = ChainingProjection(RecursiveProjection(JuliaToSyntax()), RecursiveProjection(SyntaxToText()),
+                               TextToGraphics(measure = FontFileMeasure()))
+    editor, backend, scene = _tw_editor(source; projection = julia)
+    inside = strip_reference_types(first(search_references(source, node -> node isa JuliaFunction)))
+    window_content = extend_reference(EmptyReference(), FieldReferenceStep("windows"),
+                                      ElementReferenceStep(1), FieldReferenceStep("content"))
+    # From the root of the editor, and from the state of the tooltip wrapper.
+    place = concat_references(extend_reference(EmptyReference(), FieldReferenceStep("content"),
+                                               FieldReferenceStep("content"), FieldReferenceStep("content")),
+                              concat_references(window_content, inside))
+    from_wrapper = concat_references(extend_reference(EmptyReference(), FieldReferenceStep("content"),
+                                                      FieldReferenceStep("content")),
+                                     concat_references(window_content, inside))
+    function_ = evaluate_reference(editor.document, place)
+    @test function_ isa JuliaFunction
+    binding = only(filter(binding -> binding.name == "Show the signature",
+                          get_document_gesture_bindings(JuliaFunction)))
+    operation = read_rooted_operation(editor, place, binding.operation(function_, nothing))
+    @test operation !== nothing
+    evaluate_operation(editor, operation)
+    tip = only(_tw_tooltips(scene))
+    # The window stands below the function, where the place of the function says:
+    # the operation carries the path of the function, not of the whole document.
+    wrapper = editor.projection.inner
+    below = find_part_place(wrapper, editor.iomap.child_iomap, from_wrapper)
+    @test below !== nothing
+    @test (tip.x, tip.y) == (below[1], below[2] + 4)
+    # And above the bottom of the text, which `x = 1` ends.
+    text = find_reference_box(get_iomap_output(editor.iomap.child_iomap), window_content)
+    @test tip.y < text.y + text.height
 end
 
 end # @testset

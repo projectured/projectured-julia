@@ -2,11 +2,15 @@
 # reference reaches in a printed graphics document.
 
 """
-    find_reference_box(document, reference) -> NamedTuple | Nothing
+    find_reference_box(document, reference; measure = FontFileMeasure()) -> NamedTuple | Nothing
 
 The box of the node that `reference` reaches from `document`, a printed
 graphics document: `(x = …, y = …, width = …, height = …)` in the frame that the
 place of `document` is given in, or `nothing` when the reference reaches no node.
+A text (`GraphicsText`) has the box of what it draws, measured with `measure`, as
+every backend draws with the font files; a reference that goes on into its text,
+`text{a:b}`, has the box of those characters, and `text{a:a}` the box of a caret.
+A `RegionReferenceStep` after a node is that box in the frame of the node.
 
 A forward map answers the reference of the node that draws a part
 (`map_reference_forward`); this reads where that node is. Each node on the way
@@ -19,11 +23,13 @@ a lazy printer did not print has no box.
 Use it to put a window at a part that a command names, such as a tooltip that
 opens with no pointer.
 """
-function find_reference_box(document, reference::Reference)
+function find_reference_box(document, reference::Reference; measure::TextMeasure = FontFileMeasure())
     node = _box_value(document)
     frame = (0.0, 0.0, 1.0, 1.0)       # origin x, origin y, scale x, scale y
     while reference isa ConcreteReference
+        node isa GraphicsText && return _make_text_box(frame, node, reference, measure)
         step = get_reference_head(reference)
+        step isa RegionReferenceStep && return _make_region_box(frame, node, step)
         child = try
             _box_value(evaluate_reference_step(step, node))
         catch
@@ -33,7 +39,40 @@ function find_reference_box(document, reference::Reference)
         node = child
         reference = get_reference_tail(reference)
     end
+    node isa GraphicsText && return _make_text_box(frame, node, EmptyReference(), measure)
     _make_node_box(frame, node)
+end
+
+# The box of `region` in the frame of the children of `node`.
+function _make_region_box(frame, node, region::RegionReferenceStep)
+    ox, oy, sx, sy = _enter_box_frame(frame, node, nothing)
+    (x = round(Int, ox + sx * region.x), y = round(Int, oy + sy * region.y),
+     width = round(Int, sx * region.width), height = round(Int, sy * region.height))
+end
+
+# The box of a text, or of the characters `a:b` of it when `reference` is
+# `text{a:b}`; `nothing` for any other reference into a text.
+function _make_text_box(frame, node::GraphicsText, reference, measure::TextMeasure)
+    text = String(_box_value(getfield(node, :text)))
+    font = _box_value(getfield(node, :font))
+    width, ascent, descent = compute_text_extent(measure, text, font)
+    left, right = 0, width
+    if reference isa ConcreteReference
+        head = get_reference_head(reference)
+        (head isa FieldReferenceStep && head.name == "text") || return nothing
+        range = get_reference_tail(reference)
+        (range isa ConcreteReference && get_reference_tail(range) isa EmptyReference) || return nothing
+        step = get_reference_head(range)
+        step isa RangeReferenceStep || return nothing
+        offsets = compute_caret_offsets(measure, text, font)
+        (0 <= step.start <= step.stop < length(offsets)) || return nothing
+        left, right = round(Int, offsets[step.start + 1]), round(Int, offsets[step.stop + 1])
+    end
+    ox, oy, sx, sy = frame
+    (x = round(Int, ox + sx * (_box_number(node, :x) + left)),
+     y = round(Int, oy + sy * _box_number(node, :y)),
+     width = round(Int, sx * (right - left)),
+     height = round(Int, sy * (ascent + descent)))
 end
 
 _box_value(value) = value isa AbstractCell ? _box_value(value[]) : value

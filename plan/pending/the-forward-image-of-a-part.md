@@ -159,9 +159,40 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   test) while the composite reports 62 by 63; a window below such a label
   stands at the bottom of the window. That is how the composite sizes its
   children, not a fault of the forward map, and it is not changed here.
-- [ ] 5. **Text** (Q4). `TextToGraphics` maps a text reference to the reference of the
-  printed line or segment, so a window opens below a part of a Julia or JSON
-  pane too.
+- [x] 5. **Text** (Q4). `TextToGraphics` maps a text reference as specifically as
+  possible. Decided with the owner (2026-09-29):
+  - **Q7. A text part is the segment that draws it** (way (a)), "but even more
+    specifically. If it's a range and there's a range in the graphics text then
+    use that. The mapping should be as specific as possible." A caret, and a
+    range that one segment holds, map to that segment's `GraphicsText` followed
+    by `text{a:b}`, the characters in it; a caret is a range of no width.
+  - **Q8. A part across segments is a region under the smallest node that holds
+    it.** "I think we can map that to a region in the graphics language that is
+    artificial, just like a point is. It's like a box under the smallest
+    graphics node that covers the whole image. This is the most specific
+    reference." `RegionReferenceStep(x, y, width, height)` of the graphics
+    package (Claude's name) is a box in the frame of the node before it. A range
+    across segments maps to the canvas of its line, or the stack of lines, and
+    the region of its rows, the same rows that its highlight draws.
+  Built: `find_reference_box` measures a text node and a range of it with a
+  `TextMeasure` (the font files by default, as every backend draws) and reads a
+  region; the text printer finds a segment's text node in its line by its place
+  and its text, because a fill comes before some texts; the span bases of both
+  spaces are counted once (`_compute_span_bases`), for the highlight and the
+  forward map. Found in the work: **a rule projection did not follow a route.**
+  `RuleIoMap` held its children but named none (`get_child_iomaps`), and the
+  reader that `@projection_template` emits read a change with a route at the top
+  of the rule, so an operation that a command carried to a Julia function came
+  back rooted at the whole document. Both now follow the route as every
+  container does; this also lets a routed gesture reach the part it names in a
+  Julia or JSON pane. The lazy printer of a `ListNode` text keeps no line stack,
+  so its forward map answers `nothing`. The command palette test now maps the
+  empty reference of its content forward, because the text answers the empty
+  reference for it, and so it reached a check that was always wrong:
+  `_strip_wrapper` asked `isa ElementReferenceStep`, a function that makes a
+  `RangeReferenceStep`, not a type. It now compares the step with
+  `ElementReferenceStep(1)`. The sweep matches the step 4 sweep, and the omnet
+  tests match their baseline.
 - [ ] 6. **A round trip test over the widget gallery.** For each part of each
   example: the forward reference reaches a printed node, and a point inside its box
   maps backward to the part or to a part inside it. This ties the two maps

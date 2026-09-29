@@ -269,7 +269,7 @@ function _strip_wrapper(reference)
     tail = reference.tail
     tail isa ConcreteReference || return nothing
     step = tail.head
-    (step isa ElementReferenceStep && step.index == 1) || return nothing
+    step == ElementReferenceStep(1) || return nothing
     tail.tail
 end
 

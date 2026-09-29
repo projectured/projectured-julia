@@ -494,4 +494,35 @@ press(text, k, key) = (op = read_intent(p, print_document(p, block(text, k)), Ke
 
 end # @testset "TextToGraphics empty line"
 
+# A text reference maps forward to the characters of the text node that draws it,
+# so the box of a part of a text is exact: here each character is 10 pixels wide.
+@testset "TextToGraphics maps a text reference to the characters that draw it" begin
+    measure = _test_measure(10, 18)
+    projection = TextToGraphics(measure = measure)
+    text_block = TextBlock(TextString("hello world", font_ubuntu_monospace_regular_20, color_black))
+    iomap = print_document(projection, text_block)
+    output = iomap.output
+    box_of(reference) = find_reference_box(output, map_reference_forward(projection, iomap, reference);
+                                           measure = measure)
+    # The caret before `world`, a range of no width.
+    caret = box_of(make_flat_caret_reference(6))
+    @test (caret.x, caret.width) == (60, 0)
+    # The characters of `world`.
+    world = box_of(make_flat_range_reference(6, 11))
+    @test (world.x, world.width) == (60, 50)
+    @test world.height > 0
+    # The text itself is its own canvas.
+    @test map_reference_forward(projection, iomap, EmptyReference()) == EmptyReference()
+    # A range across two visual lines maps to the region of its rows, after the
+    # canvas of its line group: 50 pixels wide, and as high as both rows.
+    two_lines = TextBlock(TextString("hello\nworld", font_ubuntu_monospace_regular_20, color_black))
+    two_iomap = print_document(projection, two_lines)
+    both = map_reference_forward(projection, two_iomap, make_flat_range_reference(0, 11))
+    @test last(collect(get_reference_steps(both))) isa RegionReferenceStep
+    box = find_reference_box(two_iomap.output, both; measure = measure)
+    @test (box.x, box.width) == (0, 50)
+    line = box_of(make_flat_range_reference(0, 5))
+    @test box.height == 2 * line.height
+end
+
 end # test_text_to_graphics

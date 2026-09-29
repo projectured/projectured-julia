@@ -183,6 +183,29 @@ end
     child_iomaps::Any                    # Cell or nothing (nodes; WIP)
 end
 
+# The child IoMaps of a rule, from its `child_iomaps` in any of the shapes a rule
+# keeps them in (a collection, named slots, or a prefix and a collection), so a
+# change with a route goes on to the child that the route reaches
+# (`read_routed_child`), as it does in any container. A rule with no child IoMaps
+# answers `nothing`, and reads a change with a route itself.
+function get_child_iomaps(iomap::RuleIoMap)
+    found = _collect_rule_child_iomaps!(Any[], iomap.child_iomaps)
+    isempty(found) ? nothing : found
+end
+
+function _collect_rule_child_iomaps!(found, value)
+    if value isa IoMap
+        push!(found, value)
+    elseif value isa AbstractCell
+        _collect_rule_child_iomaps!(found, value[])
+    elseif value isa Union{AbstractVector,Tuple,NamedTuple}
+        foreach(member -> _collect_rule_child_iomaps!(found, member), value)
+    elseif value isa AbstractDict
+        foreach(member -> _collect_rule_child_iomaps!(found, member), values(value))
+    end
+    found
+end
+
 # ── Path helpers (build the exact shapes @reference/@reference_case produce) ───
 
 # A whole-element selection typed `::T`: the folded terminal carrying T.
@@ -1354,7 +1377,8 @@ end
 The 4-arg reader [`@projection_template`](@ref) emits for each template projection. It
 offers this node's input domain the gesture *before* translating an operation the output
 layers already produced for it — the seam an `override` binding fires through — and
-otherwise behaves exactly like the generic bridge in `ProjectionModule`.
+otherwise behaves exactly like the generic bridge in `ProjectionModule`, which sends a
+change with a route on to the child that the route names.
 
 Keyed on the concrete projection type rather than on `RuleIoMap`: the transparent
 recursive and type-dispatching wrappers hand a leaf its own iomap
@@ -1362,6 +1386,10 @@ and already carry 4-arg methods of their own, so a method keyed on the iomap wou
 ambiguous with every one of them.
 """
 function read_template_intent(p, recursion, change::Intent, iomap)
+    # A change with a route goes on to the child that the route names, as it does
+    # in every container (`read_intent` of `Projection`).
+    change.route !== nothing && get_child_iomaps(iomap) !== nothing &&
+        return read_routed_child(recursion, change, iomap)
     if iomap isa RuleIoMap && change.operation !== nothing &&
        change.gesture isa Union{KeyPress, KeyDown}
         override = read_intent(p, iomap, ClaimedGesture(change.gesture, change.operation))

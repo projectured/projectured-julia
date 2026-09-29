@@ -29,7 +29,8 @@ using ..StyleModule
 # Imported to extend: this module adds a method to each of these.
 import ..ProjectionModule: print_document, read_intent, map_reference_forward, map_reference_backward
 
-export PointReferenceStep, find_reference_point, find_reference_box, find_node_reference
+export PointReferenceStep, RegionReferenceStep, find_reference_point, find_reference_box,
+       find_node_reference
 export GraphicsDocument, LayoutDirection, layout_none, layout_horizontal, layout_vertical,
        set_cell_computation!, hit_element_at, get_graphics_size, tessellate_spline, build_polyline_arrowhead,
        is_point_near_polyline, is_point_in_polygon
@@ -42,6 +43,7 @@ export map_operation_position, shift_operation_position
 
 
 include("PointReferenceStep.jl")
+include("RegionReferenceStep.jl")
 include("GraphicsDocument.jl")
 include("GraphicsCaching.jl")
 include("GraphicsToGraphics.jl")

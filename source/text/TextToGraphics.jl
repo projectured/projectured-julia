@@ -73,8 +73,122 @@ end
 _get_caret_x(measure::TextMeasure, text::AbstractString, font::StyleFont, position::Int) =
     round(Int, compute_caret_offsets(measure, text, font)[position + 1])
 
-function map_reference_forward(::TextToGraphics, iomap, reference)
-    return nothing
+# A text reference maps to the most specific reference of what draws it. A caret,
+# and a range that one segment holds, map to that segment's text node followed by
+# the characters in it: `…elements[k].text{a:b}`, where a caret is a range of no
+# width. A range that covers several segments maps to the smallest node that
+# holds all of its rows (the canvas of its line, or the stack of lines) followed
+# by a `RegionReferenceStep`: the box of its rows, as its highlight draws them.
+# The reference is a range of the caret space (a caret or a range of characters)
+# or of the box space (a whole node), as `_highlight_char_range` reads them. The
+# text node of a segment is found in the canvas of its line by its place and its
+# text, because a line puts a fill before some texts, so the table of segments is
+# not in step with the elements of a line.
+function map_reference_forward(p::TextToGraphics, iomap, reference)
+    iomap isa TextToGraphicsIoMap || return nothing
+    reference isa Reference || return nothing
+    reference = strip_reference_types(reference)
+    reference isa EmptyReference && return EmptyReference()
+    range = _find_text_forward_range(iomap.input, reference)
+    range === nothing && return nothing
+    start, stop, space = range
+    box_bases, caret_bases = _compute_span_bases(iomap.input)
+    bases = space === :caret ? caret_bases : box_bases
+    for segment in unwrap_cell(iomap.char_to_coord)
+        isempty(segment.text) && continue
+        base = get(bases, segment.span_path, nothing)
+        base === nothing && continue
+        if start == stop
+            (segment.char_start <= start - base <= segment.char_end) || continue
+            a = b = start - base
+        else
+            a = max(start, base + segment.char_start) - base
+            b = min(stop, base + segment.char_end) - base
+            (a < b && !_hl_piece_blank(segment, a, b)) || continue
+        end
+        start == stop || (base + segment.char_start <= start && stop <= base + segment.char_end) ||
+            return _map_text_region(p, iomap, bases, start, stop)
+        node = _find_segment_node(iomap, segment)
+        node === nothing && return nothing
+        return concat_references(node,
+            ConcreteReference(FieldReferenceStep("text"),
+                ConcreteReference(RangeReferenceStep(a - segment.char_start, b - segment.char_start),
+                                  EmptyReference())))
+    end
+    nothing
+end
+
+# The region of the rows of the range `start:stop` (see `_compute_span_rows`),
+# after the smallest node that holds them: the canvas of their line, when one line
+# holds all of them, and else the stack of lines. The rows are in the frame of the
+# stack; a line starts where the one after it ends.
+function _map_text_region(p::TextToGraphics, iomap::TextToGraphicsIoMap, bases, start::Int, stop::Int)
+    rows = _compute_span_rows(unwrap_cell(iomap.char_to_coord), bases, start, stop, p)
+    isempty(rows) && return nothing
+    left = minimum(row[1] for row in rows)
+    top = minimum(row[2] for row in rows)
+    right = maximum(row[1] + row[3] for row in rows)
+    bottom = maximum(row[2] + row[4] for row in rows)
+    stack = ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(1, 2),
+                                                                                 EmptyReference()))
+    top_elements = unwrap_cell(getfield(unwrap_cell(iomap.output), :elements))
+    lines = length(top_elements) >= 2 ? unwrap_cell(getfield(unwrap_cell(top_elements[2]), :elements)) : nothing
+    if lines isa CellVector
+        starts = Int[Int(unwrap_cell(getfield(unwrap_cell(lines[k]), :y))) for k in 1:length(lines)]
+        line = findlast(y -> y <= top, starts)
+        if line !== nothing && (line == length(starts) || bottom <= starts[line + 1])
+            line_top = starts[line]
+            return concat_references(stack,
+                ConcreteReference(FieldReferenceStep("elements"),
+                    ConcreteReference(RangeReferenceStep(line - 1, line),
+                        ConcreteReference(RegionReferenceStep(left, top - line_top, right - left, bottom - top),
+                                          EmptyReference()))))
+        end
+    end
+    concat_references(stack, ConcreteReference(RegionReferenceStep(left, top, right - left, bottom - top),
+                                               EmptyReference()))
+end
+
+# The range of a text reference, `(start, stop, space)`: a caret or a range of
+# characters in the caret space, or a whole node in the box space.
+function _find_text_forward_range(text::TextBlock, reference)
+    if reference isa ConcreteReference && reference.head isa TextSpanReferenceStep &&
+       reference.tail isa EmptyReference
+        return (reference.head.start, reference.head.stop, :box)
+    end
+    flat = _text_flat_selection(text, reference)
+    flat === nothing ? nothing : (flat[1], flat[2], :caret)
+end
+
+# The reference of the text node that draws `segment`: the canvas of each line
+# is in the stack of lines, the second element of the text's canvas, and the node
+# is the text of the segment at its place in that line.
+function _find_segment_node(iomap::TextToGraphicsIoMap, segment::SegmentCoordinate)
+    top = unwrap_cell(getfield(unwrap_cell(iomap.output), :elements))
+    length(top) >= 2 || return nothing
+    stack = unwrap_cell(top[2])
+    stack isa GraphicsCanvas || return nothing
+    lines = unwrap_cell(getfield(stack, :elements))
+    lines isa CellVector || return nothing
+    for line_index in 1:length(lines)
+        line = unwrap_cell(lines[line_index])
+        line isa GraphicsCanvas || continue
+        top_of_line = segment.y - Int(unwrap_cell(getfield(line, :y)))
+        elements = unwrap_cell(getfield(line, :elements))
+        for k in 1:length(elements)
+            node = unwrap_cell(elements[k])
+            node isa GraphicsText || continue
+            Int(unwrap_cell(getfield(node, :x))) == segment.x || continue
+            String(unwrap_cell(getfield(node, :text))) == segment.text || continue
+            (top_of_line <= Int(unwrap_cell(getfield(node, :y))) < top_of_line + segment.height) || continue
+            return ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(1, 2),
+                ConcreteReference(FieldReferenceStep("elements"),
+                    ConcreteReference(RangeReferenceStep(line_index - 1, line_index),
+                        ConcreteReference(FieldReferenceStep("elements"),
+                            ConcreteReference(RangeReferenceStep(k - 1, k), EmptyReference()))))))
+        end
+    end
+    nothing
 end
 
 # A point of the canvas maps to the caret nearest to it: the segment on the band
@@ -765,16 +879,13 @@ end
 #   • The box space, in which a `TextSpanReferenceStep` box is expressed, counts
 #     them as 0: `WordWrapping` splices soft newlines into the block at wrap
 #     points, and a box must stay invariant under them.
-function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::Cell)
-    cursor_pos = get_flat_cursor_coordinate(styled, sel)
-    coord_map = SegmentCoordinate[]
+# The flat base of each span of `styled`, in the box space and in the caret space
+# (see `_highlight_char_range`): where the span's first character is counted.
+function _compute_span_bases(styled::TextBlock)
     box_offsets = Dict{SpanPath,Int}()
     caret_offsets = Dict{SpanPath,Int}()
-    cursor = nothing
-    offset = Float64(p.start_y)   # the real top of the next group
     box = 0
     caret = 0
-
     for group in _line_groups(styled)
         group.break_before && (box += 1; caret += 1)
         box += group.indentation
@@ -786,6 +897,18 @@ function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::
             caret += get_flat_length(span)
         end
         group.newline === nothing || (caret += 1)
+    end
+    (box_offsets, caret_offsets)
+end
+
+function _layout_overlay(p::TextToGraphics, styled::TextBlock, sel, block_font::Cell)
+    cursor_pos = get_flat_cursor_coordinate(styled, sel)
+    coord_map = SegmentCoordinate[]
+    box_offsets, caret_offsets = _compute_span_bases(styled)
+    cursor = nothing
+    offset = Float64(p.start_y)   # the real top of the next group
+
+    for group in _line_groups(styled)
         laid = _layout_group(p, group, round(Int, offset), cursor_pos, false, block_font)
         append!(coord_map, laid.coord_map)
         cursor === nothing && (cursor = laid.cursor)
