@@ -1,4 +1,4 @@
-# A vertical and a horizontal layout whose children are a list.
+# A vertical, a horizontal and a grid layout whose children are a list.
 #
 # The cost of such a layout is the children a viewport shows, so the first test
 # counts children built; the rest read where a child landed on the screen, where
@@ -10,7 +10,9 @@
 A `VerticalLayout` and a `HorizontalLayout` of a `ListNode` draw the children
 that a pane shows, place each after its neighbour, stop the pane at the ends of
 the list in their own direction, and root a press at `children[k]`, counted
-from the head.
+from the head. A `GridLayout` of a `ListNode` of rows does the same with its
+rows, places the cells of a row in its columns, and roots a press at
+`children[k][c]`.
 """
 function test_layout_list()
 @testset "a layout whose children are a list" begin
@@ -144,6 +146,79 @@ end
     step = op.path.tail.tail.head               # .content.children[k]
     @test step isa RangeReferenceStep
     @test step.start == -1                      # child 9 is one before the head: k = 0
+end
+
+# A list of `count` rows of three labels each, reaching both ways from row `at`.
+function make_rows(count::Int; at::Int = 1, built = Ref(0))
+    function make_node(i, before, after)
+        built[] += 1
+        node = ListNode(Any[WidgetLabel("r$(i) c$(c)") for c in 1:3])
+        if after === nothing
+            set_cell_computation!(getfield(node, :next),
+                                  () -> i < count ? make_node(i + 1, node, nothing) : nothing)
+        else
+            set_cell_value!(getfield(node, :next), after)
+        end
+        if before === nothing
+            set_cell_computation!(getfield(node, :prev),
+                                  () -> i > 1 ? make_node(i - 1, nothing, node) : nothing)
+        else
+            set_cell_value!(getfield(node, :prev), before)
+        end
+        node
+    end
+    make_node(at, nothing, nothing)
+end
+grid(rows) = GridLayout(rows, 3; column_policies = Any[Fixed(90), Fixed(90), Fixed(90)],
+                        horizontal_gap = 6, vertical_gap = 4)
+
+@testset "a grid of ten million rows builds a screenful and places cells in columns" begin
+    built = Ref(0)
+    pane = WidgetScrollPane(grid(make_rows(10_000_000; built)); size = Point2D(400, 200))
+    io = print_document(rec, nothing, pane, context())
+    @test io.content_iomap isa GridLayoutListIoMap
+    Int(viewport(io).content.y)
+    @test built[] < 30
+    (x11, y11) = place(io, "r1 c1")
+    (x12, y12) = place(io, "r1 c2")
+    (x21, y21) = place(io, "r2 c1")
+    @test y12 == y11
+    @test x12 - x11 == 90 + 6                  # a column and a gap
+    @test x21 == x11
+    @test y21 > y11
+    @test Int(io.content_iomap.col_x[2][]) == 96
+    @test built[] < 100
+end
+
+@testset "a grid stops the pane at its last row" begin
+    count = 1_000_000
+    pane = WidgetScrollPane(grid(make_rows(count; at = count)); size = Point2D(400, 200))
+    io = print_document(rec, nothing, pane, context())
+    body = viewport(io)
+    head = io.content_iomap.output.elements.value
+    @test Int(body.content.y) + Int(head.y) + Int(head.h) == Int(body.h)
+    @test wheel(io, 0, -1) === nothing
+    @test wheel(io, 0, 1) !== nothing
+end
+
+@testset "a press in a grid is rooted at the cell's row from the head and its column" begin
+    pane = WidgetScrollPane(grid(make_rows(20; at = 10)); size = Point2D(400, 200),
+                            scroll_position = Point2D(0, -40))
+    io = print_document(rec, nothing, pane, context())
+    (x, y) = place(io, "r9 c2")
+    op = read(io, MousePress(:left, x + 2, y + 2, alt; time = 0.0))
+    @test op isa ReplaceSelectionOperation
+    rows_step = op.path.tail.tail.head          # .content.children[k][c]
+    column_step = op.path.tail.tail.tail.head
+    @test rows_step isa RangeReferenceStep && rows_step.start == -1
+    @test column_step isa RangeReferenceStep && column_step.start == 1
+end
+
+@testset "a grid of a list needs a width for every column and no weight on its rows" begin
+    @test_throws ErrorException print_document(rec, nothing,
+        GridLayout(make_rows(3), 3; column_policies = Any[Fixed(90), Content, Fixed(90)]), context())
+    @test_throws ErrorException print_document(rec, nothing,
+        GridLayout(make_rows(3), 3; column_policy = Fixed(90), row_policy = Fill), context())
 end
 
 @testset "a list needs an extent across and no weight along" begin

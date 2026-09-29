@@ -295,6 +295,30 @@ function GridLayout(children::Vector, columns::Integer;
                Cell(nothing))
 end
 
+# A grid of the rows of a list, which it draws lazily: the rows that a viewport
+# shows, walked from the head. Each row is a vector of the documents of its
+# cells, one for each column. See `GridList.jl`.
+function GridLayout(rows::ListNode, columns::Integer;
+                    horizontal_align::Symbol=:left,
+                    vertical_align::Symbol=:top,
+                    horizontal_gap::Integer=0,
+                    vertical_gap::Integer=0,
+                    column_align=Symbol[],
+                    column_policy::SizePolicy=Content,
+                    row_policy::SizePolicy=Content,
+                    column_policies=Any[],
+                    column_offers=Bool[])
+    columns >= 1 || error("GridLayout: columns must be >= 1")
+    GridLayout(Cell(rows), Cell(Int(columns)),
+               Cell(horizontal_align), Cell(vertical_align),
+               Cell(Int(horizontal_gap)), Cell(Int(vertical_gap)),
+               Cell(collect(column_align)),
+               Cell(column_policy), Cell(row_policy),
+               Cell(collect(Any, column_policies)), Cell(Any[]),
+               Cell(collect(Bool, column_offers)),
+               Cell(nothing))
+end
+
 """
     FormLayout(rows; label_align=:right, horizontal_gap=12, vertical_gap=8)
 

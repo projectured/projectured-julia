@@ -1239,6 +1239,9 @@ end
 
 function print_document(p::GridLayoutToGraphicsCanvas,
                           recursion, doc::GridLayout, ctx)
+    # The type of `children` says which grid this is: a list of rows draws the
+    # rows a viewport shows, a vector of cells draws them all.
+    doc.children isa ListNode && return _print_grid_list(p, recursion, doc, ctx)
     n = length(doc.children)
     if n == 0
         return GridLayoutIoMap(p, doc, _empty_canvas(), Cell(Tuple{Cell,Cell,Any}[]),
