@@ -87,7 +87,7 @@ Facts from a search on 2026-09-28, with the two central ones read again:
   Done: `RecursiveProjection`, `PredicateDispatchingProjection` and
   `SwitchingProjection` delegate forward as they delegate backward. The wide
   sweep has the counts of the sweep of 9b/9c in every suite.
-- [ ] 3. **The widgets, the layouts and the screen map by index.** A container
+- [x] 3. **The widgets, the layouts and the screen map by index.** A container
   maps its own step to the step of its child's node in its output, and a leaf
   answers the empty reference for itself. The helpers that add points
   (`shift_child_image`, `_self_point`, the point in `_map_window`) change to
@@ -116,12 +116,16 @@ Facts from a search on 2026-09-28, with the two central ones read again:
     steps to their children's canvases too.
   - **The forward helpers strip the node types first**, because a selection is
     a typed reference, whose type steps are no steps of the mapping.
-  - **The rows of a list, a tree and an accordion have no node of their own.**
-    The list draws the texts and the panels of its rows straight into its
-    canvas, the tree draws a row when the renderer reaches it, and the accordion
-    draws its titles and chevrons into its canvas. A row needs a canvas of its
-    own to have an image. This is open: it changes what the three printers
-    output. The round trip test marks these cases `@test_broken`.
+  - **The rows of a list and the headers of an accordion had no node of their
+    own**: the list drew the texts and the panels of its rows straight into its
+    canvas, and the accordion its titles and chevrons. A row needs a canvas of
+    its own to have an image. (The tree was thought to be the same, but it
+    already makes a canvas per row of the open tree, when the renderer first
+    reads it; it lacked only the forward map.) **Settled:** each row gets a canvas of its own, which
+    holds the panels and the text of the row, and a row maps to its canvas
+    (Claude's recommendation; owner 2026-09-29: "I agree"). The backward maps
+    keep finding a row from its place. Until it is built, the round trip test
+    marks these cases `@test_broken`.
   - **Tests of the point model change to the reference model.** The anchor test
     (`test_anchor_point`), a case of the table list and the round trip case of
     math asserted that a forward map answers a `PointReferenceStep`; they read
@@ -131,7 +135,16 @@ Facts from a search on 2026-09-28, with the two central ones read again:
     failures and 4 errors of the baseline; 7 broken: +6 row cases) and math (173,
     as before) after the tests of the point model changed; the naming guard and
     the documentation check pass; the omnet tests of step 8 pass (186 in 8).
-  Committed without the rows, which wait for the owner.
+  Committed without the rows. 3b: the list and the accordion give each row
+  and each header a canvas of its own, at its place, with the parts of the row
+  inside it; `items[k]` maps to that canvas, found by identity after the parts
+  of the box. The tree maps a node by its index in the open tree to its row
+  canvas, the last of its elements, and a node under a closed one to `nothing`.
+  Checks of 3b: the round trip test passes in full (22); the substrate suite has
+  the failures and errors of the baseline, and 91 more passes in the sweeps over
+  the examples, which assert per output node and now meet a canvas per row; the
+  shell and application suites have their counts; the omnet tests of step 8
+  pass (186 in 8).
 - [ ] 4. **The place of a part.** A function reads the box of the printed node
   at a forward reference, with the origin of the window, and `find_part_point`
   becomes the place below that box (Q3). The tooltip window and the context

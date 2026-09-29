@@ -57,11 +57,8 @@ end
 
 @testset "a list maps an item to its row" begin
     list = WidgetList(Any["a", "b", "c", "d"])
-    # @broken: a row of a list has no node of its own: the list draws the texts
-    # and the panels of its rows straight into its canvas
-    # (plan/pending/the-forward-image-of-a-part.md, step 3).
-    @test_broken _returns(list, _path(FieldReferenceStep("items"), _at(1)))
-    @test_broken _returns(list, _path(FieldReferenceStep("items"), _at(2)))
+    @test _returns(list, _path(FieldReferenceStep("items"), _at(1)))
+    @test _returns(list, _path(FieldReferenceStep("items"), _at(2)))
 end
 
 @testset "a split pane maps into each pane" begin
@@ -91,21 +88,19 @@ end
 @testset "a tree maps a node to its row" begin
     tree = WidgetTree(Any[WidgetTreeNode(:folder, "src", Any[WidgetTreeNode(:file, "app.jl")]),
                           WidgetTreeNode(:file, "README.md")]; expanded = Set([[1]]))
-    # @broken: a row of a tree has no node of its own: the renderer reads the
-    # node of a row when it draws it (plan/pending/the-forward-image-of-a-part.md,
-    # step 3).
-    @test_broken _returns(tree, _path(FieldReferenceStep("roots"), _at(1)))
-    @test_broken _returns(tree, _path(FieldReferenceStep("roots"), _at(1),
-                                      FieldReferenceStep("children"), _at(1)))
+    @test _returns(tree, _path(FieldReferenceStep("roots"), _at(1)))
+    @test _returns(tree, _path(FieldReferenceStep("roots"), _at(1),
+                               FieldReferenceStep("children"), _at(1)))
+    # A node under a closed one has no row, and so no image.
+    closed = WidgetTree(Any[WidgetTreeNode(:folder, "src", Any[WidgetTreeNode(:file, "app.jl")])])
+    @test _box(closed, _path(FieldReferenceStep("roots"), _at(1),
+                             FieldReferenceStep("children"), _at(1))) === nothing
 end
 
 @testset "an accordion maps an item to its header" begin
     accordion = WidgetAccordion([("First?", "Yes, first."), ("Second?", "No.")])
-    # @broken: a header of an accordion has no node of its own: the accordion
-    # draws its titles and chevrons straight into its canvas
-    # (plan/pending/the-forward-image-of-a-part.md, step 3).
-    @test_broken _returns(accordion, _path(FieldReferenceStep("items"), _at(1)))
-    @test_broken _returns(accordion, _path(FieldReferenceStep("items"), _at(2)))
+    @test _returns(accordion, _path(FieldReferenceStep("items"), _at(1)))
+    @test _returns(accordion, _path(FieldReferenceStep("items"), _at(2)))
 end
 
 @testset "a tab that is not displayed has no image" begin

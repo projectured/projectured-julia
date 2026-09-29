@@ -7445,6 +7445,7 @@ WidgetListToGraphicsCanvas(theme::WidgetTheme; measure,
     output::Any
     row_height::Any
     control_width::Any
+    rows::Any
 end
 
 function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList, ctx)
@@ -7476,26 +7477,48 @@ function print_document(p::WidgetListToGraphicsCanvas, recursion, w::WidgetList,
         row_selected_color = _get_state_color(p, w, :row; state = :selected)
         elements = Any[]
         _push_box_parts!(elements, box, colors, content_width, content_height; radius)
+        # Each row is a canvas of its own, which holds the row's tint, its band
+        # and its text, so a row is a node that a reference reaches.
+        rows = Any[]
         for (i, it) in enumerate(items)
-            y = content_y + (i - 1) * row_height
+            row = Any[]
             # The hover tint sits UNDER the selection band, so hovering the
             # selected row does not repaint it — same tint the tree and table use.
             if i == hov && i != sel
-                _push_state_layer!(elements, p.layer_hovered_color, content_x, y, content_width, row_height)
+                _push_state_layer!(row, p.layer_hovered_color, 0, 0, content_width, row_height)
             end
             if i == sel
-                _push_panel!(elements, content_x, y, content_width, row_height; fill = row_selected_color)
+                _push_panel!(row, 0, 0, content_width, row_height; fill = row_selected_color)
             end
-            _push_text!(elements, p.measure, label.font, string(it), content_x + row_pad_x, y + row_pad_y, label.color)
+            _push_text!(row, p.measure, label.font, string(it), row_pad_x, row_pad_y, label.color)
+            push!(rows, GraphicsCanvas(row; x = content_x, y = content_y + (i - 1) * row_height,
+                                       w = content_width, h = row_height))
         end
-        (width=outer_width, height=outer_height, row_height=row_height, elements=elements)
+        append!(elements, rows)
+        (width=outer_width, height=outer_height, row_height=row_height, elements=elements, rows=rows)
     end)
     canvas = _reactive_canvas_cell(_origin(position)..., build)
     WidgetListToGraphicsCanvasIoMap(p, w, canvas,
-        Cell(@computation build[].row_height), Cell(@computation build[].width))
+        Cell(@computation build[].row_height), Cell(@computation build[].width),
+        Cell(@computation build[].rows))
 end
 
-map_reference_forward(::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap, reference) = _map_child_forward(iomap, reference)
+# `items[k]` is the canvas of row `k`, found by identity among the list's
+# elements, after the parts of the box.
+function map_reference_forward(::WidgetListToGraphicsCanvas, iomap::WidgetListToGraphicsCanvasIoMap, reference)
+    reference isa Reference || return nothing
+    reference = strip_reference_types(reference)
+    reference isa ConcreteReference || return _map_self_forward(reference)
+    head = reference.head
+    (head isa FieldReferenceStep && head.name == "items") || return nothing
+    rest = reference.tail
+    (rest isa ConcreteReference && rest.head isa RangeReferenceStep && rest.tail isa EmptyReference) ||
+        return nothing
+    rows = unwrap_cell(iomap.rows)
+    k = rest.head.start + 1
+    1 <= k <= length(rows) || return nothing
+    find_node_reference(iomap.output, rows[k]; depth = 1)
+end
 map_reference_forward(::WidgetListToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
 # A point on a row maps to that item, the reference that a click there selects.
 function map_reference_backward(p::WidgetListToGraphicsCanvas, iomap, reference)
@@ -7716,6 +7739,7 @@ WidgetAccordionToGraphicsCanvas(theme::WidgetTheme; measure,
     output::Any
     header_bounds::Any
     body_entry::Any
+    headers::Any
 end
 
 # What a route reaches through this container: see `_collect_child_iomaps`.
@@ -7791,22 +7815,28 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
         # size before the row elements that draw over it.
         row_elements = Any[]
         header_bounds = Tuple{Int,Int}[]
+        # Each header is a canvas of its own, which holds the title and the
+        # chevron of its item, so a header is a node that a reference reaches.
+        headers = Any[]
         body_entry = nothing
         y = 0
         divider_width = max(1, _sc(divider_stroke.width))
         for (i, item) in enumerate(w.items)
             _, title_height = size_of(titles[i], item.title, title_style.font)
             row_height = title_height + 2item_padding_y
+            header_elements = Any[]
             if titles[i] === nothing
-                _push_text!(row_elements, p.measure, title_style.font, string(item.title),
-                           content_x + item_padding_x, content_y + y + item_padding_y, title_style.color)
+                _push_text!(header_elements, p.measure, title_style.font, string(item.title),
+                           item_padding_x, item_padding_y, title_style.color)
             else
-                push!(row_elements, _make_canvas(content_x + item_padding_x, content_y + y + item_padding_y,
-                                                 Any[titles[i].output]))
+                push!(header_elements, _make_canvas(item_padding_x, item_padding_y, Any[titles[i].output]))
             end
-            _push_chevron!(row_elements, content_x + content_width - item_padding_x - chevron_size,
-                           content_y + y + row_height ÷ 2, chevron_size,
-                           i == expanded ? :down : :right, chevron_color)
+            _push_chevron!(header_elements, content_width - item_padding_x - chevron_size,
+                           row_height ÷ 2, chevron_size, i == expanded ? :down : :right, chevron_color)
+            header = GraphicsCanvas(header_elements; x = content_x, y = content_y + y,
+                                    w = content_width, h = row_height)
+            push!(row_elements, header)
+            push!(headers, header)
             push!(header_bounds, (content_y + y, content_y + y + row_height))
             y += row_height
             if i == expanded && body_document !== nothing
@@ -7830,11 +7860,30 @@ function print_document(p::WidgetAccordionToGraphicsCanvas, recursion, w::Widget
         _push_box_parts!(elements, box, colors, content_width, outer_height - inset_height)
         append!(elements, row_elements)
         (width=outer_width, height=outer_height, elements=elements,
-         header_bounds=header_bounds, body_entry=body_entry)
+         header_bounds=header_bounds, body_entry=body_entry, headers=headers)
     end)
     WidgetAccordionToGraphicsCanvasIoMap(p, w, _reactive_canvas_cell(_origin(position)..., build),
                                          Cell(@computation build[].header_bounds),
-                                         Cell(@computation build[].body_entry))
+                                         Cell(@computation build[].body_entry),
+                                         Cell(@computation build[].headers))
+end
+
+# `items[i]` is the canvas of the header of item `i`, found by identity among the
+# accordion's elements, after the parts of the box.
+function map_reference_forward(::WidgetAccordionToGraphicsCanvas, iomap::WidgetAccordionToGraphicsCanvasIoMap,
+                               reference)
+    reference isa Reference || return nothing
+    reference = strip_reference_types(reference)
+    reference isa ConcreteReference || return _map_self_forward(reference)
+    head = reference.head
+    (head isa FieldReferenceStep && head.name == "items") || return nothing
+    rest = reference.tail
+    (rest isa ConcreteReference && rest.head isa RangeReferenceStep && rest.tail isa EmptyReference) ||
+        return nothing
+    headers = unwrap_cell(iomap.headers)
+    i = rest.head.start + 1
+    1 <= i <= length(headers) || return nothing
+    find_node_reference(iomap.output, headers[i]; depth = 1)
 end
 
 map_reference_forward(::WidgetAccordionToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
@@ -9098,6 +9147,23 @@ function print_document(p::WidgetTreeToGraphicsCanvas, recursion, w::WidgetTree,
                             Cell(@computation Int32(geometry[].total_h + inset_height)),
                             elements, layout_none, true, Cell(nothing))
     WidgetTreeToGraphicsCanvasIoMap(p, w, canvas, geometry, width)
+end
+
+# A row of the tree is a canvas of its own in the canvas of the rows, the last of
+# the tree's elements; a node maps to its row by its index in the open tree. A node
+# under a closed one has no row, and so no image.
+function map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap::WidgetTreeToGraphicsCanvasIoMap, reference)
+    reference isa Reference || return nothing
+    reference = strip_reference_types(reference)
+    reference isa ConcreteReference || return _map_self_forward(reference)
+    path = _wtree_ref_path(reference)
+    path === nothing && return nothing
+    row = get(unwrap_cell(iomap.geometry).index, path, nothing)
+    row === nothing && return nothing
+    last = length(unwrap_cell(getfield(unwrap_cell(iomap.output), :elements)))
+    ConcreteReference(FieldReferenceStep("elements"), ConcreteReference(RangeReferenceStep(last - 1, last),
+        ConcreteReference(FieldReferenceStep("elements"),
+            ConcreteReference(RangeReferenceStep(row - 1, row), EmptyReference()))))
 end
 
 map_reference_forward(::WidgetTreeToGraphicsCanvas, iomap, reference) = _map_child_forward(iomap, reference)
