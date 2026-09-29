@@ -97,8 +97,10 @@ domain — fills in:
   `nothing`.
 - **`is_collection_field_type`** and **`get_cell_layout_field_type`** — asked by
   `@document` at expansion, keyed on the symbol of a declared field type. A
-  collection type of a higher package registers its name, so the macro wraps a raw
-  vector in it, and the document layer names no concrete collection type.
+  collection type of a higher package registers its name. The macro then wraps a
+  raw vector in that collection, and the cell layout of a field declared as a
+  `Vector` holds the reactive collection. So the document layer names no concrete
+  collection type.
 
 `@document` itself has more parts: the layout list, which says which layouts a
 schema emits, and `@document_preset`, which fixes one layout list for a package.
@@ -207,9 +209,9 @@ copy_document(policy::DuplicatePolicy, form::EvaluatorForm) =
 ```
 
 **An action that a duplicate shares receives the document it acts on; it does
-not capture it.** Then one function serves the original and its duplicate. An `Action`
-declares no duplicate, and a button's duplicate shares it, as every control
-that shows one command does.
+not capture it.** Then one function serves the original and its duplicate. An
+`Action` declares no duplicate, and a button's duplicate shares it, as every
+control that shows one command does.
 
 ## The reflection walk
 
