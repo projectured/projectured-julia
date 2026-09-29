@@ -452,7 +452,23 @@ TMPDIR=/var/tmp/projectured-release JULIA_IMAGE_THREADS=2 JULIA_NUM_PRECOMPILE_T
   > /var/tmp/projectured-release/build.log 2>&1
 ```
 
-- [ ] The relocation test and the program check pass.
+- [x] The relocation test and the program check pass. **A test build, on
+      2026-09-30** (commit `28ce34357`, `--distribution --filter-stdlibs`),
+      with the stand-in of R3a and the fonts of R17, but not yet the licence
+      texts of Julia and its libraries (A2) or the source archive (R18), so
+      its archive is not the release one. About 22 minutes. Bundle 1,149 MB
+      (1,558 on 2026-09-17), artifacts 99 MB (577), libraries 290 MB, archive
+      306.3 MB (437), SHA-256 `583c2786…411c`. The copy started with no depot
+      in 0.34 s, and the program check read the web client, the fonts and the
+      guides from the bundle.
+
+      **`--filter-stdlibs` did not shorten the list of R18.** It filters the
+      standard libraries in the system image, but PackageCompiler copies the
+      `lib/julia` of Julia whole: `libgit2`, `libssh2`, `libcurl`, OpenBLAS and
+      the rest are all there, and `7z` in `libexec/julia`. So the source archive
+      of R18 covers alsa, GMP, MPFR, the GCC runtime (`libgcc_s`, `libstdc++`,
+      `libgfortran`, `libgomp`, `libatomic`, `libssp`, `libquadmath`),
+      libgit2, 7-Zip and libjulia.
 - [ ] Record in this plan: the wall time, the peak memory, the bundle size, the
       archive size and the SHA-256 digest that the build prints.
 - [ ] Write the digest to `<archive>.sha256`, beside the archive.
